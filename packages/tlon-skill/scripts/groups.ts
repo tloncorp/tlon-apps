@@ -116,6 +116,8 @@ function generateGroupSlug(): string {
 
 const GROUPS_HELP = `Usage: tlon groups <command>
 
+The Tlon Messenger app calls groups "workspaces".
+
 Commands:
   list
   create "Group Name" [--description "..."]

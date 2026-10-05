@@ -32,6 +32,10 @@ import {
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
 import {
+  beginCronSilenceObservation,
+  recordCronSilenceOutput,
+} from './src/cron-silence.js';
+import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
@@ -1004,6 +1008,7 @@ export default defineBundledChannelEntry({
           label: 'Tlon CLI',
           description:
             'Tlon/Urbit API for reading data and administration: activity, Buckets shared files, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
+            'The Tlon Messenger app calls groups "workspaces": a request to create, join, or manage a workspace is about a Tlon group, so use `groups` commands (`groups create-owned` to make one for someone). It means your own workspace files only when the person is plainly talking about files, e.g. by naming SOUL.md. ' +
             'Commands are argument strings, not shell scripts: omit the leading tlon, pipes, and redirections. Relative file paths use the active agent workspace. Use --body <file> for notes or upload <file>; --stdin is unavailable. ' +
             'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser needs login, address, or card information from its owner, use `browser handoff <session_id>` with the sess_ handle from browser_session_create to send the owner the secure native form. The service resolves its signed link; never supply or reconstruct a viewer URL. ' +
             '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
@@ -1549,19 +1554,24 @@ export default defineBundledChannelEntry({
       await ensureCronContextLens(ctx);
     };
     api.on('agent_turn_prepare', async (_event, ctx) => {
+      beginCronSilenceObservation(ctx);
       // Cron has no active Tlon turn recorder, so its output trace stays nullable.
       if (ctx.trigger !== 'cron') {
         recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
       }
       await onCronAgentHook(ctx);
     });
-    api.on('model_call_started', async (_event, ctx) => onCronAgentHook(ctx));
+    api.on('model_call_started', async (_event, ctx) => {
+      beginCronSilenceObservation(ctx);
+      await onCronAgentHook(ctx);
+    });
 
     // Background lenses normally finalize on tool-result idle; agent_end
     // re-arms the window so runs that end with model output (no trailing
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
-    api.on('agent_end', (_event, ctx) => {
+    api.on('agent_end', (event, ctx) => {
+      recordCronSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
       if (!contextLensEnabled) {
         return;
