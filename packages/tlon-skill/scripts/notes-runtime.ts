@@ -15,15 +15,9 @@ import { commandError, errorMessage } from './commands/command';
 import type { NotesDeps } from './commands/notes';
 import { mapGroupChannelIds } from './notes-channel-runtime';
 import type { NotesPendingWriteErrorLike } from './notes-pending-write';
+import { createProcessCommandDeps } from './runtime-deps';
 
 const STDIN_TIMEOUT_MS = 30_000;
-
-function createProcessCommandDeps() {
-  return {
-    stdout: (text: string) => process.stdout.write(text),
-    stderr: (text: string) => process.stderr.write(text),
-  };
-}
 
 async function readStdin(): Promise<string> {
   return new Promise<string>((resolve, reject) => {

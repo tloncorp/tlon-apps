@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { useCurrentUserId } from '../contexts/appDataContext';
-import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
+import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { useIsAdmin } from '../utils';
 import { ProfileSheet } from './ProfileSheet';
 
@@ -47,26 +47,27 @@ export function GroupMemberProfileSheet({
     [groupMembers, selectedContact]
   );
 
-  // Local "is the parent sheet open" state. Controlling it (rather than
-  // hardcoding `open={true}`) lets us trigger Gorhom's dismiss animation on
-  // the parent BottomSheetModal before signalling the caller to unmount via
-  // `onDismiss`. Without this, the parent's React component would be torn
-  // down while its Gorhom queue entry was still at a visible snap point,
-  // leaving a visible "orphan" sheet — the same class of bug we just fixed
-  // for the nested role picker (TLON-5891).
+  // Keep the parent mounted until the native dismissal animation finishes,
+  // then signal the caller to unmount the React subtree.
   const [parentOpen, setParentOpen] = useState(true);
-  const { closeAfterAnimation, cancel: cancelDismiss } =
-    useSheetCloseAfterAnimation();
+  const {
+    dismissThenRun,
+    onDismissed,
+    cancel: cancelDismiss,
+    presentationKey,
+  } = useSheetDismissalAction({
+    open: parentOpen,
+    onOpenChange: setParentOpen,
+  });
 
   const dismiss = useCallback(
     (afterDismiss?: () => void) => {
-      setParentOpen(false);
-      closeAfterAnimation(() => {
+      dismissThenRun(() => {
         onDismiss();
         afterDismiss?.();
       });
     },
-    [closeAfterAnimation, onDismiss]
+    [dismissThenRun, onDismiss]
   );
 
   const handlePressGoToProfile = useCallback(() => {
@@ -91,7 +92,9 @@ export function GroupMemberProfileSheet({
 
   return (
     <ProfileSheet
+      key={`${selectedContact}:${presentationKey}`}
       open={parentOpen}
+      onNativeDismissed={onDismissed}
       onOpenChange={(open) => {
         if (!open) {
           dismiss();

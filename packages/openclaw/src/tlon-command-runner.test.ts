@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  DEFAULT_BUCKETS_CLI_TIMEOUT_MS,
+  DEFAULT_TLON_CLI_TIMEOUT_MS,
+  defaultTlonCliTimeoutMs,
   runBrowserHandoffCommand,
   runTlonCommand,
 } from './tlon-command-runner.js';
@@ -46,6 +49,35 @@ async function captureChildCredentialEnv(credentials?: {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+});
+
+describe('runTlonCommand input transport', () => {
+  it('closes unavailable stdin so readers see EOF instead of hanging', async () => {
+    const output = await runTlonCommand(
+      process.execPath,
+      [
+        '-e',
+        "process.stdin.resume(); process.stdin.on('end', () => process.stdout.write('EOF'));",
+      ],
+      undefined,
+      { timeoutMs: 2_000 }
+    );
+    expect(output).toBe('EOF');
+  });
+});
+
+describe('defaultTlonCliTimeoutMs', () => {
+  it('allows Buckets operations enough time for broker retries and uploads', () => {
+    expect(defaultTlonCliTimeoutMs(['buckets', 'upload'])).toBe(
+      DEFAULT_BUCKETS_CLI_TIMEOUT_MS
+    );
+  });
+
+  it('keeps the existing deadline for other tlon commands', () => {
+    expect(defaultTlonCliTimeoutMs(['messages', 'send'])).toBe(
+      DEFAULT_TLON_CLI_TIMEOUT_MS
+    );
+  });
 });
 
 describe('runTlonCommand timeout output capture', () => {

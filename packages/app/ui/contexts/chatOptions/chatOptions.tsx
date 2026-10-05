@@ -5,7 +5,15 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { ConfirmDialog } from '@tloncorp/ui';
 import { noop } from 'lodash';
-import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Platform } from 'react-native';
 
 import { useIsMobileTree } from '../../../navigation/utils';
 import { ChatOptionsSheet } from '../../components/ChatOptionsSheet';
@@ -61,7 +69,25 @@ export const ChatOptionsProvider = ({
   onLeaveChannel: navigateToGroupOnLeave,
 }: ChatOptionsProviderProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMountGeneration, setSheetMountGeneration] = useState<
+    number | null
+  >(null);
+  const sheetGenerationRef = useRef(0);
+  const sheetOpenRef = useRef(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
+  const [inviteGroupId, setInviteGroupId] = useState<string>();
+  const pendingInvite = useRef<{ generation: number; groupId: string } | null>(
+    null
+  );
+  const inviteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPendingInvite = useCallback(() => {
+    pendingInvite.current = null;
+    if (inviteTimer.current !== null) {
+      clearTimeout(inviteTimer.current);
+      inviteTimer.current = null;
+    }
+  }, []);
+  useEffect(() => cancelPendingInvite, [cancelPendingInvite]);
   const [leaveChannelDialogOpen, setLeaveChannelDialogOpen] = useState(false);
   const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(
     null
@@ -88,14 +114,19 @@ export const ChatOptionsProvider = ({
       options?: { asChannel?: boolean }
     ) => {
       trackEvent(AnalyticsEvent.ChatOptionsOpened, { type: chatType });
+      cancelPendingInvite();
+      const generation = sheetGenerationRef.current + 1;
+      sheetGenerationRef.current = generation;
       setChat({
         id: chatId,
         type: chatType,
         asChannel: options?.asChannel,
       });
+      setSheetMountGeneration(generation);
+      sheetOpenRef.current = true;
       setSheetOpen(true);
     },
-    []
+    [cancelPendingInvite]
   );
 
   const closeInviteSheet = useCallback(() => {
@@ -103,8 +134,29 @@ export const ChatOptionsProvider = ({
   }, []);
 
   const closeSheet = useCallback(() => {
+    sheetOpenRef.current = false;
     setSheetOpen(false);
     return true;
+  }, []);
+
+  const handleSheetOpenChange = useCallback((open: boolean) => {
+    sheetOpenRef.current = open;
+    setSheetOpen(open);
+  }, []);
+
+  const handleSheetDismissed = useCallback((generation: number) => {
+    if (sheetGenerationRef.current !== generation || sheetOpenRef.current) {
+      return;
+    }
+
+    setChat(null);
+    setSheetMountGeneration(null);
+    const invite = pendingInvite.current;
+    pendingInvite.current = null;
+    if (invite?.generation === generation) {
+      setInviteGroupId(invite.groupId);
+      setInviteSheetOpen(true);
+    }
   }, []);
 
   const updateChat = useCallback(
@@ -125,6 +177,15 @@ export const ChatOptionsProvider = ({
       setChat(initialChat);
     }
   }, [chat, initialChat]);
+
+  useEffect(() => {
+    if (!isMobileTree) {
+      cancelPendingInvite();
+      sheetOpenRef.current = false;
+      setSheetOpen(false);
+      setSheetMountGeneration(null);
+    }
+  }, [isMobileTree, cancelPendingInvite]);
 
   const isChannel = chat?.type === 'channel';
   const isGroup = chat?.type === 'group';
@@ -295,13 +356,36 @@ export const ChatOptionsProvider = ({
         onPressInvite?.(groupId);
       } else {
         // if not handled by the parent, open built in invite sheet
+        cancelPendingInvite();
+        if (
+          Platform.OS !== 'web' &&
+          isMobileTree &&
+          sheetOpenRef.current &&
+          sheetMountGeneration !== null
+        ) {
+          pendingInvite.current = {
+            generation: sheetMountGeneration,
+            groupId,
+          };
+          closeSheet();
+          return;
+        }
         closeSheet();
-        setTimeout(() => {
+        inviteTimer.current = setTimeout(() => {
+          inviteTimer.current = null;
+          setInviteGroupId(groupId);
           setInviteSheetOpen(true);
         }, 300);
       }
     }
-  }, [closeSheet, groupId, onPressInvite]);
+  }, [
+    closeSheet,
+    groupId,
+    onPressInvite,
+    cancelPendingInvite,
+    isMobileTree,
+    sheetMountGeneration,
+  ]);
 
   const handlePressChannelMeta = useCallback(() => {
     if (channelId) {
@@ -423,16 +507,24 @@ export const ChatOptionsProvider = ({
       {children}
       {isMobileTree && (
         <>
-          <ChatOptionsSheet
-            open={sheetOpen && (chat?.type === 'channel' ? !!channel : !!group)}
-            onOpenChange={setSheetOpen}
-            chat={chat}
-          />
+          {sheetMountGeneration !== null && (
+            <ChatOptionsSheet
+              key={sheetMountGeneration}
+              open={
+                sheetOpen && (chat?.type === 'channel' ? !!channel : !!group)
+              }
+              onOpenChange={handleSheetOpenChange}
+              onNativeDismissed={() =>
+                handleSheetDismissed(sheetMountGeneration)
+              }
+              chat={chat}
+            />
+          )}
           <InviteUsersSheet
             open={inviteSheetOpen}
             onOpenChange={closeInviteSheet}
             onInviteComplete={() => closeInviteSheet()}
-            groupId={groupId}
+            groupId={inviteGroupId}
           />
         </>
       )}

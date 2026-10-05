@@ -12,6 +12,27 @@ export type StewardAutomationSchedule =
 export interface StewardAutomationPayload {
   kind?: string;
   message?: string;
+  /** Tool allow-list for an agentTurn: when set, only these tools reach the model. */
+  toolsAllow?: string[];
+}
+
+export interface StewardAutomationFailureDestination {
+  mode?: 'announce' | 'webhook';
+  channel?: string;
+  to?: string;
+  accountId?: string;
+}
+
+/**
+ * Where a run's output goes. `channel` names the transport ('tlon') and `to`
+ * the address within it, a channel nest for Tlon.
+ */
+export interface StewardAutomationDelivery {
+  mode?: 'none' | 'announce' | 'webhook';
+  channel?: string;
+  to?: string;
+  accountId?: string;
+  failureDestination?: StewardAutomationFailureDestination;
 }
 
 /** A task definition. Every field is optional; an update carries a patch in this shape. */
@@ -24,6 +45,7 @@ export interface StewardAutomationTask {
   sessionTarget?: string;
   wakeMode?: string;
   payload?: StewardAutomationPayload;
+  delivery?: StewardAutomationDelivery;
   createdAtMs?: number;
   updatedAtMs?: number;
 }

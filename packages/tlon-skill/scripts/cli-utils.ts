@@ -99,6 +99,16 @@ export function printErrorAndExit(error: unknown): never {
 }
 
 export const CHANNEL_KINDS = ['chat', 'heap', 'notes'] as const;
+const CHANNEL_DESCRIPTION_KINDS: readonly string[] = ['chat', 'heap'];
+
+export function channelCreateUsage(command: string): string {
+  const described = CHANNEL_DESCRIPTION_KINDS.join('|');
+  const undescribed = CHANNEL_KINDS.filter(
+    (kind) => !CHANNEL_DESCRIPTION_KINDS.includes(kind)
+  ).join('|');
+  return `${command} <group-id> "Channel Name" [--kind ${described}] [--description "..."]
+  ${command} <group-id> "Channel Name" --kind ${undescribed}`;
+}
 
 // Channel kinds the skill used to support but no longer does. The %diary backend
 // is being removed, so diary/notebook channels are refused everywhere with an
@@ -297,7 +307,7 @@ export function refuseNotesChannelDescription(
   const hasDescription = args
     .slice(titleIndex + 1)
     .some((arg) => arg === '--description' || arg.startsWith('--description='));
-  if (kind === 'notes' && hasDescription) {
+  if (kind && !CHANNEL_DESCRIPTION_KINDS.includes(kind) && hasDescription) {
     printUsageAndExit(
       `Error: --description is not supported for --kind notes — %notes owns the channel listing metadata.\n${usageHelp}`
     );

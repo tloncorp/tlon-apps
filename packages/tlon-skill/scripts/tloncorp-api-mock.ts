@@ -21,9 +21,14 @@
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
  * posts, invites), the notes runtimes (notesV1 et al.), and
  * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
- * enableGroup, BadResponseError).
+ * enableGroup, BadResponseError), and `activity-runtime.ts`
+ * (getInitialActivity, getGroupAndChannelUnreads, getTextContent).
  */
 import type { NotesV1Api } from '@tloncorp/api';
+// The real broker client, by subpath, which the root mock below does not
+// intercept. It has no dependencies but fetch, so tests keep exercising the
+// real request and error mapping against a stubbed fetch.
+import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -115,6 +120,48 @@ export const mockedGetGroup = {
   impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
 };
 
+export const mockedGetBuckets = {
+  impl: async (..._args: unknown[]): Promise<unknown> => [],
+};
+
+export const mockedGetBucket = {
+  impl: async (..._args: unknown[]): Promise<unknown> => null,
+};
+
+export const mockedGetBucketReadToken = {
+  impl: async (..._args: unknown[]): Promise<unknown> => null,
+};
+
+export const mockedRequestBucketReadToken = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedRequestBucketsGrant = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+export const mockedRequestBucketsUpload = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedSendBucketsAction = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+export const mockedSubmitBucketsAction = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+// The real class, so `instanceof` in the runtime works against what the mock
+// throws -- the upload path distinguishes a typed refusal from a transport
+// failure that way.
+export class MockBucketsActionFailed extends Error {
+  errorType: string;
+  constructor(errorType: string, message: string) {
+    super(message);
+    this.errorType = errorType;
+    this.name = 'BucketsActionFailed';
+  }
+}
+
 export const mockedSubscribeOnce = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
@@ -149,6 +196,9 @@ export class MockUrbit {
 }
 
 mock.module('@tloncorp/api', () => ({
+  // buckets-runtime.ts: the shared broker client, unmocked
+  BucketsBrokerError: realBucketsBroker.BucketsBrokerError,
+  grantBucketRead: realBucketsBroker.grantBucketRead,
   // api-client.ts value imports
   Urbit: MockUrbit,
   client: { cookie: '', url: 'http://localhost', fetchFn: fetch },
@@ -172,9 +222,25 @@ mock.module('@tloncorp/api', () => ({
   updateChannel: async () => undefined,
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
+  BucketsActionFailed: MockBucketsActionFailed,
   notesV1: mockedNotesV1,
   getGroups: (...args: unknown[]) => mockedGetGroups.impl(...args),
   getGroup: (...args: unknown[]) => mockedGetGroup.impl(...args),
+  getBuckets: (...args: unknown[]) => mockedGetBuckets.impl(...args),
+  getBucket: (...args: unknown[]) => mockedGetBucket.impl(...args),
+  getBucketReadToken: (...args: unknown[]) =>
+    mockedGetBucketReadToken.impl(...args),
+  requestBucketReadToken: (...args: unknown[]) =>
+    mockedRequestBucketReadToken.impl(...args),
+  requestBucketsGrant: (...args: unknown[]) =>
+    mockedRequestBucketsGrant.impl(...args),
+  requestBucketsUpload: (...args: unknown[]) =>
+    mockedRequestBucketsUpload.impl(...args),
+  sendBucketsAction: (...args: unknown[]) =>
+    mockedSendBucketsAction.impl(...args),
+  submitBucketsAction: (...args: unknown[]) =>
+    mockedSubmitBucketsAction.impl(...args),
+  mintRequestId: () => '0vtest',
   deleteNotesNotebookStrict: async () => undefined,
   joinNotesChannel: async () => undefined,
   leaveNotesChannel: async () => undefined,
@@ -188,4 +254,14 @@ mock.module('@tloncorp/api', () => ({
   }),
   enableGroup: (...args: unknown[]) => mockedEnableGroup.impl(...args),
   BadResponseError: MockBadResponseError,
+  // activity runtime value imports (formatter tests call the pure helpers
+  // directly, so these are load-time placeholders)
+  getInitialActivity: async () => ({ events: [], relevantUnreads: {} }),
+  getGroupAndChannelUnreads: async () => ({
+    baseUnread: null,
+    groupUnreads: [],
+    channelUnreads: [],
+    threadActivity: [],
+  }),
+  getTextContent: () => '',
 }));

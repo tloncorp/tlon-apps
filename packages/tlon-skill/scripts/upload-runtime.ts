@@ -15,15 +15,9 @@ import {
   shipCanStoreUploads,
 } from './commands/upload';
 import { fetchGuardedMedia } from './media-guard';
+import { createProcessCommandDeps } from './runtime-deps';
 
 const STDIN_TIMEOUT_MS = 30_000;
-
-function createProcessCommandDeps() {
-  return {
-    stdout: (text: string) => process.stdout.write(text),
-    stderr: (text: string) => process.stderr.write(text),
-  };
-}
 
 function bytesToBlobPart(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
   return new Uint8Array(

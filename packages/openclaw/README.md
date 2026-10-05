@@ -172,7 +172,7 @@ Every event carries content-free version identity: `harness: "openclaw"`, `plugi
 
 When enabled, the plugin captures `TlonBot Gateway Connected` after subscriptions are active, `TlonBot Reply Handled` after each OpenClaw reply flow, `TlonBot Outbound Routed` for route-dependent sends, and heartbeat nudge events. Expected authentication failures during the first three minutes of a moon outage are captured as `TlonBot Auth Attempt Failed`; continued failures become `TlonBot Plugin Error` events with cumulative `downMs`, `attempt`, and `authPhase` properties. `TlonBot Gateway Connected` also includes the resolved `tlon` CLI version as `tlonSkillVersion`. These summarize counts, routing, model/tool usage, and delivery status, but do not log message content.
 
-Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
+Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. `TlonBot Cron Run` also includes `intentionalSilence`, which identifies successful runs explicitly choosing not to reply. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
 
 Hosted credit holds also emit `TlonBot Cron Budget Snapshot` on gateway startup and when the budget signal, hold episode, or paused count changes. Its `budgetPausedCronCount` counts confirmed budget-owned holds (not manual pauses or unconfirmed disable attempts); it includes zero after recovery. `budgetState` is `limited`, `available`, or `unknown`. `TlonBot Cron Budget Changed` records successful `paused` / `resumed` transitions with `jobId`, `reason`, `episodeId`, `source` (`startup` / `runtime`), and `occurredAtMs`. Both events include `accountId`, `botShip`, and `ownerShip`; task names and prompts are omitted. Startup transitions are saved in the hold ledger and emitted when the gateway is ready, with stable event UUIDs for replay deduplication.
 
@@ -197,7 +197,7 @@ Against OpenClaw `2026.7.1-2` (the hosted version; the SDK devDependency stays o
 
 Reconciliation is serialized and busy-period triggers are coalesced. Unavailable cron access, read failures, missing ship connections, and poke acknowledgement failures retry while the gateway is active. `gateway_stop` cancels retries and guards against a stale post-stop submission, but deliberately leaves the last successful Steward snapshot intact. The same process-lifetime worker is reused across OpenClaw plugin-registration passes. These behaviors repair the mirror after a later successful read; they do not guarantee continuous freshness.
 
-OpenClaw remains authoritative. The mirror includes disabled task definitions but excludes execution state and events, run history, delivery data, session keys, and runtime-only fields. Local clients can read the latest accepted map from `/x/v1/automation/tasks`; an empty projection is `{}`. See the repository's [Steward backend documentation](../../docs/backend/desk/app/steward.md#module-automation) for the stored type, versioned migration, `%project` JSON shape, atomic replacement behavior, exclusions, and scry mark.
+OpenClaw remains authoritative. The mirror includes disabled task definitions, including each job's `delivery` destination and `payload.toolsAllow`, but excludes execution state and events, run history, delivery outcome and status, session keys, and runtime-only fields. Local clients can read the latest accepted map from `/x/v1/automation/tasks`; an empty projection is `{}`. See the repository's [Steward backend documentation](../../docs/backend/desk/app/steward.md#module-automation) for the stored type, versioned migration, `%project` JSON shape, atomic replacement behavior, exclusions, and scry mark.
 
 ### Owner edits
 
@@ -267,6 +267,7 @@ This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tlonco
 
 -   Contacts and profile management
 -   Channel listing and history
+-   Shared `%buckets` file channels using the bot ship's group permissions
 -   Group administration
 -   Message posting and reactions
 -   Notes channel management, note CRUD, and diary-to-notes migration
@@ -353,6 +354,7 @@ Inside the Docker dev container, the package is copied out of the workspace and 
 pnpm test              # Run unit tests
 pnpm test:watch        # Watch mode
 pnpm test:security     # Security tests only
+pnpm test:tool-files   # Workspace file -> notebook regression (Bun; local API fixture)
 ```
 
 ### Integration Tests

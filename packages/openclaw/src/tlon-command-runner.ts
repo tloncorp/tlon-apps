@@ -5,6 +5,13 @@ import { normalizeShip } from './targets.js';
 import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
 
 export const DEFAULT_TLON_CLI_TIMEOUT_MS = 45_000;
+export const DEFAULT_BUCKETS_CLI_TIMEOUT_MS = 120_000;
+
+export function defaultTlonCliTimeoutMs(args: string[]) {
+  return args[0] === 'buckets'
+    ? DEFAULT_BUCKETS_CLI_TIMEOUT_MS
+    : DEFAULT_TLON_CLI_TIMEOUT_MS;
+}
 
 const EXPLICIT_CREDENTIAL_ENV_KEYS_TO_CLEAR = [
   'TLON_CONFIG_FILE',
@@ -37,6 +44,8 @@ export type TlonCommandDeadlineOutput = {
 
 export type TlonCommandRunnerOptions = {
   timeoutMs?: number;
+  /** Active agent workspace; relative file inputs share read/write semantics. */
+  cwd?: string;
   /** Trusted owner from the active OpenClaw account, not tool arguments. */
   ownerShip?: string;
   onDeadline?: (output: TlonCommandDeadlineOutput) => void;
@@ -99,7 +108,13 @@ export function runTlonCommand(
       env.URBIT_CODE = credentials.code;
     }
 
-    const child = spawn(binary, args, { env });
+    // This runner has no input transport. Close stdin instead of leaving a
+    // pipe open that can hang CLI commands waiting for input.
+    const child = spawn(binary, args, {
+      env,
+      cwd: options?.cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     let stdout = '';
     let stderr = '';
     let completionSettled = false;
@@ -107,7 +122,7 @@ export function runTlonCommand(
     let spawnError: Error | null = null;
     let killTimer: ReturnType<typeof setTimeout> | null = null;
     let timeout: ReturnType<typeof setTimeout> | null = null;
-    const timeoutMs = options?.timeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
+    const timeoutMs = options?.timeoutMs ?? defaultTlonCliTimeoutMs(args);
     const onDeadline = options?.onDeadline;
 
     const onStdoutData = (data: Buffer | string) => {
