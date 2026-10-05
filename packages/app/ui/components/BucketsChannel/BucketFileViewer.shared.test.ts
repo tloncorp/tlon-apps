@@ -295,7 +295,18 @@ describe('htmlPreviewShell', () => {
   // frame's own navigation, which only a parent can.
   it('carries the policy in its head', () => {
     expect(webShell).toContain(
-      `<head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
+      `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
+    );
+    expect(webShell.indexOf('Content-Security-Policy')).toBeLessThan(
+      webShell.indexOf('</head>')
+    );
+  });
+
+  // On native the shell is the WebView's page: without a viewport of its own
+  // iOS lays the file out at desktop width and shrinks it to fit.
+  it('lays the page out at the device width', () => {
+    expect(nativeShell).toContain(
+      '<meta name="viewport" content="width=device-width, initial-scale=1">'
     );
   });
 

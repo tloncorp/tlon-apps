@@ -70,7 +70,7 @@ describe('BucketFileViewer html preview (web)', () => {
     );
     const shell: string = frame.props.srcDoc;
     expect(shell).toContain(
-      '<head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="connect-src \'none\'; form-action \'none\'; frame-src about:; object-src \'none\'">'
+      '<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="connect-src \'none\'; form-action \'none\'; frame-src about:; object-src \'none\'">'
     );
     expect(shell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
     expect(shell).toContain('&lt;p&gt;Quarterly numbers&lt;/p&gt;');

@@ -305,6 +305,11 @@ function openerScript(opener: HtmlPreviewOpener): string {
  * would otherwise surface as the app's own dialogs, as often as a hostile
  * script liked.
  *
+ * On native the shell is the WebView's page, so it also sets the viewport:
+ * a frame takes its width from its parent, not from the file's own viewport
+ * tag, and without one here iOS lays the page out at desktop width and
+ * shrinks it to fit. On web, inside the viewer's frame, the tag is ignored.
+ *
  * And the shell opens the file's links. Our script in the file's frame posts
  * the link the reader tapped (htmlPreviewDocument); the shell's own script
  * opens it only when the message came from that frame, carries the key the
@@ -328,6 +333,7 @@ export function htmlPreviewShell({
 }): string {
   return (
     '<!doctype html><html><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">' +
     HTML_PREVIEW_POLICY_META +
     '<style>html,body{margin:0;height:100%;background:#fff}iframe{display:block;border:0;width:100%;height:100%}</style>' +
     `</head><body><iframe sandbox="${sandbox}" srcdoc="${escapeAttribute(document)}"></iframe>` +
