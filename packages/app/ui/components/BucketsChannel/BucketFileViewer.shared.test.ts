@@ -115,7 +115,7 @@ describe('htmlPreviewWebDocument', () => {
 
 describe('htmlPreviewNativeDocument', () => {
   const policy =
-    '<meta http-equiv="Content-Security-Policy" content="form-action \'none\'; connect-src \'none\'">';
+    "<meta http-equiv=\"Content-Security-Policy\" content=\"form-action 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'\">";
 
   it('places the policy after the doctype, keeping standards mode', () => {
     const out = htmlPreviewNativeDocument(
@@ -170,14 +170,18 @@ describe('htmlPreviewNavigation', () => {
     ).toBe('open-externally');
   });
 
-  it('lets frames inside the document load', () => {
-    expect(
-      htmlPreviewNavigation({
-        url: 'https://player.example/embed/1',
-        isTopFrame: false,
-        navigationType: 'other',
-      })
-    ).toBe('load');
+  // A remote frame would carry a policy of its own, and a tap inside one is
+  // a tap on a page that is not the file.
+  it('refuses frames inside the document, tapped or not', () => {
+    for (const navigationType of ['other', 'click']) {
+      expect(
+        htmlPreviewNavigation({
+          url: 'https://player.example/embed/1',
+          isTopFrame: false,
+          navigationType,
+        })
+      ).toBe('block');
+    }
   });
 
   // A meta refresh, a redirect, a form: the top frame leaving without a tap.

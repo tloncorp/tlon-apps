@@ -130,18 +130,21 @@ export function htmlPreviewWebDocument(html: string): string {
 
 /**
  * The file's markup as the native WebView loads it: with a policy that keeps
- * the document from submitting forms or opening connections.
+ * the document from submitting forms, opening connections, or embedding
+ * another document.
  *
  * On Android every WebView shares the cookie jar React Native's own networking
  * keeps the ship session in, and the platform never reports a POST navigation
  * to `onShouldStartLoadWithRequest`, so a form the reader tapped would reach
- * the ship as them. iOS holds no cookies in this WebView and needs none of
- * it, but gets the same document for the same behavior.
+ * the ship as them. A frame or object inside the file would carry a policy
+ * of its own, so it could show the form the file itself cannot; none may
+ * load. iOS holds no cookies in this WebView and needs none of it, but gets
+ * the same document for the same behavior.
  */
 export function htmlPreviewNativeDocument(html: string): string {
   return withDocumentHead(
     html,
-    '<meta http-equiv="Content-Security-Policy" content="form-action \'none\'; connect-src \'none\'">'
+    "<meta http-equiv=\"Content-Security-Policy\" content=\"form-action 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'\">"
   );
 }
 
@@ -151,12 +154,13 @@ export type HtmlPreviewNavigation = 'load' | 'open-externally' | 'block';
  * What the native HTML preview does with a navigation its WebView reports.
  *
  * The document is handed to the WebView as a string with no base URL, so it
- * loads as `about:blank`, and frames inside it may load what they like. A
- * link the reader taps in the top frame goes to the system browser: the
- * preview keeps showing the file, and the destination gets a real address
- * bar. Everything else the top frame tries -- a meta refresh, a form, a
- * redirect, any scheme that is not a web link -- is refused, so a document
- * cannot bounce the reader into another app without a tap.
+ * loads as `about:blank`. A link the reader taps in the top frame goes to
+ * the system browser: the preview keeps showing the file, and the
+ * destination gets a real address bar. Everything else -- a meta refresh, a
+ * form, a redirect, any scheme that is not a web link, a frame inside the
+ * document (which htmlPreviewNativeDocument forbids as well) -- is refused,
+ * so a document cannot bounce the reader into another app without a tap, or
+ * show them a page that is not the file.
  *
  * iOS reports the frame and the gesture. Android reports neither (the library
  * sends no `isTopFrame` and no real `navigationType`), so there every
@@ -173,7 +177,7 @@ export function htmlPreviewNavigation({
   url: string;
 }): HtmlPreviewNavigation {
   if (url.startsWith('about:')) return 'load';
-  if (isTopFrame === false) return 'load';
+  if (isTopFrame === false) return 'block';
   if (navigationType === 'click' && /^(https?|mailto|tel):/i.test(url)) {
     return 'open-externally';
   }

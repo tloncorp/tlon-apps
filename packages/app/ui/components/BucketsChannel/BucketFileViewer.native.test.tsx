@@ -69,6 +69,7 @@ describe('BucketFileViewer html preview (native)', () => {
     expect(props.source.uri).toBeUndefined();
     expect(props.source.html).toContain('<p>Quarterly numbers</p>');
     expect(props.source.html).toContain("form-action 'none'");
+    expect(props.source.html).toContain("frame-src 'none'");
   });
 
   // These props are the isolation: a change to any of them is a decision.
