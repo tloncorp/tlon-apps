@@ -479,6 +479,7 @@ export function BucketsLiveChannel({
         );
     },
     onCopyItemLink: (item: BucketItem) => {
+      setOperationError(null);
       // Started before the grant arrives so the browser still counts the
       // press as the gesture that allows the write.
       const grant = live.readGrant(Number(item.id));
