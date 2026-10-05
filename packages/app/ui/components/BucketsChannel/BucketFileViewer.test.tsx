@@ -59,31 +59,56 @@ afterEach(() => {
   mocks.isElectron = false;
 });
 
+const scriptedFile: BucketFileViewerItem = {
+  ...htmlFile,
+  textContent:
+    '<!doctype html><title>Quarterly numbers</title><p id="n">three</p><script>document.getElementById("n").textContent = "3";</script>',
+};
+
+function runScriptsButton(renderer: ReactTestRenderer) {
+  const controls = renderer.root.findByType(ScreenHeader).props.rightControls;
+  return React.Children.toArray(controls?.props.children).find(
+    (child) =>
+      React.isValidElement<{ testID?: string }>(child) &&
+      child.props.testID === 'BucketFileViewerRunScripts'
+  ) as React.ReactElement<{ onPress: () => void }> | undefined;
+}
+
 describe('BucketFileViewer html preview (web)', () => {
   // From its text, so the storage's Content-Type and Content-Disposition
   // cannot turn the preview into a download; inside a shell of ours that
-  // carries the policy its document inherits, keeps the file's frame where
-  // it is and opens its links; the file's frame sandboxed with scripts and
-  // nothing else, so it cannot open a window itself.
-  it('renders the file from its text in a sandboxed frame, not from its URL', () => {
-    const [frame] = frames(render(htmlFile));
+  // carries the policy its document inherits and keeps the file's frame where
+  // it is. In a browser a page's scripts share the app's thread, so they run
+  // only once the reader asks: until then neither frame runs one, and links
+  // open as popups.
+  it('renders the file from its text, scripts held until the reader asks', () => {
+    const renderer = render(scriptedFile);
+    const [frame] = frames(renderer);
     expect(frame.props.src).toBeUndefined();
-    expect(frame.props.sandbox).toBe(
-      'allow-scripts allow-popups allow-popups-to-escape-sandbox'
-    );
+    const popups = 'allow-popups allow-popups-to-escape-sandbox';
+    expect(frame.props.sandbox).toBe(popups);
     const shell: string = frame.props.srcDoc;
     expect(shell).toContain(
       `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
     );
-    expect(shell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
-    expect(shell).toContain('&lt;p&gt;Quarterly numbers&lt;/p&gt;');
-    expect(shell).toContain('&lt;base target=&quot;_blank&quot;&gt;');
+    expect(shell).toContain(`<iframe sandbox="${popups}" srcdoc="`);
+    expect(shell).toContain('&lt;p id=&quot;n&quot;&gt;three&lt;/p&gt;');
+    expect(shell).not.toContain('composedPath');
+    expect(runScriptsButton(renderer)).toBeDefined();
   });
 
-  // Our script in the file's frame and the shell's share one key, which the
-  // file never sees; the shell opens a tapped link as a new tab.
-  it('opens a tapped link as a new tab, keyed to our script in the frame', () => {
-    const shell: string = frames(render(htmlFile))[0].props.srcDoc;
+  // Once asked, the file's frame runs its scripts and nothing else, and our
+  // script and the shell's, sharing one key the file never sees, open a
+  // tapped link as a new tab.
+  it('runs the scripts when the reader asks, keyed to our script in the frame', () => {
+    const renderer = render(scriptedFile);
+    act(() => runScriptsButton(renderer)!.props.onPress());
+    const [frame] = frames(renderer);
+    expect(frame.props.sandbox).toBe(
+      'allow-scripts allow-popups allow-popups-to-escape-sandbox'
+    );
+    const shell: string = frame.props.srcDoc;
+    expect(shell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
     const key = shell.match(/\}\)\('([0-9a-f]{32})', function \(href\)/)?.[1];
     expect(key).toBeDefined();
     // The same key closes our script in the file's frame, escaped in srcdoc.
@@ -91,29 +116,38 @@ describe('BucketFileViewer html preview (web)', () => {
     expect(shell).toContain(
       "window.open(href, '_blank', 'noopener,noreferrer')"
     );
+    expect(runScriptsButton(renderer)).toBeUndefined();
   });
 
-  // The desktop shell disables web security, which defeats the opaque origin.
-  // With no script anywhere, a link the reader clicks opens as a popup.
-  it('withholds scripts under Electron and lets links open as popups', () => {
-    mocks.isElectron = true;
-    const [frame] = frames(
-      render({
-        ...htmlFile,
-        textContent:
-          '<!doctype html><p>Quarterly numbers</p><a href="https://tlon.io" target="_self">brief</a>',
-      })
+  // A page with nothing to run renders the same either way.
+  it('offers nothing to run for a page without scripts', () => {
+    const renderer = render(htmlFile);
+    expect(frames(renderer)[0].props.sandbox).toBe(
+      'allow-popups allow-popups-to-escape-sandbox'
     );
+    expect(runScriptsButton(renderer)).toBeUndefined();
+  });
+
+  // The desktop shell disables web security, which defeats the opaque origin,
+  // so there scripts never run; with none to aim a click, every link in the
+  // markup is aimed at a popup, and our inert link script is left out.
+  it('never runs scripts under Electron, and aims its links at popups', () => {
+    mocks.isElectron = true;
+    const renderer = render({
+      ...scriptedFile,
+      textContent:
+        '<!doctype html><p>Quarterly numbers</p><a href="https://tlon.io" target="_self">brief</a><script>x()</script>',
+    });
+    const [frame] = frames(renderer);
     const popups = 'allow-popups allow-popups-to-escape-sandbox';
     expect(frame.props.sandbox).toBe(popups);
     const shell: string = frame.props.srcDoc;
     expect(shell).toContain(`<iframe sandbox="${popups}" srcdoc="`);
-    // With no script to aim a click, the link itself is aimed at a popup, and
-    // our link script, which would be inert, is left out.
     expect(shell).toContain(
       '&lt;a target=&quot;_blank&quot; href=&quot;https://tlon.io&quot;&gt;brief&lt;/a&gt;'
     );
     expect(shell).not.toContain('composedPath');
+    expect(runScriptsButton(renderer)).toBeUndefined();
   });
 
   it('names the page by its title, with the file beneath', () => {

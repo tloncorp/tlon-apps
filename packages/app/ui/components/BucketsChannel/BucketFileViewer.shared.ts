@@ -358,24 +358,23 @@ export function getBucketPreviewKind({
   return 'unsupported';
 }
 
-// Elements whose content is not read as markup for the document's title: the
-// raw-text and escapable raw-text elements, noscript (raw text with scripting
-// on), plaintext, and template, svg and math, whose titles are not the
-// document's.
-const TITLE_SKIPPED_ELEMENTS = new Set([
+// Elements whose content the parser reads as text, not markup, for the
+// document's title: the raw-text and escapable raw-text elements, and
+// noscript, which is raw text with scripting on.
+const TITLE_TEXT_ELEMENTS = new Set([
   'iframe',
-  'math',
   'noembed',
   'noframes',
   'noscript',
-  'plaintext',
   'script',
   'style',
-  'svg',
-  'template',
   'textarea',
   'xmp',
 ]);
+
+// Elements whose titles are not the document's -- template content is inert,
+// and an svg or math title is the drawing's -- and which can nest.
+const TITLE_INERT_ELEMENTS = new Set(['math', 'svg', 'template']);
 
 // HTML's ASCII whitespace: tab, line feed, form feed, carriage return, space.
 function isHtmlSpace(code: number): boolean {
@@ -387,9 +386,8 @@ function isAsciiLetter(code: number): boolean {
 }
 
 /**
- * The index just past the `>` that ends a start tag whose name ends at
- * `from`, skipping a quoted attribute value whole; -1 when the tag never
- * ends.
+ * The index just past the `>` that ends a tag whose name ends at `from`,
+ * skipping a quoted attribute value whole; -1 when the tag never ends.
  */
 function startTagEnd(html: string, from: number): number {
   let i = from;
@@ -422,11 +420,11 @@ function endTagStart(lower: string, name: string, from: number): number {
 
 /**
  * The title of an HTML file, as the page itself would show it: the first
- * `<title>` the parser would make an element of -- not one in a comment, an
- * attribute, a script or style, a template, or an `<svg>`, whose title is a
- * tooltip -- with entities decoded and whitespace collapsed, the way
- * `document.title` reads it. Undefined when the file has none, it is blank,
- * or it is never closed.
+ * `<title>` the parser would make the document's -- not one in a comment, an
+ * attribute, a script or style, a template (nested ones included), or an
+ * `<svg>`, whose title is a tooltip -- with character references decoded and
+ * ASCII whitespace collapsed, the way `document.title` reads it. Undefined
+ * when the file has none, it is blank, or it is never closed.
  *
  * A scan rather than a regular expression: it reads each character a fixed
  * number of times, where a pattern for tags backtracks without bound on a
@@ -434,6 +432,8 @@ function endTagStart(lower: string, name: string, from: number): number {
  */
 export function htmlPreviewTitle(html: string): string | undefined {
   const lower = html.toLowerCase();
+  // How many template, svg and math elements are open around the scan.
+  let inert = 0;
   let i = 0;
   for (;;) {
     const open = html.indexOf('<', i);
@@ -444,28 +444,40 @@ export function htmlPreviewTitle(html: string): string | undefined {
       i = close + 3;
       continue;
     }
-    // End tags, doctypes, processing instructions and a stray `<` say nothing
-    // about the title.
-    if (!isAsciiLetter(html.charCodeAt(open + 1))) {
+    const closing = html.charCodeAt(open + 1) === 47;
+    const nameStart = open + (closing ? 2 : 1);
+    // Doctypes, processing instructions and a stray `<` say nothing about it.
+    if (!isAsciiLetter(html.charCodeAt(nameStart))) {
       i = open + 1;
       continue;
     }
-    let nameEnd = open + 1;
+    let nameEnd = nameStart;
     while (nameEnd < html.length) {
       const code = html.charCodeAt(nameEnd);
       if (isHtmlSpace(code) || code === 47 || code === 62) break;
       nameEnd += 1;
     }
-    const name = lower.slice(open + 1, nameEnd);
+    const name = lower.slice(nameStart, nameEnd);
     const tagEnd = startTagEnd(html, nameEnd);
     if (tagEnd < 0) return undefined;
     i = tagEnd;
-    if (name !== 'title' && !TITLE_SKIPPED_ELEMENTS.has(name)) continue;
+    if (closing) {
+      if (inert > 0 && TITLE_INERT_ELEMENTS.has(name)) inert -= 1;
+      continue;
+    }
     // Everything after a plaintext start tag is text.
     if (name === 'plaintext') return undefined;
+    if (TITLE_INERT_ELEMENTS.has(name)) {
+      // A self-closed svg or math has no content; a template always opens.
+      const selfClosed =
+        name !== 'template' && html.charCodeAt(tagEnd - 2) === 47;
+      if (!selfClosed) inert += 1;
+      continue;
+    }
+    if (name !== 'title' && !TITLE_TEXT_ELEMENTS.has(name)) continue;
     const close = endTagStart(lower, name, tagEnd);
     if (close < 0) return undefined;
-    if (name === 'title') {
+    if (name === 'title' && inert === 0) {
       // Character references decoded as a browser decodes them in text: every
       // named reference, the legacy ones without a semicolon, and numeric
       // references with a browser's replacements.
@@ -510,27 +522,30 @@ export function bucketFileViewerHeading(item: BucketFileViewerItem): {
  * It is loaded through `srcdoc`, and an unsandboxed srcdoc document inherits
  * the app's origin -- the file's scripts would run as the app, with its
  * cookies, its database and its ship session. So `allow-same-origin` is never
- * granted to either frame: each gets an opaque origin of its own. The file's
- * frame runs its scripts and nothing more, with HTML_PREVIEW_POLICY keeping
- * them off the network, and it cannot open a window. Its links still open:
- * our script in the file's frame hands a link the reader tapped to the shell
- * (htmlPreviewDocument), and the shell, which may open windows, opens it once
- * it has checked that the reader really tapped (htmlPreviewShell).
+ * granted to either frame: each gets an opaque origin of its own.
  *
- * Under Electron scripts are withheld from both. The desktop shell starts its
- * window with `webSecurity: false` (apps/tlon-desktop/src/main/index.ts),
- * which grants every document in it universal access, so there the opaque
- * origin would not keep a script in the file out of the app's window. With
- * no scripts nothing in the file can click for the reader, so there its own
- * frame may open windows: a link the reader clicks opens as a popup, which
- * the desktop shell hands to the system browser if it is a web, mail or phone
- * link.
+ * When the file's scripts run, its frame gets them and nothing more, with
+ * HTML_PREVIEW_POLICY keeping them off the network, and it cannot open a
+ * window. Its links still open: our script in the file's frame hands a link
+ * the reader tapped to the shell (htmlPreviewDocument), and the shell, which
+ * may open windows, opens it once it has checked that the reader really
+ * tapped (htmlPreviewShell).
+ *
+ * When they do not -- under Electron always, and on web until the reader asks
+ * (BucketFileViewer) -- neither frame runs a script, so nothing in the file
+ * can click for the reader, and its own frame may open windows: a link the
+ * reader clicks opens as a popup, in a new tab on web and, through the desktop
+ * shell, in the system browser. The desktop shell starts its window with
+ * `webSecurity: false` (apps/tlon-desktop/src/main/index.ts), which grants
+ * every document in it universal access, so there the opaque origin would not
+ * keep a script in the file out of the app's window. On web a script runs on
+ * the app's own thread, where a loop that never ends freezes the whole tab.
  */
-export function htmlPreviewSandboxes({ isElectron }: { isElectron: boolean }): {
+export function htmlPreviewSandboxes({ scripts }: { scripts: boolean }): {
   document: string;
   shell: string;
 } {
-  if (isElectron) {
+  if (!scripts) {
     const popups = 'allow-popups allow-popups-to-escape-sandbox';
     return { document: popups, shell: popups };
   }
@@ -538,6 +553,15 @@ export function htmlPreviewSandboxes({ isElectron }: { isElectron: boolean }): {
     document: 'allow-scripts',
     shell: 'allow-scripts allow-popups allow-popups-to-escape-sandbox',
   };
+}
+
+/**
+ * Whether an HTML file has anything a script would run from: a script
+ * element, an event handler attribute or a `javascript:` URL. A page without
+ * any renders the same with scripts off, so there is nothing to run.
+ */
+export function htmlPreviewHasScripts(html: string): boolean {
+  return /<script[\s/>]|\son[a-z]{2,32}\s*=|javascript:/i.test(html);
 }
 
 /** The sandbox for the frame that holds an HTML file on native: scripts, and nothing else. */
@@ -767,7 +791,9 @@ function withDocumentHead(html: string, fragment: string): string {
  * Then, if the page did not cancel it: a link that leaves the file goes to
  * the shell to be opened (htmlPreviewShell); one to a place in the file
  * scrolls there, since in a srcdoc document `#section` resolves against the
- * parent's address; and a `javascript:` link runs its code in the frame, as
+ * parent's address (unless the file sets a `<base href>` of its own, when the
+ * fragment names that address and leaves the file like any other link); and
+ * a `javascript:` link runs its code in the frame, as
  * an `onclick` of the page's own could (Chromium will not run such a link in a
  * document with an opaque origin). An SVG link is followed like an HTML one.
  *
@@ -831,7 +857,9 @@ function linkScript(key: string): string {
         run(code)();
         return;
       }
-      if (raw === '' || raw.charAt(0) === '#') { scrollToFragment(raw.slice(1)); return; }
+      // A fragment, or an empty href, stays in the file only when the file
+      // has no base address of its own; with one, it names that address.
+      if ((raw === '' || raw.charAt(0) === '#') && !document.querySelector('base[href]')) { scrollToFragment(raw.slice(1)); return; }
       if (!trusted) return;
       var href = typeof link.href === 'string' ? link.href : absolute(raw);
       if (href) shell.postMessage({ type: '${HTML_PREVIEW_LINK_MESSAGE}', key: key, href: href }, '*');

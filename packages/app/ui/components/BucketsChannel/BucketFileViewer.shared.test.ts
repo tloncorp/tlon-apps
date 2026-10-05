@@ -9,6 +9,7 @@ import {
   canPreviewFromText,
   getBucketPreviewKind,
   htmlPreviewDocument,
+  htmlPreviewHasScripts,
   htmlPreviewKey,
   htmlPreviewLinkFromBridge,
   htmlPreviewNavigation,
@@ -379,6 +380,21 @@ describe('htmlPreviewTitle', () => {
     );
   });
 
+  // Template content is inert at any depth, and an svg title is the
+  // drawing's, nested or not.
+  it('reads past nested templates and svgs', () => {
+    expect(
+      htmlPreviewTitle(
+        '<template><template></template><title>Draft</title></template><title>Final</title>'
+      )
+    ).toBe('Final');
+    expect(
+      htmlPreviewTitle(
+        '<svg><svg></svg><title>Icon</title></svg><svg/><title>Final</title>'
+      )
+    ).toBe('Final');
+  });
+
   it('has none for a file without one, a blank one, or one never closed', () => {
     expect(htmlPreviewTitle('<p>hi</p>')).toBeUndefined();
     expect(htmlPreviewTitle('<title>  </title>')).toBeUndefined();
@@ -426,8 +442,8 @@ describe('htmlPreviewSandboxes', () => {
   // cookie in some browsers; modals would be the app's own dialogs; top
   // navigation would take the app's own tab. None may happen in either frame.
   it('never grants either frame the app origin, forms, dialogs or the top', () => {
-    for (const isElectron of [false, true]) {
-      const sandboxes = htmlPreviewSandboxes({ isElectron });
+    for (const scripts of [true, false]) {
+      const sandboxes = htmlPreviewSandboxes({ scripts });
       for (const tokens of [sandboxes.document, sandboxes.shell]) {
         for (const forbidden of [
           'allow-same-origin',
@@ -444,7 +460,7 @@ describe('htmlPreviewSandboxes', () => {
   // The file's frame cannot open a window, which it could otherwise do with
   // no tap at all; the shell opens its links for it.
   it('runs the file in a browser with scripts and nothing else', () => {
-    expect(htmlPreviewSandboxes({ isElectron: false })).toEqual({
+    expect(htmlPreviewSandboxes({ scripts: true })).toEqual({
       document: 'allow-scripts',
       shell: 'allow-scripts allow-popups allow-popups-to-escape-sandbox',
     });
@@ -455,7 +471,7 @@ describe('htmlPreviewSandboxes', () => {
   // either frame, only the reader's own click can follow a link.
   it('withholds scripts under Electron and lets links open as popups', () => {
     const popups = 'allow-popups allow-popups-to-escape-sandbox';
-    expect(htmlPreviewSandboxes({ isElectron: true })).toEqual({
+    expect(htmlPreviewSandboxes({ scripts: false })).toEqual({
       document: popups,
       shell: popups,
     });
@@ -463,6 +479,28 @@ describe('htmlPreviewSandboxes', () => {
 
   it('grants the native frame scripts and nothing else', () => {
     expect(HTML_PREVIEW_NATIVE_SANDBOX).toBe('allow-scripts');
+  });
+});
+
+describe('htmlPreviewHasScripts', () => {
+  it('finds a script element, a handler attribute or a javascript: URL', () => {
+    for (const html of [
+      '<script>go()</script>',
+      '<SCRIPT src="x.js"></SCRIPT>',
+      '<button onclick="go()">go</button>',
+      '<svg onload = "go()"></svg>',
+      '<a href="javascript:go()">go</a>',
+    ]) {
+      expect(htmlPreviewHasScripts(html), html).toBe(true);
+    }
+  });
+
+  it('finds nothing in a static page', () => {
+    expect(
+      htmlPreviewHasScripts(
+        '<p>A page about online scripts.</p><a href="x">x</a>'
+      )
+    ).toBe(false);
   });
 });
 

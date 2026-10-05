@@ -1,5 +1,5 @@
 import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
 import { useIsElectron } from '../../../hooks/useIsElectron';
@@ -9,6 +9,7 @@ import {
   bucketFileViewerHeading,
   getBucketPreviewKind,
   htmlPreviewDocument,
+  htmlPreviewHasScripts,
   htmlPreviewKey,
   htmlPreviewSandboxes,
   htmlPreviewShell,
@@ -33,6 +34,22 @@ export function BucketFileViewer({
   const heading = bucketFileViewerHeading(item);
   const isElectron = Boolean(useIsElectron());
   const previewKey = useMemo(() => htmlPreviewKey(), []);
+  // A page's scripts run on web only once the reader asks, file by file: in a
+  // browser they share the app's thread, so a page whose script never
+  // returns would freeze the whole tab the moment it was opened. Under
+  // Electron they never run (htmlPreviewSandboxes).
+  const [scriptsRunFor, setScriptsRunFor] = useState<string>();
+  const pageHasScripts = useMemo(
+    () =>
+      previewKind === 'html' &&
+      item.textContent !== undefined &&
+      htmlPreviewHasScripts(item.textContent),
+    [previewKind, item.textContent]
+  );
+  const fileId = item.uri ?? item.name;
+  const runScripts = !isElectron && pageHasScripts && scriptsRunFor === fileId;
+  const offerScripts = !isElectron && pageHasScripts && !runScripts;
+  const sandboxes = htmlPreviewSandboxes({ scripts: runScripts });
 
   return (
     <YStack flex={1} minHeight={0} backgroundColor="$background">
@@ -40,10 +57,22 @@ export function BucketFileViewer({
         backAction={onClose}
         borderBottom
         rightControls={
-          item.uri && onOpenExternally ? (
-            <ScreenHeader.TextButton onPress={onOpenExternally}>
-              Open
-            </ScreenHeader.TextButton>
+          offerScripts || (item.uri && onOpenExternally) ? (
+            <>
+              {offerScripts ? (
+                <ScreenHeader.TextButton
+                  onPress={() => setScriptsRunFor(fileId)}
+                  testID="BucketFileViewerRunScripts"
+                >
+                  Run scripts
+                </ScreenHeader.TextButton>
+              ) : null}
+              {item.uri && onOpenExternally ? (
+                <ScreenHeader.TextButton onPress={onOpenExternally}>
+                  Open
+                </ScreenHeader.TextButton>
+              ) : null}
+            </>
           ) : null
         }
         showSubtitle
@@ -89,14 +118,14 @@ export function BucketFileViewer({
         ) : previewKind === 'html' && item.textContent !== undefined ? (
           <iframe
             referrerPolicy="no-referrer"
-            sandbox={htmlPreviewSandboxes({ isElectron }).shell}
+            sandbox={sandboxes.shell}
             srcDoc={htmlPreviewShell({
               document: htmlPreviewDocument(item.textContent, previewKey, {
-                scripts: !isElectron,
+                scripts: runScripts,
               }),
               key: previewKey,
               opener: { kind: 'window' },
-              sandbox: htmlPreviewSandboxes({ isElectron }).document,
+              sandbox: sandboxes.document,
             })}
             style={{
               backgroundColor: 'white',
