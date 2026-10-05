@@ -151,6 +151,31 @@ describe('prompt workspace projection', () => {
     await expect(readWorkspacePrompts(workspaceDir)).rejects.toThrow('exceeds');
   });
 
+  it('reads no more than the cap from a file that grows after its stat', async () => {
+    const file = path.join(workspaceDir, 'SOUL.md');
+    fs.writeFileSync(file, 'x'.repeat(4 * MAX_PROMPT_BYTES));
+    const probe = await fs.promises.open(file, 'r');
+    const proto = Object.getPrototypeOf(probe);
+    await probe.close();
+    // report the size from before the writer appended
+    const stat = vi
+      .spyOn(proto, 'stat')
+      .mockResolvedValue({ isFile: () => true, size: 0 } as fs.Stats);
+    const read = vi.spyOn(proto, 'read');
+    try {
+      await expect(readWorkspacePrompts(workspaceDir)).rejects.toThrow(
+        'exceeds'
+      );
+      const total = (
+        await Promise.all(read.mock.results.map((r) => r.value))
+      ).reduce((sum, r: { bytesRead: number }) => sum + r.bytesRead, 0);
+      expect(total).toBe(MAX_PROMPT_BYTES + 1);
+    } finally {
+      stat.mockRestore();
+      read.mockRestore();
+    }
+  });
+
   it('configures its owner and projects the complete workspace on startup', async () => {
     fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'be concise');
     const { sync, pokes, log } = makeSync();

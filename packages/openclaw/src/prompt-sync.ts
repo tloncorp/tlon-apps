@@ -197,11 +197,24 @@ async function readPromptFile(filePath: string): Promise<string | null> {
     if (info.size > MAX_PROMPT_BYTES) {
       throw new Error(`exceeds ${MAX_PROMPT_BYTES} byte limit`);
     }
-    const text = await handle.readFile('utf8');
-    if (!isWithinSizeLimit(text)) {
+    // The stat is only an early out: a file can grow after it, and readFile
+    // would buffer it to EOF. Read at most one byte past the cap instead.
+    const buffer = Buffer.alloc(MAX_PROMPT_BYTES + 1);
+    let length = 0;
+    while (length < buffer.length) {
+      const { bytesRead } = await handle.read(
+        buffer,
+        length,
+        buffer.length - length,
+        null
+      );
+      if (bytesRead === 0) break;
+      length += bytesRead;
+    }
+    if (length > MAX_PROMPT_BYTES) {
       throw new Error(`exceeds ${MAX_PROMPT_BYTES} byte limit`);
     }
-    return text;
+    return buffer.toString('utf8', 0, length);
   } finally {
     await handle.close().catch(() => {});
   }
