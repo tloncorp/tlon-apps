@@ -298,7 +298,7 @@ function RowLabel({
           modifiers={[
             foregroundStyle(colors.primaryText),
             ...(row.prominent ? [font({ size: 19, weight: 'semibold' })] : []),
-            lineLimit(titleLineLimit(row)),
+            lineLimit(labelLineLimit(row)),
           ]}
         >
           {row.title}
@@ -308,7 +308,7 @@ function RowLabel({
             modifiers={[
               font({ size: 13 }),
               foregroundStyle(colors.secondaryText),
-              lineLimit(row.toggle ? 3 : 1),
+              lineLimit(labelLineLimit(row)),
             ]}
           >
             {row.subtitle}
@@ -345,10 +345,11 @@ function RowLeading({ row }: { row: SettingsRowModel }) {
 }
 
 /**
- * Long titles, such as a feature flag's description, wrap; a title beside a
- * value keeps to one line so the value keeps its room.
+ * Long text wraps so it can be read in full, such as a feature flag's
+ * description or the explanation under a notification level. Beside a value it
+ * keeps to one line so the value keeps its room.
  */
-function titleLineLimit(row: SettingsRowModel) {
+function labelLineLimit(row: SettingsRowModel) {
   return row.value ? 1 : 3;
 }
 
