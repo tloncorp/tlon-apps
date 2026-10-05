@@ -4,13 +4,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ScreenHeader } from '../ScreenHeader';
 import { BucketFileViewer } from './BucketFileViewer.native';
-import type { BucketFileViewerItem } from './BucketFileViewer.shared';
+import {
+  type BucketFileViewerItem,
+  HTML_PREVIEW_LINK_MESSAGE,
+} from './BucketFileViewer.shared';
 
 const mocks = vi.hoisted(() => ({
+  openURL: vi.fn(() => Promise.resolve(true)),
   platform: { OS: 'ios' as string },
 }));
 
 vi.mock('react-native', () => ({
+  Linking: { openURL: mocks.openURL },
   Platform: mocks.platform,
 }));
 
@@ -65,7 +70,23 @@ function renderWebView(item: BucketFileViewerItem = htmlFile) {
 
 afterEach(() => {
   mocks.platform.OS = 'ios';
+  mocks.openURL.mockClear();
 });
+
+// The token the shell was rendered with, as the shell's own script carries it.
+function shellToken(html: string): string {
+  const token = html.match(/token: '([0-9a-f]{32})'/)?.[1];
+  if (!token) throw new Error('no token in the shell');
+  return token;
+}
+
+function linkMessage(fields: Record<string, unknown>) {
+  return {
+    nativeEvent: {
+      data: JSON.stringify({ type: HTML_PREVIEW_LINK_MESSAGE, ...fields }),
+    },
+  };
+}
 
 describe('BucketFileViewer html preview (native)', () => {
   // The WebView loads a shell of ours that carries the policy; the file sits
@@ -106,6 +127,45 @@ describe('BucketFileViewer html preview (native)', () => {
     expect(props.javaScriptEnabled).toBe(true);
     expect(props.sharedCookiesEnabled).toBe(false);
     expect(props.originWhitelist).toEqual(['*']);
+  });
+
+  // The shell asks the app to open a link the reader tapped; the app opens it
+  // the way it opens a link in chat, but only with the shell's token, since
+  // every frame, the file's included, can post to the bridge.
+  it('opens a tapped link the shell sends with its token', () => {
+    const { props } = renderWebView();
+    const token = shellToken(props.source.html);
+    expect(props.source.html).toContain(
+      'window.ReactNativeWebView.postMessage('
+    );
+    props.onMessage(
+      linkMessage({ token, href: 'https://shop.example/item?id=1' })
+    );
+    expect(mocks.openURL).toHaveBeenCalledWith(
+      'https://shop.example/item?id=1'
+    );
+  });
+
+  it('ignores a message without the token, or for anything but a web, mail or phone link', () => {
+    const { props } = renderWebView();
+    const token = shellToken(props.source.html);
+    props.onMessage(linkMessage({ token: 'guess', href: 'https://tlon.io/' }));
+    props.onMessage(linkMessage({ href: 'https://tlon.io/' }));
+    props.onMessage(linkMessage({ token, href: 'file:///etc/passwd' }));
+    props.onMessage(linkMessage({ token, href: 'tlon://open' }));
+    props.onMessage({ nativeEvent: { data: 'https://tlon.io/' } });
+    expect(mocks.openURL).not.toHaveBeenCalled();
+  });
+
+  // A burst of messages opens one link: the app leaves for the browser on the
+  // first.
+  it('opens one link for a burst of messages', () => {
+    const { props } = renderWebView();
+    const token = shellToken(props.source.html);
+    props.onMessage(linkMessage({ token, href: 'https://tlon.io/a' }));
+    props.onMessage(linkMessage({ token, href: 'https://tlon.io/b' }));
+    expect(mocks.openURL).toHaveBeenCalledTimes(1);
+    expect(mocks.openURL).toHaveBeenCalledWith('https://tlon.io/a');
   });
 
   it('loads the inline documents and refuses every other navigation, a tapped link included', () => {

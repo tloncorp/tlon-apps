@@ -70,6 +70,20 @@ let cachedShipUrl: string | null = null;
 // Whether a URL is the ship's own, by parsed origin rather than by prefix:
 // `https://ship.example` is also a prefix of `https://ship.example.evil.test/`,
 // and this answer decides which requests carry the reader's auth cookie.
+// The schemes a link may hand to the system: web, mail and phone links. Any
+// other scheme -- file:, smb:, an app's own -- would have the operating
+// system open whatever it names, from a link in a message or a previewed
+// file that anyone could have written.
+const EXTERNAL_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+
+function isExternalLinkUrl(url: string): boolean {
+  try {
+    return EXTERNAL_LINK_PROTOCOLS.has(new URL(url).protocol);
+  } catch {
+    return false;
+  }
+}
+
 function isShipUrl(url: string): boolean {
   if (!cachedShipUrl) return false;
   try {
@@ -239,7 +253,9 @@ async function createWindow() {
     // Check if the URL is external (not the cachedShipUrl)
     if (cachedShipUrl && !isShipUrl(url)) {
       // Open the URL in the user's default browser
-      shell.openExternal(url);
+      if (isExternalLinkUrl(url)) {
+        shell.openExternal(url);
+      }
       return { action: 'deny' };
     }
     // Allow creating new windows for internal URLs, including links to apps running on the current ship (if we provide app launching from our app later)

@@ -1,7 +1,7 @@
 import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { useMemo } from 'react';
-import { Platform } from 'react-native';
+import { useMemo, useRef } from 'react';
+import { Linking, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
@@ -13,6 +13,8 @@ import {
   bucketFileViewerHeading,
   getBucketPreviewKind,
   htmlPreviewDocument,
+  htmlPreviewKey,
+  htmlPreviewLinkFromBridge,
   htmlPreviewNavigation,
   htmlPreviewShell,
 } from './BucketFileViewer.shared';
@@ -167,24 +169,38 @@ function NativeVideoPreview({ uri }: { uri: string }) {
  * It sits in a sandboxed frame inside a shell of ours (htmlPreviewShell), so
  * it cannot navigate itself away or raise a dialog; its scripts run against
  * its own DOM and nothing else, with HTML_PREVIEW_POLICY keeping them off the
- * network and its forms from submitting; and nothing leaves the preview, a
- * tapped link included (htmlPreviewNavigation). On iOS the WebView also gets a
- * non-persistent data store with the app's cookies kept out, so nothing the
- * document loads carries the reader's ship session. On Android every WebView
- * in the process shares one cookie jar -- the one React Native's own
- * networking keeps the session in -- which is why the policy matters there;
- * `incognito` on Android clears that jar, which would sign the reader out,
- * so it is iOS-only.
+ * network and its forms from submitting; and the WebView itself loads nothing
+ * but the two inline documents (htmlPreviewNavigation).
+ *
+ * A link the reader taps still opens, the way a link in chat does. The shell
+ * asks the app over the WebView's message bridge, and the app opens the link
+ * only when the message carries the token the shell was rendered with
+ * (htmlPreviewLinkFromBridge), since every frame, the file's included, can
+ * post to that bridge.
+ *
+ * On iOS the WebView also gets a non-persistent data store with the app's
+ * cookies kept out, so nothing the document loads carries the reader's ship
+ * session. On Android every WebView in the process shares one cookie jar --
+ * the one React Native's own networking keeps the session in -- which is why
+ * the policy matters there; `incognito` on Android clears that jar, which
+ * would sign the reader out, so it is iOS-only.
  */
 function NativeHtmlPreview({ html }: { html: string }) {
+  const secrets = useMemo(
+    () => ({ key: htmlPreviewKey(), token: htmlPreviewKey() }),
+    []
+  );
+  const lastOpened = useRef(0);
   const source = useMemo(
     () => ({
       html: htmlPreviewShell({
-        document: htmlPreviewDocument(html),
+        document: htmlPreviewDocument(html, secrets.key),
+        key: secrets.key,
+        opener: { kind: 'app', token: secrets.token },
         sandbox: HTML_PREVIEW_NATIVE_SANDBOX,
       }),
     }),
-    [html]
+    [html, secrets]
   );
   return (
     <WebView
@@ -195,6 +211,16 @@ function NativeHtmlPreview({ html }: { html: string }) {
       incognito={Platform.OS === 'ios'}
       javaScriptCanOpenWindowsAutomatically={false}
       javaScriptEnabled
+      onMessage={(event) => {
+        const href = htmlPreviewLinkFromBridge(
+          event.nativeEvent.data,
+          secrets.token
+        );
+        const now = Date.now();
+        if (!href || now - lastOpened.current < 1000) return;
+        lastOpened.current = now;
+        Linking.openURL(href).catch(() => {});
+      }}
       onShouldStartLoadWithRequest={(request) =>
         htmlPreviewNavigation(request) === 'load'
       }

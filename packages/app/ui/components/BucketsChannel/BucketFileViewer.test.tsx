@@ -59,12 +59,15 @@ afterEach(() => {
 describe('BucketFileViewer html preview (web)', () => {
   // From its text, so the storage's Content-Type and Content-Disposition
   // cannot turn the preview into a download; inside a shell of ours that
-  // carries the policy its document inherits and keeps the file's frame
-  // where it is; sandboxed with nothing but scripts, inside and out.
+  // carries the policy its document inherits, keeps the file's frame where
+  // it is and opens its links; the file's frame sandboxed with scripts and
+  // nothing else, so it cannot open a window itself.
   it('renders the file from its text in a sandboxed frame, not from its URL', () => {
     const [frame] = frames(render(htmlFile));
     expect(frame.props.src).toBeUndefined();
-    expect(frame.props.sandbox).toBe('allow-scripts');
+    expect(frame.props.sandbox).toBe(
+      'allow-scripts allow-popups allow-popups-to-escape-sandbox'
+    );
     const shell: string = frame.props.srcDoc;
     expect(shell).toContain(
       '<head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="connect-src \'none\'; form-action \'none\'; frame-src about:; object-src \'none\'">'
@@ -74,12 +77,29 @@ describe('BucketFileViewer html preview (web)', () => {
     expect(shell).toContain('&lt;base target=&quot;_blank&quot;&gt;');
   });
 
+  // Our script in the file's frame and the shell's share one key, which the
+  // file never sees; the shell opens a tapped link as a new tab.
+  it('opens a tapped link as a new tab, keyed to our script in the frame', () => {
+    const shell: string = frames(render(htmlFile))[0].props.srcDoc;
+    const key = shell.match(/\}\)\('([0-9a-f]{32})', function \(href\)/)?.[1];
+    expect(key).toBeDefined();
+    // The same key closes our script in the file's frame, escaped in srcdoc.
+    expect(shell).toContain(`})('${key}');`);
+    expect(shell).toContain(
+      "window.open(href, '_blank', 'noopener,noreferrer')"
+    );
+  });
+
   // The desktop shell disables web security, which defeats the opaque origin.
-  it('withholds scripts under Electron', () => {
+  // With no script anywhere, a link the reader clicks opens as a popup.
+  it('withholds scripts under Electron and lets links open as popups', () => {
     mocks.isElectron = true;
     const [frame] = frames(render(htmlFile));
-    expect(frame.props.sandbox).toBe('');
-    expect(frame.props.srcDoc).toContain('<iframe sandbox="" srcdoc="');
+    const popups = 'allow-popups allow-popups-to-escape-sandbox';
+    expect(frame.props.sandbox).toBe(popups);
+    expect(frame.props.srcDoc).toContain(
+      `<iframe sandbox="${popups}" srcdoc="`
+    );
   });
 
   it('names the page by its title, with the file beneath', () => {
