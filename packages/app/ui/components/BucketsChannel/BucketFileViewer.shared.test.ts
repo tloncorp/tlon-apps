@@ -5,8 +5,9 @@ import {
   MAX_TEXT_PREVIEW_BYTES,
   canPreviewFromText,
   getBucketPreviewKind,
-  htmlPreviewDocument,
+  htmlPreviewNativeDocument,
   htmlPreviewNavigation,
+  htmlPreviewWebDocument,
 } from './BucketFileViewer.shared';
 
 describe('getBucketPreviewKind', () => {
@@ -94,12 +95,30 @@ describe('HTML_PREVIEW_SANDBOX', () => {
   });
 });
 
-describe('htmlPreviewDocument', () => {
+describe('htmlPreviewWebDocument', () => {
+  it('gives links a new-tab target, after the doctype', () => {
+    expect(htmlPreviewWebDocument('<!doctype html><p>x</p>')).toBe(
+      '<!doctype html><base target="_blank"><p>x</p>'
+    );
+  });
+
+  // A comment may precede the doctype. The fragment still has to land after
+  // the doctype, or the parser drops the doctype and the page goes quirks.
+  it('keeps a doctype that follows a comment first', () => {
+    expect(
+      htmlPreviewWebDocument('<!-- generated -->\n<!DOCTYPE html>\n<p>x</p>')
+    ).toBe(
+      '<!-- generated -->\n<!DOCTYPE html><base target="_blank">\n<p>x</p>'
+    );
+  });
+});
+
+describe('htmlPreviewNativeDocument', () => {
   const policy =
     '<meta http-equiv="Content-Security-Policy" content="form-action \'none\'; connect-src \'none\'">';
 
   it('places the policy after the doctype, keeping standards mode', () => {
-    const out = htmlPreviewDocument(
+    const out = htmlPreviewNativeDocument(
       '<!DOCTYPE html>\n<html><head><title>t</title></head><body>b</body></html>'
     );
     expect(out.startsWith(`<!DOCTYPE html>${policy}\n<html>`)).toBe(true);
@@ -107,12 +126,19 @@ describe('htmlPreviewDocument', () => {
   });
 
   it('places the policy first when there is no doctype', () => {
-    expect(htmlPreviewDocument('<p>hi</p>')).toBe(`${policy}<p>hi</p>`);
+    expect(htmlPreviewNativeDocument('<p>hi</p>')).toBe(`${policy}<p>hi</p>`);
   });
 
   it('tolerates a byte order mark and whitespace before the doctype', () => {
-    const out = htmlPreviewDocument('﻿  <!doctype html><p>x</p>');
+    const out = htmlPreviewNativeDocument('﻿  <!doctype html><p>x</p>');
     expect(out).toBe(`﻿  <!doctype html>${policy}<p>x</p>`);
+  });
+
+  it('keeps a doctype that follows a comment first', () => {
+    const out = htmlPreviewNativeDocument(
+      '<!-- generated -->\n<!DOCTYPE html>\n<p>x</p>'
+    );
+    expect(out).toBe(`<!-- generated -->\n<!DOCTYPE html>${policy}\n<p>x</p>`);
   });
 });
 

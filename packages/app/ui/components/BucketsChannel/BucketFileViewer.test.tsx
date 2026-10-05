@@ -49,7 +49,8 @@ describe('BucketFileViewer html preview (web)', () => {
   // origin, scripts or forms, so the document stays a stranger.
   it('renders the file from its text in a sandboxed frame, not from its URL', () => {
     const [frame] = frames(render(htmlFile));
-    expect(frame.props.srcDoc).toBe(htmlFile.textContent);
+    expect(frame.props.srcDoc).toContain('<p>Quarterly numbers</p>');
+    expect(frame.props.srcDoc).toContain('<base target="_blank">');
     expect(frame.props.src).toBeUndefined();
     const tokens = frame.props.sandbox.split(' ');
     expect(tokens).not.toContain('allow-same-origin');

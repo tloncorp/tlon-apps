@@ -10,7 +10,7 @@ import { ScreenHeader } from '../ScreenHeader';
 import {
   BucketFileViewerItem,
   getBucketPreviewKind,
-  htmlPreviewDocument,
+  htmlPreviewNativeDocument,
   htmlPreviewNavigation,
 } from './BucketFileViewer.shared';
 
@@ -160,7 +160,7 @@ function NativeVideoPreview({ uri }: { uri: string }) {
  * Renders an HTML file from its text, in a WebView kept apart from the app.
  *
  * The document is a stranger's: anyone who can write to the Bucket wrote it.
- * Its scripts do not run, its forms cannot submit (htmlPreviewDocument), and
+ * Its scripts do not run, its forms cannot submit (htmlPreviewNativeDocument), and
  * only a link the reader taps leaves the preview (htmlPreviewNavigation). On
  * iOS the WebView also gets a non-persistent data store with the app's
  * cookies kept out, so nothing the document loads carries the reader's ship
@@ -170,7 +170,10 @@ function NativeVideoPreview({ uri }: { uri: string }) {
  * is iOS-only.
  */
 function NativeHtmlPreview({ html }: { html: string }) {
-  const source = useMemo(() => ({ html: htmlPreviewDocument(html) }), [html]);
+  const source = useMemo(
+    () => ({ html: htmlPreviewNativeDocument(html) }),
+    [html]
+  );
   return (
     <WebView
       allowFileAccess={false}

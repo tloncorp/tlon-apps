@@ -6,6 +6,7 @@ import {
   BucketFileViewerItem,
   HTML_PREVIEW_SANDBOX,
   getBucketPreviewKind,
+  htmlPreviewWebDocument,
 } from './BucketFileViewer.shared';
 
 export function BucketFileViewer({
@@ -81,7 +82,7 @@ export function BucketFileViewer({
           <iframe
             referrerPolicy="no-referrer"
             sandbox={HTML_PREVIEW_SANDBOX}
-            srcDoc={item.textContent}
+            srcDoc={htmlPreviewWebDocument(item.textContent)}
             style={{
               backgroundColor: 'white',
               border: 0,

@@ -101,25 +101,47 @@ export const HTML_PREVIEW_SANDBOX =
   'allow-popups allow-popups-to-escape-sandbox';
 
 /**
+ * The file's markup with `fragment` placed where the parser sees it before
+ * any of the file's own content: after the doctype, and after any comments
+ * ahead of it, so that the document keeps standards mode; first when there is
+ * no doctype, which is a document in quirks mode already.
+ */
+function withDocumentHead(html: string, fragment: string): string {
+  const lead = html.match(/^(?:\s+|<!--[\s\S]*?-->)*<!doctype[^>]*>/i);
+  if (!lead) return fragment + html;
+  return html.slice(0, lead[0].length) + fragment + html.slice(lead[0].length);
+}
+
+/**
+ * The file's markup as the web frame loads it.
+ *
+ * A link in the file would otherwise navigate the frame itself: the sandbox
+ * has no token that forbids that, and a destination that refuses framing
+ * leaves the preview blank. With `_blank` as the default target, and popups
+ * allowed to escape the sandbox, a link opens as an ordinary page in a new
+ * tab and the preview stays put. The first `<base>` with a target wins, so a
+ * `<base href>` of the file's own still applies. Native does not get this:
+ * there a `_blank` link comes back as a navigation with no tap on record,
+ * which htmlPreviewNavigation refuses.
+ */
+export function htmlPreviewWebDocument(html: string): string {
+  return withDocumentHead(html, '<base target="_blank">');
+}
+
+/**
  * The file's markup as the native WebView loads it: with a policy that keeps
- * the document from submitting forms or opening connections, placed where the
- * parser sees it before any of the file's own content.
+ * the document from submitting forms or opening connections.
  *
  * On Android every WebView shares the cookie jar React Native's own networking
  * keeps the ship session in, and the platform never reports a POST navigation
  * to `onShouldStartLoadWithRequest`, so a form the reader tapped would reach
- * the ship as them. The `<meta>` goes after the doctype, when there is one,
- * so that the document keeps standards mode. iOS holds no cookies in this
- * WebView and needs none of it, but gets the same document for the same
- * behavior.
+ * the ship as them. iOS holds no cookies in this WebView and needs none of
+ * it, but gets the same document for the same behavior.
  */
-export function htmlPreviewDocument(html: string): string {
-  const policy =
-    '<meta http-equiv="Content-Security-Policy" content="form-action \'none\'; connect-src \'none\'">';
-  const doctype = html.match(/^\s*<!doctype[^>]*>/i);
-  if (!doctype) return policy + html;
-  return (
-    html.slice(0, doctype[0].length) + policy + html.slice(doctype[0].length)
+export function htmlPreviewNativeDocument(html: string): string {
+  return withDocumentHead(
+    html,
+    '<meta http-equiv="Content-Security-Policy" content="form-action \'none\'; connect-src \'none\'">'
   );
 }
 
