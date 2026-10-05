@@ -48,7 +48,7 @@ Commands:
   activity     Activity/notifications (mentions, replies, all, unreads)
   browser      Hosted browser login handoff (handoff)
   buckets      Shared file channels (list, files, upload, read, mkdir, move, delete)
-  channels     Channel listing and management (dms, groups, info, update, delete, add/del-writers, add/del-readers)
+  channels     Channel listing and management (dms, groups, info, update, delete, leave, join, add/del-writers, add/del-readers)
   contacts     Contact/profile management (list, get, self, sync, add, remove, update-profile)
   dms          Direct message operations (send, reply, react, unreact, delete, accept, decline)
   expose       Manage public content exposure (list, show, hide, check, url)

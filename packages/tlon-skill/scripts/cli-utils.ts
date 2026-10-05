@@ -338,6 +338,53 @@ export function refuseNotesChannelMetadataUpdate(
   }
 }
 
+export type ChannelMembershipVerb = 'leave' | 'join';
+
+const PAST_PARTICIPLE: Record<ChannelMembershipVerb, string> = {
+  leave: 'left',
+  join: 'joined',
+};
+
+export function notesChannelMembershipMessage(
+  nest: string,
+  verb: ChannelMembershipVerb
+): string {
+  return `%notes channels are ${PAST_PARTICIPLE[verb]} with \`tlon notes ${verb} ${nest}\`.`;
+}
+
+export function nonGroupChannelNestMessage(
+  nest: string,
+  verb: ChannelMembershipVerb
+): string {
+  return `Only chat/ and heap/ channels can be ${PAST_PARTICIPLE[verb]} with tlon channels ${verb} (got ${nest})`;
+}
+
+export function refuseNotesChannelMembership(
+  nest: string | undefined,
+  verb: ChannelMembershipVerb
+): void {
+  if (nest && isNotesNest(nest)) {
+    printErrorAndExit(notesChannelMembershipMessage(nest, verb));
+  }
+}
+
+// Only %channels chat/heap nests can be left/joined; this also catches
+// buckets/ nests, malformed nests, and DM ids before any network call.
+export function refuseNonGroupChannelNest(
+  nest: string,
+  verb: ChannelMembershipVerb
+): void {
+  const parts = nest.split('/');
+  if (
+    parts.length !== 3 ||
+    !['chat', 'heap'].includes(parts[0]) ||
+    !parts[1] ||
+    !parts[2]
+  ) {
+    printErrorAndExit(nonGroupChannelNestMessage(nest, verb));
+  }
+}
+
 function extractNumericId(id: string): string {
   const slash = id.indexOf('/');
   return slash >= 0 ? id.slice(slash + 1) : id;

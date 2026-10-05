@@ -1,4 +1,9 @@
-import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from './cli-utils';
+import {
+  DIARY_REMOVED,
+  NOTES_CHANNEL_CONTENT_UNSUPPORTED,
+  nonGroupChannelNestMessage,
+  notesChannelMembershipMessage,
+} from './cli-utils';
 
 export const COMMAND_FAMILIES = [
   'activity',
@@ -1682,6 +1687,53 @@ export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
   },
 ];
 
+// `channels leave` / `channels join` pre-auth validation: only chat/heap nests
+// reach auth; diary, %notes, and other nests are refused locally.
+export const CHANNEL_MEMBERSHIP_CASES: CliCase[] = (
+  ['leave', 'join'] as const
+).flatMap((verb) => [
+  usageErrorCase(
+    `channels ${verb} missing nest`,
+    ['channels', verb],
+    `Usage: tlon channels ${verb}`
+  ),
+  helpCase(
+    `channels ${verb} --help`,
+    ['channels', verb, '--help'],
+    `Usage: tlon channels ${verb}`
+  ),
+  diaryRefusedCase(`channels ${verb} diary nest refuses`, [
+    'channels',
+    verb,
+    'diary/~host/blog',
+  ]),
+  refusalCase(
+    `channels ${verb} notes nest points at tlon notes`,
+    ['channels', verb, 'notes/~host/blog'],
+    notesChannelMembershipMessage('notes/~host/blog', verb)
+  ),
+  refusalCase(
+    `channels ${verb} buckets nest refuses`,
+    ['channels', verb, 'buckets/~zod/x'],
+    nonGroupChannelNestMessage('buckets/~zod/x', verb)
+  ),
+  refusalCase(
+    `channels ${verb} malformed nest refuses`,
+    ['channels', verb, 'chat/~zod'],
+    nonGroupChannelNestMessage('chat/~zod', verb)
+  ),
+  authRequiredCase(`channels ${verb} chat nest reaches auth`, [
+    'channels',
+    verb,
+    'chat/~zod/x',
+  ]),
+  authRequiredCase(`channels ${verb} heap nest reaches auth`, [
+    'channels',
+    verb,
+    'heap/~zod/x',
+  ]),
+]);
+
 export const CLI_MATRIX_CASES: CliCase[] = [
   ...(['channels', 'groups'] as const).flatMap((family) => {
     const operation = family === 'channels' ? 'create' : 'add-channel';
@@ -1714,6 +1766,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NOTES_CONTENT_UNSUPPORTED_CASES,
   ...DIARY_REMOVED_CASES,
   ...INVITE_LINK_CREDENTIAL_CASES,
+  ...CHANNEL_MEMBERSHIP_CASES,
 ];
 
 export type HostileHelpCommand = {
