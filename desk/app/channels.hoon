@@ -1995,9 +1995,11 @@
     ?>  |(from-self is-group-host is-channel-host)
     ?:  (~(has by v-channels) nest)
       ::  we should already be in, but make sure our subscriptions still exist
-      ::  just in case
+      ::  just in case. still answer with %join: the client's join waits for
+      ::  it, and %groups relies on it to repair a stale .active-channels.
       ::
       =.  channel  (~(got by v-channels) nest)
+      =.  ca-core  (ca-response %join group.perm.channel)
       (ca-safe-sub |)
     =.  channel  *v-channel:c
     =.  group.perm.channel  group

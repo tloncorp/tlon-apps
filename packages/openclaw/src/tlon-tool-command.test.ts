@@ -38,6 +38,38 @@ function beforeImmediate<T>(promise: Promise<T>) {
 }
 
 describe('tlon tool execution', () => {
+  it.each([
+    'notes note-create notes/~zod/blog root "Title" --stdin',
+    'notes note-update notes/~zod/blog 1 --stdin',
+    '--config /tmp/owner.json notes note-update notes/~zod/blog 1 --stdin',
+    'upload --stdin -t image/png',
+  ])('rejects unsupported input before spawning: %s', async (command) => {
+    const runCommand = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(),
+    });
+    const result = await execute('stdin', { command });
+    expect(runCommand).not.toHaveBeenCalled();
+    expect(result.details).toMatchObject({ status: 'error' });
+    expect(result.content[0].text).toContain('cannot supply stdin');
+    expect(result.content[0].text).toContain('--body <file>');
+  });
+
+  it.each([
+    'notes note-create notes/~zod/blog root "--stdin" --body post.md',
+    'notes note-update notes/~zod/blog 1 --stdin --help',
+    'upload --help',
+  ])('preserves literal titles and CLI help: %s', async (command) => {
+    const runCommand = vi.fn().mockResolvedValue('ok');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(),
+    });
+    expect((await execute('help', { command })).details).toBeUndefined();
+    expect(runCommand).toHaveBeenCalledOnce();
+  });
+
   describe('browser handoff credential binding', () => {
     it.each(
       ['--config', '--ship', '--url', '--code', '--cookie'].flatMap((flag) => [
@@ -566,6 +598,20 @@ describe('checkBlockedTlonOperation', () => {
 const documentedActionOperations = {
   activity: ['mentions', 'replies', 'all', 'unreads'],
   browser: ['handoff'],
+  buckets: [
+    'list',
+    'show',
+    'files',
+    'search',
+    'create',
+    'mkdir',
+    'upload',
+    'read',
+    'rename',
+    'move',
+    'delete',
+    'set-writers',
+  ],
   channels: [
     'dms',
     'group-dms',
@@ -690,6 +736,40 @@ const documentedActionOperations = {
 } as const;
 
 describe('tlon tool telemetry summarizer', () => {
+  it('classifies Bucket reads, uploads, and destructive operations without leaking paths', () => {
+    const read = summarizeTlonCommand(
+      'buckets read buckets/~zod/private-files 12'
+    );
+    expect(read).toMatchObject({
+      channelKind: 'buckets',
+      intent: 'read',
+      operation: 'read',
+      subcommand: 'buckets',
+    });
+
+    const upload = summarizeTlonCommand(
+      'buckets upload buckets/~zod/private-files ./secret-plan.md -t text/markdown'
+    );
+    expect(upload).toMatchObject({
+      channelKind: 'buckets',
+      contentTypeProvided: true,
+      intent: 'write',
+      operation: 'upload',
+      uploadSource: 'local',
+    });
+    expect(JSON.stringify(upload)).not.toContain('secret-plan.md');
+    expect(JSON.stringify(upload)).not.toContain('private-files');
+
+    const deletion = summarizeTlonCommand(
+      'buckets delete buckets/~zod/private-files 12'
+    );
+    expect(deletion).toMatchObject({
+      channelKind: 'buckets',
+      intent: 'admin',
+      operation: 'delete',
+    });
+  });
+
   it('accounts for documented tlon action operations', () => {
     for (const [subcommand, operations] of Object.entries(
       documentedActionOperations

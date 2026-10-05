@@ -437,6 +437,7 @@ export type TlonCronRunEvent = TlonCronScheduleFields & {
   nextRunAtMs: number | null;
   delivered: boolean | null;
   deliveryStatus: string | null;
+  intentionalSilence: boolean;
   deliveryError: string | null;
   model: string | null;
   provider: string | null;
@@ -1960,6 +1961,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           nextRunAtMs: event.nextRunAtMs,
           delivered: event.delivered,
           deliveryStatus: event.deliveryStatus,
+          intentionalSilence: event.intentionalSilence,
           deliveryError: event.deliveryError,
           model: event.model,
           provider: event.provider,
