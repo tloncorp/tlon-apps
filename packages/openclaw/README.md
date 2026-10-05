@@ -172,7 +172,7 @@ Every event carries content-free version identity: `harness: "openclaw"`, `plugi
 
 When enabled, the plugin captures `TlonBot Gateway Connected` after subscriptions are active, `TlonBot Reply Handled` after each OpenClaw reply flow, `TlonBot Outbound Routed` for route-dependent sends, and heartbeat nudge events. Expected authentication failures during the first three minutes of a moon outage are captured as `TlonBot Auth Attempt Failed`; continued failures become `TlonBot Plugin Error` events with cumulative `downMs`, `attempt`, and `authPhase` properties. `TlonBot Gateway Connected` also includes the resolved `tlon` CLI version as `tlonSkillVersion`. These summarize counts, routing, model/tool usage, and delivery status, but do not log message content.
 
-Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
+Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. `TlonBot Cron Run` also includes `intentionalSilence`, which identifies successful runs explicitly choosing not to reply. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
 
 Hosted credit holds also emit `TlonBot Cron Budget Snapshot` on gateway startup and when the budget signal, hold episode, or paused count changes. Its `budgetPausedCronCount` counts confirmed budget-owned holds (not manual pauses or unconfirmed disable attempts); it includes zero after recovery. `budgetState` is `limited`, `available`, or `unknown`. `TlonBot Cron Budget Changed` records successful `paused` / `resumed` transitions with `jobId`, `reason`, `episodeId`, `source` (`startup` / `runtime`), and `occurredAtMs`. Both events include `accountId`, `botShip`, and `ownerShip`; task names and prompts are omitted. Startup transitions are saved in the hold ledger and emitted when the gateway is ready, with stable event UUIDs for replay deduplication.
 
@@ -190,25 +190,6 @@ have additional host and owner-replica events. See the
 Diary migration (`/migrate`) emits `TlonBot Diary Migration` per accepted CLI run: `started`, then `completed`, `failed` (with error text truncated to 500 chars), or `consent_required` (the CLI's write-widening refusal — the owner is expected to accept and re-run, so it is not counted as a failure). Events share a `migrationId` and carry `action` (apply/cleanup), `durationMs` on terminals, and `deadlineExceeded` when the run outlived its advisory reporting deadline. A gateway death mid-run leaves a `started` with no terminal — count those as unresolved, not failed. Error text is CLI output, so like the package's other error-carrying events it can name channel nests; message and post content are never sent.
 
 The plugin does not enable telemetry automatically just because an API key is present. `enabled: true` is required so open-source installs do not phone home by default.
-
-### Intentional cron silence
-
-From plugin 0.32.1, `TlonBot Cron Run` includes `intentionalSilence`, and the
-existing `tlon.cron.run.finished` log includes `tlon.cron.intentional_silence`.
-The flag is true only when a run finishes `ok`, is explicitly `not-delivered`
-with `delivered=false`, has no run or delivery error, and its summary is exactly
-`NO_REPLY` (ignoring surrounding whitespace and case). When core strips the token
-from the summary, the plugin also accepts a successful `agent_end` with that
-exact final output, correlated to the isolated cron's session after observing
-the agent run start. Only a boolean is retained; output text is never exported.
-Missing evidence, substantive summaries, and unexplained non-delivery produce
-`false`. Evidence is consumed on completion and reset at the next agent run.
-
-After deploying the plugin, update the Grafana cron alert and dashboard
-classifier to treat `ok` runs with `intentional_silence=true` as healthy before
-classifying `not-delivered` as broken. Keep explicit errors alertable and treat
-an absent flag from older plugin versions as unconfirmed silence. The plugin
-does not change the native status/delivery fields or the live Grafana rules.
 
 ## Steward automation mirror
 
