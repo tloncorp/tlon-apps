@@ -9,7 +9,16 @@ import {
   writeLine,
 } from './command';
 
-export const BROWSER_HELP = `Usage: tlon browser handoff <signed-viewer-url>
+export const BROWSER_HANDOFF_HELP = `Usage: tlon browser --help
+
+Tlon tool: browser handoff <session_id>
+
+Use the sess_ handle from browser_session_create in the tool's command argument.
+The plugin resolves a fresh signed link and delivers the card through this CLI.
+Do not copy, construct, or pass a viewer URL in a model tool call. This CLI
+subcommand is the plugin's delivery transport, not a shell session-handle lookup.`;
+
+export const BROWSER_HELP = `${BROWSER_HANDOFF_HELP}
 
 Send the owner a native password or one-time-code form for the login or
 verification page open in a hosted browser session. The form submits directly
@@ -17,11 +26,8 @@ to the browser service; credential values are never posted to chat or returned
 to the bot. The recipient is always the owner configured for the active bot
 account and cannot be overridden.
 
-Example:
-  tlon browser handoff https://browser-session-ovh1.tlon.network/s/<capability>`;
-
-export const BROWSER_HANDOFF_HELP =
-  'Usage: tlon browser handoff <signed-viewer-url>';
+Tlon tool call:
+  {"command": "browser handoff <session_id>"}`;
 
 export interface BrowserDeps extends Pick<
   PostsDeps,
@@ -161,6 +167,10 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
     }
 
     if (args.length !== 2) {
+      throw usageError(BROWSER_HANDOFF_HELP);
+    }
+
+    if (args[1].startsWith('sess_')) {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 

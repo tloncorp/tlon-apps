@@ -577,7 +577,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     error,
     loading,
     localItems,
-    readUrl: async (id: number) => {
+    readGrant: async (id: number) => {
       const entry = entriesRef.current.find((candidate) => candidate.id === id);
       if (!entry || entry.kind !== 'file' || entry.file.status !== 'ready') {
         throw new Error('This file is not ready to open');
@@ -600,7 +600,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const openWith = (token: string) =>
         grantBucketRead(token, flag.host, entry.file.objectKey, entry.name);
       try {
-        return (await openWith(held.token)).readUrl;
+        return await openWith(held.token);
       } catch (cause) {
         if (
           !(cause instanceof BucketsBrokerError) ||
@@ -609,7 +609,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           throw cause;
         }
         const minted = await requestBucketReadToken(flag);
-        return (await openWith(minted.token)).readUrl;
+        return await openWith(minted.token);
       }
     },
     retryUpload,

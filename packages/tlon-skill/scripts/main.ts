@@ -95,7 +95,6 @@ Cache writes:
 
 Examples:
   tlon contacts list
-  tlon browser handoff https://browser-session-ovh1.tlon.network/s/<capability>
   tlon messages dm ~sampel-palnet --limit 10
   tlon groups create "My Group" --description "A cool group"
   tlon groups create-owned "My Group" --owner ~zod
@@ -104,6 +103,11 @@ Examples:
   tlon --config ~/ships/zod.json contacts self
   tlon --url https://zod.tlon.network --cookie "urbauth-~zod=0v..." contacts self
   tlon --url https://zod.tlon.network --ship ~zod --code abcd-efgh-ijkl-mnop contacts self
+
+Hosted browser login (use the Tlon tool, not a shell command):
+  {"command": "browser handoff <session_id>"}
+  Pass the sess_ handle from browser_session_create. The plugin resolves the
+  signed viewer link; never copy or construct one in a model tool call.
 `);
 }
 

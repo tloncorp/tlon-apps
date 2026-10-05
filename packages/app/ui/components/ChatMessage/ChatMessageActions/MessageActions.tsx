@@ -31,6 +31,7 @@ import {
   messageActionContentKey,
   messageActionToken,
   messageContentKey,
+  uploadedFileUrlsOfPost,
 } from './messageActionModel';
 
 export type {
@@ -115,6 +116,7 @@ const systemImageForAction: Partial<Record<MessageMenuActionId, string>> = {
   copyText: 'doc.on.doc',
   selectText: 'text.cursor',
   copyRef: 'link',
+  copyFileUrl: 'paperclip',
   forward: 'arrowshape.turn.up.right',
   viewReactions: 'face.smiling',
   muteThread: 'bell.slash',
@@ -169,6 +171,7 @@ export function useMessageActionModel({
 
   const contentKey = messageContentKey(post);
   const actionContentKey = messageActionContentKey(post);
+  const uploadedFileUrls = useMemo(() => uploadedFileUrlsOfPost(post), [post]);
   const actions = useMemo<MessageMenuActionDescriptor[]>(() => {
     const isConnected = connectionStatus === 'Connected';
     const canStartDraft = Boolean(draftInputContext?.canStartDraft);
@@ -191,6 +194,7 @@ export function useMessageActionModel({
               deliveryStatus: post.deliveryStatus,
               replyCount: post.replyCount,
               reactionCount: post.reactions?.length ?? 0,
+              uploadedFileCount: uploadedFileUrls.length,
             },
           })
         ) {
@@ -201,6 +205,7 @@ export function useMessageActionModel({
           channel,
           currentUserId,
           currentUserIsAdmin,
+          uploadedFileCount: uploadedFileUrls.length,
         });
         const descriptor = {
           id,
@@ -255,6 +260,7 @@ export function useMessageActionModel({
     selectableText,
     post,
     actionContentKey,
+    uploadedFileUrls,
     channel,
     currentUserId,
     currentUserIsAdmin,
@@ -287,6 +293,7 @@ export function useMessageActionModel({
       const actionArgs = {
         id,
         post,
+        uploadedFileUrls,
         userId: currentUserId,
         channel,
         isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
@@ -330,6 +337,7 @@ export function useMessageActionModel({
       runAfterDismiss,
       selectText,
       selectableText,
+      uploadedFileUrls,
     ]
   );
 
@@ -374,6 +382,7 @@ function confirmDeleteAction(postTerm: string, onConfirm: () => void) {
 export async function handleAction({
   id,
   post,
+  uploadedFileUrls,
   userId,
   channel,
   isMuted,
@@ -388,6 +397,7 @@ export async function handleAction({
 }: {
   id: ChannelAction.Id;
   post: db.Post;
+  uploadedFileUrls: string[];
   userId: string;
   channel: db.Channel;
   isMuted?: boolean;
@@ -437,6 +447,9 @@ export async function handleAction({
       break;
     case 'copyRef':
       await Clipboard.setStringAsync(logic.getPostReferencePath(post));
+      break;
+    case 'copyFileUrl':
+      await Clipboard.setStringAsync(uploadedFileUrls.join('\n'));
       break;
     case 'copyText': {
       let text: string;
@@ -566,11 +579,13 @@ export function displaySpecForChannelActionId(
     channel,
     currentUserId,
     currentUserIsAdmin,
+    uploadedFileCount = 0,
   }: {
     post: db.Post;
     channel: db.Channel;
     currentUserId: string;
     currentUserIsAdmin: boolean;
+    uploadedFileCount?: number;
   }
 ): {
   label: string;
@@ -593,6 +608,12 @@ export function displaySpecForChannelActionId(
 
       case 'copyText':
         return { label: 'Copy message text' };
+
+      case 'copyFileUrl':
+        return {
+          label:
+            uploadedFileCount > 1 ? 'Copy links to files' : 'Copy link to file',
+        };
 
       case 'delete':
         if (post.authorId !== currentUserId && currentUserIsAdmin) {
