@@ -2511,8 +2511,6 @@
     ?~  http-id.u.req  cor
     (po-give-http-response u.http-id.u.req response)
   ::
-  ::  a client subscribing after the result landed gets it immediately
-  ::
   ::  the owner re-subscribing after a kick gets a result the harness has
   ::  already reported, so a dropped subscription cannot lose it
   ::
@@ -2526,6 +2524,8 @@
     :*  %fact  ~  %steward-prompts-response-1
         !>(`response:v1:sp`[rid u.result.u.pen])
     ==
+  ::
+  ::  a client subscribing after the result landed gets it immediately
   ::
   ++  po-watch-local-request
     |=  rid=request-id:v1:sp
@@ -2544,8 +2544,9 @@
     &(=(ship our.bowl) =(path po-harness-path))
   ::
   ::  an accepted command is handed to the harness when one is
-  ::  subscribed, and refused at once when none is. the pending record
-  ::  carries no deadline: a late answer still completes the request
+  ::  subscribed, and refused at once when none is. an unanswered command
+  ::  lives an hour, then the sweep closes it out as harness-offline; a
+  ::  finalize after that finds nothing to settle
   ::
   ++  po-poke-command
     |=  =c-prompts:v1:sp
@@ -2607,8 +2608,9 @@
       (~(put by pending.prompts.state) rid u.pen(result `body))
     (po-give-response requester.u.pen [rid body])
   ::
-  ::  a (re)subscribing harness receives every outstanding command,
-  ::  oldest first, so a restart resumes in-flight work
+  ::  a (re)subscribing harness receives every unanswered command the
+  ::  current owner authorized, oldest first, so a restart resumes
+  ::  in-flight work without replaying a previous owner's edits
   ::
   ++  po-watch-harness
     ^+  cor
@@ -2622,9 +2624,10 @@
       (po-give-dispatch ~ [id requester edit]:i.entries)
     $(entries t.entries)
   ::
-  ::  sweep: terminal records go once fetched or after a day; a pending
-  ::  result and a pending command each live an hour; a record with no
-  ::  result yet is left for its wake
+  ::  sweep, every five minutes. owner side: a terminal record goes once
+  ::  fetched or after a day, a %pending one after two hours, and one with
+  ::  no result yet is left for its wake. bot side: a command lives an
+  ::  hour from sending, closed out as harness-offline if never answered
   ::
   ++  po-cleanup
     ^+  cor
@@ -2676,9 +2679,10 @@
       (~(put by out) id pen)
     (emit %pass /prompts/cleanup %arvo %b %wait (add now.bowl ~m5))
   ::
-  ::  HTTP surface on the owner ship, bound at /steward. auth is eyre's
-  ::  authenticated-session check on every route; a request id is not a
-  ::  capability, so GET is gated like POST
+  ::  HTTP surface, bound at /steward: the owner's edit and request
+  ::  routes, the files GET, and the bot's harness routes /finalize and
+  ::  /project. the dispatcher has already answered 401 for an
+  ::  unauthenticated session, so a request id is never a capability
   ::
   ++  po-handle-http
     |=  [eyre-id=@ta =inbound-request:eyre]
@@ -2843,9 +2847,8 @@
         ['finalized' b+finalized]
     ==
   ::
-  ::  every prompts 4xx is reported the way automation's is: the shared
-  ::  /steward binding sends unknown routes here, so the fleet-wide
-  ::  'HTTP Error' signal has to come from this handler too
+  ::  every prompts 4xx is reported as 'HTTP Error', the way automation's
+  ::  are; the dispatcher reports its own 401 and 404
   ::
   ++  po-http-error
     |=  [eyre-id=@ta code=@ud message=@t]
