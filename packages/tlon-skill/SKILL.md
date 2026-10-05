@@ -637,7 +637,9 @@ tlon notes notebook-delete notes/~host/name --yes        # Owner-gated migration
 
 Note bodies come from exactly one content source. `note-create` accepts `--body <file>` or `--markdown <file>` (alias). `note-update` accepts `--body <file>`; use `--body`, not `--markdown`, for file-backed updates. `note-create` places the note in a folder id, or `root` (resolved to the notebook's root folder). `--expected-revision` on `note-update` is optional (last-write-wins by default).
 
-To create a **group-backed** notes channel for the Tlon app, use `tlon channels create ~host/slug "Title" --kind notes` — %notes owns the listing, so `--description` and writer roles aren't accepted there. Do not use `tlon notes create` for app/group channels; it creates a standalone %notes notebook only.
+To create a **group-backed** notes channel for the Tlon app, use `tlon channels create ~host/slug "Title" --kind notes` — %notes creates the listing, so `--description` isn't accepted at create (set it afterwards with `tlon channels update`), and writer roles aren't supported on notes channels. Do not use `tlon notes create` for app/group channels; it creates a standalone %notes notebook only.
+
+To rename a group notebook as it appears in the app, use `tlon channels rename notes/~host/name "New Title"` (or `tlon channels update notes/~host/name --title "New Title"`); to change its description, use `tlon channels update notes/~host/name --description "Description"`. Like any channel rename, this needs group admin rights. `tlon notes list/show` pick up the new title once the notebook host runs a desk with the %notes title sync; on older desks they keep the original title.
 
 ### Upload
 
