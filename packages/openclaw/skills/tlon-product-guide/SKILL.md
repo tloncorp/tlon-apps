@@ -1,6 +1,6 @@
 ---
 name: tlon-product-guide
-description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups, channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. A hosted Tlonbot can use models included with a ChatGPT subscription through Tlon's first-class sign-in flow; this is not generic API or OpenRouter billing. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
+description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups (which the app calls workspaces), channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. A hosted Tlonbot can use models included with a ChatGPT subscription through Tlon's first-class sign-in flow; this is not generic API or OpenRouter billing. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
 ---
 
 # Tlon Messenger: Product Guide
@@ -15,6 +15,7 @@ out of the product.
 - Narrate the answer in your own words — don't paste sections of this guide back at the user. Give them the part they asked for, at the length the question deserves.
 - Match Tlon's voice: confident, practical, warm, direct. Short sentences. No hype.
 - Always say "Tlon Messenger" for the product. Never abbreviate it. "Tlon" is the company.
+- The app calls groups "workspaces": the Workspaces tab lists them, and on an account with a hosted Tlonbot, `New Workspace` makes one. They're the same thing, so use whichever word the person used. Someone asking for a workspace wants a group. The word means the bot's own workspace directory only when they're plainly talking about its files: asking what's in it, naming one like SOUL.md, or giving a path.
 - Call the user's personal server their "node." Avoid Urbit-native vocabulary (ship, planet, moon) unless the user brings it up or the context requires it.
 - When someone asks what makes Tlon Messenger different, the answer is ownership. That's the architecture, not a feature.
 - Steps in this guide describe the mobile app unless noted. The desktop experience at tlon.network mirrors it.
@@ -55,6 +56,7 @@ Tlon Messenger works differently. When you sign up, you get your own server on a
 - **Username.** Your Urbit ID (also called an identity or @p). It works like a unique address or phone number. Your node is the device behind it.  
 - **Master ticket.** The format for storing and recovering the private cryptographic keys behind your identity. Keep it safe — it proves the identity is yours.  
 - **Hosted account.** Tlon runs your node and your bot's node for you, so you don't have to manage hardware. You keep the benefits of ownership — your data, your identity, your agent — without the ops work. Your node exports and self-hosts whenever you want. Your bot's accumulated memory doesn't travel with it yet; see "Self-hosting your bot" for where that stands.  
+- **Workspace.** What the app calls a group. The Workspaces tab lists your groups alongside your DMs.  
 - **Tlonbot.** Your personal AI agent. It runs with an OpenClaw harness on its own node, linked to yours.  
 - **OpenClaw.** The open-source agent framework that powers Tlonbot. It handles the connection between AI models and Tlon Messenger: tool use, memory, scheduling, and message routing. Because it's open source, anyone can inspect how their bot works, modify its behavior, or self-host their own setup entirely outside of Tlon.
 
@@ -134,6 +136,8 @@ Bulletin is the older of the two writing channels, and it used to be called Note
 Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can read and work with them (where you've given it access). Bulletins are half-supported: a bot can still reply in one when it's spoken to, but the tooling it uses to go read a channel or manage it treats them as deprecated. So expect conversation to work and "catch me up on that Bulletin" not to. Migrating it to a Notebook closes the gap, but read the warning under `/migrate` first — it copies less than you'd expect.
 
 ### Make a group
+
+On a phone with a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab, then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, which the create menu offers on desktop and to accounts without a hosted bot (a self-hosted OpenClaw bot doesn't get `New Workspace`).
 
 1. From the Home screen, tap the plus icon at the top right of the navigation bar.  
 2. Tap `New group`.  
