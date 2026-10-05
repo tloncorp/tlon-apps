@@ -126,7 +126,12 @@ export const ForwardChannelListItem = memo(
             <ForwardGroupChannelIcon channel={channel} />
           ) : undefined
         }
-        EndContent={<ListItem.SelectionIndicator selected={selected} />}
+        EndContent={
+          <ListItem.SelectionIndicator
+            selected={selected}
+            showUnselected={false}
+          />
+        }
       />
     );
   },

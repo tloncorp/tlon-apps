@@ -300,9 +300,16 @@ const ListItemEndContent = styled(YStack, {
 function ListItemSelectionIndicator({
   selected,
   immutable = false,
+  showUnselected = true,
 }: {
   selected: boolean;
   immutable?: boolean;
+  /**
+   * Draw the empty circle on rows that are not picked. Turn it off where only
+   * one row can be picked: a circle on every row reads as pick-many. The
+   * space is still held so the row does not shift when it is picked.
+   */
+  showUnselected?: boolean;
 }) {
   return (
     <View
@@ -317,7 +324,7 @@ function ListItemSelectionIndicator({
           size="$xl"
           color={immutable ? '$blue' : undefined}
         />
-      ) : (
+      ) : showUnselected ? (
         <View
           borderWidth={1}
           borderRadius="$4xl"
@@ -326,7 +333,7 @@ function ListItemSelectionIndicator({
           height="$3xl"
           width="$3xl"
         />
-      )}
+      ) : null}
     </View>
   );
 }
