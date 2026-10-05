@@ -1,6 +1,7 @@
 import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { Platform } from 'react-native';
+import { useMemo } from 'react';
+import { Linking, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
@@ -9,6 +10,8 @@ import { ScreenHeader } from '../ScreenHeader';
 import {
   BucketFileViewerItem,
   getBucketPreviewKind,
+  htmlPreviewDocument,
+  htmlPreviewNavigation,
 } from './BucketFileViewer.shared';
 
 export function BucketFileViewer({
@@ -64,6 +67,8 @@ export function BucketFileViewer({
           <NativeVideoPreview uri={item.uri} />
         ) : previewKind === 'pdf' && Platform.OS === 'ios' && webview ? (
           <WebView webview={webview} source={{ uri: item.uri }} />
+        ) : previewKind === 'html' && item.textContent !== undefined ? (
+          <NativeHtmlPreview html={item.textContent} />
         ) : previewKind === 'text' && item.textContent !== undefined ? (
           <ScrollView flex={1}>
             <Text
@@ -148,6 +153,49 @@ function NativeVideoPreview({ uri }: { uri: string }) {
         style={{ aspectRatio: 16 / 9, width: '100%' }}
       />
     </View>
+  );
+}
+
+/**
+ * Renders an HTML file from its text, in a WebView kept apart from the app.
+ *
+ * The document is a stranger's: anyone who can write to the Bucket wrote it.
+ * Its scripts do not run, its forms cannot submit (htmlPreviewDocument), and
+ * only a link the reader taps leaves the preview (htmlPreviewNavigation). On
+ * iOS the WebView also gets a non-persistent data store with the app's
+ * cookies kept out, so nothing the document loads carries the reader's ship
+ * session. On Android every WebView in the process shares one cookie jar --
+ * the one React Native's own networking keeps the session in -- and
+ * `incognito` there clears that jar, which would sign the reader out; so it
+ * is iOS-only.
+ */
+function NativeHtmlPreview({ html }: { html: string }) {
+  const source = useMemo(() => ({ html: htmlPreviewDocument(html) }), [html]);
+  return (
+    <WebView
+      allowFileAccess={false}
+      allowFileAccessFromFileURLs={false}
+      allowUniversalAccessFromFileURLs={false}
+      allowsLinkPreview={false}
+      incognito={Platform.OS === 'ios'}
+      javaScriptCanOpenWindowsAutomatically={false}
+      javaScriptEnabled={false}
+      onShouldStartLoadWithRequest={(request) => {
+        const navigation = htmlPreviewNavigation(request);
+        if (navigation === 'open-externally') {
+          void Linking.openURL(request.url);
+        }
+        return navigation === 'load';
+      }}
+      // Every navigation reaches the handler above. With the default list the
+      // library itself opens any URL outside it in another app, before asking.
+      originWhitelist={['*']}
+      setSupportMultipleWindows={false}
+      sharedCookiesEnabled={false}
+      source={source}
+      style={{ backgroundColor: 'white', flex: 1 }}
+      thirdPartyCookiesEnabled={false}
+    />
   );
 }
 

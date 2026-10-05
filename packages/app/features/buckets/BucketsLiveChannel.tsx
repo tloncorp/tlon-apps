@@ -33,7 +33,7 @@ import {
   ScreenHeader,
   XStack,
   YStack,
-  canPreviewAsText,
+  canPreviewFromText,
   useCanWrite,
   useCurrentUserId,
   useHideChannelHeader,
@@ -278,7 +278,7 @@ export function BucketsLiveChannel({
       // Checked against the manifest size before fetching, not after: the
       // read itself is what would exhaust memory.
       if (
-        canPreviewAsText(readableItem) &&
+        canPreviewFromText(readableItem) &&
         readableItem.textContent === undefined
       ) {
         const response = await fetch(previewUri);

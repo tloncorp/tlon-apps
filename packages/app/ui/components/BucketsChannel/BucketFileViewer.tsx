@@ -4,6 +4,7 @@ import { ScrollView, Spinner, View, YStack } from 'tamagui';
 import { ScreenHeader } from '../ScreenHeader';
 import {
   BucketFileViewerItem,
+  HTML_PREVIEW_SANDBOX,
   getBucketPreviewKind,
 } from './BucketFileViewer.shared';
 
@@ -75,6 +76,19 @@ export function BucketFileViewer({
             src={item.uri}
             title={item.name}
             style={{ border: 0, height: '100%', width: '100%' }}
+          />
+        ) : previewKind === 'html' && item.textContent !== undefined ? (
+          <iframe
+            referrerPolicy="no-referrer"
+            sandbox={HTML_PREVIEW_SANDBOX}
+            srcDoc={item.textContent}
+            style={{
+              backgroundColor: 'white',
+              border: 0,
+              height: '100%',
+              width: '100%',
+            }}
+            title={item.name}
           />
         ) : previewKind === 'text' && item.textContent !== undefined ? (
           <ScrollView flex={1}>
