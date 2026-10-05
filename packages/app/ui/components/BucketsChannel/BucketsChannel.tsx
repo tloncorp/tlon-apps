@@ -220,6 +220,7 @@ export function BucketsPane({
   state = 'populated',
   uploadAggregateProgress,
   uploadItems,
+  onCopyItemLink,
   onDeleteItem,
   onDownloadItem,
   onCancelUpload,
@@ -239,6 +240,7 @@ export function BucketsPane({
   state?: BucketsPaneState;
   uploadAggregateProgress?: number;
   uploadItems?: BucketItem[];
+  onCopyItemLink?: (item: BucketItem) => void;
   onDeleteItem?: (item: BucketItem) => void;
   onDownloadItem?: (item: BucketItem) => void;
   onCancelUpload?: (item: BucketItem) => void;
@@ -310,6 +312,7 @@ export function BucketsPane({
                   canEdit={canEdit}
                   item={item}
                   selected={selectedItemId === item.id}
+                  onCopyItemLink={onCopyItemLink}
                   onDeleteItem={onDeleteItem}
                   onDownloadItem={onDownloadItem}
                   onCancelUpload={onCancelUpload}
@@ -355,6 +358,7 @@ function BucketRow({
   canEdit,
   item,
   selected,
+  onCopyItemLink,
   onDeleteItem,
   onDownloadItem,
   onCancelUpload,
@@ -366,6 +370,7 @@ function BucketRow({
   canEdit: boolean;
   item: BucketItem;
   selected: boolean;
+  onCopyItemLink?: (item: BucketItem) => void;
   onDeleteItem?: (item: BucketItem) => void;
   onDownloadItem?: (item: BucketItem) => void;
   onCancelUpload?: (item: BucketItem) => void;
@@ -405,6 +410,12 @@ function BucketRow({
         startIcon: 'ArrowDown',
         action: () => onDownloadItem?.(item),
       },
+      item.kind === 'file' &&
+        onCopyItemLink && {
+          title: 'Copy link',
+          startIcon: 'Link',
+          action: () => onCopyItemLink(item),
+        },
     ],
     canEdit &&
       (onRenameItem || onMoveItem) && [

@@ -1,5 +1,6 @@
 import type { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 
 export type MessageMenuActionId =
   | ChannelAction.Id
@@ -33,7 +34,20 @@ export interface MessageActionVisibilityContext {
     deliveryStatus?: unknown;
     replyCount?: number | null;
     reactionCount: number;
+    uploadedFileCount?: number;
   };
+}
+
+export function uploadedFileUrlsOfPost(post: db.Post): string[] {
+  try {
+    return logic.uploadedFileUrlsOf(
+      logic.convertContent(post.content, post.blob)
+    );
+  } catch (e) {
+    // convertContent throws on unrecognized block types (e.g. content
+    // written by a newer client); a post we cannot read offers nothing to copy.
+    return [];
+  }
 }
 
 export function messageActionToken(
@@ -111,6 +125,8 @@ export function isMessageActionVisible(
       return post.authorId === currentUserId || currentUserIsAdmin;
     case 'viewReactions':
       return post.reactionCount > 0;
+    case 'copyFileUrl':
+      return (post.uploadedFileCount ?? 0) > 0;
     case 'visibility':
       return post.authorId !== currentUserId;
     case 'pinPost':

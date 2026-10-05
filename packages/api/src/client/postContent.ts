@@ -551,6 +551,33 @@ export function convertContent(
 }
 
 /**
+ * The URLs of the files uploaded to a post -- images, videos, files and voice
+ * memos -- in display order.
+ *
+ * Only http(s) URLs count: an upload still in flight carries a local URI
+ * (`file://`, `blob:`) that is useless to anyone else. A video can appear twice,
+ * as a blob entry and as the story block older clients read, so each URL is
+ * listed once.
+ */
+export function uploadedFileUrlsOf(content: PostContent): string[] {
+  const urls = content.flatMap((block) => {
+    switch (block.type) {
+      case 'image':
+        return [block.src];
+      case 'video':
+        return [block.video.src];
+      case 'file':
+        return [block.file.fileUri];
+      case 'voicememo':
+        return [block.voiceMemo.fileUri];
+      default:
+        return [];
+    }
+  });
+  return [...new Set(urls.filter((url) => /^https?:\/\//i.test(url)))];
+}
+
+/**
  * Same as `convertContent`, but does not parse the input, and
  * applies more type strictness at callsite.
  */

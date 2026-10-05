@@ -4,7 +4,7 @@ import {
   isBotUserId,
 } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import { ConfirmDialog, Text } from '@tloncorp/ui';
+import { ConfirmDialog, Text, useToast } from '@tloncorp/ui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -40,6 +40,7 @@ import {
   useIsWindowNarrow,
   useRegisterChannelHeaderItem,
 } from '../../ui';
+import { bucketLinkCopiedMessage, copyPendingText } from './bucketLinkCopy';
 import { imagePickerAssetsToBucketUploadCandidates } from './bucketMediaPicker';
 import { findUploadShadowEntryIds } from './bucketUploadReconciliation';
 import {
@@ -135,6 +136,7 @@ export function BucketsLiveChannel({
   const isWindowNarrow = useIsWindowNarrow();
   const isMobileLayout = viewport === 'mobile' || isWindowNarrow;
   const live = useLiveBucket(flag);
+  const showToast = useToast();
   const [activeFolderId, setActiveFolderId] = useState<number | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [newSheetOpen, setNewSheetOpen] = useState(false);
@@ -269,7 +271,7 @@ export function BucketsLiveChannel({
     setPreviewError(null);
 
     try {
-      const previewUri = await live.readUrl(Number(item.id));
+      const { readUrl: previewUri } = await live.readGrant(Number(item.id));
       if (previewRequestId.current !== requestId) return;
 
       const readableItem = { ...item, previewUri };
@@ -468,8 +470,23 @@ export function BucketsLiveChannel({
     },
     onDownloadItem: (item: BucketItem) => {
       void live
-        .readUrl(Number(item.id))
-        .then((url) => Linking.openURL(url))
+        .readGrant(Number(item.id))
+        .then((grant) => Linking.openURL(grant.readUrl))
+        .catch((cause) =>
+          setOperationError(
+            cause instanceof Error ? cause.message : String(cause)
+          )
+        );
+    },
+    onCopyItemLink: (item: BucketItem) => {
+      // Started before the grant arrives so the browser still counts the
+      // press as the gesture that allows the write.
+      const grant = live.readGrant(Number(item.id));
+      void copyPendingText(grant.then(({ readUrl }) => readUrl))
+        .then(() => grant)
+        .then(({ expiresAt }) =>
+          showToast({ message: bucketLinkCopiedMessage(expiresAt) })
+        )
         .catch((cause) =>
           setOperationError(
             cause instanceof Error ? cause.message : String(cause)
@@ -524,8 +541,8 @@ export function BucketsLiveChannel({
                     // an expired URL to another app looks like lost access.
                     const item = previewItem;
                     void live
-                      .readUrl(Number(item.id))
-                      .then((url) => Linking.openURL(url))
+                      .readGrant(Number(item.id))
+                      .then((grant) => Linking.openURL(grant.readUrl))
                       .catch((cause) =>
                         setPreviewError(
                           cause instanceof Error ? cause.message : String(cause)
