@@ -1,4 +1,7 @@
-import { BUCKETS_MIN_GROUPS_VERSION } from '../../lib/deskVersion';
+import {
+  BUCKETS_MIN_GROUPS_VERSION,
+  TLON_DESK_MIN_VERSION,
+} from '../../lib/deskVersion';
 
 // Shape only: `${number}` admits '1e0'. The registry check re-validates every
 // `since` strictly.
@@ -14,6 +17,7 @@ export type ExternalDesk = 'base' | 'landscape';
 // to be off (not while it is still unresolved).
 export const GUARDS = {
   deskSupportsBuckets: { since: BUCKETS_MIN_GROUPS_VERSION },
+  deskServesLureOnReel: { since: TLON_DESK_MIN_VERSION },
 } as const satisfies Record<string, { since: DeskVersion }>;
 export type GuardName = keyof typeof GUARDS;
 

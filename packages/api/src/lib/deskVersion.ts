@@ -47,3 +47,9 @@ export const MIN_GROUPS_VERSION = '12.2.0';
 // move in lockstep with desk/desk.docket-0's version if the release number
 // changes.
 export const BUCKETS_MIN_GROUPS_VERSION = '12.3.0';
+
+// The first %tlon desk release. From here %reel runs the whole lure flow
+// (TLON-6761): grouper-enable is poked at %reel, and %grouper only hands its
+// old state over before it is deleted. Guarded registry entries for the
+// consolidated agent name it as their `since`.
+export const TLON_DESK_MIN_VERSION = '13.0.0';

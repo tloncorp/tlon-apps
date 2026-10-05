@@ -20,4 +20,13 @@ export const reel = {
     mark: 'reel-describe',
     since: '12.2.0',
   },
+  // %grouper's enable poke, served by %reel from the %tlon desk on. Older
+  // desks take it at %grouper (base.grouperEnable); see enableGroup.
+  enableGroup: {
+    kind: 'poke',
+    agent: 'reel',
+    mark: 'grouper-enable',
+    since: '13.0.0',
+    guardedBy: 'deskServesLureOnReel',
+  },
 } as const satisfies Record<string, Entry>;
