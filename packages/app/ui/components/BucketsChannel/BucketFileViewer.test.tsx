@@ -55,18 +55,25 @@ afterEach(() => {
 
 describe('BucketFileViewer html preview (web)', () => {
   // From its text, so the storage's Content-Type and Content-Disposition
-  // cannot turn the preview into a download; sandboxed without the app's
+  // cannot turn the preview into a download; inside a shell of ours whose
+  // policy keeps the file's frame where it is; sandboxed without the app's
   // origin or forms; carrying the policy that keeps its scripts offline.
   it('renders the file from its text in a sandboxed frame, not from its URL', () => {
     const [frame] = frames(render(htmlFile));
     expect(frame.props.src).toBeUndefined();
-    expect(frame.props.srcDoc).toContain('<p>Quarterly numbers</p>');
-    expect(frame.props.srcDoc).toContain("connect-src 'none'");
-    expect(frame.props.srcDoc).toContain('<base target="_blank">');
+    const shell: string = frame.props.srcDoc;
+    expect(shell).toContain('content="frame-src about:"');
+    expect(shell).toContain(
+      '<iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcdoc="'
+    );
+    expect(shell).toContain('&lt;p&gt;Quarterly numbers&lt;/p&gt;');
+    expect(shell).toContain("connect-src 'none'");
+    expect(shell).toContain('&lt;base target=&quot;_blank&quot;&gt;');
     const tokens = frame.props.sandbox.split(' ');
     expect(tokens).toContain('allow-scripts');
     expect(tokens).not.toContain('allow-same-origin');
     expect(tokens).not.toContain('allow-forms');
+    expect(tokens).not.toContain('allow-modals');
   });
 
   // The desktop shell disables web security, which defeats the opaque origin.
@@ -76,6 +83,9 @@ describe('BucketFileViewer html preview (web)', () => {
     const tokens = frame.props.sandbox.split(' ');
     expect(tokens).not.toContain('allow-scripts');
     expect(tokens).not.toContain('allow-same-origin');
+    expect(frame.props.srcDoc).toContain(
+      '<iframe sandbox="allow-popups allow-popups-to-escape-sandbox" srcdoc="'
+    );
   });
 
   // Past the size cap the text is never fetched, and the file falls through

@@ -110,6 +110,46 @@ export function htmlPreviewSandbox({
   ].join(' ');
 }
 
+/** The sandbox for the frame that holds an HTML file on native: scripts, and nothing else. */
+export const HTML_PREVIEW_NATIVE_SANDBOX = 'allow-scripts';
+
+function escapeAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * The document the viewer loads: a shell of ours, with the file in a
+ * sandboxed frame inside it.
+ *
+ * Two things only a parent document can provide. A sandboxed frame may
+ * still navigate itself -- a script setting `location`, a meta refresh --
+ * which would replace the file with a remote page and shed the policy placed
+ * into it; the shell's `frame-src about:` lets the inline frame load and
+ * refuses every destination it could be sent to. And a frame without
+ * `allow-modals` cannot show `alert`, `confirm` or `prompt`, which on native
+ * would otherwise surface as the app's own dialogs, as often as a hostile
+ * script liked. The shell carries no script of its own, and nothing of the
+ * file's outside the escaped attribute.
+ */
+export function htmlPreviewShell({
+  document,
+  sandbox,
+}: {
+  document: string;
+  sandbox: string;
+}): string {
+  return (
+    '<!doctype html><html><head><meta charset="utf-8">' +
+    '<meta http-equiv="Content-Security-Policy" content="frame-src about:">' +
+    '<style>html,body{margin:0;height:100%;background:#fff}iframe{display:block;border:0;width:100%;height:100%}</style>' +
+    `</head><body><iframe sandbox="${sandbox}" srcdoc="${escapeAttribute(document)}"></iframe></body></html>`
+  );
+}
+
 /**
  * The policy every HTML preview carries, placed into the document itself.
  *
@@ -168,33 +208,26 @@ export function htmlPreviewNativeDocument(html: string): string {
 export type HtmlPreviewNavigation = 'load' | 'open-externally' | 'block';
 
 /**
- * What the native HTML preview does with a navigation its WebView reports.
- *
- * The document is handed to the WebView as a string with no base URL, so it
- * loads as `about:blank`. A link the reader taps in the top frame goes to
- * the system browser: the preview keeps showing the file, and the
- * destination gets a real address bar. Everything else -- a meta refresh, a
- * form, a redirect, any scheme that is not a web link, a frame inside the
- * document (which htmlPreviewNativeDocument forbids as well) -- is refused,
- * so a document cannot bounce the reader into another app without a tap, or
+ * What the native preview does with a navigation its WebView reports, for
+ * the shell and the frame inside it alike. The inline documents load. A web
+ * link the reader taps goes to the system browser: the preview keeps showing
+ * the file, and the destination gets a real address bar. Everything else --
+ * a meta refresh, a form, a redirect, any scheme that is not a web link --
+ * is refused, so a document cannot bounce the reader into another app or
  * show them a page that is not the file.
  *
- * iOS reports the frame and the gesture. Android reports neither (the library
- * sends no `isTopFrame` and no real `navigationType`), so there every
- * navigation but the document's own is refused: a link is inert rather than
- * a frame being mistaken for a tap.
+ * iOS reports the gesture. Android does not (the library sends no real
+ * `navigationType`), so there a link is inert rather than a script's
+ * navigation being mistaken for a tap.
  */
 export function htmlPreviewNavigation({
-  isTopFrame,
   navigationType,
   url,
 }: {
-  isTopFrame?: boolean;
   navigationType?: string;
   url: string;
 }): HtmlPreviewNavigation {
   if (url.startsWith('about:')) return 'load';
-  if (isTopFrame === false) return 'block';
   if (navigationType === 'click' && /^(https?|mailto|tel):/i.test(url)) {
     return 'open-externally';
   }

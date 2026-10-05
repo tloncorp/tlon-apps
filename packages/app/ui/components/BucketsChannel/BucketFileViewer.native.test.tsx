@@ -64,13 +64,18 @@ afterEach(() => {
 });
 
 describe('BucketFileViewer html preview (native)', () => {
-  it('loads the file as a document under the form policy, not from its URL', () => {
+  // The WebView loads a shell of ours; the file sits in a sandboxed frame
+  // inside it, under the policy that keeps its scripts offline.
+  it('loads the file inside the shell, sandboxed and under the policy, not from its URL', () => {
     const { props } = renderWebView();
     expect(props.source.uri).toBeUndefined();
-    expect(props.source.html).toContain('<p>Quarterly numbers</p>');
-    expect(props.source.html).toContain("connect-src 'none'");
-    expect(props.source.html).toContain("form-action 'none'");
-    expect(props.source.html).toContain("frame-src 'none'");
+    const shell: string = props.source.html;
+    expect(shell).toContain('content="frame-src about:"');
+    expect(shell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
+    expect(shell).toContain('&lt;p&gt;Quarterly numbers&lt;/p&gt;');
+    expect(shell).toContain("connect-src 'none'");
+    expect(shell).toContain("form-action 'none'");
+    expect(shell).toContain("frame-src 'none'");
   });
 
   // These props are the isolation: a change to any of them is a decision.
@@ -98,14 +103,14 @@ describe('BucketFileViewer html preview (native)', () => {
     expect(
       props.onShouldStartLoadWithRequest({
         url: 'https://tlon.io/',
-        isTopFrame: true,
+        isTopFrame: false,
         navigationType: 'click',
       })
     ).toBe(false);
     expect(mocks.openURL).toHaveBeenCalledWith('https://tlon.io/');
   });
 
-  it('loads the document and refuses a navigation that is not a tap', () => {
+  it('loads the inline documents and refuses a navigation that is not a tap', () => {
     const { props } = renderWebView();
     expect(
       props.onShouldStartLoadWithRequest({
@@ -116,8 +121,15 @@ describe('BucketFileViewer html preview (native)', () => {
     ).toBe(true);
     expect(
       props.onShouldStartLoadWithRequest({
+        url: 'about:srcdoc',
+        isTopFrame: false,
+        navigationType: 'other',
+      })
+    ).toBe(true);
+    expect(
+      props.onShouldStartLoadWithRequest({
         url: 'https://evil.example/',
-        isTopFrame: true,
+        isTopFrame: false,
         navigationType: 'other',
       })
     ).toBe(false);
