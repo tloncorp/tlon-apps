@@ -495,11 +495,30 @@ describe('htmlPreviewHasScripts', () => {
     }
   });
 
+  // As the browser reads the attribute: references decoded, tabs dropped.
+  it('finds a javascript: URL however it is spelled', () => {
+    for (const html of [
+      '<a href="java&#x73;cript:go()">go</a>',
+      '<a href="java\tscript:go()">go</a>',
+      '<a href=" JAVASCRIPT:go()">go</a>',
+      '<iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>',
+    ]) {
+      expect(htmlPreviewHasScripts(html), html).toBe(true);
+    }
+  });
+
   it('finds nothing in a static page', () => {
     expect(
       htmlPreviewHasScripts(
         '<p>A page about online scripts.</p><a href="x">x</a>'
       )
+    ).toBe(false);
+    // Only in an attribute a browser follows is it a script.
+    expect(
+      htmlPreviewHasScripts('<abbr title="javascript: a language">JS</abbr>')
+    ).toBe(false);
+    expect(
+      htmlPreviewHasScripts('<style>a::after { content: "<script>"; }</style>')
     ).toBe(false);
   });
 });
@@ -732,19 +751,62 @@ describe('htmlPreviewDocument without scripts', () => {
   const scriptless = (html: string) =>
     htmlPreviewDocument(html, KEY, { scripts: false });
 
-  it('aims every link at _blank, whatever it was aimed at', () => {
+  it('aims every web, mail and phone link at _blank, whatever it was aimed at', () => {
     const out = scriptless(
       '<a href="https://a.example" target="_self">a</a>' +
-        '<A HREF=b TARGET=_top>b</A>' +
-        '<map><area href="c" target=\'_parent\'></map>' +
-        '<a href="d">d</a>' +
-        '<svg><a xlink:href="e"><text>e</text></a></svg>'
+        '<A HREF=https://b.example TARGET=_top>b</A>' +
+        '<map><area href="mailto:c@example.com" target=\'_parent\'></map>' +
+        '<a href="tel:+15555550100">d</a>' +
+        '<svg><a xlink:href="https://e.example"><text>e</text></a></svg>'
     );
     expect(out).toContain('<a target="_blank" href="https://a.example">a</a>');
-    expect(out).toContain('<A target="_blank" HREF=b>b</A>');
-    expect(out).toContain('<area target="_blank" href="c">');
-    expect(out).toContain('<a target="_blank" href="d">d</a>');
-    expect(out).toContain('<a target="_blank" xlink:href="e">');
+    expect(out).toContain('<A target="_blank" HREF=https://b.example>b</A>');
+    expect(out).toContain('<area target="_blank" href="mailto:c@example.com">');
+    expect(out).toContain('<a target="_blank" href="tel:+15555550100">d</a>');
+    expect(out).toContain('<a target="_blank" xlink:href="https://e.example">');
+  });
+
+  // With no script to check where it goes, a popup escaping the sandbox
+  // could open an unsandboxed document or hand an address to another app.
+  it('takes the address from a link to any other scheme', () => {
+    const out = scriptless(
+      '<a href="data:text/html,<b>x</b>" class="d">d</a>' +
+        '<a href="java&#x73;cript:go()" class="j">j</a>' +
+        '<a href=" FILE:///etc/passwd" class="f">f</a>' +
+        '<a href="zoommtg://join" class="z">z</a>'
+    );
+    for (const name of ['d', 'j', 'f', 'z']) {
+      expect(out).toContain(`<a target="_blank" class="${name}">${name}</a>`);
+    }
+    expect(out).not.toMatch(/href=/i);
+  });
+
+  // A fragment stays in the file, scrolling there without a script.
+  it('keeps a fragment in the file', () => {
+    const out = scriptless('<a href="#bottom">b</a><a href="">top</a>');
+    expect(out).toContain('<a target="_self" href="about:srcdoc#bottom">b</a>');
+    expect(out).toContain('<a target="_self" href="about:srcdoc#">top</a>');
+  });
+
+  // A Bucket file has no address of its own its neighbours could be reached
+  // from; a base the file sets itself gives relative links one.
+  it('keeps a relative link only against an http(s) base the file sets', () => {
+    expect(scriptless('<a href="help.html">h</a>')).toContain(
+      '<a target="_blank">h</a>'
+    );
+    // A scheme-relative link takes https, as with scripts running.
+    expect(scriptless('<a href="//cdn.example/x">x</a>')).toContain(
+      '<a target="_blank" href="https://cdn.example/x">x</a>'
+    );
+    const based = scriptless(
+      '<base href="https://docs.example/guide/"><a href="help.html">h</a><a href="#s">s</a><a href="//cdn.example/x">x</a>'
+    );
+    expect(based).toContain('<a target="_blank" href="help.html">h</a>');
+    expect(based).toContain('<a target="_blank" href="#s">s</a>');
+    expect(based).toContain('<a target="_blank" href="//cdn.example/x">x</a>');
+    expect(
+      scriptless('<base href="data:text/html,x"><a href="help.html">h</a>')
+    ).toContain('<a target="_blank">h</a>');
   });
 
   it('leaves text that only looks like a link alone', () => {
@@ -752,12 +814,14 @@ describe('htmlPreviewDocument without scripts', () => {
       `<script>var s = '<a target="_self">';</script>` +
         '<!-- <a target="_self"> -->' +
         '<textarea><a target="_self"></textarea>' +
-        '<a title="target=_self" href="x">x</a>'
+        '<a title="target=_self" href="https://x.example">x</a>'
     );
     expect(out).toContain(`<script>var s = '<a target="_self">';</script>`);
     expect(out).toContain('<!-- <a target="_self"> -->');
     expect(out).toContain('<textarea><a target="_self"></textarea>');
-    expect(out).toContain('<a target="_blank" title="target=_self" href="x">');
+    expect(out).toContain(
+      '<a target="_blank" title="target=_self" href="https://x.example">'
+    );
   });
 
   // Our link script would be inert; the policy and the base target stay.
@@ -771,6 +835,35 @@ describe('htmlPreviewDocument without scripts', () => {
 
   it('rewrites a file of unclosed tags at once', () => {
     expect(scriptless('<a'.repeat(200_000))).toContain('<a<a');
+  });
+});
+
+// Our scripts are written into the documents as text; a slip in an escape
+// would break every preview silently.
+describe('the scripts the documents carry', () => {
+  it('parse', () => {
+    const doc = htmlPreviewDocument('<p>x</p>', KEY);
+    const linkScript = doc.slice(
+      doc.indexOf('<script>') + 8,
+      doc.indexOf('</script>')
+    );
+    expect(() => new Function(linkScript)).not.toThrow();
+    for (const opener of [
+      { kind: 'window' },
+      { kind: 'app', token: TOKEN },
+    ] as const) {
+      const shell = htmlPreviewShell({
+        document: '',
+        key: KEY,
+        opener,
+        sandbox: 'allow-scripts',
+      });
+      const shellScript = shell.slice(
+        shell.lastIndexOf('<script>') + 8,
+        shell.lastIndexOf('</script>')
+      );
+      expect(() => new Function(shellScript)).not.toThrow();
+    }
   });
 });
 

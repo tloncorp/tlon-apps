@@ -90,6 +90,37 @@ function tagAttributes(text: string): Map<string, string> {
 }
 
 /**
+ * The scheme of a URL attribute's raw value, as the browser reads it:
+ * character references decoded, leading and trailing spaces and control
+ * characters trimmed, tabs and newlines anywhere dropped. Undefined for a
+ * relative URL.
+ */
+function urlScheme(value: string): string | undefined {
+  const url = parseEntities(value, { attribute: true });
+  let start = 0;
+  let end = url.length;
+  while (start < end && url.charCodeAt(start) <= 0x20) start += 1;
+  while (end > start && url.charCodeAt(end - 1) <= 0x20) end -= 1;
+  return /^([a-zA-Z][a-zA-Z0-9+.-]*):/
+    .exec(url.slice(start, end).replace(/[\t\n\r]/g, ''))?.[1]
+    .toLowerCase();
+}
+
+// The schemes a link in a preview may open: web, mail and phone.
+const LINK_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
+
+// The attributes whose value a browser follows as a URL, and so would run as
+// a script when it is a `javascript:` one.
+const URL_ATTRIBUTES = new Set([
+  'action',
+  'data',
+  'formaction',
+  'href',
+  'src',
+  'xlink:href',
+]);
+
+/**
  * The charset an HTML file declares in its first bytes, found as a browser's
  * encoding prescan finds it: comments are skipped, and only a `<meta>` with a
  * `charset` attribute, or one with `http-equiv="content-type"` whose
@@ -557,11 +588,61 @@ export function htmlPreviewSandboxes({ scripts }: { scripts: boolean }): {
 
 /**
  * Whether an HTML file has anything a script would run from: a script
- * element, an event handler attribute or a `javascript:` URL. A page without
+ * element, an event handler attribute, a `javascript:` URL in an attribute a
+ * browser follows -- read as the browser reads it, so `java&#x73;cript:`
+ * counts -- or any of these in an inline frame's `srcdoc`. A page without
  * any renders the same with scripts off, so there is nothing to run.
+ *
+ * The same linear scan as the title's: comments, and the text inside script,
+ * style, textarea and the like, are not markup.
  */
 export function htmlPreviewHasScripts(html: string): boolean {
-  return /<script[\s/>]|\son[a-z]{2,32}\s*=|javascript:/i.test(html);
+  const lower = html.toLowerCase();
+  let i = 0;
+  for (;;) {
+    const open = html.indexOf('<', i);
+    if (open < 0) return false;
+    if (html.startsWith('<!--', open)) {
+      const close = html.indexOf('-->', open + 4);
+      if (close < 0) return false;
+      i = close + 3;
+      continue;
+    }
+    if (!isAsciiLetter(html.charCodeAt(open + 1))) {
+      i = open + 1;
+      continue;
+    }
+    let nameEnd = open + 1;
+    while (nameEnd < html.length) {
+      const code = html.charCodeAt(nameEnd);
+      if (isHtmlSpace(code) || code === 47 || code === 62) break;
+      nameEnd += 1;
+    }
+    const name = lower.slice(open + 1, nameEnd);
+    if (name === 'script') return true;
+    const tagEnd = startTagEnd(html, nameEnd);
+    if (tagEnd < 0) return false;
+    for (const [attribute, value] of tagAttributes(
+      html.slice(nameEnd, tagEnd - 1)
+    )) {
+      if (attribute.length > 2 && attribute.startsWith('on')) return true;
+      if (URL_ATTRIBUTES.has(attribute) && urlScheme(value) === 'javascript') {
+        return true;
+      }
+      if (
+        attribute === 'srcdoc' &&
+        htmlPreviewHasScripts(parseEntities(value, { attribute: true }))
+      ) {
+        return true;
+      }
+    }
+    i = tagEnd;
+    if (TEXT_CONTENT_ELEMENTS.has(name)) {
+      const close = endTagStart(lower, name, tagEnd);
+      if (close < 0) return false;
+      i = close;
+    }
+  }
 }
 
 /** The sandbox for the frame that holds an HTML file on native: scripts, and nothing else. */
@@ -850,7 +931,8 @@ function linkScript(key: string): string {
         else link.setAttribute('target', target);
       }
       if (event.defaultPrevented) return;
-      var raw = (hrefOf(link) || '').trim();
+      // As the URL parser reads it: tabs and newlines anywhere are dropped.
+      var raw = (hrefOf(link) || '').trim().replace(/[\\t\\n\\r]/g, '');
       if (/^javascript:/i.test(raw)) {
         var code;
         try { code = decodeURIComponent(raw.replace(/^javascript:/i, '')); } catch (error) { return; }
@@ -859,9 +941,15 @@ function linkScript(key: string): string {
       }
       // A fragment, or an empty href, stays in the file only when the file
       // has no base address of its own; with one, it names that address.
-      if ((raw === '' || raw.charAt(0) === '#') && !document.querySelector('base[href]')) { scrollToFragment(raw.slice(1)); return; }
+      var base = document.querySelector('base[href]');
+      if ((raw === '' || raw.charAt(0) === '#') && !base) { scrollToFragment(raw.slice(1)); return; }
       if (!trusted) return;
-      var href = typeof link.href === 'string' ? link.href : absolute(raw);
+      // A relative link resolves only against a base the file sets itself: a
+      // Bucket file has no address of its own its neighbours could be reached
+      // from. A scheme-relative one takes https.
+      var href = null;
+      if (base || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw)) href = typeof link.href === 'string' ? link.href : absolute(raw);
+      else if (raw.slice(0, 2) === '//') href = absolute('https:' + raw);
       if (href) shell.postMessage({ type: '${HTML_PREVIEW_LINK_MESSAGE}', key: key, href: href }, '*');
     }, 0);
   }
@@ -888,8 +976,8 @@ const TEXT_CONTENT_ELEMENTS = new Set([
   'xmp',
 ]);
 
-/** A start tag's attribute text without its `target` attributes. */
-function withoutTarget(attributes: string): string {
+/** A start tag's attribute text without the attributes `names` lists. */
+function withoutAttributes(attributes: string, names: Set<string>): string {
   let kept = '';
   let i = 0;
   while (i < attributes.length) {
@@ -939,7 +1027,7 @@ function withoutTarget(attributes: string): string {
       }
       i = valueEnd;
     }
-    if (name !== 'target') kept += attributes.slice(start, i);
+    if (!names.has(name)) kept += attributes.slice(start, i);
     if (i === start) {
       kept += attributes[i];
       i += 1;
@@ -949,19 +1037,77 @@ function withoutTarget(attributes: string): string {
 }
 
 /**
+ * The `href` of the file's own first `<base href>`, read as markup (not from
+ * a comment or the text of a script or the like); undefined when it has none.
+ */
+function authoredBaseHref(html: string): string | undefined {
+  const lower = html.toLowerCase();
+  let i = 0;
+  for (;;) {
+    const open = html.indexOf('<', i);
+    if (open < 0) return undefined;
+    if (html.startsWith('<!--', open)) {
+      const close = html.indexOf('-->', open + 4);
+      if (close < 0) return undefined;
+      i = close + 3;
+      continue;
+    }
+    if (!isAsciiLetter(html.charCodeAt(open + 1))) {
+      i = open + 1;
+      continue;
+    }
+    let nameEnd = open + 1;
+    while (nameEnd < html.length) {
+      const code = html.charCodeAt(nameEnd);
+      if (isHtmlSpace(code) || code === 47 || code === 62) break;
+      nameEnd += 1;
+    }
+    const name = lower.slice(open + 1, nameEnd);
+    const tagEnd = startTagEnd(html, nameEnd);
+    if (tagEnd < 0) return undefined;
+    if (name === 'base') {
+      const href = tagAttributes(html.slice(nameEnd, tagEnd - 1)).get('href');
+      if (href !== undefined) return href;
+    }
+    i = tagEnd;
+    if (TEXT_CONTENT_ELEMENTS.has(name)) {
+      const close = endTagStart(lower, name, tagEnd);
+      if (close < 0) return undefined;
+      i = close;
+    }
+  }
+}
+
+/**
  * The file's markup with every link -- `<a>` and `<area>`, HTML or SVG --
- * aimed at `_blank` in place of whatever target it had.
+ * made safe to follow with no script running, as under Electron and on web
+ * until the reader runs the page's scripts.
  *
- * For a frame that runs no scripts, as under Electron, where our link script
- * cannot point a click at `_blank` as it happens: there a link aimed at the
- * frame itself would be refused by the shell's `frame-src`, and an SVG link
- * ignores the `<base>` target, so neither would reach the desktop shell's
- * window handler. With no script to change it, the markup is the document,
- * so rewriting it covers every link. The same linear scan as the title's;
- * text inside script, style, title and the like, and comments, is left as it
- * is.
+ * Its own frame opens a link as a popup that escapes the sandbox, with no
+ * script of ours to check where it goes, so each link is settled here:
+ *
+ * - A web, mail or phone link is aimed at `_blank`, whatever its target was:
+ *   one aimed at the frame itself would be refused by the shell's
+ *   `frame-src`, and an SVG link ignores the `<base>` target.
+ * - Any other scheme -- `data:`, `javascript:`, `file:`, an app's own -- loses
+ *   its address and with it its link, so no click can open an unsandboxed
+ *   document or hand an address to another app.
+ * - A fragment stays in the file: it points at `about:srcdoc#section`, aimed
+ *   at the frame itself, which scrolls there without reloading (in a srcdoc
+ *   document `#section` alone resolves against the parent's address).
+ * - A relative link keeps its address only when the file sets an http(s)
+ *   base of its own to resolve against; a Bucket file has no address of its
+ *   own its neighbours could be reached from. A scheme-relative one takes
+ *   https, or the scheme of the file's own base.
+ *
+ * With no script to change it, the markup is the document, so rewriting it
+ * covers every link. The same linear scan as the title's; text inside script,
+ * style, title and the like, and comments, is left as it is.
  */
 function withLinksAimedAtBlank(html: string): string {
+  const base = authoredBaseHref(html);
+  const baseScheme = base === undefined ? undefined : urlScheme(base);
+  const relativeResolves = baseScheme === 'http' || baseScheme === 'https';
   const lower = html.toLowerCase();
   let rewritten = '';
   let copied = 0;
@@ -989,10 +1135,36 @@ function withLinksAimedAtBlank(html: string): string {
     const tagEnd = startTagEnd(html, nameEnd);
     if (tagEnd < 0) break;
     if (name === 'a' || name === 'area') {
+      const attributes = html.slice(nameEnd, tagEnd - 1);
+      const values = tagAttributes(attributes);
+      const raw = values.get('href') ?? values.get('xlink:href');
+      let aimed = '_blank';
+      let address: string | undefined;
+      let keepAddress = false;
+      if (raw !== undefined) {
+        const scheme = urlScheme(raw);
+        const value = parseEntities(raw, { attribute: true })
+          .trim()
+          .replace(/[\t\n\r]/g, '');
+        if (scheme !== undefined) {
+          keepAddress = LINK_SCHEMES.has(scheme);
+        } else if (base === undefined && (value === '' || value[0] === '#')) {
+          address = `about:srcdoc#${value.replace(/^#/, '')}`;
+          aimed = '_self';
+        } else if (base === undefined && value.startsWith('//')) {
+          address = `https:${value}`;
+        } else {
+          keepAddress = relativeResolves;
+        }
+      }
+      const dropped = keepAddress
+        ? new Set(['target'])
+        : new Set(['target', 'href', 'xlink:href']);
       rewritten +=
         html.slice(copied, nameEnd) +
-        ' target="_blank"' +
-        withoutTarget(html.slice(nameEnd, tagEnd - 1)) +
+        ` target="${aimed}"` +
+        (address === undefined ? '' : ` href="${escapeAttribute(address)}"`) +
+        withoutAttributes(attributes, dropped) +
         '>';
       copied = tagEnd;
     }
