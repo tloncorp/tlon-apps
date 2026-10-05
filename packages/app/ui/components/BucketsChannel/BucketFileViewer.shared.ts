@@ -146,9 +146,8 @@ function decodeBytes(bytes: Uint8Array, encoding: string): string {
  * The manifest size that canPreviewFromText checks is the writer's own
  * word, recorded at upload; the object behind the read URL can be anything.
  * So the response is bounded too: by its declared length first, and then,
- * as the bytes arrive, the read stops at the first byte past the cap. Where
- * the body does not stream, the whole of it is read and refused if it is
- * over.
+ * as the bytes arrive, the read stops at the first byte past the cap. A body
+ * that does not stream cannot be stopped that way, so it is declined.
  *
  * The bytes are decoded only once their encoding is known (previewEncoding):
  * `Response.text()` decodes as UTF-8 whatever the file says, and a page saved
@@ -187,8 +186,11 @@ export async function readPreviewText(
       offset += chunk.byteLength;
     }
   } else {
-    bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength > limit) return null;
+    // Nothing can stop such a read at the cap: a body that does not stream is
+    // read whole, and a compressed one can grow past any declared length. So
+    // the preview is declined instead. The runtimes the app ships on, browsers
+    // and Expo's fetch, all stream.
+    return null;
   }
 
   const encoding = previewEncoding({
@@ -278,6 +280,49 @@ const TITLE_SKIPPED_ELEMENTS = new Set([
   'xmp',
 ]);
 
+// HTML's ASCII whitespace: tab, line feed, form feed, carriage return, space.
+function isHtmlSpace(code: number): boolean {
+  return code === 9 || code === 10 || code === 12 || code === 13 || code === 32;
+}
+
+function isAsciiLetter(code: number): boolean {
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+/**
+ * The index just past the `>` that ends a start tag whose name ends at
+ * `from`, skipping a quoted attribute value whole; -1 when the tag never
+ * ends.
+ */
+function startTagEnd(html: string, from: number): number {
+  let i = from;
+  while (i < html.length) {
+    const char = html[i];
+    if (char === '>') return i + 1;
+    i += 1;
+    if (char !== '=') continue;
+    while (i < html.length && isHtmlSpace(html.charCodeAt(i))) i += 1;
+    const quote = html[i];
+    if (quote === '"' || quote === "'") {
+      const close = html.indexOf(quote, i + 1);
+      if (close < 0) return -1;
+      i = close + 1;
+    }
+  }
+  return -1;
+}
+
+/** Where the end tag `</name>` starts in `lower`, from `from`; -1 when there is none. */
+function endTagStart(lower: string, name: string, from: number): number {
+  const open = `</${name}`;
+  for (let i = lower.indexOf(open, from); i >= 0;) {
+    const next = lower.charCodeAt(i + open.length);
+    if (isHtmlSpace(next) || next === 47 || next === 62) return i;
+    i = lower.indexOf(open, i + 1);
+  }
+  return -1;
+}
+
 /**
  * The title of an HTML file, as the page itself would show it: the first
  * `<title>` the parser would make an element of -- not one in a comment, an
@@ -285,30 +330,54 @@ const TITLE_SKIPPED_ELEMENTS = new Set([
  * tooltip -- with entities decoded and whitespace collapsed, the way
  * `document.title` reads it. Undefined when the file has none, it is blank,
  * or it is never closed.
+ *
+ * A scan rather than a regular expression: it reads each character a fixed
+ * number of times, where a pattern for tags backtracks without bound on a
+ * file of unclosed tags, which anyone who can upload could write.
  */
 export function htmlPreviewTitle(html: string): string | undefined {
-  const token =
-    /<!--[\s\S]*?(?:-->|$)|<(\/?)([a-zA-Z][^\s/>]*)(?:[^>"']|"[^"]*"|'[^']*')*>/g;
-  let match: RegExpExecArray | null;
-  while ((match = token.exec(html))) {
-    // A comment, or an end tag.
-    if (match[1] !== '') continue;
-    const name = match[2].toLowerCase();
+  const lower = html.toLowerCase();
+  let i = 0;
+  for (;;) {
+    const open = html.indexOf('<', i);
+    if (open < 0) return undefined;
+    if (html.startsWith('<!--', open)) {
+      const close = html.indexOf('-->', open + 4);
+      if (close < 0) return undefined;
+      i = close + 3;
+      continue;
+    }
+    // End tags, doctypes, processing instructions and a stray `<` say nothing
+    // about the title.
+    if (!isAsciiLetter(html.charCodeAt(open + 1))) {
+      i = open + 1;
+      continue;
+    }
+    let nameEnd = open + 1;
+    while (nameEnd < html.length) {
+      const code = html.charCodeAt(nameEnd);
+      if (isHtmlSpace(code) || code === 47 || code === 62) break;
+      nameEnd += 1;
+    }
+    const name = lower.slice(open + 1, nameEnd);
+    const tagEnd = startTagEnd(html, nameEnd);
+    if (tagEnd < 0) return undefined;
+    i = tagEnd;
     if (name !== 'title' && !TITLE_SKIPPED_ELEMENTS.has(name)) continue;
     // Everything after a plaintext start tag is text.
     if (name === 'plaintext') return undefined;
-    const rest = html.slice(token.lastIndex);
-    const close = new RegExp(`</${name}[\\s/>]`, 'i').exec(rest);
-    if (!close) return undefined;
+    const close = endTagStart(lower, name, tagEnd);
+    if (close < 0) return undefined;
     if (name === 'title') {
-      const title = decodeEntities(rest.slice(0, close.index))
+      const title = decodeEntities(html.slice(tagEnd, close))
         .replace(/\s+/g, ' ')
         .trim();
       return title === '' ? undefined : title.slice(0, 200);
     }
-    token.lastIndex += close.index + close[0].length;
+    const closeEnd = html.indexOf('>', close);
+    if (closeEnd < 0) return undefined;
+    i = closeEnd + 1;
   }
-  return undefined;
 }
 
 /**
@@ -511,21 +580,51 @@ export function htmlPreviewShell({
 }
 
 /**
- * The file's markup with `fragment` placed where the parser sees it before
- * any of the file's own content: after the doctype, and after any comments
- * or processing instructions ahead of it, so that the document keeps
- * standards mode; first when there is no doctype, which is a document in
- * quirks mode already.
+ * Where the file's doctype ends: after any byte order mark, whitespace,
+ * comments and processing instructions ahead of it, the index just past its
+ * `>`; -1 when the file has none. A `>` ends a DOCTYPE token in every state
+ * of the HTML tokenizer, quoted identifiers included, so the first `>` is
+ * where the parser's doctype ends.
  *
- * A `>` ends a DOCTYPE token in every state of the HTML tokenizer, quoted
- * identifiers included, so the first `>` is where the parser's doctype ends.
+ * A scan rather than a regular expression, for the reason htmlPreviewTitle
+ * gives: a pattern with a repeated run of whitespace backtracks exponentially
+ * on a file that opens with whitespace and has no doctype.
+ */
+function doctypeEnd(html: string): number {
+  let i = 0;
+  for (;;) {
+    while (i < html.length) {
+      const code = html.charCodeAt(i);
+      if (!isHtmlSpace(code) && code !== 0xfeff) break;
+      i += 1;
+    }
+    if (html.startsWith('<!--', i)) {
+      const close = html.indexOf('-->', i + 4);
+      if (close < 0) return -1;
+      i = close + 3;
+    } else if (html.startsWith('<?', i)) {
+      const close = html.indexOf('>', i + 2);
+      if (close < 0) return -1;
+      i = close + 1;
+    } else {
+      break;
+    }
+  }
+  if (html.slice(i, i + 9).toLowerCase() !== '<!doctype') return -1;
+  const close = html.indexOf('>', i + 9);
+  return close < 0 ? -1 : close + 1;
+}
+
+/**
+ * The file's markup with `fragment` placed where the parser sees it before
+ * any of the file's own content: after the doctype, so that the document
+ * keeps standards mode; first when there is no doctype, which is a document
+ * in quirks mode already.
  */
 function withDocumentHead(html: string, fragment: string): string {
-  const lead = html.match(
-    /^(?:\s+|<!--[\s\S]*?-->|<\?[^>]*>)*<!doctype[^>]*>/i
-  );
-  if (!lead) return fragment + html;
-  return html.slice(0, lead[0].length) + fragment + html.slice(lead[0].length);
+  const end = doctypeEnd(html);
+  if (end < 0) return fragment + html;
+  return html.slice(0, end) + fragment + html.slice(end);
 }
 
 /**

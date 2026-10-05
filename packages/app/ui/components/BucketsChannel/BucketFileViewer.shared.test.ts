@@ -212,21 +212,20 @@ describe('readPreviewText', () => {
     });
   });
 
-  // A body that does not stream is read whole and refused if it is over.
-  it('reads a body that does not stream, and refuses one over the cap', async () => {
-    const unstreamed = (text: string) =>
-      ({
-        arrayBuffer: () =>
-          Promise.resolve(new TextEncoder().encode(text).buffer),
-        body: null,
-        headers: new Headers(),
-      }) as unknown as Response;
-    expect(await readPreviewText(unstreamed('short'), { limit: 64 })).toBe(
-      'short'
-    );
-    expect(
-      await readPreviewText(unstreamed('x'.repeat(65)), { limit: 64 })
-    ).toBeNull();
+  // Nothing can stop a body that does not stream at the cap, and a compressed
+  // one can grow past any declared length, so it is declined unread.
+  it('declines a body that does not stream', async () => {
+    let read = false;
+    const unstreamed = {
+      arrayBuffer: () => {
+        read = true;
+        return Promise.resolve(new ArrayBuffer(0));
+      },
+      body: null,
+      headers: new Headers({ 'content-length': '5' }),
+    } as unknown as Response;
+    expect(await readPreviewText(unstreamed, { limit: 64 })).toBeNull();
+    expect(read).toBe(false);
   });
 });
 
@@ -642,6 +641,22 @@ describe('htmlPreviewLinkFromBridge', () => {
     ]) {
       expect(htmlPreviewLinkFromBridge(message({ href }), TOKEN)).toBeNull();
     }
+  });
+});
+
+// Anyone who can upload writes these; a scan that backtracks would hang the
+// app's thread before the sandbox was even rendered.
+describe('hostile markup', () => {
+  it('places the fragment in a file of whitespace with no doctype, at once', () => {
+    const file = `${' '.repeat(200_000)}<p>x</p>`;
+    expect(htmlPreviewDocument(file, KEY).endsWith(file)).toBe(true);
+  });
+
+  it('finds no title in a file of unclosed tags, comments or quotes, at once', () => {
+    expect(htmlPreviewTitle('<a'.repeat(200_000))).toBeUndefined();
+    expect(htmlPreviewTitle('<!--'.repeat(200_000))).toBeUndefined();
+    expect(htmlPreviewTitle('<a b="'.repeat(100_000))).toBeUndefined();
+    expect(htmlPreviewTitle('<script>'.repeat(100_000))).toBeUndefined();
   });
 });
 
