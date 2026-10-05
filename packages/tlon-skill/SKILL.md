@@ -284,6 +284,8 @@ tlon channels create ~host/slug "Notes" --kind notes       # Create a %notes gro
 tlon channels rename chat/~host/slug "New Title"           # Rename a channel
 tlon channels update chat/~host/slug --title "New Title"   # Update metadata
 tlon channels delete chat/~host/slug                       # Delete a channel
+tlon channels leave chat/~host/slug                        # Leave one channel; stay in the group
+tlon channels join chat/~host/slug                         # Rejoin a channel in a group you're in
 
 # Writers (who can post)
 tlon channels add-writers chat/~host/slug admin member     # Add write access
@@ -293,6 +295,8 @@ tlon channels del-writers chat/~host/slug member           # Remove write access
 tlon channels add-readers ~host/group chat/~host/slug admin    # Restrict viewing
 tlon channels del-readers ~host/group chat/~host/slug admin    # Open viewing
 ```
+
+To leave a single channel, use `channels leave`; `groups leave` leaves the whole group and all its channels. `channels join` doesn't check read access: joining a channel you can't read still prints "Joined", but no messages will arrive.
 
 Help works for both the command and subcommands:
 

@@ -414,6 +414,15 @@ describe('owner credential injection for groups invite-link', () => {
 });
 
 describe('checkBlockedTlonOperation', () => {
+  it('does not block channels leave or join on chat and heap nests', () => {
+    expect(
+      checkBlockedTlonOperation(['channels', 'leave', 'chat/~zod/x'])
+    ).toBeNull();
+    expect(
+      checkBlockedTlonOperation(['channels', 'join', 'heap/~zod/x'])
+    ).toBeNull();
+  });
+
   it('blocks migration writes after a separate --config prefix', () => {
     expect(
       checkBlockedTlonOperation([
@@ -622,6 +631,8 @@ const documentedActionOperations = {
     'update',
     'rename',
     'delete',
+    'leave',
+    'join',
     'add-writers',
     'del-writers',
     'add-readers',
@@ -1079,6 +1090,14 @@ describe('tlon tool telemetry summarizer', () => {
     });
 
     expect(JSON.stringify(summary)).not.toContain('General');
+  });
+
+  it('classifies channels leave as a write with its channel kind', () => {
+    expect(summarizeTlonCommand('channels leave chat/~zod/x')).toMatchObject({
+      summaryKey: 'channels.leave',
+      intent: 'write',
+      channelKind: 'chat',
+    });
   });
 
   it('captures notes channel kinds from notes nests', () => {

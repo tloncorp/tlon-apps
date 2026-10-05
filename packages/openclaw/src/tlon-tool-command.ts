@@ -101,6 +101,8 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'update',
       'rename',
       'delete',
+      'leave',
+      'join',
       'add-writers',
       'del-writers',
       'add-readers',
@@ -750,6 +752,11 @@ function summarizeChannelsOperation(
       });
     case 'delete':
       return build('admin', {
+        channelKind: detectChannelKind(positionals[0]),
+      });
+    case 'join':
+    case 'leave':
+      return build('write', {
         channelKind: detectChannelKind(positionals[0]),
       });
     case 'add-writers':
