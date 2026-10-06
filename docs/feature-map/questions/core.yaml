@@ -1,0 +1,127 @@
+# Everyday questions for the onboarding lab's `ask` command. See
+# docs/feature-map/README.md ("Testing answers") for the format.
+
+- id: pin-chat
+  ask: how do i keep a chat at the top of my list?
+  kind: how-to
+  file: workspaces-list.md
+  entry: Pin or unpin a chat
+  must:
+    - press and hold the chat on the Workspaces tab (or swipe it left)
+    - tap Pin
+  must_not:
+    - sends the person to a settings screen to do it
+
+- id: reorder-pins
+  ask: can i change the order of my pinned chats
+  kind: how-to
+  file: workspaces-list.md
+  entry: Reorder pinned chats
+  must:
+    - tap Sort next to the Pinned heading
+    - drag the chats into order
+    - tap Done
+
+- id: mute-dm
+  ask: one of my dms is blowing up my phone, how do i shut it up without leaving
+  kind: how-to
+  file: notifications-and-activity.md
+  entry: Mute a chat completely
+  must:
+    - swipe the chat to the left and tap the crossed-out bell, or set its notifications to Nothing
+  must_not:
+    - tells them to leave or block the chat as the way to mute it
+
+- id: mute-group-mentions
+  ask: i muted a group by swiping but i still get pinged when someone @s me. is that a bug?
+  kind: how-to
+  file: notifications-and-activity.md
+  entry: Mute a chat completely
+  must:
+    - says it is not a bug, because muting a group by swipe still lets mentions and replies through
+    - to silence it fully, set the group's notifications to Nothing
+
+- id: edit-dm-message
+  ask: i made a typo in a dm, how do i edit it?
+  kind: cannot
+  file: message-actions.md
+  entry: Edit a message
+  must:
+    - says messages in DMs can't be edited
+    - suggests deleting it and sending it again
+  must_not:
+    - gives steps for editing a DM message as if it were possible
+
+- id: edit-group-message
+  ask: how do i fix a typo in something i posted in our group chat
+  kind: how-to
+  file: message-actions.md
+  entry: Edit a message
+  must:
+    - press and hold your own message
+    - tap Edit message
+    - save with the check mark
+  must_not:
+    - says you can edit other people's messages
+
+- id: group-dm-start
+  ask: how do i start a group dm with three friends?
+  kind: cannot
+  file: direct-messages.md
+  entry: Start a group DM
+  must:
+    - says the app can't start a new group DM
+    - suggests making a group instead
+  must_not:
+    - describes picking several people in New Message
+
+- id: logout-desktop
+  ask: where's the log out button? i'm on my laptop in the browser
+  kind: desktop
+  file: settings-and-account.md
+  entry: Log out
+  must:
+    - says there is no Log out in Settings in the browser or the desktop app
+  must_not:
+    - gives a path to a Log out button on desktop
+    - gives only the phone steps as if they applied on the laptop
+
+- id: logout-data
+  ask: if i log out on my phone do i lose my messages?
+  kind: how-to
+  file: settings-and-account.md
+  entry: Log out
+  must:
+    - no, the messages stay on your node and load again when you log back in
+    - logging out only clears the copy on that phone
+
+- id: dark-mode
+  ask: is there a dark mode
+  kind: where
+  file: settings-and-account.md
+  entry: Change the theme or turn on dark mode
+  must:
+    - yes
+    - Settings, then Appearance
+    - pick Tlon Dark, or Auto with the device set to dark
+
+- id: delete-account
+  ask: i want to delete my account. how?
+  kind: cannot
+  file: settings-and-account.md
+  entry: Delete my account
+  must:
+    - says the app itself has no delete button
+    - points to Manage Tlon account on the Settings tab for hosted accounts
+  must_not:
+    - says logging out deletes the account
+    - invents a Delete account button in the app
+
+- id: what-is-a-node
+  ask: what's a node? is that like my account
+  kind: concept
+  must:
+    - a node is your own personal server that holds your messages and data
+    - it is yours, and can be exported or moved away from Tlon's hosting
+  must_not:
+    - uses ship, planet or moon without the person having used those words
