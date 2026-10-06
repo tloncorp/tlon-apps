@@ -2928,15 +2928,17 @@
   ::
   ::  POST body: the %project action's own JSON, { project: { name: text } }.
   ::  a wrapper over the poke: same decode, same arm, but an invalid
-  ::  projection is a 400 rather than a crash. six files of 64 KiB, with
-  ::  JSON escaping, fit well inside the 1 MiB cap
+  ::  projection is a 400 rather than a crash. the cap only bounds the
+  ::  read before decoding: sized from the per-file caps at JSON's worst
+  ::  escape (six bytes per control character, about 2.3 MiB for six full
+  ::  files), so every projection the poke accepts also fits here
   ::
   ++  po-handle-http-project
     |=  [eyre-id=@ta =inbound-request:eyre]
     ^+  cor
     ?~  body.request.inbound-request
       (po-http-error eyre-id 400 'missing body')
-    ?:  (gth p.u.body.request.inbound-request 1.048.576)
+    ?:  (gth p.u.body.request.inbound-request 4.194.304)
       (po-http-error eyre-id 413 'request body too large')
     ?~  jon=(de:json:html q.u.body.request.inbound-request)
       (po-http-error eyre-id 400 'invalid json')
