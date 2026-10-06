@@ -141,9 +141,11 @@ const MAX_NESTED_DOCUMENTS = 3;
  * The charset an HTML file declares in its first bytes, found as a browser's
  * encoding prescan finds it: comments are skipped, and only a `<meta>` with a
  * `charset` attribute, or one with `http-equiv="content-type"` whose
- * `content` names a charset, declares one. `charset=` anywhere else -- in a
- * comment, in a description -- does not, and a declaration whose label names
- * no encoding (encodingOf) is read past. The result is encodingOf's name.
+ * `content` names a charset, declares one. A `charset` attribute, even an
+ * empty one, makes its meta that kind of declaration, so its pragma is not
+ * read. `charset=` anywhere else -- in a comment, in a description -- does
+ * not count, and a declaration whose label names no encoding (encodingOf) is
+ * read past. The result is encodingOf's name.
  */
 function metaCharset(head: string): string | undefined {
   let i = 0;
@@ -174,7 +176,7 @@ function metaCharset(head: string): string | undefined {
     if (asciiLowercase(head.slice(open + 1, nameEnd)) !== 'meta') continue;
     const attributes = tagAttributes(head.slice(nameEnd, tagEnd - 1));
     const charset = attributes.get('charset');
-    if (charset !== undefined && charset.trim() !== '') {
+    if (charset !== undefined) {
       const encoding = encodingOf(charset);
       if (encoding) return encoding;
       continue;
@@ -883,6 +885,12 @@ interface MarkupTag {
   /** Whether a template is open around it. */
   withinTemplate: boolean;
   /**
+   * Whether a `<select>` is open around it, where a parser from before
+   * customizable selects -- WebKit's, and Chromium's before 135, which
+   * Electron 34 runs -- drops most start tags.
+   */
+  withinSelect: boolean;
+  /**
    * Whether an ordinary template is open around it, whose content is inert:
    * nothing in it runs unless a script copies it out. A declarative shadow
    * root's template (`shadowrootmode` open or closed) holds live content,
@@ -1035,6 +1043,7 @@ function* markupTags(
       end,
       namespace: namespace ?? 'html',
       withinTemplate: templateDepths.length > 0,
+      withinSelect: selects > 0,
       inert: inertTemplates > 0,
     };
     if (namespace !== undefined) {
@@ -1890,12 +1899,18 @@ function withoutAttributes(attributes: string, names: Set<string>): string {
 /**
  * The `href` of the first `<base href>` that sets the document's base, read
  * by markupTags as a frame without scripts reads the file: not inside a
- * template, nor in an svg's or math's own content, where a base sets nothing.
+ * template, nor in an svg's or math's own content, where a base sets nothing,
+ * nor inside a select, where Electron's parser, like WebKit's, drops it.
  * Undefined when the file has none.
  */
 function authoredBaseHref(html: string): string | undefined {
   for (const tag of markupTags(html, TEXT_CONTENT_ELEMENTS)) {
-    if (tag.name !== 'base' || tag.namespace !== 'html' || tag.withinTemplate) {
+    if (
+      tag.name !== 'base' ||
+      tag.namespace !== 'html' ||
+      tag.withinTemplate ||
+      tag.withinSelect
+    ) {
       continue;
     }
     const href = tagAttributes(html.slice(tag.nameEnd, tag.end - 1)).get(
