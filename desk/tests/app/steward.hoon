@@ -27,7 +27,12 @@
       bots=(set ship)
       lens=state:v1:l
       gateway=state:v1:g
-      automation=state:v1:au
+      automation=automation-4
+  ==
++$  automation-4
+  $:  tasks=(map ship tasks:v1:au)
+      requests=requests:v1:au
+      pending=pending:v1:au
   ==
 +$  state-3
   $:  %3
@@ -402,8 +407,11 @@
   ;<  *  bind:m  (set-scry-gate scries)
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
   ;<  *  bind:m  (do-init dap agent)
-  ::  do-init resets the bowl, so set the clock after it
+  ::  do-init resets the bowl, so set the clock after it. on-init armed
+  ::  the sweeps against the bunt clock; a reload re-arms them against
+  ::  this one, as a real ship's on-init would have
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1)))
+  ;<  *  bind:m  (do-load agent ~)
   (pure:m ~)
 ::
 ++  configure
@@ -494,7 +502,8 @@
 ::
 ++  ex-prompts-cleanup-timer
   |=  at=@da
-  (ex-card %pass /prompts/cleanup %arvo %b %wait (add at ~m5))
+  =/  wake=@da  (add at ~m5)
+  (ex-card %pass /prompts/cleanup/(scot %da wake) %arvo %b %wait wake)
 ::
 ++  ex-tasks-fact
   |=  =update:v1:au
@@ -2131,11 +2140,45 @@
       (as-v0-automation automation.before)
   ==
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
-  ::  crossing %4 -> %5 starts the prompts sweep; +moon is already watched
-  ::  from the populate step, so it is not watched again
+  ::  crossing %4 -> %5 records both sweep times, so both are armed;
+  ::  +moon is already watched from the populate step, so it is not
+  ::  watched again
   ::
   ;<  ~  bind:m
-    (ex-cards caz ~[ex-eyre-connect (ex-prompts-cleanup-timer ~2024.1.1)])
+    %+  ex-cards  caz
+    :~  ex-eyre-connect
+        (ex-cleanup-timer ~2024.1.1)
+        (ex-prompts-cleanup-timer ~2024.1.1)
+    ==
+  ;<  after=state-5  bind:m  got-state
+  (ex-equal !>(after) !>(before))
+::
+::  %4 is what develop runs: every populated slice crosses into %5
+::  unchanged, and the new sweep times are armed rather than carried
+::
+++  test-migration-state-4-preserves-all-slices
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  populate-released-slices
+  ;<  ~  bind:m  (project-automation ~[['task' (automation-task 'Saved task')]])
+  ;<  before=state-5  bind:m  got-state
+  =/  old=state-4
+    :*  %4
+        owner.before
+        bots.before
+        lens.before
+        gateway.before
+        [tasks requests pending]:automation.before
+    ==
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  ex-eyre-connect
+        (ex-cleanup-timer ~2024.1.1)
+        (ex-prompts-cleanup-timer ~2024.1.1)
+    ==
   ;<  after=state-5  bind:m  got-state
   (ex-equal !>(after) !>(before))
 ::
@@ -2159,11 +2202,15 @@
         (as-v0-automation automation.before)
     ==
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
-  ::  a %3 load also crosses %4 -> %5, which starts the prompts sweep;
-  ::  +moon is already watched from the populate step
+  ::  a %3 load also crosses %4 -> %5, which arms both sweeps; +moon is
+  ::  already watched from the populate step
   ::
   ;<  ~  bind:m
-    (ex-cards caz ~[ex-eyre-connect (ex-prompts-cleanup-timer ~2024.1.1)])
+    %+  ex-cards  caz
+    :~  ex-eyre-connect
+        (ex-cleanup-timer ~2024.1.1)
+        (ex-prompts-cleanup-timer ~2024.1.1)
+    ==
   ;<  after=state-5  bind:m  got-state
   ;<  ~  bind:m  (ex-equal !>(after) !>(before))
   =/  widened  (~(got by (~(got by tasks.automation.after) ~dev)) 'task')
@@ -2423,7 +2470,6 @@
   /v1/automation/request/(scot %p requester)/(scot %uv rid)
 ++  local-req-path  ^-  path  /v1/automation/request/(scot %uv rid)
 ++  harness-path  ^-  path  /v1/automation/harness
-++  cleanup-wire  ^-  wire  /automation/cleanup
 ::
 ++  do-edit
   |=  [bot=ship =edit:v1:au]
@@ -2443,8 +2489,14 @@
 ++  do-req-wake
   |=  bot=ship
   (do-arvo (req-wire bot %wake) [%behn %wake ~])
+::  wakes the armed sweep: its wire carries the time the agent recorded
+::
 ++  do-cleanup-wake
-  (do-arvo cleanup-wire [%behn %wake ~])
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  st=state-5  bind:m  got-state
+  %+  do-arvo  /automation/cleanup/(scot %da sweep.automation.st)
+  [%behn %wake ~]
 ++  response-fact
   |=  body=response-body:v1:au
   ^-  sign:agent:gall
@@ -2476,7 +2528,8 @@
   (ex-fact paths %steward-automation-dispatch-1 !>(`dispatch:v1:au`[rid edit]))
 ++  ex-cleanup-timer
   |=  at=@da
-  (ex-card %pass cleanup-wire %arvo %b %wait (add at ~m5))
+  =/  wake=@da  (add at ~m5)
+  (ex-card %pass /automation/cleanup/(scot %da wake) %arvo %b %wait wake)
 ++  ex-eyre-connect
   (ex-card %pass /eyre/steward %arvo %e %connect [~ /steward] %steward)
 ++  ex-relay
@@ -3126,16 +3179,18 @@
   ;<  reqs=requests:v1:au  bind:m  got-requests
   (ex-equal !>(reqs) !>(*requests:v1:au))
 ::
-++  test-automation-http-unauthenticated-is-401
+::  eyre forwards a guest session's request as the guest's made-up ship,
+::  unauthenticated, and the poke's source check refuses it (eyre then
+::  answers 500). an expired session never reaches us: eyre answers 401
+::
+++  test-automation-http-guest-session-is-refused
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  caz=(list card)  bind:m
-    (do-http 'eyre-1' (http-request | %'POST' edit-url `(edit-post-body &)))
-  ;<  ~  bind:m  (ex-cards caz (ex-http 'eyre-1' 401 'text/plain' 'unauthorized'))
-  ;<  reqs=requests:v1:au  bind:m  got-requests
-  (ex-equal !>(reqs) !>(*requests:v1:au))
+  %-  ex-fail
+  %-  (do-as ~sampel-palnet)
+  (do-http 'eyre-1' (http-request | %'POST' edit-url `(edit-post-body &)))
 ::
 ::  a POST registers the request with its eyre id and relays it; the
 ::  held request completes when the response lands
@@ -3588,12 +3643,13 @@
   =/  old=state-0  [%0 `~bus (sy ~[moon]) *state:v1:l g]
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
   %+  ex-cards  caz
-  :~  (ex-task /activity [~dev %activity] %watch /v5)
+  :~  (liveness-poke &)
+      (ex-task /activity [~dev %activity] %watch /v5)
       (ex-task /journey/chat [~dev %chat] %watch /v4)
       (ex-task /journey/channels [~dev %channels] %watch /v4)
-      (liveness-poke &)
       ex-eyre-connect
       (ex-cleanup-timer ~2024.1.1)
+      ex-moon-automation-watch
       (ex-prompts-cleanup-timer ~2024.1.1)
       ex-moon-prompts-watch
   ==
@@ -3640,6 +3696,7 @@
     :~  (liveness-poke &)
         ex-eyre-connect
         (ex-cleanup-timer ~2024.1.1)
+        ex-moon-automation-watch
         (ex-prompts-cleanup-timer ~2024.1.1)
         ex-moon-prompts-watch
     ==
@@ -3669,6 +3726,7 @@
   :~  (liveness-poke |)
       ex-eyre-connect
       (ex-cleanup-timer ~2024.1.1)
+      ex-moon-automation-watch
       (ex-prompts-cleanup-timer ~2024.1.1)
       ex-moon-prompts-watch
   ==
@@ -3687,6 +3745,7 @@
   %+  ex-cards  caz
   :~  ex-eyre-connect
       (ex-cleanup-timer ~2024.1.1)
+      ex-moon-automation-watch
       (ex-prompts-cleanup-timer ~2024.1.1)
       ex-moon-prompts-watch
   ==
@@ -3703,6 +3762,7 @@
   %+  ex-cards  caz
   :~  ex-eyre-connect
       (ex-cleanup-timer ~2024.1.1)
+      ex-moon-automation-watch
       (ex-prompts-cleanup-timer ~2024.1.1)
       ex-moon-prompts-watch
   ==

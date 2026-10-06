@@ -20,7 +20,6 @@ const responseSchema = z.object({
       type: z.literal('error'),
       errorType: z.enum([
         'not-authorized',
-        'not-found',
         'invalid',
         'harness-offline',
         'harness-error',

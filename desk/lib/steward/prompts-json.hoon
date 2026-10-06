@@ -14,7 +14,7 @@
   ++  poke-status  (su (perk %sending %acked %nacked ~))
   ++  action-error
     %-  su
-    (perk %not-authorized %not-found %invalid %harness-offline %harness-error %unknown ~)
+    (perk %not-authorized %invalid %harness-offline %harness-error %unknown ~)
   ++  edit
     |=  jon=json
     ^-  edit:v1:p

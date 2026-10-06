@@ -25,7 +25,11 @@
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
   ;<  *  bind:m  (do-init %steward agent)
+  ::  do-init resets the bowl, so set the clock after it. on-init armed
+  ::  the sweeps against the bunt clock; a reload re-arms them against
+  ::  this one, as a real ship's on-init would have
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1)))
+  ;<  *  bind:m  (do-load agent ~)
   (pure:m ~)
 ++  configure
   |=  owner=ship
@@ -68,7 +72,6 @@
   /v1/prompts/request/(scot %p requester)/(scot %uv rid)
 ++  local-req-path  ^-  path  /v1/prompts/request/(scot %uv rid)
 ++  harness-path  ^-  path  /v1/prompts/harness
-++  cleanup-wire  ^-  wire  /prompts/cleanup
 ::
 ++  do-edit
   |=  [bot=ship =edit:v1:pr]
@@ -88,8 +91,13 @@
 ++  do-req-wake
   |=  bot=ship
   (do-arvo (req-wire bot %wake) [%behn %wake ~])
+::  wakes the armed sweep: its wire carries the time the agent recorded
+::
 ++  do-cleanup-wake
-  (do-arvo cleanup-wire [%behn %wake ~])
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  st=state-5  bind:m  got-state
+  (do-arvo /prompts/cleanup/(scot %da sweep.prompts.st) [%behn %wake ~])
 ++  response-fact
   |=  body=response-body:v1:pr
   ^-  sign:agent:gall
@@ -122,7 +130,8 @@
   !>(`dispatch:v1:pr`[rid requester edit])
 ++  ex-cleanup-timer
   |=  at=@da
-  (ex-card %pass cleanup-wire %arvo %b %wait (add at ~m5))
+  =/  wake=@da  (add at ~m5)
+  (ex-card %pass /prompts/cleanup/(scot %da wake) %arvo %b %wait wake)
 ++  ex-eyre-connect
   (ex-card %pass /eyre/steward %arvo %e %connect [~ /steward] %steward)
 ++  ex-files-watch
@@ -131,10 +140,19 @@
   [%watch /v1/prompts/files]
 ++  ex-rewatch-timer
   |=  [bot=ship at=@da]
-  (ex-card %pass /prompts/rewatch/(scot %p bot) %arvo %b %wait at)
+  (ex-card %pass /prompts/rewatch/(scot %p bot)/(scot %da at) %arvo %b %wait at)
+++  do-rewatch-wake-at
+  |=  [bot=ship at=@da]
+  (do-arvo /prompts/rewatch/(scot %p bot)/(scot %da at) [%behn %wake ~])
+::  wakes the armed retry for .bot, at the time the agent recorded
+::
 ++  do-rewatch-wake
   |=  bot=ship
-  (do-arvo /prompts/rewatch/(scot %p bot) [%behn %wake ~])
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  st=state-5  bind:m  got-state
+  =/  wake=@da  wake:(~(got by rewatch.prompts.st) bot)
+  (do-arvo /prompts/rewatch/(scot %p bot)/(scot %da wake) [%behn %wake ~])
 ++  do-bot-sign
   |=  [bot=ship =sign:agent:gall]
   (do-agent /prompts/files/(scot %p bot) [bot %steward] sign)
@@ -397,10 +415,6 @@
   %-  (do-as ~zod)
   (do-watch local-req-path)
 ::
-::  sweep: a recent unfetched terminal record survives; an aged one, a
-::  pending one past its hour, and a fetched one are evicted; an
-::  in-flight record is left for its wake
-::
 ++  test-prompts-command-requires-owner
   %-  eval-mare
   =/  m  (mare ,~)
@@ -660,8 +674,6 @@
   %-  (do-as peer)
   (do-watch (req-path ~zod))
 ::
-::  the edit loop never touches the file map
-::
 ++  test-prompts-http-response-watch-accepted
   %-  eval-mare
   =/  m  (mare ,~)
@@ -685,16 +697,18 @@
   %-  (do-as ~zod)
   (do-watch /http-response/eyre-1)
 ::
-++  test-prompts-http-unauthenticated-is-401
+::  eyre forwards a guest session's request as the guest's made-up ship,
+::  unauthenticated, and the poke's source check refuses it (eyre then
+::  answers 500). an expired session never reaches us: eyre answers 401
+::
+++  test-prompts-http-guest-session-is-refused
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  caz=(list card)  bind:m
-    (do-http 'eyre-1' (http-request | %'POST' edit-url `(edit-post-body &)))
-  ;<  ~  bind:m  (ex-cards caz (ex-http 'eyre-1' 401 'text/plain' 'unauthorized'))
-  ;<  reqs=requests:v1:pr  bind:m  got-requests
-  (ex-equal !>(reqs) !>(*requests:v1:pr))
+  %-  ex-fail
+  %-  (do-as ~sampel-palnet)
+  (do-http 'eyre-1' (http-request | %'POST' edit-url `(edit-post-body &)))
 ::
 ::  a POST registers the request with its eyre id and relays it; the
 ::  held request completes when the response lands
@@ -1052,15 +1066,22 @@
   ;<  ~  bind:m  setup-owner
   (ex-fail (do-bot-sign peer [%fact %noun !>(~)]))
 ::
-++  test-mirror-rejects-invalid-content
+::  content this ship rejects is dropped with a log line, and the watch
+::  stays open: a crash would kick it into a re-watch loop
+::
+++  test-mirror-drops-invalid-content
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  ~  bind:m
-    (ex-fail (bot-update [%files (my ~[[peer (my ~[['../secret' 'x']])]])]))
+  ;<  caz=(list card)  bind:m
+    (bot-update [%files (my ~[[peer (my ~[['../secret' 'x']])]])])
+  ;<  ~  bind:m  (ex-cards caz ~)
   ;<  *  bind:m  (bot-update [%files (my ~[[peer files]])])
-  (ex-fail (bot-update [%set peer '../secret' 'x']))
+  ;<  caz=(list card)  bind:m  (bot-update [%set peer '../secret' 'x'])
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(files.prompts.st) !>((my ~[[peer files]])))
 ::
 ++  test-finalized-command-does-not-replay
   %-  eval-mare
@@ -1139,7 +1160,9 @@
   ;<  st=state-5  bind:m  got-state
   ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`peer))
   ;<  ~  bind:m  (ex-equal !>(bots.st) !>((sy ~[~zod])))
-  (ex-equal !>(prompts.st) !>(*state:v1:pr))
+  ::  the slice arrives empty; only its sweep is armed
+  ::
+  (ex-equal !>(prompts.st) !>(%*(. *state:v1:pr sweep (add ~2024.1.1 ~m5))))
 ::
 ++  test-reload-preserves-projection-and-does-not-duplicate-timer
   %-  eval-mare
@@ -1248,8 +1271,8 @@
     (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
   (ex-cards caz (ex-http 'eyre-1' 403 'text/plain' 'bot is not trusted'))
 ::
-::  a nacked files watch schedules no retry, so the last good mirror is
-::  kept rather than wiped until someone re-pokes %trust-bot
+::  a nacked files watch keeps the last good mirror rather than wiping
+::  it, and arms a retry
 ::
 ++  test-prompts-watch-nack-retains-mirror
   %-  eval-mare
@@ -1288,7 +1311,7 @@
   ;<  ~  bind:m  (ex-cards caz ~[(ex-files-watch peer)])
   ;<  *  bind:m  (do-bot-sign peer [%watch-ack ~])
   ;<  st=state-5  bind:m  got-state
-  (ex-equal !>(rewatch.prompts.st) !>(*(map ship @ud)))
+  (ex-equal !>(rewatch.prompts.st) !>(*(map ship [attempt=@ud wake=@da])))
 ::
 ::  an untrusted bot is never retried, and a retry that fires after an
 ::  untrust does nothing
@@ -1302,10 +1325,29 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot peer]))
   ;<  ~  bind:m  (advance-clock ~m1)
-  ;<  caz=(list card)  bind:m  (do-rewatch-wake peer)
+  ;<  caz=(list card)  bind:m  (do-rewatch-wake-at peer (add ~2024.1.1 ~m1))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  st=state-5  bind:m  got-state
-  (ex-equal !>(rewatch.prompts.st) !>(*(map ship @ud)))
+  (ex-equal !>(rewatch.prompts.st) !>(*(map ship [attempt=@ud wake=@da])))
+::
+::  a %trust-bot re-poke during the backoff watches again, and that
+::  watch's nack arms the next retry; the first retry's wake is then
+::  stale and does nothing, so only one chain runs
+::
+++  test-prompts-stale-rewatch-wake-is-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  =/  nack=sign:agent:gall  [%watch-ack `~[leaf+"bad-watch-path"]]
+  ;<  *  bind:m  (do-bot-sign peer nack)
+  ;<  ~  bind:m  (trust peer)
+  ;<  caz=(list card)  bind:m  (do-bot-sign peer nack)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-rewatch-timer peer (add ~2024.1.1 ~m2))])
+  ;<  ~  bind:m  (advance-clock ~m1)
+  ;<  caz=(list card)  bind:m  (do-rewatch-wake-at peer (add ~2024.1.1 ~m1))
+  (ex-cards caz ~)
 ::
 ::  a late poke-ack refreshes an already-stored %pending result, or a
 ::  poller reads %sending until the request is swept
@@ -1342,6 +1384,95 @@
   ;<  pen=pending:v1:pr  bind:m  got-pending
   (ex-equal !>(pen) !>(*pending:v1:pr))
 ::
+::  a requester the bot no longer serves is told not-authorized: a
+::  reconnecting harness is only replayed the current owner's commands
+::
+++  test-prompts-expired-command-of-replaced-owner-is-not-authorized
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure peer)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
+  ;<  ~  bind:m  (configure ~zod)
+  ;<  ~  bind:m  (advance-clock ~h2)
+  ;<  caz=(list card)  bind:m  do-cleanup-wake
+  %+  ex-cards  caz
+  :~  (ex-bot-response peer [%error %not-authorized ~])
+      (ex-cleanup-timer (add ~2024.1.1 ~h2))
+  ==
+::
+::  RECONCILE ON LOAD
+::  =================
+::
+::  a suspended agent's due behn wakes are dropped, and a crashed sweep
+::  discards its own re-arm. a load re-arms a sweep whose recorded wake
+::  has passed, and leaves one still ahead alone
+::
+++  ex-automation-cleanup-timer
+  |=  at=@da
+  =/  wake=@da  (add at ~m5)
+  (ex-card %pass /automation/cleanup/(scot %da wake) %arvo %b %wait wake)
+++  ex-automation-watch
+  |=  bot=ship
+  %^  ex-task  /automation/tasks/(scot %p bot)  [bot %steward]
+  [%watch /v1/automation/tasks]
+::
+++  test-reload-rearms-only-overdue-sweeps
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])
+  ;<  ~  bind:m  (advance-clock ~m10)
+  =/  now=@da  (add ~2024.1.1 ~m10)
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  ex-eyre-connect
+        (ex-automation-cleanup-timer now)
+        (ex-cleanup-timer now)
+    ==
+  ::  the dropped wakes, were they to arrive after all, are stale
+  ::
+  ;<  caz=(list card)  bind:m
+    =/  old=@da  (add ~2024.1.1 ~m5)
+    (do-arvo /prompts/cleanup/(scot %da old) [%behn %wake ~])
+  (ex-cards caz ~)
+::
+::  a mirror watch lost to a nack or an unseen kick is sent again on load,
+::  for both modules. automation has no retry of its own, so this is its
+::  only repair short of a re-poked %trust-bot
+::
+++  test-reload-rewatches-lost-automation-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m
+    %^  do-agent  /automation/tasks/(scot %p peer)  [peer %steward]
+    [%watch-ack `~[leaf+"bad-watch-path"]]
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  (ex-cards caz ~[ex-eyre-connect (ex-automation-watch peer)])
+::
+::  a prompts bot still nacking has no wire until its retry wakes. a load
+::  while the retry is ahead leaves it to the retry; once its wake has
+::  passed (dropped while suspended) the load watches it
+::
+++  test-reload-rewatches-prompts-mirror-once-retry-is-overdue
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (do-bot-sign peer [%watch-ack `~[leaf+"bad-watch-path"]])
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])
+  ;<  ~  bind:m  (advance-clock ~m2)
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  (ex-cards caz ~[ex-eyre-connect (ex-files-watch peer)])
+::
 ::  upgrading into %5 must subscribe the bots already trusted: prompt
 ::  watches are otherwise only created by %trust-bot
 ::
@@ -1352,12 +1483,16 @@
   ;<  ~  bind:m  setup
   =/  old
     :*  %4  `peer  (sy ~[peer ~dev])
-        *state:v1:l  *state:v1:g  *state:v1:au
+        *state:v1:l  *state:v1:g
+        *[(map ship tasks:v1:au) requests:v1:au pending:v1:au]
     ==
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
   ;<  ~  bind:m
     %+  ex-cards  caz
+    =/  au-wake=@da  (add ~2024.1.1 ~m5)
     :~  ex-eyre-connect
+        (ex-card %pass /automation/cleanup/(scot %da au-wake) %arvo %b %wait au-wake)
+        (ex-task /automation/tasks/(scot %p peer) [peer %steward] %watch /v1/automation/tasks)
         (ex-cleanup-timer ~2024.1.1)
         (ex-files-watch peer)
     ==
@@ -1376,6 +1511,28 @@
   ;<  caz=(list card)  bind:m  (do-req-watch-sign peer %kick ~)
   (ex-cards caz ~[(ex-req-watch peer)])
 
+::
+::  an untrusted bot is never watched again, even for an edit already
+::  sent; a self-edit is editable without trust, so its loopback watch is
+::
+++  test-prompts-req-kick-after-untrust-does-not-resubscribe
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  *  bind:m  (untrust peer)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign peer %kick ~)
+  (ex-cards caz ~)
+::
+++  test-prompts-req-kick-self-edit-resubscribes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit ~dev edit-set)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign ~dev %kick ~)
+  (ex-cards caz ~[(ex-req-watch ~dev)])
 ::
 ::  a %pending result is not terminal, so a kick still re-watches
 ::

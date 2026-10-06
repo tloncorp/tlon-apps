@@ -8,7 +8,6 @@
 +$  edit  [%set =name text=@t]
 +$  action-error
   $?  %not-authorized
-      %not-found
       %invalid
       %harness-offline
       %harness-error
@@ -27,10 +26,11 @@
   ==
 +$  response  [id=request-id body=response-body]
 ::  $dispatch: .requester is the owner that authorized the command. a
-::  (re)subscribing harness is sent every command still unanswered, so a
-::  command one owner issued can reach the harness after the bot was
-::  re-pointed at a new owner; the harness compares .requester with its
-::  own configured owner and refuses a mismatch
+::  (re)subscribing harness is replayed only the current owner's
+::  unanswered commands, but a dispatch already sent can still reach a
+::  harness after the bot was re-pointed at a new owner; the harness
+::  compares .requester with its own configured owner and refuses a
+::  mismatch
 ::
 +$  dispatch  [id=request-id requester=ship =edit]
 ::  $incoming-request: owner-side HTTP wait and eventual result
@@ -58,14 +58,18 @@
 +$  pending  (map request-id pending-command)
 ::  $state: only projections write .files; edits write request records
 ::
-::    .rewatch: consecutive nacked files watches per trusted bot, for the
-::    retry backoff. cleared by a positive watch-ack or an untrust
+::    .rewatch: per trusted bot whose files watch was nacked, the count of
+::    consecutive nacks and when the armed retry wakes. a wake for any
+::    other time is stale and ignored. cleared by a positive watch-ack or
+::    an untrust
+::    .sweep: when the armed cleanup timer wakes, as in automation
 ::
 +$  state
   $:  files=(map ship prompts)
       =requests
       =pending
-      rewatch=(map ship @ud)
+      rewatch=(map ship [attempt=@ud wake=@da])
+      sweep=@da
   ==
 +$  a-prompts
   $%  [%project =prompts]
@@ -82,7 +86,5 @@
       [%gone =ship]
   ==
 +$  action  a-prompts
-+$  command  c-prompts
-+$  u-prompts  update
 ++  v1  .
 --
