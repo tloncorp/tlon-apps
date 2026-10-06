@@ -1,6 +1,6 @@
 import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
@@ -13,6 +13,7 @@ import {
   bucketFileViewerHeading,
   getBucketPreviewKind,
   htmlPreviewDocument,
+  htmlPreviewHasScripts,
   htmlPreviewKey,
   htmlPreviewLinkFromBridge,
   htmlPreviewNavigation,
@@ -37,6 +38,21 @@ export function BucketFileViewer({
   const previewKind = getBucketPreviewKind(item);
   const heading = bucketFileViewerHeading(item);
   const webview = useWebView();
+  // A page's scripts run only once the reader asks, file by file: a running
+  // page can post to the WebView's message bridge as often as it likes, and
+  // every message reaches the app's JavaScript thread. Until then only our
+  // link script runs (htmlPreviewHeldPolicy).
+  const [scriptsRunFor, setScriptsRunFor] = useState<string>();
+  const pageHasScripts = useMemo(
+    () =>
+      previewKind === 'html' &&
+      item.textContent !== undefined &&
+      htmlPreviewHasScripts(item.textContent),
+    [previewKind, item.textContent]
+  );
+  const fileId = item.uri ?? item.name;
+  const runScripts = pageHasScripts && scriptsRunFor === fileId;
+  const offerScripts = pageHasScripts && !runScripts;
 
   return (
     <YStack flex={1} minHeight={0} backgroundColor="$background">
@@ -44,10 +60,22 @@ export function BucketFileViewer({
         backAction={onClose}
         borderBottom
         rightControls={
-          item.uri && onOpenExternally ? (
-            <ScreenHeader.TextButton onPress={onOpenExternally}>
-              Open
-            </ScreenHeader.TextButton>
+          offerScripts || (item.uri && onOpenExternally) ? (
+            <>
+              {offerScripts ? (
+                <ScreenHeader.TextButton
+                  onPress={() => setScriptsRunFor(fileId)}
+                  testID="BucketFileViewerRunScripts"
+                >
+                  Run scripts
+                </ScreenHeader.TextButton>
+              ) : null}
+              {item.uri && onOpenExternally ? (
+                <ScreenHeader.TextButton onPress={onOpenExternally}>
+                  Open
+                </ScreenHeader.TextButton>
+              ) : null}
+            </>
           ) : null
         }
         showSubtitle
@@ -74,7 +102,7 @@ export function BucketFileViewer({
         ) : previewKind === 'pdf' && Platform.OS === 'ios' && webview ? (
           <WebView webview={webview} source={{ uri: item.uri }} />
         ) : previewKind === 'html' && item.textContent !== undefined ? (
-          <NativeHtmlPreview html={item.textContent} />
+          <NativeHtmlPreview html={item.textContent} runScripts={runScripts} />
         ) : previewKind === 'text' && item.textContent !== undefined ? (
           <ScrollView flex={1}>
             <Text
@@ -167,10 +195,12 @@ function NativeVideoPreview({ uri }: { uri: string }) {
  *
  * The document is a stranger's: anyone who can write to the Bucket wrote it.
  * It sits in a sandboxed frame inside a shell of ours (htmlPreviewShell), so
- * it cannot navigate itself away or raise a dialog; its scripts run against
- * its own DOM and nothing else, with HTML_PREVIEW_POLICY keeping them off the
- * network and its forms from submitting; and the WebView itself loads nothing
- * but the two inline documents (htmlPreviewNavigation).
+ * it cannot navigate itself away or raise a dialog. Its scripts run only once
+ * the reader asks (`runScripts`); until then the policy runs ours alone
+ * (htmlPreviewHeldPolicy). Then they run against its own DOM and nothing
+ * else, with HTML_PREVIEW_POLICY keeping them off the network and its forms
+ * from submitting. The WebView itself loads nothing but the two inline
+ * documents (htmlPreviewNavigation).
  *
  * A link the reader taps still opens, the way a link in chat does. The shell
  * asks the app over the WebView's message bridge, and the app opens the link
@@ -185,23 +215,38 @@ function NativeVideoPreview({ uri }: { uri: string }) {
  * the policy matters there; `incognito` on Android clears that jar, which
  * would sign the reader out, so it is iOS-only.
  */
-function NativeHtmlPreview({ html }: { html: string }) {
+function NativeHtmlPreview({
+  html,
+  runScripts,
+}: {
+  html: string;
+  runScripts: boolean;
+}) {
   const secrets = useMemo(
-    () => ({ key: htmlPreviewKey(), token: htmlPreviewKey() }),
+    () => ({
+      key: htmlPreviewKey(),
+      nonce: htmlPreviewKey(),
+      token: htmlPreviewKey(),
+    }),
     []
   );
   const lastOpened = useRef(0);
-  const source = useMemo(
-    () => ({
+  const source = useMemo(() => {
+    const nonce = runScripts ? undefined : secrets.nonce;
+    return {
       html: htmlPreviewShell({
-        document: htmlPreviewDocument(html, secrets.key),
+        document: htmlPreviewDocument(
+          html,
+          secrets.key,
+          nonce === undefined ? { scripts: 'all' } : { scripts: 'ours', nonce }
+        ),
         key: secrets.key,
+        nonce,
         opener: { kind: 'app', token: secrets.token },
         sandbox: HTML_PREVIEW_NATIVE_SANDBOX,
       }),
-    }),
-    [html, secrets]
-  );
+    };
+  }, [html, runScripts, secrets]);
   return (
     <WebView
       allowFileAccess={false}

@@ -230,13 +230,38 @@ describe('readPreviewText', () => {
       }
     });
 
-    // Anything else it cannot decode is read as UTF-8, as before.
-    it('reads an encoding it does not know as UTF-8', async () => {
+    // A valid encoding it cannot decode is not a missing one: read as UTF-8
+    // it would come out garbled, so the preview is declined, and Open shows
+    // the file.
+    it('declines an encoding it cannot decode', async () => {
       vi.stubGlobal('TextDecoder', Utf8OnlyDecoder);
       const response = new Response(streamOf('plain ascii'), {
         headers: { 'content-type': 'text/plain; charset=shift_jis' },
       });
-      expect(await readPreviewText(response)).toBe('plain ascii');
+      expect(await readPreviewText(response)).toBeNull();
+      const page = new Response(
+        streamOf('<meta charset="windows-1251"><p>x</p>'),
+        { headers: { 'content-type': 'text/html' } }
+      );
+      expect(await readPreviewText(page, { html: true })).toBeNull();
+    });
+
+    // Whether a label names an encoding does not depend on the runtime.
+    it('still reads a declaration it cannot decode as declared', () => {
+      vi.stubGlobal('TextDecoder', Utf8OnlyDecoder);
+      expect(
+        previewEncoding({
+          contentType: 'text/html; charset=Shift_JIS',
+          head: '<meta charset="windows-1252">',
+          html: true,
+        })
+      ).toBe('shift_jis');
+      expect(
+        previewEncoding({
+          head: '<meta charset="gbk"><meta charset="windows-1252">',
+          html: true,
+        })
+      ).toBe('gbk');
     });
   });
 
@@ -269,6 +294,15 @@ describe('previewEncoding', () => {
     expect(page('þÿ\u0000<')).toBe('utf-16be');
   });
 
+  // A label resolves to the encoding it names, as the Encoding Standard
+  // lists them: ISO-8859-1 and ASCII are windows-1252 to a browser.
+  it('resolves a label to the encoding it names', () => {
+    expect(page('<meta charset=" Latin1 ">')).toBe('windows-1252');
+    expect(page('<meta charset="us-ascii">')).toBe('windows-1252');
+    expect(page('<meta charset="cp1251">')).toBe('windows-1251');
+    expect(page('<meta charset="x-sjis">')).toBe('shift_jis');
+  });
+
   it('takes the charset the response declares next', () => {
     expect(
       page('<meta charset="windows-1252">', 'text/html; charset="Shift_JIS"')
@@ -283,7 +317,7 @@ describe('previewEncoding', () => {
       page(
         '<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">'
       )
-    ).toBe('iso-8859-1');
+    ).toBe('windows-1252');
   });
 
   // Only a real declaration counts: charset= in a comment, or in a meta that
@@ -326,7 +360,7 @@ describe('previewEncoding', () => {
     expect(
       page('<?xml version="1.0" encoding="windows-1252"?><html><p>x</p>')
     ).toBe('windows-1252');
-    expect(page("<?xml encoding = 'ISO-8859-1' ?><p>x</p>")).toBe('iso-8859-1');
+    expect(page("<?xml encoding = 'ISO-8859-2' ?><p>x</p>")).toBe('iso-8859-2');
     // A <meta> comes first; the declaration counts only at the very start.
     expect(
       page('<?xml encoding="windows-1252"?><meta charset="iso-8859-2">')
@@ -404,6 +438,16 @@ describe('htmlPreviewTitle', () => {
         '<svg><foreignObject><textarea><title>Fake</title></textarea></foreignObject></svg><title>Real</title>'
       )
     ).toBe('Real');
+  });
+
+  // A template inside an svg is the svg's; its end tag does not close the
+  // HTML template around it.
+  it('keeps a template open past a foreign one', () => {
+    expect(
+      htmlPreviewTitle(
+        '<template><svg><template></template></svg><title>Draft</title></template><title>Final</title>'
+      )
+    ).toBe('Final');
   });
 
   it('reads a title in noscript only where scripts do not run', () => {

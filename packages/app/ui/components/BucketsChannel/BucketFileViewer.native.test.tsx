@@ -8,6 +8,7 @@ import {
   type BucketFileViewerItem,
   HTML_PREVIEW_LINK_MESSAGE,
   HTML_PREVIEW_POLICY,
+  htmlPreviewHeldPolicy,
 } from './BucketFileViewer.shared';
 
 const mocks = vi.hoisted(() => ({
@@ -89,18 +90,55 @@ function linkMessage(fields: Record<string, unknown>) {
   };
 }
 
+const scriptedFile: BucketFileViewerItem = {
+  ...htmlFile,
+  textContent:
+    '<!doctype html><title>Quarterly numbers</title><p id="n">three</p><script>document.getElementById("n").textContent = "3";</script>',
+};
+
+function runScriptsButton(renderer: ReactTestRenderer) {
+  const controls = renderer.root.findByType(ScreenHeader).props.rightControls;
+  return React.Children.toArray(controls?.props.children).find(
+    (child) =>
+      React.isValidElement<{ testID?: string }>(child) &&
+      child.props.testID === 'BucketFileViewerRunScripts'
+  ) as React.ReactElement<{ onPress: () => void }> | undefined;
+}
+
 describe('BucketFileViewer html preview (native)', () => {
   // The WebView loads a shell of ours that carries the policy; the file sits
-  // in a sandboxed frame inside it and inherits that policy.
-  it('loads the file inside the shell, sandboxed and under the policy, not from its URL', () => {
+  // in a sandboxed frame inside it and inherits that policy. Until the reader
+  // asks, the policy runs ours alone: a running page could post to the
+  // bridge as often as it liked.
+  it('loads the file inside the shell, sandboxed and under the held policy, not from its URL', () => {
     const { props } = renderWebView();
     expect(props.source.uri).toBeUndefined();
     const shell: string = props.source.html;
+    const nonce = shell.match(/'nonce-([0-9a-f]{32})'/)?.[1];
+    expect(nonce).toBeDefined();
     expect(shell).toContain(
-      `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
+      `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(nonce!)}">`
     );
+    expect(shell).toContain(`<script nonce="${nonce}">`);
     expect(shell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
     expect(shell).toContain('&lt;p&gt;Quarterly numbers&lt;/p&gt;');
+  });
+
+  it('runs a page’s scripts only when the reader asks', () => {
+    const renderer = render(scriptedFile);
+    const webView = () => renderer.root.findByType('WebView' as never);
+    expect(webView().props.source.html).toContain("'nonce-");
+    act(() => runScriptsButton(renderer)!.props.onPress());
+    const running: string = webView().props.source.html;
+    expect(running).toContain(
+      `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
+    );
+    expect(running).not.toContain('nonce');
+    expect(runScriptsButton(renderer)).toBeUndefined();
+  });
+
+  it('offers nothing to run for a page without scripts', () => {
+    expect(runScriptsButton(render())).toBeUndefined();
   });
 
   it('names the page by its title, with the file beneath', () => {

@@ -154,7 +154,7 @@ const URL_ATTRIBUTES = new Set([
  * `charset` attribute, or one with `http-equiv="content-type"` whose
  * `content` names a charset, declares one. `charset=` anywhere else -- in a
  * comment, in a description -- does not, and a declaration whose label names
- * no encoding we can decode (decodable) is read past.
+ * no encoding (encodingOf) is read past. The result is encodingOf's name.
  */
 function metaCharset(head: string): string | undefined {
   let i = 0;
@@ -184,19 +184,19 @@ function metaCharset(head: string): string | undefined {
     i = tagEnd;
     if (asciiLowercase(head.slice(open + 1, nameEnd)) !== 'meta') continue;
     const attributes = tagAttributes(head.slice(nameEnd, tagEnd - 1));
-    const charset = attributes.get('charset')?.trim().toLowerCase();
-    if (charset) {
-      if (decodable(charset)) return charset;
+    const charset = attributes.get('charset');
+    if (charset !== undefined && charset.trim() !== '') {
+      const encoding = encodingOf(charset);
+      if (encoding) return encoding;
       continue;
     }
     if (attributes.get('http-equiv')?.trim().toLowerCase() === 'content-type') {
       const declared = attributes
         .get('content')
         ?.match(/charset\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s;"']+))/i);
-      const value = (declared?.[1] ?? declared?.[2] ?? declared?.[3])
-        ?.trim()
-        .toLowerCase();
-      if (value && decodable(value)) return value;
+      const value = declared?.[1] ?? declared?.[2] ?? declared?.[3];
+      const encoding = value === undefined ? undefined : encodingOf(value);
+      if (encoding) return encoding;
     }
   }
 }
@@ -225,19 +225,19 @@ function xmlEncoding(head: string): string | undefined {
   for (let j = 0; j < label.length; j += 1) {
     if (label.charCodeAt(j) <= 0x20) return undefined;
   }
-  return decodable(label.toLowerCase()) ? label : undefined;
+  return encodingOf(label);
 }
 
 /**
  * The encoding a preview's bytes are in, decided as a browser decides for a
  * page: a byte order mark first, then the charset the response declares (if
- * it names an encoding we can decode),
- * then -- for HTML -- the prescan of the first 1024 bytes: an XML declaration
- * in UTF-16 bytes, a `<meta>` charset, and failing that an XML declaration's
- * encoding; UTF-8 when nothing says otherwise. `head` is the start of the
- * bytes, one byte per character. A declaration that names UTF-16, by any of
- * its labels (`unicode`, `ucs-2` ...), is read as UTF-8, as browsers do:
- * ASCII cannot be found in a document that really is UTF-16; and
+ * it names an encoding), then -- for HTML -- the prescan of the first 1024
+ * bytes: an XML declaration in UTF-16 bytes, a `<meta>` charset, and failing
+ * that an XML declaration's encoding; UTF-8 when nothing says otherwise. The
+ * result is the encoding's name in lower case (encodingOf). `head` is the
+ * start of the bytes, one byte per character. A declaration that names
+ * UTF-16, by any of its labels (`unicode`, `ucs-2` ...), is read as UTF-8, as
+ * browsers do: ASCII cannot be found in a document that really is UTF-16; and
  * `x-user-defined` is read as windows-1252.
  */
 export function previewEncoding({
@@ -252,23 +252,15 @@ export function previewEncoding({
   if (head.startsWith('ï»¿')) return 'utf-8';
   if (head.startsWith('þÿ')) return 'utf-16be';
   if (head.startsWith('ÿþ')) return 'utf-16le';
-  const sent = contentType
-    ?.match(/;\s*charset\s*=\s*"?([^";\s]+)/i)?.[1]
-    ?.toLowerCase();
-  if (sent && decodable(sent)) return sent;
+  const label = contentType?.match(/;\s*charset\s*=\s*"?([^";\s]+)/i)?.[1];
+  const sent = label === undefined ? undefined : encodingOf(label);
+  if (sent) return sent;
   if (html) {
     if (head.startsWith('<\u0000?\u0000x\u0000')) return 'utf-16le';
     if (head.startsWith('\u0000<\u0000?\u0000x')) return 'utf-16be';
     const prescan = head.slice(0, 1024);
-    const declared = (
-      metaCharset(prescan) ?? xmlEncoding(prescan)
-    )?.toLowerCase();
-    if (
-      UTF_16LE_LABELS.has(declared ?? '') ||
-      UTF_16BE_LABELS.has(declared ?? '')
-    ) {
-      return 'utf-8';
-    }
+    const declared = metaCharset(prescan) ?? xmlEncoding(prescan);
+    if (declared === 'utf-16le' || declared === 'utf-16be') return 'utf-8';
     if (declared === 'x-user-defined') return 'windows-1252';
     if (declared) return declared;
   }
@@ -280,28 +272,6 @@ function latin1(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i++) text += String.fromCharCode(bytes[i]);
   return text;
 }
-
-// The labels the Encoding Standard reads as windows-1252, ISO-8859-1 and
-// US-ASCII among them.
-const WINDOWS_1252_LABELS = new Set([
-  'ansi_x3.4-1968',
-  'ascii',
-  'cp1252',
-  'cp819',
-  'csisolatin1',
-  'ibm819',
-  'iso-8859-1',
-  'iso-ir-100',
-  'iso8859-1',
-  'iso88591',
-  'iso_8859-1',
-  'iso_8859-1:1987',
-  'l1',
-  'latin1',
-  'us-ascii',
-  'windows-1252',
-  'x-cp1252',
-]);
 
 // windows-1252 bytes 0x80-0x9F; every other byte is its own code point.
 const WINDOWS_1252_HIGH = [
@@ -321,19 +291,6 @@ function decodeWindows1252(bytes: Uint8Array): string {
   }
   return text;
 }
-
-// The labels the Encoding Standard reads as UTF-16, little-endian unless named
-// otherwise.
-const UTF_16LE_LABELS = new Set([
-  'csunicode',
-  'iso-10646-ucs-2',
-  'ucs-2',
-  'unicode',
-  'unicodefeff',
-  'utf-16',
-  'utf-16le',
-]);
-const UTF_16BE_LABELS = new Set(['unicodefffe', 'utf-16be']);
 
 function decodeUtf16(bytes: Uint8Array, littleEndian: boolean): string {
   let i = 0;
@@ -355,49 +312,111 @@ function decodeUtf16(bytes: Uint8Array, littleEndian: boolean): string {
   return i < bytes.length ? text + '�' : text;
 }
 
+// The Encoding Standard's labels, by the encoding they name
+// (https://encoding.spec.whatwg.org/encodings.json).
+const ENCODING_LABELS: Record<string, string> = {
+  'UTF-8':
+    'unicode-1-1-utf-8 unicode11utf8 unicode20utf8 utf-8 utf8 x-unicode20utf8',
+  IBM866: '866 cp866 csibm866 ibm866',
+  'ISO-8859-2':
+    'csisolatin2 iso-8859-2 iso-ir-101 iso8859-2 iso88592 iso_8859-2 iso_8859-2:1987 l2 latin2',
+  'ISO-8859-3':
+    'csisolatin3 iso-8859-3 iso-ir-109 iso8859-3 iso88593 iso_8859-3 iso_8859-3:1988 l3 latin3',
+  'ISO-8859-4':
+    'csisolatin4 iso-8859-4 iso-ir-110 iso8859-4 iso88594 iso_8859-4 iso_8859-4:1988 l4 latin4',
+  'ISO-8859-5':
+    'csisolatincyrillic cyrillic iso-8859-5 iso-ir-144 iso8859-5 iso88595 iso_8859-5 iso_8859-5:1988',
+  'ISO-8859-6':
+    'arabic asmo-708 csiso88596e csiso88596i csisolatinarabic ecma-114 iso-8859-6 iso-8859-6-e iso-8859-6-i iso-ir-127 iso8859-6 iso88596 iso_8859-6 iso_8859-6:1987',
+  'ISO-8859-7':
+    'csisolatingreek ecma-118 elot_928 greek greek8 iso-8859-7 iso-ir-126 iso8859-7 iso88597 iso_8859-7 iso_8859-7:1987 sun_eu_greek',
+  'ISO-8859-8':
+    'csiso88598e csisolatinhebrew hebrew iso-8859-8 iso-8859-8-e iso-ir-138 iso8859-8 iso88598 iso_8859-8 iso_8859-8:1988 visual',
+  'ISO-8859-8-I': 'csiso88598i iso-8859-8-i logical',
+  'ISO-8859-10':
+    'csisolatin6 iso-8859-10 iso-ir-157 iso8859-10 iso885910 l6 latin6',
+  'ISO-8859-13': 'iso-8859-13 iso8859-13 iso885913',
+  'ISO-8859-14': 'iso-8859-14 iso8859-14 iso885914',
+  'ISO-8859-15': 'csisolatin9 iso-8859-15 iso8859-15 iso885915 iso_8859-15 l9',
+  'ISO-8859-16': 'iso-8859-16',
+  'KOI8-R': 'cskoi8r koi koi8 koi8-r koi8_r',
+  'KOI8-U': 'koi8-ru koi8-u',
+  macintosh: 'csmacintosh mac macintosh x-mac-roman',
+  'windows-874': 'dos-874 iso-8859-11 iso8859-11 iso885911 tis-620 windows-874',
+  'windows-1250': 'cp1250 windows-1250 x-cp1250',
+  'windows-1251': 'cp1251 windows-1251 x-cp1251',
+  'windows-1252':
+    'ansi_x3.4-1968 ascii cp1252 cp819 csisolatin1 ibm819 iso-8859-1 iso-ir-100 iso8859-1 iso88591 iso_8859-1 iso_8859-1:1987 l1 latin1 us-ascii windows-1252 x-cp1252',
+  'windows-1253': 'cp1253 windows-1253 x-cp1253',
+  'windows-1254':
+    'cp1254 csisolatin5 iso-8859-9 iso-ir-148 iso8859-9 iso88599 iso_8859-9 iso_8859-9:1989 l5 latin5 windows-1254 x-cp1254',
+  'windows-1255': 'cp1255 windows-1255 x-cp1255',
+  'windows-1256': 'cp1256 windows-1256 x-cp1256',
+  'windows-1257': 'cp1257 windows-1257 x-cp1257',
+  'windows-1258': 'cp1258 windows-1258 x-cp1258',
+  'x-mac-cyrillic': 'x-mac-cyrillic x-mac-ukrainian',
+  GBK: 'chinese csgb2312 csiso58gb231280 gb2312 gb_2312 gb_2312-80 gbk iso-ir-58 x-gbk',
+  gb18030: 'gb18030',
+  Big5: 'big5 big5-hkscs cn-big5 csbig5 x-x-big5',
+  'EUC-JP': 'cseucpkdfmtjapanese euc-jp x-euc-jp',
+  'ISO-2022-JP': 'csiso2022jp iso-2022-jp',
+  Shift_JIS:
+    'csshiftjis ms932 ms_kanji shift-jis shift_jis sjis windows-31j x-sjis',
+  'EUC-KR':
+    'cseuckr csksc56011987 euc-kr iso-ir-149 korean ks_c_5601-1987 ks_c_5601-1989 ksc5601 ksc_5601 windows-949',
+  replacement:
+    'csiso2022kr hz-gb-2312 iso-2022-cn iso-2022-cn-ext iso-2022-kr replacement',
+  'UTF-16BE': 'unicodefffe utf-16be',
+  'UTF-16LE':
+    'csunicode iso-10646-ucs-2 ucs-2 unicode unicodefeff utf-16 utf-16le',
+  'x-user-defined': 'x-user-defined',
+};
+
+let encodingsByLabel: Map<string, string> | undefined;
+
 /**
- * Whether `label` names an encoding a preview can be decoded in here: one the
- * runtime's TextDecoder knows, or windows-1252 or UTF-16, which decodeBytes
- * decodes itself where it does not. A label that names none says nothing,
- * and the prescan reads on past it, as a browser's does (previewEncoding).
+ * The encoding `label` names in the Encoding Standard, by its name in lower
+ * case (`iso-8859-1` names `windows-1252`); undefined when it names none, and
+ * then the prescan reads on past it, as a browser's does (previewEncoding).
+ * Whether the runtime can decode the encoding is decodeBytes's business: a
+ * label is valid or not wherever the app runs.
  */
-function decodable(label: string): boolean {
-  if (
-    WINDOWS_1252_LABELS.has(label) ||
-    UTF_16LE_LABELS.has(label) ||
-    UTF_16BE_LABELS.has(label) ||
-    label === 'x-user-defined'
-  ) {
-    return true;
-  }
-  try {
-    return new TextDecoder(label).encoding !== '';
-  } catch {
-    return false;
-  }
+function encodingOf(label: string): string | undefined {
+  encodingsByLabel ??= new Map(
+    Object.entries(ENCODING_LABELS).flatMap(([name, labels]) =>
+      labels.split(' ').map((alias) => [alias, name.toLowerCase()] as const)
+    )
+  );
+  return encodingsByLabel.get(
+    asciiLowercase(label.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, ''))
+  );
 }
 
 /**
- * The bytes as text in `encoding`. Where the runtime's TextDecoder knows the
+ * The bytes as text in `encoding` (encodingOf's name for it), or null when
+ * this runtime cannot decode it. Where the runtime's TextDecoder knows the
  * encoding, it decodes. Expo's, which React Native apps get, knows only
  * UTF-8, so windows-1252 -- the encoding of most legacy Western pages, and
  * what ISO-8859-1 means to a browser -- and UTF-16 are decoded here instead.
- * Any other encoding it does not know is read as UTF-8.
+ * Any other there (Shift_JIS, GBK, Big5, windows-1251 ...), and the
+ * replacement encoding everywhere, cannot be: read as UTF-8 it would come
+ * out garbled, so the preview is declined and Open shows the file instead.
  */
-function decodeBytes(bytes: Uint8Array, encoding: string): string {
+function decodeBytes(bytes: Uint8Array, encoding: string): string | null {
   try {
     return new TextDecoder(encoding).decode(bytes);
   } catch {
-    if (WINDOWS_1252_LABELS.has(encoding)) return decodeWindows1252(bytes);
-    if (UTF_16LE_LABELS.has(encoding)) return decodeUtf16(bytes, true);
-    if (UTF_16BE_LABELS.has(encoding)) return decodeUtf16(bytes, false);
-    return new TextDecoder('utf-8').decode(bytes);
+    if (encoding === 'windows-1252') return decodeWindows1252(bytes);
+    if (encoding === 'utf-16le') return decodeUtf16(bytes, true);
+    if (encoding === 'utf-16be') return decodeUtf16(bytes, false);
+    return null;
   }
 }
 
 /**
  * The text of a preview response, decoded in the encoding the file is in, or
- * null when the object is over the cap.
+ * null when the object is over the cap or in an encoding this runtime cannot
+ * decode (decodeBytes).
  *
  * The manifest size that canPreviewFromText checks is the writer's own
  * word, recorded at upload; the object behind the read URL can be anything.
@@ -790,7 +809,8 @@ function* markupTags(
       } else if ((open.get(name) ?? 0) > 0) {
         while (scopes[scopes.length - 1] !== name) pop();
         pop();
-      } else if (name === 'template' && templates > 0) {
+      } else if (name === 'template' && templates > 0 && !foreign()) {
+        // In foreign content it ends a foreign template, not an HTML one.
         templates -= 1;
       }
       continue;
@@ -912,11 +932,14 @@ export function bucketFileViewerHeading(
 }
 
 /**
- * Whose scripts a preview runs: the file's and ours (`all`: iOS and Android,
- * and web once the reader asks), ours alone (`ours`: web until then), or none
- * (`none`: under Electron). On web a file's script runs on the app's own
- * thread, where a loop that never ends would freeze the whole tab, so there
- * it waits for the reader (BucketFileViewer).
+ * Whose scripts a preview runs: the file's and ours (`all`: once the reader
+ * asks), ours alone (`ours`: on web, iOS and Android until then), or none
+ * (`none`: under Electron). A file's script waits for the reader everywhere
+ * it can run (BucketFileViewer): on web it runs on the app's own thread,
+ * where a loop that never ends would freeze the whole tab; on iOS and
+ * Android it can post to the WebView's message bridge as often as it likes,
+ * and every message reaches the app's JavaScript thread before the token is
+ * checked.
  */
 export type HtmlPreviewScripts = 'all' | 'ours' | 'none';
 
