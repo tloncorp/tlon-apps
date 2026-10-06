@@ -206,6 +206,27 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     []
   );
 
+  // Retire a row whose entry the manifest already has.
+  //
+  // A finish that landed usually reaches the manifest before its failed
+  // request does: the entry arrives, the effect below retires the row, and
+  // only then does the lost answer surface. Marking the row failed at that
+  // point would resurrect it over the real file -- a failed row hides the
+  // entry it stands for -- and the effect would never run again to clear
+  // it, because the manifest has nothing new to say. So every path that
+  // settles a row after finish was sent asks the manifest first.
+  const retireIfPublished = useCallback(
+    async (id: string, serverEntryId: number) => {
+      const bucket = await db.getBucket({ channelId });
+      if (!bucket?.entries.some((entry) => entry.entryId === serverEntryId)) {
+        return false;
+      }
+      await retireUpload(id, 'completed');
+      return true;
+    },
+    [channelId, retireUpload]
+  );
+
   // Re-ask finish-upload for a row whose bytes are already up.
   //
   // The host replays the answer it gave under the same id, so this cannot
@@ -222,22 +243,18 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       markUploadRunning(id);
       try {
         await finishUpload(flag, sessionId, finishRequestId);
-        updateLocalUpload(id, { progress: 100 });
+        if (!(await retireIfPublished(id, serverEntryId))) {
+          updateLocalUpload(id, { progress: 100 });
+        }
       } catch (cause) {
         if (isUploadCancelled(id)) return;
+        if (await retireIfPublished(id, serverEntryId)) return;
         if (!isFinishRefusal(cause)) {
           updateLocalUpload(id, { error: FINISH_UNCONFIRMED, state: 'failed' });
           return;
         }
-        const bucket = await db.getBucket({ channelId });
-        if (bucket?.entries.some((entry) => entry.entryId === serverEntryId)) {
-          // Published. Retired here rather than left to the manifest effect,
-          // which already ran when the entry arrived and will not run again.
-          await retireUpload(id, 'completed');
-          return;
-        }
-        // Not published, so the bytes never landed as a file. The next try
-        // starts over with a new session.
+        // Refused and not published, so the bytes never landed as a file.
+        // The next try starts over with a new session.
         updateLocalUpload(id, {
           error: errorMessage(cause),
           finishRequestId: null,
@@ -250,7 +267,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         clearUploadRunning(id);
       }
     },
-    [channelId, flag, retireUpload, updateLocalUpload]
+    [flag, retireIfPublished, updateLocalUpload]
   );
 
   const runUpload = useCallback(
@@ -420,13 +437,18 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             recursive: false,
           }).catch(() => undefined);
         }
-        if (!cancelled) {
-          // A refusal of finish-upload is the host saying the file was not
-          // published, so the next try starts over. Any other failure after it
-          // was sent leaves the outcome unknown, and the row keeps the id for
-          // Retry to re-ask under.
-          const unconfirmed =
-            finishRequestId !== undefined && !isFinishRefusal(cause);
+        // A refusal of finish-upload is the host saying the file was not
+        // published, so the next try starts over. Any other failure after it
+        // was sent leaves the outcome unknown, and the row keeps the id for
+        // Retry to re-ask under -- unless the manifest already has the entry.
+        const unconfirmed =
+          finishRequestId !== undefined && !isFinishRefusal(cause);
+        const published =
+          !cancelled &&
+          unconfirmed &&
+          serverEntryId !== undefined &&
+          (await retireIfPublished(id, serverEntryId));
+        if (!cancelled && !published) {
           updateLocalUpload(id, {
             error: unconfirmed ? FINISH_UNCONFIRMED : errorMessage(cause),
             finishRequestId: unconfirmed ? finishRequestId : null,
@@ -439,7 +461,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         clearUploadRunning(id);
       }
     },
-    [channelId, confirmUpload, flag, updateLocalUpload]
+    [channelId, confirmUpload, flag, retireIfPublished, updateLocalUpload]
   );
 
   const addUploads = useCallback(
