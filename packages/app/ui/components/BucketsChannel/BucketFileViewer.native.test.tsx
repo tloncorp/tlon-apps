@@ -131,6 +131,16 @@ describe('BucketFileViewer html preview (native)', () => {
     expect(enableScriptsButton(render())).toBeUndefined();
   });
 
+  // Nesting deeper than the preview reads, it gets the notice and Open.
+  it('renders no WebView for a file that nests too deep', () => {
+    const renderer = render({
+      ...scriptedFile,
+      textContent: '<script>go()</script>' + '<div>'.repeat(1000),
+    });
+    expect(renderer.root.findAllByType('WebView' as never)).toHaveLength(0);
+    expect(enableScriptsButton(renderer)).toBeUndefined();
+  });
+
   // These props are the isolation: a change to any of them is a decision.
   // incognito on Android would clear the cookie jar the whole app shares.
   it.each([

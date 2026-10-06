@@ -1,4 +1,14 @@
-import { parseEntities } from 'parse-entities';
+import {
+  type DefaultTreeAdapterMap,
+  type Token,
+  type TokenHandler,
+  Tokenizer,
+  defaultTreeAdapter,
+  html as htmlSpec,
+  parse,
+} from 'parse5';
+
+const { NS } = htmlSpec;
 
 export type BucketPreviewKind =
   | 'image'
@@ -100,12 +110,11 @@ function tagAttributes(text: string): Map<string, string> {
 }
 
 /**
- * A URL attribute's raw value as the URL parser reads it: character
- * references decoded, leading and trailing spaces and control characters
+ * A URL attribute's value, its character references decoded, as the URL
+ * parser reads it: leading and trailing spaces and control characters
  * trimmed, tabs and newlines anywhere dropped.
  */
-function urlText(value: string): string {
-  const url = parseEntities(value, { attribute: true });
+function urlText(url: string): string {
   let start = 0;
   let end = url.length;
   while (start < end && url.charCodeAt(start) <= 0x20) start += 1;
@@ -602,77 +611,6 @@ export function getBucketPreviewKind({
   return 'unsupported';
 }
 
-// Elements whose content the parser reads as text, not markup: the raw-text
-// and escapable raw-text elements, and plaintext. With scripting on a
-// noscript's content is text too; in a frame without scripts it is markup.
-const TEXT_CONTENT_ELEMENTS = new Set([
-  'iframe',
-  'noembed',
-  'noframes',
-  'plaintext',
-  'script',
-  'style',
-  'textarea',
-  'title',
-  'xmp',
-]);
-const SCRIPTED_TEXT_ELEMENTS = new Set([...TEXT_CONTENT_ELEMENTS, 'noscript']);
-
-// Where foreign content is HTML again: an svg's foreignObject, desc and
-// title, and MathML's text elements (and an annotation-xml that says it
-// holds HTML).
-const SVG_HTML_ELEMENTS = new Set(['desc', 'foreignobject', 'title']);
-const MATHML_TEXT_ELEMENTS = new Set(['mi', 'mn', 'mo', 'ms', 'mtext']);
-
-// The start tags that end foreign content: the parser closes the open svg or
-// math and reads the tag as HTML (`font` only with color, face or size).
-const FOREIGN_BREAKOUTS = new Set([
-  'b',
-  'big',
-  'blockquote',
-  'body',
-  'br',
-  'center',
-  'code',
-  'dd',
-  'div',
-  'dl',
-  'dt',
-  'em',
-  'embed',
-  'h1',
-  'h2',
-  'h3',
-  'h4',
-  'h5',
-  'h6',
-  'head',
-  'hr',
-  'i',
-  'img',
-  'li',
-  'listing',
-  'menu',
-  'meta',
-  'nobr',
-  'ol',
-  'p',
-  'pre',
-  'ruby',
-  's',
-  'small',
-  'span',
-  'strong',
-  'strike',
-  'sub',
-  'sup',
-  'table',
-  'tt',
-  'u',
-  'ul',
-  'var',
-]);
-
 // HTML's ASCII whitespace: tab, line feed, form feed, carriage return, space.
 function isHtmlSpace(code: number): boolean {
   return code === 9 || code === 10 || code === 12 || code === 13 || code === 32;
@@ -683,9 +621,9 @@ function isAsciiLetter(code: number): boolean {
 }
 
 /**
- * Where a tag whose name ends at `from` ends -- the index just past its `>`,
- * or -1 when it never ends -- and whether it closes itself (`<svg/>`). It
- * reads the attributes in the tokenizer's states: a quote opens a quoted
+ * Where a tag whose name ends at `from` ends, for the encoding prescan -- the
+ * index just past its `>`, or -1 when it never ends -- and whether it closes
+ * itself (`<svg/>`). It reads the attributes in the tokenizer's states: a quote opens a quoted
  * value only straight after an attribute's `=`, so one inside a name or an
  * unquoted value (`data=x="`) is just a character there; and a `/` closes
  * the tag only where it is no value's, straight before the `>` (in
@@ -749,396 +687,154 @@ function startTagEnd(html: string, from: number): number {
   return startTag(html, from).end;
 }
 
-/**
- * Where a scan resumes past what starts at `open` when that is not a tag, as
- * the tokenizer reads it: a comment, which ends at its first `-->` or `--!>`,
- * or at once as `<!-->` or `<!--->`; in foreign content a CDATA section, at
- * its `]]>`; and a doctype, a processing instruction, or any other `<!`, or
- * `</` before something other than a letter, at the next `>`. -1 when one
- * runs to the end of the file; undefined when a tag starts at `open`, or a
- * stray `<` that is text.
- */
-function pastNonTag(
-  html: string,
-  open: number,
-  foreign: boolean
-): number | undefined {
-  if (html.startsWith('<!--', open)) {
-    if (html[open + 4] === '>') return open + 5;
-    if (html.startsWith('->', open + 4)) return open + 6;
-    for (
-      let dashes = html.indexOf('--', open + 4);
-      dashes >= 0;
-      dashes = html.indexOf('--', dashes + 1)
-    ) {
-      if (html[dashes + 2] === '>') return dashes + 3;
-      if (html.startsWith('!>', dashes + 2)) return dashes + 4;
-    }
-    return -1;
-  }
-  if (foreign && html.startsWith('<![CDATA[', open)) {
-    const close = html.indexOf(']]>', open + 9);
-    return close < 0 ? -1 : close + 3;
-  }
-  const next = html[open + 1];
-  if (
-    next === '!' ||
-    next === '?' ||
-    (next === '/' &&
-      open + 2 < html.length &&
-      !isAsciiLetter(html.charCodeAt(open + 2)))
-  ) {
-    const close = html.indexOf('>', open + 2);
-    return close < 0 ? -1 : close + 1;
-  }
-  return undefined;
+// The parse5 tree, and what the preview reads of it.
+type ParsedDocument = DefaultTreeAdapterMap['document'];
+type ParsedNode = DefaultTreeAdapterMap['node'];
+type ParsedElement = DefaultTreeAdapterMap['element'];
+
+// How deep the parser may nest elements before a file is declined. The tree
+// builder rescans its stack of open elements for many tokens, so the time a
+// file of nested elements takes grows with the square of its depth: parse5
+// spent minutes on a megabyte of nested divs. Real pages nest a few dozen
+// deep; at this cap a crafted 2 MB file parses in about a second.
+const MAX_PARSE_DEPTH = 128;
+
+class NestedTooDeep extends Error {}
+
+const DEPTH = Symbol('depth');
+type Nested = { [DEPTH]?: number };
+
+/** Records a node's depth as the parser attaches it, and stops the parse past MAX_PARSE_DEPTH. */
+function attach(parent: ParsedNode, child: ParsedNode): void {
+  const depth = ((parent as Nested)[DEPTH] ?? 0) + 1;
+  if (depth > MAX_PARSE_DEPTH) throw new NestedTooDeep();
+  (child as Nested)[DEPTH] = depth;
+  // A template's content is a fragment of its own, holding what nests in it.
+  if ('content' in child) (child.content as Nested)[DEPTH] = depth;
 }
 
-/** Where the end tag `</name>` starts in `lower`, from `from`; -1 when there is none. */
-function endTagStart(lower: string, name: string, from: number): number {
-  const open = `</${name}`;
-  for (let i = lower.indexOf(open, from); i >= 0;) {
-    const next = lower.charCodeAt(i + open.length);
-    if (isHtmlSpace(next) || next === 47 || next === 62) return i;
-    i = lower.indexOf(open, i + 1);
-  }
-  return -1;
-}
+const depthCappedTreeAdapter: typeof defaultTreeAdapter = {
+  ...defaultTreeAdapter,
+  appendChild(parent, child) {
+    attach(parent, child);
+    defaultTreeAdapter.appendChild(parent, child);
+  },
+  insertBefore(parent, child, reference) {
+    attach(parent, child);
+    defaultTreeAdapter.insertBefore(parent, child, reference);
+  },
+};
 
-// Whether the character after an end tag's name ends the name.
-function endsTagName(code: number): boolean {
-  return isHtmlSpace(code) || code === 47 || code === 62;
+/** A file's tree, and how far its source offsets lie from the file's. */
+interface ParsedHtml {
+  document: ParsedDocument;
+  offset: number;
 }
 
 /**
- * Where the end tag of a script whose content starts at `from` starts in
- * `lower`; -1 when it never ends. Through the tokenizer's script-data states:
- * after `<!--` the content is escaped, where `<script` opens a double-escaped
- * stretch whose `</script>` only closes that stretch, and `-->` ends either.
- * One pass: the next `-->` is searched for only once the scan is past the
- * last one found.
+ * `html` as a browser's parser builds it, with scripting on or off, which
+ * decides whether a `<noscript>` holds text or markup; null when it nests
+ * past MAX_PARSE_DEPTH. A leading byte order mark is skipped, as Chromium
+ * and WebKit skip one in a srcdoc document, so the tree's source offsets lie
+ * one short of `html`'s.
  */
-function scriptEndStart(lower: string, from: number): number {
-  // 0: script data; 1: escaped; 2: double escaped.
-  let state = 0;
-  // Where the next `-->` is, from where it was last searched for; -1 when
-  // there is none left.
-  let dashes = -2;
-  let i = from;
-  for (;;) {
-    const lt = lower.indexOf('<', i);
-    if (state !== 0) {
-      if (dashes !== -1 && dashes < i) dashes = lower.indexOf('-->', i);
-      if (dashes >= 0 && (lt < 0 || dashes < lt)) {
-        state = 0;
-        i = dashes + 3;
-        continue;
+function parseHtml(html: string, scripting: boolean): ParsedHtml | null {
+  const offset = html.charCodeAt(0) === 0xfeff ? 1 : 0;
+  try {
+    const document = parse(offset ? html.slice(1) : html, {
+      scriptingEnabled: scripting,
+      sourceCodeLocationInfo: true,
+      treeAdapter: depthCappedTreeAdapter,
+    });
+    return { document, offset };
+  } catch (error) {
+    if (error instanceof NestedTooDeep) return null;
+    throw error;
+  }
+}
+
+// The last file parsed: the viewer reads a file's title, its scripts and its
+// markup in turn, each from the same tree.
+let lastParsed:
+  | { html: string; scripting: boolean; parsed: ParsedHtml | null }
+  | undefined;
+
+/** parseHtml, kept for the file read last. */
+function parsedHtml(html: string, scripting: boolean): ParsedHtml | null {
+  if (lastParsed?.html !== html || lastParsed.scripting !== scripting) {
+    lastParsed = { html, scripting, parsed: parseHtml(html, scripting) };
+  }
+  return lastParsed.parsed;
+}
+
+/**
+ * The elements under `root` in tree order. A template's content is entered
+ * only where `entersTemplate` says so: an ordinary template's is inert.
+ */
+function* elementsOf(
+  root: ParsedNode,
+  entersTemplate: (template: ParsedElement) => boolean
+): Generator<ParsedElement> {
+  const pending: ParsedNode[] = [root];
+  while (pending.length > 0) {
+    const node = pending.pop()!;
+    let children: ParsedNode[] = 'childNodes' in node ? node.childNodes : [];
+    if (defaultTreeAdapter.isElementNode(node)) {
+      yield node;
+      if ('content' in node && entersTemplate(node)) {
+        children = node.content.childNodes;
       }
     }
-    if (lt < 0) return -1;
-    if (state === 0 && lower.startsWith('<!--', lt)) {
-      // The opener's dashes count toward `-->`: `<!-->` ends at once.
-      state = 1;
-      i = lt + 2;
-      continue;
-    }
-    if (
-      lower.startsWith('</script', lt) &&
-      endsTagName(lower.charCodeAt(lt + 8))
-    ) {
-      if (state !== 2) return lt;
-      state = 1;
-      i = lt + 8;
-      continue;
-    }
-    if (
-      state === 1 &&
-      lower.startsWith('<script', lt) &&
-      endsTagName(lower.charCodeAt(lt + 7))
-    ) {
-      state = 2;
-      i = lt + 7;
-      continue;
-    }
-    i = lt + 1;
+    for (let i = children.length - 1; i >= 0; i -= 1) pending.push(children[i]);
   }
 }
 
-/** A start tag, as markupTags reads it. */
-interface MarkupTag {
-  /** Its name, ASCII-lowercased. */
-  name: string;
-  /** Where its name ends, and just past its `>`. */
-  nameEnd: number;
-  end: number;
-  /**
-   * For an element whose content the parser reads as text here: where that
-   * text ends, at its end tag, or -1 when it runs to the end of the file.
-   */
-  textEnd?: number;
-  /**
-   * The namespace of the element it makes: `svg` or `math` in foreign
-   * content -- inside an svg or math, and not at an integration point in one
-   * -- and `html` anywhere else.
-   */
-  namespace: 'html' | 'svg' | 'math';
-  /** Whether a template is open around it. */
-  withinTemplate: boolean;
-  /**
-   * Whether a `<select>` is open around it, where a parser from before
-   * customizable selects -- WebKit's, and Chromium's before 135, which
-   * Electron 34 runs -- drops most start tags.
-   */
-  withinSelect: boolean;
-  /**
-   * Whether an ordinary template is open around it, whose content is inert:
-   * nothing in it runs unless a script copies it out. A declarative shadow
-   * root's template (`shadowrootmode` open or closed) holds live content,
-   * so on its own it does not make what it holds inert -- even on a host
-   * that cannot take one, where the browser keeps it as an ordinary template.
-   */
-  inert: boolean;
+/** The value of `element`'s attribute `name`, in `namespace` when given. */
+function attributeOf(
+  element: ParsedElement,
+  name: string,
+  namespace?: string
+): string | undefined {
+  return element.attrs.find(
+    (attribute) => attribute.name === name && attribute.namespace === namespace
+  )?.value;
 }
 
 /**
- * The start tags of a document, in order, read as the tokenizer reads them
- * and as far as the tree builder decides how it reads them: past comments,
- * doctypes and the like (pastNonTag), and past the content of the elements
- * whose content is text there (`textElements`, which depend on whether the
- * frame runs scripts; a script's ends through its escape states). Inside an
- * svg or math no element's content is text, and CDATA sections exist. At an
- * integration point in one -- an SVG foreignObject, desc or title, a MathML
- * text element, an annotation-xml holding HTML -- the content is HTML again.
- * An HTML-only tag such as `<p>` or `<div>` closes the svg or math, and an end
- * tag in foreign content closes the nearest open element of its name with
- * whatever it holds. Of the tree, the foreign elements and templates are
- * tracked, not the HTML ones: an end tag is read as if none were open inside
- * an integration point.
- *
- * Inside a `<select>`, WebKit's parser ignores the start tag of such an
- * element other than script and textarea, and reads what follows as markup;
- * Chromium's reads it as text. `markupInSelect` reads it as markup, for a
- * scan that must see whatever either could run.
- *
- * A scan rather than a regular expression, for the reason htmlPreviewTitle
- * gives: it reads each character a fixed number of times.
+ * Whether the preview can read an HTML file: false when it nests elements
+ * deeper than MAX_PARSE_DEPTH, which no real page does, so the viewer offers
+ * Open instead. Read as a frame that runs scripts, or one that does not
+ * (`scripting: false`, under Electron), reads it.
  */
-function* markupTags(
+export function htmlPreviewReadable(
   html: string,
-  textElements: Set<string>,
-  { markupInSelect = false }: { markupInSelect?: boolean } = {}
-): Generator<MarkupTag> {
-  const lower = asciiLowercase(html);
-  // The open templates: how many foreign elements were open around each, and
-  // whether its content is inert; and how many are. A template is an HTML
-  // element, so an end tag inside it reaches nothing outside it, and its own
-  // end tag closes whatever it holds.
-  const templateDepths: number[] = [];
-  const templatesInert: boolean[] = [];
-  let inertTemplates = 0;
-  // The open foreign elements: each with its namespace, and whether its
-  // content is HTML (an integration point). The innermost decides how the
-  // scan reads. `open` counts them by name within each template, so an end
-  // tag finds whether one it can reach is open in constant time: a file of
-  // open svgs and stray end tags stays linear.
-  const scopes: {
-    html: boolean;
-    name: string;
-    namespace: 'svg' | 'math';
-    key: string;
-  }[] = [];
-  const open = new Map<string, number>();
-  const reach = (name: string) => `${templateDepths.length} ${name}`;
-  const push = (
-    name: string,
-    namespace: 'svg' | 'math',
-    htmlInside: boolean
-  ) => {
-    const key = reach(name);
-    scopes.push({ html: htmlInside, key, name, namespace });
-    open.set(key, (open.get(key) ?? 0) + 1);
-  };
-  const pop = () => {
-    const scope = scopes.pop();
-    if (scope) open.set(scope.key, (open.get(scope.key) ?? 1) - 1);
-  };
-  let selects = 0;
-  const foreign = () => scopes.length > 0 && !scopes[scopes.length - 1].html;
-  let i = 0;
-  for (;;) {
-    const lt = html.indexOf('<', i);
-    if (lt < 0) return;
-    const past = pastNonTag(html, lt, foreign());
-    if (past !== undefined) {
-      if (past < 0) return;
-      i = past;
-      continue;
-    }
-    const closing = html.charCodeAt(lt + 1) === 47;
-    const nameStart = lt + (closing ? 2 : 1);
-    if (!isAsciiLetter(html.charCodeAt(nameStart))) {
-      i = lt + 1;
-      continue;
-    }
-    let nameEnd = nameStart;
-    while (nameEnd < html.length) {
-      const code = html.charCodeAt(nameEnd);
-      if (isHtmlSpace(code) || code === 47 || code === 62) break;
-      nameEnd += 1;
-    }
-    const name = lower.slice(nameStart, nameEnd);
-    const { end, selfClosing } = startTag(html, nameEnd);
-    if (end < 0) return;
-    i = end;
-    if (closing) {
-      if (foreign() && (name === 'br' || name === 'p')) {
-        while (foreign()) pop();
-      } else if ((open.get(reach(name)) ?? 0) > 0) {
-        while (scopes[scopes.length - 1].name !== name) pop();
-        pop();
-      } else if (name === 'template' && templateDepths.length > 0) {
-        // No foreign template is open within reach, so it ends the innermost
-        // HTML template, in HTML or in foreign content alike, and everything
-        // opened inside it.
-        const depth = templateDepths.pop()!;
-        while (scopes.length > depth) pop();
-        if (templatesInert.pop()) inertTemplates -= 1;
-      } else if (name === 'select' && selects > 0 && !foreign()) {
-        selects -= 1;
-      }
-      continue;
-    }
-    const attributes = tagAttributes(html.slice(nameEnd, end - 1));
-    if (
-      foreign() &&
-      (FOREIGN_BREAKOUTS.has(name) ||
-        (name === 'font' &&
-          (attributes.has('color') ||
-            attributes.has('face') ||
-            attributes.has('size'))))
-    ) {
-      while (foreign()) pop();
-    }
-    // At a MathML text element, mglyph and malignmark are MathML still,
-    // where any other start tag makes HTML.
-    const innermost = scopes[scopes.length - 1];
-    const inForeignContent =
-      foreign() ||
-      (innermost !== undefined &&
-        innermost.namespace === 'math' &&
-        MATHML_TEXT_ELEMENTS.has(innermost.name) &&
-        (name === 'mglyph' || name === 'malignmark'));
-    // A foreign element takes its parent's namespace -- except an svg
-    // straight inside an annotation-xml, which the parser makes SVG.
-    const namespace = !inForeignContent
-      ? undefined
-      : name === 'svg' &&
-          innermost.namespace === 'math' &&
-          innermost.name === 'annotation-xml'
-        ? 'svg'
-        : innermost.namespace;
-    const tag: MarkupTag = {
-      name,
-      nameEnd,
-      end,
-      namespace: namespace ?? 'html',
-      withinTemplate: templateDepths.length > 0,
-      withinSelect: selects > 0,
-      inert: inertTemplates > 0,
-    };
-    if (namespace !== undefined) {
-      // Every foreign element is tracked, so that an end tag can close the
-      // ones it holds, and a foreign element can close itself.
-      const encoding = asciiLowercase(
-        parseEntities(attributes.get('encoding') ?? '', { attribute: true })
-      );
-      const opensHtml =
-        namespace === 'svg'
-          ? SVG_HTML_ELEMENTS.has(name)
-          : MATHML_TEXT_ELEMENTS.has(name) ||
-            (name === 'annotation-xml' &&
-              (encoding === 'text/html' ||
-                encoding === 'application/xhtml+xml'));
-      if (!selfClosing) push(name, namespace, opensHtml);
-    } else if (name === 'svg' || name === 'math') {
-      // An HTML element cannot close itself; a foreign one can.
-      if (!selfClosing) push(name, name, false);
-    } else if (name === 'template') {
-      const mode = asciiLowercase(
-        parseEntities(attributes.get('shadowrootmode') ?? '', {
-          attribute: true,
-        })
-      );
-      const inert = mode !== 'open' && mode !== 'closed';
-      templateDepths.push(scopes.length);
-      templatesInert.push(inert);
-      if (inert) inertTemplates += 1;
-    } else if (name === 'select') {
-      selects += 1;
-    }
-    if (
-      inForeignContent ||
-      !textElements.has(name) ||
-      (markupInSelect &&
-        selects > 0 &&
-        name !== 'script' &&
-        name !== 'textarea')
-    ) {
-      yield tag;
-      continue;
-    }
-    if (name === 'plaintext') {
-      yield { ...tag, textEnd: -1 };
-      return;
-    }
-    const close =
-      name === 'script'
-        ? scriptEndStart(lower, end)
-        : endTagStart(lower, name, end);
-    yield { ...tag, textEnd: close };
-    if (close < 0) return;
-    const closeEnd = startTagEnd(html, close + 2 + name.length);
-    if (closeEnd < 0) return;
-    i = closeEnd;
-  }
+  { scripting = true }: { scripting?: boolean } = {}
+): boolean {
+  return parsedHtml(html, scripting) !== null;
 }
 
 /**
  * The title of an HTML file, as the page itself would show it: the first
- * `<title>` the parser would make the document's -- not one in a comment, an
- * attribute, a script or style, a template (nested ones included), or an
- * `<svg>`'s own, which is a tooltip (an HTML one in its foreignObject counts)
- * -- with character references decoded and
- * ASCII whitespace collapsed, the way `document.title` reads it. Undefined
- * when the file has none or it is blank. In a frame that runs no scripts (`scripting: false`, under Electron), a `<noscript>` holds
- * markup, and a title in it counts.
- *
- * A scan rather than a regular expression: it reads each character a fixed
- * number of times, where a pattern for tags backtracks without bound on a
- * file of unclosed tags, which anyone who can upload could write.
+ * `<title>` the parser makes the document's -- not one in a template, nor an
+ * `<svg>`'s own, which is a tooltip -- its text with ASCII whitespace
+ * collapsed, the way `document.title` reads it. Undefined when the file has
+ * none, it is blank, or the file cannot be read (htmlPreviewReadable). In a
+ * frame that runs no scripts (`scripting: false`, under Electron), a
+ * `<noscript>` holds markup, and a title in it counts.
  */
 export function htmlPreviewTitle(
   html: string,
   { scripting = true }: { scripting?: boolean } = {}
 ): string | undefined {
-  for (const tag of markupTags(
-    html,
-    scripting ? SCRIPTED_TEXT_ELEMENTS : TEXT_CONTENT_ELEMENTS
-  )) {
-    if (
-      tag.name !== 'title' ||
-      tag.namespace !== 'html' ||
-      tag.withinTemplate
-    ) {
+  const parsed = parsedHtml(html, scripting);
+  if (!parsed) return undefined;
+  for (const element of elementsOf(parsed.document, () => false)) {
+    if (element.nodeName !== 'title' || element.namespaceURI !== NS.HTML) {
       continue;
     }
-    if (tag.textEnd === undefined) return undefined;
-    // Character references decoded as a browser decodes them in text: every
-    // named reference, the legacy ones without a semicolon, and numeric
-    // references with a browser's replacements. A title never closed runs to
-    // the end of the file, as the parser reads it.
-    const textEnd = tag.textEnd < 0 ? html.length : tag.textEnd;
-    const title = parseEntities(html.slice(tag.end, textEnd))
+    const title = element.childNodes
+      .map((node) => (defaultTreeAdapter.isTextNode(node) ? node.value : ''))
+      .join('')
       .replace(/[\t\n\f\r ]+/g, ' ')
       .replace(/^ | $/g, '');
     return title === '' ? undefined : title.slice(0, 200);
@@ -1249,8 +945,8 @@ const JAVASCRIPT_MIME_TYPES = new Set([
 ]);
 
 /**
- * What a browser prepares a script element with these attributes
- * (tagAttributes) as: a classic script, a module, or data it never runs.
+ * What a browser prepares a script element as: a classic script, a module,
+ * or data it never runs.
  * Without a type its language names one (`text/` and the language), and with
  * neither it is JavaScript; an empty type is JavaScript; any other type,
  * trimmed, must be exactly a JavaScript MIME type (a `charset` parameter makes
@@ -1258,20 +954,16 @@ const JAVASCRIPT_MIME_TYPES = new Set([
  * speculation rules never run. Chromium also trims a vertical tab from the
  * type.
  */
-function scriptKind(
-  attributes: Map<string, string>
-): 'classic' | 'module' | undefined {
-  const type = attributes.get('type');
-  if (type === undefined) {
-    const language = attributes.get('language');
+function scriptKind(script: ParsedElement): 'classic' | 'module' | undefined {
+  const value = attributeOf(script, 'type');
+  if (value === undefined) {
+    const language = attributeOf(script, 'language');
     if (language === undefined) return 'classic';
-    const name = parseEntities(language, { attribute: true });
-    return name === '' ||
-      JAVASCRIPT_MIME_TYPES.has(`text/${asciiLowercase(name)}`)
+    return language === '' ||
+      JAVASCRIPT_MIME_TYPES.has(`text/${asciiLowercase(language)}`)
       ? 'classic'
       : undefined;
   }
-  const value = parseEntities(type, { attribute: true });
   if (value === '') return 'classic';
   const isSpace = (code: number) => isHtmlSpace(code) || code === 11;
   let start = 0;
@@ -1331,20 +1023,99 @@ const HANDLED_EVENTS = new Set(
  * form cannot submit and an object or embed cannot load in a preview, and
  * any other URL is fetched, never run.
  */
-function runsJavascriptUrl(tag: MarkupTag, attribute: string): boolean {
-  switch (tag.namespace) {
-    case 'math':
-      return attribute === 'href';
-    case 'svg':
+function runsJavascriptUrl(
+  element: ParsedElement,
+  attribute: Token.Attribute
+): boolean {
+  switch (element.namespaceURI) {
+    case NS.MATHML:
+      return attribute.name === 'href' && attribute.namespace === undefined;
+    case NS.SVG:
       return (
-        tag.name === 'a' && (attribute === 'href' || attribute === 'xlink:href')
+        element.nodeName === 'a' &&
+        attribute.name === 'href' &&
+        (attribute.namespace === undefined || attribute.namespace === NS.XLINK)
       );
-    case 'html':
-      return attribute === 'href'
-        ? tag.name === 'a' || tag.name === 'area'
-        : attribute === 'src' &&
-            (tag.name === 'iframe' || tag.name === 'frame');
+    case NS.HTML:
+      if (attribute.namespace !== undefined) return false;
+      return attribute.name === 'href'
+        ? element.nodeName === 'a' || element.nodeName === 'area'
+        : attribute.name === 'src' &&
+            (element.nodeName === 'iframe' || element.nodeName === 'frame');
+    default:
+      return false;
   }
+}
+
+// The HTML elements a shadow root may attach to, besides custom elements, and
+// the hyphenated names a custom element may not take.
+const SHADOW_HOSTS = new Set([
+  'article',
+  'aside',
+  'blockquote',
+  'body',
+  'div',
+  'footer',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'header',
+  'main',
+  'nav',
+  'p',
+  'section',
+  'span',
+]);
+const RESERVED_CUSTOM_ELEMENT_NAMES = new Set([
+  'annotation-xml',
+  'color-profile',
+  'font-face',
+  'font-face-format',
+  'font-face-name',
+  'font-face-src',
+  'font-face-uri',
+  'missing-glyph',
+]);
+
+/** Whether a template asks to be a declarative shadow root (`shadowrootmode` open or closed). */
+function declaresShadowRoot(template: ParsedElement): boolean {
+  if (template.namespaceURI !== NS.HTML) return false;
+  const mode = asciiLowercase(attributeOf(template, 'shadowrootmode') ?? '');
+  return mode === 'open' || mode === 'closed';
+}
+
+/**
+ * A test, for one walk of a tree in order, of whether the parser makes a
+ * template a declarative shadow root, whose content is live, rather than an
+ * ordinary template, whose content is inert: it must ask to be one, on an
+ * HTML element that can host one, and be the first to ask on it -- a host
+ * keeps its first shadow root, and a later template stays a template.
+ */
+function shadowRootsAttached(): (template: ParsedElement) => boolean {
+  const hosts = new Set<ParsedNode>();
+  return (template) => {
+    if (!declaresShadowRoot(template)) return false;
+    const host = template.parentNode;
+    if (
+      !host ||
+      !defaultTreeAdapter.isElementNode(host) ||
+      host.namespaceURI !== NS.HTML ||
+      hosts.has(host)
+    ) {
+      return false;
+    }
+    const name = host.nodeName;
+    const canHost =
+      SHADOW_HOSTS.has(name) ||
+      (/^[a-z]/.test(name) &&
+        name.includes('-') &&
+        !RESERVED_CUSTOM_ELEMENT_NAMES.has(name));
+    if (canHost) hosts.add(host);
+    return canHost;
+  };
 }
 
 /**
@@ -1352,57 +1123,58 @@ function runsJavascriptUrl(tag: MarkupTag, attribute: string): boolean {
  * script element that runs code (scriptKind; a classic HTML one marked
  * `nomodule` is skipped by every browser that runs modules, and a MathML one
  * is never run), an event handler attribute (HANDLED_EVENTS), a
- * `javascript:` URL where a browser runs one (runsJavascriptUrl) -- read as
- * the browser reads it, so `java&#x73;cript:` counts -- or any of these in an
- * HTML iframe's `srcdoc`, outside an inert template. A page without any
- * renders the same with scripts off, so there is nothing to run. A `srcdoc`
- * nested deeper than MAX_NESTED_DOCUMENTS is taken to have some.
+ * `javascript:` URL where a browser runs one (runsJavascriptUrl), or any of
+ * these in an HTML iframe's `srcdoc` -- outside an ordinary template, whose
+ * content is inert, though inside a declarative shadow root. A page without
+ * any renders the same with scripts off, so there is nothing to run. A
+ * `srcdoc` nested deeper than MAX_NESTED_DOCUMENTS, or deeper than the parser
+ * reads, is taken to have some; a file the preview cannot read
+ * (htmlPreviewReadable) offers nothing to run.
  *
- * Each document is read by markupTags as a frame that runs scripts reads it,
- * and inside a `<select>` as WebKit reads it: a script that only Safari would
- * run still counts.
+ * Each document is read as a frame that runs scripts reads it, and a select
+ * as WebKit and Electron's Chromium read it, holding scripts but dropping
+ * most other tags.
  */
 export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
-  for (const tag of markupTags(html, SCRIPTED_TEXT_ELEMENTS, {
-    markupInSelect: true,
-  })) {
-    if (tag.inert) continue;
-    const attributes = tagAttributes(html.slice(tag.nameEnd, tag.end - 1));
-    if (tag.name === 'script' && tag.namespace !== 'math') {
-      const kind = scriptKind(attributes);
+  const parsed = depth === 0 ? parsedHtml(html, true) : parseHtml(html, true);
+  if (!parsed) return depth > 0;
+  for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
+    if (element.nodeName === 'script' && element.namespaceURI !== NS.MATHML) {
+      const kind = scriptKind(element);
       if (
         kind === 'module' ||
         (kind === 'classic' &&
-          (tag.namespace === 'svg' || !attributes.has('nomodule')))
+          (element.namespaceURI === NS.SVG ||
+            attributeOf(element, 'nomodule') === undefined))
       ) {
         return true;
       }
     }
-    for (const [attribute, value] of attributes) {
+    for (const attribute of element.attrs) {
       if (
-        attribute.startsWith('on') &&
-        HANDLED_EVENTS.has(attribute.slice(2))
+        attribute.namespace === undefined &&
+        attribute.name.startsWith('on') &&
+        HANDLED_EVENTS.has(attribute.name.slice(2))
       ) {
         return true;
       }
       if (
-        runsJavascriptUrl(tag, attribute) &&
-        urlScheme(value) === 'javascript'
+        runsJavascriptUrl(element, attribute) &&
+        urlScheme(attribute.value) === 'javascript'
       ) {
         return true;
       }
-      if (
-        attribute === 'srcdoc' &&
-        tag.namespace === 'html' &&
-        tag.name === 'iframe' &&
-        (depth >= MAX_NESTED_DOCUMENTS ||
-          htmlPreviewHasScripts(
-            parseEntities(value, { attribute: true }),
-            depth + 1
-          ))
-      ) {
-        return true;
-      }
+    }
+    const srcdoc =
+      element.nodeName === 'iframe' && element.namespaceURI === NS.HTML
+        ? attributeOf(element, 'srcdoc')
+        : undefined;
+    if (
+      srcdoc !== undefined &&
+      (depth >= MAX_NESTED_DOCUMENTS ||
+        htmlPreviewHasScripts(srcdoc, depth + 1))
+    ) {
+      return true;
     }
   }
   return false;
@@ -1607,43 +1379,49 @@ export function htmlPreviewShell({
 }
 
 /**
- * Where the file's doctype ends: after any byte order mark, whitespace and
- * comment tokens ahead of it (comments, processing instructions and bogus
- * comments such as `<!foo>`), the index just past its `>`; -1 when the file
- * has none. Comments end where the tokenizer ends them
- * (pastNonTag): what we place here must come before anything of the file's
- * that could run. A `>` ends a DOCTYPE token in every state
- * of the HTML tokenizer, quoted identifiers included, so the first `>` is
- * where the parser's doctype ends.
- *
- * A scan rather than a regular expression, for the reason htmlPreviewTitle
- * gives: a pattern with a repeated run of whitespace backtracks exponentially
- * on a file that opens with whitespace and has no doctype.
+ * Where the file's doctype ends, as the parser reads it: past a byte order
+ * mark, whitespace and comment tokens ahead of it (comments, processing
+ * instructions and bogus comments such as `<!foo>`), the index just past it;
+ * -1 when anything else comes first, which leaves the document without one.
+ * What we place here must come before anything of the file's that could run.
+ * Read by parse5's tokenizer, which stops at the first other token.
  */
 function doctypeEnd(html: string): number {
-  let i = 0;
-  for (;;) {
-    while (i < html.length) {
-      const code = html.charCodeAt(i);
-      if (!isHtmlSpace(code) && code !== 0xfeff) break;
-      i += 1;
-    }
-    // Comment tokens of every kind: `<!--`, a processing instruction, and a
-    // bogus comment (`<!foo>`, `</ x>`), but not the doctype itself.
-    const comment =
-      html.startsWith('<!--', i) ||
-      html.startsWith('<?', i) ||
-      (html.startsWith('<!', i) &&
-        asciiLowercase(html.slice(i, i + 9)) !== '<!doctype') ||
-      (html.startsWith('</', i) && !isAsciiLetter(html.charCodeAt(i + 2)));
-    if (!comment) break;
-    const past = pastNonTag(html, i, false);
-    if (past === undefined || past < 0) return -1;
-    i = past;
+  const offset = html.charCodeAt(0) === 0xfeff ? 1 : 0;
+  const stop = new Error('read past the doctype');
+  let end = -1;
+  const handler: TokenHandler = {
+    onComment() {},
+    onWhitespaceCharacter() {},
+    onDoctype(token) {
+      end = token.location ? token.location.endOffset + offset : -1;
+      throw stop;
+    },
+    onStartTag() {
+      throw stop;
+    },
+    onEndTag() {
+      throw stop;
+    },
+    onCharacter() {
+      throw stop;
+    },
+    onNullCharacter() {
+      throw stop;
+    },
+    onEof() {
+      throw stop;
+    },
+  };
+  try {
+    new Tokenizer({ sourceCodeLocationInfo: true }, handler).write(
+      offset ? html.slice(1) : html,
+      true
+    );
+  } catch (error) {
+    if (error !== stop) throw error;
   }
-  if (asciiLowercase(html.slice(i, i + 9)) !== '<!doctype') return -1;
-  const close = html.indexOf('>', i + 9);
-  return close < 0 ? -1 : close + 1;
+  return end;
 }
 
 /**
@@ -1680,10 +1458,13 @@ function withDocumentHead(html: string, fragment: string): string {
  * scrolls there, since in a srcdoc document `#section` resolves against the
  * parent's address (unless the file sets a `<base href>` of its own, when the
  * fragment names that address and leaves the file like any other link); and
- * a `javascript:` link runs its code in the frame, as an `onclick` of the
- * page's own could (Chromium will not run such a link in a document with an
- * opaque origin) -- unless the file's scripts are held, when it is the file's
- * code and does nothing. An SVG link is followed like an HTML one.
+ * a `javascript:` link runs its code in the frame as a browser runs one --
+ * a classic script in the global scope, a string it completes with replacing
+ * the document -- which Chromium will not do in a document with an opaque
+ * origin, unless the file's scripts are held, when it is the file's code and
+ * does nothing. An SVG link is followed like an HTML one, and so is a MathML
+ * element with an `href`, which WebKit follows and Chromium does not (its
+ * `javascript:` href WebKit runs itself).
  *
  * Only a click the reader made reaches the shell (`isTrusted`, which no
  * script can forge), with the key that marks it as ours. The key lives in
@@ -1700,9 +1481,12 @@ function linkScript(key: string, nonce?: string): string {
   var composedPath = Event.prototype.composedPath;
   var Observer = window.MutationObserver;
   var resolveURL = window.URL;
-  var run = Function;
+  // Called by another name, eval runs code as a classic script does: in the
+  // global scope, giving back the value it completes with.
+  var evaluate = window.eval;
   var XLINK = 'http://www.w3.org/1999/xlink';
   var SVG = 'http://www.w3.org/2000/svg';
+  var MATHML = 'http://www.w3.org/1998/Math/MathML';
   var XHTML = 'http://www.w3.org/1999/xhtml';
   function hrefOf(node) {
     var raw = node.getAttribute('href');
@@ -1725,11 +1509,14 @@ function linkScript(key: string, nonce?: string): string {
     }
     return target === null || target === '' ? '_self' : target.toLowerCase();
   }
+  // The link a click is on: an HTML or SVG <a> or <area> with an address,
+  // or a MathML element with an href, which WebKit follows (Chromium does not).
   function linkIn(event) {
     var nodes = composedPath.call(event);
     for (var i = 0; i < nodes.length; i++) {
       var node = nodes[i];
-      if (node && node.nodeType === 1 && (node.localName === 'a' || node.localName === 'area') && hrefOf(node) !== null) return node;
+      if (!node || node.nodeType !== 1) continue;
+      if (node.namespaceURI === MATHML ? node.hasAttribute('href') : (node.localName === 'a' || node.localName === 'area') && hrefOf(node) !== null) return node;
     }
     return null;
   }
@@ -1807,10 +1594,20 @@ function linkScript(key: string, nonce?: string): string {
       if (event.defaultPrevented) return;
       var raw = urlText(hrefOf(link));
       if (/^javascript:/i.test(raw)) {
-        if (!runsJavascriptLinks) return;
+        // WebKit runs a MathML element's javascript: href itself.
+        if (!runsJavascriptLinks || link.namespaceURI === MATHML) return;
         var code;
         try { code = decodeURIComponent(raw.replace(/^javascript:/i, '')); } catch (error) { return; }
-        run(code)();
+        // As a browser runs such a link: a string it completes with is the
+        // markup of the document that replaces this one, which our listeners
+        // then watch as they did this.
+        var result = evaluate(code);
+        if (typeof result === 'string') {
+          document.open();
+          document.write(result);
+          document.close();
+          listen();
+        }
         return;
       }
       // A relative link resolves only against a web base the file sets
@@ -1828,8 +1625,11 @@ function linkScript(key: string, nonce?: string): string {
       if (url) shell.postMessage({ type: '${HTML_PREVIEW_LINK_MESSAGE}', key: key, href: url.href }, '*');
     }, 0);
   }
-  window.addEventListener('click', follow, true);
-  window.addEventListener('auxclick', follow, true);
+  function listen() {
+    window.addEventListener('click', follow, true);
+    window.addEventListener('auxclick', follow, true);
+  }
+  listen();
   var self = document.currentScript;
   if (self) self.remove();
 })('${key}', ${nonce === undefined});
@@ -1897,44 +1697,26 @@ function withoutAttributes(attributes: string, names: Set<string>): string {
 }
 
 /**
- * The `href` of the first `<base href>` that sets the document's base, read
- * by markupTags as a frame without scripts reads the file: not inside a
- * template, nor in an svg's or math's own content, where a base sets nothing,
- * nor inside a select, where Electron's parser, like WebKit's, drops it.
- * Undefined when the file has none.
+ * The file's own base, when its relative links may resolve against it: the
+ * first HTML `<base href>` the parser makes the document's -- not one in a
+ * template, an svg or math, nor, as Electron's parser drops it, one in a
+ * select -- when that is an absolute web address, or a scheme-relative one,
+ * which takes https as a link does. No base, a relative one or one that does
+ * not parse gives them nowhere to go: a Bucket file has no address of its own
+ * its neighbours could be reached from.
  */
-function authoredBaseHref(html: string): string | undefined {
-  for (const tag of markupTags(html, TEXT_CONTENT_ELEMENTS)) {
-    if (
-      tag.name !== 'base' ||
-      tag.namespace !== 'html' ||
-      tag.withinTemplate ||
-      tag.withinSelect
-    ) {
+function fileWebBase(document: ParsedDocument): string | undefined {
+  for (const element of elementsOf(document, () => false)) {
+    if (element.nodeName !== 'base' || element.namespaceURI !== NS.HTML) {
       continue;
     }
-    const href = tagAttributes(html.slice(tag.nameEnd, tag.end - 1)).get(
-      'href'
-    );
-    if (href !== undefined) return href;
+    const href = attributeOf(element, 'href');
+    if (href === undefined) continue;
+    const value = urlText(href);
+    const base = linkAddress(value.startsWith('//') ? `https:${value}` : value);
+    return base !== undefined && /^https?:/.test(base) ? base : undefined;
   }
   return undefined;
-}
-
-/**
- * The file's own base, when its relative links may resolve against it: the
- * first `<base href>` (authoredBaseHref), when that is an absolute web
- * address, or a scheme-relative one, which takes https as a link does. No
- * base, a relative one or one that does not parse gives them nowhere to go:
- * a Bucket file has no address of its own its neighbours could be reached
- * from.
- */
-function fileWebBase(html: string): string | undefined {
-  const href = authoredBaseHref(html);
-  if (href === undefined) return undefined;
-  const value = urlText(href);
-  const base = linkAddress(value.startsWith('//') ? `https:${value}` : value);
-  return base !== undefined && /^https?:/.test(base) ? base : undefined;
 }
 
 /**
@@ -1968,11 +1750,13 @@ const LINK_ATTRIBUTES = new Set(['href', 'target', 'xlink:href']);
 const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
 
 /**
- * The file's markup with every link -- `<a>` and `<area>`, HTML or SVG --
- * made safe to follow with no script running, as under Electron. A link the
- * scan misreads still opens only through the desktop shell's window-open
- * handler, which hands the system browser web, mail and phone addresses
- * alone, and there a relative address resolves against the app's `file:` one.
+ * The file's markup with every link -- `<a>` and `<area>`, HTML or SVG, and
+ * any MathML element with an `href`, which WebKit follows -- made safe to
+ * follow with no script running, as under Electron. A link Electron's parser
+ * reads otherwise than parse5 still opens only through the desktop shell's
+ * window-open handler, which hands the system browser web, mail and phone
+ * addresses alone, and there a relative address resolves against the app's
+ * `file:` one.
  *
  * Its own frame opens a link as a popup that escapes the sandbox, with no
  * script of ours to check where it goes, so each link is settled here
@@ -1996,57 +1780,83 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
  *   that is dropped.
  *
  * With no script to change it, the markup is the document, so rewriting it
- * covers every link. Each document is read by markupTags as a frame without
- * scripts reads it, so text that only looks like a link is left as it is.
+ * covers every link. Each document is parsed as a frame without scripts
+ * parses it, and each link's start tag rewritten where it stands in the
+ * source, so text that only looks like a link is left as it is, and so is a
+ * link the parser drops (inside a select). Null when the file cannot be read
+ * (htmlPreviewReadable); a nested document that cannot be is dropped.
  */
-function withLinksAimedAtBlank(html: string, depth = 0): string {
-  const base = fileWebBase(html);
-  let rewritten = '';
-  let copied = 0;
-  for (const { name, namespace, nameEnd, end } of markupTags(
-    html,
-    TEXT_CONTENT_ELEMENTS
-  )) {
-    if (name === 'a' || name === 'area') {
-      const attributes = html.slice(nameEnd, end - 1);
-      const values = tagAttributes(attributes);
-      // xlink:href is an address only where the parser gives it XLink's
-      // namespace, on a foreign (SVG) link; on an HTML one it is a name.
+function withLinksAimedAtBlank(html: string, depth = 0): string | null {
+  const parsed = depth === 0 ? parsedHtml(html, false) : parseHtml(html, false);
+  if (!parsed) return null;
+  const base = fileWebBase(parsed.document);
+  const edits: { start: number; end: number; text: string }[] = [];
+  const rewritten = new Set<number>();
+  for (const element of elementsOf(parsed.document, () => true)) {
+    const tag = element.sourceCodeLocation?.startTag;
+    const link =
+      element.namespaceURI === NS.MATHML
+        ? attributeOf(element, 'href') !== undefined
+        : element.nodeName === 'a' || element.nodeName === 'area';
+    const srcdoc =
+      element.nodeName === 'iframe' && element.namespaceURI === NS.HTML
+        ? attributeOf(element, 'srcdoc')
+        : undefined;
+    // An element the parser rebuilt (a link reopened past a misnested end
+    // tag) shares its start tag with the first.
+    if (
+      !tag ||
+      (!link && srcdoc === undefined) ||
+      rewritten.has(tag.startOffset)
+    ) {
+      continue;
+    }
+    rewritten.add(tag.startOffset);
+    const start = tag.startOffset + parsed.offset;
+    const end = tag.endOffset + parsed.offset;
+    let nameEnd = start + 1;
+    while (nameEnd < end) {
+      const code = html.charCodeAt(nameEnd);
+      if (isHtmlSpace(code) || code === 47 || code === 62) break;
+      nameEnd += 1;
+    }
+    const attributes = html.slice(nameEnd, end - 1);
+    let text: string;
+    if (link) {
+      // xlink:href is an address only on a foreign (SVG) link, where the
+      // parser gives it XLink's namespace; on an HTML one it is a name.
       const { address, aimed } = settledLink(
-        values.get('href') ??
-          (namespace !== 'html' ? values.get('xlink:href') : undefined),
+        attributeOf(element, 'href') ??
+          (element.namespaceURI === NS.SVG
+            ? attributeOf(element, 'href', NS.XLINK)
+            : undefined),
         base
       );
-      rewritten +=
-        html.slice(copied, nameEnd) +
+      text =
         ` target="${aimed}"` +
         (address === undefined ? '' : ` href="${escapeAttribute(address)}"`) +
-        withoutAttributes(attributes, LINK_ATTRIBUTES) +
-        '>';
-      copied = end;
-    } else if (name === 'iframe') {
-      const attributes = html.slice(nameEnd, end - 1);
-      const srcdoc = tagAttributes(attributes).get('srcdoc');
-      if (srcdoc !== undefined) {
-        const nested =
-          depth < MAX_NESTED_DOCUMENTS
-            ? ` srcdoc="${escapeAttribute(
-                withLinksAimedAtBlank(
-                  parseEntities(srcdoc, { attribute: true }),
-                  depth + 1
-                )
-              )}"`
-            : '';
-        rewritten +=
-          html.slice(copied, nameEnd) +
-          nested +
-          withoutAttributes(attributes, SRCDOC_ATTRIBUTE) +
-          '>';
-        copied = end;
-      }
+        withoutAttributes(attributes, LINK_ATTRIBUTES);
+    } else {
+      const nested =
+        depth < MAX_NESTED_DOCUMENTS && srcdoc !== undefined
+          ? withLinksAimedAtBlank(srcdoc, depth + 1)
+          : null;
+      text =
+        (nested === null ? '' : ` srcdoc="${escapeAttribute(nested)}"`) +
+        withoutAttributes(attributes, SRCDOC_ATTRIBUTE);
     }
+    edits.push({ start: nameEnd, end, text: text + '>' });
   }
-  return rewritten + html.slice(copied);
+  // The tree's order is not always the source's: a table's misplaced content
+  // is moved ahead of it.
+  edits.sort((first, second) => first.start - second.start);
+  let out = '';
+  let copied = 0;
+  for (const edit of edits) {
+    out += html.slice(copied, edit.start) + edit.text;
+    copied = edit.end;
+  }
+  return out + html.slice(copied);
 }
 
 /**
@@ -2078,8 +1888,10 @@ export function htmlPreviewDocument(
     | { scripts: 'ours'; nonce: string } = {}
 ): string {
   if (options.scripts === 'none') {
+    // A file the preview cannot read is not previewed (htmlPreviewReadable);
+    // rendered anyway, it would render empty rather than unsettled.
     return withDocumentHead(
-      withLinksAimedAtBlank(html),
+      withLinksAimedAtBlank(html) ?? '',
       `${policyMeta(HTML_PREVIEW_POLICY)}<base target="_blank">`
     );
   }

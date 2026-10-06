@@ -162,6 +162,15 @@ describe('BucketFileViewer html preview (web)', () => {
       subtitle: '4 KB',
     });
 
+    // Nesting deeper than the preview reads, it gets the notice and Open.
+    const deep = render({
+      ...htmlFile,
+      textContent: '<title>Deep</title>' + '<div>'.repeat(1000),
+    });
+    expect(frames(deep)).toHaveLength(0);
+    expect(enableScriptsButton(deep)).toBeUndefined();
+    expect(headerOf(deep).title).toBe('report.html');
+
     const notes = render({
       ...htmlFile,
       mimeType: 'text/markdown',

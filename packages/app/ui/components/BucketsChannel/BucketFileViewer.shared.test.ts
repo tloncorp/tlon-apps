@@ -14,6 +14,7 @@ import {
   htmlPreviewKey,
   htmlPreviewLinkFromBridge,
   htmlPreviewNavigation,
+  htmlPreviewReadable,
   htmlPreviewSandboxes,
   htmlPreviewShell,
   htmlPreviewTitle,
@@ -486,10 +487,12 @@ describe('htmlPreviewHasScripts', () => {
     '<svg><template><script>go()</script></template></svg>',
     '<template></template><script>go()</script>',
     // A template's end tag closes it from inside foreign content too, unless
-    // a foreign template is open within it.
+    // a foreign template is open within it; so does an HTML element's end tag
+    // the element it names, with the svg or math inside.
     '<template><svg></template></svg><script>go()</script>',
     '<template><math><mi><svg></template><script>go()</script>',
-    '<svg><template><foreignObject><template></template><script>go()</script></foreignObject></template></svg>',
+    '<div><math></div><script>go()</script>',
+    '<table><tr><td><math></td></tr></table><script>go()</script>',
     // Where a javascript: URL runs: a link, an SVG link by either attribute,
     // a MathML href (WebKit), an inline frame (Chromium).
     '<area href="javascript:go()">',
@@ -538,6 +541,15 @@ describe('htmlPreviewHasScripts', () => {
     '<div><template shadowrootmode="open"><template><script>go()</script></template></template></div>',
     '<template><div><template shadowrootmode="open"><script>go()</script></template></div></template>',
     '<div><template shadowrootmode=" open"><script>go()</script></template></div>',
+    // A shadow root on a host that cannot take one, or a host's second,
+    // stays an ordinary template.
+    '<ul><template shadowrootmode="open"><script>go()</script></template></ul>',
+    '<template shadowrootmode="open"><script>go()</script></template>',
+    '<div><template shadowrootmode="open"></template><template shadowrootmode="open"><script>go()</script></template></div>',
+    // Chromium and WebKit run this script, but parse5 drops what follows an
+    // HTML template closed inside an SVG template's foreignObject: it takes
+    // the SVG element for an HTML template when it resets its mode.
+    '<svg><template><foreignObject><template></template><script>go()</script></foreignObject></template></svg>',
     '<svg><foreignObject><template></foreignObject><script>go()</script></template></foreignObject></svg>',
     // A javascript: URL where none runs: a form cannot submit, an object or
     // embed cannot load, and other elements fetch theirs.
@@ -701,6 +713,7 @@ describe('htmlPreviewDocument', () => {
       'event.isTrusted',
       'if (event.defaultPrevented) return;',
       'new Observer(aim)',
+      'var result = evaluate(code);',
     ]) {
       expect(out).toContain(part);
     }
@@ -722,7 +735,9 @@ describe('htmlPreviewDocument', () => {
     expect(out.endsWith(`</script>${file}`)).toBe(true);
     expect(out.match(/<script nonce=/g)).toHaveLength(1);
     expect(out).toContain(`})('${KEY}', false);`);
-    expect(out).toContain('if (!runsJavascriptLinks) return;');
+    expect(out).toContain(
+      'if (!runsJavascriptLinks || link.namespaceURI === MATHML) return;'
+    );
   });
 
   // They are written in as text, where a slip in an escape would break every
@@ -796,6 +811,10 @@ describe('htmlPreviewDocument without scripts', () => {
     ['<math><base href="https://t.example/"></base></math><a href="help.html">x</a>', '<a target="_blank">x</a>'],
     // Electron's parser, like WebKit's, drops a base inside a select.
     ['<select><base href="https://t.example/"></select><a href="help.html">x</a>', '<a target="_blank">x</a>'],
+    // An input closes the select, so a base after it is the document's.
+    ['<select><input><base href="https://t.example/"><a href="help.html">x</a>', '<a target="_blank" href="https://t.example/help.html">x</a>'],
+    // A MathML element's href, which WebKit follows, is settled too.
+    ['<math><mtext href="tlon://open">x</mtext></math>', '<mtext target="_blank">x</mtext>'],
     // Markup read as the tokenizer and tree builder read it.
     ['<p>İİİ</p><a href="tlon://open">open</a>', '<p>İİİ</p><a target="_blank">open</a>'],
     ['<p>İİİ</p><base href="https://b.example/"><a href="x">x</a>', '<a target="_blank" href="https://b.example/x">x</a>'],
@@ -840,37 +859,40 @@ describe('htmlPreviewDocument without scripts', () => {
   });
 });
 
-// Anyone who can upload writes these; a scan that backtracks or searches
-// would hang the app's thread before the sandbox is even rendered.
+// Anyone who can upload writes these. The parser's time grows with the
+// square of how deep a file nests, so a file nesting past the cap is declined
+// at once, and one just under it still parses in bounded time.
 describe('hostile markup', () => {
-  it('is read in linear time', () => {
+  it('is read in bounded time, and a file nesting too deep is declined', () => {
     const blank = `${' '.repeat(200_000)}<p>x</p>`;
     expect(htmlPreviewDocument(blank, KEY).endsWith(blank)).toBe(true);
-    const openSvgs = '<svg>'.repeat(100_000) + '</x>'.repeat(100_000);
     for (const html of [
       '<a'.repeat(200_000),
       '<!--'.repeat(200_000),
       '<a b="'.repeat(100_000),
       '<script>'.repeat(100_000),
       '<script><!--' + '<'.repeat(200_000),
-      openSvgs,
     ]) {
       expect(htmlPreviewTitle(html)).toBeUndefined();
     }
-    expect(
-      htmlPreviewTitle(
-        '<svg>' + '<g>'.repeat(100_000) + '</svg><title>T</title>'
-      )
-    ).toBe('T');
-    expect(htmlPreviewHasScripts(openSvgs)).toBe(false);
-    expect(
-      htmlPreviewHasScripts(
-        '<template>'.repeat(100_000) + '<script>go()</script>'
-      )
-    ).toBe(false);
-    expect(htmlPreviewHasScripts(nested('<p>static</p>', 400))).toBe(true);
-    expect(scriptless(openSvgs)).toContain('</x></x>');
     expect(scriptless('<a'.repeat(200_000))).toContain('<a<a');
+    for (const html of [
+      '<div>'.repeat(200_000),
+      '<svg>'.repeat(100_000) + '</x>'.repeat(100_000),
+      '<template>'.repeat(100_000) + '<script>go()</script>',
+      '<svg>' + '<g>'.repeat(100_000) + '</svg><title>T</title>',
+    ]) {
+      expect(htmlPreviewReadable(html)).toBe(false);
+      expect(htmlPreviewTitle(html)).toBeUndefined();
+      expect(htmlPreviewHasScripts(html)).toBe(false);
+    }
+    // Just under the cap, each stray end tag rescans every open element.
+    const nearCap = '<svg>'.repeat(120) + '</x>'.repeat(50_000);
+    expect(htmlPreviewReadable(nearCap + '<title>T</title>')).toBe(true);
+    expect(
+      htmlPreviewTitle(nearCap + '</svg>'.repeat(120) + '<title>T</title>')
+    ).toBe('T');
+    expect(htmlPreviewHasScripts(nested('<p>static</p>', 400))).toBe(true);
   });
 });
 

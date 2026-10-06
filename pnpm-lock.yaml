@@ -1032,9 +1032,9 @@ importers:
       '@tloncorp/ui':
         specifier: workspace:*
         version: link:../ui
-      parse-entities:
-        specifier: ^4.0.0
-        version: 4.0.0
+      parse5:
+        specifier: ^7.3.0
+        version: 7.3.0
       posthog-js:
         specifier: ^1.234.4
         version: 1.234.4

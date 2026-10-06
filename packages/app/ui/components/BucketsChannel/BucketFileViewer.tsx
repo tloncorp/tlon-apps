@@ -13,6 +13,7 @@ import {
   htmlPreviewDocument,
   htmlPreviewHasScripts,
   htmlPreviewKey,
+  htmlPreviewReadable,
   htmlPreviewSandboxes,
   htmlPreviewShell,
 } from './BucketFileViewer.shared';
@@ -45,12 +46,17 @@ export function BucketFileViewer({
   // only our link script runs (htmlPreviewHeldPolicy). Under Electron no
   // script runs (htmlPreviewSandboxes).
   const [scriptsRunFor, setScriptsRunFor] = useState<string>();
+  // A file nesting deeper than the preview reads is not rendered: it gets the
+  // unsupported notice and its Open button (htmlPreviewReadable).
+  const html =
+    previewKind === 'html' &&
+    item.textContent !== undefined &&
+    htmlPreviewReadable(item.textContent, { scripting: !isElectron })
+      ? item.textContent
+      : undefined;
   const pageHasScripts = useMemo(
-    () =>
-      previewKind === 'html' &&
-      item.textContent !== undefined &&
-      htmlPreviewHasScripts(item.textContent),
-    [previewKind, item.textContent]
+    () => !isElectron && html !== undefined && htmlPreviewHasScripts(html),
+    [isElectron, html]
   );
   const fileId = item.uri ?? item.name;
   const runScripts = !isElectron && pageHasScripts && scriptsRunFor === fileId;
@@ -61,6 +67,17 @@ export function BucketFileViewer({
       ? 'all'
       : 'ours';
   const sandboxes = htmlPreviewSandboxes({ scripts });
+  const htmlDocument = useMemo(
+    () =>
+      html === undefined
+        ? undefined
+        : htmlPreviewDocument(
+            html,
+            previewKey,
+            scripts === 'ours' ? { scripts, nonce: previewNonce } : { scripts }
+          ),
+    [html, previewKey, previewNonce, scripts]
+  );
 
   return (
     <YStack flex={1} minHeight={0} backgroundColor="$background">
@@ -119,18 +136,12 @@ export function BucketFileViewer({
             title={item.name}
             style={{ border: 0, height: '100%', width: '100%' }}
           />
-        ) : previewKind === 'html' && item.textContent !== undefined ? (
+        ) : htmlDocument !== undefined ? (
           <iframe
             referrerPolicy="no-referrer"
             sandbox={sandboxes.shell}
             srcDoc={htmlPreviewShell({
-              document: htmlPreviewDocument(
-                item.textContent,
-                previewKey,
-                scripts === 'ours'
-                  ? { scripts, nonce: previewNonce }
-                  : { scripts }
-              ),
+              document: htmlDocument,
               key: previewKey,
               nonce: scripts === 'ours' ? previewNonce : undefined,
               opener: { kind: 'window' },

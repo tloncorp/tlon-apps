@@ -18,6 +18,7 @@ import {
   htmlPreviewKey,
   htmlPreviewLinkFromBridge,
   htmlPreviewNavigation,
+  htmlPreviewReadable,
   htmlPreviewShell,
 } from './BucketFileViewer.shared';
 
@@ -44,12 +45,17 @@ export function BucketFileViewer({
   // every message reaches the app's JavaScript thread. Until then only our
   // link script runs (htmlPreviewHeldPolicy).
   const [scriptsRunFor, setScriptsRunFor] = useState<string>();
+  // A file nesting deeper than the preview reads is not rendered: it gets the
+  // unsupported notice and its Open button (htmlPreviewReadable).
+  const html =
+    previewKind === 'html' &&
+    item.textContent !== undefined &&
+    htmlPreviewReadable(item.textContent)
+      ? item.textContent
+      : undefined;
   const pageHasScripts = useMemo(
-    () =>
-      previewKind === 'html' &&
-      item.textContent !== undefined &&
-      htmlPreviewHasScripts(item.textContent),
-    [previewKind, item.textContent]
+    () => html !== undefined && htmlPreviewHasScripts(html),
+    [html]
   );
   const fileId = item.uri ?? item.name;
   const runScripts = pageHasScripts && scriptsRunFor === fileId;
@@ -95,8 +101,8 @@ export function BucketFileViewer({
           <NativeVideoPreview uri={item.uri} />
         ) : previewKind === 'pdf' && Platform.OS === 'ios' && webview ? (
           <WebView webview={webview} source={{ uri: item.uri }} />
-        ) : previewKind === 'html' && item.textContent !== undefined ? (
-          <NativeHtmlPreview html={item.textContent} runScripts={runScripts} />
+        ) : html !== undefined ? (
+          <NativeHtmlPreview html={html} runScripts={runScripts} />
         ) : previewKind === 'text' && item.textContent !== undefined ? (
           <ScrollView flex={1}>
             <Text
