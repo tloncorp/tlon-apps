@@ -38,6 +38,21 @@ export type BrowserCredentialValues = {
   use?: BrowserLoginChoice;
 };
 
+export function supportsSavedLogins(
+  handoff: Pick<BrowserCredentialHandoff, 'kind' | 'fields'>
+): boolean {
+  const purposes = handoff.fields.map((field) => field.purpose);
+  return (
+    handoff.kind === 'login' &&
+    purposes.length > 0 &&
+    purposes.length <= 2 &&
+    new Set(purposes).size === purposes.length &&
+    purposes.every((purpose) =>
+      ['username', 'current-password'].includes(purpose)
+    )
+  );
+}
+
 function parseViewerUrl(viewerUrl: string): { url: URL; capability: string } {
   const url = new URL(viewerUrl);
   if (url.protocol !== 'https:' || !isTrustedBrowserViewerHost(url.hostname)) {
@@ -209,6 +224,7 @@ export async function beginBrowserCredentialHandoff(
     throw new Error('Secure entry requires an HTTPS website.');
   if (targetOrigin.origin !== body.origin)
     throw new Error('The browser returned an invalid form origin.');
+  const fields = parseFields(body.fields);
   return {
     fillUrl: new URL(
       `/credential-fills/${body.handoffId}`,
@@ -218,8 +234,9 @@ export async function beginBrowserCredentialHandoff(
     origin: body.origin,
     kind: body.kind,
     expiresAt: body.expiresAt,
-    fields: parseFields(body.fields),
-    ...(body.vault &&
+    fields,
+    ...(supportsSavedLogins({ kind: body.kind, fields }) &&
+    body.vault &&
     typeof body.vault === 'object' &&
     'available' in body.vault &&
     body.vault.available === true &&

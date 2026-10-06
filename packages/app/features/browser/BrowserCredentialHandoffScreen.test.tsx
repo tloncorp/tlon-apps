@@ -295,6 +295,112 @@ describe('secure browser form screen', () => {
     }
   });
 
+  it.each([true, false])(
+    'requires fresh code entry after using a saved login (vault advertised=%s)',
+    async (advertised) => {
+      const account = {
+        id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
+        revision: 1,
+        label: 'Personal',
+        origin: 'https://example.com',
+        updatedAt: 1,
+      };
+      mocks.authorize.mockResolvedValue({
+        grant: 'g'.repeat(43),
+        accounts: [account],
+      });
+      mocks.beginHandoff.mockResolvedValue(form(undefined, { vault }));
+      mocks.nextHandoff
+        .mockResolvedValueOnce(
+          form([code], {
+            formId: 'code-step',
+            fillUrl:
+              'https://browser-session.tlon.network/credential-fills/code',
+            ...(advertised ? { vault } : {}),
+          })
+        )
+        .mockResolvedValueOnce(null);
+      mocks.submitCredentials.mockResolvedValue({ submitted: true });
+      const { renderer } = await render();
+      await press(renderer, 'Personal');
+      await press(renderer);
+      expect(mocks.authorize).toHaveBeenCalledOnce();
+      expect(
+        renderer.root.findAllByProps({ accessibilityRole: 'checkbox' })
+      ).toHaveLength(0);
+      expect(
+        renderer.root.findByProps({ label: 'Continue' }).props.disabled
+      ).toBe(true);
+      act(() => enter(renderer, code.label, 'aBc123'));
+      await press(renderer);
+      expect(mocks.submitCredentials.mock.calls[1][1]).toEqual({
+        values: { f2: 'aBc123' },
+        submit: true,
+      });
+      await act(async () => renderer.unmount());
+    }
+  );
+
+  it.each([
+    { origin: 'https://example.com', newHandoff: false },
+    { origin: 'https://other.example', newHandoff: false },
+    { origin: 'https://example.com', newHandoff: true },
+  ])(
+    'keeps pending save consent only within its handoff and origin: %j',
+    async ({ origin, newHandoff }) => {
+      mocks.beginHandoff
+        .mockResolvedValueOnce(form([username], { vault }))
+        .mockResolvedValueOnce(
+          form([password], {
+            vault,
+            origin,
+            formId: 'password-step',
+            fillUrl:
+              'https://browser-session.tlon.network/credential-fills/password',
+          })
+        );
+      mocks.submitCredentials
+        .mockResolvedValueOnce({ submitted: true, saveStatus: 'pending' })
+        .mockResolvedValueOnce({ submitted: true, saveStatus: 'saved' });
+      const { renderer, navigation } = await render();
+      act(() => {
+        enter(renderer, username.label, 'private-user');
+        renderer.root
+          .findByProps({ accessibilityRole: 'checkbox' })
+          .props.onPress();
+      });
+      await press(renderer);
+      expect(mocks.complete).not.toHaveBeenCalled();
+      expect(
+        renderer.root.findByProps({ label: 'Open live browser' })
+      ).toBeDefined();
+      if (newHandoff) {
+        await act(async () =>
+          renderer.update(
+            <BrowserCredentialHandoffScreen
+              navigation={navigation}
+              route={{ params: { handoffId: 'another-handoff' } }}
+            />
+          )
+        );
+      } else await press(renderer, 'Try again');
+      const keepConsent = origin === 'https://example.com' && !newHandoff;
+      expect(
+        renderer.root.findByProps({ accessibilityRole: 'checkbox' }).props
+          .accessibilityState.checked
+      ).toBe(keepConsent);
+      act(() => enter(renderer, password.label, 'private-password'));
+      await press(renderer);
+      const submitted = mocks.submitCredentials.mock.calls[1][1];
+      expect(submitted.values).toEqual({ f1: 'private-password' });
+      expect(submitted.save).toEqual(
+        keepConsent ? { label: 'private-user' } : undefined
+      );
+      expect(mocks.complete).toHaveBeenCalledOnce();
+      await act(async () => renderer.unmount());
+    }
+  );
+
   it.each([password, code, username])(
     'locks $purpose before React commits pending state',
     async (field) => {
@@ -622,8 +728,9 @@ describe('secure browser form screen', () => {
         );
       if (state === 'unmounted') {
         focused = false;
-        act(() => renderer.unmount());
+        await act(async () => renderer.unmount());
       }
+      expect(mocks.cancel).not.toHaveBeenCalled();
       await act(async () => {
         finish();
         await pending;
@@ -631,9 +738,37 @@ describe('secure browser form screen', () => {
       expect(navigation.goBack).toHaveBeenCalledTimes(
         state === 'unmounted' ? 0 : 1
       );
-      if (state !== 'unmounted') act(() => renderer.unmount());
+      if (state !== 'unmounted') await act(async () => renderer.unmount());
+      expect(mocks.cancel).not.toHaveBeenCalled();
     }
   );
+
+  it('cancels once when completion fails after the route unmounts', async () => {
+    let fail!: (error: Error) => void;
+    mocks.complete.mockReturnValue(
+      new Promise<void>((_resolve, reject) => {
+        fail = reject;
+      })
+    );
+    const { renderer, navigation } = await render();
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = renderer.root
+        .findByProps({ label: 'Return to conversation' })
+        .props.onPress();
+    });
+    await act(async () => renderer.unmount());
+    expect(mocks.cancel).not.toHaveBeenCalled();
+    await act(async () => {
+      fail(new Error('Could not notify the bot'));
+      await pending;
+    });
+    expect(mocks.cancel).toHaveBeenCalledOnce();
+    expect(mocks.cancel).toHaveBeenCalledWith(
+      'https://browser-session.tlon.network/s/payload.signature'
+    );
+    expect(navigation.goBack).not.toHaveBeenCalled();
+  });
 
   it.each([true, false])(
     'uses target-site credential autofill only on native (web=%s)',

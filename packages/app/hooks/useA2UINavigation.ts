@@ -121,6 +121,7 @@ export function useA2UINavigation() {
       options?: {
         allowBotMcpSettings?: boolean;
         allowBrowserCredentialHandoff?: boolean;
+        browserBotMoon?: string;
         onBrowserCredentialHandoffComplete?: () => Promise<void>;
       }
     ) => {
@@ -169,7 +170,14 @@ export function useA2UINavigation() {
         case 'screen':
           switch (target.screen) {
             case 'botSavedLogins':
-              rootNavigation.navigateToBotSavedLogins();
+              if (
+                !options?.allowBrowserCredentialHandoff ||
+                !options.browserBotMoon
+              ) {
+                logger.log('blocked untrusted saved logins target', target);
+                return;
+              }
+              rootNavigation.navigateToBotSavedLogins(options.browserBotMoon);
               return;
             case 'botMcpSettings':
               if (!options?.allowBotMcpSettings) {

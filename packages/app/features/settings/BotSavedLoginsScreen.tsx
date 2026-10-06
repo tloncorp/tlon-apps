@@ -9,15 +9,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { View, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader, SettingsContentScrollView } from '../../ui';
 import { normalizeMoonName } from './bot/helpers';
 
 export function BotSavedLoginsScreen({
   navigation,
+  route,
 }: {
   navigation: { goBack(): void };
+  route?: { params?: RootStackParamList['BotSavedLogins'] };
 }) {
   const planet = useCurrentUserId().replace(/^~/, '');
+  const originMoon = route?.params?.moon;
   const [moon, setMoon] = useState<string>();
   const [accounts, setAccounts] = useState<SavedBrowserLogin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +39,7 @@ export function BotSavedLoginsScreen({
     setSelected(undefined);
     void (async () => {
       try {
-        const configuredMoon = await getTlawnMoon(planet);
+        const configuredMoon = originMoon ?? (await getTlawnMoon(planet));
         if (!configuredMoon) throw new Error('Bot unavailable.');
         const botMoon = normalizeMoonName(configuredMoon, planet);
         if (controller.signal.aborted) return;
@@ -52,7 +56,7 @@ export function BotSavedLoginsScreen({
       }
     })();
     return () => controller.abort();
-  }, [planet, revision]);
+  }, [originMoon, planet, revision]);
 
   const remove = useCallback(async () => {
     if (!moon || !selected || removing) return;

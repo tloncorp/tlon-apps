@@ -518,17 +518,29 @@ export function useRootNavigation() {
     });
   }, [isWindowNarrow, navigationRef]);
 
-  const navigateToBotSavedLogins = useCallback(() => {
-    if (isWindowNarrow) navigationRef.current.navigate('BotSavedLogins');
-    else {
-      const navigate = navigationRef.current.navigate as (
-        screen: 'Settings',
-        params: { screen: 'BotSavedLogins' },
-        options: { pop: true }
-      ) => void;
-      navigate('Settings', { screen: 'BotSavedLogins' }, { pop: true });
-    }
-  }, [isWindowNarrow, navigationRef]);
+  const navigateToBotSavedLogins = useCallback(
+    (moon?: string) => {
+      const params = moon ? { moon } : undefined;
+      if (isWindowNarrow)
+        navigationRef.current.navigate('BotSavedLogins', params);
+      else {
+        const navigate = navigationRef.current.navigate as (
+          screen: 'Settings',
+          params: {
+            screen: 'BotSavedLogins';
+            params: RootStackParamList['BotSavedLogins'];
+          },
+          options: { pop: true }
+        ) => void;
+        navigate(
+          'Settings',
+          { screen: 'BotSavedLogins', params },
+          { pop: true }
+        );
+      }
+    },
+    [isWindowNarrow, navigationRef]
+  );
 
   const navigateToBotMcpSettings = useCallback(
     (providerId?: string) => {

@@ -9,14 +9,18 @@ import {
   useBrowserCredentialHandoff,
 } from './BrowserCredentialHandoffProvider';
 
-const { navigate, navigateToGroup } = vi.hoisted(() => ({
-  navigate: vi.fn(),
-  navigateToGroup: vi.fn(),
-}));
+const { navigate, navigateToGroup, navigateToBotSavedLogins } = vi.hoisted(
+  () => ({
+    navigate: vi.fn(),
+    navigateToGroup: vi.fn(),
+    navigateToBotSavedLogins: vi.fn(),
+  })
+);
 vi.mock('../../navigation/utils', () => ({
   useRootNavigation: () => ({
     navigateToBrowserCredentialHandoff: navigate,
     navigateToGroup,
+    navigateToBotSavedLogins,
   }),
 }));
 vi.mock('@tloncorp/api/client', () => ({ getCanonicalPostId: vi.fn() }));
@@ -108,6 +112,41 @@ describe('browser handoff registry', () => {
     expect(onComplete).toHaveBeenCalledOnce();
     expect(registry.resolve(handoffId)).toBeUndefined();
     act(() => renderer.unmount());
+  });
+
+  it('routes saved login management only with the trusted originating bot', async () => {
+    let navigateA2UI!: ReturnType<typeof useA2UINavigation>;
+    function Consumer() {
+      const navigateToTarget = useA2UINavigation();
+      useEffect(() => {
+        navigateA2UI = navigateToTarget;
+      }, [navigateToTarget]);
+      return null;
+    }
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(<Consumer />);
+    });
+    const target = {
+      type: 'screen',
+      screen: 'botSavedLogins',
+      moon: 'model-supplied-moon',
+    } as const;
+    await navigateA2UI(target);
+    await navigateA2UI(target, { allowBrowserCredentialHandoff: true });
+    await navigateA2UI(target, {
+      browserBotMoon: '~marzod-botter-sampel-palnet',
+    });
+    expect(navigateToBotSavedLogins).not.toHaveBeenCalled();
+    await navigateA2UI(target, {
+      allowBrowserCredentialHandoff: true,
+      browserBotMoon: '~marzod-botter-sampel-palnet',
+    });
+    expect(navigateToBotSavedLogins).toHaveBeenCalledOnce();
+    expect(navigateToBotSavedLogins).toHaveBeenCalledWith(
+      '~marzod-botter-sampel-palnet'
+    );
+    await act(async () => renderer.unmount());
   });
 
   it('supports optional completion, retries, and dismissal', async () => {

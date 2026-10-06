@@ -21,6 +21,7 @@ import {
   cancelBrowserCredentialHandoff,
   nextBrowserCredentialHandoff,
   submitBrowserCredentials,
+  supportsSavedLogins,
   trustedBrowserViewerUrl,
   validBrowserFormValues,
   authorizeBrowserLogins,
@@ -199,11 +200,19 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const { resolve, complete, discard } = useBrowserCredentialHandoff();
   const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
-  const completedHandoffs = useRef(new Set<string>());
+  const outcomes = useRef(
+    new Map<string, 'completing' | 'completed' | 'canceled'>()
+  );
+  const pendingSave = useRef<{ handoffId: string; origin: string } | undefined>(
+    undefined
+  );
   const submittingRef = useRef(false);
   const requestController = useRef<AbortController | undefined>(undefined);
+  const vaultEligible = !!handoff?.vault && supportsSavedLogins(handoff);
   const vaultAuth =
-    authorization?.fillUrl === handoff?.fillUrl ? authorization : undefined;
+    vaultEligible && authorization?.fillUrl === handoff?.fillUrl
+      ? authorization
+      : undefined;
   const usernameField = handoff?.fields.find(
     (field) => field.purpose === 'username'
   );
@@ -219,7 +228,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   useEffect(() => {
     setVaultAuth(undefined);
     setVaultError(undefined);
-    if (!handoff?.vault) return;
+    if (!handoff || !vaultEligible) return;
     const controller = new AbortController();
     void authorizeBrowserLogins(handoff, controller.signal)
       .then((result) => {
@@ -233,17 +242,26 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           );
       });
     return () => controller.abort();
-  }, [handoff]);
+  }, [handoff, vaultEligible]);
+
+  const clearSavedLoginSelection = useCallback(() => {
+    pendingSave.current = undefined;
+    setSaveLogin(false);
+    setChoice(undefined);
+    setAccountLabel('');
+    setSaveNotice(undefined);
+  }, []);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
       setValues({});
       setHandoff(undefined);
       setFilled(false);
-      setSaveLogin(false);
-      setChoice(undefined);
-      setAccountLabel('');
-      setSaveNotice(undefined);
+      const pendingOrigin =
+        pendingSave.current?.handoffId === handoffId
+          ? pendingSave.current.origin
+          : undefined;
+      if (!pendingOrigin) clearSavedLoginSelection();
       const viewerUrl = resolve(handoffId);
       if (!viewerUrl) {
         setError('Reopen the secure browser form from the conversation.');
@@ -252,14 +270,30 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       }
       try {
         const next = await beginBrowserCredentialHandoff(viewerUrl, signal);
-        if (!signal?.aborted) setHandoff(next);
+        if (!signal?.aborted) {
+          if (
+            pendingOrigin &&
+            (next.origin !== pendingOrigin ||
+              !next.vault ||
+              !supportsSavedLogins(next))
+          )
+            clearSavedLoginSelection();
+          setHandoff(next);
+        }
       } catch (nextError) {
         if (!signal?.aborted) setError(errorMessage(nextError));
       }
       if (!signal?.aborted) setLoading(false);
     },
-    [handoffId, resolve]
+    [handoffId, resolve, clearSavedLoginSelection]
   );
+
+  const cancelHandoff = useCallback((id: string, viewerUrl?: string) => {
+    if (outcomes.current.has(id)) return;
+    outcomes.current.set(id, 'canceled');
+    if (viewerUrl)
+      void cancelBrowserCredentialHandoff(viewerUrl).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -270,7 +304,6 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     const active = activeHandoffs.current;
-    const completed = completedHandoffs.current;
     const viewerUrl = resolve(handoffId);
     active.add(handoffId);
     return () => {
@@ -278,28 +311,38 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       // Retain the in-memory handoff during Strict Mode's effect replay.
       queueMicrotask(() => {
         if (!active.has(handoffId)) {
-          if (!completed.delete(handoffId) && viewerUrl)
-            void cancelBrowserCredentialHandoff(viewerUrl).catch(() => {});
+          cancelHandoff(handoffId, viewerUrl);
           discard(handoffId);
         }
       });
     };
-  }, [discard, handoffId, resolve]);
+  }, [cancelHandoff, discard, handoffId, resolve]);
 
   const returnToConversation = useCallback(async () => {
+    if (outcomes.current.has(handoffId)) return;
+    const viewerUrl = resolve(handoffId);
+    const signal = requestController.current?.signal;
+    outcomes.current.set(handoffId, 'completing');
     setReturning(true);
     setError(undefined);
     try {
       await complete(handoffId);
-      completedHandoffs.current.add(handoffId);
-      if (!requestController.current?.signal.aborted && navigation.isFocused())
+      outcomes.current.set(handoffId, 'completed');
+      if (
+        activeHandoffs.current.has(handoffId) &&
+        !signal?.aborted &&
+        navigation.isFocused()
+      )
         navigation.goBack();
     } catch (nextError) {
-      if (requestController.current?.signal.aborted) return;
+      outcomes.current.delete(handoffId);
+      if (!activeHandoffs.current.has(handoffId))
+        cancelHandoff(handoffId, viewerUrl);
+      if (signal?.aborted) return;
       setError(errorMessage(nextError));
       setReturning(false);
     }
-  }, [complete, handoffId, navigation]);
+  }, [cancelHandoff, complete, handoffId, navigation, resolve]);
 
   const fillAndSubmit = useCallback(async () => {
     const signal = requestController.current?.signal;
@@ -340,6 +383,10 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       if (signal.aborted) return;
       setValues({});
       setHandoff(undefined);
+      pendingSave.current =
+        result.saveStatus === 'pending'
+          ? { handoffId, origin: handoff.origin }
+          : undefined;
       if (result.saveStatus === 'pending' && saveLabel)
         setAccountLabel(saveLabel);
       if (result.saveStatus)
@@ -370,11 +417,10 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           if (
             next.origin !== handoff.origin ||
             !next.vault ||
+            !supportsSavedLogins(next) ||
             (result.saveStatus !== 'pending' && choice?.mode !== 'use')
           ) {
-            setSaveLogin(false);
-            setChoice(undefined);
-            setAccountLabel('');
+            clearSavedLoginSelection();
           }
           setHandoff(next);
           if (next.formId === handoff.formId)
@@ -383,6 +429,10 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
             );
           return;
         }
+      }
+      if (result.saveStatus === 'pending') {
+        setError('The next step is not ready. Try again or open the browser.');
+        return;
       }
       setFilled(true);
       // The agent checks the resulting page; filling does not prove sign-in
@@ -409,6 +459,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     saveLogin,
     saveLabel,
     canSubmit,
+    clearSavedLoginSelection,
   ]);
 
   const retry = useCallback(() => {
@@ -581,7 +632,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                       />
                     ))
                   : null}
-                {handoff.vault && choice?.mode !== 'use' ? (
+                {vaultEligible && choice?.mode !== 'use' ? (
                   <YStack gap="$m">
                     <Pressable
                       style={{

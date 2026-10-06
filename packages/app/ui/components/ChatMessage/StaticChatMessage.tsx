@@ -413,6 +413,7 @@ export function StaticChatMessage({
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
           allowBrowserCredentialHandoff: allowBrowserHandoff,
+          browserBotMoon: allowBrowserHandoff ? post.authorId : undefined,
           onBrowserCredentialHandoffComplete:
             target.type === 'screen' &&
             target.screen === 'browserCredentialHandoff'
@@ -484,7 +485,10 @@ export function StaticChatMessage({
       if (action.event.name === A2UI.action.navigate) {
         const target = action.event.context.target;
         if (target.type !== 'screen') return true;
-        if (target.screen === 'browserCredentialHandoff') {
+        if (
+          target.screen === 'browserCredentialHandoff' ||
+          target.screen === 'botSavedLogins'
+        ) {
           return allowBrowserHandoff;
         }
         return canUseAgentProviderControls;

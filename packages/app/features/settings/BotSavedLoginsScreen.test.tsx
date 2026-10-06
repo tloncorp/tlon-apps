@@ -36,7 +36,8 @@ vi.mock('../../hooks/useCurrentUser', () => ({
   useCurrentUserId: () => '~sampel-palnet',
 }));
 vi.mock('./bot/helpers', () => ({
-  normalizeMoonName: (moon: string, planet: string) => `${moon}-${planet}`,
+  normalizeMoonName: (moon: string, planet: string) =>
+    moon.includes(planet) ? moon.replace(/^~/, '') : `${moon}-${planet}`,
 }));
 
 const account = {
@@ -47,11 +48,14 @@ const account = {
   updatedAt: 1,
 };
 
-async function render() {
+async function render(moon?: string) {
   let renderer!: ReactTestRenderer;
   await act(async () => {
     renderer = create(
-      <BotSavedLoginsScreen navigation={{ goBack: vi.fn() }} />
+      <BotSavedLoginsScreen
+        navigation={{ goBack: vi.fn() }}
+        route={{ params: moon ? { moon } : undefined }}
+      />
     );
   });
   return renderer;
@@ -130,4 +134,28 @@ describe('saved login management', () => {
     expect(JSON.stringify(renderer.toJSON())).toContain('No saved logins.');
     act(() => renderer.unmount());
   });
+
+  it.each(['other-hosted-bot', undefined])(
+    'manages the originating bot without consulting Hosting (configured bot=%s)',
+    async (configuredMoon) => {
+      mocks.moon.mockResolvedValue(configuredMoon);
+      const moon = 'marzod-botter-sampel-palnet';
+      const renderer = await render(`~${moon}`);
+      expect(mocks.moon).not.toHaveBeenCalled();
+      expect(mocks.list).toHaveBeenCalledWith(moon, expect.any(AbortSignal));
+      act(() =>
+        renderer.root.findByProps({ label: 'Delete login' }).props.onPress()
+      );
+      await act(async () =>
+        renderer.root
+          .findByProps({ title: 'Delete saved login?' })
+          .props.onConfirm()
+      );
+      expect(mocks.remove).toHaveBeenCalledWith(moon, {
+        id: account.id,
+        revision: 3,
+      });
+      await act(async () => renderer.unmount());
+    }
+  );
 });
