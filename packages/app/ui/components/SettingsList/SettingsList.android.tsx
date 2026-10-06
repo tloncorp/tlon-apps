@@ -30,8 +30,12 @@ import {
 import { Icon } from '@tloncorp/ui';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
+import {
+  useTopLevelTabBarClearance,
+  useTopLevelTabBarContentInset,
+} from '../../../navigation/useTopLevelTabBarContentInset';
 import { HostedSettingsRowLeading } from './SettingsRowLeading';
 import type { SettingsListProps, SettingsRowModel } from './types';
 import { useSyncedFieldText } from './useSyncedFieldText';
@@ -47,11 +51,11 @@ const pillShape = Shapes.RoundedCorner(50);
 export function SettingsList({ sections }: SettingsListProps) {
   const colors = useSettingsListColors();
   const bottomContentInset = useTopLevelTabBarContentInset();
-  // A list holding a field makes room for the keyboard itself, so the field
-  // it scrolls into view ends up above the keyboard rather than behind it.
-  const hasTextField = sections.some((section) =>
-    section.rows.some((row) => row.textField)
-  );
+  // A pushed screen's list runs to the bottom of the window, under the system
+  // navigation bar, so its last rows must stop above that bar. The tab bar's
+  // clearance already allows for it.
+  const onTabScreen = useTopLevelTabBarClearance() > 0;
+  const { bottom: systemBarInset } = useSafeAreaInsets();
 
   return (
     <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
@@ -61,12 +65,12 @@ export function SettingsList({ sections }: SettingsListProps) {
           start: 16,
           end: 16,
           top: 16,
-          bottom: bottomContentInset,
+          bottom: bottomContentInset + (onTabScreen ? 0 : systemBarInset),
         }}
-        modifiers={[
-          background(colors.page),
-          ...(hasTextField ? [imePadding()] : []),
-        ]}
+        // The list makes room for the keyboard itself, so a field it scrolls
+        // into view, or the results of a search from the navigation bar, end up
+        // above the keyboard rather than behind it.
+        modifiers={[background(colors.page), imePadding()]}
       >
         {sections.map((section) => (
           <Column
