@@ -461,13 +461,20 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         // Not once finish-upload has been sent: whether it landed is exactly
         // what the lost answer leaves unknown, and the host expires a session
         // nobody finishes.
+        //
+        // A session the host confirms released is forgotten, so dismissing
+        // the row later has nothing left to cancel.
+        let released = false;
         if (sessionId && !brokerCompleted && !finishRequestId) {
-          await sendBucketsAction({
+          released = await sendBucketsAction({
             type: 'cancel-upload',
             flag,
             reason: errorMessage(cause),
             sessionId,
-          }).catch(() => undefined);
+          }).then(
+            () => true,
+            () => false
+          );
         }
         if (cancelled && serverEntryId !== undefined) {
           await sendBucketsAction({
@@ -503,6 +510,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             ...requestId,
             progress: unconfirmed ? 96 : 0,
             serverEntryId,
+            ...(released ? { sessionId: null } : {}),
             state: 'failed',
           });
         }
