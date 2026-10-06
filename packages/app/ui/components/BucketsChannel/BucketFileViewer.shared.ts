@@ -1184,13 +1184,65 @@ export function htmlPreviewSandboxes({
   };
 }
 
+// HTML's JavaScript MIME types: a script element of one of these types runs
+// as a classic script.
+const JAVASCRIPT_MIME_TYPES = new Set([
+  'application/ecmascript',
+  'application/javascript',
+  'application/x-ecmascript',
+  'application/x-javascript',
+  'text/ecmascript',
+  'text/javascript',
+  'text/javascript1.0',
+  'text/javascript1.1',
+  'text/javascript1.2',
+  'text/javascript1.3',
+  'text/javascript1.4',
+  'text/javascript1.5',
+  'text/jscript',
+  'text/livescript',
+  'text/x-ecmascript',
+  'text/x-javascript',
+]);
+
+/**
+ * Whether a script element with these attributes (tagAttributes) runs code
+ * rather than holding data, decided as a browser prepares one. Without a type
+ * its language names one (`text/` and the language), and with neither it is
+ * JavaScript; an empty type is JavaScript; any other type, trimmed, must be
+ * exactly a JavaScript MIME type (a `charset` parameter makes it data) or
+ * `module`. JSON-LD, `text/plain`, a template, an import map or speculation
+ * rules never run. Chromium also trims a vertical tab from the type.
+ */
+function scriptElementRuns(attributes: Map<string, string>): boolean {
+  const type = attributes.get('type');
+  if (type === undefined) {
+    const language = attributes.get('language');
+    if (language === undefined) return true;
+    const name = parseEntities(language, { attribute: true });
+    return (
+      name === '' || JAVASCRIPT_MIME_TYPES.has(`text/${asciiLowercase(name)}`)
+    );
+  }
+  const value = parseEntities(type, { attribute: true });
+  if (value === '') return true;
+  const isSpace = (code: number) => isHtmlSpace(code) || code === 11;
+  let start = 0;
+  let end = value.length;
+  while (start < end && isSpace(value.charCodeAt(start))) start += 1;
+  while (end > start && isSpace(value.charCodeAt(end - 1))) end -= 1;
+  const essence = asciiLowercase(value.slice(start, end));
+  return JAVASCRIPT_MIME_TYPES.has(essence) || essence === 'module';
+}
+
 /**
  * Whether an HTML file has anything a script would run from: a script
- * element, an event handler attribute, a `javascript:` URL in an attribute a
- * browser follows -- read as the browser reads it, so `java&#x73;cript:`
- * counts -- or any of these in an inline frame's `srcdoc`. A page without
- * any renders the same with scripts off, so there is nothing to run. A
- * `srcdoc` nested deeper than MAX_NESTED_DOCUMENTS is taken to have some.
+ * element that runs code (scriptElementRuns), an event handler attribute, a
+ * `javascript:` URL in an attribute a browser follows -- read as the browser
+ * reads it, so `java&#x73;cript:` counts -- or any of these in an inline
+ * frame's `srcdoc`. A page without any renders the same with scripts off, so
+ * there is nothing to run. A `srcdoc` nested deeper than MAX_NESTED_DOCUMENTS
+ * is taken to have some.
  *
  * Each document is read by markupTags as a frame that runs scripts reads it,
  * and inside a `<select>` as WebKit reads it: a script that only Safari would
@@ -1200,10 +1252,9 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
   for (const tag of markupTags(html, SCRIPTED_TEXT_ELEMENTS, {
     markupInSelect: true,
   })) {
-    if (tag.name === 'script') return true;
-    for (const [attribute, value] of tagAttributes(
-      html.slice(tag.nameEnd, tag.end - 1)
-    )) {
+    const attributes = tagAttributes(html.slice(tag.nameEnd, tag.end - 1));
+    if (tag.name === 'script' && scriptElementRuns(attributes)) return true;
+    for (const [attribute, value] of attributes) {
       if (attribute.length > 2 && attribute.startsWith('on')) return true;
       if (URL_ATTRIBUTES.has(attribute) && urlScheme(value) === 'javascript') {
         return true;

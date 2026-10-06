@@ -434,6 +434,18 @@ describe('htmlPreviewHasScripts', () => {
     '<select><iframe><script>run()</script></iframe></select>',
     '<select><style><script>run()</script></style></select>',
     '<select><xmp><script>run()</script></xmp></select>',
+    // A script runs when its type, or without one its language, names
+    // JavaScript or a module. The standard trims a module type too, and
+    // Chromium a vertical tab.
+    '<script type=" TEXT/JavaScript ">go()</script>',
+    '<script type="text&#47;javascript">go()</script>',
+    '<script type="" language="vbscript">go()</script>',
+    '<script language="JavaScript">go()</script>',
+    '<script type="module">go()</script>',
+    '<script type=" module ">go()</script>',
+    '<script type="\u000btext/javascript">go()</script>',
+    '<svg><script type="text/ecmascript">go()</script></svg>',
+    '<script type="application/ld+json">{}</script><script>go()</script>',
     // Nested deeper than it reads.
     nested('<p>static</p>', 4),
   ])('finds a script in %j', (html) => {
@@ -449,6 +461,18 @@ describe('htmlPreviewHasScripts', () => {
     '<svg><foreignObject><textarea><script>go()</script></textarea></foreignObject></svg>',
     '<math><mi><textarea><script>go()</script></textarea></mi></math>',
     '<svg><p><textarea><script>go()</script></textarea>',
+    // A data block, which the browser keeps as text, whatever it holds.
+    '<script type="application/ld+json">{"@type": "Article"}</script>',
+    '<script type="application&#47;ld+json">{}</script>',
+    '<script type="text/plain"><!--<script>go()</script>--></script>',
+    '<script type="text/javascript; charset=utf-8">go()</script>',
+    '<script type="javascript">go()</script>',
+    '<script type=" ">go()</script>',
+    '<script type="importmap">{}</script>',
+    '<script type="speculationrules">{}</script>',
+    '<script language="vbscript">go()</script>',
+    '<script type="text/plain" type="text/javascript">go()</script>',
+    '<svg><script type="application/ld+json">{}</script></svg>',
     nested('<p>static</p>', 3),
   ])('finds none in %j', (html) => {
     expect(htmlPreviewHasScripts(html)).toBe(false);
