@@ -46,6 +46,16 @@ export function canPreviewFromText(
   return item.size === undefined || item.size <= MAX_TEXT_PREVIEW_BYTES;
 }
 
+/**
+ * `text` with its ASCII capitals lowercased and nothing else, as the HTML
+ * parser folds tag and attribute names. Unlike `toLowerCase`, it keeps the
+ * text's length (`İ` lowercases to two code units), so an offset into one is
+ * an offset into the other.
+ */
+function asciiLowercase(text: string): string {
+  return text.replace(/[A-Z]+/g, (run) => run.toLowerCase());
+}
+
 /** The attributes of a start tag, from the text between its name and its `>`; the first of a name wins. */
 function tagAttributes(text: string): Map<string, string> {
   const attributes = new Map<string, string>();
@@ -65,7 +75,7 @@ function tagAttributes(text: string): Map<string, string> {
     ) {
       i += 1;
     }
-    const name = text.slice(nameStart, i).toLowerCase();
+    const name = asciiLowercase(text.slice(nameStart, i));
     while (i < text.length && isHtmlSpace(text.charCodeAt(i))) i += 1;
     let value = '';
     if (text[i] === '=') {
@@ -169,7 +179,7 @@ function metaCharset(head: string): string | undefined {
     const tagEnd = startTagEnd(head, nameEnd);
     if (tagEnd < 0) return undefined;
     i = tagEnd;
-    if (head.slice(open + 1, nameEnd).toLowerCase() !== 'meta') continue;
+    if (asciiLowercase(head.slice(open + 1, nameEnd)) !== 'meta') continue;
     const attributes = tagAttributes(head.slice(nameEnd, tagEnd - 1));
     const charset = attributes.get('charset')?.trim();
     if (charset) return charset;
@@ -481,7 +491,7 @@ function endTagStart(lower: string, name: string, from: number): number {
  * file of unclosed tags, which anyone who can upload could write.
  */
 export function htmlPreviewTitle(html: string): string | undefined {
-  const lower = html.toLowerCase();
+  const lower = asciiLowercase(html);
   // How many template, svg and math elements are open around the scan.
   let inert = 0;
   let i = 0;
@@ -617,7 +627,7 @@ export function htmlPreviewSandboxes({ scripts }: { scripts: boolean }): {
  * inside script, style, textarea and the like, are not markup.
  */
 export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
-  const lower = html.toLowerCase();
+  const lower = asciiLowercase(html);
   let i = 0;
   for (;;) {
     const open = html.indexOf('<', i);
@@ -863,7 +873,7 @@ function doctypeEnd(html: string): number {
       break;
     }
   }
-  if (html.slice(i, i + 9).toLowerCase() !== '<!doctype') return -1;
+  if (asciiLowercase(html.slice(i, i + 9)) !== '<!doctype') return -1;
   const close = html.indexOf('>', i + 9);
   return close < 0 ? -1 : close + 1;
 }
@@ -1039,7 +1049,7 @@ function withoutAttributes(attributes: string, names: Set<string>): string {
     ) {
       i += 1;
     }
-    const name = attributes.slice(nameStart, i).toLowerCase();
+    const name = asciiLowercase(attributes.slice(nameStart, i));
     let valueEnd = i;
     while (
       valueEnd < attributes.length &&
@@ -1085,7 +1095,7 @@ function withoutAttributes(attributes: string, names: Set<string>): string {
  * base sets nothing. Undefined when the file has none.
  */
 function authoredBaseHref(html: string): string | undefined {
-  const lower = html.toLowerCase();
+  const lower = asciiLowercase(html);
   // How many template, svg and math elements are open around the scan.
   let inert = 0;
   let i = 0;
@@ -1214,7 +1224,7 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
  */
 function withLinksAimedAtBlank(html: string, depth = 0): string {
   const base = fileWebBase(html);
-  const lower = html.toLowerCase();
+  const lower = asciiLowercase(html);
   let rewritten = '';
   let copied = 0;
   let i = 0;

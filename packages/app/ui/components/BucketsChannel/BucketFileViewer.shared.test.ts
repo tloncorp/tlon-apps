@@ -324,6 +324,8 @@ describe('htmlPreviewTitle', () => {
         '<!doctype html><html><head><title>\n  Launch &amp; recap &#x2014; Q3  </title></head><body></body></html>'
       )
     ).toBe('Launch & recap — Q3');
+    // Text whose lowercase is longer (İ) leaves the scan in step.
+    expect(htmlPreviewTitle('<p>İİİ</p><title>Title</title>')).toBe('Title');
   });
 
   it('ignores a title inside an svg, and one in a comment', () => {
@@ -499,6 +501,8 @@ describe('htmlPreviewHasScripts', () => {
       '<button onclick="go()">go</button>',
       '<svg onload = "go()"></svg>',
       '<a href="javascript:go()">go</a>',
+      // Text whose lowercase is longer (İ) leaves the scan in step.
+      '<p>İİİ</p><script>go()</script>',
     ]) {
       expect(htmlPreviewHasScripts(html), html).toBe(true);
     }
@@ -906,6 +910,16 @@ describe('htmlPreviewDocument without scripts', () => {
     expect(out).toContain(
       `content="${HTML_PREVIEW_POLICY}"><base target="_blank"><p>x</p>`
     );
+  });
+
+  // İ lowercases to two code units; folding only ASCII keeps every offset.
+  it('keeps its place past text whose lowercase is longer', () => {
+    expect(scriptless('<p>İİİ</p><a href="tlon://open">open</a>')).toContain(
+      '<p>İİİ</p><a target="_blank">open</a>'
+    );
+    expect(
+      scriptless('<p>İİİ</p><base href="https://b.example/"><a href="x">x</a>')
+    ).toContain('<a target="_blank" href="https://b.example/x">x</a>');
   });
 
   it('rewrites a file of unclosed tags at once', () => {
