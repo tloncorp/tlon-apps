@@ -180,13 +180,6 @@ const closeButtonRowTop = 34;
 const closeButtonRowTrailingInset = 44;
 const closeButtonRowBottomGap = 5;
 
-/** Top margin that moves a header row from below the close button into its row. */
-export function useCloseButtonRowOffset() {
-  return useContext(CloseButtonRowContext)
-    ? closeButtonRowTop - closeButtonClearance
-    : 0;
-}
-
 // Main component
 
 const ActionSheetComponent = ({
@@ -452,7 +445,10 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable<{
    */
   leadingIcon?: boolean;
 }>(({ children, centered, leadingIcon, ...props }, ref) => {
-  const closeButtonOffset = useCloseButtonRowOffset();
+  // Moves the row from below the close button up into its row.
+  const closeButtonOffset = useContext(CloseButtonRowContext)
+    ? closeButtonRowTop - closeButtonClearance
+    : 0;
   const underHandleStrip = useContext(HandleStripContext);
   return (
     <ActionSheetHeaderFrame

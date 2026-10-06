@@ -1,4 +1,3 @@
-import type { BottomSheetMethods } from '@expo/ui/community/bottom-sheet';
 import {
   Box,
   Column,
@@ -17,8 +16,6 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
-  useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -37,18 +34,6 @@ import type { NativeSheetHostProps } from './NativeSheetHost.types';
 // How long the covered height has to hold still before a growth is reported.
 // The keyboard grows it on every frame as it opens; only where it ends matters.
 const COVER_SETTLE_MS = 120;
-
-type SnapPoint = { type: 'height' | 'fraction'; value: number };
-
-function parseSnapPoint(point: string | number): SnapPoint {
-  if (typeof point === 'number') {
-    return { type: 'height', value: point };
-  }
-  if (point.endsWith('%')) {
-    return { type: 'fraction', value: parseFloat(point) / 100 };
-  }
-  return { type: 'height', value: parseFloat(point) };
-}
 
 function extractBackgroundColor(
   backgroundStyle: NativeSheetHostProps['backgroundStyle']
@@ -76,53 +61,18 @@ function getContrastingContentColor(
   return isLight ? '#000000' : '#ffffff';
 }
 
-function findNearestSnapPointIndex(
+function getFixedHeight(
   snapPoints: NativeSheetHostProps['snapPoints'],
-  position: string | number
-): number {
-  if (!snapPoints || snapPoints.length === 0) return 0;
-
-  const parsedTarget = parseSnapPoint(position);
-  let nearestIndex = 0;
-  let nearestDistance = Infinity;
-
-  snapPoints.forEach((snapPoint, index) => {
-    const parsedSnapPoint = parseSnapPoint(snapPoint);
-    if (parsedSnapPoint.type !== parsedTarget.type) return;
-
-    const distance = Math.abs(parsedSnapPoint.value - parsedTarget.value);
-    if (distance < nearestDistance) {
-      nearestDistance = distance;
-      nearestIndex = index;
-    }
-  });
-
-  if (nearestDistance !== Infinity) {
-    return nearestIndex;
-  }
-
-  return typeof position === 'number' ? snapPoints.length - 1 : 0;
-}
-
-function getSingleSnapPointHeight(
-  snapPoints: NativeSheetHostProps['snapPoints'],
-  containerHeight: number,
   showDragHandle: boolean
 ): number | undefined {
-  if (!snapPoints || snapPoints.length !== 1) return undefined;
-
-  const parsed = parseSnapPoint(snapPoints[0]);
-  const requestedHeight =
-    parsed.type === 'fraction' ? parsed.value * containerHeight : parsed.value;
+  const requestedHeight = snapPoints?.length === 1 ? snapPoints[0] : undefined;
+  if (typeof requestedHeight !== 'number') return undefined;
   // Material3's default handle occupies 48dp outside the React Native child:
   // a 4dp handle plus 22dp of vertical padding on each side. Subtract it so
   // the complete native sheet, rather than only its content, matches the snap
   // point.
   const nativeHandleHeight = showDragHandle ? 48 : 0;
-  return Math.min(
-    containerHeight,
-    Math.max(1, requestedHeight - nativeHandleHeight)
-  );
+  return Math.max(1, requestedHeight - nativeHandleHeight);
 }
 
 const VirtualizedListContext = (
@@ -156,21 +106,18 @@ function SheetScrollContextReset({ children }: { children: ReactNode }) {
 }
 
 /**
- * The Android sheet, on Material3's ModalBottomSheet. It follows the
- * `@gorhom/bottom-sheet` props that Expo UI's own adapter takes, so the two
- * platforms share a wrapper.
+ * The Android sheet, on Material3's ModalBottomSheet. It takes the props that
+ * Expo UI's sheet takes on iOS, so the two platforms share a wrapper, and uses
+ * the ones the wrapper sets: `index` is 0 for open and -1 for closed.
  *
- * Material3 has two open states: partially expanded (about half) and fully
- * expanded. With several snap points, `snapToIndex(0)` is partial and the last
- * index is expanded. A single snap point is a fixed height instead.
+ * A single snap point is a fixed height. With several, Material3 opens the
+ * sheet partially expanded (about half).
  */
 export function NativeSheetHost(props: NativeSheetHostProps) {
   const {
-    ref,
     snapPoints: snapPointsProp,
     index: indexProp = 0,
     onChange,
-    onClose,
     onDismiss,
     enablePanDownToClose = false,
     enableContentPanningGesture = true,
@@ -181,7 +128,7 @@ export function NativeSheetHost(props: NativeSheetHostProps) {
     onCoveredHeightChange,
     children,
   } = props;
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
 
   const hasMultipleSnapPoints =
     snapPointsProp != null && snapPointsProp.length > 1;
@@ -189,26 +136,16 @@ export function NativeSheetHost(props: NativeSheetHostProps) {
     enableDynamicSizing && (!snapPointsProp || snapPointsProp.length === 0);
   const fixedHeight = enableDynamicSizing
     ? undefined
-    : getSingleSnapPointHeight(
-        snapPointsProp,
-        height,
-        handleComponent !== null
-      );
+    : getFixedHeight(snapPointsProp, handleComponent !== null);
   const skipPartially = fitToContents || !hasMultipleSnapPoints;
-  const maxIndex = snapPointsProp ? snapPointsProp.length - 1 : 0;
   const containerColor = extractBackgroundColor(backgroundStyle);
   const contentColor = getContrastingContentColor(containerColor);
-  const clampIndex = useCallback(
-    (index: number) => Math.min(Math.max(index, 0), maxIndex),
-    [maxIndex]
-  );
 
   const [isOpen, setIsOpen] = useState(indexProp >= 0);
-  // Mirrors isOpen for snapToIndex, which must not be rebuilt on every open
-  // and close.
+  // Mirrors isOpen for open and close, which must not be rebuilt on every
+  // open and close.
   const isOpenRef = useRef(isOpen);
   isOpenRef.current = isOpen;
-  const pendingIndexRef = useRef(indexProp >= 0 ? clampIndex(indexProp) : null);
   const sheetRef = useRef<ModalBottomSheetRef>(null);
   // Guards fireCloseCallbacks against firing twice when a programmatic hide
   // races a native onDismissRequest, such as a swipe during an auto-close.
@@ -227,15 +164,12 @@ export function NativeSheetHost(props: NativeSheetHostProps) {
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
 
   const fireCloseCallbacks = useCallback(() => {
     if (closedRef.current) return;
     closedRef.current = true;
-    onCloseRef.current?.();
     onChangeRef.current?.(-1);
   }, []);
 
@@ -244,7 +178,6 @@ export function NativeSheetHost(props: NativeSheetHostProps) {
     dismissedRef.current = true;
     hidingRef.current = false;
     isOpenRef.current = false;
-    pendingIndexRef.current = null;
     setIsOpen(false);
     fireCloseCallbacks();
     onDismissRef.current?.();
@@ -254,7 +187,6 @@ export function NativeSheetHost(props: NativeSheetHostProps) {
     if (!isOpenRef.current || hidingRef.current) return;
     const operation = ++operationRef.current;
     hidingRef.current = true;
-    pendingIndexRef.current = null;
     fireCloseCallbacks();
     // Keep the native host alive until Compose's hide animation completes.
     const hidden = sheetRef.current?.hide() ?? Promise.resolve();
@@ -281,59 +213,15 @@ export function NativeSheetHost(props: NativeSheetHostProps) {
     if (indexProp === -1) {
       close();
     } else if (indexProp >= 0) {
-      pendingIndexRef.current = clampIndex(indexProp);
       open();
     }
-  }, [clampIndex, indexProp, close, open]);
+  }, [indexProp, close, open]);
 
   const handleDismiss = useCallback(() => {
     if (mountKeyRef.current !== mountKey) return;
     ++operationRef.current;
     finishDismiss();
   }, [finishDismiss, mountKey]);
-
-  const methods: BottomSheetMethods = useMemo(() => {
-    const snapToIndex = (index: number) => {
-      if (index === -1) {
-        close();
-        return;
-      }
-      const clampedIndex = clampIndex(index);
-      pendingIndexRef.current = clampedIndex;
-      if (!isOpenRef.current || hidingRef.current) {
-        open();
-      } else if (hasMultipleSnapPoints) {
-        if (clampedIndex === maxIndex) {
-          sheetRef.current?.expand();
-        } else {
-          sheetRef.current?.partialExpand();
-        }
-        pendingIndexRef.current = null;
-      }
-      onChangeRef.current?.(clampedIndex);
-    };
-
-    return {
-      snapToIndex,
-      snapToPosition: (position: string | number) =>
-        snapToIndex(findNearestSnapPointIndex(snapPointsProp, position)),
-      expand: () => snapToIndex(maxIndex),
-      collapse: () => snapToIndex(0),
-      close,
-      forceClose: close,
-      present: () => snapToIndex(0),
-      dismiss: close,
-    };
-  }, [
-    clampIndex,
-    maxIndex,
-    hasMultipleSnapPoints,
-    close,
-    open,
-    snapPointsProp,
-  ]);
-
-  useImperativeHandle(ref, () => methods, [methods]);
 
   const [footerHeight, setFooterHeight] = useState(0);
   const handleFooterLayout = useCallback((event: LayoutChangeEvent) => {
@@ -390,9 +278,6 @@ export function NativeSheetHost(props: NativeSheetHostProps) {
         ref={sheetRef}
         onDismissRequest={handleDismiss}
         skipPartiallyExpanded={skipPartially}
-        initialFullyExpanded={
-          hasMultipleSnapPoints && pendingIndexRef.current === maxIndex
-        }
         showDragHandle={handleComponent !== null}
         sheetGesturesEnabled={
           enablePanDownToClose && enableContentPanningGesture

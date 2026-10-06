@@ -1,10 +1,8 @@
-import React, { createRef, useImperativeHandle } from 'react';
+import React, { useImperativeHandle } from 'react';
 import { type ReactTestInstance, act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
-
-import type { BottomSheetMethods } from '@expo/ui/community/bottom-sheet';
 
 import { NativeSheetHost } from './NativeSheetHost.android';
 
@@ -56,15 +54,9 @@ function renderSheet(index = 0) {
   );
   const dismissed = vi.fn();
   const changed = vi.fn();
-  const ref = createRef<BottomSheetMethods>();
   let tree: ReturnType<typeof create>;
   const element = (index: number) => (
-    <NativeSheetHost
-      ref={ref}
-      index={index}
-      onDismiss={dismissed}
-      onChange={changed}
-    >
+    <NativeSheetHost index={index} onDismiss={dismissed} onChange={changed}>
       {null}
     </NativeSheetHost>
   );
@@ -72,7 +64,6 @@ function renderSheet(index = 0) {
     tree = create(element(index));
   });
   return {
-    ref,
     dismissed,
     changed,
     tree: tree!,
@@ -92,24 +83,20 @@ function renderSheet(index = 0) {
 }
 
 describe('Android sheet host dismissal', () => {
-  it.each(['prop', 'method'] as const)(
-    'waits for native hide after a %s close',
-    async (source) => {
-      const sheet = renderSheet();
-      if (source === 'prop') sheet.update(-1);
-      else act(() => sheet.ref.current?.close());
-      expect(mocks.hide).toHaveBeenCalledTimes(1);
-      expect(sheet.changed).toHaveBeenCalledWith(-1);
-      expect(sheet.dismissed).not.toHaveBeenCalled();
-      expect(sheet.native()).toBeDefined();
-      await sheet.finishHide();
-      expect(sheet.dismissed).toHaveBeenCalledTimes(1);
-      expect(
-        sheet.tree.root.findAll((node) => node.props.onDismissRequest != null)
-      ).toHaveLength(0);
-      sheet.unmount();
-    }
-  );
+  it('waits for native hide after a close', async () => {
+    const sheet = renderSheet();
+    sheet.update(-1);
+    expect(mocks.hide).toHaveBeenCalledTimes(1);
+    expect(sheet.changed).toHaveBeenCalledWith(-1);
+    expect(sheet.dismissed).not.toHaveBeenCalled();
+    expect(sheet.native()).toBeDefined();
+    await sheet.finishHide();
+    expect(sheet.dismissed).toHaveBeenCalledTimes(1);
+    expect(
+      sheet.tree.root.findAll((node) => node.props.onDismissRequest != null)
+    ).toHaveLength(0);
+    sheet.unmount();
+  });
   it('deduplicates a gesture completion racing the hide promise', async () => {
     const sheet = renderSheet();
     sheet.update(-1);

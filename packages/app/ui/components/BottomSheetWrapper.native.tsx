@@ -27,13 +27,13 @@ import {
 } from './BottomSheetWrapper.types';
 import { NativeSheetHost } from './NativeSheetHost';
 
+const HANDLELESS_TOP_PADDING = 28;
+
 /**
  * The single native sheet adapter. Presentation, gestures, keyboard handling,
  * and dismissal belong to SwiftUI on iOS, through Expo UI's sheet, and to
  * Compose on Android, through our own host.
  */
-const HANDLELESS_TOP_PADDING = 28;
-
 export const BottomSheetWrapper = forwardRef<
   BottomSheetMethods,
   PropsWithChildren<BottomSheetWrapperProps>
@@ -189,6 +189,10 @@ export const BottomSheetWrapper = forwardRef<
       return null;
     }
 
+    const footerElement = footerComponent ? (
+      <View backgroundColor="$background">{footerComponent({})}</View>
+    ) : null;
+
     return (
       <NativeSheetHost
         key={mountKey}
@@ -202,11 +206,7 @@ export const BottomSheetWrapper = forwardRef<
         backgroundStyle={{ backgroundColor: theme.background.val }}
         onChange={handleChange}
         onDismiss={handleDismiss}
-        footer={
-          hostsFooter ? (
-            <View backgroundColor="$background">{footerComponent({})}</View>
-          ) : undefined
-        }
+        footer={hostsFooter ? footerElement : undefined}
         onCoveredHeightChange={setCoveredHeight}
       >
         <SheetCoverContext.Provider value={cover}>
@@ -217,12 +217,12 @@ export const BottomSheetWrapper = forwardRef<
               if (open) onDidOpen?.();
             }}
           >
-            {footerComponent && !hostsFooter ? (
+            {footerElement && !hostsFooter ? (
               <>
                 <View style={bodyStyle} accessible={false}>
                   {children}
                 </View>
-                <View backgroundColor="$background">{footerComponent({})}</View>
+                {footerElement}
               </>
             ) : (
               children
