@@ -66,7 +66,7 @@ export function isUploadQueued(id: string) {
 export function requeueRefusedUpload(id: string, retryAfterMs?: number) {
   const count = (refusals.get(id) ?? 0) + 1;
   refusals.set(id, count);
-  if (count > MAX_BEGIN_REFUSALS || !runs.has(id)) {
+  if (count >= MAX_BEGIN_REFUSALS || !runs.has(id)) {
     refusals.delete(id);
     return false;
   }
@@ -90,10 +90,14 @@ export function requeueRefusedUpload(id: string, retryAfterMs?: number) {
   return true;
 }
 
-/** The host opened an upload, so whatever was holding the queue has passed. */
+/**
+ * The host opened an upload. Only one asked for after the hold has passed
+ * says the limit has: a grant already in flight when another was refused
+ * says nothing, and resetting on it kept the backoff from ever growing.
+ */
 export function noteUploadOpened(id: string) {
   refusals.delete(id);
-  backoffLevel = 0;
+  if (pausedUntil <= Date.now()) backoffLevel = 0;
 }
 
 /** When the queue next starts work, if it is holding; null otherwise. */

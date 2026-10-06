@@ -167,11 +167,24 @@ describe('bucketUploadQueue', () => {
     expect(uploadQueuePausedUntil()).toBe(at + 5_000);
   });
 
+  it('keeps backing off when a grant already in flight lands during a hold', async () => {
+    const jobs = ['a', 'b'].map((id) => controllable([], id));
+    jobs.forEach((job, i) => enqueueUpload(['a', 'b'][i], job.run));
+    await flush();
+    const at = Date.now();
+    requeueRefusedUpload('a');
+    // b's grant was asked for before the refusal and lands inside the hold.
+    noteUploadOpened('b');
+    vi.setSystemTime(at + 5_000);
+    requeueRefusedUpload('a');
+    expect(uploadQueuePausedUntil()).toBe(at + 5_000 + 10_000);
+  });
+
   it('gives up on an upload refused too often', async () => {
     const a = controllable([], 'a');
     enqueueUpload('a', a.run);
     await flush();
-    for (let i = 0; i < MAX_BEGIN_REFUSALS; i += 1) {
+    for (let i = 1; i < MAX_BEGIN_REFUSALS; i += 1) {
       expect(requeueRefusedUpload('a')).toBe(true);
     }
     expect(requeueRefusedUpload('a')).toBe(false);
