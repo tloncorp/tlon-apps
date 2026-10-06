@@ -177,7 +177,8 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "workspace": "/root/.openclaw/workspace",
       "model": {
         "primary": "${MODEL:-custom-proxy/tlon-test-scripted}"
-      }
+      },
+      "heartbeat": { "every": "0m" }
     },
     "list": [
       {
