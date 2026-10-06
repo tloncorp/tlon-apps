@@ -1,0 +1,325 @@
+name: OpenClaw Canary
+# Runs the plugin's typecheck, unit tests and the three Bot E2E shards against
+# an arbitrary OpenClaw core. Copied from openclaw-ci.yml rather than sharing a
+# reusable workflow so PR checks never change shape for the canary's sake.
+#
+# A check failing here is the expected signal, not a broken run: test steps
+# continue on error, and every job writes a JSON report from its own step
+# outcomes and uploads it under a per-job artifact name for the caller to
+# merge. A report that never uploads reads as infra-error downstream.
+on:
+  workflow_dispatch:
+    inputs:
+      openclaw_version:
+        description: OpenClaw core version to test (npm version, e.g. 2026.9.8)
+        required: true
+        type: string
+      node_version:
+        description: Node version (24.16.0 for 9.x cores; 22.22.0 for <=8.x)
+        required: false
+        type: string
+        default: "24.16.0"
+  # Callers pass `secrets: inherit`; the jobs read TLONBOT_TOKEN,
+  # BRAVE_API_KEY and E2E_S3_* and degrade to coverage: partial without them.
+  workflow_call:
+    inputs:
+      openclaw_version:
+        required: true
+        type: string
+      node_version:
+        required: false
+        type: string
+        default: "24.16.0"
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Canary Unit (${{ inputs.openclaw_version }})
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    defaults:
+      run:
+        working-directory: packages/openclaw
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      # The lockfile change is confined to this disposable checkout.
+      - name: Install OpenClaw core under test
+        id: install
+        working-directory: .
+        env:
+          OPENCLAW_VERSION: ${{ inputs.openclaw_version }}
+        run: |
+          pnpm --filter @tloncorp/openclaw add -D "openclaw@${OPENCLAW_VERSION}"
+          node -p "'installed openclaw ' + require('./packages/openclaw/node_modules/openclaw/package.json').version"
+
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: pnpm tsc
+
+      - name: Run unit tests
+        id: unit
+        continue-on-error: true
+        run: npx vitest run src/ --exclude src/config-schema.test.ts
+
+      - name: Write canary report
+        if: always()
+        working-directory: .
+        env:
+          VERSION: ${{ inputs.openclaw_version }}
+          NODE_VERSION: ${{ inputs.node_version }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          UNIT_OUTCOME: ${{ steps.unit.outcome }}
+          REPORT: canary-report/canary-${{ inputs.openclaw_version }}-unit-${{ github.run_attempt }}.json
+        run: |
+          result() {
+            # Without the core installed, neither check says anything about it.
+            if [ "$INSTALL_OUTCOME" != "success" ]; then
+              echo infra-error
+              return
+            fi
+            case "$1" in
+              success) echo pass ;;
+              failure) echo fail ;;
+              skipped) echo skipped ;;
+              *) echo infra-error ;;
+            esac
+          }
+          mkdir -p canary-report
+          jq -n \
+            --arg version "$VERSION" \
+            --arg nodeVersion "$NODE_VERSION" \
+            --arg typecheck "$(result "$TYPECHECK_OUTCOME")" \
+            --arg unit "$(result "$UNIT_OUTCOME")" \
+            '{version: $version, nodeVersion: $nodeVersion, typecheck: $typecheck, unit: $unit}' \
+            > "$REPORT"
+          cat "$REPORT"
+
+      - name: Upload canary report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-${{ inputs.openclaw_version }}-unit-${{ github.run_attempt }}
+          path: canary-report/
+          if-no-files-found: error
+          retention-days: 14
+
+  e2e:
+    name: Canary E2E (${{ inputs.openclaw_version }}, ${{ matrix.shard }})
+    runs-on: blacksmith-8vcpu-ubuntu-2204
+    # Same budget as openclaw-ci.yml: cold setup ~15 + the 45-min step cap +
+    # the 5-min failure capture + upload, so a step at its cap is a step
+    # failure, never a job cancellation that would skip the report.
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: baseline
+            id: b
+            script: test:e2e:openclaw
+            partitions: baseline
+          - shard: cron
+            id: c
+            script: test:e2e:openclaw
+            partitions: cron
+          - shard: package
+            id: p
+            script: test:e2e:openclaw:package
+    defaults:
+      run:
+        working-directory: .
+    env:
+      # See openclaw-ci.yml and TLON-6338: sync once, unbounded, below.
+      SKIP_SYNC: "true"
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Install peru
+        id: peru
+        run: pipx install --force peru
+
+      - name: Cache vendored desk dependencies
+        id: desk-deps
+        uses: actions/cache@v4
+        with:
+          path: desk-deps
+          key: tlon-desk-deps-${{ hashFiles('peru.yaml') }}
+
+      - name: Sync desk dependencies
+        id: sync-deps
+        if: steps.desk-deps.outputs.cache-hit != 'true'
+        run: ./scripts/sync-deps.sh
+
+      - name: Setup Node.js environment
+        id: node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      # Pin matches openclaw-ci.yml / tlon-skill-publish.yml.
+      - name: Setup Bun
+        id: bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Setup PNPM
+        id: pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Build OpenClaw
+        id: build
+        run: pnpm --filter '@tloncorp/openclaw' build
+
+      - name: Cache fake ship archives
+        id: ship-cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/tlon-bot-e2e/fake-ships
+          key: tlon-bot-e2e-fake-ships-${{
+            hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
+
+      - name: Prepare fake ship cache
+        id: ship-cache-dir
+        run: mkdir -p .cache/tlon-bot-e2e/fake-ships
+
+      - name: Run OpenClaw shared E2E
+        id: e2e
+        continue-on-error: true
+        timeout-minutes: 45
+        env:
+          # The driver forwards these to the image build args and to test 08.
+          OPENCLAW_CORE_VERSION: ${{ inputs.openclaw_version }}
+          NODE_IMAGE: node:${{ inputs.node_version }}-bookworm-slim
+          TLONBOT_TOKEN: ${{ matrix.shard == 'package' && secrets.TLONBOT_TOKEN || '' }}
+          BRAVE_API_KEY: ${{ matrix.shard == 'package' && secrets.BRAVE_API_KEY || '' }}
+          TEST_STORAGE_ENDPOINT: ${{ matrix.shard == 'package' && secrets.E2E_S3_ENDPOINT || '' }}
+          TEST_STORAGE_BUCKET: ${{ matrix.shard == 'package' && secrets.E2E_S3_BUCKET_NAME || '' }}
+          TEST_STORAGE_ACCESS_KEY: ${{ matrix.shard == 'package' && secrets.E2E_S3_ACCESS_KEY_ID || '' }}
+          TEST_STORAGE_SECRET_KEY: ${{ matrix.shard == 'package' && secrets.E2E_S3_SECRET_ACCESS_KEY || '' }}
+          TEST_STORAGE_REGION: ${{ matrix.shard == 'package' && secrets.E2E_S3_REGION || '' }}
+          TEST_LIVE_TOOL_TRACE: "1"
+          TEST_LIVE_TOOL_TRACE_CONTENTS: "1"
+          FAKE_SHIP_CACHE_DIR: ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
+          TLON_BOT_E2E_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.id }}
+          TLON_BOT_E2E_SCENARIO_PARTITIONS: ${{ matrix.partitions }}
+        # The log copy feeds the report's errorExcerpt.
+        run: |
+          set -o pipefail
+          pnpm --filter '@tloncorp/tlon-bot-e2e' ${{ matrix.script }} 2>&1 \
+            | tee "$RUNNER_TEMP/canary-e2e.log"
+
+      # continue-on-error keeps the job green, so failure() never fires here;
+      # key the capture off the E2E step's own outcome instead.
+      - name: Capture leftover docker state
+        if: always() && (steps.e2e.outcome == 'failure' || steps.e2e.outcome ==
+          'cancelled')
+        timeout-minutes: 5
+        run: bash ./packages/tlon-bot-e2e/scripts/capture-docker-state.sh
+          packages/tlon-bot-e2e/diagnostics/docker-state
+
+      - name: Upload E2E diagnostics
+        if: always() && (steps.e2e.outcome == 'failure' || steps.e2e.outcome ==
+          'cancelled')
+        uses: actions/upload-artifact@v4
+        with:
+          # Version in the name: one caller run may canary several cores.
+          name: tlon-bot-e2e-diagnostics-openclaw-canary-${{ inputs.openclaw_version }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: packages/tlon-bot-e2e/diagnostics/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Write canary report
+        if: always()
+        env:
+          VERSION: ${{ inputs.openclaw_version }}
+          SHARD: ${{ matrix.shard }}
+          STEPS_JSON: ${{ toJSON(steps) }}
+          # Region is optional (defaults to us-east-1), so it does not count
+          # toward coverage.
+          CREDENTIALS_COMPLETE:
+            ${{ secrets.TLONBOT_TOKEN != '' && secrets.BRAVE_API_KEY != '' &&
+            secrets.E2E_S3_ENDPOINT != '' && secrets.E2E_S3_BUCKET_NAME != ''
+            && secrets.E2E_S3_ACCESS_KEY_ID != '' &&
+            secrets.E2E_S3_SECRET_ACCESS_KEY != '' }}
+          # Only used to scrub the excerpt: the tee'd log is not masked.
+          SCRUB_TLONBOT_TOKEN: ${{ secrets.TLONBOT_TOKEN }}
+          SCRUB_BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+          SCRUB_S3_ACCESS_KEY: ${{ secrets.E2E_S3_ACCESS_KEY_ID }}
+          SCRUB_S3_SECRET_KEY: ${{ secrets.E2E_S3_SECRET_ACCESS_KEY }}
+          REPORT: canary-report/canary-${{ inputs.openclaw_version }}-e2e-${{ matrix.shard }}-${{ github.run_attempt }}.json
+        run: |
+          e2e_outcome=$(jq -r '.e2e.outcome // ""' <<<"$STEPS_JSON")
+          # failedStep is a step id from this job (e2e, pnpm, build, ...).
+          failed_step=""
+          case "$e2e_outcome" in
+            success) result=pass ;;
+            failure) result=fail; failed_step=e2e ;;
+            skipped)
+              # The E2E step only skips because setup failed before it.
+              failed_step=$(jq -r 'to_entries | map(select(.value.outcome == "failure")) | .[0].key // ""' <<<"$STEPS_JSON")
+              if [ -n "$failed_step" ]; then result=infra-error; else result=skipped; fi
+              ;;
+            *) result=infra-error ;;
+          esac
+
+          coverage=full
+          if [ "$SHARD" = "package" ] && [ "$CREDENTIALS_COMPLETE" != "true" ]; then
+            coverage=partial
+          fi
+
+          excerpt=""
+          log="$RUNNER_TEMP/canary-e2e.log"
+          if [ "$result" != "pass" ] && [ -f "$log" ]; then
+            excerpt=$(sed 's/\x1b\[[0-9;]*m//g' "$log" \
+              | grep -m1 -E '([A-Za-z]*Error\b|FAIL )' || true)
+            for secret in "$SCRUB_TLONBOT_TOKEN" "$SCRUB_BRAVE_API_KEY" \
+              "$SCRUB_S3_ACCESS_KEY" "$SCRUB_S3_SECRET_KEY"; do
+              if [ -n "$secret" ]; then excerpt=${excerpt//"$secret"/"***"}; fi
+            done
+            excerpt=$(printf '%s' "$excerpt" | sed 's/^[[:space:]]*//' | cut -c1-300)
+          fi
+
+          mkdir -p canary-report
+          jq -n \
+            --arg version "$VERSION" \
+            --arg shard "$SHARD" \
+            --arg result "$result" \
+            --arg coverage "$coverage" \
+            --arg failedStep "$failed_step" \
+            --arg errorExcerpt "$excerpt" \
+            '{version: $version, shard: $shard, result: $result, coverage: $coverage, failedStep: $failedStep, errorExcerpt: $errorExcerpt}' \
+            > "$REPORT"
+          cat "$REPORT"
+
+      - name: Upload canary report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-${{ inputs.openclaw_version }}-e2e-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: canary-report/
+          if-no-files-found: error
+          retention-days: 14
