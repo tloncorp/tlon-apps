@@ -332,6 +332,62 @@
     :~  [my-flag %create my-group]
     ==
   (pure:m ~)
+::  +test-light-scries-count-every-seat: the init and changes scries
+::  truncate a big group's seats, but still report its full member count
+::
+::  +drop-seats keeps ours and 14 others. The changes scries built their
+::  group-ui from that light group, and the init scries' recount read the
+::  light group too (the group-ui's own .group face shadowed the full one),
+::  so a group of 20 reported 15.
+::
+++  test-light-scries-count-every-seat
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  =group:g  my-group
+  =.  seats.group
+    %-  ~(gas by seats.group)
+    %+  turn  (gulf 1 19)
+    |=(i=@ [;;(ship i) [~ ~2000.1.1]])
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-join-this-group group)
+  =/  since=@ta  (scot %da *@da)
+  ;<  in-2=cage  bind:m  (got-peek /x/v2/init)
+  ;<  in-3=cage  bind:m  (got-peek /x/v3/init)
+  ;<  in-4=cage  bind:m  (got-peek /x/v4/init)
+  ;<  ch-1=cage  bind:m  (got-peek /x/v1/changes/[since])
+  ;<  ch-2=cage  bind:m  (got-peek /x/v2/changes/[since])
+  ;<  ch-3=cage  bind:m  (got-peek /x/v3/changes/[since])
+  =/  init-2
+    %.  my-flag
+    %~  got  by
+    -:!<([(map flag:v7:gv group-ui:v7:gv) foreigns:v8:gv] q.in-2)
+  =/  init-3
+    %.  my-flag
+    %~  got  by
+    -:!<([(map flag:v9:gv group-ui:v9:gv) foreigns:v8:gv] q.in-3)
+  =/  init-4
+    %.  my-flag
+    %~  got  by
+    -:!<([(map flag:v11:gv group-ui:v11:gv) foreigns:v8:gv] q.in-4)
+  =/  ui-1  (~(got by !<((map flag:v5:gv group-ui:v5:gv) q.ch-1)) my-flag)
+  =/  ui-2  (~(got by !<((map flag:v9:gv group-ui:v9:gv) q.ch-2)) my-flag)
+  =/  ui-3  (~(got by !<((map flag:v11:gv group-ui:v11:gv) q.ch-3)) my-flag)
+  ::  the seats are still dropped; only the count covers them all
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>([~(wyt by seats.group.init-4) ~(wyt by seats.group.ui-3)])
+    !>([15 15])
+  %+  ex-equal
+    !>  :*  init-2=member-count.init-2
+            init-3=member-count.init-3
+            init-4=member-count.init-4
+            changes-1=count.ui-1
+            changes-2=member-count.ui-2
+            changes-3=member-count.ui-3
+        ==
+  !>([init-2=20 init-3=20 init-4=20 changes-1=20 changes-2=20 changes-3=20])
 ::  +initial-nest: a channel the test group arrives with
 ::
 ++  initial-nest  ^-(nest:g [%chat ~zod %general])
