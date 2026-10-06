@@ -29,6 +29,8 @@ import {
  * The single native sheet adapter. Expo UI delegates presentation, gestures,
  * keyboard handling, and dismissal to SwiftUI on iOS and Compose on Android.
  */
+const HANDLELESS_TOP_PADDING = 24;
+
 export const BottomSheetWrapper = forwardRef<
   ExpoBottomSheet,
   PropsWithChildren<BottomSheetWrapperProps>
@@ -137,12 +139,18 @@ export const BottomSheetWrapper = forwardRef<
       previousOpen.current = open;
     }, [open, unmountOnClose]);
 
+    // The drag handle's strip is what holds a sheet's header off its top
+    // edge on Android. A sheet that hides the handle loses that strip, so give
+    // some of the space back.
+    const needsTopSpace =
+      Platform.OS === 'android' && showHandle && !resolvedShowHandle;
     const contentStyle = useMemo(
       () => ({
         ...(enableDynamicSizing ? null : { flex: 1 }),
+        ...(needsTopSpace ? { paddingTop: HANDLELESS_TOP_PADDING } : null),
         backgroundColor: theme.background.val,
       }),
-      [enableDynamicSizing, theme.background.val]
+      [enableDynamicSizing, needsTopSpace, theme.background.val]
     );
     const bodyStyle = useMemo(
       () =>
