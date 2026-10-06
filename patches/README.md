@@ -190,8 +190,17 @@ What it does:
   `onDismiss` fires from SwiftUI's own `onDismiss`, after the transition ends.
   Follow-up presentations wait for `onDismiss`.
 - Android: sizes a single percentage or point snap to its requested total
-  height, including Material's drag-handle area, and gives that content the
-  window width (`matchContents` would otherwise size it to its own width).
+  height, including Material's drag-handle area. The height is set on a Compose
+  `Box` around the hosted view rather than on the hosted view itself, so the
+  sheet gives way when Material3 leaves it less room. With the keyboard up it
+  rises to the status bar and ends at the keyboard; a hosted view with a fixed
+  height of its own overflowed there and lost its header off the top of the
+  screen.
+- Android: passes Material3 a content color that contrasts with the sheet's
+  background. Material3 picks the status and navigation bar icon colors from
+  it, and its default follows the system theme, so the icons vanished under a
+  sheet that reached the top whenever the app's theme differed from the
+  system's.
 - Android: `enableContentPanningGesture={false}` disables sheet gestures so
   nested content owns vertical pans. Back and scrim still dismiss.
 - Android: a close driven by `index` or `close()` awaits Compose's `hide()`
@@ -208,6 +217,10 @@ Validation:
 - Build the Android preview app, open sheets with 60%, 70%, 80%, 85% and 90%
   snap points, and confirm each opens at the requested height rather than full
   screen. Close one with the back button and confirm it animates out.
+- Open New Message or a Forward sheet and focus its search field. The header
+  must stay below the status bar, the list must end at the keyboard, and the
+  status bar icons must stay readable with the phone in dark mode and the app
+  in a light theme. Closing the keyboard returns the sheet to its height.
 
 Removal:
 Drop the patch once Expo UI exposes sheet chrome configuration, a dismissal

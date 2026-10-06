@@ -79,10 +79,49 @@ index 29b1a3ad7a8dc653347899c514fc538f9f9433f3..27c3c8f9ad33f321f263bca16f538a63
        .onChange(of: isPresented, perform: { newIsPresented in
          if props.isPresented == newIsPresented {
 diff --git a/src/community/bottom-sheet/BottomSheet.android.tsx b/src/community/bottom-sheet/BottomSheet.android.tsx
-index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..92b6459504891baff4d89968b7fda42694bd18c5 100644
+index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..287a6c6a4fa9baa4975d4259a4ac86cec5568132 100644
 --- a/src/community/bottom-sheet/BottomSheet.android.tsx
 +++ b/src/community/bottom-sheet/BottomSheet.android.tsx
-@@ -46,6 +46,23 @@ function findNearestSnapPointIndex(
+@@ -1,13 +1,15 @@
+ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+-import { StyleSheet, useWindowDimensions, View } from 'react-native';
++import { processColor, StyleSheet, useWindowDimensions, View } from 'react-native';
+ 
+ import { BottomSheetContext, BottomSheetInternalContext } from './context';
+ import { SheetScrollContextReset } from './scrollContextReset';
+ import type { BottomSheetMethods, BottomSheetProps } from './types';
+ import { parseSnapPoint } from './types';
++import { Box } from '../../jetpack-compose/Box';
+ import { Host } from '../../jetpack-compose/Host';
+ import { ModalBottomSheet, type ModalBottomSheetRef } from '../../jetpack-compose/ModalBottomSheet';
+ import { RNHostView } from '../../jetpack-compose/RNHostView';
++import { fillMaxWidth, height as heightModifier } from '../../jetpack-compose/modifiers';
+ 
+ export { useBottomSheet } from './context';
+ 
+@@ -18,6 +20,21 @@ function extractBackgroundColor(
+   return (StyleSheet.flatten(backgroundStyle) as any)?.backgroundColor;
+ }
+ 
++// Material3 picks the status and navigation bar icon colors from the sheet's content color, and
++// its default content color follows the system theme. Give it one that contrasts with the sheet's
++// own background, so the icons stay readable under a sheet that reaches the top of the screen
++// when the app's theme differs from the system's.
++function getContrastingContentColor(containerColor: string | undefined): string | undefined {
++  const processed = containerColor == null ? null : processColor(containerColor);
++  if (typeof processed !== 'number') return undefined;
++
++  const red = (processed >> 16) & 0xff;
++  const green = (processed >> 8) & 0xff;
++  const blue = processed & 0xff;
++  const isLight = (0.299 * red + 0.587 * green + 0.114 * blue) / 255 > 0.5;
++  return isLight ? '#000000' : '#ffffff';
++}
++
+ function findNearestSnapPointIndex(
+   snapPoints: BottomSheetProps['snapPoints'],
+   position: string | number
+@@ -46,6 +63,23 @@ function findNearestSnapPointIndex(
    return typeof position === 'number' ? snapPoints.length - 1 : 0;
  }
  
@@ -106,7 +145,7 @@ index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..92b6459504891baff4d89968b7fda426
  /**
   * Android implementation of `BottomSheet` using Material3 ModalBottomSheet.
   *
-@@ -61,15 +78,19 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -61,18 +95,23 @@ export function BottomSheet(props: BottomSheetProps) {
      onClose,
      onDismiss,
      enablePanDownToClose = false,
@@ -127,7 +166,11 @@ index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..92b6459504891baff4d89968b7fda426
    const skipPartially = fitToContents || !hasMultipleSnapPoints;
    const maxIndex = snapPointsProp ? snapPointsProp.length - 1 : 0;
    const containerColor = extractBackgroundColor(backgroundStyle);
-@@ -89,6 +110,14 @@ export function BottomSheet(props: BottomSheetProps) {
++  const contentColor = getContrastingContentColor(containerColor);
+   const internalContextValue = useMemo(() => ({ fitToContents }), [fitToContents]);
+   const clampIndex = useCallback(
+     (index: number) => Math.min(Math.max(index, 0), maxIndex),
+@@ -89,6 +128,14 @@ export function BottomSheet(props: BottomSheetProps) {
    // Guards fireCloseCallbacks against double-firing when programmatic hide and
    // a native onDismissRequest race (e.g. swipe-dismiss during auto-close).
    const closedRef = useRef(indexProp < 0);
@@ -142,7 +185,7 @@ index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..92b6459504891baff4d89968b7fda426
  
    // Stable callback refs
    const onChangeRef = useRef(onChange);
-@@ -102,43 +131,73 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -102,43 +149,73 @@ export function BottomSheet(props: BottomSheetProps) {
      if (closedRef.current) return;
      closedRef.current = true;
      onCloseRef.current?.();
@@ -234,7 +277,7 @@ index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..92b6459504891baff4d89968b7fda426
        } else if (hasMultipleSnapPoints) {
          // Native ModalBottomSheet has two states: partial (~50%) and expanded (full).
          // Map index 0 → partialExpand(), last index → expand().
-@@ -152,14 +211,6 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -152,14 +229,6 @@ export function BottomSheet(props: BottomSheetProps) {
        onChangeRef.current?.(clampedIndex);
      };
  
@@ -249,7 +292,7 @@ index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..92b6459504891baff4d89968b7fda426
      return {
        snapToIndex,
        snapToPosition: (position: string | number) =>
-@@ -171,7 +222,7 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -171,7 +240,7 @@ export function BottomSheet(props: BottomSheetProps) {
        present: () => snapToIndex(0),
        dismiss: close,
      };
@@ -258,7 +301,7 @@ index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..92b6459504891baff4d89968b7fda426
  
    useImperativeHandle(ref, () => methods, [methods]);
  
-@@ -188,23 +239,31 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -188,26 +257,42 @@ export function BottomSheet(props: BottomSheetProps) {
        <BottomSheetContext.Provider value={methods}>
          <Host style={{ position: 'absolute', width }} pointerEvents="none">
            <ModalBottomSheet
@@ -271,28 +314,46 @@ index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..92b6459504891baff4d89968b7fda426
 -            sheetGesturesEnabled={enablePanDownToClose}
 +            sheetGesturesEnabled={enablePanDownToClose && enableContentPanningGesture}
              containerColor={containerColor}
++            contentColor={contentColor}
              properties={{
                shouldDismissOnBackPress: enablePanDownToClose,
                shouldDismissOnClickOutside: enablePanDownToClose,
              }}>
 -            <RNHostView matchContents={fitToContents}>
-+            <RNHostView matchContents={fitToContents || singleSnapPointHeight != null}>
-               {/* With matchContents, RNHostView lays the hosted view out at its own size, so `width` gives it
-                   the sheet width while its height stays content-sized. Otherwise flexGrow:1 + height:0
-                   (flex-basis 0) fills RNHostView's measured height without inheriting the scrollable
-                   child's content height, which would block scrolling to the end. */}
+-              {/* With matchContents, RNHostView lays the hosted view out at its own size, so `width` gives it
+-                  the sheet width while its height stays content-sized. Otherwise flexGrow:1 + height:0
+-                  (flex-basis 0) fills RNHostView's measured height without inheriting the scrollable
+-                  child's content height, which would block scrolling to the end. */}
 -              <View style={fitToContents ? { width } : { flexGrow: 1, height: 0 }}>
-+              <View
-+                style={
-+                  singleSnapPointHeight != null
-+                    ? { width, height: singleSnapPointHeight }
-+                    : fitToContents
-+                      ? { width }
-+                      : { flexGrow: 1, height: 0 }
-+                }>
-                 <SheetScrollContextReset>{children}</SheetScrollContextReset>
-               </View>
-             </RNHostView>
+-                <SheetScrollContextReset>{children}</SheetScrollContextReset>
+-              </View>
+-            </RNHostView>
++            {singleSnapPointHeight != null ? (
++              // The sheet's height is set in Compose, not on the hosted view. Material3 gives the
++              // sheet less room while the keyboard is up, and a Compose height gives way to that.
++              // A hosted view with its own fixed height does not: it overflows, and Compose
++              // centers the overflow, pushing the sheet's top off the screen.
++              <Box modifiers={[fillMaxWidth(), heightModifier(singleSnapPointHeight)]}>
++                <RNHostView>
++                  <View style={{ flexGrow: 1, height: 0 }}>
++                    <SheetScrollContextReset>{children}</SheetScrollContextReset>
++                  </View>
++                </RNHostView>
++              </Box>
++            ) : (
++              <RNHostView matchContents={fitToContents}>
++                {/* With matchContents, RNHostView lays the hosted view out at its own size, so `width` gives it
++                    the sheet width while its height stays content-sized. Otherwise flexGrow:1 + height:0
++                    (flex-basis 0) fills RNHostView's measured height without inheriting the scrollable
++                    child's content height, which would block scrolling to the end. */}
++                <View style={fitToContents ? { width } : { flexGrow: 1, height: 0 }}>
++                  <SheetScrollContextReset>{children}</SheetScrollContextReset>
++                </View>
++              </RNHostView>
++            )}
+           </ModalBottomSheet>
+         </Host>
+       </BottomSheetContext.Provider>
 diff --git a/src/community/bottom-sheet/BottomSheet.ios.tsx b/src/community/bottom-sheet/BottomSheet.ios.tsx
 index 4c805f7effb3e278ddf6a12e02ee08264a64ac5e..9b3dc1cf39642661d2da86fe05ad1e9f454b4200 100644
 --- a/src/community/bottom-sheet/BottomSheet.ios.tsx
