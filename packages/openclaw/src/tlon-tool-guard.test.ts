@@ -199,6 +199,16 @@ describe('tlon tool guard', () => {
         cliRefusesDiary: true,
       },
       {
+        name: 'channels leave',
+        args: ['channels', 'leave', 'diary/~zod/log'],
+        cliRefusesDiary: true,
+      },
+      {
+        name: 'channels join',
+        args: ['channels', 'join', 'diary/~zod/log'],
+        cliRefusesDiary: true,
+      },
+      {
         name: 'channels rename missing its new title',
         args: ['channels', 'rename', 'diary/~zod/log'],
         validArgs: ['channels', 'rename', 'diary/~zod/log', 'Archived title'],

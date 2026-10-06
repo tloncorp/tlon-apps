@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type TlonAgentTurnObserver,
   type TlonAgentTurnSummary,
+  beginTlonTurnSilenceObservation,
+  recordTlonTurnSilenceOutput,
   claimActiveTlonTurnOutput,
   createTlonAgentTurnOtelObserver,
   observeActiveTlonTurnDelivery,
@@ -841,5 +843,187 @@ describe('Tlon agent turn OTEL observer', () => {
       'tlon.agent.turns',
       'tlon.agent.turn.duration',
     ]);
+  });
+});
+
+describe('Tlon agent-end silence evidence', () => {
+  const ctx = { ...baseTurn, sessionId: 'session-1' };
+  const silentEnd = {
+    success: true,
+    messages: [
+      { role: 'assistant', content: [{ type: 'text', text: 'NO_REPLY' }] },
+    ],
+  };
+  const start = () => startTlonAgentTurn(baseTurn, { observer: noOpObserver });
+
+  it('classifies NO_REPLY removed before dispatch without an onSkip callback', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    // Core hooks need not execute inside the monitor's AsyncLocalStorage.
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 })).toMatchObject({
+      execution: 'completed',
+      result: 'intentional_silence',
+      reason: 'silent',
+      dispatch: 'not_applicable',
+      dispatchExpected: false,
+      sourceReplyCount: 0,
+      toolCallCount: 0,
+    });
+  });
+
+  it.each([
+    ['run', { runId: 'other-run' }],
+    ['session key', { sessionKey: 'other-key' }],
+    ['session ID', { sessionId: 'other-session' }],
+    ['missing run', { runId: undefined }],
+    ['missing session ID', { sessionId: undefined }],
+  ])('ignores an end hook with a different %s', (_name, partial) => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, { ...ctx, ...partial });
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it('requires an observed model boundary, not merely an active turn', () => {
+    const turn = start();
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it('preserves session identity across a partial model-start hook', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    beginTlonTurnSilenceObservation({ ...ctx, sessionId: undefined });
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe(
+      'intentional_silence'
+    );
+  });
+
+  it('clears silence before a retry, even if it never completes', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    beginTlonTurnSilenceObservation({ ...ctx, sessionId: undefined });
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it.each([
+    { success: false, messages: silentEnd.messages, error: 'failed' },
+    { success: true, messages: [] },
+    {
+      success: true,
+      messages: [
+        { role: 'assistant', content: [{ type: 'text', text: 'Report' }] },
+      ],
+    },
+  ])('replaces prior silence with the latest completion: %j', (end) => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    recordTlonTurnSilenceOutput(end, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it.each([
+    [{ timedOut: true }, 'timed_out'],
+    [{ cancelled: true }, 'cancelled'],
+    [{ abandoned: true }, 'abandoned'],
+    [{ dispatchError: new Error('failed') }, 'failed'],
+  ] as const)('preserves terminal failure %j', (terminal, execution) => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10, ...terminal })).toMatchObject({
+      execution,
+      result: 'empty',
+    });
+  });
+
+  it.each([
+    [() => recordActiveTlonTurnToolCall(), 'action_only', 'action_only'],
+    [() => recordActiveTlonTurnSourceReply(), 'reply', 'reply_not_delivered'],
+    [
+      () => recordActiveTlonTurnDelivery(false),
+      'intentional_silence',
+      'delivery_failed',
+    ],
+    [
+      () => recordActiveTlonTurnSourceReply({ kind: 'final', isError: true }),
+      'error_reply',
+      'reply_not_delivered',
+    ],
+  ] as const)(
+    'preserves counted replies, actions, and delivery failures',
+    (record, result, reason) => {
+      const turn = start();
+      beginTlonTurnSilenceObservation(ctx);
+      turn.run(record);
+      recordTlonTurnSilenceOutput(silentEnd, ctx);
+      expect(turn.finalize({ durationMs: 10 })).toMatchObject({
+        result,
+        reason,
+      });
+    }
+  );
+
+  it('does not reuse finalized evidence or mutate a terminal summary', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    const summary = turn.finalize({ durationMs: 10 });
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(summary.result).toBe('empty');
+    const next = start();
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(next.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it('keeps overlapping runs in the same session independent', () => {
+    const first = start();
+    const nextCtx = { ...ctx, runId: 'next-run' };
+    const next = startTlonAgentTurn(nextCtx, { observer: noOpObserver });
+    beginTlonTurnSilenceObservation(ctx);
+    beginTlonTurnSilenceObservation(nextCtx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(next.finalize({ durationMs: 10 }).result).toBe('empty');
+    expect(first.finalize({ durationMs: 10 }).result).toBe(
+      'intentional_silence'
+    );
+  });
+
+  it('rejects an old session completion after the session changes', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    beginTlonTurnSilenceObservation({ ...ctx, sessionId: 'new-session' });
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it('drops old silence when the observation bound is reached', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    const otherTurns = Array.from({ length: 1024 }, (_, i) =>
+      startTlonAgentTurn(
+        { ...baseTurn, runId: `bounded-${i}` },
+        { observer: noOpObserver }
+      )
+    );
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+    for (const other of otherTurns) other.finalize({ durationMs: 10 });
+  });
+
+  it('shares evidence with an independently loaded plugin module', async () => {
+    const turn = start();
+    vi.resetModules();
+    const hooks = await import('./turn-recorder.js');
+    hooks.beginTlonTurnSilenceObservation(ctx);
+    hooks.recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe(
+      'intentional_silence'
+    );
   });
 });

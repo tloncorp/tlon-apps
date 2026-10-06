@@ -48,11 +48,11 @@ Commands:
   activity     Activity/notifications (mentions, replies, all, unreads)
   browser      Hosted browser login handoff (handoff)
   buckets      Shared file channels (list, files, upload, read, mkdir, move, delete)
-  channels     Channel listing and management (dms, groups, info, update, delete, add/del-writers, add/del-readers)
+  channels     Channel listing and management (dms, groups, info, update, delete, leave, join, add/del-writers, add/del-readers)
   contacts     Contact/profile management (list, get, self, sync, add, remove, update-profile)
   dms          Direct message operations (send, reply, react, unreact, delete, accept, decline)
   expose       Manage public content exposure (list, show, hide, check, url)
-  groups       Group management (list, create, info, join, request/accept invites, leave, delete, ...)
+  groups       Groups, called "workspaces" in the app (list, create, info, join, request/accept invites, leave, delete, ...)
   hooks        Channel hooks management (list, add, edit, delete, order, config, cron, rest)
   messages     Message history and search (dm, channel, history, search, context, post)
   notes        %notes notebooks (list, show, request, note-create, note-update, join, leave)
@@ -95,7 +95,6 @@ Cache writes:
 
 Examples:
   tlon contacts list
-  tlon browser handoff https://browser-session-ovh1.tlon.network/s/<capability>
   tlon messages dm ~sampel-palnet --limit 10
   tlon groups create "My Group" --description "A cool group"
   tlon groups create-owned "My Group" --owner ~zod
@@ -104,6 +103,11 @@ Examples:
   tlon --config ~/ships/zod.json contacts self
   tlon --url https://zod.tlon.network --cookie "urbauth-~zod=0v..." contacts self
   tlon --url https://zod.tlon.network --ship ~zod --code abcd-efgh-ijkl-mnop contacts self
+
+Hosted browser login (use the Tlon tool, not a shell command):
+  {"command": "browser handoff <session_id>"}
+  Pass the sess_ handle from browser_session_create. The plugin resolves the
+  signed viewer link; never copy or construct one in a model tool call.
 `);
 }
 

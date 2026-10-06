@@ -34,8 +34,10 @@ const config = (
     },
   },
 });
-const settings = (value: unknown = true) => ({
-  all: { moltbot: { tlon: { bootstrapComplete: value } } },
+const settings = (value: unknown = true, activityReadBaseline = true) => ({
+  all: {
+    moltbot: { tlon: { bootstrapComplete: value, activityReadBaseline } },
+  },
 });
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -83,7 +85,14 @@ function fixture(cfg = config()) {
   });
   const readSettings = vi.fn().mockResolvedValue(settings());
   const isConnected = vi.fn().mockReturnValue(true);
-  const connection = { readSettings, isConnected };
+  const establishActivityReadBaseline = vi.fn().mockResolvedValue(undefined);
+  const replayMissedMessages = vi.fn().mockResolvedValue(undefined);
+  const connection = {
+    readSettings,
+    isConnected,
+    establishActivityReadBaseline,
+    replayMissedMessages,
+  };
   const monitor = coordinator.attachMonitor('default', cfg);
   const ready = () => monitor.connected(connection);
   return {
@@ -94,6 +103,8 @@ function fixture(cfg = config()) {
     readChecklist,
     readSettings,
     isConnected,
+    establishActivityReadBaseline,
+    replayMissedMessages,
     monitor,
     connection,
     ready,
@@ -178,6 +189,144 @@ describe('restart catch-up', () => {
     f.coordinator.start(f.ctx);
     await vi.advanceTimersByTimeAsync(0);
     expect(f.run).toHaveBeenCalledTimes(1);
+  });
+
+  describe('settled (activity reads wait on it)', () => {
+    const isSettled = async (promise: Promise<void>) => {
+      let done = false;
+      void promise.then(() => (done = true));
+      await vi.advanceTimersByTimeAsync(0);
+      return done;
+    };
+
+    it('settles right away when catch-up is disabled', async () => {
+      const f = fixture(config(false));
+      const settled = f.monitor.settled();
+      f.coordinator.start(f.ctx);
+      expect(await isSettled(settled)).toBe(true);
+    });
+
+    it('stays pending until gateway_start, then until the catch-up run ends', async () => {
+      const f = fixture();
+      const settled = f.monitor.settled();
+      const run = deferred<{ meta: object }>();
+      f.run.mockReturnValue(run.promise);
+      expect(await isSettled(settled)).toBe(false);
+
+      f.ready();
+      f.coordinator.start(f.ctx);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(f.run).toHaveBeenCalledTimes(1);
+      expect(await isSettled(settled)).toBe(false);
+
+      run.resolve({ meta: {} });
+      expect(await isSettled(settled)).toBe(true);
+    });
+
+    it('settles when the catch-up run fails', async () => {
+      const f = fixture();
+      const settled = f.monitor.settled();
+      f.run.mockRejectedValue(new Error('model down'));
+      f.ready();
+      f.coordinator.start(f.ctx);
+      expect(await isSettled(settled)).toBe(true);
+    });
+
+    it('settles on stop and re-arms for the next gateway start', async () => {
+      const f = fixture();
+      const first = f.monitor.settled();
+      await f.coordinator.stop();
+      expect(await isSettled(first)).toBe(true);
+      expect(await isSettled(f.monitor.settled())).toBe(false);
+    });
+  });
+
+  it('records the read baseline on the first start, then carries on with replay', async () => {
+    const f = fixture();
+    const order: string[] = [];
+    f.readSettings.mockResolvedValue(settings(true, false));
+    f.establishActivityReadBaseline.mockImplementation(async () => {
+      order.push('baseline');
+    });
+    f.replayMissedMessages.mockImplementation(async () => {
+      order.push('replay');
+    });
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(order).toEqual(['baseline', 'replay']);
+    expect(f.run).toHaveBeenCalledTimes(1);
+    expect(f.logger.error).not.toHaveBeenCalled();
+  });
+
+  it('replays missed messages before running BOOT.md', async () => {
+    const f = fixture();
+    const order: string[] = [];
+    f.replayMissedMessages.mockImplementation(async () => {
+      order.push('replay');
+    });
+    f.run.mockImplementation(async () => {
+      order.push('boot');
+      return { meta: {} };
+    });
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(order).toEqual(['replay', 'boot']);
+    expect(f.replayMissedMessages.mock.calls[0][0]).toBeInstanceOf(AbortSignal);
+  });
+
+  it('still runs BOOT.md when replay fails, and logs the failure', async () => {
+    const f = fixture();
+    f.replayMissedMessages.mockRejectedValue(new Error('scry 500'));
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(f.logger.error).toHaveBeenCalledWith(
+      expect.stringContaining('Restart replay failed: Error: scry 500')
+    );
+    expect(f.run).toHaveBeenCalledTimes(1);
+  });
+
+  it('records the read baseline before onboarding is complete, but does not replay yet', async () => {
+    const f = fixture();
+    f.readSettings.mockResolvedValue(settings(false, false));
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(f.establishActivityReadBaseline).toHaveBeenCalledTimes(1);
+    expect(f.replayMissedMessages).not.toHaveBeenCalled();
+    expect(f.run).not.toHaveBeenCalled();
+  });
+
+  it('runs catch-up without re-marking once the read baseline exists', async () => {
+    const f = fixture();
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(f.establishActivityReadBaseline).not.toHaveBeenCalled();
+    expect(f.run).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a failed read baseline without running catch-up', async () => {
+    const f = fixture();
+    f.readSettings.mockResolvedValue(settings(true, false));
+    f.establishActivityReadBaseline.mockRejectedValue(new Error('nack'));
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    // Replaying without the baseline would re-answer what the old plugin handled.
+    expect(f.replayMissedMessages).not.toHaveBeenCalled();
+    expect(f.run).not.toHaveBeenCalled();
+    expect(f.logger.error).toHaveBeenCalledWith(
+      expect.stringContaining('Restart catch-up failed: Error: nack')
+    );
   });
 
   it.each([false, undefined, 'false', 1, 'yes'])(
@@ -280,7 +429,12 @@ describe('restart catch-up', () => {
       config(true, { accounts: { disabled: { enabled: false } } })
     );
     const readSettings = vi.fn().mockResolvedValue(settings());
-    replacement.connected({ readSettings, isConnected: () => true });
+    replacement.connected({
+      readSettings,
+      isConnected: () => true,
+      establishActivityReadBaseline: vi.fn().mockResolvedValue(undefined),
+      replayMissedMessages: vi.fn().mockResolvedValue(undefined),
+    });
     f.monitor.stop();
     pending.resolve(settings());
     await vi.advanceTimersByTimeAsync(1_000);
@@ -301,7 +455,12 @@ describe('restart catch-up', () => {
     const replacement = f.coordinator.attachMonitor('renamed', nextConfig);
     expect(f.readSettings.mock.calls[0][0].aborted).toBe(true);
     const readSettings = vi.fn().mockResolvedValue(settings());
-    replacement.connected({ readSettings, isConnected: () => true });
+    replacement.connected({
+      readSettings,
+      isConnected: () => true,
+      establishActivityReadBaseline: vi.fn().mockResolvedValue(undefined),
+      replayMissedMessages: vi.fn().mockResolvedValue(undefined),
+    });
     f.monitor.stop();
     pending.resolve(settings());
     await vi.advanceTimersByTimeAsync(1_000);
@@ -377,7 +536,12 @@ describe('restart catch-up', () => {
     expect(f.readSettings).toHaveBeenCalledTimes(1);
     const replacement = f.coordinator.attachMonitor('default', f.ctx.config);
     const readSettings = vi.fn().mockResolvedValue(settings());
-    replacement.connected({ readSettings, isConnected: () => true });
+    replacement.connected({
+      readSettings,
+      isConnected: () => true,
+      establishActivityReadBaseline: vi.fn().mockResolvedValue(undefined),
+      replayMissedMessages: vi.fn().mockResolvedValue(undefined),
+    });
     pending.resolve();
     await vi.advanceTimersByTimeAsync(0);
     expect(readSettings).toHaveBeenCalledTimes(1);

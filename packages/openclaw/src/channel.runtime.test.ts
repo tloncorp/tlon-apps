@@ -646,14 +646,20 @@ describe('gateway startup catch-up wiring', () => {
       await import('./restart-catchup.js');
     const connected = vi.fn();
     const stop = vi.fn();
+    const readsReady = Promise.resolve();
     const attach = vi
       .spyOn(getRestartCatchupCoordinator(), 'attachMonitor')
-      .mockReturnValue({ connected, stop });
+      .mockReturnValue({ connected, stop, settled: () => readsReady });
     let finish!: () => void;
     const pending = new Promise<void>((resolve) => {
       finish = resolve;
     });
-    const connection = { isConnected: () => true, readSettings: vi.fn() };
+    const connection = {
+      isConnected: () => true,
+      readSettings: vi.fn(),
+      establishActivityReadBaseline: vi.fn(),
+      replayMissedMessages: vi.fn(),
+    };
     vi.mocked(monitorTlonProvider).mockImplementationOnce(async (opts) => {
       opts?.onReady?.(connection);
       await pending;
@@ -669,6 +675,9 @@ describe('gateway startup catch-up wiring', () => {
     } as never);
     expect(attach).toHaveBeenCalledWith('default', cfg);
     expect(connected).toHaveBeenCalledWith(connection);
+    expect(vi.mocked(monitorTlonProvider).mock.lastCall?.[0]).toMatchObject({
+      activityReadsReady: readsReady,
+    });
     abort.abort();
     expect(stop).toHaveBeenCalledTimes(1);
     finish();
@@ -686,6 +695,7 @@ describe('gateway startup catch-up wiring', () => {
     vi.spyOn(getRestartCatchupCoordinator(), 'attachMonitor').mockReturnValue({
       connected,
       stop,
+      settled: () => Promise.resolve(),
     });
     vi.mocked(monitorTlonProvider).mockRejectedValueOnce(
       new Error('authentication failed')
