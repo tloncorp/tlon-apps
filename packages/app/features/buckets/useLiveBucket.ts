@@ -286,7 +286,12 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const upload = (await db.getBucketUploads({ channelId })).find(
         (row) => row.id === id
       );
-      if (!upload) return;
+      // The row went while this waited -- its Bucket or folder was deleted --
+      // so nothing will run it; let go of its file.
+      if (!upload) {
+        forgetUpload(id);
+        return;
+      }
       // A row holds at most one request id: begin-upload's before it has a
       // session, finish-upload's after. One held alongside a session is a
       // finish whose answer never arrived -- the host may well have
