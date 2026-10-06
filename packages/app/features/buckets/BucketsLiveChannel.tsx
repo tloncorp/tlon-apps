@@ -503,6 +503,18 @@ export function BucketsLiveChannel({
     onFilesDropped: (files: BucketUploadCandidate[]) =>
       live.addUploads(files, activeFolderId),
     onOpenItem: (item: BucketItem) => void openItem(item),
+    onRemoveFailedUploads: (items: BucketItem[]) =>
+      void live
+        .removeFailedUploads(items.map((item) => item.id))
+        .then((removed) => {
+          if (removed === 0) return;
+          showToast({
+            message:
+              removed === 1
+                ? 'Failed upload removed'
+                : `${removed.toLocaleString()} failed uploads removed`,
+          });
+        }),
     onRetryUpload: (item: BucketItem) => void live.retryUpload(item.id),
   };
 

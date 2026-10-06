@@ -2676,6 +2676,23 @@ export const deleteBucketUpload = createWriteQuery(
   ['bucketUploads']
 );
 
+/**
+ * Delete many upload rows in one write, so dismissing a thousand failures
+ * invalidates the readers once rather than a thousand times. Chunked to stay
+ * under SQLite's bound-parameter limit.
+ */
+export const deleteBucketUploads = createWriteQuery(
+  'deleteBucketUploads',
+  async (ids: string[], ctx: QueryCtx) => {
+    for (let i = 0; i < ids.length; i += 500) {
+      await ctx.db
+        .delete($bucketUploads)
+        .where(inArray($bucketUploads.id, ids.slice(i, i + 500)));
+    }
+  },
+  ['bucketUploads']
+);
+
 export const getBucketUploads = createReadQuery(
   'getBucketUploads',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {

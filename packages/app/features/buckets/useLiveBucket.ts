@@ -46,6 +46,7 @@ import {
   isFinishRefusal,
 } from './bucketUploadFinish';
 import {
+  MAX_CONCURRENT_UPLOADS,
   dequeueUpload,
   enqueueUpload,
   noteUploadOpened,
@@ -620,6 +621,52 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     [runUpload, uploads]
   );
 
+  // Dismiss failed uploads in bulk.
+  //
+  // This is dismissal of attempts, not deletion of files: no delete-entry is
+  // sent, so a failure whose finish actually landed keeps its file. Only the
+  // rows asked for, and only those still failed when this runs -- an upload
+  // retried or added meanwhile is left alone. The rows go in one write, then
+  // the host is told, a few at a time, so any session still pending stops
+  // holding the host owner's quota. Most failures have none: the run that
+  // failed already cancelled it, and a refused begin never opened one. One
+  // whose finish answer was lost is not cancelled either, since whether it
+  // landed is unknown; the host expires it if it did not.
+  const removeFailedUploads = useCallback(
+    async (ids: string[]) => {
+      const wanted = new Set(ids);
+      const targets = uploadsRef.current.filter(
+        (upload) => wanted.has(upload.id) && upload.state === 'failed'
+      );
+      if (targets.length === 0) return 0;
+      targets.forEach((upload) => {
+        dequeueUpload(upload.id);
+        forgetUpload(upload.id);
+      });
+      await db.deleteBucketUploads(targets.map((upload) => upload.id));
+
+      const pending = targets.filter(
+        (upload) => upload.sessionId !== null && upload.finishRequestId === null
+      );
+      const cancelNext = async (): Promise<void> => {
+        const upload = pending.shift();
+        if (!upload) return;
+        await sendBucketsAction({
+          type: 'cancel-upload',
+          flag,
+          reason: 'Removed after failing',
+          sessionId: upload.sessionId!,
+        }).catch(() => undefined);
+        return cancelNext();
+      };
+      await Promise.all(
+        Array.from({ length: MAX_CONCURRENT_UPLOADS }, cancelNext)
+      );
+      return targets.length;
+    },
+    [flag]
+  );
+
   // Completed rows linger for the aggregate bar; the list shows what is
   // still going.
   const localItems = useMemo<BucketItem[]>(
@@ -780,6 +827,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         return await openWith(minted.token);
       }
     },
+    removeFailedUploads,
     retryUpload,
     // The manifest as read, plus the revision it is at. No `snapshot`: there
     // is no private copy of one any more.
