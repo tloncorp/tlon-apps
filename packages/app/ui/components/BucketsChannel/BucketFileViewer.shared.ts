@@ -525,7 +525,12 @@ export async function readPreviewText(
   }: { html?: boolean; limit?: number } = {}
 ): Promise<string | null> {
   const declared = Number(response.headers.get('content-length'));
-  if (declared > limit) return null;
+  if (declared > limit) {
+    // Unread, the body could keep coming over the network until the
+    // response is collected.
+    await response.body?.cancel().catch(() => {});
+    return null;
+  }
 
   let bytes: Uint8Array;
   const body = response.body;
@@ -1006,9 +1011,16 @@ function* markupTags(
     };
     if (inForeignContent) {
       // Every foreign element is tracked, so that an end tag can close the
-      // ones it holds. It takes its parent's namespace, and a foreign element
-      // can close itself.
-      const { namespace } = scopes[scopes.length - 1];
+      // ones it holds. It takes its parent's namespace -- except an svg
+      // straight inside an annotation-xml, which the parser makes SVG -- and
+      // a foreign element can close itself.
+      const parent = scopes[scopes.length - 1];
+      const namespace =
+        name === 'svg' &&
+        parent.namespace === 'math' &&
+        parent.name === 'annotation-xml'
+          ? 'svg'
+          : parent.namespace;
       const encoding = asciiLowercase(
         parseEntities(attributes.get('encoding') ?? '', { attribute: true })
       );
@@ -1767,15 +1779,17 @@ function withLinksAimedAtBlank(html: string, depth = 0): string {
   const base = fileWebBase(html);
   let rewritten = '';
   let copied = 0;
-  for (const { name, nameEnd, end } of markupTags(
+  for (const { foreign, name, nameEnd, end } of markupTags(
     html,
     TEXT_CONTENT_ELEMENTS
   )) {
     if (name === 'a' || name === 'area') {
       const attributes = html.slice(nameEnd, end - 1);
       const values = tagAttributes(attributes);
+      // xlink:href is an address only where the parser gives it XLink's
+      // namespace, on a foreign (SVG) link; on an HTML one it is a name.
       const { address, aimed } = settledLink(
-        values.get('href') ?? values.get('xlink:href'),
+        values.get('href') ?? (foreign ? values.get('xlink:href') : undefined),
         base
       );
       rewritten +=

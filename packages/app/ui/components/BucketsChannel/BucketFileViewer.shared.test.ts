@@ -108,21 +108,28 @@ describe('readPreviewText', () => {
 
   // The manifest size is the writer's word, so the response's own length is
   // checked before a byte is read.
-  it('refuses a body whose declared length is over the cap', async () => {
-    let touched = false;
-    const response = {
-      headers: new Headers({ 'content-length': '65' }),
-      get body() {
-        touched = true;
-        return null;
+  // Refused unread, and cancelled: left alone, the body could keep coming
+  // over the network until the response is collected.
+  it('refuses a body whose declared length is over the cap, and cancels it unread', async () => {
+    let pulled = false;
+    let cancelled = false;
+    const body = new ReadableStream(
+      {
+        pull() {
+          pulled = true;
+        },
+        cancel() {
+          cancelled = true;
+        },
       },
-      arrayBuffer: () => {
-        touched = true;
-        return Promise.resolve(new ArrayBuffer(0));
-      },
-    } as unknown as Response;
+      { highWaterMark: 0 }
+    );
+    const response = new Response(body, {
+      headers: { 'content-length': '65' },
+    });
     expect(await readPreviewText(response, { limit: 64 })).toBeNull();
-    expect(touched).toBe(false);
+    expect(cancelled).toBe(true);
+    expect(pulled).toBe(false);
   });
 
   // Without a length, the read stops at the first byte past the cap rather
@@ -492,6 +499,13 @@ describe('htmlPreviewTitle', () => {
     expect(htmlPreviewTitle('<svg><g><svg></g></svg><title>Page</title>')).toBe(
       'Page'
     );
+    // An svg straight inside an annotation-xml is SVG, so its foreignObject
+    // holds HTML.
+    expect(
+      htmlPreviewTitle(
+        '<math><annotation-xml><svg><foreignObject><title>Page</title></foreignObject></svg></annotation-xml></math>'
+      )
+    ).toBe('Page');
     // An annotation-xml's encoding is read decoded, as the tokenizer gives it.
     expect(
       htmlPreviewTitle(
@@ -1291,6 +1305,19 @@ describe('htmlPreviewDocument without scripts', () => {
     expect(scriptless('<a data=x=" href=/~/logout>open</a>')).toContain(
       '<a target="_blank" data=x=">open</a>'
     );
+  });
+
+  // On an HTML link xlink:href is just a name: the link has no address, and
+  // gains none.
+  it('takes an address from xlink:href only on an SVG link', () => {
+    expect(
+      scriptless('<a xlink:href="https://example.com">text</a>')
+    ).toContain('<a target="_blank">text</a>');
+    expect(
+      scriptless(
+        '<svg><a xlink:href="https://example.com"><text>t</text></a></svg>'
+      )
+    ).toContain('<a target="_blank" href="https://example.com/">');
   });
 
   // A self-closed SVG link stays closed, so what follows it is no link.
