@@ -21,6 +21,30 @@ import {
   readPreviewText,
 } from './BucketFileViewer.shared';
 
+const KEY = '0123456789abcdef0123456789abcdef';
+const TOKEN = 'fedcba9876543210fedcba9876543210';
+
+const scriptless = (html: string) =>
+  htmlPreviewDocument(html, KEY, { scripts: 'none' });
+
+// `html` as the document of an inline frame, `levels` frames deep.
+function nested(html: string, levels: number): string {
+  let doc = html;
+  for (let level = 0; level < levels; level += 1) {
+    doc = `<iframe srcdoc="${doc.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"></iframe>`;
+  }
+  return doc;
+}
+
+function directivesOf(policy: string) {
+  return new Map(
+    policy.split('; ').map((directive) => {
+      const [name, ...sources] = directive.split(' ');
+      return [name, sources] as const;
+    })
+  );
+}
+
 describe('getBucketPreviewKind', () => {
   it.each([
     ['photo.jpg', 'image/jpeg', 'image'],
@@ -28,63 +52,35 @@ describe('getBucketPreviewKind', () => {
     ['notes.md', undefined, 'text'],
     ['index.html', 'text/html', 'html'],
     ['page.htm', undefined, 'html'],
-    // The upload fallback mime, as a file sent without one arrives.
+    // The upload fallback, as a file sent without a type arrives.
     ['export.html', 'application/octet-stream', 'html'],
-    // A mime with parameters, as a bot upload can record it.
+    // With parameters, as a bot upload can record it.
     ['index', 'text/html; charset=utf-8', 'html'],
-    ['report.pdf', undefined, 'pdf'],
-    ['archive.zip', 'application/zip', 'unsupported'],
-    // A rename changes the name, not the type: an explicit type other than
-    // HTML wins over an .html name, while plain text so named renders.
-    ['renamed.html', 'application/pdf', 'pdf'],
-    ['bundle.html', 'application/zip', 'unsupported'],
     ['notes.html', 'text/plain', 'html'],
-  ] as const)('classifies %s as %s', (name, mimeType, expected) => {
+    ['report.pdf', undefined, 'pdf'],
+    // A rename changes the name, not the type: an explicit type other than
+    // HTML or text wins over an .html name.
+    ['renamed.html', 'application/pdf', 'pdf'],
+    ['archive.zip', 'application/zip', 'unsupported'],
+    ['bundle.html', 'application/zip', 'unsupported'],
+  ] as const)('classifies %s (%s) as %s', (name, mimeType, expected) => {
     expect(getBucketPreviewKind({ name, mimeType })).toBe(expected);
   });
 });
 
+// A preview reads the whole object into memory, and the backend accepts up to
+// 5 GiB, so size is the gate, HTML included; an unknown size is let through.
 describe('canPreviewFromText', () => {
-  // A text preview reads the whole object into memory, and the backend accepts
-  // objects up to 5 GiB, so the size is the gate rather than the type.
-  it('refuses a text file past the cap', () => {
-    const item = { name: 'export.csv', mimeType: 'text/csv' };
-    expect(canPreviewFromText({ ...item, size: MAX_TEXT_PREVIEW_BYTES })).toBe(
-      true
-    );
-    expect(
-      canPreviewFromText({ ...item, size: MAX_TEXT_PREVIEW_BYTES + 1 })
-    ).toBe(false);
-  });
-
-  // Extension alone makes something text, so a renamed dump reaches this path.
-  it('gates on size even when only the extension says text', () => {
-    expect(
-      canPreviewFromText({ name: 'dump.txt', size: 4 * 1024 * 1024 * 1024 })
-    ).toBe(false);
-  });
-
-  it('still refuses anything that is not text', () => {
-    expect(
-      canPreviewFromText({ name: 'clip.mp4', mimeType: 'video/mp4' })
-    ).toBe(false);
-  });
-
-  // An entry with no size recorded is allowed through rather than blocked.
-  it('allows a text file whose size is unknown', () => {
-    expect(canPreviewFromText({ name: 'notes.md' })).toBe(true);
-  });
-
-  // An HTML file is rendered from the same fetched string, so it is gated
-  // the same way.
-  it('gates an html file on the same cap', () => {
-    const item = { name: 'report.html', mimeType: 'text/html' };
-    expect(canPreviewFromText({ ...item, size: MAX_TEXT_PREVIEW_BYTES })).toBe(
-      true
-    );
-    expect(
-      canPreviewFromText({ ...item, size: MAX_TEXT_PREVIEW_BYTES + 1 })
-    ).toBe(false);
+  it.each([
+    ['export.csv', 'text/csv', MAX_TEXT_PREVIEW_BYTES, true],
+    ['export.csv', 'text/csv', MAX_TEXT_PREVIEW_BYTES + 1, false],
+    ['report.html', 'text/html', MAX_TEXT_PREVIEW_BYTES, true],
+    ['report.html', 'text/html', MAX_TEXT_PREVIEW_BYTES + 1, false],
+    ['dump.txt', undefined, 4 * 1024 * 1024 * 1024, false],
+    ['notes.md', undefined, undefined, true],
+    ['clip.mp4', 'video/mp4', undefined, false],
+  ])('%s (%s, %s bytes): %s', (name, mimeType, size, expected) => {
+    expect(canPreviewFromText({ name, mimeType, size })).toBe(expected);
   });
 });
 
@@ -100,20 +96,20 @@ describe('readPreviewText', () => {
         controller.close();
       },
     });
+  // `café` in windows-1252, whose é UTF-8 cannot read.
+  const cafe = new Uint8Array([0x63, 0x61, 0x66, 0xe9]);
 
-  it('reads a body within the cap', async () => {
-    const response = new Response(streamOf('<p>', 'héllo', '</p>'));
-    expect(await readPreviewText(response, { limit: 64 })).toBe('<p>héllo</p>');
-  });
+  it('reads within the cap, and declines past it without reading the rest', async () => {
+    expect(
+      await readPreviewText(new Response(streamOf('<p>', 'héllo', '</p>')), {
+        limit: 64,
+      })
+    ).toBe('<p>héllo</p>');
 
-  // The manifest size is the writer's word, so the response's own length is
-  // checked before a byte is read.
-  // Refused unread, and cancelled: left alone, the body could keep coming
-  // over the network until the response is collected.
-  it('refuses a body whose declared length is over the cap, and cancels it unread', async () => {
+    // Declared over the cap: cancelled unread, or it could keep coming.
     let pulled = false;
     let cancelled = false;
-    const body = new ReadableStream(
+    const declared = new ReadableStream(
       {
         pull() {
           pulled = true;
@@ -124,138 +120,114 @@ describe('readPreviewText', () => {
       },
       { highWaterMark: 0 }
     );
-    const response = new Response(body, {
-      headers: { 'content-length': '65' },
-    });
-    expect(await readPreviewText(response, { limit: 64 })).toBeNull();
-    expect(cancelled).toBe(true);
-    expect(pulled).toBe(false);
-  });
+    expect(
+      await readPreviewText(
+        new Response(declared, { headers: { 'content-length': '65' } }),
+        { limit: 64 }
+      )
+    ).toBeNull();
+    expect({ pulled, cancelled }).toEqual({ pulled: false, cancelled: true });
 
-  // Without a length, the read stops at the first byte past the cap rather
-  // than finishing the download.
-  it('stops reading an undeclared body at the cap', async () => {
-    let cancelled = false;
-    const chunk = new Uint8Array(32);
+    // Undeclared: stopped at the first byte past the cap.
     let sent = 0;
-    const response = new Response(
-      new ReadableStream<Uint8Array>({
-        pull(controller) {
-          sent += 1;
-          controller.enqueue(chunk);
-        },
-        cancel() {
-          cancelled = true;
-        },
-      })
-    );
-    expect(await readPreviewText(response, { limit: 64 })).toBeNull();
+    cancelled = false;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        sent += 1;
+        controller.enqueue(new Uint8Array(32));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    expect(
+      await readPreviewText(new Response(endless), { limit: 64 })
+    ).toBeNull();
     expect(cancelled).toBe(true);
     expect(sent).toBeLessThanOrEqual(4);
+
+    // A body that does not stream cannot be stopped, and a compressed one can
+    // outgrow any declared length, so it is not read.
+    let readWhole = false;
+    const unstreamed = {
+      arrayBuffer: () => {
+        readWhole = true;
+        return Promise.resolve(new ArrayBuffer(0));
+      },
+      body: null,
+      headers: new Headers({ 'content-length': '5' }),
+    } as unknown as Response;
+    expect(await readPreviewText(unstreamed, { limit: 64 })).toBeNull();
+    expect(readWhole).toBe(false);
   });
 
-  // `café` in windows-1252: the é is the single byte 0xE9, which UTF-8
-  // decoding turns into a replacement character.
-  const cafe = new Uint8Array([0x63, 0x61, 0x66, 0xe9]);
-
-  it('decodes in the charset the response declares', async () => {
-    const response = new Response(streamOf(cafe), {
-      headers: { 'content-type': 'text/plain; charset=windows-1252' },
-    });
-    expect(await readPreviewText(response)).toBe('café');
-  });
-
-  it('decodes an HTML page in its own <meta> charset', async () => {
+  it('decodes in the encoding the response or the page declares', async () => {
+    expect(
+      await readPreviewText(
+        new Response(streamOf(cafe), {
+          headers: { 'content-type': 'text/plain; charset=windows-1252' },
+        })
+      )
+    ).toBe('café');
     const page = (html: boolean) =>
       readPreviewText(
-        new Response(
-          streamOf('<!doctype html><meta charset="windows-1252"><p>', cafe),
-          { headers: { 'content-type': 'text/html' } }
-        ),
+        new Response(streamOf('<meta charset="windows-1252"><p>', cafe), {
+          headers: { 'content-type': 'text/html' },
+        }),
         { html }
       );
-    expect(await page(true)).toBe(
-      '<!doctype html><meta charset="windows-1252"><p>café'
-    );
-    // A text file's contents are not a declaration.
+    expect(await page(true)).toBe('<meta charset="windows-1252"><p>café');
+    // A text file's contents declare nothing.
     expect(await page(false)).toContain('caf�');
   });
 
-  // Expo's TextDecoder, which React Native apps get, knows only UTF-8 and
-  // throws for any other label.
-  const RealTextDecoder = TextDecoder;
-  class Utf8OnlyDecoder {
-    private decoder: TextDecoder;
-    constructor(label = 'utf-8') {
-      if (!/^(utf-?8|unicode-1-1-utf-8)$/i.test(label)) {
-        throw new RangeError(`Unknown encoding: ${label}`);
+  describe('where the runtime decodes only UTF-8, as on Expo', () => {
+    const RealTextDecoder = TextDecoder;
+    class Utf8OnlyDecoder {
+      private decoder: TextDecoder;
+      constructor(label = 'utf-8') {
+        if (!/^(utf-?8|unicode-1-1-utf-8)$/i.test(label)) {
+          throw new RangeError(`Unknown encoding: ${label}`);
+        }
+        this.decoder = new RealTextDecoder('utf-8');
       }
-      this.decoder = new RealTextDecoder('utf-8');
+      decode(input: Uint8Array) {
+        return this.decoder.decode(input);
+      }
     }
-    decode(input: Uint8Array) {
-      return this.decoder.decode(input);
-    }
-  }
-
-  describe('where the runtime decodes only UTF-8', () => {
     afterEach(() => {
       vi.unstubAllGlobals();
     });
 
-    it('still decodes windows-1252 and what a browser reads as it', async () => {
+    it('decodes windows-1252 and UTF-16 itself, and declines what it cannot decode', async () => {
       vi.stubGlobal('TextDecoder', Utf8OnlyDecoder);
-      const euro = new Uint8Array([0x80, 0x20, 0x93, 0x71, 0x94]);
+      const euro = new Uint8Array([0x20, 0x80, 0x20, 0x93, 0x71, 0x94]);
       for (const charset of ['windows-1252', 'iso-8859-1', 'latin1']) {
-        const response = new Response(
-          streamOf(cafe, new Uint8Array([0x20]), euro),
-          {
-            headers: { 'content-type': `text/plain; charset=${charset}` },
-          }
-        );
-        expect(await readPreviewText(response)).toBe('café € “q”');
+        const response = new Response(streamOf(cafe, euro), {
+          headers: { 'content-type': `text/plain; charset=${charset}` },
+        });
+        expect(await readPreviewText(response), charset).toBe('café € “q”');
       }
-    });
-
-    it('still decodes UTF-16 from its byte order mark, either way round', async () => {
-      vi.stubGlobal('TextDecoder', Utf8OnlyDecoder);
       const text = '<p>café ✓</p>';
       const units = [...text].map((char) => char.charCodeAt(0));
-      const le = new Uint8Array([
-        0xff,
-        0xfe,
-        ...units.flatMap((u) => [u & 0xff, u >> 8]),
-      ]);
-      const be = new Uint8Array([
-        0xfe,
-        0xff,
-        ...units.flatMap((u) => [u >> 8, u & 0xff]),
-      ]);
-      for (const bytes of [le, be]) {
-        expect(
-          await readPreviewText(new Response(streamOf(bytes)), { html: true })
-        ).toBe(text);
+      for (const bytes of [
+        [0xff, 0xfe, ...units.flatMap((u) => [u & 0xff, u >> 8])],
+        [0xfe, 0xff, ...units.flatMap((u) => [u >> 8, u & 0xff])],
+      ]) {
+        const response = new Response(streamOf(new Uint8Array(bytes)));
+        expect(await readPreviewText(response, { html: true })).toBe(text);
       }
-    });
-
-    // A valid encoding it cannot decode is not a missing one: read as UTF-8
-    // it would come out garbled, so the preview is declined, and Open shows
-    // the file.
-    it('declines an encoding it cannot decode', async () => {
-      vi.stubGlobal('TextDecoder', Utf8OnlyDecoder);
-      const response = new Response(streamOf('plain ascii'), {
+      // A valid encoding it cannot decode would come out garbled as UTF-8, so
+      // the preview is declined, and Open shows the file.
+      const shiftJis = new Response(streamOf('plain ascii'), {
         headers: { 'content-type': 'text/plain; charset=shift_jis' },
       });
-      expect(await readPreviewText(response)).toBeNull();
-      const page = new Response(
-        streamOf('<meta charset="windows-1251"><p>x</p>'),
-        { headers: { 'content-type': 'text/html' } }
+      expect(await readPreviewText(shiftJis)).toBeNull();
+      const cyrillic = new Response(
+        streamOf('<meta charset="windows-1251"><p>x</p>')
       );
-      expect(await readPreviewText(page, { html: true })).toBeNull();
-    });
-
-    // Whether a label names an encoding does not depend on the runtime.
-    it('still reads a declaration it cannot decode as declared', () => {
-      vi.stubGlobal('TextDecoder', Utf8OnlyDecoder);
+      expect(await readPreviewText(cyrillic, { html: true })).toBeNull();
+      // Whether a label names an encoding does not depend on the runtime.
       expect(
         previewEncoding({
           contentType: 'text/html; charset=Shift_JIS',
@@ -271,570 +243,235 @@ describe('readPreviewText', () => {
       ).toBe('gbk');
     });
   });
-
-  // Nothing can stop a body that does not stream at the cap, and a compressed
-  // one can grow past any declared length, so it is declined unread.
-  it('declines a body that does not stream', async () => {
-    let read = false;
-    const unstreamed = {
-      arrayBuffer: () => {
-        read = true;
-        return Promise.resolve(new ArrayBuffer(0));
-      },
-      body: null,
-      headers: new Headers({ 'content-length': '5' }),
-    } as unknown as Response;
-    expect(await readPreviewText(unstreamed, { limit: 64 })).toBeNull();
-    expect(read).toBe(false);
-  });
 });
 
 describe('previewEncoding', () => {
-  const page = (head: string, contentType?: string, html = true) =>
-    previewEncoding({ contentType, head, html });
+  // prettier-ignore
+  it.each([
+    // A byte order mark first, then the response's charset, read parameter by
+    // parameter; a label that names no encoding says nothing.
+    ['ï»¿<meta charset="windows-1252">', 'text/html; charset=shift_jis', 'utf-8'],
+    ['ÿþ<\u0000', undefined, 'utf-16le'],
+    ['þÿ\u0000<', undefined, 'utf-16be'],
+    ['<meta charset="windows-1252">', 'text/html; charset="Shift_JIS"', 'shift_jis'],
+    ['<p>x</p>', 'text/html; note="x; charset=windows-1252"; charset=utf-8', 'utf-8'],
+    ['<p>x</p>', 'text/html;charset="windows\\-1252"', 'windows-1252'],
+    ['<meta charset="windows-1252">', 'text/html; charset=bogus', 'windows-1252'],
+    // Then a genuine <meta>, as the prescan reads one: http-equiv must be
+    // content-type itself, and only ASCII whitespace or the vertical tab,
+    // which Chromium and WebKit both accept, may surround charset's `=`.
+    ['<!doctype html><meta charset=windows-1252>', undefined, 'windows-1252'],
+    ['<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">', undefined, 'windows-1252'],
+    ['<meta content="text/html; charset=windows-1252" http-equiv="Content-Type">', undefined, 'windows-1252'],
+    ['<meta http-equiv="Content-Type" content="text/html; charset = windows-1252">', undefined, 'windows-1252'],
+    ['<meta http-equiv="content-type" content="text/html; charset\u000b=windows-1252">', undefined, 'windows-1252'],
+    ['<meta http-equiv="content-type" content="text/html; charset =windows-1252">', undefined, 'utf-8'],
+    ['<meta http-equiv=" content-type " content="text/html; charset=windows-1252">', undefined, 'utf-8'],
+    ['<meta charset = " windows-1252 ">', undefined, 'windows-1252'],
+    ['<!-- charset=windows-1252 --><p>x</p>', undefined, 'utf-8'],
+    ['<meta name="description" content="charset=windows-1252">', undefined, 'utf-8'],
+    ['<meta http-equiv="refresh" content="0; charset=windows-1252">', undefined, 'utf-8'],
+    ['<!-- <meta charset="shift_jis"> --><meta charset="windows-1252">', undefined, 'windows-1252'],
+    ['<meta charset="x-invalid"><meta charset="windows-1252">', undefined, 'windows-1252'],
+    ['<meta http-equiv="Content-Type" content="text/html; charset=bogus"><meta charset="iso-8859-2">', undefined, 'iso-8859-2'],
+    // A label resolves to its encoding, as the Encoding Standard lists them;
+    // UTF-16 named in ASCII markup is UTF-8.
+    ['<meta charset=" Latin1 ">', undefined, 'windows-1252'],
+    ['<meta charset="us-ascii">', undefined, 'windows-1252'],
+    ['<meta charset="cp1251">', undefined, 'windows-1251'],
+    ['<meta charset="x-sjis">', undefined, 'shift_jis'],
+    ['<meta charset="x-user-defined">', undefined, 'windows-1252'],
+    ['<meta charset="utf-16">', undefined, 'utf-8'],
+    ['<meta charset="unicode">', undefined, 'utf-8'],
+    ['<meta charset="csunicode">', undefined, 'utf-8'],
+    ['<meta charset="ucs-2">', undefined, 'utf-8'],
+    ['<meta charset="unicodefffe">', undefined, 'utf-8'],
+    // Then an XML declaration at the very start.
+    ['<?xml version="1.0" encoding="windows-1252"?><p>x</p>', undefined, 'windows-1252'],
+    ["<?xml encoding = 'ISO-8859-2' ?><p>x</p>", undefined, 'iso-8859-2'],
+    ['<?xml encoding="windows-1252"?><meta charset="iso-8859-2">', undefined, 'iso-8859-2'],
+    [' <?xml encoding="windows-1252"?><p>x</p>', undefined, 'utf-8'],
+    ['<?xml version="1.0"?><p>encoding="windows-1252"</p>', undefined, 'utf-8'],
+    ['<?xml version="1.0" encoding="UTF-16"?><p>x</p>', undefined, 'utf-8'],
+    ['<?xml version="1.0" encoding="bogus"?><p>x</p>', undefined, 'utf-8'],
+    ['<\u0000?\u0000x\u0000m\u0000l\u0000', undefined, 'utf-16le'],
+    ['\u0000<\u0000?\u0000x\u0000m\u0000l', undefined, 'utf-16be'],
+    // Otherwise UTF-8.
+    ['<p>no declaration</p>', undefined, 'utf-8'],
+    [`${' '.repeat(1024)}<meta charset="windows-1252">`, undefined, 'utf-8'],
+  ])('%j (%s) is %s', (head, contentType, expected) => {
+    expect(previewEncoding({ contentType, head, html: true })).toBe(expected);
+  });
 
-  it('lets a byte order mark decide first', () => {
+  it('reads no declaration in plain text', () => {
     expect(
-      page('ï»¿<meta charset="windows-1252">', 'text/html; charset=shift_jis')
+      previewEncoding({ head: '<meta charset="windows-1252">', html: false })
     ).toBe('utf-8');
-    expect(page('ÿþ<\u0000')).toBe('utf-16le');
-    expect(page('þÿ\u0000<')).toBe('utf-16be');
-  });
-
-  // As browsers read a pragma: http-equiv must be content-type itself, and
-  // only ASCII whitespace and the vertical tab, which Chromium and WebKit
-  // both accept, may surround charset's `=`.
-  it('reads a pragma only as browsers do', () => {
-    expect(
-      page(
-        '<meta http-equiv=" content-type " content="text/html; charset=windows-1252">'
-      )
-    ).toBe('utf-8');
-    expect(
-      page(
-        '<meta http-equiv="content-type" content="text/html; charset\u000b=windows-1252">'
-      )
-    ).toBe('windows-1252');
-    expect(
-      page(
-        '<meta http-equiv="content-type" content="text/html; charset\u00a0=windows-1252">'
-      )
-    ).toBe('utf-8');
-    expect(
-      page(
-        '<meta http-equiv="Content-Type" content="text/html; charset = windows-1252">'
-      )
-    ).toBe('windows-1252');
-  });
-
-  // The MIME type parser reads a header parameter by parameter: a quoted
-  // value's `charset=` is that value's.
-  it("reads the response's charset parameter, not text inside another", () => {
-    expect(
-      page(
-        '<p>x</p>',
-        'text/html; note="x; charset=windows-1252"; charset=utf-8'
-      )
-    ).toBe('utf-8');
-    expect(page('<p>x</p>', 'text/html;charset="windows\\-1252"')).toBe(
-      'windows-1252'
-    );
-  });
-
-  // A label resolves to the encoding it names, as the Encoding Standard
-  // lists them: ISO-8859-1 and ASCII are windows-1252 to a browser.
-  it('resolves a label to the encoding it names', () => {
-    expect(page('<meta charset=" Latin1 ">')).toBe('windows-1252');
-    expect(page('<meta charset="us-ascii">')).toBe('windows-1252');
-    expect(page('<meta charset="cp1251">')).toBe('windows-1251');
-    expect(page('<meta charset="x-sjis">')).toBe('shift_jis');
-  });
-
-  it('takes the charset the response declares next', () => {
-    expect(
-      page('<meta charset="windows-1252">', 'text/html; charset="Shift_JIS"')
-    ).toBe('shift_jis');
-  });
-
-  it("reads an HTML page's own declaration, in either form", () => {
-    expect(page('<!doctype html><meta charset=windows-1252>')).toBe(
-      'windows-1252'
-    );
-    expect(
-      page(
-        '<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">'
-      )
-    ).toBe('windows-1252');
-  });
-
-  // Only a real declaration counts: charset= in a comment, or in a meta that
-  // is not about the encoding, says nothing about it.
-  it('reads only a genuine declaration', () => {
-    expect(page('<!-- charset=windows-1252 --><p>x</p>')).toBe('utf-8');
-    expect(
-      page('<meta name="description" content="charset=windows-1252">')
-    ).toBe('utf-8');
-    expect(
-      page('<meta http-equiv="refresh" content="0; charset=windows-1252">')
-    ).toBe('utf-8');
-    expect(
-      page(
-        '<meta content="text/html; charset=windows-1252" http-equiv="Content-Type">'
-      )
-    ).toBe('windows-1252');
-    expect(page('<meta charset = " windows-1252 ">')).toBe('windows-1252');
-    expect(
-      page('<!-- <meta charset="shift_jis"> --><meta charset="windows-1252">')
-    ).toBe('windows-1252');
-  });
-
-  // An ASCII <meta> cannot be read from a document that really is UTF-16.
-  it('reads a UTF-16 declaration as UTF-8', () => {
-    expect(page('<meta charset="utf-16">')).toBe('utf-8');
-    // By any of its labels.
-    for (const label of ['unicode', 'csunicode', 'ucs-2', 'unicodefffe']) {
-      expect(page(`<meta charset="${label}">`), label).toBe('utf-8');
-    }
-    expect(page('<meta charset="x-user-defined">')).toBe('windows-1252');
-    expect(page('<?xml version="1.0" encoding="UTF-16"?><p>x</p>')).toBe(
-      'utf-8'
-    );
-  });
-
-  // The prescan's fallback: an XML declaration at the very start, when no
-  // <meta> names an encoding.
-  it('falls back to the encoding an XML declaration at the start names', () => {
-    expect(
-      page('<?xml version="1.0" encoding="windows-1252"?><html><p>x</p>')
-    ).toBe('windows-1252');
-    expect(page("<?xml encoding = 'ISO-8859-2' ?><p>x</p>")).toBe('iso-8859-2');
-    // A <meta> comes first; the declaration counts only at the very start.
-    expect(
-      page('<?xml encoding="windows-1252"?><meta charset="iso-8859-2">')
-    ).toBe('iso-8859-2');
-    expect(page(' <?xml encoding="windows-1252"?><p>x</p>')).toBe('utf-8');
-    expect(page('<?xml version="1.0"?><p>encoding="windows-1252"</p>')).toBe(
-      'utf-8'
-    );
-  });
-
-  // A label that names no encoding says nothing: the prescan reads on past
-  // it, and a response's charset that names none leaves it to the prescan.
-  it('reads past a label that names no encoding', () => {
-    expect(
-      page('<meta charset="x-invalid"><meta charset="windows-1252">')
-    ).toBe('windows-1252');
-    expect(
-      page(
-        '<meta http-equiv="Content-Type" content="text/html; charset=bogus"><meta charset="iso-8859-2">'
-      )
-    ).toBe('iso-8859-2');
-    expect(
-      page('<meta charset="windows-1252">', 'text/html; charset=bogus')
-    ).toBe('windows-1252');
-    expect(page('<?xml version="1.0" encoding="bogus"?><p>x</p>')).toBe(
-      'utf-8'
-    );
-  });
-
-  // An XML declaration in UTF-16 bytes, with no byte order mark.
-  it('reads an XML declaration in UTF-16 bytes as UTF-16', () => {
-    expect(page('<\u0000?\u0000x\u0000m\u0000l\u0000')).toBe('utf-16le');
-    expect(page('\u0000<\u0000?\u0000x\u0000m\u0000l')).toBe('utf-16be');
-  });
-
-  it('defaults to UTF-8, and ignores a declaration past the first 1024 bytes or in plain text', () => {
-    expect(page('<p>no declaration</p>')).toBe('utf-8');
-    expect(page(`${' '.repeat(1024)}<meta charset="windows-1252">`)).toBe(
-      'utf-8'
-    );
-    expect(page('<meta charset="windows-1252">', undefined, false)).toBe(
-      'utf-8'
-    );
   });
 });
 
 describe('htmlPreviewTitle', () => {
-  it('reads the title as the page would show it', () => {
-    expect(
-      htmlPreviewTitle(
-        '<!doctype html><html><head><title>\n  Launch &amp; recap &#x2014; Q3  </title></head><body></body></html>'
-      )
-    ).toBe('Launch & recap — Q3');
-    // Text whose lowercase is longer (İ) leaves the scan in step.
-    expect(htmlPreviewTitle('<p>İİİ</p><title>Title</title>')).toBe('Title');
-    expect(htmlPreviewTitle('<!--><title>Title</title><!-- -->')).toBe('Title');
+  // prettier-ignore
+  it.each([
+    ['<!doctype html><title>\n  Launch &amp; recap &#x2014; Q3  </title>', 'Launch & recap — Q3'],
+    // Collapsed as document.title does: ASCII whitespace only.
+    ['<title>\n A&nbsp;&nbsp;B \t</title>', 'A  B'],
+    // HTML5's references; legacy names need no semicolon and match their
+    // longest prefix; C1 numbers are windows-1252, and zero, a surrogate or
+    // past Unicode the replacement character.
+    ['<title>&copy;&Alpha;&hearts;&euro;&hellip;&lang;&AMP;</title>', '©Α♥€…⟨&'],
+    ['<title>Status &check; &bigstar; &copy 2026 &notit;</title>', 'Status ✓ ★ © 2026 ¬it;'],
+    ['<title>a&#150;b&#x0;&#xD800;&#1114112; &bogus; &amp</title>', 'a–b��� &bogus; &'],
+    // Not one the parser makes no element of, or that is not the document's.
+    ['<!-- <title>draft</title> --><svg><title>icon</title></svg><title>Report</title>', 'Report'],
+    [`<script>'<title>a</title>'</script><style>/* <title>b</title> */</style><template><title>c</title></template><textarea><title>d</title></textarea><div data-x="a>b<title>e</title>"></div><TITLE>Final</TITLE>`, 'Final'],
+    ['<template><template></template><title>Draft</title></template><title>Final</title>', 'Final'],
+    ['<svg><svg></svg><title>Icon</title></svg><svg/><title>Final</title>', 'Final'],
+    ['<p>İİİ</p><title>Title</title>', 'Title'],
+    ['<!--><title>Title</title><!-- -->', 'Title'],
+    // Foreign content, as the tree builder reads it.
+    ['<svg><p></p><title>Real</title>', 'Real'],
+    ['<svg/><title>Page</title>', 'Page'],
+    ['<svg data=x/><title>Drawing</title></svg><title>Page</title>', 'Page'],
+    ['<svg><foreignObject><title>Page</title></foreignObject></svg>', 'Page'],
+    ['<svg><foreignObject><textarea><title>Fake</title></textarea></foreignObject></svg><title>Real</title>', 'Real'],
+    ['<svg><g><svg></g></svg><title>Page</title>', 'Page'],
+    ['<math><annotation-xml><svg><foreignObject><title>Page</title></foreignObject></svg></annotation-xml></math>', 'Page'],
+    ['<math><annotation-xml encoding="text&#47;html"><title>Page</title></annotation-xml></math>', 'Page'],
+    ['<math><mi><mglyph><title>Fake</title></mglyph></mi></math><title>Real</title>', 'Real'],
+    ['<template><svg><template></template></svg><title>Draft</title></template><title>Final</title>', 'Final'],
+    // A script ends through its escape states.
+    ['<script><!--<script></script><title>Fake</title>--></script><title>Real</title>', 'Real'],
+    ['<script><!-- </script><title>Escaped end</title>', 'Escaped end'],
+    ['<script><!--></script><title>Short comment</title>', 'Short comment'],
+    // None.
+    ['<p>hi</p>', undefined],
+    ['<title>  </title>', undefined],
+    ['<title>Unclosed', undefined],
+    ['<plaintext><title>Text</title>', undefined],
+    ['<noscript><title>Offline</title></noscript>', undefined],
+  ])('reads %j as %j', (html, expected) => {
+    expect(htmlPreviewTitle(html)).toBe(expected);
   });
 
-  // With scripting on a noscript holds text; in a frame that runs no
-  // scripts, as under Electron, it holds markup, and a title in it counts.
-  // An HTML-only tag closes an svg, so a title after it is the page's; one
-  // in a textarea inside a foreignObject is text.
-  it('reads foreign content as the parser does', () => {
-    expect(htmlPreviewTitle('<svg><p></p><title>Real</title>')).toBe('Real');
-    // A self-closed svg has no title; one whose last value ends in a slash
-    // is still open.
-    expect(htmlPreviewTitle('<svg/><title>Page</title>')).toBe('Page');
+  // Where no script runs, as under Electron, a noscript holds markup.
+  it('reads a title in noscript in a frame without scripts', () => {
     expect(
-      htmlPreviewTitle(
-        '<svg data=x/><title>Drawing</title></svg><title>Page</title>'
-      )
-    ).toBe('Page');
-    expect(
-      htmlPreviewTitle(
-        '<svg><foreignObject><textarea><title>Fake</title></textarea></foreignObject></svg><title>Real</title>'
-      )
-    ).toBe('Real');
-  });
-
-  // A foreignObject's content is HTML, so a title there is the page's; an end
-  // tag in foreign content closes what the element it names holds; and a
-  // script's end is found through its escape states.
-  it("reads the title the tree builder makes the document's", () => {
-    expect(
-      htmlPreviewTitle(
-        '<svg><foreignObject><title>Page</title></foreignObject></svg>'
-      )
-    ).toBe('Page');
-    expect(htmlPreviewTitle('<svg><g><svg></g></svg><title>Page</title>')).toBe(
-      'Page'
-    );
-    // An svg straight inside an annotation-xml is SVG, so its foreignObject
-    // holds HTML.
-    expect(
-      htmlPreviewTitle(
-        '<math><annotation-xml><svg><foreignObject><title>Page</title></foreignObject></svg></annotation-xml></math>'
-      )
-    ).toBe('Page');
-    // An annotation-xml's encoding is read decoded, as the tokenizer gives it.
-    expect(
-      htmlPreviewTitle(
-        '<math><annotation-xml encoding="text&#47;html"><title>Page</title></annotation-xml></math>'
-      )
-    ).toBe('Page');
-    // At a MathML text element, mglyph is MathML still, and so is a title in it.
-    expect(
-      htmlPreviewTitle(
-        '<math><mi><mglyph><title>Fake</title></mglyph></mi></math><title>Real</title>'
-      )
-    ).toBe('Real');
-    expect(
-      htmlPreviewTitle(
-        '<script><!--<script></script><title>Fake</title>--></script><title>Real</title>'
-      )
-    ).toBe('Real');
-    expect(
-      htmlPreviewTitle('<script><!-- </script><title>Escaped end</title>')
-    ).toBe('Escaped end');
-    expect(
-      htmlPreviewTitle('<script><!--></script><title>Short comment</title>')
-    ).toBe('Short comment');
-  });
-
-  // A template inside an svg is the svg's; its end tag does not close the
-  // HTML template around it.
-  it('keeps a template open past a foreign one', () => {
-    expect(
-      htmlPreviewTitle(
-        '<template><svg><template></template></svg><title>Draft</title></template><title>Final</title>'
-      )
-    ).toBe('Final');
-  });
-
-  it('reads a title in noscript only where scripts do not run', () => {
-    const page = '<noscript><title>Offline</title></noscript><p>x</p>';
-    expect(htmlPreviewTitle(page)).toBeUndefined();
-    expect(htmlPreviewTitle(page, { scripting: false })).toBe('Offline');
-  });
-
-  it('ignores a title inside an svg, and one in a comment', () => {
-    expect(
-      htmlPreviewTitle(
-        '<!-- <title>draft</title> --><svg><title>icon</title></svg><title>Report</title>'
-      )
-    ).toBe('Report');
-  });
-
-  // The parser reads none of these as a title element.
-  it('ignores a title in a script, a style, a template, a textarea or an attribute', () => {
-    expect(
-      htmlPreviewTitle(
-        `<script>const sample = '<title>Draft</title>';</script>` +
-          '<style>/* <title>Style</title> */</style>' +
-          '<template><title>Inert</title></template>' +
-          '<textarea><title>Typed</title></textarea>' +
-          '<div data-x="a>b<title>Attr</title>"></div>' +
-          '<TITLE>Final</TITLE>'
-      )
-    ).toBe('Final');
-  });
-
-  it('decodes references as a browser does', () => {
-    expect(htmlPreviewTitle('<title>Report &copy; 2026</title>')).toBe(
-      'Report © 2026'
-    );
-    // HTML5's references, not only HTML 4's.
-    expect(htmlPreviewTitle('<title>Status &check; &bigstar;</title>')).toBe(
-      'Status ✓ ★'
-    );
-    // Legacy names need no semicolon, and match their longest prefix.
-    expect(htmlPreviewTitle('<title>&copy 2026 &notit;</title>')).toBe(
-      '© 2026 ¬it;'
-    );
-    expect(
-      htmlPreviewTitle(
-        '<title>&Alpha;&hearts;&euro;&hellip;&lang;&AMP;</title>'
-      )
-    ).toBe('Α♥€…⟨&');
-    // A numeric reference into C1 is the windows-1252 character; zero, a
-    // surrogate or past Unicode is the replacement character.
-    expect(
-      htmlPreviewTitle('<title>a&#150;b&#x0;&#xD800;&#1114112;</title>')
-    ).toBe('a–b���');
-    expect(htmlPreviewTitle('<title>&bogus; &amp</title>')).toBe('&bogus; &');
-  });
-
-  // document.title strips and collapses ASCII whitespace only.
-  it('keeps a no-break space', () => {
-    expect(htmlPreviewTitle('<title>\n A&nbsp;&nbsp;B \t</title>')).toBe(
-      'A  B'
-    );
-  });
-
-  // Template content is inert at any depth, and an svg title is the
-  // drawing's, nested or not.
-  it('reads past nested templates and svgs', () => {
-    expect(
-      htmlPreviewTitle(
-        '<template><template></template><title>Draft</title></template><title>Final</title>'
-      )
-    ).toBe('Final');
-    expect(
-      htmlPreviewTitle(
-        '<svg><svg></svg><title>Icon</title></svg><svg/><title>Final</title>'
-      )
-    ).toBe('Final');
-  });
-
-  it('has none for a file without one, a blank one, or one never closed', () => {
-    expect(htmlPreviewTitle('<p>hi</p>')).toBeUndefined();
-    expect(htmlPreviewTitle('<title>  </title>')).toBeUndefined();
-    expect(htmlPreviewTitle('<title>Unclosed')).toBeUndefined();
-    expect(htmlPreviewTitle('<plaintext><title>Text</title>')).toBeUndefined();
+      htmlPreviewTitle('<noscript><title>Offline</title></noscript>', {
+        scripting: false,
+      })
+    ).toBe('Offline');
   });
 });
 
 describe('bucketFileViewerHeading', () => {
-  const file = {
-    name: 'report.html',
-    mimeType: 'text/html',
-    sizeLabel: '4 KB',
-  };
-
-  it('names a rendered page by its title, with the file beneath', () => {
+  it('names a rendered page by its title, and anything else by its name', () => {
+    const file = {
+      name: 'report.html',
+      mimeType: 'text/html',
+      sizeLabel: '4 KB',
+    };
     expect(
       bucketFileViewerHeading({
         ...file,
-        textContent: '<title>Quarterly numbers</title>',
+        textContent: '<title>Numbers</title>',
       })
-    ).toEqual({ subtitle: 'report.html · 4 KB', title: 'Quarterly numbers' });
-  });
-
-  it('names a file by its name otherwise', () => {
-    expect(bucketFileViewerHeading(file)).toEqual({
-      subtitle: '4 KB',
-      title: 'report.html',
-    });
-    expect(
-      bucketFileViewerHeading({ ...file, textContent: '<p>untitled</p>' })
-    ).toEqual({ subtitle: '4 KB', title: 'report.html' });
+    ).toEqual({ subtitle: 'report.html · 4 KB', title: 'Numbers' });
+    for (const textContent of [undefined, '<p>untitled</p>']) {
+      expect(bucketFileViewerHeading({ ...file, textContent })).toEqual({
+        subtitle: '4 KB',
+        title: 'report.html',
+      });
+    }
     expect(
       bucketFileViewerHeading({
         name: 'notes.md',
-        textContent: '<title>not a page</title>',
+        textContent: '<title>x</title>',
       })
     ).toEqual({ subtitle: 'File', title: 'notes.md' });
   });
 });
 
 describe('htmlPreviewSandboxes', () => {
-  // An unsandboxed srcdoc document inherits the app's origin, and
-  // allow-same-origin would hand it back. Forms would post with the reader's
-  // cookie in some browsers; modals would be the app's own dialogs; top
-  // navigation would take the app's own tab. None may happen in either frame.
-  it('never grants either frame the app origin, forms, dialogs or the top', () => {
-    for (const scripts of ['all', 'ours', 'none'] as const) {
-      const sandboxes = htmlPreviewSandboxes({ scripts });
-      for (const tokens of [sandboxes.document, sandboxes.shell]) {
-        for (const forbidden of [
-          'allow-same-origin',
-          'allow-forms',
-          'allow-modals',
-          'allow-top-navigation',
-        ]) {
-          expect(tokens.split(' ')).not.toContain(forbidden);
-        }
-      }
-    }
-  });
-
-  // The file's frame cannot open a window, which it could otherwise do with
-  // no tap at all; the shell opens its links for it. While the file's scripts
-  // are held the frames are the same: the policy decides whose scripts run.
-  it('runs the file in a browser with scripts and nothing else', () => {
-    for (const scripts of ['all', 'ours'] as const) {
-      expect(htmlPreviewSandboxes({ scripts })).toEqual({
-        document: 'allow-scripts',
-        shell: 'allow-scripts allow-popups allow-popups-to-escape-sandbox',
-      });
-    }
-  });
-
-  // The desktop shell disables web security, which grants every document
-  // universal access and so defeats the opaque origin. With no script in
-  // either frame, only the reader's own click can follow a link.
-  it('withholds scripts under Electron and lets links open as popups', () => {
+  // Never the app's origin, forms, dialogs or the top. The file's frame opens
+  // no window, which it could with no tap; under Electron, where web security
+  // is off, neither frame runs a script.
+  it('grants scripts or popups by mode, and nothing more', () => {
+    const scripted = {
+      document: 'allow-scripts',
+      shell: 'allow-scripts allow-popups allow-popups-to-escape-sandbox',
+    };
     const popups = 'allow-popups allow-popups-to-escape-sandbox';
+    expect(htmlPreviewSandboxes({ scripts: 'all' })).toEqual(scripted);
+    expect(htmlPreviewSandboxes({ scripts: 'ours' })).toEqual(scripted);
     expect(htmlPreviewSandboxes({ scripts: 'none' })).toEqual({
       document: popups,
       shell: popups,
     });
-  });
-
-  it('grants the native frame scripts and nothing else', () => {
     expect(HTML_PREVIEW_NATIVE_SANDBOX).toBe('allow-scripts');
   });
 });
 
-// `html` as the document of an inline frame, `levels` frames deep.
-function nested(html: string, levels: number): string {
-  let doc = html;
-  for (let level = 0; level < levels; level += 1) {
-    doc = `<iframe srcdoc="${doc.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"></iframe>`;
-  }
-  return doc;
-}
-
 describe('htmlPreviewHasScripts', () => {
-  it('finds a script element, a handler attribute or a javascript: URL', () => {
-    for (const html of [
-      '<script>go()</script>',
-      '<SCRIPT src="x.js"></SCRIPT>',
-      '<button onclick="go()">go</button>',
-      '<svg onload = "go()"></svg>',
-      '<a href="javascript:go()">go</a>',
-      // Text whose lowercase is longer (İ) leaves the scan in step.
-      '<p>İİİ</p><script>go()</script>',
-      // Inside an svg, a title or a style holds markup.
-      '<svg><title><script>run()</script></title></svg>',
-      '<svg><style><a onclick="go()">x</a></style></svg>',
-      // A quote in an unquoted value is the value's.
-      '<a data=x=" onclick=go()>x</a>',
-      // A comment that ends early leaves what follows it markup.
-      '<!--><script>go()</script><!-- -->',
-      // A slash that ends an unquoted value does not close the svg, so its
-      // title is an integration point, and the script in it HTML.
-      '<svg data=x/><title><script>run()</script></title></svg>',
-      // WebKit ignores a text element's start tag inside a select, and runs
-      // the script after it.
-      '<select><iframe><script>run()</script></iframe></select>',
-      '<select><style><script>run()</script></style></select>',
-      '<select><xmp><script>run()</script></xmp></select>',
-    ]) {
-      expect(htmlPreviewHasScripts(html), html).toBe(true);
-    }
+  it.each([
+    '<script>go()</script>',
+    '<SCRIPT src="x.js"></SCRIPT>',
+    '<button onclick="go()">go</button>',
+    '<svg onload = "go()"></svg>',
+    '<a href="javascript:go()">go</a>',
+    '<a href="java&#x73;cript:go()">go</a>',
+    '<a href="java\tscript:go()">go</a>',
+    '<a href=" JAVASCRIPT:go()">go</a>',
+    '<iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>',
+    '<p>İİİ</p><script>go()</script>',
+    '<a data=x=" onclick=go()>x</a>',
+    '<!--><script>go()</script><!-- -->',
+    // In an svg a title or style holds markup.
+    '<svg><title><script>run()</script></title></svg>',
+    '<svg><style><a onclick="go()">x</a></style></svg>',
+    '<svg data=x/><title><script>run()</script></title></svg>',
+    // WebKit ignores a text element's start tag inside a select.
+    '<select><iframe><script>run()</script></iframe></select>',
+    '<select><style><script>run()</script></style></select>',
+    '<select><xmp><script>run()</script></xmp></select>',
+    // Nested deeper than it reads.
+    nested('<p>static</p>', 4),
+  ])('finds a script in %j', (html) => {
+    expect(htmlPreviewHasScripts(html)).toBe(true);
   });
 
-  // As the browser reads the attribute: references decoded, tabs dropped.
-  it('finds a javascript: URL however it is spelled', () => {
-    for (const html of [
-      '<a href="java&#x73;cript:go()">go</a>',
-      '<a href="java\tscript:go()">go</a>',
-      '<a href=" JAVASCRIPT:go()">go</a>',
-      '<iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>',
-    ]) {
-      expect(htmlPreviewHasScripts(html), html).toBe(true);
-    }
-  });
-
-  // Inside an svg's foreignObject, or a MathML text element, content is HTML
-  // again: a textarea there holds text.
-  // Outside a select, a text element's content is text in every browser.
-  it('finds no script in the text of a text element', () => {
-    expect(
-      htmlPreviewHasScripts('<iframe><script>run()</script></iframe>')
-    ).toBe(false);
-    expect(
-      htmlPreviewHasScripts(
-        '<select></select><xmp><script>run()</script></xmp>'
-      )
-    ).toBe(false);
-  });
-
-  it('reads integration points as HTML', () => {
-    for (const html of [
-      '<svg><foreignObject><textarea><script>go()</script></textarea></foreignObject></svg>',
-      '<math><mi><textarea><script>go()</script></textarea></mi></math>',
-      '<svg><p><textarea><script>go()</script></textarea>',
-    ]) {
-      expect(htmlPreviewHasScripts(html), html).toBe(false);
-    }
-  });
-
-  it('finds nothing in a static page', () => {
-    expect(
-      htmlPreviewHasScripts(
-        '<p>A page about online scripts.</p><a href="x">x</a>'
-      )
-    ).toBe(false);
-    // Only in an attribute a browser follows is it a script.
-    expect(
-      htmlPreviewHasScripts('<abbr title="javascript: a language">JS</abbr>')
-    ).toBe(false);
-    expect(
-      htmlPreviewHasScripts('<style>a::after { content: "<script>"; }</style>')
-    ).toBe(false);
-    expect(htmlPreviewHasScripts(nested('<p>static</p>', 3))).toBe(false);
-  });
-
-  // Each nested document is read again, so a file of them could take a scan
-  // per level; past the depth read, a frame is taken to have scripts.
-  it('takes a document nested deeper than it reads as having scripts', () => {
-    expect(htmlPreviewHasScripts(nested('<p>static</p>', 4))).toBe(true);
-    expect(htmlPreviewHasScripts(nested('<p>static</p>', 400))).toBe(true);
+  it.each([
+    '<p>A page about online scripts.</p><a href="x">x</a>',
+    '<abbr title="javascript: a language">JS</abbr>',
+    '<style>a::after { content: "<script>"; }</style>',
+    '<iframe><script>run()</script></iframe>',
+    '<select></select><xmp><script>run()</script></xmp>',
+    '<svg><foreignObject><textarea><script>go()</script></textarea></foreignObject></svg>',
+    '<math><mi><textarea><script>go()</script></textarea></mi></math>',
+    '<svg><p><textarea><script>go()</script></textarea>',
+    nested('<p>static</p>', 3),
+  ])('finds none in %j', (html) => {
+    expect(htmlPreviewHasScripts(html)).toBe(false);
   });
 });
 
-describe('htmlPreviewKey', () => {
-  it('is 128 random bits of hex, fresh each time', () => {
-    const first = htmlPreviewKey();
-    expect(first).toMatch(/^[0-9a-f]{32}$/);
-    expect(htmlPreviewKey()).not.toBe(first);
-  });
-});
-
-describe('HTML_PREVIEW_POLICY', () => {
-  const directives = new Map(
-    HTML_PREVIEW_POLICY.split('; ').map((directive) => {
-      const [name, ...sources] = directive.split(' ');
-      return [name, sources] as const;
-    })
-  );
-
-  it('forbids connections, forms and objects, and frames anything but inline documents', () => {
-    expect(directives.get('connect-src')).toEqual(["'none'"]);
-    expect(directives.get('form-action')).toEqual(["'none'"]);
-    expect(directives.get('object-src')).toEqual(["'none'"]);
-    expect(directives.get('frame-src')).toEqual(['about:']);
-  });
-
-  // The reader's ship would answer a request as the reader (`/~/logout` is a
-  // GET), and a source list cannot exclude one host, so it names only what
-  // can never be a ship: nothing by default, inline and data: or blob:
-  // resources, and public CDNs.
-  it('lets nothing load from anywhere a ship, or a page author, could be', () => {
-    expect(directives.get('default-src')).toEqual(["'none'"]);
-    const allowedHosts = new Set([
+describe('the preview policies', () => {
+  // A ship would answer as the reader (`/~/logout` is a GET), and no source
+  // list can exclude one host, so only what can never be a ship may load.
+  it('load nothing a ship or an author could serve, and allow no connection, form, object or outside frame', () => {
+    const running = directivesOf(HTML_PREVIEW_POLICY);
+    expect(running.get('default-src')).toEqual(["'none'"]);
+    for (const name of ['connect-src', 'form-action', 'object-src']) {
+      expect(running.get(name), name).toEqual(["'none'"]);
+    }
+    expect(running.get('frame-src')).toEqual(['about:']);
+    const allowed = new Set([
+      "'none'",
+      "'unsafe-inline'",
+      "'unsafe-eval'",
+      'data:',
+      'blob:',
+      'about:',
       'https://cdnjs.cloudflare.com',
       'https://cdn.jsdelivr.net',
       'https://unpkg.com',
@@ -843,100 +480,70 @@ describe('HTML_PREVIEW_POLICY', () => {
       'https://fonts.googleapis.com',
       'https://fonts.gstatic.com',
     ]);
-    for (const [name, sources] of directives) {
+    for (const [name, sources] of running) {
       for (const source of sources) {
-        const allowed =
-          ["'none'", "'unsafe-inline'", "'unsafe-eval'"].includes(source) ||
-          ['data:', 'blob:', 'about:'].includes(source) ||
-          allowedHosts.has(source);
-        expect(allowed, `${name} ${source}`).toBe(true);
+        expect(allowed.has(source), `${name} ${source}`).toBe(true);
       }
     }
-    expect(HTML_PREVIEW_POLICY).not.toContain("'self'");
-    expect(HTML_PREVIEW_POLICY).not.toMatch(/(^|\s)(https?:|\*)(\s|;|$)/);
   });
-});
 
-const KEY = '0123456789abcdef0123456789abcdef';
-const TOKEN = 'fedcba9876543210fedcba9876543210';
-
-function directivesOf(policy: string) {
-  return new Map(
-    policy.split('; ').map((directive) => {
-      const [name, ...sources] = directive.split(' ');
-      return [name, sources] as const;
-    })
-  );
-}
-
-describe('htmlPreviewHeldPolicy', () => {
-  // While the file's scripts are held, only ours run: they carry the nonce.
-  // Everything else is the policy the file's scripts run under.
-  it('runs only scripts carrying the nonce, under the same loads and limits', () => {
+  it("hold a page's scripts by nonce, under the same loads and limits", () => {
     const held = directivesOf(htmlPreviewHeldPolicy(TOKEN));
     expect(held.get('script-src')).toEqual([`'nonce-${TOKEN}'`]);
     expect(held.has('worker-src')).toBe(false);
+    held.delete('script-src');
     const running = directivesOf(HTML_PREVIEW_POLICY);
     running.delete('script-src');
     running.delete('worker-src');
-    held.delete('script-src');
     expect(held).toEqual(running);
   });
 });
 
 describe('htmlPreviewShell', () => {
   const file = '<!doctype html><p class="x">a & b</p><script>alert(1)</script>';
-  const webShell = htmlPreviewShell({
-    document: file,
-    key: KEY,
-    opener: { kind: 'window' },
-    sandbox: 'allow-scripts',
-  });
-  const nativeShell = htmlPreviewShell({
-    document: file,
-    key: KEY,
-    opener: { kind: 'app', token: TOKEN },
-    sandbox: 'allow-scripts',
-  });
+  const shell = (
+    opener: Parameters<typeof htmlPreviewShell>[0]['opener'],
+    nonce?: string
+  ) =>
+    htmlPreviewShell({
+      document: file,
+      key: KEY,
+      nonce,
+      opener,
+      sandbox: 'allow-scripts',
+    });
 
-  // The document inside inherits the shell's policy, so this is the copy the
-  // file's own markup cannot reach; its frame-src is also what refuses the
-  // frame's own navigation, which only a parent can.
-  it('carries the policy in its head', () => {
-    expect(webShell).toContain(
+  // The file's document inherits the policy from here, where its markup cannot
+  // reach. Without a viewport, iOS lays the file out at desktop width.
+  it('holds the file, escaped, in a sandboxed frame under its policy, with one script of its own after it', () => {
+    const web = shell({ kind: 'window' });
+    expect(web).toContain(
       `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
     );
-    expect(webShell.indexOf('Content-Security-Policy')).toBeLessThan(
-      webShell.indexOf('</head>')
+    expect(web.indexOf('Content-Security-Policy')).toBeLessThan(
+      web.indexOf('</head>')
     );
-  });
-
-  // On native the shell is the WebView's page: without a viewport of its own
-  // iOS lays the file out at desktop width and shrinks it to fit.
-  it('lays the page out at the device width', () => {
-    expect(nativeShell).toContain(
+    expect(shell({ kind: 'app', token: TOKEN })).toContain(
       '<meta name="viewport" content="width=device-width, initial-scale=1">'
     );
-  });
-
-  it('holds the file in a sandboxed frame, escaped', () => {
-    expect(webShell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
-    expect(webShell).toContain(
-      '&lt;p class=&quot;x&quot;&gt;a &amp; b&lt;/p&gt;&lt;script&gt;alert(1)&lt;/script&gt;'
+    expect(web).toContain(
+      '<iframe sandbox="allow-scripts" srcdoc="&lt;!doctype html&gt;&lt;p class=&quot;x&quot;&gt;a &amp; b&lt;/p&gt;&lt;script&gt;alert(1)&lt;/script&gt;"></iframe>'
     );
-  });
+    expect(web.match(/<script/g)).toHaveLength(1);
+    expect(web.indexOf('<script')).toBeGreaterThan(web.indexOf('</iframe>'));
 
-  // The one unescaped script is ours: the file's is inside the attribute.
-  it('runs one script of its own, after the frame', () => {
-    expect(webShell.match(/<script/g)).toHaveLength(1);
-    expect(webShell.indexOf('<script')).toBeGreaterThan(
-      webShell.indexOf('</iframe>')
+    const held = shell({ kind: 'window' }, TOKEN);
+    expect(held).toContain(
+      `<meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(TOKEN)}">`
     );
+    expect(held.match(/<script/g)).toHaveLength(1);
+    expect(held).toContain(`<script nonce="${TOKEN}">`);
   });
 
-  // A link opens only from the file's frame, with the key, while the browser
-  // holds a tap on record, and only as a web, mail or phone link.
+  // From the file's frame, with the key, on a tap, to a web, mail or phone
+  // address: as a new tab on web, through the app with its token on native.
   it('opens a link only when every check passes', () => {
+    const web = shell({ kind: 'window' });
     for (const check of [
       'event.source !== frame.contentWindow',
       `data.type !== '${HTML_PREVIEW_LINK_MESSAGE}'`,
@@ -944,507 +551,227 @@ describe('htmlPreviewShell', () => {
       'navigator.userActivation',
       '!activation.isActive',
       '/^(https?|mailto|tel):$/.test(url.protocol)',
+      `})('${KEY}', function (href)`,
+      "window.open(href, '_blank', 'noopener,noreferrer')",
     ]) {
-      expect(webShell).toContain(check);
+      expect(web).toContain(check);
     }
-    expect(webShell).toContain(`})('${KEY}', function (href)`);
-  });
-
-  // While the file's scripts are held, the shell carries the held policy for
-  // the file's document to inherit, and its own script the nonce.
-  it("carries the held policy, and the nonce on its script, while the file's scripts are held", () => {
-    const held = htmlPreviewShell({
-      document: file,
-      key: KEY,
-      nonce: TOKEN,
-      opener: { kind: 'window' },
-      sandbox: 'allow-scripts',
-    });
-    expect(held).toContain(
-      `<meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(TOKEN)}">`
-    );
-    expect(held.match(/<script/g)).toEqual(['<script']);
-    expect(held).toContain(`<script nonce="${TOKEN}">`);
-  });
-
-  it('opens a new tab on web', () => {
-    expect(webShell).toContain(
-      "window.open(href, '_blank', 'noopener,noreferrer')"
-    );
-    expect(webShell).not.toContain('ReactNativeWebView');
-  });
-
-  // On native the app opens it, and checks the token first.
-  it('asks the app on native, with the token', () => {
-    expect(nativeShell).toContain('window.ReactNativeWebView.postMessage(');
-    expect(nativeShell).toContain(`token: '${TOKEN}'`);
-    expect(nativeShell).not.toContain('window.open(');
+    expect(web).not.toContain('ReactNativeWebView');
+    const native = shell({ kind: 'app', token: TOKEN });
+    expect(native).toContain('window.ReactNativeWebView.postMessage(');
+    expect(native).toContain(`token: '${TOKEN}'`);
+    expect(native).not.toContain('window.open(');
   });
 });
 
 describe('htmlPreviewDocument', () => {
-  const lead = `${`<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`}<base target="_blank"><script>`;
+  const lead = `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}"><base target="_blank"><script>`;
 
-  function expectInserted(out: string, before: string, after: string) {
+  // After the doctype, or the page goes quirks, past any comment tokens ahead
+  // of it as the tokenizer ends them; first when a file's script could run
+  // before it.
+  // prettier-ignore
+  it.each([
+    ['<!doctype html><p>x</p>', '<!doctype html>'],
+    ['<!DOCTYPE html>\n<html><body>b</body></html>', '<!DOCTYPE html>'],
+    ['<p>hi</p>', ''],
+    ['﻿  <!doctype html><p>x</p>', '﻿  <!doctype html>'],
+    ['<!-- generated -->\n<!DOCTYPE html>\n<p>x</p>', '<!-- generated -->\n<!DOCTYPE html>'],
+    ['<?xml version="1.0"?>\n<!DOCTYPE html>\n<p>x</p>', '<?xml version="1.0"?>\n<!DOCTYPE html>'],
+    ['<!---- a -- b ----><!DOCTYPE html><p>x</p>', '<!---- a -- b ----><!DOCTYPE html>'],
+    ['<!foo><!DOCTYPE html><p>x</p>', '<!foo><!DOCTYPE html>'],
+    ['</ x><!DOCTYPE html><p>x</p>', '</ x><!DOCTYPE html>'],
+    ['<![CDATA[x]]><!DOCTYPE html><p>x</p>', '<![CDATA[x]]><!DOCTYPE html>'],
+    // A `>` ends a doctype even inside a quoted identifier.
+    ['<!DOCTYPE html SYSTEM "a>b"><p>x</p>', '<!DOCTYPE html SYSTEM "a>'],
+    ['<!--><script>first()</script><!-- --><!DOCTYPE html><p>x</p>', ''],
+    ['<!---><script>first()</script><!-- --><!DOCTYPE html><p>x</p>', ''],
+    ['<!-- --!><script>first()</script><!-- --><!DOCTYPE html><p>x</p>', ''],
+  ])('places ours in %j after %j', (file, before) => {
+    const out = htmlPreviewDocument(file, KEY);
     expect(out.startsWith(before + lead)).toBe(true);
-    expect(out.endsWith(`</script>${after}`)).toBe(true);
-  }
-
-  it('places the policy, a new-tab target and our link script after the doctype', () => {
-    expectInserted(
-      htmlPreviewDocument('<!doctype html><p>x</p>', KEY),
-      '<!doctype html>',
-      '<p>x</p>'
-    );
+    expect(out.endsWith(`</script>${file.slice(before.length)}`)).toBe(true);
   });
 
-  // The script is the one that hands a tapped link to the shell: it carries
-  // the key in its closure and removes its own element before the file's
-  // first script can read it.
-  it('gives our script the key and lets it remove itself', () => {
-    const out = htmlPreviewDocument('<!doctype html><p>x</p>', KEY);
-    expect(out).toContain(`})('${KEY}', true);`);
-    expect(out).toContain('document.currentScript');
-    expect(out).toContain('self.remove()');
-    // Only a click the reader made is handed on.
-    expect(out).toContain('event.isTrusted');
-    // A page that cancels its own link click keeps it cancelled.
-    expect(out).toContain('if (event.defaultPrevented) return;');
+  it('gives our script the key, removes it, and follows only trusted, uncancelled clicks', () => {
+    const out = htmlPreviewDocument('<p>x</p>', KEY);
+    for (const part of [
+      `})('${KEY}', true);`,
+      'document.currentScript',
+      'self.remove()',
+      'event.isTrusted',
+      'if (event.defaultPrevented) return;',
+    ]) {
+      expect(out).toContain(part);
+    }
   });
 
-  it('keeps the rest of the document as it was', () => {
-    const out = htmlPreviewDocument(
-      '<!DOCTYPE html>\n<html><head><title>t</title></head><body>b</body></html>',
-      KEY
-    );
-    expectInserted(
-      out,
-      '<!DOCTYPE html>',
-      '\n<html><head><title>t</title></head><body>b</body></html>'
-    );
-  });
-
-  it('places it all first when there is no doctype', () => {
-    expectInserted(htmlPreviewDocument('<p>hi</p>', KEY), '', '<p>hi</p>');
-  });
-
-  it('tolerates a byte order mark and whitespace before the doctype', () => {
-    expectInserted(
-      htmlPreviewDocument('﻿  <!doctype html><p>x</p>', KEY),
-      '﻿  <!doctype html>',
-      '<p>x</p>'
-    );
-  });
-
-  // A comment or an XML declaration may precede the doctype. The fragment
-  // still has to land after the doctype, or the parser drops the doctype and
-  // the page goes quirks.
-  it('keeps a doctype that follows a comment or an xml declaration', () => {
-    expectInserted(
-      htmlPreviewDocument('<!-- generated -->\n<!DOCTYPE html>\n<p>x</p>', KEY),
-      '<!-- generated -->\n<!DOCTYPE html>',
-      '\n<p>x</p>'
-    );
-    expectInserted(
-      htmlPreviewDocument(
-        '<?xml version="1.0"?>\n<!DOCTYPE html>\n<p>x</p>',
-        KEY
-      ),
-      '<?xml version="1.0"?>\n<!DOCTYPE html>',
-      '\n<p>x</p>'
-    );
-  });
-
-  // A `>` ends a DOCTYPE token in every tokenizer state, inside a quoted
-  // identifier included, so the fragment follows the parser's doctype, not
-  // the quote's.
-  it('ends the doctype where the parser does', () => {
-    expectInserted(
-      htmlPreviewDocument('<!DOCTYPE html SYSTEM "a>b"><p>x</p>', KEY),
-      '<!DOCTYPE html SYSTEM "a>',
-      'b"><p>x</p>'
-    );
-  });
-});
-
-// Under Electron no script runs in the frame, so links are aimed at `_blank`
-// in the markup itself: one aimed at the frame would be refused, and an SVG
-// link ignores the <base> target.
-describe("htmlPreviewDocument with the file's scripts held", () => {
-  const held = (html: string) =>
-    htmlPreviewDocument(html, KEY, { scripts: 'ours', nonce: TOKEN });
-
-  // The browser parses the file as it is; of the scripts in it only ours,
-  // which carries the nonce, runs, and it handles the links the browser made.
-  it('runs our script alone and leaves the markup to the browser', () => {
+  // Held, the browser parses the file as it is and runs only our script.
+  it("holds the file's scripts by nonce, ours alone, with no javascript: link", () => {
     const file =
       '<p><a href="tlon://open" onclick="go()">x</a></p><script>go()</script>';
-    const out = held(`<!doctype html>${file}`);
-    expect(out).toBe(
-      `<!doctype html><meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(TOKEN)}"><base target="_blank">` +
-        out.slice(
-          out.indexOf(`<script nonce="${TOKEN}">`),
-          out.indexOf('</script>') + 9
-        ) +
-        file
-    );
+    const out = htmlPreviewDocument(`<!doctype html>${file}`, KEY, {
+      scripts: 'ours',
+      nonce: TOKEN,
+    });
+    expect(
+      out.startsWith(
+        `<!doctype html><meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(TOKEN)}"><base target="_blank"><script nonce="${TOKEN}">`
+      )
+    ).toBe(true);
+    expect(out.endsWith(`</script>${file}`)).toBe(true);
     expect(out.match(/<script nonce=/g)).toHaveLength(1);
+    expect(out).toContain(`})('${KEY}', false);`);
+    expect(out).toContain('if (!runsJavascriptLinks) return;');
   });
 
-  // A javascript: link is the file's own code.
-  it('runs no javascript: link', () => {
-    expect(held('<p>x</p>')).toContain(`})('${KEY}', false);`);
-    expect(held('<p>x</p>')).toContain('if (!runsJavascriptLinks) return;');
+  // They are written in as text, where a slip in an escape would break every
+  // preview silently.
+  it('carries scripts that parse', () => {
+    const scripts = [
+      htmlPreviewDocument('<p>x</p>', KEY),
+      htmlPreviewDocument('<p>x</p>', KEY, { scripts: 'ours', nonce: TOKEN }),
+      ...([{ kind: 'window' }, { kind: 'app', token: TOKEN }] as const).map(
+        (opener) =>
+          htmlPreviewShell({
+            document: '',
+            key: KEY,
+            opener,
+            sandbox: 'allow-scripts',
+          })
+      ),
+    ].map((doc) => {
+      const open = doc.lastIndexOf('<script');
+      return doc.slice(
+        doc.indexOf('>', open) + 1,
+        doc.indexOf('</script>', open)
+      );
+    });
+    for (const script of scripts) {
+      expect(() => new Function(script)).not.toThrow();
+    }
   });
 });
 
-// Our script must come before anything of the file's that could run, so the
-// comments ahead of a doctype end where the tokenizer ends them.
-describe('where our part of the document goes', () => {
-  // A bogus comment is a comment token too: the doctype after it still
-  // counts, so ours goes after it.
-  it('follows a doctype behind bogus comments', () => {
-    for (const before of ['<!foo>', '</ x>', '<![CDATA[x]]>']) {
-      const out = htmlPreviewDocument(`${before}<!DOCTYPE html><p>x</p>`, KEY);
-      expect(out.startsWith(`${before}<!DOCTYPE html><meta `), before).toBe(
-        true
-      );
-    }
-  });
-
-  const lead = (out: string) => out.startsWith('<meta http-equiv=');
-  it('goes first when a comment ends early and the file runs something', () => {
-    for (const opening of ['<!-->', '<!--->', '<!-- --!>']) {
-      const out = htmlPreviewDocument(
-        `${opening}<script>first()</script><!-- --><!DOCTYPE html><p>x</p>`,
-        KEY
-      );
-      expect(lead(out), opening).toBe(true);
-    }
-  });
-
-  it('still follows a doctype behind comments that close the usual way', () => {
-    const out = htmlPreviewDocument(
-      '<!---- a -- b ----><!DOCTYPE html><p>x</p>',
-      KEY
-    );
-    expect(out.startsWith('<!---- a -- b ----><!DOCTYPE html><meta ')).toBe(
-      true
-    );
-  });
-});
-
+// Under Electron no script runs in the frame, so the markup itself aims every
+// link at _blank, and a popup escaping the sandbox may carry only a web, mail
+// or phone address, computed here.
 describe('htmlPreviewDocument without scripts', () => {
-  const scriptless = (html: string) =>
-    htmlPreviewDocument(html, KEY, { scripts: 'none' });
-
-  it('aims every web, mail and phone link at _blank, whatever it was aimed at', () => {
-    const out = scriptless(
-      '<a href="https://a.example" target="_self">a</a>' +
-        '<A HREF=https://b.example TARGET=_top>b</A>' +
-        '<map><area href="mailto:c@example.com" target=\'_parent\'></map>' +
-        '<a href="tel:+15555550100">d</a>' +
-        '<svg><a xlink:href="https://e.example"><text>e</text></a></svg>'
-    );
-    expect(out).toContain('<a target="_blank" href="https://a.example/">a</a>');
-    expect(out).toContain('<A target="_blank" href="https://b.example/">b</A>');
-    expect(out).toContain('<area target="_blank" href="mailto:c@example.com">');
-    expect(out).toContain('<a target="_blank" href="tel:+15555550100">d</a>');
-    expect(out).toContain('<a target="_blank" href="https://e.example/">');
+  // prettier-ignore
+  it.each([
+    ['<a href="https://a.example" target="_self">a</a>', '<a target="_blank" href="https://a.example/">a</a>'],
+    ['<A HREF=https://b.example TARGET=_top>b</A>', '<A target="_blank" href="https://b.example/">b</A>'],
+    ["<map><area href=\"mailto:c@example.com\" target='_parent'></map>", '<area target="_blank" href="mailto:c@example.com">'],
+    ['<a href="tel:+15555550100">d</a>', '<a target="_blank" href="tel:+15555550100">d</a>'],
+    ['<svg><a xlink:href="https://e.example"><text>e</text></a></svg>', '<a target="_blank" href="https://e.example/">'],
+    ['<a title="target=_self" href="https://x.example">x</a>', '<a target="_blank" href="https://x.example/" title="target=_self">'],
+    // Any other scheme loses its address; xlink:href is one only on SVG.
+    ['<a href="data:text/html,<b>x</b>" class="d">d</a>', '<a target="_blank" class="d">d</a>'],
+    ['<a href="java&#x73;cript:go()" class="j">j</a>', '<a target="_blank" class="j">j</a>'],
+    ['<a href=" FILE:///etc/passwd" class="f">f</a>', '<a target="_blank" class="f">f</a>'],
+    ['<a href="zoommtg://join" class="z">z</a>', '<a target="_blank" class="z">z</a>'],
+    ['<a xlink:href="https://example.com">text</a>', '<a target="_blank">text</a>'],
+    // A fragment stays in the file. Left to the browser, a relative address
+    // would resolve against the reader's ship, so it needs a usable web base
+    // of the file's own.
+    ['<a href="#bottom">b</a>', '<a target="_self" href="about:srcdoc#bottom">b</a>'],
+    ['<a href="">top</a>', '<a target="_self" href="about:srcdoc#">top</a>'],
+    ['<a href="help.html">h</a>', '<a target="_blank">h</a>'],
+    ['<a href="//cdn.example/x">x</a>', '<a target="_blank" href="https://cdn.example/x">x</a>'],
+    ['<a href="https:/~/logout">x</a>', '<a target="_blank" href="https://~/logout">x</a>'],
+    ['<base href="https://docs.example/guide/"><a href="help.html">h</a>', '<a target="_blank" href="https://docs.example/guide/help.html">h</a>'],
+    ['<base href="https://docs.example/guide/"><a href="#s">s</a>', '<a target="_blank" href="https://docs.example/guide/#s">s</a>'],
+    ['<base href="https://docs.example/guide/"><a href="//cdn.example/x">x</a>', '<a target="_blank" href="https://cdn.example/x">x</a>'],
+    ['<base href="https://docs.example/guide/"><a href="https:help">h</a>', '<a target="_blank" href="https://docs.example/guide/help">h</a>'],
+    ['<base href="https://docs.example/guide/"><a href="https:/path">p</a>', '<a target="_blank" href="https://docs.example/path">p</a>'],
+    ['<base href="//docs.example/guide/"><a href="help.html">h</a>', '<a target="_blank" href="https://docs.example/guide/help.html">h</a>'],
+    ['<svg><foreignObject><base href="https://docs.example/"><a href="help">Help</a></foreignObject></svg>', '<a target="_blank" href="https://docs.example/help">Help</a>'],
+    ['<svg/><template></template><base href="https://t.example/"><a href="help.html">x</a>', '<a target="_blank" href="https://t.example/help.html">x</a>'],
+    ['<base href="data:text/html,x"><a href="help.html">h</a>', '<a target="_blank">h</a>'],
+    ['<base href="http:"><a href="/~/logout">x</a>', '<a target="_blank">x</a>'],
+    ['<base href="https://exa mple.com/"><a href="/~/logout">x</a>', '<a target="_blank">x</a>'],
+    ['<base href="/docs/"><a href="/~/logout">x</a>', '<a target="_blank">x</a>'],
+    ['<template><base href="https://t.example/"></template><a href="help.html">x</a>', '<a target="_blank">x</a>'],
+    ['<svg><base href="https://t.example/"/></svg><a href="help.html">x</a>', '<a target="_blank">x</a>'],
+    ['<math><base href="https://t.example/"></base></math><a href="help.html">x</a>', '<a target="_blank">x</a>'],
+    // Markup read as the tokenizer and tree builder read it.
+    ['<p>İİİ</p><a href="tlon://open">open</a>', '<p>İİİ</p><a target="_blank">open</a>'],
+    ['<p>İİİ</p><base href="https://b.example/"><a href="x">x</a>', '<a target="_blank" href="https://b.example/x">x</a>'],
+    ['<a data=x=" href=/~/logout>open</a>', '<a target="_blank" data=x=">open</a>'],
+    ['<svg><a href="https://example.com"/><text>Not a link</text></svg>', '<a target="_blank" href="https://example.com/"/><text>Not a link</text>'],
+    ['<svg><title><a href="tlon://open" target="_blank">x</a></title></svg>', '<a target="_blank">x</a>'],
+    ['<svg><style><a href="tlon://open" target="_blank">x</a></style></svg>', '<a target="_blank">x</a>'],
+    ['<svg><textarea><a href="tlon://open" target="_blank">x</a></textarea></svg>', '<a target="_blank">x</a>'],
+    ['<math><annotation-xml><textarea><a href="https://example.com">l</a></textarea>', '<a target="_blank" href="https://example.com/">l</a>'],
+    ['<!--><a href="tlon://open" target="_blank">x</a>', '<a target="_blank">x</a>'],
+    ['<!---><a href="tlon://open" target="_blank">x</a>', '<a target="_blank">x</a>'],
+    ['<!-- x --!><a href="tlon://open" target="_blank">x</a>', '<a target="_blank">x</a>'],
+    ['<? <!-- ><a href="tlon://open" target="_blank">x</a>', '<a target="_blank">x</a>'],
+    ['<!x <!-- ><a href="tlon://open" target="_blank">x</a>', '<a target="_blank">x</a>'],
+    ['</ <!-- ><a href="tlon://open" target="_blank">x</a>', '<a target="_blank">x</a>'],
+    ['<svg><![CDATA[ <!-- ]]><a href="tlon://open" target="_blank">x</a>', '<a target="_blank">x</a>'],
+    // Text that only looks like a link is left as it is, an integration
+    // point's textarea included.
+    [`<script>var s = '<a target="_self">';</script>`, `<script>var s = '<a target="_self">';</script>`],
+    ['<!-- <a target="_self"> -->', '<!-- <a target="_self"> -->'],
+    ['<textarea><a target="_self"></textarea>', '<textarea><a target="_self"></textarea>'],
+    ['<svg><foreignObject><textarea><a href="x">l</a></textarea>', '<textarea><a href="x">l</a></textarea>'],
+    ['<svg><desc><textarea><a href="x">l</a></textarea>', '<textarea><a href="x">l</a></textarea>'],
+    ['<math><mi><textarea><a href="x">l</a></textarea>', '<textarea><a href="x">l</a></textarea>'],
+    ['<math><annotation-xml encoding="text/html"><textarea><a href="x">l</a></textarea>', '<textarea><a href="x">l</a></textarea>'],
+    ['<svg><p><textarea><a href="x">l</a></textarea>', '<textarea><a href="x">l</a></textarea>'],
+    // An inline frame's document inherits its popups.
+    [`<iframe srcdoc="<a href='zoommtg://join'>z</a><a href='https://w.example'>w</a>"></iframe>`, '<iframe srcdoc="&lt;a target=&quot;_blank&quot;&gt;z&lt;/a&gt;&lt;a target=&quot;_blank&quot; href=&quot;https://w.example/&quot;&gt;w&lt;/a&gt;"></iframe>'],
+  ])('rewrites %j to hold %j', (file, expected) => {
+    expect(scriptless(file)).toContain(expected);
   });
 
-  // With no script to check where it goes, a popup escaping the sandbox
-  // could open an unsandboxed document or hand an address to another app.
-  it('takes the address from a link to any other scheme', () => {
-    const out = scriptless(
-      '<a href="data:text/html,<b>x</b>" class="d">d</a>' +
-        '<a href="java&#x73;cript:go()" class="j">j</a>' +
-        '<a href=" FILE:///etc/passwd" class="f">f</a>' +
-        '<a href="zoommtg://join" class="z">z</a>'
+  it('carries no script of ours, and drops a srcdoc nested deeper than it reads', () => {
+    const out = scriptless('<!doctype html><p>x</p>');
+    expect(out).toContain(
+      `content="${HTML_PREVIEW_POLICY}"><base target="_blank"><p>x</p>`
     );
-    for (const name of ['d', 'j', 'f', 'z']) {
-      expect(out).toContain(`<a target="_blank" class="${name}">${name}</a>`);
-    }
-    expect(out).not.toMatch(/href=/i);
-  });
-
-  // A fragment stays in the file, scrolling there without a script.
-  it('keeps a fragment in the file', () => {
-    const out = scriptless('<a href="#bottom">b</a><a href="">top</a>');
-    expect(out).toContain('<a target="_self" href="about:srcdoc#bottom">b</a>');
-    expect(out).toContain('<a target="_self" href="about:srcdoc#">top</a>');
-  });
-
-  // A Bucket file has no address of its own its neighbours could be reached
-  // from; a base the file sets itself gives relative links one.
-  it('keeps a relative link only against an http(s) base the file sets', () => {
-    expect(scriptless('<a href="help.html">h</a>')).toContain(
-      '<a target="_blank">h</a>'
-    );
-    // A scheme-relative link takes https, as with scripts running.
-    expect(scriptless('<a href="//cdn.example/x">x</a>')).toContain(
-      '<a target="_blank" href="https://cdn.example/x">x</a>'
-    );
-    const based = scriptless(
-      '<base href="https://docs.example/guide/"><a href="help.html">h</a><a href="#s">s</a><a href="//cdn.example/x">x</a>'
-    );
-    expect(based).toContain(
-      '<a target="_blank" href="https://docs.example/guide/help.html">h</a>'
-    );
-    expect(based).toContain(
-      '<a target="_blank" href="https://docs.example/guide/#s">s</a>'
-    );
-    expect(based).toContain(
-      '<a target="_blank" href="https://cdn.example/x">x</a>'
-    );
-    expect(
-      scriptless('<base href="data:text/html,x"><a href="help.html">h</a>')
-    ).toContain('<a target="_blank">h</a>');
-    // Under a base, a link with a special scheme and no slashes is relative,
-    // as the URL parser reads it.
-    const sameScheme = scriptless(
-      '<base href="https://docs.example/guide/"><a href="https:help">h</a><a href="https:/path">p</a>'
-    );
-    expect(sameScheme).toContain(
-      '<a target="_blank" href="https://docs.example/guide/help">h</a>'
-    );
-    expect(sameScheme).toContain(
-      '<a target="_blank" href="https://docs.example/path">p</a>'
-    );
-    // A scheme-relative base takes https, as a link does.
-    expect(
-      scriptless('<base href="//docs.example/guide/"><a href="help.html">h</a>')
-    ).toContain(
-      '<a target="_blank" href="https://docs.example/guide/help.html">h</a>'
-    );
-  });
-
-  // Left to the browser, a relative address resolves against the app's own,
-  // the reader's ship, so every address kept is computed here.
-  it('computes each address itself, never leaving one to resolve against the app', () => {
-    // With a base of the same scheme, a special scheme without slashes is
-    // relative.
-    expect(scriptless('<a href="https:/~/logout">x</a>')).toContain(
-      '<a target="_blank" href="https://~/logout">x</a>'
-    );
-    // A base the browser cannot use, or a relative one, is no base.
-    for (const base of ['http:', 'https://exa mple.com/', '/docs/']) {
-      expect(
-        scriptless(`<base href="${base}"><a href="/~/logout">x</a>`),
-        base
-      ).toContain('<a target="_blank">x</a>');
-    }
-    // A base in a template, an svg or math sets nothing; one after them does.
-    for (const inert of [
-      '<template><base href="https://t.example/"></template>',
-      '<svg><base href="https://t.example/"/></svg>',
-      '<math><base href="https://t.example/"></base></math>',
-    ]) {
-      expect(scriptless(`${inert}<a href="help.html">x</a>`), inert).toContain(
-        '<a target="_blank">x</a>'
-      );
-    }
-    expect(
-      scriptless(
-        '<svg/><template></template><base href="https://t.example/"><a href="help.html">x</a>'
-      )
-    ).toContain('<a target="_blank" href="https://t.example/help.html">x</a>');
-  });
-
-  // A document in an inline frame inherits the frame's popups.
-  it('settles the links in an inline frame, as deep as it reads', () => {
-    expect(
-      scriptless(
-        `<iframe srcdoc="<a href='zoommtg://join'>z</a><a href='https://w.example'>w</a>"></iframe>`
-      )
-    ).toContain(
-      '<iframe srcdoc="&lt;a target=&quot;_blank&quot;&gt;z&lt;/a&gt;&lt;a target=&quot;_blank&quot; href=&quot;https://w.example/&quot;&gt;w&lt;/a&gt;"></iframe>'
-    );
+    expect(out).not.toContain('<script');
     const deep = scriptless(nested('<a href="zoommtg://join">z</a>', 4));
     expect(deep).not.toContain('zoommtg');
     expect(deep.match(/<iframe/g)).toHaveLength(1);
   });
+});
 
-  it('leaves text that only looks like a link alone', () => {
-    const out = scriptless(
-      `<script>var s = '<a target="_self">';</script>` +
-        '<!-- <a target="_self"> -->' +
-        '<textarea><a target="_self"></textarea>' +
-        '<a title="target=_self" href="https://x.example">x</a>'
-    );
-    expect(out).toContain(`<script>var s = '<a target="_self">';</script>`);
-    expect(out).toContain('<!-- <a target="_self"> -->');
-    expect(out).toContain('<textarea><a target="_self"></textarea>');
-    expect(out).toContain(
-      '<a target="_blank" href="https://x.example/" title="target=_self">'
-    );
-  });
-
-  // Our link script would be inert; the policy and the base target stay.
-  it('leaves out our link script', () => {
-    const out = scriptless('<!doctype html><p>x</p>');
-    expect(out).not.toContain('<script>');
-    expect(out).toContain(
-      `content="${HTML_PREVIEW_POLICY}"><base target="_blank"><p>x</p>`
-    );
-  });
-
-  // İ lowercases to two code units; folding only ASCII keeps every offset.
-  it('keeps its place past text whose lowercase is longer', () => {
-    expect(scriptless('<p>İİİ</p><a href="tlon://open">open</a>')).toContain(
-      '<p>İİİ</p><a target="_blank">open</a>'
-    );
-    expect(
-      scriptless('<p>İİİ</p><base href="https://b.example/"><a href="x">x</a>')
-    ).toContain('<a target="_blank" href="https://b.example/x">x</a>');
-  });
-
-  // A quote inside an unquoted value is the value's: the href after it is
-  // still an attribute of the link.
-  it('reads attributes as the tokenizer does', () => {
-    expect(scriptless('<a data=x=" href=/~/logout>open</a>')).toContain(
-      '<a target="_blank" data=x=">open</a>'
-    );
-  });
-
-  // On an HTML link xlink:href is just a name: the link has no address, and
-  // gains none.
-  it('takes an address from xlink:href only on an SVG link', () => {
-    expect(
-      scriptless('<a xlink:href="https://example.com">text</a>')
-    ).toContain('<a target="_blank">text</a>');
-    expect(
-      scriptless(
-        '<svg><a xlink:href="https://example.com"><text>t</text></a></svg>'
-      )
-    ).toContain('<a target="_blank" href="https://example.com/">');
-  });
-
-  // A self-closed SVG link stays closed, so what follows it is no link.
-  it('keeps a self-closed link closed', () => {
-    expect(
-      scriptless(
-        '<svg><a href="https://example.com"/><text>Not a link</text></svg>'
-      )
-    ).toContain(
-      '<a target="_blank" href="https://example.com/"/><text>Not a link</text>'
-    );
-  });
-
-  // Inside an svg or math, a title or a style holds markup, not text.
-  it('settles a link inside foreign content', () => {
-    for (const holder of ['title', 'style', 'textarea']) {
-      expect(
-        scriptless(
-          `<svg><${holder}><a href="tlon://open" target="_blank">x</a></${holder}></svg>`
-        ),
-        holder
-      ).toContain('<a target="_blank">x</a>');
-    }
-  });
-
-  // A base in a foreignObject's HTML content is the document's.
-  it('resolves against a base in an integration point', () => {
-    expect(
-      scriptless(
-        '<svg><foreignObject><base href="https://docs.example/"><a href="help">Help</a></foreignObject></svg>'
-      )
-    ).toContain('<a target="_blank" href="https://docs.example/help">Help</a>');
-  });
-
-  // At an integration point the content is HTML again, and an HTML-only tag
-  // closes the svg: a link written in a textarea there is text, left as is.
-  it('leaves text in an integration point alone', () => {
-    const literal = '<a href="https://example.com">literal</a>';
-    for (const holder of [
-      '<svg><foreignObject><textarea>',
-      '<svg><desc><textarea>',
-      '<math><mi><textarea>',
-      '<math><annotation-xml encoding="text/html"><textarea>',
-      '<svg><p><textarea>',
+// Anyone who can upload writes these; a scan that backtracks or searches
+// would hang the app's thread before the sandbox is even rendered.
+describe('hostile markup', () => {
+  it('is read in linear time', () => {
+    const blank = `${' '.repeat(200_000)}<p>x</p>`;
+    expect(htmlPreviewDocument(blank, KEY).endsWith(blank)).toBe(true);
+    const openSvgs = '<svg>'.repeat(100_000) + '</x>'.repeat(100_000);
+    for (const html of [
+      '<a'.repeat(200_000),
+      '<!--'.repeat(200_000),
+      '<a b="'.repeat(100_000),
+      '<script>'.repeat(100_000),
+      '<script><!--' + '<'.repeat(200_000),
+      openSvgs,
     ]) {
-      expect(scriptless(`${holder}${literal}</textarea>`), holder).toContain(
-        `<textarea>${literal}</textarea>`
-      );
+      expect(htmlPreviewTitle(html)).toBeUndefined();
     }
-    // Without an HTML encoding, an annotation-xml is foreign content.
     expect(
-      scriptless(`<math><annotation-xml><textarea>${literal}</textarea>`)
-    ).toContain('<a target="_blank" href="https://example.com/">literal</a>');
-  });
-
-  // A comment, a bogus comment and a CDATA section end where the tokenizer
-  // ends them, so a link after one is still a link.
-  it('settles a link after any comment', () => {
-    for (const before of [
-      '<!-->',
-      '<!--->',
-      '<!-- x --!>',
-      '<? <!-- >',
-      '<!x <!-- >',
-      '</ <!-- >',
-      '<svg><![CDATA[ <!-- ]]>',
-    ]) {
-      expect(
-        scriptless(`${before}<a href="tlon://open" target="_blank">x</a>`),
-        before
-      ).toContain('<a target="_blank">x</a>');
-    }
-  });
-
-  // Each end tag asks whether an svg of its name is open; a file of open
-  // svgs and stray end tags must not make that a search.
-  it('reads a file of open svgs and stray end tags at once', () => {
-    const escaped = '<script><!--' + '<'.repeat(200_000);
-    expect(htmlPreviewTitle(escaped)).toBeUndefined();
-    const nested = '<svg>' + '<g>'.repeat(100_000) + '</svg><title>T</title>';
-    expect(htmlPreviewTitle(nested)).toBe('T');
-    const html = '<svg>'.repeat(100_000) + '</x>'.repeat(100_000);
-    expect(htmlPreviewHasScripts(html)).toBe(false);
-    expect(htmlPreviewTitle(html)).toBeUndefined();
-    expect(scriptless(html)).toContain('</x></x>');
-  });
-
-  it('rewrites a file of unclosed tags at once', () => {
+      htmlPreviewTitle(
+        '<svg>' + '<g>'.repeat(100_000) + '</svg><title>T</title>'
+      )
+    ).toBe('T');
+    expect(htmlPreviewHasScripts(openSvgs)).toBe(false);
+    expect(htmlPreviewHasScripts(nested('<p>static</p>', 400))).toBe(true);
+    expect(scriptless(openSvgs)).toContain('</x></x>');
     expect(scriptless('<a'.repeat(200_000))).toContain('<a<a');
   });
 });
 
-// Our scripts are written into the documents as text; a slip in an escape
-// would break every preview silently.
-describe('the scripts the documents carry', () => {
-  it('parse', () => {
-    const doc = htmlPreviewDocument('<p>x</p>', KEY);
-    const linkScript = doc.slice(
-      doc.indexOf('<script>') + 8,
-      doc.indexOf('</script>')
-    );
-    expect(() => new Function(linkScript)).not.toThrow();
-    const held = htmlPreviewDocument('<p>x</p>', KEY, {
-      scripts: 'ours',
-      nonce: TOKEN,
-    });
-    const heldScript = held.slice(
-      held.indexOf('>', held.indexOf('<script nonce=')) + 1,
-      held.indexOf('</script>')
-    );
-    expect(() => new Function(heldScript)).not.toThrow();
-    for (const opener of [
-      { kind: 'window' },
-      { kind: 'app', token: TOKEN },
-    ] as const) {
-      const shell = htmlPreviewShell({
-        document: '',
-        key: KEY,
-        opener,
-        sandbox: 'allow-scripts',
-      });
-      const shellScript = shell.slice(
-        shell.lastIndexOf('<script>') + 8,
-        shell.lastIndexOf('</script>')
-      );
-      expect(() => new Function(shellScript)).not.toThrow();
-    }
+describe('htmlPreviewKey', () => {
+  it('is 128 random bits of hex, fresh each time', () => {
+    const first = htmlPreviewKey();
+    expect(first).toMatch(/^[0-9a-f]{32}$/);
+    expect(htmlPreviewKey()).not.toBe(first);
   });
 });
 
@@ -1457,11 +784,9 @@ describe('htmlPreviewLinkFromBridge', () => {
       ...fields,
     });
 
-  it('reads a link the shell sent with the token', () => {
-    expect(htmlPreviewLinkFromBridge(message({}), TOKEN)).toBe(
-      'https://tlon.io/'
-    );
+  it('reads a web, mail or phone link the shell sent with its token', () => {
     for (const href of [
+      'https://tlon.io/',
       'http://example.com/shop?item=1',
       'mailto:hi@tlon.io',
       'tel:+15555550100',
@@ -1470,34 +795,19 @@ describe('htmlPreviewLinkFromBridge', () => {
     }
   });
 
-  // Every frame can post to the bridge, the file's included; only the shell
-  // knows the token.
-  it('ignores a message without the token', () => {
-    expect(
-      htmlPreviewLinkFromBridge(message({ token: 'guess' }), TOKEN)
-    ).toBeNull();
-    expect(
-      htmlPreviewLinkFromBridge(message({ token: undefined }), TOKEN)
-    ).toBeNull();
-  });
-
-  it('ignores anything that is not a link message', () => {
-    for (const data of [
-      undefined,
-      42,
-      'not json',
-      'null',
-      '"https://tlon.io/"',
-      message({ type: 'other' }),
-      message({ href: 7 }),
-      `${message({})}${' '.repeat(9000)}`,
-    ]) {
-      expect(htmlPreviewLinkFromBridge(data, TOKEN)).toBeNull();
-    }
-  });
-
-  it('opens only a web, mail or phone link, in one piece', () => {
-    for (const href of [
+  // Every frame can post to the bridge; only the shell knows the token.
+  it.each([
+    message({ token: 'guess' }),
+    message({ token: undefined }),
+    undefined,
+    42,
+    'not json',
+    'null',
+    '"https://tlon.io/"',
+    message({ type: 'other' }),
+    message({ href: 7 }),
+    `${message({})}${' '.repeat(9000)}`,
+    ...[
       'javascript:alert(1)',
       'data:text/html,<p>x</p>',
       'file:///etc/passwd',
@@ -1506,38 +816,18 @@ describe('htmlPreviewLinkFromBridge', () => {
       'https://tlon.io/ evil',
       'https://tlon.io/\nevil',
       'https://tlon.io/\u0000',
-    ]) {
-      expect(htmlPreviewLinkFromBridge(message({ href }), TOKEN)).toBeNull();
-    }
-  });
-});
-
-// Anyone who can upload writes these; a scan that backtracks would hang the
-// app's thread before the sandbox was even rendered.
-describe('hostile markup', () => {
-  it('places the fragment in a file of whitespace with no doctype, at once', () => {
-    const file = `${' '.repeat(200_000)}<p>x</p>`;
-    expect(htmlPreviewDocument(file, KEY).endsWith(file)).toBe(true);
-  });
-
-  it('finds no title in a file of unclosed tags, comments or quotes, at once', () => {
-    expect(htmlPreviewTitle('<a'.repeat(200_000))).toBeUndefined();
-    expect(htmlPreviewTitle('<!--'.repeat(200_000))).toBeUndefined();
-    expect(htmlPreviewTitle('<a b="'.repeat(100_000))).toBeUndefined();
-    expect(htmlPreviewTitle('<script>'.repeat(100_000))).toBeUndefined();
+    ].map((href) => message({ href })),
+  ])('ignores %j', (data) => {
+    expect(htmlPreviewLinkFromBridge(data, TOKEN)).toBeNull();
   });
 });
 
 describe('htmlPreviewNavigation', () => {
-  // The shell and the frame inside it both load as inline documents.
-  it('loads the inline documents', () => {
+  // The two inline documents load. Anything else is the document leaving: a
+  // link (the shell opens those over the bridge), a refresh, a form, a redirect.
+  it('loads the inline documents and refuses the rest', () => {
     expect(htmlPreviewNavigation({ url: 'about:blank' })).toBe('load');
     expect(htmlPreviewNavigation({ url: 'about:srcdoc' })).toBe('load');
-  });
-
-  // A link (the shell opens those over the bridge instead), a meta refresh, a
-  // form, a redirect, another scheme: the document leaving, which it may not.
-  it('refuses everything else', () => {
     for (const url of [
       'https://tlon.io/',
       'mailto:hi@tlon.io',
