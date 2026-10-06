@@ -446,6 +446,16 @@ describe('htmlPreviewHasScripts', () => {
     '<script type="\u000btext/javascript">go()</script>',
     '<svg><script type="text/ecmascript">go()</script></svg>',
     '<script type="application/ld+json">{}</script><script>go()</script>',
+    // A browser that runs modules skips a classic HTML script marked
+    // nomodule, but not a module or an SVG script.
+    '<script type="module" nomodule>go()</script>',
+    '<svg><script nomodule>go()</script></svg>',
+    // A declarative shadow root's content is live, and an svg's template is
+    // SVG's.
+    '<div><template shadowrootmode="open"><script>go()</script></template></div>',
+    '<div><template shadowrootmode="CLOSED"><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe></template></div>',
+    '<svg><template><script>go()</script></template></svg>',
+    '<template></template><script>go()</script>',
     // Nested deeper than it reads.
     nested('<p>static</p>', 4),
   ])('finds a script in %j', (html) => {
@@ -473,6 +483,13 @@ describe('htmlPreviewHasScripts', () => {
     '<script language="vbscript">go()</script>',
     '<script type="text/plain" type="text/javascript">go()</script>',
     '<svg><script type="application/ld+json">{}</script></svg>',
+    '<script nomodule>go()</script>',
+    '<script type="text/javascript" NOMODULE>go()</script>',
+    // An ordinary template's content is inert, in a shadow root or around one.
+    '<template><script>go()</script><button onclick="go()">x</button><a href="javascript:go()">x</a><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe></template>',
+    '<div><template shadowrootmode="open"><template><script>go()</script></template></template></div>',
+    '<template><div><template shadowrootmode="open"><script>go()</script></template></div></template>',
+    '<div><template shadowrootmode=" open"><script>go()</script></template></div>',
     nested('<p>static</p>', 3),
   ])('finds none in %j', (html) => {
     expect(htmlPreviewHasScripts(html)).toBe(false);
@@ -785,6 +802,11 @@ describe('hostile markup', () => {
       )
     ).toBe('T');
     expect(htmlPreviewHasScripts(openSvgs)).toBe(false);
+    expect(
+      htmlPreviewHasScripts(
+        '<template>'.repeat(100_000) + '<script>go()</script>'
+      )
+    ).toBe(false);
     expect(htmlPreviewHasScripts(nested('<p>static</p>', 400))).toBe(true);
     expect(scriptless(openSvgs)).toContain('</x></x>');
     expect(scriptless('<a'.repeat(200_000))).toContain('<a<a');

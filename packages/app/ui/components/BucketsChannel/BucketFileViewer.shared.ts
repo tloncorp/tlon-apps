@@ -893,6 +893,14 @@ interface MarkupTag {
   foreign: boolean;
   /** Whether a template is open around it. */
   withinTemplate: boolean;
+  /**
+   * Whether an ordinary template is open around it, whose content is inert:
+   * nothing in it runs unless a script copies it out. A declarative shadow
+   * root's template (`shadowrootmode` open or closed) holds live content,
+   * so on its own it does not make what it holds inert -- even on a host
+   * that cannot take one, where the browser keeps it as an ordinary template.
+   */
+  inert: boolean;
 }
 
 /**
@@ -939,7 +947,10 @@ function* markupTags(
     const scope = scopes.pop();
     if (scope) open.set(scope.name, (open.get(scope.name) ?? 1) - 1);
   };
-  let templates = 0;
+  // The open templates, each with whether its content is inert, and how many
+  // of them are.
+  const templates: boolean[] = [];
+  let inertTemplates = 0;
   let selects = 0;
   const foreign = () => scopes.length > 0 && !scopes[scopes.length - 1].html;
   let i = 0;
@@ -974,9 +985,9 @@ function* markupTags(
       } else if ((open.get(name) ?? 0) > 0) {
         while (scopes[scopes.length - 1].name !== name) pop();
         pop();
-      } else if (name === 'template' && templates > 0 && !foreign()) {
+      } else if (name === 'template' && templates.length > 0 && !foreign()) {
         // In foreign content it ends a foreign template, not an HTML one.
-        templates -= 1;
+        if (templates.pop()) inertTemplates -= 1;
       } else if (name === 'select' && selects > 0 && !foreign()) {
         selects -= 1;
       }
@@ -1007,7 +1018,8 @@ function* markupTags(
       nameEnd,
       end,
       foreign: inForeignContent,
-      withinTemplate: templates > 0,
+      withinTemplate: templates.length > 0,
+      inert: inertTemplates > 0,
     };
     if (inForeignContent) {
       // Every foreign element is tracked, so that an end tag can close the
@@ -1036,7 +1048,14 @@ function* markupTags(
       // An HTML element cannot close itself; a foreign one can.
       if (!selfClosing) push(name, name, false);
     } else if (name === 'template') {
-      templates += 1;
+      const mode = asciiLowercase(
+        parseEntities(attributes.get('shadowrootmode') ?? '', {
+          attribute: true,
+        })
+      );
+      const inert = mode !== 'open' && mode !== 'closed';
+      templates.push(inert);
+      if (inert) inertTemplates += 1;
     } else if (name === 'select') {
       selects += 1;
     }
@@ -1206,43 +1225,49 @@ const JAVASCRIPT_MIME_TYPES = new Set([
 ]);
 
 /**
- * Whether a script element with these attributes (tagAttributes) runs code
- * rather than holding data, decided as a browser prepares one. Without a type
- * its language names one (`text/` and the language), and with neither it is
- * JavaScript; an empty type is JavaScript; any other type, trimmed, must be
- * exactly a JavaScript MIME type (a `charset` parameter makes it data) or
- * `module`. JSON-LD, `text/plain`, a template, an import map or speculation
- * rules never run. Chromium also trims a vertical tab from the type.
+ * What a browser prepares a script element with these attributes
+ * (tagAttributes) as: a classic script, a module, or data it never runs.
+ * Without a type its language names one (`text/` and the language), and with
+ * neither it is JavaScript; an empty type is JavaScript; any other type,
+ * trimmed, must be exactly a JavaScript MIME type (a `charset` parameter makes
+ * it data) or `module`. JSON-LD, `text/plain`, a template, an import map or
+ * speculation rules never run. Chromium also trims a vertical tab from the
+ * type.
  */
-function scriptElementRuns(attributes: Map<string, string>): boolean {
+function scriptKind(
+  attributes: Map<string, string>
+): 'classic' | 'module' | undefined {
   const type = attributes.get('type');
   if (type === undefined) {
     const language = attributes.get('language');
-    if (language === undefined) return true;
+    if (language === undefined) return 'classic';
     const name = parseEntities(language, { attribute: true });
-    return (
-      name === '' || JAVASCRIPT_MIME_TYPES.has(`text/${asciiLowercase(name)}`)
-    );
+    return name === '' ||
+      JAVASCRIPT_MIME_TYPES.has(`text/${asciiLowercase(name)}`)
+      ? 'classic'
+      : undefined;
   }
   const value = parseEntities(type, { attribute: true });
-  if (value === '') return true;
+  if (value === '') return 'classic';
   const isSpace = (code: number) => isHtmlSpace(code) || code === 11;
   let start = 0;
   let end = value.length;
   while (start < end && isSpace(value.charCodeAt(start))) start += 1;
   while (end > start && isSpace(value.charCodeAt(end - 1))) end -= 1;
   const essence = asciiLowercase(value.slice(start, end));
-  return JAVASCRIPT_MIME_TYPES.has(essence) || essence === 'module';
+  if (JAVASCRIPT_MIME_TYPES.has(essence)) return 'classic';
+  return essence === 'module' ? 'module' : undefined;
 }
 
 /**
  * Whether an HTML file has anything a script would run from: a script
- * element that runs code (scriptElementRuns), an event handler attribute, a
+ * element that runs code (scriptKind; a classic HTML one marked `nomodule` is
+ * skipped by every browser that runs modules), an event handler attribute, a
  * `javascript:` URL in an attribute a browser follows -- read as the browser
  * reads it, so `java&#x73;cript:` counts -- or any of these in an inline
- * frame's `srcdoc`. A page without any renders the same with scripts off, so
- * there is nothing to run. A `srcdoc` nested deeper than MAX_NESTED_DOCUMENTS
- * is taken to have some.
+ * frame's `srcdoc`, outside an inert template. A page without any renders the
+ * same with scripts off, so there is nothing to run. A `srcdoc` nested deeper
+ * than MAX_NESTED_DOCUMENTS is taken to have some.
  *
  * Each document is read by markupTags as a frame that runs scripts reads it,
  * and inside a `<select>` as WebKit reads it: a script that only Safari would
@@ -1252,8 +1277,17 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
   for (const tag of markupTags(html, SCRIPTED_TEXT_ELEMENTS, {
     markupInSelect: true,
   })) {
+    if (tag.inert) continue;
     const attributes = tagAttributes(html.slice(tag.nameEnd, tag.end - 1));
-    if (tag.name === 'script' && scriptElementRuns(attributes)) return true;
+    if (tag.name === 'script') {
+      const kind = scriptKind(attributes);
+      if (
+        kind === 'module' ||
+        (kind === 'classic' && (tag.foreign || !attributes.has('nomodule')))
+      ) {
+        return true;
+      }
+    }
     for (const [attribute, value] of attributes) {
       if (attribute.length > 2 && attribute.startsWith('on')) return true;
       if (URL_ATTRIBUTES.has(attribute) && urlScheme(value) === 'javascript') {
