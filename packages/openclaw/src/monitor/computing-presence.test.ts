@@ -915,6 +915,10 @@ describe('formatCommentaryForPresence', () => {
       formatCommentaryForPresence('Checking the notes. [[reply_to_cur')
     ).toBe('Checking the notes.');
     expect(formatCommentaryForPresence('[[reply')).toBeNull();
+    expect(
+      formatCommentaryForPresence('Checking the notes. [[reply_to_current]')
+    ).toBe('Checking the notes.');
+    expect(formatCommentaryForPresence('[[x]')).toBeNull();
     expect(formatCommentaryForPresence('A [[x]] B')).toBe('A B');
   });
 

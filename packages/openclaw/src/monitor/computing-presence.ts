@@ -45,7 +45,7 @@ export const COMMENTARY_MAX_CHARS = 80;
 const COMMENTARY_WORD_BREAK_WINDOW = 20;
 const ELLIPSIS = '…';
 const DELIVERY_DIRECTIVE_PATTERN = /\[\[[^\]]*\]\]|\bNO_REPLY\b/g;
-const UNTERMINATED_DIRECTIVE_PATTERN = /\[\[[^\]]*$/;
+const UNTERMINATED_DIRECTIVE_PATTERN = /\[\[[^\]]*\]?$/;
 
 export type ComputingPresenceReporter = {
   publish: (params: PublishParams) => Promise<void>;
