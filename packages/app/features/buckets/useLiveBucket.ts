@@ -643,7 +643,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const removeFailedUploads = useCallback(
     async (ids: string[]) => {
       const wanted = new Set(ids);
-      const targets = uploadsRef.current.filter(
+      // Read now, not from the last render: a row retried a moment ago is
+      // queued in the database before the list has caught up, and must not
+      // be swept up as a failure.
+      const targets = (await db.getBucketUploads({ channelId })).filter(
         (upload) => wanted.has(upload.id) && upload.state === 'failed'
       );
       if (targets.length === 0) return 0;
@@ -653,8 +656,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       });
       await db.deleteBucketUploads(targets.map((upload) => upload.id));
 
+      // A row holding a request id alongside its session is waiting on a
+      // finish, whose outcome is unknown -- not cancelled.
       const pending = targets.filter(
-        (upload) => upload.sessionId !== null && upload.finishRequestId === null
+        (upload) => upload.sessionId !== null && upload.openRequestId === null
       );
       const cancelNext = async (): Promise<void> => {
         const upload = pending.shift();
@@ -672,7 +677,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       );
       return targets.length;
     },
-    [flag]
+    [channelId, flag]
   );
 
   // Completed rows linger for the aggregate bar; the list shows what is
