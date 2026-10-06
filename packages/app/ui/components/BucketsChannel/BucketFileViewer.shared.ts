@@ -532,7 +532,7 @@ export async function readPreviewText(
       if (done) break;
       received += value.byteLength;
       if (received > limit) {
-        await reader.cancel();
+        await reader.cancel().catch(() => {});
         return null;
       }
       chunks.push(value);
@@ -1274,6 +1274,46 @@ function scriptKind(
   return essence === 'module' ? 'module' : undefined;
 }
 
+// The events an `on<event>` content attribute handles on some element in
+// Chromium or WebKit: every event handler property of an HTML, SVG or MathML
+// element interface, the window's that <body> forwards, and iOS's gesture
+// events. Any other attribute starting with `on` (`only`, `onward`) is data.
+const HANDLED_EVENTS = new Set(
+  `
+  abort afterprint animationcancel animationend animationiteration
+  animationstart auxclick beforecopy beforecut beforeinput beforeload
+  beforematch beforepaste beforeprint beforetoggle beforeunload
+  beforexrselect begin blur cancel canplay canplaythrough change click close
+  command contentvisibilityautostatechange contextlost contextmenu
+  contextrestored copy cuechange cut dblclick drag dragend dragenter
+  dragleave dragover dragstart drop durationchange emptied encrypted end
+  ended enterpictureinpicture error focus focusin focusout formdata
+  fullscreenchange fullscreenerror gamepadconnected gamepaddisconnected
+  gesturechange gestureend gesturestart gotpointercapture hashchange input
+  invalid keydown keypress keyup languagechange leavepictureinpicture load
+  loadeddata loadedmetadata loadstart lostpointercapture message
+  messageerror mousedown mouseenter mouseleave mousemove mouseout mouseover
+  mouseup mousewheel offline online orientationchange pagehide pagereveal
+  pageshow pageswap paste pause play playing pointercancel pointerdown
+  pointerenter pointerleave pointermove pointerout pointerover
+  pointerrawupdate pointerup popstate progress ratechange rejectionhandled
+  repeat reset resize scroll scrollend scrollsnapchange scrollsnapchanging
+  search securitypolicyviolation seeked seeking select selectionchange
+  selectstart slotchange stalled storage submit suspend timeupdate toggle
+  touchcancel touchend touchforcechange touchmove touchstart
+  transitioncancel transitionend transitionrun transitionstart
+  unhandledrejection unload volumechange waiting waitingforkey
+  webkitanimationend webkitanimationiteration webkitanimationstart
+  webkitcurrentplaybacktargetiswirelesschanged webkitfullscreenchange
+  webkitfullscreenerror webkitmouseforcechanged webkitmouseforcedown
+  webkitmouseforceup webkitmouseforcewillbegin webkitneedkey
+  webkitplaybacktargetavailabilitychanged webkitpresentationmodechanged
+  webkittransitionend wheel
+`
+    .trim()
+    .split(/\s+/)
+);
+
 /**
  * Whether a browser would run a `javascript:` URL in this attribute of this
  * element, as measured in a preview running the page's scripts: a link the
@@ -1302,12 +1342,12 @@ function runsJavascriptUrl(tag: MarkupTag, attribute: string): boolean {
  * Whether an HTML file has anything a script would run from: an HTML or SVG
  * script element that runs code (scriptKind; a classic HTML one marked
  * `nomodule` is skipped by every browser that runs modules, and a MathML one
- * is never run), an event handler attribute, a `javascript:` URL where a
- * browser runs one (runsJavascriptUrl) -- read as the browser reads it, so
- * `java&#x73;cript:` counts -- or any of these in an inline frame's `srcdoc`,
- * outside an inert template. A page without any renders the
- * same with scripts off, so there is nothing to run. A `srcdoc` nested deeper
- * than MAX_NESTED_DOCUMENTS is taken to have some.
+ * is never run), an event handler attribute (HANDLED_EVENTS), a
+ * `javascript:` URL where a browser runs one (runsJavascriptUrl) -- read as
+ * the browser reads it, so `java&#x73;cript:` counts -- or any of these in an
+ * HTML iframe's `srcdoc`, outside an inert template. A page without any
+ * renders the same with scripts off, so there is nothing to run. A `srcdoc`
+ * nested deeper than MAX_NESTED_DOCUMENTS is taken to have some.
  *
  * Each document is read by markupTags as a frame that runs scripts reads it,
  * and inside a `<select>` as WebKit reads it: a script that only Safari would
@@ -1330,7 +1370,12 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
       }
     }
     for (const [attribute, value] of attributes) {
-      if (attribute.length > 2 && attribute.startsWith('on')) return true;
+      if (
+        attribute.startsWith('on') &&
+        HANDLED_EVENTS.has(attribute.slice(2))
+      ) {
+        return true;
+      }
       if (
         runsJavascriptUrl(tag, attribute) &&
         urlScheme(value) === 'javascript'
@@ -1339,6 +1384,8 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
       }
       if (
         attribute === 'srcdoc' &&
+        tag.namespace === 'html' &&
+        tag.name === 'iframe' &&
         (depth >= MAX_NESTED_DOCUMENTS ||
           htmlPreviewHasScripts(
             parseEntities(value, { attribute: true }),

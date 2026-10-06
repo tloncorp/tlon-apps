@@ -145,6 +145,18 @@ describe('readPreviewText', () => {
     ).toBeNull();
     expect(cancelled).toBe(true);
     expect(sent).toBeLessThanOrEqual(4);
+    // Past the cap it is declined, even when the body refuses to cancel.
+    const stubborn = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(32));
+      },
+      cancel() {
+        throw new Error('cannot cancel');
+      },
+    });
+    expect(
+      await readPreviewText(new Response(stubborn), { limit: 64 })
+    ).toBeNull();
 
     // A body that does not stream cannot be stopped, and a compressed one can
     // outgrow any declared length, so it is not read.
@@ -481,6 +493,11 @@ describe('htmlPreviewHasScripts', () => {
     '<svg><a xlink:href="javascript:go()"><text>x</text></a></svg>',
     '<math><mtext href="javascript:go()">x</mtext></math>',
     '<iframe src="javascript:go()"></iframe>',
+    // A handler only one engine has: WebKit's focusin, Chromium's SVG begin,
+    // and a window event <body> forwards.
+    '<div onfocusin="go()">x</div>',
+    '<svg><animate onbegin="go()"/></svg>',
+    '<body ononline="go()">',
     // Nested deeper than it reads.
     nested('<p>static</p>', 4),
   ])('finds a script in %j', (html) => {
@@ -524,6 +541,10 @@ describe('htmlPreviewHasScripts', () => {
     '<div href="javascript:go()">x</div><a xlink:href="javascript:go()">x</a>',
     '<form action="javascript:go()"><button formaction="javascript:go()">Go</button></form>',
     '<object data="javascript:go()"></object><embed src="javascript:go()"><img src="javascript:go()">',
+    // An attribute that only starts like a handler, and a srcdoc on anything
+    // but an iframe.
+    '<div only="true" one="1" onward="x">x</div>',
+    '<div srcdoc="&lt;script&gt;go()&lt;/script&gt;">x</div>',
     nested('<p>static</p>', 3),
   ])('finds none in %j', (html) => {
     expect(htmlPreviewHasScripts(html)).toBe(false);
