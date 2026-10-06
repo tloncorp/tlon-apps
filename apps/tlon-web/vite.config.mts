@@ -208,7 +208,7 @@ export default ({ mode }: { mode: string }) => {
         ? parseInt(process.env.VITE_PORT)
         : 3000;
   const urbitProxy: Record<string, ProxyOptions> = {
-    '/apps/groups/~/fetch/': {
+    '/apps/groups/~/metagrab/': {
       target: targetShipUrl,
       changeOrigin: true,
       secure: false,
