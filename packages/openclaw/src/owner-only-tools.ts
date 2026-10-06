@@ -16,18 +16,25 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'read',
 ]);
 
+export const OWNER_ONLY_TOOL_PREFIXES = ['mcp_'] as const;
+
 /** Longest first line the TLON-6361 owner notice shows untruncated. */
 export const OWNER_ONLY_BLOCK_REASON_MAX_CHARS = 200;
 
 export function formatOwnerOnlyToolBlockReason(toolName: string): string {
+  // Use the tool family so arbitrarily long upstream names fit the notice cap.
+  const prefix = OWNER_ONLY_TOOL_PREFIXES.find((prefix) =>
+    toolName.startsWith(prefix)
+  );
+  const label = prefix ? `${prefix}*` : toolName;
   return (
-    `Blocked by policy: the ${toolName} tool is owner-only and this requester is not the owner. ` +
+    `Blocked by policy: the ${label} tool is owner-only and this requester is not the owner. ` +
     'Tell them you cannot do this for them; do not retry for them, and do not blame a reload, outage, or missing tool.'
   );
 }
 
 export type OwnerOnlyToolDecision = {
-  /** The tool is in the owner-only set. */
+  /** The tool matches an owner-only name or prefix. */
   ownerOnly: boolean;
   /** Veto the call: owner-only tool and the session role is a non-owner user. */
   blocked: boolean;
@@ -39,7 +46,9 @@ export function resolveOwnerOnlyToolBlock(
   toolName: string,
   role: SenderRole | undefined
 ): OwnerOnlyToolDecision {
-  const ownerOnly = OWNER_ONLY_TOOLS.has(toolName);
+  const ownerOnly =
+    OWNER_ONLY_TOOLS.has(toolName) ||
+    OWNER_ONLY_TOOL_PREFIXES.some((prefix) => toolName.startsWith(prefix));
   // Only an explicit non-owner ('user') role blocks. Owner sessions and
   // internal sessions (heartbeat, cron, subagents — no stored role) pass.
   const blocked = ownerOnly && role === 'user';

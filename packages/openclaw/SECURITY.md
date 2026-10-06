@@ -375,7 +375,7 @@ try {
 
 **Principle:** Sensitive tools are owner-only. Non-owners cannot use them, enforced at the plugin level (not via prompt instructions).
 
-**Restricted tools:** `tlon`, `cron`, `read`.
+**Restricted tools:** `tlon`, `cron`, `read`, and every tool whose name starts with `mcp_`. The MCP restriction includes discovery (`mcp__list_upstreams`, `mcp__search`, `mcp__describe`), invocation (`mcp__call`), and directly exposed upstream tools. Non-owner turns cannot access connected services, including the owner's hosted browser profile and OAuth-authorized services.
 
 | Scenario | Behavior |
 | -------- | -------- |
@@ -385,7 +385,7 @@ try {
 | Internal session (heartbeat, cron) | ✅ Allowed (no stored role = not a user-initiated turn) |
 
 **Implementation:**
-- `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `resolveOwnerOnlyToolBlock`)
+- `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `OWNER_ONLY_TOOL_PREFIXES`, `resolveOwnerOnlyToolBlock`)
 - Checks SenderRole from session tracker (stored the same way for DM and group senders)
 - Only blocks when role is explicitly `"user"` (a non-owner sender, DM or group)
 - Owner sessions (`"owner"`) and internal sessions (`undefined` role) are allowed
