@@ -13,6 +13,7 @@ export type ProgressReplyOptions = Pick<
   | 'commentaryProgressEnabled'
   | 'suppressDefaultToolProgressMessages'
   | 'allowProgressCallbacksWhenSourceDeliverySuppressed'
+  | 'preserveProgressCallbackStartOrder'
 >;
 
 type RunPresenceTarget = { conversationId: string; runId: string };
@@ -71,5 +72,8 @@ export function buildProgressReplyOptions(params: {
     commentaryProgressEnabled: true,
     suppressDefaultToolProgressMessages: true,
     allowProgressCallbacksWhenSourceDeliverySuppressed: true,
+    // onItemEvent remembers the last snapshot, so core must start progress
+    // callbacks in source order.
+    preserveProgressCallbackStartOrder: true,
   };
 }

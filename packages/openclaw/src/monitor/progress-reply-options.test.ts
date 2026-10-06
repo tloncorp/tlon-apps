@@ -54,6 +54,7 @@ describe('buildProgressReplyOptions', () => {
       commentaryProgressEnabled: true,
       suppressDefaultToolProgressMessages: true,
       allowProgressCallbacksWhenSourceDeliverySuppressed: true,
+      preserveProgressCallbackStartOrder: true,
     });
   });
 
