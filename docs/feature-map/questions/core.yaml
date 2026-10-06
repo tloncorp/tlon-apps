@@ -122,7 +122,6 @@
   kind: concept
   must:
     - a node is your own personal server that holds your messages and data
-    - it is yours, and can be exported or moved away from Tlon's hosting
   must_not:
     - uses ship, planet or moon without the person having used those words
 
@@ -375,8 +374,7 @@
   file: notebooks.md
   entry: "Does a note save by itself?"
   must:
-    - "notes save automatically about ten seconds after a change"
-    - "leaving the note, switching notes or backgrounding the app saves immediately"
+    - "there is no save button to find; notes save by themselves"
   must_not:
     - "invents a Save button for notes"
 
@@ -566,7 +564,6 @@
   kind: concept
   must:
     - "Tlonbot runs on its own node linked to yours"
-    - "its memory lives on its own node"
 
 - id: company-versus-os
   ask: "is tlon the same thing as urbit? i'm confused"

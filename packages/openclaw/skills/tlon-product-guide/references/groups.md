@@ -135,7 +135,7 @@ Notes: the confirmation says `This user will be removed from the group.` and war
 
 Phone: to ban, open `Group info & settings`, tap `Manage members`, tap the person, then `Ban User`. To unban, find them under `Banned Users` on the same screen, tap them, then `Unban User`.
 Who: admins. The group's host, other admins and you yourself can't be banned.
-Notes: there is no confirmation; the ban happens on the tap. Banning removes the person from the group and lists them under `Banned Users`. Unbanning only lifts the ban. It doesn't put them back in the group, so invite them again if you want them back.
+Notes: there is no confirmation; the ban happens on the tap. Banning removes the person from the group and lists them under `Banned Users`. Unbanning only lifts the ban. It doesn't put them back in the group. To bring them back, invite them again with the `Invite` button on `Group info & settings`.
 
 ## Approve or reject a request to join
 

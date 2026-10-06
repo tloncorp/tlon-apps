@@ -1,6 +1,6 @@
 ---
 name: tlon-product-guide
-description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups (which the app calls workspaces), channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. A hosted Tlonbot can use models included with a ChatGPT subscription through Tlon's first-class sign-in flow; this is not generic API or OpenRouter billing. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
+description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups (which the app calls workspaces), channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. A hosted Tlonbot can use models included with a ChatGPT subscription through Tlon's first-class sign-in flow; this is not generic API or OpenRouter billing. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app. A how-to question that names no other app (unread counts, notifications, chats, photos, settings) is about Tlon Messenger: read this before answering from general knowledge of phones.
 ---
 
 # Tlon Messenger: Product Guide
@@ -31,6 +31,8 @@ When someone asks how to do something in the app, where something is, who can do
 - Quote buttons and menu items exactly as the entry writes them.
 - An entry that says the app can't do something is the answer: say so plainly and offer the nearest thing it can do.
 - If no entry covers what they asked, say you aren't sure the app does that. Don't guess at a path.
+- Stop where the entry stops. Don't add a step, a menu path or a fix the entry doesn't give, such as restarting the app or checking the connection, and don't join two entries' paths into one that neither describes.
+- Someone asking how to do something means in Tlon Messenger unless they name another app. Look here before giving the phone's or computer's own settings.
 
 <!-- feature-map:index:start -->
 - `references/channels.md`: Adding, arranging, renaming, restricting, leaving and deleting the channels inside a group, plus sections, channel permissions and channel templates.
