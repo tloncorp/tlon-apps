@@ -7,6 +7,11 @@ name: OpenClaw Canary
 # continue on error, and every job writes a JSON report from its own step
 # outcomes and uploads it under a per-job artifact name for the caller to
 # merge. A report that never uploads reads as infra-error downstream.
+#
+# Every canary runs on Node 24.16.0 (.nvmrc on the runner, the Dockerfile
+# default in the container): the workspace is engineStrict and the dev pin
+# needs Node >=24.16. Prod runs 2026.7.1 on Node 22; the canary does not
+# reproduce that runtime.
 on:
   workflow_dispatch:
     inputs:
@@ -14,11 +19,13 @@ on:
         description: OpenClaw core version to test (npm version, e.g. 2026.9.8)
         required: true
         type: string
-      node_version:
-        description: Node version (24.16.0 for 9.x cores; 22.22.0 for <=8.x)
+      expect_prewarm:
+        description:
+          "'0' or '1'; required for cores outside the known table, e.g.
+          2026.8.x or prereleases"
         required: false
         type: string
-        default: "24.16.0"
+        default: ""
   # Callers pass `secrets: inherit`; the jobs read TLONBOT_TOKEN,
   # BRAVE_API_KEY and E2E_S3_* and degrade to coverage: partial without them.
   workflow_call:
@@ -26,10 +33,10 @@ on:
       openclaw_version:
         required: true
         type: string
-      node_version:
+      expect_prewarm:
         required: false
         type: string
-        default: "24.16.0"
+        default: ""
 
 permissions:
   contents: read
@@ -48,7 +55,7 @@ jobs:
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ inputs.node_version }}
+          node-version-file: .nvmrc
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
@@ -82,7 +89,6 @@ jobs:
         working-directory: .
         env:
           VERSION: ${{ inputs.openclaw_version }}
-          NODE_VERSION: ${{ inputs.node_version }}
           INSTALL_OUTCOME: ${{ steps.install.outcome }}
           TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
           UNIT_OUTCOME: ${{ steps.unit.outcome }}
@@ -104,7 +110,7 @@ jobs:
           mkdir -p canary-report
           jq -n \
             --arg version "$VERSION" \
-            --arg nodeVersion "$NODE_VERSION" \
+            --arg nodeVersion "$(cat .nvmrc 2>/dev/null || true)" \
             --arg typecheck "$(result "$TYPECHECK_OUTCOME")" \
             --arg unit "$(result "$UNIT_OUTCOME")" \
             '{version: $version, nodeVersion: $nodeVersion, typecheck: $typecheck, unit: $unit}' \
@@ -173,7 +179,7 @@ jobs:
         id: node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ inputs.node_version }}
+          node-version-file: .nvmrc
 
       # Pin matches openclaw-ci.yml / tlon-skill-publish.yml.
       - name: Setup Bun
@@ -211,9 +217,9 @@ jobs:
         continue-on-error: true
         timeout-minutes: 45
         env:
-          # The driver forwards these to the image build args and to test 08.
+          # The driver forwards this to the image build arg and to test 08.
           OPENCLAW_CORE_VERSION: ${{ inputs.openclaw_version }}
-          NODE_IMAGE: node:${{ inputs.node_version }}-bookworm-slim
+          EXPECT_PREWARM: ${{ inputs.expect_prewarm }}
           TLONBOT_TOKEN: ${{ matrix.shard == 'package' && secrets.TLONBOT_TOKEN || '' }}
           BRAVE_API_KEY: ${{ matrix.shard == 'package' && secrets.BRAVE_API_KEY || '' }}
           TEST_STORAGE_ENDPOINT: ${{ matrix.shard == 'package' && secrets.E2E_S3_ENDPOINT || '' }}
@@ -229,6 +235,11 @@ jobs:
         # The log copy feeds the report's errorExcerpt.
         run: |
           set -o pipefail
+          # Exported only when given, so the driver's derived table applies
+          # otherwise.
+          if [ -n "$EXPECT_PREWARM" ]; then
+            export TEST_EXPECT_OPENCLAW_PREWARM="$EXPECT_PREWARM"
+          fi
           pnpm --filter '@tloncorp/tlon-bot-e2e' ${{ matrix.script }} 2>&1 \
             | tee "$RUNNER_TEMP/canary-e2e.log"
 

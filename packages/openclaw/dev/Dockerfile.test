@@ -1,4 +1,5 @@
-# The canary workflow overrides this to test a core on another Node line.
+# Overridable through the harness NODE_IMAGE env (compose build arg) for a
+# local run on another Node line; CI always uses this default.
 ARG NODE_IMAGE=node:24.16.0-bookworm-slim
 FROM ${NODE_IMAGE}
 
@@ -18,7 +19,11 @@ ENV OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION}
 # baking it here keeps container startup off the npm registry. The install
 # ledger lives in ~/.openclaw/plugins/, which entrypoint.test.sh's config
 # rewrite does not touch.
-RUN openclaw plugins install @openclaw/brave-plugin
+# Brave releases in lockstep with core, so pin it to the core under test;
+# cores without a matching brave release (prereleases) fall back to latest.
+RUN openclaw plugins install "@openclaw/brave-plugin@${OPENCLAW_CORE_VERSION}" \
+    || { openclaw plugins install @openclaw/brave-plugin \
+      && echo "[tlon-e2e-build] brave-plugin: no release matching core ${OPENCLAW_CORE_VERSION}, installed latest"; }
 # Printed after the brave install so the canary's build log records what was
 # actually installed, not just what was requested. The brave version comes
 # from whichever package.json the install left under ~/.openclaw; "unknown"
