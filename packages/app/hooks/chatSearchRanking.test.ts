@@ -74,8 +74,8 @@ describe('chatSearchRanking helpers', () => {
       tokens,
       normalizedQuery,
       new Map([
-        [titleOnlyMatch.id, { rank: 0, score: 0.01 }],
-        [splitMatch.id, { rank: 1, score: 0.2 }],
+        [titleOnlyMatch, { rank: 0, score: 0.01 }],
+        [splitMatch, { rank: 1, score: 0.2 }],
       ])
     );
 

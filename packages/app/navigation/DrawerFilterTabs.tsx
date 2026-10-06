@@ -5,6 +5,7 @@ import {
   DRAWER_FILTERS,
   DRAWER_FILTER_LABELS,
   type DrawerFilter,
+  type DrawerFilterUnreads,
 } from './drawerChats';
 
 /**
@@ -14,25 +15,28 @@ import {
  * the screen behind it read as one vocabulary rather than two controls that
  * happen to say similar words.
  *
- * A tab that is not the one showing carries a dot when its half of the list
- * holds an unread. The half being shown does not need one — its rows are
- * saying it themselves — and a dot there would only repeat them.
+ * A tab that is not the one showing says so when its half of the list holds
+ * an unread, the way a row does: its title in bold, and a dot beside it in the
+ * accent when one of those unreads notified, grey when none did. The half
+ * being shown does not need either — its rows are saying it themselves — and
+ * a dot there would only repeat them.
  */
 export function DrawerFilterTabs({
   activeFilter,
-  unreadFilters,
+  unreads,
   onPressFilter,
 }: {
   activeFilter: DrawerFilter;
-  /** The tabs holding an unread, shown or not. */
-  unreadFilters: readonly DrawerFilter[];
+  /** What each tab's half is holding, shown or not. */
+  unreads: DrawerFilterUnreads;
   onPressFilter: (filter: DrawerFilter) => void;
 }) {
   return (
     <Tabs>
       {DRAWER_FILTERS.map((filter) => {
         const active = activeFilter === filter;
-        const showsUnread = !active && unreadFilters.includes(filter);
+        const unread = active ? undefined : unreads[filter];
+        const notified = unread === 'notified';
         return (
           <Tabs.Tab
             key={filter}
@@ -41,21 +45,26 @@ export function DrawerFilterTabs({
             onTabPress={onPressFilter}
             testID={`TopLevelDrawerFilter-${filter}`}
             accessibilityLabel={
-              showsUnread
-                ? `${DRAWER_FILTER_LABELS[filter]}, unread`
+              unread
+                ? `${DRAWER_FILTER_LABELS[filter]}, ${notified ? 'unread, notified' : 'unread'}`
                 : DRAWER_FILTER_LABELS[filter]
             }
           >
             <XStack alignItems="center" gap="$s">
-              <Tabs.Title cursor="pointer" active={active}>
+              <Tabs.Title
+                cursor="pointer"
+                active={active}
+                // The weight a row with an unread takes.
+                fontWeight={unread ? '600' : undefined}
+              >
                 {DRAWER_FILTER_LABELS[filter]}
               </Tabs.Title>
-              {showsUnread ? (
+              {unread ? (
                 // The dot is decorative; a screen reader is told in the tab's
                 // own label instead, since the tab is what it belongs to.
                 <Circle
                   size="$s"
-                  backgroundColor={getUnreadColors(false).foreground}
+                  backgroundColor={getUnreadColors(notified).foreground}
                 />
               ) : null}
             </XStack>

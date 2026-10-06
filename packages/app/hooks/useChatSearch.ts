@@ -16,6 +16,12 @@ import {
 
 type ChatSearchDoc<TChat extends db.Chat> = ChatSearchCandidate & {
   chat: TChat;
+  /**
+   * For a chat found by its own title alone, the title of the group it is in:
+   * named alongside the chat's own title it narrows the match, and on its own
+   * it matches nothing.
+   */
+  scopeTitle: string;
 };
 
 type ChatSearchSource<TChat extends db.Chat> = {
@@ -33,20 +39,23 @@ type ChatSearchResult<TChat extends db.Chat> = {
 
 function buildChatSearchDoc<TChat extends db.Chat>(
   chat: TChat,
-  disableNicknames: boolean
+  disableNicknames: boolean,
+  titleOnly: boolean
 ): ChatSearchDoc<TChat> {
   const title = normalizeChatSearchString(getChatTitle(chat, disableNicknames));
-  const groupTitle = normalizeChatSearchString(
+  const enclosingTitle = normalizeChatSearchString(
     chat.type === 'channel' && chat.channel.group
       ? getGroupTitle(chat.channel.group, disableNicknames)
       : ''
   );
-  const id = normalizeChatSearchString(chat.id);
+  const groupTitle = titleOnly ? '' : enclosingTitle;
+  const id = titleOnly ? '' : normalizeChatSearchString(chat.id);
   return {
     chat,
     id,
     title,
     groupTitle,
+    scopeTitle: titleOnly ? enclosingTitle : '',
     combined: `${title} ${groupTitle} ${id}`.trim(),
     timestamp: chat.timestamp,
   };
@@ -75,7 +84,24 @@ function scoreSubstringMatch(
   );
 }
 
-function searchChatDocs<TChat extends db.Chat>(
+/**
+ * Every token in a title-only document's own title or its scope's, and at
+ * least one in its own: the scope narrows, it does not match.
+ */
+function matchesWithinScope(
+  doc: ChatSearchDoc<db.Chat>,
+  tokens: string[]
+): boolean {
+  return (
+    doc.scopeTitle !== '' &&
+    tokens.some((token) => doc.title.includes(token)) &&
+    tokens.every(
+      (token) => doc.title.includes(token) || doc.scopeTitle.includes(token)
+    )
+  );
+}
+
+export function searchChatDocs<TChat extends db.Chat>(
   docs: ChatSearchDoc<TChat>[],
   fuse: Fuse<ChatSearchDoc<TChat>>,
   query: string
@@ -108,17 +134,21 @@ function searchChatDocs<TChat extends db.Chat>(
     return fuzzyResults.map((result) => result.item.chat);
   }
 
-  const tokenMatchedCandidates = docs.filter((candidate) =>
-    hasAllChatSearchTokens(candidate, tokens)
+  const tokenMatchedCandidates = docs.filter(
+    (candidate) =>
+      hasAllChatSearchTokens(candidate, tokens) ||
+      matchesWithinScope(candidate, tokens)
   );
 
   if (!tokenMatchedCandidates.length) {
     return fuzzyResults.map((result) => result.item.chat);
   }
 
-  const fuzzyScores = new Map<string, ChatSearchFuzzyScore>(
+  // Keyed by the document rather than its id, which a title-only document
+  // leaves empty.
+  const fuzzyScores = new Map<ChatSearchDoc<TChat>, ChatSearchFuzzyScore>(
     fuzzyResults.map((result, rank) => [
-      result.item.id,
+      result.item,
       {
         rank,
         score: result.score ?? Number.POSITIVE_INFINITY,
@@ -134,12 +164,19 @@ function searchChatDocs<TChat extends db.Chat>(
   ).map((candidate) => candidate.chat);
 }
 
-function createChatSearchSource<TChat extends db.Chat>(
+export function createChatSearchSource<TChat extends db.Chat>(
   chats: TChat[],
   disableNicknames: boolean,
-  key: string
+  key: string,
+  searchesTitleOnly?: (chat: TChat) => boolean
 ): ChatSearchSource<TChat> {
-  const docs = chats.map((chat) => buildChatSearchDoc(chat, disableNicknames));
+  const docs = chats.map((chat) =>
+    buildChatSearchDoc(
+      chat,
+      disableNicknames,
+      searchesTitleOnly?.(chat) ?? false
+    )
+  );
 
   return {
     key,
@@ -189,18 +226,30 @@ export function useChatSearch<TChat extends db.Chat>({
   debounceMs,
   disableNicknames,
   semanticCacheKey,
+  searchesTitleOnly,
 }: {
   chats: TChat[];
   searchQuery: string;
   debounceMs: number;
   disableNicknames: boolean;
   semanticCacheKey?: string;
+  /**
+   * Chats found by their own title alone: not by their id, and not by their
+   * group's title, which only narrows a query that also names them. Pass a
+   * stable function; a new one rebuilds the index.
+   */
+  searchesTitleOnly?: (chat: TChat) => boolean;
 }) {
   const sourceCacheRef = useRef<ChatSearchSource<TChat> | null>(null);
   const resultCacheRef = useRef<ChatSearchResult<TChat> | null>(null);
   const searchSource = useMemo(() => {
     if (!semanticCacheKey) {
-      return createChatSearchSource(chats, disableNicknames, '');
+      return createChatSearchSource(
+        chats,
+        disableNicknames,
+        '',
+        searchesTitleOnly
+      );
     }
 
     const cachedSource = sourceCacheRef.current;
@@ -211,11 +260,12 @@ export function useChatSearch<TChat extends db.Chat>({
     const nextSource = createChatSearchSource(
       chats,
       disableNicknames,
-      semanticCacheKey
+      semanticCacheKey,
+      searchesTitleOnly
     );
     sourceCacheRef.current = nextSource;
     return nextSource;
-  }, [chats, disableNicknames, semanticCacheKey]);
+  }, [chats, disableNicknames, semanticCacheKey, searchesTitleOnly]);
   const searchDocsList = searchSource.docs;
   const searchFuse = searchSource.fuse;
   const allChats = searchSource.allChats;

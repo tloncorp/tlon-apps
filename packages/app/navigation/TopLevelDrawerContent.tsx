@@ -74,10 +74,11 @@ import {
   type DrawerFilter,
   type DrawerListRow,
   getDrawerChats,
+  getDrawerFilterUnreads,
   getDrawerSearchChats,
   getDrawerSearchRows,
   getDrawerTabRows,
-  getUnreadDrawerFilters,
+  isWorkspaceChannelChat,
 } from './drawerChats';
 import {
   type DrawerChatLeading,
@@ -87,7 +88,7 @@ import {
 import {
   channelRecency,
   channelRowUnread,
-  chatRowHasUnread,
+  chatRowUnread,
   toggleUnfurled,
 } from './drawerWorkspaceRows';
 import {
@@ -242,6 +243,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   disabled,
   unfurls,
   unfurled,
+  matches,
   pinned,
   onPress,
   onLongPress,
@@ -254,6 +256,9 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   /** Whether pressing this row opens its channels below it. */
   unfurls: boolean;
   unfurled: boolean;
+  /** A search result with the channels of it that matched beneath it, or
+      folded away: open, it is drawn without the unfurled block. */
+  matches: 'shown' | 'folded' | 'none';
   /** In its tab's pinned section, which leads with a pin in place of its
       glyph. */
   pinned: boolean;
@@ -278,16 +283,16 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
     () => getDrawerChatLeading(chat, pinned),
     [chat, pinned]
   );
-  const notified =
-    chat.type === 'group'
-      ? (chat.group.unread?.notify ?? false)
-      : (chat.channel.unread?.notify ?? false);
-  const hasUnread = chatRowHasUnread(chat);
+  const unread = chatRowUnread(chat);
+  const hasUnread = unread !== 'none';
+  const notified = unread === 'notified';
   // The same accent/grey split the workspace list's count badge makes, in the
   // form this row has room for: the dot is the badge with the number taken
   // out, so it reads the colours from the same place rather than picking its
   // own.
   const unreadColor = getUnreadColors(notified).foreground;
+  // Its channels are on show below it, all of them or the ones a search found.
+  const expanded = unfurled || matches === 'shown';
 
   return (
     <Pressable
@@ -308,7 +313,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
       accessibilityState={{
         disabled,
         selected,
-        ...(unfurls ? { expanded: unfurled } : {}),
+        ...(unfurls ? { expanded } : {}),
       }}
       testID={`TopLevelDrawerChat-${chat.id}`}
       borderTopLeftRadius="$l"
@@ -342,7 +347,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
           <View width={CARET_SLOT} alignItems="center">
             {unfurls ? (
               <Icon
-                type={unfurled ? 'ChevronDown' : 'ChevronRight'}
+                type={expanded ? 'ChevronDown' : 'ChevronRight'}
                 customSize={[CARET_SLOT, CARET_SLOT]}
                 color="$tertiaryText"
               />
@@ -400,6 +405,7 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   disabled,
   groupMuted,
   last,
+  match,
   joined,
   joining,
   onPress,
@@ -414,6 +420,9 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   groupMuted: boolean;
   /** Last of its workspace's channels, so the block's fill ends here. */
   last: boolean;
+  /** Found by the search: under its workspace for context, but not inside
+      its block, so drawn as a row of the list rather than of the fill. */
+  match: boolean;
   /** Not joined, or left: quieter, and pressing it joins. */
   joined: boolean;
   /** A join pressed here is still waiting on the ship. */
@@ -459,16 +468,25 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
       paddingHorizontal={CONTENT_INSET}
       justifyContent="center"
       minHeight={CHAT_ROW_MIN_HEIGHT}
-      // Only the bottom of the block is rounded, and only the last row can be
-      // it; the rows above square off against each other so the fill reads as
-      // one surface rather than a stack of them.
-      borderBottomLeftRadius={last ? '$l' : 0}
-      borderBottomRightRadius={last ? '$l' : 0}
-      marginBottom={last ? '$xs' : 0}
       opacity={disabled ? 0.4 : 1}
-      backgroundColor={selected ? UNFURLED_EMPHASIS : UNFURLED_FILL}
-      pressStyle={{ backgroundColor: UNFURLED_EMPHASIS }}
-      hoverStyle={{ backgroundColor: UNFURLED_EMPHASIS }}
+      {...(match
+        ? {
+            borderRadius: '$l',
+            backgroundColor: selected ? '$secondaryBackground' : 'transparent',
+            pressStyle: { backgroundColor: '$secondaryBackground' },
+            hoverStyle: { backgroundColor: '$secondaryBackground' },
+          }
+        : {
+            // Only the bottom of the block is rounded, and only the last row
+            // can be it; the rows above square off against each other so the
+            // fill reads as one surface rather than a stack of them.
+            borderBottomLeftRadius: last ? '$l' : 0,
+            borderBottomRightRadius: last ? '$l' : 0,
+            marginBottom: last ? '$xs' : 0,
+            backgroundColor: selected ? UNFURLED_EMPHASIS : UNFURLED_FILL,
+            pressStyle: { backgroundColor: UNFURLED_EMPHASIS },
+            hoverStyle: { backgroundColor: UNFURLED_EMPHASIS },
+          })}
     >
       <XStack alignItems="center" gap={ROW_GAP} paddingLeft={CHANNEL_INDENT}>
         <RowGlyph icon={getDrawerChannelIcon(channel)} />
@@ -913,6 +931,11 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // at one of its results is still there when they pull the panel back out.
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // Workspaces whose matching channels the user has folded away during this
+  // search. A search's own state, so it goes when the search does.
+  const [foldedMatchIds, setFoldedMatchIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
   // A chat reached through the search is told apart from one picked off the
   // list, as the workspace list's own filter tells its taps apart.
   const chatSource = searchQuery.trim() ? 'drawer_search' : 'drawer';
@@ -929,6 +952,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     if (!drawerOpen && searchOpen && searchQuery.trim() === '') {
       setSearchQuery('');
       setSearchOpen(false);
+      setFoldedMatchIds(new Set());
     }
   }, [drawerOpen, searchOpen, searchQuery]);
 
@@ -1045,6 +1069,10 @@ function DrawerPanel(props: DrawerContentComponentProps) {
 
   const openWorkspaceChannel = useCallback(
     (channel: db.Channel) => openChannel(channel, 'drawer_workspace'),
+    [openChannel]
+  );
+  const openSearchChannel = useCallback(
+    (channel: db.Channel) => openChannel(channel, 'drawer_search'),
     [openChannel]
   );
 
@@ -1247,6 +1275,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     searchInputRef.current?.blur();
     setSearchQuery('');
     setSearchOpen(false);
+    setFoldedMatchIds(new Set());
   }, []);
 
   // Not gated on the drawer being open: the list is virtualised, so what is
@@ -1262,14 +1291,32 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     [chats, filter, botDm]
   );
   // Gated on the field, unlike the list: the search indexes every chat it is
-  // handed, and the chat list changes with every unread that arrives, so an
-  // index kept for a search nobody has opened is rebuilt for nothing. Keyed on
-  // the bot's channel rather than `botDm`, which is a new object every render
-  // and would rebuild the index on each one.
+  // handed, and every channel of every workspace with them, and the chat list
+  // changes with every unread that arrives, so an index kept for a search
+  // nobody has opened is rebuilt for nothing. Keyed on the bot's channel rather
+  // than `botDm`, which is a new object every render and would rebuild the
+  // index on each one.
+  //
+  // A search with something typed in it outlives the panel being shut, and
+  // while it is shut the index is read from the chats as they stood when it
+  // shut, rather than rebuilt for each message arriving in the conversation
+  // the user went to. Not emptied: a panel being swiped back out is still
+  // reported shut, and its results are on screen.
   const botChannelId = botDm.enabled ? botDm.channelId : undefined;
+  // Set only as the panel opens or shuts, during render so the render that
+  // first sees it shut already reads what it was shut with.
+  const [shutWith, setShutWith] = useState<{ chats: typeof chats } | null>(
+    null
+  );
+  if (drawerOpen && shutWith) {
+    setShutWith(null);
+  } else if (!drawerOpen && !shutWith) {
+    setShutWith({ chats });
+  }
+  const searchedChats = shutWith ? shutWith.chats : chats;
   const searchChats = useMemo(
-    () => (searchOpen ? getDrawerSearchChats(chats, botChannelId) : []),
-    [chats, botChannelId, searchOpen]
+    () => (searchOpen ? getDrawerSearchChats(searchedChats, botChannelId) : []),
+    [searchedChats, botChannelId, searchOpen]
   );
   // The workspace list's own filter, so a name found there is found here.
   // Undebounced: the panel holds one user's chats, and a result that trails
@@ -1279,16 +1326,13 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     searchQuery,
     debounceMs: 0,
     disableNicknames,
+    searchesTitleOnly: isWorkspaceChannelChat,
   });
   // Read across the whole list rather than the half being shown, so the tab
   // that is not showing can say it has something in it.
-  const unreadFilters = useMemo(
-    () =>
-      getUnreadDrawerFilters(
-        chats,
-        botDm.enabled ? botDm.channelId : undefined
-      ),
-    [chats, botDm]
+  const filterUnreads = useMemo(
+    () => getDrawerFilterUnreads(chats, botChannelId),
+    [chats, botChannelId]
   );
   // Which workspace is showing its channels, if any. Kept here rather than
   // persisted: the panel's content is mounted for as long as the navigator is,
@@ -1316,6 +1360,23 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       // stack and close the panel out from under the channels just unfurled.
       navigationRequestRef.current += 1;
       setUnfurledGroupId((current) => toggleUnfurled(current, chat.id));
+    },
+    [chatsLocked]
+  );
+  const toggleMatches = useCallback(
+    (chat: db.Chat) => {
+      if (chatsLocked) {
+        return;
+      }
+      // Staying in the panel, as unfurling a workspace is.
+      navigationRequestRef.current += 1;
+      setFoldedMatchIds((ids) => {
+        const next = new Set(ids);
+        if (!next.delete(chat.id)) {
+          next.add(chat.id);
+        }
+        return next;
+      });
     },
     [chatsLocked]
   );
@@ -1375,7 +1436,13 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   const rows = useMemo<DrawerListRow[]>(
     () =>
       isSearching
-        ? getDrawerSearchRows(searchResults, unfurledGroupId, availableChannels)
+        ? getDrawerSearchRows(
+            searchResults,
+            searchChats,
+            unfurledGroupId,
+            foldedMatchIds,
+            availableChannels
+          )
         : [
             TOP_ANCHOR_ROW,
             ...getDrawerTabRows(
@@ -1389,7 +1456,9 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       availableChannels,
       drawerChats,
       filter,
+      foldedMatchIds,
       isSearching,
+      searchChats,
       searchResults,
       unfurledGroupId,
     ]
@@ -1428,12 +1497,23 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         <DrawerChatRow
           chat={item.chat}
           title={titles.get(item.key) ?? ''}
-          selected={routeShowsChat(item.chat, focusedStackRoute, item.unfurled)}
+          selected={routeShowsChat(
+            item.chat,
+            focusedStackRoute,
+            item.unfurled || item.matches === 'shown'
+          )}
           disabled={chatsLocked}
           unfurls={item.unfurls}
           unfurled={item.unfurled}
+          matches={item.matches}
           pinned={item.pinned}
-          onPress={item.unfurls ? toggleWorkspace : openChat}
+          onPress={
+            item.matches !== 'none'
+              ? toggleMatches
+              : item.unfurls
+                ? toggleWorkspace
+                : openChat
+          }
           // An invite has nothing to offer yet: it is not joined, so none of
           // the sheet's actions apply to it — the same row the workspace list
           // withholds the sheet from. Withheld rather than ignored, so holding
@@ -1455,9 +1535,16 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           disabled={chatsLocked}
           groupMuted={item.groupMuted}
           last={item.last}
+          match={item.match}
           joined={item.joined}
           joining={joiningChannelIds.has(item.channel.id)}
-          onPress={item.joined ? openWorkspaceChannel : joinWorkspaceChannel}
+          onPress={
+            !item.joined
+              ? joinWorkspaceChannel
+              : item.match
+                ? openSearchChannel
+                : openWorkspaceChannel
+          }
           onLongPress={item.joined ? openChannelOptions : undefined}
         />
       ),
@@ -1470,8 +1557,10 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       openChat,
       openGroupSettings,
       openOptions,
+      openSearchChannel,
       openWorkspaceChannel,
       titles,
+      toggleMatches,
       toggleWorkspace,
     ]
   );
@@ -1538,7 +1627,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         >
           <DrawerFilterTabs
             activeFilter={filter}
-            unreadFilters={unreadFilters}
+            unreads={filterUnreads}
             onPressFilter={selectFilter}
           />
         </DrawerSearchHeader>

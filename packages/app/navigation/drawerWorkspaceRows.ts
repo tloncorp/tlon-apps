@@ -19,6 +19,13 @@ export type DrawerRow =
       /** Whether this row unfurls its channels instead of navigating. */
       unfurls: boolean;
       unfurled: boolean;
+      /**
+       * A search result the channels of which matched: `shown` beneath it, or
+       * `folded` away by the user. Shown, it is open as an unfurled workspace
+       * is, but without its block: they are there to say where each channel
+       * is, not the whole of the workspace. `none` for every other row.
+       */
+      matches: 'shown' | 'folded' | 'none';
       /** In the pinned section at the top of its tab. */
       pinned: boolean;
     }
@@ -36,6 +43,11 @@ export type DrawerRow =
       groupMuted: boolean;
       /** Last channel of its workspace, where the block's fill ends. */
       last: boolean;
+      /**
+       * Found by the search, under a workspace showing its matches, rather
+       * than one of an unfurled workspace's channels.
+       */
+      match: boolean;
       /**
        * False for a channel the user can read but has not joined, or has
        * left: listed after the joined ones so it can be found again, drawn
@@ -109,7 +121,8 @@ export function getUnfurlableChannels(chat: db.Chat): db.Channel[] | null {
 }
 
 /**
- * Whether a chat has an unread the panel would light a dot for.
+ * What a chat row says about its unread: nothing, the grey dot, or the accent
+ * one, by the same split the workspace list's count badge makes.
  *
  * A reaction, mention or thread reply can leave a chat notified with a count
  * of zero, which the workspace list reads as unread and so does this. A muted
@@ -125,24 +138,27 @@ export function getUnfurlableChannels(chat: db.Chat): db.Channel[] | null {
  * folded shut, its row is the only place in the panel that can say so.
  *
  * Asked by the row itself and by the tab above it, so what a tab claims its
- * hidden half is holding is what its rows would show.
+ * hidden half is holding, and whether it notified, is what its rows would show.
  */
-export function chatRowHasUnread(chat: db.Chat): boolean {
+export function chatRowUnread(chat: db.Chat): 'none' | 'quiet' | 'notified' {
   const notified =
     chat.type === 'group'
       ? (chat.group.unread?.notify ?? false)
       : (chat.channel.unread?.notify ?? false);
+  const lit = notified ? 'notified' : 'quiet';
   if (!logic.isMuted(chat.volumeSettings?.level, chat.type)) {
-    return chat.unreadCount > 0 || notified;
+    return chat.unreadCount > 0 || notified ? lit : 'none';
   }
   // An invite's channels are not the user's to hear until they have joined,
   // and a direct message has none to ask about.
   if (chat.type !== 'group' || chat.isPending) {
-    return false;
+    return 'none';
   }
   return readableChannels(chat.group).some(
     (channel) => channelHoldsUnread(channel) && channelIsHeard(channel, true)
-  );
+  )
+    ? lit
+    : 'none';
 }
 
 function channelHoldsUnread(channel: db.Channel): boolean {
@@ -224,6 +240,7 @@ export function getDrawerRows(
       chat,
       unfurls: rowUnfurls,
       unfurled,
+      matches: 'none',
       pinned,
     });
     if (!unfurled) {
@@ -256,10 +273,54 @@ export function getDrawerRows(
         groupMuted,
         last: index === channels.length - 1,
         joined,
+        match: false,
       });
     });
   }
   return rows;
+}
+
+/**
+ * A workspace a search found channels in, with those channels beneath it
+ * unless the user has folded them away.
+ *
+ * The rows an unfurled workspace has, cut to the channels that matched and
+ * drawn without the block's fill. The block says "everything in here"; these
+ * are only where each match lives, and boxed as a block they would read as a
+ * workspace that holds nothing else.
+ */
+export function getDrawerMatchRows(
+  chat: db.Chat,
+  channels: db.Channel[],
+  folded = false
+): DrawerRow[] {
+  const groupMuted =
+    chat.type === 'group' && logic.isMuted(chat.volumeSettings?.level, 'group');
+  return [
+    {
+      kind: 'chat',
+      key: chat.id,
+      chat,
+      unfurls: unfurls(chat),
+      unfurled: false,
+      matches: folded ? 'folded' : 'shown',
+      pinned: false,
+    },
+    ...(folded ? [] : channels).map(
+      (channel, index): DrawerRow => ({
+        kind: 'channel',
+        key: `${chat.id}:${channel.id}`,
+        channel,
+        groupId: chat.id,
+        groupMuted,
+        last: index === channels.length - 1,
+        // Only joined channels are searched: the ones not joined are loaded
+        // for the workspace that is open, not for every workspace.
+        joined: true,
+        match: true,
+      })
+    ),
+  ];
 }
 
 /**

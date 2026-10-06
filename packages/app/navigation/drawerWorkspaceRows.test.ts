@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import {
   channelRecency,
   channelRowUnread,
-  chatRowHasUnread,
+  chatRowUnread,
+  getDrawerMatchRows,
   getDrawerRows,
   getUnfurlableChannels,
   toggleUnfurled,
@@ -76,9 +77,9 @@ function dm(id: string): db.Chat {
 
 const hush = { level: 'hush' } as db.VolumeSettings;
 
-describe('chatRowHasUnread', () => {
+describe('chatRowUnread', () => {
   it('lights an unheard chat, and a notified one with no count', () => {
-    expect(chatRowHasUnread({ ...dm('a'), unreadCount: 2 })).toBe(true);
+    expect(chatRowUnread({ ...dm('a'), unreadCount: 2 })).toBe('quiet');
     const notifiedDm: db.Chat = {
       id: 'a',
       timestamp: 0,
@@ -89,14 +90,29 @@ describe('chatRowHasUnread', () => {
       type: 'channel',
       channel: { id: 'a', type: 'dm', unread: { notify: true } } as db.Channel,
     };
-    expect(chatRowHasUnread(notifiedDm)).toBe(true);
-    expect(chatRowHasUnread(dm('a'))).toBe(false);
+    expect(chatRowUnread(notifiedDm)).toBe('notified');
+    expect(chatRowUnread(dm('a'))).toBe('none');
+  });
+
+  it('takes the accent for a workspace whose unread notified', () => {
+    const notified: db.Chat = {
+      id: 'w',
+      timestamp: 0,
+      pin: null,
+      volumeSettings: null,
+      isPending: false,
+      unreadCount: 2,
+      type: 'group',
+      group: { id: 'w', unread: { notify: true } } as db.Group,
+    };
+
+    expect(chatRowUnread(notified)).toBe('notified');
   });
 
   it('keeps a muted chat dark', () => {
     expect(
-      chatRowHasUnread({ ...dm('a'), unreadCount: 9, volumeSettings: hush })
-    ).toBe(false);
+      chatRowUnread({ ...dm('a'), unreadCount: 9, volumeSettings: hush })
+    ).toBe('none');
   });
 
   it('lights a muted workspace for a channel turned back up', () => {
@@ -109,7 +125,7 @@ describe('chatRowHasUnread', () => {
       { volume: hush }
     );
 
-    expect(chatRowHasUnread({ ...muted, unreadCount: 5 })).toBe(true);
+    expect(chatRowUnread({ ...muted, unreadCount: 5 })).toBe('quiet');
   });
 
   // Folded shut, the workspace's row is the only place the panel can say so.
@@ -120,7 +136,7 @@ describe('chatRowHasUnread', () => {
       { volume: hush }
     );
 
-    expect(chatRowHasUnread({ ...muted, unreadCount: 1 })).toBe(true);
+    expect(chatRowUnread({ ...muted, unreadCount: 1 })).toBe('quiet');
   });
 
   it('stays dark when a muted workspace has no channel of its own to speak', () => {
@@ -130,7 +146,7 @@ describe('chatRowHasUnread', () => {
       { volume: hush }
     );
 
-    expect(chatRowHasUnread({ ...muted, unreadCount: 6 })).toBe(false);
+    expect(chatRowUnread({ ...muted, unreadCount: 6 })).toBe('none');
   });
 
   it('stays dark for a channel the user cannot read, and for one muted itself', () => {
@@ -151,8 +167,8 @@ describe('chatRowHasUnread', () => {
       { volume: hush }
     );
 
-    expect(chatRowHasUnread({ ...unreadable, unreadCount: 3 })).toBe(false);
-    expect(chatRowHasUnread({ ...alsoMuted, unreadCount: 3 })).toBe(false);
+    expect(chatRowUnread({ ...unreadable, unreadCount: 3 })).toBe('none');
+    expect(chatRowUnread({ ...alsoMuted, unreadCount: 3 })).toBe('none');
   });
 
   it("stays dark for an invite, whose channels are not the user's to hear yet", () => {
@@ -162,7 +178,7 @@ describe('chatRowHasUnread', () => {
       { isPending: true, volume: hush }
     );
 
-    expect(chatRowHasUnread({ ...invite, unreadCount: 1 })).toBe(false);
+    expect(chatRowUnread({ ...invite, unreadCount: 1 })).toBe('none');
   });
 });
 
@@ -534,5 +550,62 @@ describe('getDrawerRows, with channels the user has not joined', () => {
     ]);
 
     expect(rows.map((row) => row.key)).toEqual(['group']);
+  });
+});
+
+describe('getDrawerMatchRows', () => {
+  const found = workspace('group', [
+    channel('general', { lastPostAt: 30 }),
+    channel('random', { lastPostAt: 20 }),
+  ]);
+
+  it('lists the workspace, then only the channels that matched, in that order', () => {
+    const general = channel('general');
+    const rows = getDrawerMatchRows(found, [channel('random'), general]);
+
+    expect(rows.map((row) => row.key)).toEqual([
+      'group',
+      'group:random',
+      'group:general',
+    ]);
+    expect(rows[0]).toMatchObject({
+      kind: 'chat',
+      unfurls: true,
+      unfurled: false,
+      matches: 'shown',
+      pinned: false,
+    });
+    expect(rows[2]).toMatchObject({
+      kind: 'channel',
+      groupId: 'group',
+      match: true,
+      joined: true,
+      last: true,
+    });
+  });
+
+  it('lists the workspace alone once its matches are folded away', () => {
+    const rows = getDrawerMatchRows(found, [channel('general')], true);
+
+    expect(rows.map((row) => row.key)).toEqual(['group']);
+    expect(rows[0]).toMatchObject({ matches: 'folded' });
+  });
+
+  it('carries a muted workspace’s silence down to the channels it lists', () => {
+    const muted = workspace('group', [channel('general')], { volume: hush });
+
+    expect(getDrawerMatchRows(muted, [channel('general')])[1]).toMatchObject({
+      kind: 'channel',
+      groupMuted: true,
+    });
+  });
+
+  it('leaves an unfurled workspace’s rows unmarked', () => {
+    const rows = getDrawerRows([found], 'group');
+
+    expect(rows[0]).toMatchObject({ matches: 'none' });
+    expect(
+      rows.slice(1).every((row) => row.kind === 'channel' && !row.match)
+    ).toBe(true);
   });
 });
