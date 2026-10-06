@@ -28,6 +28,7 @@ afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
   vi.clearAllMocks();
   vi.unstubAllEnvs();
+  vi.useRealTimers();
 });
 
 it('registers usable task tools, recovers ids and enforces conversation/owner boundaries', async () => {
@@ -165,6 +166,169 @@ it('resolves waiting only on agent browser activity, not release or monitoring',
   expect(f.runtime.store.get(f.task.id, f.task.scope).state).toBe('active');
   await f.runtime.tick();
   expect(readBrowserTaskServiceStatus).not.toHaveBeenCalled();
+});
+it.each(['requested', 'ready'] as const)(
+  'keeps a newer %s handoff waiting when an earlier handoff fails',
+  (phase) => {
+    const f = fixture();
+    const first = randomUUID();
+    const second = randomUUID();
+    f.observe('handoff_requested', undefined, first);
+    f.observe('handoff_ready', undefined, first);
+    f.observe('handoff_requested', undefined, second);
+    if (phase === 'ready') f.observe('handoff_ready', undefined, second);
+
+    f.observe('handoff_failed', undefined, first);
+    const waiting = f.runtime.store.get(f.task.id, f.task.scope);
+    expect(waiting.state).toBe('waiting_for_user');
+    expect(waiting.sessions[0].handoffs[0].failedAt).toBeDefined();
+    expect(waiting.sessions[0].handoffs[1].resolvedAt).toBeUndefined();
+
+    f.observe('handoff_failed', undefined, second);
+    expect(f.runtime.store.get(f.task.id, f.task.scope).state).toBe('active');
+  }
+);
+it.each(['another session', 'stateless scrape', 'session creation'])(
+  'keeps monitoring a handoff during activity in %s',
+  async (activity) => {
+    const f = fixture();
+    const hid = randomUUID();
+    const initial = { version: 1 as const, epoch: randomUUID(), revision: 0 };
+    vi.mocked(readBrowserTaskServiceStatus).mockResolvedValue(initial);
+    f.observe('handoff_requested', undefined, hid);
+    await f.runtime.prepare(f.handle, f.context, hid);
+    f.observe('handoff_ready', undefined, hid);
+    const otherHandle = 'sess_' + 'z'.repeat(22);
+    const otherId = browserSessionTelemetryId(otherHandle)!;
+    f.runtime.store.attach(f.task.id, f.task.scope, otherHandle, otherId);
+
+    f.runtime.observe(
+      browserLifecycleEvent({
+        source: 'agent',
+        phase: 'operation_started',
+        operation:
+          activity === 'another session'
+            ? 'snapshot'
+            : activity === 'stateless scrape'
+              ? 'scrape'
+              : 'session_create',
+        outcome: 'unknown',
+        browserSessionId: activity === 'another session' ? otherId : undefined,
+      })!,
+      f.context
+    );
+    const waiting = f.runtime.store.get(f.task.id, f.task.scope);
+    expect(waiting.state).toBe('waiting_for_user');
+    expect(waiting.sessions[0].handoffs[0].resolvedAt).toBeUndefined();
+
+    vi.mocked(readBrowserTaskServiceStatus).mockResolvedValue({
+      ...initial,
+      revision: 1,
+      fill: { revision: 1, at: Date.now(), formId: 'login', submitted: true },
+    });
+    await f.runtime.tick();
+    const filled = f.runtime.store.get(f.task.id, f.task.scope);
+    expect(filled.state).toBe('waiting_for_agent');
+    expect(filled.sessions[0].handoffs[0].fillAt).toBeDefined();
+    expect(readBrowserTaskServiceStatus).toHaveBeenCalledTimes(2);
+
+    f.observe('operation_started', 'snapshot');
+    expect(f.runtime.store.get(f.task.id, f.task.scope).state).toBe('active');
+    await f.runtime.tick();
+    expect(readBrowserTaskServiceStatus).toHaveBeenCalledTimes(2);
+  }
+);
+function waitingTasks(runtime: BrowserTaskRuntime, count: number) {
+  const initial = { version: 1 as const, epoch: randomUUID(), revision: 0 };
+  return Array.from({ length: count }, (_, index) => {
+    const task = runtime.store.start(`conversation-${index}`, 'Sign in');
+    const handle = 'sess_' + String(index).repeat(22);
+    const sessionId = browserSessionTelemetryId(handle)!;
+    const handoffId = randomUUID();
+    runtime.store.attach(task.id, task.scope, handle, sessionId);
+    runtime.store.update(task.id, task.scope, 'handoff', (t) => {
+      t.state = 'waiting_for_user';
+      t.sessions[0].handoffs.push({
+        id: handoffId,
+        requestedAt: Date.now(),
+        readyAt: Date.now(),
+      });
+    });
+    runtime.store.status(
+      task.id,
+      task.scope,
+      sessionId,
+      handoffId,
+      initial,
+      true
+    );
+    return { task, handle, initial };
+  });
+}
+it('polls with four workers so a slow session does not block healthy sessions', async () => {
+  vi.useFakeTimers();
+  const f = fixture();
+  const tasks = waitingTasks(f.runtime, 8);
+  let active = 0;
+  let peak = 0;
+  vi.mocked(readBrowserTaskServiceStatus).mockImplementation(
+    async (_config, handle) => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) =>
+        setTimeout(resolve, handle === tasks[0].handle ? 1000 : 10)
+      );
+      active--;
+      return {
+        ...tasks[0].initial,
+        revision: 1,
+        fill: { revision: 1, at: Date.now(), formId: 'login', submitted: true },
+      };
+    }
+  );
+  const tick = f.runtime.tick();
+  try {
+    expect(f.runtime.tick()).toBe(tick);
+    expect(readBrowserTaskServiceStatus).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(readBrowserTaskServiceStatus).toHaveBeenCalledTimes(8);
+    expect(peak).toBe(4);
+    expect(
+      f.runtime.store.get(tasks[0].task.id, tasks[0].task.scope).state
+    ).toBe('waiting_for_user');
+    for (const { task } of tasks.slice(1))
+      expect(f.runtime.store.get(task.id, task.scope).state).toBe(
+        'waiting_for_agent'
+      );
+  } finally {
+    await vi.runAllTimersAsync();
+    await tick;
+    await f.runtime.stop();
+  }
+});
+it('aborts active polls and leaves queued sessions untouched on shutdown', async () => {
+  const f = fixture();
+  const tasks = waitingTasks(f.runtime, 8);
+  vi.mocked(readBrowserTaskServiceStatus).mockImplementation(
+    (_config, _handle, signal) =>
+      new Promise((_resolve, reject) => {
+        signal!.addEventListener('abort', () => reject(new Error('Aborted')), {
+          once: true,
+        });
+      })
+  );
+  const tick = f.runtime.tick();
+  const started = vi.mocked(readBrowserTaskServiceStatus).mock.calls.length;
+  await f.runtime.stop();
+  await tick;
+  expect(started).toBe(4);
+  expect(readBrowserTaskServiceStatus).toHaveBeenCalledTimes(4);
+  for (const { task } of tasks) {
+    const handoff = f.runtime.store.get(task.id, task.scope).sessions[0]
+      .handoffs[0];
+    expect(handoff.checkFailedAt).toBeUndefined();
+    expect(handoff.fillAt).toBeUndefined();
+  }
 });
 it('attributes a delayed creation to its original task even after the selected task changes', () => {
   const f = fixture();

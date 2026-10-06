@@ -31,9 +31,9 @@ States have deliberately narrow meanings:
 
 | State | Evidence |
 | --- | --- |
-| `active` | Task started/resumed, or actual agent browser activity observed. |
-| `waiting_for_user` | Secure handoff requested, or service observed a different subsequent form after filling. |
-| `waiting_for_agent` | Service confirmed filling; no later agent browser activity observed yet. |
+| `active` | Task started/resumed, or agent browser activity observed with no outstanding handoff. |
+| `waiting_for_user` | Secure handoff requested, or service observed an actionable form after filling, including a submitted form that reappears. |
+| `waiting_for_agent` | Service confirmed filling; no actionable later form or agent resumption of that session observed. |
 | `paused` | Agent explicitly set the task aside. Service receipts can still update facts. |
 | `closed` | Agent reported an outcome. Session release alone never closes a task. |
 
@@ -58,10 +58,11 @@ version, browser epoch, revision, and latest form/fill/failure metadata. It neve
 contains field values, labels, URLs, credentials or raw errors.
 
 The gateway reads a baseline before sending a handoff card, then polls outstanding
-handoffs every 30 seconds through its configured authenticated MCP proxy. Failed
-checks back off to five minutes. This is cloud-side polling, with no client or
-conversation message involved; it uses the existing proxy route rather than
-introducing a callback endpoint. Missing or incompatible status leaves the last
+handoffs every 30 seconds through its configured authenticated MCP proxy, with
+up to four checks in flight. Failed checks back off to five minutes. This is
+cloud-side polling, with no client or conversation message involved; it uses the
+existing proxy route rather than introducing a callback endpoint. Missing or
+incompatible status leaves the last
 known state with a failed/stale observation. An epoch change is missing evidence,
 not a fill. Revisions at/before the baseline cannot complete a new handoff.
 

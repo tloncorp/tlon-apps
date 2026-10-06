@@ -440,12 +440,18 @@ describe('secure browser form screen', () => {
     act(() => renderer.unmount());
   });
 
-  it('retries completion without filling a one-use form again', async () => {
+  it('retries completion without refilling or reporting a next-form failure', async () => {
     mocks.beginHandoff.mockResolvedValue(form([password]));
     mocks.complete.mockRejectedValueOnce(new Error('Could not notify the bot'));
     const { renderer } = await render();
     act(() => enter(renderer, 'Password', 'secret'));
     await press(renderer);
+    expect(mocks.report.mock.calls.map(([, event]) => event.phase)).toEqual([
+      'form_opened',
+      'form_ready',
+      'fill_started',
+      'fill_accepted',
+    ]);
     await press(renderer, 'Return to conversation');
     expect(mocks.complete).toHaveBeenCalledTimes(2);
     expect(mocks.submitCredentials).toHaveBeenCalledOnce();

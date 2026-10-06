@@ -316,14 +316,16 @@ export class BrowserTaskStore {
       if (!status.fill || status.fill.revision <= after) return;
       h.fillAt = status.fill.at;
       h.submitted = status.fill.submitted;
-      const next =
-        status.form &&
-        status.form.revision > status.fill.revision &&
-        status.form.formId !== status.fill.formId;
-      if (next) h.nextFormAt = status.form!.at;
+      const formAfterFill =
+        status.form && status.form.revision > status.fill.revision
+          ? status.form
+          : undefined;
+      const next = formAfterFill && formAfterFill.formId !== status.fill.formId;
+      if (next) h.nextFormAt = formAfterFill.at;
       else delete h.nextFormAt;
+      const needsInput = formAfterFill && (next || status.fill.submitted);
       if (t.state !== 'paused')
-        t.state = next ? 'waiting_for_user' : 'waiting_for_agent';
+        t.state = needsInput ? 'waiting_for_user' : 'waiting_for_agent';
     });
   }
 }

@@ -21,7 +21,14 @@ import { getSessionRole } from './session-roles.js';
 
 const runtime = sharedSlot<BrowserTaskRuntime>('browser.tasks.runtime');
 const POLL_MS = 30_000;
+const POLL_CONCURRENCY = 4;
 const HEARTBEAT_MS = 5 * 60_000;
+
+function hasOutstandingHandoff(task: BrowserTask) {
+  return task.sessions.some((session) =>
+    session.handoffs.some((handoff) => !handoff.resolvedAt && !handoff.failedAt)
+  );
+}
 
 /** Deliberately excludes objective, evidence, raw handles, form ids, URLs and secrets. */
 export function browserTaskSnapshot(
@@ -163,9 +170,10 @@ export class BrowserTaskRuntime {
             t.state !== 'closed' &&
             t.state !== 'paused'
           ) {
-            t.state = 'active';
-            for (const h of t.sessions.flatMap((s) => s.handoffs))
-              if (h.readyAt && !h.resolvedAt) h.resolvedAt = Date.now();
+            for (const h of session?.handoffs ?? [])
+              if (h.readyAt && !h.resolvedAt && !h.failedAt)
+                h.resolvedAt = Date.now();
+            if (!hasOutstandingHandoff(t)) t.state = 'active';
           }
         }
         if (!session) return;
@@ -190,8 +198,14 @@ export class BrowserTaskRuntime {
         if (handoff && event.phase === 'handoff_ready')
           handoff.readyAt = Date.now();
         if (handoff && event.phase === 'handoff_failed') {
+          const outstanding = !handoff.resolvedAt && !handoff.failedAt;
           handoff.failedAt = Date.now();
-          if (t.state === 'waiting_for_user') t.state = 'active';
+          if (
+            outstanding &&
+            t.state === 'waiting_for_user' &&
+            !hasOutstandingHandoff(t)
+          )
+            t.state = 'active';
         }
       }
     );
@@ -232,6 +246,7 @@ export class BrowserTaskRuntime {
         if (task.state !== 'closed') this.emit(task, 'snapshot');
       this.heartbeatAt = Date.now();
     }
+    const checks: Array<() => Promise<void>> = [];
     for (const task of this.store.list()) {
       if (this.controller.signal.aborted) return;
       if (task.state === 'closed') continue;
@@ -246,20 +261,43 @@ export class BrowserTaskRuntime {
           Date.now() - handoff.checkFailedAt < HEARTBEAT_MS
         )
           continue;
-        let status = null;
-        try {
-          status = await readBrowserTaskServiceStatus(
-            this.api.config,
-            session.handle,
-            this.controller.signal
+        checks.push(async () => {
+          let status = null;
+          try {
+            status = await readBrowserTaskServiceStatus(
+              this.api.config,
+              session.handle,
+              this.controller.signal
+            );
+          } catch {
+            /* Never interpret an unavailable service as completion. */
+          }
+          if (this.controller.signal.aborted) return;
+          this.store.status(
+            task.id,
+            task.scope,
+            session.id,
+            handoff.id,
+            status
           );
-        } catch {
-          /* Never interpret an unavailable service as completion. */
-        }
-        if (this.controller.signal.aborted) return;
-        this.store.status(task.id, task.scope, session.id, handoff.id, status);
+        });
       }
     }
+    let index = 0;
+    const results = await Promise.allSettled(
+      Array.from(
+        { length: Math.min(POLL_CONCURRENCY, checks.length) },
+        async () => {
+          while (!this.controller.signal.aborted) {
+            const check = checks[index++];
+            if (!check) return;
+            await check();
+          }
+        }
+      )
+    );
+    const failed = results.find((result) => result.status === 'rejected');
+    if (failed?.status === 'rejected') throw failed.reason;
   }
   start() {
     if (this.timer) return;

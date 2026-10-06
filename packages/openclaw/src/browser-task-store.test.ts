@@ -104,6 +104,28 @@ describe('BrowserTask durable state', () => {
     expect(f.read().state).toBe('waiting_for_user');
     expect(f.read().sessions[0].handoffs[0].fillAt).toBeUndefined();
   });
+  it.each([true, false])(
+    'keeps a redisplayed form waiting for the user only after submission (submitted=%s)',
+    (submitted) => {
+      const f = fixture();
+      const filled = {
+        ...f.status,
+        revision: 4,
+        fill: { revision: 4, at: 2000, formId: 'login', submitted },
+      };
+      expect(f.apply(filled).state).toBe('waiting_for_agent');
+      const redisplayed = f.apply({
+        ...filled,
+        revision: 5,
+        form: { revision: 5, at: 2100, formId: 'login' },
+      });
+      expect(redisplayed.state).toBe(
+        submitted ? 'waiting_for_user' : 'waiting_for_agent'
+      );
+      expect(redisplayed.sessions[0].handoffs[0].nextFormAt).toBeUndefined();
+      expect(redisplayed.outcome).toBeUndefined();
+    }
+  );
   it('keeps intentional pauses, records receipts while paused, and reports an attributed outcome', () => {
     const f = fixture();
     f.store.pause(f.task.id, f.task.scope);
