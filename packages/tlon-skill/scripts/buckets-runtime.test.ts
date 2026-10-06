@@ -375,7 +375,7 @@ describe('Buckets runtime hardening', () => {
     }
   });
 
-  it('uses the host-minted upload grant and streams the file', async () => {
+  it('uses the host-minted upload grant and sends the file as the body', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
     const filePath = path.join(directory, 'plan.md');
     const contents = '# Project\n';
@@ -424,8 +424,14 @@ describe('Buckets runtime hardening', () => {
       if (url === 'https://upload.test/object-mine') {
         // a redirect would be a second destination nobody checked
         expect(init?.redirect).toBe('error');
-        expect(init?.body).toBeInstanceOf(Blob);
-        expect(await (init?.body as Blob).text()).toBe(contents);
+        // An in-memory Blob, not Bun.file(): the lazy, file-backed one is
+        // what the compiled binary crashes on (buckets-upload-transport.ts).
+        // A BunFile is the one Blob with a name.
+        const body = init?.body as Blob & { name?: string };
+        expect(body).toBeInstanceOf(Blob);
+        expect(body.name).toBeUndefined();
+        expect(body.size).toBe(Buffer.byteLength(contents));
+        expect(await body.text()).toBe(contents);
         return new Response('', { status: 200 });
       }
       throw new Error(`Unexpected fetch: ${url}`);

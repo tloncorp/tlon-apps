@@ -16,7 +16,7 @@ describe('Tlon product guide contracts', () => {
     expect(frontmatter).toContain(
       'this is not generic API or OpenRouter billing'
     );
-    expect(guide).toContain('`Bot Settings` → `ChatGPT subscription`');
+    expect(guide).toContain('`Provider subscriptions` → `ChatGPT`');
     expect(guide).toContain(
       'chooses one of the models included with that subscription for Tlonbot'
     );

@@ -86,13 +86,11 @@ import {
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
-import {
-  runBrowserHandoffCommand,
-  runTlonCommand,
-} from './src/tlon-command-runner.js';
+import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
+import { runTlonCommand } from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
-  isBrowserHandoffCommand,
+  findTlonSubcommandIndex,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
@@ -102,6 +100,8 @@ import {
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
 import {
+  beginTlonTurnSilenceObservation,
+  recordTlonTurnSilenceOutput,
   recordActiveTlonTurnToolCall,
   recordTlonAgentRunTrace,
 } from './src/turn-recorder.js';
@@ -987,8 +987,8 @@ export default defineBundledChannelEntry({
       (ctx) => {
         const executeTlonTool = createTlonToolExecutor({
           runCommand: (args) =>
-            isBrowserHandoffCommand(args)
-              ? runBrowserHandoffCommand(tlonBinary, args, api.config)
+            args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
+              ? runBrowserSessionHandoff(tlonBinary, args, api.config)
               : runTlonCommand(tlonBinary, args, credentials, {
                   timeoutMs: toolTimeoutMs,
                   cwd: ctx.workspaceDir,
@@ -1010,8 +1010,9 @@ export default defineBundledChannelEntry({
           label: 'Tlon CLI',
           description:
             'Tlon/Urbit API for reading data and administration: activity, Buckets shared files, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
+            'The Tlon Messenger app calls groups "workspaces": a request to create, join, or manage a workspace is about a Tlon group, so use `groups` commands (`groups create-owned` to make one for someone). It means your own workspace files only when the person is plainly talking about files, e.g. by naming SOUL.md. ' +
             'Commands are argument strings, not shell scripts: omit the leading tlon, pipes, and redirections. Relative file paths use the active agent workspace. Use --body <file> for notes or upload <file>; --stdin is unavailable. ' +
-            'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
+            'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser needs login, address, or card information from its owner, use `browser handoff <session_id>` with the sess_ handle from browser_session_create to send the owner the secure native form. The service resolves its signed link; never supply or reconstruct a viewer URL. ' +
             '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
             'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
             'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
@@ -1023,8 +1024,8 @@ export default defineBundledChannelEntry({
               command: {
                 type: 'string',
                 description:
-                  'The tlon command and arguments (read/admin operations and browser login handoff). ' +
-                  'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
+                  'The tlon command and arguments (read/admin operations and secure browser form handoff). ' +
+                  'To send ordinary messages, use the `message` tool, not this tool. For secure browser input, use `browser handoff <session_id>` with the sess_ handle from browser_session_create, never a viewer URL. ' +
                   'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
                   'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
                   "Examples: 'activity mentions --limit 10', 'buckets list', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
@@ -1556,6 +1557,7 @@ export default defineBundledChannelEntry({
     };
     api.on('agent_turn_prepare', async (_event, ctx) => {
       beginCronSilenceObservation(ctx);
+      beginTlonTurnSilenceObservation(ctx);
       // Cron has no active Tlon turn recorder, so its output trace stays nullable.
       if (ctx.trigger !== 'cron') {
         recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
@@ -1564,6 +1566,7 @@ export default defineBundledChannelEntry({
     });
     api.on('model_call_started', async (_event, ctx) => {
       beginCronSilenceObservation(ctx);
+      beginTlonTurnSilenceObservation(ctx);
       await onCronAgentHook(ctx);
     });
 
@@ -1573,6 +1576,7 @@ export default defineBundledChannelEntry({
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (event, ctx) => {
       recordCronSilenceOutput(event, ctx);
+      recordTlonTurnSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
       if (!contextLensEnabled) {
         return;

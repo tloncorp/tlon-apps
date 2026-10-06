@@ -1,5 +1,9 @@
 import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import type {
+  PluginHookAgentContext,
+  PluginHookAgentEndEvent,
+} from 'openclaw/plugin-sdk/types';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
 import {
@@ -8,6 +12,7 @@ import {
   recordTlonMessageJourneyEvent,
 } from './message-journey.js';
 import { sharedMap } from './shared-state.js';
+import { isSuccessfulSilentAgentOutput } from './silent-reply.js';
 
 export type TlonAgentTurnExecution =
   | 'completed'
@@ -127,7 +132,14 @@ export type TlonAgentTurnDispatchOutcome = TlonAgentTurnDispatchAttempt & {
   outputMessageId?: string;
 };
 
+type TurnAgentOutput = {
+  sessionKey: string;
+  sessionId?: string;
+  silent: boolean;
+};
+
 type TlonAgentTurnState = TlonAgentTurnStart & {
+  agentOutput: TurnAgentOutput;
   deliveryFailureCount: number;
   deliverySuccessCount: number;
   dispatchAttemptCount: number;
@@ -175,6 +187,13 @@ type TurnInstruments = {
   started: CounterLike;
   terminal: CounterLike;
 };
+
+// Entry hooks and the lazy-loaded monitor can live in separate module contexts.
+// Share only bounded, content-free evidence; finalize removes the active entry.
+const agentOutputsByRunId = sharedMap<string, TurnAgentOutput>(
+  'turnRecorder.agentOutputsByRunId'
+);
+const MAX_TRACKED_AGENT_OUTPUTS = 1_024;
 
 const turnStorage = new AsyncLocalStorage<TlonAgentTurnState>();
 const traceIdsByRunId = sharedMap<string, string>(
@@ -303,6 +322,14 @@ function resolveDeliverySkipReason(
     state.deliveryFailureCount === 0
   ) {
     return 'source_reply_delivery_mode_message_tool_only';
+  }
+  if (
+    state.agentOutput.silent &&
+    state.sourceReplyCount === 0 &&
+    state.toolCallCount === 0 &&
+    resolveExecution(terminal) === 'completed'
+  ) {
+    return 'silent';
   }
   return null;
 }
@@ -559,6 +586,7 @@ export function startTlonAgentTurn(
   const observer = options?.observer ?? defaultTurnObserver;
   const state: TlonAgentTurnState = {
     ...input,
+    agentOutput: { sessionKey: input.sessionKey, silent: false },
     ship: normalizeShip(input.ship),
     deliveryFailureCount: 0,
     deliverySuccessCount: 0,
@@ -575,6 +603,14 @@ export function startTlonAgentTurn(
     toolErrorCount: 0,
   };
 
+  agentOutputsByRunId.set(state.runId, state.agentOutput);
+  while (agentOutputsByRunId.size > MAX_TRACKED_AGENT_OUTPUTS) {
+    const oldest = agentOutputsByRunId.keys().next().value;
+    if (oldest === undefined) break;
+    agentOutputsByRunId.get(oldest)!.silent = false;
+    agentOutputsByRunId.delete(oldest);
+  }
+
   safeObserve(() => observer.recordStarted(state));
 
   return {
@@ -588,10 +624,39 @@ export function startTlonAgentTurn(
       state.finalized = true;
       state.summary = buildSummary(state, terminal);
       traceIdsByRunId.delete(state.runId);
+      if (agentOutputsByRunId.get(state.runId) === state.agentOutput) {
+        agentOutputsByRunId.delete(state.runId);
+      }
       safeObserve(() => observer.recordTerminal(state.summary!));
       return state.summary;
     },
   };
+}
+
+// Reset before every model attempt, including retries after a silent completion.
+export function beginTlonTurnSilenceObservation(
+  ctx: PluginHookAgentContext
+): void {
+  const output = ctx.runId ? agentOutputsByRunId.get(ctx.runId) : undefined;
+  if (!output || output.sessionKey !== ctx.sessionKey) return;
+  output.silent = false;
+  // model_call_started can omit the session ID supplied by agent_turn_prepare.
+  output.sessionId = ctx.sessionId ?? output.sessionId;
+}
+
+export function recordTlonTurnSilenceOutput(
+  event: PluginHookAgentEndEvent,
+  ctx: PluginHookAgentContext
+): void {
+  const output = ctx.runId ? agentOutputsByRunId.get(ctx.runId) : undefined;
+  if (
+    !output ||
+    output.sessionKey !== ctx.sessionKey ||
+    !output.sessionId ||
+    output.sessionId !== ctx.sessionId
+  )
+    return;
+  output.silent = isSuccessfulSilentAgentOutput(event);
 }
 
 function updateActiveTurn(update: (state: TlonAgentTurnState) => void): void {

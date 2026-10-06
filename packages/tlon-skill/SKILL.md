@@ -1,6 +1,6 @@
 ---
 name: tlon
-description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups; hosted-browser login handoffs; group/channel administration; profile management; and exposing content to the clearweb.
+description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups (called workspaces in the Tlon Messenger app); hosted-browser secure form handoffs; group/channel administration; profile management; and exposing content to the clearweb.
 ---
 
 # Tlon Skill
@@ -28,36 +28,36 @@ tlon upload https://example.com/x.png  # remote URL
 
 Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting. Self-hosted moons have no storage, so `upload` refuses immediately with `This ship cannot store uploads …`; for a local file, retry through the owner ship's config: `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`. For a source that is already a public https URL, `media=` takes it directly — no upload needed. Never claim an image was sent unless the upload and the send both returned success.
 
-### Hosted-browser login handoff
+### Hosted-browser secure form handoff
 
-Use a browser login handoff when you are controlling a hosted browser on behalf
+Use a secure form handoff when you are controlling a hosted browser on behalf
 of your owner and the live page needs sensitive input that they should provide,
-especially:
+including identifier-only, password, and verification steps, as well as address
+and payment-card fields. The handoff follows the fields visible on the page;
+login steps can continue within the same handoff. Address and card entry fills
+fields without submitting a transaction.
 
-- a username and password form;
-- a password-only form after a username step; or
-- a visible one-time-password or verification-code form.
-
-Do not ask the owner to send a password or code in chat. Do not type, store,
+Do not ask the owner to send credentials, card details, or private addresses in chat. Do not type, store,
 repeat, summarize, or otherwise bring those values into model context. Ordinary
 navigation and non-sensitive form filling should continue through the browser
 tools without a handoff.
 
-First navigate the live session all the way to the visible login or verification
-form. Use the unexpired signed `viewer_url` returned by `browser_session_create`
+First navigate the live session all the way to the visible form. Use the `session_id` (`sess_` handle) returned by `browser_session_create`
 for that same session. In OpenClaw, call the model-facing `tlon` tool with:
 
 ```json
-{"command": "browser handoff <signed-viewer-url>"}
+{"command": "browser handoff <session_id>"}
 ```
 
-Do not include the executable name in the tool's `command` argument. From a
-shell, the equivalent is `tlon browser handoff <signed-viewer-url>`.
+Do not include the executable name in the tool's `command` argument. Use this
+tool, not a shell command. The plugin resolves a fresh signed viewer link through
+the authenticated browser service and passes it directly to the CLI for card
+delivery. Never copy, construct, edit, or supply a viewer URL yourself.
 
 Do not call `browser_session_handoff` as a prerequisite for this card. That tool
 uses MCP viewer/elicitation capabilities to arrange human browser control; it
 does not issue or refresh signed viewer URLs. Its `client_capability_missing`
-error does not determine whether the Tlon native login form is available.
+error does not determine whether the Tlon secure form is available.
 
 This is the one exception to the rule against using that tool to send a message.
 The command
@@ -66,39 +66,42 @@ account. It has no recipient argument or override. If no owner is configured,
 it fails instead of sending the form elsewhere. Never claim the handoff was
 sent unless the command returned success.
 
-The card opens a native Tlon password or verification-code form. It does not
-embed the remote page. The browser service re-inspects the live page, tells
-Tlon which standard fields are present, and receives the submitted values
-directly. The values are never posted to chat or returned to the bot. If login
-advances to a separate OTP page, run the same command again with the same live
-session's signed viewer URL, provided it is still valid, to send the owner the
-OTP form. Each time the owner opens the form, the browser service inspects the
-current page and issues a one-use fill handle.
+The card opens a native Tlon secure form. It does not embed the remote page.
+The browser service describes the visible fields using standard autofill
+purposes, including identifiers, passwords, verification codes, addresses, and
+card details. Each fill is bound to the exact live controls and origin. Values
+travel directly to the browser service, without passing through chat or the
+bot. Do not read or repeat filled sensitive fields through browser tools.
 
-Keep the session live while the owner completes the form. After a successful
-submission, “Return to conversation” automatically sends the same continuation
-message as the card's “I'm signed in” button. Wait for that message, then inspect
-the same browser session to verify that login actually succeeded and continue
-the task. Do not ask the owner to press both controls. The card button is only a
-manual fallback. Release the browser session promptly when the browser task is
-finished.
+Keep the session live while the owner completes the form. The same handoff
+follows successive login steps without another message or model-generated
+selector. Each step shows its destination and requires fresh input. Card and
+address forms are filled without a submit click; filling them does not authorize
+a purchase, payment, or other consequential action.
 
-If handoff reports that no visible password or code form exists, the browser is
-usually on the wrong page or an earlier login step. Inspect it, navigate or
-click until the sensitive form is visibly present, and have the owner reopen
-the card. If the signed viewer URL is missing, rejected, or expired, report that
-the native handoff is unavailable; do not invent or edit a URL, reuse an expired
-one, or claim that `browser_session_handoff` refreshes it. If the live session
-itself expired, create a new one and navigate back to the required form before
-sending a card with its signed viewer URL.
+When entry finishes, the app resumes the conversation automatically. Wait for
+that continuation message, then inspect the same browser session, check the
+current page and validation state, and continue the task. Entry does not prove
+sign-in or transaction completion. Do not ask the owner to press both controls;
+the card's “Continue task” button is a manual alternative. Release the session
+promptly when the browser task is finished.
+
+Ambiguous forms, custom controls, passkeys, CAPTCHA, and unsupported steps can
+be completed through “Open live browser” on the same screen. Do not guess field
+selectors or ask for the values in chat. If a card expires while its session is
+still live, send a fresh card using the same session handle. If the lookup
+fails, report the failure; do not invent or edit a URL or claim a card was sent.
+If the live session expires, create a new one and navigate to the required form
+before sending its handoff.
 
 #### What persists
 
 Do not describe the live session itself as permanent. A live Chrome session,
 its tabs, its current page, and its signed handoff URL are temporary and end on
 release, inactivity timeout, hard timeout, or Pod restart. Signed viewer URLs
-are short-lived bearer capabilities: pass one only to `tlon browser handoff`,
-never quote it into chat or share it with another user.
+are temporary bearer capabilities handled by the plugin and browser service.
+Use only the session handle in the Tlon tool; never quote a signed link into
+chat or share it with another user.
 
 The browser *profile* is persistent. In the self-hosted deployment, the MCP
 credential identifies the owner and transparently selects that owner's durable
@@ -281,6 +284,8 @@ tlon channels create ~host/slug "Notes" --kind notes       # Create a %notes gro
 tlon channels rename chat/~host/slug "New Title"           # Rename a channel
 tlon channels update chat/~host/slug --title "New Title"   # Update metadata
 tlon channels delete chat/~host/slug                       # Delete a channel
+tlon channels leave chat/~host/slug                        # Leave one channel; stay in the group
+tlon channels join chat/~host/slug                         # Rejoin a channel in a group you're in
 
 # Writers (who can post)
 tlon channels add-writers chat/~host/slug admin member     # Add write access
@@ -290,6 +295,8 @@ tlon channels del-writers chat/~host/slug member           # Remove write access
 tlon channels add-readers ~host/group chat/~host/slug admin    # Restrict viewing
 tlon channels del-readers ~host/group chat/~host/slug admin    # Open viewing
 ```
+
+To leave a single channel, use `channels leave`; `groups leave` leaves the whole group and all its channels. `channels join` doesn't check read access: joining a channel you can't read still prints "Joined", but no messages will arrive.
 
 Help works for both the command and subcommands:
 
@@ -360,6 +367,8 @@ Options: `--nickname`, `--bio`, `--status`, `--avatar`, `--cover`
 Full group management.
 
 When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester. After `create-owned`, share the group by putting the `Ref:` path from the output in your reply (the OpenClaw message tool renders it as a card).
+
+The Tlon Messenger app calls groups **workspaces**: the list of them is the Workspaces tab, and on an account with a hosted bot the app's create button reads `New Workspace`. A user asking to create, join, rename, or invite someone to a workspace, or to list their workspaces, is asking about a group, so use these `tlon groups` commands — creating one for someone is `groups create-owned`. `groups list` shows only the groups the ship running the command is in: to list someone else's workspaces, run it with their credentials (`--config`) when you have them, and otherwise say the list covers only the groups you're in. That is a different thing from the agent harness's own workspace directory (OpenClaw's SOUL.md, AGENTS.md, and memory files). A request to create a workspace always means a group; read "workspace" as that directory only when the person is plainly talking about its files, for example by naming one.
 
 ```bash
 # Basics

@@ -616,6 +616,7 @@ export async function startTlonGatewayAccount(
       accountId: account.accountId,
       cfg: ctx.cfg,
       onReady: catchup.connected,
+      activityReadsReady: catchup.settled(),
     });
   } finally {
     ctx.abortSignal.removeEventListener('abort', catchup.stop);

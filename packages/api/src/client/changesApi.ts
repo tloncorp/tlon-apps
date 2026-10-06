@@ -22,12 +22,7 @@ export async function fetchChangesSince(timestamp: number): Promise<
 > {
   const spin = startSpinHintCheck();
   try {
-    const encodedTimestamp = render('da', da.fromUnix(timestamp));
-    // /v11/changes is /v10 plus the group blob: v10-native activity (notebook/
-    // note sources, which the v4 conversion drops) over v11 groups.
-    const response = await scryRequest(groupsUi.changes)<ub.ChangesV11>({
-      since: encodedTimestamp,
-    });
+    const response = await scryChangesSince(timestamp);
     const spinResult = await spin.settleWithin(SPIN_HINT_GRACE_MS);
 
     return {
@@ -45,6 +40,18 @@ export async function fetchChangesSince(timestamp: number): Promise<
   } finally {
     spin.cancel();
   }
+}
+
+/**
+ * The raw `/changes` package: channel posts, DM/club writs, groups, contacts and
+ * activity summaries changed on the ship after `timestamp`, from one scry.
+ */
+export function scryChangesSince(timestamp: number): Promise<ub.ChangesV11> {
+  // /v11/changes is /v10 plus the group blob: v10-native activity (notebook/
+  // note sources, which the v4 conversion drops) over v11 groups.
+  return scryRequest(groupsUi.changes)<ub.ChangesV11>({
+    since: render('da', da.fromUnix(timestamp)),
+  });
 }
 
 export function parseChanges(input: ub.ChangesV11): db.ChangesResult {
