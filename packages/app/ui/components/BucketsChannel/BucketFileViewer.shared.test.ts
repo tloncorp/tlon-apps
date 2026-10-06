@@ -10,6 +10,7 @@ import {
   getBucketPreviewKind,
   htmlPreviewDocument,
   htmlPreviewHasScripts,
+  htmlPreviewHeldPolicy,
   htmlPreviewKey,
   htmlPreviewLinkFromBridge,
   htmlPreviewNavigation,
@@ -326,6 +327,7 @@ describe('htmlPreviewTitle', () => {
     ).toBe('Launch & recap — Q3');
     // Text whose lowercase is longer (İ) leaves the scan in step.
     expect(htmlPreviewTitle('<p>İİİ</p><title>Title</title>')).toBe('Title');
+    expect(htmlPreviewTitle('<!--><title>Title</title><!-- -->')).toBe('Title');
   });
 
   it('ignores a title inside an svg, and one in a comment', () => {
@@ -444,7 +446,7 @@ describe('htmlPreviewSandboxes', () => {
   // cookie in some browsers; modals would be the app's own dialogs; top
   // navigation would take the app's own tab. None may happen in either frame.
   it('never grants either frame the app origin, forms, dialogs or the top', () => {
-    for (const scripts of [true, false]) {
+    for (const scripts of ['all', 'ours', 'none'] as const) {
       const sandboxes = htmlPreviewSandboxes({ scripts });
       for (const tokens of [sandboxes.document, sandboxes.shell]) {
         for (const forbidden of [
@@ -460,12 +462,15 @@ describe('htmlPreviewSandboxes', () => {
   });
 
   // The file's frame cannot open a window, which it could otherwise do with
-  // no tap at all; the shell opens its links for it.
+  // no tap at all; the shell opens its links for it. While the file's scripts
+  // are held the frames are the same: the policy decides whose scripts run.
   it('runs the file in a browser with scripts and nothing else', () => {
-    expect(htmlPreviewSandboxes({ scripts: true })).toEqual({
-      document: 'allow-scripts',
-      shell: 'allow-scripts allow-popups allow-popups-to-escape-sandbox',
-    });
+    for (const scripts of ['all', 'ours'] as const) {
+      expect(htmlPreviewSandboxes({ scripts })).toEqual({
+        document: 'allow-scripts',
+        shell: 'allow-scripts allow-popups allow-popups-to-escape-sandbox',
+      });
+    }
   });
 
   // The desktop shell disables web security, which grants every document
@@ -473,7 +478,7 @@ describe('htmlPreviewSandboxes', () => {
   // either frame, only the reader's own click can follow a link.
   it('withholds scripts under Electron and lets links open as popups', () => {
     const popups = 'allow-popups allow-popups-to-escape-sandbox';
-    expect(htmlPreviewSandboxes({ scripts: false })).toEqual({
+    expect(htmlPreviewSandboxes({ scripts: 'none' })).toEqual({
       document: popups,
       shell: popups,
     });
@@ -503,6 +508,13 @@ describe('htmlPreviewHasScripts', () => {
       '<a href="javascript:go()">go</a>',
       // Text whose lowercase is longer (İ) leaves the scan in step.
       '<p>İİİ</p><script>go()</script>',
+      // Inside an svg, a title or a style holds markup.
+      '<svg><title><script>run()</script></title></svg>',
+      '<svg><style><a onclick="go()">x</a></style></svg>',
+      // A quote in an unquoted value is the value's.
+      '<a data=x=" onclick=go()>x</a>',
+      // A comment that ends early leaves what follows it markup.
+      '<!--><script>go()</script><!-- -->',
     ]) {
       expect(htmlPreviewHasScripts(html), html).toBe(true);
     }
@@ -599,6 +611,30 @@ describe('HTML_PREVIEW_POLICY', () => {
 const KEY = '0123456789abcdef0123456789abcdef';
 const TOKEN = 'fedcba9876543210fedcba9876543210';
 
+function directivesOf(policy: string) {
+  return new Map(
+    policy.split('; ').map((directive) => {
+      const [name, ...sources] = directive.split(' ');
+      return [name, sources] as const;
+    })
+  );
+}
+
+describe('htmlPreviewHeldPolicy', () => {
+  // While the file's scripts are held, only ours run: they carry the nonce.
+  // Everything else is the policy the file's scripts run under.
+  it('runs only scripts carrying the nonce, under the same loads and limits', () => {
+    const held = directivesOf(htmlPreviewHeldPolicy(TOKEN));
+    expect(held.get('script-src')).toEqual([`'nonce-${TOKEN}'`]);
+    expect(held.has('worker-src')).toBe(false);
+    const running = directivesOf(HTML_PREVIEW_POLICY);
+    running.delete('script-src');
+    running.delete('worker-src');
+    held.delete('script-src');
+    expect(held).toEqual(running);
+  });
+});
+
 describe('htmlPreviewShell', () => {
   const file = '<!doctype html><p class="x">a & b</p><script>alert(1)</script>';
   const webShell = htmlPreviewShell({
@@ -665,6 +701,23 @@ describe('htmlPreviewShell', () => {
     expect(webShell).toContain(`})('${KEY}', function (href)`);
   });
 
+  // While the file's scripts are held, the shell carries the held policy for
+  // the file's document to inherit, and its own script the nonce.
+  it("carries the held policy, and the nonce on its script, while the file's scripts are held", () => {
+    const held = htmlPreviewShell({
+      document: file,
+      key: KEY,
+      nonce: TOKEN,
+      opener: { kind: 'window' },
+      sandbox: 'allow-scripts',
+    });
+    expect(held).toContain(
+      `<meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(TOKEN)}">`
+    );
+    expect(held.match(/<script/g)).toEqual(['<script']);
+    expect(held).toContain(`<script nonce="${TOKEN}">`);
+  });
+
   it('opens a new tab on web', () => {
     expect(webShell).toContain(
       "window.open(href, '_blank', 'noopener,noreferrer')"
@@ -701,7 +754,7 @@ describe('htmlPreviewDocument', () => {
   // first script can read it.
   it('gives our script the key and lets it remove itself', () => {
     const out = htmlPreviewDocument('<!doctype html><p>x</p>', KEY);
-    expect(out).toContain(`})('${KEY}');`);
+    expect(out).toContain(`})('${KEY}', true);`);
     expect(out).toContain('document.currentScript');
     expect(out).toContain('self.remove()');
     // Only a click the reader made is handed on.
@@ -768,9 +821,62 @@ describe('htmlPreviewDocument', () => {
 // Under Electron no script runs in the frame, so links are aimed at `_blank`
 // in the markup itself: one aimed at the frame would be refused, and an SVG
 // link ignores the <base> target.
+describe("htmlPreviewDocument with the file's scripts held", () => {
+  const held = (html: string) =>
+    htmlPreviewDocument(html, KEY, { scripts: 'ours', nonce: TOKEN });
+
+  // The browser parses the file as it is; of the scripts in it only ours,
+  // which carries the nonce, runs, and it handles the links the browser made.
+  it('runs our script alone and leaves the markup to the browser', () => {
+    const file =
+      '<p><a href="tlon://open" onclick="go()">x</a></p><script>go()</script>';
+    const out = held(`<!doctype html>${file}`);
+    expect(out).toBe(
+      `<!doctype html><meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(TOKEN)}"><base target="_blank">` +
+        out.slice(
+          out.indexOf(`<script nonce="${TOKEN}">`),
+          out.indexOf('</script>') + 9
+        ) +
+        file
+    );
+    expect(out.match(/<script nonce=/g)).toHaveLength(1);
+  });
+
+  // A javascript: link is the file's own code.
+  it('runs no javascript: link', () => {
+    expect(held('<p>x</p>')).toContain(`})('${KEY}', false);`);
+    expect(held('<p>x</p>')).toContain('if (!runsJavascriptLinks) return;');
+  });
+});
+
+// Our script must come before anything of the file's that could run, so the
+// comments ahead of a doctype end where the tokenizer ends them.
+describe('where our part of the document goes', () => {
+  const lead = (out: string) => out.startsWith('<meta http-equiv=');
+  it('goes first when a comment ends early and the file runs something', () => {
+    for (const opening of ['<!-->', '<!--->', '<!-- --!>']) {
+      const out = htmlPreviewDocument(
+        `${opening}<script>first()</script><!-- --><!DOCTYPE html><p>x</p>`,
+        KEY
+      );
+      expect(lead(out), opening).toBe(true);
+    }
+  });
+
+  it('still follows a doctype behind comments that close the usual way', () => {
+    const out = htmlPreviewDocument(
+      '<!---- a -- b ----><!DOCTYPE html><p>x</p>',
+      KEY
+    );
+    expect(out.startsWith('<!---- a -- b ----><!DOCTYPE html><meta ')).toBe(
+      true
+    );
+  });
+});
+
 describe('htmlPreviewDocument without scripts', () => {
   const scriptless = (html: string) =>
-    htmlPreviewDocument(html, KEY, { scripts: false });
+    htmlPreviewDocument(html, KEY, { scripts: 'none' });
 
   it('aims every web, mail and phone link at _blank, whatever it was aimed at', () => {
     const out = scriptless(
@@ -922,6 +1028,45 @@ describe('htmlPreviewDocument without scripts', () => {
     ).toContain('<a target="_blank" href="https://b.example/x">x</a>');
   });
 
+  // A quote inside an unquoted value is the value's: the href after it is
+  // still an attribute of the link.
+  it('reads attributes as the tokenizer does', () => {
+    expect(scriptless('<a data=x=" href=/~/logout>open</a>')).toContain(
+      '<a target="_blank" data=x=">open</a>'
+    );
+  });
+
+  // Inside an svg or math, a title or a style holds markup, not text.
+  it('settles a link inside foreign content', () => {
+    for (const holder of ['title', 'style', 'textarea']) {
+      expect(
+        scriptless(
+          `<svg><${holder}><a href="tlon://open" target="_blank">x</a></${holder}></svg>`
+        ),
+        holder
+      ).toContain('<a target="_blank">x</a>');
+    }
+  });
+
+  // A comment, a bogus comment and a CDATA section end where the tokenizer
+  // ends them, so a link after one is still a link.
+  it('settles a link after any comment', () => {
+    for (const before of [
+      '<!-->',
+      '<!--->',
+      '<!-- x --!>',
+      '<? <!-- >',
+      '<!x <!-- >',
+      '</ <!-- >',
+      '<svg><![CDATA[ <!-- ]]>',
+    ]) {
+      expect(
+        scriptless(`${before}<a href="tlon://open" target="_blank">x</a>`),
+        before
+      ).toContain('<a target="_blank">x</a>');
+    }
+  });
+
   it('rewrites a file of unclosed tags at once', () => {
     expect(scriptless('<a'.repeat(200_000))).toContain('<a<a');
   });
@@ -937,6 +1082,15 @@ describe('the scripts the documents carry', () => {
       doc.indexOf('</script>')
     );
     expect(() => new Function(linkScript)).not.toThrow();
+    const held = htmlPreviewDocument('<p>x</p>', KEY, {
+      scripts: 'ours',
+      nonce: TOKEN,
+    });
+    const heldScript = held.slice(
+      held.indexOf('>', held.indexOf('<script nonce=')) + 1,
+      held.indexOf('</script>')
+    );
+    expect(() => new Function(heldScript)).not.toThrow();
     for (const opener of [
       { kind: 'window' },
       { kind: 'app', token: TOKEN },

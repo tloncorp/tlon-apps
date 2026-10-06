@@ -161,7 +161,9 @@ function metaCharset(head: string): string | undefined {
     const open = head.indexOf('<', i);
     if (open < 0) return undefined;
     if (head.startsWith('<!--', open)) {
-      const close = head.indexOf('-->', open + 4);
+      // The prescan's comment ends at the first `-->`, whose dashes may be
+      // the opener's own (`<!-->`).
+      const close = head.indexOf('-->', open + 2);
       if (close < 0) return undefined;
       i = close + 3;
       continue;
@@ -436,6 +438,16 @@ const TITLE_TEXT_ELEMENTS = new Set([
 // nothing -- and which can nest.
 const INERT_ELEMENTS = new Set(['math', 'svg', 'template']);
 
+// The elements that open foreign content, where the parser reads no
+// element's content as text: inside an svg, a title, style or script holds
+// markup. They can nest.
+const FOREIGN_ELEMENTS = new Set(['math', 'svg']);
+
+/** Whether the start tag that ends at `tagEnd` closes itself (`<svg/>`). */
+function closesItself(html: string, tagEnd: number): boolean {
+  return html.charCodeAt(tagEnd - 2) === 47;
+}
+
 // HTML's ASCII whitespace: tab, line feed, form feed, carriage return, space.
 function isHtmlSpace(code: number): boolean {
   return code === 9 || code === 10 || code === 12 || code === 13 || code === 32;
@@ -446,25 +458,101 @@ function isAsciiLetter(code: number): boolean {
 }
 
 /**
- * The index just past the `>` that ends a tag whose name ends at `from`,
- * skipping a quoted attribute value whole; -1 when the tag never ends.
+ * The index just past the `>` that ends a tag whose name ends at `from`; -1
+ * when the tag never ends. It reads the attributes in the tokenizer's states:
+ * a quote opens a quoted value only straight after an attribute's `=`, so one
+ * inside a name or an unquoted value (`data=x="`) is just a character there.
  */
 function startTagEnd(html: string, from: number): number {
   let i = from;
-  while (i < html.length) {
-    const char = html[i];
-    if (char === '>') return i + 1;
+  for (;;) {
+    while (
+      i < html.length &&
+      (isHtmlSpace(html.charCodeAt(i)) || html[i] === '/')
+    ) {
+      i += 1;
+    }
+    if (i >= html.length) return -1;
+    if (html[i] === '>') return i + 1;
+    // A name: its first character whatever it is, then up to a space, a
+    // slash, a `>` or an `=`.
     i += 1;
-    if (char !== '=') continue;
+    while (i < html.length) {
+      const char = html[i];
+      if (
+        char === '>' ||
+        char === '/' ||
+        char === '=' ||
+        isHtmlSpace(html.charCodeAt(i))
+      ) {
+        break;
+      }
+      i += 1;
+    }
+    while (i < html.length && isHtmlSpace(html.charCodeAt(i))) i += 1;
+    if (html[i] !== '=') continue;
+    i += 1;
     while (i < html.length && isHtmlSpace(html.charCodeAt(i))) i += 1;
     const quote = html[i];
     if (quote === '"' || quote === "'") {
       const close = html.indexOf(quote, i + 1);
       if (close < 0) return -1;
       i = close + 1;
+    } else {
+      while (
+        i < html.length &&
+        html[i] !== '>' &&
+        !isHtmlSpace(html.charCodeAt(i))
+      ) {
+        i += 1;
+      }
     }
   }
-  return -1;
+}
+
+/**
+ * Where a scan resumes past what starts at `open` when that is not a tag, as
+ * the tokenizer reads it: a comment, which ends at its first `-->` or `--!>`,
+ * or at once as `<!-->` or `<!--->`; in foreign content a CDATA section, at
+ * its `]]>`; and a doctype, a processing instruction, or any other `<!`, or
+ * `</` before something other than a letter, at the next `>`. -1 when one
+ * runs to the end of the file; undefined when a tag starts at `open`, or a
+ * stray `<` that is text.
+ */
+function pastNonTag(
+  html: string,
+  open: number,
+  foreign: boolean
+): number | undefined {
+  if (html.startsWith('<!--', open)) {
+    if (html[open + 4] === '>') return open + 5;
+    if (html.startsWith('->', open + 4)) return open + 6;
+    for (
+      let dashes = html.indexOf('--', open + 4);
+      dashes >= 0;
+      dashes = html.indexOf('--', dashes + 1)
+    ) {
+      if (html[dashes + 2] === '>') return dashes + 3;
+      if (html.startsWith('!>', dashes + 2)) return dashes + 4;
+    }
+    return -1;
+  }
+  if (foreign && html.startsWith('<![CDATA[', open)) {
+    const close = html.indexOf(']]>', open + 9);
+    return close < 0 ? -1 : close + 3;
+  }
+  const next = html[open + 1];
+  if (
+    next === '!' ||
+    next === '?' ||
+    (next === '/' &&
+      open + 2 < html.length &&
+      !isAsciiLetter(html.charCodeAt(open + 2)))
+  ) {
+    const close = html.indexOf('>', open + 2);
+    return close < 0 ? -1 : close + 1;
+  }
+  return undefined;
 }
 
 /** Where the end tag `</name>` starts in `lower`, from `from`; -1 when there is none. */
@@ -492,21 +580,22 @@ function endTagStart(lower: string, name: string, from: number): number {
  */
 export function htmlPreviewTitle(html: string): string | undefined {
   const lower = asciiLowercase(html);
-  // How many template, svg and math elements are open around the scan.
+  // How many template, svg and math elements are open around the scan, and
+  // how many of those are svg or math.
   let inert = 0;
+  let foreign = 0;
   let i = 0;
   for (;;) {
     const open = html.indexOf('<', i);
     if (open < 0) return undefined;
-    if (html.startsWith('<!--', open)) {
-      const close = html.indexOf('-->', open + 4);
-      if (close < 0) return undefined;
-      i = close + 3;
+    const past = pastNonTag(html, open, foreign > 0);
+    if (past !== undefined) {
+      if (past < 0) return undefined;
+      i = past;
       continue;
     }
     const closing = html.charCodeAt(open + 1) === 47;
     const nameStart = open + (closing ? 2 : 1);
-    // Doctypes, processing instructions and a stray `<` say nothing about it.
     if (!isAsciiLetter(html.charCodeAt(nameStart))) {
       i = open + 1;
       continue;
@@ -523,17 +612,20 @@ export function htmlPreviewTitle(html: string): string | undefined {
     i = tagEnd;
     if (closing) {
       if (inert > 0 && INERT_ELEMENTS.has(name)) inert -= 1;
+      if (foreign > 0 && FOREIGN_ELEMENTS.has(name)) foreign -= 1;
       continue;
     }
-    // Everything after a plaintext start tag is text.
-    if (name === 'plaintext') return undefined;
     if (INERT_ELEMENTS.has(name)) {
       // A self-closed svg or math has no content; a template always opens.
-      const selfClosed =
-        name !== 'template' && html.charCodeAt(tagEnd - 2) === 47;
-      if (!selfClosed) inert += 1;
+      if (name === 'template' || !closesItself(html, tagEnd)) {
+        inert += 1;
+        if (FOREIGN_ELEMENTS.has(name)) foreign += 1;
+      }
       continue;
     }
+    if (foreign > 0) continue;
+    // Everything after a plaintext start tag is text.
+    if (name === 'plaintext') return undefined;
     if (name !== 'title' && !TITLE_TEXT_ELEMENTS.has(name)) continue;
     const close = endTagStart(lower, name, tagEnd);
     if (close < 0) return undefined;
@@ -575,6 +667,15 @@ export function bucketFileViewerHeading(item: BucketFileViewerItem): {
 }
 
 /**
+ * Whose scripts a preview runs: the file's and ours (`all`: iOS and Android,
+ * and web once the reader asks), ours alone (`ours`: web until then), or none
+ * (`none`: under Electron). On web a file's script runs on the app's own
+ * thread, where a loop that never ends would freeze the whole tab, so there
+ * it waits for the reader (BucketFileViewer).
+ */
+export type HtmlPreviewScripts = 'all' | 'ours' | 'none';
+
+/**
  * The sandboxes for the two frames that render an HTML file on web: the
  * shell of ours (htmlPreviewShell) and the file's own frame inside it.
  *
@@ -584,28 +685,30 @@ export function bucketFileViewerHeading(item: BucketFileViewerItem): {
  * cookies, its database and its ship session. So `allow-same-origin` is never
  * granted to either frame: each gets an opaque origin of its own.
  *
- * When the file's scripts run, its frame gets them and nothing more, with
- * HTML_PREVIEW_POLICY keeping them off the network, and it cannot open a
- * window. Its links still open: our script in the file's frame hands a link
- * the reader tapped to the shell (htmlPreviewDocument), and the shell, which
- * may open windows, opens it once it has checked that the reader really
- * tapped (htmlPreviewShell).
+ * When scripts run -- the file's and ours, or ours alone while the file's are
+ * held -- its frame gets them and nothing more, with the policy keeping them
+ * off the network, and it cannot open a window. Its links still open: our
+ * script in the file's frame hands a link the reader tapped to the shell
+ * (htmlPreviewDocument), and the shell, which may open windows, opens it once
+ * it has checked that the reader really tapped (htmlPreviewShell).
  *
- * When they do not -- under Electron always, and on web until the reader asks
- * (BucketFileViewer) -- neither frame runs a script, so nothing in the file
- * can click for the reader, and its own frame may open windows: a link the
- * reader clicks opens as a popup, in a new tab on web and, through the desktop
- * shell, in the system browser. The desktop shell starts its window with
- * `webSecurity: false` (apps/tlon-desktop/src/main/index.ts), which grants
- * every document in it universal access, so there the opaque origin would not
- * keep a script in the file out of the app's window. On web a script runs on
- * the app's own thread, where a loop that never ends freezes the whole tab.
+ * Under Electron neither frame runs a script, so nothing in the file can
+ * click for the reader, and its own frame may open windows: a link the reader
+ * clicks opens as a popup, which the desktop shell sends to the system
+ * browser. The desktop shell starts its window with `webSecurity: false`
+ * (apps/tlon-desktop/src/main/index.ts), which grants every document in it
+ * universal access, so there the opaque origin would not keep a script in
+ * the file out of the app's window.
  */
-export function htmlPreviewSandboxes({ scripts }: { scripts: boolean }): {
+export function htmlPreviewSandboxes({
+  scripts,
+}: {
+  scripts: HtmlPreviewScripts;
+}): {
   document: string;
   shell: string;
 } {
-  if (!scripts) {
+  if (scripts === 'none') {
     const popups = 'allow-popups allow-popups-to-escape-sandbox';
     return { document: popups, shell: popups };
   }
@@ -628,30 +731,39 @@ export function htmlPreviewSandboxes({ scripts }: { scripts: boolean }): {
  */
 export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
   const lower = asciiLowercase(html);
+  // How many svg and math elements are open around the scan.
+  let foreign = 0;
   let i = 0;
   for (;;) {
     const open = html.indexOf('<', i);
     if (open < 0) return false;
-    if (html.startsWith('<!--', open)) {
-      const close = html.indexOf('-->', open + 4);
-      if (close < 0) return false;
-      i = close + 3;
+    const past = pastNonTag(html, open, foreign > 0);
+    if (past !== undefined) {
+      if (past < 0) return false;
+      i = past;
       continue;
     }
-    if (!isAsciiLetter(html.charCodeAt(open + 1))) {
+    const closing = html.charCodeAt(open + 1) === 47;
+    const nameStart = open + (closing ? 2 : 1);
+    if (!isAsciiLetter(html.charCodeAt(nameStart))) {
       i = open + 1;
       continue;
     }
-    let nameEnd = open + 1;
+    let nameEnd = nameStart;
     while (nameEnd < html.length) {
       const code = html.charCodeAt(nameEnd);
       if (isHtmlSpace(code) || code === 47 || code === 62) break;
       nameEnd += 1;
     }
-    const name = lower.slice(open + 1, nameEnd);
-    if (name === 'script') return true;
+    const name = lower.slice(nameStart, nameEnd);
+    if (!closing && name === 'script') return true;
     const tagEnd = startTagEnd(html, nameEnd);
     if (tagEnd < 0) return false;
+    i = tagEnd;
+    if (closing) {
+      if (foreign > 0 && FOREIGN_ELEMENTS.has(name)) foreign -= 1;
+      continue;
+    }
     for (const [attribute, value] of tagAttributes(
       html.slice(nameEnd, tagEnd - 1)
     )) {
@@ -670,8 +782,9 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
         return true;
       }
     }
-    i = tagEnd;
-    if (TEXT_CONTENT_ELEMENTS.has(name)) {
+    if (FOREIGN_ELEMENTS.has(name)) {
+      if (!closesItself(html, tagEnd)) foreign += 1;
+    } else if (foreign === 0 && TEXT_CONTENT_ELEMENTS.has(name)) {
       const close = endTagStart(lower, name, tagEnd);
       if (close < 0) return false;
       i = close;
@@ -731,21 +844,48 @@ const PREVIEW_CDNS =
  * into the file's own markup as well (htmlPreviewDocument), so that it holds
  * even where that inheritance did not.
  */
-export const HTML_PREVIEW_POLICY = [
-  "default-src 'none'",
-  `script-src 'unsafe-inline' 'unsafe-eval' data: blob: ${PREVIEW_CDNS} https://cdn.tailwindcss.com https://code.jquery.com`,
+const PREVIEW_LOADS = [
   `style-src 'unsafe-inline' data: blob: ${PREVIEW_CDNS} https://fonts.googleapis.com`,
   `font-src data: ${PREVIEW_CDNS} https://fonts.gstatic.com`,
   `img-src data: blob: ${PREVIEW_CDNS}`,
   'media-src data: blob:',
-  'worker-src blob:',
+];
+const PREVIEW_LIMITS = [
   "connect-src 'none'",
   "form-action 'none'",
   'frame-src about:',
   "object-src 'none'",
+];
+
+export const HTML_PREVIEW_POLICY = [
+  "default-src 'none'",
+  `script-src 'unsafe-inline' 'unsafe-eval' data: blob: ${PREVIEW_CDNS} https://cdn.tailwindcss.com https://code.jquery.com`,
+  ...PREVIEW_LOADS,
+  'worker-src blob:',
+  ...PREVIEW_LIMITS,
 ].join('; ');
 
-const HTML_PREVIEW_POLICY_META = `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`;
+/**
+ * The policy while a file's scripts are held: the same loads and limits as
+ * HTML_PREVIEW_POLICY, but the only scripts that run carry `nonce`, and only
+ * ours do. The file's own -- inline or from a CDN, an event handler
+ * attribute, a `javascript:` URL, one in an inline frame -- are refused, and
+ * the file cannot learn the nonce, fresh for each preview, without a script
+ * of its own. So the browser itself decides which links the file has, and
+ * our script handles them as when the file's scripts run.
+ */
+export function htmlPreviewHeldPolicy(nonce: string): string {
+  return [
+    "default-src 'none'",
+    `script-src 'nonce-${nonce}'`,
+    ...PREVIEW_LOADS,
+    ...PREVIEW_LIMITS,
+  ].join('; ');
+}
+
+function policyMeta(policy: string): string {
+  return `<meta http-equiv="Content-Security-Policy" content="${policy}">`;
+}
 
 /** The message that carries a tapped link, from our script in the file's frame to the shell, and on native from the shell to the app. */
 export const HTML_PREVIEW_LINK_MESSAGE = 'tlon-preview-link';
@@ -800,25 +940,33 @@ function openerScript(opener: HtmlPreviewOpener): string {
  * too, but it cannot read the key, and the browser grants the tap only for
  * a real one. Nothing of the file's sits in the shell outside the escaped
  * attribute.
+ *
+ * While the file's scripts are held, pass the `nonce` the file's document was
+ * made with: the shell then carries the held policy, which the file's
+ * document inherits, and its own script carries the nonce.
  */
 export function htmlPreviewShell({
   document,
   key,
+  nonce,
   opener,
   sandbox,
 }: {
   document: string;
   key: string;
+  nonce?: string;
   opener: HtmlPreviewOpener;
   sandbox: string;
 }): string {
+  const policy =
+    nonce === undefined ? HTML_PREVIEW_POLICY : htmlPreviewHeldPolicy(nonce);
   return (
     '<!doctype html><html><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-    HTML_PREVIEW_POLICY_META +
+    policyMeta(policy) +
     '<style>html,body{margin:0;height:100%;background:#fff}iframe{display:block;border:0;width:100%;height:100%}</style>' +
     `</head><body><iframe sandbox="${sandbox}" srcdoc="${escapeAttribute(document)}"></iframe>` +
-    `<script>
+    `<script${nonce === undefined ? '' : ` nonce="${nonce}"`}>
 (function (key, open) {
   'use strict';
   var frame = document.querySelector('iframe');
@@ -845,7 +993,9 @@ export function htmlPreviewShell({
 /**
  * Where the file's doctype ends: after any byte order mark, whitespace,
  * comments and processing instructions ahead of it, the index just past its
- * `>`; -1 when the file has none. A `>` ends a DOCTYPE token in every state
+ * `>`; -1 when the file has none. Comments end where the tokenizer ends them
+ * (pastNonTag): what we place here must come before anything of the file's
+ * that could run. A `>` ends a DOCTYPE token in every state
  * of the HTML tokenizer, quoted identifiers included, so the first `>` is
  * where the parser's doctype ends.
  *
@@ -861,17 +1011,10 @@ function doctypeEnd(html: string): number {
       if (!isHtmlSpace(code) && code !== 0xfeff) break;
       i += 1;
     }
-    if (html.startsWith('<!--', i)) {
-      const close = html.indexOf('-->', i + 4);
-      if (close < 0) return -1;
-      i = close + 3;
-    } else if (html.startsWith('<?', i)) {
-      const close = html.indexOf('>', i + 2);
-      if (close < 0) return -1;
-      i = close + 1;
-    } else {
-      break;
-    }
+    if (!html.startsWith('<!--', i) && !html.startsWith('<?', i)) break;
+    const past = pastNonTag(html, i, false);
+    if (past === undefined || past < 0) return -1;
+    i = past;
   }
   if (asciiLowercase(html.slice(i, i + 9)) !== '<!doctype') return -1;
   const close = html.indexOf('>', i + 9);
@@ -908,9 +1051,10 @@ function withDocumentHead(html: string, fragment: string): string {
  * scrolls there, since in a srcdoc document `#section` resolves against the
  * parent's address (unless the file sets a `<base href>` of its own, when the
  * fragment names that address and leaves the file like any other link); and
- * a `javascript:` link runs its code in the frame, as
- * an `onclick` of the page's own could (Chromium will not run such a link in a
- * document with an opaque origin). An SVG link is followed like an HTML one.
+ * a `javascript:` link runs its code in the frame, as an `onclick` of the
+ * page's own could (Chromium will not run such a link in a document with an
+ * opaque origin) -- unless the file's scripts are held, when it is the file's
+ * code and does nothing. An SVG link is followed like an HTML one.
  *
  * Only a click the reader made reaches the shell (`isTrusted`, which no
  * script can forge), with the key that marks it as ours. The key lives in
@@ -918,9 +1062,9 @@ function withDocumentHead(html: string, fragment: string): string {
  * script runs, and the messages go to the parent captured here, so nothing
  * in the file can read the key or reroute them.
  */
-function linkScript(key: string): string {
-  return `<script>
-(function (key) {
+function linkScript(key: string, nonce?: string): string {
+  return `<script${nonce === undefined ? '' : ` nonce="${nonce}"`}>
+(function (key, runsJavascriptLinks) {
   'use strict';
   var shell = window.parent;
   var later = window.setTimeout.bind(window);
@@ -987,6 +1131,7 @@ function linkScript(key: string): string {
       if (event.defaultPrevented) return;
       var raw = urlText(hrefOf(link));
       if (/^javascript:/i.test(raw)) {
+        if (!runsJavascriptLinks) return;
         var code;
         try { code = decodeURIComponent(raw.replace(/^javascript:/i, '')); } catch (error) { return; }
         run(code)();
@@ -1009,7 +1154,7 @@ function linkScript(key: string): string {
   window.addEventListener('auxclick', follow, true);
   var self = document.currentScript;
   if (self) self.remove();
-})('${key}');
+})('${key}', ${nonce === undefined});
 </script>`;
 }
 
@@ -1096,16 +1241,18 @@ function withoutAttributes(attributes: string, names: Set<string>): string {
  */
 function authoredBaseHref(html: string): string | undefined {
   const lower = asciiLowercase(html);
-  // How many template, svg and math elements are open around the scan.
+  // How many template, svg and math elements are open around the scan, and
+  // how many of those are svg or math.
   let inert = 0;
+  let foreign = 0;
   let i = 0;
   for (;;) {
     const open = html.indexOf('<', i);
     if (open < 0) return undefined;
-    if (html.startsWith('<!--', open)) {
-      const close = html.indexOf('-->', open + 4);
-      if (close < 0) return undefined;
-      i = close + 3;
+    const past = pastNonTag(html, open, foreign > 0);
+    if (past !== undefined) {
+      if (past < 0) return undefined;
+      i = past;
       continue;
     }
     const closing = html.charCodeAt(open + 1) === 47;
@@ -1126,16 +1273,19 @@ function authoredBaseHref(html: string): string | undefined {
     i = tagEnd;
     if (closing) {
       if (inert > 0 && INERT_ELEMENTS.has(name)) inert -= 1;
+      if (foreign > 0 && FOREIGN_ELEMENTS.has(name)) foreign -= 1;
       continue;
     }
-    if (name === 'plaintext') return undefined;
     if (INERT_ELEMENTS.has(name)) {
       // A self-closed svg or math has no content; a template always opens.
-      const selfClosed =
-        name !== 'template' && html.charCodeAt(tagEnd - 2) === 47;
-      if (!selfClosed) inert += 1;
+      if (name === 'template' || !closesItself(html, tagEnd)) {
+        inert += 1;
+        if (FOREIGN_ELEMENTS.has(name)) foreign += 1;
+      }
       continue;
     }
+    if (foreign > 0) continue;
+    if (name === 'plaintext') return undefined;
     if (name === 'base' && inert === 0) {
       const href = tagAttributes(html.slice(nameEnd, tagEnd - 1)).get('href');
       if (href !== undefined) return href;
@@ -1194,8 +1344,10 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
 
 /**
  * The file's markup with every link -- `<a>` and `<area>`, HTML or SVG --
- * made safe to follow with no script running, as under Electron and on web
- * until the reader runs the page's scripts.
+ * made safe to follow with no script running, as under Electron. A link the
+ * scan misreads still opens only through the desktop shell's window-open
+ * handler, which hands the system browser web, mail and phone addresses
+ * alone, and there a relative address resolves against the app's `file:` one.
  *
  * Its own frame opens a link as a popup that escapes the sandbox, with no
  * script of ours to check where it goes, so each link is settled here
@@ -1219,37 +1371,47 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
  *   that is dropped.
  *
  * With no script to change it, the markup is the document, so rewriting it
- * covers every link. The same linear scan as the title's, per document; text
- * inside script, style, title and the like, and comments, is left as it is.
+ * covers every link. The same linear scan as the title's, per document;
+ * comments, and the text inside script, style, title and the like outside an
+ * svg or math, are left as they are.
  */
 function withLinksAimedAtBlank(html: string, depth = 0): string {
   const base = fileWebBase(html);
   const lower = asciiLowercase(html);
+  // How many svg and math elements are open around the scan.
+  let foreign = 0;
   let rewritten = '';
   let copied = 0;
   let i = 0;
   for (;;) {
     const open = html.indexOf('<', i);
     if (open < 0) break;
-    if (html.startsWith('<!--', open)) {
-      const close = html.indexOf('-->', open + 4);
-      if (close < 0) break;
-      i = close + 3;
+    const past = pastNonTag(html, open, foreign > 0);
+    if (past !== undefined) {
+      if (past < 0) break;
+      i = past;
       continue;
     }
-    if (!isAsciiLetter(html.charCodeAt(open + 1))) {
+    const closing = html.charCodeAt(open + 1) === 47;
+    const nameStart = open + (closing ? 2 : 1);
+    if (!isAsciiLetter(html.charCodeAt(nameStart))) {
       i = open + 1;
       continue;
     }
-    let nameEnd = open + 1;
+    let nameEnd = nameStart;
     while (nameEnd < html.length) {
       const code = html.charCodeAt(nameEnd);
       if (isHtmlSpace(code) || code === 47 || code === 62) break;
       nameEnd += 1;
     }
-    const name = lower.slice(open + 1, nameEnd);
+    const name = lower.slice(nameStart, nameEnd);
     const tagEnd = startTagEnd(html, nameEnd);
     if (tagEnd < 0) break;
+    if (closing) {
+      if (foreign > 0 && FOREIGN_ELEMENTS.has(name)) foreign -= 1;
+      i = tagEnd;
+      continue;
+    }
     if (name === 'a' || name === 'area') {
       const attributes = html.slice(nameEnd, tagEnd - 1);
       const values = tagAttributes(attributes);
@@ -1286,6 +1448,11 @@ function withLinksAimedAtBlank(html: string, depth = 0): string {
       }
     }
     i = tagEnd;
+    if (FOREIGN_ELEMENTS.has(name)) {
+      if (!closesItself(html, tagEnd)) foreign += 1;
+      continue;
+    }
+    if (foreign > 0) continue;
     if (name === 'plaintext') break;
     if (TEXT_CONTENT_ELEMENTS.has(name)) {
       const close = endTagStart(lower, name, tagEnd);
@@ -1307,20 +1474,35 @@ function withLinksAimedAtBlank(html: string, depth = 0): string {
  * Chromium's blocked-page notice behind. The first `<base>` with a target
  * wins, so a `<base href>` of the file's own still applies.
  *
- * In a frame that runs no scripts (`scripts: false`: under Electron, and on
- * web until the reader runs them) our script would be inert, so it is left
- * out, and every link in the markup is settled instead
- * (withLinksAimedAtBlank): a link the reader clicks becomes a popup, a new
- * tab on web and the system browser on desktop.
+ * While the file's scripts are held (`scripts: 'ours'`), the document gets
+ * the held policy, under which only scripts carrying `nonce` run, and our
+ * script carries it: the file is parsed by the browser as it is, and our
+ * script handles its links by what the browser made of them, as when its
+ * scripts run. In a frame that runs no scripts (`scripts: 'none'`, under
+ * Electron) our script would be inert, so it is left out, and every link in
+ * the markup is settled instead (withLinksAimedAtBlank): a link the reader
+ * clicks becomes a popup, which the desktop shell opens in the system
+ * browser, and only for a web, mail or phone address.
  */
 export function htmlPreviewDocument(
   html: string,
   key: string,
-  { scripts = true }: { scripts?: boolean } = {}
+  options:
+    | { scripts?: 'all' | 'none' }
+    | { scripts: 'ours'; nonce: string } = {}
 ): string {
+  if (options.scripts === 'none') {
+    return withDocumentHead(
+      withLinksAimedAtBlank(html),
+      `${policyMeta(HTML_PREVIEW_POLICY)}<base target="_blank">`
+    );
+  }
+  const nonce = options.scripts === 'ours' ? options.nonce : undefined;
+  const policy =
+    nonce === undefined ? HTML_PREVIEW_POLICY : htmlPreviewHeldPolicy(nonce);
   return withDocumentHead(
-    scripts ? html : withLinksAimedAtBlank(html),
-    `${HTML_PREVIEW_POLICY_META}<base target="_blank">${scripts ? linkScript(key) : ''}`
+    html,
+    `${policyMeta(policy)}<base target="_blank">${linkScript(key, nonce)}`
   );
 }
 

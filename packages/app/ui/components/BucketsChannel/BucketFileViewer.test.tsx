@@ -7,6 +7,7 @@ import { BucketFileViewer } from './BucketFileViewer';
 import {
   type BucketFileViewerItem,
   HTML_PREVIEW_POLICY,
+  htmlPreviewHeldPolicy,
 } from './BucketFileViewer.shared';
 
 const mocks = vi.hoisted(() => ({ isElectron: false }));
@@ -79,21 +80,27 @@ describe('BucketFileViewer html preview (web)', () => {
   // cannot turn the preview into a download; inside a shell of ours that
   // carries the policy its document inherits and keeps the file's frame where
   // it is. In a browser a page's scripts share the app's thread, so they run
-  // only once the reader asks: until then neither frame runs one, and links
-  // open as popups.
+  // only once the reader asks: until then the policy runs ours alone, which
+  // carry the preview's nonce, and links open as they do with the page's.
   it('renders the file from its text, scripts held until the reader asks', () => {
     const renderer = render(scriptedFile);
     const [frame] = frames(renderer);
     expect(frame.props.src).toBeUndefined();
-    const popups = 'allow-popups allow-popups-to-escape-sandbox';
-    expect(frame.props.sandbox).toBe(popups);
-    const shell: string = frame.props.srcDoc;
-    expect(shell).toContain(
-      `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
+    expect(frame.props.sandbox).toBe(
+      'allow-scripts allow-popups allow-popups-to-escape-sandbox'
     );
-    expect(shell).toContain(`<iframe sandbox="${popups}" srcdoc="`);
+    const shell: string = frame.props.srcDoc;
+    const nonce = shell.match(/'nonce-([0-9a-f]{32})'/)?.[1];
+    expect(nonce).toBeDefined();
+    expect(shell).toContain(
+      `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(nonce!)}">`
+    );
+    expect(shell).toContain(`<script nonce="${nonce}">`);
+    expect(shell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
     expect(shell).toContain('&lt;p id=&quot;n&quot;&gt;three&lt;/p&gt;');
-    expect(shell).not.toContain('composedPath');
+    // Our script in the file's frame carries the nonce; the file's does not.
+    expect(shell).toContain(`&lt;script nonce=&quot;${nonce}&quot;&gt;`);
+    expect(shell).toContain('composedPath');
     expect(runScriptsButton(renderer)).toBeDefined();
   });
 
@@ -112,7 +119,11 @@ describe('BucketFileViewer html preview (web)', () => {
     const key = shell.match(/\}\)\('([0-9a-f]{32})', function \(href\)/)?.[1];
     expect(key).toBeDefined();
     // The same key closes our script in the file's frame, escaped in srcdoc.
-    expect(shell).toContain(`})('${key}');`);
+    expect(shell).toContain(`})('${key}', true);`);
+    expect(shell).toContain(
+      `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
+    );
+    expect(shell).not.toContain('nonce');
     expect(shell).toContain(
       "window.open(href, '_blank', 'noopener,noreferrer')"
     );
@@ -122,9 +133,7 @@ describe('BucketFileViewer html preview (web)', () => {
   // A page with nothing to run renders the same either way.
   it('offers nothing to run for a page without scripts', () => {
     const renderer = render(htmlFile);
-    expect(frames(renderer)[0].props.sandbox).toBe(
-      'allow-popups allow-popups-to-escape-sandbox'
-    );
+    expect(frames(renderer)[0].props.srcDoc).toContain("'nonce-");
     expect(runScriptsButton(renderer)).toBeUndefined();
   });
 

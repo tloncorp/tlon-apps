@@ -6,6 +6,7 @@ import { useIsElectron } from '../../../hooks/useIsElectron';
 import { ScreenHeader } from '../ScreenHeader';
 import {
   BucketFileViewerItem,
+  type HtmlPreviewScripts,
   bucketFileViewerHeading,
   getBucketPreviewKind,
   htmlPreviewDocument,
@@ -34,10 +35,12 @@ export function BucketFileViewer({
   const heading = bucketFileViewerHeading(item);
   const isElectron = Boolean(useIsElectron());
   const previewKey = useMemo(() => htmlPreviewKey(), []);
+  const previewNonce = useMemo(() => htmlPreviewKey(), []);
   // A page's scripts run on web only once the reader asks, file by file: in a
   // browser they share the app's thread, so a page whose script never
-  // returns would freeze the whole tab the moment it was opened. Under
-  // Electron they never run (htmlPreviewSandboxes).
+  // returns would freeze the whole tab the moment it was opened. Until then
+  // only our link script runs (htmlPreviewHeldPolicy). Under Electron no
+  // script runs (htmlPreviewSandboxes).
   const [scriptsRunFor, setScriptsRunFor] = useState<string>();
   const pageHasScripts = useMemo(
     () =>
@@ -49,7 +52,12 @@ export function BucketFileViewer({
   const fileId = item.uri ?? item.name;
   const runScripts = !isElectron && pageHasScripts && scriptsRunFor === fileId;
   const offerScripts = !isElectron && pageHasScripts && !runScripts;
-  const sandboxes = htmlPreviewSandboxes({ scripts: runScripts });
+  const scripts: HtmlPreviewScripts = isElectron
+    ? 'none'
+    : runScripts
+      ? 'all'
+      : 'ours';
+  const sandboxes = htmlPreviewSandboxes({ scripts });
 
   return (
     <YStack flex={1} minHeight={0} backgroundColor="$background">
@@ -120,10 +128,15 @@ export function BucketFileViewer({
             referrerPolicy="no-referrer"
             sandbox={sandboxes.shell}
             srcDoc={htmlPreviewShell({
-              document: htmlPreviewDocument(item.textContent, previewKey, {
-                scripts: runScripts,
-              }),
+              document: htmlPreviewDocument(
+                item.textContent,
+                previewKey,
+                scripts === 'ours'
+                  ? { scripts, nonce: previewNonce }
+                  : { scripts }
+              ),
               key: previewKey,
+              nonce: scripts === 'ours' ? previewNonce : undefined,
               opener: { kind: 'window' },
               sandbox: sandboxes.document,
             })}
