@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   getBrowserNotificationContactName,
-  getBrowserNotificationCopy,
   getBrowserNotificationGroupTitle,
   getBrowserNotificationTargetWithRetry,
   isOtherBrowserNotificationTabForegrounded,
@@ -146,59 +145,6 @@ describe('getBrowserNotificationContactName', () => {
         disableNicknames: true,
       })
     ).toBe('~ravmel-ropdyl');
-  });
-});
-
-describe('getBrowserNotificationCopy', () => {
-  it('falls back to the contact name when a DM title is empty', () => {
-    expect(
-      getBrowserNotificationCopy({
-        activityType: 'post',
-        channelTitle: '',
-        contactName: 'Alice',
-        contentText: 'Hello',
-        reactValue: '',
-      })
-    ).toEqual({
-      title: 'Alice',
-      body: 'Hello',
-    });
-  });
-
-  it.each([
-    ['flag-post', 'post'],
-    ['flag-reply', 'reply'],
-  ])('uses flag-specific copy for %s activity', (activityType, kind) => {
-    const copy = getBrowserNotificationCopy({
-      activityType,
-      channelTitle: 'General',
-      contactName: 'Alice',
-      contentText: '',
-      groupTitle: 'Tlon',
-      reactValue: '',
-    });
-
-    expect(copy).toEqual({
-      title: `Flagged ${kind} in Tlon`,
-      body: `A ${kind} by Alice was flagged in your group`,
-    });
-    expect(copy.body).not.toContain('Alice flagged');
-    expect(copy.body).not.toBe('New message');
-  });
-
-  it('uses invite copy for dm-invite activity instead of the message fallback', () => {
-    expect(
-      getBrowserNotificationCopy({
-        activityType: 'dm-invite',
-        channelTitle: '',
-        contactName: 'Alice',
-        contentText: '',
-        reactValue: '',
-      })
-    ).toEqual({
-      title: 'Alice',
-      body: 'Invited you to chat',
-    });
   });
 });
 

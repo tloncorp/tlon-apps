@@ -5,7 +5,7 @@ import { createDevLogger } from '../lib/logger';
 import * as domain from '../types';
 import { getConstants } from '../types';
 import * as ub from '../urbit';
-import { request } from './urbit';
+import { base, rawRequest } from './requests';
 
 const logger = createDevLogger('metagrabApi', false);
 
@@ -15,14 +15,9 @@ export async function getLinkMetadata(
   try {
     const encodedUrl = render('uw', Atom.fromCord(url).number);
     logger.log('encoded', { url, encodedUrl });
-    // %fetch supersedes %metagrab; /apps/groups/~/metagrab still resolves to
-    // the same handler for older clients, but new calls use the /fetch path.
-    const response = await request<ub.LinkMetadataResponse>(
-      `/apps/groups/~/fetch/meta/${encodedUrl}`,
-      {
-        method: 'GET',
-        mode: 'cors',
-      },
+    const response = await rawRequest(base.metagrab)<ub.LinkMetadataResponse>(
+      { url: encodedUrl },
+      { mode: 'cors' },
       10_000
     );
     logger.log('metagrab response', response);

@@ -5,8 +5,6 @@ import { ScreenHeader } from '../ScreenHeader';
 import { FadingTextCarousel } from './FadingTextCarousel';
 import { SegmentedSpinner } from './SegmentedSpinner';
 
-const noop = () => {};
-
 const SETUP_MESSAGES = [
   'This will take a bit. Feel free to background the app.',
   "We'll send you a notification when it's ready.",
@@ -19,6 +17,8 @@ const SETUP_MESSAGES = [
 export function TlonBotSetupPaneView(props: {
   onLogout?: () => void;
   loggingOut?: boolean;
+  messages?: string[];
+  title?: string;
 }) {
   return (
     <View
@@ -29,13 +29,15 @@ export function TlonBotSetupPaneView(props: {
       <ScreenHeader
         backgroundColor="$secondaryBackground"
         leftControls={
-          <ScreenHeader.TextButton
-            onPress={props.onLogout ?? noop}
-            disabled={props.loggingOut}
-            color="$tertiaryText"
-          >
-            Log out
-          </ScreenHeader.TextButton>
+          props.onLogout ? (
+            <ScreenHeader.TextButton
+              onPress={props.onLogout}
+              disabled={props.loggingOut}
+              color="$tertiaryText"
+            >
+              Log out
+            </ScreenHeader.TextButton>
+          ) : undefined
         }
       />
       <YStack flex={1} alignItems="center" justifyContent="center" gap="$2xl">
@@ -47,9 +49,9 @@ export function TlonBotSetupPaneView(props: {
             marginHorizontal="$xl"
             textAlign="center"
           >
-            Setting up your Tlonbot...
+            {props.title ?? 'Setting up your Tlonbot...'}
           </TlonText.Text>
-          <FadingTextCarousel messages={SETUP_MESSAGES} />
+          <FadingTextCarousel messages={props.messages ?? SETUP_MESSAGES} />
         </YStack>
       </YStack>
     </View>

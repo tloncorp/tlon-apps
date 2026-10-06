@@ -4,10 +4,6 @@ import android.os.Build
 import android.os.Bundle
 import android.content.Intent
 import android.util.Log
-import android.view.View
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.graphics.Insets
 import com.facebook.react.ReactActivity
 import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
@@ -36,22 +32,6 @@ class MainActivity : ReactActivity() {
     super.onCreate(null)
     ensurePostHogInitialized()
     captureLifecycleEvent("App Created")
-
-    // Handle window insets for Android API 35+
-    // ref: https://github.com/facebook/react-native/issues/49759#issuecomment-3048056660
-    if (Build.VERSION.SDK_INT >= 35) {
-      val rootView = findViewById<View>(android.R.id.content)
-      ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
-        val innerPadding = insets.getInsets(WindowInsetsCompat.Type.ime())
-        rootView.setPadding(
-          innerPadding.left,
-          innerPadding.top,
-          innerPadding.right,
-          innerPadding.bottom
-        )
-        insets
-      }
-    }
   }
 
   /**

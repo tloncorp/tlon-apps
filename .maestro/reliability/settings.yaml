@@ -1,0 +1,149 @@
+appId: ${MAESTRO_APP_ID}
+name: Native settings persistence
+tags: [regression]
+env:
+  JOURNEY: s
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/settings-tab.yaml
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^App info$'
+- extendedWaitUntil:
+    visible: '^Build version$'
+    timeout: 15000
+- assertVisible: '^Desk version$'
+- assertNotVisible: '^Cannot load app info settings$'
+- tapOn: '^Back$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Appearance$'
+- assertVisible: '^Appearance$'
+# iOS exposes radio state as an accessibility value, not a checked flag.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'ThemeOption-.*'
+            checked: true
+          direction: DOWN
+          timeout: 5000
+      - copyTextFrom:
+          id: 'ThemeOption-.*'
+          checked: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'ThemeOption-.*'
+            text: '^radio button, checked$'
+          direction: DOWN
+          timeout: 5000
+      - copyTextFrom:
+          text: '.+'
+          index: 0
+          childOf:
+            id: 'ThemeOption-.*'
+            text: '^radio button, checked$'
+- evalScript: ${output.reliability.originalTheme = "ThemeOption-" + maestro.copiedText.toLowerCase().replace("tlon ", "")}
+- scrollUntilVisible:
+    element:
+      id: ThemeOption-light
+    direction: UP
+    timeout: 5000
+- tapOn:
+    id: ThemeOption-light
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-light
+- tapOn:
+    id: ThemeOption-dark
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-dark
+- tapOn: '^Back$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Appearance$'
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-dark
+- stopApp
+- launchApp
+# The app restores the position it was closed in, so it comes back to
+# Appearance rather than to the chat list -- which is a stronger check of the
+# theme surviving a cold start than re-navigating here would be.
+- extendedWaitUntil:
+    visible: '^Appearance$'
+    timeout: 30000
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-dark
+- scrollUntilVisible:
+    element:
+      id: ThemeOption-auto
+    direction: UP
+    timeout: 5000
+- tapOn:
+    id: ThemeOption-auto
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-auto
+- tapOn: '^Back$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Appearance$'
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-auto
+- stopApp
+- launchApp
+# Restores the screen it was closed in, exactly as above, so Appearance comes
+# back on its own -- there is nothing to navigate to.
+- extendedWaitUntil:
+    visible: '^Appearance$'
+    timeout: 30000
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-auto
+- scrollUntilVisible:
+    element:
+      id: ${output.reliability.originalTheme}
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: ${output.reliability.originalTheme}
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ${output.reliability.originalTheme}
+- tapOn: '^Back$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Blocked users$'
+- assertVisible: '^Blocked users$'
+- tapOn: '^Back$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Notifications$'
+- assertVisible: '^Notifications$'
+- tapOn: '^Back$'
+- runFlow: subflows/workspaces-tab.yaml

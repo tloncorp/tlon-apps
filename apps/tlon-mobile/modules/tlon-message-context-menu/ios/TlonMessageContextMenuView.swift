@@ -34,6 +34,8 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
     private var indicationBaseTransform: CGAffineTransform?
     private var indicationBaseAlpha: CGFloat?
     private var indicationRestingFrameInWindow: CGRect?
+    // Keep activation strict so a slow scroll does not become a long press.
+    private let pressAllowableMovement: CGFloat = 10
     private let gestureDeadZoneRadius: CGFloat = 40
 
     private lazy var pressIndicationGestureRecognizer: UILongPressGestureRecognizer = {
@@ -42,7 +44,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
             action: #selector(handlePressIndication(_:))
         )
         recognizer.minimumPressDuration = Animation.pressIndicationDelay
-        recognizer.allowableMovement = gestureDeadZoneRadius
+        recognizer.allowableMovement = pressAllowableMovement
         recognizer.cancelsTouchesInView = false
         recognizer.delegate = self
         return recognizer
@@ -54,7 +56,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
             action: #selector(handleLongPress(_:))
         )
         recognizer.minimumPressDuration = Animation.menuDelay
-        recognizer.allowableMovement = gestureDeadZoneRadius
+        recognizer.allowableMovement = pressAllowableMovement
         recognizer.cancelsTouchesInView = true
         recognizer.delegate = self
         return recognizer
@@ -192,8 +194,15 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         _: UIGestureRecognizer,
         shouldReceive touch: UITouch
     ) -> Bool {
-        var touchedView = touch.view
-        while let view = touchedView, view !== self {
+        Self.shouldReceiveMessageMenuTouch(touch.view, within: self)
+    }
+
+    static func shouldReceiveMessageMenuTouch(
+        _ touchedView: UIView?,
+        within hostView: UIView
+    ) -> Bool {
+        var touchedView = touchedView
+        while let view = touchedView, view !== hostView {
             // Reaction pills own their long press so users can inspect who
             // reacted instead of opening the message-level action menu.
             if view.accessibilityIdentifier?.hasPrefix("ReactionDisplay") == true {

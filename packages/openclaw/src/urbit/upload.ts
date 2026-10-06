@@ -8,6 +8,7 @@ import {
 import { readResponseWithLimit } from 'openclaw/plugin-sdk/response-limit-runtime';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
 
+import { tlonMediaUserAgent } from '../version.js';
 import { getDefaultSsrFPolicy } from './context.js';
 
 const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
@@ -204,7 +205,7 @@ export async function prepareOutboundMedia(
   try {
     ({ response, finalUrl, release } = await fetchWithSsrFGuard({
       url: canonical,
-      init: { method: 'GET' },
+      init: { method: 'GET', headers: { 'User-Agent': tlonMediaUserAgent() } },
       policy: getDefaultSsrFPolicy(),
       auditContext: 'tlon-media',
       requireHttps: true,

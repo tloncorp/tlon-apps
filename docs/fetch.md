@@ -31,7 +31,7 @@ Two legacy bindings are also served, so that clients which have not moved to `/f
 /apps/groups/~/proxy/[@uw-url]        -> %raw
 ```
 
-These are the pre-`%fetch` endpoints and exist only for the transition. They can be dropped once no client uses them; nothing but the two `%connect` cards in `+on-init` and two lines of route dispatch in `+on-poke` has to change.
+These are the pre-`%fetch` endpoints and exist only for the transition. The client itself still calls `/metagrab` (`base.metagrab` in the request registry), because that path works on desks before and after `%fetch`; moving it to `/fetch/meta` needs a guarded registry entry. They can be dropped once no client uses them; nothing but the two `%connect` cards in `+on-init` and two lines of route dispatch in `+on-poke` has to change.
 
 `%meta` responses are JSON: `fetched_at`, `status`, and a `result` whose shape depends on the status. A `%200` carries either `{type: 'page', ...buckets}` or `{type: 'file', mime, size}`. See `+give-response`.
 

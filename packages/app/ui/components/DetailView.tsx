@@ -130,6 +130,7 @@ export const DetailView = ({
     <View
       paddingHorizontal={isChat ? '$m' : undefined}
       flex={1}
+      overflow={isChat ? undefined : 'hidden'}
       {...containingProperties}
     >
       <Scroller

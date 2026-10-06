@@ -1,6 +1,6 @@
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { ActionSheet, YStack } from '@tloncorp/app/ui';
-import { useSheetCloseAfterAnimation } from '@tloncorp/app/ui/hooks/useSheetCloseAfterAnimation';
+import { useSheetDismissalAction } from '@tloncorp/app/ui/hooks/useSheetDismissalAction';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
@@ -13,15 +13,20 @@ import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
 import type { NodeStatusCheckResult } from '../hooks/useCheckNodeStopped';
-import { refreshHostingAuth } from '../lib/hostingAuth';
 
 const logger = createDevLogger('TlonbotRevivalPromptSheet', true);
 
-export function useTlonbotRevivalPrompt() {
-  const { authCookie, authType, setShip, ship, shipUrl } = useShip();
-  const { closeAfterAnimation } = useSheetCloseAfterAnimation();
+export function useTlonbotRevivalPrompt(
+  requireHostingAuth: (options?: { force?: boolean }) => Promise<boolean>
+) {
+  const { ship, shipUrl, startSplashSequence } = useShip();
   const [open, setOpen] = useState(false);
   const [snoozed, setSnoozed] = useState(false);
+  const { dismissThenRun, onDismissed, presentationKey } =
+    useSheetDismissalAction({
+      open,
+      onOpenChange: setOpen,
+    });
 
   const maybeShowPrompt = useCallback(
     async (nodeCheck: NodeStatusCheckResult | null) => {
@@ -34,13 +39,15 @@ export function useTlonbotRevivalPrompt() {
         return;
       }
 
-      await refreshHostingAuth({ force: true });
+      if (!(await requireHostingAuth({ force: true }))) {
+        return;
+      }
       const hostingBotEnabled = await db.hostingBotEnabled.getValue();
       if (!hostingBotEnabled) {
         setOpen(true);
       }
     },
-    [snoozed]
+    [requireHostingAuth, snoozed]
   );
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {
@@ -66,15 +73,18 @@ export function useTlonbotRevivalPrompt() {
       severity: AnalyticsSeverity.High,
     });
 
-    closeAfterAnimation(() => {
-      setShip({
-        authCookie,
-        authType: authType ?? 'hosted',
-        needsSplashSequence: true,
-        ship,
-        shipUrl,
-        splashSequenceMode: 'tlonbotRevival',
-      });
+    // Schedule synchronously so unmount can cancel the action. The provider
+    // callback is scoped to this render's session and updates only splash
+    // fields, so it neither revives a replaced session nor replays the stale
+    // auth-cookie snapshot held by useShip().
+    dismissThenRun(() => {
+      if (!startSplashSequence('tlonbotRevival')) {
+        logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+          context: 'session changed before revival could start',
+          severity: AnalyticsSeverity.High,
+        });
+        return;
+      }
 
       store
         .clearShipRevivalStatus()
@@ -90,13 +100,15 @@ export function useTlonbotRevivalPrompt() {
           });
         });
     });
-  }, [authCookie, authType, closeAfterAnimation, setShip, ship, shipUrl]);
+  }, [dismissThenRun, ship, shipUrl, startSplashSequence]);
 
   const promptSheet = (
     <TlonbotRevivalPromptSheet
+      key={presentationKey}
       open={open}
       onOpenChange={handleOpenChange}
       onStart={handleStart}
+      onNativeDismissed={onDismissed}
     />
   );
 
@@ -110,13 +122,20 @@ export function TlonbotRevivalPromptSheet({
   onOpenChange,
   onStart,
   open,
+  onNativeDismissed,
 }: {
   onOpenChange: (open: boolean) => void;
   onStart: () => void;
   open: boolean;
+  onNativeDismissed?: () => void;
 }) {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      onNativeDismissed={onNativeDismissed}
+      modal
+    >
       <ActionSheet.SimpleHeader title="Ready for Tlonbot?" />
       <ActionSheet.Content marginHorizontal="$xl">
         <ActionSheet.ContentBlock>

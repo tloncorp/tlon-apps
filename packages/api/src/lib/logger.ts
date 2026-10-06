@@ -94,6 +94,32 @@ export function createDevLogger(tag: string, enabled: boolean): ApiLogger {
   } as ApiLogger;
 }
 
+/** Curried for `.catch(reportBackgroundFailure(logger, 'mark invites read'))`. */
+export function reportBackgroundFailure(
+  logger: {
+    trackError: (
+      message: string,
+      data?: Error | Record<string, unknown>
+    ) => void;
+  },
+  context: string
+) {
+  return (e: unknown) => {
+    // trackError, not trackEvent: a fire-and-forget failure is still a
+    // failure, and Sentry is where we want to see them.
+    //
+    // Reported as a message, never by handing the Error over. Sentry's
+    // ignoreErrors drops anything whose exception value is `Failed to fetch`,
+    // which is the failure we most want to see; and toSentryCapture only
+    // fingerprints message captures, so an exception capture would not group
+    // per context either. The stack would only name the call site `context`
+    // already identifies.
+    logger.trackError(`background request failed: ${context}`, {
+      errorMessage: e instanceof Error ? e.message : String(e),
+    });
+  };
+}
+
 export const runIfDev = <TReturn>(fn: () => TReturn) => {
   if (isDevRuntime()) {
     return fn();

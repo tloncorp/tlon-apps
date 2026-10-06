@@ -29,6 +29,80 @@ channels:
         code: 'your-access-code'
 ```
 
+### Hosted restart catch-up
+
+`channels.tlon.restartCatchup.enabled: true` opts into running the owner agent's
+workspace `BOOT.md` after gateway startup and authenticated Tlon connection
+readiness. Disable `hooks.internal.entries.boot-md.enabled` at the same time to
+avoid the generic startup hook racing or duplicating the checklist. tlonbot
+configures both settings together; self-hosted installs default to disabled.
+
+The plugin checks `bootstrapComplete` in a fresh settings read before starting an
+agent. Missing/false skips catch-up; failed reads retry in code within a
+three-minute readiness deadline. The checklist runs once per gateway startup,
+including in-process restarts, with cancellation on shutdown and no replay on
+reconnect, monitor reload, or plugin prewarming. It uses the public embedded agent
+runner with a temporary transcript rather than a resumable subagent task. The
+initial implementation requires one configured Tlon account with an owner.
+
+### Hosted cron budget holds
+
+The hosted wrapper supplies `TLON_CRON_BUDGET_FILE`, an atomic JSON file with
+`{"version":1,"state":"limited"}` (or `available` / `unknown`). This is the
+confirmed hosting budget signal, not an inference from the selected model.
+Self-hosted installs without this environment variable are unaffected.
+
+While limited, enabled `cron` and `every` tasks are disabled with a visible
+`[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
+schedules are excluded. The owner receives one notice per budget episode:
+“Your token credits are low. Your 3 scheduled tasks have been paused.” It includes
+an A2UI **Request credit increase** button. Failed delivery is retried.
+New or re-enabled recurring tasks are held as well. Already-running work is not
+cancelled; live reconciliation runs on job changes and every five seconds.
+
+On confirmed recovery, only unchanged budget-held tasks are re-enabled using
+the live cron API, which computes the next scheduled occurrence without replaying
+missed runs. Tasks already disabled before the hold remain disabled. Editing or
+explicitly disabling a held task preserves that user/SRE decision on recovery.
+Missing or unreadable budget signals retain the last hold state.
+
+Ownership and notification state persist in
+`$OPENCLAW_STATE_DIR/tlon-cron-budget-holds.json`. Operators can inspect held
+tasks through the normal cron list including disabled jobs; the description
+explains the pause. The `cron run` model tool cannot force a budget-held task.
+
+Deploy the matching tlonbot wrapper and plugin together. Before launching a
+gateway, the wrapper runs `dist/src/cron-budget-bootstrap.js` as the gateway
+user, after ensuring no old gateway is running. This applies holds through the
+public SDK's cron store API before the scheduler can catch up overdue tasks.
+The bootstrap must never run alongside a live gateway. Recovery is left to the
+plugin's live API. A failed bootstrap prevents gateway launch rather than
+silently starting unprotected scheduled work.
+
+Verify locally with `pnpm exec tsc` followed by
+`node scripts/test-cron-budget-bootstrap.mjs`. Set `OPENCLAW_TEST_PACKAGE` to a
+built OpenClaw package directory to repeat the same startup checks against the
+hosting version. The test uses an isolated temporary state directory.
+
+The request button uses the native `tlon.requestCreditIncrease` A2UI action.
+In the owner's bot DM, the app submits a `TlonBot Credit Increase Requested`
+event through its existing first-party PostHog ingestion proxy. The event includes
+`ownerShip`, `botShip`, `sourcePostId`, `requestId`, `source: budget_hold`, and
+`requestedFrom: tlon_app`. This is a manual-review signal; it does not change the
+credit limit or release any holds. An alert can filter on the event and
+deduplicate by `requestId`. No external alert rule is installed here.
+
+After successful ingestion, the app saves a completion marker in local KV and
+disables the original button with the label **Credit Increase Requested**. It
+creates no chat message or bot acknowledgment and does not edit the original
+post remotely. Local completion survives app restarts; it is not synchronized
+across devices. Concurrent taps are deduplicated, and a stable event UUID covers
+retries or requests from another device. A failed submission leaves the button
+available to retry and shows an error toast. App ingestion must be configured.
+
+Ship the app/API support before enabling these plugin cards. Older clients
+cannot perform the native action and display the notice's fallback story.
+
 ### Full Configuration Example
 
 ```yaml
@@ -49,7 +123,7 @@ channels:
 
         # Auto-accept settings
         autoAcceptDmInvites: true # Accept DMs from ships in dmAllowlist
-        autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization (groupInviteAllowlist does); controls channel persistence
+        autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
 
         # Ships allowed to invite the bot to groups (auto-accepted unless blocked)
         groupInviteAllowlist:
@@ -57,7 +131,13 @@ channels:
 
         # Channel discovery
         autoDiscoverChannels: true # Monitor all channels in joined groups
-        groupChannels: # Additional channels to monitor explicitly
+        # Additional channels to monitor explicitly; also the journal of
+        # channels from joined groups, written best-effort from %groups facts.
+        # A `groupChannels` settings edit adds or removes settings-managed
+        # channels; file-configured channels, and discovered channels while
+        # `autoDiscoverChannels` is on, stay watched; traffic or discovery may
+        # re-add a removed channel.
+        groupChannels:
             - 'chat/~host-ship/channel-name'
 
         # Per-channel authorization
@@ -94,9 +174,36 @@ When enabled, the plugin captures `TlonBot Gateway Connected` after subscription
 
 Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
 
+Hosted credit holds also emit `TlonBot Cron Budget Snapshot` on gateway startup and when the budget signal, hold episode, or paused count changes. Its `budgetPausedCronCount` counts confirmed budget-owned holds (not manual pauses or unconfirmed disable attempts); it includes zero after recovery. `budgetState` is `limited`, `available`, or `unknown`. `TlonBot Cron Budget Changed` records successful `paused` / `resumed` transitions with `jobId`, `reason`, `episodeId`, `source` (`startup` / `runtime`), and `occurredAtMs`. Both events include `accountId`, `botShip`, and `ownerShip`; task names and prompts are omitted. Startup transitions are saved in the hold ledger and emitted when the gateway is ready, with stable event UUIDs for replay deduplication.
+
+Owner notice delivery runs independently of hold reconciliation, so a pending DM does not delay newly added/re-enabled tasks or credit recovery. Delivery receipts are merged into the current episode's ledger; a late receipt cannot overwrite task ownership or acknowledge a later episode.
+
+The hosting wrapper tags each published budget signal with a unique `revision`. If publication fails during gateway startup, `TLON_CRON_BUDGET_STARTUP` carries the fresh limited/unknown observation and the stale file revision to both preflight and the live gateway. The plugin ignores that stale signal until a new revision is published, then resumes normal polling. This handoff does not require stopping the gateway merely because the signal file could not be updated.
+
+Budget events are informational structured pod logs (queryable through Grafana/Loki) and, when configured, PostHog events. Analytics delivery is best effort and cannot block pausing or recovery. For current held-task counts, use the latest snapshot per bot/account, rather than summing snapshots across restarts; unchanged polling emits no events. `eventId` identifies a transition when deduplicating replayed log entries.
+
+Hosted bot DMs also emit content-free journey events that correlate the owner,
+moon, OpenClaw turn, reply dispatch, and owner receipt. Chat and gallery replies
+have additional host and owner-replica events. See the
+[message journey event contract and Loki correlation example](docs/message-journey-observability.md).
+
 Diary migration (`/migrate`) emits `TlonBot Diary Migration` per accepted CLI run: `started`, then `completed`, `failed` (with error text truncated to 500 chars), or `consent_required` (the CLI's write-widening refusal — the owner is expected to accept and re-run, so it is not counted as a failure). Events share a `migrationId` and carry `action` (apply/cleanup), `durationMs` on terminals, and `deadlineExceeded` when the run outlived its advisory reporting deadline. A gateway death mid-run leaves a `started` with no terminal — count those as unresolved, not failed. Error text is CLI output, so like the package's other error-carrying events it can name channel nests; message and post content are never sent.
 
 The plugin does not enable telemetry automatically just because an API key is present. `enabled: true` is required so open-source installs do not phone home by default.
+
+## Steward automation mirror
+
+Against OpenClaw `2026.7.1-2` (the hosted version; the SDK devDependency stays on `2026.5.28` only because 7.1 requires Node ≥ 22.22.3 and the repo pins 22.22.0), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
+
+Reconciliation is serialized and busy-period triggers are coalesced. Unavailable cron access, read failures, missing ship connections, and poke acknowledgement failures retry while the gateway is active. `gateway_stop` cancels retries and guards against a stale post-stop submission, but deliberately leaves the last successful Steward snapshot intact. The same process-lifetime worker is reused across OpenClaw plugin-registration passes. These behaviors repair the mirror after a later successful read; they do not guarantee continuous freshness.
+
+OpenClaw remains authoritative. The mirror includes disabled task definitions, including each job's `delivery` destination and `payload.toolsAllow`, but excludes execution state and events, run history, delivery outcome and status, session keys, and runtime-only fields. Local clients can read the latest accepted map from `/x/v1/automation/tasks`; an empty projection is `{}`. See the repository's [Steward backend documentation](../../docs/backend/desk/app/steward.md#module-automation) for the stored type, versioned migration, `%project` JSON shape, atomic replacement behavior, exclusions, and scry mark.
+
+### Owner edits
+
+The owner can create, update, and delete the bot's cron jobs from a Tlon client. The edit travels client → owner ship → bot ship → this plugin, and the plugin is the only party that touches OpenClaw: the bot's `%steward` gives each pending command as a `dispatch` fact on `/v1/automation/harness`, the monitor subscribes to that feed alongside the lens feed, and `src/steward-automation-edit.ts` maps the command onto the gateway `CronService` (`add`, `update`, `remove`, reached through the same `getCron()` accessor the telemetry observer stashes) and answers with a `%finalize` poke under `%steward-automation-action-1`. Commands are applied one at a time in arrival order.
+
+A create requests a job id derived from its request id (`steward-<requestId>`) and reports back whatever id OpenClaw actually assigned. Hosts from 2026.7.1 honor the requested id, so a command replayed after the plugin applied it and died before answering is rejected as a duplicate and answered as the create that already landed; 2026.5.28 and earlier ignore the requested id and assign a UUID, so replay is not idempotent there. Every outstanding command is replayed when the plugin (re)subscribes. Outcomes are typed: `created`/`updated`/`deleted` with the job id, or `error` with `invalid` (the dispatch failed validation before reaching the service), `not-found` (no such job), or `harness-error` (the service threw; the message rides along). The subscription is gated like the projection: exactly one runnable Tlon account. A ship whose `%steward` predates the edit loop nacks the subscribe, and owner edits then fail fast on the bot as `harness-offline` while everything else keeps working. Steward never mutates its task map on an edit; the change becomes visible through the next `%project` reconciliation.
 
 ## Approval System
 
@@ -104,7 +211,7 @@ The approval system lets you control who can interact with your bot. When `owner
 
 -   **DM requests** from ships not on your `dmAllowlist`
 -   **Channel mentions** from ships not authorized for that channel
--   **Group invites** from ships not on your `groupInviteAllowlist` (owner invites and allowlisted, non-blocked ships are auto-accepted)
+-   **Group invites** from ships not on your `groupInviteAllowlist` (owner invites and allowlisted, non-blocked ships are auto-accepted). Pending invites are reconciled at connect and on a 2-minute poll, failed owner notifications are retried, delivered ones are never re-sent, and rejecting or blocking declines the invite on the ship — see SECURITY.md for the invariants.
 
 ### Usage
 
@@ -118,8 +225,8 @@ Reply "approve", "deny", or "block" (ID: dm-1234567890-abc)
 ```
 
 -   **approve**: Allow the interaction and add to allowlist. Original message is processed.
--   **deny**: Reject silently. Ship can try again later.
--   **block**: Permanently block using Tlon's native blocking.
+-   **deny**: Reject silently. Ship can try again later. For a group invite this also declines the invite on the ship.
+-   **block**: Permanently block using Tlon's native blocking, and remove the ship from `dmAllowlist`. For a group invite this also declines the invite on the ship; a block, `dmAllowlist` write, or decline the client could not submit keeps the request pending so you can retry.
 
 ### Admin Commands
 
@@ -137,7 +244,7 @@ The owner can send these commands via DM:
 
 ```
 Harness: OpenClaw
-Harness Version: 2026.5.28
+Harness Version: 2026.7.1-2
 Adapter Version: 0.4.3
 Tlon Skill: 0.3.2
 Fingerprint: fp1:8aa23ca2bc8d
@@ -160,6 +267,7 @@ This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tlonco
 
 -   Contacts and profile management
 -   Channel listing and history
+-   Shared `%buckets` file channels using the bot ship's group permissions
 -   Group administration
 -   Message posting and reactions
 -   Notes channel management, note CRUD, and diary-to-notes migration

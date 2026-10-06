@@ -9,7 +9,7 @@ test('should test app settings', async ({ zodSetup }) => {
   await page.getByTestId('SettingsNavIcon').click();
   await expect(page.getByText('Settings', { exact: true })).toBeVisible();
 
-  await page.getByText('Notification settings').click();
+  await page.getByText('Notifications', { exact: true }).click();
   await expect(
     page.getByTestId('ScreenHeaderTitle').getByText('Notifications')
   ).toBeVisible();

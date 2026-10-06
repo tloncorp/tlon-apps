@@ -1,7 +1,8 @@
 import { InviteLinkMetadata } from '../types/invite.types';
 import type * as db from '../types/models';
 import { GroupMeta } from '../urbit';
-import { getCurrentUserId, poke, subscribeOnce } from './urbit';
+import { base, pokeRequest, reel, subscribeOnceRequest } from './requests';
+import { getCurrentUserId } from './urbit';
 
 const ID_LINK_TIMEOUT = 3 * 1000;
 
@@ -21,28 +22,20 @@ export async function createInviteLink(
   token: string,
   metadata: { tag: string; fields: Record<string, string | undefined> }
 ) {
-  return poke({
-    app: 'reel',
-    mark: 'reel-describe',
-    json: {
-      token,
-      metadata,
-    },
+  return pokeRequest(reel.describe)({
+    token,
+    metadata,
   });
 }
 
 export async function enableGroup(name: string) {
-  return await poke({
-    app: 'grouper',
-    mark: 'grouper-enable',
-    json: name,
-  });
+  return await pokeRequest(base.grouperEnable)(name);
 }
 
 export async function checkExistingUserInviteLink(): Promise<string | null> {
   try {
-    const tlonNetworkUrl = await subscribeOnce<string>(
-      { app: 'reel', path: `/v1/id-link/${SELF_INVITE_KEY}` },
+    const tlonNetworkUrl = await subscribeOnceRequest(reel.idLink)<string>(
+      { id: SELF_INVITE_KEY },
       ID_LINK_TIMEOUT,
       undefined,
       { tag: 'checkExistingUserInviteLink' }
@@ -67,11 +60,7 @@ export async function createPersonalInviteLink(
 
   // first tell grouper our fake group exists so it can process the bite
   // correctly
-  await poke({
-    app: 'grouper',
-    mark: 'grouper-enable',
-    json: SELF_INVITE_KEY,
-  });
+  await pokeRequest(base.grouperEnable)(SELF_INVITE_KEY);
 
   // then create the invite link entry on the providers
   await createInviteLink(

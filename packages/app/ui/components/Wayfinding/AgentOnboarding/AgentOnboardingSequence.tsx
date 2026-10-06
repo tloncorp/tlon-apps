@@ -1,15 +1,15 @@
 import * as api from '@tloncorp/api';
 import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useEffect, useRef, useState } from 'react';
-import { View } from 'tamagui';
 
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
 import { getDefaultBotName } from '../botName';
+import { TlonBotSetupPaneView } from '../TlonBotSetupPaneView';
+import { resolveLandingChannelId } from './landingChannel';
 import { PromiseTimeoutError, withTimeout } from './promiseTimeout';
 
 const logger = createDevLogger('AgentOnboardingSequence', false);
@@ -18,6 +18,10 @@ const wait = (ms: number) =>
 const LANDING_CONSUMPTION_TIMEOUT_MS = 10_000;
 const FURNISH_ATTEMPT_TIMEOUT_MS = 30_000;
 const BOT_NAME_SYNC_TIMEOUT_MS = 8_000;
+const HANDOFF_MESSAGES = [
+  'Your Tlonbot is ready. Finishing the chat setup now.',
+  'Opening your private Tlonbot group.',
+];
 
 async function waitForLandingConsumption(isCancelled: () => boolean) {
   const deadline = Date.now() + LANDING_CONSUMPTION_TIMEOUT_MS;
@@ -58,6 +62,25 @@ async function clearNavigationLock(groupId: string) {
     const remaining = { ...current };
     delete remaining[groupId];
     return remaining;
+  });
+}
+
+/**
+ * Record where onboarding lands beside the lock, so a restart inside the lock
+ * window reopens the conversation holding the pickers — the bot DM on a hosted
+ * first run — rather than the setup chat the lock was created with.
+ */
+async function rememberNavigationLockLanding(
+  groupId: string,
+  channelId: string
+) {
+  await db.agentGroupOnboardingLocks.setValue((current) => {
+    const marker = current[groupId];
+    if (!marker || marker.landingChannelId === channelId) return current;
+    return {
+      ...current,
+      [groupId]: { ...marker, landingChannelId: channelId },
+    };
   });
 }
 
@@ -116,8 +139,10 @@ export function AgentOnboardingSequence(props: {
         return;
       }
 
-      // Hosting provisions the deterministic home group. The local override
-      // has no Hosting automation, so let furnishing create a real group.
+      // Hosting provisions the deterministic home group, so onboarding
+      // furnishes that rather than creating a second one the user would have
+      // to tell apart from it. The local override has no Hosting automation,
+      // so let furnishing create a real group there.
       const ownerId = api.getCurrentUserId();
       const hostedHomeGroupId = `${ownerId}/${BotHomeGroupSlugs.slug}`;
       let activeGroupId = AGENT_SHIP_OVERRIDE ? undefined : hostedHomeGroupId;
@@ -145,6 +170,12 @@ export function AgentOnboardingSequence(props: {
             groupId: AGENT_SHIP_OVERRIDE ? undefined : hostedHomeGroupId,
             agentShipId: AGENT_SHIP_OVERRIDE || undefined,
             isFirstGroup: true,
+            // The home group arrives under a generated placeholder name, so
+            // the topics the user picks should still replace it.
+            canRenameGroup: true,
+            // Hosting pins it. This pass runs before the user sees the app, so
+            // no pin of theirs can be removed; the repair pass later must not.
+            removeProvisionedPin: true,
           });
           let furnished: Awaited<typeof furnishing>;
           try {
@@ -183,10 +214,19 @@ export function AgentOnboardingSequence(props: {
             return;
           }
           activeGroupId = furnished.group.id;
-          activeChannelId = furnished.chatChannelId;
+          activeChannelId = resolveLandingChannelId({
+            // The override has no hosted DM; its intro request went to the
+            // furnished chat, so that is where onboarding lands.
+            botDmId: AGENT_SHIP_OVERRIDE
+              ? null
+              : api.getBotUserIdForUser(ownerId) || null,
+            furnishedChatChannelId: furnished.chatChannelId,
+          });
+          if (cancelled) return;
+          await rememberNavigationLockLanding(activeGroupId, activeChannelId);
           await db.agentOnboardingLanding.setValue({
             groupId: activeGroupId,
-            channelId: furnished.chatChannelId,
+            channelId: activeChannelId,
             status: 'pending',
           });
           // The onboarding conversation already teaches the bot interaction
@@ -211,7 +251,7 @@ export function AgentOnboardingSequence(props: {
             logger.trackError(error.message, {
               error,
               groupId: activeGroupId,
-              channelId: furnished.chatChannelId,
+              channelId: activeChannelId,
             });
             throw error;
           }
@@ -236,9 +276,9 @@ export function AgentOnboardingSequence(props: {
             });
           });
           completedRef.current = true;
-          logger.trackEvent('Agent Onboarding V2 In-Channel Handoff', {
+          logger.trackEvent(AnalyticsEvent.AgentOnboardingChatOpened, {
             groupId: activeGroupId,
-            channelId: furnished.chatChannelId,
+            channelId: activeChannelId,
           });
           props.onCompleted();
           void store
@@ -287,8 +327,9 @@ export function AgentOnboardingSequence(props: {
   if (useFallback) return <>{props.fallback}</>;
 
   return (
-    <View flex={1} alignItems="center" justifyContent="center">
-      <LoadingSpinner color="$secondaryText" />
-    </View>
+    <TlonBotSetupPaneView
+      title="Opening your Tlonbot chat..."
+      messages={HANDOFF_MESSAGES}
+    />
   );
 }

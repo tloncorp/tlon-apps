@@ -1,6 +1,16 @@
-import { describe, expect, it, jest } from '@jest/globals';
-
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { useBranch } from '@tloncorp/app/contexts/branch';
 import {
+  createTypedReset,
+  useTypedReset,
+} from '@tloncorp/app/navigation/utils';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
+import * as notifications from 'expo-notifications';
+
+import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
+import useNotificationListener, {
   getMissingNotificationTargetRecovery,
   getNotificationRouteCategory,
   groupInvitePreviewRouteStack,
@@ -11,9 +21,35 @@ import {
   shouldSuppressActiveChannel,
 } from '../lib/notificationPresentation';
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: jest.fn(),
+jest.mock('@react-navigation/native', () => {
+  const navigation = {};
+  return { useNavigation: () => navigation };
+});
+
+jest.mock('@tloncorp/app/contexts/branch', () => {
+  const branch = {
+    lure: { id: 'lure-1', invitedGroupId: '~zod/g', inviteOpenedTracked: true },
+    clearLure: jest.fn(),
+  };
+  const signupParams = {};
+  return { useBranch: () => branch, useSignupParams: () => signupParams };
+});
+
+jest.mock('@tloncorp/app/contexts/ship', () => ({
+  useShip: () => ({ ship: '~zod' }),
 }));
+
+jest.mock('@tloncorp/app/hooks/useAgentGroupOnboardingLock', () => {
+  const gate = {
+    locked: false,
+    isLoading: false,
+    runWhenUnlocked: async (fn: () => unknown) => ({
+      ran: true,
+      result: await fn(),
+    }),
+  };
+  return { useAgentGroupOnboardingNavGate: () => gate };
+});
 
 jest.mock('@tloncorp/app/lib/notifications', () => ({
   connectNotifications: jest.fn(),
@@ -33,6 +69,10 @@ jest.mock('@tloncorp/app/navigation/utils', () => ({
     params: { screen, ...(params === undefined ? {} : { params }) },
   })),
   screenNameFromChannelId: jest.fn(),
+  useTypedReset: (() => {
+    const reset = jest.fn();
+    return () => reset;
+  })(),
 }));
 
 jest.mock('@tloncorp/app/ui', () => ({
@@ -49,9 +89,12 @@ jest.mock('@tloncorp/shared', () => ({
     High: 10,
   },
   createDevLogger: jest.fn(() => ({
+    error: jest.fn(),
+    log: jest.fn(),
     trackError: jest.fn(),
     trackEvent: jest.fn(),
   })),
+  trackEvent: jest.fn(),
   ensureDmInviteChannel: jest.fn(),
   setContactsMatchedHandler: jest.fn(),
   syncDms: jest.fn(),
@@ -65,6 +108,14 @@ jest.mock('@tloncorp/shared/db', () => ({
   isTlonEmployee: {
     useValue: jest.fn(),
   },
+}));
+
+// The real session module, so the hooks read a live desk verdict.
+jest.mock('@tloncorp/shared/store', () => ({
+  ...jest.requireActual<object>(
+    '../../../../packages/shared/src/store/session'
+  ),
+  redeemInviteIfNeeded: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock('@tloncorp/shared/logic', () => ({
@@ -275,6 +326,42 @@ describe('parseNotificationPayload', () => {
     expect(parseNotificationPayload(payloadFor({ 'group-invite': {} }))).toBe(
       null
     );
+  });
+
+  describe('kinds the native layer shows but JS used to drop (TLON-6566)', () => {
+    const ship = '~sampel-palnet';
+    const group = '~sampel-palnet/test';
+    const flagged = { channel: 'chat/~sampel-palnet/test', group };
+    const members = { type: 'groupMembers', groupId: group };
+    const thread = {
+      channelId: flagged.channel,
+      postInfo: { id: parentId.split('/')[1], authorId: ship, isDm: false },
+    };
+
+    it.each([
+      ['group-join', { ship, group }, members],
+      ['group-kick', { ship, group }, { ...members, ship }],
+      ['group-role', { ship, group, roles: ['admin'] }, members],
+      ['flag-post', { ...flagged, key: parentKey }, thread],
+      ['flag-reply', { ...flagged, key: childKey, parent: parentKey }, thread],
+      [
+        'contact',
+        { who: ship, update: {} },
+        { type: 'contactMatched', contactId: ship },
+      ],
+    ])('routes %s activity', (kind, info, target) => {
+      // the key set a real Android push carries alongside the event
+      const payload = {
+        ...payloadFor({ [kind]: info }),
+        'google.message_id': '0:1',
+        id: '1',
+        uid: '0v1',
+      };
+      expect(parseNotificationPayload(payload)).toEqual({
+        meta: { errorsFromExtension: undefined },
+        ...target,
+      });
+    });
   });
 
   it('parses channel post react activity to the channel', () => {
@@ -513,5 +600,99 @@ describe('foreground notification presentation', () => {
         viewedChannelId: '~sampel-palnet',
       })
     ).toBe(false);
+  });
+});
+
+describe('launch targets while the desk verdict is not ok (TLON-6531)', () => {
+  const gated = {
+    status: 'incompatible',
+    current: '12.1.0',
+    minimum: '12.2.0',
+    subscribed: false,
+  } as const;
+  const typedReset = jest.fn();
+  let nativeResponse: unknown;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    store.updateSession(null);
+    nativeResponse = {
+      notification: {
+        request: {
+          trigger: null,
+          content: {
+            data: payloadFor({
+              post: {
+                key: childKey,
+                group: '~sampel-palnet/test',
+                channel: 'chat/~sampel-palnet/test',
+                content: [],
+                mention: false,
+              },
+            }),
+          },
+        },
+      },
+    };
+    jest
+      .mocked(notifications.useLastNotificationResponse)
+      .mockImplementation(() => nativeResponse as never);
+    jest
+      .mocked(notifications.clearLastNotificationResponseAsync)
+      .mockImplementation(() => {
+        nativeResponse = null;
+        return Promise.resolve();
+      });
+    jest.mocked(createTypedReset).mockReturnValue(typedReset as never);
+    jest.mocked(db.getChannelWithRelations).mockResolvedValue({
+      id: 'chat/~sampel-palnet/test',
+      groupId: null,
+    } as never);
+  });
+
+  it('holds a tapped notification until ok, then consumes it once', async () => {
+    store.updateSession({ deskCompat: gated });
+    renderHook(() => useNotificationListener());
+    await act(async () => {});
+    expect(
+      notifications.clearLastNotificationResponseAsync
+    ).not.toHaveBeenCalled();
+    expect(typedReset).not.toHaveBeenCalled();
+    expect(db.getChannelWithRelations).not.toHaveBeenCalled();
+
+    await act(async () =>
+      store.updateSession({ deskCompat: { status: 'ok' } })
+    );
+    await waitFor(() => expect(typedReset).toHaveBeenCalledTimes(1));
+    expect(
+      notifications.clearLastNotificationResponseAsync
+    ).toHaveBeenCalledTimes(1);
+    expect(db.getChannelWithRelations).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds a deep link until ok, then handles it once', async () => {
+    const reset = useTypedReset();
+    const { clearLure } = useBranch();
+    store.updateSession({ deskCompat: gated });
+    renderHook(() => useDeepLinkListener());
+    await act(async () => {});
+    expect(reset).not.toHaveBeenCalled();
+    expect(clearLure).not.toHaveBeenCalled();
+    expect(store.redeemInviteIfNeeded).not.toHaveBeenCalled();
+
+    await act(async () =>
+      store.updateSession({ deskCompat: { status: 'ok' } })
+    );
+    await waitFor(() => expect(clearLure).toHaveBeenCalledTimes(1));
+    expect(reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds a tapped notification while no verdict exists yet', async () => {
+    renderHook(() => useNotificationListener());
+    await act(async () => {});
+    expect(
+      notifications.clearLastNotificationResponseAsync
+    ).not.toHaveBeenCalled();
+    expect(typedReset).not.toHaveBeenCalled();
   });
 });

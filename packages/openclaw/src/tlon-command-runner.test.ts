@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { runTlonCommand } from './tlon-command-runner.js';
+import {
+  DEFAULT_BUCKETS_CLI_TIMEOUT_MS,
+  DEFAULT_TLON_CLI_TIMEOUT_MS,
+  defaultTlonCliTimeoutMs,
+  runBrowserHandoffCommand,
+  runTlonCommand,
+} from './tlon-command-runner.js';
+import { normalizeShip } from './targets.js';
+import { resolveTlonAccount } from './types.js';
 
 const AMBIENT_CREDENTIAL_ENV = {
   TLON_CONFIG_FILE: '/tmp/ambient-tlon-config.json',
@@ -43,6 +51,20 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+describe('defaultTlonCliTimeoutMs', () => {
+  it('allows Buckets operations enough time for broker retries and uploads', () => {
+    expect(defaultTlonCliTimeoutMs(['buckets', 'upload'])).toBe(
+      DEFAULT_BUCKETS_CLI_TIMEOUT_MS
+    );
+  });
+
+  it('keeps the existing deadline for other tlon commands', () => {
+    expect(defaultTlonCliTimeoutMs(['messages', 'send'])).toBe(
+      DEFAULT_TLON_CLI_TIMEOUT_MS
+    );
+  });
+});
+
 describe('runTlonCommand timeout output capture', () => {
   it('terminates and rejects near the timeout when no deadline callback is supplied', async () => {
     const timeoutMs = 300;
@@ -76,14 +98,20 @@ describe('runTlonCommand timeout output capture', () => {
   });
 
   it('rejects near the timeout when a spawnSync grandchild keeps the pipes open', async () => {
-    const timeoutMs = 500;
+    // The budget has to cover two cold Node boots — the wrapper, then the
+    // spawnSync grandchild — before the grandchild's writes can reach us.
+    // A loaded CI runner spends longer on those than the writes themselves,
+    // and a timeout that fires first carries empty output. Keep the
+    // grandchild's hold-open delay well past the timeout so the pipes are
+    // still open when it fires.
+    const timeoutMs = 1_500;
     const grandchildScript = [
       "process.stdout.write('stdout-before-timeout\\n');",
       "process.stderr.write('stderr-before-timeout\\n');",
       'setTimeout(() => {',
       "  process.stdout.write('grandchild-finished\\n');",
       '  process.exit(0);',
-      '}, 2500);',
+      '}, 6000);',
     ].join('\n');
     const wrapperScript = [
       "const { spawnSync } = require('node:child_process');",
@@ -110,7 +138,8 @@ describe('runTlonCommand timeout output capture', () => {
     const elapsedMs = performance.now() - startedAt;
 
     expect(elapsedMs).toBeGreaterThanOrEqual(timeoutMs - 50);
-    expect(elapsedMs).toBeLessThan(1_500);
+    // Rejected on the timeout, not by waiting out the grandchild's exit.
+    expect(elapsedMs).toBeLessThan(3_000);
     expect(failure).toMatchObject({
       message: `tlon command timed out after ${timeoutMs}ms`,
       stdout: 'stdout-before-timeout\n',
@@ -217,6 +246,52 @@ describe('runTlonCommand timeout output capture', () => {
 });
 
 describe('runTlonCommand credential environment', () => {
+  it('leaves owner discovery to the CLI when only a named account is configured', async () => {
+    vi.stubEnv('TLON_OWNER_SHIP', undefined);
+    const account = resolveTlonAccount({
+      channels: {
+        tlon: {
+          accounts: {
+            personal: {
+              ship: '~zod',
+              url: 'https://zod.example',
+              code: 'test-code',
+              ownerShip: '~nec',
+            },
+          },
+        },
+      },
+    });
+    const stdout = await runTlonCommand(
+      process.execPath,
+      [
+        '-e',
+        'process.stdout.write(JSON.stringify(process.env.TLON_OWNER_SHIP ?? null))',
+      ],
+      undefined,
+      { ownerShip: normalizeShip(account.ownerShip ?? '') || undefined }
+    );
+    expect(JSON.parse(stdout)).toBeNull();
+  });
+
+  it.each(['~nec', ''])(
+    'passes the resolved account owner %j instead of an ambient owner',
+    async (ownerShip) => {
+      vi.stubEnv('TLON_OWNER_SHIP', '~zod');
+      vi.stubEnv('OPENCLAW_CONFIG_PATH', '/custom/openclaw.json');
+      const stdout = await runTlonCommand(
+        process.execPath,
+        [
+          '-e',
+          'process.stdout.write(JSON.stringify(process.env.TLON_OWNER_SHIP))',
+        ],
+        undefined,
+        { ownerShip }
+      );
+      expect(JSON.parse(stdout)).toBe(ownerShip);
+    }
+  );
+
   it('scrubs ambient credential selectors when credentials are supplied', async () => {
     const childEnv = await captureChildCredentialEnv({
       url: 'https://selected.example',
@@ -243,4 +318,91 @@ describe('runTlonCommand credential environment', () => {
       AMBIENT_CREDENTIAL_ENV
     );
   });
+});
+
+describe('browser handoff account binding', () => {
+  const defaultAccount = {
+    ship: '~zod',
+    url: 'https://zod.example',
+    code: 'zod-code',
+    ownerShip: '~nec',
+  };
+  const namedAccount = {
+    ship: '~bud',
+    url: 'https://bud.example',
+    code: 'bud-code',
+    ownerShip: '~wes',
+  };
+  const args = [
+    '-e',
+    'process.stdout.write(JSON.stringify([process.env.URBIT_SHIP, process.env.URBIT_URL, process.env.URBIT_CODE, process.env.TLON_OWNER_SHIP, process.env.TLON_CONFIG_FILE ?? null]))',
+  ];
+
+  it('refuses default-plus-named accounts instead of delivering to the default owner', () => {
+    expect(() =>
+      runBrowserHandoffCommand(process.execPath, args, {
+        channels: {
+          tlon: { ...defaultAccount, accounts: { personal: namedAccount } },
+        },
+      })
+    ).toThrow('exactly one');
+  });
+
+  it('refuses multiple named accounts', () => {
+    expect(() =>
+      runBrowserHandoffCommand(process.execPath, args, {
+        channels: {
+          tlon: { accounts: { first: defaultAccount, second: namedAccount } },
+        },
+      })
+    ).toThrow('exactly one');
+  });
+
+  it('refuses ambient credentials when no runnable account is configured', () => {
+    vi.stubEnv('URBIT_SHIP', '~zod');
+    vi.stubEnv('TLON_OWNER_SHIP', '~nec');
+    expect(() => runBrowserHandoffCommand(process.execPath, args, {})).toThrow(
+      'exactly one'
+    );
+  });
+
+  it('refuses an ownerless account rather than inheriting an ambient owner', () => {
+    vi.stubEnv('TLON_OWNER_SHIP', '~wes');
+    expect(() =>
+      runBrowserHandoffCommand(process.execPath, args, {
+        channels: { tlon: { ...defaultAccount, ownerShip: undefined } },
+      })
+    ).toThrow('configured owner');
+  });
+
+  it.each([
+    { tlon: defaultAccount, expected: defaultAccount },
+    { tlon: { accounts: { personal: namedAccount } }, expected: namedAccount },
+    {
+      tlon: {
+        ...defaultAccount,
+        accounts: {
+          disabled: { ...namedAccount, enabled: false },
+          stub: { ship: '~bus', url: '', code: '' },
+        },
+      },
+      expected: defaultAccount,
+    },
+  ])(
+    'uses credentials and owner from the sole runnable account ($expected.ship)',
+    async ({ tlon, expected }) => {
+      vi.stubEnv('TLON_OWNER_SHIP', '~sev');
+      vi.stubEnv('TLON_CONFIG_FILE', '/wrong/account.json');
+      const result = await runBrowserHandoffCommand(process.execPath, args, {
+        channels: { tlon },
+      });
+      expect(JSON.parse(result)).toEqual([
+        expected.ship,
+        expected.url,
+        expected.code,
+        expected.ownerShip,
+        null,
+      ]);
+    }
+  );
 });

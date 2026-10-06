@@ -157,6 +157,10 @@ class StreamLoopTests(unittest.TestCase):
         async def record_invites():
             calls.append("invites")
 
+        async def record_group_invites():
+            calls.append("group-invites")
+            return True
+
         async def record_profile():
             calls.append("profile")
 
@@ -166,6 +170,9 @@ class StreamLoopTests(unittest.TestCase):
         return [
             patch.object(adapter, "_load_settings_state", record_settings),
             patch.object(adapter, "_process_pending_dm_invites", record_invites),
+            patch.object(
+                adapter, "_process_pending_group_invites", record_group_invites
+            ),
             patch.object(adapter, "_load_bot_profile", record_profile),
             patch.object(
                 adapter, "_publish_bot_info", record_publish
@@ -210,7 +217,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2], patches[3]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -255,7 +262,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2], patches[3]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -307,7 +314,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", FailingConnectSSE):
             async def run():
-                with patches[0], patches[1], patches[2], patches[3]:
+                with patches[0], patches[1], patches[2], patches[3], patches[4]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -467,9 +474,22 @@ class StreamLoopTests(unittest.TestCase):
         calls = []
         patches = self._patch_catchups(adapter, calls)
 
-        with patch.object(adapter_mod, "TlonSSEClient", RebuildSSE):
+        # The group catch-up reports failure here: it must be logged as a
+        # warning without masquerading as a stream error and cycling
+        # reconnects (still exactly one rebuild below).
+        async def failed_group_catchup():
+            calls.append("group-invites")
+            return False
+
+        with patch.object(adapter_mod, "TlonSSEClient", RebuildSSE), \
+             self.assertLogs(adapter_mod.logger, level="WARNING") as captured:
             async def run():
-                with patches[0], patches[1], patches[2], patches[3]:
+                with patches[0], patches[1], patches[3], patches[4], \
+                     patch.object(
+                         adapter,
+                         "_process_pending_group_invites",
+                         failed_group_catchup,
+                     ):
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -478,6 +498,13 @@ class StreamLoopTests(unittest.TestCase):
         self.assertEqual(sse_instances[0].close_calls, [False])
         rebuild_events = [e for e in telemetry_events if e.get("mode") == "rebuild"]
         self.assertEqual(len(rebuild_events), 1)
+        self.assertTrue(
+            any(
+                "group-invite catch-up failed" in message
+                for message in captured.output
+            ),
+            captured.output,
+        )
         # The bot-info republish is bound to the reconnect catch-up here: drop
         # the call site in _run_stream and this sequence loses its "publish".
         self.assertEqual(
@@ -485,10 +512,12 @@ class StreamLoopTests(unittest.TestCase):
             [
                 "settings",
                 "invites",
+                "group-invites",
                 "profile",
                 "publish",
                 "settings",
                 "invites",
+                "group-invites",
                 "profile",
                 "publish",
             ],
@@ -499,6 +528,58 @@ class StreamLoopTests(unittest.TestCase):
                 self.assertEqual(calls[index + 1], "publish")
         sub_apps = [s[0] for s in sse_instances[1].subscribe_calls]
         self.assertIn("steward", sub_apps)
+
+    def test_stale_settings_skip_the_group_invite_catchup(self):
+        # The catch-up auto-accepts allowlisted invites, so a failed settings
+        # reload must not let it decide from the pre-outage allowlist; the
+        # invites stay in foreigns for the next reconnect.
+        adapter = self.make_adapter()
+        # The retry task would otherwise outlive the loop under fake sleeps.
+        adapter._start_nudge_settings_retry = lambda: None
+
+        class ConnectSSE:
+            def __init__(self, config, *, reap_detection=False):
+                self.last_heard_event_id = -1
+
+            async def authenticate(self):
+                return "cookie"
+
+            async def open(self):
+                pass
+
+            async def subscribe(self, app, path, *, optional=False):
+                return 1
+
+            async def close(self, *, graceful=True):
+                pass
+
+            async def events(self, *, on_open=None):
+                if on_open:
+                    on_open()
+                adapter._running = False
+                if False:
+                    yield None
+
+        adapter._telemetry = types.SimpleNamespace(
+            sse_reconnect=lambda **kw: None,
+            error=lambda *a, **kw: None,
+        )
+        calls = []
+        patches = self._patch_catchups(adapter, calls)
+
+        async def stale_settings():
+            calls.append("settings")
+            return False
+
+        with patch.object(adapter_mod, "TlonSSEClient", ConnectSSE):
+            async def run():
+                with patches[1], patches[2], patches[3], patches[4], \
+                     patch.object(adapter, "_load_settings_state", stale_settings):
+                    await adapter._run_stream()
+            with patch("asyncio.sleep", _instant_sleep):
+                asyncio.run(run())
+
+        self.assertEqual(calls, ["settings", "invites", "profile", "publish"])
 
     def test_idle_resume_resets_backoff(self):
         # Established fires on the first payload, not the bare 200: repeated
@@ -535,7 +616,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2], patches[3]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -631,7 +712,7 @@ class StreamLoopTests(unittest.TestCase):
 
                 with patch.object(adapter_mod, "TlonSSEClient", AuthSSE):
                     async def run():
-                        with patches[0], patches[1], patches[2], patches[3]:
+                        with patches[0], patches[1], patches[2], patches[3], patches[4]:
                             await adapter._run_stream()
                     with patch("asyncio.sleep", _instant_sleep):
                         asyncio.run(run())
@@ -669,7 +750,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2], patches[3]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -792,7 +873,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", ReapSSE):
             async def run():
-                with patches[0], patches[1], patches[2], patches[3]:
+                with patches[0], patches[1], patches[2], patches[3], patches[4]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -1038,7 +1119,7 @@ class StreamLoopTests(unittest.TestCase):
         with patch.object(adapter_mod, "TlonSSEClient", DedupRebuildSSE), \
              patch.object(adapter, "_dispatch_message", record_dispatch):
             async def run():
-                with patches[0], patches[1], patches[2], patches[3]:
+                with patches[0], patches[1], patches[2], patches[3], patches[4]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -1079,7 +1160,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2], patches[3]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -1126,7 +1207,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", FailingSetupSSE):
             async def run():
-                with patches[0], patches[1], patches[2], patches[3]:
+                with patches[0], patches[1], patches[2], patches[3], patches[4]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 with self.assertLogs(adapter_mod.logger.name, level="WARNING") as cm:
@@ -1593,12 +1674,19 @@ class DetectorStreamLoopTests(unittest.TestCase):
         async def record_invites():
             calls.append("invites")
 
+        async def record_group_invites():
+            calls.append("group-invites")
+            return True
+
         async def record_profile():
             calls.append("profile")
 
         return [
             patch.object(adapter, "_load_settings_state", record_settings),
             patch.object(adapter, "_process_pending_dm_invites", record_invites),
+            patch.object(
+                adapter, "_process_pending_group_invites", record_group_invites
+            ),
             patch.object(adapter, "_load_bot_profile", record_profile),
         ]
 
@@ -1658,7 +1746,7 @@ class DetectorStreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", DetectorSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -1670,7 +1758,17 @@ class DetectorStreamLoopTests(unittest.TestCase):
         rebuild_events = [e for e in telemetry_events if e.get("mode") == "rebuild"]
         self.assertEqual(len(rebuild_events), 1)
         self.assertEqual(
-            calls, ["settings", "invites", "profile", "settings", "invites", "profile"]
+            calls,
+            [
+                "settings",
+                "invites",
+                "group-invites",
+                "profile",
+                "settings",
+                "invites",
+                "group-invites",
+                "profile",
+            ],
         )
 
     def test_stale_error_resumes_same_client_with_watchdog_stale_mode(self):

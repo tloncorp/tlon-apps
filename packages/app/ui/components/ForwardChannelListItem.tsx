@@ -105,6 +105,10 @@ export const ForwardChannelListItem = memo(
       showGroupTitle: true,
       borderWidth: '$2xs',
       marginHorizontal: -1,
+      accessibilityLabel: selected
+        ? 'Selected forwarding destination'
+        : undefined,
+      accessibilityState: { selected },
       ...selectedStyles,
     } as const;
 

@@ -1,0 +1,19 @@
+appId: ${MAESTRO_APP_ID}
+name: Join-group navigation
+tags: [regression]
+env:
+  JOURNEY: join-group-navigation
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- tapOn: '^Add a chat$'
+- assertVisible: '^Start a conversation$'
+- tapOn: '^Join a group with a code \(reference\)$'
+- assertVisible: '^Join a group$'
+- assertVisible: '^Join a group chat with a code \(reference\)$'
+- assertVisible: '^Enter group code$'
+- assertVisible: '^Close$'
+- tapOn: '^Close$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Workspaces$'

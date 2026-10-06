@@ -1,15 +1,17 @@
 import { describe, expect, test, vi } from 'vitest';
 
+import { parseChanges } from '../client/changesApi';
 import {
   type ContactsUpdate,
   contactSelfFieldPoke,
   contactToClientProfile,
   directoryToClientProfiles,
-  extractBotInfoValue,
+  extractTextClaimValue,
   subscribeToContactUpdates,
   v1PeerToClientProfile,
 } from '../client/contactsApi';
 import { subscribe } from '../client/urbit';
+import type { ChangesV11 } from '../urbit';
 import type { ContactBookProfile } from '../urbit/contact';
 
 vi.mock('../client/urbit', async () => {
@@ -76,6 +78,7 @@ test('converts a directory scry to client profiles', () => {
       ],
       attestations: null,
       botInfo: null,
+      botLiveness: null,
       isContact: false,
       isContactSuggestion: undefined,
     },
@@ -90,6 +93,7 @@ test('converts a directory scry to client profiles', () => {
       pinnedGroups: [],
       attestations: null,
       botInfo: null,
+      botLiveness: null,
       isContact: false,
       isContactSuggestion: undefined,
     },
@@ -225,13 +229,50 @@ describe('bot-info contact field', () => {
     expect(contact.botInfo).toBeNull();
   });
 
-  test('extractBotInfoValue accepts only text-shaped fields', () => {
-    expect(extractBotInfoValue({ type: 'text', value: claimJson })).toBe(
+  test('extractTextClaimValue accepts only text-shaped fields', () => {
+    expect(extractTextClaimValue({ type: 'text', value: claimJson })).toBe(
       claimJson
     );
-    expect(extractBotInfoValue(undefined)).toBeNull();
-    expect(extractBotInfoValue({ type: 'text', value: null })).toBeNull();
-    expect(extractBotInfoValue({ value: claimJson })).toBeNull();
+    expect(extractTextClaimValue(undefined)).toBeNull();
+    expect(extractTextClaimValue({ type: 'text', value: null })).toBeNull();
+    expect(extractTextClaimValue({ value: claimJson })).toBeNull();
+  });
+});
+
+describe('bot-liveness contact field', () => {
+  const livenessJson = '{"v":1,"state":"offline"}';
+
+  test('v1 peer mapper carries a well-formed text field', () => {
+    const contact = v1PeerToClientProfile('~bot', {
+      nickname: { type: 'text', value: 'Bot' },
+      'bot-liveness': { type: 'text', value: livenessJson },
+    });
+    expect(contact.botLiveness).toBe(livenessJson);
+  });
+
+  test('book mapper reads the base contact, not the mod overlay', () => {
+    const contact = contactToClientProfile('~bot', [
+      { 'bot-liveness': { type: 'text', value: livenessJson } },
+      {
+        'bot-liveness': { type: 'text', value: '{"v":1,"state":"online"}' },
+      },
+    ]);
+    expect(contact.botLiveness).toBe(livenessJson);
+  });
+
+  test('book mapper ignores a claim that only exists in the overlay', () => {
+    const contact = contactToClientProfile('~bot', [
+      {},
+      { 'bot-liveness': { type: 'text', value: livenessJson } },
+    ]);
+    expect(contact.botLiveness).toBeNull();
+  });
+
+  test('v1 peer mapper rejects a non-text field', () => {
+    const contact = v1PeerToClientProfile('~bot', {
+      'bot-liveness': { type: 'numb', value: 1 },
+    } as unknown as ContactBookProfile);
+    expect(contact.botLiveness).toBeNull();
   });
 });
 
@@ -294,7 +335,38 @@ describe('bot-info sync carrier', () => {
 
     expect(updates[0]).toMatchObject({
       type: 'upsertContact',
-      contact: { id: '~bot', botInfo: null },
+      contact: { id: '~bot', botInfo: null, botLiveness: null },
     });
+  });
+});
+
+// REACT-NATIVE-45: a book entry with no base contact (`[null, overrides]`).
+describe('book entry with a null base contact', () => {
+  test('keeps overrides and empties peer fields', () => {
+    const contact = contactToClientProfile('~bot', [
+      null,
+      { nickname: { type: 'text', value: 'Buddy' } },
+    ]);
+    expect(contact.customNickname).toBe('Buddy');
+    expect(contact.peerNickname).toBeNull();
+    expect(contact.isContact).toBe(true);
+  });
+
+  test('parseChanges still yields the other contacts in the batch', () => {
+    const input = {
+      groups: {},
+      channels: {},
+      chat: {},
+      activity: {},
+      contacts: {
+        '~bot': [null, { nickname: { type: 'text', value: 'Buddy' } }],
+        '~other': [{ nickname: { type: 'text', value: 'Other' } }, null],
+      },
+    } as unknown as ChangesV11;
+    expect(
+      parseChanges(input)
+        .contacts.map((c) => c.id)
+        .sort()
+    ).toEqual(['~bot', '~other']);
   });
 });

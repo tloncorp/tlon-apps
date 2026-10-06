@@ -126,6 +126,8 @@ pnpm test:integration:shared
 
 ## Hermes Runtime Details
 
+Hermes runtime E2E is not run in CI, and `test:e2e` runs OpenClaw only; use the `test:e2e:hermes` commands above by hand.
+
 The Hermes E2E compose path does not load `packages/hermes-tlon-adapter/.env`. It writes a fresh `$HERMES_HOME/config.yaml` with:
 
 -   `model.provider: custom`

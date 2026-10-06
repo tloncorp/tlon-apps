@@ -135,6 +135,7 @@
         [/x/v4/channels %channels-4]
         [/x/v4/said %channel-said-2]
         [/x/v4/heads %channel-heads-3]
+        [/x/v4/$/$/$/perm %channel-perm]
         [/x/v4/$/$/$/posts %channel-posts-4]
         [/x/v4/$/$/$/posts/post %channel-post-4]
         [/x/v4/$/$/$/posts/post/id/$/replies %channel-replies-4]
@@ -214,6 +215,7 @@
   ++  on-poke
     %-  on-poke:guard
     |=  =rail
+    ~|  [%on-poke -.rail]
     %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
@@ -222,6 +224,7 @@
   ::
   ++  on-watch
     |=  =path
+    ~|  [%on-watch ?~(path %$ i.path)]
     %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
@@ -240,6 +243,7 @@
   ++  on-agent
     %-  on-agent:guard
     |=  [=wire =sign:guard]
+    ~|  [%on-agent ?~(wire %$ i.wire) -.sign src.bowl]
     %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
@@ -248,6 +252,7 @@
   ::
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
+    ~|  [%on-arvo ?~(wire %$ i.wire)]
     %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
@@ -1997,9 +2002,11 @@
     ?>  |(from-self is-group-host is-channel-host)
     ?:  (~(has by v-channels) nest)
       ::  we should already be in, but make sure our subscriptions still exist
-      ::  just in case
+      ::  just in case. still answer with %join: the client's join waits for
+      ::  it, and %groups relies on it to repair a stale .active-channels.
       ::
       =.  channel  (~(got by v-channels) nest)
+      =.  ca-core  (ca-response %join group.perm.channel)
       (ca-safe-sub |)
     =.  channel  *v-channel:c
     =.  group.perm.channel  group

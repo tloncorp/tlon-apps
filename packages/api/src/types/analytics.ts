@@ -34,20 +34,25 @@ export enum AnalyticsEvent {
   ScryNoun = 'Scry Noun',
   Poke = 'Poke',
   NativeDbDebug = 'Native DB Debug',
+  DbReadyRetrySucceeded = 'DB Ready Retry Succeeded',
   Thread = 'Thread',
   TrackedPoke = 'TrackedPoke',
   ErrorDatabaseQuery = 'Database Query Error',
   ErrorTrackedPokeTimeout = 'Error Tracked Poke Timeout',
   ErrorThread = 'Thread Error',
   ErrorSubscribeOnceTimeout = 'Error Subscribe Once Timeout',
+  SubscribeOnceRecovered = 'Subscribe Once Recovered',
   ErrorNativeDb = 'Native DB Error',
+  ErrorWebDb = 'Web DB Error',
   InitDataFetched = 'Init Data Fetched',
   InitDataWritten = 'Init Data Written',
   LatestPostsFetched = 'Latest Posts Fetched',
   LatestPostsWritten = 'Latest Posts Written',
   SubscriptionsEstablished = 'Subscriptions Established',
+  DeskIncompatible = 'Desk Incompatible',
   AuthFailedToGetCode = 'Failed to get access code',
   AuthForcedLogout = 'Auth Forced Logout',
+  AuthCookieDropped = 'Auth Cookie Dropped',
   NodeConnectionDebug = 'Node Connection Debug',
   NodeConnectionError = 'Node Connection Error',
   SyncDiscontinuity = 'Sync Discontinuity',
@@ -64,6 +69,7 @@ export enum AnalyticsEvent {
   TlonbotMcpConnected = 'Tlonbot MCP: Connected',
   TlonbotMcpDisconnected = 'Tlonbot MCP: Disconnected',
   TlonbotMcpError = 'Tlonbot MCP: Error',
+  TlonbotSettingUpdated = 'Tlonbot Setting Updated',
   TlonbotReplyFeedbackChanged = 'Tlonbot Reply Feedback Changed',
   TlonbotReplyFeedbackDetailsSubmitted = 'Tlonbot Reply Feedback Details Submitted',
   AttachmentUploadSuccess = 'Attachment Upload Success',
@@ -142,6 +148,11 @@ export enum AnalyticsEvent {
   ActivityMarkedAllRead = 'Activity Marked All Read',
   ContactProfileSelected = 'Contact Profile Selected',
   NoteOpened = 'Note Opened',
+  /**
+   * Fires when the authenticated navigator reveals the furnished onboarding
+   * chat after account creation.
+   */
+  AgentOnboardingChatOpened = 'Agent Onboarding Chat Opened',
   /**
    * Fires once when the owner first opens the generated onboarding entry.
    */

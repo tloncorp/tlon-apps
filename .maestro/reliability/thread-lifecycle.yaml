@@ -1,0 +1,149 @@
+appId: ${MAESTRO_APP_ID}
+name: Native threaded reply edit, sibling preservation and deletion persistence
+tags: [regression]
+env:
+  JOURNEY: replylife
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.text}
+      MESSAGE_PATTERN: ${output.reliability.textPattern}
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- longPressOn: ${output.reliability.textPattern}
+- tapOn: '^Reply$'
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.reply}
+      MESSAGE_PATTERN: ${output.reliability.replyPattern}
+      EMPTY_INPUT: '^Reply$'
+- hideKeyboard
+- longPressOn: ${output.reliability.replyPattern}
+- tapOn: '^Edit message$'
+- tapOn:
+    id: MessageInput
+    point: '95%,50%'
+- eraseText: 100
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.editedText}
+- tapOn:
+    id: MessageInputSendButton
+- assertVisible: ${output.reliability.editedTextPattern}
+- assertNotVisible: ${output.reliability.replyPattern}
+# Android already dismisses the keyboard when the edit is saved.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - hideKeyboard
+- tapOn: '^Back$'
+- assertVisible:
+    text: '^1 reply$'
+    label: Reply count remains one after editing the reply
+- stopApp
+- launchApp
+- runFlow: subflows/open-fixture-group.yaml
+- tapOn: '^Chat$'
+- tapOn: '^1 reply$'
+- assertVisible: ${output.reliability.editedTextPattern}
+- assertVisible: ${output.reliability.textPattern}
+# A sibling catches accidental whole-thread deletion and incorrect badge counts.
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.sibling}
+      MESSAGE_PATTERN: ${output.reliability.siblingPattern}
+      EMPTY_INPUT: '^Reply$'
+- hideKeyboard
+- tapOn: '^Back$'
+- assertVisible: '^2 replies$'
+- assertNotVisible: '^1 reply$'
+- tapOn: '^2 replies$'
+- assertVisible: ${output.reliability.editedTextPattern}
+- assertVisible: ${output.reliability.siblingPattern}
+- longPressOn: ${output.reliability.editedTextPattern}
+- scrollUntilVisible:
+    element:
+      text: '^Delete message$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Delete message$'
+- assertVisible: '^Delete message[?]$'
+- tapOn: '^Cancel$'
+- assertVisible: ${output.reliability.editedTextPattern}
+- assertVisible: ${output.reliability.siblingPattern}
+- assertVisible: ${output.reliability.textPattern}
+- longPressOn: ${output.reliability.editedTextPattern}
+- scrollUntilVisible:
+    element:
+      text: '^Delete message$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Delete message$'
+- tapOn: '^Delete message$'
+- assertNotVisible: ${output.reliability.editedTextPattern}
+- assertVisible: ${output.reliability.siblingPattern}
+- assertVisible: ${output.reliability.textPattern}
+- tapOn: '^Back$'
+- assertVisible:
+    text: '^1 reply$'
+    label: Deleting one of two replies preserves the remaining count
+- assertNotVisible: '^2 replies$'
+- stopApp
+- launchApp
+- runFlow: subflows/open-fixture-group.yaml
+- tapOn: '^Chat$'
+- assertVisible: '^1 reply$'
+- assertNotVisible: '^2 replies$'
+- tapOn: '^1 reply$'
+- assertVisible: ${output.reliability.textPattern}
+- assertVisible: ${output.reliability.siblingPattern}
+- assertNotVisible: ${output.reliability.editedTextPattern}
+- assertNotVisible: ${output.reliability.replyPattern}
+- takeScreenshot: ${MAESTRO_RUN_TAG}-thread-sibling-after-relaunch
+- longPressOn: ${output.reliability.siblingPattern}
+- scrollUntilVisible:
+    element:
+      text: '^Delete message$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Delete message$'
+- assertVisible: '^Delete message[?]$'
+- tapOn: '^Delete message$'
+- assertNotVisible: ${output.reliability.siblingPattern}
+- assertVisible: ${output.reliability.textPattern}
+- tapOn: '^Back$'
+# Reopen the now-empty thread; neither the badge nor deleted body should remain.
+- assertNotVisible:
+    text: '^1 reply$'
+    label: Reply count clears after deleting the final reply
+- assertNotVisible: '^2 replies$'
+- assertVisible: ${output.reliability.textPattern}
+- stopApp
+- launchApp
+- runFlow: subflows/open-fixture-group.yaml
+- tapOn: '^Chat$'
+- assertVisible: ${output.reliability.textPattern}
+- assertNotVisible: '^1 reply$'
+- assertNotVisible: '^2 replies$'
+- longPressOn: ${output.reliability.textPattern}
+- tapOn: '^Reply$'
+- assertNotVisible: ${output.reliability.siblingPattern}
+- assertNotVisible: ${output.reliability.replyPattern}
+- assertNotVisible: ${output.reliability.editedTextPattern}
+- assertVisible: ${output.reliability.textPattern}
+- takeScreenshot: ${MAESTRO_RUN_TAG}-thread-empty-after-relaunch
+# Reopening Reply focuses the empty composer; dismiss it before navigating.
+- hideKeyboard
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml

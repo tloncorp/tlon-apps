@@ -1,8 +1,7 @@
 import { MotiView } from 'moti';
-import { useEffect, useState } from 'react';
-import { Dimensions, LayoutChangeEvent } from 'react-native';
+import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, YStack } from 'tamagui';
+import { ScrollView, View, YStack } from 'tamagui';
 
 import { triggerHaptic } from '../../../utils';
 import { EmojiToolbar } from './EmojiToolbar';
@@ -20,26 +19,8 @@ export function ChatMessageActions({
   onViewBotRun,
   onShowEmojiPicker,
 }: ChatMessageActionsProps) {
-  const [topOffset, setTopOffset] = useState(0);
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
-
-  function handleLayout(event: LayoutChangeEvent) {
-    const { height } = event.nativeEvent.layout;
-    const verticalPosition = calcVerticalPosition(height);
-    setTopOffset(verticalPosition);
-  }
-
-  function calcVerticalPosition(height: number): number {
-    const screenHeight = Dimensions.get('window').height;
-    const safeTop = insets.top + PADDING_THRESHOLD;
-    const safeBottom = screenHeight - insets.bottom - PADDING_THRESHOLD;
-    const availableHeight = safeBottom - safeTop;
-
-    const centeredPosition = (availableHeight - height) / 2 + safeTop;
-
-    return Math.min(Math.max(centeredPosition, safeTop), safeBottom - height);
-  }
 
   useEffect(() => {
     // on mount, give initial haptic feeedback
@@ -48,33 +29,39 @@ export function ChatMessageActions({
 
   return (
     <MotiView
+      style={{ flex: 1 }}
+      pointerEvents="box-none"
       from={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 200 }}
     >
       <View
-        position="absolute"
-        top={topOffset}
-        onLayout={handleLayout}
+        flex={1}
+        justifyContent="center"
+        paddingTop={insets.top + PADDING_THRESHOLD}
+        paddingBottom={insets.bottom + PADDING_THRESHOLD}
         paddingHorizontal="$xl"
+        pointerEvents="box-none"
       >
-        <YStack gap="$xs">
-          <EmojiToolbar
-            post={post}
-            onDismiss={onDismiss}
-            openExternalSheet={onShowEmojiPicker}
-          />
-          <MessageContainer post={post} />
-          <MessageActions
-            post={post}
-            postActionIds={postActionIds}
-            dismiss={onDismiss}
-            onReply={onReply}
-            onEdit={onEdit}
-            onViewReactions={onViewReactions}
-            onViewBotRun={onViewBotRun}
-          />
-        </YStack>
+        <ScrollView flexGrow={0} flexShrink={1}>
+          <YStack gap="$xs">
+            <EmojiToolbar
+              post={post}
+              onDismiss={onDismiss}
+              openExternalSheet={onShowEmojiPicker}
+            />
+            <MessageContainer post={post} />
+            <MessageActions
+              post={post}
+              postActionIds={postActionIds}
+              dismiss={onDismiss}
+              onReply={onReply}
+              onEdit={onEdit}
+              onViewReactions={onViewReactions}
+              onViewBotRun={onViewBotRun}
+            />
+          </YStack>
+        </ScrollView>
       </View>
     </MotiView>
   );
