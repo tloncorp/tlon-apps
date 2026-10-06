@@ -166,6 +166,8 @@ const GROUP_META_COLUMNS = {
   iconImageColor: true,
   coverImage: true,
   coverImageColor: true,
+  // only foreign previews carry a count; a /gangs preview must not clear it
+  memberCount: true,
 };
 
 export interface GetGroupsOptions {
@@ -2019,7 +2021,10 @@ export const insertGroups = createWriteQuery(
                 $groups.currentUserIsMember,
                 $groups.haveInvite,
                 $groups.haveRequestedInvite,
-                $groups.memberCount
+                // same for the count, which most group payloads don't carry
+                ...(group.memberCount !== undefined
+                  ? [$groups.memberCount]
+                  : [])
               ),
             });
         } else {
@@ -2285,6 +2290,22 @@ export const updateGroup = createWriteQuery(
     return ctx.db.update($groups).set(group).where(eq($groups.id, group.id));
   },
   ['groups', 'channels', 'groupNavSections', 'groupNavSectionChannels']
+);
+
+// A live seat event moves the count without carrying it. A null count is
+// unknown, not zero, so it stays null until a payload carries one.
+export const adjustGroupMemberCount = createWriteQuery(
+  'adjustGroupMemberCount',
+  async (
+    { groupId, delta }: { groupId: string; delta: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groups)
+      .set({ memberCount: sql`max(${$groups.memberCount} + ${delta}, 0)` })
+      .where(and(eq($groups.id, groupId), isNotNull($groups.memberCount)));
+  },
+  ['groups']
 );
 
 export const deleteGroup = createWriteQuery(

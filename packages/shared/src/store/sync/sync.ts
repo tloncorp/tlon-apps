@@ -1355,6 +1355,10 @@ export async function handleGroupUpdate(
         ctx
       );
       break;
+    // The stored roster can't tell whether a seat event changed the count:
+    // init keeps only 15 seats, and kicks and accepted joins are written
+    // optimistically before their event arrives. So trust the event; a no-op
+    // one (re-adding a member) drifts the count until init resets it.
     case 'addGroupMembers':
       await db.addChatMembers(
         {
@@ -1365,6 +1369,10 @@ export async function handleGroupUpdate(
         },
         ctx
       );
+      await db.adjustGroupMemberCount(
+        { groupId: update.groupId, delta: update.ships.length },
+        ctx
+      );
       break;
     case 'removeGroupMembers': {
       await db.removeChatMembers(
@@ -1372,6 +1380,10 @@ export async function handleGroupUpdate(
           chatId: update.groupId,
           contactIds: update.ships,
         },
+        ctx
+      );
+      await db.adjustGroupMemberCount(
+        { groupId: update.groupId, delta: -update.ships.length },
         ctx
       );
       if (update.ships.includes(currentUserId)) {

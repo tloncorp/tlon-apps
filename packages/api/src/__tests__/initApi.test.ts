@@ -110,4 +110,25 @@ describe('toInitData', () => {
       expect(foreignGroup.haveInvite).toBe(true);
     });
   });
+
+  describe('member counts', () => {
+    // Through desk 12.3.1, init counts the 15 seats it keeps, not the group.
+    const groupWithCount = (count: number) => {
+      const response = structuredClone(groupsInit6);
+      response.groups['~test-ship/test-group']['member-count'] = count;
+      return toTestInitData(response).groups[0];
+    };
+
+    test('keeps a count below the truncation cap', () => {
+      expect(groupWithCount(9).memberCount).toBe(9);
+    });
+
+    test('drops a count that may be the cap', () => {
+      expect(groupWithCount(15).memberCount).toBeUndefined();
+    });
+
+    test('keeps a count above the cap, which only a fixed desk sends', () => {
+      expect(groupWithCount(40).memberCount).toBe(40);
+    });
+  });
 });
