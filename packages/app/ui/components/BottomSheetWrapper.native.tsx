@@ -1,5 +1,5 @@
 import {
-  BottomSheet as ExpoBottomSheet,
+  type BottomSheetMethods,
   BottomSheetScrollView as ExpoBottomSheetScrollView,
 } from '@expo/ui/community/bottom-sheet';
 import { View } from '@tloncorp/ui';
@@ -20,19 +20,22 @@ import {
 } from 'react-native-safe-area-context';
 import { useTheme } from 'tamagui';
 
+import { SheetCoverContext } from '../hooks/useSheetCoveredHeight';
 import {
   BottomSheetScrollViewProps,
   BottomSheetWrapperProps,
 } from './BottomSheetWrapper.types';
+import { NativeSheetHost } from './NativeSheetHost';
 
 /**
- * The single native sheet adapter. Expo UI delegates presentation, gestures,
- * keyboard handling, and dismissal to SwiftUI on iOS and Compose on Android.
+ * The single native sheet adapter. Presentation, gestures, keyboard handling,
+ * and dismissal belong to SwiftUI on iOS, through Expo UI's sheet, and to
+ * Compose on Android, through our own host.
  */
 const HANDLELESS_TOP_PADDING = 28;
 
 export const BottomSheetWrapper = forwardRef<
-  ExpoBottomSheet,
+  BottomSheetMethods,
   PropsWithChildren<BottomSheetWrapperProps>
 >(
   (
@@ -144,13 +147,35 @@ export const BottomSheetWrapper = forwardRef<
     // some of the space back.
     const needsTopSpace =
       Platform.OS === 'android' && showHandle && !resolvedShowHandle;
+    // A fixed-height Android sheet keeps its content at full size and lets the
+    // footer and the keyboard cover the bottom of it. The footer goes to the
+    // host, which pins it natively.
+    const hostsFooter =
+      Platform.OS === 'android' &&
+      !enableDynamicSizing &&
+      transformedSnapPoints?.length === 1 &&
+      !!footerComponent;
+    const [coveredHeight, setCoveredHeight] = useState(0);
+    const [coverClaims, setCoverClaims] = useState(0);
+    const claimCover = useCallback(() => {
+      setCoverClaims((count) => count + 1);
+      return () => setCoverClaims((count) => count - 1);
+    }, []);
+    const cover = useMemo(
+      () => ({ height: coveredHeight, claim: claimCover }),
+      [coveredHeight, claimCover]
+    );
+    // Content that does not inset itself is padded clear of what covers it.
+    const coverPadding = coverClaims === 0 ? coveredHeight : 0;
+
     const contentStyle = useMemo(
       () => ({
         ...(enableDynamicSizing ? null : { flex: 1 }),
         ...(needsTopSpace ? { paddingTop: HANDLELESS_TOP_PADDING } : null),
+        ...(coverPadding > 0 ? { paddingBottom: coverPadding } : null),
         backgroundColor: theme.background.val,
       }),
-      [enableDynamicSizing, needsTopSpace, theme.background.val]
+      [enableDynamicSizing, needsTopSpace, coverPadding, theme.background.val]
     );
     const bodyStyle = useMemo(
       () =>
@@ -165,7 +190,7 @@ export const BottomSheetWrapper = forwardRef<
     }
 
     return (
-      <ExpoBottomSheet
+      <NativeSheetHost
         key={mountKey}
         ref={ref as any}
         index={open ? 0 : -1}
@@ -177,26 +202,34 @@ export const BottomSheetWrapper = forwardRef<
         backgroundStyle={{ backgroundColor: theme.background.val }}
         onChange={handleChange}
         onDismiss={handleDismiss}
+        footer={
+          hostsFooter ? (
+            <View backgroundColor="$background">{footerComponent({})}</View>
+          ) : undefined
+        }
+        onCoveredHeightChange={setCoveredHeight}
       >
-        <View
-          style={contentStyle}
-          accessible={false}
-          onLayout={() => {
-            if (open) onDidOpen?.();
-          }}
-        >
-          {footerComponent ? (
-            <>
-              <View style={bodyStyle} accessible={false}>
-                {children}
-              </View>
-              <View backgroundColor="$background">{footerComponent({})}</View>
-            </>
-          ) : (
-            children
-          )}
-        </View>
-      </ExpoBottomSheet>
+        <SheetCoverContext.Provider value={cover}>
+          <View
+            style={contentStyle}
+            accessible={false}
+            onLayout={() => {
+              if (open) onDidOpen?.();
+            }}
+          >
+            {footerComponent && !hostsFooter ? (
+              <>
+                <View style={bodyStyle} accessible={false}>
+                  {children}
+                </View>
+                <View backgroundColor="$background">{footerComponent({})}</View>
+              </>
+            ) : (
+              children
+            )}
+          </View>
+        </SheetCoverContext.Provider>
+      </NativeSheetHost>
     );
   }
 );

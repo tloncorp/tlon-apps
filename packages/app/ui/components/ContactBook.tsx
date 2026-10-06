@@ -21,6 +21,7 @@ import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
+import { useSheetCoveredHeight } from '../hooks/useSheetCoveredHeight';
 import { ContactRow } from './ContactRow';
 import { ListEmptyState } from './ListEmptyState';
 import { SearchBar } from './SearchBar';
@@ -202,8 +203,11 @@ export function ContactBook({
 
   const insets = useSafeAreaInsets();
 
+  // In a sheet the rows keep their place under the keyboard, so the list needs
+  // that much more room to scroll its last rows clear of it.
+  const coveredHeight = useSheetCoveredHeight();
   const contentContainerStyle = useStyle({
-    paddingBottom: insets.bottom,
+    paddingBottom: insets.bottom + coveredHeight,
     // Plain section labels bring their own space above.
     paddingTop: isPlain ? 0 : '$s',
   }) as StyleProp<ViewStyle>;

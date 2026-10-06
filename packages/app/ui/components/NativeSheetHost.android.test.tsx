@@ -1,38 +1,46 @@
 import React, { createRef, useImperativeHandle } from 'react';
-import { act, create } from 'react-test-renderer';
+import { type ReactTestInstance, act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
-import { BottomSheet } from '../../../../node_modules/@expo/ui/src/community/bottom-sheet/BottomSheet.android';
-import type { BottomSheetMethods } from '../../../../node_modules/@expo/ui/src/community/bottom-sheet/types';
+import type { BottomSheetMethods } from '@expo/ui/community/bottom-sheet';
+
+import { NativeSheetHost } from './NativeSheetHost.android';
 
 const mocks = vi.hoisted(() => ({ hide: vi.fn<[], Promise<void>>() }));
 vi.mock('react-native', () => ({
   useWindowDimensions: () => ({ width: 393, height: 852 }),
-  StyleSheet: { flatten: (style: unknown) => style },
-  View: ({ children }: { children: React.ReactNode }) => children,
+  StyleSheet: {
+    flatten: (style: unknown) => style,
+    create: (styles: unknown) => styles,
+  },
+  processColor: () => 0xffffffff,
+  View: 'View',
   ScrollView: {},
   VirtualizedList: {},
 }));
-vi.mock(
-  '../../../../node_modules/@expo/ui/src/jetpack-compose/ModalBottomSheet',
-  () => ({
-    ModalBottomSheet: ({ ref }: { ref: React.Ref<unknown> }) => {
-      useImperativeHandle(ref, () => ({ hide: mocks.hide }));
-      return null;
-    },
-  })
-);
-vi.mock('../../../../node_modules/@expo/ui/src/jetpack-compose/Host', () => ({
+vi.mock('@expo/ui/jetpack-compose', () => ({
+  ModalBottomSheet: ({
+    ref,
+    children,
+  }: {
+    ref: React.Ref<unknown>;
+    children: React.ReactNode;
+  }) => {
+    useImperativeHandle(ref, () => ({ hide: mocks.hide }));
+    return children;
+  },
   Host: ({ children }: { children: React.ReactNode }) => children,
+  Box: 'Box',
+  Column: 'Column',
+  RNHostView: 'RNHostView',
 }));
-vi.mock(
-  '../../../../node_modules/@expo/ui/src/jetpack-compose/RNHostView',
-  () => ({
-    RNHostView: ({ children }: { children: React.ReactNode }) => children,
-  })
-);
+vi.mock('@expo/ui/jetpack-compose/modifiers', () => ({
+  fillMaxWidth: () => ({ $type: 'fillMaxWidth' }),
+  height: (height: number) => ({ $type: 'height', height }),
+  weight: (weight: number) => ({ $type: 'weight', weight }),
+}));
 setupReactTestEnvironment();
 beforeEach(() => {
   vi.clearAllMocks();
@@ -51,14 +59,14 @@ function renderSheet(index = 0) {
   const ref = createRef<BottomSheetMethods>();
   let tree: ReturnType<typeof create>;
   const element = (index: number) => (
-    <BottomSheet
+    <NativeSheetHost
       ref={ref}
       index={index}
       onDismiss={dismissed}
       onChange={changed}
     >
       {null}
-    </BottomSheet>
+    </NativeSheetHost>
   );
   act(() => {
     tree = create(element(index));
@@ -83,7 +91,7 @@ function renderSheet(index = 0) {
   };
 }
 
-describe('installed Expo Android adapter dismissal', () => {
+describe('Android sheet host dismissal', () => {
   it.each(['prop', 'method'] as const)(
     'waits for native hide after a %s close',
     async (source) => {
@@ -163,5 +171,83 @@ describe('installed Expo Android adapter dismissal', () => {
     act(() => sheet.native().props.onDismissRequest());
     expect(sheet.dismissed).toHaveBeenCalledTimes(2);
     sheet.unmount();
+  });
+});
+
+describe('Android sheet host with a fixed height', () => {
+  const layout = (height: number) => ({ nativeEvent: { layout: { height } } });
+  const heightOf = (node: ReactTestInstance) =>
+    (node.props.modifiers as { $type: string; height?: number }[]).find(
+      (modifier) => modifier.$type === 'height'
+    )?.height;
+
+  function renderFixed(footer?: React.ReactNode) {
+    const covered = vi.fn();
+    let tree: ReturnType<typeof create>;
+    act(() => {
+      tree = create(
+        <NativeSheetHost
+          index={0}
+          snapPoints={[600]}
+          enableDynamicSizing={false}
+          handleComponent={null}
+          footer={footer}
+          onCoveredHeightChange={covered}
+        >
+          {null}
+        </NativeSheetHost>
+      );
+    });
+    const hosts = () => tree.root.findAllByType('RNHostView' as never);
+    return { covered, tree: tree!, hosts };
+  }
+
+  it('keeps the content at the full height whatever the host shows of it', () => {
+    const sheet = renderFixed();
+    const [content] = sheet.hosts();
+    const pinned = content.findByType('View' as never);
+    expect(pinned.props.style).toContainEqual({ height: 600 });
+    expect(heightOf(sheet.tree.root.findByType('Column' as never))).toBe(600);
+    sheet.tree.unmount();
+  });
+
+  it('gives the footer a slot of its own, sized to what is in it', () => {
+    const sheet = renderFixed(null);
+    const [, footerHost] = sheet.hosts();
+    const slot = () => sheet.tree.root.findAllByType('Box' as never)[1];
+    expect(heightOf(slot())).toBe(0);
+    act(() =>
+      footerHost.findByType('View' as never).props.onLayout(layout(84))
+    );
+    expect(heightOf(slot())).toBe(84);
+    sheet.tree.unmount();
+  });
+
+  it('has no footer slot without a footer', () => {
+    const sheet = renderFixed();
+    expect(sheet.hosts()).toHaveLength(1);
+    sheet.tree.unmount();
+  });
+
+  it('waits for the cover to stop growing, and reports it shrinking at once', () => {
+    vi.useFakeTimers();
+    const sheet = renderFixed();
+    const [content] = sheet.hosts();
+    // The keyboard opens: the host shows less of the content on every frame.
+    act(() => content.props.onLayout(layout(500)));
+    act(() => content.props.onLayout(layout(300)));
+    expect(sheet.covered).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(sheet.covered).toHaveBeenCalledTimes(1);
+    expect(sheet.covered).toHaveBeenLastCalledWith(300);
+    // It closes: what is uncovered has to be there to be seen.
+    act(() => content.props.onLayout(layout(450)));
+    expect(sheet.covered).toHaveBeenLastCalledWith(150);
+    act(() => content.props.onLayout(layout(600)));
+    expect(sheet.covered).toHaveBeenLastCalledWith(0);
+    sheet.tree.unmount();
+    vi.useRealTimers();
   });
 });

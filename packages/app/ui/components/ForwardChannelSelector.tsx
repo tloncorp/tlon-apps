@@ -10,6 +10,7 @@ import { useWindowDimensions } from 'react-native';
 import { View, XStack, getTokenValue, isWeb } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
+import { useSheetCoveredHeight } from '../hooks/useSheetCoveredHeight';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { ListEmptyState } from './ListEmptyState';
 import { SearchBar } from './SearchBar';
@@ -131,13 +132,16 @@ export function ForwardChannelSelector({
     [handleChannelSelected, highlightedChannelId]
   );
 
+  // The rows keep their place under the sheet's footer and the keyboard, so
+  // the list needs that much more room to scroll its last rows clear of them.
+  const coveredHeight = useSheetCoveredHeight();
   const contentContainerStyle = useMemo(
     () => ({
       paddingHorizontal: getTokenValue('$xl', 'size'),
       paddingTop: getTokenValue('$s', 'size'),
-      paddingBottom: 100,
+      paddingBottom: 100 + coveredHeight,
     }),
-    []
+    [coveredHeight]
   );
 
   // A native sheet bounds its content, so the list fills what is left above
@@ -156,6 +160,9 @@ export function ForwardChannelSelector({
 
   return (
     <>
+      {/* The title's icon, the labels and the avatars share one line, a
+          row's own padding in from here. The field reaches past that line by
+          its corner radius, which is the same amount. */}
       <XStack paddingHorizontal="$xl">
         <SearchBar
           placeholder="Search channels"
