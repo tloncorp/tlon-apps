@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 
 import { useInstalledNavigationOptions } from '../../../navigation/useInstalledNavigationOptions';
 import type { SettingsListSearch } from './types';
+import { useSettingsListColors } from './useSettingsListColors';
 
 const resetOptions: NativeStackNavigationOptions = {
   headerSearchBarOptions: undefined,
@@ -21,6 +22,7 @@ export function useNativeHeaderSearch(search: SettingsListSearch | undefined) {
   const enabled = Platform.OS !== 'web' && search !== undefined;
   const onChangeTextRef = useMutableRef(search?.onChangeText);
   const placeholder = search?.placeholder;
+  const { primaryText, tertiaryText } = useSettingsListColors();
 
   const options = useMemo<NativeStackNavigationOptions>(
     () => ({
@@ -34,13 +36,22 @@ export function useNativeHeaderSearch(search: SettingsListSearch | undefined) {
         hideNavigationBar: false,
         obscureBackground: false,
         autoCapitalize: 'none',
+        // Android draws the search icon and text white unless told otherwise,
+        // which vanishes on a light header.
+        ...(Platform.OS === 'android'
+          ? {
+              headerIconColor: primaryText,
+              textColor: primaryText,
+              hintTextColor: tertiaryText,
+            }
+          : {}),
         onChangeText: (event) =>
           onChangeTextRef.current?.(event.nativeEvent.text),
         onCancelButtonPress: () => onChangeTextRef.current?.(''),
         onClose: () => onChangeTextRef.current?.(''),
       },
     }),
-    [onChangeTextRef, placeholder]
+    [onChangeTextRef, placeholder, primaryText, tertiaryText]
   );
 
   useInstalledNavigationOptions(navigation, options, enabled, resetOptions);
