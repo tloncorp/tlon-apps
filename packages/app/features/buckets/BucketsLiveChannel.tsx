@@ -210,9 +210,15 @@ export function BucketsLiveChannel({
   const visibleServerItems = serverEntries
     .filter((entry) => entry.parentId === activeFolderId)
     .map((entry) => toItem(entry, childCounts));
+  // Looked up by id rather than searched: a find per upload was quadratic,
+  // and a thousand-file selection re-ran it on every progress write.
+  const localItemsById = useMemo(
+    () => new Map(live.localItems.map((item) => [item.id, item])),
+    [live.localItems]
+  );
   const visibleLocalItems = live.uploads
     .filter((upload) => upload.parentId === activeFolderId)
-    .map((upload) => live.localItems.find((item) => item.id === upload.id))
+    .map((upload) => localItemsById.get(upload.id))
     .filter((item): item is BucketItem => item !== undefined);
   const visibleItems = sortItems([...visibleLocalItems, ...visibleServerItems]);
   const sidebarItems = sortItems(

@@ -45,6 +45,12 @@ import {
   finishUpload,
   isFinishRefusal,
 } from './bucketUploadFinish';
+import {
+  dequeueUpload,
+  enqueueUpload,
+  noteUploadOpened,
+  requeueRefusedUpload,
+} from './bucketUploadQueue';
 import { createBucketUploadTask } from './bucketUploadTask';
 
 /**
@@ -109,6 +115,9 @@ function upsertEntry(entries: BucketsEntry[], entry: BucketsEntry) {
 function errorMessage(cause: unknown) {
   return cause instanceof Error ? cause.message : String(cause);
 }
+
+/** The most often a running upload writes its progress to the database. */
+const PROGRESS_WRITE_INTERVAL_MS = 250;
 
 function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -353,6 +362,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         });
         sessionId = grant.session;
         serverEntryId = grant.entryId;
+        noteUploadOpened(id);
         // The request id has done its work: the answer it was minted to
         // recover is in hand. Keeping it would arm Retry to re-ask under an
         // id the host has already answered, replaying this grant for a
@@ -370,14 +380,24 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           throw new Error('Upload cancelled');
         }
 
+        // Every progress event used to write the row, and every write
+        // refetches each query that reads the table -- with several transfers
+        // running, a storm of writes for a number that had barely moved.
+        let writtenProgress = 5;
+        let writtenAt = 0;
         const task = createBucketUploadTask(
           grant.url,
           candidate,
           Object.fromEntries(grant.headers),
-          (progress) =>
-            updateLocalUpload(id, {
-              progress: Math.max(5, Math.round(5 + progress * 0.9)),
-            })
+          (progress) => {
+            const next = Math.max(5, Math.round(5 + progress * 0.9));
+            const now = Date.now();
+            if (next === writtenProgress) return;
+            if (now - writtenAt < PROGRESS_WRITE_INTERVAL_MS) return;
+            writtenProgress = next;
+            writtenAt = now;
+            updateLocalUpload(id, { progress: next });
+          }
         );
         trackUploadTask(id, task);
         await task.upload;
@@ -407,6 +427,26 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         // that case a visible stuck upload rather than a vanished file.
       } catch (cause) {
         const cancelled = isUploadCancelled(id);
+        // The host would not open the upload. Nothing was reserved, so it can
+        // wait its turn again -- and the whole queue with it, since the
+        // refusal is almost always the broker's rate limit, which the next
+        // upload would hit too. The request id goes: under it the host would
+        // only replay the refusal.
+        if (
+          !cancelled &&
+          sessionId === undefined &&
+          cause instanceof BucketsActionFailed &&
+          cause.type === 'unknown' &&
+          requeueRefusedUpload(id)
+        ) {
+          updateLocalUpload(id, {
+            error: null,
+            openRequestId: null,
+            progress: 0,
+            state: 'queued',
+          });
+          return;
+        }
         // One cancel, not two. The host releases the storage reservation as
         // part of this -- previously that was a second call from here, made
         // while the tab was closing and with its error swallowed, so an
@@ -472,7 +512,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const now = Date.now();
       void Promise.all(
         candidates.map(async (candidate, index) => {
-          const id = `local-upload-${now}-${index}`;
+          // Random as well as ordered: two selections made in the same
+          // millisecond would otherwise collide.
+          const id = `local-upload-${now}-${index}-${mintRequestId()}`;
           // The source is held beside the row rather than in it: a File
           // handle belongs to this process and cannot be written down.
           rememberUploadSource(id, candidate);
@@ -487,7 +529,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             state: 'queued',
             startedAt: now,
           });
-          void runUpload(id);
+          enqueueUpload(id, () => runUpload(id));
         })
       );
     },
@@ -507,6 +549,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       // token lives. A cancel with no row has nothing to fail on the host.
       const sessionId = upload?.sessionId;
 
+      dequeueUpload(id);
       if (upload) {
         markUploadCancelled(id);
       }
@@ -565,7 +608,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           state: 'queued',
         });
       }
-      void runUpload(id);
+      // Through the queue like any other upload, so Retry all on a thousand
+      // failures does not restart them in one burst.
+      enqueueUpload(id, () => runUpload(id));
     },
     [runUpload, uploads]
   );
@@ -584,13 +629,23 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           id: upload.id,
           kind: 'file',
           mimeType: upload.mime ?? undefined,
-          modifiedLabel: upload.state === 'failed' ? 'Failed' : 'Uploading',
+          modifiedLabel:
+            upload.state === 'failed'
+              ? 'Failed'
+              : upload.state === 'queued'
+                ? 'Waiting to upload'
+                : 'Uploading',
           name: upload.name,
           sizeLabel: formatFileSize(upload.size),
           uploadSize: upload.size,
           uploadError: upload.error ?? undefined,
           uploadProgress: upload.progress,
-          uploadState: upload.state === 'failed' ? 'failed' : 'uploading',
+          uploadState:
+            upload.state === 'failed'
+              ? 'failed'
+              : upload.state === 'queued'
+                ? 'queued'
+                : 'uploading',
         })),
     [uploads]
   );
