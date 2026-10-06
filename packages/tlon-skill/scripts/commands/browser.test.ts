@@ -31,6 +31,31 @@ function makeDeps(ownerShip = '~owner') {
 }
 
 describe('browser handoff', () => {
+  it('carries safe optional correlation into the card and ignores malformed telemetry', async () => {
+    const telemetry = {
+      browserSessionId: 'a'.repeat(64),
+      browserHandoffId: '123e4567-e89b-42d3-a456-426614174000',
+    };
+    const context = makeDeps();
+    context.deps.getTelemetry = () =>
+      JSON.stringify({ ...telemetry, password: 'secret' });
+    expect(
+      await run(
+        ['handoff', 'https://browser-session.tlon.network/s/payload.signature'],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.sent[0].blob).toContain(telemetry.browserHandoffId);
+    expect(context.sent[0].blob).not.toContain('secret');
+    context.deps.getTelemetry = () => '{malformed';
+    expect(
+      await run(
+        ['handoff', 'https://browser-session.tlon.network/s/payload.signature'],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.sent[1].blob).not.toContain('telemetry');
+  });
   it.each([
     { args: ['--help'] },
     { args: ['handoff', '--help'] },

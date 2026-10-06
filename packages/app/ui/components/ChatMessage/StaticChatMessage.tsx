@@ -25,6 +25,7 @@ import {
   BROWSER_HANDOFF_CONTINUATION,
   getBrowserHandoffContinuationSelection,
   isBrowserHandoffContinuationSelection,
+  getBrowserHandoffTelemetry,
   sendBrowserHandoffContinuation,
 } from '../../../features/browser/browserHandoffContinuation';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
@@ -381,6 +382,7 @@ export function StaticChatMessage({
           channelId: post.channelId,
           authorId: currentUserId,
           selection,
+          telemetry: getBrowserHandoffTelemetry(post, selection),
           send,
         });
       } else {

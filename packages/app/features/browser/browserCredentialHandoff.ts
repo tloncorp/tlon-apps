@@ -46,7 +46,7 @@ export function trustedBrowserViewerUrl(viewerUrl: string): string {
   return parseViewerUrl(viewerUrl).url.toString();
 }
 
-class BrowserFormError extends Error {
+export class BrowserFormError extends Error {
   constructor(
     message: string,
     readonly status: number
@@ -241,8 +241,9 @@ export async function submitBrowserCredentials(
   const body = await responseJson(response);
   // A site response can echo a submitted value; never forward its error text.
   if (!response.ok)
-    throw new Error(
-      'The form could not be filled. Reconnect before trying again.'
+    throw new BrowserFormError(
+      'The form could not be filled. Reconnect before trying again.',
+      response.status
     );
   if (body.ok !== true)
     throw new Error('The browser did not confirm that the fields were filled.');

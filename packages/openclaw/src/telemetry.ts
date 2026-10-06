@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { browserLifecycleEvent } from '@tloncorp/api';
+import type { BrowserAgentEvent } from './browser-telemetry.js';
 
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
@@ -709,6 +711,9 @@ export type TlonTelemetryErrorEvent = {
 };
 
 export interface TlonTelemetryClient {
+  captureBrowserLifecycle(
+    event: BrowserAgentEvent & { ownerShip: string; botShip: string }
+  ): void;
   captureGatewayConnected(event: TlonGatewayConnectedEvent): void;
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession;
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void;
@@ -1743,6 +1748,27 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         tlonToolSummaryKeys: event.toolUsage.tlonSummaryKeys,
         tlonToolChannelKinds: event.toolUsage.tlonChannelKinds,
         tlonToolUpdateFields: event.toolUsage.tlonUpdateFields,
+      }),
+    });
+  }
+
+  captureBrowserLifecycle(
+    event: BrowserAgentEvent & { ownerShip: string; botShip: string }
+  ): void {
+    const lifecycle = browserLifecycleEvent(event);
+    if (!lifecycle || !this.ensureIdentified(event.ownerShip, event.botShip))
+      return;
+    this.client.capture({
+      distinctId: event.ownerShip,
+      event: 'Browser Lifecycle',
+      properties: this.properties({
+        ...lifecycle,
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        sessionKey: event.sessionKey,
+        sessionId: event.sessionId,
+        runId: event.runId,
+        toolCallId: event.toolCallId,
       }),
     });
   }

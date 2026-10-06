@@ -29,6 +29,7 @@ import type { NotesV1Api } from '@tloncorp/api';
 // intercept. It has no dependencies but fetch, so tests keep exercising the
 // real request and error mapping against a stubbed fetch.
 import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
+import { browserTelemetryContextSchema } from '@tloncorp/api/client/browserTelemetry';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -196,6 +197,7 @@ export class MockUrbit {
 }
 
 mock.module('@tloncorp/api', () => ({
+  browserTelemetryContextSchema,
   // buckets-runtime.ts: the shared broker client, unmocked
   BucketsBrokerError: realBucketsBroker.BucketsBrokerError,
   grantBucketRead: realBucketsBroker.grantBucketRead,

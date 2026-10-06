@@ -187,6 +187,7 @@ export function useA2UINavigation() {
               }
               const handoffId = browserHandoff.register({
                 viewerUrl: target.viewerUrl,
+                telemetry: target.telemetry,
                 onComplete: options.onBrowserCredentialHandoffComplete,
               });
               rootNavigation.navigateToBrowserCredentialHandoff(handoffId);

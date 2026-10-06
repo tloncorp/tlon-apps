@@ -175,6 +175,7 @@ async function main() {
       case 'browser': {
         const exitCode = await runBrowserCommand(scriptArgs, {
           ...createPostsDeps(),
+          getTelemetry: () => process.env.TLON_BROWSER_TELEMETRY,
           getOwnerShip: () =>
             resolveBrowserOwnerShip({ activeShip: getConfig().ship }),
         });

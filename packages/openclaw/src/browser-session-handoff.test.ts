@@ -10,6 +10,10 @@ vi.mock('./tlon-command-runner.js', async (original) => ({
   runBrowserHandoffCommand,
 }));
 
+import {
+  setBrowserTelemetryReporter,
+  browserSessionTelemetryId,
+} from './browser-telemetry.js';
 import { runBrowserSessionHandoff } from './browser-session-handoff.js';
 
 const handle = 'sess_MHKz9dQ1TjqLmA7vXpR2bw';
@@ -69,9 +73,52 @@ beforeEach(() => {
   );
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  setBrowserTelemetryReporter(null);
+});
 
 describe('browser session handoff', () => {
+  it('correlates the owner card with the handoff lifecycle and masks failures', async () => {
+    const capture = vi.fn();
+    setBrowserTelemetryReporter(capture);
+    const url = viewerUrl();
+    reply({ session_id: handle, viewer_url: url });
+    await runBrowserSessionHandoff(
+      'tlon',
+      ['browser', 'handoff', handle],
+      config,
+      { sessionKey: 'main' }
+    );
+    const telemetry = runBrowserHandoffCommand.mock.calls[0][3];
+    expect(telemetry).toEqual({
+      browserSessionId: browserSessionTelemetryId(handle),
+      browserHandoffId: expect.any(String),
+    });
+    expect(capture.mock.calls.map(([e]) => e.phase)).toEqual([
+      'handoff_requested',
+      'handoff_ready',
+    ]);
+    expect(capture.mock.calls[1][0]).toMatchObject({
+      ...telemetry,
+      sessionKey: 'main',
+      outcome: 'accepted',
+      taskOutcome: 'unknown',
+    });
+    capture.mockClear();
+    runBrowserHandoffCommand.mockRejectedValueOnce(new Error(url));
+    await expect(
+      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+    ).rejects.toThrow('Could not send');
+    expect(capture.mock.calls[1][0]).toMatchObject({
+      phase: 'handoff_failed',
+      reason: 'delivery_failed',
+    });
+    expect(capture.mock.calls[0][0].browserHandoffId).not.toBe(
+      telemetry.browserHandoffId
+    );
+    expect(JSON.stringify(capture.mock.calls)).not.toContain(url);
+  });
   it('retries unavailable lookups with bounded exponential backoff and sends one card', async () => {
     vi.useFakeTimers();
     reply({ session_id: handle, viewer_url: viewerUrl() });
@@ -313,7 +360,11 @@ describe('browser session handoff', () => {
     expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
       'tlon',
       ['browser', 'handoff', url],
-      config
+      config,
+      expect.objectContaining({
+        browserSessionId: expect.any(String),
+        browserHandoffId: expect.any(String),
+      })
     );
     expect(release).toHaveBeenCalledOnce();
     expect(result).toContain('sent to ~nec');
@@ -332,7 +383,11 @@ describe('browser session handoff', () => {
       expect(runBrowserHandoffCommand).toHaveBeenLastCalledWith(
         'tlon',
         ['browser', 'handoff', url],
-        config
+        config,
+        expect.objectContaining({
+          browserSessionId: expect.any(String),
+          browserHandoffId: expect.any(String),
+        })
       );
     }
     expect(urbitFetch).toHaveBeenCalledTimes(2);

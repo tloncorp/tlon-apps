@@ -8,6 +8,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
+import { setBrowserTelemetryReporter } from '../browser-telemetry.js';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
@@ -1078,6 +1079,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ...event,
         ownerShip:
           getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
+        botShip: botShipName,
+      })
+    );
+    setBrowserTelemetryReporter((event) =>
+      telemetry?.captureBrowserLifecycle({
+        ...event,
+        ownerShip: currentTelemetryOwnerShip() ?? '',
         botShip: botShipName,
       })
     );
@@ -6483,6 +6491,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       setOutboundRouteReporter(null);
       setReplyOutputReporter(null);
       setSessionTelemetryReporter(null);
+      setBrowserTelemetryReporter(null);
       setDebugTelemetryReporter(null);
       setErrorTelemetryReporter(null);
       setCronTelemetryReporter(null);

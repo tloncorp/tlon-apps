@@ -1,3 +1,4 @@
+import { trackEvent } from '@tloncorp/shared';
 import { getPathFromState } from '@react-navigation/core';
 import React, { useEffect } from 'react';
 import { type ReactTestRenderer, act, create } from 'react-test-renderer';
@@ -21,6 +22,8 @@ vi.mock('../../navigation/utils', () => ({
 }));
 vi.mock('@tloncorp/api/client', () => ({ getCanonicalPostId: vi.fn() }));
 vi.mock('@tloncorp/shared', () => ({
+  trackEvent: vi.fn(),
+  AnalyticsEvent: { BrowserLifecycle: 'Browser Lifecycle' },
   createDevLogger: () => ({ log: vi.fn() }),
 }));
 vi.mock('@tloncorp/shared/db', () => ({}));
@@ -104,6 +107,13 @@ describe('browser handoff registry', () => {
     expect(JSON.stringify(state)).not.toContain(viewerUrl);
     expect(getPathFromState(state)).not.toContain('payload.signature');
     expect(registry.resolve(handoffId)).toBe(viewerUrl);
+    vi.mocked(trackEvent).mockClear();
+    registry.report(handoffId, { phase: 'form_opened', outcome: 'unknown' });
+    registry.report(handoffId, { phase: 'form_opened', outcome: 'unknown' });
+    expect(trackEvent).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(vi.mocked(trackEvent).mock.calls)).not.toContain(
+      viewerUrl
+    );
     await registry.complete(handoffId);
     expect(onComplete).toHaveBeenCalledOnce();
     expect(registry.resolve(handoffId)).toBeUndefined();

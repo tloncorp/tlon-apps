@@ -1,3 +1,7 @@
+import {
+  browserTelemetryContextSchema,
+  type BrowserTelemetryContext,
+} from '@tloncorp/api';
 import { validateBrowserViewerUrl } from '../browser-viewer';
 import { markdownToStory } from '../markdown';
 import type { PostsDeps } from './posts';
@@ -34,11 +38,13 @@ export interface BrowserDeps extends Pick<
   'stdout' | 'stderr' | 'authenticate' | 'getCurrentUserId' | 'now' | 'postsApi'
 > {
   getOwnerShip: () => string;
+  getTelemetry?: () => string | undefined;
 }
 
 function browserCredentialHandoffBlob(
   viewerUrl: string,
-  surfaceId: string
+  surfaceId: string,
+  telemetry?: BrowserTelemetryContext
 ): string {
   const components = [
     { id: 'root', component: 'Card', child: 'body' },
@@ -100,6 +106,7 @@ function browserCredentialHandoffBlob(
               type: 'screen',
               screen: 'browserCredentialHandoff',
               viewerUrl,
+              ...(telemetry ? { telemetry } : {}),
             },
           },
         },
@@ -176,6 +183,16 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 
+    let telemetry: BrowserTelemetryContext | undefined;
+    try {
+      const raw = deps.getTelemetry?.();
+      if (raw)
+        telemetry = browserTelemetryContextSchema.safeParse(
+          JSON.parse(raw)
+        ).data;
+    } catch {
+      /* Invalid optional telemetry cannot prevent a handoff. */
+    }
     const viewerUrl = validateBrowserViewerUrl(args[1]);
     const target = deps.getOwnerShip();
 
@@ -188,7 +205,11 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       content: markdownToStory(
         'The browser needs you to sign in before I can continue.'
       ),
-      blob: browserCredentialHandoffBlob(viewerUrl, `browser-form-${sentAt}`),
+      blob: browserCredentialHandoffBlob(
+        viewerUrl,
+        `browser-form-${sentAt}`,
+        telemetry
+      ),
       botProfile: { nickname: null, avatar: null },
     });
     writeLine(deps.stdout, `✓ Secure browser form sent to ${target}`);
