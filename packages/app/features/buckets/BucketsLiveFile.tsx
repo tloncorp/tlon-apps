@@ -34,7 +34,9 @@ export function BucketsLiveFile({
     void load(toItem(entry, noChildCounts));
   }, [entry, load]);
 
-  const missing = !live.loading && !file && !preview.item;
+  // Only once the manifest is known: a link opened cold reads an empty
+  // Bucket before the first snapshot arrives.
+  const missing = !live.loading && live.manifestKnown && !file && !preview.item;
   const shown = preview.item ?? file;
 
   return (

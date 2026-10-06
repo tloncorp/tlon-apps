@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   entries: [] as unknown[],
   headerItem: null as { props: { onSearch: () => void } } | null,
   loading: false,
+  manifestKnown: true,
   narrow: true,
   pane: vi.fn((_props: Record<string, unknown>) => null),
   search: vi.fn((_props: Record<string, unknown>) => null),
@@ -83,6 +84,7 @@ vi.mock('./useLiveBucket', () => ({
     error: null,
     loading: mocks.loading,
     localItems: [],
+    manifestKnown: mocks.manifestKnown,
     readGrant: () => new Promise(() => {}),
     uploads: [],
   }),
@@ -181,6 +183,7 @@ beforeEach(() => {
   mocks.entries = [photos, notes];
   mocks.headerItem = null;
   mocks.loading = false;
+  mocks.manifestKnown = true;
   mocks.narrow = true;
   mocks.pane.mockClear();
   mocks.search.mockClear();
@@ -242,6 +245,36 @@ describe('BucketsLiveChannel on the narrow layout', () => {
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
+  it('stays on a folder opened cold until the manifest has arrived', () => {
+    mocks.entries = [];
+    mocks.manifestKnown = false;
+    const navigation = navigationMock();
+    const { rerender } = render(navigation, 1);
+
+    mocks.entries = [photos, notes];
+    mocks.manifestKnown = true;
+    rerender();
+
+    expect(navigation.goBack).not.toHaveBeenCalled();
+    expect(stackPane().items.map((item) => item.name)).toEqual(['notes.txt']);
+  });
+
+  it('keeps pushing from a pushed folder when the window widens', () => {
+    mocks.narrow = false;
+    const navigation = navigationMock();
+    render(navigation, 1);
+
+    act(() => stackPane().onOpenItem(stackPane().items[0]));
+
+    expect(navigation.dispatch).toHaveBeenCalledWith(
+      pushed('BucketFile', {
+        channelId: 'buckets/~zod/files',
+        entryId: 2,
+        groupId: '~zod/new-tlon',
+      })
+    );
+  });
+
   it('pushes a search result and keeps the search open beneath it', () => {
     const navigation = navigationMock();
     const { rerender } = render(navigation);
@@ -285,6 +318,68 @@ describe('BucketsLiveChannel on the desktop split', () => {
     expect(navigation.dispatch).not.toHaveBeenCalled();
     expect(stackPane().currentFolder).toBe('Photos');
     expect(stackPane().showBreadcrumb).toBe(true);
+  });
+
+  it('moves an open folder onto the stack when the window narrows', () => {
+    const trip: BucketsEntry = {
+      ...stamps,
+      id: 3,
+      kind: 'folder',
+      name: 'Trip',
+      parentId: 1,
+    };
+    mocks.entries = [photos, notes, trip];
+    mocks.narrow = false;
+    const navigation = navigationMock();
+    const { rerender } = render(navigation);
+    act(() => stackPane().onOpenItem(stackPane().items[0]));
+    act(() =>
+      stackPane().onOpenItem(
+        stackPane().items.find((item) => item.name === 'Trip')!
+      )
+    );
+
+    mocks.narrow = true;
+    rerender();
+
+    expect(navigation.dispatch.mock.calls.map(([action]) => action)).toEqual([
+      pushed('BucketFolder', {
+        channelId: 'buckets/~zod/files',
+        folderId: 1,
+        groupId: '~zod/new-tlon',
+      }),
+      pushed('BucketFolder', {
+        channelId: 'buckets/~zod/files',
+        folderId: 3,
+        groupId: '~zod/new-tlon',
+      }),
+    ]);
+    expect(stackPane().currentFolder).toBeUndefined();
+  });
+
+  it('moves an open file onto the stack when the window narrows', () => {
+    mocks.narrow = false;
+    const navigation = navigationMock();
+    const { rerender } = render(navigation);
+    act(() => stackPane().onOpenItem(stackPane().items[0]));
+    act(() => stackPane().onOpenItem(stackPane().items[0]));
+    expect(mocks.viewer).toHaveBeenCalled();
+
+    mocks.narrow = true;
+    rerender();
+
+    expect(navigation.dispatch.mock.calls.map(([action]) => action)).toEqual([
+      pushed('BucketFolder', {
+        channelId: 'buckets/~zod/files',
+        folderId: 1,
+        groupId: '~zod/new-tlon',
+      }),
+      pushed('BucketFile', {
+        channelId: 'buckets/~zod/files',
+        entryId: 2,
+        groupId: '~zod/new-tlon',
+      }),
+    ]);
   });
 });
 

@@ -38,16 +38,20 @@ export function BucketFolderScreen(props: Props) {
           hideIdentity
           preferProvidedTitle
         />
-        <BucketsGate channelId={channelId}>
-          {(flag) => (
-            <BucketsLiveChannel
-              channel={channel}
-              embedded
-              flag={flag}
-              folderId={folderId}
-            />
-          )}
-        </BucketsGate>
+        {/* The embedded view fills its parent's height, so it gets the space
+            left under the header rather than the screen's. */}
+        <YStack flex={1} minHeight={0}>
+          <BucketsGate channelId={channelId}>
+            {(flag) => (
+              <BucketsLiveChannel
+                channel={channel}
+                embedded
+                flag={flag}
+                folderId={folderId}
+              />
+            )}
+          </BucketsGate>
+        </YStack>
       </YStack>
     </ChannelHeaderItemsProvider>
   );

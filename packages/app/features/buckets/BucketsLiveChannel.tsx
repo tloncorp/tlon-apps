@@ -139,7 +139,11 @@ export function BucketsLiveChannel({
 }) {
   const { height: windowHeight } = useWindowDimensions();
   const isWindowNarrow = useIsWindowNarrow();
-  const isMobileLayout = viewport === 'mobile' || isWindowNarrow;
+  // A pushed folder is a stack screen at any width. Laid out as the split it
+  // would navigate in place beneath a header that names one folder and leads
+  // back to the screen it was pushed from.
+  const isMobileLayout =
+    viewport === 'mobile' || isWindowNarrow || folderId !== null;
   // Absent outside a navigator, which is where the fixtures mount this.
   const navigation = useContext(NavigationContext);
   // The narrow layout pushes a route for each folder and file, as a notebook
@@ -210,10 +214,12 @@ export function BucketsLiveChannel({
   // goBack cannot leave -- it reads the parent off the folder that is gone.
   // A pushed folder leaves its route instead, along with anything opened on
   // top of it; the ref keeps a second pass from popping the route below.
+  // Neither happens before the manifest is known: a link opened cold reads an
+  // empty Bucket first, and would leave a folder that is about to arrive.
   const leftDeletedFolder = useRef(false);
   useEffect(() => {
     if (activeFolderId === null || activeFolder) return;
-    if (live.loading) return;
+    if (live.loading || !live.manifestKnown) return;
     if (pushesRoutes && folderId !== null) {
       if (leftDeletedFolder.current) return;
       leftDeletedFolder.current = true;
@@ -227,6 +233,7 @@ export function BucketsLiveChannel({
     activeFolderId,
     folderId,
     live.loading,
+    live.manifestKnown,
     navigation,
     pushesRoutes,
   ]);
@@ -296,22 +303,57 @@ export function BucketsLiveChannel({
     // longer be reported as a failure because a follow-up scry failed.
   };
 
-  const pushEntryRoute = (item: BucketItem) => {
-    const groupId = channel.groupId ?? undefined;
-    navigation?.dispatch(
-      item.kind === 'folder'
-        ? StackActions.push('BucketFolder', {
-            channelId: channel.id,
-            folderId: Number(item.id),
-            groupId,
-          })
-        : StackActions.push('BucketFile', {
-            channelId: channel.id,
-            entryId: Number(item.id),
-            groupId,
-          })
-    );
-  };
+  const pushEntryRoute = useCallback(
+    (item: Pick<BucketItem, 'id' | 'kind'>) => {
+      const groupId = channel.groupId ?? undefined;
+      navigation?.dispatch(
+        item.kind === 'folder'
+          ? StackActions.push('BucketFolder', {
+              channelId: channel.id,
+              folderId: Number(item.id),
+              groupId,
+            })
+          : StackActions.push('BucketFile', {
+              channelId: channel.id,
+              entryId: Number(item.id),
+              groupId,
+            })
+      );
+    },
+    [channel.groupId, channel.id, navigation]
+  );
+
+  // The split opens folders and files in place. Narrowed with one open, that
+  // place moves onto the stack -- a route per level, as though each had been
+  // opened from here -- so back climbs out of it instead of leaving the
+  // Bucket.
+  useEffect(() => {
+    if (!pushesRoutes || folderId !== null || searchOpen) return;
+    if (activeFolderId === null && previewItem === null) return;
+    const chain: number[] = [];
+    let folder: BucketsEntry | undefined = activeFolder;
+    while (folder) {
+      chain.unshift(folder.id);
+      folder =
+        folder.parentId === null ? undefined : entriesById.get(folder.parentId);
+    }
+    chain.forEach((id) => pushEntryRoute({ id: String(id), kind: 'folder' }));
+    if (previewItem) {
+      pushEntryRoute(previewItem);
+      preview.close();
+    }
+    setActiveFolderId(null);
+  }, [
+    activeFolder,
+    activeFolderId,
+    entriesById,
+    folderId,
+    preview,
+    previewItem,
+    pushEntryRoute,
+    pushesRoutes,
+    searchOpen,
+  ]);
 
   const openItem = (item: BucketItem) => {
     if (item.kind === 'folder') {
