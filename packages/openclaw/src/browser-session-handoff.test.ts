@@ -12,7 +12,7 @@ vi.mock('./tlon-command-runner.js', async (original) => ({
 
 import { runBrowserSessionHandoff } from './browser-session-handoff.js';
 
-const handle = 'sess_MHKz9dQ1TjqLmA7vXpR2bw';
+const handle = 'eager-lilac-bear';
 const sessionId = '123e4567-e89b-42d3-a456-426614174000';
 const config = {
   channels: {
@@ -188,6 +188,7 @@ describe('browser session handoff', () => {
     async ({ args }) => {
       const result = await runBrowserSessionHandoff('tlon', args, config);
       expect(result).toContain('browser handoff <session_id>');
+      expect(result).toContain('adjective-color-animal session ID');
       expect(result).not.toContain('<signed-viewer-url>');
       expect(urbitFetch).not.toHaveBeenCalled();
       expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
@@ -288,7 +289,7 @@ describe('browser session handoff', () => {
     expect(release).toHaveBeenCalledOnce();
   });
 
-  it('resolves the handle through the configured tenant and sends the exact server-issued URL', async () => {
+  it('resolves the wordlist session ID through the configured tenant and sends the exact server-issued URL', async () => {
     const url = viewerUrl();
     const release = reply({ session_id: handle, viewer_url: url });
     const result = await runBrowserSessionHandoff(
@@ -340,7 +341,13 @@ describe('browser session handoff', () => {
 
   it.each([
     { args: ['browser', 'handoff', viewerUrl('session-view')] },
-    { args: ['browser', 'handoff', 'sess_typo'] },
+    { args: ['browser', 'handoff', 'eager-lilac'] },
+    { args: ['browser', 'handoff', 'eager-lilac-bear-extra'] },
+    { args: ['browser', 'handoff', 'eager-lilac-bear/'] },
+    { args: ['browser', 'handoff', 'eager-lilac-BEAR'] },
+    { args: ['browser', 'handoff', 'eager-lilac-bear\n'] },
+    { args: ['browser', 'handoff', `${'x'.repeat(129)}-blue-fox`] },
+    { args: ['browser', 'handoff', sessionId] },
     { args: ['browser', 'handoff', handle, '--owner', '~bud'] },
     { args: ['--ship', '~bud', 'browser', 'handoff', handle] },
   ])(
@@ -370,7 +377,7 @@ describe('browser session handoff', () => {
   });
 
   it.each([
-    { session_id: 'sess_other', viewer_url: viewerUrl() },
+    { session_id: 'calm-blue-fox', viewer_url: viewerUrl() },
     { session_id: handle },
     { session_id: handle, viewer_url: viewerUrl('session-view') },
     {

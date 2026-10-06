@@ -42,7 +42,7 @@ repeat, summarize, or otherwise bring those values into model context. Ordinary
 navigation and non-sensitive form filling should continue through the browser
 tools without a handoff.
 
-First navigate the live session all the way to the visible form. Use the `session_id` (`sess_` handle) returned by `browser_session_create`
+First navigate the live session all the way to the visible form. Use the `session_id` (for example, `eager-lilac-bear`) returned by `browser_session_create`
 for that same session. In OpenClaw, call the model-facing `tlon` tool with:
 
 ```json
