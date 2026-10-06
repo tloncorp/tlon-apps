@@ -154,14 +154,19 @@ function SettingsRow({
     );
   }
 
+  // The Pending tag is only drawn, so it is spoken as part of the value.
+  const spokenValue = [
+    row.value || row.subtitle,
+    row.pending ? 'Pending' : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
   const labelledRowModifiers = [
     ...rowModifiers,
     // One label and value, so text matching and VoiceOver read the title
     // alone rather than every text in the row run together.
     accessibilityLabel(row.title),
-    ...(row.value || row.subtitle
-      ? [accessibilityValue((row.value ?? row.subtitle) as string)]
-      : []),
+    ...(spokenValue ? [accessibilityValue(spokenValue)] : []),
     ...(row.selected ? [accessibilityAddTraits(['isSelected'])] : []),
   ];
   // A choice shows its checkmark instead of an accessory.
