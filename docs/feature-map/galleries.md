@@ -49,12 +49,12 @@ Notes: a post nobody has commented on shows `No comments` and `No replies yet`. 
 
 Phone: open the post and tap the picture. In the full-screen viewer, tap the down-arrow button at the top to save it to your photo library, or the X to close.
 Desktop: the down-arrow button downloads the picture through your browser.
-Notes: tap the picture once to hide or show the buttons. The first time, your phone asks for permission to add to your photos. If you refused earlier, the app offers `Open Settings` so you can allow it. Videos open in the same viewer and save the same way. The viewer has no share button.
+Notes: tap the picture once to hide or show the buttons. The first time, the app asks for permission to save to your photos. If you refused earlier, the app offers `Open Settings` so you can allow it. Videos open in the same viewer and save the same way. The viewer has no share button.
 
 ## Share a gallery post or copy its link
-<!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/api/src/types/ChannelActions.ts, packages/api/src/client/postContent.ts, packages/app/ui/components/GalleryPost/GalleryPost.tsx -->
+<!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/api/src/types/ChannelActions.ts, packages/api/src/client/postContent.ts, packages/api/src/client/references.ts, packages/app/ui/components/GalleryPost/GalleryPost.tsx -->
 
-Phone: in the grid, press and hold the post's tile. `Forward` lets you send the post to another chat. `Copy link to post` copies a link to the post itself.
+Phone: in the grid, press and hold the post's tile. `Forward` lets you send the post to another chat. `Copy link to post` copies a link to the post itself, as a reference rather than a web address.
 Desktop: hover the tile and click the three-dot button that appears at its top right.
 Notes: these options are on the tile in the grid, not on the opened post. There is no system share sheet for gallery posts.
 
@@ -66,12 +66,12 @@ Desktop: hover the tile, click its three-dot button and pick the same item.
 Notes: it only shows when the post holds an uploaded picture, video, file or voice memo.
 
 ## Edit a gallery post
-<!-- src: packages/app/ui/components/PostScreenView.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx, packages/app/ui/components/draftInputs/GalleryInput.tsx, packages/app/ui/components/draftInputs/LinkInput.tsx, packages/app/ui/components/BigInput.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts -->
+<!-- src: packages/app/ui/components/PostScreenView.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx, packages/app/ui/components/draftInputs/GalleryInput.tsx, packages/app/ui/components/draftInputs/LinkInput.tsx, packages/app/ui/components/BigInput.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/shared/src/store/postActions/postActions.ts -->
 
 Phone: open the post and tap `Edit` at the top right, or press and hold its tile in the grid and tap `Edit post`. Make the change and tap `Save`.
 Desktop: hover the tile, click its three-dot button and pick `Edit post`, or open the post and click `Edit`.
-Who: the person who made the post. Group admins also see `Edit` on an opened post.
-Notes: what you can change depends on the post. Picture: the caption only, not the picture itself. Link: the `URL`, `Title` and `Description`. Text: the text. On the phone, `Edit` goes by the post you opened, so if it is missing after swiping to your post, open that post from the grid instead.
+Who: the person who made the post. Group admins also see `Edit` on other people's posts they open.
+Notes: what you can change depends on the post. Picture: the caption only. Video, file or voice memo: the caption, in the text editor. Link: the `URL`, `Title` and `Description`. Text: the text. On the phone, `Edit` goes by the post you first opened, so if it is missing after swiping to your post, open it from the grid.
 
 ## Delete a gallery post
 <!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/app/ui/components/GalleryPost/GalleryPost.tsx -->
@@ -82,9 +82,9 @@ Who: the person who made the post, and group admins. For an admin deleting someo
 Notes: the confirmation warns `This action cannot be undone.` Delete is on the tile's menu only; the opened post has no delete button. The option is hidden while your node is disconnected.
 
 ## What's in the menu on a gallery post?
-<!-- src: packages/api/src/types/ChannelActions.ts, packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/app/ui/components/ChatMessage/ChatMessageActions/Component.tsx, packages/app/ui/components/GalleryPost/GalleryPost.tsx, packages/app/ui/components/GalleryPost/GalleryContentRenderer.tsx -->
+<!-- src: packages/api/src/types/ChannelActions.ts, packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/app/ui/components/ChatMessage/ChatMessageActions/Component.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/Component.android.tsx, packages/app/ui/components/GalleryPost/GalleryPost.tsx, packages/app/ui/components/GalleryPost/GalleryContentRenderer.tsx -->
 
-Phone: press and hold a tile in the grid. The menu can include `Comment`, `Mute thread`, `Copy link to post`, `Forward`, `Edit post`, `Report post`, `Hide post`, `Pin post to channel` and `Delete post`. Members who can post also get a row of emoji for reacting.
+Phone: press and hold a tile in the grid. The menu can include `Comment`, `Mute thread`, `Copy link to post`, `Forward`, `Edit post`, `Report post`, `Hide post`, `Pin post to channel` and `Delete post`. Members who can post also get a row of emoji for reacting; on Android everyone does.
 Desktop: hover the tile and click its three-dot button.
 Who: `Edit post` shows on your own posts and `Hide post` on other people's. Pinning is for admins; deleting is for the author and admins.
 Notes: `Mute thread` shows once a post has comments. A hidden post's tile reads `You have hidden or reported this post`; choose `Show post` to bring it back. A text post's text can't be copied from this menu.
@@ -133,9 +133,9 @@ Notes: you can pick several files or photos at once. A bar at the bottom tracks 
 <!-- src: packages/app/ui/components/BucketsChannel/BucketsChannel.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.native.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.shared.ts, packages/app/features/buckets/BucketsLiveChannel.tsx -->
 <!-- flag: buckets -->
 
-Phone: tap a folder to go into it, or a file to preview it. Pictures, videos, PDFs and text files (.txt, .md, .json or .csv, up to 2 MB) open inside the app. `Open` at the top right hands the file to your browser or another app. To skip the preview, press and hold the file, or tap its three-dot button, and tap `Download`.
+Phone: tap a folder to go into it, or a file to preview it. Pictures, videos, PDFs and text files (such as .txt, .md, .json or .csv, up to 2 MB) open inside the app. `Open` at the top right hands the file to your browser or another app. To skip the preview, press and hold the file, or tap its three-dot button, then `Download`.
 Desktop: hover a row for its three-dot button. A column on the left lists the top-level folders.
-Notes: other file types show `Preview unavailable` with an `Open file` button. On Android, PDFs show `Open PDF to view` instead. Inside a folder, tap the Bucket's name in the path above the list to go back to the top level.
+Notes: other file types show `Preview unavailable` with an `Open file` button. On Android, PDFs show `Open PDF to view` instead. Inside a folder, tap the Bucket's name above the list to return to the top level. The back arrow leaves the Bucket, not the folder.
 
 ## Copy a link to a file in a Bucket
 <!-- src: packages/app/ui/components/BucketsChannel/BucketsChannel.tsx, packages/app/features/buckets/BucketsLiveChannel.tsx, packages/app/features/buckets/bucketLinkCopy.ts -->
@@ -149,7 +149,7 @@ Notes: the link is temporary. A message confirms the copy and says how many minu
 <!-- src: packages/app/ui/components/BucketsChannel/BucketsChannel.tsx, packages/app/features/buckets/BucketsLiveChannel.tsx -->
 <!-- flag: buckets -->
 
-Phone: press and hold the row, or tap its three-dot button. The menu has rename, move and delete options, worded for a file or a folder. To rename, type the new name and tap `Rename`. To move, pick a destination from the list: the Bucket's top level or any folder.
+Phone: press and hold the row, or tap its three-dot button. The menu has rename, move and delete options, worded for a file or a folder. To rename, type the new name and tap `Rename`. To move, pick a destination from the list: the Bucket's top level or any folder, except a folder itself and the folders inside it.
 Desktop: hover the row and click its three-dot button.
 Who: members who can write in that channel. Read-only members only get the open, download and copy-link options.
 Notes: deleting a file happens at once, with no confirmation. Deleting a folder asks first: `This folder and everything inside it will be permanently deleted for everyone. This cannot be undone.` Confirm with `Delete folder`.
@@ -159,7 +159,7 @@ Notes: deleting a file happens at once, with no confirmation. Deleting a folder 
 <!-- flag: buckets -->
 
 Phone: tap the magnifying glass at the top of the Bucket and start typing. Results come from the whole Bucket, whichever folder you were in, and each one shows the folder path it lives in. Tap a file to preview it or a folder to open it.
-Notes: the search screen explains its reach: `Search filenames, folders, and members across this Bucket.` It matches file names, folder names and the name of whoever last changed the item. It does not look inside files. Nothing matching shows `No results found`.
+Notes: the search screen explains its reach: `Search filenames, folders, and members across this Bucket.` It matches file and folder names (so files inside a matching folder show up too), file types, and the ship name of whoever last changed the item. It does not look inside files. Nothing matching shows `No results found`.
 
 ## What Buckets don't do
 <!-- src: packages/app/ui/utils/channelUtils.tsx, packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelScreen.tsx, packages/app/ui/components/BucketsChannel/BucketsPostCollection.tsx, packages/app/features/buckets/BucketsLiveChannel.tsx -->

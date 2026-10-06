@@ -50,7 +50,7 @@ Notes: the top level is listed as `Root`, marked `Top level`. A folder can't be 
 Phone: press and hold the note and tap `Delete note`, then `Delete` to confirm. For a folder, press and hold it and tap `Delete folder`, then confirm.
 Desktop: hover the note or folder and open its three-dot menu, or right-click it. A confirmation box asks first.
 Who: people with edit access to the notebook.
-Notes: deleting a folder also permanently deletes every note and folder inside it, and the confirmation says how many (on a phone it is headed `Delete folder and contents?`). Notebooks have no trash and no undo.
+Notes: deleting a folder also permanently deletes every note and folder inside it. When the folder isn't empty, the confirmation says how many (on a phone it is headed `Delete folder and contents?`). Notebooks have no trash and no undo.
 
 ## Read, write or edit a note
 
@@ -64,7 +64,7 @@ Notes: a note's text is Markdown that you type yourself. There is no formatting 
 
 ## Does a note save by itself?
 
-Notes: yes. There is no save button. A note saves about ten seconds after you stop typing, and straight away when you leave the note, switch to another one, or put the app in the background. The line above the title shows `Not synced` while you have unsaved changes, `Syncing...` while it saves, and `Synced` when it is done. Unsaved text is also kept on your device, so it comes back if the app closes before the save went through.
+Notes: yes. There is no save button. A note saves about ten seconds after you change it, and straight away when you leave the note, switch to another one, or put the app in the background. The line above the title shows `Not synced` while you have unsaved changes, `Syncing...` while it saves, and `Synced` when it is done. Unsaved text is also kept on your device, so it comes back if the app closes before the save went through.
 
 ## Two people changed the same note
 
@@ -75,13 +75,13 @@ Notes: notes are not edited live together. You don't see someone else's typing; 
 Phone: in the notebook's list, press and hold the note and turn on `Publish to web`. The app copies the link for you and says `Published note. Link copied to clipboard.` The menu stays open and now also shows `Copy link` and `View published note`.
 Desktop: hover the note and open its three-dot menu, or right-click it.
 Who: people with edit access to the notebook.
-Notes: the link is a web page served from your own node. It shows the note's title and text as they were when you published; later edits don't appear there until you update it. The switch is only in the list menu, not inside the open note.
+Notes: the link is a web page served from your own node, and anyone with the link can open it without logging in. It shows the note's title and text as they were when you published; later edits don't appear there until you update it. The switch is only in the list menu, not inside the open note.
 
 ## Copy the link to a published note, view it, or update it
 
 Phone: press and hold the published note. `Copy link` copies its public address. `View published note` opens the page in your browser. `Update published note` sends the note's current title and text to the public page.
 Desktop: hover the note and open its three-dot menu, or right-click it.
-Who: `Update published note` needs edit access to the notebook.
+Who: only whoever published the note sees `Copy link` and `View published note`, since the page lives on their own node. `Update published note` also needs edit access to the notebook.
 Notes: `Update published note` appears when the note has changed since you published it. The app only knows that for notes you published since opening the notebook this time; for the rest it shows the option anyway.
 
 ## Unpublish a note
@@ -93,14 +93,14 @@ Who: people with edit access to the notebook.
 ## Search the notes in a notebook
 
 Phone: in the notebook, tap the magnifying glass at the top right. On the `Search notes` screen, type a word. Each result shows the note's title, its folder and the matching text, highlighted. Tap one to open it.
-Desktop: with the notebook open, press ⌘⇧F on a Mac or Ctrl+Shift+F elsewhere. A search box opens over the app; use the arrow keys and Enter, and Esc or `Close` to dismiss it. There is no search button in the notebook's sidebar.
+Desktop: with the notebook open, press ⌘⇧F on a Mac or Ctrl+Shift+F elsewhere. A search box opens over the app; use the arrow keys and Enter, and Esc or `Close` to dismiss it. There is no search button in the notebook's sidebar. In a narrow window, use the magnifying glass at the top right instead.
 Who: the magnifying glass and the shortcut only work when your node runs a recent enough version of Tlon's software.
 Notes: it searches titles and text in this one notebook (`Search this notebook by note title or content.`), not across notebooks.
 
 ## Import Markdown or text files into a notebook
 
 Phone: tap `New` at the top right, then `Import files`, and pick the files. `Import folder`, where your device offers it, brings in a whole folder and recreates its subfolders in the notebook.
-Desktop: click the plus icon above the notebook's list for the same two options, or drag files or a folder onto the notebook.
+Desktop: click the plus icon above the notebook's list for the same two options, or drag files or a folder onto the main pane.
 Who: people with edit access to the notebook.
 Notes: files ending in .md, .markdown or .txt are imported; each becomes a note named after the file. Others are skipped, and if none qualify you see `No markdown or text files found.` Notes land in the folder you have open. A name already taken in that folder gets a number added.
 
@@ -120,7 +120,7 @@ Notes: a note has no comments, replies or emoji reactions. To discuss one, copy 
 
 ## What is a Bulletin channel, and can I create one?
 
-Notes: a Bulletin is the older writing channel: posts with a title, an optional header image and a body, each with comments underneath. The app labels the type `Bulletin`. New ones can't be created: adding a channel offers `Chat`, `Notebook` and `Gallery`. Existing Bulletins keep working. `Use channel as template` is not offered on a Bulletin, because a template makes a channel of the same type. A Bulletin's posts can be copied into a Notebook with the bot command `/migrate`.
+Notes: a Bulletin is the older writing channel: posts with a title, an optional header image and a body, each with comments underneath. The app labels the type `Bulletin`. New ones can't be created: adding a channel offers `Chat`, `Notebook` and `Gallery`. Existing Bulletins keep working. `Use channel as template` is not offered on a Bulletin, because a template makes a channel of the same type. A Bulletin's posts can be copied into a Notebook with the bot command `/migrate`, when the bot or its owner hosts that Bulletin.
 
 ## Read a Bulletin post
 
@@ -152,5 +152,5 @@ Notes: comments on a Bulletin post have no attach button.
 
 Phone: press and hold the post in the channel's list. Above the menu is a row of emoji for reacting. The menu can hold `Comment`, `Copy link to post`, `Forward`, `Edit post`, `Report post`, `Hide post`, `Pin post to channel` and `Delete post`. `Mute thread` appears once the post has comments.
 Desktop: hover the post and open the three-dot menu at its top right.
-Who: `Pin post to channel` and `Unpin post` are for group admins. `Hide post` is only on other people's posts. The emoji row needs permission to write in the channel.
+Who: `Pin post to channel` and `Unpin post` are for group admins. `Hide post` is only on other people's posts. On iPhone and desktop the emoji row needs permission to write in the channel; on Android it always shows.
 Notes: unlike a chat message, a Bulletin post has no `Quote`, `Copy message text` or `View reactions` in this menu.

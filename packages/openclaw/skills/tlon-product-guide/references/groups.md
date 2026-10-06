@@ -5,7 +5,7 @@ Creating, joining, leaving and running a group, which the phone app calls a work
 ## Make a new workspace with my Tlonbot in it
 
 Phone: on the Workspaces tab, tap the plus icon at the top right, then `New Workspace`. The workspace is made straight away and its chat opens.
-Desktop: click the plus icon at the top of the `Home` sidebar. In the `Start a conversation` box, pick `New Workspace`.
+Desktop: click the plus icon at the top of the `Home` sidebar. In the `Start a conversation` box, pick `New Workspace`. If it isn't listed, the app on your computer doesn't know about your bot; make the workspace from the phone, or ask your bot to make one.
 Who: accounts with a hosted Tlonbot. Without one, `New Workspace` is not in the menu.
 Notes: there is nothing to choose: no type, name or people. It is a group with your bot in it and a `General` chat, named `My agent group` until someone renames it. Invite other people afterwards.
 
@@ -84,9 +84,9 @@ Notes: `Privacy`, `Roles` and `Channels` each show their current value or count 
 
 ## Find out why a group's settings are greyed out
 
-Phone: open `Group info & settings` and read the first row of the settings block. It shows the connection to the group's host: `Connected`, `Connecting...` or `Disconnected`.
+Phone: open `Group info & settings` and read the first row of the settings block. It shows the connection to the group's host: `Connected`, `Connecting...`, `Disconnected` or `Failed`.
 Who: only admins see `Rename`, `Privacy`, `Roles` and `Channels` at all.
-Notes: those controls only work while the host's node can be reached. Until the row says `Connected` they are greyed out, `Save` on the edit screen is disabled, and admins of a private or secret group lose the `Invite` button on this screen. If you host the group yourself it always counts as connected. If it stays `Disconnected`, the host's node is offline or unreachable, so try again later.
+Notes: those controls only work while the host's node can be reached. Until the row says `Connected` they are greyed out, `Save` on the edit screen is disabled, admins of a private or secret group lose the `Invite` button on this screen, and `Manage members` shows as `See all`. If you host the group yourself it always counts as connected. If it stays `Disconnected` or `Failed`, the host's node is offline or unreachable, so try again later.
 
 ## Share a group in a chat, or copy its ID
 
@@ -97,7 +97,7 @@ Notes: people in that chat can tap the reference to open the group's preview. Th
 
 Phone: open `Group info & settings` and tap `Rename` at the top right. On `Edit group info`, change the `Name`, tap `Change icon image` to choose a picture, or edit the `Description`. Tap `Save`.
 Who: admins, while the group's host can be reached.
-Notes: `Rename` is the only way in, and it covers the icon and description too. The name can be up to 30 characters and the description up to 300. To remove an icon, tap the icon button and choose `Clear`. If the button says `Storage not configured`, the node has no storage set up for uploads. Groups have no cover image setting.
+Notes: `Rename` is the usual way in, and it covers the icon and description too. In a new group chat with no messages yet, an admin also sees `Edit group`, which opens the same screen. The name can be up to 30 characters and the description up to 300. To remove an icon, tap the icon button and choose `Clear`. If the button says `Storage not configured`, image uploads aren't set up yet. Groups have no cover image setting.
 
 ## Change a group's privacy
 
@@ -116,7 +116,7 @@ Notes: the app's own wording on the `Group privacy` screen, and what follows fro
 ## See who's in a group, or find a member
 
 Phone: open `Group info & settings`. The member block lists the first five people. Tap `See all` (admins see `Manage members`) to open `Members`, and type in `Search by name or ID` to find someone. Tap a person to open their card; tap the top of the card for their full profile.
-Notes: people are grouped under each role's name, then `Invited` for invites not yet accepted, then `Members` for everyone without a role. Admins also see `Join Requests` and `Banned Users`. The `See all` row only appears when the group has more than five members or you're allowed to invite; in a smaller group everyone is already listed. Another person's card always has `Block`.
+Notes: people are grouped under each role's name, then `Invited` for invites not yet accepted, then `Members` for everyone without a role. Admins also see `Join Requests` and `Banned Users`. The `See all` row only appears when the group has more than five members or you're allowed to invite; in a smaller group everyone is already listed. Another person's card always has `Block`, or `Unblock` if you've blocked them.
 
 ## Give a member a role, or make them an admin
 

@@ -9,7 +9,7 @@ Getting around the app's main list: the phone's tab bar and Workspaces tab (desk
 Phone: the tab bar is icons only, no words. From the left: Bot (your bot's avatar) opens your chat with your Tlonbot. Workspaces (a # sign) lists your groups and DMs. Activity (a bell) is your notifications. Settings is the gear.
 Desktop: there is no tab bar. A rail of icons down the left side does this job.
 Who: the Bot tab only exists on a hosted account with Tlonbot turned on. Everyone else has three tabs.
-Notes: the Bot icon is a colour tile if the bot has no avatar, and a flower shape until its profile loads. A dot under Bot means an unread message from your bot; under Activity, something new elsewhere. During your bot's first-run setup the other tabs can't be selected.
+Notes: the Bot icon is a colour tile if the bot has no avatar, and a flower shape until its profile loads. A dot on Bot means an unread message from your bot; on Activity, something new elsewhere. During your bot's first-run setup the other tabs can't be selected.
 
 ## Which screen the app opens on
 <!-- src: packages/app/navigation/TopLevelTabNavigator.native.tsx, apps/tlon-mobile/src/lib/navigationStatePersistence.ts, packages/app/navigation/desktop/TopLevelDrawer.tsx -->
@@ -90,7 +90,7 @@ Notes: the option is only there when something is unread. `Mark all as read` cov
 Phone: on the Workspaces tab, press and hold the group. `Group notifications` opens its notification choices. `Mark all as read` shows when something is unread. `Pin` or `Unpin` pins or unpins the group. `Sort channels` shows for a group with more than one channel. `Invite people` opens the invite screen. `Group info & settings` opens the group's settings.
 Desktop: hover the group in the Home sidebar and open its three-dot menu, or right-click it.
 Who: `Invite people` is there for everyone in a public group and for admins in a private or secret one. Other members see `Invites disabled`.
-Notes: there is no leave option here. `Leave group` is on the `Group info & settings` screen. A group that failed to join also offers `Cancel join`.
+Notes: there is no leave option here. `Leave group` is on the `Group info & settings` screen, except for the group's host.
 
 ## What a channel's press-and-hold menu offers
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/contexts/chatOptions/chatOptions.tsx, packages/app/ui/components/GroupChannelsScreenView.tsx, packages/shared/src/store/useChannelHooksPreview.ts -->
@@ -116,9 +116,9 @@ Who: `New Workspace` needs a hosted Tlonbot. On the phone, accounts that have on
 Notes: there is no option here for starting a group DM.
 
 ## Join a group with a code
-<!-- src: packages/app/features/top/CreateChatSheet.tsx, packages/app/hooks/useGroupSearch.ts -->
+<!-- src: packages/app/features/top/CreateChatSheet.tsx, packages/app/hooks/useGroupSearch.ts, packages/app/ui/components/GroupPreviewSheet.tsx -->
 
-Phone: on the Workspaces tab, tap the plus, then `Join a group with a code (reference)`. Type or paste the group's code into `Enter group code` and tap `Go`. A preview of the group appears with a button for joining it.
+Phone: on the Workspaces tab, tap the plus, then `Join a group with a code (reference)`. Type or paste the group's code into `Enter group code` and tap `Go`. A preview of the group appears. Its button depends on the group: `Join group` for a public one, `Request invite` for a private one.
 Desktop: the plus at the top of the Home or Messages sidebar has the same link.
 Who: on the phone this link only shows on accounts without a hosted Tlonbot. Desktop always has it.
 Notes: a code is the host's ID, a slash, then the group's short name. If the code isn't in that shape, `Go` just closes the sheet. If no group turns up you see `Group not found`.
@@ -144,7 +144,7 @@ Notes: `Sort channels` only shows for a group with more than one channel. Recenc
 
 Phone: a small spinner and a line of text show under the `Workspaces` title only while something is in progress. `Syncing with node...` means the app is connected and fetching what's new. "Connecting..." and "Reconnecting..." mean it is still reaching your node; on the phone they only show while the list is empty. `Loading...` means saved chats are still being read from the device.
 Desktop: the same line sits under the Home and Messages sidebar titles, and shows "Connecting..." or "Reconnecting..." even when the list is full.
-Notes: no line means you are connected and up to date. There is no refresh button or pull-to-refresh here; syncing is automatic. While reconnecting, the list keeps showing chats already saved on the device.
+Notes: no line means you are connected and nothing is syncing. The app does not show a last-sync time. There is no refresh button or pull-to-refresh here; syncing is automatic. While reconnecting, the list keeps showing chats already saved on the device.
 
 ## Find your way around on desktop (the left rail and Home)
 <!-- src: packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/HomeSidebar.tsx, packages/app/navigation/desktop/HomeNavigator.tsx -->

@@ -30,7 +30,7 @@ Notes: opening a group goes straight to the channel you last had open in it, or 
 ## Check Activity on desktop
 
 Desktop: click the bell in the left rail. The sidebar is headed `Activity`, with `All`, `Mentions` and `Replies` across the top. Click an item to open that chat or thread. To clear everything, open the three-dot menu at the top of the sidebar, pick `Mark all as read`, then confirm with `Mark all read`.
-Notes: the chat opens in Home or Messages, whichever of the two you used last, so the sidebar changes to that list. There is no pull to refresh on a computer.
+Notes: with no activity at all yet, the sidebar shows an `Invite Friends` button instead of those tabs. The chat opens in Home or Messages, whichever of the two you used last, so the sidebar changes to that list. There is no pull to refresh on a computer.
 
 ## Find my contacts and my own profile on desktop
 
@@ -53,7 +53,7 @@ Notes: the desktop and web app have no bot settings screens of their own; the ro
 
 Desktop: click the plus icon at the top right of the Home or Messages sidebar. A menu titled `Start a conversation` opens with `New Message` (a DM with one person) and `New group`. Under them is `Join a group with a code (reference)`.
 Who: `New Workspace` is added at the top only when the app knows the account has a hosted Tlonbot.
-Notes: the app learns that when you sign in to Tlon hosting, which only the phone app does. So expect `New Workspace` to be missing in a browser and in the desktop app; make a workspace with your bot in it from the phone. `New group` makes an ordinary group without the bot.
+Notes: the app learns that when you sign in to Tlon hosting, which happens in the phone app. In a browser or the desktop app it may not know, and then `New Workspace` is missing. If so, make the workspace from the phone, or ask your bot to make one. `New group` makes an ordinary group without the bot.
 
 ## Share my personal invite link on desktop
 
@@ -72,13 +72,13 @@ Notes: that is the whole list. Nothing switches chats, marks things read or open
 
 ## Where the phone's tabs are on desktop
 
-Phone: four tabs along the bottom: Bot, Workspaces, Activity, Settings.
+Phone: tabs along the bottom: Bot (only with a hosted Tlonbot), Workspaces, Activity, Settings.
 Desktop: no tab bar; use the rail of icons down the left side. Bot has no equivalent, so open the DM with your bot from Home. Workspaces is the house at the top of the rail (Home). Activity is the bell. Settings is the gear near the bottom. Your profile and contacts, which the phone keeps inside Settings, are behind your avatar in the rail. The person-with-a-plus invite icon, at the top left of the phone's Workspaces tab, is near the bottom of the rail.
 Notes: desktop also has a Messages view (the speech bubble) that the phone does not.
 
 ## What to do instead of press and hold, swiping or pull to refresh
 
-Desktop: instead of pressing and holding a chat in a list, hover it and click the three-dot button that appears, or right-click it. Instead of pressing and holding a message, hover it and click the three-dot button at its top right. Instead of swiping a chat row to mark it read, mute or pin it, use that same three-dot menu. Instead of swiping a photo away, click the X at its top right; the down arrow beside it downloads the file.
+Desktop: instead of pressing and holding a chat in a list, hover it and click the three-dot button that appears, or right-click it. Instead of pressing and holding a message, hover it and click the three-dot button at its top right. Instead of swiping a chat row to mark it read or pin it, use that same three-dot menu. To mute, use the notifications row in that menu. Instead of swiping a photo away, click the X at its top right; the down arrow beside it downloads the file.
 Notes: there is no pull to refresh on a computer. In a browser, reload the page and the app fetches everything from your node again.
 
 ## The layout changed when I made the window smaller
@@ -98,7 +98,7 @@ Notes: none of these exist in the phone app. Notifications work differently too:
 
 ## Things only the phone app can do
 
-Phone: taking a photo or video from inside the app, and recording a `Voice Memo`. Syncing your phone's contacts and inviting people from your address book. Push notifications while the app is closed. The Bot tab, and changing the bot's settings inside the app. `New Workspace`. `Manage Tlon account`. `Log out`. Swiping chats in the list. `Export DB` under `App info`.
+Phone: taking a photo or video from inside the app, and recording a `Voice Memo`. Syncing your phone's contacts and inviting people from your address book. Push notifications while the app is closed. The Bot tab, and changing the bot's settings inside the app. `New Workspace`, unless the app on your computer knows about your bot. `Manage Tlon account`. `Log out`. Swiping chats in the list. `Export DB` under `App info`.
 Desktop: none of these are offered in a browser or in the desktop app.
 
 ## Turn on notifications in the browser
@@ -108,7 +108,7 @@ Notes: `Blocked in browser` means you refused before; there is no `Enable` butto
 
 ## Notifications in the desktop app
 
-Desktop: the desktop app sends your computer's own system notifications, and there is nothing to switch on inside Tlon Messenger. They appear only while the app is running and its window is not the one in front. The app icon's badge counts them and clears when you come back to the window.
+Desktop: the desktop app sends your computer's own system notifications, and there is nothing to switch on inside Tlon Messenger. They appear only while the app is running and its window is not the one in front. On a Mac, the Dock icon's badge counts them and clears when you come back to the window.
 Notes: clicking a notification brings the window forward and marks that chat as read, but does not jump to the chat; open it from the sidebar. The `Browser notifications` section of Settings does not appear in the desktop app.
 
 ## Open Tlon Messenger in a browser
@@ -120,8 +120,8 @@ Notes: each time the page loads it shows "Starting up…" while it fetches your 
 ## Log in to the desktop app
 
 Desktop: the desktop app opens on a box titled `Connect to Your Ship`. Type your node's web address in `Ship URL` and its access code in `Access Code`, then click `Connect`. `Show` reveals the code as you type.
-Who: anyone who has their node's address and access code. A hosted node's address and access code work as well.
-Notes: the desktop app has no email, phone number or password login. A wrong code shows an error that includes `Failed to authenticate. Is your access code correct?` The app remembers the connection, so later launches go straight in.
+Who: anyone who has their node's address and access code. The screen's own line says it is for a self-hosted node.
+Notes: the desktop app has no email, phone number or password login. A wrong code shows a red error line above the fields that includes `Failed to authenticate. Is your access code correct?` The app remembers the connection, so later launches go straight in.
 
 ## Log out on desktop or in a browser
 
@@ -132,7 +132,7 @@ Notes: in a browser you stay signed in for as long as you are signed in to your 
 ## The app says my ship needs an update
 
 Desktop: a full-window screen headed `Update your ship`, with the line `Your ship needs an update`, means your node is running older Tlon software than this copy of the app can talk to. Click `Try again` once the node has updated. `How to update` opens instructions for people who run their own node.
-Notes: on a hosted account Tlon runs the update for you, so wait a few minutes and click `Try again`; contact support if it keeps happening. Nothing else in the app can be reached from this screen. In the desktop app it also has `Log out` at the top left, which takes you back to the connect screen.
+Notes: at the bottom, a `Still stuck? Email` line gives Tlon's support address. Nothing else in the app can be reached from this screen. In the desktop app it also has `Log out` at the top left, which takes you back to the connect screen.
 
 ## Update the desktop app or the web app
 
@@ -142,7 +142,7 @@ Notes: there is no button to check for updates by hand, and `App info` in Settin
 ## How the desktop app differs from using a browser
 
 Desktop: the desktop app is the same Tlon Messenger you get in a browser, in a window of its own, so the rail, sidebars and shortcuts are identical. What differs: you connect it with your node's address and access code instead of signing in on a web page; it stays connected between launches; it sends system notifications instead of browser ones; it updates itself; and links to other sites open in your default browser, not inside the app.
-Notes: the desktop app adds no menu items of its own, and has no tray icon or system-wide shortcuts. Nothing in its menus opens Settings, logs out or checks for updates. It is built for Mac, Windows and Linux.
+Notes: the desktop app adds no menu items of its own, and has no tray icon or system-wide shortcuts. It is built for Mac, Windows and Linux.
 
 ## Get the phone app from the browser version
 

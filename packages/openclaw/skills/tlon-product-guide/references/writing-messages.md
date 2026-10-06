@@ -6,7 +6,7 @@ Typing, formatting and sending messages in chats, DMs and threads: attachments, 
 
 Phone: open the chat, DM or Bot tab. Tap the box at the bottom that says `Message`, type, then tap the up-arrow button on its right.
 Desktop: the box is already selected when you open a chat. Type and press Enter, or click the up arrow.
-Notes: the arrow is greyed out until there is text or an attachment. Your message shows in the chat straight away, with two small arrows at its top right while it is being sent. If the app has lost its connection, the message waits and goes out when it reconnects.
+Notes: the arrow is greyed out until there is text or an attachment. Your message shows in the chat straight away, with two small arrows at its top right. They darken as it goes through and disappear once the message is confirmed. If the app has lost its connection, the message waits and goes out when it reconnects.
 
 ## Start a new line without sending
 
@@ -32,7 +32,7 @@ Notes: it sends straight away as its own message, without going through the mess
 
 ## What can I attach, and how big?
 
-Notes: any type of file can be attached, and several photos or files can go in one message. A video has to travel alone: add one alongside something else and you get `Video posts support one video and optional text only.` Videos must be MP4, MOV or WebM, and on a phone they must be under 150 MB. Anything the app turns down shows an `Unable to attach` alert with the reason. Photos are resized before upload so the longest side is 1200 pixels; GIFs go up unchanged. The app sets no size limit of its own on other files.
+Notes: any type of file can be attached, and several photos or files can go in one message. A video has to travel alone: add one alongside something else and you get `Video posts support one video and optional text only.` Videos must be MP4, MOV or WebM, and on a phone they must be under 150 MB. On a phone, anything the app turns down shows an `Unable to attach` alert with the reason. Photos are resized before upload so the longest side is 1200 pixels; GIFs go up unchanged. The app sets no size limit of its own on other files.
 
 ## See how much upload storage I have left
 
@@ -43,13 +43,13 @@ Notes: `No storage available` means the account has no storage allowance. `Could
 ## There is no plus icon next to the message box
 
 Who: self-hosted nodes that have no file storage set up.
-Notes: the plus icon only appears when your node has somewhere to upload files to. Hosted accounts get storage from Tlon, so they always have it. A self-hosted node needs S3-compatible storage set up, with an endpoint, an access key and a secret; until then the icon is hidden. Tlon Messenger reads those storage details from your node. It has no screen of its own for entering them.
+Notes: the plus icon only appears when your node has somewhere to upload files to. Hosted accounts always have storage from Tlon. A self-hosted node needs S3-compatible storage, with an endpoint, an access key and a secret; until then the icon is hidden. The app reads those details from your node and has no screen for entering them. On desktop, pasting or dropping in a file still attaches it, but the upload fails, so the message fails to send.
 
 ## Drag and drop or paste a file into a chat
 
 Phone: copy an image, then paste it into the message box. It attaches as a preview. There is no drag and drop on a phone.
 Desktop: drag files from your computer onto an open chat or thread and let go. They attach as previews in the message box. You can also copy an image or video and paste it while the chat is open; the message box doesn't have to be selected first.
-Notes: nothing is sent until you press send. Pasting attaches one image or video at a time, and on a phone only images. Other kinds of file can't be pasted; use the plus icon or drag and drop.
+Notes: nothing is sent until you press send. On desktop, pasting attaches one image or video at a time. On a phone only images can be pasted. Other kinds of file can't be pasted; use the plus icon or, on desktop, drag and drop.
 
 ## Upload progress, and attachments that fail
 
@@ -57,9 +57,9 @@ Notes: uploading starts as soon as you attach something. There is no progress ba
 
 ## Mention someone with @
 
-Phone: in the message box type @ and the first letters of a name or ID. A short list appears above the box. Tap the person and their name is filled in and highlighted. Tap outside the list to close it.
-Desktop: the same; you can also move with the arrow keys, choose with Enter and close with Esc.
-Notes: the list appears once you type at least one letter after the @, and only when the @ starts a word. Typing ~ works the same way. It shows up to four matches on a phone and seven on desktop: people in this chat first, then your contacts, then others your node knows. Blocked people are left out. Mentions work in group chats, DMs and threads.
+Phone: in the message box type @ and the first letters of a name or ID. A list appears above the box. Tap the person to fill in and highlight their name. Tap outside the list to close it.
+Desktop: the same; arrow keys move, Enter chooses and Esc closes.
+Notes: the list appears once you type at least one letter after the @, and only when the @ starts a word. Typing ~ works too. It shows up to four matches on a phone and seven on desktop. Name matches rank above ID matches; within each, people in this chat come first, then your contacts, then others your node knows. Blocked people are left out. Mentions work in group chats, DMs and threads.
 
 ## Mention everyone, or everyone with a role
 
@@ -78,7 +78,7 @@ Notes: in the private chat with your own Tlonbot you don't need to mention it. T
 Phone: in the bot's chat, type / as the very first character of a message. A list of commands appears above the message box. Keep typing to narrow it, tap one to fill it in, add anything it needs, then send.
 Desktop: the same; move with the arrow keys, choose with Enter, close with Esc.
 Who: the list appears in a DM with your own bot, in a DM with any bot that has already written to you there, and in a group chat with exactly one bot of yours in it. Never in threads.
-Notes: it includes `/help`, `/status`, `/new` and `/model` among others, depending on the bot. Where there is no list you can still type a command by hand.
+Notes: it includes `/help`, `/status`, `/new` and `/model` among others, depending on the bot. Where there is no list, a command you type is sent like any other message.
 
 ## Make text bold or italic, or add code and quotes
 
@@ -101,14 +101,14 @@ Notes: yes. What you type is saved as you go, separately for each chat, DM and t
 
 ## A message failed to send
 
-Phone: the message stays in the chat with red text under it reading "Send failed, tap to retry". Tap that text to send it again. To throw it away instead, press and hold the message and tap `Delete message`.
-Desktop: the red text reads "Send failed, click to retry". To throw it away, hover the message, open its three-dot menu and pick `Delete message`.
+Phone: the message stays in the chat with red text under it reading "Send failed, tap to retry". Tap that text to send it again. To throw it away instead, press and hold the message, tap `Delete message`, then confirm.
+Desktop: the red text reads "Send failed, click to retry". To throw it away, hover the message, open its three-dot menu, pick `Delete message` and confirm.
 Notes: retrying uploads any attachments again. `Delete message` only shows in the menu while the app is connected. A message that lost its connection part-way keeps its sending arrows and is checked again when the app reconnects.
 
 ## The message box is missing or I can't type
 
-Who: anyone can write in a channel unless its admins have limited writing to certain roles.
-Notes: when you can't post, a notice sits where the message box would be. `This channel is read-only for you.` means none of your roles may write here; ask a group admin. `You no longer have permission to read this channel.` and `This group no longer exists.` mean what they say. A notice beginning "Your node's version of the Tlon app doesn't match" means your node and the other side run different versions, and sending is off until they match. In a DM request you haven't answered, `Accept`, `Deny` and `Block` take the box's place. In a thread, the reply box is simply absent.
+Who: anyone, unless admins have limited writing to certain roles.
+Notes: when you can't post, a notice sits where the message box would be. `This channel is read-only for you.` means none of your roles may write here. `You no longer have permission to read this channel.` and `This group no longer exists.` mean what they say. A notice beginning "Your node's version of the Tlon app doesn't match" means the two sides run different versions; sending is off until they match. In an unanswered DM request, `Accept` and `Deny` take the box's place, with `Block` too in a one-to-one DM. A thread's reply box is likewise left out, with a similar notice for a version mismatch.
 
 ## Write a reply inside a thread
 
@@ -119,7 +119,7 @@ Notes: the reply box works like the main message box: the plus icon for attachme
 ## Share something from another app into a chat
 
 Phone: in the other app, use its share button and choose Tlon Messenger. A sheet titled `Send to channel` opens, with `Select where to send it` under the title. Tap a chat, then tap the button at the bottom, which reads "Forward to" followed by the chat's name. That chat opens with the shared text or link in the message box, or the file attached. Check it, add anything you like, and tap the up arrow.
-Notes: nothing is sent until you tap the up arrow. One file comes across per share. Bulletin channels are not offered as a destination. This is on phones only.
+Notes: nothing is sent until you tap the up arrow. One file comes across per share. Bulletin, Notebook and Bucket channels are not offered as destinations. This is on phones only.
 
 ## Can I schedule a message, send a GIF, or see who is typing?
 

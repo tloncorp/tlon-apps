@@ -42,11 +42,11 @@ Notes: a post nobody has commented on shows `No comments` and `No replies yet`. 
 
 Phone: open the post and tap the picture. In the full-screen viewer, tap the down-arrow button at the top to save it to your photo library, or the X to close.
 Desktop: the down-arrow button downloads the picture through your browser.
-Notes: tap the picture once to hide or show the buttons. The first time, your phone asks for permission to add to your photos. If you refused earlier, the app offers `Open Settings` so you can allow it. Videos open in the same viewer and save the same way. The viewer has no share button.
+Notes: tap the picture once to hide or show the buttons. The first time, the app asks for permission to save to your photos. If you refused earlier, the app offers `Open Settings` so you can allow it. Videos open in the same viewer and save the same way. The viewer has no share button.
 
 ## Share a gallery post or copy its link
 
-Phone: in the grid, press and hold the post's tile. `Forward` lets you send the post to another chat. `Copy link to post` copies a link to the post itself.
+Phone: in the grid, press and hold the post's tile. `Forward` lets you send the post to another chat. `Copy link to post` copies a link to the post itself, as a reference rather than a web address.
 Desktop: hover the tile and click the three-dot button that appears at its top right.
 Notes: these options are on the tile in the grid, not on the opened post. There is no system share sheet for gallery posts.
 
@@ -54,8 +54,8 @@ Notes: these options are on the tile in the grid, not on the opened post. There 
 
 Phone: open the post and tap `Edit` at the top right, or press and hold its tile in the grid and tap `Edit post`. Make the change and tap `Save`.
 Desktop: hover the tile, click its three-dot button and pick `Edit post`, or open the post and click `Edit`.
-Who: the person who made the post. Group admins also see `Edit` on an opened post.
-Notes: what you can change depends on the post. Picture: the caption only, not the picture itself. Link: the `URL`, `Title` and `Description`. Text: the text. On the phone, `Edit` goes by the post you opened, so if it is missing after swiping to your post, open that post from the grid instead.
+Who: the person who made the post. Group admins also see `Edit` on other people's posts they open.
+Notes: what you can change depends on the post. Picture: the caption only. Video, file or voice memo: the caption, in the text editor. Link: the `URL`, `Title` and `Description`. Text: the text. On the phone, `Edit` goes by the post you first opened, so if it is missing after swiping to your post, open it from the grid.
 
 ## Delete a gallery post
 
@@ -66,7 +66,7 @@ Notes: the confirmation warns `This action cannot be undone.` Delete is on the t
 
 ## What's in the menu on a gallery post?
 
-Phone: press and hold a tile in the grid. The menu can include `Comment`, `Mute thread`, `Copy link to post`, `Forward`, `Edit post`, `Report post`, `Hide post`, `Pin post to channel` and `Delete post`. Members who can post also get a row of emoji for reacting.
+Phone: press and hold a tile in the grid. The menu can include `Comment`, `Mute thread`, `Copy link to post`, `Forward`, `Edit post`, `Report post`, `Hide post`, `Pin post to channel` and `Delete post`. Members who can post also get a row of emoji for reacting; on Android everyone does.
 Desktop: hover the tile and click its three-dot button.
 Who: `Edit post` shows on your own posts and `Hide post` on other people's. Pinning is for admins; deleting is for the author and admins.
 Notes: `Mute thread` shows once a post has comments. A hidden post's tile reads `You have hidden or reported this post`; choose `Show post` to bring it back. A text post's text can't be copied from this menu.

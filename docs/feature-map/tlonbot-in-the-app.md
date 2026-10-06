@@ -7,7 +7,7 @@ Where your Tlonbot lives in the app and how to change it: the Bot tab, first-run
 <!-- covers: route:BotChat -->
 
 Phone: the Bot tab is the first icon in the bottom bar. It shows your bot's avatar, or the bot's generated pattern if it has no avatar; a small flower shape stands in until the bot's profile loads. Tap it to open your private chat with your bot. A dot under the icon means the bot sent something you haven't read.
-Desktop: there is no Bot tab. Your chat with the bot is a DM in the sidebar with your other DMs.
+Desktop: in a wide window there is no Bot tab; your chat with the bot is a DM in the sidebar. A narrow window has the Bot tab.
 Who: hosted accounts with a Tlonbot.
 Notes: the app normally opens on the Bot tab. Without a hosted bot the tab is not there and the app opens on Workspaces.
 
@@ -23,20 +23,20 @@ Notes: while locked, the three-dot icon at the top right of the chat has `Log ou
 Phone: after signup a loading screen reads `Opening your Tlonbot chat...`, then you land in the Bot tab. Setup happens in the chat: the bot asks questions and you tap your answers. While it writes its first post, a status line shows messages such as `Writing your first entry…`.
 Desktop: this runs in the phone app only.
 Who: hosted accounts with a Tlonbot.
-Notes: the app does not ask you to name the bot, pick an avatar or choose a model here. The bot is named after you automatically, as "<your nickname>'s Tlonbot 🌱". Change the name or model later in bot settings. If the chat isn't ready within about two minutes, the app shows its step-by-step setup screens instead.
+Notes: the app does not ask you to name the bot, pick an avatar or choose a model here. If you have a nickname, the bot is named after you automatically, as "<your nickname>'s Tlonbot 🌱". Change the name or model later in bot settings. If the chat isn't ready within about two minutes, the app shows its step-by-step setup screens instead.
 
 ## Set up my bot step by step (name, avatar, model)
 <!-- src: packages/app/ui/components/Wayfinding/SplashSequence.tsx, packages/app/ui/components/Wayfinding/botProviderOptions.ts, apps/tlon-mobile/src/components/TlonbotRevivalPromptSheet.tsx, apps/tlon-mobile/src/App.main.tsx, packages/app/hooks/useShowWebSplashModal.ts -->
 
 Phone: tap `Configure now`. Type a name (50 characters at most) and tap `Next`. Tap `Upload photo` for an avatar, or `Skip`. Then pick what powers the bot: the included model, or a provider marked `Requires API key`. For a key provider, paste the key, tap `Next`, choose a model and tap `Save`.
-Desktop: not shown in a desktop-sized window.
+Desktop: this runs in the phone app only.
 Who: only after tapping `Begin Setup` on the `Ready for Tlonbot?` prompt, or when the usual first-run chat setup could not start.
-Notes: the included model needs no key and skips the model step. In the signup fallback the screens start with `Let's get started`, and the list can also offer `ChatGPT subscription`, `Claude subscription` and `Grok subscription`.
+Notes: the included model needs no key and skips the model step. In the signup fallback the screens start with `Let's get started`, and the list can also offer `ChatGPT subscription`. To connect a Claude or Grok subscription, use bot settings later.
 
 ## What is the "Ready for Tlonbot?" prompt?
 <!-- src: apps/tlon-mobile/src/components/TlonbotRevivalPromptSheet.tsx, packages/app/ui/components/Wayfinding/TlonBotSetupPaneView.tsx, packages/app/ui/components/Wayfinding/SplashSequence.tsx -->
 
-Phone: a sheet titled `Ready for Tlonbot?` slides up when you open the app. Tap `Begin Setup` to name your bot, give it an avatar and choose a model. Then a `Setting up your Tlonbot...` screen shows while the bot is prepared. You can leave the app; it sends a notification when the bot is ready. Tap `Not now` to skip.
+Phone: a sheet titled `Ready for Tlonbot?` slides up when you open the app. Tap `Begin Setup` to name your bot, give it an avatar and choose a model. Then a `Setting up your Tlonbot...` screen shows while the bot is prepared. It says you can leave the app and you'll get a notification when the bot is ready. Tap `Not now` to skip.
 Who: hosted accounts that Tlon has marked as ready for a bot and that don't have one yet. Phone app only.
 Notes: after `Not now` the prompt stays away until the app is restarted. The waiting screen has `Log out` at the top left.
 
@@ -45,7 +45,7 @@ Notes: after `Not now` the prompt stays away until the app is restarted. The wai
 <!-- covers: route:BotSettings -->
 
 Phone: open the Settings tab (the gear). Your bot's settings are at the top, above the `App` section: `Models`, `Connections`, `Permissions`, sometimes `Privacy`, and `Advanced`. Or open the Bot tab, tap the bot's name at the top, and tap `Bot settings` on its profile.
-Desktop: click `Settings` in the left rail, then `Bot Settings`. That opens Tlon's bot settings page (tlon.network/tlonbot) in a new browser tab. The bot settings screens in this file are in the phone app only.
+Desktop: click the gear icon in the left rail, then `Bot Settings`. That opens Tlon's bot settings page (tlon.network/tlonbot) in a new browser tab. The bot settings screens in this file are in the phone app only.
 Who: hosted accounts with a Tlonbot.
 Notes: on a self-hosted node there are no bot rows in Settings.
 
@@ -55,15 +55,15 @@ Notes: on a self-hosted node there are no bot rows in Settings.
 Phone: open the Settings tab. Beside your bot's name at the top is a badge: `Online`, `Starting` or `Restarting…`. Under the name it says `Your personal bot` and the bot's own username.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
-Notes: while the badge says `Starting` you'll see `Tlonbot is starting. Settings may take a moment to become editable.` and most rows are greyed out. `Restarting…` shows while changes you applied take effect.
+Notes: while the badge says `Starting`, most rows stay greyed out until your settings have loaded. Once they have, you'll see `Tlonbot is starting. Settings may take a moment to become editable.` `Restarting…` shows while your changes are being applied.
 
 ## Save changes to bot settings
-<!-- src: packages/app/features/settings/bot/BotSettingsUI.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/features/settings/bot/useBotSettingsDraft.ts, packages/app/features/settings/bot/botSettingsDraftHelpers.ts -->
+<!-- src: packages/app/features/settings/bot/BotSettingsUI.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/features/settings/bot/useBotSettingsDraft.ts, packages/app/features/settings/bot/botSettingsDraftHelpers.ts, packages/app/features/settings/BotSettingsScreen.tsx -->
 
 Phone: changes to the bot's name, models, permissions and channel rules are not saved as you make them. Each changed row gets a `Pending` badge, and a bar appears at the bottom with `Discard` and a button such as "Apply 2 Changes". Tap it, then `Apply & restart` on the `Restart gateway?` prompt.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
-Notes: applying restarts the bot, which is offline for about 20 seconds. The bar shows on the Settings tab and on the `Permissions` and `Identity` screens, so go back to one of those to apply. API keys, subscriptions and connected services save straight away instead. A failure shows in red above the buttons.
+Notes: the prompt says the bot restarts and will be offline for about 20 seconds. The bar shows on the Settings tab, the profile's `Bot settings` screen, and the `Permissions` and `Identity` screens, so go back to one of those to apply. API keys, subscriptions and connected services save straight away. A failure shows in red above the buttons.
 
 ## Change my bot's name
 <!-- src: packages/app/features/settings/BotIdentitySettingsScreen.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
@@ -117,21 +117,21 @@ Who: hosted accounts with a Tlonbot.
 Notes: the confirmation says `Tlonbot will stop using custom models from this provider.` Both changes are saved straight away, with no apply step. The full key is never shown again, only its last four characters.
 
 ## Connect my ChatGPT subscription
-<!-- src: packages/app/features/settings/BotOpenAISubscriptionScreen.tsx, packages/app/ui/components/LLMSubscriptionAuthView.tsx, packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/bot/constants.ts, packages/app/features/settings/bot/openAiSubscription.ts, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
+<!-- src: packages/app/features/settings/BotOpenAISubscriptionScreen.tsx, packages/app/ui/components/LLMSubscriptionAuthView.tsx, packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/bot/constants.ts, packages/app/features/settings/bot/openAiSubscription.ts, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/BotModelSettingsScreen.tsx -->
 <!-- covers: route:BotOpenAISubscription -->
 
-Phone: on the Settings tab, tap `Provider subscriptions`, then `ChatGPT`, then the connect button. A `One-time code` appears; tap it to copy. Tap the button that opens OpenAI's sign-in page, sign in and enter the code. Back in the app you'll see `Connected. Loading your models…`, then the model list. Pick one and apply.
+Phone: on the Settings tab, tap `Provider subscriptions`, then `ChatGPT`, then the connect button. A `One-time code` appears; tap it to copy. Tap the button that opens OpenAI's sign-in page, sign in and enter the code. Back in the app you'll see `Connected. Loading your models…`, then `Choose provider`. Tap `OpenAI`, then `Choose Model`, pick one, tap `Done` and apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot. The rows are greyed out until the bot is online.
 Notes: if the code runs out you'll see `This connection attempt expired.` and `Try again`. A row reading `Unavailable` means the app couldn't check the subscription; open it and tap `Try again`.
 
 ## Connect a Claude or Grok subscription
-<!-- src: packages/app/features/settings/BotOpenAISubscriptionScreen.tsx, packages/app/ui/components/LLMSubscriptionAuthView.tsx, packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/bot/constants.ts, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
+<!-- src: packages/app/features/settings/BotOpenAISubscriptionScreen.tsx, packages/app/ui/components/LLMSubscriptionAuthView.tsx, packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/bot/constants.ts, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/BotModelSettingsScreen.tsx -->
 
 Phone: on the Settings tab, tap `Provider subscriptions`, then `Claude` or `Grok`, then the connect button. Grok works like ChatGPT: copy the `One-time code` and enter it on the sign-in page. Claude is different: on a computer with Claude Code installed, run `claude setup-token`, paste the result into `Paste setup token` and tap `Connect`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
-Notes: once connected, the app opens the model list so you can pick one of that subscription's models.
+Notes: once connected, the app opens `Choose provider`. Tap `Anthropic` for Claude or `xAI (Grok)` for Grok, then `Choose Model` to pick one of that subscription's models.
 
 ## Disconnect a subscription
 <!-- src: packages/app/features/settings/BotOpenAISubscriptionScreen.tsx, packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
@@ -256,13 +256,13 @@ Notes: after `Clear rules` the button becomes `Undo` until you apply.
 Phone: press and hold a reply from your bot and tap `View bot run`, or tap the small circled "i" under the reply. A `Bot run` sheet shows the outcome plus `Context`, `Run`, `Tools`, `Writes`, `Model` and `Runtime`. Tap `Expand` for the full view, which adds `Trigger`, `Output` and `Persistence` sections and a `Copy raw` button.
 Desktop: hover the reply and open its three-dot menu for `View bot run`. It opens in a panel to the right of the chat.
 Who: the bot's owner, on replies that carry run details.
-Notes: run records are kept for about 30 days.
+Notes: a run that is no longer stored shows `Bot run unavailable`.
 
 ## See my bot's recent runs in a chat
 <!-- src: packages/app/ui/components/Channel/ChannelHeader.tsx, packages/app/ui/components/Channel/index.tsx, packages/app/features/lens/ContextLensRunsScreen.tsx, packages/app/ui/components/Channel/ContextLens/useContextLensStore.ts, packages/app/ui/components/Channel/ContextLens/ContextLensPanel.tsx -->
 <!-- covers: route:ContextLensRuns -->
 
-Phone: open a chat your bot is in and tap the side-panel icon at the top right. `Bot runs in this channel` lists each run with its status, time and a short preview. Tap one to open it.
+Phone: open a chat your bot is in and tap the icon of two short horizontal lines at the top right. `Bot runs in this channel` lists each run with its status, time and a short preview. Tap one to open it.
 Desktop: the same icon opens and closes a `Context Lens` panel beside the chat.
 Who: the bot's owner. The icon shows in the bot's DM, or in a channel of a group the bot belongs to, once the app holds run records for that bot.
 Notes: an empty list reads `No bot runs yet`. Notebooks don't have this icon.
@@ -302,7 +302,7 @@ Notes: on a card that lists services, connected ones can be ticked for that work
 <!-- src: packages/app/features/browser/BrowserCredentialHandoffScreen.tsx, packages/app/features/browser/browserHandoffTrust.ts, packages/app/hooks/useA2UINavigation.ts, packages/app/navigation/BasePathNavigator.tsx -->
 <!-- covers: route:BrowserCredentialHandoff -->
 
-Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`. Fill in the fields and tap `Continue` for a sign-in, or `Fill fields` for other details. Then tap `Return to conversation`.
+Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`. Fill in the fields and tap `Continue` for a sign-in, or `Fill fields` for other details. The app then returns you to the chat. If you finish in the live browser instead, tap `Return to conversation`.
 Who: only from a DM with your own bot.
 Notes: the screen says `These fields go directly to the live browser. They are never posted to chat or returned to the bot.` Filling in details does not submit a payment or place an order. `Open live browser` lets you finish any extra steps yourself.
 
@@ -330,7 +330,7 @@ Who: the `Bot settings` row only shows on your own bot's profile.
 <!-- src: packages/app/ui/components/Channel/useConversationComputingState.ts, packages/app/ui/components/Channel/ThinkingState.tsx, packages/app/ui/components/Channel/useShouldShowThinkingState.ts -->
 
 Phone: while a bot is working, a line with a spinner appears at the bottom of the chat. It reads `Thinking...` unless the bot reports what it is doing. With two bots working it names both; with more it gives a count.
-Notes: this shows in DMs and chat channels only. In a group chat the bot's avatar sits beside the line.
+Notes: this shows in one-to-one DMs and in chat channels of groups only, not in group DMs. In a group chat the bot's avatar sits beside the line.
 
 ## Pick a slash command from a menu while typing
 <!-- src: packages/shared/src/store/useBotSlashCommandManifest.ts, packages/shared/src/domain/slashCommands.ts, packages/app/ui/components/SlashCommandPopup.tsx, packages/app/ui/components/BareChatInput/useSlashCommands.ts -->

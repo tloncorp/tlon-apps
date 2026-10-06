@@ -48,14 +48,14 @@ Notes: the row shows the current level, followed by "(custom)" if you set it for
 
 ## Start a group DM
 
-Phone: the app can't start a new group DM. `New Message` opens a chat with one person the moment you tap them, and there's no way to pick several. To talk with several people, make a group from the same plus menu.
+Phone: the app can't start a new group DM. `New Message` opens a chat with one person the moment you tap them, and there's no way to pick several. To talk with several people, make a group from the same plus menu with `New group`. On an account with a bot, the phone offers `New Workspace` instead.
 Notes: group DMs you're already in still work. They're listed under their members' names. You can rename one, see its members, change its notifications and leave it, but not add or remove people.
 
 ## Rename a group DM or change its icon
 
 Phone: on the Workspaces tab, press and hold the group DM and tap `Edit group info`. On the `Edit chat info` screen, change `Name`, `Icon image` (tap `Change icon image`) or `Description`, then tap `Save` at the top right. The screen stays open after saving, so tap back to leave.
 Desktop: hover the group DM in the sidebar, open its three-dot menu, and pick `Edit group info`.
-Notes: any member gets this option. Names are capped at 30 characters, descriptions at 300. The new name shows at the top of the chat, but the row in your list keeps showing the members' names. An icon button reading `Storage not configured` means your node has no image storage. One-to-one DMs can't be renamed.
+Notes: any member gets this option. Names are capped at 30 characters, descriptions at 300. The new name shows at the top of the chat, but the row in your list keeps showing the members' names. If the icon button reads `Storage not configured`, you can't change the icon. One-to-one DMs can't be renamed.
 
 ## See who is in a group DM
 
@@ -67,7 +67,7 @@ Notes: the list is read-only. There's no way to add or remove people, and tappin
 
 Phone: on the Workspaces tab, press and hold the DM or group DM, tap `Leave chat`, then tap `Leave` to confirm.
 Desktop: hover it in the sidebar, open its three-dot menu, and pick `Leave chat`.
-Notes: the chat is removed from your list and you land back on the list. The confirmation reads `You will no longer receive updates from this channel.` Leaving is the only way to remove a DM. There is no separate delete, and no way to clear a DM's history. To talk to the person again, start a new DM with `New Message`. Nobody can be added to a group DM, so the app has no way back into one you've left.
+Notes: the chat is removed from your list and you land back on the list. The confirmation reads `You will no longer receive updates from this channel.` Leaving is the only way to remove a DM. There is no separate delete, and no way to clear a DM's history. To talk to the person again, start a new DM with `New Message`. The app can't add people to a group DM, so it has no way back into one you've left.
 
 ## Why is there no message box in this DM?
 
@@ -91,9 +91,10 @@ Notes: the same DM is also in the Workspaces list with your other DMs, where its
 Phone: it's a normal DM on the Workspaces tab. Tap `Messages` at the top to narrow the list to DMs and look for it there.
 Desktop: look in the `Home` or `Messages` sidebar.
 Who: hosted accounts. The DM arrives during hosted signup.
-Notes: the app accepts this DM for you during signup, so you never see `Accept` and `Deny` on it. The DM from the person whose invite link you signed up with is accepted the same way. After that both behave like any other DM.
+Notes: the app finds this DM by a fixed node ID, "~wittyr-witbes", which it treats as the Tlon team's node. It accepts the DM for you during signup, so you never see `Accept` and `Deny` on it. The DM from the person whose invite link you signed up with is accepted the same way. After that both behave like any other DM.
 
 ## A DM appeared saying someone "is on Tlon Messenger"
 
 Phone: when someone from your synced phone contacts turns out to be on Tlon Messenger, the app adds an empty DM with them to your Workspaces list. Under their name it reads `is on Tlon Messenger`. Tap it and send a message to say hi.
+Who: accounts that have a phone number added and have synced their phone contacts.
 Notes: you didn't start this DM and neither did they. The app made the row so they're easy to find. The line under their name shows only while the chat has no messages.

@@ -17,9 +17,9 @@ Notes: `Chat` is selected to start with. There is no description field here; add
 
 ## Limit a new channel to certain roles
 
-Phone: in the `Create a new channel` sheet, switch on `Custom Permissions`. The button changes to `Next`; tap it. On `Channel permissions`, tap `Add roles`, pick the roles that should get in, and save. Back on the table, tap the circle under `Write` for each role that should be able to post, then tap `Create channel`.
+Phone: in the `Create a new channel` sheet, switch on `Custom Permissions`. The button changes to `Next`; tap it. On `Channel permissions`, tap `Add roles`, pick the roles that should get in, and save. Then tap the circle under `Write` for each role that should be able to post, and tap `Create channel`.
 Who: group admins.
-Notes: the table starts with only the admin role, which always has `Read` and `Write`. Roles you add can read but not post until you fill their `Write` circle. Leave `Custom Permissions` off and every member of the group can read and post.
+Notes: the table starts with only the admin role, which always has `Read` and `Write`. Roles you add can read but not post until you fill their `Write` circle. A Notebook is the exception: a role that can read it can also edit it. Leave `Custom Permissions` off and every member of the group can read and post.
 
 ## Choose which roles can get into a channel
 
@@ -31,7 +31,7 @@ Notes: `Members` stands for everyone in the group; untick it to keep ordinary me
 
 Phone: open the channel's info screen and tap `Permissions`. Switch on `Custom Permissions`. Tap `Add roles` to choose which roles get in, tap the circle under `Write` to let a role post or stop it posting, and tap the X under `Remove` to take a role out. Tap `Save`.
 Who: group admins. The row is greyed out while the app can't reach the group's host.
-Notes: `Permissions` reads `Public` when every member can read and post, and `Custom` otherwise. The app never uses the word "private". Switching on starts with admins and `Members` both allowed, so nothing changes until you edit the table. Switch it off and save to open the channel up again.
+Notes: `Permissions` reads `Public` when every member can read and post, and `Custom` otherwise. These screens never use the word "private". Switching on starts with admins and `Members` both allowed, so nothing changes until you edit the table. Switch it off and save to open the channel up again.
 
 ## Make a channel where only admins can post
 
@@ -76,7 +76,7 @@ Notes: a section with no channels in it doesn't appear in the group's channel li
 
 Phone: on the group's `Channels` screen, tap the three-dot icon on the section's header. `Edit name` opens `Change section name`: type the new name and tap `Save`. `Delete section` removes the section.
 Who: group admins.
-Notes: `Delete section` acts at once, with no confirmation. The channels in it are not deleted; they move to the section above. The group's default section has no three-dot icon, so it can't be renamed or deleted. The three-dot icons are hidden while you are in `Sort` mode.
+Notes: `Delete section` acts at once, with no confirmation. The channels in it are not deleted; they move to the section above. A section at the very top has nothing above it, so the group's host puts its channels in the default section instead. The group's default section has no three-dot icon, so it can't be renamed or deleted. The three-dot icons are hidden while you are in `Sort` mode.
 
 ## The channel order or sections an admin set aren't showing
 
@@ -93,13 +93,13 @@ Notes: the confirmation says `You will no longer receive updates from this chann
 
 ## Why the menu says Cannot leave channel
 
-Notes: your node hosts that channel, usually because you made it. The press-and-hold menu shows `Cannot leave channel` with `Host (you) must delete to leave` under it, greyed out, and the channel's info screen has no `Leave channel` for you. The only way out is `Delete channel` at the bottom of the channel's info screen, which removes the channel for everyone. The `Host` row on that screen shows whose node runs a channel.
+Notes: your node hosts that channel, usually because you made it. The press-and-hold menu shows `Cannot leave channel` with `Host (you) must delete to leave` under it, greyed out, and the channel's info screen has no `Leave channel` for you. The only way out is `Delete channel` at the bottom of the channel's info screen, which removes the channel for everyone (a Bucket can't be deleted either). The `Host` row on that screen shows whose node runs a channel.
 
 ## Rejoin a channel you left
 
 Phone: open the group and scroll to `Available Channels` at the bottom of its channel list. Tap the channel with the `Join` badge.
 Desktop: the same section is at the bottom of the group's channel list in the sidebar.
-Notes: `Available Channels` holds the channels in the group that you aren't in and that your roles are allowed to read, so it is also where you join a channel you were never in. One tap joins; there is no confirmation. The section isn't shown when there is nothing to join.
+Notes: `Available Channels` holds the channels in the group that you aren't in and that your roles are allowed to read, so it is also where you join a channel you were never in. One tap joins; there is no confirmation. A Bucket just opens instead. The section isn't shown when there is nothing to join.
 
 ## Delete a channel
 
@@ -112,7 +112,7 @@ Notes: the dialog warns `This action cannot be undone. All messages in this chan
 Phone: press and hold the channel in its group's channel list and tap `Use channel as template`. On `New Channel with Modifications`, type a `Title`, pick a group under `Choose where to create this channel`, and tap `Create Channel`.
 Desktop: the option is in the three-dot menu, but its screen is only in the phone app.
 Who: you can only pick groups you host that have a name.
-Notes: this makes an empty channel of the same type and copies over the add-ons listed under `Modifications running in this channel:`. Messages aren't copied. Only Chat and Gallery channels offer it, once the app has loaded that list. If copying fails, you see `Channel failed to setup with modifications` and the new channel is removed.
+Notes: this makes an empty channel of the same type and copies over the add-ons listed under `Modifications running in this channel:`. Messages aren't copied. Only Chat and Gallery channels offer it, a moment after the menu opens, once the app has loaded the add-on list (even an empty one). If copying fails, you see `Channel failed to setup with modifications` and the new channel is removed.
 
 ## See who is in a channel
 
