@@ -397,8 +397,10 @@ export async function getAppInfo({
     ),
   ]);
 
-  const groupsPike = pikes?.['groups'];
-  const groupsCharge = charges?.['groups'] ?? {};
+  // The app desk is %tlon. A migrated ship also keeps its suspended old
+  // %groups desk, whose charge is frozen at its last version, so %tlon wins.
+  const groupsPike = pikes?.['tlon'] ?? pikes?.['groups'];
+  const groupsCharge = charges?.['tlon'] ?? charges?.['groups'] ?? {};
 
   return {
     groupsVersion: groupsCharge.version ?? 'n/a',
