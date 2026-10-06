@@ -117,4 +117,26 @@
   ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('x-upstream-hop' k)))) !>(|))
   ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('content-length' k)))) !>(|))
   (ex-equal !>((lien got |=(k=@t =('x-upstream-keep' k)))) !>(&))
+::  +test-raw-size-cap: the relay cap measures the body
+::
+::  a body over max-relay (4MiB) is refused whatever its content type, and
+::  a small body passes even under an absurdly long content type.
+::
+++  test-raw-size-cap
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~zod, src ~zod)))
+  ;<  *  bind:m  (do-init dap fetch-agent)
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e1 %raw safe ~))
+  =/  big=sign-arvo
+    [%iris %http-response %finished [200 ~] `['text/html' [+((bex 22)) 0]]]
+  ;<  caz=(list card)  bind:m  (do-arvo wire:(request-card caz) big)
+  ;<  ~  bind:m  (ex-equal !>((status caz)) !>(`502))
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e2 %raw safe ~))
+  =/  long-type=@t  (crip (reap 5.000.000 'x'))
+  =/  small=sign-arvo
+    [%iris %http-response %finished [200 ~] `[long-type [2 'ok']]]
+  ;<  caz=(list card)  bind:m  (do-arvo wire:(request-card caz) small)
+  (ex-equal !>((status caz)) !>(`200))
 --
