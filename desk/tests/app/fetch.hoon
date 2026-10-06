@@ -88,7 +88,8 @@
 ::  +test-raw-strips-connection-names: connection-scoped headers stay put
 ::
 ::  headers a connection header names are hop-by-hop, in both directions,
-::  along with the fixed set.
+::  along with the fixed set. headers that would act on the ship's own
+::  origin, like set-cookie, are not relayed back either.
 ::
 ++  test-raw-strips-connection-names
   %-  eval-mare
@@ -110,12 +111,16 @@
     :~  ['connection' 'x-upstream-hop']
         ['x-upstream-hop' 'in']
         ['content-length' '0']
+        ['Set-Cookie' 'urbauth-~zod=evil; Path=/']
+        ['clear-site-data' '"cookies"']
         ['x-upstream-keep' 'in']
     ==
   ;<  caz=(list card)  bind:m  (do-arvo wire.req (finished 200 back))
   =/  got  (turn (response-headers caz) head)
   ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('x-upstream-hop' k)))) !>(|))
   ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('content-length' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('Set-Cookie' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('clear-site-data' k)))) !>(|))
   (ex-equal !>((lien got |=(k=@t =('x-upstream-keep' k)))) !>(&))
 ::  +test-raw-size-cap: the relay cap measures the body
 ::

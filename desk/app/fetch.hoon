@@ -142,6 +142,16 @@
   |=  [key=@t val=@t]
   (~(has in drop) (crip (cass (trip key))))
 ::
+::  +origin-scoped: response headers that would act on *our* origin
+::
+::    a relayed response is served from the ship, so the browser applies
+::    these to the ship's own origin: an upstream set-cookie could
+::    overwrite the session cookie, and clear-site-data could wipe it.
+::
+++  origin-scoped
+  ^~
+  (~(gas in *(set @t)) ~['set-cookie' 'set-cookie2' 'clear-site-data'])
+::
 ::  +connection-names: the field names a connection header lists,
 ::  lowercased, ignoring whitespace and empty entries
 ::
@@ -683,7 +693,10 @@
     %+  spout:hutils  eid
     :-  =,  response-header.res
         :-  status-code
-        (snoc (strip-hops headers) 'x-tlon-fetch'^'finished')
+        %+  snoc
+          %+  skip  (strip-hops headers)
+          |=([key=@t @t] (~(has in origin-scoped) (crip (cass (trip key)))))
+        'x-tlon-fetch'^'finished'
     ?~  full-file.res  ~
     `data.u.full-file.res
   ::
