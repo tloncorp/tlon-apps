@@ -337,6 +337,25 @@ describe('previewEncoding', () => {
     );
   });
 
+  // A label that names no encoding says nothing: the prescan reads on past
+  // it, and a response's charset that names none leaves it to the prescan.
+  it('reads past a label that names no encoding', () => {
+    expect(
+      page('<meta charset="x-invalid"><meta charset="windows-1252">')
+    ).toBe('windows-1252');
+    expect(
+      page(
+        '<meta http-equiv="Content-Type" content="text/html; charset=bogus"><meta charset="iso-8859-2">'
+      )
+    ).toBe('iso-8859-2');
+    expect(
+      page('<meta charset="windows-1252">', 'text/html; charset=bogus')
+    ).toBe('windows-1252');
+    expect(page('<?xml version="1.0" encoding="bogus"?><p>x</p>')).toBe(
+      'utf-8'
+    );
+  });
+
   // An XML declaration in UTF-16 bytes, with no byte order mark.
   it('reads an XML declaration in UTF-16 bytes as UTF-16', () => {
     expect(page('<\u0000?\u0000x\u0000m\u0000l\u0000')).toBe('utf-16le');
@@ -372,6 +391,14 @@ describe('htmlPreviewTitle', () => {
   // in a textarea inside a foreignObject is text.
   it('reads foreign content as the parser does', () => {
     expect(htmlPreviewTitle('<svg><p></p><title>Real</title>')).toBe('Real');
+    // A self-closed svg has no title; one whose last value ends in a slash
+    // is still open.
+    expect(htmlPreviewTitle('<svg/><title>Page</title>')).toBe('Page');
+    expect(
+      htmlPreviewTitle(
+        '<svg data=x/><title>Drawing</title></svg><title>Page</title>'
+      )
+    ).toBe('Page');
     expect(
       htmlPreviewTitle(
         '<svg><foreignObject><textarea><title>Fake</title></textarea></foreignObject></svg><title>Real</title>'
@@ -570,6 +597,9 @@ describe('htmlPreviewHasScripts', () => {
       '<a data=x=" onclick=go()>x</a>',
       // A comment that ends early leaves what follows it markup.
       '<!--><script>go()</script><!-- -->',
+      // A slash that ends an unquoted value does not close the svg, so its
+      // title is an integration point, and the script in it HTML.
+      '<svg data=x/><title><script>run()</script></title></svg>',
     ]) {
       expect(htmlPreviewHasScripts(html), html).toBe(true);
     }

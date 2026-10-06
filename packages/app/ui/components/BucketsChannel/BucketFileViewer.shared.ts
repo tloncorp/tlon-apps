@@ -153,7 +153,8 @@ const URL_ATTRIBUTES = new Set([
  * encoding prescan finds it: comments are skipped, and only a `<meta>` with a
  * `charset` attribute, or one with `http-equiv="content-type"` whose
  * `content` names a charset, declares one. `charset=` anywhere else -- in a
- * comment, in a description -- does not.
+ * comment, in a description -- does not, and a declaration whose label names
+ * no encoding we can decode (decodable) is read past.
  */
 function metaCharset(head: string): string | undefined {
   let i = 0;
@@ -183,14 +184,19 @@ function metaCharset(head: string): string | undefined {
     i = tagEnd;
     if (asciiLowercase(head.slice(open + 1, nameEnd)) !== 'meta') continue;
     const attributes = tagAttributes(head.slice(nameEnd, tagEnd - 1));
-    const charset = attributes.get('charset')?.trim();
-    if (charset) return charset;
+    const charset = attributes.get('charset')?.trim().toLowerCase();
+    if (charset) {
+      if (decodable(charset)) return charset;
+      continue;
+    }
     if (attributes.get('http-equiv')?.trim().toLowerCase() === 'content-type') {
       const declared = attributes
         .get('content')
         ?.match(/charset\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s;"']+))/i);
-      const value = (declared?.[1] ?? declared?.[2] ?? declared?.[3])?.trim();
-      if (value) return value;
+      const value = (declared?.[1] ?? declared?.[2] ?? declared?.[3])
+        ?.trim()
+        .toLowerCase();
+      if (value && decodable(value)) return value;
     }
   }
 }
@@ -219,12 +225,13 @@ function xmlEncoding(head: string): string | undefined {
   for (let j = 0; j < label.length; j += 1) {
     if (label.charCodeAt(j) <= 0x20) return undefined;
   }
-  return label;
+  return decodable(label.toLowerCase()) ? label : undefined;
 }
 
 /**
  * The encoding a preview's bytes are in, decided as a browser decides for a
- * page: a byte order mark first, then the charset the response declares,
+ * page: a byte order mark first, then the charset the response declares (if
+ * it names an encoding we can decode),
  * then -- for HTML -- the prescan of the first 1024 bytes: an XML declaration
  * in UTF-16 bytes, a `<meta>` charset, and failing that an XML declaration's
  * encoding; UTF-8 when nothing says otherwise. `head` is the start of the
@@ -245,8 +252,10 @@ export function previewEncoding({
   if (head.startsWith('ï»¿')) return 'utf-8';
   if (head.startsWith('þÿ')) return 'utf-16be';
   if (head.startsWith('ÿþ')) return 'utf-16le';
-  const declared = contentType?.match(/;\s*charset\s*=\s*"?([^";\s]+)/i)?.[1];
-  if (declared) return declared.toLowerCase();
+  const sent = contentType
+    ?.match(/;\s*charset\s*=\s*"?([^";\s]+)/i)?.[1]
+    ?.toLowerCase();
+  if (sent && decodable(sent)) return sent;
   if (html) {
     if (head.startsWith('<\u0000?\u0000x\u0000')) return 'utf-16le';
     if (head.startsWith('\u0000<\u0000?\u0000x')) return 'utf-16be';
@@ -344,6 +353,28 @@ function decodeUtf16(bytes: Uint8Array, littleEndian: boolean): string {
     );
   }
   return i < bytes.length ? text + '�' : text;
+}
+
+/**
+ * Whether `label` names an encoding a preview can be decoded in here: one the
+ * runtime's TextDecoder knows, or windows-1252 or UTF-16, which decodeBytes
+ * decodes itself where it does not. A label that names none says nothing,
+ * and the prescan reads on past it, as a browser's does (previewEncoding).
+ */
+function decodable(label: string): boolean {
+  if (
+    WINDOWS_1252_LABELS.has(label) ||
+    UTF_16LE_LABELS.has(label) ||
+    UTF_16BE_LABELS.has(label) ||
+    label === 'x-user-defined'
+  ) {
+    return true;
+  }
+  try {
+    return new TextDecoder(label).encoding !== '';
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -538,11 +569,6 @@ const FOREIGN_BREAKOUTS = new Set([
   'var',
 ]);
 
-/** Whether the start tag that ends at `tagEnd` closes itself (`<svg/>`). */
-function closesItself(html: string, tagEnd: number): boolean {
-  return html.charCodeAt(tagEnd - 2) === 47;
-}
-
 // HTML's ASCII whitespace: tab, line feed, form feed, carriage return, space.
 function isHtmlSpace(code: number): boolean {
   return code === 9 || code === 10 || code === 12 || code === 13 || code === 32;
@@ -553,22 +579,31 @@ function isAsciiLetter(code: number): boolean {
 }
 
 /**
- * The index just past the `>` that ends a tag whose name ends at `from`; -1
- * when the tag never ends. It reads the attributes in the tokenizer's states:
- * a quote opens a quoted value only straight after an attribute's `=`, so one
- * inside a name or an unquoted value (`data=x="`) is just a character there.
+ * Where a tag whose name ends at `from` ends -- the index just past its `>`,
+ * or -1 when it never ends -- and whether it closes itself (`<svg/>`). It
+ * reads the attributes in the tokenizer's states: a quote opens a quoted
+ * value only straight after an attribute's `=`, so one inside a name or an
+ * unquoted value (`data=x="`) is just a character there; and a `/` closes
+ * the tag only where it is no value's, straight before the `>` (in
+ * `<svg data=x/>` it is the value's last character).
  */
-function startTagEnd(html: string, from: number): number {
+function startTag(
+  html: string,
+  from: number
+): { end: number; selfClosing: boolean } {
   let i = from;
   for (;;) {
+    const between = i;
     while (
       i < html.length &&
       (isHtmlSpace(html.charCodeAt(i)) || html[i] === '/')
     ) {
       i += 1;
     }
-    if (i >= html.length) return -1;
-    if (html[i] === '>') return i + 1;
+    if (i >= html.length) return { end: -1, selfClosing: false };
+    if (html[i] === '>') {
+      return { end: i + 1, selfClosing: i > between && html[i - 1] === '/' };
+    }
     // A name: its first character whatever it is, then up to a space, a
     // slash, a `>` or an `=`.
     i += 1;
@@ -591,7 +626,7 @@ function startTagEnd(html: string, from: number): number {
     const quote = html[i];
     if (quote === '"' || quote === "'") {
       const close = html.indexOf(quote, i + 1);
-      if (close < 0) return -1;
+      if (close < 0) return { end: -1, selfClosing: false };
       i = close + 1;
     } else {
       while (
@@ -603,6 +638,11 @@ function startTagEnd(html: string, from: number): number {
       }
     }
   }
+}
+
+/** Where a tag whose name ends at `from` ends (startTag). */
+function startTagEnd(html: string, from: number): number {
+  return startTag(html, from).end;
 }
 
 /**
@@ -741,7 +781,7 @@ function* markupTags(
       nameEnd += 1;
     }
     const name = lower.slice(nameStart, nameEnd);
-    const end = startTagEnd(html, nameEnd);
+    const { end, selfClosing } = startTag(html, nameEnd);
     if (end < 0) return;
     i = end;
     if (closing) {
@@ -777,7 +817,7 @@ function* markupTags(
     const innermost = scopes[scopes.length - 1];
     if (name === 'svg' || name === 'math') {
       // A foreign element can close itself; an HTML one cannot.
-      if (!closesItself(html, end)) push(name);
+      if (!selfClosing) push(name);
     } else if (inForeignContent) {
       const encoding = asciiLowercase(attributes.get('encoding') ?? '');
       const opensHtml =
@@ -787,7 +827,7 @@ function* markupTags(
             (name === 'annotation-xml' &&
               (encoding === 'text/html' ||
                 encoding === 'application/xhtml+xml'));
-      if (opensHtml && !closesItself(html, end)) push(name);
+      if (opensHtml && !selfClosing) push(name);
     } else if (name === 'template') {
       templates += 1;
     }
