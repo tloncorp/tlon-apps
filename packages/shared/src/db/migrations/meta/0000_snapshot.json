@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6b79d8cb-9f12-48b7-a06b-413ba8c9481b",
+  "id": "295ce84f-ac8e-40c1-b3c4-01a01b8a71bd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -676,13 +676,6 @@
         },
         "open_request_id": {
           "name": "open_request_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "finish_request_id": {
-          "name": "finish_request_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

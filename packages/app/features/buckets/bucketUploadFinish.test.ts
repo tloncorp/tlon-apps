@@ -15,48 +15,37 @@ function sender(...outcomes: unknown[]) {
 }
 
 describe('finishUpload', () => {
-  it('re-asks under the same request id when the answer is lost', async () => {
-    const send = sender(new Error('network'), new Error('network'), 'ok');
-    const sleep = vi.fn(async () => undefined);
+  it('re-asks once under the same request id when the answer is lost', async () => {
+    const send = sender(new Error('network'), 'ok');
 
-    await finishUpload(flag, 'session-1', 'rid-1', { send, sleep });
+    await finishUpload(flag, 'session-1', 'rid-1', send);
 
-    expect(send).toHaveBeenCalledTimes(3);
-    for (const call of send.mock.calls) {
-      expect(call).toEqual([
-        { type: 'finish-upload', flag, sessionId: 'session-1' },
-        'rid-1',
-      ]);
-    }
-    expect(sleep.mock.calls).toEqual([[1000], [2000]]);
+    expect(send.mock.calls).toEqual([
+      [{ type: 'finish-upload', flag, sessionId: 'session-1' }, 'rid-1'],
+      [{ type: 'finish-upload', flag, sessionId: 'session-1' }, 'rid-1'],
+    ]);
   });
 
-  it('does not retry a typed refusal', async () => {
+  it('does not re-ask a typed answer', async () => {
     const refusal = new BucketsActionFailed(
-      'invalid-input',
-      'upload session is not pending'
+      'unknown',
+      'the host did not answer in time'
     );
     const send = sender(refusal);
-    const sleep = vi.fn(async () => undefined);
 
-    await expect(
-      finishUpload(flag, 'session-1', 'rid-1', { send, sleep })
-    ).rejects.toBe(refusal);
+    await expect(finishUpload(flag, 'session-1', 'rid-1', send)).rejects.toBe(
+      refusal
+    );
     expect(send).toHaveBeenCalledTimes(1);
-    expect(sleep).not.toHaveBeenCalled();
   });
 
-  it('gives up with the last error once attempts run out', async () => {
+  it('gives up with the second error', async () => {
     const last = new Error('still down');
     const send = sender(new Error('down'), last);
 
-    await expect(
-      finishUpload(flag, 'session-1', 'rid-1', {
-        attempts: 2,
-        send,
-        sleep: async () => undefined,
-      })
-    ).rejects.toBe(last);
+    await expect(finishUpload(flag, 'session-1', 'rid-1', send)).rejects.toBe(
+      last
+    );
     expect(send).toHaveBeenCalledTimes(2);
   });
 });

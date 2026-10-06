@@ -101,7 +101,6 @@ CREATE TABLE `bucket_uploads` (
 	`session_id` text,
 	`server_entry_id` integer,
 	`open_request_id` text,
-	`finish_request_id` text,
 	`started_at` integer NOT NULL
 );
 --> statement-breakpoint

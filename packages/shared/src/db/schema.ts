@@ -948,13 +948,11 @@ export const bucketUploads = sqliteTable(
     // The host's names for this upload, once it has them.
     sessionId: text('session_id'),
     serverEntryId: integer('server_entry_id'),
-    // Kept across a failure so a retry re-asks under the id the host may
-    // already have answered rather than opening a second session.
+    // The id of the request whose answer is outstanding: begin-upload's
+    // until the row has a session, finish-upload's after. Kept across a
+    // failure so a retry re-asks under the id the host may already have
+    // answered, rather than opening a second session or uploading twice.
     openRequestId: text('open_request_id'),
-    // Set once the bytes are up and finish-upload has been sent. While it is
-    // held, the host may already have published the entry, so a retry
-    // re-asks under it instead of starting the upload over.
-    finishRequestId: text('finish_request_id'),
     startedAt: integer('started_at').notNull(),
   },
   (table) => {
