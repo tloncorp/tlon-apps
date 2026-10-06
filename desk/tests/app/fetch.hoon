@@ -144,4 +144,28 @@
     [%iris %http-response %finished [200 ~] `[long-type [2 'ok']]]
   ;<  caz=(list card)  bind:m  (do-arvo wire:(request-card caz) small)
   (ex-equal !>((status caz)) !>(`200))
+::  +test-raw-no-implicit-redirects: iris must not follow for us
+::
+::  iris follows 301/303/307 while redirects remain, without our address
+::  guard. a %raw request asks for none, so a redirect is relayed back.
+::
+++  test-raw-no-implicit-redirects
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~zod, src ~zod)))
+  ;<  *  bind:m  (do-init dap fetch-agent)
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e1 %raw safe ~))
+  =/  cons=(list outbound-config:iris)
+    %+  murn  caz
+    |=  car=card
+    ?.  ?=([%pass * %arvo *] car)  ~
+    =/  =note-arvo  +.q.car
+    ?.  ?=([%i %request *] note-arvo)  ~
+    `outbound-config.note-arvo
+  ;<  ~  bind:m  (ex-equal !>(cons) !>(`(list outbound-config:iris)`~[[0 3]]))
+  =/  wire  wire:(request-card caz)
+  ;<  caz=(list card)  bind:m
+    (do-arvo wire (finished 307 ['location' lan]~))
+  (ex-equal !>((status caz)) !>(`307))
 --

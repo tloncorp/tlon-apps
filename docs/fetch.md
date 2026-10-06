@@ -94,7 +94,9 @@ Two practical consequences:
 
 `+max-relay` caps a `%raw` body at 4MiB, over which we answer `502` with `x-tlon-fetch: too-large`. Iris hands us the whole body at once, so **this cannot stop the ship from fetching something huge** — only from relaying it back into eyre. A real cap needs streaming support the runtime does not offer.
 
-There is no request timeout. Iris's `outbound-config` is inert (the runtime ignores it), so we cannot set one even though we would like to. This is inherited from both predecessors.
+There is no request timeout: iris's `outbound-config` only has `redirects` and `retries`, so we cannot set one even though we would like to. This is inherited from both predecessors.
+
+`redirects` does matter. Iris follows 301, 303 and 307 itself while redirects remain, and it does so without our address guard, so both modes send `redirects=0`. `%meta` follows redirects itself and checks every hop. `%raw` relays the 3xx to the caller unchanged, so a redirect is followed by the browser, never by the ship.
 
 ## what this agent is not
 

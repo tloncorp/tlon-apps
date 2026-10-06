@@ -296,10 +296,11 @@
     :~  'for="tm-fetch";'
         'proto='  ?:(secure 'https' 'http')
     ==
-  ::NOTE  outbound-config is actually meaningless,
-  ::      iris doesn't do anything with it at present, so we cannot set a
-  ::      timeout here even though we would like to.
-  [%pass /raw/[for]/(scot %t url) %arvo %i %request request *outbound-config:iris]
+  ::  iris follows 301/303/307 itself while redirects remain, without our
+  ::  +unsafe-target check, so a public url could redirect us into private
+  ::  space. relay the redirect to the caller instead. outbound-config has
+  ::  no timeout, so we cannot set one.
+  [%pass /raw/[for]/(scot %t url) %arvo %i %request request redirects=0 retries=3]
 ::
 ++  extract-data
   |=  $:  url=@t
