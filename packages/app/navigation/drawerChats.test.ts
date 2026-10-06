@@ -4,10 +4,11 @@ import { describe, expect, it } from 'vitest';
 import {
   chatMatchesDrawerFilter,
   getDrawerChats,
+  getDrawerFilterUnreads,
   getDrawerSearchChats,
   getDrawerSearchRows,
   getDrawerTabRows,
-  getUnreadDrawerFilters,
+  isWorkspaceChannelChat,
 } from './drawerChats';
 
 function group(id: string, timestamp: number): db.Chat {
@@ -27,7 +28,8 @@ function channel(
   id: string,
   timestamp: number,
   type: db.Channel['type'],
-  pin: db.Pin | null = null
+  pin: db.Pin | null = null,
+  fields: Partial<db.Channel> = {}
 ): db.Chat {
   return {
     id,
@@ -37,7 +39,7 @@ function channel(
     isPending: false,
     unreadCount: 0,
     type: 'channel',
-    channel: { id, type } as db.Channel,
+    channel: { id, type, ...fields } as db.Channel,
   };
 }
 
@@ -159,7 +161,7 @@ describe('getDrawerChats', () => {
   });
 });
 
-describe('getUnreadDrawerFilters', () => {
+describe('getDrawerFilterUnreads', () => {
   function unread(chat: db.Chat, count: number): db.Chat {
     return { ...chat, unreadCount: count };
   }
@@ -184,7 +186,7 @@ describe('getUnreadDrawerFilters', () => {
       pending: [],
     };
 
-    expect(getUnreadDrawerFilters(chats)).toEqual(['workspaces']);
+    expect(getDrawerFilterUnreads(chats)).toEqual({ workspaces: 'quiet' });
   });
 
   it('names both when each half is holding one', () => {
@@ -197,7 +199,26 @@ describe('getUnreadDrawerFilters', () => {
       pending: [],
     };
 
-    expect(getUnreadDrawerFilters(chats)).toEqual(['workspaces', 'messages']);
+    expect(getDrawerFilterUnreads(chats)).toEqual({
+      workspaces: 'quiet',
+      messages: 'quiet',
+    });
+  });
+
+  it('takes the accent for a half where any chat notified', () => {
+    const notifiedDm = channel('loud-dm', 20, 'dm', null, {
+      unread: { notify: true } as db.ChannelUnread,
+    });
+    const quietDm = unread(channel('quiet-dm', 30, 'dm'), 2);
+
+    for (const unpinned of [
+      [quietDm, notifiedDm],
+      [notifiedDm, quietDm],
+    ]) {
+      expect(
+        getDrawerFilterUnreads({ pinned: [], unpinned, pending: [] })
+      ).toEqual({ messages: 'notified' });
+    }
   });
 
   it('counts a chat notified with no unread count, as the rows do', () => {
@@ -217,12 +238,12 @@ describe('getUnreadDrawerFilters', () => {
     };
 
     expect(
-      getUnreadDrawerFilters({
+      getDrawerFilterUnreads({
         pinned: [],
         unpinned: [notified],
         pending: [],
       })
-    ).toEqual(['messages']);
+    ).toEqual({ messages: 'notified' });
   });
 
   it('stays quiet for a chat the user muted', () => {
@@ -232,12 +253,12 @@ describe('getUnreadDrawerFilters', () => {
     };
 
     expect(
-      getUnreadDrawerFilters({
+      getDrawerFilterUnreads({
         pinned: [],
         unpinned: [muted],
         pending: [],
       })
-    ).toEqual([]);
+    ).toEqual({});
   });
 
   it('ignores the conversation the footer carries, as the list does', () => {
@@ -247,8 +268,8 @@ describe('getUnreadDrawerFilters', () => {
       pending: [],
     };
 
-    expect(getUnreadDrawerFilters(chats)).toEqual(['messages']);
-    expect(getUnreadDrawerFilters(chats, 'bot-dm')).toEqual([]);
+    expect(getDrawerFilterUnreads(chats)).toEqual({ messages: 'quiet' });
+    expect(getDrawerFilterUnreads(chats, 'bot-dm')).toEqual({});
   });
 
   it('hears a channel turned back up inside a muted workspace', () => {
@@ -264,12 +285,12 @@ describe('getUnreadDrawerFilters', () => {
     const mutedWorkspace = mutedGroup(channels, 0);
 
     expect(
-      getUnreadDrawerFilters({
+      getDrawerFilterUnreads({
         pinned: [],
         unpinned: [mutedWorkspace],
         pending: [],
       })
-    ).toEqual(['workspaces']);
+    ).toEqual({ workspaces: 'quiet' });
   });
 
   it('stays quiet when a muted workspace has no channel of its own to speak', () => {
@@ -288,17 +309,17 @@ describe('getUnreadDrawerFilters', () => {
     const mutedWorkspace = mutedGroup(channels, 3);
 
     expect(
-      getUnreadDrawerFilters({
+      getDrawerFilterUnreads({
         pinned: [],
         unpinned: [mutedWorkspace],
         pending: [],
       })
-    ).toEqual([]);
+    ).toEqual({});
   });
 
   it('is empty before the chats have loaded', () => {
-    expect(getUnreadDrawerFilters(undefined)).toEqual([]);
-    expect(getUnreadDrawerFilters(null)).toEqual([]);
+    expect(getDrawerFilterUnreads(undefined)).toEqual({});
+    expect(getDrawerFilterUnreads(null)).toEqual({});
   });
 });
 
@@ -332,6 +353,43 @@ describe('getDrawerSearchChats', () => {
     expect(getDrawerSearchChats(chats, 'bot-dm').map((c) => c.id)).toEqual([
       'a-dm',
     ]);
+  });
+
+  it('looks inside each workspace, and at a pinned-out channel only there', () => {
+    const general = {
+      id: 'general',
+      type: 'chat',
+      groupId: 'a-group',
+      currentUserIsMember: true,
+      lastPostAt: 50,
+    } as db.Channel;
+    const random = { ...general, id: 'random', lastPostAt: 5 };
+    const gated = { ...general, id: 'gated', currentUserIsMember: false };
+    const pinnedOut = channel(
+      'general',
+      50,
+      'chat',
+      { index: 0 } as db.Pin,
+      general
+    );
+    const chats = {
+      pinned: [pinnedOut],
+      unpinned: [
+        {
+          ...group('a-group', 30),
+          group: { id: 'a-group', channels: [general, random, gated] },
+        } as db.Chat,
+      ],
+      pending: [],
+    };
+
+    const searched = getDrawerSearchChats(chats);
+    expect(searched.map((c) => c.id)).toEqual(['general', 'a-group', 'random']);
+    expect(searched.map(isWorkspaceChannelChat)).toEqual([true, false, true]);
+  });
+
+  it('finds a direct message by more than its name', () => {
+    expect(isWorkspaceChannelChat(channel('a-dm', 1, 'dm'))).toBe(false);
   });
 
   it('is empty before the chats have loaded', () => {
@@ -372,7 +430,7 @@ describe('getDrawerSearchRows', () => {
       group('group-next', 1),
     ];
 
-    expect(keys(getDrawerSearchRows(results, null))).toEqual([
+    expect(keys(getDrawerSearchRows(results, [], null))).toEqual([
       'heading:workspaces',
       'group-best',
       'group-next',
@@ -383,10 +441,10 @@ describe('getDrawerSearchRows', () => {
   });
 
   it('gives a half with nothing in it no heading', () => {
-    expect(keys(getDrawerSearchRows([channel('a-dm', 1, 'dm')], null))).toEqual(
-      ['heading:messages', 'a-dm']
-    );
-    expect(getDrawerSearchRows([], null)).toEqual([]);
+    expect(
+      keys(getDrawerSearchRows([channel('a-dm', 1, 'dm')], [], null))
+    ).toEqual(['heading:messages', 'a-dm']);
+    expect(getDrawerSearchRows([], [], null)).toEqual([]);
   });
 
   it('files a pinned group channel and an invite under Workspaces', () => {
@@ -396,7 +454,7 @@ describe('getDrawerSearchRows', () => {
       invite,
     ];
 
-    expect(keys(getDrawerSearchRows(results, null))).toEqual([
+    expect(keys(getDrawerSearchRows(results, [], null))).toEqual([
       'heading:workspaces',
       'pinned-channel',
       'invite',
@@ -406,6 +464,7 @@ describe('getDrawerSearchRows', () => {
   it('lays out the unfurled workspace’s channels under it', () => {
     const rows = getDrawerSearchRows(
       [workspace('a-group', ['one', 'two'])],
+      [],
       'a-group'
     );
 
@@ -420,9 +479,84 @@ describe('getDrawerSearchRows', () => {
   it('marks no result as pinned: the pin belongs to the tab’s section', () => {
     const pinned = channel('pinned-dm', 1, 'dm', { index: 0 } as db.Pin);
 
-    expect(getDrawerSearchRows([pinned], null)[1]).toMatchObject({
+    expect(getDrawerSearchRows([pinned], [], null)[1]).toMatchObject({
       kind: 'chat',
       pinned: false,
+    });
+  });
+
+  describe('with channels that matched', () => {
+    function inWorkspace(id: string, groupId: string): db.Chat {
+      return channel(id, 1, 'chat', null, {
+        groupId,
+        currentUserIsMember: true,
+      });
+    }
+    const found = workspace('a-group', ['one', 'two', 'three']);
+    const searched = [
+      found,
+      ...['one', 'two', 'three'].map((id) => inWorkspace(id, 'a-group')),
+    ];
+
+    it('lists them under their workspace, where the best of them ranked', () => {
+      const rows = getDrawerSearchRows(
+        [
+          group('other', 1),
+          inWorkspace('two', 'a-group'),
+          channel('a-dm', 1, 'dm'),
+          inWorkspace('one', 'a-group'),
+        ],
+        searched,
+        null
+      );
+
+      expect(keys(rows)).toEqual([
+        'heading:workspaces',
+        'other',
+        'a-group',
+        'a-group:two',
+        'a-group:one',
+        'heading:messages',
+        'a-dm',
+      ]);
+      expect(rows[2]).toMatchObject({ kind: 'chat', showsMatches: true });
+      expect(rows[3]).toMatchObject({ kind: 'channel', match: true });
+    });
+
+    it('lists a workspace that matched as well as its channels once', () => {
+      expect(
+        keys(
+          getDrawerSearchRows(
+            [inWorkspace('three', 'a-group'), found],
+            searched,
+            null
+          )
+        )
+      ).toEqual(['heading:workspaces', 'a-group', 'a-group:three']);
+    });
+
+    it('shows the whole block instead once the workspace is unfurled', () => {
+      const rows = getDrawerSearchRows(
+        [inWorkspace('two', 'a-group')],
+        searched,
+        'a-group'
+      );
+
+      expect(keys(rows)).toEqual([
+        'heading:workspaces',
+        'a-group',
+        'a-group:one',
+        'a-group:two',
+        'a-group:three',
+      ]);
+      expect(rows[1]).toMatchObject({ unfurled: true, showsMatches: false });
+      expect(rows[2]).toMatchObject({ kind: 'channel', match: false });
+    });
+
+    it('lists one on its own when its workspace was not searched', () => {
+      expect(
+        keys(getDrawerSearchRows([inWorkspace('lost', 'gone')], searched, null))
+      ).toEqual(['heading:workspaces', 'lost']);
     });
   });
 });

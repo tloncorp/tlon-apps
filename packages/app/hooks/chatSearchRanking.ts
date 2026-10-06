@@ -117,12 +117,12 @@ export function rankChatSearchCandidates<T extends ChatSearchCandidate>(
   candidates: T[],
   tokens: string[],
   normalizedQuery: string,
-  fuzzyScores: Map<string, ChatSearchFuzzyScore>
+  fuzzyScores: Map<T, ChatSearchFuzzyScore>
 ): T[] {
   const scored = candidates.map((candidate) => ({
     candidate,
     score: scoreChatSearchCandidate(candidate, tokens, normalizedQuery),
-    fuzzy: fuzzyScores.get(candidate.id),
+    fuzzy: fuzzyScores.get(candidate),
   }));
 
   scored.sort((a, b) => {

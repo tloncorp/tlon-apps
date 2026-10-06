@@ -116,8 +116,9 @@ function useSeededDrawerChats() {
           updatedAt: Date.now() - 60_000,
         } as db.GroupUnread,
       ]);
-      // One unread on the Messages side, so the Workspaces tab shows what an
-      // unread in the half that is not being drawn looks like.
+      // One unread on the Messages side, which did not notify, against Tlon
+      // Local's, which did: the tab not being drawn shows each kind, the
+      // grey dot from Workspaces and the accent from Messages.
       await db.insertChannelUnreads([
         {
           channelId: fixtureDms[0].id,
@@ -187,6 +188,10 @@ function TopLevelDrawerFixture() {
       <Drawer.Navigator
         drawerContent={(props) => <TopLevelDrawerContent {...props} />}
         screenOptions={{ ...screenOptions, drawerType: 'permanent' }}
+        // A permanent drawer still reports itself closed unless told it starts
+        // open, and the panel puts an empty search away whenever it is closed,
+        // so the field would shut the moment it opened.
+        defaultStatus="open"
       >
         <Drawer.Screen name="Main" component={Blank} />
       </Drawer.Navigator>
