@@ -102,7 +102,41 @@ was held back, and the index in `SKILL.md` is rewritten to match.
 
 ## Testing answers
 
-`docs/feature-map/questions/` holds the question set the
-onboarding lab runs against bot models. Add a question when you add an entry
-people are likely to ask about, and when a real conversation shows the bot
-getting something wrong.
+`docs/feature-map/questions/` holds the questions the onboarding lab asks the
+bot, to see whether a given model finds and repeats what the map says:
+
+```yaml
+- id: pin-chat
+  ask: how do i keep a chat at the top of my list?
+  kind: how-to # or where, who-can, cannot, desktop, concept
+  file: workspaces-list.md
+  entry: Pin or unpin a chat
+  must:
+    - press and hold the chat on the Workspaces tab
+    - tap Pin
+  must_not:
+    - says to swipe right
+```
+
+Write `ask` the way a person would type it, without the app's own words for
+the thing. `must` and `must_not` come from the entry and nothing else. `check`
+fails if `file` and `entry` do not name an entry in the map, so renaming a
+heading means updating its questions. Leave `file` and `entry` off a `concept`
+question that the guide's own text answers.
+
+`core.yaml` is for everyday use. `held-out.yaml` is only for confirming a
+change that already looked better on `core`; don't tune wording against it.
+
+Add a question when you add an entry people are likely to ask about, and
+whenever a real conversation shows the bot getting something wrong.
+
+In the onboarding lab (`~/Projects/onboarding-lab`), with this checkout's guide
+and questions:
+
+```bash
+npm run lab -- ask --dry-run \
+  --variant <this repo>/packages/openclaw/skills \
+  --questions <this repo>/docs/feature-map/questions
+```
+
+Its README covers models, guide layouts, grading and cost.

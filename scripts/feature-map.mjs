@@ -20,6 +20,7 @@ export const MAP_DIR = 'docs/feature-map';
 export const SKILL_DIR = 'packages/openclaw/skills/tlon-product-guide';
 export const PUBLISHED_DIR = `${SKILL_DIR}/references`;
 const IGNORE_FILE = `${MAP_DIR}/surface-ignore.txt`;
+const QUESTIONS_DIR = `${MAP_DIR}/questions`;
 const INDEX_START = '<!-- feature-map:index:start -->';
 const INDEX_END = '<!-- feature-map:index:end -->';
 
@@ -300,6 +301,51 @@ function readIgnored(reader) {
 
 // --- checks ----------------------------------------------------------------
 
+/**
+ * The `file:` and `entry:` of each question in a questions file. Read line by
+ * line so this script needs no YAML parser: a question starts at `- id:`, and
+ * its fields sit one per line beneath it.
+ */
+export function questionAnchors(text) {
+  const scalar = (value) => {
+    const trimmed = value.replace(/\s+#.*$/, '').trim();
+    if (/^'.*'$/.test(trimmed)) return trimmed.slice(1, -1).replace(/''/g, "'");
+    if (/^".*"$/.test(trimmed)) return JSON.parse(trimmed);
+    return trimmed;
+  };
+  const questions = [];
+  for (const line of text.split('\n')) {
+    const id = /^- id:(.*)$/.exec(line);
+    if (id) questions.push({ id: scalar(id[1]) });
+    const field = /^ {2}(file|entry):(.*)$/.exec(line);
+    if (field && questions.length)
+      questions.at(-1)[field[1]] = scalar(field[2]);
+  }
+  return questions;
+}
+
+/** Questions that point at a map file or entry heading that is not there. */
+export function checkQuestions(reader, files) {
+  const failures = [];
+  for (const name of reader
+    .list(QUESTIONS_DIR)
+    .filter((n) => n.endsWith('.yaml'))) {
+    const text = reader.read(`${QUESTIONS_DIR}/${name}`) ?? '';
+    for (const { id, file, entry } of questionAnchors(text)) {
+      if (!file && !entry) continue;
+      const mapFile = files.find((candidate) => candidate.file === file);
+      if (!mapFile?.entries.some((candidate) => candidate.heading === entry)) {
+        failures.push({
+          file: `questions/${name}`,
+          entry: id,
+          problem: `no entry "${entry}" in ${file}`,
+        });
+      }
+    }
+  }
+  return failures;
+}
+
 export function readMap(reader) {
   return reader
     .list(MAP_DIR)
@@ -380,6 +426,7 @@ export function checkMap(reader) {
       }
     }
   }
+  failures.push(...checkQuestions(reader, files));
   const ignored = readIgnored(reader);
   for (const file of surface.missingSources) {
     failures.push({

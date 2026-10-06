@@ -3,11 +3,13 @@ import { test } from 'node:test';
 
 import {
   checkEntry,
+  checkQuestions,
   checkLooseLabels,
   extractLabels,
   labelInSources,
   normalize,
   parseMapFile,
+  questionAnchors,
   readSurface,
   replaceIndex,
   slugify,
@@ -18,7 +20,11 @@ function fakeReader(files, found = {}) {
   return {
     read: (file) => files[file] ?? null,
     grep: (term) => found[term] ?? [],
-    list: () => Object.keys(files),
+    list: (dir) =>
+      Object.keys(files)
+        .filter((file) => file.startsWith(`${dir}/`))
+        .map((file) => file.slice(dir.length + 1))
+        .filter((name) => !name.includes('/')),
   };
 }
 
@@ -176,4 +182,50 @@ test('rewrites only the index block', () => {
     'before\n<!-- feature-map:index:start -->\n- new\n<!-- feature-map:index:end -->\nafter\n'
   );
   assert.equal(replaceIndex('no markers', '- new'), null);
+});
+
+const QUESTIONS = `# comment
+- id: pin-chat
+  ask: how do i keep a chat at the top?
+  kind: how-to
+  file: workspaces-list.md
+  entry: Pin or unpin a chat
+  must:
+    - entry: not a field at this depth
+- id: quoted
+  file: 'workspaces-list.md'
+  entry: "What's in the list: rows"  # trailing comment
+- id: concept
+  ask: what is a node?
+  must: [x]
+`;
+
+test('reads question anchors without a YAML parser', () => {
+  assert.deepEqual(questionAnchors(QUESTIONS), [
+    {
+      id: 'pin-chat',
+      file: 'workspaces-list.md',
+      entry: 'Pin or unpin a chat',
+    },
+    {
+      id: 'quoted',
+      file: 'workspaces-list.md',
+      entry: "What's in the list: rows",
+    },
+    { id: 'concept' },
+  ]);
+});
+
+test('flags a question whose entry is not in the map', () => {
+  const reader = fakeReader({
+    'docs/feature-map/questions/core.yaml': QUESTIONS,
+  });
+  const files = [parseMapFile(MAP, 'workspaces-list.md')];
+  assert.deepEqual(checkQuestions(reader, files), [
+    {
+      file: 'questions/core.yaml',
+      entry: 'quoted',
+      problem: 'no entry "What\'s in the list: rows" in workspaces-list.md',
+    },
+  ]);
 });
