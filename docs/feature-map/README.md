@@ -124,8 +124,12 @@ fails if `file` and `entry` do not name an entry in the map, so renaming a
 heading means updating its questions. Leave `file` and `entry` off a `concept`
 question that the guide's own text answers.
 
-`core.yaml` is for everyday use. `held-out.yaml` is only for confirming a
-change that already looked better on `core`; don't tune wording against it.
+`core.yaml` is for everyday use: run it, read what failed, fix the map or the
+key. `sealed.yaml` is the check on that work. It is run once, with the map,
+the keys and the grader frozen, and only its total is reported. Nobody adjusts
+anything from which of its questions failed. Once someone has read those
+failures, the set is spent: move its questions into `core.yaml` and write a new
+sealed set from entries no question uses yet.
 
 Add a question when you add an entry people are likely to ask about, and
 whenever a real conversation shows the bot getting something wrong.
