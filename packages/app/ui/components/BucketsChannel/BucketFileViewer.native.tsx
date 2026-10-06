@@ -7,6 +7,7 @@ import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
 import { useWebView } from '../../../hooks/useWebview';
 import { ScreenHeader } from '../ScreenHeader';
+import { BucketFileViewerScriptsBanner } from './BucketFileViewerScriptsBanner';
 import {
   BucketFileViewerItem,
   HTML_PREVIEW_NATIVE_SANDBOX,
@@ -60,28 +61,21 @@ export function BucketFileViewer({
         backAction={onClose}
         borderBottom
         rightControls={
-          offerScripts || (item.uri && onOpenExternally) ? (
-            <>
-              {offerScripts ? (
-                <ScreenHeader.TextButton
-                  onPress={() => setScriptsRunFor(fileId)}
-                  testID="BucketFileViewerRunScripts"
-                >
-                  Run scripts
-                </ScreenHeader.TextButton>
-              ) : null}
-              {item.uri && onOpenExternally ? (
-                <ScreenHeader.TextButton onPress={onOpenExternally}>
-                  Open
-                </ScreenHeader.TextButton>
-              ) : null}
-            </>
+          item.uri && onOpenExternally ? (
+            <ScreenHeader.TextButton onPress={onOpenExternally}>
+              Open
+            </ScreenHeader.TextButton>
           ) : null
         }
         showSubtitle
         subtitle={heading.subtitle}
         title={heading.title}
       />
+      {offerScripts ? (
+        <BucketFileViewerScriptsBanner
+          onEnable={() => setScriptsRunFor(fileId)}
+        />
+      ) : null}
       <View flex={1} minHeight={0} backgroundColor="$secondaryBackground">
         {loading ? (
           <LoadingPreview />

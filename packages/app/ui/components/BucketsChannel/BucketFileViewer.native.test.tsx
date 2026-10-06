@@ -33,13 +33,20 @@ vi.mock('../../../hooks/useWebview', () => ({ useWebView: () => null }));
 vi.mock('@tloncorp/ui', () => {
   const FilePreview = () => null;
   FilePreview.fileExtensionFrom = () => null;
-  return { FilePreview, Image: 'Image', Pressable: 'Pressable', Text: 'Text' };
+  return {
+    FilePreview,
+    Icon: 'Icon',
+    Image: 'Image',
+    Pressable: 'Pressable',
+    Text: 'Text',
+  };
 });
 
 vi.mock('tamagui', () => ({
   ScrollView: 'ScrollView',
   Spinner: 'Spinner',
   View: 'View',
+  XStack: 'XStack',
   YStack: 'YStack',
 }));
 
@@ -58,6 +65,12 @@ const htmlFile: BucketFileViewerItem = {
   uri: 'https://storage.example/signed-read-url',
 };
 
+const scriptedFile: BucketFileViewerItem = {
+  ...htmlFile,
+  textContent:
+    '<!doctype html><title>Quarterly numbers</title><p id="n">three</p><script>document.getElementById("n").textContent = "3";</script>',
+};
+
 function render(item: BucketFileViewerItem = htmlFile) {
   let renderer!: ReactTestRenderer;
   act(() => {
@@ -66,8 +79,15 @@ function render(item: BucketFileViewerItem = htmlFile) {
   return renderer;
 }
 
-function renderWebView(item: BucketFileViewerItem = htmlFile) {
-  return render(item).root.findByType('WebView' as never);
+function webViewOf(renderer: ReactTestRenderer) {
+  return renderer.root.findByType('WebView' as never).props;
+}
+
+// The Enable action in the banner a page with held scripts shows.
+function enableScriptsButton(renderer: ReactTestRenderer) {
+  return renderer.root.findAllByProps({
+    testID: 'BucketFileViewerEnableScripts',
+  })[0];
 }
 
 afterEach(() => {
@@ -75,172 +95,106 @@ afterEach(() => {
   mocks.openURL.mockClear();
 });
 
-// The token the shell was rendered with, as the shell's own script carries it.
-function shellToken(html: string): string {
-  const token = html.match(/token: '([0-9a-f]{32})'/)?.[1];
-  if (!token) throw new Error('no token in the shell');
-  return token;
-}
-
-function linkMessage(fields: Record<string, unknown>) {
-  return {
-    nativeEvent: {
-      data: JSON.stringify({ type: HTML_PREVIEW_LINK_MESSAGE, ...fields }),
-    },
-  };
-}
-
-const scriptedFile: BucketFileViewerItem = {
-  ...htmlFile,
-  textContent:
-    '<!doctype html><title>Quarterly numbers</title><p id="n">three</p><script>document.getElementById("n").textContent = "3";</script>',
-};
-
-function runScriptsButton(renderer: ReactTestRenderer) {
-  const controls = renderer.root.findByType(ScreenHeader).props.rightControls;
-  return React.Children.toArray(controls?.props.children).find(
-    (child) =>
-      React.isValidElement<{ testID?: string }>(child) &&
-      child.props.testID === 'BucketFileViewerRunScripts'
-  ) as React.ReactElement<{ onPress: () => void }> | undefined;
-}
-
 describe('BucketFileViewer html preview (native)', () => {
-  // The WebView loads a shell of ours that carries the policy; the file sits
-  // in a sandboxed frame inside it and inherits that policy. Until the reader
-  // asks, the policy runs ours alone: a running page could post to the
-  // bridge as often as it liked.
-  it('loads the file inside the shell, sandboxed and under the held policy, not from its URL', () => {
-    const { props } = renderWebView();
-    expect(props.source.uri).toBeUndefined();
-    const shell: string = props.source.html;
-    const nonce = shell.match(/'nonce-([0-9a-f]{32})'/)?.[1];
-    expect(nonce).toBeDefined();
-    expect(shell).toContain(
+  // The WebView loads a shell of ours that carries the policy, not the file's
+  // URL; the file sits in a sandboxed frame inside it and inherits the policy.
+  // Until the reader asks, it runs ours alone: a running page could post to
+  // the bridge as often as it liked.
+  it("holds a page's scripts until the reader enables them", () => {
+    const renderer = render(scriptedFile);
+    const { subtitle, title } = renderer.root.findByType(ScreenHeader).props;
+    expect({ subtitle, title }).toEqual({
+      subtitle: 'report.html · 4 KB',
+      title: 'Quarterly numbers',
+    });
+    const { source } = webViewOf(renderer);
+    expect(source.uri).toBeUndefined();
+    const nonce = source.html.match(/'nonce-([0-9a-f]{32})'/)?.[1];
+    expect(source.html).toContain(
       `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(nonce!)}">`
     );
-    expect(shell).toContain(`<script nonce="${nonce}">`);
-    expect(shell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
-    expect(shell).toContain('&lt;p&gt;Quarterly numbers&lt;/p&gt;');
-  });
+    expect(source.html).toContain(`<script nonce="${nonce}">`);
+    expect(source.html).toContain(
+      '<iframe sandbox="allow-scripts" srcdoc="&lt;!doctype html&gt;'
+    );
 
-  it('runs a page’s scripts only when the reader asks', () => {
-    const renderer = render(scriptedFile);
-    const webView = () => renderer.root.findByType('WebView' as never);
-    expect(webView().props.source.html).toContain("'nonce-");
-    act(() => runScriptsButton(renderer)!.props.onPress());
-    const running: string = webView().props.source.html;
+    act(() => enableScriptsButton(renderer).props.onPress());
+    const running: string = webViewOf(renderer).source.html;
     expect(running).toContain(
       `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
     );
     expect(running).not.toContain('nonce');
-    expect(runScriptsButton(renderer)).toBeUndefined();
+    expect(enableScriptsButton(renderer)).toBeUndefined();
   });
 
   it('offers nothing to run for a page without scripts', () => {
-    expect(runScriptsButton(render())).toBeUndefined();
-  });
-
-  it('names the page by its title, with the file beneath', () => {
-    const header = render().root.findByType(ScreenHeader);
-    expect(header.props.title).toBe('Quarterly numbers');
-    expect(header.props.subtitle).toBe('report.html · 4 KB');
+    expect(enableScriptsButton(render())).toBeUndefined();
   });
 
   // These props are the isolation: a change to any of them is a decision.
-  it('keeps the document apart from the app on iOS', () => {
-    const { props } = renderWebView();
-    expect(props.javaScriptEnabled).toBe(true);
-    expect(props.incognito).toBe(true);
-    expect(props.sharedCookiesEnabled).toBe(false);
-    expect(props.thirdPartyCookiesEnabled).toBe(false);
-    expect(props.setSupportMultipleWindows).toBe(false);
-    expect(props.originWhitelist).toEqual(['*']);
+  // incognito on Android would clear the cookie jar the whole app shares.
+  it.each([
+    ['ios', true],
+    ['android', false],
+  ])('keeps the document apart from the app on %s', (os, incognito) => {
+    mocks.platform.OS = os;
+    expect(webViewOf(render())).toMatchObject({
+      incognito,
+      javaScriptEnabled: true,
+      originWhitelist: ['*'],
+      setSupportMultipleWindows: false,
+      sharedCookiesEnabled: false,
+      thirdPartyCookiesEnabled: false,
+    });
   });
 
-  // incognito on Android clears the cookie jar the whole app shares.
-  it('keeps the shared cookie jar intact on Android', () => {
-    mocks.platform.OS = 'android';
-    const { props } = renderWebView();
-    expect(props.incognito).toBe(false);
-    expect(props.javaScriptEnabled).toBe(true);
-    expect(props.sharedCookiesEnabled).toBe(false);
-    expect(props.originWhitelist).toEqual(['*']);
-  });
-
-  // The shell asks the app to open a link the reader tapped; the app opens it
-  // the way it opens a link in chat, but only with the shell's token, since
-  // every frame, the file's included, can post to the bridge.
-  it('opens a tapped link the shell sends with its token', () => {
-    const { props } = renderWebView();
-    const token = shellToken(props.source.html);
-    expect(props.source.html).toContain(
-      'window.ReactNativeWebView.postMessage('
-    );
-    props.onMessage(
-      linkMessage({ token, href: 'https://shop.example/item?id=1' })
-    );
+  // The shell asks the app to open a link the reader tapped, with its token,
+  // since every frame, the file's included, can post to the bridge. A burst
+  // opens one link: the app leaves for the browser on the first.
+  it('opens a tapped link the shell sends with its token, once per burst', () => {
+    const { onMessage, source } = webViewOf(render());
+    const token = source.html.match(/token: '([0-9a-f]{32})'/)?.[1];
+    const link = (fields: Record<string, unknown>) =>
+      onMessage({
+        nativeEvent: {
+          data: JSON.stringify({ type: HTML_PREVIEW_LINK_MESSAGE, ...fields }),
+        },
+      });
+    link({ token: 'guess', href: 'https://tlon.io/' });
+    link({ href: 'https://tlon.io/' });
+    link({ token, href: 'file:///etc/passwd' });
+    link({ token, href: 'tlon://open' });
+    onMessage({ nativeEvent: { data: 'https://tlon.io/' } });
+    expect(mocks.openURL).not.toHaveBeenCalled();
+    link({ token, href: 'https://shop.example/item?id=1' });
+    link({ token, href: 'https://tlon.io/b' });
+    expect(mocks.openURL).toHaveBeenCalledTimes(1);
     expect(mocks.openURL).toHaveBeenCalledWith(
       'https://shop.example/item?id=1'
     );
   });
 
-  it('ignores a message without the token, or for anything but a web, mail or phone link', () => {
-    const { props } = renderWebView();
-    const token = shellToken(props.source.html);
-    props.onMessage(linkMessage({ token: 'guess', href: 'https://tlon.io/' }));
-    props.onMessage(linkMessage({ href: 'https://tlon.io/' }));
-    props.onMessage(linkMessage({ token, href: 'file:///etc/passwd' }));
-    props.onMessage(linkMessage({ token, href: 'tlon://open' }));
-    props.onMessage({ nativeEvent: { data: 'https://tlon.io/' } });
-    expect(mocks.openURL).not.toHaveBeenCalled();
-  });
-
-  // A burst of messages opens one link: the app leaves for the browser on the
-  // first.
-  it('opens one link for a burst of messages', () => {
-    const { props } = renderWebView();
-    const token = shellToken(props.source.html);
-    props.onMessage(linkMessage({ token, href: 'https://tlon.io/a' }));
-    props.onMessage(linkMessage({ token, href: 'https://tlon.io/b' }));
-    expect(mocks.openURL).toHaveBeenCalledTimes(1);
-    expect(mocks.openURL).toHaveBeenCalledWith('https://tlon.io/a');
-  });
-
-  it('loads the inline documents and refuses every other navigation, a tapped link included', () => {
-    const { props } = renderWebView();
-    expect(
-      props.onShouldStartLoadWithRequest({
-        url: 'about:blank',
-        isTopFrame: true,
-        navigationType: 'other',
-      })
-    ).toBe(true);
-    expect(
-      props.onShouldStartLoadWithRequest({
-        url: 'about:srcdoc',
-        isTopFrame: false,
-        navigationType: 'other',
-      })
-    ).toBe(true);
+  it.each([
+    [{ url: 'about:blank', isTopFrame: true, navigationType: 'other' }, true],
+    [{ url: 'about:srcdoc', isTopFrame: false, navigationType: 'other' }, true],
     // A tap, or a script's click reported as one.
-    expect(
-      props.onShouldStartLoadWithRequest({
-        url: 'https://tlon.io/',
-        isTopFrame: false,
-        navigationType: 'click',
-      })
-    ).toBe(false);
-    expect(
-      props.onShouldStartLoadWithRequest({
+    [
+      { url: 'https://tlon.io/', isTopFrame: false, navigationType: 'click' },
+      false,
+    ],
+    [
+      {
         url: 'https://evil.example/',
         isTopFrame: false,
         navigationType: 'other',
-      })
-    ).toBe(false);
+      },
+      false,
+    ],
     // The shape Android sends: no frame, no gesture.
-    expect(
-      props.onShouldStartLoadWithRequest({ url: 'https://evil.example/' })
-    ).toBe(false);
+    [{ url: 'https://evil.example/' }, false],
+  ])('loads only the inline documents: %o', (request, loads) => {
+    expect(webViewOf(render()).onShouldStartLoadWithRequest(request)).toBe(
+      loads
+    );
   });
 });

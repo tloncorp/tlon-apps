@@ -4,6 +4,7 @@ import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
 import { useIsElectron } from '../../../hooks/useIsElectron';
 import { ScreenHeader } from '../ScreenHeader';
+import { BucketFileViewerScriptsBanner } from './BucketFileViewerScriptsBanner';
 import {
   BucketFileViewerItem,
   type HtmlPreviewScripts,
@@ -67,22 +68,10 @@ export function BucketFileViewer({
         backAction={onClose}
         borderBottom
         rightControls={
-          offerScripts || (item.uri && onOpenExternally) ? (
-            <>
-              {offerScripts ? (
-                <ScreenHeader.TextButton
-                  onPress={() => setScriptsRunFor(fileId)}
-                  testID="BucketFileViewerRunScripts"
-                >
-                  Run scripts
-                </ScreenHeader.TextButton>
-              ) : null}
-              {item.uri && onOpenExternally ? (
-                <ScreenHeader.TextButton onPress={onOpenExternally}>
-                  Open
-                </ScreenHeader.TextButton>
-              ) : null}
-            </>
+          item.uri && onOpenExternally ? (
+            <ScreenHeader.TextButton onPress={onOpenExternally}>
+              Open
+            </ScreenHeader.TextButton>
           ) : null
         }
         showSubtitle
@@ -90,6 +79,11 @@ export function BucketFileViewer({
         title={heading.title}
         useHorizontalTitleLayout
       />
+      {offerScripts ? (
+        <BucketFileViewerScriptsBanner
+          onEnable={() => setScriptsRunFor(fileId)}
+        />
+      ) : null}
       <View flex={1} minHeight={0} backgroundColor="$secondaryBackground">
         {loading ? (
           <LoadingPreview />
