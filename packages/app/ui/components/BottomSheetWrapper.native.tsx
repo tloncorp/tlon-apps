@@ -29,7 +29,7 @@ import {
  * The single native sheet adapter. Expo UI delegates presentation, gestures,
  * keyboard handling, and dismissal to SwiftUI on iOS and Compose on Android.
  */
-const HANDLELESS_TOP_PADDING = 24;
+const HANDLELESS_TOP_PADDING = 28;
 
 export const BottomSheetWrapper = forwardRef<
   ExpoBottomSheet,

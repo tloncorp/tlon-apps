@@ -70,7 +70,10 @@ const platformColor = PlatformColor;
 const contentTopInset = 36;
 // Groups sit 16pt from the sheet edge and text 40pt, like the other sheets.
 const contentHorizontalInset = 16;
+// A header starts 24 inside its row when it opens with text and 12 when it
+// opens with an icon or the back chevron, which puts those at 28.
 const headerLeadingInset = 24;
+const headerLeadingIconInset = 12;
 // Keep long titles clear of the native 44-point close control and its trailing gap.
 const headerTrailingInset = 56;
 const headerActionGap = 36;
@@ -351,7 +354,8 @@ export function ExpoUIActionContent({
           spacing={20}
           modifiers={[
             padding({
-              leading: headerLeadingInset,
+              leading:
+                onBack || icon ? headerLeadingIconInset : headerLeadingInset,
               trailing: headerTrailingInset,
             }),
           ]}

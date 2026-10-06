@@ -173,6 +173,8 @@ export const desktopFlyoutContentProps = {
 // top of the sheet, first group about 111pt. Content in a scroll view stays
 // below the button, since the scroll view would clip anything moved above it.
 const CloseButtonRowContext = createContext(false);
+// True inside an Android sheet that shows the native drag handle.
+const HandleStripContext = createContext(false);
 const closeButtonClearance = 52;
 const closeButtonRowTop = 34;
 const closeButtonRowTrailingInset = 44;
@@ -381,13 +383,20 @@ const ActionSheetComponent = ({
     >
       <ActionSheetContext.Provider value={actionSheetContextValue}>
         <CloseButtonRowContext.Provider value={Platform.OS === 'ios'}>
-          {forcedMode === 'popover' ? (
-            <ActionSheet.ScrollableContent>
-              <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-            </ActionSheet.ScrollableContent>
-          ) : (
-            children
-          )}
+          <HandleStripContext.Provider
+            value={
+              Platform.OS === 'android' &&
+              props.enableContentPanningGesture !== false
+            }
+          >
+            {forcedMode === 'popover' ? (
+              <ActionSheet.ScrollableContent>
+                <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+              </ActionSheet.ScrollableContent>
+            ) : (
+              children
+            )}
+          </HandleStripContext.Provider>
         </CloseButtonRowContext.Provider>
       </ActionSheetContext.Provider>
     </BottomSheetWrapper>
@@ -436,8 +445,15 @@ const ActionSheetHeaderFrame = styled(View, {
 const ActionSheetHeader = ActionSheetHeaderFrame.styleable<{
   /** Inset both sides to clear the close button, for content centered on the sheet. */
   centered?: boolean;
-}>(({ children, centered, ...props }, ref) => {
+  /**
+   * The header starts with an icon or avatar rather than text. A row is a box
+   * 16 from the sheet edge; text starts 24 inside it and an icon 12, which
+   * puts the icon at 28 and the text beside it at 88.
+   */
+  leadingIcon?: boolean;
+}>(({ children, centered, leadingIcon, ...props }, ref) => {
   const closeButtonOffset = useCloseButtonRowOffset();
+  const underHandleStrip = useContext(HandleStripContext);
   return (
     <ActionSheetHeaderFrame
       {...(closeButtonOffset
@@ -448,11 +464,20 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable<{
             paddingRight: closeButtonRowTrailingInset,
             ...(centered ? { paddingLeft: closeButtonRowTrailingInset } : null),
           }
-        : null)}
+        : underHandleStrip
+          ? // Android's handle strip is 48 tall and already leaves room under
+            // the handle, so the row gives up its own padding above.
+            { marginTop: -getTokenValue('$l', 'space') }
+          : null)}
       {...props}
       ref={ref}
     >
-      <ListItem paddingHorizontal="$2xl">{children}</ListItem>
+      <ListItem
+        paddingHorizontal="$2xl"
+        {...(leadingIcon ? { paddingLeft: '$l' } : null)}
+      >
+        {children}
+      </ListItem>
     </ActionSheetHeaderFrame>
   );
 });
@@ -843,7 +868,7 @@ export const SimpleActionSheetHeader = ({
 }) => {
   const isWindowNarrow = useIsWindowNarrow();
   return (
-    <ActionSheet.Header>
+    <ActionSheet.Header leadingIcon={!!icon}>
       {icon ? icon : null}
       <ListItem.MainContent
         alignItems={isWindowNarrow ? 'flex-start' : 'center'}

@@ -306,7 +306,8 @@ export function ExpoUIActionContent({
       <Row
         verticalAlignment="center"
         horizontalArrangement={{ spacedBy: 20 }}
-        modifiers={[fillMaxWidth(), padding(24, 0, 8, 0)]}
+        // 24 inside the row for text, 12 for an icon, which puts it at 28.
+        modifiers={[fillMaxWidth(), padding(icon ? 12 : 24, 0, 8, 0)]}
       >
         {icon ? <HostedIcon icon={icon} rounded={!onBack} /> : null}
         <Column
