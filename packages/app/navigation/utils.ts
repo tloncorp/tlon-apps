@@ -521,7 +521,7 @@ export function useRootNavigation() {
   const navigateToBotSavedLogins = useCallback(
     (moon?: string) => {
       const params = moon ? { moon } : undefined;
-      if (isWindowNarrow)
+      if (Platform.OS !== 'web' || isWindowNarrow)
         navigationRef.current.navigate('BotSavedLogins', params);
       else {
         const navigate = navigationRef.current.navigate as (

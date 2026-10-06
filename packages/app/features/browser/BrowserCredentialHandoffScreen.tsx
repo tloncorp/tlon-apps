@@ -225,6 +225,14 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     (!(choice?.mode === 'use' || saveLogin) || !!vaultAuth) &&
     (!saveLogin || choice?.mode === 'use' || !!saveLabel);
 
+  const clearSavedLoginSelection = useCallback(() => {
+    pendingSave.current = undefined;
+    setSaveLogin(false);
+    setChoice(undefined);
+    setAccountLabel('');
+    setSaveNotice(undefined);
+  }, []);
+
   useEffect(() => {
     setVaultAuth(undefined);
     setVaultError(undefined);
@@ -236,21 +244,15 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           setVaultAuth({ ...result, fillUrl: handoff.fillUrl });
       })
       .catch(() => {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
+          clearSavedLoginSelection();
           setVaultError(
             'Saved logins are unavailable. You can still enter your login.'
           );
+        }
       });
     return () => controller.abort();
-  }, [handoff, vaultEligible]);
-
-  const clearSavedLoginSelection = useCallback(() => {
-    pendingSave.current = undefined;
-    setSaveLogin(false);
-    setChoice(undefined);
-    setAccountLabel('');
-    setSaveNotice(undefined);
-  }, []);
+  }, [handoff, vaultEligible, clearSavedLoginSelection]);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {

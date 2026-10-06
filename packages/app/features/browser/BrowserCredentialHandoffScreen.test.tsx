@@ -295,6 +295,75 @@ describe('secure browser form screen', () => {
     }
   });
 
+  it.each(['use', 'save', 'update'] as const)(
+    'allows manual entry when password-step authorization fails after %s',
+    async (mode) => {
+      const account = {
+        id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
+        revision: 1,
+        label: 'Personal',
+        origin: 'https://example.com',
+        updatedAt: 1,
+      };
+      mocks.authorize
+        .mockResolvedValueOnce({ grant: 'g'.repeat(43), accounts: [account] })
+        .mockRejectedValueOnce(new Error('Authorization unavailable'));
+      mocks.beginHandoff.mockResolvedValue(form([username], { vault }));
+      mocks.nextHandoff
+        .mockResolvedValueOnce(
+          form([password], {
+            vault,
+            formId: 'password-step',
+            fillUrl:
+              'https://browser-session.tlon.network/credential-fills/password',
+          })
+        )
+        .mockResolvedValueOnce(null);
+      mocks.submitCredentials
+        .mockResolvedValueOnce({
+          submitted: true,
+          ...(mode === 'use' ? {} : { saveStatus: 'pending' }),
+        })
+        .mockResolvedValueOnce({ submitted: true });
+      const { renderer } = await render();
+      if (mode === 'use') await press(renderer, 'Personal');
+      else {
+        if (mode === 'update') await press(renderer, 'Update Personal');
+        else
+          act(() =>
+            renderer.root
+              .findByProps({ accessibilityRole: 'checkbox' })
+              .props.onPress()
+          );
+        act(() => enter(renderer, username.label, 'private-user'));
+      }
+      await press(renderer);
+      expect(mocks.authorize).toHaveBeenCalledTimes(2);
+      expect(
+        renderer.root.findByProps({ accessibilityLabel: password.label }).props
+          .value
+      ).toBe('');
+      expect(
+        renderer.root.findByProps({ accessibilityRole: 'checkbox' }).props
+          .accessibilityState.checked
+      ).toBe(false);
+      expect(JSON.stringify(renderer.toJSON())).toContain(
+        'You can still enter your login.'
+      );
+      act(() => enter(renderer, password.label, 'private-password'));
+      expect(
+        renderer.root.findByProps({ label: 'Continue' }).props.disabled
+      ).toBe(false);
+      await press(renderer);
+      expect(mocks.submitCredentials.mock.calls[1][1]).toEqual({
+        values: { f1: 'private-password' },
+        submit: true,
+      });
+      expect(mocks.complete).toHaveBeenCalledOnce();
+      await act(async () => renderer.unmount());
+    }
+  );
+
   it.each([true, false])(
     'requires fresh code entry after using a saved login (vault advertised=%s)',
     async (advertised) => {
