@@ -1509,14 +1509,21 @@ function linkScript(key: string, nonce?: string): string {
     }
     return target === null || target === '' ? '_self' : target.toLowerCase();
   }
-  // The link a click is on: an HTML or SVG <a> or <area> with an address,
-  // or a MathML element with an href, which WebKit follows (Chromium does not).
+  // Whether a browser follows this element as a link: an HTML or SVG <a> or
+  // an HTML <area> with an address (an <area> in an svg is an unknown
+  // element), or a MathML element with an href, which WebKit follows
+  // (Chromium does not).
+  function isLink(node) {
+    if (node.namespaceURI === MATHML) return node.hasAttribute('href');
+    var element = node.localName === 'a' ? node.namespaceURI === XHTML || node.namespaceURI === SVG : node.localName === 'area' && node.namespaceURI === XHTML;
+    return element && hrefOf(node) !== null;
+  }
+  // The link a click is on.
   function linkIn(event) {
     var nodes = composedPath.call(event);
     for (var i = 0; i < nodes.length; i++) {
       var node = nodes[i];
-      if (!node || node.nodeType !== 1) continue;
-      if (node.namespaceURI === MATHML ? node.hasAttribute('href') : (node.localName === 'a' || node.localName === 'area') && hrefOf(node) !== null) return node;
+      if (node && node.nodeType === 1 && isLink(node)) return node;
     }
     return null;
   }
@@ -1750,13 +1757,13 @@ const LINK_ATTRIBUTES = new Set(['href', 'target', 'xlink:href']);
 const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
 
 /**
- * The file's markup with every link -- `<a>` and `<area>`, HTML or SVG, and
- * any MathML element with an `href`, which WebKit follows -- made safe to
- * follow with no script running, as under Electron. A link Electron's parser
- * reads otherwise than parse5 still opens only through the desktop shell's
- * window-open handler, which hands the system browser web, mail and phone
- * addresses alone, and there a relative address resolves against the app's
- * `file:` one.
+ * The file's markup with every link -- an HTML or SVG `<a>`, an HTML
+ * `<area>`, and any MathML element with an `href`, which WebKit follows --
+ * made safe to follow with no script running, as under Electron. A link
+ * Electron's parser reads otherwise than parse5 still opens only through the
+ * desktop shell's window-open handler, which hands the system browser web,
+ * mail and phone addresses alone, and there a relative address resolves
+ * against the app's `file:` one.
  *
  * Its own frame opens a link as a popup that escapes the sandbox, with no
  * script of ours to check where it goes, so each link is settled here
@@ -1797,7 +1804,8 @@ function withLinksAimedAtBlank(html: string, depth = 0): string | null {
     const link =
       element.namespaceURI === NS.MATHML
         ? attributeOf(element, 'href') !== undefined
-        : element.nodeName === 'a' || element.nodeName === 'area';
+        : element.nodeName === 'a' ||
+          (element.nodeName === 'area' && element.namespaceURI === NS.HTML);
     const srcdoc =
       element.nodeName === 'iframe' && element.namespaceURI === NS.HTML
         ? attributeOf(element, 'srcdoc')

@@ -46,7 +46,7 @@ const searchRevealFiles = Array.from({ length: 48 }, (_, index) =>
 
 // A self-contained page, as an export or a generated report would be. Where
 // the preview runs scripts the count reads "3"; "three" means they were
-// held: on web until Run scripts is pressed, and always under Electron.
+// held: on web until Enable is pressed, and always under Electron.
 const launchRecapHtml = `<!doctype html>
 <html lang="en">
   <head>

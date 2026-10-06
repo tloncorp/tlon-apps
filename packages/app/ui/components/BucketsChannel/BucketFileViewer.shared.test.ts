@@ -815,6 +815,8 @@ describe('htmlPreviewDocument without scripts', () => {
     ['<select><input><base href="https://t.example/"><a href="help.html">x</a>', '<a target="_blank" href="https://t.example/help.html">x</a>'],
     // A MathML element's href, which WebKit follows, is settled too.
     ['<math><mtext href="tlon://open">x</mtext></math>', '<mtext target="_blank">x</mtext>'],
+    // An area inside an svg is an unknown element, which nothing follows.
+    ['<svg><area href="tlon://open"><rect/></area></svg>', '<svg><area href="tlon://open"><rect/></area></svg>'],
     // Markup read as the tokenizer and tree builder read it.
     ['<p>İİİ</p><a href="tlon://open">open</a>', '<p>İİİ</p><a target="_blank">open</a>'],
     ['<p>İİİ</p><base href="https://b.example/"><a href="x">x</a>', '<a target="_blank" href="https://b.example/x">x</a>'],
