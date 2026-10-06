@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type TlonAgentTurnObserver,
   type TlonAgentTurnSummary,
+  beginTlonTurnSilenceObservation,
+  recordTlonTurnSilenceOutput,
   claimActiveTlonTurnOutput,
   createTlonAgentTurnOtelObserver,
   observeActiveTlonTurnDelivery,
@@ -17,6 +19,7 @@ const baseTurn = {
   accountId: 'hosted',
   agentId: 'main',
   destinationKind: 'dm' as const,
+  inputMessageId: '~nec/111',
   runId: 'run-1',
   sessionKey: 'agent:main:tlon:direct:~nec',
   ship: '~zod',
@@ -404,9 +407,13 @@ describe('Tlon agent turn classification', () => {
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
       destinationKind: 'dm',
+      dispatch: 'attempted',
+      dispatchAttemptCount: 1,
+      dispatchExpected: true,
       durationMs: 1250,
       execution: 'completed',
       finalErrorReplyCount: 0,
+      inputMessageId: '~nec/111',
       lastToolError: null,
       reason: 'reply_and_action',
       result: 'reply_and_action',
@@ -570,6 +577,8 @@ describe('Tlon agent turn async scope', () => {
       delivery: 'delivered',
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
+      dispatch: 'attempted',
+      dispatchAttemptCount: 1,
     });
 
     const failure = startTlonAgentTurn(
@@ -588,7 +597,95 @@ describe('Tlon agent turn async scope', () => {
       delivery: 'failed',
       deliveryFailureCount: 1,
       deliverySuccessCount: 0,
+      dispatch: 'attempted',
+      dispatchAttemptCount: 1,
     });
+  });
+
+  it('records dispatch attempts and correlated output message IDs', async () => {
+    const recordDispatchAttempted = vi.fn();
+    const recordDispatchFailed = vi.fn();
+    const recordMoonReplyEnqueued = vi.fn();
+    const observer: TlonAgentTurnObserver = {
+      recordDispatchAttempted,
+      recordDispatchFailed,
+      recordMoonReplyEnqueued,
+      recordStarted: () => undefined,
+      recordTerminal: () => undefined,
+    };
+    const turn = startTlonAgentTurn(baseTurn, { observer });
+
+    await turn.run(() =>
+      observeActiveTlonTurnDelivery(async () => ({
+        channel: 'tlon',
+        messageId: '~zod/222',
+      }))
+    );
+
+    expect(recordDispatchAttempted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptNumber: 1,
+        inputMessageId: '~nec/111',
+        runId: 'run-1',
+      })
+    );
+    expect(recordMoonReplyEnqueued).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptNumber: 1,
+        inputMessageId: '~nec/111',
+        outputMessageId: '~zod/222',
+        runId: 'run-1',
+      })
+    );
+
+    const failedTurn = startTlonAgentTurn(
+      { ...baseTurn, runId: 'run-2' },
+      { observer }
+    );
+    await expect(
+      failedTurn.run(() =>
+        observeActiveTlonTurnDelivery(async () => {
+          throw new TypeError('send failed');
+        })
+      )
+    ).rejects.toThrow('send failed');
+    expect(recordDispatchFailed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptNumber: 1,
+        errorKind: 'TypeError',
+        inputMessageId: '~nec/111',
+        runId: 'run-2',
+      })
+    );
+  });
+
+  it('attributes a cross-account dispatch to the outbound account and ship', async () => {
+    const recordDispatchAttempted = vi.fn();
+    const observer: TlonAgentTurnObserver = {
+      recordDispatchAttempted,
+      recordStarted: () => undefined,
+      recordTerminal: () => undefined,
+    };
+    const turn = startTlonAgentTurn(baseTurn, { observer });
+
+    await turn.run(() =>
+      observeActiveTlonTurnDelivery(
+        async () => ({ messageId: '~marzod/222' }),
+        {
+          accountId: 'secondary',
+          destinationKind: 'group_channel',
+          ship: '~marzod',
+        }
+      )
+    );
+
+    expect(recordDispatchAttempted).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        accountId: 'secondary',
+        destinationKind: 'group_channel',
+        ship: 'marzod',
+      })
+    );
   });
 
   it('keeps observer failures out of the dispatch path', async () => {
@@ -672,6 +769,7 @@ describe('Tlon agent turn OTEL observer', () => {
         attributes: {
           delivery: 'delivered',
           destination_kind: 'dm',
+          dispatch: 'attempted',
           execution: 'completed',
           reason: 'reply',
           result: 'reply',
@@ -684,6 +782,7 @@ describe('Tlon agent turn OTEL observer', () => {
         attributes: {
           delivery: 'delivered',
           destination_kind: 'dm',
+          dispatch: 'attempted',
           execution: 'completed',
           reason: 'reply',
           result: 'reply',
@@ -691,17 +790,32 @@ describe('Tlon agent turn OTEL observer', () => {
         },
       },
     ]);
-    expect(info).toHaveBeenCalledWith('tlon.agent_turn.terminal', {
+    expect(info).toHaveBeenNthCalledWith(
+      1,
+      'tlon.message_journey.turn_started',
+      expect.objectContaining({
+        'tlon.message_journey.bot_ship': '~zod',
+        'tlon.message_journey.event': 'turn_started',
+        'tlon.message_journey.input_message_id': '~nec/111',
+        'tlon.message_journey.run_id': 'run-1',
+        'tlon.message_journey.schema_version': 1,
+      })
+    );
+    expect(info).toHaveBeenNthCalledWith(2, 'tlon.agent_turn.terminal', {
       'tlon.turn.account_id': 'hosted',
       'tlon.turn.agent_id': 'main',
       'tlon.turn.delivery': 'delivered',
       'tlon.turn.delivery_failure_count': 0,
       'tlon.turn.delivery_success_count': 1,
       'tlon.turn.destination_kind': 'dm',
+      'tlon.turn.dispatch': 'attempted',
+      'tlon.turn.dispatch_attempt_count': 1,
+      'tlon.turn.dispatch_expected': true,
       'tlon.turn.duration_ms': 2500,
       'tlon.turn.event': 'tlon.agent_turn.terminal',
       'tlon.turn.execution': 'completed',
       'tlon.turn.final_error_reply_count': 0,
+      'tlon.turn.input_message_id': '~nec/111',
       'tlon.turn.reason': 'reply',
       'tlon.turn.result': 'reply',
       'tlon.turn.run_id': 'run-1',
@@ -741,5 +855,187 @@ describe('Tlon agent turn OTEL observer', () => {
       'tlon.agent.turns',
       'tlon.agent.turn.duration',
     ]);
+  });
+});
+
+describe('Tlon agent-end silence evidence', () => {
+  const ctx = { ...baseTurn, sessionId: 'session-1' };
+  const silentEnd = {
+    success: true,
+    messages: [
+      { role: 'assistant', content: [{ type: 'text', text: 'NO_REPLY' }] },
+    ],
+  };
+  const start = () => startTlonAgentTurn(baseTurn, { observer: noOpObserver });
+
+  it('classifies NO_REPLY removed before dispatch without an onSkip callback', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    // Core hooks need not execute inside the monitor's AsyncLocalStorage.
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 })).toMatchObject({
+      execution: 'completed',
+      result: 'intentional_silence',
+      reason: 'silent',
+      dispatch: 'not_applicable',
+      dispatchExpected: false,
+      sourceReplyCount: 0,
+      toolCallCount: 0,
+    });
+  });
+
+  it.each([
+    ['run', { runId: 'other-run' }],
+    ['session key', { sessionKey: 'other-key' }],
+    ['session ID', { sessionId: 'other-session' }],
+    ['missing run', { runId: undefined }],
+    ['missing session ID', { sessionId: undefined }],
+  ])('ignores an end hook with a different %s', (_name, partial) => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, { ...ctx, ...partial });
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it('requires an observed model boundary, not merely an active turn', () => {
+    const turn = start();
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it('preserves session identity across a partial model-start hook', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    beginTlonTurnSilenceObservation({ ...ctx, sessionId: undefined });
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe(
+      'intentional_silence'
+    );
+  });
+
+  it('clears silence before a retry, even if it never completes', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    beginTlonTurnSilenceObservation({ ...ctx, sessionId: undefined });
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it.each([
+    { success: false, messages: silentEnd.messages, error: 'failed' },
+    { success: true, messages: [] },
+    {
+      success: true,
+      messages: [
+        { role: 'assistant', content: [{ type: 'text', text: 'Report' }] },
+      ],
+    },
+  ])('replaces prior silence with the latest completion: %j', (end) => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    recordTlonTurnSilenceOutput(end, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it.each([
+    [{ timedOut: true }, 'timed_out'],
+    [{ cancelled: true }, 'cancelled'],
+    [{ abandoned: true }, 'abandoned'],
+    [{ dispatchError: new Error('failed') }, 'failed'],
+  ] as const)('preserves terminal failure %j', (terminal, execution) => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10, ...terminal })).toMatchObject({
+      execution,
+      result: 'empty',
+    });
+  });
+
+  it.each([
+    [() => recordActiveTlonTurnToolCall(), 'action_only', 'action_only'],
+    [() => recordActiveTlonTurnSourceReply(), 'reply', 'reply_not_delivered'],
+    [
+      () => recordActiveTlonTurnDelivery(false),
+      'intentional_silence',
+      'delivery_failed',
+    ],
+    [
+      () => recordActiveTlonTurnSourceReply({ kind: 'final', isError: true }),
+      'error_reply',
+      'reply_not_delivered',
+    ],
+  ] as const)(
+    'preserves counted replies, actions, and delivery failures',
+    (record, result, reason) => {
+      const turn = start();
+      beginTlonTurnSilenceObservation(ctx);
+      turn.run(record);
+      recordTlonTurnSilenceOutput(silentEnd, ctx);
+      expect(turn.finalize({ durationMs: 10 })).toMatchObject({
+        result,
+        reason,
+      });
+    }
+  );
+
+  it('does not reuse finalized evidence or mutate a terminal summary', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    const summary = turn.finalize({ durationMs: 10 });
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(summary.result).toBe('empty');
+    const next = start();
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(next.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it('keeps overlapping runs in the same session independent', () => {
+    const first = start();
+    const nextCtx = { ...ctx, runId: 'next-run' };
+    const next = startTlonAgentTurn(nextCtx, { observer: noOpObserver });
+    beginTlonTurnSilenceObservation(ctx);
+    beginTlonTurnSilenceObservation(nextCtx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(next.finalize({ durationMs: 10 }).result).toBe('empty');
+    expect(first.finalize({ durationMs: 10 }).result).toBe(
+      'intentional_silence'
+    );
+  });
+
+  it('rejects an old session completion after the session changes', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    beginTlonTurnSilenceObservation({ ...ctx, sessionId: 'new-session' });
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+  });
+
+  it('drops old silence when the observation bound is reached', () => {
+    const turn = start();
+    beginTlonTurnSilenceObservation(ctx);
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    const otherTurns = Array.from({ length: 1024 }, (_, i) =>
+      startTlonAgentTurn(
+        { ...baseTurn, runId: `bounded-${i}` },
+        { observer: noOpObserver }
+      )
+    );
+    recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe('empty');
+    for (const other of otherTurns) other.finalize({ durationMs: 10 });
+  });
+
+  it('shares evidence with an independently loaded plugin module', async () => {
+    const turn = start();
+    vi.resetModules();
+    const hooks = await import('./turn-recorder.js');
+    hooks.beginTlonTurnSilenceObservation(ctx);
+    hooks.recordTlonTurnSilenceOutput(silentEnd, ctx);
+    expect(turn.finalize({ durationMs: 10 }).result).toBe(
+      'intentional_silence'
+    );
   });
 });

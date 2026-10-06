@@ -1,4 +1,10 @@
-import type { Story } from '@tloncorp/api';
+import {
+  type Story,
+  readAll,
+  readChannel,
+  scryChangesSince,
+  toClientUnreads,
+} from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-outbound';
@@ -48,6 +54,7 @@ import {
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
+import { recordTlonMessageJourneyEvent } from '../message-journey.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -107,6 +114,7 @@ import {
 } from '../turn-recorder.js';
 import { resolveTlonAccount } from '../types.js';
 import {
+  captureTlonApiScope,
   runWithTlonApiScope,
   setScopedTlonApiWithPoke,
 } from '../urbit/api-client.js';
@@ -121,8 +129,13 @@ import {
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
 import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
-import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
 import { installBudgetHoldNotifier } from '../cron-budget-runtime.js';
+import {
+  type BotProfile,
+  formatSentAt,
+  sendChannelPost,
+  sendDm,
+} from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
@@ -130,6 +143,16 @@ import {
   getTlonVersionIdentity,
   resolveTlonSkillVersion,
 } from '../version.js';
+import {
+  channelReadKey,
+  createActivityReadTracker,
+  dmReadKey,
+  dmReadTarget,
+} from './activity-read.js';
+import {
+  RESTART_REPLAY_WINDOW_MS,
+  collectMissedMessages,
+} from './restart-replay.js';
 import {
   type OnboardingStepReport,
   createAgentOnboardingCatchUpScheduler,
@@ -183,6 +206,7 @@ import {
   isAgentTimeoutEvent,
   resolveCompactionObservationTimeoutMs,
   resolveDispatchTimeoutMs,
+  resolveTimeoutOverrideReplyOptions,
 } from './dispatch-timeouts.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
@@ -212,6 +236,7 @@ import {
   lookupOrFetchCachedChannelMessage,
   renderHistoryContent,
 } from './history.js';
+import { prepareChannelSummary } from './channel-summary.js';
 import {
   downloadBlobAttachments,
   downloadMessageImages,
@@ -326,6 +351,9 @@ export type MonitorTlonOpts = {
   abortSignal?: AbortSignal;
   accountId?: string | null;
   onReady?: (connection: RestartCatchupConnection) => void;
+  /** Resolves when restart catch-up is over; any activity reads replay has
+   * not released are released then. Absent means there is no catch-up. */
+  activityReadsReady?: Promise<void>;
   /**
    * Channel-start config snapshot (the gateway adapter's `ctx.cfg`), used
    * instead of an independent `core.config.current()` call so
@@ -914,6 +942,54 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     };
 
     const processedTracker = createProcessedMessageTracker(2000);
+    // @tloncorp/api calls resolve their client from the monitor's async scope;
+    // reads fire from SSE callbacks and replay from a gateway lifecycle hook,
+    // so re-enter it explicitly.
+    const runInApiScope = captureTlonApiScope();
+    const inApiScope = <T>(fn: () => Promise<T>) =>
+      runInApiScope ? runInApiScope(fn) : fn();
+    // Marks each channel/DM read once its messages are handled, so restart
+    // replay only picks up what the bot never got to.
+    const activityReads = createActivityReadTracker({
+      markRead: (target) =>
+        inApiScope(() => readChannel({ ...target, deep: true })),
+      isStopping: () => Boolean(opts.abortSignal?.aborted),
+      onError: (error) =>
+        runtime.log?.(`[tlon] Failed to mark activity read: ${String(error)}`),
+    });
+    // Replay releases sources as it covers them; once catch-up is over for any
+    // reason (no catch-up, skipped, replay failed, finished), release the rest.
+    void (opts.activityReadsReady ?? Promise.resolve()).then(() =>
+      activityReads.releaseAll()
+    );
+    // A channel read needs the channel's group. The startup init scry can fail
+    // and, with discovery off, nothing retries it; refresh the mapping (at
+    // most once a minute, one at a time) when an unmapped channel needs it.
+    let lastChannelGroupRefresh = 0;
+    let channelGroupRefresh: Promise<void> | null = null;
+    const refreshChannelGroups = (): Promise<void> => {
+      if (channelGroupRefresh) return channelGroupRefresh;
+      if (Date.now() - lastChannelGroupRefresh < 60_000)
+        return Promise.resolve();
+      lastChannelGroupRefresh = Date.now();
+      channelGroupRefresh = fetchInitData(api!, runtime, {
+        signal: opts.abortSignal,
+      })
+        .then((initData) => {
+          for (const [nest, groupFlag] of initData.channelToGroup) {
+            channelToGroup.set(nest, groupFlag);
+          }
+        })
+        .catch((error) =>
+          runtime.log?.(
+            `[tlon] Failed to refresh channel groups: ${String(error)}`
+          )
+        )
+        .finally(() => {
+          channelGroupRefresh = null;
+        });
+      return channelGroupRefresh;
+    };
     let groupChannels: string[] = [];
     const channelToGroup = new Map<string, string>();
     // Every nest discovery has reported, recorded outside any "not already
@@ -2515,7 +2591,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       replyParentId?: string | null; // Override parentId for delivery only (not in ctx payload)
       degraded?: boolean;
       retryOf?: string; // lensId of the failed run this dispatch retries
-    }) => {
+    }): Promise<boolean | void> => {
       const {
         messageId,
         senderShip,
@@ -2568,6 +2644,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const trigger: ContextLensTrigger = isChannelSummaryRequest
         ? 'summarization'
         : (params.trigger ?? 'unknown');
+      recordTlonMessageJourneyEvent({
+        botShip: botShipName,
+        destinationKind: isGroup ? 'group_channel' : 'dm',
+        inputMessageId: messageId,
+        ownerShip: effectiveOwnerShip,
+        peerShip: senderShip,
+        stage: 'plugin_input_selected',
+        trigger,
+      });
       const citedContent = sanitizeMessageText(params.citedContent ?? '');
       let messageText = citedContent
         ? `${citedContent}\n\n${currentMessageText}`
@@ -2666,6 +2751,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
       }
       logContextLens(lens.lensId, 'created');
+      const preparationStartTime = Date.now();
+      const runId = randomUUID();
+      const turnRecorder = startTlonAgentTurn({
+        accountId: account.accountId,
+        agentId: route.agentId,
+        destinationKind: isGroup ? 'group_channel' : 'dm',
+        inputMessageId: messageId,
+        runId,
+        sessionKey: route.sessionKey,
+        ship: botShipName,
+        trigger,
+      });
 
       // Track owner interaction timestamp for the nudge scheduler.
       // The shadows update synchronously; the durable %settings writes happen
@@ -2963,130 +3060,47 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
 
       if (isChannelSummaryRequest && groupChannel) {
-        try {
-          const history = await getChannelHistory(
-            api,
-            groupChannel,
-            50,
-            runtime
-          );
-          contextLenses.recordContext(lens.lensId, {
-            channelMessages: history.length,
-          });
-          contextLenses.recordContextSource(lens.lensId, {
-            kind: 'message',
-            label: 'Channel summary history',
-            sourceId: groupChannel,
-            included: history.length > 0,
-            reason:
-              history.length > 0
-                ? `${history.length} messages for summarization`
-                : 'empty history',
-          });
-          if (history.length === 0) {
-            const noHistoryMsg =
-              "I couldn't fetch any messages for this channel. It might be empty or there might be a permissions issue.";
-            const contextLensBlob = buildContextLensReferenceBlobField(
-              lens.lensId
-            );
-            let outputMessageId: string | null = null;
-            if (isGroup && groupChannel) {
-              const result = await sendChannelPost({
-                botProfile: getBotProfile(),
-                fromShip: botShipName,
-                nest: groupChannel,
-                story: markdownToStory(noHistoryMsg),
-                replyToId: deliverParentId ?? undefined,
-                blob: contextLensBlob,
-              });
-              outputMessageId = result.messageId;
-            } else {
-              const result = await sendDm({
-                botProfile: getBotProfile(),
-                fromShip: botShipName,
-                toShip: senderShip,
-                text: noHistoryMsg,
-                blob: contextLensBlob,
-              });
-              outputMessageId = result.messageId;
-            }
-            contextLenses.recordPersistence(lens.lensId, { postsReply: true });
-            if (outputMessageId) {
-              contextLenses.recordOutput(lens.lensId, {
-                messageId: outputMessageId,
-                conversationId: isGroup ? (groupChannel ?? '') : senderShip,
-                kind: isGroup ? 'channel' : 'dm',
-                sentAt: Date.now(),
-                preview: previewText(noHistoryMsg),
-                chunkIndex: 0,
-              });
-            }
-            contextLenses.recordPersistenceEvent(lens.lensId, {
-              kind: 'conversation_state',
-              action: 'created',
-              location: 'urbit',
-              status: 'ok',
-              key: 'reply',
-              reason: 'posted no-history summary response',
-            });
-            contextLenses.recordLifecycle(lens.lensId, {
-              completedAt: Date.now(),
-              durationMs: Date.now() - lens.createdAt,
-              deliveredMessageCount: 1,
-            });
-            contextLenses.setStatus(lens.lensId, 'completed');
-            logContextLens(lens.lensId, 'final');
-            return;
-          }
-
-          const historyText = history
-            .map(
-              (msg) =>
-                `[${new Date(msg.timestamp).toLocaleString()}] ${msg.author}: ${sanitizeMessageText(renderHistoryContent(msg))}`
-            )
-            .join('\n');
-
-          messageText =
-            `Please summarize this channel conversation (${history.length} recent messages):\n\n${historyText}\n\n` +
-            'Provide a concise summary highlighting:\n' +
-            '1. Main topics discussed\n' +
-            '2. Key decisions or conclusions\n' +
-            '3. Action items if any\n' +
-            '4. Notable participants';
-        } catch (error: any) {
-          const errorMsg = `Sorry, I encountered an error while fetching the channel history: ${error?.message ?? String(error)}`;
-          const contextLensBlob = buildContextLensReferenceBlobField(
-            lens.lensId
-          );
-          let outputMessageId: string | null = null;
-          if (isGroup && groupChannel) {
-            const result = await sendChannelPost({
+        const preparation = await prepareChannelSummary({
+          dispatchFallback: (fallback) =>
+            sendChannelPost({
               botProfile: getBotProfile(),
               fromShip: botShipName,
               nest: groupChannel,
-              story: markdownToStory(errorMsg),
+              story: markdownToStory(fallback.text),
               replyToId: deliverParentId ?? undefined,
-              blob: contextLensBlob,
+              blob: buildContextLensReferenceBlobField(lens.lensId),
+            }),
+          dispatchStartTime: preparationStartTime,
+          loadHistory: () => getChannelHistory(api, groupChannel, 50, runtime),
+          onHistory: (history) => {
+            contextLenses.recordContext(lens.lensId, {
+              channelMessages: history.length,
             });
-            outputMessageId = result.messageId;
-          } else {
-            const result = await sendDm({
-              botProfile: getBotProfile(),
-              fromShip: botShipName,
-              toShip: senderShip,
-              text: errorMsg,
-              blob: contextLensBlob,
+            contextLenses.recordContextSource(lens.lensId, {
+              kind: 'message',
+              label: 'Channel summary history',
+              sourceId: groupChannel,
+              included: history.length > 0,
+              reason:
+                history.length > 0
+                  ? `${history.length} messages for summarization`
+                  : 'empty history',
             });
-            outputMessageId = result.messageId;
-          }
+          },
+          turnRecorder,
+        });
+
+        if (preparation.kind === 'fallback') {
+          const directReply = preparation.fallback;
+          const outputMessageId = preparation.dispatchResult.messageId;
           contextLenses.recordPersistence(lens.lensId, { postsReply: true });
           if (outputMessageId) {
             contextLenses.recordOutput(lens.lensId, {
               messageId: outputMessageId,
-              conversationId: isGroup ? (groupChannel ?? '') : senderShip,
-              kind: isGroup ? 'channel' : 'dm',
+              conversationId: groupChannel,
+              kind: 'channel',
               sentAt: Date.now(),
-              preview: previewText(errorMsg),
+              preview: previewText(directReply.text),
               chunkIndex: 0,
             });
           }
@@ -3096,7 +3110,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             location: 'urbit',
             status: 'ok',
             key: 'reply',
-            reason: 'posted summary error response',
+            reason: directReply.reason,
           });
           contextLenses.recordLifecycle(lens.lensId, {
             completedAt: Date.now(),
@@ -3107,6 +3121,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           logContextLens(lens.lensId, 'final');
           return;
         }
+
+        const historyText = preparation.history
+          .map(
+            (msg) =>
+              `[${new Date(msg.timestamp).toLocaleString()}] ${msg.author}: ${sanitizeMessageText(renderHistoryContent(msg))}`
+          )
+          .join('\n');
+
+        messageText =
+          `Please summarize this channel conversation (${preparation.history.length} recent messages):\n\n${historyText}\n\n` +
+          'Provide a concise summary highlighting:\n' +
+          '1. Main topics discussed\n' +
+          '2. Key decisions or conclusions\n' +
+          '3. Action items if any\n' +
+          '4. Notable participants';
       }
 
       // Warn if multiple users share a DM session (insecure dmScope configuration)
@@ -3149,6 +3178,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         senders.add(senderShip);
       }
 
+      const dispatchStartTime = Date.now();
       const senderRole = isOwner(senderShip) ? 'owner' : 'user';
       if (senderRole === 'owner') {
         const currentLens = contextLenses.get(lens.lensId);
@@ -3322,20 +3352,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               )
           : undefined;
 
-      const dispatchStartTime = Date.now();
       const dispatchTimeoutMs = resolveDispatchTimeoutMs(account.lifecycle);
       const compactionObservationTimeoutMs =
         resolveCompactionObservationTimeoutMs(cfg);
-      const runId = randomUUID();
-      const turnRecorder = startTlonAgentTurn({
-        accountId: account.accountId,
-        agentId: route.agentId,
-        destinationKind: isGroup ? 'group_channel' : 'dm',
-        runId,
-        sessionKey: route.sessionKey,
-        ship: botShipName,
-        trigger,
-      });
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,
         runId,
@@ -3455,7 +3474,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       > = {
         abortSignal: dispatchAbortController.signal,
         ...(sourceReplyDeliveryMode ? { sourceReplyDeliveryMode } : {}),
-        timeoutOverrideSeconds: Math.ceil(dispatchTimeoutMs / 1000),
+        ...resolveTimeoutOverrideReplyOptions(dispatchTimeoutMs),
         runId,
         onCompactionStart: compactionTimeoutObserver.start,
         onCompactionEnd: compactionTimeoutObserver.complete,
@@ -3506,7 +3525,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           contextLenses.setStatus(lens.lensId, 'dispatching');
           contextLenses.recordLifecycle(lens.lensId, {
             dispatchStartedAt: Date.now(),
-            timeoutMs: dispatchTimeoutMs,
+            timeoutMs: dispatchTimeoutMs ?? null,
           });
           bindContextLensToSession(lensSessionKeys, contextLenses, lens.lensId);
           logContextLens(lens.lensId, 'dispatching');
@@ -3561,7 +3580,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                             isError: payload.isError === true,
                             timedOut: dispatchTimedOut,
                             durationMs: Date.now() - dispatchStartTime,
-                            timeoutMs: dispatchTimeoutMs,
+                            timeoutMs: dispatchTimeoutMs ?? null,
                           });
                           if (!replyText && !blob) {
                             const hasMedia = Array.isArray(payload.mediaUrls)
@@ -3899,6 +3918,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           });
         }
       }
+      // A timed-out turn produced no answer (at most a failure notice); tell
+      // the caller so the message stays unread for restart replay.
+      return !dispatchTimedOut;
     };
 
     // Track which channels we're interested in for filtering firehose events
@@ -4139,6 +4161,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     // Firehose handler for all channel messages (/v4)
     const handleChannelsFirehose = async (event: ChannelFirehoseEvent) => {
+      let endActivityRead: ((handled?: boolean) => void) | undefined;
+      let handled = true;
       try {
         const nest = event?.nest;
 
@@ -4286,6 +4310,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!processedTracker.mark(messageId)) {
           return;
         }
+        if (!channelToGroup.has(nest)) void refreshChannelGroups();
+        endActivityRead = activityReads.begin(
+          channelReadKey(nest),
+          async () => {
+            if (!channelToGroup.has(nest)) await refreshChannelGroups();
+            const groupId = channelToGroup.get(nest);
+            return groupId
+              ? { channelId: nest, channelType: 'chat', groupId }
+              : null;
+          }
+        );
 
         const senderShip = normalizeShip(extractAuthorShip(content?.author));
         if (!senderShip) {
@@ -4669,7 +4704,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
         const parsed = parseChannelNest(nest);
         const citedContent = await resolveCitedContent(content.content);
-        await processMessage({
+        const completed = await processMessage({
           messageId: messageId ?? '',
           senderShip,
           messageText: rawText,
@@ -4687,10 +4722,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           parentId,
           isThreadReply,
         });
+        if (completed === false) handled = false;
       } catch (error: any) {
+        handled = false;
         runtime.error?.(
           `[tlon] Error handling channel firehose event: ${error?.message ?? String(error)}`
         );
+      } finally {
+        endActivityRead?.(handled);
       }
     };
 
@@ -4699,6 +4738,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const processedDmInvites = new Set<string>();
 
     const handleChatFirehose = async (event: ChatFirehoseEvent) => {
+      let endActivityRead: ((handled?: boolean) => void) | undefined;
+      let handled = true;
       try {
         // Handle DM invite lists (arrays)
         if (Array.isArray(event)) {
@@ -4905,7 +4946,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           dmReplyOwnId = dmReply.id ?? dmReply.delta?.add?.id;
           // If no explicit reply ID, construct from author/sent (same format as our outbound)
           if (!dmReplyOwnId && dmReplyEssay?.author && dmReplyEssay?.sent) {
-            dmReplyOwnId = `${normalizeShip(extractAuthorShip(dmReplyEssay.author))}/${dmReplyEssay.sent}`;
+            dmReplyOwnId = `${normalizeShip(extractAuthorShip(dmReplyEssay.author))}/${formatSentAt(dmReplyEssay.sent)}`;
           }
         }
 
@@ -4919,6 +4960,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!processedTracker.mark(effectiveMessageId)) {
           return;
         }
+        endActivityRead = activityReads.begin(dmReadKey(whom), () =>
+          dmReadTarget(whom)
+        );
 
         const authorShip = normalizeShip(extractAuthorShip(dmContent.author));
         const partnerShip = extractDmPartnerShip(whom);
@@ -4950,6 +4994,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!senderShip || senderShip === botShipName) {
           return;
         }
+
+        recordTlonMessageJourneyEvent({
+          botShip: botShipName,
+          destinationKind: 'dm',
+          inputMessageId: effectiveMessageId,
+          ownerShip: effectiveOwnerShip,
+          peerShip: senderShip,
+          stage: 'plugin_input_observed',
+          trigger: 'dm',
+        });
 
         // Log mismatch between author and partner for debugging
         if (authorShip && partnerShip && authorShip !== partnerShip) {
@@ -5099,7 +5153,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           }
         }
         const citedContent = await resolveCitedContent(dmContent.content);
-        await processMessage({
+        const completed = await processMessage({
           messageId: effectiveMessageId ?? '',
           senderShip,
           messageText: rawText,
@@ -5114,10 +5168,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           parentId: dmReplyParentId,
           isThreadReply: isDmThreadReply,
         });
+        if (completed === false) handled = false;
       } catch (error: any) {
+        handled = false;
         runtime.error?.(
           `[tlon] Error handling chat firehose event: ${error?.message ?? String(error)}`
         );
+      } finally {
+        endActivityRead?.(handled);
       }
     };
 
@@ -6109,6 +6167,75 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         opts.onReady?.({
           isConnected: () => api.isConnected,
           readSettings: (signal) => api.scry('/settings/all.json', { signal }),
+          replayMissedMessages: async (signal) => {
+            // Changes are keyed by the ship's receipt time; the window is
+            // generous enough that clock skew against this host doesn't matter.
+            // One scry, so posts and their unread summaries agree. Retried:
+            // until it succeeds every source's read stays gated.
+            const since = Date.now() - RESTART_REPLAY_WINDOW_MS;
+            let changes: Awaited<ReturnType<typeof scryChangesSince>>;
+            for (let attempt = 1; ; attempt += 1) {
+              try {
+                changes = await inApiScope(() => scryChangesSince(since));
+                break;
+              } catch (error) {
+                if (attempt >= 3 || signal.aborted) throw error;
+                await new Promise((resolve) =>
+                  setTimeout(resolve, 2_000 * attempt)
+                );
+                signal.throwIfAborted();
+              }
+            }
+            signal.throwIfAborted();
+            const missed = collectMissedMessages(
+              changes,
+              toClientUnreads(changes.activity)
+            );
+            // Sources without backlog have nothing to protect; each backlog
+            // source opens once its last replayed message is done.
+            const remaining = new Map<string, number>();
+            for (const item of missed) {
+              remaining.set(item.key, (remaining.get(item.key) ?? 0) + 1);
+            }
+            activityReads.releaseExcept(remaining.keys());
+            runtime.log?.(
+              `[tlon] Restart replay: ${missed.length} unread message(s) from the last ${RESTART_REPLAY_WINDOW_MS / 60_000} minutes`
+            );
+            // One at a time, oldest first, through the live handlers, which
+            // apply dedup, gating and read marking exactly as they do live.
+            for (const item of missed) {
+              signal.throwIfAborted();
+              if (item.kind === 'channel') {
+                await handleChannelsFirehose(
+                  item.event as unknown as ChannelFirehoseEvent
+                );
+              } else {
+                await handleChatFirehose(
+                  item.event as unknown as ChatFirehoseEvent
+                );
+              }
+              const left = (remaining.get(item.key) ?? 1) - 1;
+              remaining.set(item.key, left);
+              if (left === 0) activityReads.release(item.key);
+            }
+          },
+          establishActivityReadBaseline: async (signal) => {
+            signal.throwIfAborted();
+            await inApiScope(() => readAll());
+            signal.throwIfAborted();
+            await api.poke({
+              app: 'settings',
+              mark: 'settings-event',
+              json: {
+                'put-entry': {
+                  desk: 'moltbot',
+                  'bucket-key': 'tlon',
+                  'entry-key': 'activityReadBaseline',
+                  value: true,
+                },
+              },
+            });
+          },
         });
       }
       // The groupChannels journal's first trusted base: a fresh load taken

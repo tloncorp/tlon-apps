@@ -2654,10 +2654,14 @@
       ``buckets-snapshots-1+!>(local-snapshots)
     ``buckets-summaries-1+!>(local-summaries)
   ::
+  ::  [~ ~], not ~: Eyre answers ~ with a 500 and [~ ~] with a 404, and
+  ::  a missing bucket is a 404 to every client -- +getBucket reads it as
+  ::  absent and raises anything else. Same below for the read token.
+  ::
       [%x %v1 %buckets host=@ name=@ ~]
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
-    ?~  sp=(~(get by spaces) flag)  ~
-    ?~  state.u.sp  ~
+    ?~  sp=(~(get by spaces) flag)  [~ ~]
+    ?~  state.u.sp  [~ ~]
     ``buckets-response-1+!>(`response:b`[%snapshot flag u.state.u.sp])
   ::
       [%x %v1 %broker %read cap=@ object=@ ~]
@@ -2677,7 +2681,7 @@
   ::
       [%x %v1 %buckets host=@ name=@ %read-token ~]
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
-    ?~  tok=(~(get by read-tokens) flag)  ~
+    ?~  tok=(~(get by read-tokens) flag)  [~ ~]
     ::  Not past its expiry. +held-read-token has always checked this on the
     ::  host side; the replica's copy is served straight out of the map, and
     ::  the only prune runs from host-side arms, so a %sub space never
@@ -2686,7 +2690,7 @@
     ::  the broker had already stopped honouring -- every open then exchanges
     ::  a dead token, is refused, re-mints, and waits out the forward
     ::  timeout. Answering nothing sends the client to ask for a new one.
-    ?.  (gth expires-at.u.tok now.bowl)  ~
+    ?.  (gth expires-at.u.tok now.bowl)  [~ ~]
     ``buckets-read-token-1+!>(`read-token:b`u.tok)
   ::
   ::  +ready: a constant, because the answer existing is the whole signal --

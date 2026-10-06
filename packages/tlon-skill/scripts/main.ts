@@ -8,6 +8,8 @@
  *
  * Commands:
  *   activity     Activity/notifications (mentions, replies, all, unreads)
+ *   browser      Hosted browser handoff operations
+ *   buckets      Shared %buckets file channels
  *   channels     Channel listing and management
  *   contacts     Contact/profile management
  *   dms          Direct message operations
@@ -18,9 +20,13 @@
  *   settings     OpenClaw settings management
  */
 import { createActivityDeps } from './activity-runtime';
-import { setCliCredentialOverrides } from './api-client';
+import { getConfig, setCliCredentialOverrides } from './api-client';
+import { resolveBrowserOwnerShip } from './browser-owner';
+import { createBucketsDeps } from './buckets-runtime';
 import { DIARY_REMOVED } from './cli-utils';
 import { run as runActivityCommand } from './commands/activity';
+import { run as runBrowserCommand } from './commands/browser';
+import { run as runBucketsCommand } from './commands/buckets';
 import { formatUnexpectedError } from './commands/command';
 import { run as runNotesCommand } from './commands/notes';
 import { run as runPostsCommand } from './commands/posts';
@@ -40,11 +46,13 @@ Usage:
 
 Commands:
   activity     Activity/notifications (mentions, replies, all, unreads)
-  channels     Channel listing and management (dms, groups, info, update, delete, add/del-writers, add/del-readers)
+  browser      Hosted browser login handoff (handoff)
+  buckets      Shared file channels (list, files, upload, read, mkdir, move, delete)
+  channels     Channel listing and management (dms, groups, info, update, delete, leave, join, add/del-writers, add/del-readers)
   contacts     Contact/profile management (list, get, self, sync, add, remove, update-profile)
   dms          Direct message operations (send, reply, react, unreact, delete, accept, decline)
   expose       Manage public content exposure (list, show, hide, check, url)
-  groups       Group management (list, create, info, join, request/accept invites, leave, delete, ...)
+  groups       Groups, called "workspaces" in the app (list, create, info, join, request/accept invites, leave, delete, ...)
   hooks        Channel hooks management (list, add, edit, delete, order, config, cron, rest)
   messages     Message history and search (dm, channel, history, search, context, post)
   notes        %notes notebooks (list, show, request, note-create, note-update, join, leave)
@@ -95,6 +103,11 @@ Examples:
   tlon --config ~/ships/zod.json contacts self
   tlon --url https://zod.tlon.network --cookie "urbauth-~zod=0v..." contacts self
   tlon --url https://zod.tlon.network --ship ~zod --code abcd-efgh-ijkl-mnop contacts self
+
+Hosted browser login (use the Tlon tool, not a shell command):
+  {"command": "browser handoff <session_id>"}
+  Pass the sess_ handle from browser_session_create. The plugin resolves the
+  signed viewer link; never copy or construct one in a model tool call.
 `);
 }
 
@@ -155,6 +168,23 @@ async function main() {
         const exitCode = await runActivityCommand(
           scriptArgs,
           createActivityDeps()
+        );
+        process.exit(exitCode);
+        break;
+      }
+      case 'browser': {
+        const exitCode = await runBrowserCommand(scriptArgs, {
+          ...createPostsDeps(),
+          getOwnerShip: () =>
+            resolveBrowserOwnerShip({ activeShip: getConfig().ship }),
+        });
+        process.exit(exitCode);
+        break;
+      }
+      case 'buckets': {
+        const exitCode = await runBucketsCommand(
+          scriptArgs,
+          createBucketsDeps()
         );
         process.exit(exitCode);
         break;

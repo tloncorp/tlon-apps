@@ -2254,6 +2254,7 @@ describe('cron telemetry capture', () => {
       nextRunAtMs: 20_000,
       delivered: false,
       deliveryStatus: 'not-delivered',
+      intentionalSilence: false,
       deliveryError: null,
       model: 'claude-sonnet-5',
       provider: 'anthropic',
@@ -2270,6 +2271,7 @@ describe('cron telemetry capture', () => {
     expect(call.properties.cronError).toBe('model timed out');
     expect(call.properties.durationMs).toBe(1_234);
     expect(call.properties.deliveryStatus).toBe('not-delivered');
+    expect(call.properties.intentionalSilence).toBe(false);
     expect(call.properties.$set).toBeUndefined();
   });
 
@@ -2326,6 +2328,7 @@ describe('cron telemetry capture', () => {
       nextRunAtMs: null,
       delivered: null,
       deliveryStatus: null,
+      intentionalSilence: false,
       deliveryError: null,
       model: null,
       provider: null,

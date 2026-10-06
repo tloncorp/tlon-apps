@@ -332,6 +332,31 @@ describe('terminal failure presentation', () => {
     ).toBe('LLM request failed.');
   });
 
+  it('relies on the OpenClaw timeout signal when no plugin timeout is set', () => {
+    // OpenClaw reported a timeout: report the observed elapsed time.
+    expect(
+      rewriteGenericTerminalErrorReply({
+        text: 'LLM request failed.',
+        isError: true,
+        timedOut: true,
+        durationMs: 600_000,
+        timeoutMs: null,
+      })
+    ).toBe(
+      'The model request timed out after 10 minutes before it could finish. Please try again.'
+    );
+    // No timeout signal and no plugin deadline: never guess a timeout.
+    expect(
+      rewriteGenericTerminalErrorReply({
+        text: 'LLM request failed.',
+        isError: true,
+        timedOut: false,
+        durationMs: 120_000,
+        timeoutMs: null,
+      })
+    ).toBe('LLM request failed.');
+  });
+
   it('leaves non-error, specific, and early generic replies unchanged', () => {
     expect(
       rewriteGenericTerminalErrorReply({

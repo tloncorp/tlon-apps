@@ -25,8 +25,9 @@ vi.mock('@tloncorp/shared', () => ({
 }));
 vi.mock('@tloncorp/shared/db', () => ({}));
 vi.mock('@tloncorp/shared/logic', () => ({}));
-vi.mock('@tloncorp/shared/store', () => ({}));
-vi.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: [] }) }));
+vi.mock('@tloncorp/shared/store', () => ({
+  useMentionCandidates: () => ({ data: [] }),
+}));
 vi.mock('@tloncorp/ui', () => ({
   HEADER_HEIGHT: 48,
   RawText: 'RawText',

@@ -99,11 +99,46 @@ export function printErrorAndExit(error: unknown): never {
 }
 
 export const CHANNEL_KINDS = ['chat', 'heap', 'notes'] as const;
+const CHANNEL_DESCRIPTION_KINDS: readonly string[] = ['chat', 'heap'];
+
+export function channelCreateUsage(command: string): string {
+  const described = CHANNEL_DESCRIPTION_KINDS.join('|');
+  const undescribed = CHANNEL_KINDS.filter(
+    (kind) => !CHANNEL_DESCRIPTION_KINDS.includes(kind)
+  ).join('|');
+  return `${command} <group-id> "Channel Name" [--kind ${described}] [--description "..."]
+  ${command} <group-id> "Channel Name" --kind ${undescribed}`;
+}
 
 // Channel kinds the skill used to support but no longer does. The %diary backend
 // is being removed, so diary/notebook channels are refused everywhere with an
 // explanatory message pointing at %notes.
 export const REMOVED_CHANNEL_KINDS = ['diary'] as const;
+
+export function parseNest(nest: string): {
+  kind: string;
+  host: string;
+  name: string;
+} {
+  const parts = nest.split('/');
+  if (
+    parts.length !== 3 ||
+    parts.some((part) => part.length === 0) ||
+    /\s/.test(nest)
+  ) {
+    throw new Error(`Invalid nest format: ${nest}. Expected: kind/~host/name`);
+  }
+  return {
+    kind: parts[0],
+    host: parts[1].startsWith('~') ? parts[1] : `~${parts[1]}`,
+    name: parts[2],
+  };
+}
+
+export function canonicalizeNest(nest: string): string {
+  const { kind, host, name } = parseNest(nest);
+  return `${kind}/${host}/${name}`;
+}
 
 // True for a nest addressing a %notes channel (e.g. `notes/~host/blog`).
 export function isNotesNest(nest: string | undefined): boolean {
@@ -297,7 +332,7 @@ export function refuseNotesChannelDescription(
   const hasDescription = args
     .slice(titleIndex + 1)
     .some((arg) => arg === '--description' || arg.startsWith('--description='));
-  if (kind === 'notes' && hasDescription) {
+  if (kind && !CHANNEL_DESCRIPTION_KINDS.includes(kind) && hasDescription) {
     printUsageAndExit(
       `Error: --description is not supported for --kind notes — %notes owns the channel listing metadata.\n${usageHelp}`
     );
@@ -325,6 +360,53 @@ export function refuseNotesChannelMetadataUpdate(
     printErrorAndExit(
       'Channel metadata updates are not supported for %notes channels yet — %notes owns the channel listing metadata.'
     );
+  }
+}
+
+export type ChannelMembershipVerb = 'leave' | 'join';
+
+const PAST_PARTICIPLE: Record<ChannelMembershipVerb, string> = {
+  leave: 'left',
+  join: 'joined',
+};
+
+export function notesChannelMembershipMessage(
+  nest: string,
+  verb: ChannelMembershipVerb
+): string {
+  return `%notes channels are ${PAST_PARTICIPLE[verb]} with \`tlon notes ${verb} ${nest}\`.`;
+}
+
+export function nonGroupChannelNestMessage(
+  nest: string,
+  verb: ChannelMembershipVerb
+): string {
+  return `Only chat/ and heap/ channels can be ${PAST_PARTICIPLE[verb]} with tlon channels ${verb} (got ${nest})`;
+}
+
+export function refuseNotesChannelMembership(
+  nest: string | undefined,
+  verb: ChannelMembershipVerb
+): void {
+  if (nest && isNotesNest(nest)) {
+    printErrorAndExit(notesChannelMembershipMessage(nest, verb));
+  }
+}
+
+// Only %channels chat/heap nests can be left/joined; this also catches
+// buckets/ nests, malformed nests, and DM ids before any network call.
+export function refuseNonGroupChannelNest(
+  nest: string,
+  verb: ChannelMembershipVerb
+): void {
+  let kind: string;
+  try {
+    ({ kind } = parseNest(nest));
+  } catch (error) {
+    printErrorAndExit(error);
+  }
+  if (!['chat', 'heap'].includes(kind)) {
+    printErrorAndExit(nonGroupChannelNestMessage(nest, verb));
   }
 }
 

@@ -31,7 +31,7 @@ const PROFILE_UPDATE_FIELDS = [
 export type TlonProfileUpdateField =
   (typeof PROFILE_UPDATE_FIELDS)[number]['field'];
 export type TlonToolIntent = 'read' | 'write' | 'admin' | 'config' | 'utility';
-export type TlonChannelKind = 'chat' | 'heap' | 'notes';
+export type TlonChannelKind = 'buckets' | 'chat' | 'heap' | 'notes';
 export type TlonDmTargetKind = 'ship' | 'club' | 'unknown';
 export type TlonUploadSource = 'url' | 'local' | 'stdin' | 'unknown';
 
@@ -71,6 +71,24 @@ const INVALID_OPERATION = 'invalid';
 
 const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
   ['activity', new Set(['mentions', 'replies', 'all', 'unreads'])],
+  ['browser', new Set(['handoff'])],
+  [
+    'buckets',
+    new Set([
+      'list',
+      'show',
+      'files',
+      'search',
+      'create',
+      'mkdir',
+      'upload',
+      'read',
+      'rename',
+      'move',
+      'delete',
+      'set-writers',
+    ]),
+  ],
   [
     'channels',
     new Set([
@@ -83,6 +101,8 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'update',
       'rename',
       'delete',
+      'leave',
+      'join',
       'add-writers',
       'del-writers',
       'add-readers',
@@ -277,9 +297,47 @@ export function findTlonSubcommandIndex(args: string[]): number {
   return findFirstPositionalArgumentIndex(args, 0, CREDENTIAL_FLAGS_WITH_VALUE);
 }
 
+export function isBrowserHandoffCommand(args: string[]): boolean {
+  const subIdx = findTlonSubcommandIndex(args);
+  return (
+    args[subIdx]?.toLowerCase() === 'browser' &&
+    args[subIdx + 1]?.toLowerCase() === 'handoff'
+  );
+}
+
+function hasCredentialOverride(args: string[]): boolean {
+  return args.some((arg) =>
+    CREDENTIAL_FLAGS_WITH_VALUE.has(arg.split('=', 1)[0])
+  );
+}
+
+export function redactBrowserHandoffCommand(command: string): string {
+  const args = shellSplitCommand(command);
+  let subIdx = findTlonSubcommandIndex(args);
+  if (args[subIdx]?.toLowerCase() === 'tlon') {
+    subIdx = findFirstPositionalArgumentIndex(
+      args,
+      subIdx + 1,
+      CREDENTIAL_FLAGS_WITH_VALUE
+    );
+  }
+  if (
+    args[subIdx]?.toLowerCase() === 'browser' &&
+    args[subIdx + 1]?.toLowerCase() === 'handoff'
+  ) {
+    // Keep only the operation: arguments can carry a signed viewer capability.
+    return 'browser handoff [REDACTED]';
+  }
+  return command;
+}
+
 export type BlockedTlonOperation = {
   message: string;
-  reason: 'diary_operation' | 'migration_operation' | 'send_operation';
+  reason:
+    | 'diary_operation'
+    | 'migration_operation'
+    | 'send_operation'
+    | 'browser_account_override';
   diaryNest?: string;
 };
 
@@ -291,6 +349,13 @@ export type BlockedTlonOperation = {
 export function checkBlockedTlonOperation(
   args: string[]
 ): BlockedTlonOperation | null {
+  if (isBrowserHandoffCommand(args) && hasCredentialOverride(args)) {
+    return {
+      message:
+        'Browser handoff does not allow credential overrides. Use the configured Tlon account.',
+      reason: 'browser_account_override',
+    };
+  }
   const subIdx = findTlonSubcommandIndex(args);
   const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
   const migration = checkBlockedMigrationOperation(commandArgs);
@@ -322,11 +387,7 @@ const HELP_TOKENS = new Set(['-h', '--help']);
  * credentials, exactly as the model wrote it.
  */
 export function shouldInjectOwnerCredentials(args: string[]): boolean {
-  for (const arg of args) {
-    const equalsIndex = arg.indexOf('=');
-    const flag = equalsIndex >= 0 ? arg.slice(0, equalsIndex) : arg;
-    if (CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) return false;
-  }
+  if (hasCredentialOverride(args)) return false;
 
   const subIdx = findTlonSubcommandIndex(args);
   if (subIdx < 0) return false;
@@ -432,6 +493,31 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         };
       }
 
+      // Only inspect the option region, not titles or file names that happen
+      // to contain the flag. CLI help remains available for these commands.
+      const command = args.slice(subIdx);
+      const optionStart =
+        command[0] === 'upload'
+          ? 1
+          : command[0] === 'notes' && command[1] === 'note-create'
+            ? 5
+            : command[0] === 'notes' && command[1] === 'note-update'
+              ? 4
+              : command.length;
+      if (
+        !command.some((arg) => HELP_TOKENS.has(arg)) &&
+        command
+          .slice(optionStart)
+          .some((arg) => arg === '--stdin' || arg.startsWith('--stdin='))
+      ) {
+        const message =
+          'The tlon tool cannot supply stdin. Write content to a workspace file, then use notes note-create/note-update --body <file> or upload <file>. Shell pipes and redirections are not supported.';
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${message}` }],
+          details: { status: 'error', error: message },
+        };
+      }
+
       let commandArgs = args;
       if (shouldInjectOwnerCredentials(args)) {
         const prefixArgs = ownerInviteLinkPrefixArgs(deps);
@@ -524,6 +610,10 @@ function summarizeKnownTlonCommand(
   switch (subcommand) {
     case 'activity':
       return build('read');
+    case 'browser':
+      return build('write');
+    case 'buckets':
+      return summarizeBucketsOperation(operation, remainder, build);
     case 'channels':
       return summarizeChannelsOperation(operation, remainder, build);
     case 'contacts':
@@ -557,6 +647,52 @@ function summarizeKnownTlonCommand(
     case 'help':
     case 'version':
       return build('utility');
+    default:
+      return build('utility');
+  }
+}
+
+function summarizeBucketsOperation(
+  operation: string,
+  args: string[],
+  build: (
+    intent: TlonToolIntent,
+    extra?: Omit<
+      Partial<TlonToolCallContext>,
+      | 'kind'
+      | 'summaryKey'
+      | 'subcommand'
+      | 'operation'
+      | 'intent'
+      | 'isKnownSubcommand'
+      | 'blockedSendOperation'
+    >
+  ) => TlonToolCallContext
+): TlonToolCallContext {
+  switch (operation) {
+    case 'list':
+    case 'show':
+    case 'files':
+    case 'search':
+    case 'read':
+      return build('read', { channelKind: 'buckets' });
+    case 'delete':
+    case 'set-writers':
+      return build('admin', { channelKind: 'buckets' });
+    case 'create':
+    case 'mkdir':
+    case 'rename':
+    case 'move':
+      return build('write', {
+        channelKind: 'buckets',
+        hasTitle: operation === 'create' || operation === 'rename',
+      });
+    case 'upload':
+      return build('write', {
+        channelKind: 'buckets',
+        uploadSource: detectUploadSource(args.slice(1)),
+        contentTypeProvided: hasFlag(args, '-t', '--type'),
+      });
     default:
       return build('utility');
   }
@@ -616,6 +752,11 @@ function summarizeChannelsOperation(
       });
     case 'delete':
       return build('admin', {
+        channelKind: detectChannelKind(positionals[0]),
+      });
+    case 'join':
+    case 'leave':
+      return build('write', {
         channelKind: detectChannelKind(positionals[0]),
       });
     case 'add-writers':
@@ -1104,7 +1245,10 @@ function parseChannelKind(
     parts[0] === '' && parts[1] === '1' && parts[2] === 'chan'
       ? parts[3]
       : parts[0];
-  return kind === 'chat' || kind === 'heap' || kind === 'notes'
+  return kind === 'buckets' ||
+    kind === 'chat' ||
+    kind === 'heap' ||
+    kind === 'notes'
     ? kind
     : undefined;
 }

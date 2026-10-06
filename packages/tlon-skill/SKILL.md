@@ -1,44 +1,25 @@
 ---
 name: tlon
-description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups. Also for group/channel administration, profile management, and exposing content to the clearweb.
+description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups (called workspaces in the Tlon Messenger app); hosted-browser secure form handoffs; group/channel administration; profile management; and exposing content to the clearweb.
 ---
 
 # Tlon Skill
 
 Use the `tlon` command for reading data, managing channels/groups/contacts, and administration.
 
-This skill is about *operating* a node. Questions about what Tlon Messenger is, how a feature works, or how to walk someone through a task in the app belong to the `tlon-product-guide` skill — reach for that one when the user wants an explanation rather than an action. It ships with the OpenClaw plugin, and registers as `tlon-platform:tlon-product-guide` under Hermes. It is not always installed: a Hermes deployment that has this CLI but not the plugin tree won't have it. Check the skills available to you rather than assuming, and if it isn't there, answer the product question yourself instead of loading a skill that doesn't exist.
-
-## Hermes
-
-When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the `tlon` CLI for reading data, administration, management, and proactive posts.
-
-For exact command syntax, use the command sections below or run `tlon <subcommand> --help` through the tool.
-
-When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester. After `create-owned`, share the group by putting the `Ref:` path from the output in your reply (the OpenClaw message tool renders it as a card).
-
-For a normal text reply in the current Tlon conversation, respond with final assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post to a different channel or one-to-one DM (a proactive send), use `posts send` with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs). Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
-
-Gallery channels use `heap/~host/name`. A normal reply in a gallery becomes a comment on the triggering post. Use `posts send heap/~host/name "..."` to create a distinct new top-level gallery item, including when that gallery is the current conversation; gallery items can use `--title "..."`.
-
-Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply` and `posts send` to a current chat/DM conversation (reply normally instead). Current-gallery `posts send` creates a new item and is allowed. Image sends (`--image`) are allowed anywhere, including the current conversation: `tlon upload <direct-image-url>`, then `posts send <target> [caption] --image <uploaded-url>`.
-
-**Never say an image was posted unless both commands returned success** — `tlon
-upload` (when used) and the `posts send`/`dms send` that carries `--image`. Both
-fail loudly; neither degrades to a plain link. If `upload` reports that the ship
-cannot store uploads (self-hosted moons have no storage), you do not need it:
-pass the direct **https** image URL straight to `--image`, which posts without
-uploading. If `upload` or `--image` fails with `HTTP 429 (rate limited)`, the
-*source host* is throttling automated fetches (Wikimedia does this): choose an
-image from a different host. Retrying the same URL, passing it to `--image`, or
-using the owner config all fetch from that same host. If the task names a
-specific image, report the failure instead of substituting another.
+This skill is about *operating* a node. Questions about what Tlon Messenger is, how a feature works, or how to walk someone through a task in the app belong to the `tlon-product-guide` skill — reach for that one when the user wants an explanation rather than an action. It ships with the OpenClaw plugin. Check the skills available to you before loading it; if it is absent, answer the product question directly.
 
 ## OpenClaw
 
-When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
+The `tlon` tool takes arguments, not a shell command: omit the leading `tlon`
+from the examples below. Pipes, redirects, environment-variable expansion, and
+`--stdin` are unavailable through this tool. Use `write` to save note content to
+a workspace file, then pass `--body <file>`; upload files with `upload <file>`.
+Relative file paths resolve in the active agent workspace, like `read` and `write`.
 
-**Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or stdin, and prints the uploaded URL:
+Use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
+
+**Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. `tlon upload` accepts a URL or a local file path, and prints the uploaded URL:
 
 ```bash
 tlon upload ./generated-chart.png      # local file — prints the uploaded URL
@@ -46,6 +27,101 @@ tlon upload https://example.com/x.png  # remote URL
 ```
 
 Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting. Self-hosted moons have no storage, so `upload` refuses immediately with `This ship cannot store uploads …`; for a local file, retry through the owner ship's config: `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`. For a source that is already a public https URL, `media=` takes it directly — no upload needed. Never claim an image was sent unless the upload and the send both returned success.
+
+### Hosted-browser secure form handoff
+
+Use a secure form handoff when you are controlling a hosted browser on behalf
+of your owner and the live page needs sensitive input that they should provide,
+including identifier-only, password, and verification steps, as well as address
+and payment-card fields. The handoff follows the fields visible on the page;
+login steps can continue within the same handoff. Address and card entry fills
+fields without submitting a transaction.
+
+Do not ask the owner to send credentials, card details, or private addresses in chat. Do not type, store,
+repeat, summarize, or otherwise bring those values into model context. Ordinary
+navigation and non-sensitive form filling should continue through the browser
+tools without a handoff.
+
+First navigate the live session all the way to the visible form. Use the `session_id` (`sess_` handle) returned by `browser_session_create`
+for that same session. In OpenClaw, call the model-facing `tlon` tool with:
+
+```json
+{"command": "browser handoff <session_id>"}
+```
+
+Do not include the executable name in the tool's `command` argument. Use this
+tool, not a shell command. The plugin resolves a fresh signed viewer link through
+the authenticated browser service and passes it directly to the CLI for card
+delivery. Never copy, construct, edit, or supply a viewer URL yourself.
+
+Do not call `browser_session_handoff` as a prerequisite for this card. That tool
+uses MCP viewer/elicitation capabilities to arrange human browser control; it
+does not issue or refresh signed viewer URLs. Its `client_capability_missing`
+error does not determine whether the Tlon secure form is available.
+
+This is the one exception to the rule against using that tool to send a message.
+The command
+always sends the handoff card to the owner configured for the active bot
+account. It has no recipient argument or override. If no owner is configured,
+it fails instead of sending the form elsewhere. Never claim the handoff was
+sent unless the command returned success.
+
+The card opens a native Tlon secure form. It does not embed the remote page.
+The browser service describes the visible fields using standard autofill
+purposes, including identifiers, passwords, verification codes, addresses, and
+card details. Each fill is bound to the exact live controls and origin. Values
+travel directly to the browser service, without passing through chat or the
+bot. Do not read or repeat filled sensitive fields through browser tools.
+
+Keep the session live while the owner completes the form. The same handoff
+follows successive login steps without another message or model-generated
+selector. Each step shows its destination and requires fresh input. Card and
+address forms are filled without a submit click; filling them does not authorize
+a purchase, payment, or other consequential action.
+
+When entry finishes, the app resumes the conversation automatically. Wait for
+that continuation message, then inspect the same browser session, check the
+current page and validation state, and continue the task. Entry does not prove
+sign-in or transaction completion. Do not ask the owner to press both controls;
+the card's “Continue task” button is a manual alternative. Release the session
+promptly when the browser task is finished.
+
+Ambiguous forms, custom controls, passkeys, CAPTCHA, and unsupported steps can
+be completed through “Open live browser” on the same screen. Do not guess field
+selectors or ask for the values in chat. If a card expires while its session is
+still live, send a fresh card using the same session handle. If the lookup
+fails, report the failure; do not invent or edit a URL or claim a card was sent.
+If the live session expires, create a new one and navigate to the required form
+before sending its handoff.
+
+#### What persists
+
+Do not describe the live session itself as permanent. A live Chrome session,
+its tabs, its current page, and its signed handoff URL are temporary and end on
+release, inactivity timeout, hard timeout, or Pod restart. Signed viewer URLs
+are temporary bearer capabilities handled by the plugin and browser service.
+Use only the session handle in the Tlon tool; never quote a signed link into
+chat or share it with another user.
+
+The browser *profile* is persistent. In the self-hosted deployment, the MCP
+credential identifies the owner and transparently selects that owner's durable
+browser profile. Cookies and browser storage saved when a session closes are
+reused by later sessions for the same owner, so a successful login normally
+survives without leaving Chrome or hundreds of idle tabs running. A new session
+may open on a fresh page, but it should retain the saved login state. Logging
+out or clearing site data can persist that logged-out state as well.
+
+Profiles and session handles are isolated by MCP credential. A caller cannot
+open another owner's profile or session merely by guessing or obtaining a
+session handle; each browser call is authorized as the current credential.
+Treat a signed handoff URL as sensitive anyway because it intentionally grants
+temporary access to that one live session.
+
+When the owner asks how this works, explain it plainly: they enter the secret in
+a native Tlon form; Tlon submits it directly to their live browser; the bot does
+not receive the value; and the resulting browser login is saved in their
+isolated profile for later browser tasks. Do not claim that Tlon or the bot has
+stored their raw password.
 
 > **Deprecated: diary channels.** `%diary` is not managed by the CLI: `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
 
@@ -208,6 +284,8 @@ tlon channels create ~host/slug "Notes" --kind notes       # Create a %notes gro
 tlon channels rename chat/~host/slug "New Title"           # Rename a channel
 tlon channels update chat/~host/slug --title "New Title"   # Update metadata
 tlon channels delete chat/~host/slug                       # Delete a channel
+tlon channels leave chat/~host/slug                        # Leave one channel; stay in the group
+tlon channels join chat/~host/slug                         # Rejoin a channel in a group you're in
 
 # Writers (who can post)
 tlon channels add-writers chat/~host/slug admin member     # Add write access
@@ -217,6 +295,8 @@ tlon channels del-writers chat/~host/slug member           # Remove write access
 tlon channels add-readers ~host/group chat/~host/slug admin    # Restrict viewing
 tlon channels del-readers ~host/group chat/~host/slug admin    # Open viewing
 ```
+
+To leave a single channel, use `channels leave`; `groups leave` leaves the whole group and all its channels. `channels join` doesn't check read access: joining a channel you can't read still prints "Joined", but no messages will arrive.
 
 Help works for both the command and subcommands:
 
@@ -231,6 +311,40 @@ Notes on permissions:
 - Empty writers list = anyone in the group can post (default for chat)
 - Empty readers list = anyone in the group can view (default)
 - Roles must exist in the group (use `tlon groups add-role` first)
+
+### Buckets
+
+Work with shared `%buckets` file channels. A Bucket is a group filesystem, not a chat attachment or gallery post. Always use `tlon buckets ...` for files that belong in a Bucket; do not upload them with the generic `tlon upload` command.
+
+```bash
+tlon buckets list                                         # List readable Buckets
+tlon buckets show buckets/~host/project-files             # Show Bucket metadata and an entry count
+tlon buckets files buckets/~host/project-files             # List the root folder
+tlon buckets files buckets/~host/project-files --parent 7  # List folder 7
+tlon buckets search buckets/~host/project-files "launch"   # Search file/folder metadata
+tlon buckets create ~host/group "Project Files" --readers member --writers admin
+                                                          # Create as a group admin
+tlon buckets mkdir buckets/~host/project-files "Drafts"    # Create a root folder
+tlon buckets upload buckets/~host/project-files ./plan.md -t text/markdown
+tlon buckets read buckets/~host/project-files 12           # Read a text file
+tlon buckets rename buckets/~host/project-files 12 "final-plan.md"
+tlon buckets move buckets/~host/project-files 12 7          # Move entry 12 into folder 7
+tlon buckets delete buckets/~host/project-files 7            # Delete an empty folder
+tlon buckets set-writers buckets/~host/project-files admin bots
+tlon buckets set-writers buckets/~host/project-files --clear   # Let every reader write
+```
+
+Bucket authorization is based on the current ship's group membership and reader/writer roles. The current ship asks `%buckets` for a short-lived, single-operation storage capability; the command never needs the group host's login, the owner's login, or object-storage credentials. If the current ship lacks access, report that role/permission failure rather than asking for storage credentials.
+
+Bucket creation currently requires a planet-hosted group. A Moon may invoke `buckets create` as an authorized group admin, but the group host—and therefore the resulting Bucket host—must be a planet. If the group host is a Moon, report that Bucket creation is unsupported. Never substitute the Moon's owner planet or another member's planet.
+
+Empty role lists mean open, not closed: a Bucket with no reader roles is readable by every group member, and one with no writer roles is writable by every reader. Always pass `--readers` and `--writers` to `buckets create` when access should be restricted — creating a Bucket open and narrowing it afterwards leaves it open in between. `set-writers` requires at least one role; `--clear` is the explicit way to open writing to every reader, so only use it when that is what was asked for.
+
+A command's JSON result may include a `note` saying the host confirmed the change but this ship has not received the update yet. The change did happen: do not retry it, which would create a duplicate. A command run immediately afterwards may not see it yet; wait a moment or list again.
+
+During the preview, `buckets delete` only removes empty folders. File deletion is disabled until the host and broker can coordinate it atomically.
+
+`buckets read` intentionally returns only text-like files up to 2 MiB. The regular upload command below is for message/profile media and other standalone URLs, not for placing files in a Bucket.
 
 ### Contacts
 
@@ -251,6 +365,10 @@ Options: `--nickname`, `--bio`, `--status`, `--avatar`, `--cover`
 ### Groups
 
 Full group management.
+
+When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester. After `create-owned`, share the group by putting the `Ref:` path from the output in your reply (the OpenClaw message tool renders it as a card).
+
+The Tlon Messenger app calls groups **workspaces**: the list of them is the Workspaces tab, and on an account with a hosted bot the app's create button reads `New Workspace`. A user asking to create, join, rename, or invite someone to a workspace, or to list their workspaces, is asking about a group, so use these `tlon groups` commands — creating one for someone is `groups create-owned`. `groups list` shows only the groups the ship running the command is in: to list someone else's workspaces, run it with their credentials (`--config`) when you have them, and otherwise say the list covers only the groups you're in. That is a different thing from the agent harness's own workspace directory (OpenClaw's SOUL.md, AGENTS.md, and memory files). A request to create a workspace always means a group; read "workspace" as that directory only when the person is plainly talking about its files, for example by naming one.
 
 ```bash
 # Basics
@@ -332,7 +450,7 @@ Invite link behavior (`invite-link`):
 
 -   Prints the canonical Lure URL (`https://invite.tlon.io/<token>`), minting one through the invite service if the group has none yet. Never compose or guess invite URLs — always retrieve them with this command.
 -   The link belongs to whichever ship the command runs as: that ship becomes the inviter of record, and the recipient's onboarding attributes the invite to it.
--   Under a bot harness (the OpenClaw plugin or the Hermes adapter) the bare command runs as the **owner**, so invites attribute to the owner rather than the bot. `--self` opts back out and uses the current credentials; explicit credential flags (`--config`, `--url`, ...) do the same. A harness with no owner credentials provisioned fails loudly instead of quietly returning a bot-attributed link.
+-   Through the OpenClaw `tlon` tool, the bare command runs as the **owner**, so invites attribute to the owner rather than the bot. `--self` opts back out and uses the current credentials; explicit credential flags (`--config`, `--url`, ...) do the same. A harness with no owner credentials provisioned fails loudly instead of quietly returning a bot-attributed link.
 -   Run directly (a terminal, a self-hosted setup) it uses the current credentials like every other command — there is no owner to resolve.
 -   For private/secret groups the acting ship must be the host or an admin — the command refuses otherwise, because a non-admin's link would not deliver the group invite on redemption.
 
@@ -498,7 +616,6 @@ tlon notes notes notes/~host/name                        # List notes in a noteb
 tlon notes note notes/~host/name 12                      # Show a note (with Markdown body)
 tlon notes note-create notes/~host/name root "Title" --body post.md       # New note at the notebook root
 tlon notes note-create notes/~host/name root "Title" --markdown post.md   # Alias for --body on note-create
-tlon notes note-create notes/~host/name 7 "Title" --stdin                 # New note in folder 7 from stdin
 tlon notes note-update notes/~host/name 12 --body new.md --expected-revision 3
 tlon notes note-rename notes/~host/name 12 "New Title"   # Rename a note
 tlon notes note-move notes/~host/name 12 3               # Move a note into folder 3
@@ -518,25 +635,26 @@ tlon notes migrate-apply diary/~host/name --yes          # Owner-gated migration
 tlon notes notebook-delete notes/~host/name --yes        # Owner-gated migration recovery
 ```
 
-Note bodies come from exactly one content source. `note-create` accepts `--body <file>`, `--markdown <file>` (alias), or `--stdin`. `note-update` accepts `--body <file>` or `--stdin`; use `--body`, not `--markdown`, for file-backed updates. `note-create` places the note in a folder id, or `root` (resolved to the notebook's root folder). `--expected-revision` on `note-update` is optional (last-write-wins by default).
+Note bodies come from exactly one content source. `note-create` accepts `--body <file>` or `--markdown <file>` (alias). `note-update` accepts `--body <file>`; use `--body`, not `--markdown`, for file-backed updates. `note-create` places the note in a folder id, or `root` (resolved to the notebook's root folder). `--expected-revision` on `note-update` is optional (last-write-wins by default).
 
 To create a **group-backed** notes channel for the Tlon app, use `tlon channels create ~host/slug "Title" --kind notes` — %notes owns the listing, so `--description` and writer roles aren't accepted there. Do not use `tlon notes create` for app/group channels; it creates a standalone %notes notebook only.
 
 ### Upload
 
-Upload files to Tlon storage from a URL, local path, or stdin.
+Upload files to Tlon storage from a URL or local path.
+
+This is the legacy standalone-media path used by posts and profiles. It does not add a file to a `%buckets` channel. Use `tlon buckets upload ...` for shared group files.
 
 ```bash
 tlon upload https://example.com/image.png         # Upload from URL
 tlon upload ./photo.jpg                            # Upload local file
 tlon upload ~/Pictures/screenshot.png              # Upload with absolute path
 tlon upload ./mystery-file -t image/webp           # Override content type
-cat image.png | tlon upload --stdin -t image/png   # Upload from stdin
 ```
 
-Options: `-t`/`--type` (override MIME type), `--stdin` (read from stdin)
+Options: `-t`/`--type` (override MIME type)
 
-Content type is auto-detected from file extension for local files. For stdin, `-t` is recommended (defaults to `application/octet-stream`).
+Content type is auto-detected from file extension for local files.
 
 Returns the uploaded URL for use in posts, profiles, etc. The printed URL is
 always a credential-free https URL; if storage returns anything else the
@@ -561,8 +679,10 @@ once, after its `Retry-After` delay (5s when the header is absent) and only
 when that delay is understood (delta-seconds or an IMF-fixdate), at most 10s,
 and fits the remaining deadline; otherwise, or on a second refusal, the command
 fails with `HTTP 429 (rate limited)` or `HTTP 503 (temporarily unavailable)`,
-naming the host's answer so you can choose another source. Local-path and stdin
-uploads are unaffected.
+naming the host's answer so you can choose another source. Switching credentials
+or passing the same URL to another image-send path still fetches from that
+host. If the task names a specific image, report the failure instead of
+substituting another. Local-path uploads are unaffected.
 
 ### Settings (OpenClaw)
 
@@ -593,7 +713,7 @@ tlon settings deauthorize-ship ~ship                     # Remove from auth
 - Ship names should include `~` prefix
 - Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
 - DM post IDs include author prefix (`~ship/170.141...`)
-- Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
+- Channel nests: `<kind>/~<host>/<name>` (chat, heap, notes, or buckets)
 
 ## Limits
 

@@ -14,7 +14,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
@@ -673,12 +673,6 @@ export function CreateChatInviteSheet({
     });
   }, [onSubmit, selectedContactIds, templateId, title]);
 
-  // hack: ensure the nested ContactBook will scroll properly within the sheet
-  // by disabling drag within the main content (drag handle only)
-  const enableContentPanningGesture = useMemo(() => {
-    return Platform.OS === 'android' ? false : undefined;
-  }, []);
-
   return (
     <ActionSheet
       disableDrag={screenScrolling}
@@ -687,8 +681,6 @@ export function CreateChatInviteSheet({
       onOpenChange={onOpenChange}
       snapPoints={[90]}
       snapPointsMode="percent"
-      enableContentPanningGesture={enableContentPanningGesture}
-      hasScrollableContent
       modal
     >
       <CreateChatFormContent
@@ -711,8 +703,6 @@ export function JoinGroupSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { bottom } = useSafeAreaInsets();
-
   return (
     <ActionSheet
       moveOnKeyboardChange
@@ -720,7 +710,7 @@ export function JoinGroupSheet({
       onOpenChange={onOpenChange}
       modal
     >
-      <YStack flex={1} paddingBottom={bottom}>
+      <YStack flex={1}>
         <JoinGroupFormContent
           chatType="joinGroup"
           open={open}

@@ -11,7 +11,6 @@ import {
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
-import { tlonPlugin } from './src/channel.js';
 import { registerTlonCommands } from './src/commands-registry.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
@@ -33,6 +32,10 @@ import {
   handleCronChangedEvent,
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
+import {
+  beginCronSilenceObservation,
+  recordCronSilenceOutput,
+} from './src/cron-silence.js';
 import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
@@ -87,12 +90,11 @@ import {
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
-import {
-  DEFAULT_TLON_CLI_TIMEOUT_MS,
-  runTlonCommand,
-} from './src/tlon-command-runner.js';
+import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
+import { runTlonCommand } from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
+  findTlonSubcommandIndex,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
@@ -102,6 +104,8 @@ import {
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
 import {
+  beginTlonTurnSilenceObservation,
+  recordTlonTurnSilenceOutput,
   recordActiveTlonTurnToolCall,
   recordTlonAgentRunTrace,
 } from './src/turn-recorder.js';
@@ -1155,21 +1159,27 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
   });
 
   api.on('agent_turn_prepare', async (_event, ctx) => {
+    beginCronSilenceObservation(ctx);
+    beginTlonTurnSilenceObservation(ctx);
     // Cron has no active Tlon turn recorder, so its output trace stays nullable.
     if (ctx.trigger !== 'cron') {
       recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
     }
     await agentTurnHookDeps?.onCronAgentHook(ctx);
   });
-  api.on('model_call_started', async (_event, ctx) =>
-    agentTurnHookDeps?.onCronAgentHook(ctx)
-  );
+  api.on('model_call_started', async (_event, ctx) => {
+    beginCronSilenceObservation(ctx);
+    beginTlonTurnSilenceObservation(ctx);
+    await agentTurnHookDeps?.onCronAgentHook(ctx);
+  });
 
   // Background lenses normally finalize on tool-result idle; agent_end
   // re-arms the window so runs that end with model output (no trailing
   // tool call) still finalize, while leaving time for the gateway to
   // deliver the reply (stamped + recorded via the outbound send path).
-  api.on('agent_end', (_event, ctx) => {
+  api.on('agent_end', (event, ctx) => {
+    recordCronSilenceOutput(event, ctx);
+    recordTlonTurnSilenceOutput(event, ctx);
     clearCronJobForSession(ctx.sessionKey, ctx.jobId);
     if (!resolveAgentTurnHookDeps().contextLensEnabled) {
       return;
@@ -1416,8 +1426,12 @@ export default defineBundledChannelEntry({
       account.configured && account.url && account.ship && account.code
         ? { url: account.url, ship: account.ship, code: account.code }
         : undefined;
-    const toolTimeoutMs =
-      account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
+    // Undefined when nothing is configured, so the runner picks per command.
+    // Filling in the 45s default here meant it was always passed, and
+    // +defaultTlonCliTimeoutMs never got to apply the longer Buckets one --
+    // capability propagation plus state polling can outlast 45s on an
+    // otherwise fine Bucket operation. An explicit setting still wins.
+    const toolTimeoutMs = account.lifecycle.toolTimeoutMs ?? undefined;
     const handleMigrateCommand = createMigrateCommandHandler({
       runCommand: (args, commandCredentials, timeoutMs, onDeadline) =>
         runTlonCommand(tlonBinary, args, commandCredentials, {
@@ -1435,49 +1449,62 @@ export default defineBundledChannelEntry({
       );
     }
 
-    const executeTlonTool = createTlonToolExecutor({
-      runCommand: (args) =>
-        runTlonCommand(tlonBinary, args, credentials, {
-          timeoutMs: toolTimeoutMs,
-        }),
-      notifyDiaryMigrationDiscovery: (nest) =>
-        notifyDiaryMigrationDiscovery(nest, api.config),
-      logError: (message) => api.logger.warn(`[tlon] ${message}`),
-      // Lets the executor run `groups invite-link` as the owner, so invites
-      // attribute to the owner rather than the bot.
-      ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
-      env: process.env,
-      fileExists: (path) => existsSync(path),
-    });
+    // Tool factories receive the active agent workspace, including cron runs.
+    api.registerTool(
+      (ctx) => {
+        const executeTlonTool = createTlonToolExecutor({
+          runCommand: (args) =>
+            args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
+              ? runBrowserSessionHandoff(tlonBinary, args, api.config)
+              : runTlonCommand(tlonBinary, args, credentials, {
+                  timeoutMs: toolTimeoutMs,
+                  cwd: ctx.workspaceDir,
+                  ownerShip:
+                    normalizeShip(account.ownerShip ?? '') || undefined,
+                }),
+          notifyDiaryMigrationDiscovery: (nest) =>
+            notifyDiaryMigrationDiscovery(nest, api.config),
+          logError: (message) => api.logger.warn(`[tlon] ${message}`),
+          // Lets the executor run `groups invite-link` as the owner, so invites
+          // attribute to the owner rather than the bot.
+          ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
+          env: process.env,
+          fileExists: (path) => existsSync(path),
+        });
 
-    api.registerTool({
-      name: 'tlon',
-      label: 'Tlon CLI',
-      description:
-        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
-        'DO NOT use this tool to send messages — use the `message` tool instead. ' +
-        '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
-        'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
-        'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
-        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
-        'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
-      parameters: {
-        type: 'object',
-        properties: {
-          command: {
-            type: 'string',
-            description:
-              'The tlon command and arguments (read/admin operations). ' +
-              'To send messages, use the `message` tool, not this tool. ' +
-              'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
-              'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
-              "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
+        return {
+          name: 'tlon',
+          label: 'Tlon CLI',
+          description:
+            'Tlon/Urbit API for reading data and administration: activity, Buckets shared files, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
+            'The Tlon Messenger app calls groups "workspaces": a request to create, join, or manage a workspace is about a Tlon group, so use `groups` commands (`groups create-owned` to make one for someone). It means your own workspace files only when the person is plainly talking about files, e.g. by naming SOUL.md. ' +
+            'Commands are argument strings, not shell scripts: omit the leading tlon, pipes, and redirections. Relative file paths use the active agent workspace. Use --body <file> for notes or upload <file>; --stdin is unavailable. ' +
+            'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser needs login, address, or card information from its owner, use `browser handoff <session_id>` with the sess_ handle from browser_session_create to send the owner the secure native form. The service resolves its signed link; never supply or reconstruct a viewer URL. ' +
+            '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
+            'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
+            'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
+            "Examples: 'activity mentions --limit 10', 'buckets list', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
+            'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
+          parameters: {
+            type: 'object',
+            properties: {
+              command: {
+                type: 'string',
+                description:
+                  'The tlon command and arguments (read/admin operations and secure browser form handoff). ' +
+                  'To send ordinary messages, use the `message` tool, not this tool. For secure browser input, use `browser handoff <session_id>` with the sess_ handle from browser_session_create, never a viewer URL. ' +
+                  'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
+                  'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
+                  "Examples: 'activity mentions --limit 10', 'buckets list', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
+              },
+            },
+            required: ['command'],
           },
-        },
-        required: ['command'],
+          execute: executeTlonTool,
+        };
       },
-      execute: executeTlonTool,
-    });
+      { name: 'tlon' }
+    );
 
     const logToolTraceContents = liveToolTraceContentsEnabled();
 

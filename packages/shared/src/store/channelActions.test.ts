@@ -14,8 +14,10 @@ import {
   leaveGroupChannel,
   markChannelRead,
   updateChannel,
+  upsertDmChannel,
 } from './channelActions';
 import { markGroupRead } from './groupActions';
+import { handleDmStatus } from './sync';
 
 setupDatabaseTestSuite();
 
@@ -895,4 +897,60 @@ test('createChannel refuses a channel type that is no longer creatable', async (
       where: $.eq(schema.channels.groupId, groupId),
     })
   ).resolves.toEqual([]);
+});
+
+async function getDmPeerRows(peer: string) {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+  const members = await client.query.chatMembers.findMany({
+    where: $.and(
+      $.eq(schema.chatMembers.chatId, peer),
+      $.eq(schema.chatMembers.contactId, peer)
+    ),
+  });
+  const contact = await client.query.contacts.findFirst({
+    where: $.eq(schema.contacts.id, peer),
+  });
+  const mentionIds = (
+    await db.getMentionCandidates({ chatId: peer, query: peer.slice(1, 5) })
+  ).map((c) => c.id);
+  return { members, contact, mentionIds };
+}
+
+test('upsertDmChannel keeps a pending dm peer mentionable across the accepted status event without a contact', async () => {
+  const peer = '~sampel-palnet';
+
+  await upsertDmChannel({ participants: [peer] });
+  let rows = await getDmPeerRows(peer);
+  expect(rows.members).toHaveLength(1);
+  expect(rows.mentionIds).toContain(peer);
+  expect(rows.contact).toBeUndefined();
+
+  // the peer accepting our dm arrives as a %chat-dm-status fact
+  await handleDmStatus(peer, 'done');
+  rows = await getDmPeerRows(peer);
+  expect(rows.members).toHaveLength(1);
+  expect(rows.mentionIds).toContain(peer);
+  expect(rows.contact).toBeUndefined();
+});
+
+test('upsertDmChannel repairs an existing single dm that lost its peer member row', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+  const peer = '~sampel-palnet';
+  await client.insert(schema.channels).values({
+    id: peer,
+    type: 'dm',
+    contactId: peer,
+  });
+  expect((await getDmPeerRows(peer)).members).toEqual([]);
+
+  const first = await upsertDmChannel({ participants: [peer] });
+  const second = await upsertDmChannel({ participants: [peer] });
+
+  expect(first.id).toBe(peer);
+  expect(second.id).toBe(peer);
+  const rows = await getDmPeerRows(peer);
+  expect(rows.members).toHaveLength(1);
+  expect(rows.mentionIds).toContain(peer);
 });
