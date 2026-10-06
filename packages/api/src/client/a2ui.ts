@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { browserTelemetryContextSchema } from './browserTelemetry';
 
 import { MAX_BROWSER_VIEWER_URL_LENGTH } from './browserSession';
 
@@ -126,6 +127,7 @@ const browserCredentialHandoffNavigationTargetSchema = z.object({
   type: z.literal('screen'),
   screen: z.literal('browserCredentialHandoff'),
   viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
+  telemetry: browserTelemetryContextSchema.optional().catch(undefined),
 });
 const screenNavigationTargetSchema = z.union([
   botMcpSettingsNavigationTargetSchema,

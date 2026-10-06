@@ -12,6 +12,7 @@ import {
 } from '../../ui';
 import {
   type BrowserCredentialHandoff,
+  BrowserFormError,
   type BrowserSecureField,
   beginBrowserCredentialHandoff,
   nextBrowserCredentialHandoff,
@@ -177,7 +178,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const [returning, setReturning] = useState(false);
   const [filled, setFilled] = useState(false);
   const [error, setError] = useState<string>();
-  const { resolve, complete, discard } = useBrowserCredentialHandoff();
+  const { resolve, complete, discard, report } = useBrowserCredentialHandoff();
   const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
   const submittingRef = useRef(false);
@@ -188,29 +189,56 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       setValues({});
       setHandoff(undefined);
       setFilled(false);
+      const startedAt = Date.now();
       const viewerUrl = resolve(handoffId);
       if (!viewerUrl) {
+        report(handoffId, {
+          phase: 'form_failed',
+          outcome: 'failed',
+          reason: 'missing_context',
+        });
         setError('Reopen the secure browser form from the conversation.');
         setLoading(false);
         return;
       }
       try {
         const next = await beginBrowserCredentialHandoff(viewerUrl, signal);
-        if (!signal?.aborted) setHandoff(next);
+        if (!signal?.aborted) {
+          setHandoff(next);
+          report(handoffId, {
+            phase: 'form_ready',
+            outcome: 'accepted',
+            formKind: next.kind,
+            durationMs: Date.now() - startedAt,
+          });
+        }
       } catch (nextError) {
-        if (!signal?.aborted) setError(errorMessage(nextError));
+        if (!signal?.aborted) {
+          report(handoffId, {
+            phase: 'form_failed',
+            outcome: 'failed',
+            reason: 'request_failed',
+            httpStatus:
+              nextError instanceof BrowserFormError
+                ? nextError.status
+                : undefined,
+            durationMs: Date.now() - startedAt,
+          });
+          setError(errorMessage(nextError));
+        }
       }
       if (!signal?.aborted) setLoading(false);
     },
-    [handoffId, resolve]
+    [handoffId, resolve, report]
   );
 
   useEffect(() => {
     const controller = new AbortController();
     requestController.current = controller;
+    report(handoffId, { phase: 'form_opened', outcome: 'unknown' });
     void load(controller.signal);
     return () => controller.abort();
-  }, [load]);
+  }, [load, report, handoffId]);
 
   useEffect(() => {
     const active = activeHandoffs.current;
@@ -249,6 +277,13 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     )
       return;
     submittingRef.current = true;
+    const startedAt = Date.now();
+    let fillAccepted = false;
+    report(handoffId, {
+      phase: 'fill_started',
+      outcome: 'unknown',
+      formKind: handoff.kind,
+    });
     setSubmitting(true);
     setError(undefined);
     try {
@@ -258,6 +293,14 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         signal
       );
       if (signal.aborted) return;
+      fillAccepted = true;
+      report(handoffId, {
+        phase: 'fill_accepted',
+        outcome: 'accepted',
+        formKind: handoff.kind,
+        submitted: result.submitted,
+        durationMs: Date.now() - startedAt,
+      });
       setValues({});
       setHandoff(undefined);
       if (handoff.kind === 'login') {
@@ -278,6 +321,11 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         // browser-owned receipt instead of asking the user to enter it again.
         if (next && (next.formId !== handoff.formId || result.submitted)) {
           setHandoff(next);
+          report(handoffId, {
+            phase: 'next_form_ready',
+            outcome: 'accepted',
+            formKind: next.kind,
+          });
           if (next.formId === handoff.formId)
             setError(
               'The site still shows this form. Check the browser before trying again.'
@@ -291,6 +339,14 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       await returnToConversation();
     } catch (nextError) {
       if (signal.aborted) return;
+      report(handoffId, {
+        phase: fillAccepted ? 'next_form_failed' : 'fill_failed',
+        outcome: 'failed',
+        reason: 'request_failed',
+        httpStatus:
+          nextError instanceof BrowserFormError ? nextError.status : undefined,
+        durationMs: Date.now() - startedAt,
+      });
       setValues({});
       setHandoff(undefined);
       setLoading(false);
@@ -299,7 +355,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       submittingRef.current = false;
       if (!signal.aborted) setSubmitting(false);
     }
-  }, [handoff, values, resolve, handoffId, returnToConversation]);
+  }, [handoff, values, resolve, handoffId, returnToConversation, report]);
 
   const retry = useCallback(() => {
     const signal = requestController.current?.signal;

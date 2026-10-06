@@ -12,6 +12,8 @@ import type { SenderRole } from './session-roles.js';
 
 export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'tlon',
+  'browser_task',
+  'report_browser_outcome',
   'cron',
   'read',
 ]);
@@ -21,8 +23,8 @@ export const OWNER_ONLY_BLOCK_REASON_MAX_CHARS = 200;
 
 export function formatOwnerOnlyToolBlockReason(toolName: string): string {
   return (
-    `Blocked by policy: the ${toolName} tool is owner-only and this requester is not the owner. ` +
-    'Tell them you cannot do this for them; do not retry for them, and do not blame a reload, outage, or missing tool.'
+    `Blocked by policy: the ${toolName} tool is owner-only; you are not the owner. ` +
+    'Tell them you cannot do this for them; do not retry for them; do not blame a reload, outage, or missing tool.'
   );
 }
 

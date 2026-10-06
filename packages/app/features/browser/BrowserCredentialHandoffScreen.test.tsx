@@ -16,6 +16,7 @@ import type {
 } from './browserCredentialHandoff';
 
 const mocks = vi.hoisted(() => ({
+  report: vi.fn(),
   beginHandoff: vi.fn(),
   nextHandoff: vi.fn(),
   submitCredentials: vi.fn(),
@@ -49,6 +50,7 @@ vi.mock('../../ui', () => ({
 }));
 vi.mock('./BrowserCredentialHandoffProvider', () => ({
   useBrowserCredentialHandoff: () => ({
+    report: mocks.report,
     complete: mocks.complete,
     discard: mocks.discard,
     resolve: mocks.resolve,
@@ -172,6 +174,13 @@ describe('secure browser form screen', () => {
         await submission;
       });
       expect(mocks.complete).toHaveBeenCalledOnce();
+      expect(mocks.report.mock.calls.map(([, e]) => e.phase)).toEqual([
+        'form_opened',
+        'form_ready',
+        'fill_started',
+        'fill_accepted',
+      ]);
+      expect(JSON.stringify(mocks.report.mock.calls)).not.toContain('aBc123');
       expect(navigation.goBack).toHaveBeenCalledOnce();
       expect(JSON.stringify(renderer.toJSON())).not.toContain('aBc123');
       act(() => renderer.unmount());
@@ -212,6 +221,15 @@ describe('secure browser form screen', () => {
         expect(navigation.goBack).not.toHaveBeenCalled();
       }
     }
+    expect(
+      mocks.report.mock.calls.filter(([, e]) => e.phase === 'next_form_ready')
+    ).toHaveLength(2);
+    expect(
+      mocks.report.mock.calls.filter(([, e]) => e.phase === 'fill_accepted')
+    ).toHaveLength(3);
+    expect(JSON.stringify(mocks.report.mock.calls)).not.toMatch(
+      /private-|aBc123|identity\.example/
+    );
     expect(mocks.submitCredentials.mock.calls.map((call) => call[1])).toEqual([
       { values: { f0: 'private-0' }, submit: true },
       { values: { f1: 'private-1' }, submit: true },
@@ -422,12 +440,18 @@ describe('secure browser form screen', () => {
     act(() => renderer.unmount());
   });
 
-  it('retries completion without filling a one-use form again', async () => {
+  it('retries completion without refilling or reporting a next-form failure', async () => {
     mocks.beginHandoff.mockResolvedValue(form([password]));
     mocks.complete.mockRejectedValueOnce(new Error('Could not notify the bot'));
     const { renderer } = await render();
     act(() => enter(renderer, 'Password', 'secret'));
     await press(renderer);
+    expect(mocks.report.mock.calls.map(([, event]) => event.phase)).toEqual([
+      'form_opened',
+      'form_ready',
+      'fill_started',
+      'fill_accepted',
+    ]);
     await press(renderer, 'Return to conversation');
     expect(mocks.complete).toHaveBeenCalledTimes(2);
     expect(mocks.submitCredentials).toHaveBeenCalledOnce();

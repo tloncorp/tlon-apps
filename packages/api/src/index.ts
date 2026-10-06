@@ -25,6 +25,7 @@ export type {
   HostingLoginOtpInfo,
   HostingRecaptchaPlatform,
 } from './client/hostingApi';
+export * from './client/browserTelemetry';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
 export {
   isTrustedBrowserViewerHost,

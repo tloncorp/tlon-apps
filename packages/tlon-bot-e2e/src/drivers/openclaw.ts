@@ -48,6 +48,12 @@ const LEGACY_OPENCLAW_TOOLS = [
   'tlon',
   'message',
 ] as const;
+const ADVERTISED_BASELINE_TOOLS = [
+  'browser_task',
+  'message',
+  'report_browser_outcome',
+  'tlon',
+];
 const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
 const OPENCLAW_CRON_AT_OFFSET_MS = 180_000;
 
@@ -323,7 +329,7 @@ export const openclawDriver: BotDriver = {
       return {
         steps: [{ kind: 'text', content: text }],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: [...ADVERTISED_BASELINE_TOOLS] },
           expectedCallCount: 1,
         },
       };
@@ -333,7 +339,7 @@ export const openclawDriver: BotDriver = {
       return {
         steps: texts.map((content) => ({ kind: 'text' as const, content })),
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: [...ADVERTISED_BASELINE_TOOLS] },
           expectedCallCount: texts.length,
         },
       };
@@ -354,7 +360,7 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: 'Done' },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: [...ADVERTISED_BASELINE_TOOLS] },
           expectedCallCount: 2,
           // Observed against openclaw@2026.5.7: the fake model receives the
           // initial tool-call request and a follow-up request, but that
@@ -374,7 +380,7 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: finalText },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: [...ADVERTISED_BASELINE_TOOLS] },
           expectedCallCount: 2,
           // See sendMessage: the current OpenClaw transcript is observable as
           // a second model request but not as an OpenAI-format tool-result
@@ -419,7 +425,7 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: finalText },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          advertisedTools: { exact: [...ADVERTISED_BASELINE_TOOLS, 'cron'] },
           expectedCallCount: 2,
           toolEffectOnly: true,
         },

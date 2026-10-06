@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import type { BrowserTelemetryContext } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import { normalizeShip } from './targets.js';
@@ -48,6 +49,7 @@ export type TlonCommandRunnerOptions = {
   cwd?: string;
   /** Trusted owner from the active OpenClaw account, not tool arguments. */
   ownerShip?: string;
+  browserTelemetry?: BrowserTelemetryContext;
   onDeadline?: (output: TlonCommandDeadlineOutput) => void;
 };
 
@@ -79,7 +81,8 @@ export function resolveBrowserHandoffAccount(config: OpenClawConfig) {
 export function runBrowserHandoffCommand(
   binary: string,
   args: string[],
-  config: OpenClawConfig
+  config: OpenClawConfig,
+  browserTelemetry?: BrowserTelemetryContext
 ): Promise<string> {
   const account = resolveBrowserHandoffAccount(config);
   return runTlonCommand(
@@ -92,6 +95,7 @@ export function runBrowserHandoffCommand(
     },
     {
       ownerShip: account.ownerShip,
+      browserTelemetry,
       timeoutMs: account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS,
     }
   );
@@ -108,6 +112,11 @@ export function runTlonCommand(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
+    // Never inherit correlation from a previous/unrelated command. Old CLI
+    // binaries ignore this optional context, so instrumentation can roll out first.
+    delete env.TLON_BROWSER_TELEMETRY;
+    if (options?.browserTelemetry)
+      env.TLON_BROWSER_TELEMETRY = JSON.stringify(options.browserTelemetry);
     if (options?.ownerShip !== undefined) {
       env.TLON_OWNER_SHIP = options.ownerShip;
     }

@@ -1,4 +1,5 @@
 export enum AnalyticsEvent {
+  BrowserLifecycle = 'Browser Lifecycle',
   InviteShared = 'Invite Link Shared',
   OnboardingSessionRevived = 'Onboarding Session Revived',
   AppInstalled = 'App Installed',

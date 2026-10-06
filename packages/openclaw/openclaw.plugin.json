@@ -5,12 +5,15 @@
   ],
   "contracts": {
     "tools": [
-      "tlon"
+      "tlon",
+      "browser_task",
+      "report_browser_outcome"
     ]
   },
   "skills": [
     "node_modules/@tloncorp/tlon-skill",
-    "skills/tlon-product-guide"
+    "skills/tlon-product-guide",
+    "skills/browser-tasks"
   ],
   "configSchema": {
     "type": "object",

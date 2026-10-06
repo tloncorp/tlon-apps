@@ -80,6 +80,31 @@ describe('telemetry tool tracking', () => {
     });
   }
 
+  it('captures browser lifecycle with the same owner identity and version tags', () => {
+    const telemetry = createEnabledTelemetry()!;
+    telemetry.captureBrowserLifecycle({
+      schemaVersion: 1,
+      source: 'agent',
+      phase: 'session_created',
+      outcome: 'accepted',
+      taskOutcome: 'unknown',
+      browserSessionId: 'a'.repeat(64),
+      ownerShip: '~nec',
+      botShip: '~zod',
+    });
+    expect(postHogMocks.capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        distinctId: '~nec',
+        event: 'Browser Lifecycle',
+        properties: expect.objectContaining({
+          ...VERSION_IDENTITY_MATCH,
+          browserSessionId: 'a'.repeat(64),
+          taskOutcome: 'unknown',
+        }),
+      })
+    );
+  });
+
   it('captures budget snapshots and deduplicatable transition events with their original time', () => {
     const telemetry = createEnabledTelemetry()!;
     const identity = {

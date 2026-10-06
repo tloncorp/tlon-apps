@@ -8,7 +8,13 @@ import {
 } from './owner-only-tools.js';
 import type { SenderRole } from './session-roles.js';
 
-const EXPECTED_OWNER_ONLY_TOOLS = ['tlon', 'cron', 'read'] as const;
+const EXPECTED_OWNER_ONLY_TOOLS = [
+  'tlon',
+  'browser_task',
+  'report_browser_outcome',
+  'cron',
+  'read',
+] as const;
 
 describe('OWNER_ONLY_TOOLS', () => {
   it('contains exactly the expected tools in advertised order', () => {

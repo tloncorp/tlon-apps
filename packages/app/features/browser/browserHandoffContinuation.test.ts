@@ -4,14 +4,32 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   BROWSER_HANDOFF_CONTINUATION,
   getBrowserHandoffContinuationSelection,
+  getBrowserHandoffTelemetry,
   isBrowserHandoffContinuationSelection,
   sendBrowserHandoffContinuation,
 } from './browserHandoffContinuation';
 
 const getSelections = vi.hoisted(() => vi.fn());
+const track = vi.hoisted(() => vi.fn());
+vi.mock('./browserTelemetry', () => ({ trackBrowserLifecycle: track }));
 vi.mock('@tloncorp/shared/db', () => ({
   getA2UISelections: getSelections,
 }));
+
+beforeEach(() => track.mockClear());
+
+it('reads only the matching handoff correlation from the source card', () => {
+  expect(getBrowserHandoffTelemetry(sourcePost(), selection)).toEqual({
+    browserSessionId: 'a'.repeat(64),
+    browserHandoffId: '123e4567-e89b-42d3-a456-426614174000',
+  });
+  expect(
+    getBrowserHandoffTelemetry(sourcePost(), {
+      ...selection,
+      surfaceId: 'other',
+    })
+  ).toBeUndefined();
+});
 
 const viewerUrl = 'https://browser-session.tlon.network/s/payload.signature';
 const selection: PostBlobDataEntryA2UISelection = {
@@ -61,6 +79,11 @@ function sourcePost(includeFallback = true) {
                           type: 'screen',
                           screen: 'browserCredentialHandoff',
                           viewerUrl,
+                          telemetry: {
+                            browserSessionId: 'a'.repeat(64),
+                            browserHandoffId:
+                              '123e4567-e89b-42d3-a456-426614174000',
+                          },
                         },
                       },
                     },
@@ -187,6 +210,9 @@ describe('browser handoff continuation', () => {
     await Promise.all([fallback, automatic]);
     await sendBrowserHandoffContinuation(args);
     expect(send).toHaveBeenCalledOnce();
+    expect(
+      track.mock.calls.filter(([e]) => e.phase === 'continuation_queued')
+    ).toHaveLength(1);
   });
 
   it('allows retries when a send fails without creating a durable receipt', async () => {

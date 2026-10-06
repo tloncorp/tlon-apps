@@ -261,6 +261,23 @@ describe('runTlonCommand timeout output capture', () => {
 });
 
 describe('runTlonCommand credential environment', () => {
+  it('passes explicit browser correlation only to its own child command', async () => {
+    vi.stubEnv('TLON_BROWSER_TELEMETRY', 'stale');
+    const args = [
+      '-e',
+      'process.stdout.write(process.env.TLON_BROWSER_TELEMETRY ?? "absent")',
+    ];
+    const telemetry = {
+      browserSessionId: 'a'.repeat(64),
+      browserHandoffId: '123e4567-e89b-42d3-a456-426614174000',
+    };
+    expect(
+      await runTlonCommand(process.execPath, args, undefined, {
+        browserTelemetry: telemetry,
+      })
+    ).toBe(JSON.stringify(telemetry));
+    expect(await runTlonCommand(process.execPath, args)).toBe('absent');
+  });
   it('leaves owner discovery to the CLI when only a named account is configured', async () => {
     vi.stubEnv('TLON_OWNER_SHIP', undefined);
     const account = resolveTlonAccount({

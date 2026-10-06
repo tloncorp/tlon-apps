@@ -30,6 +30,11 @@ Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTI
 
 ### Hosted-browser secure form handoff
 
+When the gateway provides `browser_task` and `report_browser_outcome`, use the
+`browser-tasks` skill to track the user's objective before browser work. Keep the
+same task ID across handoffs and replacement sessions, and report its outcome
+when finishing or giving up. Filling a form alone is not task success.
+
 Use a secure form handoff when you are controlling a hosted browser on behalf
 of your owner and the live page needs sensitive input that they should provide,
 including identifier-only, password, and verification steps, as well as address

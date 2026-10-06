@@ -11,6 +11,7 @@ import {
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { registerTlonCommands } from './src/commands-registry.js';
+import { registerBrowserTasks } from './src/browser-task-runtime.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
 import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
@@ -86,6 +87,10 @@ import {
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
+import {
+  observeBrowserToolStart,
+  observeBrowserToolResult,
+} from './src/browser-telemetry.js';
 import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
 import { runTlonCommand } from './src/tlon-command-runner.js';
 import {
@@ -982,13 +987,16 @@ export default defineBundledChannelEntry({
       );
     }
 
+    registerBrowserTasks(api);
     // Tool factories receive the active agent workspace, including cron runs.
     api.registerTool(
       (ctx) => {
         const executeTlonTool = createTlonToolExecutor({
           runCommand: (args) =>
             args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
-              ? runBrowserSessionHandoff(tlonBinary, args, api.config)
+              ? runBrowserSessionHandoff(tlonBinary, args, api.config, {
+                  sessionKey: ctx.sessionKey,
+                })
               : runTlonCommand(tlonBinary, args, credentials, {
                   timeoutMs: toolTimeoutMs,
                   cwd: ctx.workspaceDir,
@@ -1077,6 +1085,7 @@ export default defineBundledChannelEntry({
               allowedProviderIds
             )));
       const isBlocked = blocksNonOwner || blocksOnboardingMcp;
+      if (!isBlocked) observeBrowserToolStart(event, { ...ctx, toolCallId });
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
         : ownerOnlyDecision.reason;
@@ -1243,6 +1252,7 @@ export default defineBundledChannelEntry({
         sourceEventName: event.toolName,
         sessionKey: ctx.sessionKey,
         run: () => {
+          observeBrowserToolResult(event, { ...ctx, toolCallId });
           if (tlonCommandContext) {
             emitDiagnosticEvent({
               type: 'log.record',
