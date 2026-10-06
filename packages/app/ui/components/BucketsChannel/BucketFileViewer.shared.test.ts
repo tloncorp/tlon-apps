@@ -830,6 +830,12 @@ describe('htmlPreviewDocument without scripts', () => {
     expect(
       scriptless('<base href="data:text/html,x"><a href="help.html">h</a>')
     ).toContain('<a target="_blank">h</a>');
+    // A scheme-relative base takes https, as a link does.
+    expect(
+      scriptless('<base href="//docs.example/guide/"><a href="help.html">h</a>')
+    ).toContain(
+      '<a target="_blank" href="https://docs.example/guide/help.html">h</a>'
+    );
   });
 
   // Left to the browser, a relative address resolves against the app's own,
@@ -847,10 +853,19 @@ describe('htmlPreviewDocument without scripts', () => {
         base
       ).toContain('<a target="_blank">x</a>');
     }
-    // One the browser never sees still gives an address of its own.
+    // A base in a template, an svg or math sets nothing; one after them does.
+    for (const inert of [
+      '<template><base href="https://t.example/"></template>',
+      '<svg><base href="https://t.example/"/></svg>',
+      '<math><base href="https://t.example/"></base></math>',
+    ]) {
+      expect(scriptless(`${inert}<a href="help.html">x</a>`), inert).toContain(
+        '<a target="_blank">x</a>'
+      );
+    }
     expect(
       scriptless(
-        '<template><base href="https://t.example/"></template><a href="help.html">x</a>'
+        '<svg/><template></template><base href="https://t.example/"><a href="help.html">x</a>'
       )
     ).toContain('<a target="_blank" href="https://t.example/help.html">x</a>');
   });

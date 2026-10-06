@@ -421,9 +421,10 @@ const TITLE_TEXT_ELEMENTS = new Set([
   'xmp',
 ]);
 
-// Elements whose titles are not the document's -- template content is inert,
-// and an svg or math title is the drawing's -- and which can nest.
-const TITLE_INERT_ELEMENTS = new Set(['math', 'svg', 'template']);
+// Elements whose content is not the document's own -- template content is
+// inert, and inside svg or math a title is the drawing's and a base sets
+// nothing -- and which can nest.
+const INERT_ELEMENTS = new Set(['math', 'svg', 'template']);
 
 // HTML's ASCII whitespace: tab, line feed, form feed, carriage return, space.
 function isHtmlSpace(code: number): boolean {
@@ -511,12 +512,12 @@ export function htmlPreviewTitle(html: string): string | undefined {
     if (tagEnd < 0) return undefined;
     i = tagEnd;
     if (closing) {
-      if (inert > 0 && TITLE_INERT_ELEMENTS.has(name)) inert -= 1;
+      if (inert > 0 && INERT_ELEMENTS.has(name)) inert -= 1;
       continue;
     }
     // Everything after a plaintext start tag is text.
     if (name === 'plaintext') return undefined;
-    if (TITLE_INERT_ELEMENTS.has(name)) {
+    if (INERT_ELEMENTS.has(name)) {
       // A self-closed svg or math has no content; a template always opens.
       const selfClosed =
         name !== 'template' && html.charCodeAt(tagEnd - 2) === 47;
@@ -918,6 +919,7 @@ function linkScript(key: string): string {
   var run = Function;
   var XLINK = 'http://www.w3.org/1999/xlink';
   var SVG = 'http://www.w3.org/2000/svg';
+  var XHTML = 'http://www.w3.org/1999/xhtml';
   function hrefOf(node) {
     var raw = node.getAttribute('href');
     return raw !== null ? raw : node.getAttributeNS(XLINK, 'href');
@@ -930,15 +932,27 @@ function linkScript(key: string): string {
     }
     return null;
   }
+  // A URL attribute as the URL parser reads it: spaces and controls
+  // trimmed, tabs and newlines anywhere dropped.
+  function urlText(value) {
+    return (value || '').replace(/^[\\u0000-\\u0020]+|[\\u0000-\\u0020]+$/g, '').replace(/[\\t\\n\\r]/g, '');
+  }
   function parse(raw, base) {
     try { return new resolveURL(raw, base); } catch (error) { return null; }
   }
-  // The file's own base, when it is an absolute web address: with any other
-  // the browser would resolve a relative link against the app's address.
+  // The file's own base: the document's first HTML <base href>, when it is
+  // an absolute web address, or a scheme-relative one, which takes https as
+  // a link does. With any other the browser would resolve a relative link
+  // against the app's address.
   function webBase() {
-    var element = document.querySelector('base[href]');
-    var url = element && parse(element.getAttribute('href'));
-    return url && /^https?:$/.test(url.protocol) ? url.href : null;
+    var elements = document.querySelectorAll('base[href]');
+    for (var i = 0; i < elements.length; i++) {
+      if (elements[i].namespaceURI !== XHTML) continue;
+      var href = urlText(elements[i].getAttribute('href'));
+      var url = parse(href.slice(0, 2) === '//' ? 'https:' + href : href);
+      return url && /^https?:$/.test(url.protocol) ? url.href : null;
+    }
+    return null;
   }
   function scrollToFragment(fragment) {
     var id = fragment;
@@ -961,9 +975,7 @@ function linkScript(key: string): string {
         else link.setAttribute('target', target);
       }
       if (event.defaultPrevented) return;
-      // As the URL parser reads it: spaces and controls trimmed, tabs and
-      // newlines anywhere dropped.
-      var raw = (hrefOf(link) || '').replace(/^[\\u0000-\\u0020]+|[\\u0000-\\u0020]+$/g, '').replace(/[\\t\\n\\r]/g, '');
+      var raw = urlText(hrefOf(link));
       if (/^javascript:/i.test(raw)) {
         var code;
         try { code = decodeURIComponent(raw.replace(/^javascript:/i, '')); } catch (error) { return; }
@@ -1067,11 +1079,15 @@ function withoutAttributes(attributes: string, names: Set<string>): string {
 }
 
 /**
- * The `href` of the file's own first `<base href>`, read as markup (not from
- * a comment or the text of a script or the like); undefined when it has none.
+ * The `href` of the first `<base href>` that sets the document's base, as
+ * the title scan reads the document: markup, not a comment or the text of a
+ * script or the like, and not inside a template, an svg or math, where a
+ * base sets nothing. Undefined when the file has none.
  */
 function authoredBaseHref(html: string): string | undefined {
   const lower = html.toLowerCase();
+  // How many template, svg and math elements are open around the scan.
+  let inert = 0;
   let i = 0;
   for (;;) {
     const open = html.indexOf('<', i);
@@ -1082,24 +1098,38 @@ function authoredBaseHref(html: string): string | undefined {
       i = close + 3;
       continue;
     }
-    if (!isAsciiLetter(html.charCodeAt(open + 1))) {
+    const closing = html.charCodeAt(open + 1) === 47;
+    const nameStart = open + (closing ? 2 : 1);
+    if (!isAsciiLetter(html.charCodeAt(nameStart))) {
       i = open + 1;
       continue;
     }
-    let nameEnd = open + 1;
+    let nameEnd = nameStart;
     while (nameEnd < html.length) {
       const code = html.charCodeAt(nameEnd);
       if (isHtmlSpace(code) || code === 47 || code === 62) break;
       nameEnd += 1;
     }
-    const name = lower.slice(open + 1, nameEnd);
+    const name = lower.slice(nameStart, nameEnd);
     const tagEnd = startTagEnd(html, nameEnd);
     if (tagEnd < 0) return undefined;
-    if (name === 'base') {
+    i = tagEnd;
+    if (closing) {
+      if (inert > 0 && INERT_ELEMENTS.has(name)) inert -= 1;
+      continue;
+    }
+    if (name === 'plaintext') return undefined;
+    if (INERT_ELEMENTS.has(name)) {
+      // A self-closed svg or math has no content; a template always opens.
+      const selfClosed =
+        name !== 'template' && html.charCodeAt(tagEnd - 2) === 47;
+      if (!selfClosed) inert += 1;
+      continue;
+    }
+    if (name === 'base' && inert === 0) {
       const href = tagAttributes(html.slice(nameEnd, tagEnd - 1)).get('href');
       if (href !== undefined) return href;
     }
-    i = tagEnd;
     if (TEXT_CONTENT_ELEMENTS.has(name)) {
       const close = endTagStart(lower, name, tagEnd);
       if (close < 0) return undefined;
@@ -1111,13 +1141,16 @@ function authoredBaseHref(html: string): string | undefined {
 /**
  * The file's own base, when its relative links may resolve against it: the
  * first `<base href>` (authoredBaseHref), when that is an absolute web
- * address. No base, a relative one or one that does not parse gives them
- * nowhere to go: a Bucket file has no address of its own its neighbours
- * could be reached from.
+ * address, or a scheme-relative one, which takes https as a link does. No
+ * base, a relative one or one that does not parse gives them nowhere to go:
+ * a Bucket file has no address of its own its neighbours could be reached
+ * from.
  */
 function fileWebBase(html: string): string | undefined {
   const href = authoredBaseHref(html);
-  const base = href === undefined ? undefined : linkAddress(urlText(href));
+  if (href === undefined) return undefined;
+  const value = urlText(href);
+  const base = linkAddress(value.startsWith('//') ? `https:${value}` : value);
   return base !== undefined && /^https?:/.test(base) ? base : undefined;
 }
 
