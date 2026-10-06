@@ -86,6 +86,7 @@ export type CronChangedEvent = {
   durationMs?: number;
   status?: 'ok' | 'error' | 'skipped';
   error?: string;
+  summary?: string;
   delivered?: boolean;
   deliveryStatus?: 'not-requested' | 'delivered' | 'not-delivered' | 'unknown';
   deliveryError?: string;

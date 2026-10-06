@@ -1,9 +1,5 @@
 import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type {
-  PluginHookAgentContext,
-  PluginHookAgentEndEvent,
-} from 'openclaw/plugin-sdk/types';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
 import {
@@ -11,6 +7,7 @@ import {
   type TlonMessageJourneyDestinationKind,
   recordTlonMessageJourneyEvent,
 } from './message-journey.js';
+import type { AgentEndEvent, AgentHookContext } from './agent-hook-types.js';
 import { sharedMap } from './shared-state.js';
 import { isSuccessfulSilentAgentOutput } from './silent-reply.js';
 
@@ -638,9 +635,7 @@ export function startTlonAgentTurn(
 }
 
 // Reset before every model attempt, including retries after a silent completion.
-export function beginTlonTurnSilenceObservation(
-  ctx: PluginHookAgentContext
-): void {
+export function beginTlonTurnSilenceObservation(ctx: AgentHookContext): void {
   const output = ctx.runId ? agentOutputsByRunId.get(ctx.runId) : undefined;
   if (!output || output.sessionKey !== ctx.sessionKey) return;
   output.silent = false;
@@ -649,8 +644,8 @@ export function beginTlonTurnSilenceObservation(
 }
 
 export function recordTlonTurnSilenceOutput(
-  event: PluginHookAgentEndEvent,
-  ctx: PluginHookAgentContext
+  event: AgentEndEvent,
+  ctx: AgentHookContext
 ): void {
   const output = ctx.runId ? agentOutputsByRunId.get(ctx.runId) : undefined;
   if (
