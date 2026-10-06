@@ -125,12 +125,39 @@
 ::
 ::  +strip-hops: drop hop-by-hop headers, case-insensitively
 ::
+::    besides the fixed set, any header a connection header names is
+::    connection-scoped too, and must not be relayed (rfc 9110, 7.6.1).
+::
 ++  strip-hops
   |=  hes=header-list:http
   ^-  header-list:http
+  =/  drop=(set @t)
+    %-  ~(gas in hop-by-hop)
+    %-  zing
+    %+  turn  hes
+    |=  [key=@t val=@t]
+    ?.  =('connection' (crip (cass (trip key))))  ~
+    (connection-names val)
   %+  skip  hes
   |=  [key=@t val=@t]
-  (~(has in hop-by-hop) (crip (cass (trip key))))
+  (~(has in drop) (crip (cass (trip key))))
+::
+::  +connection-names: the field names a connection header lists,
+::  lowercased, ignoring whitespace and empty entries
+::
+++  connection-names
+  |=  val=@t
+  ^-  (list @t)
+  =|  [cur=tape out=(list @t)]
+  =/  t=tape  (cass (trip val))
+  |-
+  ?~  t
+    (flop ?~(cur out [(crip (flop cur)) out]))
+  ?:  =(',' i.t)
+    $(t t.t, cur ~, out ?~(cur out [(crip (flop cur)) out]))
+  ?:  |(=(' ' i.t) =('\09' i.t))
+    $(t t.t)
+  $(t t.t, cur [i.t cur])
 ::
 ::  +unsafe-target: why we refuse to fetch this url, if we do
 ::
@@ -551,6 +578,11 @@
     ::TODO  special-case x.com/twitter.com links
     ::TODO  deduplicate with +on-arvo somehow?
     |-
+    ::  a cached redirect must not be a way around the address guard
+    ::
+    ?^  why=(unsafe-target u.target)
+      =.  msg  u.why
+      bad-req
     ::  if we already started a fetch, simply await the result
     ::
     ?:  (~(has by await) [%meta u.target])
@@ -731,6 +763,16 @@
     ::  the location value could be relative, make sure to resolve it first
     ::
     =?  nex    ?=(^ nex)  `(expand-url:mg url u.nex)
+    ::  a redirect must not be a way around the address guard. check before
+    ::  caching it: a cached redirect is followed without a new request.
+    ::
+    =/  bad=(unit [to=@t why=@t])
+      ?~  nex  ~
+      (bind (unsafe-target u.nex) (lead u.nex))
+    ?^  bad
+      %-  (tell:l %warn 'unsafe redirect' to.u.bad ~)
+      :-  (give-response (~(get ju await) [%meta url]) now.bowl %500 `why.u.bad)
+      finalize
     =.  cache  (~(put by cache) [%meta url] now.bowl %300 nex)
     ?~  nex
       :-  (give-response (~(get ju await) [%meta url]) now.bowl %300 ~)
@@ -739,18 +781,20 @@
       %-  (tell:l %warn 'unparsable redirect' u.nex ~)
       :-  (give-response (~(get ju await) [%meta url]) now.bowl %300 nex)
       finalize
-    ::  a redirect must not be a way around the address guard
-    ::
-    ?^  why=(unsafe-target u.nex)
-      %-  (tell:l %warn 'unsafe redirect' u.nex ~)
-      :-  (give-response (~(get ju await) [%meta url]) now.bowl %500 `u.why)
-      finalize
     ::TODO  deduplicate with %handle-http-request somehow?
     ::
     ::  in the loop .url points to the redirection source url.
     ::
     =*  max-redir  10
     |-  ^-  (quip card _this)
+    ::  cached hops are followed without a request, so guard each one, and
+    ::  drop the cache entry that pointed at a refused target.
+    ::
+    ?^  why=(unsafe-target u.nex)
+      %-  (tell:l %warn 'unsafe redirect' u.nex ~)
+      :-  (give-response (~(get ju await) [%meta url]) now.bowl %500 `u.why)
+      =.  this  finalize
+      this(cache (~(del by cache) [%meta url]))
     ?:  (~(has ju trail) orig-url u.nex)
       ::  [trail 3]: when a request resolves back to the trail, forming a
       ::             loop, we detect it and return an error.
