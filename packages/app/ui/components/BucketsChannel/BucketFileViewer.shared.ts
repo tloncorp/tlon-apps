@@ -190,15 +190,104 @@ function metaCharset(head: string): string | undefined {
       if (encoding) return encoding;
       continue;
     }
-    if (attributes.get('http-equiv')?.trim().toLowerCase() === 'content-type') {
-      const declared = attributes
-        .get('content')
-        ?.match(/charset\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s;"']+))/i);
-      const value = declared?.[1] ?? declared?.[2] ?? declared?.[3];
+    if (asciiLowercase(attributes.get('http-equiv') ?? '') === 'content-type') {
+      const content = attributes.get('content');
+      const value = content === undefined ? undefined : charsetIn(content);
       const encoding = value === undefined ? undefined : encodingOf(value);
       if (encoding) return encoding;
     }
   }
+}
+
+/**
+ * The charset a `<meta http-equiv="content-type">`'s `content` names, read as
+ * the prescan's extraction reads it: the first `charset` followed, past
+ * whitespace, by `=`; then a quoted value, or one that ends at whitespace or
+ * `;`. Whitespace here is ASCII whitespace and the vertical tab, which
+ * Chromium and WebKit both accept around the `=` (no other space does).
+ * Undefined when it names none.
+ */
+function charsetIn(content: string): string | undefined {
+  const isSpace = (code: number) => isHtmlSpace(code) || code === 11;
+  const lower = asciiLowercase(content);
+  let position = 0;
+  for (;;) {
+    const at = lower.indexOf('charset', position);
+    if (at < 0) return undefined;
+    let i = at + 7;
+    while (i < content.length && isSpace(content.charCodeAt(i))) i += 1;
+    if (content[i] !== '=') {
+      position = i;
+      continue;
+    }
+    i += 1;
+    while (i < content.length && isSpace(content.charCodeAt(i))) i += 1;
+    const quote = content[i];
+    if (quote === '"' || quote === "'") {
+      const close = content.indexOf(quote, i + 1);
+      return close < 0 ? undefined : content.slice(i + 1, close);
+    }
+    let end = i;
+    while (
+      end < content.length &&
+      !isSpace(content.charCodeAt(end)) &&
+      content[end] !== ';'
+    ) {
+      end += 1;
+    }
+    return end > i ? content.slice(i, end) : undefined;
+  }
+}
+
+/**
+ * The `charset` parameter of a Content-Type header, read as the MIME type
+ * parser reads it: parameter by parameter, so a `;` or `charset=` inside a
+ * quoted value is that value's, and the first `charset` wins. Undefined when
+ * it has none.
+ */
+function mimeCharset(contentType: string): string | undefined {
+  const httpSpace = (code: number) =>
+    code === 9 || code === 10 || code === 13 || code === 32;
+  let i = contentType.indexOf(';');
+  if (i < 0) return undefined;
+  while (i < contentType.length) {
+    i += 1;
+    while (i < contentType.length && httpSpace(contentType.charCodeAt(i))) {
+      i += 1;
+    }
+    let nameEnd = i;
+    while (
+      nameEnd < contentType.length &&
+      contentType[nameEnd] !== ';' &&
+      contentType[nameEnd] !== '='
+    ) {
+      nameEnd += 1;
+    }
+    const name = asciiLowercase(contentType.slice(i, nameEnd));
+    i = nameEnd;
+    if (i >= contentType.length) return undefined;
+    if (contentType[i] === ';') continue;
+    i += 1;
+    let value = '';
+    if (contentType[i] === '"') {
+      // A quoted string, where a backslash escapes the character after it.
+      i += 1;
+      while (i < contentType.length && contentType[i] !== '"') {
+        if (contentType[i] === '\\' && i + 1 < contentType.length) i += 1;
+        value += contentType[i];
+        i += 1;
+      }
+      while (i < contentType.length && contentType[i] !== ';') i += 1;
+    } else {
+      let end = i;
+      while (end < contentType.length && contentType[end] !== ';') end += 1;
+      value = contentType.slice(i, end).replace(/[\t\n\r ]+$/, '');
+      i = end;
+      if (value === '') continue;
+    }
+    if (name === 'charset') return value;
+  }
+  return undefined;
 }
 
 /**
@@ -252,7 +341,7 @@ export function previewEncoding({
   if (head.startsWith('ï»¿')) return 'utf-8';
   if (head.startsWith('þÿ')) return 'utf-16be';
   if (head.startsWith('ÿþ')) return 'utf-16le';
-  const label = contentType?.match(/;\s*charset\s*=\s*"?([^";\s]+)/i)?.[1];
+  const label = contentType ? mimeCharset(contentType) : undefined;
   const sent = label === undefined ? undefined : encodingOf(label);
   if (sent) return sent;
   if (html) {
@@ -920,7 +1009,9 @@ function* markupTags(
       // ones it holds. It takes its parent's namespace, and a foreign element
       // can close itself.
       const { namespace } = scopes[scopes.length - 1];
-      const encoding = asciiLowercase(attributes.get('encoding') ?? '');
+      const encoding = asciiLowercase(
+        parseEntities(attributes.get('encoding') ?? '', { attribute: true })
+      );
       const opensHtml =
         namespace === 'svg'
           ? SVG_HTML_ELEMENTS.has(name)

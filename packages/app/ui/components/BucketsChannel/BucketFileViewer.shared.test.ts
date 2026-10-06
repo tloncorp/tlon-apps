@@ -294,6 +294,46 @@ describe('previewEncoding', () => {
     expect(page('þÿ\u0000<')).toBe('utf-16be');
   });
 
+  // As browsers read a pragma: http-equiv must be content-type itself, and
+  // only ASCII whitespace and the vertical tab, which Chromium and WebKit
+  // both accept, may surround charset's `=`.
+  it('reads a pragma only as browsers do', () => {
+    expect(
+      page(
+        '<meta http-equiv=" content-type " content="text/html; charset=windows-1252">'
+      )
+    ).toBe('utf-8');
+    expect(
+      page(
+        '<meta http-equiv="content-type" content="text/html; charset\u000b=windows-1252">'
+      )
+    ).toBe('windows-1252');
+    expect(
+      page(
+        '<meta http-equiv="content-type" content="text/html; charset\u00a0=windows-1252">'
+      )
+    ).toBe('utf-8');
+    expect(
+      page(
+        '<meta http-equiv="Content-Type" content="text/html; charset = windows-1252">'
+      )
+    ).toBe('windows-1252');
+  });
+
+  // The MIME type parser reads a header parameter by parameter: a quoted
+  // value's `charset=` is that value's.
+  it("reads the response's charset parameter, not text inside another", () => {
+    expect(
+      page(
+        '<p>x</p>',
+        'text/html; note="x; charset=windows-1252"; charset=utf-8'
+      )
+    ).toBe('utf-8');
+    expect(page('<p>x</p>', 'text/html;charset="windows\\-1252"')).toBe(
+      'windows-1252'
+    );
+  });
+
   // A label resolves to the encoding it names, as the Encoding Standard
   // lists them: ISO-8859-1 and ASCII are windows-1252 to a browser.
   it('resolves a label to the encoding it names', () => {
@@ -452,6 +492,12 @@ describe('htmlPreviewTitle', () => {
     expect(htmlPreviewTitle('<svg><g><svg></g></svg><title>Page</title>')).toBe(
       'Page'
     );
+    // An annotation-xml's encoding is read decoded, as the tokenizer gives it.
+    expect(
+      htmlPreviewTitle(
+        '<math><annotation-xml encoding="text&#47;html"><title>Page</title></annotation-xml></math>'
+      )
+    ).toBe('Page');
     // At a MathML text element, mglyph is MathML still, and so is a title in it.
     expect(
       htmlPreviewTitle(
