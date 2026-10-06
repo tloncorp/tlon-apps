@@ -572,7 +572,7 @@ describe('getDrawerMatchRows', () => {
       kind: 'chat',
       unfurls: true,
       unfurled: false,
-      showsMatches: true,
+      matches: 'shown',
       pinned: false,
     });
     expect(rows[2]).toMatchObject({
@@ -582,6 +582,13 @@ describe('getDrawerMatchRows', () => {
       joined: true,
       last: true,
     });
+  });
+
+  it('lists the workspace alone once its matches are folded away', () => {
+    const rows = getDrawerMatchRows(found, [channel('general')], true);
+
+    expect(rows.map((row) => row.key)).toEqual(['group']);
+    expect(rows[0]).toMatchObject({ matches: 'folded' });
   });
 
   it('carries a muted workspace’s silence down to the channels it lists', () => {
@@ -596,7 +603,7 @@ describe('getDrawerMatchRows', () => {
   it('leaves an unfurled workspace’s rows unmarked', () => {
     const rows = getDrawerRows([found], 'group');
 
-    expect(rows[0]).toMatchObject({ showsMatches: false });
+    expect(rows[0]).toMatchObject({ matches: 'none' });
     expect(
       rows.slice(1).every((row) => row.kind === 'channel' && !row.match)
     ).toBe(true);

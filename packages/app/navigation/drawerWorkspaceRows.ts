@@ -20,11 +20,12 @@ export type DrawerRow =
       unfurls: boolean;
       unfurled: boolean;
       /**
-       * A search result with the channels of it that matched listed beneath
-       * it. Open, as an unfurled workspace is, but without its block: they are
-       * there to say where each channel is, not the whole of the workspace.
+       * A search result the channels of which matched: `shown` beneath it, or
+       * `folded` away by the user. Shown, it is open as an unfurled workspace
+       * is, but without its block: they are there to say where each channel
+       * is, not the whole of the workspace. `none` for every other row.
        */
-      showsMatches: boolean;
+      matches: 'shown' | 'folded' | 'none';
       /** In the pinned section at the top of its tab. */
       pinned: boolean;
     }
@@ -43,7 +44,7 @@ export type DrawerRow =
       /** Last channel of its workspace, where the block's fill ends. */
       last: boolean;
       /**
-       * Found by the search, under a workspace that `showsMatches`, rather
+       * Found by the search, under a workspace showing its matches, rather
        * than one of an unfurled workspace's channels.
        */
       match: boolean;
@@ -239,7 +240,7 @@ export function getDrawerRows(
       chat,
       unfurls: rowUnfurls,
       unfurled,
-      showsMatches: false,
+      matches: 'none',
       pinned,
     });
     if (!unfurled) {
@@ -280,7 +281,8 @@ export function getDrawerRows(
 }
 
 /**
- * A workspace a search found channels in, with those channels beneath it.
+ * A workspace a search found channels in, with those channels beneath it
+ * unless the user has folded them away.
  *
  * The rows an unfurled workspace has, cut to the channels that matched and
  * drawn without the block's fill. The block says "everything in here"; these
@@ -289,7 +291,8 @@ export function getDrawerRows(
  */
 export function getDrawerMatchRows(
   chat: db.Chat,
-  channels: db.Channel[]
+  channels: db.Channel[],
+  folded = false
 ): DrawerRow[] {
   const groupMuted =
     chat.type === 'group' && logic.isMuted(chat.volumeSettings?.level, 'group');
@@ -300,10 +303,10 @@ export function getDrawerMatchRows(
       chat,
       unfurls: unfurls(chat),
       unfurled: false,
-      showsMatches: true,
+      matches: folded ? 'folded' : 'shown',
       pinned: false,
     },
-    ...channels.map(
+    ...(folded ? [] : channels).map(
       (channel, index): DrawerRow => ({
         kind: 'channel',
         key: `${chat.id}:${channel.id}`,

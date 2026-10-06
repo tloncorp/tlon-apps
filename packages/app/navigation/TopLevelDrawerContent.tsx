@@ -243,7 +243,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   disabled,
   unfurls,
   unfurled,
-  showsMatches,
+  matches,
   pinned,
   onPress,
   onLongPress,
@@ -256,9 +256,9 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   /** Whether pressing this row opens its channels below it. */
   unfurls: boolean;
   unfurled: boolean;
-  /** A search result with the channels of it that matched beneath it, which
-      reads as open but is drawn without the unfurled block. */
-  showsMatches: boolean;
+  /** A search result with the channels of it that matched beneath it, or
+      folded away: open, it is drawn without the unfurled block. */
+  matches: 'shown' | 'folded' | 'none';
   /** In its tab's pinned section, which leads with a pin in place of its
       glyph. */
   pinned: boolean;
@@ -292,7 +292,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   // own.
   const unreadColor = getUnreadColors(notified).foreground;
   // Its channels are on show below it, all of them or the ones a search found.
-  const expanded = unfurled || showsMatches;
+  const expanded = unfurled || matches === 'shown';
 
   return (
     <Pressable
@@ -931,6 +931,11 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // at one of its results is still there when they pull the panel back out.
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // Workspaces whose matching channels the user has folded away during this
+  // search. A search's own state, so it goes when the search does.
+  const [foldedMatchIds, setFoldedMatchIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
   // A chat reached through the search is told apart from one picked off the
   // list, as the workspace list's own filter tells its taps apart.
   const chatSource = searchQuery.trim() ? 'drawer_search' : 'drawer';
@@ -947,6 +952,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     if (!drawerOpen && searchOpen && searchQuery.trim() === '') {
       setSearchQuery('');
       setSearchOpen(false);
+      setFoldedMatchIds(new Set());
     }
   }, [drawerOpen, searchOpen, searchQuery]);
 
@@ -1269,6 +1275,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     searchInputRef.current?.blur();
     setSearchQuery('');
     setSearchOpen(false);
+    setFoldedMatchIds(new Set());
   }, []);
 
   // Not gated on the drawer being open: the list is virtualised, so what is
@@ -1284,14 +1291,32 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     [chats, filter, botDm]
   );
   // Gated on the field, unlike the list: the search indexes every chat it is
-  // handed, and the chat list changes with every unread that arrives, so an
-  // index kept for a search nobody has opened is rebuilt for nothing. Keyed on
-  // the bot's channel rather than `botDm`, which is a new object every render
-  // and would rebuild the index on each one.
+  // handed, and every channel of every workspace with them, and the chat list
+  // changes with every unread that arrives, so an index kept for a search
+  // nobody has opened is rebuilt for nothing. Keyed on the bot's channel rather
+  // than `botDm`, which is a new object every render and would rebuild the
+  // index on each one.
+  //
+  // A search with something typed in it outlives the panel being shut, and
+  // while it is shut the index is read from the chats as they stood when it
+  // shut, rather than rebuilt for each message arriving in the conversation
+  // the user went to. Not emptied: a panel being swiped back out is still
+  // reported shut, and its results are on screen.
   const botChannelId = botDm.enabled ? botDm.channelId : undefined;
+  // Set only as the panel opens or shuts, during render so the render that
+  // first sees it shut already reads what it was shut with.
+  const [shutWith, setShutWith] = useState<{ chats: typeof chats } | null>(
+    null
+  );
+  if (drawerOpen && shutWith) {
+    setShutWith(null);
+  } else if (!drawerOpen && !shutWith) {
+    setShutWith({ chats });
+  }
+  const searchedChats = shutWith ? shutWith.chats : chats;
   const searchChats = useMemo(
-    () => (searchOpen ? getDrawerSearchChats(chats, botChannelId) : []),
-    [chats, botChannelId, searchOpen]
+    () => (searchOpen ? getDrawerSearchChats(searchedChats, botChannelId) : []),
+    [searchedChats, botChannelId, searchOpen]
   );
   // The workspace list's own filter, so a name found there is found here.
   // Undebounced: the panel holds one user's chats, and a result that trails
@@ -1306,12 +1331,8 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // Read across the whole list rather than the half being shown, so the tab
   // that is not showing can say it has something in it.
   const filterUnreads = useMemo(
-    () =>
-      getDrawerFilterUnreads(
-        chats,
-        botDm.enabled ? botDm.channelId : undefined
-      ),
-    [chats, botDm]
+    () => getDrawerFilterUnreads(chats, botChannelId),
+    [chats, botChannelId]
   );
   // Which workspace is showing its channels, if any. Kept here rather than
   // persisted: the panel's content is mounted for as long as the navigator is,
@@ -1339,6 +1360,23 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       // stack and close the panel out from under the channels just unfurled.
       navigationRequestRef.current += 1;
       setUnfurledGroupId((current) => toggleUnfurled(current, chat.id));
+    },
+    [chatsLocked]
+  );
+  const toggleMatches = useCallback(
+    (chat: db.Chat) => {
+      if (chatsLocked) {
+        return;
+      }
+      // Staying in the panel, as unfurling a workspace is.
+      navigationRequestRef.current += 1;
+      setFoldedMatchIds((ids) => {
+        const next = new Set(ids);
+        if (!next.delete(chat.id)) {
+          next.add(chat.id);
+        }
+        return next;
+      });
     },
     [chatsLocked]
   );
@@ -1402,6 +1440,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
             searchResults,
             searchChats,
             unfurledGroupId,
+            foldedMatchIds,
             availableChannels
           )
         : [
@@ -1417,6 +1456,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       availableChannels,
       drawerChats,
       filter,
+      foldedMatchIds,
       isSearching,
       searchChats,
       searchResults,
@@ -1460,14 +1500,20 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           selected={routeShowsChat(
             item.chat,
             focusedStackRoute,
-            item.unfurled || item.showsMatches
+            item.unfurled || item.matches === 'shown'
           )}
           disabled={chatsLocked}
           unfurls={item.unfurls}
           unfurled={item.unfurled}
-          showsMatches={item.showsMatches}
+          matches={item.matches}
           pinned={item.pinned}
-          onPress={item.unfurls ? toggleWorkspace : openChat}
+          onPress={
+            item.matches !== 'none'
+              ? toggleMatches
+              : item.unfurls
+                ? toggleWorkspace
+                : openChat
+          }
           // An invite has nothing to offer yet: it is not joined, so none of
           // the sheet's actions apply to it — the same row the workspace list
           // withholds the sheet from. Withheld rather than ignored, so holding
@@ -1514,6 +1560,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       openSearchChannel,
       openWorkspaceChannel,
       titles,
+      toggleMatches,
       toggleWorkspace,
     ]
   );

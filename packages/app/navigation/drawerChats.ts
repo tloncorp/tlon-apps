@@ -147,23 +147,25 @@ export function getDrawerChats(
 /**
  * Whether a chat is a channel inside a workspace.
  *
- * The search finds one of these by its own name alone. Its workspace's name
+ * The search finds one of these by its own name. Its workspace's name alone
  * would find every channel in it, so a search for the workspace would come
- * back with all of them; its id carries the host's name and the channel's
- * kind, so a search for a ship, or for "chat", would too.
+ * back with all of them; it only narrows, when typed alongside the channel's
+ * ("tlon general"). Its id carries the host's name and the channel's kind, so
+ * a search for a ship, or for "chat", would find them all too.
  */
 export function isWorkspaceChannelChat(chat: db.Chat): boolean {
   return chat.type === 'channel' && chat.channel.groupId != null;
 }
 
 /**
- * A channel of a workspace, as a chat the search can rank among the rest.
+ * A channel of a workspace, as a chat the search can rank among the rest,
+ * carrying the workspace whose name can narrow it.
  */
-function workspaceChannelChat(channel: db.Channel): db.Chat {
+function workspaceChannelChat(channel: db.Channel, group: db.Group): db.Chat {
   return {
     id: channel.id,
     type: 'channel',
-    channel,
+    channel: { ...channel, group },
     pin: null,
     volumeSettings: channel.volumeSettings ?? null,
     timestamp: channelRecency(channel),
@@ -197,7 +199,11 @@ export function getDrawerSearchChats(
     isDrawerChat(chat, excludeChannelId)
   );
   const channels = listed.flatMap((chat) =>
-    (getUnfurlableChannels(chat) ?? []).map(workspaceChannelChat)
+    chat.type === 'group'
+      ? (getUnfurlableChannels(chat) ?? []).map((channel) =>
+          workspaceChannelChat(channel, chat.group)
+        )
+      : []
   );
   const searchedAsChannels = new Set(channels.map((chat) => chat.id));
   return [
@@ -270,11 +276,13 @@ export function getDrawerTabRows(
  *
  * `searched` is what the search looked through, where the workspace of a
  * channel that matched is found when the workspace itself did not.
+ * `foldedGroupIds` are the workspaces whose matches the user has folded away.
  */
 export function getDrawerSearchRows(
   results: db.Chat[],
   searched: db.Chat[],
   unfurledGroupId: string | null,
+  foldedGroupIds: ReadonlySet<string>,
   availableChannels: db.Channel[] = []
 ): DrawerListRow[] {
   const workspaces = new Map(
@@ -299,6 +307,7 @@ export function getDrawerSearchRows(
         matches,
         workspaces,
         unfurledGroupId,
+        foldedGroupIds,
         availableChannels
       ),
     ];
@@ -312,13 +321,17 @@ export function getDrawerSearchRows(
  * A channel on its own says little: a dozen workspaces have a "General". So
  * its workspace is listed above it, once, where its best match ranked —
  * whether that was its own name or one of its channels' — and the channels of
- * it that matched follow in the order they ranked. Pressed, the workspace
- * unfurls as it does anywhere else, to every channel it has.
+ * it that matched follow in the order they ranked.
+ *
+ * Such a workspace shows its matches whether or not it was left unfurled: the
+ * block of every channel it has would bury them. Pressed, it folds them away
+ * and back. A workspace found by its name alone unfurls as anywhere else.
  */
 function getDrawerResultRows(
   results: db.Chat[],
   workspaces: ReadonlyMap<string, db.Chat>,
   unfurledGroupId: string | null,
+  foldedGroupIds: ReadonlySet<string>,
   availableChannels: db.Channel[]
 ): DrawerRow[] {
   const found = new Map<string, { chat: db.Chat; channels: db.Channel[] }>();
@@ -335,8 +348,8 @@ function getDrawerResultRows(
     }
   }
   return [...found.values()].flatMap(({ chat, channels }) =>
-    channels.length && chat.id !== unfurledGroupId
-      ? getDrawerMatchRows(chat, channels)
+    channels.length
+      ? getDrawerMatchRows(chat, channels, foldedGroupIds.has(chat.id))
       : getDrawerRows([chat], unfurledGroupId, false, availableChannels)
   );
 }

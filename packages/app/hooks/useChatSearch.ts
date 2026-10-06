@@ -16,6 +16,12 @@ import {
 
 type ChatSearchDoc<TChat extends db.Chat> = ChatSearchCandidate & {
   chat: TChat;
+  /**
+   * For a chat found by its own title alone, the title of the group it is in:
+   * named alongside the chat's own title it narrows the match, and on its own
+   * it matches nothing.
+   */
+  scopeTitle: string;
 };
 
 type ChatSearchSource<TChat extends db.Chat> = {
@@ -37,17 +43,19 @@ function buildChatSearchDoc<TChat extends db.Chat>(
   titleOnly: boolean
 ): ChatSearchDoc<TChat> {
   const title = normalizeChatSearchString(getChatTitle(chat, disableNicknames));
-  const groupTitle = normalizeChatSearchString(
-    !titleOnly && chat.type === 'channel' && chat.channel.group
+  const enclosingTitle = normalizeChatSearchString(
+    chat.type === 'channel' && chat.channel.group
       ? getGroupTitle(chat.channel.group, disableNicknames)
       : ''
   );
+  const groupTitle = titleOnly ? '' : enclosingTitle;
   const id = titleOnly ? '' : normalizeChatSearchString(chat.id);
   return {
     chat,
     id,
     title,
     groupTitle,
+    scopeTitle: titleOnly ? enclosingTitle : '',
     combined: `${title} ${groupTitle} ${id}`.trim(),
     timestamp: chat.timestamp,
   };
@@ -76,7 +84,24 @@ function scoreSubstringMatch(
   );
 }
 
-function searchChatDocs<TChat extends db.Chat>(
+/**
+ * Every token in a title-only document's own title or its scope's, and at
+ * least one in its own: the scope narrows, it does not match.
+ */
+function matchesWithinScope(
+  doc: ChatSearchDoc<db.Chat>,
+  tokens: string[]
+): boolean {
+  return (
+    doc.scopeTitle !== '' &&
+    tokens.some((token) => doc.title.includes(token)) &&
+    tokens.every(
+      (token) => doc.title.includes(token) || doc.scopeTitle.includes(token)
+    )
+  );
+}
+
+export function searchChatDocs<TChat extends db.Chat>(
   docs: ChatSearchDoc<TChat>[],
   fuse: Fuse<ChatSearchDoc<TChat>>,
   query: string
@@ -109,8 +134,10 @@ function searchChatDocs<TChat extends db.Chat>(
     return fuzzyResults.map((result) => result.item.chat);
   }
 
-  const tokenMatchedCandidates = docs.filter((candidate) =>
-    hasAllChatSearchTokens(candidate, tokens)
+  const tokenMatchedCandidates = docs.filter(
+    (candidate) =>
+      hasAllChatSearchTokens(candidate, tokens) ||
+      matchesWithinScope(candidate, tokens)
   );
 
   if (!tokenMatchedCandidates.length) {
@@ -137,7 +164,7 @@ function searchChatDocs<TChat extends db.Chat>(
   ).map((candidate) => candidate.chat);
 }
 
-function createChatSearchSource<TChat extends db.Chat>(
+export function createChatSearchSource<TChat extends db.Chat>(
   chats: TChat[],
   disableNicknames: boolean,
   key: string,
@@ -207,8 +234,9 @@ export function useChatSearch<TChat extends db.Chat>({
   disableNicknames: boolean;
   semanticCacheKey?: string;
   /**
-   * Chats found by their own title alone: not by their group's title, and not
-   * by their id. Pass a stable function; a new one rebuilds the index.
+   * Chats found by their own title alone: not by their id, and not by their
+   * group's title, which only narrows a query that also names them. Pass a
+   * stable function; a new one rebuilds the index.
    */
   searchesTitleOnly?: (chat: TChat) => boolean;
 }) {

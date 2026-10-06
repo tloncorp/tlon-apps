@@ -421,6 +421,7 @@ describe('getDrawerSearchRows', () => {
   function keys(rows: ReturnType<typeof getDrawerSearchRows>) {
     return rows.map((row) => row.key);
   }
+  const none: ReadonlySet<string> = new Set();
 
   it('heads each half with its tab, workspaces first, in the ranked order', () => {
     const results = [
@@ -430,7 +431,7 @@ describe('getDrawerSearchRows', () => {
       group('group-next', 1),
     ];
 
-    expect(keys(getDrawerSearchRows(results, [], null))).toEqual([
+    expect(keys(getDrawerSearchRows(results, [], null, none))).toEqual([
       'heading:workspaces',
       'group-best',
       'group-next',
@@ -442,9 +443,9 @@ describe('getDrawerSearchRows', () => {
 
   it('gives a half with nothing in it no heading', () => {
     expect(
-      keys(getDrawerSearchRows([channel('a-dm', 1, 'dm')], [], null))
+      keys(getDrawerSearchRows([channel('a-dm', 1, 'dm')], [], null, none))
     ).toEqual(['heading:messages', 'a-dm']);
-    expect(getDrawerSearchRows([], [], null)).toEqual([]);
+    expect(getDrawerSearchRows([], [], null, none)).toEqual([]);
   });
 
   it('files a pinned group channel and an invite under Workspaces', () => {
@@ -454,7 +455,7 @@ describe('getDrawerSearchRows', () => {
       invite,
     ];
 
-    expect(keys(getDrawerSearchRows(results, [], null))).toEqual([
+    expect(keys(getDrawerSearchRows(results, [], null, none))).toEqual([
       'heading:workspaces',
       'pinned-channel',
       'invite',
@@ -465,7 +466,8 @@ describe('getDrawerSearchRows', () => {
     const rows = getDrawerSearchRows(
       [workspace('a-group', ['one', 'two'])],
       [],
-      'a-group'
+      'a-group',
+      none
     );
 
     expect(keys(rows)).toEqual([
@@ -479,7 +481,7 @@ describe('getDrawerSearchRows', () => {
   it('marks no result as pinned: the pin belongs to the tab’s section', () => {
     const pinned = channel('pinned-dm', 1, 'dm', { index: 0 } as db.Pin);
 
-    expect(getDrawerSearchRows([pinned], [], null)[1]).toMatchObject({
+    expect(getDrawerSearchRows([pinned], [], null, none)[1]).toMatchObject({
       kind: 'chat',
       pinned: false,
     });
@@ -507,7 +509,8 @@ describe('getDrawerSearchRows', () => {
           inWorkspace('one', 'a-group'),
         ],
         searched,
-        null
+        null,
+        none
       );
 
       expect(keys(rows)).toEqual([
@@ -519,7 +522,7 @@ describe('getDrawerSearchRows', () => {
         'heading:messages',
         'a-dm',
       ]);
-      expect(rows[2]).toMatchObject({ kind: 'chat', showsMatches: true });
+      expect(rows[2]).toMatchObject({ kind: 'chat', matches: 'shown' });
       expect(rows[3]).toMatchObject({ kind: 'channel', match: true });
     });
 
@@ -529,33 +532,61 @@ describe('getDrawerSearchRows', () => {
           getDrawerSearchRows(
             [inWorkspace('three', 'a-group'), found],
             searched,
-            null
+            null,
+            none
           )
         )
       ).toEqual(['heading:workspaces', 'a-group', 'a-group:three']);
     });
 
-    it('shows the whole block instead once the workspace is unfurled', () => {
+    // Left open from the tab's list, the block of every channel would bury
+    // the one that matched.
+    it('shows only the matches of a workspace left unfurled', () => {
       const rows = getDrawerSearchRows(
         [inWorkspace('two', 'a-group')],
         searched,
-        'a-group'
+        'a-group',
+        none
       );
 
       expect(keys(rows)).toEqual([
         'heading:workspaces',
         'a-group',
-        'a-group:one',
         'a-group:two',
-        'a-group:three',
       ]);
-      expect(rows[1]).toMatchObject({ unfurled: true, showsMatches: false });
-      expect(rows[2]).toMatchObject({ kind: 'channel', match: false });
+      expect(rows[1]).toMatchObject({ unfurled: false, matches: 'shown' });
+      expect(rows[2]).toMatchObject({ kind: 'channel', match: true });
+    });
+
+    it('folds a workspace’s matches away when asked, and only its', () => {
+      const other = workspace('b-group', ['four']);
+      const rows = getDrawerSearchRows(
+        [inWorkspace('two', 'a-group'), inWorkspace('four', 'b-group')],
+        [...searched, other, inWorkspace('four', 'b-group')],
+        null,
+        new Set(['a-group'])
+      );
+
+      expect(keys(rows)).toEqual([
+        'heading:workspaces',
+        'a-group',
+        'b-group',
+        'b-group:four',
+      ]);
+      expect(rows[1]).toMatchObject({ matches: 'folded' });
+      expect(rows[2]).toMatchObject({ matches: 'shown' });
     });
 
     it('lists one on its own when its workspace was not searched', () => {
       expect(
-        keys(getDrawerSearchRows([inWorkspace('lost', 'gone')], searched, null))
+        keys(
+          getDrawerSearchRows(
+            [inWorkspace('lost', 'gone')],
+            searched,
+            null,
+            none
+          )
+        )
       ).toEqual(['heading:workspaces', 'lost']);
     });
   });
