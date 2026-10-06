@@ -14,6 +14,12 @@ export function takeEcho(
 }
 
 /**
+ * How long after the last keystroke a sent value can still be on its way back.
+ * These values round-trip through local state or storage, which takes moments.
+ */
+export const ECHO_WINDOW_MS = 1000;
+
+/**
  * Keeps a native text field's own state in step with the screen's value.
  * Typing sends each value up, and it comes back as the prop a moment later;
  * after fast typing, an older value can arrive after newer keystrokes. Values
@@ -25,13 +31,22 @@ export function useSyncedFieldText(
   value: string,
   onChangeText: (text: string) => void
 ) {
-  // Every sent value stays here until it, or a later one, comes back. A slow
-  // save can leave many outstanding, and forgetting one would make its echo
-  // look like an outside change and write an old value over newer typing.
+  // Every sent value stays here until it, or a later one, comes back, however
+  // many are outstanding: forgetting one mid-typing would make its echo look
+  // like an outside change and write an old value over newer typing.
   const pendingEchoes = useRef<string[]>([]);
+  const lastSentAt = useRef(0);
 
   useEffect(() => {
-    const remaining = takeEcho(pendingEchoes.current, value);
+    // Updates that are batched can skip a sent value, so it never comes back.
+    // Left here for good, it would make a later outside change to that same
+    // text, such as a discarded edit, look like an echo and be ignored. Once
+    // the field has been quiet for a while, nothing is still on its way.
+    const outstanding =
+      Date.now() - lastSentAt.current > ECHO_WINDOW_MS
+        ? []
+        : pendingEchoes.current;
+    const remaining = takeEcho(outstanding, value);
     if (remaining) {
       pendingEchoes.current = remaining;
       return;
@@ -45,6 +60,7 @@ export function useSyncedFieldText(
   return useCallback(
     (text: string) => {
       pendingEchoes.current = [...pendingEchoes.current, text];
+      lastSentAt.current = Date.now();
       onChangeText(text);
     },
     [onChangeText]

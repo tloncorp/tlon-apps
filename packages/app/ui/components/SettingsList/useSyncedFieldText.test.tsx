@@ -1,8 +1,20 @@
 import React from 'react';
 import { ReactTestRenderer, act, create } from 'react-test-renderer';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
-import { takeEcho, useSyncedFieldText } from './useSyncedFieldText';
+import {
+  ECHO_WINDOW_MS,
+  takeEcho,
+  useSyncedFieldText,
+} from './useSyncedFieldText';
 
 describe('takeEcho', () => {
   it('recognizes a sent value and keeps the ones sent after it', () => {
@@ -24,6 +36,9 @@ describe('useSyncedFieldText', () => {
   afterAll(() => {
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   /** A field whose native text is `field.text`, under a screen value. */
@@ -69,6 +84,32 @@ describe('useSyncedFieldText', () => {
 
     expect(field.writes).toEqual([]);
     expect(field.text).toBe(typed.at(-1));
+  });
+
+  it('ignores each echo of a text typed twice while they are still arriving', () => {
+    const { field, setScreenValue } = mount('');
+    ['ab', 'a', 'ab'].forEach((text) => field.type(text));
+
+    ['ab', 'a', 'ab'].forEach((text) => setScreenValue(text));
+
+    expect(field.writes).toEqual([]);
+    expect(field.text).toBe('ab');
+  });
+
+  it('takes a discarded edit after batched updates skipped an echo', () => {
+    vi.useFakeTimers();
+    const { field, setScreenValue } = mount('a');
+    // Typed away from the saved text and back, then away again.
+    ['ab', 'a', 'ab'].forEach((text) => field.type(text));
+    // The updates were batched: only the last text ever comes back.
+    setScreenValue('ab');
+
+    vi.advanceTimersByTime(ECHO_WINDOW_MS + 1);
+    // Discard puts the saved text back, which the field itself once sent.
+    setScreenValue('a');
+
+    expect(field.writes).toEqual(['a']);
+    expect(field.text).toBe('a');
   });
 
   it('still takes a change made elsewhere', () => {
