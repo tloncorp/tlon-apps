@@ -310,6 +310,11 @@ describe('previewEncoding', () => {
   // An ASCII <meta> cannot be read from a document that really is UTF-16.
   it('reads a UTF-16 declaration as UTF-8', () => {
     expect(page('<meta charset="utf-16">')).toBe('utf-8');
+    // By any of its labels.
+    for (const label of ['unicode', 'csunicode', 'ucs-2', 'unicodefffe']) {
+      expect(page(`<meta charset="${label}">`), label).toBe('utf-8');
+    }
+    expect(page('<meta charset="x-user-defined">')).toBe('windows-1252');
     expect(page('<?xml version="1.0" encoding="UTF-16"?><p>x</p>')).toBe(
       'utf-8'
     );
@@ -363,6 +368,17 @@ describe('htmlPreviewTitle', () => {
 
   // With scripting on a noscript holds text; in a frame that runs no
   // scripts, as under Electron, it holds markup, and a title in it counts.
+  // An HTML-only tag closes an svg, so a title after it is the page's; one
+  // in a textarea inside a foreignObject is text.
+  it('reads foreign content as the parser does', () => {
+    expect(htmlPreviewTitle('<svg><p></p><title>Real</title>')).toBe('Real');
+    expect(
+      htmlPreviewTitle(
+        '<svg><foreignObject><textarea><title>Fake</title></textarea></foreignObject></svg><title>Real</title>'
+      )
+    ).toBe('Real');
+  });
+
   it('reads a title in noscript only where scripts do not run', () => {
     const page = '<noscript><title>Offline</title></noscript><p>x</p>';
     expect(htmlPreviewTitle(page)).toBeUndefined();
@@ -568,6 +584,18 @@ describe('htmlPreviewHasScripts', () => {
       '<iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>',
     ]) {
       expect(htmlPreviewHasScripts(html), html).toBe(true);
+    }
+  });
+
+  // Inside an svg's foreignObject, or a MathML text element, content is HTML
+  // again: a textarea there holds text.
+  it('reads integration points as HTML', () => {
+    for (const html of [
+      '<svg><foreignObject><textarea><script>go()</script></textarea></foreignObject></svg>',
+      '<math><mi><textarea><script>go()</script></textarea></mi></math>',
+      '<svg><p><textarea><script>go()</script></textarea>',
+    ]) {
+      expect(htmlPreviewHasScripts(html), html).toBe(false);
     }
   });
 
@@ -1087,6 +1115,27 @@ describe('htmlPreviewDocument without scripts', () => {
     }
   });
 
+  // At an integration point the content is HTML again, and an HTML-only tag
+  // closes the svg: a link written in a textarea there is text, left as is.
+  it('leaves text in an integration point alone', () => {
+    const literal = '<a href="https://example.com">literal</a>';
+    for (const holder of [
+      '<svg><foreignObject><textarea>',
+      '<svg><desc><textarea>',
+      '<math><mi><textarea>',
+      '<math><annotation-xml encoding="text/html"><textarea>',
+      '<svg><p><textarea>',
+    ]) {
+      expect(scriptless(`${holder}${literal}</textarea>`), holder).toContain(
+        `<textarea>${literal}</textarea>`
+      );
+    }
+    // Without an HTML encoding, an annotation-xml is foreign content.
+    expect(
+      scriptless(`<math><annotation-xml><textarea>${literal}</textarea>`)
+    ).toContain('<a target="_blank" href="https://example.com/">literal</a>');
+  });
+
   // A comment, a bogus comment and a CDATA section end where the tokenizer
   // ends them, so a link after one is still a link.
   it('settles a link after any comment', () => {
@@ -1104,6 +1153,15 @@ describe('htmlPreviewDocument without scripts', () => {
         before
       ).toContain('<a target="_blank">x</a>');
     }
+  });
+
+  // Each end tag asks whether an svg of its name is open; a file of open
+  // svgs and stray end tags must not make that a search.
+  it('reads a file of open svgs and stray end tags at once', () => {
+    const html = '<svg>'.repeat(100_000) + '</x>'.repeat(100_000);
+    expect(htmlPreviewHasScripts(html)).toBe(false);
+    expect(htmlPreviewTitle(html)).toBeUndefined();
+    expect(scriptless(html)).toContain('</x></x>');
   });
 
   it('rewrites a file of unclosed tags at once', () => {

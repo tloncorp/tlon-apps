@@ -228,9 +228,10 @@ function xmlEncoding(head: string): string | undefined {
  * then -- for HTML -- the prescan of the first 1024 bytes: an XML declaration
  * in UTF-16 bytes, a `<meta>` charset, and failing that an XML declaration's
  * encoding; UTF-8 when nothing says otherwise. `head` is the start of the
- * bytes, one byte per character. A declaration that names UTF-16 is read as
- * UTF-8, as browsers do: ASCII cannot be found in a document that really is
- * UTF-16.
+ * bytes, one byte per character. A declaration that names UTF-16, by any of
+ * its labels (`unicode`, `ucs-2` ...), is read as UTF-8, as browsers do:
+ * ASCII cannot be found in a document that really is UTF-16; and
+ * `x-user-defined` is read as windows-1252.
  */
 export function previewEncoding({
   contentType,
@@ -253,7 +254,14 @@ export function previewEncoding({
     const declared = (
       metaCharset(prescan) ?? xmlEncoding(prescan)
     )?.toLowerCase();
-    if (declared) return declared.startsWith('utf-16') ? 'utf-8' : declared;
+    if (
+      UTF_16LE_LABELS.has(declared ?? '') ||
+      UTF_16BE_LABELS.has(declared ?? '')
+    ) {
+      return 'utf-8';
+    }
+    if (declared === 'x-user-defined') return 'windows-1252';
+    if (declared) return declared;
   }
   return 'utf-8';
 }
@@ -459,29 +467,76 @@ export function getBucketPreviewKind({
   return 'unsupported';
 }
 
-// Elements whose content the parser reads as text, not markup, for the
-// document's title: the raw-text and escapable raw-text elements, and
-// noscript, which is raw text with scripting on.
-const TITLE_TEXT_ELEMENTS = new Set([
+// Elements whose content the parser reads as text, not markup: the raw-text
+// and escapable raw-text elements, and plaintext. With scripting on a
+// noscript's content is text too; in a frame without scripts it is markup.
+const TEXT_CONTENT_ELEMENTS = new Set([
   'iframe',
   'noembed',
   'noframes',
-  'noscript',
+  'plaintext',
   'script',
   'style',
   'textarea',
+  'title',
   'xmp',
 ]);
+const SCRIPTED_TEXT_ELEMENTS = new Set([...TEXT_CONTENT_ELEMENTS, 'noscript']);
 
-// Elements whose content is not the document's own -- template content is
-// inert, and inside svg or math a title is the drawing's and a base sets
-// nothing -- and which can nest.
-const INERT_ELEMENTS = new Set(['math', 'svg', 'template']);
+// Where foreign content is HTML again: an svg's foreignObject, desc and
+// title, and MathML's text elements (and an annotation-xml that says it
+// holds HTML).
+const SVG_HTML_ELEMENTS = new Set(['desc', 'foreignobject', 'title']);
+const MATHML_TEXT_ELEMENTS = new Set(['mi', 'mn', 'mo', 'ms', 'mtext']);
 
-// The elements that open foreign content, where the parser reads no
-// element's content as text: inside an svg, a title, style or script holds
-// markup. They can nest.
-const FOREIGN_ELEMENTS = new Set(['math', 'svg']);
+// The start tags that end foreign content: the parser closes the open svg or
+// math and reads the tag as HTML (`font` only with color, face or size).
+const FOREIGN_BREAKOUTS = new Set([
+  'b',
+  'big',
+  'blockquote',
+  'body',
+  'br',
+  'center',
+  'code',
+  'dd',
+  'div',
+  'dl',
+  'dt',
+  'em',
+  'embed',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'head',
+  'hr',
+  'i',
+  'img',
+  'li',
+  'listing',
+  'menu',
+  'meta',
+  'nobr',
+  'ol',
+  'p',
+  'pre',
+  'ruby',
+  's',
+  'small',
+  'span',
+  'strong',
+  'strike',
+  'sub',
+  'sup',
+  'table',
+  'tt',
+  'u',
+  'ul',
+  'var',
+]);
 
 /** Whether the start tag that ends at `tagEnd` closes itself (`<svg/>`). */
 function closesItself(html: string, tagEnd: number): boolean {
@@ -606,6 +661,153 @@ function endTagStart(lower: string, name: string, from: number): number {
   return -1;
 }
 
+/** A start tag, as markupTags reads it. */
+interface MarkupTag {
+  /** Its name, ASCII-lowercased. */
+  name: string;
+  /** Where its name ends, and just past its `>`. */
+  nameEnd: number;
+  end: number;
+  /**
+   * For an element whose content the parser reads as text here: where that
+   * text ends, at its end tag, or -1 when it runs to the end of the file.
+   */
+  textEnd?: number;
+  /** Whether an svg or math is open around it, an integration point in one included. */
+  withinSvgOrMath: boolean;
+  /** Whether a template is open around it. */
+  withinTemplate: boolean;
+}
+
+/**
+ * The start tags of a document, in order, read as the tokenizer reads them
+ * and as far as the tree builder decides how it reads them: past comments,
+ * doctypes and the like (pastNonTag), and past the content of the elements
+ * whose content is text there (`textElements`, which depend on whether the
+ * frame runs scripts). Inside an svg or math no element's content is text,
+ * and CDATA sections exist. At an integration point in one -- an SVG
+ * foreignObject, desc or title, a MathML text element, an annotation-xml
+ * holding HTML -- the content is HTML again. An HTML-only tag such as `<p>` or
+ * `<div>` closes the svg or math. Of the tree, only these elements and
+ * templates are tracked.
+ *
+ * A scan rather than a regular expression, for the reason htmlPreviewTitle
+ * gives: it reads each character a fixed number of times.
+ */
+function* markupTags(
+  html: string,
+  textElements: Set<string>
+): Generator<MarkupTag> {
+  const lower = asciiLowercase(html);
+  // The open svg and math elements and, inside them, the integration points
+  // where content is HTML again; the innermost decides how the scan reads.
+  // `open` counts them by name, so an end tag finds whether one is open in
+  // constant time: a file of open svgs and stray end tags stays linear.
+  const scopes: string[] = [];
+  const open = new Map<string, number>();
+  const push = (name: string) => {
+    scopes.push(name);
+    open.set(name, (open.get(name) ?? 0) + 1);
+  };
+  const pop = () => {
+    const name = scopes.pop();
+    if (name !== undefined) open.set(name, (open.get(name) ?? 1) - 1);
+  };
+  let templates = 0;
+  const foreign = () => {
+    const innermost = scopes[scopes.length - 1];
+    return innermost === 'svg' || innermost === 'math';
+  };
+  let i = 0;
+  for (;;) {
+    const lt = html.indexOf('<', i);
+    if (lt < 0) return;
+    const past = pastNonTag(html, lt, foreign());
+    if (past !== undefined) {
+      if (past < 0) return;
+      i = past;
+      continue;
+    }
+    const closing = html.charCodeAt(lt + 1) === 47;
+    const nameStart = lt + (closing ? 2 : 1);
+    if (!isAsciiLetter(html.charCodeAt(nameStart))) {
+      i = lt + 1;
+      continue;
+    }
+    let nameEnd = nameStart;
+    while (nameEnd < html.length) {
+      const code = html.charCodeAt(nameEnd);
+      if (isHtmlSpace(code) || code === 47 || code === 62) break;
+      nameEnd += 1;
+    }
+    const name = lower.slice(nameStart, nameEnd);
+    const end = startTagEnd(html, nameEnd);
+    if (end < 0) return;
+    i = end;
+    if (closing) {
+      if (foreign() && (name === 'br' || name === 'p')) {
+        while (foreign()) pop();
+      } else if ((open.get(name) ?? 0) > 0) {
+        while (scopes[scopes.length - 1] !== name) pop();
+        pop();
+      } else if (name === 'template' && templates > 0) {
+        templates -= 1;
+      }
+      continue;
+    }
+    const attributes = tagAttributes(html.slice(nameEnd, end - 1));
+    if (
+      foreign() &&
+      (FOREIGN_BREAKOUTS.has(name) ||
+        (name === 'font' &&
+          (attributes.has('color') ||
+            attributes.has('face') ||
+            attributes.has('size'))))
+    ) {
+      while (foreign()) pop();
+    }
+    const inForeignContent = foreign();
+    const tag: MarkupTag = {
+      name,
+      nameEnd,
+      end,
+      withinSvgOrMath: scopes.length > 0,
+      withinTemplate: templates > 0,
+    };
+    const innermost = scopes[scopes.length - 1];
+    if (name === 'svg' || name === 'math') {
+      // A foreign element can close itself; an HTML one cannot.
+      if (!closesItself(html, end)) push(name);
+    } else if (inForeignContent) {
+      const encoding = asciiLowercase(attributes.get('encoding') ?? '');
+      const opensHtml =
+        innermost === 'svg'
+          ? SVG_HTML_ELEMENTS.has(name)
+          : MATHML_TEXT_ELEMENTS.has(name) ||
+            (name === 'annotation-xml' &&
+              (encoding === 'text/html' ||
+                encoding === 'application/xhtml+xml'));
+      if (opensHtml && !closesItself(html, end)) push(name);
+    } else if (name === 'template') {
+      templates += 1;
+    }
+    if (inForeignContent || !textElements.has(name)) {
+      yield tag;
+      continue;
+    }
+    if (name === 'plaintext') {
+      yield { ...tag, textEnd: -1 };
+      return;
+    }
+    const close = endTagStart(lower, name, end);
+    yield { ...tag, textEnd: close };
+    if (close < 0) return;
+    const closeEnd = startTagEnd(html, close + 2 + name.length);
+    if (closeEnd < 0) return;
+    i = closeEnd;
+  }
+}
+
 /**
  * The title of an HTML file, as the page itself would show it: the first
  * `<title>` the parser would make the document's -- not one in a comment, an
@@ -624,70 +826,23 @@ export function htmlPreviewTitle(
   html: string,
   { scripting = true }: { scripting?: boolean } = {}
 ): string | undefined {
-  const lower = asciiLowercase(html);
-  // How many template, svg and math elements are open around the scan, and
-  // how many of those are svg or math.
-  let inert = 0;
-  let foreign = 0;
-  let i = 0;
-  for (;;) {
-    const open = html.indexOf('<', i);
-    if (open < 0) return undefined;
-    const past = pastNonTag(html, open, foreign > 0);
-    if (past !== undefined) {
-      if (past < 0) return undefined;
-      i = past;
+  for (const tag of markupTags(
+    html,
+    scripting ? SCRIPTED_TEXT_ELEMENTS : TEXT_CONTENT_ELEMENTS
+  )) {
+    if (tag.name !== 'title' || tag.withinSvgOrMath || tag.withinTemplate) {
       continue;
     }
-    const closing = html.charCodeAt(open + 1) === 47;
-    const nameStart = open + (closing ? 2 : 1);
-    if (!isAsciiLetter(html.charCodeAt(nameStart))) {
-      i = open + 1;
-      continue;
-    }
-    let nameEnd = nameStart;
-    while (nameEnd < html.length) {
-      const code = html.charCodeAt(nameEnd);
-      if (isHtmlSpace(code) || code === 47 || code === 62) break;
-      nameEnd += 1;
-    }
-    const name = lower.slice(nameStart, nameEnd);
-    const tagEnd = startTagEnd(html, nameEnd);
-    if (tagEnd < 0) return undefined;
-    i = tagEnd;
-    if (closing) {
-      if (inert > 0 && INERT_ELEMENTS.has(name)) inert -= 1;
-      if (foreign > 0 && FOREIGN_ELEMENTS.has(name)) foreign -= 1;
-      continue;
-    }
-    if (INERT_ELEMENTS.has(name)) {
-      // A self-closed svg or math has no content; a template always opens.
-      if (name === 'template' || !closesItself(html, tagEnd)) {
-        inert += 1;
-        if (FOREIGN_ELEMENTS.has(name)) foreign += 1;
-      }
-      continue;
-    }
-    if (foreign > 0) continue;
-    // Everything after a plaintext start tag is text.
-    if (name === 'plaintext') return undefined;
-    if (name === 'noscript' && !scripting) continue;
-    if (name !== 'title' && !TITLE_TEXT_ELEMENTS.has(name)) continue;
-    const close = endTagStart(lower, name, tagEnd);
-    if (close < 0) return undefined;
-    if (name === 'title' && inert === 0) {
-      // Character references decoded as a browser decodes them in text: every
-      // named reference, the legacy ones without a semicolon, and numeric
-      // references with a browser's replacements.
-      const title = parseEntities(html.slice(tagEnd, close))
-        .replace(/[\t\n\f\r ]+/g, ' ')
-        .replace(/^ | $/g, '');
-      return title === '' ? undefined : title.slice(0, 200);
-    }
-    const closeEnd = html.indexOf('>', close);
-    if (closeEnd < 0) return undefined;
-    i = closeEnd + 1;
+    if (tag.textEnd === undefined || tag.textEnd < 0) return undefined;
+    // Character references decoded as a browser decodes them in text: every
+    // named reference, the legacy ones without a semicolon, and numeric
+    // references with a browser's replacements.
+    const title = parseEntities(html.slice(tag.end, tag.textEnd))
+      .replace(/[\t\n\f\r ]+/g, ' ')
+      .replace(/^ | $/g, '');
+    return title === '' ? undefined : title.slice(0, 200);
   }
+  return undefined;
 }
 
 /**
@@ -776,46 +931,13 @@ export function htmlPreviewSandboxes({
  * any renders the same with scripts off, so there is nothing to run. A
  * `srcdoc` nested deeper than MAX_NESTED_DOCUMENTS is taken to have some.
  *
- * The same linear scan as the title's, per document: comments, and the text
- * inside script, style, textarea and the like, are not markup.
+ * Each document is read by markupTags as a frame that runs scripts reads it.
  */
 export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
-  const lower = asciiLowercase(html);
-  // How many svg and math elements are open around the scan.
-  let foreign = 0;
-  let i = 0;
-  for (;;) {
-    const open = html.indexOf('<', i);
-    if (open < 0) return false;
-    const past = pastNonTag(html, open, foreign > 0);
-    if (past !== undefined) {
-      if (past < 0) return false;
-      i = past;
-      continue;
-    }
-    const closing = html.charCodeAt(open + 1) === 47;
-    const nameStart = open + (closing ? 2 : 1);
-    if (!isAsciiLetter(html.charCodeAt(nameStart))) {
-      i = open + 1;
-      continue;
-    }
-    let nameEnd = nameStart;
-    while (nameEnd < html.length) {
-      const code = html.charCodeAt(nameEnd);
-      if (isHtmlSpace(code) || code === 47 || code === 62) break;
-      nameEnd += 1;
-    }
-    const name = lower.slice(nameStart, nameEnd);
-    if (!closing && name === 'script') return true;
-    const tagEnd = startTagEnd(html, nameEnd);
-    if (tagEnd < 0) return false;
-    i = tagEnd;
-    if (closing) {
-      if (foreign > 0 && FOREIGN_ELEMENTS.has(name)) foreign -= 1;
-      continue;
-    }
+  for (const tag of markupTags(html, SCRIPTED_TEXT_ELEMENTS)) {
+    if (tag.name === 'script') return true;
     for (const [attribute, value] of tagAttributes(
-      html.slice(nameEnd, tagEnd - 1)
+      html.slice(tag.nameEnd, tag.end - 1)
     )) {
       if (attribute.length > 2 && attribute.startsWith('on')) return true;
       if (URL_ATTRIBUTES.has(attribute) && urlScheme(value) === 'javascript') {
@@ -832,14 +954,8 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
         return true;
       }
     }
-    if (FOREIGN_ELEMENTS.has(name)) {
-      if (!closesItself(html, tagEnd)) foreign += 1;
-    } else if (foreign === 0 && TEXT_CONTENT_ELEMENTS.has(name)) {
-      const close = endTagStart(lower, name, tagEnd);
-      if (close < 0) return false;
-      i = close;
-    }
   }
+  return false;
 }
 
 /** The sandbox for the frame that holds an HTML file on native: scripts, and nothing else. */
@@ -1158,12 +1274,32 @@ function linkScript(key: string, nonce?: string): string {
     }
     return null;
   }
-  function scrollToFragment(fragment) {
-    var id = fragment;
-    try { id = decodeURIComponent(fragment); } catch (error) {}
-    var element = id && (document.getElementById(id) || document.getElementsByName(id)[0]);
+  // The element a fragment names: the one with that id, or else the first
+  // <a> with that name.
+  function indicated(fragment) {
+    var element = document.getElementById(fragment);
+    if (element) return element;
+    var anchors = document.getElementsByTagName('a');
+    for (var i = 0; i < anchors.length; i++) {
+      if (anchors[i].getAttribute('name') === fragment) return anchors[i];
+    }
+    return null;
+  }
+  // As the browser scrolls to a fragment: the fragment as the URL parser
+  // writes it first, then percent-decoded, and the top of the document for an
+  // empty one or one that decodes to "top".
+  function scrollToFragment(raw) {
+    var url = parse(raw, 'about:srcdoc');
+    var fragment = url ? url.hash.slice(1) : raw.slice(1);
+    if (fragment === '') { window.scrollTo(0, 0); return; }
+    var element = indicated(fragment);
+    var decoded = fragment;
+    if (!element) {
+      try { decoded = decodeURIComponent(fragment); } catch (error) {}
+      element = indicated(decoded);
+    }
     if (element) element.scrollIntoView();
-    else if (!id || id.toLowerCase() === 'top') window.scrollTo(0, 0);
+    else if (decoded.toLowerCase() === 'top') window.scrollTo(0, 0);
   }
   function follow(event) {
     if (event.type === 'auxclick' && event.button !== 1) return;
@@ -1194,7 +1330,7 @@ function linkScript(key: string, nonce?: string): string {
       // computed here, never left to resolve against the app's.
       var scheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw);
       var base = scheme ? null : webBase();
-      if (!scheme && !base && (raw === '' || raw.charAt(0) === '#')) { scrollToFragment(raw.slice(1)); return; }
+      if (!scheme && !base && (raw === '' || raw.charAt(0) === '#')) { scrollToFragment(raw); return; }
       if (!trusted) return;
       var url = scheme ? parse(raw) : base ? parse(raw, base) : raw.slice(0, 2) === '//' ? parse('https:' + raw) : null;
       if (url) shell.postMessage({ type: '${HTML_PREVIEW_LINK_MESSAGE}', key: key, href: url.href }, '*');
@@ -1207,21 +1343,6 @@ function linkScript(key: string, nonce?: string): string {
 })('${key}', ${nonce === undefined});
 </script>`;
 }
-
-// Elements whose content the parser reads as text, not markup: the raw-text
-// and escapable raw-text elements, and plaintext. (In a frame without
-// scripts, noscript's content is markup.)
-const TEXT_CONTENT_ELEMENTS = new Set([
-  'iframe',
-  'noembed',
-  'noframes',
-  'plaintext',
-  'script',
-  'style',
-  'textarea',
-  'title',
-  'xmp',
-]);
 
 /** A start tag's attribute text without the attributes `names` lists. */
 function withoutAttributes(attributes: string, names: Set<string>): string {
@@ -1284,68 +1405,22 @@ function withoutAttributes(attributes: string, names: Set<string>): string {
 }
 
 /**
- * The `href` of the first `<base href>` that sets the document's base, as
- * the title scan reads the document: markup, not a comment or the text of a
- * script or the like, and not inside a template, an svg or math, where a
- * base sets nothing. Undefined when the file has none.
+ * The `href` of the first `<base href>` that sets the document's base, read
+ * by markupTags as a frame without scripts reads the file: not inside a
+ * template, an svg or math, where a base sets nothing. Undefined when the
+ * file has none.
  */
 function authoredBaseHref(html: string): string | undefined {
-  const lower = asciiLowercase(html);
-  // How many template, svg and math elements are open around the scan, and
-  // how many of those are svg or math.
-  let inert = 0;
-  let foreign = 0;
-  let i = 0;
-  for (;;) {
-    const open = html.indexOf('<', i);
-    if (open < 0) return undefined;
-    const past = pastNonTag(html, open, foreign > 0);
-    if (past !== undefined) {
-      if (past < 0) return undefined;
-      i = past;
+  for (const tag of markupTags(html, TEXT_CONTENT_ELEMENTS)) {
+    if (tag.name !== 'base' || tag.withinSvgOrMath || tag.withinTemplate) {
       continue;
     }
-    const closing = html.charCodeAt(open + 1) === 47;
-    const nameStart = open + (closing ? 2 : 1);
-    if (!isAsciiLetter(html.charCodeAt(nameStart))) {
-      i = open + 1;
-      continue;
-    }
-    let nameEnd = nameStart;
-    while (nameEnd < html.length) {
-      const code = html.charCodeAt(nameEnd);
-      if (isHtmlSpace(code) || code === 47 || code === 62) break;
-      nameEnd += 1;
-    }
-    const name = lower.slice(nameStart, nameEnd);
-    const tagEnd = startTagEnd(html, nameEnd);
-    if (tagEnd < 0) return undefined;
-    i = tagEnd;
-    if (closing) {
-      if (inert > 0 && INERT_ELEMENTS.has(name)) inert -= 1;
-      if (foreign > 0 && FOREIGN_ELEMENTS.has(name)) foreign -= 1;
-      continue;
-    }
-    if (INERT_ELEMENTS.has(name)) {
-      // A self-closed svg or math has no content; a template always opens.
-      if (name === 'template' || !closesItself(html, tagEnd)) {
-        inert += 1;
-        if (FOREIGN_ELEMENTS.has(name)) foreign += 1;
-      }
-      continue;
-    }
-    if (foreign > 0) continue;
-    if (name === 'plaintext') return undefined;
-    if (name === 'base' && inert === 0) {
-      const href = tagAttributes(html.slice(nameEnd, tagEnd - 1)).get('href');
-      if (href !== undefined) return href;
-    }
-    if (TEXT_CONTENT_ELEMENTS.has(name)) {
-      const close = endTagStart(lower, name, tagEnd);
-      if (close < 0) return undefined;
-      i = close;
-    }
+    const href = tagAttributes(html.slice(tag.nameEnd, tag.end - 1)).get(
+      'href'
+    );
+    if (href !== undefined) return href;
   }
+  return undefined;
 }
 
 /**
@@ -1421,49 +1496,19 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
  *   that is dropped.
  *
  * With no script to change it, the markup is the document, so rewriting it
- * covers every link. The same linear scan as the title's, per document;
- * comments, and the text inside script, style, title and the like outside an
- * svg or math, are left as they are.
+ * covers every link. Each document is read by markupTags as a frame without
+ * scripts reads it, so text that only looks like a link is left as it is.
  */
 function withLinksAimedAtBlank(html: string, depth = 0): string {
   const base = fileWebBase(html);
-  const lower = asciiLowercase(html);
-  // How many svg and math elements are open around the scan.
-  let foreign = 0;
   let rewritten = '';
   let copied = 0;
-  let i = 0;
-  for (;;) {
-    const open = html.indexOf('<', i);
-    if (open < 0) break;
-    const past = pastNonTag(html, open, foreign > 0);
-    if (past !== undefined) {
-      if (past < 0) break;
-      i = past;
-      continue;
-    }
-    const closing = html.charCodeAt(open + 1) === 47;
-    const nameStart = open + (closing ? 2 : 1);
-    if (!isAsciiLetter(html.charCodeAt(nameStart))) {
-      i = open + 1;
-      continue;
-    }
-    let nameEnd = nameStart;
-    while (nameEnd < html.length) {
-      const code = html.charCodeAt(nameEnd);
-      if (isHtmlSpace(code) || code === 47 || code === 62) break;
-      nameEnd += 1;
-    }
-    const name = lower.slice(nameStart, nameEnd);
-    const tagEnd = startTagEnd(html, nameEnd);
-    if (tagEnd < 0) break;
-    if (closing) {
-      if (foreign > 0 && FOREIGN_ELEMENTS.has(name)) foreign -= 1;
-      i = tagEnd;
-      continue;
-    }
+  for (const { name, nameEnd, end } of markupTags(
+    html,
+    TEXT_CONTENT_ELEMENTS
+  )) {
     if (name === 'a' || name === 'area') {
-      const attributes = html.slice(nameEnd, tagEnd - 1);
+      const attributes = html.slice(nameEnd, end - 1);
       const values = tagAttributes(attributes);
       const { address, aimed } = settledLink(
         values.get('href') ?? values.get('xlink:href'),
@@ -1475,9 +1520,9 @@ function withLinksAimedAtBlank(html: string, depth = 0): string {
         (address === undefined ? '' : ` href="${escapeAttribute(address)}"`) +
         withoutAttributes(attributes, LINK_ATTRIBUTES) +
         '>';
-      copied = tagEnd;
+      copied = end;
     } else if (name === 'iframe') {
-      const attributes = html.slice(nameEnd, tagEnd - 1);
+      const attributes = html.slice(nameEnd, end - 1);
       const srcdoc = tagAttributes(attributes).get('srcdoc');
       if (srcdoc !== undefined) {
         const nested =
@@ -1494,20 +1539,8 @@ function withLinksAimedAtBlank(html: string, depth = 0): string {
           nested +
           withoutAttributes(attributes, SRCDOC_ATTRIBUTE) +
           '>';
-        copied = tagEnd;
+        copied = end;
       }
-    }
-    i = tagEnd;
-    if (FOREIGN_ELEMENTS.has(name)) {
-      if (!closesItself(html, tagEnd)) foreign += 1;
-      continue;
-    }
-    if (foreign > 0) continue;
-    if (name === 'plaintext') break;
-    if (TEXT_CONTENT_ELEMENTS.has(name)) {
-      const close = endTagStart(lower, name, tagEnd);
-      if (close < 0) break;
-      i = close;
     }
   }
   return rewritten + html.slice(copied);
