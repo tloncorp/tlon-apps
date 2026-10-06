@@ -720,6 +720,65 @@ function endTagStart(lower: string, name: string, from: number): number {
   return -1;
 }
 
+// Whether the character after an end tag's name ends the name.
+function endsTagName(code: number): boolean {
+  return isHtmlSpace(code) || code === 47 || code === 62;
+}
+
+/**
+ * Where the end tag of a script whose content starts at `from` starts in
+ * `lower`; -1 when it never ends. Through the tokenizer's script-data states:
+ * after `<!--` the content is escaped, where `<script` opens a double-escaped
+ * stretch whose `</script>` only closes that stretch, and `-->` ends either.
+ * One pass: the next `-->` is searched for only once the scan is past the
+ * last one found.
+ */
+function scriptEndStart(lower: string, from: number): number {
+  // 0: script data; 1: escaped; 2: double escaped.
+  let state = 0;
+  // Where the next `-->` is, from where it was last searched for; -1 when
+  // there is none left.
+  let dashes = -2;
+  let i = from;
+  for (;;) {
+    const lt = lower.indexOf('<', i);
+    if (state !== 0) {
+      if (dashes !== -1 && dashes < i) dashes = lower.indexOf('-->', i);
+      if (dashes >= 0 && (lt < 0 || dashes < lt)) {
+        state = 0;
+        i = dashes + 3;
+        continue;
+      }
+    }
+    if (lt < 0) return -1;
+    if (state === 0 && lower.startsWith('<!--', lt)) {
+      // The opener's dashes count toward `-->`: `<!-->` ends at once.
+      state = 1;
+      i = lt + 2;
+      continue;
+    }
+    if (
+      lower.startsWith('</script', lt) &&
+      endsTagName(lower.charCodeAt(lt + 8))
+    ) {
+      if (state !== 2) return lt;
+      state = 1;
+      i = lt + 8;
+      continue;
+    }
+    if (
+      state === 1 &&
+      lower.startsWith('<script', lt) &&
+      endsTagName(lower.charCodeAt(lt + 7))
+    ) {
+      state = 2;
+      i = lt + 7;
+      continue;
+    }
+    i = lt + 1;
+  }
+}
+
 /** A start tag, as markupTags reads it. */
 interface MarkupTag {
   /** Its name, ASCII-lowercased. */
@@ -732,8 +791,12 @@ interface MarkupTag {
    * text ends, at its end tag, or -1 when it runs to the end of the file.
    */
   textEnd?: number;
-  /** Whether an svg or math is open around it, an integration point in one included. */
-  withinSvgOrMath: boolean;
+  /**
+   * Whether it stands in foreign content -- inside an svg or math, and not
+   * at an integration point in one -- where it makes an SVG or MathML
+   * element, not an HTML one.
+   */
+  foreign: boolean;
   /** Whether a template is open around it. */
   withinTemplate: boolean;
 }
@@ -743,12 +806,15 @@ interface MarkupTag {
  * and as far as the tree builder decides how it reads them: past comments,
  * doctypes and the like (pastNonTag), and past the content of the elements
  * whose content is text there (`textElements`, which depend on whether the
- * frame runs scripts). Inside an svg or math no element's content is text,
- * and CDATA sections exist. At an integration point in one -- an SVG
- * foreignObject, desc or title, a MathML text element, an annotation-xml
- * holding HTML -- the content is HTML again. An HTML-only tag such as `<p>` or
- * `<div>` closes the svg or math. Of the tree, only these elements and
- * templates are tracked.
+ * frame runs scripts; a script's ends through its escape states). Inside an
+ * svg or math no element's content is text, and CDATA sections exist. At an
+ * integration point in one -- an SVG foreignObject, desc or title, a MathML
+ * text element, an annotation-xml holding HTML -- the content is HTML again.
+ * An HTML-only tag such as `<p>` or `<div>` closes the svg or math, and an end
+ * tag in foreign content closes the nearest open element of its name with
+ * whatever it holds. Of the tree, the foreign elements and templates are
+ * tracked, not the HTML ones: an end tag is read as if none were open inside
+ * an integration point.
  *
  * Inside a `<select>`, WebKit's parser ignores the start tag of such an
  * element other than script and textarea, and reads what follows as markup;
@@ -764,26 +830,24 @@ function* markupTags(
   { markupInSelect = false }: { markupInSelect?: boolean } = {}
 ): Generator<MarkupTag> {
   const lower = asciiLowercase(html);
-  // The open svg and math elements and, inside them, the integration points
-  // where content is HTML again; the innermost decides how the scan reads.
-  // `open` counts them by name, so an end tag finds whether one is open in
-  // constant time: a file of open svgs and stray end tags stays linear.
-  const scopes: string[] = [];
+  // The open foreign elements: each with its namespace, and whether its
+  // content is HTML (an integration point). The innermost decides how the
+  // scan reads. `open` counts them by name, so an end tag finds whether one
+  // is open in constant time: a file of open svgs and stray end tags stays
+  // linear.
+  const scopes: { html: boolean; name: string; namespace: string }[] = [];
   const open = new Map<string, number>();
-  const push = (name: string) => {
-    scopes.push(name);
+  const push = (name: string, namespace: string, htmlInside: boolean) => {
+    scopes.push({ html: htmlInside, name, namespace });
     open.set(name, (open.get(name) ?? 0) + 1);
   };
   const pop = () => {
-    const name = scopes.pop();
-    if (name !== undefined) open.set(name, (open.get(name) ?? 1) - 1);
+    const scope = scopes.pop();
+    if (scope) open.set(scope.name, (open.get(scope.name) ?? 1) - 1);
   };
   let templates = 0;
   let selects = 0;
-  const foreign = () => {
-    const innermost = scopes[scopes.length - 1];
-    return innermost === 'svg' || innermost === 'math';
-  };
+  const foreign = () => scopes.length > 0 && !scopes[scopes.length - 1].html;
   let i = 0;
   for (;;) {
     const lt = html.indexOf('<', i);
@@ -814,7 +878,7 @@ function* markupTags(
       if (foreign() && (name === 'br' || name === 'p')) {
         while (foreign()) pop();
       } else if ((open.get(name) ?? 0) > 0) {
-        while (scopes[scopes.length - 1] !== name) pop();
+        while (scopes[scopes.length - 1].name !== name) pop();
         pop();
       } else if (name === 'template' && templates > 0 && !foreign()) {
         // In foreign content it ends a foreign template, not an HTML one.
@@ -840,23 +904,26 @@ function* markupTags(
       name,
       nameEnd,
       end,
-      withinSvgOrMath: scopes.length > 0,
+      foreign: inForeignContent,
       withinTemplate: templates > 0,
     };
-    const innermost = scopes[scopes.length - 1];
-    if (name === 'svg' || name === 'math') {
-      // A foreign element can close itself; an HTML one cannot.
-      if (!selfClosing) push(name);
-    } else if (inForeignContent) {
+    if (inForeignContent) {
+      // Every foreign element is tracked, so that an end tag can close the
+      // ones it holds. It takes its parent's namespace, and a foreign element
+      // can close itself.
+      const { namespace } = scopes[scopes.length - 1];
       const encoding = asciiLowercase(attributes.get('encoding') ?? '');
       const opensHtml =
-        innermost === 'svg'
+        namespace === 'svg'
           ? SVG_HTML_ELEMENTS.has(name)
           : MATHML_TEXT_ELEMENTS.has(name) ||
             (name === 'annotation-xml' &&
               (encoding === 'text/html' ||
                 encoding === 'application/xhtml+xml'));
-      if (opensHtml && !selfClosing) push(name);
+      if (!selfClosing) push(name, namespace, opensHtml);
+    } else if (name === 'svg' || name === 'math') {
+      // An HTML element cannot close itself; a foreign one can.
+      if (!selfClosing) push(name, name, false);
     } else if (name === 'template') {
       templates += 1;
     } else if (name === 'select') {
@@ -877,7 +944,10 @@ function* markupTags(
       yield { ...tag, textEnd: -1 };
       return;
     }
-    const close = endTagStart(lower, name, end);
+    const close =
+      name === 'script'
+        ? scriptEndStart(lower, end)
+        : endTagStart(lower, name, end);
     yield { ...tag, textEnd: close };
     if (close < 0) return;
     const closeEnd = startTagEnd(html, close + 2 + name.length);
@@ -890,7 +960,8 @@ function* markupTags(
  * The title of an HTML file, as the page itself would show it: the first
  * `<title>` the parser would make the document's -- not one in a comment, an
  * attribute, a script or style, a template (nested ones included), or an
- * `<svg>`, whose title is a tooltip -- with character references decoded and
+ * `<svg>`'s own, which is a tooltip (an HTML one in its foreignObject counts)
+ * -- with character references decoded and
  * ASCII whitespace collapsed, the way `document.title` reads it. Undefined
  * when the file has none, it is blank, or it is never closed. In a frame that
  * runs no scripts (`scripting: false`, under Electron), a `<noscript>` holds
@@ -908,9 +979,7 @@ export function htmlPreviewTitle(
     html,
     scripting ? SCRIPTED_TEXT_ELEMENTS : TEXT_CONTENT_ELEMENTS
   )) {
-    if (tag.name !== 'title' || tag.withinSvgOrMath || tag.withinTemplate) {
-      continue;
-    }
+    if (tag.name !== 'title' || tag.foreign || tag.withinTemplate) continue;
     if (tag.textEnd === undefined || tag.textEnd < 0) return undefined;
     // Character references decoded as a browser decodes them in text: every
     // named reference, the legacy ones without a semicolon, and numeric
@@ -1501,14 +1570,12 @@ function withoutAttributes(attributes: string, names: Set<string>): string {
 /**
  * The `href` of the first `<base href>` that sets the document's base, read
  * by markupTags as a frame without scripts reads the file: not inside a
- * template, an svg or math, where a base sets nothing. Undefined when the
- * file has none.
+ * template, nor in an svg's or math's own content, where a base sets nothing.
+ * Undefined when the file has none.
  */
 function authoredBaseHref(html: string): string | undefined {
   for (const tag of markupTags(html, TEXT_CONTENT_ELEMENTS)) {
-    if (tag.name !== 'base' || tag.withinSvgOrMath || tag.withinTemplate) {
-      continue;
-    }
+    if (tag.name !== 'base' || tag.foreign || tag.withinTemplate) continue;
     const href = tagAttributes(html.slice(tag.nameEnd, tag.end - 1)).get(
       'href'
     );

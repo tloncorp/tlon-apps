@@ -440,6 +440,31 @@ describe('htmlPreviewTitle', () => {
     ).toBe('Real');
   });
 
+  // A foreignObject's content is HTML, so a title there is the page's; an end
+  // tag in foreign content closes what the element it names holds; and a
+  // script's end is found through its escape states.
+  it("reads the title the tree builder makes the document's", () => {
+    expect(
+      htmlPreviewTitle(
+        '<svg><foreignObject><title>Page</title></foreignObject></svg>'
+      )
+    ).toBe('Page');
+    expect(htmlPreviewTitle('<svg><g><svg></g></svg><title>Page</title>')).toBe(
+      'Page'
+    );
+    expect(
+      htmlPreviewTitle(
+        '<script><!--<script></script><title>Fake</title>--></script><title>Real</title>'
+      )
+    ).toBe('Real');
+    expect(
+      htmlPreviewTitle('<script><!-- </script><title>Escaped end</title>')
+    ).toBe('Escaped end');
+    expect(
+      htmlPreviewTitle('<script><!--></script><title>Short comment</title>')
+    ).toBe('Short comment');
+  });
+
   // A template inside an svg is the svg's; its end tag does not close the
   // HTML template around it.
   it('keeps a template open past a foreign one', () => {
@@ -1217,6 +1242,15 @@ describe('htmlPreviewDocument without scripts', () => {
     }
   });
 
+  // A base in a foreignObject's HTML content is the document's.
+  it('resolves against a base in an integration point', () => {
+    expect(
+      scriptless(
+        '<svg><foreignObject><base href="https://docs.example/"><a href="help">Help</a></foreignObject></svg>'
+      )
+    ).toContain('<a target="_blank" href="https://docs.example/help">Help</a>');
+  });
+
   // At an integration point the content is HTML again, and an HTML-only tag
   // closes the svg: a link written in a textarea there is text, left as is.
   it('leaves text in an integration point alone', () => {
@@ -1260,6 +1294,10 @@ describe('htmlPreviewDocument without scripts', () => {
   // Each end tag asks whether an svg of its name is open; a file of open
   // svgs and stray end tags must not make that a search.
   it('reads a file of open svgs and stray end tags at once', () => {
+    const escaped = '<script><!--' + '<'.repeat(200_000);
+    expect(htmlPreviewTitle(escaped)).toBeUndefined();
+    const nested = '<svg>' + '<g>'.repeat(100_000) + '</svg><title>T</title>';
+    expect(htmlPreviewTitle(nested)).toBe('T');
     const html = '<svg>'.repeat(100_000) + '</x>'.repeat(100_000);
     expect(htmlPreviewHasScripts(html)).toBe(false);
     expect(htmlPreviewTitle(html)).toBeUndefined();
