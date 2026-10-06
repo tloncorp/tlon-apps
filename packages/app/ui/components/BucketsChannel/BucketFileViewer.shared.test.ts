@@ -452,6 +452,12 @@ describe('htmlPreviewTitle', () => {
     expect(htmlPreviewTitle('<svg><g><svg></g></svg><title>Page</title>')).toBe(
       'Page'
     );
+    // At a MathML text element, mglyph is MathML still, and so is a title in it.
+    expect(
+      htmlPreviewTitle(
+        '<math><mi><mglyph><title>Fake</title></mglyph></mi></math><title>Real</title>'
+      )
+    ).toBe('Real');
     expect(
       htmlPreviewTitle(
         '<script><!--<script></script><title>Fake</title>--></script><title>Real</title>'
@@ -1134,6 +1140,17 @@ describe('htmlPreviewDocument without scripts', () => {
     expect(
       scriptless('<base href="data:text/html,x"><a href="help.html">h</a>')
     ).toContain('<a target="_blank">h</a>');
+    // Under a base, a link with a special scheme and no slashes is relative,
+    // as the URL parser reads it.
+    const sameScheme = scriptless(
+      '<base href="https://docs.example/guide/"><a href="https:help">h</a><a href="https:/path">p</a>'
+    );
+    expect(sameScheme).toContain(
+      '<a target="_blank" href="https://docs.example/guide/help">h</a>'
+    );
+    expect(sameScheme).toContain(
+      '<a target="_blank" href="https://docs.example/path">p</a>'
+    );
     // A scheme-relative base takes https, as a link does.
     expect(
       scriptless('<base href="//docs.example/guide/"><a href="help.html">h</a>')
@@ -1227,6 +1244,17 @@ describe('htmlPreviewDocument without scripts', () => {
   it('reads attributes as the tokenizer does', () => {
     expect(scriptless('<a data=x=" href=/~/logout>open</a>')).toContain(
       '<a target="_blank" data=x=">open</a>'
+    );
+  });
+
+  // A self-closed SVG link stays closed, so what follows it is no link.
+  it('keeps a self-closed link closed', () => {
+    expect(
+      scriptless(
+        '<svg><a href="https://example.com"/><text>Not a link</text></svg>'
+      )
+    ).toContain(
+      '<a target="_blank" href="https://example.com/"/><text>Not a link</text>'
     );
   });
 

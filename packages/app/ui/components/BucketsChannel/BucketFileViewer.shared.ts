@@ -899,7 +899,15 @@ function* markupTags(
     ) {
       while (foreign()) pop();
     }
-    const inForeignContent = foreign();
+    // At a MathML text element, mglyph and malignmark are MathML still,
+    // where any other start tag makes HTML.
+    const innermost = scopes[scopes.length - 1];
+    const inForeignContent =
+      foreign() ||
+      (innermost !== undefined &&
+        innermost.namespace === 'math' &&
+        MATHML_TEXT_ELEMENTS.has(innermost.name) &&
+        (name === 'mglyph' || name === 'malignmark'));
     const tag: MarkupTag = {
       name,
       nameEnd,
@@ -1492,10 +1500,12 @@ function linkScript(key: string, nonce?: string): string {
       // the file, and a scheme-relative link takes https. Each address is
       // computed here, never left to resolve against the app's.
       var scheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw);
-      var base = scheme ? null : webBase();
+      var base = webBase();
       if (!scheme && !base && (raw === '' || raw.charAt(0) === '#')) { scrollToFragment(raw); return; }
       if (!trusted) return;
-      var url = scheme ? parse(raw) : base ? parse(raw, base) : raw.slice(0, 2) === '//' ? parse('https:' + raw) : null;
+      // Against the file's base whenever it has one: \`https:help\` is relative
+      // to an https base, as the URL parser reads it.
+      var url = base ? parse(raw, base) : scheme ? parse(raw) : raw.slice(0, 2) === '//' ? parse('https:' + raw) : null;
       if (url) shell.postMessage({ type: '${HTML_PREVIEW_LINK_MESSAGE}', key: key, href: url.href }, '*');
     }, 0);
   }
@@ -1610,11 +1620,13 @@ function settledLink(
 ): { address?: string; aimed: '_blank' | '_self' } {
   if (raw === undefined) return { aimed: '_blank' };
   const value = urlText(raw);
-  if (URL_SCHEME.test(value)) {
-    return { address: linkAddress(value), aimed: '_blank' };
-  }
+  // Against the file's base whenever it has one: `https:help` is relative to
+  // an https base, as the URL parser reads it.
   if (base !== undefined) {
     return { address: linkAddress(value, base), aimed: '_blank' };
+  }
+  if (URL_SCHEME.test(value)) {
+    return { address: linkAddress(value), aimed: '_blank' };
   }
   if (value === '' || value[0] === '#') {
     return { address: `about:srcdoc#${value.slice(1)}`, aimed: '_self' };
