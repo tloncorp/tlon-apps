@@ -416,6 +416,7 @@ const ActionSheetComponent = ({
             children
           )}
         </ActionSheetContext.Provider>
+        {footerComponent && footerComponent({})}
       </Sheet.Frame>
     </Sheet>
   );

@@ -11,7 +11,14 @@ vi.mock('@tloncorp/ui', () => ({
   ActionSheetContext: createContext({ isInsideSheet: false }),
   Icon: () => null,
   Pressable: 'Button',
-  Sheet: {},
+  Sheet: Object.assign(
+    ({ children }: { children?: React.ReactNode }) => children,
+    {
+      Overlay: () => null,
+      Frame: ({ children }: { children?: React.ReactNode }) => children,
+      Handle: () => null,
+    }
+  ),
   View: 'View',
   useCopy: () => ({}),
   useIsWindowNarrow: () => true,
@@ -230,5 +237,32 @@ describe('percent snap points', () => {
 
   it('sizes an Android sheet against the app frame, less the navigation bar', () => {
     expect(snapPoints('android')).toEqual([0.9 * 800 - 48]);
+  });
+});
+
+describe('narrow web sheet', () => {
+  it('renders the footer', () => {
+    platform.OS = 'web';
+    const globals = globalThis as { window?: unknown };
+    globals.window = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    const Footer = () => null;
+    let tree: ReturnType<typeof create>;
+    act(() => {
+      tree = create(
+        <ActionSheet
+          open
+          onOpenChange={vi.fn()}
+          footerComponent={() => <Footer />}
+        >
+          {null}
+        </ActionSheet>
+      );
+    });
+    expect(tree!.root.findAllByType(Footer)).toHaveLength(1);
+    act(() => tree.unmount());
+    delete globals.window;
   });
 });
