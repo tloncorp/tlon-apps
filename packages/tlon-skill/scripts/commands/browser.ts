@@ -1,7 +1,5 @@
-import {
-  browserTelemetryContextSchema,
-  type BrowserTelemetryContext,
-} from '@tloncorp/api';
+import type { BrowserTelemetryContext } from '@tloncorp/api';
+import { parseBrowserTelemetry } from '../browser-telemetry';
 import { validateBrowserViewerUrl } from '../browser-viewer';
 import { markdownToStory } from '../markdown';
 import type { PostsDeps } from './posts';
@@ -186,10 +184,7 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
     let telemetry: BrowserTelemetryContext | undefined;
     try {
       const raw = deps.getTelemetry?.();
-      if (raw)
-        telemetry = browserTelemetryContextSchema.safeParse(
-          JSON.parse(raw)
-        ).data;
+      telemetry = parseBrowserTelemetry(raw);
     } catch {
       /* Invalid optional telemetry cannot prevent a handoff. */
     }
