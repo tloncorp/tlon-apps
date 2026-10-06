@@ -144,7 +144,7 @@ describe('BucketFileViewer html preview (web)', () => {
     const shell: string = frame.props.srcDoc;
     expect(shell).toContain(`<iframe sandbox="${popups}" srcdoc="`);
     expect(shell).toContain(
-      '&lt;a target=&quot;_blank&quot; href=&quot;https://tlon.io&quot;&gt;brief&lt;/a&gt;'
+      '&lt;a target=&quot;_blank&quot; href=&quot;https://tlon.io/&quot;&gt;brief&lt;/a&gt;'
     );
     expect(shell).not.toContain('composedPath');
     expect(runScriptsButton(renderer)).toBeUndefined();

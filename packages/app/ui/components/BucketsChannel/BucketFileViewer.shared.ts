@@ -90,24 +90,42 @@ function tagAttributes(text: string): Map<string, string> {
 }
 
 /**
- * The scheme of a URL attribute's raw value, as the browser reads it:
- * character references decoded, leading and trailing spaces and control
- * characters trimmed, tabs and newlines anywhere dropped. Undefined for a
- * relative URL.
+ * A URL attribute's raw value as the URL parser reads it: character
+ * references decoded, leading and trailing spaces and control characters
+ * trimmed, tabs and newlines anywhere dropped.
  */
-function urlScheme(value: string): string | undefined {
+function urlText(value: string): string {
   const url = parseEntities(value, { attribute: true });
   let start = 0;
   let end = url.length;
   while (start < end && url.charCodeAt(start) <= 0x20) start += 1;
   while (end > start && url.charCodeAt(end - 1) <= 0x20) end -= 1;
-  return /^([a-zA-Z][a-zA-Z0-9+.-]*):/
-    .exec(url.slice(start, end).replace(/[\t\n\r]/g, ''))?.[1]
-    .toLowerCase();
+  return url.slice(start, end).replace(/[\t\n\r]/g, '');
+}
+
+const URL_SCHEME = /^([a-zA-Z][a-zA-Z0-9+.-]*):/;
+
+/** The scheme of a URL attribute's raw value (urlText); undefined for a relative URL. */
+function urlScheme(value: string): string | undefined {
+  return URL_SCHEME.exec(urlText(value))?.[1].toLowerCase();
 }
 
 // The schemes a link in a preview may open: web, mail and phone.
 const LINK_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
+
+/** `value` as an absolute web, mail or phone address, resolved against `base`; undefined for anything else. */
+function linkAddress(value: string, base?: string): string | undefined {
+  try {
+    const url = new URL(value, base);
+    return LINK_SCHEMES.has(url.protocol.slice(0, -1)) ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// How deep inline frames' documents are read: a file can nest one srcdoc in
+// another as often as its size allows, and each level is read again.
+const MAX_NESTED_DOCUMENTS = 3;
 
 // The attributes whose value a browser follows as a URL, and so would run as
 // a script when it is a `javascript:` one.
@@ -591,12 +609,13 @@ export function htmlPreviewSandboxes({ scripts }: { scripts: boolean }): {
  * element, an event handler attribute, a `javascript:` URL in an attribute a
  * browser follows -- read as the browser reads it, so `java&#x73;cript:`
  * counts -- or any of these in an inline frame's `srcdoc`. A page without
- * any renders the same with scripts off, so there is nothing to run.
+ * any renders the same with scripts off, so there is nothing to run. A
+ * `srcdoc` nested deeper than MAX_NESTED_DOCUMENTS is taken to have some.
  *
- * The same linear scan as the title's: comments, and the text inside script,
- * style, textarea and the like, are not markup.
+ * The same linear scan as the title's, per document: comments, and the text
+ * inside script, style, textarea and the like, are not markup.
  */
-export function htmlPreviewHasScripts(html: string): boolean {
+export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
   const lower = html.toLowerCase();
   let i = 0;
   for (;;) {
@@ -631,7 +650,11 @@ export function htmlPreviewHasScripts(html: string): boolean {
       }
       if (
         attribute === 'srcdoc' &&
-        htmlPreviewHasScripts(parseEntities(value, { attribute: true }))
+        (depth >= MAX_NESTED_DOCUMENTS ||
+          htmlPreviewHasScripts(
+            parseEntities(value, { attribute: true }),
+            depth + 1
+          ))
       ) {
         return true;
       }
@@ -907,8 +930,15 @@ function linkScript(key: string): string {
     }
     return null;
   }
-  function absolute(raw) {
-    try { return new resolveURL(raw, document.baseURI).href; } catch (error) { return null; }
+  function parse(raw, base) {
+    try { return new resolveURL(raw, base); } catch (error) { return null; }
+  }
+  // The file's own base, when it is an absolute web address: with any other
+  // the browser would resolve a relative link against the app's address.
+  function webBase() {
+    var element = document.querySelector('base[href]');
+    var url = element && parse(element.getAttribute('href'));
+    return url && /^https?:$/.test(url.protocol) ? url.href : null;
   }
   function scrollToFragment(fragment) {
     var id = fragment;
@@ -931,26 +961,26 @@ function linkScript(key: string): string {
         else link.setAttribute('target', target);
       }
       if (event.defaultPrevented) return;
-      // As the URL parser reads it: tabs and newlines anywhere are dropped.
-      var raw = (hrefOf(link) || '').trim().replace(/[\\t\\n\\r]/g, '');
+      // As the URL parser reads it: spaces and controls trimmed, tabs and
+      // newlines anywhere dropped.
+      var raw = (hrefOf(link) || '').replace(/^[\\u0000-\\u0020]+|[\\u0000-\\u0020]+$/g, '').replace(/[\\t\\n\\r]/g, '');
       if (/^javascript:/i.test(raw)) {
         var code;
         try { code = decodeURIComponent(raw.replace(/^javascript:/i, '')); } catch (error) { return; }
         run(code)();
         return;
       }
-      // A fragment, or an empty href, stays in the file only when the file
-      // has no base address of its own; with one, it names that address.
-      var base = document.querySelector('base[href]');
-      if ((raw === '' || raw.charAt(0) === '#') && !base) { scrollToFragment(raw.slice(1)); return; }
+      // A relative link resolves only against a web base the file sets
+      // itself: a Bucket file has no address of its own its neighbours could
+      // be reached from. Without one a fragment, or an empty href, stays in
+      // the file, and a scheme-relative link takes https. Each address is
+      // computed here, never left to resolve against the app's.
+      var scheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw);
+      var base = scheme ? null : webBase();
+      if (!scheme && !base && (raw === '' || raw.charAt(0) === '#')) { scrollToFragment(raw.slice(1)); return; }
       if (!trusted) return;
-      // A relative link resolves only against a base the file sets itself: a
-      // Bucket file has no address of its own its neighbours could be reached
-      // from. A scheme-relative one takes https.
-      var href = null;
-      if (base || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw)) href = typeof link.href === 'string' ? link.href : absolute(raw);
-      else if (raw.slice(0, 2) === '//') href = absolute('https:' + raw);
-      if (href) shell.postMessage({ type: '${HTML_PREVIEW_LINK_MESSAGE}', key: key, href: href }, '*');
+      var url = scheme ? parse(raw) : base ? parse(raw, base) : raw.slice(0, 2) === '//' ? parse('https:' + raw) : null;
+      if (url) shell.postMessage({ type: '${HTML_PREVIEW_LINK_MESSAGE}', key: key, href: url.href }, '*');
     }, 0);
   }
   window.addEventListener('click', follow, true);
@@ -1079,12 +1109,57 @@ function authoredBaseHref(html: string): string | undefined {
 }
 
 /**
+ * The file's own base, when its relative links may resolve against it: the
+ * first `<base href>` (authoredBaseHref), when that is an absolute web
+ * address. No base, a relative one or one that does not parse gives them
+ * nowhere to go: a Bucket file has no address of its own its neighbours
+ * could be reached from.
+ */
+function fileWebBase(html: string): string | undefined {
+  const href = authoredBaseHref(html);
+  const base = href === undefined ? undefined : linkAddress(urlText(href));
+  return base !== undefined && /^https?:/.test(base) ? base : undefined;
+}
+
+/**
+ * Where a link in a frame without scripts goes, and in which window: an
+ * absolute address computed here, or none at all.
+ */
+function settledLink(
+  raw: string | undefined,
+  base: string | undefined
+): { address?: string; aimed: '_blank' | '_self' } {
+  if (raw === undefined) return { aimed: '_blank' };
+  const value = urlText(raw);
+  if (URL_SCHEME.test(value)) {
+    return { address: linkAddress(value), aimed: '_blank' };
+  }
+  if (base !== undefined) {
+    return { address: linkAddress(value, base), aimed: '_blank' };
+  }
+  if (value === '' || value[0] === '#') {
+    return { address: `about:srcdoc#${value.slice(1)}`, aimed: '_self' };
+  }
+  if (value.startsWith('//')) {
+    return { address: linkAddress(`https:${value}`), aimed: '_blank' };
+  }
+  return { aimed: '_blank' };
+}
+
+const LINK_ATTRIBUTES = new Set(['href', 'target', 'xlink:href']);
+const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
+
+/**
  * The file's markup with every link -- `<a>` and `<area>`, HTML or SVG --
  * made safe to follow with no script running, as under Electron and on web
  * until the reader runs the page's scripts.
  *
  * Its own frame opens a link as a popup that escapes the sandbox, with no
- * script of ours to check where it goes, so each link is settled here:
+ * script of ours to check where it goes, so each link is settled here
+ * (settledLink), and an address it keeps is an absolute one computed here.
+ * Left to the browser, a relative one -- `help.html`, `https:/path`, or one
+ * under a `<base>` the browser does not use -- would resolve against the
+ * app's own address, the reader's ship.
  *
  * - A web, mail or phone link is aimed at `_blank`, whatever its target was:
  *   one aimed at the frame itself would be refused by the shell's
@@ -1092,22 +1167,20 @@ function authoredBaseHref(html: string): string | undefined {
  * - Any other scheme -- `data:`, `javascript:`, `file:`, an app's own -- loses
  *   its address and with it its link, so no click can open an unsandboxed
  *   document or hand an address to another app.
- * - A fragment stays in the file: it points at `about:srcdoc#section`, aimed
- *   at the frame itself, which scrolls there without reloading (in a srcdoc
- *   document `#section` alone resolves against the parent's address).
- * - A relative link keeps its address only when the file sets an http(s)
- *   base of its own to resolve against; a Bucket file has no address of its
- *   own its neighbours could be reached from. A scheme-relative one takes
- *   https, or the scheme of the file's own base.
+ * - A relative link resolves against the file's own base (fileWebBase), and
+ *   without one goes nowhere, except that a fragment stays in the file: it
+ *   points at `about:srcdoc#section`, aimed at the frame itself, which
+ *   scrolls there without reloading. A scheme-relative one takes https.
+ * - A document in an `<iframe srcdoc>` inherits the frame's popups, so its
+ *   links are settled too, MAX_NESTED_DOCUMENTS deep; a `srcdoc` deeper than
+ *   that is dropped.
  *
  * With no script to change it, the markup is the document, so rewriting it
- * covers every link. The same linear scan as the title's; text inside script,
- * style, title and the like, and comments, is left as it is.
+ * covers every link. The same linear scan as the title's, per document; text
+ * inside script, style, title and the like, and comments, is left as it is.
  */
-function withLinksAimedAtBlank(html: string): string {
-  const base = authoredBaseHref(html);
-  const baseScheme = base === undefined ? undefined : urlScheme(base);
-  const relativeResolves = baseScheme === 'http' || baseScheme === 'https';
+function withLinksAimedAtBlank(html: string, depth = 0): string {
+  const base = fileWebBase(html);
   const lower = html.toLowerCase();
   let rewritten = '';
   let copied = 0;
@@ -1137,36 +1210,37 @@ function withLinksAimedAtBlank(html: string): string {
     if (name === 'a' || name === 'area') {
       const attributes = html.slice(nameEnd, tagEnd - 1);
       const values = tagAttributes(attributes);
-      const raw = values.get('href') ?? values.get('xlink:href');
-      let aimed = '_blank';
-      let address: string | undefined;
-      let keepAddress = false;
-      if (raw !== undefined) {
-        const scheme = urlScheme(raw);
-        const value = parseEntities(raw, { attribute: true })
-          .trim()
-          .replace(/[\t\n\r]/g, '');
-        if (scheme !== undefined) {
-          keepAddress = LINK_SCHEMES.has(scheme);
-        } else if (base === undefined && (value === '' || value[0] === '#')) {
-          address = `about:srcdoc#${value.replace(/^#/, '')}`;
-          aimed = '_self';
-        } else if (base === undefined && value.startsWith('//')) {
-          address = `https:${value}`;
-        } else {
-          keepAddress = relativeResolves;
-        }
-      }
-      const dropped = keepAddress
-        ? new Set(['target'])
-        : new Set(['target', 'href', 'xlink:href']);
+      const { address, aimed } = settledLink(
+        values.get('href') ?? values.get('xlink:href'),
+        base
+      );
       rewritten +=
         html.slice(copied, nameEnd) +
         ` target="${aimed}"` +
         (address === undefined ? '' : ` href="${escapeAttribute(address)}"`) +
-        withoutAttributes(attributes, dropped) +
+        withoutAttributes(attributes, LINK_ATTRIBUTES) +
         '>';
       copied = tagEnd;
+    } else if (name === 'iframe') {
+      const attributes = html.slice(nameEnd, tagEnd - 1);
+      const srcdoc = tagAttributes(attributes).get('srcdoc');
+      if (srcdoc !== undefined) {
+        const nested =
+          depth < MAX_NESTED_DOCUMENTS
+            ? ` srcdoc="${escapeAttribute(
+                withLinksAimedAtBlank(
+                  parseEntities(srcdoc, { attribute: true }),
+                  depth + 1
+                )
+              )}"`
+            : '';
+        rewritten +=
+          html.slice(copied, nameEnd) +
+          nested +
+          withoutAttributes(attributes, SRCDOC_ATTRIBUTE) +
+          '>';
+        copied = tagEnd;
+      }
     }
     i = tagEnd;
     if (name === 'plaintext') break;
@@ -1190,10 +1264,11 @@ function withLinksAimedAtBlank(html: string): string {
  * Chromium's blocked-page notice behind. The first `<base>` with a target
  * wins, so a `<base href>` of the file's own still applies.
  *
- * In a frame that runs no scripts (`scripts: false`, under Electron) our
- * script would be inert, so it is left out, and every link in the markup is
- * aimed at `_blank` instead (withLinksAimedAtBlank): a link the reader clicks
- * then becomes the popup the desktop shell opens in the system browser.
+ * In a frame that runs no scripts (`scripts: false`: under Electron, and on
+ * web until the reader runs them) our script would be inert, so it is left
+ * out, and every link in the markup is settled instead
+ * (withLinksAimedAtBlank): a link the reader clicks becomes a popup, a new
+ * tab on web and the system browser on desktop.
  */
 export function htmlPreviewDocument(
   html: string,

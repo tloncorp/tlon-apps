@@ -482,6 +482,15 @@ describe('htmlPreviewSandboxes', () => {
   });
 });
 
+// `html` as the document of an inline frame, `levels` frames deep.
+function nested(html: string, levels: number): string {
+  let doc = html;
+  for (let level = 0; level < levels; level += 1) {
+    doc = `<iframe srcdoc="${doc.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"></iframe>`;
+  }
+  return doc;
+}
+
 describe('htmlPreviewHasScripts', () => {
   it('finds a script element, a handler attribute or a javascript: URL', () => {
     for (const html of [
@@ -520,6 +529,14 @@ describe('htmlPreviewHasScripts', () => {
     expect(
       htmlPreviewHasScripts('<style>a::after { content: "<script>"; }</style>')
     ).toBe(false);
+    expect(htmlPreviewHasScripts(nested('<p>static</p>', 3))).toBe(false);
+  });
+
+  // Each nested document is read again, so a file of them could take a scan
+  // per level; past the depth read, a frame is taken to have scripts.
+  it('takes a document nested deeper than it reads as having scripts', () => {
+    expect(htmlPreviewHasScripts(nested('<p>static</p>', 4))).toBe(true);
+    expect(htmlPreviewHasScripts(nested('<p>static</p>', 400))).toBe(true);
   });
 });
 
@@ -759,11 +776,11 @@ describe('htmlPreviewDocument without scripts', () => {
         '<a href="tel:+15555550100">d</a>' +
         '<svg><a xlink:href="https://e.example"><text>e</text></a></svg>'
     );
-    expect(out).toContain('<a target="_blank" href="https://a.example">a</a>');
-    expect(out).toContain('<A target="_blank" HREF=https://b.example>b</A>');
+    expect(out).toContain('<a target="_blank" href="https://a.example/">a</a>');
+    expect(out).toContain('<A target="_blank" href="https://b.example/">b</A>');
     expect(out).toContain('<area target="_blank" href="mailto:c@example.com">');
     expect(out).toContain('<a target="_blank" href="tel:+15555550100">d</a>');
-    expect(out).toContain('<a target="_blank" xlink:href="https://e.example">');
+    expect(out).toContain('<a target="_blank" href="https://e.example/">');
   });
 
   // With no script to check where it goes, a popup escaping the sandbox
@@ -801,12 +818,55 @@ describe('htmlPreviewDocument without scripts', () => {
     const based = scriptless(
       '<base href="https://docs.example/guide/"><a href="help.html">h</a><a href="#s">s</a><a href="//cdn.example/x">x</a>'
     );
-    expect(based).toContain('<a target="_blank" href="help.html">h</a>');
-    expect(based).toContain('<a target="_blank" href="#s">s</a>');
-    expect(based).toContain('<a target="_blank" href="//cdn.example/x">x</a>');
+    expect(based).toContain(
+      '<a target="_blank" href="https://docs.example/guide/help.html">h</a>'
+    );
+    expect(based).toContain(
+      '<a target="_blank" href="https://docs.example/guide/#s">s</a>'
+    );
+    expect(based).toContain(
+      '<a target="_blank" href="https://cdn.example/x">x</a>'
+    );
     expect(
       scriptless('<base href="data:text/html,x"><a href="help.html">h</a>')
     ).toContain('<a target="_blank">h</a>');
+  });
+
+  // Left to the browser, a relative address resolves against the app's own,
+  // the reader's ship, so every address kept is computed here.
+  it('computes each address itself, never leaving one to resolve against the app', () => {
+    // With a base of the same scheme, a special scheme without slashes is
+    // relative.
+    expect(scriptless('<a href="https:/~/logout">x</a>')).toContain(
+      '<a target="_blank" href="https://~/logout">x</a>'
+    );
+    // A base the browser cannot use, or a relative one, is no base.
+    for (const base of ['http:', 'https://exa mple.com/', '/docs/']) {
+      expect(
+        scriptless(`<base href="${base}"><a href="/~/logout">x</a>`),
+        base
+      ).toContain('<a target="_blank">x</a>');
+    }
+    // One the browser never sees still gives an address of its own.
+    expect(
+      scriptless(
+        '<template><base href="https://t.example/"></template><a href="help.html">x</a>'
+      )
+    ).toContain('<a target="_blank" href="https://t.example/help.html">x</a>');
+  });
+
+  // A document in an inline frame inherits the frame's popups.
+  it('settles the links in an inline frame, as deep as it reads', () => {
+    expect(
+      scriptless(
+        `<iframe srcdoc="<a href='zoommtg://join'>z</a><a href='https://w.example'>w</a>"></iframe>`
+      )
+    ).toContain(
+      '<iframe srcdoc="&lt;a target=&quot;_blank&quot;&gt;z&lt;/a&gt;&lt;a target=&quot;_blank&quot; href=&quot;https://w.example/&quot;&gt;w&lt;/a&gt;"></iframe>'
+    );
+    const deep = scriptless(nested('<a href="zoommtg://join">z</a>', 4));
+    expect(deep).not.toContain('zoommtg');
+    expect(deep.match(/<iframe/g)).toHaveLength(1);
   });
 
   it('leaves text that only looks like a link alone', () => {
@@ -820,7 +880,7 @@ describe('htmlPreviewDocument without scripts', () => {
     expect(out).toContain('<!-- <a target="_self"> -->');
     expect(out).toContain('<textarea><a target="_self"></textarea>');
     expect(out).toContain(
-      '<a target="_blank" title="target=_self" href="https://x.example">'
+      '<a target="_blank" href="https://x.example/" title="target=_self">'
     );
   });
 
