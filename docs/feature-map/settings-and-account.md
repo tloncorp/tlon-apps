@@ -11,10 +11,10 @@ Desktop: click the gear at the bottom of the left rail. The list is shorter: `No
 Notes: `Notifications` and `Appearance` show their current choice under the name. `Your profile` opens your profile, `Contacts` your contact list, `Notifications` your notification level, and `Blocked users` the people you've blocked. `Manage Tlon account` and `Tlon Messenger on the Web` only show on hosted accounts.
 
 ## Why is a Settings row missing for me
-<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx -->
+<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, apps/tlon-web/src/logic/useMedia.ts -->
 
-Who: `Manage Tlon account` and `Tlon Messenger on the Web` only show in the phone app, and only on an account Tlon hosts. A self-hosted node gets neither.
-Notes: with a hosted Tlonbot, the phone puts the bot's own settings (`Models`, `Connections` and more) above `App`. If the app can't use your hosted login just then, for example because it has expired, you get a single `Bot Settings` row instead. On desktop a hosted bot always gets the single `Bot Settings` row, which opens the bot's settings in a new browser tab. No hosted bot means no bot rows at all. Desktop also leaves out `Your profile`, `Contacts` and `Log out`.
+Who: `Manage Tlon account` and `Tlon Messenger on the Web` are for accounts Tlon hosts, and neither shows in the desktop layout. A self-hosted node gets neither.
+Notes: with a hosted Tlonbot, the phone puts the bot's own settings (`Models`, `Connections` and more) above `App`. If the app can't use your hosted login just then, for example because it has expired, you get a single `Bot Settings` row instead. On desktop a hosted bot always gets the single `Bot Settings` row, which opens the bot's settings in a new browser tab. No hosted bot means no bot rows at all. Desktop also leaves out `Your profile`, `Contacts` and `Log out`. A browser window under 768 pixels wide gets the phone layout instead, which still has no `Log out`.
 
 ## Set my status from the Settings tab
 <!-- src: packages/app/features/settings/SettingsScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/ProfileStatusSheet.tsx -->
@@ -46,10 +46,10 @@ Desktop: the gear in the left rail, then `App info`.
 Notes: `Build version` is the app's build on this phone. The three `Desk` rows describe the Tlon Messenger software installed on your node: its version, where it gets updates from, and its hash. If they can't be read you see `Cannot load app info settings`. Your node's name is not on this screen, and there is no clear-cache or reset button.
 
 ## Turn on developer logs and send them to Tlon
-<!-- src: packages/app/features/settings/AppInfoScreen.tsx, packages/app/constants.ts -->
+<!-- src: packages/app/features/settings/AppInfoScreen.tsx, packages/app/constants.ts, packages/app/features/settings/PrivacyScreen.tsx -->
 
-Phone: Settings tab, then `App info`. Switch on `Enable Developer Logs` and tap `OK` on the `Debug mode enabled` notice. Close the app fully, reopen it and repeat the problem. Go back to `App info` and tap the "Upload logs" button, which shows a count. Your mail app opens a message to support@tlon.io with your ID and app details already filled in; describe the problem and send it.
-Notes: the app can run slower while logs are on, so switch it off afterwards. The upload button only appears once some logs have been captured. If the phone has no mail app, the screen shows the log ID so you can email it yourself.
+Phone: Settings tab, then `App info`. Switch on `Enable Developer Logs` and tap `OK` on the `Debug mode enabled` notice. Close the app fully, reopen it and repeat the problem. Go back to `App info` and tap the "Upload logs" button, which shows a count. The logs go to Tlon's reporting service, and your mail app opens a message to support@tlon.io with your ID and app details already filled in; describe the problem and send it.
+Notes: the email does not contain the logs, and the upload may not go out if `Share Usage Statistics` is off, so describe the problem in the email too. Logs can slow the app, so switch them off afterwards. The button only appears once some logs have been captured. With no mail app, the screen shows the log ID so you can email it yourself.
 
 ## Export the app's local database
 <!-- src: packages/app/features/settings/AppInfoScreen.tsx, packages/app/lib/downloadDb.native.ts, packages/app/lib/downloadDb.ts -->
@@ -101,7 +101,7 @@ Notes: what you can do there is decided by Tlon's website; the app only displays
 <!-- src: packages/app/features/settings/ManageAccountScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/api/src/client/hostingApi.ts -->
 <!-- absent: delete account -->
 
-Phone: the app has no delete button of its own. On a hosted account, go to the Settings tab and tap `Manage Tlon account`; account deletion is handled on the Tlon account page that opens. When you tap back after deleting, the app notices and logs you out.
+Phone: the app has no delete button of its own. The closest thing is `Manage Tlon account` on the Settings tab, which shows Tlon's account page inside the app. What that page offers is up to Tlon's website, so look there. When you tap back, the app checks your account and logs you out if it can no longer find it.
 Who: hosted accounts only. A self-hosted node isn't a Tlon account, so the app has nothing to delete for it.
 Notes: logging out is not deleting. `Log out` only clears the app on that phone.
 
@@ -109,21 +109,21 @@ Notes: logging out is not deleting. `Log out` only clears the app on that phone.
 <!-- src: packages/app/features/settings/UserBugReportScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 <!-- covers: route:WompWomp -->
 
-Phone: Settings tab, then `Report a bug`. Type what happened in `Additional notes` (the box says `What went wrong?`, 300 characters at most) and tap `Send Report`. You'll see `Bug report sent`.
+Phone: Settings tab, then `Report a bug`. If you like, type what happened in `Additional notes` (the box says `What went wrong?`, 300 characters at most), then tap `Send Report`. You'll see `Bug report sent`.
 Desktop: the gear in the left rail, then `Report a bug`.
-Notes: the screen says diagnostic information is attached automatically. A report is one-way: after the confirmation nothing more happens in the app, so use it to flag a problem, not to ask a question.
+Notes: the screen says diagnostic information is attached automatically. What you type is kept on the phone and is not part of the report, so the team learns that something went wrong, not what. To explain it, email support@tlon.io. A report is one-way: nothing more happens in the app, so use it to flag a problem, not to ask a question.
 
 ## Send feedback by shaking the phone
-<!-- src: apps/tlon-mobile/src/hooks/usePoorUxShakeReport.tsx, apps/tlon-mobile/src/components/AuthenticatedApp.tsx -->
+<!-- src: apps/tlon-mobile/src/hooks/usePoorUxShakeReport.tsx, apps/tlon-mobile/src/components/AuthenticatedApp.tsx, packages/app/features/settings/PrivacyScreen.tsx -->
 
 Phone: shake the phone a few times while the app is open. A `Report Poor UX` box appears. Type in the `What went wrong?` field and tap `Submit`, or tap `Cancel` to close it.
-Notes: phone only, and only once you're logged in. Submitting reports your note together with whether the app was syncing at that moment. If the box pops up by accident, tap `Cancel` or anywhere outside it.
+Notes: phone only, and only once you're logged in. Submitting reports your note together with whether the app was syncing at that moment. Like usage reports, it may not be sent if `Share Usage Statistics` is off. If the box pops up by accident, tap `Cancel` or anywhere outside it.
 
 ## Email Tlon support from the app
 <!-- src: packages/app/ui/components/EmailSupportLink.tsx, packages/app/constants.ts, apps/tlon-mobile/src/screens/Onboarding/GettingNodeReadyScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/UnderMaintenance.tsx, packages/app/features/DeskOutdatedScreen.tsx, apps/tlon-mobile/src/App.main.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 
 Phone: Settings has no support row. An email link shows up on the screens where the app is stuck: while your node is waking up, when the app says you're offline, when it says your ship needs an update, and on `Needs Repair` as an `Email Support` button. Tap it and your mail app opens a message to support@tlon.io.
-Notes: if the phone has no mail app you see `No mail app found` with the address to write to.
+Notes: if the phone has no mail app, the links show `No mail app found` with the address to write to. The `Email Support` button on `Needs Repair` has no such message, so write to support@tlon.io yourself.
 
 ## Turn on an experimental feature
 <!-- src: packages/app/features/settings/FeatureFlagScreen.tsx, packages/app/ui/components/FeatureFlagScreenView.tsx, packages/app/lib/featureFlags.ts, packages/app/ui/components/SettingsScreenView.tsx -->

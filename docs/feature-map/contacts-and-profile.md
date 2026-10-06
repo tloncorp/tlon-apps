@@ -8,7 +8,7 @@ Finding, adding, inviting and blocking people, looking at someone's profile, and
 
 Phone: open the Settings tab and tap `Contacts`. It says `People you know and invite` underneath. There is no Contacts tab in the tab bar.
 Desktop: click your own avatar in the left rail. Your contacts are listed in the sidebar, and a profile opens beside them.
-Notes: you are always first in the list, marked `You`, followed by your contacts. Below them there can be a `Suggested from %pals and DMs` section and, on the phone, a `From your address book` section. Tap anyone to open their profile. When the Activity tab is empty, the phone also shows a `View Contacts` button there.
+Notes: you are always first in the list, marked `You`, followed by your contacts. Below them there can be a `Suggested from %pals and DMs` section and, on the phone, a `From your address book` section. Tap a contact or a suggestion to open their profile. When the Activity tab is empty, the phone also shows a `View Contacts` button there.
 
 ## Add a contact by nickname or ID
 <!-- src: packages/app/features/contacts/AddContactsScreen.tsx, packages/app/ui/components/AddContactsView.tsx, packages/app/ui/components/ContactBook.tsx, packages/app/ui/hooks/contactSorters.ts, packages/app/features/top/ContactsScreen.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx -->
@@ -48,14 +48,14 @@ Notes: these are your own labels for that person. Their real profile does not ch
 <!-- src: packages/app/features/top/ContactsScreen.tsx, packages/app/ui/components/SystemNotices.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/hooks/useContactPermissions.native.ts, packages/shared/src/store/sync/sync.ts, packages/app/lib/notifications.ts -->
 
 Phone: open the Settings tab and tap `Contacts`. Until you share your address book, a `Find people you know` card is at the top. Tap `Continue` and allow access. The app confirms with `Success`.
-Who: phone app only. Matching only runs if you have verified a phone number on your own profile.
+Who: phone app only. Matching only runs once your own profile has a phone number on it.
 Notes: matches are added to your contacts and marked `New`. Later matches also send a notification. Everyone else is listed under `From your address book`. The access prompt is the phone's own, so its choices vary by phone; the app has no contact-by-contact picker. If you tapped `Not now`, the card does not come back. Allow Contacts access for Tlon Messenger in the phone's settings instead.
 
 ## Invite people from your address book
 <!-- src: packages/app/features/contacts/InviteSystemContactsScreen.tsx, packages/app/ui/components/PersonalInviteSheet.tsx, packages/app/features/top/ContactsScreen.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/ui/components/listItems/SystemContactListItem.tsx, packages/app/hooks/useInviteSystemContactHandler.ts, packages/app/features/top/ChatListScreen.tsx, apps/tlon-mobile/src/lib/contactsHelpers.ts -->
 <!-- covers: route:InviteSystemContacts -->
 
-Phone: open the Settings tab and tap `Contacts`. Under `From your address book`, tap a person marked `Invite`. Your messaging app opens with a text that holds your invite link. Send it. To invite several people at once, tap the person-with-a-plus icon at the top left of the Workspaces tab, tap `Invite your friends`, tick up to 10 people, and tap `Invite` at the top right.
+Phone: open the Settings tab and tap `Contacts`. Under `From your address book`, tap a person marked `Invite`. Your messaging app opens with a draft that holds your invite link, or your mail app if the person only has an email address. Send it. To invite several people at once, tap the person-with-a-plus icon at the top left of the Workspaces tab, tap `Invite your friends`, tick up to 10 people, and tap `Invite` at the top right.
 Who: phone app only, after you have shared your address book. You also need a personal invite link.
 Notes: the app only opens the draft. Nothing is sent until you send it. People you have invited show `Invited`. On the multi-select screen they can't be picked again for two weeks.
 
@@ -102,7 +102,7 @@ Notes: this works the same on your own profile. The ID is the name that starts w
 <!-- src: packages/app/ui/components/UserProfileScreenView.tsx, packages/app/features/top/useShipConnectionStatus.tsx, packages/app/ui/components/ConnectionStatus.tsx -->
 
 Phone: open their profile and look at the two tiles marked `Node` and `Sponsor`. Each one reads `Online`, `Offline` or `Pending`.
-Notes: `Pending` means the check has not finished yet, and it can take a moment after the profile opens. `Node` is whether your node can reach the person's own node. `Sponsor` is about their sponsor node, the one theirs connects through. Your own profile always shows both as `Online`.
+Notes: `Pending` means the check has not finished yet, and it can take a moment after the profile opens. `Node` reads `Online` only when your node reached theirs. Any other result reads `Offline`, even a problem on your own connection. `Sponsor` is the node theirs connects through. It reads `Offline` only when the check failed at their sponsor or the root node above it, so it can read `Online` while `Node` reads `Offline`. Your own profile always shows both as `Online`.
 
 ## Tell whether an account is a bot
 <!-- src: packages/app/ui/components/BotBadge.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/app/features/top/UserProfileScreen.tsx, packages/app/ui/components/AuthorRow.tsx -->

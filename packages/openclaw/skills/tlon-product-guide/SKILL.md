@@ -115,12 +115,12 @@ A group is a social space for friends, teams, and collaborators to connect. Grou
 
 The tab bar along the bottom is icons only, so describe them by shape:
 
-- **Bot** — a flower, or your bot's avatar once it has one. Your private chat with your Tlonbot. It only appears on hosted accounts with a bot, and it's where the app opens.
+- **Bot** — your bot's avatar, or a color tile if it has none (a flower stands in until its profile loads). Your private chat with your Tlonbot. It only appears on hosted accounts with a bot, and it's where a fresh start opens. Come back within a day and the app reopens on the screen you left.
 - **Workspaces** — a `#`. Every group and DM you're in. The screen is headed `Workspaces`.
 - **Activity** — a bell. Mentions, replies, and other notifications.
 - **Settings** — a gear. On a hosted account your bot's settings come first. Your own profile is the first row under `App`.
 
-Until the bot finishes setting you up, the other tabs stay locked.
+Until the bot accepts your first setup answers, or about 30 seconds after the chat opens, the other tabs stay locked.
 
 Outside of groups, you can send direct messages to individuals. DMs appear alongside your workspaces on the Workspaces tab. The filters at the top narrow the list: `Messages` shows only DMs, `Just me` shows workspaces that hold only you and your bot, and `With others` shows the rest.
 
@@ -129,10 +129,10 @@ Outside of groups, you can send direct messages to individuals. DMs appear along
 When you create an account, Tlon Messenger asks if you want to sync your phone's contacts, so you can see whether you already have friends on the app.
 
 1. Give Tlon Messenger access to your contact book.  
-2. What happens next depends on the phone. iOS can hand over a chosen subset — pick `Select contacts` and choose who to share. Android grants the whole book at once; there's no per-contact step, so don't send an Android user looking for one.  
+2. What happens next depends on the phone. iOS can hand over a chosen subset — its own prompt has a choice to select contacts, and you pick who to share there. Android grants the whole book at once; there's no per-contact step, so don't send an Android user looking for one.  
 3. For synced contacts who aren't on Tlon Messenger yet, tap the `Invite` button next to their entry and send them a link to sign up.
 
-When one of them joins you'll get a notification — `<name> is on Tlon`, tap to say hi — and they'll show up in your contacts. No conversation is created for you; saying hi is your move. Tlon will never spam your contacts and will never use your contact book in any capacity without your permission.
+When one of them joins you'll get a notification — `<name> is on Tlon`, tap to say hi — and they'll show up in your contacts. The app also adds an empty DM with them to your Workspaces list, reading `is on Tlon Messenger`; saying hi is still your move. Tlon will never spam your contacts and will never use your contact book in any capacity without your permission.
 
 ### Invite friends
 
@@ -152,7 +152,7 @@ Share your personal invite link with as many people as you like. Whenever a new 
 2. Tap `Invite people`.  
 3. Tap `Share link`, and send it to an existing group chat — the bros, your family, a book club.
 
-To add someone who's already on Tlon Messenger, type their name in the search bar on that same screen, tap them so they're checked, then tap the `Invite` button at the bottom.
+To add someone who's already on Tlon Messenger, type their name in the search bar on that same screen, tap them so they're checked, then tap the button at the bottom. It reads `Select people to invite` until you check someone, then "Invite 2 and continue", with your own count.
 
 Who can do this depends on the group. In a public group, any member can. In a private or secret one, only admins — everyone else sees `Invites disabled` where the action would be, so an ordinary member asking why their invite button is greyed out isn't hitting a bug.
 
@@ -164,13 +164,13 @@ Tlon Messenger is a computer shaped like an app. You can reach your node from yo
 2. Log in with the email you used to sign up.  
 3. Click the tile that says Tlon.
 
-That's the hosted path. Self-hosting? There's no signup email to log in with — you point the web app at your node's URL and authenticate with its access code instead.
+That's the hosted path. Self-hosting? There's no signup email to log in with. In a browser, open your node's own address — the web app has no login screen of its own, and sends you to your node's front page to log in. The desktop app does have one, `Connect to Your Ship`, where you enter your node's URL and its access code.
 
 That's the Tlon Messenger desktop experience — same account, same groups, same messages. It keeps the app's earlier layout, though, so steps in this guide need translating:
 
-- There's no tab bar. A rail down the left side switches between `Home` (all your groups and DMs, with a `+` at the top for making new ones), `Messages` (DMs and chat channels, with a filter to show just one), Activity (the bell), and Contacts (your avatar). The person-with-a-plus icon near the bottom of the rail is your personal invite, and `Settings` is below it. Desktop shows that icon even without a personal invite link, so on a self-hosted node it opens a sheet stuck on `Preparing invite link`. Use a group invite there instead.
-- There's no Bot tab. Your bot's DM sits with your other DMs, and its settings are behind `Settings` → `Bot Settings`.
-- The create menu keeps `New group` next to `New Workspace`. With a hosted bot you'll see both: `New Workspace` makes a group with your bot in it, and `New group` makes an ordinary one without it.
+- There's no tab bar. A rail down the left side switches between `Home` (all your groups and DMs, with a `+` at the top for making new ones), `Messages` (starts on DMs only; its filter also offers `Chat Channels` and `All Messages`), Activity (the bell), and Contacts (your avatar). The person-with-a-plus icon near the bottom of the rail is your personal invite, and `Settings` is below it. Desktop shows that icon even without a personal invite link, so on a self-hosted node it opens a sheet stuck on `Preparing invite link`. Use a group invite there instead.
+- There's no Bot tab. Your bot's DM sits with your other DMs, and `Settings` → `Bot Settings` opens Tlon's bot settings web page in a new browser tab, because the bot settings screens are in the phone app.
+- The create menu has `New Message` and `New group`. `New Workspace` (a group with your bot in it) shows only when the app knows you have a hosted bot, and on a computer it may not know. If it isn't there, make the workspace from your phone, or ask your bot to make one.
 - Where the phone has you press and hold something, hover it in the sidebar and open its three-dot menu instead.
 
 ---
@@ -183,8 +183,8 @@ A group is a social space with members, roles, and channels. There are four chan
 
 - **Chat** — short, fast messages in a stream. For talking.  
 - **Notebook** — collaborative Markdown documents, organized in folders. For writing something together. Notebooks have no comments; discussion goes in a Chat.  
-- **Bulletin** — long-form publishing with threaded comments. For essays and announcements people reply to.  
-- **Gallery** — photos, videos, links, and files. For collecting and browsing visual material.
+- **Bulletin** — long-form publishing with comments underneath. For essays and announcements people reply to.  
+- **Gallery** — photos, videos, links, files, and text posts, plus voice memos from the phone. For collecting and browsing visual material.
 
 Bulletin is the older of the two writing channels, and it used to be called Notebook. A node that hasn't picked up the notebooks update yet still shows it under the old name and doesn't offer the new one. Current versions of the app no longer offer Bulletin when you add a channel; existing Bulletins keep working.
 
@@ -192,7 +192,7 @@ Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can re
 
 ### Make a group
 
-With a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar), then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, for a group without your bot in it. The create menu offers it on desktop, and on phones without a hosted bot; a phone with a hosted bot shows only `New Workspace`. (A self-hosted OpenClaw bot doesn't get `New Workspace` at all — ask the bot to make the group instead.)
+With a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab, then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, for a group without your bot in it. The create menu offers it on desktop, and on phones without a hosted bot; a phone with a hosted bot shows only `New Workspace`. (A self-hosted OpenClaw bot doesn't get `New Workspace` at all — ask the bot to make the group instead.)
 
 1. Tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar).  
 2. Tap `New group`.  
@@ -201,7 +201,7 @@ With a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab 
 5. Pick friends who already use Tlon Messenger and tap `Create group`, or skip the picking and invite people later.  
 6. Change the name, icon, and description any time from `Group info & settings` — press and hold the group on the Workspaces tab to find it, or tap the group's name at the top of its screen. Then tap `Rename` in the upper right. That opens `Edit group info` — despite the button's name, it's where the icon and description live too. It only shows for admins.  
 7. Add channels: in `Group info & settings`, tap `Channels`, then `New` in the upper right, then `New channel`, and choose `Chat`, `Notebook`, or `Gallery`.  
-8. Save your channel settings and go back. Tap `Invite` — from there you can pick people already on Tlon Messenger, or tap `Share link` for a join link anyone can use.
+8. Tap `Create channel` and the sheet closes. Go back to `Group info & settings` and tap `Invite` — from there you can pick people already on Tlon Messenger, or tap `Share link` for a join link anyone can use.
 
 ### Ownership and roles
 
@@ -227,7 +227,7 @@ To send a DM: on the Workspaces tab, tap the plus icon at the top right, tap `Ne
 
 ### What it is
 
-Tlonbot is a personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. Hosted accounts get one provisioned for them — no infrastructure to stand up, though the app does walk you through naming it, giving it an avatar, and picking a model before you start. If you self-host, no bot appears on its own: you run OpenClaw yourself and point it at your node. That's a supported path, just a hands-on one.
+Tlonbot is a personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. Hosted accounts get one provisioned for them — no infrastructure to stand up. The app names it for you and drops you straight into its chat; you can change its name and model later in its settings, or ask it to update its name and avatar. If you self-host, no bot appears on its own: you run OpenClaw yourself and point it at your node. That's a supported path, just a hands-on one.
 
 Your bot has its own cryptographic identity on the network, linked directly to your account. That makes it a real network participant: it can create groups, post, and respond to mentions on its own. And it means your bot's memory, personality, and conversation history belong to you the same way your messages do. You can run one yourself instead of hosted, and swap the AI model behind it whenever you like. What isn't a button today is lifting a hosted bot's accumulated memory out and carrying it to a self-hosted one — your node archive holds your messages, not the agent's state. No vendor can take the bot away or change the terms on you; moving its memory is a road still being built.
 
@@ -238,9 +238,9 @@ ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their
 ### Getting started
 
 1. Download the iOS or Android app and sign in.  
-2. Open the Bot tab, the first icon in the tab bar. On a hosted account your bot is already there, and the app opens on it. Self-hosting? You run OpenClaw against your node first — there's no bot waiting, and no Bot tab.  
+2. Open the Bot tab, the first icon in the tab bar. On a hosted account your bot is already there, and a fresh start opens on it. Self-hosting? You run OpenClaw against your node first — there's no bot waiting, and no Bot tab.  
 3. Talk to it. You command your bot by typing instructions into the DM, in plain language.  
-4. Configure it from the Settings tab, where your bot's settings sit at the top: `Models` for the AI model it uses, `Connections` for API keys and connected services, and `Permissions` for who can message it and which channels it watches (`Per-channel rules`). On desktop, they're behind `Settings` → `Bot Settings`. These settings are part of hosting — if you're running your own bot they won't be there, and the same settings live in your OpenClaw configuration instead.
+4. Configure it from the Settings tab, where your bot's settings sit at the top: `Models` for the AI model it uses, `Connections` for API keys and connected services, and `Permissions` for who can message it and which channels it watches (`Per-channel rules`). On desktop, `Settings` → `Bot Settings` opens Tlon's bot settings web page instead of these screens. These settings are part of hosting — if you're running your own bot they won't be there, and the same settings live in your OpenClaw configuration instead.
 
 ### First things to try
 
@@ -276,7 +276,7 @@ When changing or cancelling recurring work, the bot should reconcile every cron 
 
 ### Connected services (MCP)
 
-Extend your bot by connecting outside services under `Connected services` in its settings — the Settings tab on a phone, `Settings` → `Bot Settings` on desktop. (Hosted accounts only; self-hosters wire MCP servers up in their own OpenClaw configuration.) With services connected, crons and requests get more powerful:
+Extend your bot by connecting outside services under `Connected services` in its settings — the Settings tab on a phone (desktop's `Settings` → `Bot Settings` opens a web page instead). (Hosted accounts only; self-hosters wire MCP servers up in their own OpenClaw configuration.) With services connected, crons and requests get more powerful:
 
 - "Summarize the status of my Linear tickets every Monday morning."  
 - "Track new GitHub issues on my repo and flag anything urgent."  
@@ -323,14 +323,15 @@ Bot behavior:
 - Some bots go further here — any channel they watch rather than only ones you host, a whole group at once, or `/owner-listen default all` to make listening the default everywhere. Worth suggesting if someone wants broader coverage than the forms above give them.  
 - `/model` — show or change the AI model  
 - `/new` — clear context and start a fresh session  
-- `/tlon version` — show which harness and plugin build is running. Bare `/tlon` just prints usage. Note for support conversations: it reports the code, not this guide. Two bots can print identical version output and still be answering from different revisions of it.  
+- `/status` — show the current session status. Like `/model` and `/new`, it comes from the bot's harness, not from Tlon.  
+- `/tlon version` — show which harness and plugin build is running. `/tlon-version` is an older alias that prints the same thing. Bare `/tlon` just prints usage. Note for support conversations: it reports the code, not this guide. Two bots can print identical version output and still be answering from different revisions of it.  
 - `/migrate diary/~host/name` — migrate a legacy Bulletin to a Notebook (owner only). **Say what this costs before anyone runs it.** It copies the posts and little else: comments, reactions, post references, link blocks, descriptions, covers and attachments all stay behind on the archive. Every migrated note is authored by the ship that ran the command, whoever wrote the original, and dated at import time, ordered by import rather than by when things were posted. Group mentions flatten to plain text. Some permission layouts can't be carried over without turning every reader into an editor. Nothing is destroyed — the original stays put, writable, renamed with `-ARCHIVE` — but the result is a fresh notebook holding the text, not a converted channel. The command prints this too, only after it has already started. It needs the channel's full nest, starting with `diary/`; a title or short name just prints usage. It also has to run from the ship that hosts the Bulletin — your own or the bot's. A Bulletin hosted by someone else in the group can't be migrated this way; its host has to do it. And when the host is you rather than the bot, the bot needs credentials for your ship configured before it can act on your behalf — without them the command stops with a configuration error rather than migrating. That's an operator setup step, so if someone hits it, that's what to tell them.
 
 ### Models and API keys
 
-Hosted accounts include an AI model for free — basic usage costs nothing. They also have a first-class **ChatGPT subscription** option: under `Provider subscriptions` → `ChatGPT` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`), the owner signs in to authorize their ChatGPT account, then chooses one of the models included with that subscription for Tlonbot. When someone asks what it means to "use a ChatGPT subscription for this," answer this Tlon-specific flow directly; don't substitute generic OpenClaw or OpenRouter billing advice.
+Hosted accounts include an AI model for free — basic usage costs nothing. They also have a first-class **ChatGPT subscription** option: under `Provider subscriptions` → `ChatGPT` in the bot's settings (on the phone; desktop's `Settings` → `Bot Settings` opens a web page instead), the owner signs in to authorize their ChatGPT account, then chooses one of the models included with that subscription for Tlonbot. `Provider subscriptions` also lists `Claude` and `Grok`, which connect from their own screens (Claude asks for a setup token instead of a sign-in). When someone asks what it means to "use a ChatGPT subscription for this," answer this Tlon-specific flow directly; don't substitute generic OpenClaw or OpenRouter billing advice.
 
-ChatGPT subscription access and an OpenAI API key are alternatives, not the same credential. Connecting the subscription removes a saved OpenAI API key, and saving an OpenAI API key disconnects the subscription. Other model providers still use their own API keys, under `API keys` in the same settings. Use `/model` to check or change what's running after the provider is connected.
+A subscription and its provider's API key are alternatives, not the same credential: ChatGPT and an OpenAI key, Claude and an Anthropic key, Grok and an xAI key. Connecting a subscription removes that provider's saved API key, and saving that provider's API key disconnects the subscription. API keys go under `API keys` in the same settings, and OpenRouter, which has no subscription option, only takes a key. Use `/model` to check or change what's running after the provider is connected.
 
 Self-hosting means no included model, ChatGPT-subscription screen, or bot settings in the app: configure the provider in your own OpenClaw setup and pay whoever you point it at. Either way there's no lock-in — everything you build with your bot stays with you.
 
@@ -386,7 +387,7 @@ The software survives: Tlon Messenger is open source and peer-to-peer, so it kee
 
 Your data survives if you've kept a copy. This is the honest version, and it's worth saying plainly rather than reassuring someone into skipping it: on a hosted account your node runs on Tlon's hardware, and the dashboard you'd export it from is Tlon's too. Open source doesn't reconstitute a node nobody has. Export your node archive and master ticket now, keep them somewhere you control, and refresh them from time to time — then the promise is real. Anyone asking this question is asking the right one, and the useful answer is to go do the export today.
 
-Pictures and large files are the exception, and it's worth being straight about it. Nodes can't store them yet, so they live in S3-compatible storage and your messages hold links. Export the node and you export the links, not the files. If that storage is Tlon's, those links are what you'd lose — so anyone who cares about keeping their media should point their node at storage they control, and can do that today in their storage settings.
+Pictures and large files are the exception, and it's worth being straight about it. Nodes can't store them yet, so they live in S3-compatible storage and your messages hold links. Export the node and you export the links, not the files. If that storage is Tlon's, those links are what you'd lose — so anyone who cares about keeping their media should point their node at storage they control. That's set on the node itself, not in the app, which has no storage settings screen.
 
 ### Owning your username
 
@@ -446,7 +447,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **Are conversations encrypted?** Yes, in transit — between nodes, and between the app and your node. Stored messages on a node aren't encrypted, so device access allows reading them. The app-to-node leg is only encrypted if the node is reached over HTTPS: that's automatic when Tlon hosts it, and a self-hoster on a plain `http://` address needs TLS or a tunnel in front.
 
-**Can I share things I post with people who aren't on Tlon Messenger?** Notebook notes, yes. Publish a note and you get a public link — the app copies it for you, and `Copy link` and `View published note` sit on the note afterwards. Other channel types don't have a button for it yet, though individual posts can be published through your Tlonbot, which can reach the same clearweb machinery from a DM.
+**Can I share things I post with people who aren't on Tlon Messenger?** Notebook notes, yes. Publish a note and you get a public link — the app copies it for you, and `Copy link` and `View published note` join the note's press-and-hold menu in the notebook's list afterwards. Other channel types don't have a button for it yet, though individual posts can be published through your Tlonbot, which can reach the same clearweb machinery from a DM.
 
 **What is Tlonbot?** A personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. It's powered by OpenClaw and runs on its own node, linked to yours, on the same peer-to-peer network.
 
