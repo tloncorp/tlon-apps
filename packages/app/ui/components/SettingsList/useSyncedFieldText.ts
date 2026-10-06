@@ -14,10 +14,11 @@ export function takeEcho(
 }
 
 /**
- * How long after the last keystroke a sent value can still be on its way back.
- * These values round-trip through local state or storage, which takes moments.
+ * How long an older sent value can sit unanswered before it is taken as an
+ * outside change. Echoes that are still arriving follow each other within a
+ * single save, far sooner than this, however far behind the saves are.
  */
-export const ECHO_WINDOW_MS = 1000;
+export const ECHO_SETTLE_MS = 1000;
 
 /**
  * Keeps a native text field's own state in step with the screen's value.
@@ -32,37 +33,53 @@ export function useSyncedFieldText(
   onChangeText: (text: string) => void
 ) {
   // Every sent value stays here until it, or a later one, comes back, however
-  // many are outstanding: forgetting one mid-typing would make its echo look
-  // like an outside change and write an old value over newer typing.
+  // many are outstanding and however long the saves take: forgetting one would
+  // make its echo look like an outside change and write an old value over
+  // newer typing.
   const pendingEchoes = useRef<string[]>([]);
-  const lastSentAt = useRef(0);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelSettle = useCallback(() => {
+    if (settleTimer.current !== null) {
+      clearTimeout(settleTimer.current);
+      settleTimer.current = null;
+    }
+  }, []);
 
   useEffect(() => {
-    // Updates that are batched can skip a sent value, so it never comes back.
-    // Left here for good, it would make a later outside change to that same
-    // text, such as a discarded edit, look like an echo and be ignored. Once
-    // the field has been quiet for a while, nothing is still on its way.
-    const outstanding =
-      Date.now() - lastSentAt.current > ECHO_WINDOW_MS
-        ? []
-        : pendingEchoes.current;
-    const remaining = takeEcho(outstanding, value);
-    if (remaining) {
-      pendingEchoes.current = remaining;
+    const adopt = () => {
+      pendingEchoes.current = [];
+      if (state.get() !== value) {
+        state.set(value);
+      }
+    };
+    const remaining = takeEcho(pendingEchoes.current, value);
+    if (!remaining) {
+      adopt();
       return;
     }
-    pendingEchoes.current = [];
-    if (state.get() !== value) {
-      state.set(value);
+    pendingEchoes.current = remaining;
+    if (state.get() === value) {
+      return;
     }
-  }, [state, value]);
+    // An older sent value. While echoes are still arriving, a newer one follows
+    // at once and cancels this. If nothing follows and nothing more is typed,
+    // batched updates skipped this value on its way back earlier, so this is
+    // an outside change to the same text, such as a discarded edit.
+    settleTimer.current = setTimeout(() => {
+      settleTimer.current = null;
+      adopt();
+    }, ECHO_SETTLE_MS);
+    return cancelSettle;
+  }, [cancelSettle, state, value]);
 
   return useCallback(
     (text: string) => {
+      // Newer typing wins over whatever was waiting to be taken.
+      cancelSettle();
       pendingEchoes.current = [...pendingEchoes.current, text];
-      lastSentAt.current = Date.now();
       onChangeText(text);
     },
-    [onChangeText]
+    [cancelSettle, onChangeText]
   );
 }

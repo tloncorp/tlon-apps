@@ -11,7 +11,7 @@ import {
 } from 'vitest';
 
 import {
-  ECHO_WINDOW_MS,
+  ECHO_SETTLE_MS,
   takeEcho,
   useSyncedFieldText,
 } from './useSyncedFieldText';
@@ -104,12 +104,57 @@ describe('useSyncedFieldText', () => {
     // The updates were batched: only the last text ever comes back.
     setScreenValue('ab');
 
-    vi.advanceTimersByTime(ECHO_WINDOW_MS + 1);
-    // Discard puts the saved text back, which the field itself once sent.
+    // Discard puts the saved text back, which the field itself once sent. It
+    // could still be an echo, so it waits to see whether a newer one follows.
     setScreenValue('a');
+    expect(field.writes).toEqual([]);
 
+    act(() => {
+      vi.advanceTimersByTime(ECHO_SETTLE_MS);
+    });
     expect(field.writes).toEqual(['a']);
     expect(field.text).toBe('a');
+  });
+
+  it('never replays old text when the saves run far behind', () => {
+    vi.useFakeTimers();
+    const { field, setScreenValue } = mount('');
+    const typed = ['t', 'to', 'tok', 'toke', 'token'];
+    typed.forEach((text) => field.type(text));
+
+    // Nothing comes back until long after the last keystroke, then each value
+    // arrives a single save apart.
+    act(() => {
+      vi.advanceTimersByTime(ECHO_SETTLE_MS * 5);
+    });
+    typed.forEach((text) => {
+      setScreenValue(text);
+      act(() => {
+        vi.advanceTimersByTime(ECHO_SETTLE_MS / 4);
+      });
+    });
+    act(() => {
+      vi.advanceTimersByTime(ECHO_SETTLE_MS * 2);
+    });
+
+    expect(field.writes).toEqual([]);
+    expect(field.text).toBe('token');
+  });
+
+  it('lets newer typing win over an older value that was waiting', () => {
+    vi.useFakeTimers();
+    const { field, setScreenValue } = mount('a');
+    ['ab', 'a', 'ab'].forEach((text) => field.type(text));
+    setScreenValue('ab');
+    setScreenValue('a');
+
+    field.type('abc');
+    act(() => {
+      vi.advanceTimersByTime(ECHO_SETTLE_MS * 2);
+    });
+
+    expect(field.writes).toEqual([]);
+    expect(field.text).toBe('abc');
   });
 
   it('still takes a change made elsewhere', () => {
