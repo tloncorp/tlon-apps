@@ -277,7 +277,11 @@ const CreateChatFormContent = ({
 
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
-      <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
+      <ActionSheet.SimpleHeader
+        title={title}
+        subtitle={subtitle}
+        alignWithAvatars={isWindowNarrow}
+      />
       <YStack flex={1} gap="$l" $sm={{ paddingHorizontal: '$xl' }}>
         <ContactBook
           searchable

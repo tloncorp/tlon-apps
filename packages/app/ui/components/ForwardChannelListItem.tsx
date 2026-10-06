@@ -1,6 +1,7 @@
 import type * as db from '@tloncorp/shared/db';
 import { Icon } from '@tloncorp/ui';
 import { ComponentProps, memo } from 'react';
+import { StyleSheet } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
 import { getChannelTypeIcon } from '../utils';
@@ -105,8 +106,10 @@ export const ForwardChannelListItem = memo(
       showGroupTitle: true,
       // A destination needs a name, not its latest message or unread count.
       showActivity: false,
-      borderWidth: '$2xs',
-      marginHorizontal: -1,
+      // One device pixel. The row hands the same amount back at its edges,
+      // so the border does not push its content off the sheet's shared line.
+      borderWidth: StyleSheet.hairlineWidth,
+      marginHorizontal: -StyleSheet.hairlineWidth,
       accessibilityLabel: selected
         ? 'Selected forwarding destination'
         : undefined,

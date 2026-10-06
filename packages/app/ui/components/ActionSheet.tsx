@@ -446,9 +446,9 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable<{
   /** Inset both sides to clear the close button, for content centered on the sheet. */
   centered?: boolean;
   /**
-   * The header starts with an icon or avatar rather than text. A row is a box
-   * 16 from the sheet edge; text starts 24 inside it and an icon 12, which
-   * puts the icon at 28 and the text beside it at 88.
+   * The header starts where an icon or avatar starts rather than where text
+   * does. A row is a box 16 from the sheet edge; text starts 24 inside it and
+   * an icon 12, which puts the icon at 28 and the text beside it at 88.
    */
   leadingIcon?: boolean;
 }>(({ children, centered, leadingIcon, ...props }, ref) => {
@@ -861,14 +861,20 @@ export const SimpleActionSheetHeader = ({
   title,
   subtitle,
   icon,
+  alignWithAvatars = false,
 }: {
   title?: string | null;
   subtitle?: string;
   icon?: ReactElement;
+  /**
+   * Starts a title that has no icon where an icon would start, for a sheet
+   * whose rows lead with avatars. The title then shares their left edge.
+   */
+  alignWithAvatars?: boolean;
 }) => {
   const isWindowNarrow = useIsWindowNarrow();
   return (
-    <ActionSheet.Header leadingIcon={!!icon}>
+    <ActionSheet.Header leadingIcon={!!icon || alignWithAvatars}>
       {icon ? icon : null}
       <ListItem.MainContent
         alignItems={isWindowNarrow ? 'flex-start' : 'center'}
