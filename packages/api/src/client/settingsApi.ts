@@ -397,8 +397,8 @@ export async function getAppInfo({
     ),
   ]);
 
-  // The app desk is %tlon from 13.0.0. A migrated ship still has a suspended
-  // %groups desk whose charge keeps the old version, so %tlon wins.
+  // The app desk is %tlon. A migrated ship also keeps its suspended old
+  // %groups desk, whose charge is frozen at its last version, so %tlon wins.
   const groupsPike = pikes?.['tlon'] ?? pikes?.['groups'];
   const groupsCharge = charges?.['tlon'] ?? charges?.['groups'] ?? {};
 
