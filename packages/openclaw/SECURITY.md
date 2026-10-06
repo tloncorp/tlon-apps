@@ -375,7 +375,11 @@ try {
 
 **Principle:** Sensitive tools are owner-only. Non-owners cannot use them, enforced at the plugin level (not via prompt instructions).
 
-**Restricted tools:** `tlon`, `cron`, `read`, and every tool whose name starts with `mcp_`. The MCP restriction includes discovery (`mcp__list_upstreams`, `mcp__search`, `mcp__describe`), invocation (`mcp__call`), and directly exposed upstream tools. Non-owner turns cannot access connected services, including the owner's hosted browser profile and OAuth-authorized services.
+**Restricted tools:** `tlon`, `cron`, `read`, `sessions_spawn`, `sessions_send`, `subagents`, and every tool whose name starts with `mcp_` or contains `__`.
+
+The MCP restriction includes discovery (`mcp__list_upstreams`, `mcp__search`, `mcp__describe`), invocation (`mcp__call`), and OpenClaw's `server__tool` namespace (for example, `linear__create_issue`). The entire namespace shape is owner-only, including sanitized server names and collision suffixes, independently of server configuration or bundled plugins. Other tools using that naming shape are also owner-only. Non-owner turns cannot access connected services, including the owner's hosted browser profile and OAuth-authorized services.
+
+Cross-session delegation is owner-only: non-owners cannot spawn a child, send work to another session, or steer a subagent. This blocks delegation before execution can escape the requester's role gate. Owner and internal sessions retain delegation access.
 
 | Scenario | Behavior |
 | -------- | -------- |
@@ -385,7 +389,7 @@ try {
 | Internal session (heartbeat, cron) | ✅ Allowed (no stored role = not a user-initiated turn) |
 
 **Implementation:**
-- `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `OWNER_ONLY_TOOL_PREFIXES`, `resolveOwnerOnlyToolBlock`)
+- `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `OWNER_ONLY_TOOL_PATTERNS`, `resolveOwnerOnlyToolBlock`)
 - Checks SenderRole from session tracker (stored the same way for DM and group senders)
 - Only blocks when role is explicitly `"user"` (a non-owner sender, DM or group)
 - Owner sessions (`"owner"`) and internal sessions (`undefined` role) are allowed

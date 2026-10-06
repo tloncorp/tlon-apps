@@ -68,7 +68,7 @@ import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
 import {
   OWNER_ONLY_TOOLS,
-  OWNER_ONLY_TOOL_PREFIXES,
+  OWNER_ONLY_TOOL_PATTERNS,
 } from '../owner-only-tools.js';
 import { setSessionRole } from '../session-roles.js';
 import {
@@ -3189,7 +3189,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           tools: {
             ownerOnlyAvailable: [
               ...OWNER_ONLY_TOOLS,
-              ...OWNER_ONLY_TOOL_PREFIXES.map((prefix) => `${prefix}*`),
+              ...OWNER_ONLY_TOOL_PATTERNS,
             ],
             called: currentLens?.tools.called ?? [],
             callCount: currentLens?.tools.callCount ?? 0,

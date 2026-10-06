@@ -8,7 +8,14 @@ import {
 } from './owner-only-tools.js';
 import type { SenderRole } from './session-roles.js';
 
-const EXPECTED_OWNER_ONLY_TOOLS = ['tlon', 'cron', 'read'] as const;
+const EXPECTED_OWNER_ONLY_TOOLS = [
+  'tlon',
+  'cron',
+  'read',
+  'sessions_spawn',
+  'sessions_send',
+  'subagents',
+] as const;
 const MCP_TOOLS = [
   'mcp__list_upstreams',
   'mcp__search',
@@ -17,6 +24,11 @@ const MCP_TOOLS = [
   'mcp_browser_navigate',
   'mcp_linear_create_issue',
   'mcp_new_upstream_tool',
+  'linear__create_issue',
+  'browser__navigate',
+  'My-server-2__search',
+  'mcp-123__list_tools',
+  'a'.repeat(30) + '__read',
 ] as const;
 const RESTRICTED_TOOLS = [...EXPECTED_OWNER_ONLY_TOOLS, ...MCP_TOOLS];
 
@@ -82,7 +94,7 @@ describe('formatOwnerOnlyToolBlockReason', () => {
     (tool) => {
       const reason = formatOwnerOnlyToolBlockReason(tool);
       expect(reason).toBe(formatOwnerOnlyToolBlockReason('mcp_*'));
-      expect(reason).toContain('the mcp_* tool is owner-only');
+      expect(reason).toContain('the MCP tool is owner-only');
       expect(reason.length).toBeLessThanOrEqual(200);
     }
   );
