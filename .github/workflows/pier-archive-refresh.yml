@@ -1,0 +1,272 @@
+name: Pier Archive Refresh
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description:
+          Build and locally verify the archives and print the would-be pin
+          diff; upload nothing, open no PR
+        type: boolean
+        default: false
+
+# One refresh at a time, and never cancel one mid-upload: a cancelled run can
+# leave archives in the bucket with no pins pointing at them.
+concurrency:
+  group: pier-archive-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  # Decides whether a refresh would do anything, in the order cheapest and
+  # most fundamental first:
+  #   1. Secrets present. Missing secrets skip (not fail) so this workflow can
+  #      merge before the GCS service account and GitHub App exist.
+  #   2. No open pier-refresh PR. One refresh PR at a time; a human merges or
+  #      closes it before the next one is cut (no branch reuse).
+  #   3. Desk inputs changed. The four git hashes in the sidecar are the exact
+  #      identity of everything assemble-desk.sh reads, so equal hashes mean
+  #      the archived desk already matches and a refresh would change nothing.
+  # Each skip is a job output gating the refresh job, not an `exit 0` (which
+  # would only end the step). A dry run reports what would have skipped and
+  # runs anyway: it needs no secrets and opens nothing.
+  preflight:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    outputs:
+      should_run: ${{ steps.gate.outputs.should_run }}
+      sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Decide whether to refresh
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+          HAS_GCS_KEY: ${{ secrets.PIER_ARCHIVE_GCS_KEY != '' }}
+          HAS_GH_TOKEN: ${{ secrets.PIER_ARCHIVE_GH_TOKEN != '' }}
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          skip=""
+
+          missing=()
+          [ "$HAS_GCS_KEY" = "true" ] || missing+=(PIER_ARCHIVE_GCS_KEY)
+          [ "$HAS_GH_TOKEN" = "true" ] || missing+=(PIER_ARCHIVE_GH_TOKEN)
+          if [ "${#missing[@]}" -gt 0 ]; then
+            skip="missing secrets: ${missing[*]}"
+          fi
+
+          if [ -z "$skip" ]; then
+            open=$(gh pr list --repo "$GITHUB_REPOSITORY" --label pier-refresh \
+              --state open --json url --jq '.[].url')
+            if [ -n "$open" ]; then
+              skip="a pier-refresh PR is already open: $open"
+            fi
+          fi
+
+          if [ -z "$skip" ]; then
+            sidecar=packages/tlon-bot-e2e/docker/pier-archive.json
+            blob() { git show "HEAD:$1" | git hash-object --stdin; }
+            if [ -f "$sidecar" ] && jq -e \
+              --arg desk "$(git rev-parse HEAD:desk)" \
+              --arg peru "$(blob peru.yaml)" \
+              --arg assemble "$(blob scripts/assemble-desk.sh)" \
+              --arg sync "$(blob scripts/sync-deps.sh)" \
+              '.deskTree == $desk and .peruBlob == $peru and
+               .assembleBlob == $assemble and .syncDepsBlob == $sync' \
+              "$sidecar" > /dev/null; then
+              skip="desk inputs unchanged since generation $(jq -r .generation "$sidecar")"
+            fi
+          fi
+
+          if [ -z "$skip" ]; then
+            echo "Refreshing: desk inputs differ from the sidecar"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          elif [ "$DRY_RUN" = "true" ]; then
+            echo "::notice::Dry run proceeding; a real run would skip ($skip)"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Skipping refresh: $skip"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  refresh:
+    needs: preflight
+    if: needs.preflight.outputs.should_run == 'true'
+    runs-on: blacksmith-8vcpu-ubuntu-2204
+    # A full cut (prep, sync, roll/chop, meld, archive, upload, download-back
+    # verify) runs ~50 min.
+    timeout-minutes: 90
+    env:
+      DRY_RUN_INPUT: ${{ inputs.dry_run && 'true' || 'false' }}
+    steps:
+      # The exact commit preflight hashed, so the sidecar describes it. No
+      # persisted GITHUB_TOKEN: its auth header would override the App token
+      # used for the push.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.sha }}
+          persist-credentials: false
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      # rube runs `peru sync` itself on every prep, so there is no desk-deps
+      # cache step here: it would not save the sync.
+      - name: Install peru
+        run: |
+          pipx install --force peru
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install archive tools
+        run: |
+          missing=()
+          for tool in jq rsync lsof; do
+            command -v "$tool" > /dev/null || missing+=("$tool")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            sudo apt-get update
+            sudo apt-get install -y "${missing[@]}"
+          fi
+
+      - name: Authenticate to Google Cloud
+        if: env.DRY_RUN_INPUT != 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.PIER_ARCHIVE_GCS_KEY }}
+
+      - name: Set up Cloud SDK
+        if: env.DRY_RUN_INPUT != 'true'
+        uses: google-github-actions/setup-gcloud@v2
+
+      # archive-piers.sh requires an active `gcloud auth list` account, which
+      # the auth action's credential-file override does not provide.
+      - name: Activate service account
+        if: env.DRY_RUN_INPUT != 'true'
+        run:
+          gcloud auth activate-service-account
+          --key-file="$GOOGLE_GHA_CREDS_PATH"
+
+      - name: Cut pier archives
+        env:
+          # Belt and braces: the script also clears these so no S3 credentials
+          # reach the public piers.
+          E2E_S3_ENDPOINT: ""
+          E2E_S3_ACCESS_KEY_ID: ""
+          E2E_S3_SECRET_ACCESS_KEY: ""
+          E2E_S3_BUCKET_NAME: ""
+          E2E_S3_REGION: ""
+          SKIP_UPLOAD: ${{ env.DRY_RUN_INPUT }}
+        run: |
+          logs="$RUNNER_TEMP/archive-logs"
+          mkdir -p "$logs"
+          # The script deletes its rube log on exit, failure included; follow
+          # it by name into a copy that survives for the failure artifact.
+          tail -n +1 -F apps/tlon-web/playwright-dev-archive.log \
+            > "$logs/playwright-dev-archive.log" 2> /dev/null &
+          tail_pid=$!
+          set +e
+          ./apps/tlon-web/rube/archive-piers.sh --verify 2>&1 |
+            tee "$logs/archive-piers.log"
+          status=${PIPESTATUS[0]}
+          kill "$tail_pid" 2> /dev/null
+          exit "$status"
+
+      # A PR opened with GITHUB_TOKEN gets only approval-gated CI, and this
+      # PR's CI is the acceptance test, so it is opened with a fine-grained
+      # PAT (Contents + Pull requests R/W on this repo). The PR is authored
+      # by the token's owner; the owner is looked up at run time, not
+      # hardcoded.
+      - name: Open refresh PR
+        if: env.DRY_RUN_INPUT != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PIER_ARCHIVE_GH_TOKEN }}
+          SOURCE_SHA: ${{ needs.preflight.outputs.sha }}
+        run: |
+          sidecar=packages/tlon-bot-e2e/docker/pier-archive.json
+          pins=(
+            apps/tlon-web/e2e/shipManifest.json
+            apps/tlon-web/rube/Dockerfile
+            packages/tlon-bot-e2e/docker/docker-compose.base.yml
+            "$sidecar"
+          )
+          if git diff --quiet -- "${pins[@]}"; then
+            echo "::error::archive-piers.sh succeeded but changed no pin files"
+            exit 1
+          fi
+          generation=$(jq -r .generation "$sidecar")
+          vere=$(jq -r .vere "$sidecar")
+          branch="ci/pier-refresh-v$generation"
+          title="e2e: refresh pier archives to v$generation"
+
+          owner_login=$(gh api /user --jq .login)
+          owner_id=$(gh api /user --jq .id)
+          git config user.name "$owner_login"
+          git config user.email "${owner_id}+${owner_login}@users.noreply.github.com"
+          git switch -c "$branch"
+          git add -- "${pins[@]}"
+          git commit -m "$title"
+          if ! git push \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/$branch"; then
+            echo "::error::Could not push $branch (does the branch already exist?)"
+            exit 1
+          fi
+
+          cat > "$RUNNER_TEMP/pr-body.md" << EOF
+          ## Summary
+
+          Nightly refresh of the fake-ship pier archives (~zod, ~ten, ~mug) to
+          generation v$generation, so E2E runs boot piers whose %groups desk
+          already matches develop.
+
+          ## Changes
+
+          - Web E2E pins (\`shipManifest.json\`, rube \`Dockerfile\`) and the bot
+            compose (archive filenames, URLs, md5s, sizes, pier generation)
+            point at the v$generation archives.
+          - \`pier-archive.json\` records the source commit and desk hashes.
+
+          Source SHA: \`$SOURCE_SHA\`
+          Vere: \`$vere\`
+          Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
+          ## How did I test?
+
+          CI on this PR is the acceptance test; bot E2E shards should
+          log the unchanged-desk skip.
+          EOF
+
+          if ! gh pr create --repo "$GITHUB_REPOSITORY" --base develop \
+            --head "$branch" --title "$title" \
+            --body-file "$RUNNER_TEMP/pr-body.md" --label pier-refresh; then
+            echo "::error::gh pr create failed; check that the pier-refresh label exists (an infra prerequisite). $branch is pushed."
+            exit 1
+          fi
+
+      - name: Upload archive logs
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          # run_attempt: v4 artifact names are immutable across attempts.
+          name: pier-archive-logs-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/archive-logs/
+          if-no-files-found: warn
+          retention-days: 7

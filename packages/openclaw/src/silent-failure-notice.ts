@@ -180,29 +180,45 @@ export function createSilentFailureNoticeCooldown(
 
 const GENERIC_LLM_FAILURE = 'LLM request failed.';
 
+function formatTimeoutDuration(ms: number): string {
+  if (ms < 60_000) {
+    const seconds = Math.max(1, Math.round(ms / 1_000));
+    return `${seconds} second${seconds === 1 ? '' : 's'}`;
+  }
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+}
+
 export function rewriteGenericTerminalErrorReply(input: {
   text: string;
   isError: boolean;
+  /** OpenClaw reported a timeout for this run (lifecycle event or compaction). */
   timedOut: boolean;
   durationMs: number;
-  timeoutMs: number;
+  /**
+   * The plugin's explicit run timeout, or null when none is configured and
+   * OpenClaw's agents.defaults.timeoutSeconds governs the turn.
+   */
+  timeoutMs: number | null;
 }): string {
   if (!input.isError || input.text.trim() !== GENERIC_LLM_FAILURE) {
     return input.text;
   }
+  const timeoutMs =
+    input.timeoutMs !== null && input.timeoutMs > 0 ? input.timeoutMs : null;
   // Tolerance scales down with short configured timeouts so an immediate
   // generic failure is never misread as reaching the deadline.
-  const toleranceMs = Math.min(1_000, Math.floor(input.timeoutMs / 10));
   const reachedDeadline =
     input.timedOut ||
-    (input.timeoutMs > 0 && input.durationMs >= input.timeoutMs - toleranceMs);
+    (timeoutMs !== null &&
+      input.durationMs >=
+        timeoutMs - Math.min(1_000, Math.floor(timeoutMs / 10)));
   if (!reachedDeadline) {
     return input.text;
   }
-  const duration =
-    input.timeoutMs < 60_000
-      ? `${Math.max(1, Math.round(input.timeoutMs / 1_000))} second${Math.round(input.timeoutMs / 1_000) === 1 ? '' : 's'}`
-      : `${Math.max(1, Math.round(input.timeoutMs / 60_000))} minute${Math.round(input.timeoutMs / 60_000) === 1 ? '' : 's'}`;
+  // Without a plugin deadline, report the observed elapsed time rather than a
+  // number the plugin never enforced.
+  const duration = formatTimeoutDuration(timeoutMs ?? input.durationMs);
   return `The model request timed out after ${duration} before it could finish. Please try again.`;
 }
 

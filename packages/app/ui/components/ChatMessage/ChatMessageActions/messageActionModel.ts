@@ -1,7 +1,11 @@
 import type { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 
-export type MessageMenuActionId = ChannelAction.Id | 'viewBotRun';
+export type MessageMenuActionId =
+  | ChannelAction.Id
+  | 'viewBotRun'
+  | 'selectText';
 
 export interface MessageMenuActionDescriptor {
   id: MessageMenuActionId;
@@ -30,7 +34,17 @@ export interface MessageActionVisibilityContext {
     deliveryStatus?: unknown;
     replyCount?: number | null;
     reactionCount: number;
+    uploadedFileCount?: number;
   };
+}
+
+export function uploadedFileUrlsOfPost(post: db.Post): string[] {
+  try {
+    return logic.uploadedFileUrlsOf(post.content, post.blob);
+  } catch (e) {
+    // Malformed stored content; a post we cannot read offers nothing to copy.
+    return [];
+  }
 }
 
 export function messageActionToken(
@@ -108,6 +122,8 @@ export function isMessageActionVisible(
       return post.authorId === currentUserId || currentUserIsAdmin;
     case 'viewReactions':
       return post.reactionCount > 0;
+    case 'copyFileUrl':
+      return (post.uploadedFileCount ?? 0) > 0;
     case 'visibility':
       return post.authorId !== currentUserId;
     case 'pinPost':

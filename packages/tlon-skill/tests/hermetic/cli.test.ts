@@ -171,6 +171,28 @@ function expectCliCase(result: CliResult, testCase: CliCase) {
 }
 
 describe('CLI hermetic subprocess behavior', () => {
+  it.each([
+    { args: ['--help'] },
+    { args: ['-h'] },
+    { args: ['browser', '--help'] },
+    { args: ['browser', 'handoff', '--help'] },
+  ])(
+    'teaches session handles without a capability-copying example (%j)',
+    async ({ args }) => {
+      const result = await runCli([...args]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('browser handoff <session_id>');
+      expect(result.stdout).toContain(
+        'sess_ handle from browser_session_create'
+      );
+      expect(result.stdout).not.toContain('<signed-viewer-url>');
+      expect(result.stdout).not.toContain(
+        'browser-session-ovh1.tlon.network/s/'
+      );
+      expect(result.stderr).toBe('');
+    }
+  );
+
   it('prints source CLI version without host credentials', async () => {
     const result = await runCli(['--version']);
 

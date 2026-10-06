@@ -28,6 +28,8 @@ export const TlonTelemetrySchema = z.object({
 });
 
 export const TlonLifecycleSchema = z.object({
+  // Optional. When unset, the plugin imposes no turn timeout and OpenClaw's
+  // agents.defaults.timeoutSeconds governs each agent turn.
   runTimeoutMs: z.number().int().min(1_000).optional(),
   toolTimeoutMs: z.number().int().min(1_000).optional(),
 });

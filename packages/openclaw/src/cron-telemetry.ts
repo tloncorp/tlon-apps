@@ -14,8 +14,8 @@
  *
  * Privacy: job snapshots carry the literal prompt (`payload.text`), on-exit
  * schedules carry their watched command/cwd, and run results carry agent output
- * (`summary`). None are forwarded — only schedule metadata, status, and error
- * text (truncated) leave the process.
+ * (`summary`). None are forwarded — only schedule metadata, status, error
+ * text (truncated), and a derived intentional-silence flag leave the process.
  */
 import {
   type TlonCronOtelObserver,
@@ -24,6 +24,11 @@ import {
   getDefaultTlonCronOtelObserver,
 } from './cron-observability.js';
 import { sharedSlot } from './shared-state.js';
+import { isExplicitSilentReply } from './silent-reply.js';
+import {
+  clearCronSilenceObservations,
+  consumeCronSilenceOutput,
+} from './cron-silence.js';
 import {
   type TlonCronCountFields,
   type TlonCronJobChangedReportInput,
@@ -81,6 +86,7 @@ export type CronChangedEvent = {
   durationMs?: number;
   status?: 'ok' | 'error' | 'skipped';
   error?: string;
+  summary?: string;
   delivered?: boolean;
   deliveryStatus?: 'not-requested' | 'delivered' | 'not-delivered' | 'unknown';
   deliveryError?: string;
@@ -142,6 +148,7 @@ export function setCronServiceAccessor(
 
 export function clearCronServiceAccessor(): void {
   cronServiceAccessorSlot.set(null);
+  clearCronSilenceObservations();
 }
 
 export function getTlonCronService(): TlonCronService | undefined {
@@ -321,7 +328,8 @@ export function buildCronJobChangedReport(
 }
 
 export function buildCronRunReport(
-  event: CronChangedEvent
+  event: CronChangedEvent,
+  observedSilentOutput = false
 ): TlonCronRunReportInput | null {
   if (event.action !== 'finished') {
     return null;
@@ -340,6 +348,17 @@ export function buildCronRunReport(
     delivered: typeof event.delivered === 'boolean' ? event.delivered : null,
     deliveryStatus: optionalString(event.deliveryStatus),
     deliveryError: truncateCronError(event.deliveryError),
+    // Only an explicit token-only successful outcome proves intentional silence.
+    // Core can strip the token before building a summary; in that case require
+    // matching agent-end evidence. Unexplained non-delivery stays alertable.
+    intentionalSilence:
+      event.status === 'ok' &&
+      event.delivered === false &&
+      event.deliveryStatus === 'not-delivered' &&
+      !optionalString(event.error) &&
+      !optionalString(event.deliveryError) &&
+      (isExplicitSilentReply(event.summary) ||
+        (!optionalString(event.summary) && observedSilentOutput)),
     model: optionalString(event.model),
     provider: optionalString(event.provider),
     payloadKind: optionalString(job?.payload?.kind),
@@ -380,6 +399,7 @@ function buildCronRunFinishedObservation(
     delivered: run.delivered,
     deliveryError: run.deliveryError,
     deliveryStatus: run.deliveryStatus,
+    intentionalSilence: run.intentionalSilence,
     durationMs: run.durationMs,
     jobId: run.jobId,
     jobName: run.jobName,
@@ -425,7 +445,7 @@ export async function handleCronChangedEvent(
   }
 
   if (event.action === 'finished') {
-    const run = buildCronRunReport(event);
+    const run = buildCronRunReport(event, consumeCronSilenceOutput(event));
     if (run) {
       observer.recordFinished(buildCronRunFinishedObservation(event, run));
       reportCronRun(run);

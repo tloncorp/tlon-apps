@@ -2,6 +2,7 @@ import { toUrbitStory } from '@tloncorp/api';
 import { storyToMarkdown, storyToMdast } from '@tloncorp/api/client/markdown';
 import { describe, expect, it } from 'bun:test';
 
+import { canonicalizeNest, parseNest } from './cli-utils';
 import {
   type ConvertedNote,
   type MigrationDeps,
@@ -10,7 +11,6 @@ import {
   assembleNoteBody,
   buildAttributionLine,
   buildProvenanceFooter,
-  canonicalizeNest,
   chunkNotes,
   computeWriteWidening,
   convertPost,
@@ -20,7 +20,6 @@ import {
   filterEligiblePosts,
   measureEnvelopeBytes,
   normalizeTitle,
-  parseNest,
   sortPostsBySequence,
   truncateTitle,
   validateImageUrl,

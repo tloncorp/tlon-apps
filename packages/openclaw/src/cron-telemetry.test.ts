@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { TlonCronOtelObserver } from './cron-observability.js';
+import {
+  type TlonCronOtelObserver,
+  createTlonCronOtelObserver,
+} from './cron-observability.js';
 import {
   _testing,
   buildCronJobChangedReport,
@@ -20,6 +23,10 @@ import {
   type TlonCronTelemetryReport,
   setCronTelemetryReporter,
 } from './telemetry.js';
+import {
+  beginCronSilenceObservation,
+  recordCronSilenceOutput,
+} from './cron-silence.js';
 
 type HookCronJob = Parameters<typeof summarizeCronJobs>[0][number];
 type HookCronEvent = Parameters<typeof buildCronRunReport>[0];
@@ -231,6 +238,7 @@ describe('cron telemetry builders', () => {
       delivered: true,
       deliveryStatus: 'delivered',
       deliveryError: null,
+      intentionalSilence: false,
       model: 'claude-sonnet-5',
       provider: 'anthropic',
       payloadKind: 'agentTurn',
@@ -289,6 +297,39 @@ describe('cron telemetry builders', () => {
       null
     );
   });
+
+  it.each([
+    ['exact token', { summary: 'NO_REPLY' }, true],
+    ['whitespace and case', { summary: ' \nno_reply\t' }, true],
+    ['missing summary', { summary: undefined }, false],
+    ['empty summary', { summary: ' \n' }, false],
+    ['ordinary output', { summary: 'No changes today' }, false],
+    ['token in prose', { summary: 'Use NO_REPLY when nothing changes' }, false],
+    ['trailing token', { summary: 'A result\nNO_REPLY' }, false],
+    ['failed run', { status: 'error' }, false],
+    ['skipped run', { status: 'skipped' }, false],
+    ['unknown status', { status: undefined }, false],
+    ['run error', { error: 'model failed' }, false],
+    ['delivery error', { deliveryError: 'channel unavailable' }, false],
+    ['delivered output', { delivered: true }, false],
+    ['unknown delivery', { delivered: undefined }, false],
+    ['unknown delivery status', { deliveryStatus: 'unknown' }, false],
+    ['delivery not requested', { deliveryStatus: 'not-requested' }, false],
+  ] satisfies [string, Partial<HookCronEvent>, boolean][])(
+    'classifies intentional silence conservatively: %s',
+    (_name, overrides, intentionalSilence) => {
+      const report = buildCronRunReport(
+        makeFinishedEvent({
+          summary: 'NO_REPLY',
+          delivered: false,
+          deliveryStatus: 'not-delivered',
+          ...overrides,
+        })
+      );
+      expect(report?.intentionalSilence).toBe(intentionalSilence);
+      expect(report).not.toHaveProperty('summary');
+    }
+  );
 
   it('builds job-changed reports for lifecycle actions only', () => {
     const added = buildCronJobChangedReport(
@@ -397,6 +438,7 @@ describe('cron telemetry hook handling', () => {
       deliveryError: null,
       deliveryStatus: 'delivered',
       durationMs: 1_234,
+      intentionalSilence: false,
       jobId: 'job-1',
       jobName: 'morning briefing',
       model: 'claude-sonnet-5',
@@ -420,6 +462,109 @@ describe('cron telemetry hook handling', () => {
       },
     ]);
   });
+
+  it.each([true, false])(
+    'emits intentional silence=%s on the existing terminal log and report',
+    async (silent) => {
+      const info = vi.fn();
+      const observer = createTlonCronOtelObserver({ logger: { info } });
+      await handleCronChangedEvent(
+        makeFinishedEvent({
+          summary: silent ? 'NO_REPLY' : 'private report contents',
+          delivered: false,
+          deliveryStatus: 'not-delivered',
+        }),
+        {},
+        { observer }
+      );
+      expect(info).toHaveBeenCalledWith(
+        'tlon.cron.run.finished',
+        expect.objectContaining({
+          'tlon.cron.status': 'ok',
+          'tlon.cron.delivered': false,
+          'tlon.cron.delivery_status': 'not-delivered',
+          'tlon.cron.intentional_silence': silent,
+        })
+      );
+      expect(reports).toEqual([
+        {
+          kind: 'run',
+          event: expect.objectContaining({ intentionalSilence: silent }),
+        },
+      ]);
+      const telemetry = JSON.stringify({ logs: info.mock.calls, reports });
+      expect(telemetry).not.toContain('NO_REPLY');
+      expect(telemetry).not.toContain('private report contents');
+      expect(telemetry).not.toContain('secret prompt text');
+    }
+  );
+
+  it.each([
+    ['stripped summary', {}, true],
+    ['empty summary', { summary: '' }, true],
+    ['substantive summary', { summary: 'private result' }, false],
+    ['error', { status: 'error', error: 'failed' }, false],
+    ['delivery error', { deliveryError: 'failed' }, false],
+    ['different session', { sessionId: 'another-session' }, false],
+    ['main session', { sessionTarget: 'main' }, false],
+  ] satisfies [string, Partial<HookCronEvent>, boolean][])(
+    'correlates final NO_REPLY with the cron terminal event: %s',
+    async (_name, overrides, intentionalSilence) => {
+      const ctx = {
+        trigger: 'cron',
+        runId: 'agent-run-1',
+        sessionId: 'sess-1',
+        sessionKey: 'cron:job-1',
+      };
+      beginCronSilenceObservation(ctx);
+      // model_call_started can omit fields supplied by agent_turn_prepare.
+      beginCronSilenceObservation({
+        ...ctx,
+        sessionId: undefined,
+        trigger: undefined,
+      });
+      recordCronSilenceOutput(
+        {
+          success: true,
+          messages: [
+            {
+              role: 'assistant',
+              content: [{ type: 'text', text: 'NO_REPLY' }],
+            },
+          ],
+        },
+        ctx
+      );
+      const info = vi.fn();
+      const observer = createTlonCronOtelObserver({ logger: { info } });
+      const event = makeFinishedEvent({
+        summary: undefined,
+        delivered: false,
+        deliveryStatus: 'not-delivered',
+        ...overrides,
+      });
+      await handleCronChangedEvent(event, {}, { observer });
+      expect(info).toHaveBeenCalledWith(
+        'tlon.cron.run.finished',
+        expect.objectContaining({
+          'tlon.cron.intentional_silence': intentionalSilence,
+        })
+      );
+      expect(reports[0]).toMatchObject({
+        kind: 'run',
+        event: { intentionalSilence },
+      });
+      expect(JSON.stringify({ logs: info.mock.calls, reports })).not.toContain(
+        'NO_REPLY'
+      );
+      // Completion consumes the evidence; it must not silence a subsequent run.
+      await handleCronChangedEvent(event, {}, { observer });
+      expect(reports[1]).toMatchObject({
+        kind: 'run',
+        event: { intentionalSilence: false },
+      });
+    }
+  );
 
   it('projects started events to OTEL without duplicating PostHog runs', async () => {
     const { observer, recordStarted } = makeCronObserver();

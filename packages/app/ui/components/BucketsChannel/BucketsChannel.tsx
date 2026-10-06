@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack, getTokenValue } from 'tamagui';
 
 import { calculateBucketUploadProgress } from '../../../utils/bucketUploadProgress';
+import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { Badge } from '../Badge';
 import { TextInput } from '../Form';
@@ -219,6 +220,7 @@ export function BucketsPane({
   state = 'populated',
   uploadAggregateProgress,
   uploadItems,
+  onCopyItemLink,
   onDeleteItem,
   onDownloadItem,
   onCancelUpload,
@@ -238,6 +240,7 @@ export function BucketsPane({
   state?: BucketsPaneState;
   uploadAggregateProgress?: number;
   uploadItems?: BucketItem[];
+  onCopyItemLink?: (item: BucketItem) => void;
   onDeleteItem?: (item: BucketItem) => void;
   onDownloadItem?: (item: BucketItem) => void;
   onCancelUpload?: (item: BucketItem) => void;
@@ -309,6 +312,7 @@ export function BucketsPane({
                   canEdit={canEdit}
                   item={item}
                   selected={selectedItemId === item.id}
+                  onCopyItemLink={onCopyItemLink}
                   onDeleteItem={onDeleteItem}
                   onDownloadItem={onDownloadItem}
                   onCancelUpload={onCancelUpload}
@@ -354,6 +358,7 @@ function BucketRow({
   canEdit,
   item,
   selected,
+  onCopyItemLink,
   onDeleteItem,
   onDownloadItem,
   onCancelUpload,
@@ -365,6 +370,7 @@ function BucketRow({
   canEdit: boolean;
   item: BucketItem;
   selected: boolean;
+  onCopyItemLink?: (item: BucketItem) => void;
   onDeleteItem?: (item: BucketItem) => void;
   onDownloadItem?: (item: BucketItem) => void;
   onCancelUpload?: (item: BucketItem) => void;
@@ -377,6 +383,14 @@ function BucketRow({
   const [isFocused, setIsFocused] = useState(false);
   const [open, setOpen] = useState(false);
   const isWindowNarrow = useIsWindowNarrow();
+  // Rename, move and preview each present another sheet, so they wait for
+  // the menu to finish dismissing.
+  const { dismissThenRun, onDismissed, presentationKey } =
+    useSheetDismissalAction({
+      open,
+      onOpenChange: setOpen,
+      waitForDismissal: Platform.OS !== 'web',
+    });
   // Focus counts as well as hover. Keeping the trigger out of the DOM until
   // a pointer arrives put every action behind it -- delete included -- out of
   // reach of the keyboard and of anything driving the page through one.
@@ -396,6 +410,12 @@ function BucketRow({
         startIcon: 'ArrowDown',
         action: () => onDownloadItem?.(item),
       },
+      item.kind === 'file' &&
+        onCopyItemLink && {
+          title: 'Copy link',
+          startIcon: 'Link',
+          action: () => onCopyItemLink(item),
+        },
     ],
     canEdit &&
       (onRenameItem || onMoveItem) && [
@@ -502,6 +522,7 @@ function BucketRow({
             />
           ) : showOverflow ? (
             <NotesActionMenu
+              key={presentationKey}
               groups={groups}
               header={{
                 icon: item.kind === 'folder' ? 'Folder' : 'Attachment',
@@ -509,7 +530,9 @@ function BucketRow({
                 title: item.name,
               }}
               open={open}
+              onAction={(action) => dismissThenRun(() => action?.())}
               onOpenChange={setOpen}
+              onNativeDismissed={onDismissed}
               trigger={trigger}
             />
           ) : item.kind === 'folder' ? (
@@ -605,7 +628,6 @@ export function BucketsRenameSheet({
     <ActionSheet
       closeButton={isWeb}
       dialogContentProps={{ width: 420, maxWidth: '90%', minWidth: 320 }}
-      keyboardBehavior="interactive"
       moveOnKeyboardChange
       open={item !== null}
       onOpenChange={onOpenChange}
@@ -743,6 +765,12 @@ export function BucketsNewSheet({
   const [folderName, setFolderName] = useState('');
   const isWeb = Platform.OS === 'web';
   const normalizedFolderName = folderName.trim();
+  // The system pickers cannot present while the sheet is still dismissing.
+  const { dismissThenRun, onDismissed, presentationKey } =
+    useSheetDismissalAction({
+      open,
+      onOpenChange,
+    });
 
   useEffect(() => {
     if (open) {
@@ -759,12 +787,13 @@ export function BucketsNewSheet({
 
   return (
     <ActionSheet
+      key={presentationKey}
       closeButton={isWeb}
       dialogContentProps={{ width: 420, maxWidth: '90%', minWidth: 320 }}
-      keyboardBehavior="interactive"
       moveOnKeyboardChange
       open={open}
       onOpenChange={onOpenChange}
+      onNativeDismissed={onDismissed}
       modal
       snapPointsMode="fit"
       title={view === 'folder' ? 'New folder' : 'New'}
@@ -782,10 +811,7 @@ export function BucketsNewSheet({
                 action={{
                   title: 'Upload files',
                   startIcon: 'Attachment',
-                  action: () => {
-                    onOpenChange(false);
-                    onUploadFiles();
-                  },
+                  action: () => dismissThenRun(onUploadFiles),
                 }}
                 testID="BucketsUploadFilesAction"
               />
@@ -793,10 +819,7 @@ export function BucketsNewSheet({
                 action={{
                   title: 'Choose photos',
                   startIcon: 'Camera',
-                  action: () => {
-                    onOpenChange(false);
-                    onChoosePhotos();
-                  },
+                  action: () => dismissThenRun(onChoosePhotos),
                 }}
                 testID="BucketsChoosePhotosAction"
               />

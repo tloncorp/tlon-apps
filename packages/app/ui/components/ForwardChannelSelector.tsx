@@ -1,8 +1,7 @@
-import { BottomSheetFlashList } from '@gorhom/bottom-sheet';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, useWindowDimensions } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
@@ -10,7 +9,6 @@ import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { SearchBar } from './SearchBar';
 
 type ForwardChannelSelectorProps = {
-  isOpen: boolean;
   onChannelSelected: (channel: db.Channel) => void;
   channelFilter?: (channel: db.Channel) => boolean;
 };
@@ -19,10 +17,6 @@ type ChannelChat = db.Chat & { type: 'channel' };
 
 const ITEM_H = 76;
 const LIST_HEIGHT_RATIO = 0.68;
-const ForwardSheetFlashList = (
-  Platform.OS === 'web' ? FlashList : BottomSheetFlashList
-) as typeof FlashList;
-
 const getItemType = (chat: ChannelChat) =>
   chat.channel.type === 'dm' || chat.channel.type === 'groupDm'
     ? 'dm'
@@ -31,7 +25,6 @@ const getItemType = (chat: ChannelChat) =>
       : 'channel';
 
 export function ForwardChannelSelector({
-  isOpen,
   onChannelSelected,
   channelFilter,
 }: ForwardChannelSelectorProps) {
@@ -42,7 +35,7 @@ export function ForwardChannelSelector({
   );
 
   const { channelChats, isSearching } = useFilteredChannelChats({
-    mode: isOpen ? 'snapshot' : 'live',
+    mode: 'snapshot',
     searchQuery: query,
     channelFilter,
   });
@@ -51,13 +44,6 @@ export function ForwardChannelSelector({
     setQuery(newQuery);
     setSelectedChannelId(null);
   }, []);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setQuery('');
-      setSelectedChannelId(null);
-    }
-  }, [isOpen]);
 
   const highlightedChannelId = useMemo(() => {
     if (!selectedChannelId) {
@@ -114,26 +100,25 @@ export function ForwardChannelSelector({
         />
       </XStack>
 
-      {isOpen ? (
-        <View style={estimatedListSize}>
-          {isSearching && channelChats.length === 0 ? (
-            <Text color="$tertiaryText" textAlign="center" fontFamily="$body">
-              No results found
-            </Text>
-          ) : (
-            <ForwardSheetFlashList<ChannelChat>
-              data={channelChats}
-              extraData={highlightedChannelId}
-              contentContainerStyle={contentContainerStyle}
-              getItemType={getItemType}
-              keyExtractor={(chat) => chat.channel.id}
-              renderItem={renderItem}
-              drawDistance={ITEM_H * 8}
-              keyboardShouldPersistTaps="always"
-            />
-          )}
-        </View>
-      ) : null}
+      <View style={estimatedListSize}>
+        {isSearching && channelChats.length === 0 ? (
+          <Text color="$tertiaryText" textAlign="center" fontFamily="$body">
+            No results found
+          </Text>
+        ) : (
+          <FlashList<ChannelChat>
+            data={channelChats}
+            extraData={highlightedChannelId}
+            contentContainerStyle={contentContainerStyle}
+            getItemType={getItemType}
+            keyExtractor={(chat) => chat.channel.id}
+            renderItem={renderItem}
+            drawDistance={ITEM_H * 8}
+            keyboardShouldPersistTaps="always"
+            nestedScrollEnabled
+          />
+        )}
+      </View>
     </>
   );
 }

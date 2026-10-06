@@ -19,6 +19,7 @@ export type TlonCronRunFinished = TlonCronRunStarted & {
   delivered: boolean | null;
   deliveryError: string | null;
   deliveryStatus: string | null;
+  intentionalSilence: boolean;
   durationMs: number | null;
   model: string | null;
   nextRunAtMs: number | null;
@@ -446,6 +447,7 @@ export function createTlonCronOtelObserver(options?: {
           ...optionalLogField('tlon.cron.error', run.cronError),
           ...optionalLogField('tlon.cron.delivered', run.delivered),
           ...optionalLogField('tlon.cron.delivery_status', run.deliveryStatus),
+          'tlon.cron.intentional_silence': run.intentionalSilence,
           ...optionalLogField('tlon.cron.delivery_error', run.deliveryError),
           ...optionalLogField('tlon.cron.model', run.model),
           ...optionalLogField('tlon.cron.provider', run.provider),

@@ -55,6 +55,22 @@ const DispatchScheduleSchema = z.discriminatedUnion('kind', [
 const DispatchPayloadSchema = z.object({
   kind: ExpectedStringSchema.optional(),
   message: ExpectedStringSchema.optional(),
+  toolsAllow: z.array(ExpectedStringSchema).optional(),
+});
+
+const DispatchFailureDestinationSchema = z.object({
+  mode: z.enum(['announce', 'webhook']).optional(),
+  channel: ExpectedStringSchema.optional(),
+  to: ExpectedStringSchema.optional(),
+  accountId: ExpectedStringSchema.optional(),
+});
+
+const DispatchDeliverySchema = z.object({
+  mode: z.enum(['none', 'announce', 'webhook']).optional(),
+  channel: ExpectedStringSchema.optional(),
+  to: ExpectedStringSchema.optional(),
+  accountId: ExpectedStringSchema.optional(),
+  failureDestination: DispatchFailureDestinationSchema.optional(),
 });
 
 const DispatchTaskSchema = z.object({
@@ -66,6 +82,7 @@ const DispatchTaskSchema = z.object({
   sessionTarget: ExpectedStringSchema.optional(),
   wakeMode: ExpectedStringSchema.optional(),
   payload: DispatchPayloadSchema.optional(),
+  delivery: DispatchDeliverySchema.optional(),
   createdAtMs: NaturalNumberSchema.optional(),
   updatedAtMs: NaturalNumberSchema.optional(),
 });
@@ -107,8 +124,24 @@ export interface StewardAutomationFinalizeRequest {
 
 export type StewardAutomationCronWriteService = Pick<
   PluginHookGatewayCronService,
-  'add' | 'update' | 'remove'
+  'add' | 'update' | 'remove' | 'list'
 >;
+
+/**
+ * Agent onboarding stores its primary job's slot key in `description` and
+ * finds that job by matching the string exactly (`SLOT_PREFIX` in
+ * monitor/agent-onboarding). An edit that rewrites it orphans the slot, and
+ * onboarding then creates a duplicate job, so edits may neither change a slot
+ * description nor mint one. Copied rather than imported to keep the
+ * onboarding module out of this path; a test pins the two together.
+ */
+const ONBOARDING_SLOT_PREFIX = 'tlon-agent-primary:';
+
+function isSlotDescription(description: string | undefined): boolean {
+  return description !== undefined
+    ? description.startsWith(ONBOARDING_SLOT_PREFIX)
+    : false;
+}
 
 export class StewardAutomationDispatchError extends Error {
   constructor(
@@ -182,7 +215,32 @@ type CronSchedule =
 
 type CronPayload =
   | { kind: 'systemEvent'; text: string }
-  | { kind: 'agentTurn'; message: string };
+  | { kind: 'agentTurn'; message: string; toolsAllow?: string[] };
+
+type CronPayloadPatch =
+  | { kind: 'systemEvent'; text?: string; toolsAllow?: string[] }
+  | { kind: 'agentTurn'; message?: string; toolsAllow?: string[] };
+
+/**
+ * The host's cron store carries a delivery block and an agentTurn tool
+ * allow-list that `openclaw/plugin-sdk/types` does not declare; the bot's own
+ * onboarding writes both. Declared here so an edit can set them rather than
+ * leaving a created job with no destination.
+ */
+type CronFailureDestination = {
+  mode?: 'announce' | 'webhook';
+  channel?: string;
+  to?: string;
+  accountId?: string;
+};
+
+type CronDelivery = {
+  mode?: 'none' | 'announce' | 'webhook';
+  channel?: string;
+  to?: string;
+  accountId?: string;
+  failureDestination?: CronFailureDestination;
+};
 
 function mapSchedule(
   schedule: NonNullable<StewardAutomationDispatchTask['schedule']>
@@ -233,6 +291,69 @@ function mapSchedule(
   }
 }
 
+/**
+ * The host requires `mode` on a create and allows it to be omitted from a
+ * patch, which merges per field. Verified against the cron store types of
+ * openclaw 2026.5.28, 2026.7.1 and 2026.9.4.
+ */
+/**
+ * A patch's payload, where the host requires only the kind discriminator and
+ * merges the rest per field. Keeping this separate from the create mapping is
+ * what lets an owner change the tool allow-list without resending the prompt.
+ */
+function mapPayloadPatch(
+  payload: NonNullable<StewardAutomationDispatchTask['payload']>
+): MappingResult<CronPayloadPatch> {
+  if (payload.kind === undefined) {
+    return invalid('payload.kind is required');
+  }
+  const { message, toolsAllow } = payload;
+  switch (payload.kind) {
+    case 'systemEvent':
+      return {
+        ok: true,
+        value: {
+          kind: 'systemEvent',
+          ...(message === undefined ? {} : { text: message }),
+          ...(toolsAllow === undefined ? {} : { toolsAllow }),
+        },
+      };
+    case 'agentTurn':
+      return {
+        ok: true,
+        value: {
+          kind: 'agentTurn',
+          ...(message === undefined ? {} : { message }),
+          ...(toolsAllow === undefined ? {} : { toolsAllow }),
+        },
+      };
+    default:
+      return invalid(
+        `payload.kind must be "systemEvent" or "agentTurn", got "${payload.kind}"`
+      );
+  }
+}
+
+function mapDelivery(
+  delivery: NonNullable<StewardAutomationDispatchTask['delivery']>,
+  { requireMode }: { requireMode: boolean }
+): MappingResult<CronDelivery> {
+  if (requireMode && delivery.mode === undefined) {
+    return invalid('delivery.mode is required when a create sets a delivery');
+  }
+  const { mode, channel, to, accountId, failureDestination } = delivery;
+  return {
+    ok: true,
+    value: {
+      ...(mode === undefined ? {} : { mode }),
+      ...(channel === undefined ? {} : { channel }),
+      ...(to === undefined ? {} : { to }),
+      ...(accountId === undefined ? {} : { accountId }),
+      ...(failureDestination === undefined ? {} : { failureDestination }),
+    },
+  };
+}
+
 function mapPayload(
   payload: NonNullable<StewardAutomationDispatchTask['payload']>
 ): MappingResult<CronPayload> {
@@ -251,7 +372,13 @@ function mapPayload(
     case 'agentTurn':
       return {
         ok: true,
-        value: { kind: 'agentTurn', message: payload.message },
+        value: {
+          kind: 'agentTurn',
+          message: payload.message,
+          ...(payload.toolsAllow === undefined
+            ? {}
+            : { toolsAllow: payload.toolsAllow }),
+        },
       };
     default:
       return invalid(
@@ -267,14 +394,15 @@ export interface StewardAutomationCronCreateInput {
   sessionTarget: string;
   wakeMode: string;
   payload: CronPayload;
+  delivery?: CronDelivery;
   agentId?: string;
   description?: string;
   enabled?: boolean;
 }
 
 export type StewardAutomationCronPatch = Partial<
-  Omit<StewardAutomationCronCreateInput, 'id'>
->;
+  Omit<StewardAutomationCronCreateInput, 'id' | 'payload'>
+> & { payload?: CronPayloadPatch };
 
 /** Map a create's task onto the gateway create schema, requiring what it requires. */
 export function toStewardAutomationCronCreateInput(
@@ -304,6 +432,14 @@ export function toStewardAutomationCronCreateInput(
   if (!payload.ok) {
     return payload;
   }
+  let delivery: CronDelivery | undefined;
+  if (task.delivery !== undefined) {
+    const mapped = mapDelivery(task.delivery, { requireMode: true });
+    if (!mapped.ok) {
+      return mapped;
+    }
+    delivery = mapped.value;
+  }
   return {
     ok: true,
     value: {
@@ -313,6 +449,7 @@ export function toStewardAutomationCronCreateInput(
       sessionTarget: task.sessionTarget,
       wakeMode: task.wakeMode,
       payload: payload.value,
+      ...(delivery === undefined ? {} : { delivery }),
       ...(task.agentId === undefined ? {} : { agentId: task.agentId }),
       ...(task.description === undefined
         ? {}
@@ -338,6 +475,13 @@ export function toStewardAutomationCronPatch(
       : { sessionTarget: task.sessionTarget }),
     ...(task.wakeMode === undefined ? {} : { wakeMode: task.wakeMode }),
   };
+  if (task.delivery !== undefined) {
+    const delivery = mapDelivery(task.delivery, { requireMode: false });
+    if (!delivery.ok) {
+      return delivery;
+    }
+    patch.delivery = delivery.value;
+  }
   if (task.schedule !== undefined) {
     const schedule = mapSchedule(task.schedule);
     if (!schedule.ok) {
@@ -346,7 +490,7 @@ export function toStewardAutomationCronPatch(
     patch.schedule = schedule.value;
   }
   if (task.payload !== undefined) {
-    const payload = mapPayload(task.payload);
+    const payload = mapPayloadPatch(task.payload);
     if (!payload.ok) {
       return payload;
     }
@@ -388,6 +532,12 @@ export async function applyStewardAutomationDispatch(
   const { action } = dispatch;
 
   if ('create' in action) {
+    if (isSlotDescription(action.create.description)) {
+      return errorBody(
+        'invalid',
+        `description must not start with "${ONBOARDING_SLOT_PREFIX}", which is reserved for bot onboarding`
+      );
+    }
     const input = toStewardAutomationCronCreateInput(
       dispatch.requestId,
       action.create
@@ -412,6 +562,28 @@ export async function applyStewardAutomationDispatch(
 
   if ('update' in action) {
     const { id, ...task } = action.update;
+    if (task.description !== undefined) {
+      let current: string | undefined;
+      try {
+        const jobs = await cron.list({ includeDisabled: true });
+        current = jobs.find((job) => job.id === id)?.description;
+      } catch (error) {
+        return errorBody('harness-error', errorMessage(error));
+      }
+      // Resending a slot description unchanged is a harmless round trip.
+      if (isSlotDescription(current) && task.description !== current) {
+        return errorBody(
+          'invalid',
+          'description is the slot key bot onboarding matches on and cannot be changed'
+        );
+      }
+      if (!isSlotDescription(current) && isSlotDescription(task.description)) {
+        return errorBody(
+          'invalid',
+          `description must not start with "${ONBOARDING_SLOT_PREFIX}", which is reserved for bot onboarding`
+        );
+      }
+    }
     const patch = toStewardAutomationCronPatch(task);
     if (!patch.ok) {
       return errorBody('invalid', patch.message);
