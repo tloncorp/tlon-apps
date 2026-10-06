@@ -1,0 +1,56 @@
+name: Feature Map
+
+# Keeps the product guide's feature map true to the app's source. It runs when
+# either side changes: the UI the map describes, or the map itself. The script
+# has no dependencies, so there is nothing to install.
+#
+# When this fails on a UI change, fix the map in the same PR. See
+# docs/feature-map/README.md.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "packages/app/**"
+      - "packages/ui/src/**"
+      - "packages/shared/src/**"
+      - "packages/api/src/**"
+      - "packages/editor/src/**"
+      - "apps/tlon-mobile/src/**"
+      - "apps/tlon-mobile/modules/**"
+      - "apps/tlon-web/src/**"
+      - "apps/tlon-desktop/src/**"
+      - "packages/openclaw/src/**"
+      - "docs/feature-map/**"
+      - "packages/openclaw/skills/tlon-product-guide/**"
+      - "scripts/feature-map*"
+      - ".github/workflows/feature-map.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feature-map-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Feature map matches the app
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Test the checker
+        run: node --test scripts/feature-map.test.mjs
+
+      - name: Check the feature map against the source
+        run: node scripts/feature-map.mjs check
+
+      - name: Check the guide's own quoted labels
+        run: node scripts/feature-map.mjs labels packages/openclaw/skills/tlon-product-guide/SKILL.md

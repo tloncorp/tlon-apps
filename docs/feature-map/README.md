@@ -5,7 +5,7 @@ One file per area of the app, one entry per task.
 
 This directory is the source. It follows the code on `develop`, and CI checks
 it against that code. Bots do not read it. They read the copy in
-`skills/tlon-product-guide/references/`, which `promote` writes at each store
+`packages/openclaw/skills/tlon-product-guide/references/`, which `promote` writes at each store
 release. Never edit that copy by hand.
 
 ## Entry format
@@ -46,7 +46,7 @@ Lines an entry can have, in this order. Leave out any that do not apply:
 
 Keep an entry under about 120 words. No file paths, component names or code
 terms in the text. Follow the wording rules at the top of
-`skills/tlon-product-guide/SKILL.md`: "Tlon Messenger", "node", and the phone's
+`packages/openclaw/skills/tlon-product-guide/SKILL.md`: "Tlon Messenger", "node", and the phone's
 tab names (Bot, Workspaces, Activity, Settings).
 
 ## Other anchors
@@ -62,7 +62,7 @@ tab names (Bot, Workspaces, Activity, Settings).
 ## The checks
 
 ```bash
-node packages/openclaw/scripts/feature-map.mjs check
+node scripts/feature-map.mjs check
 ```
 
 It fails when:
@@ -90,11 +90,11 @@ happens after a tap, read the entries that cite the files you touched.
 ## Releasing to bots
 
 ```bash
-node packages/openclaw/scripts/feature-map.mjs promote --app ios-production-789
+node scripts/feature-map.mjs promote --app ios-production-789
 ```
 
 `promote` checks every entry against the code at that tag. Entries that pass
-are written to `skills/tlon-product-guide/references/` with their anchors
+are written to `packages/openclaw/skills/tlon-product-guide/references/` with their anchors
 removed. An entry that does not pass (its labels arrived after the release, or
 its flag is off there) keeps its previously published wording, or is left out
 if it was never published. `references/RELEASE.json` records the tag and what
@@ -102,7 +102,7 @@ was held back, and the index in `SKILL.md` is rewritten to match.
 
 ## Testing answers
 
-`packages/openclaw/feature-map/questions/` holds the question set the
+`docs/feature-map/questions/` holds the question set the
 onboarding lab runs against bot models. Add a question when you add an entry
 people are likely to ask about, and when a real conversation shows the bot
 getting something wrong.

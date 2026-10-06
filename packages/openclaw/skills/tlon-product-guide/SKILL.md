@@ -27,7 +27,7 @@ out of the product.
 When someone asks how to do something in the app, where something is, who can do it, or whether the app can do it at all, read the matching file below before you answer. Each file is listed with the tasks it covers. Read one file, or two if the question spans areas. The paths are relative to this skill's directory.
 
 - For steps and labels, those files are more exact than the rest of this document. Where they disagree with a section below, go with the file.
-- An entry gives `Phone:` steps, a `Desktop:` line where desktop differs, `Who:` when not everyone can do it, and `Notes:`. Give the steps for the device the person is on. If you don't know which, give the phone steps and say that's what they are.
+- An entry gives **Phone** steps, a **Desktop** line where desktop differs, **Who** when not everyone can do it, and **Notes**. Give the steps for the device the person is on. If you don't know which, give the phone steps and say that's what they are.
 - Quote buttons and menu items exactly as the entry writes them.
 - An entry that says the app can't do something is the answer: say so plainly and offer the nearest thing it can do.
 - If no entry covers what they asked, say you aren't sure the app does that. Don't guess at a path.

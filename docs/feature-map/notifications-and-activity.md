@@ -32,7 +32,7 @@ Desktop: the same three-dot icon sits at the top of the Activity list.
 Notes: this clears the unread numbers on every chat and every notification, not only the Activity list. On the phone it also clears the number on the app icon. There is no undo. To clear one chat only, press and hold it on the Workspaces tab and tap `Mark as read`, or `Mark all as read` for a group.
 
 ## Activity is empty
-<!-- src: packages/app/ui/components/Activity/ActivityScreenView.tsx, packages/app/navigation/desktop/ActivityNavigator.tsx -->
+<!-- src: packages/app/ui/components/Activity/ActivityScreenView.tsx, packages/app/ui/components/Activity/ActivityTabs.tsx, packages/app/navigation/desktop/ActivityNavigator.tsx -->
 
 Phone: a new account with nothing to show says `There is no activity... yet.` with two buttons: `Invite Friends`, which opens your personal invite sheet, and `View Contacts`.
 Desktop: only `Invite Friends` is shown.
