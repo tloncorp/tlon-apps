@@ -166,7 +166,6 @@ export function ContactBook({
       return (
         <ContactRow
           backgroundColor={isPlain ? undefined : '$secondaryBackground'}
-          paddingHorizontal={isPlain ? '$2xl' : undefined}
           key={item.id}
           contact={item}
           immutable={immutableSet.has(item.id)}
@@ -272,7 +271,7 @@ export function ContactBook({
                 <Text
                   size="$label/m"
                   color="$tertiaryText"
-                  paddingHorizontal="$2xl"
+                  paddingHorizontal="$l"
                   paddingTop="$l"
                 >
                   Not in your contacts? Enter their full ID.

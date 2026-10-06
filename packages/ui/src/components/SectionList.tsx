@@ -120,7 +120,7 @@ export const BlockSectionListComponent = <
 };
 
 const PlainSectionListHeaderFrame = styled(View, {
-  paddingHorizontal: '$2xl',
+  paddingHorizontal: '$l',
   paddingTop: '$l',
   paddingBottom: '$xs',
 });
@@ -131,8 +131,8 @@ export const PlainSectionListHeader = withStaticProperties(
 );
 
 /**
- * Sections drawn straight on the surface, with no card behind them. Rows
- * padded by `$2xl` line up with the section labels.
+ * Sections drawn straight on the surface, with no card behind them. The
+ * labels sit on a list row's own padding, so they line up with its avatar.
  */
 export const PlainSectionList = <
   TItem,
