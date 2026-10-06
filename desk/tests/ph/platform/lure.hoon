@@ -131,7 +131,7 @@
   ::  host a group on ~zod and enable lure links
   ::
   ;<  ~  bind:m  create-test-group
-  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+my-test-group-id)
+  ;<  ~  bind:m  (poke-app [~zod %reel] grouper-enable+my-test-group-id)
   ;<  invite-link=@t  bind:m  (generate-lure-invite lure-group-metadata)
   (ex-not-equal !>(invite-link) !>(''))
 ++  redeem-lure-invite
@@ -169,7 +169,7 @@
   ::  host a group on ~zod and enable lure links
   ::
   ;<  ~  bind:m  create-test-group
-  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+my-test-group-name)
+  ;<  ~  bind:m  (poke-app [~zod %reel] grouper-enable+my-test-group-name)
   ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-group-metadata)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
   ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
@@ -245,7 +245,7 @@
   ;<  ~  bind:m  (sleep ~s3)
   ;<  =bowl:strand  bind:m  get-bowl
   =/  aqua-pax
-    /gx/~loshut-lonreg/bait/(scot %da now.bowl)/[token]/metadata/noun
+    /gx/~loshut-lonreg/reel/(scot %da now.bowl)/v1/served/[token]/noun
   ;<  metadata=(unit metadata:v1:r)  bind:m
     (scry-aqua (unit metadata:v1:r) ~loshut-lonreg aqua-pax)
   =/  metadata=metadata:v1:r  (need metadata)
@@ -280,7 +280,7 @@
   ;<  ~  bind:m  (sleep ~s3)
   ;<  =bowl:strand  bind:m  get-bowl
   =/  aqua-pax
-    /gx/~loshut-lonreg/bait/(scot %da now.bowl)/[token]/metadata/noun
+    /gx/~loshut-lonreg/reel/(scot %da now.bowl)/v1/served/[token]/noun
   ;<  metadata=(unit metadata:v1:r)  bind:m
     (scry-aqua (unit metadata:v1:r) ~loshut-lonreg aqua-pax)
   =/  metadata=metadata:v1:r  (need metadata)
