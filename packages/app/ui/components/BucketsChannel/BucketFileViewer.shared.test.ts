@@ -344,10 +344,13 @@ describe('htmlPreviewTitle', () => {
     ['<script><!--<script></script><title>Fake</title>--></script><title>Real</title>', 'Real'],
     ['<script><!-- </script><title>Escaped end</title>', 'Escaped end'],
     ['<script><!--></script><title>Short comment</title>', 'Short comment'],
+    // A title never closed runs to the end of the file.
+    ['<title>Unclosed', 'Unclosed'],
+    ['<title>Notes &amp; more<p>body', 'Notes & more<p>body'],
     // None.
     ['<p>hi</p>', undefined],
     ['<title>  </title>', undefined],
-    ['<title>Unclosed', undefined],
+    ['<title>   ', undefined],
     ['<plaintext><title>Text</title>', undefined],
     ['<noscript><title>Offline</title></noscript>', undefined],
   ])('reads %j as %j', (html, expected) => {
@@ -450,6 +453,10 @@ describe('htmlPreviewHasScripts', () => {
     // nomodule, but not a module or an SVG script.
     '<script type="module" nomodule>go()</script>',
     '<svg><script nomodule>go()</script></svg>',
+    // HTML at a MathML integration point, and SVG inside an annotation-xml.
+    '<math><mi><script>go()</script></mi></math>',
+    '<math><annotation-xml encoding="text/html"><script>go()</script></annotation-xml></math>',
+    '<math><annotation-xml><svg><script>go()</script></svg></annotation-xml></math>',
     // A declarative shadow root's content is live, and an svg's template is
     // SVG's.
     '<div><template shadowrootmode="open"><script>go()</script></template></div>',
@@ -485,6 +492,9 @@ describe('htmlPreviewHasScripts', () => {
     '<svg><script type="application/ld+json">{}</script></svg>',
     '<script nomodule>go()</script>',
     '<script type="text/javascript" NOMODULE>go()</script>',
+    // A MathML script element is never run.
+    '<math><script>go()</script></math>',
+    '<math><annotation-xml><script>go()</script></annotation-xml></math>',
     // An ordinary template's content is inert, in a shadow root or around one.
     '<template><script>go()</script><button onclick="go()">x</button><a href="javascript:go()">x</a><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe></template>',
     '<div><template shadowrootmode="open"><template><script>go()</script></template></template></div>',
@@ -634,7 +644,7 @@ describe('htmlPreviewDocument', () => {
     expect(out.endsWith(`</script>${file.slice(before.length)}`)).toBe(true);
   });
 
-  it('gives our script the key, removes it, and follows only trusted, uncancelled clicks', () => {
+  it('gives our script the key, removes it, keeps a clicked link off the frame, and follows only trusted, uncancelled clicks', () => {
     const out = htmlPreviewDocument('<p>x</p>', KEY);
     for (const part of [
       `})('${KEY}', true);`,
@@ -642,6 +652,7 @@ describe('htmlPreviewDocument', () => {
       'self.remove()',
       'event.isTrusted',
       'if (event.defaultPrevented) return;',
+      'new Observer(aim)',
     ]) {
       expect(out).toContain(part);
     }

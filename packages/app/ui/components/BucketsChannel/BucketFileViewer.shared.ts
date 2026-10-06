@@ -886,11 +886,11 @@ interface MarkupTag {
    */
   textEnd?: number;
   /**
-   * Whether it stands in foreign content -- inside an svg or math, and not
-   * at an integration point in one -- where it makes an SVG or MathML
-   * element, not an HTML one.
+   * The namespace of the element it makes: `svg` or `math` in foreign
+   * content -- inside an svg or math, and not at an integration point in one
+   * -- and `html` anywhere else.
    */
-  foreign: boolean;
+  namespace: 'html' | 'svg' | 'math';
   /** Whether a template is open around it. */
   withinTemplate: boolean;
   /**
@@ -937,9 +937,14 @@ function* markupTags(
   // scan reads. `open` counts them by name, so an end tag finds whether one
   // is open in constant time: a file of open svgs and stray end tags stays
   // linear.
-  const scopes: { html: boolean; name: string; namespace: string }[] = [];
+  const scopes: { html: boolean; name: string; namespace: 'svg' | 'math' }[] =
+    [];
   const open = new Map<string, number>();
-  const push = (name: string, namespace: string, htmlInside: boolean) => {
+  const push = (
+    name: string,
+    namespace: 'svg' | 'math',
+    htmlInside: boolean
+  ) => {
     scopes.push({ html: htmlInside, name, namespace });
     open.set(name, (open.get(name) ?? 0) + 1);
   };
@@ -1013,26 +1018,26 @@ function* markupTags(
         innermost.namespace === 'math' &&
         MATHML_TEXT_ELEMENTS.has(innermost.name) &&
         (name === 'mglyph' || name === 'malignmark'));
+    // A foreign element takes its parent's namespace -- except an svg
+    // straight inside an annotation-xml, which the parser makes SVG.
+    const namespace = !inForeignContent
+      ? undefined
+      : name === 'svg' &&
+          innermost.namespace === 'math' &&
+          innermost.name === 'annotation-xml'
+        ? 'svg'
+        : innermost.namespace;
     const tag: MarkupTag = {
       name,
       nameEnd,
       end,
-      foreign: inForeignContent,
+      namespace: namespace ?? 'html',
       withinTemplate: templates.length > 0,
       inert: inertTemplates > 0,
     };
-    if (inForeignContent) {
+    if (namespace !== undefined) {
       // Every foreign element is tracked, so that an end tag can close the
-      // ones it holds. It takes its parent's namespace -- except an svg
-      // straight inside an annotation-xml, which the parser makes SVG -- and
-      // a foreign element can close itself.
-      const parent = scopes[scopes.length - 1];
-      const namespace =
-        name === 'svg' &&
-        parent.namespace === 'math' &&
-        parent.name === 'annotation-xml'
-          ? 'svg'
-          : parent.namespace;
+      // ones it holds, and a foreign element can close itself.
       const encoding = asciiLowercase(
         parseEntities(attributes.get('encoding') ?? '', { attribute: true })
       );
@@ -1093,8 +1098,7 @@ function* markupTags(
  * `<svg>`'s own, which is a tooltip (an HTML one in its foreignObject counts)
  * -- with character references decoded and
  * ASCII whitespace collapsed, the way `document.title` reads it. Undefined
- * when the file has none, it is blank, or it is never closed. In a frame that
- * runs no scripts (`scripting: false`, under Electron), a `<noscript>` holds
+ * when the file has none or it is blank. In a frame that runs no scripts (`scripting: false`, under Electron), a `<noscript>` holds
  * markup, and a title in it counts.
  *
  * A scan rather than a regular expression: it reads each character a fixed
@@ -1109,12 +1113,20 @@ export function htmlPreviewTitle(
     html,
     scripting ? SCRIPTED_TEXT_ELEMENTS : TEXT_CONTENT_ELEMENTS
   )) {
-    if (tag.name !== 'title' || tag.foreign || tag.withinTemplate) continue;
-    if (tag.textEnd === undefined || tag.textEnd < 0) return undefined;
+    if (
+      tag.name !== 'title' ||
+      tag.namespace !== 'html' ||
+      tag.withinTemplate
+    ) {
+      continue;
+    }
+    if (tag.textEnd === undefined) return undefined;
     // Character references decoded as a browser decodes them in text: every
     // named reference, the legacy ones without a semicolon, and numeric
-    // references with a browser's replacements.
-    const title = parseEntities(html.slice(tag.end, tag.textEnd))
+    // references with a browser's replacements. A title never closed runs to
+    // the end of the file, as the parser reads it.
+    const textEnd = tag.textEnd < 0 ? html.length : tag.textEnd;
+    const title = parseEntities(html.slice(tag.end, textEnd))
       .replace(/[\t\n\f\r ]+/g, ' ')
       .replace(/^ | $/g, '');
     return title === '' ? undefined : title.slice(0, 200);
@@ -1260,9 +1272,10 @@ function scriptKind(
 }
 
 /**
- * Whether an HTML file has anything a script would run from: a script
- * element that runs code (scriptKind; a classic HTML one marked `nomodule` is
- * skipped by every browser that runs modules), an event handler attribute, a
+ * Whether an HTML file has anything a script would run from: an HTML or SVG
+ * script element that runs code (scriptKind; a classic HTML one marked
+ * `nomodule` is skipped by every browser that runs modules, and a MathML one
+ * is never run), an event handler attribute, a
  * `javascript:` URL in an attribute a browser follows -- read as the browser
  * reads it, so `java&#x73;cript:` counts -- or any of these in an inline
  * frame's `srcdoc`, outside an inert template. A page without any renders the
@@ -1279,11 +1292,12 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
   })) {
     if (tag.inert) continue;
     const attributes = tagAttributes(html.slice(tag.nameEnd, tag.end - 1));
-    if (tag.name === 'script') {
+    if (tag.name === 'script' && tag.namespace !== 'math') {
       const kind = scriptKind(attributes);
       if (
         kind === 'module' ||
-        (kind === 'classic' && (tag.foreign || !attributes.has('nomodule')))
+        (kind === 'classic' &&
+          (tag.namespace === 'svg' || !attributes.has('nomodule')))
       ) {
         return true;
       }
@@ -1565,11 +1579,15 @@ function withDocumentHead(html: string, fragment: string): string {
  * it only once the click has finished dispatching, so that a cancel from any
  * of the page's own handlers -- a router's, an `onclick` returning false --
  * counts, whenever they were added. Until then the frame's own default action
- * has to be harmless: a link aimed anywhere but `_blank` is pointed at
- * `_blank` for this click (an SVG link ignores the `<base>` target, and one
- * aimed at the frame itself would be refused by the shell's `frame-src`,
- * leaving Chromium's blocked-page notice behind), so the default is a popup
- * the sandbox refuses.
+ * has to be harmless: a link aimed anywhere but `_blank` -- by its own target,
+ * or the first `<base>` one; an SVG link ignores the `<base>`, and the
+ * standard reads an empty target as the frame itself -- is pointed at
+ * `_blank` for this click, so the default is a popup the sandbox refuses,
+ * not a navigation of the frame, which the shell's `frame-src` would refuse,
+ * leaving Chromium's blocked-page notice behind. It stays so while the
+ * page's own handlers run: one that aims the link elsewhere, or changes the
+ * `<base>`, is undone at the microtask checkpoint after it, before the
+ * browser acts on the click, and what it set is put back afterwards.
  *
  * Then, if the page did not cancel it: a link that leaves the file goes to
  * the shell to be opened (htmlPreviewShell); one to a place in the file
@@ -1594,6 +1612,7 @@ function linkScript(key: string, nonce?: string): string {
   var shell = window.parent;
   var later = window.setTimeout.bind(window);
   var composedPath = Event.prototype.composedPath;
+  var Observer = window.MutationObserver;
   var resolveURL = window.URL;
   var run = Function;
   var XLINK = 'http://www.w3.org/1999/xlink';
@@ -1602,6 +1621,23 @@ function linkScript(key: string, nonce?: string): string {
   function hrefOf(node) {
     var raw = node.getAttribute('href');
     return raw !== null ? raw : node.getAttributeNS(XLINK, 'href');
+  }
+  // Where a click on the link is aimed: its own target, or for an HTML link
+  // without one the first HTML <base> target; an SVG link ignores the <base>.
+  // None is the frame itself, and so is an empty one as the standard reads
+  // it, though Chromium and WebKit take the <base> target for it.
+  function aimedAt(link) {
+    var target = link.getAttribute('target');
+    if (target === null && link.namespaceURI !== SVG) {
+      var bases = document.getElementsByTagName('base');
+      for (var i = 0; i < bases.length; i++) {
+        if (bases[i].namespaceURI === XHTML && bases[i].hasAttribute('target')) {
+          target = bases[i].getAttribute('target');
+          break;
+        }
+      }
+    }
+    return target === null || target === '' ? '_self' : target.toLowerCase();
   }
   function linkIn(event) {
     var nodes = composedPath.call(event);
@@ -1665,11 +1701,20 @@ function linkScript(key: string, nonce?: string): string {
     var link = linkIn(event);
     if (!link) return;
     var target = link.getAttribute('target');
-    var aimed = target === null || target.trim() === '' ? (link.namespaceURI === SVG ? '_self' : '_blank') : target.trim().toLowerCase();
-    if (aimed !== '_blank') link.setAttribute('target', '_blank');
+    var forced = false;
+    function aim() {
+      if (aimedAt(link) === '_blank') return;
+      target = link.getAttribute('target');
+      link.setAttribute('target', '_blank');
+      forced = true;
+    }
+    aim();
+    var watch = new Observer(aim);
+    watch.observe(document, { attributes: true, attributeFilter: ['target'], childList: true, subtree: true });
     var trusted = event.isTrusted;
     later(function () {
-      if (aimed !== '_blank') {
+      watch.disconnect();
+      if (forced) {
         if (target === null) link.removeAttribute('target');
         else link.setAttribute('target', target);
       }
@@ -1773,7 +1818,9 @@ function withoutAttributes(attributes: string, names: Set<string>): string {
  */
 function authoredBaseHref(html: string): string | undefined {
   for (const tag of markupTags(html, TEXT_CONTENT_ELEMENTS)) {
-    if (tag.name !== 'base' || tag.foreign || tag.withinTemplate) continue;
+    if (tag.name !== 'base' || tag.namespace !== 'html' || tag.withinTemplate) {
+      continue;
+    }
     const href = tagAttributes(html.slice(tag.nameEnd, tag.end - 1)).get(
       'href'
     );
@@ -1864,7 +1911,7 @@ function withLinksAimedAtBlank(html: string, depth = 0): string {
   const base = fileWebBase(html);
   let rewritten = '';
   let copied = 0;
-  for (const { foreign, name, nameEnd, end } of markupTags(
+  for (const { name, namespace, nameEnd, end } of markupTags(
     html,
     TEXT_CONTENT_ELEMENTS
   )) {
@@ -1874,7 +1921,8 @@ function withLinksAimedAtBlank(html: string, depth = 0): string {
       // xlink:href is an address only where the parser gives it XLink's
       // namespace, on a foreign (SVG) link; on an HTML one it is a name.
       const { address, aimed } = settledLink(
-        values.get('href') ?? (foreign ? values.get('xlink:href') : undefined),
+        values.get('href') ??
+          (namespace !== 'html' ? values.get('xlink:href') : undefined),
         base
       );
       rewritten +=
