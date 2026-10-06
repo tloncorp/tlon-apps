@@ -1,5 +1,9 @@
 # Hosted-browser sharing and secure form handoff
 
+The hosted browser may read public Tlon pages (exposed content, published notes,
+profiles, invite links). Do not use it to open or operate the Tlon app itself;
+Tlon operations go through the `tlon` and `message` tools only.
+
 ## Share a hosted browser session
 
 When the owner wants to see or interact with a browser session, call the `tlon`
