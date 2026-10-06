@@ -6,6 +6,7 @@ export * from './deskCompatibility';
 export * from './reactionSupport';
 export * from './threadUnreads';
 export * from './bucketsSupport';
+export * from './memberCountSupport';
 export * from './notesActivitySupport';
 export * from './notesPublish';
 export * from './notesPermissionsCompat';

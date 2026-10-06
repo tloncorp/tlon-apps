@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { toInitData } from '../client/initApi';
+import { setDeskCountsAllSeats } from '../client/urbit';
 import type * as ub from '../urbit';
 import rawGroupsInit6 from './fixtures/groupsInit5.json';
 
@@ -129,6 +130,15 @@ describe('toInitData', () => {
 
     test('keeps a count above the cap, which only a fixed desk sends', () => {
       expect(groupWithCount(40).memberCount).toBe(40);
+    });
+
+    test('trusts 15 from a desk that counts every seat', () => {
+      setDeskCountsAllSeats(true);
+      try {
+        expect(groupWithCount(15).memberCount).toBe(15);
+      } finally {
+        setDeskCountsAllSeats(false);
+      }
     });
   });
 });

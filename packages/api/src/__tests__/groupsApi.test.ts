@@ -8,7 +8,7 @@ import {
   toClientGroupFromPreview,
   toGroupsUpdate,
 } from '../client/groupsApi';
-import { subscribeOnce } from '../client/urbit';
+import { setDeskCountsAllSeats, subscribeOnce } from '../client/urbit';
 import type * as ub from '../urbit';
 
 vi.mock('../client/urbit', async () => ({
@@ -340,6 +340,17 @@ describe('group member counts', () => {
     test('keeps a count above the cap, which only a restored count can be', () => {
       const [group] = changedGroups({ [flag]: wireGroup(fifteenSeats, 40) });
       expect(group.memberCount).toBe(40);
+    });
+
+    // a group that shrank to exactly 15 must not keep its old, larger count
+    test('trusts 15 from a desk that counts every seat', () => {
+      setDeskCountsAllSeats(true);
+      try {
+        const [group] = changedGroups({ [flag]: wireGroup(fifteenSeats, 15) });
+        expect(group.memberCount).toBe(15);
+      } finally {
+        setDeskCountsAllSeats(false);
+      }
     });
   });
 });

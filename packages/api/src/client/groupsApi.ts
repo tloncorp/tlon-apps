@@ -24,7 +24,11 @@ import {
   threadRequest,
   trackedPokeRequest,
 } from './requests';
-import { BadResponseError, getCurrentUserId } from './urbit';
+import {
+  BadResponseError,
+  getCurrentUserId,
+  getDeskCountsAllSeats,
+} from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
 
@@ -1984,10 +1988,11 @@ const TRUNCATED_SEAT_COUNT = 15;
 /**
  * Drops an init or changes member count that may be the truncated seat count,
  * leaving the stored count alone. A count below it is exact, and only a desk
- * that counts every seat sends one above it.
+ * that counts every seat sends one above it. Such a desk is trusted at 15 too,
+ * since a group can shrink to exactly that.
  */
 export function withoutTruncatedMemberCount(group: db.Group): db.Group {
-  return group.memberCount === TRUNCATED_SEAT_COUNT
+  return !getDeskCountsAllSeats() && group.memberCount === TRUNCATED_SEAT_COUNT
     ? { ...group, memberCount: undefined }
     : group;
 }
