@@ -294,6 +294,11 @@ describe('previewEncoding', () => {
     ['<?xml version="1.0"?><p>encoding="windows-1252"</p>', undefined, 'utf-8'],
     ['<?xml version="1.0" encoding="UTF-16"?><p>x</p>', undefined, 'utf-8'],
     ['<?xml version="1.0" encoding="bogus"?><p>x</p>', undefined, 'utf-8'],
+    // Any start of `<?xml`, as Chromium and WebKit read it, but in lowercase,
+    // with a quoted value.
+    ['<?xml-stylesheet encoding="windows-1251"?><p>x</p>', undefined, 'windows-1251'],
+    ['<?XML encoding="windows-1251"?><p>x</p>', undefined, 'utf-8'],
+    ['<?xml encoding=windows-1251?><p>x</p>', undefined, 'utf-8'],
     ['<\u0000?\u0000x\u0000m\u0000l\u0000', undefined, 'utf-16le'],
     ['\u0000<\u0000?\u0000x\u0000m\u0000l', undefined, 'utf-16be'],
     // Otherwise UTF-8.
@@ -340,6 +345,8 @@ describe('htmlPreviewTitle', () => {
     ['<math><annotation-xml encoding="text&#47;html"><title>Page</title></annotation-xml></math>', 'Page'],
     ['<math><mi><mglyph><title>Fake</title></mglyph></mi></math><title>Real</title>', 'Real'],
     ['<template><svg><template></template></svg><title>Draft</title></template><title>Final</title>', 'Final'],
+    ['<template><svg></template><title>Real</title>', 'Real'],
+    ['<template><svg><foreignObject></template></foreignObject><title>After</title>', 'After'],
     // A script ends through its escape states.
     ['<script><!--<script></script><title>Fake</title>--></script><title>Real</title>', 'Real'],
     ['<script><!-- </script><title>Escaped end</title>', 'Escaped end'],
@@ -463,6 +470,17 @@ describe('htmlPreviewHasScripts', () => {
     '<div><template shadowrootmode="CLOSED"><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe></template></div>',
     '<svg><template><script>go()</script></template></svg>',
     '<template></template><script>go()</script>',
+    // A template's end tag closes it from inside foreign content too, unless
+    // a foreign template is open within it.
+    '<template><svg></template></svg><script>go()</script>',
+    '<template><math><mi><svg></template><script>go()</script>',
+    '<svg><template><foreignObject><template></template><script>go()</script></foreignObject></template></svg>',
+    // Where a javascript: URL runs: a link, an SVG link by either attribute,
+    // a MathML href (WebKit), an inline frame (Chromium).
+    '<area href="javascript:go()">',
+    '<svg><a xlink:href="javascript:go()"><text>x</text></a></svg>',
+    '<math><mtext href="javascript:go()">x</mtext></math>',
+    '<iframe src="javascript:go()"></iframe>',
     // Nested deeper than it reads.
     nested('<p>static</p>', 4),
   ])('finds a script in %j', (html) => {
@@ -500,6 +518,12 @@ describe('htmlPreviewHasScripts', () => {
     '<div><template shadowrootmode="open"><template><script>go()</script></template></template></div>',
     '<template><div><template shadowrootmode="open"><script>go()</script></template></div></template>',
     '<div><template shadowrootmode=" open"><script>go()</script></template></div>',
+    '<svg><foreignObject><template></foreignObject><script>go()</script></template></foreignObject></svg>',
+    // A javascript: URL where none runs: a form cannot submit, an object or
+    // embed cannot load, and other elements fetch theirs.
+    '<div href="javascript:go()">x</div><a xlink:href="javascript:go()">x</a>',
+    '<form action="javascript:go()"><button formaction="javascript:go()">Go</button></form>',
+    '<object data="javascript:go()"></object><embed src="javascript:go()"><img src="javascript:go()">',
     nested('<p>static</p>', 3),
   ])('finds none in %j', (html) => {
     expect(htmlPreviewHasScripts(html)).toBe(false);

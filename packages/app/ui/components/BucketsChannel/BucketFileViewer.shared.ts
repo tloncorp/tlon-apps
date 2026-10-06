@@ -137,17 +137,6 @@ function linkAddress(value: string, base?: string): string | undefined {
 // another as often as its size allows, and each level is read again.
 const MAX_NESTED_DOCUMENTS = 3;
 
-// The attributes whose value a browser follows as a URL, and so would run as
-// a script when it is a `javascript:` one.
-const URL_ATTRIBUTES = new Set([
-  'action',
-  'data',
-  'formaction',
-  'href',
-  'src',
-  'xlink:href',
-]);
-
 /**
  * The charset an HTML file declares in its first bytes, found as a browser's
  * encoding prescan finds it: comments are skipped, and only a `<meta>` with a
@@ -932,30 +921,39 @@ function* markupTags(
   { markupInSelect = false }: { markupInSelect?: boolean } = {}
 ): Generator<MarkupTag> {
   const lower = asciiLowercase(html);
+  // The open templates: how many foreign elements were open around each, and
+  // whether its content is inert; and how many are. A template is an HTML
+  // element, so an end tag inside it reaches nothing outside it, and its own
+  // end tag closes whatever it holds.
+  const templateDepths: number[] = [];
+  const templatesInert: boolean[] = [];
+  let inertTemplates = 0;
   // The open foreign elements: each with its namespace, and whether its
   // content is HTML (an integration point). The innermost decides how the
-  // scan reads. `open` counts them by name, so an end tag finds whether one
-  // is open in constant time: a file of open svgs and stray end tags stays
-  // linear.
-  const scopes: { html: boolean; name: string; namespace: 'svg' | 'math' }[] =
-    [];
+  // scan reads. `open` counts them by name within each template, so an end
+  // tag finds whether one it can reach is open in constant time: a file of
+  // open svgs and stray end tags stays linear.
+  const scopes: {
+    html: boolean;
+    name: string;
+    namespace: 'svg' | 'math';
+    key: string;
+  }[] = [];
   const open = new Map<string, number>();
+  const reach = (name: string) => `${templateDepths.length} ${name}`;
   const push = (
     name: string,
     namespace: 'svg' | 'math',
     htmlInside: boolean
   ) => {
-    scopes.push({ html: htmlInside, name, namespace });
-    open.set(name, (open.get(name) ?? 0) + 1);
+    const key = reach(name);
+    scopes.push({ html: htmlInside, key, name, namespace });
+    open.set(key, (open.get(key) ?? 0) + 1);
   };
   const pop = () => {
     const scope = scopes.pop();
-    if (scope) open.set(scope.name, (open.get(scope.name) ?? 1) - 1);
+    if (scope) open.set(scope.key, (open.get(scope.key) ?? 1) - 1);
   };
-  // The open templates, each with whether its content is inert, and how many
-  // of them are.
-  const templates: boolean[] = [];
-  let inertTemplates = 0;
   let selects = 0;
   const foreign = () => scopes.length > 0 && !scopes[scopes.length - 1].html;
   let i = 0;
@@ -987,12 +985,16 @@ function* markupTags(
     if (closing) {
       if (foreign() && (name === 'br' || name === 'p')) {
         while (foreign()) pop();
-      } else if ((open.get(name) ?? 0) > 0) {
+      } else if ((open.get(reach(name)) ?? 0) > 0) {
         while (scopes[scopes.length - 1].name !== name) pop();
         pop();
-      } else if (name === 'template' && templates.length > 0 && !foreign()) {
-        // In foreign content it ends a foreign template, not an HTML one.
-        if (templates.pop()) inertTemplates -= 1;
+      } else if (name === 'template' && templateDepths.length > 0) {
+        // No foreign template is open within reach, so it ends the innermost
+        // HTML template, in HTML or in foreign content alike, and everything
+        // opened inside it.
+        const depth = templateDepths.pop()!;
+        while (scopes.length > depth) pop();
+        if (templatesInert.pop()) inertTemplates -= 1;
       } else if (name === 'select' && selects > 0 && !foreign()) {
         selects -= 1;
       }
@@ -1032,7 +1034,7 @@ function* markupTags(
       nameEnd,
       end,
       namespace: namespace ?? 'html',
-      withinTemplate: templates.length > 0,
+      withinTemplate: templateDepths.length > 0,
       inert: inertTemplates > 0,
     };
     if (namespace !== undefined) {
@@ -1059,7 +1061,8 @@ function* markupTags(
         })
       );
       const inert = mode !== 'open' && mode !== 'closed';
-      templates.push(inert);
+      templateDepths.push(scopes.length);
+      templatesInert.push(inert);
       if (inert) inertTemplates += 1;
     } else if (name === 'select') {
       selects += 1;
@@ -1272,13 +1275,37 @@ function scriptKind(
 }
 
 /**
+ * Whether a browser would run a `javascript:` URL in this attribute of this
+ * element, as measured in a preview running the page's scripts: a link the
+ * reader follows -- an HTML link's href, an SVG link's href or xlink:href, a
+ * MathML element's href (WebKit) -- or an inline frame's src (Chromium). A
+ * form cannot submit and an object or embed cannot load in a preview, and
+ * any other URL is fetched, never run.
+ */
+function runsJavascriptUrl(tag: MarkupTag, attribute: string): boolean {
+  switch (tag.namespace) {
+    case 'math':
+      return attribute === 'href';
+    case 'svg':
+      return (
+        tag.name === 'a' && (attribute === 'href' || attribute === 'xlink:href')
+      );
+    case 'html':
+      return attribute === 'href'
+        ? tag.name === 'a' || tag.name === 'area'
+        : attribute === 'src' &&
+            (tag.name === 'iframe' || tag.name === 'frame');
+  }
+}
+
+/**
  * Whether an HTML file has anything a script would run from: an HTML or SVG
  * script element that runs code (scriptKind; a classic HTML one marked
  * `nomodule` is skipped by every browser that runs modules, and a MathML one
- * is never run), an event handler attribute, a
- * `javascript:` URL in an attribute a browser follows -- read as the browser
- * reads it, so `java&#x73;cript:` counts -- or any of these in an inline
- * frame's `srcdoc`, outside an inert template. A page without any renders the
+ * is never run), an event handler attribute, a `javascript:` URL where a
+ * browser runs one (runsJavascriptUrl) -- read as the browser reads it, so
+ * `java&#x73;cript:` counts -- or any of these in an inline frame's `srcdoc`,
+ * outside an inert template. A page without any renders the
  * same with scripts off, so there is nothing to run. A `srcdoc` nested deeper
  * than MAX_NESTED_DOCUMENTS is taken to have some.
  *
@@ -1304,7 +1331,10 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
     }
     for (const [attribute, value] of attributes) {
       if (attribute.length > 2 && attribute.startsWith('on')) return true;
-      if (URL_ATTRIBUTES.has(attribute) && urlScheme(value) === 'javascript') {
+      if (
+        runsJavascriptUrl(tag, attribute) &&
+        urlScheme(value) === 'javascript'
+      ) {
         return true;
       }
       if (
