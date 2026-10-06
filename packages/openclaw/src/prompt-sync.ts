@@ -626,15 +626,29 @@ export function createPromptSync(opts: {
         if (outcome.type === 'updated') {
           // The projection lands before %finalize, so every terminal owner
           // response corresponds to the workspace snapshot it requested. A
-          // projection that fails anyway must not turn a completed write
-          // into an error: the write stands, the watcher this write already
-          // woke re-projects it, and a reconnect re-projects it again.
+          // projection that fails transiently must not turn a completed
+          // write into an error: the write stands, the watcher this write
+          // already woke re-projects it, and a reconnect re-projects it
+          // again. One the ship refuses (a name its allowlist lacks, a body
+          // over its cap) fails the same way on every retry, so reporting
+          // `updated` would tell the owner of a change its mirror never
+          // shows.
           try {
             await publish(`edit ${action.set.name}`);
           } catch (error) {
             opts.logger.warn(
               `[tlon] Prompt edit ${requestId} was written but not projected: ${errorMessage(error)}`
             );
+            if (isPermanent(error)) {
+              outcome = {
+                type: 'error',
+                errorType: 'harness-error',
+                message: [
+                  `${action.set.name} was written but the ship refused its projection: ${errorMessage(error)}`,
+                ],
+              };
+              rememberCompleted(dispatch, outcome);
+            }
           }
         }
         await finalize(requestId, outcome);

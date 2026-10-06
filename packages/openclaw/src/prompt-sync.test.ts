@@ -452,6 +452,32 @@ describe('prompt workspace projection', () => {
     ]);
   });
 
+  it('reports harness-error when the ship refuses the edit projection', async () => {
+    const { sync, requests } = makeSync({
+      failCalls: { key: 'project', times: 1_000 },
+      callError: new UrbitHttpError({
+        operation: 'request /steward/~/v1/prompts/project',
+        status: 400,
+        bodyText: 'unsupported file or oversized text',
+      }),
+    });
+
+    await sync.handleDispatch(dispatchFrom('0v9', 'SOUL.md', 'written'));
+
+    // the write stands; the owner is told its mirror will not show it
+    expect(fs.readFileSync(path.join(workspaceDir, 'SOUL.md'), 'utf8')).toBe(
+      'written'
+    );
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.body).toMatchObject({
+      requestId: '0v9',
+      body: { type: 'error', errorType: 'harness-error' },
+    });
+    expect(
+      (requests[0]?.body as { body: { message: string[] } }).body.message[0]
+    ).toContain('SOUL.md was written but the ship refused its projection');
+  });
+
   it('keeps retrying a projection past any fixed attempt budget', async () => {
     // The default has no attempt cap: only close() ends the retries, so a
     // ship outage longer than a fixed budget cannot leave a stale projection.
