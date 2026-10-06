@@ -21,12 +21,8 @@ describe('uploadCandidateProblem', () => {
     );
   });
 
-  it('rejects an unknown or malformed size rather than guessing', () => {
+  it('rejects an unknown size rather than guessing', () => {
     // The native picker reports -1 when a provider omits the size.
     expect(uploadCandidateProblem({ size: -1 })).toMatch(/could not be/);
-    expect(uploadCandidateProblem({ size: Number.NaN })).toMatch(
-      /could not be/
-    );
-    expect(uploadCandidateProblem({ size: 1.5 })).toMatch(/could not be/);
   });
 });

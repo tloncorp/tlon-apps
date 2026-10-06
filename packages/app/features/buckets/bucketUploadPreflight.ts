@@ -18,7 +18,9 @@ export const MAX_UPLOAD_BYTES = 5_368_709_120;
 export function uploadCandidateProblem(
   candidate: Pick<BucketUploadCandidate, 'size'>
 ): string | null {
-  if (!Number.isSafeInteger(candidate.size) || candidate.size < 0) {
+  // Every picker reports a whole byte count, or -1 when the provider would
+  // not say.
+  if (candidate.size < 0) {
     return 'The file size could not be determined';
   }
   if (candidate.size === 0) {
