@@ -196,12 +196,41 @@ function metaCharset(head: string): string | undefined {
 }
 
 /**
+ * The encoding an XML declaration at the very start of an HTML file names
+ * (`<?xml version="1.0" encoding="windows-1252"?>`), which a browser's
+ * prescan falls back to when no `<meta>` declares one; undefined when the
+ * file does not open with one, or it names none.
+ */
+function xmlEncoding(head: string): string | undefined {
+  if (!head.startsWith('<?xml')) return undefined;
+  const end = head.indexOf('>');
+  let i = head.indexOf('encoding', 5);
+  if (end < 0 || i < 0 || i > end) return undefined;
+  i += 8;
+  while (i < head.length && head.charCodeAt(i) <= 0x20) i += 1;
+  if (head[i] !== '=') return undefined;
+  i += 1;
+  while (i < head.length && head.charCodeAt(i) <= 0x20) i += 1;
+  const quote = head[i];
+  if (quote !== '"' && quote !== "'") return undefined;
+  const close = head.indexOf(quote, i + 1);
+  if (close < 0) return undefined;
+  const label = head.slice(i + 1, close);
+  for (let j = 0; j < label.length; j += 1) {
+    if (label.charCodeAt(j) <= 0x20) return undefined;
+  }
+  return label;
+}
+
+/**
  * The encoding a preview's bytes are in, decided as a browser decides for a
  * page: a byte order mark first, then the charset the response declares,
- * then -- for HTML -- a `<meta>` charset in the first 1024 bytes, and UTF-8
- * when nothing says otherwise. `head` is the start of the bytes, one byte per
- * character. A prescan that names UTF-16 is read as UTF-8, as browsers do: an
- * ASCII `<meta>` cannot be found in a document that really is UTF-16.
+ * then -- for HTML -- the prescan of the first 1024 bytes: an XML declaration
+ * in UTF-16 bytes, a `<meta>` charset, and failing that an XML declaration's
+ * encoding; UTF-8 when nothing says otherwise. `head` is the start of the
+ * bytes, one byte per character. A declaration that names UTF-16 is read as
+ * UTF-8, as browsers do: ASCII cannot be found in a document that really is
+ * UTF-16.
  */
 export function previewEncoding({
   contentType,
@@ -218,8 +247,13 @@ export function previewEncoding({
   const declared = contentType?.match(/;\s*charset\s*=\s*"?([^";\s]+)/i)?.[1];
   if (declared) return declared.toLowerCase();
   if (html) {
-    const meta = metaCharset(head.slice(0, 1024))?.toLowerCase();
-    if (meta) return meta.startsWith('utf-16') ? 'utf-8' : meta;
+    if (head.startsWith('<\u0000?\u0000x\u0000')) return 'utf-16le';
+    if (head.startsWith('\u0000<\u0000?\u0000x')) return 'utf-16be';
+    const prescan = head.slice(0, 1024);
+    const declared = (
+      metaCharset(prescan) ?? xmlEncoding(prescan)
+    )?.toLowerCase();
+    if (declared) return declared.startsWith('utf-16') ? 'utf-8' : declared;
   }
   return 'utf-8';
 }
@@ -399,10 +433,16 @@ export function getBucketPreviewKind({
     return 'video';
   }
   // Before the text check: text/html is text too, but it is shown rendered,
-  // not as source.
+  // not as source. The name decides only when the type says nothing else: it
+  // is missing, the upload fallback, or text. Renaming a file changes its
+  // name, not its type, so a PDF renamed to .html is still a PDF.
+  const typeDefersToName =
+    normalizedMimeType === '' ||
+    normalizedMimeType === 'application/octet-stream' ||
+    normalizedMimeType.startsWith('text/');
   if (
     normalizedMimeType === 'text/html' ||
-    ['html', 'htm'].includes(extension ?? '')
+    (typeDefersToName && ['html', 'htm'].includes(extension ?? ''))
   ) {
     return 'html';
   }
@@ -572,13 +612,18 @@ function endTagStart(lower: string, name: string, from: number): number {
  * attribute, a script or style, a template (nested ones included), or an
  * `<svg>`, whose title is a tooltip -- with character references decoded and
  * ASCII whitespace collapsed, the way `document.title` reads it. Undefined
- * when the file has none, it is blank, or it is never closed.
+ * when the file has none, it is blank, or it is never closed. In a frame that
+ * runs no scripts (`scripting: false`, under Electron), a `<noscript>` holds
+ * markup, and a title in it counts.
  *
  * A scan rather than a regular expression: it reads each character a fixed
  * number of times, where a pattern for tags backtracks without bound on a
  * file of unclosed tags, which anyone who can upload could write.
  */
-export function htmlPreviewTitle(html: string): string | undefined {
+export function htmlPreviewTitle(
+  html: string,
+  { scripting = true }: { scripting?: boolean } = {}
+): string | undefined {
   const lower = asciiLowercase(html);
   // How many template, svg and math elements are open around the scan, and
   // how many of those are svg or math.
@@ -626,6 +671,7 @@ export function htmlPreviewTitle(html: string): string | undefined {
     if (foreign > 0) continue;
     // Everything after a plaintext start tag is text.
     if (name === 'plaintext') return undefined;
+    if (name === 'noscript' && !scripting) continue;
     if (name !== 'title' && !TITLE_TEXT_ELEMENTS.has(name)) continue;
     const close = endTagStart(lower, name, tagEnd);
     if (close < 0) return undefined;
@@ -646,16 +692,20 @@ export function htmlPreviewTitle(html: string): string | undefined {
 
 /**
  * What the viewer's header says about a file. A rendered HTML page is named
- * by its own title, with the file's name and size beneath it; anything else
- * by its file name, with its size.
+ * by its own title (htmlPreviewTitle, read as a frame that runs scripts or
+ * one that does not reads it), with the file's name and size beneath it;
+ * anything else by its file name, with its size.
  */
-export function bucketFileViewerHeading(item: BucketFileViewerItem): {
+export function bucketFileViewerHeading(
+  item: BucketFileViewerItem,
+  { scripting = true }: { scripting?: boolean } = {}
+): {
   subtitle: string;
   title: string;
 } {
   const pageTitle =
     getBucketPreviewKind(item) === 'html' && item.textContent !== undefined
-      ? htmlPreviewTitle(item.textContent)
+      ? htmlPreviewTitle(item.textContent, { scripting })
       : undefined;
   if (pageTitle === undefined) {
     return { subtitle: item.sizeLabel ?? 'File', title: item.name };

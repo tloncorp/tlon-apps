@@ -32,8 +32,10 @@ export function BucketFileViewer({
   onRetry?: () => void;
 }) {
   const previewKind = getBucketPreviewKind(item);
-  const heading = bucketFileViewerHeading(item);
   const isElectron = Boolean(useIsElectron());
+  // Under Electron the frame runs no scripts, so the page's title is read as
+  // such a frame reads it.
+  const heading = bucketFileViewerHeading(item, { scripting: !isElectron });
   const previewKey = useMemo(() => htmlPreviewKey(), []);
   const previewNonce = useMemo(() => htmlPreviewKey(), []);
   // A page's scripts run on web only once the reader asks, file by file: in a

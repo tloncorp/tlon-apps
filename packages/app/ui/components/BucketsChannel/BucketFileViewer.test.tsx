@@ -159,6 +159,21 @@ describe('BucketFileViewer html preview (web)', () => {
     expect(runScriptsButton(renderer)).toBeUndefined();
   });
 
+  // There a noscript holds markup, so a title in it is the page's.
+  it('names the page by a title in noscript under Electron', () => {
+    const offline = {
+      ...htmlFile,
+      textContent: '<noscript><title>Offline</title></noscript><p>x</p>',
+    };
+    expect(render(offline).root.findByType(ScreenHeader).props.title).toBe(
+      'report.html'
+    );
+    mocks.isElectron = true;
+    expect(render(offline).root.findByType(ScreenHeader).props.title).toBe(
+      'Offline'
+    );
+  });
+
   it('names the page by its title, with the file beneath', () => {
     const header = render(htmlFile).root.findByType(ScreenHeader);
     expect(header.props.title).toBe('Quarterly numbers');

@@ -34,6 +34,11 @@ describe('getBucketPreviewKind', () => {
     ['index', 'text/html; charset=utf-8', 'html'],
     ['report.pdf', undefined, 'pdf'],
     ['archive.zip', 'application/zip', 'unsupported'],
+    // A rename changes the name, not the type: an explicit type other than
+    // HTML wins over an .html name, while plain text so named renders.
+    ['renamed.html', 'application/pdf', 'pdf'],
+    ['bundle.html', 'application/zip', 'unsupported'],
+    ['notes.html', 'text/plain', 'html'],
   ] as const)('classifies %s as %s', (name, mimeType, expected) => {
     expect(getBucketPreviewKind({ name, mimeType })).toBe(expected);
   });
@@ -305,6 +310,32 @@ describe('previewEncoding', () => {
   // An ASCII <meta> cannot be read from a document that really is UTF-16.
   it('reads a UTF-16 declaration as UTF-8', () => {
     expect(page('<meta charset="utf-16">')).toBe('utf-8');
+    expect(page('<?xml version="1.0" encoding="UTF-16"?><p>x</p>')).toBe(
+      'utf-8'
+    );
+  });
+
+  // The prescan's fallback: an XML declaration at the very start, when no
+  // <meta> names an encoding.
+  it('falls back to the encoding an XML declaration at the start names', () => {
+    expect(
+      page('<?xml version="1.0" encoding="windows-1252"?><html><p>x</p>')
+    ).toBe('windows-1252');
+    expect(page("<?xml encoding = 'ISO-8859-1' ?><p>x</p>")).toBe('iso-8859-1');
+    // A <meta> comes first; the declaration counts only at the very start.
+    expect(
+      page('<?xml encoding="windows-1252"?><meta charset="iso-8859-2">')
+    ).toBe('iso-8859-2');
+    expect(page(' <?xml encoding="windows-1252"?><p>x</p>')).toBe('utf-8');
+    expect(page('<?xml version="1.0"?><p>encoding="windows-1252"</p>')).toBe(
+      'utf-8'
+    );
+  });
+
+  // An XML declaration in UTF-16 bytes, with no byte order mark.
+  it('reads an XML declaration in UTF-16 bytes as UTF-16', () => {
+    expect(page('<\u0000?\u0000x\u0000m\u0000l\u0000')).toBe('utf-16le');
+    expect(page('\u0000<\u0000?\u0000x\u0000m\u0000l')).toBe('utf-16be');
   });
 
   it('defaults to UTF-8, and ignores a declaration past the first 1024 bytes or in plain text', () => {
@@ -328,6 +359,14 @@ describe('htmlPreviewTitle', () => {
     // Text whose lowercase is longer (İ) leaves the scan in step.
     expect(htmlPreviewTitle('<p>İİİ</p><title>Title</title>')).toBe('Title');
     expect(htmlPreviewTitle('<!--><title>Title</title><!-- -->')).toBe('Title');
+  });
+
+  // With scripting on a noscript holds text; in a frame that runs no
+  // scripts, as under Electron, it holds markup, and a title in it counts.
+  it('reads a title in noscript only where scripts do not run', () => {
+    const page = '<noscript><title>Offline</title></noscript><p>x</p>';
+    expect(htmlPreviewTitle(page)).toBeUndefined();
+    expect(htmlPreviewTitle(page, { scripting: false })).toBe('Offline');
   });
 
   it('ignores a title inside an svg, and one in a comment', () => {
