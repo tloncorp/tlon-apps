@@ -52,6 +52,7 @@ import {
   noteUploadOpened,
   requeueRefusedUpload,
 } from './bucketUploadQueue';
+import { uploadCandidateProblem } from './bucketUploadPreflight';
 import { createBucketUploadTask } from './bucketUploadTask';
 
 /**
@@ -321,9 +322,8 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       let brokerCompleted = false;
 
       try {
-        if (candidate.size < 0) {
-          throw new Error('The file size could not be determined');
-        }
+        const problem = uploadCandidateProblem(candidate);
+        if (problem) throw new Error(problem);
         const mimeType = candidate.mimeType ?? 'application/octet-stream';
 
         // null, not undefined: an update set drops undefined keys, so
@@ -532,6 +532,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           // The source is held beside the row rather than in it: a File
           // handle belongs to this process and cannot be written down.
           rememberUploadSource(id, candidate);
+          // A file the host would refuse lands as a failed row with its
+          // reason, without waiting behind the rest of the selection or
+          // asking the host to find out.
+          const problem = uploadCandidateProblem(candidate);
           await db.upsertBucketUpload({
             id,
             channelId,
@@ -540,10 +544,11 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             size: candidate.size,
             mime: candidate.mimeType ?? null,
             progress: 0,
-            state: 'queued',
+            state: problem ? 'failed' : 'queued',
+            error: problem,
             startedAt: now,
           });
-          enqueueUpload(id, () => runUpload(id));
+          if (!problem) enqueueUpload(id, () => runUpload(id));
         })
       );
     },
