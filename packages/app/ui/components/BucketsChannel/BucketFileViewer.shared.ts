@@ -750,12 +750,18 @@ interface MarkupTag {
  * `<div>` closes the svg or math. Of the tree, only these elements and
  * templates are tracked.
  *
+ * Inside a `<select>`, WebKit's parser ignores the start tag of such an
+ * element other than script and textarea, and reads what follows as markup;
+ * Chromium's reads it as text. `markupInSelect` reads it as markup, for a
+ * scan that must see whatever either could run.
+ *
  * A scan rather than a regular expression, for the reason htmlPreviewTitle
  * gives: it reads each character a fixed number of times.
  */
 function* markupTags(
   html: string,
-  textElements: Set<string>
+  textElements: Set<string>,
+  { markupInSelect = false }: { markupInSelect?: boolean } = {}
 ): Generator<MarkupTag> {
   const lower = asciiLowercase(html);
   // The open svg and math elements and, inside them, the integration points
@@ -773,6 +779,7 @@ function* markupTags(
     if (name !== undefined) open.set(name, (open.get(name) ?? 1) - 1);
   };
   let templates = 0;
+  let selects = 0;
   const foreign = () => {
     const innermost = scopes[scopes.length - 1];
     return innermost === 'svg' || innermost === 'math';
@@ -812,6 +819,8 @@ function* markupTags(
       } else if (name === 'template' && templates > 0 && !foreign()) {
         // In foreign content it ends a foreign template, not an HTML one.
         templates -= 1;
+      } else if (name === 'select' && selects > 0 && !foreign()) {
+        selects -= 1;
       }
       continue;
     }
@@ -850,8 +859,17 @@ function* markupTags(
       if (opensHtml && !selfClosing) push(name);
     } else if (name === 'template') {
       templates += 1;
+    } else if (name === 'select') {
+      selects += 1;
     }
-    if (inForeignContent || !textElements.has(name)) {
+    if (
+      inForeignContent ||
+      !textElements.has(name) ||
+      (markupInSelect &&
+        selects > 0 &&
+        name !== 'script' &&
+        name !== 'textarea')
+    ) {
       yield tag;
       continue;
     }
@@ -994,10 +1012,14 @@ export function htmlPreviewSandboxes({
  * any renders the same with scripts off, so there is nothing to run. A
  * `srcdoc` nested deeper than MAX_NESTED_DOCUMENTS is taken to have some.
  *
- * Each document is read by markupTags as a frame that runs scripts reads it.
+ * Each document is read by markupTags as a frame that runs scripts reads it,
+ * and inside a `<select>` as WebKit reads it: a script that only Safari would
+ * run still counts.
  */
 export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
-  for (const tag of markupTags(html, SCRIPTED_TEXT_ELEMENTS)) {
+  for (const tag of markupTags(html, SCRIPTED_TEXT_ELEMENTS, {
+    markupInSelect: true,
+  })) {
     if (tag.name === 'script') return true;
     for (const [attribute, value] of tagAttributes(
       html.slice(tag.nameEnd, tag.end - 1)
@@ -1220,9 +1242,10 @@ export function htmlPreviewShell({
 }
 
 /**
- * Where the file's doctype ends: after any byte order mark, whitespace,
- * comments and processing instructions ahead of it, the index just past its
- * `>`; -1 when the file has none. Comments end where the tokenizer ends them
+ * Where the file's doctype ends: after any byte order mark, whitespace and
+ * comment tokens ahead of it (comments, processing instructions and bogus
+ * comments such as `<!foo>`), the index just past its `>`; -1 when the file
+ * has none. Comments end where the tokenizer ends them
  * (pastNonTag): what we place here must come before anything of the file's
  * that could run. A `>` ends a DOCTYPE token in every state
  * of the HTML tokenizer, quoted identifiers included, so the first `>` is
@@ -1240,7 +1263,15 @@ function doctypeEnd(html: string): number {
       if (!isHtmlSpace(code) && code !== 0xfeff) break;
       i += 1;
     }
-    if (!html.startsWith('<!--', i) && !html.startsWith('<?', i)) break;
+    // Comment tokens of every kind: `<!--`, a processing instruction, and a
+    // bogus comment (`<!foo>`, `</ x>`), but not the doctype itself.
+    const comment =
+      html.startsWith('<!--', i) ||
+      html.startsWith('<?', i) ||
+      (html.startsWith('<!', i) &&
+        asciiLowercase(html.slice(i, i + 9)) !== '<!doctype') ||
+      (html.startsWith('</', i) && !isAsciiLetter(html.charCodeAt(i + 2)));
+    if (!comment) break;
     const past = pastNonTag(html, i, false);
     if (past === undefined || past < 0) return -1;
     i = past;

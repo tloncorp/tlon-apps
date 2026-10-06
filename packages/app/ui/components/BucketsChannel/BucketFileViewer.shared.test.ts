@@ -644,6 +644,11 @@ describe('htmlPreviewHasScripts', () => {
       // A slash that ends an unquoted value does not close the svg, so its
       // title is an integration point, and the script in it HTML.
       '<svg data=x/><title><script>run()</script></title></svg>',
+      // WebKit ignores a text element's start tag inside a select, and runs
+      // the script after it.
+      '<select><iframe><script>run()</script></iframe></select>',
+      '<select><style><script>run()</script></style></select>',
+      '<select><xmp><script>run()</script></xmp></select>',
     ]) {
       expect(htmlPreviewHasScripts(html), html).toBe(true);
     }
@@ -663,6 +668,18 @@ describe('htmlPreviewHasScripts', () => {
 
   // Inside an svg's foreignObject, or a MathML text element, content is HTML
   // again: a textarea there holds text.
+  // Outside a select, a text element's content is text in every browser.
+  it('finds no script in the text of a text element', () => {
+    expect(
+      htmlPreviewHasScripts('<iframe><script>run()</script></iframe>')
+    ).toBe(false);
+    expect(
+      htmlPreviewHasScripts(
+        '<select></select><xmp><script>run()</script></xmp>'
+      )
+    ).toBe(false);
+  });
+
   it('reads integration points as HTML', () => {
     for (const html of [
       '<svg><foreignObject><textarea><script>go()</script></textarea></foreignObject></svg>',
@@ -993,6 +1010,17 @@ describe("htmlPreviewDocument with the file's scripts held", () => {
 // Our script must come before anything of the file's that could run, so the
 // comments ahead of a doctype end where the tokenizer ends them.
 describe('where our part of the document goes', () => {
+  // A bogus comment is a comment token too: the doctype after it still
+  // counts, so ours goes after it.
+  it('follows a doctype behind bogus comments', () => {
+    for (const before of ['<!foo>', '</ x>', '<![CDATA[x]]>']) {
+      const out = htmlPreviewDocument(`${before}<!DOCTYPE html><p>x</p>`, KEY);
+      expect(out.startsWith(`${before}<!DOCTYPE html><meta `), before).toBe(
+        true
+      );
+    }
+  });
+
   const lead = (out: string) => out.startsWith('<meta http-equiv=');
   it('goes first when a comment ends early and the file runs something', () => {
     for (const opening of ['<!-->', '<!--->', '<!-- --!>']) {
