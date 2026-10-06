@@ -72,8 +72,8 @@ import { getSessionRole } from './src/session-roles.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
+  configuredTlonShipHosts,
   resolveTlonAppBrowserBlock,
-  tlonShipOrigins,
 } from './src/tlon-app-browser-gate.js';
 import {
   type TlonDiagnosticLogAttributes,
@@ -969,11 +969,7 @@ export default defineBundledChannelEntry({
     // capability propagation plus state polling can outlast 45s on an
     // otherwise fine Bucket operation. An explicit setting still wins.
     const toolTimeoutMs = account.lifecycle.toolTimeoutMs ?? undefined;
-    const tlonShipHosts = tlonShipOrigins({
-      accountUrl: account.url,
-      botShip: account.ship,
-      ownerShip: account.ownerShip,
-    });
+    const tlonShipHosts = configuredTlonShipHosts(api.config);
     const handleMigrateCommand = createMigrateCommandHandler({
       runCommand: (args, commandCredentials, timeoutMs, onDeadline) =>
         runTlonCommand(tlonBinary, args, commandCredentials, {

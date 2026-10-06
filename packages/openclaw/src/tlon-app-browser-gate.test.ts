@@ -1,19 +1,19 @@
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it } from 'vitest';
 
 import { OWNER_ONLY_BLOCK_REASON_MAX_CHARS } from './owner-only-tools.js';
 import {
   TLON_APP_BROWSER_BLOCK_REASON,
+  configuredTlonShipHosts,
   isTlonWebAppUrl,
   resolveTlonAppBrowserBlock,
   tlonShipOrigins,
 } from './tlon-app-browser-gate.js';
 
 const SHIP = 'https://sampel-palnet.tlon.network';
-const SHIP_HOSTS = tlonShipOrigins({
-  accountUrl: 'http://localhost:8080',
-  botShip: '~sampel-palnet',
-  ownerShip: '~zod',
-});
+const SHIP_HOSTS = tlonShipOrigins([
+  { url: 'http://localhost:8080', ship: '~sampel-palnet', ownerShip: '~zod' },
+]);
 const APP_URL = `${SHIP}/apps/groups`;
 const SESSION_ID = 'sess_abc';
 
@@ -35,6 +35,11 @@ describe('isTlonWebAppUrl', () => {
     'https://ship.example.com/%61pps/groups',
     `${SHIP}/notes//pub/~zod/book/3`,
     'https://ship.example.com/~/login/',
+    'https://zod.tlon.network./notes',
+    'https://zod.tlon.network%2e/notes',
+    'https://zod.tlon.network./',
+    'http://localhost.:8080/',
+    'https://unknown.example./apps/groups',
     'https://ship.example.com/%7E/login',
     `${SHIP}/apps/groups/%E0%A4%A`,
   ])('treats %s as the Tlon app', (url) => {
@@ -60,6 +65,7 @@ describe('isTlonWebAppUrl', () => {
     'https://example.com/~/login-help',
     'https://example.com/~/login/extra',
     `${SHIP}/notes/%70ub/~zod/book/3`,
+    'https://zod.tlon.network./notes/pub/~zod/book/3',
     `${SHIP}/notes/%73hare/~zod/book`,
     'https://example.com/%E0%A4%A/apps',
     'not a url',
@@ -180,11 +186,13 @@ describe('TLON_APP_BROWSER_BLOCK_REASON', () => {
 describe('tlonShipOrigins', () => {
   it('strips ~, lowercases, and keeps a non-default port', () => {
     expect([
-      ...tlonShipOrigins({
-        accountUrl: 'HTTP://LocalHost:8080/apps/groups',
-        botShip: ' ~Sampel-Palnet ',
-        ownerShip: 'zod',
-      }),
+      ...tlonShipOrigins([
+        {
+          url: 'HTTP://LocalHost.:8080/apps/groups',
+          ship: ' ~Sampel-Palnet ',
+          ownerShip: 'zod',
+        },
+      ]),
     ]).toEqual([
       'localhost:8080',
       'sampel-palnet.tlon.network',
@@ -194,15 +202,64 @@ describe('tlonShipOrigins', () => {
 
   it('drops the default port', () => {
     expect([
-      ...tlonShipOrigins({ accountUrl: 'https://ship.example.com:443' }),
+      ...tlonShipOrigins([
+        { url: 'https://ship.example.com:443', ship: null, ownerShip: null },
+      ]),
     ]).toEqual(['ship.example.com']);
   });
 
   it('tolerates missing and invalid inputs', () => {
-    expect(tlonShipOrigins({}).size).toBe(0);
+    expect(tlonShipOrigins([]).size).toBe(0);
     expect(
-      tlonShipOrigins({ accountUrl: 'not a url', botShip: null, ownerShip: '' })
-        .size
+      tlonShipOrigins([{ url: 'not a url', ship: null, ownerShip: '' }]).size
     ).toBe(0);
+  });
+});
+
+describe('configuredTlonShipHosts', () => {
+  it('covers named accounts when there is no root account', () => {
+    const cfg = {
+      channels: {
+        tlon: {
+          accounts: {
+            primary: { url: 'https://primary.example', ship: '~nec' },
+            second: { ship: '~bud', ownerShip: '~wes' },
+          },
+        },
+      },
+    } as OpenClawConfig;
+    expect([...configuredTlonShipHosts(cfg)].sort()).toEqual([
+      'bud.tlon.network',
+      'nec.tlon.network',
+      'primary.example',
+      'wes.tlon.network',
+    ]);
+    expect(
+      isTlonWebAppUrl(
+        'https://wes.tlon.network/notes',
+        configuredTlonShipHosts(cfg)
+      )
+    ).toBe(true);
+  });
+
+  it('keeps the root account alongside named ones', () => {
+    const cfg = {
+      channels: {
+        tlon: {
+          ship: '~zod',
+          url: 'http://localhost:8080',
+          accounts: { primary: { ship: '~nec' } },
+        },
+      },
+    } as OpenClawConfig;
+    expect([...configuredTlonShipHosts(cfg)].sort()).toEqual([
+      'localhost:8080',
+      'nec.tlon.network',
+      'zod.tlon.network',
+    ]);
+  });
+
+  it('is empty when Tlon is not configured', () => {
+    expect(configuredTlonShipHosts({} as OpenClawConfig).size).toBe(0);
   });
 });

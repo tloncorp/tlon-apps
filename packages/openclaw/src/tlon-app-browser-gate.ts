@@ -5,27 +5,52 @@
  * `browser_act`) and redirects are left to the prompt rule, and public ship
  * pages (exposed content, published notes, profiles, invite links) stay open.
  */
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+
+import {
+  type TlonResolvedAccount,
+  listTlonAccountIds,
+  resolveTlonAccount,
+} from './types.js';
+
 export const TLON_APP_BROWSER_BLOCK_REASON =
   'Blocked by policy: the hosted browser must not open or operate the Tlon app. Use the tlon and message tools; ' +
   'if they cannot do this, tell the user it is not supported yet and suggest the Tlon app.';
 
 const BROWSER_TOOL_PREFIX = 'browser_';
 
+// `zod.tlon.network.` (DNS root label) reaches the same ship as
+// `zod.tlon.network`; strip one trailing dot, keeping any port.
+function normalizeHost(host: string): string {
+  return host.toLowerCase().replace(/\.(?=(:\d+)?$)/, '');
+}
+
 /** `URL.host` values (hostname plus any non-default port) of known ships. */
-export function tlonShipOrigins(input: {
-  accountUrl?: string | null;
-  botShip?: string | null;
-  ownerShip?: string | null;
-}): ReadonlySet<string> {
+export function tlonShipOrigins(
+  accounts: readonly Pick<TlonResolvedAccount, 'url' | 'ship' | 'ownerShip'>[]
+): ReadonlySet<string> {
   const hosts = new Set<string>();
-  if (input.accountUrl && URL.canParse(input.accountUrl)) {
-    hosts.add(new URL(input.accountUrl).host.toLowerCase());
-  }
-  for (const ship of [input.botShip, input.ownerShip]) {
-    const name = ship?.trim().replace(/^~/, '').toLowerCase();
-    if (name) hosts.add(`${name}.tlon.network`);
+  for (const account of accounts) {
+    if (account.url && URL.canParse(account.url)) {
+      hosts.add(normalizeHost(new URL(account.url).host));
+    }
+    for (const ship of [account.ship, account.ownerShip]) {
+      const name = ship?.trim().replace(/^~/, '').toLowerCase();
+      if (name) hosts.add(`${name}.tlon.network`);
+    }
   }
   return hosts;
+}
+
+/** Known ship hosts across the root account and every named account. */
+export function configuredTlonShipHosts(
+  cfg: OpenClawConfig
+): ReadonlySet<string> {
+  return tlonShipOrigins(
+    ['default', ...listTlonAccountIds(cfg)].map((id) =>
+      resolveTlonAccount(cfg, id)
+    )
+  );
 }
 
 // Decoded path segments as Urbit routes them: interior empty segments are
@@ -61,7 +86,7 @@ export function isTlonWebAppUrl(
   ) {
     return true;
   }
-  if (!shipHosts.has(url.host.toLowerCase())) return false;
+  if (!shipHosts.has(normalizeHost(url.host))) return false;
   if (url.pathname === '/' || segments[0] === 'apps' || segments[0] === '~') {
     return true;
   }
