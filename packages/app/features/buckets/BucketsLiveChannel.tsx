@@ -210,9 +210,15 @@ export function BucketsLiveChannel({
   const visibleServerItems = serverEntries
     .filter((entry) => entry.parentId === activeFolderId)
     .map((entry) => toItem(entry, childCounts));
+  // Looked up by id rather than searched: a find per upload was quadratic,
+  // and a thousand-file selection re-ran it on every progress write.
+  const localItemsById = useMemo(
+    () => new Map(live.localItems.map((item) => [item.id, item])),
+    [live.localItems]
+  );
   const visibleLocalItems = live.uploads
     .filter((upload) => upload.parentId === activeFolderId)
-    .map((upload) => live.localItems.find((item) => item.id === upload.id))
+    .map((upload) => localItemsById.get(upload.id))
     .filter((item): item is BucketItem => item !== undefined);
   const visibleItems = sortItems([...visibleLocalItems, ...visibleServerItems]);
   const sidebarItems = sortItems(
@@ -497,6 +503,18 @@ export function BucketsLiveChannel({
     onFilesDropped: (files: BucketUploadCandidate[]) =>
       live.addUploads(files, activeFolderId),
     onOpenItem: (item: BucketItem) => void openItem(item),
+    onRemoveFailedUploads: (items: BucketItem[]) =>
+      void live
+        .removeFailedUploads(items.map((item) => item.id))
+        .then((removed) => {
+          if (removed === 0) return;
+          showToast({
+            message:
+              removed === 1
+                ? 'Failed upload removed'
+                : `${removed.toLocaleString()} failed uploads removed`,
+          });
+        }),
     onRetryUpload: (item: BucketItem) => void live.retryUpload(item.id),
   };
 

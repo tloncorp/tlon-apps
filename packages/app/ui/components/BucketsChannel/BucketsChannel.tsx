@@ -229,6 +229,7 @@ export function BucketsPane({
   onNavigateRoot,
   onOpenItem,
   onRenameItem,
+  onRemoveFailedUploads,
   onRetryUpload,
 }: {
   canEdit: boolean;
@@ -249,6 +250,7 @@ export function BucketsPane({
   onNavigateRoot?: () => void;
   onOpenItem: (item: BucketItem) => void;
   onRenameItem?: (item: BucketItem) => void;
+  onRemoveFailedUploads?: (items: BucketItem[]) => void;
   onRetryUpload?: (item: BucketItem) => void;
 }) {
   const listRef = useRef<FlashListRef<BucketItem>>(null);
@@ -346,6 +348,7 @@ export function BucketsPane({
           <BucketsUploadTray
             aggregateProgress={uploadAggregateProgress}
             items={trayItems}
+            onRemoveFailedUploads={onRemoveFailedUploads}
             onRetryUpload={onRetryUpload}
           />
         ) : null}
@@ -1050,10 +1053,12 @@ function UploadProgress({ progress }: { progress: number }) {
 function BucketsUploadTray({
   aggregateProgress,
   items,
+  onRemoveFailedUploads,
   onRetryUpload,
 }: {
   aggregateProgress?: number;
   items: BucketItem[];
+  onRemoveFailedUploads?: (items: BucketItem[]) => void;
   onRetryUpload?: (item: BucketItem) => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -1121,6 +1126,18 @@ function BucketsUploadTray({
             : 'You can keep browsing'}
         </Text>
       </YStack>
+      {failedItems.length > 0 && onRemoveFailedUploads ? (
+        <UploadAction
+          accessibilityLabel={
+            failedItems.length === 1
+              ? 'Remove failed upload'
+              : 'Remove failed uploads'
+          }
+          label={failedItems.length === 1 ? 'Remove' : 'Remove failed'}
+          onPress={() => onRemoveFailedUploads(failedItems)}
+          testID="BucketsRemoveFailedUploads"
+        />
+      ) : null}
       {failedItems.length > 0 ? (
         <UploadAction
           accessibilityLabel={

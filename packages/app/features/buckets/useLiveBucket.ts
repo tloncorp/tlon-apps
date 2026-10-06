@@ -45,6 +45,14 @@ import {
   finishUpload,
   isFinishRefusal,
 } from './bucketUploadFinish';
+import {
+  MAX_CONCURRENT_UPLOADS,
+  dequeueUpload,
+  enqueueUpload,
+  noteUploadOpened,
+  requeueRefusedUpload,
+} from './bucketUploadQueue';
+import { uploadCandidateProblem } from './bucketUploadPreflight';
 import { createBucketUploadTask } from './bucketUploadTask';
 
 /**
@@ -109,6 +117,9 @@ function upsertEntry(entries: BucketsEntry[], entry: BucketsEntry) {
 function errorMessage(cause: unknown) {
   return cause instanceof Error ? cause.message : String(cause);
 }
+
+/** The most often a running upload writes its progress to the database. */
+const PROGRESS_WRITE_INTERVAL_MS = 250;
 
 function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -277,7 +288,12 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const upload = (await db.getBucketUploads({ channelId })).find(
         (row) => row.id === id
       );
-      if (!upload) return;
+      // The row went while this waited -- its Bucket or folder was deleted --
+      // so nothing will run it; let go of its file.
+      if (!upload) {
+        forgetUpload(id);
+        return;
+      }
       // A row holds at most one request id: begin-upload's before it has a
       // session, finish-upload's after. One held alongside a session is a
       // finish whose answer never arrived -- the host may well have
@@ -306,9 +322,8 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       let brokerCompleted = false;
 
       try {
-        if (candidate.size < 0) {
-          throw new Error('The file size could not be determined');
-        }
+        const problem = uploadCandidateProblem(candidate);
+        if (problem) throw new Error(problem);
         const mimeType = candidate.mimeType ?? 'application/octet-stream';
 
         // null, not undefined: an update set drops undefined keys, so
@@ -353,6 +368,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         });
         sessionId = grant.session;
         serverEntryId = grant.entryId;
+        noteUploadOpened(id);
         // The request id has done its work: the answer it was minted to
         // recover is in hand. Keeping it would arm Retry to re-ask under an
         // id the host has already answered, replaying this grant for a
@@ -370,14 +386,24 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           throw new Error('Upload cancelled');
         }
 
+        // Every progress event used to write the row, and every write
+        // refetches each query that reads the table -- with several transfers
+        // running, a storm of writes for a number that had barely moved.
+        let writtenProgress = 5;
+        let writtenAt = 0;
         const task = createBucketUploadTask(
           grant.url,
           candidate,
           Object.fromEntries(grant.headers),
-          (progress) =>
-            updateLocalUpload(id, {
-              progress: Math.max(5, Math.round(5 + progress * 0.9)),
-            })
+          (progress) => {
+            const next = Math.max(5, Math.round(5 + progress * 0.9));
+            const now = Date.now();
+            if (next === writtenProgress) return;
+            if (now - writtenAt < PROGRESS_WRITE_INTERVAL_MS) return;
+            writtenProgress = next;
+            writtenAt = now;
+            updateLocalUpload(id, { progress: next });
+          }
         );
         trackUploadTask(id, task);
         await task.upload;
@@ -407,6 +433,26 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         // that case a visible stuck upload rather than a vanished file.
       } catch (cause) {
         const cancelled = isUploadCancelled(id);
+        // The host would not open the upload. Nothing was reserved, so it can
+        // wait its turn again -- and the whole queue with it, since the
+        // refusal is almost always the broker's rate limit, which the next
+        // upload would hit too. The request id goes: under it the host would
+        // only replay the refusal.
+        if (
+          !cancelled &&
+          sessionId === undefined &&
+          cause instanceof BucketsActionFailed &&
+          cause.type === 'unknown' &&
+          requeueRefusedUpload(id)
+        ) {
+          updateLocalUpload(id, {
+            error: null,
+            openRequestId: null,
+            progress: 0,
+            state: 'queued',
+          });
+          return;
+        }
         // One cancel, not two. The host releases the storage reservation as
         // part of this -- previously that was a second call from here, made
         // while the tab was closing and with its error swallowed, so an
@@ -415,13 +461,20 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         // Not once finish-upload has been sent: whether it landed is exactly
         // what the lost answer leaves unknown, and the host expires a session
         // nobody finishes.
+        //
+        // A session the host confirms released is forgotten, so dismissing
+        // the row later has nothing left to cancel.
+        let released = false;
         if (sessionId && !brokerCompleted && !finishRequestId) {
-          await sendBucketsAction({
+          released = await sendBucketsAction({
             type: 'cancel-upload',
             flag,
             reason: errorMessage(cause),
             sessionId,
-          }).catch(() => undefined);
+          }).then(
+            () => true,
+            () => false
+          );
         }
         if (cancelled && serverEntryId !== undefined) {
           await sendBucketsAction({
@@ -457,6 +510,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             ...requestId,
             progress: unconfirmed ? 96 : 0,
             serverEntryId,
+            ...(released ? { sessionId: null } : {}),
             state: 'failed',
           });
         }
@@ -472,10 +526,16 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const now = Date.now();
       void Promise.all(
         candidates.map(async (candidate, index) => {
-          const id = `local-upload-${now}-${index}`;
+          // Random as well as ordered: two selections made in the same
+          // millisecond would otherwise collide.
+          const id = `local-upload-${now}-${index}-${mintRequestId()}`;
           // The source is held beside the row rather than in it: a File
           // handle belongs to this process and cannot be written down.
           rememberUploadSource(id, candidate);
+          // A file the host would refuse lands as a failed row with its
+          // reason, without waiting behind the rest of the selection or
+          // asking the host to find out.
+          const problem = uploadCandidateProblem(candidate);
           await db.upsertBucketUpload({
             id,
             channelId,
@@ -484,10 +544,11 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             size: candidate.size,
             mime: candidate.mimeType ?? null,
             progress: 0,
-            state: 'queued',
+            state: problem ? 'failed' : 'queued',
+            error: problem,
             startedAt: now,
           });
-          void runUpload(id);
+          if (!problem) enqueueUpload(id, () => runUpload(id));
         })
       );
     },
@@ -507,6 +568,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       // token lives. A cancel with no row has nothing to fail on the host.
       const sessionId = upload?.sessionId;
 
+      dequeueUpload(id);
       if (upload) {
         markUploadCancelled(id);
       }
@@ -565,9 +627,57 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           state: 'queued',
         });
       }
-      void runUpload(id);
+      // Through the queue like any other upload, so Retry all on a thousand
+      // failures does not restart them in one burst.
+      enqueueUpload(id, () => runUpload(id));
     },
     [runUpload, uploads]
+  );
+
+  // Dismiss failed uploads in bulk.
+  //
+  // This is dismissal of attempts, not deletion of files: no delete-entry is
+  // sent, so a failure whose finish actually landed keeps its file. Only the
+  // rows asked for, and only those still failed when this runs -- an upload
+  // retried or added meanwhile is left alone. The rows go in one write, then
+  // the host is told, a few at a time, so any session still pending stops
+  // holding the host owner's quota. Most failures have none: the run that
+  // failed already cancelled it, and a refused begin never opened one. One
+  // whose finish answer was lost is not cancelled either, since whether it
+  // landed is unknown; the host expires it if it did not.
+  const removeFailedUploads = useCallback(
+    async (ids: string[]) => {
+      // Checked and deleted in one write: a row retried a moment ago is
+      // queued again, not failed, and stays.
+      const targets = await db.deleteFailedBucketUploads(ids);
+      if (targets.length === 0) return 0;
+      targets.forEach((upload) => {
+        dequeueUpload(upload.id);
+        forgetUpload(upload.id);
+      });
+
+      // A row holding a request id alongside its session is waiting on a
+      // finish, whose outcome is unknown -- not cancelled.
+      const pending = targets.filter(
+        (upload) => upload.sessionId !== null && upload.openRequestId === null
+      );
+      const cancelNext = async (): Promise<void> => {
+        const upload = pending.shift();
+        if (!upload) return;
+        await sendBucketsAction({
+          type: 'cancel-upload',
+          flag,
+          reason: 'Removed after failing',
+          sessionId: upload.sessionId!,
+        }).catch(() => undefined);
+        return cancelNext();
+      };
+      await Promise.all(
+        Array.from({ length: MAX_CONCURRENT_UPLOADS }, cancelNext)
+      );
+      return targets.length;
+    },
+    [flag]
   );
 
   // Completed rows linger for the aggregate bar; the list shows what is
@@ -584,13 +694,23 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           id: upload.id,
           kind: 'file',
           mimeType: upload.mime ?? undefined,
-          modifiedLabel: upload.state === 'failed' ? 'Failed' : 'Uploading',
+          modifiedLabel:
+            upload.state === 'failed'
+              ? 'Failed'
+              : upload.state === 'queued'
+                ? 'Waiting to upload'
+                : 'Uploading',
           name: upload.name,
           sizeLabel: formatFileSize(upload.size),
           uploadSize: upload.size,
           uploadError: upload.error ?? undefined,
           uploadProgress: upload.progress,
-          uploadState: upload.state === 'failed' ? 'failed' : 'uploading',
+          uploadState:
+            upload.state === 'failed'
+              ? 'failed'
+              : upload.state === 'queued'
+                ? 'queued'
+                : 'uploading',
         })),
     [uploads]
   );
@@ -720,6 +840,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         return await openWith(minted.token);
       }
     },
+    removeFailedUploads,
     retryUpload,
     // The manifest as read, plus the revision it is at. No `snapshot`: there
     // is no private copy of one any more.
