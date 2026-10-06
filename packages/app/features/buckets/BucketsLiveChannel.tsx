@@ -1,3 +1,4 @@
+import { NavigationContext, StackActions } from '@react-navigation/native';
 import {
   type BucketsEntry,
   type BucketsFlag,
@@ -10,6 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   ReactElement,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -33,7 +35,6 @@ import {
   ScreenHeader,
   XStack,
   YStack,
-  canPreviewAsText,
   useCanWrite,
   useCurrentUserId,
   useHideChannelHeader,
@@ -43,6 +44,7 @@ import {
 import { bucketLinkCopiedMessage, copyPendingText } from './bucketLinkCopy';
 import { imagePickerAssetsToBucketUploadCandidates } from './bucketMediaPicker';
 import { findUploadShadowEntryIds } from './bucketUploadReconciliation';
+import { useBucketPreview } from './useBucketPreview';
 import {
   formatBucketTimestamp,
   formatFileSize,
@@ -54,7 +56,7 @@ type SearchOrigin = {
   selectedItemId: string | null;
 };
 
-function toItem(
+export function toItem(
   entry: BucketsEntry,
   childCounts: ReadonlyMap<number, number>
 ): BucketItem {
@@ -125,28 +127,36 @@ export function BucketsLiveChannel({
   channel: providedChannel,
   embedded = false,
   flag,
+  folderId = null,
   viewport = 'responsive',
 }: {
   channel?: db.Channel;
   embedded?: boolean;
   flag: BucketsFlag;
+  /** The folder a pushed `BucketFolder` route stands in; null is the root. */
+  folderId?: number | null;
   viewport?: 'mobile' | 'responsive';
 }) {
   const { height: windowHeight } = useWindowDimensions();
   const isWindowNarrow = useIsWindowNarrow();
   const isMobileLayout = viewport === 'mobile' || isWindowNarrow;
+  // Absent outside a navigator, which is where the fixtures mount this.
+  const navigation = useContext(NavigationContext);
+  // The narrow layout pushes a route for each folder and file, as a notebook
+  // does, so the stack's back gestures and caret climb one level at a time.
+  // The desktop split keeps the open folder in the pane, beside the sidebar
+  // that lists the root's folders.
+  const pushesRoutes = embedded && isMobileLayout && navigation !== undefined;
   const live = useLiveBucket(flag);
   const showToast = useToast();
-  const [activeFolderId, setActiveFolderId] = useState<number | null>(null);
+  const [activeFolderId, setActiveFolderId] = useState<number | null>(folderId);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [newSheetOpen, setNewSheetOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchOrigin, setSearchOrigin] = useState<SearchOrigin | null>(null);
   const [query, setQuery] = useState('');
-  const [previewItem, setPreviewItem] = useState<BucketItem | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const previewRequestId = useRef(0);
+  const preview = useBucketPreview(live.readGrant);
+  const previewItem = preview.item;
   const [operationError, setOperationError] = useState<string | null>(null);
   const [folderPendingDeletion, setFolderPendingDeletion] =
     useState<BucketItem | null>(null);
@@ -198,12 +208,28 @@ export function BucketsLiveChannel({
   // Someone else can delete the folder we are standing in. Without this the
   // pane keeps filtering on an id nothing has, so it shows an empty list that
   // goBack cannot leave -- it reads the parent off the folder that is gone.
+  // A pushed folder leaves its route instead, along with anything opened on
+  // top of it; the ref keeps a second pass from popping the route below.
+  const leftDeletedFolder = useRef(false);
   useEffect(() => {
     if (activeFolderId === null || activeFolder) return;
     if (live.loading) return;
+    if (pushesRoutes && folderId !== null) {
+      if (leftDeletedFolder.current) return;
+      leftDeletedFolder.current = true;
+      navigation?.goBack();
+      return;
+    }
     setActiveFolderId(null);
     setSelectedItemId(null);
-  }, [activeFolder, activeFolderId, live.loading]);
+  }, [
+    activeFolder,
+    activeFolderId,
+    folderId,
+    live.loading,
+    navigation,
+    pushesRoutes,
+  ]);
   const rootFolders = serverEntries.filter(
     (entry) => entry.kind === 'folder' && entry.parentId === null
   );
@@ -270,60 +296,40 @@ export function BucketsLiveChannel({
     // longer be reported as a failure because a follow-up scry failed.
   };
 
-  const loadPreview = async (item: BucketItem) => {
-    const requestId = ++previewRequestId.current;
-    setPreviewItem(item);
-    setPreviewLoading(true);
-    setPreviewError(null);
-
-    try {
-      const { readUrl: previewUri } = await live.readGrant(Number(item.id));
-      if (previewRequestId.current !== requestId) return;
-
-      const readableItem = { ...item, previewUri };
-      setPreviewItem(readableItem);
-
-      // Checked against the manifest size before fetching, not after: the
-      // read itself is what would exhaust memory.
-      if (
-        canPreviewAsText(readableItem) &&
-        readableItem.textContent === undefined
-      ) {
-        const response = await fetch(previewUri);
-        if (!response.ok) {
-          throw new Error(`File request failed (${response.status})`);
-        }
-        const textContent = await response.text();
-        if (previewRequestId.current !== requestId) return;
-        setPreviewItem({ ...readableItem, textContent });
-      }
-
-      if (previewRequestId.current === requestId) {
-        setPreviewLoading(false);
-      }
-    } catch (cause) {
-      if (previewRequestId.current !== requestId) return;
-      setPreviewLoading(false);
-      setPreviewError(cause instanceof Error ? cause.message : String(cause));
-    }
+  const pushEntryRoute = (item: BucketItem) => {
+    const groupId = channel.groupId ?? undefined;
+    navigation?.dispatch(
+      item.kind === 'folder'
+        ? StackActions.push('BucketFolder', {
+            channelId: channel.id,
+            folderId: Number(item.id),
+            groupId,
+          })
+        : StackActions.push('BucketFile', {
+            channelId: channel.id,
+            entryId: Number(item.id),
+            groupId,
+          })
+    );
   };
 
   const openItem = (item: BucketItem) => {
     if (item.kind === 'folder') {
+      if (pushesRoutes) {
+        pushEntryRoute(item);
+        return;
+      }
       setActiveFolderId(Number(item.id));
       setSelectedItemId(null);
       return;
     }
     setSelectedItemId(item.id);
     setOperationError(null);
-    void loadPreview(item);
-  };
-
-  const closePreview = () => {
-    previewRequestId.current += 1;
-    setPreviewItem(null);
-    setPreviewLoading(false);
-    setPreviewError(null);
+    if (pushesRoutes) {
+      pushEntryRoute(item);
+      return;
+    }
+    void preview.load(item);
   };
 
   const chooseUploads = async () => {
@@ -401,6 +407,12 @@ export function BucketsLiveChannel({
   };
 
   const openSearchResult = (result: BucketSearchResult) => {
+    if (pushesRoutes) {
+      // Search stays open beneath the pushed result, so back returns to it --
+      // which the in-place flow below has to arrange through searchOrigin.
+      pushEntryRoute(result);
+      return;
+    }
     setSearchOrigin((current) => current ?? { activeFolderId, selectedItemId });
     if (result.kind === 'folder') {
       setActiveFolderId(Number(result.id));
@@ -450,10 +462,11 @@ export function BucketsLiveChannel({
 
   const paneProps = {
     canEdit,
-    // Suppressed only where the ChannelHeader below already names the folder
-    // and carries its own back button. Embedded is the production channel
-    // flow, which hides that header, so the breadcrumb is the only way up.
-    currentFolder: isMobileLayout && !embedded ? undefined : activeFolder?.name,
+    currentFolder: activeFolder?.name,
+    // Suppressed where a header above already names the folder and carries
+    // its own back button: a pushed folder's, or the ChannelHeader drawn below
+    // when this is not embedded. Anywhere else it is the only way up.
+    showBreadcrumb: !(pushesRoutes || (isMobileLayout && !embedded)),
     items: visibleItems,
     rootLabel,
     selectedItemId,
@@ -541,36 +554,12 @@ export function BucketsLiveChannel({
       <MaybeChannelHeaderItemsProvider embedded={embedded}>
         {previewItem ? (
           <BucketFileViewer
-            error={previewError}
-            item={{
-              name: previewItem.name,
-              mimeType: previewItem.mimeType,
-              sizeLabel: previewItem.sizeLabel,
-              textContent: previewItem.textContent,
-              uri: previewItem.previewUri,
-            }}
-            loading={previewLoading}
-            onClose={closePreview}
-            onOpenExternally={
-              previewItem.previewUri
-                ? () => {
-                    // Freshly signed rather than the URL captured when the
-                    // preview loaded: a grant lasts minutes, a preview left
-                    // open lasts as long as the user leaves it, and handing
-                    // an expired URL to another app looks like lost access.
-                    const item = previewItem;
-                    void live
-                      .readGrant(Number(item.id))
-                      .then((grant) => Linking.openURL(grant.readUrl))
-                      .catch((cause) =>
-                        setPreviewError(
-                          cause instanceof Error ? cause.message : String(cause)
-                        )
-                      );
-                  }
-                : undefined
-            }
-            onRetry={() => void loadPreview(previewItem)}
+            error={preview.error}
+            item={toViewerItem(previewItem)}
+            loading={preview.loading}
+            onClose={preview.close}
+            onOpenExternally={preview.openExternally}
+            onRetry={() => void preview.load(previewItem)}
           />
         ) : searchOpen ? (
           <BucketsSearchScreen
@@ -699,6 +688,16 @@ export function BucketsLiveChannel({
       />
     </YStack>
   );
+}
+
+export function toViewerItem(item: BucketItem) {
+  return {
+    name: item.name,
+    mimeType: item.mimeType,
+    sizeLabel: item.sizeLabel,
+    textContent: item.textContent,
+    uri: item.previewUri,
+  };
 }
 
 function LiveError({ message }: { message: string }) {
