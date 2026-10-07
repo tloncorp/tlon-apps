@@ -488,6 +488,8 @@ describe('htmlPreviewHasScripts', () => {
     `<head><meta http-equiv="Content-Security-Policy" content="base-uri https://cdn.jsdelivr.net"></head><base href="https://cdn.jsdelivr.net/npm/"><script src="app.js"></script>`,
     `<head><base href="https://cdn.jsdelivr.net/npm/"><meta http-equiv="Content-Security-Policy" content="base-uri 'none'"></head><script src="app.js"></script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src https://cdn.jsdelivr.net/npm/"></head><script src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
+    // Both engines decode a source's whole path, an escaped slash included.
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src https://cdn.jsdelivr.net/pkg%2F"></head><script src="https://cdn.jsdelivr.net/pkg/x.js"></script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'strict-dynamic' 'nonce-abc'"></head><script nonce="abc" src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
     '<button onclick="go()">go</button>',
     '<svg onload = "go()"></svg>',
@@ -1028,6 +1030,13 @@ describe('hostile markup', () => {
     expect(htmlPreviewReadable('<br>'.repeat(199_990))).toBe(true);
     // Each attribute is checked against every one before it on its tag.
     expect(htmlPreviewReadable(`<p ${attributes(256)}>`)).toBe(true);
+    // Thousands of the file's own policies against tens of thousands of
+    // handlers: past its budget of checks, the file's code counts.
+    expect(
+      htmlPreviewHasScripts(
+        `<head>${`<meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline'">`.repeat(5000)}<meta http-equiv="Content-Security-Policy" content="script-src 'none'"></head>${'<b onclick="x">.</b>'.repeat(30_000)}`
+      )
+    ).toBe(true);
     // Each script finds the base it resolves against among many.
     expect(
       htmlPreviewHasScripts(

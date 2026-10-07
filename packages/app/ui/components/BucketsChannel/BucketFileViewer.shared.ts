@@ -1391,6 +1391,39 @@ interface AuthoredPolicy {
   bases?: string[];
 }
 
+// The checks against a file's own policies one read may make (each check
+// costing the policies in force, by their sources), past which the file's
+// code is taken to run.
+const MAX_POLICY_CHECKS = 1_000_000;
+
+/** What one check against a policy costs: one, and one per source it names. */
+function policyCost(policy: AuthoredPolicy): number {
+  return (
+    1 +
+    (policy.elements?.length ?? 0) +
+    (policy.attributes?.length ?? 0) +
+    (policy.evaluation?.length ?? 0)
+  );
+}
+
+/**
+ * Whether a script element loads from `url`: the preview's policy allows it
+ * (scriptSource), and so does every policy of the file's own in force
+ * (`allow`).
+ */
+function externalRuns(
+  url: URL | undefined,
+  script: ParsedElement,
+  allow: (allows: (policy: AuthoredPolicy) => boolean) => boolean
+): boolean {
+  const nonce = attributeOf(script, 'nonce');
+  const integrity = attributeOf(script, 'integrity') !== undefined;
+  return (
+    url !== undefined &&
+    allow((p) => allowsExternal(p.elements, url, nonce, integrity))
+  );
+}
+
 /** The policy a `<meta http-equiv="Content-Security-Policy">` in `<head>` sets, if `element` is one. */
 function authoredPolicy(element: ParsedElement): AuthoredPolicy | undefined {
   const head = element.parentNode;
@@ -1440,10 +1473,14 @@ function baseResolver(
   const bases = baseElements(document);
   const reached = baseReached(bases);
   let authored: { at: number; policy: AuthoredPolicy }[] | undefined;
+  // Each base is judged once, however many elements resolve against it.
+  const judged = new Map<ParsedElement, string | undefined>();
   return (element) => {
     const base = element === undefined ? bases[0] : reached(element);
+    if (base !== undefined && judged.has(base)) return judged.get(base);
     const address = webBase(base, inherited);
     if (base === undefined || address === undefined || address === inherited) {
+      if (base !== undefined) judged.set(base, address);
       return address;
     }
     authored ??= [...elementsOf(document, () => false)].flatMap((meta) => {
@@ -1460,7 +1497,8 @@ function baseResolver(
         (allowsNothing(list) ||
           !list.some((source) => sourceMatches(source, url)))
     );
-    return refused ? inherited : address;
+    judged.set(base, refused ? inherited : address);
+    return judged.get(base);
   };
 }
 
@@ -1512,20 +1550,6 @@ function nonceValues(list: string[]): string[] {
   return list
     .map((source) => NONCE_SOURCE.exec(source)?.[1])
     .filter((value) => value !== undefined);
-}
-
-/** Whether a script element loads from `url`: the preview's policy allows it (scriptSource), and so does every policy of the file's own in force. */
-function externalRuns(
-  url: URL | undefined,
-  script: ParsedElement,
-  policies: AuthoredPolicy[]
-): boolean {
-  const nonce = attributeOf(script, 'nonce');
-  const integrity = attributeOf(script, 'integrity') !== undefined;
-  return (
-    url !== undefined &&
-    policies.every((p) => allowsExternal(p.elements, url, nonce, integrity))
-  );
 }
 
 /**
@@ -1599,6 +1623,8 @@ function sourceMatches(source: string, url: URL): boolean {
     (port === '80' && asciiLowercase(sourceScheme ?? '') === 'http');
   if (!hostMatches || !portMatches) return false;
   if (path === undefined || path === '') return true;
+  // Both engines decode the whole path before comparing: a source path's
+  // escaped slash matches a real one (measured).
   try {
     const want = decodeURIComponent(path);
     const have = decodeURIComponent(url.pathname);
@@ -1639,7 +1665,8 @@ export function htmlPreviewHasScripts(
   html: string,
   depth = 0,
   inherited?: string,
-  inheritedPolicies: AuthoredPolicy[] = []
+  inheritedPolicies: AuthoredPolicy[] = [],
+  budget = { checks: MAX_POLICY_CHECKS }
 ): boolean {
   const parsed = depth === 0 ? parsedHtml(html, true) : parseHtml(html, true);
   if (!parsed) return depth > 0;
@@ -1647,9 +1674,20 @@ export function htmlPreviewHasScripts(
   // it, and the file's own policies apply from where they stand.
   const baseFor = baseResolver(parsed.document, inherited, inheritedPolicies);
   const policies = [...inheritedPolicies];
+  let cost = policies.reduce((sum, p) => sum + policyCost(p), 0);
+  // Whether every policy in force allows something. A file can pit thousands
+  // of its own policies against tens of thousands of elements, so the checks
+  // draw on a budget shared by the whole read; past it, code counts.
+  const allow = (allows: (policy: AuthoredPolicy) => boolean): boolean => {
+    budget.checks -= cost;
+    return budget.checks < 0 || policies.every(allows);
+  };
   for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
     const policy = authoredPolicy(element);
-    if (policy) policies.push(policy);
+    if (policy) {
+      policies.push(policy);
+      cost += policyCost(policy);
+    }
     if (element.nodeName === 'script' && element.namespaceURI !== NS.MATHML) {
       const kind = scriptKind(element);
       // An SVG script's address is its href, or else its xlink:href.
@@ -1666,11 +1704,11 @@ export function htmlPreviewHasScripts(
               attributeOf(element, 'nomodule') === undefined))) &&
         (src === undefined
           ? scriptText(element).trim() !== '' &&
-            policies.every((p) => allowsInline(p.elements, nonce))
+            allow((p) => allowsInline(p.elements, nonce))
           : externalRuns(
               scriptSource(src, baseFor(element), kind === 'module'),
               element,
-              policies
+              allow
             ))
       ) {
         return true;
@@ -1682,7 +1720,7 @@ export function htmlPreviewHasScripts(
         attribute.name.startsWith('on') &&
         handlesEvent(element, attribute.name.slice(2)) &&
         attribute.value.trim() !== '' &&
-        policies.every((p) => allowsInline(p.attributes))
+        allow((p) => allowsInline(p.attributes))
       ) {
         return true;
       }
@@ -1699,7 +1737,7 @@ export function htmlPreviewHasScripts(
           element.nodeName === 'iframe' &&
           attributeOf(element, 'sandbox') !== undefined
         ) &&
-        policies.every((p) =>
+        allow((p) =>
           (element.nodeName === 'a' || element.nodeName === 'area') &&
           element.namespaceURI !== NS.MATHML
             ? allowsEvaluation(p.evaluation)
@@ -1720,7 +1758,9 @@ export function htmlPreviewHasScripts(
       // one it has once the frame's scripts load, which later markup may set.
       const frameBases = new Set([baseFor(element), baseFor(undefined)]);
       for (const frameBase of frameBases) {
-        if (htmlPreviewHasScripts(srcdoc, depth + 1, frameBase, policies)) {
+        if (
+          htmlPreviewHasScripts(srcdoc, depth + 1, frameBase, policies, budget)
+        ) {
           return true;
         }
       }
@@ -2650,13 +2690,16 @@ export type HtmlPreviewNavigation = 'load' | 'block';
 
 /**
  * What the native preview does with a navigation its WebView reports, for
- * the shell and the frame inside it alike. The inline documents load.
- * Everything else -- a link, a meta refresh, a form, a redirect, any other
- * scheme -- is refused, so a document cannot bounce the reader into another
- * app or show them a page that is not the file. A link the reader taps does
- * not come this way: our script keeps the frame from following it and the
- * shell asks the app to open it (htmlPreviewShell), so nothing here has to
- * judge whether a navigation the WebView reports came from a tap.
+ * the shell and the frame inside it alike. The inline documents load, and so
+ * does anything else at an `about:` address: the shell itself loads at
+ * `about:blank`, so a file can blank its own frame (a meta refresh there), as
+ * it can on web. Everything else -- a link, a meta refresh, a form, a
+ * redirect, any other scheme -- is refused, so a document cannot bounce the
+ * reader into another app or show them a page that is not the file. A link
+ * the reader taps does not come this way: our script keeps the frame from
+ * following it and the shell asks the app to open it (htmlPreviewShell), so
+ * nothing here has to judge whether a navigation the WebView reports came
+ * from a tap.
  */
 export function htmlPreviewNavigation({
   url,
