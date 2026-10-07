@@ -348,7 +348,7 @@
   =.  seats.group
     %-  ~(gas by seats.group)
     %+  turn  (gulf 1 19)
-    |=(i=@ [;;(ship i) [~ ~2000.1.1]])
+    |=(i=@ [`ship`i [~ ~2000.1.1]])
   ;<  *  bind:m  do-groups-init
   ;<  *  bind:m  (do-join-this-group group)
   =/  since=@ta  (scot %da *@da)
