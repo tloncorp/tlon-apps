@@ -486,6 +486,7 @@ describe('htmlPreviewHasScripts', () => {
     // SVG's.
     '<div><template shadowrootmode="open"><script>go()</script></template></div>',
     '<div><template shadowrootmode="CLOSED"><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe></template></div>',
+    '<x-é><template shadowrootmode="open"><script>go()</script></template></x-é>',
     '<svg><template><script>go()</script></template></svg>',
     '<template></template><script>go()</script>',
     // A template's end tag closes it from inside foreign content too, unless
@@ -509,6 +510,13 @@ describe('htmlPreviewHasScripts', () => {
     '<svg><animate onbegin="go()"/></svg>',
     '<div onvalidationstatuschange="go()">x</div>',
     '<body ononline="go()">',
+    // A handler only some elements take, on one that does: the window's on
+    // <body>, <frameset> or (unload) an <svg>, an input's search, a media
+    // element's own.
+    '<frameset onpagehide="go()"></frameset>',
+    '<svg onunload="go()"></svg>',
+    '<input type="search" onsearch="go()">',
+    '<video onencrypted="go()"></video>',
     // Nested deeper than it reads.
     nested('<p>static</p>', 4),
   ])('finds a script in %j', (html) => {
@@ -551,6 +559,8 @@ describe('htmlPreviewHasScripts', () => {
     '<ul><template shadowrootmode="open"><script>go()</script></template></ul>',
     '<template shadowrootmode="open"><script>go()</script></template>',
     '<div><template shadowrootmode="open"></template><template shadowrootmode="open"><script>go()</script></template></div>',
+    '<x-@><template shadowrootmode="open"><script>go()</script></template></x-@>',
+    '<x-×><template shadowrootmode="open"><script>go()</script></template></x-×>',
     // Chromium and WebKit run this script, but parse5 drops what follows an
     // HTML template closed inside an SVG template's foreignObject: it takes
     // the SVG element for an HTML template when it resets its mode.
@@ -564,6 +574,8 @@ describe('htmlPreviewHasScripts', () => {
     // An attribute that only starts like a handler, and a srcdoc on anything
     // but an iframe.
     '<div only="true" one="1" onward="x">x</div>',
+    // A handler only some elements take, on one that does not.
+    '<div onbegin="go()" ononline="go()">x</div><span onsearch="go()" onencrypted="go()"></span><svg><g onunload="go()"/></svg>',
     '<div srcdoc="&lt;script&gt;go()&lt;/script&gt;">x</div>',
     nested('<p>static</p>', 3),
     // A frame whose own sandbox keeps it from scripts runs none, nor does
@@ -932,6 +944,14 @@ describe('hostile markup', () => {
     expect(htmlPreviewReadable(noscript)).toBe(true);
     expect(htmlPreviewReadable(noscript, { scripting: false })).toBe(false);
     expect(htmlPreviewReadable(nested('<p>static</p>', 3))).toBe(true);
+    // Every frame a browser builds counts, at any depth.
+    const frames = (count: number) => '<iframe></iframe>'.repeat(count);
+    expect(htmlPreviewReadable(frames(100))).toBe(true);
+    expect(htmlPreviewReadable(frames(101))).toBe(false);
+    expect(htmlPreviewReadable(nested(frames(100), 1))).toBe(false);
+    expect(htmlPreviewReadable(`<template>${frames(200)}</template>`)).toBe(
+      true
+    );
     expect(htmlPreviewReadable(`<template>${nested(deep, 1)}</template>`)).toBe(
       true
     );

@@ -146,6 +146,13 @@ function linkAddress(value: string, base?: string): string | undefined {
 // another as often as its size allows, and each level is read again.
 const MAX_NESTED_DOCUMENTS = 3;
 
+// How many inline frames a file may hold, at every depth, before it is
+// declined. A browser builds a browsing context for each, on web on the app's
+// own thread: Chromium and WebKit took 6-12 s to load a document of 1,000
+// empty iframes, their most per page, and 0.3-0.5 s for 100. The preview also
+// reads each `srcdoc` itself.
+const MAX_INLINE_FRAMES = 100;
+
 /**
  * The charset an HTML file declares in its first bytes, found as a browser's
  * encoding prescan finds it: comments are skipped, and only a `<meta>` with a
@@ -831,7 +838,8 @@ function attributeOf(
  * Whether the preview can read an HTML file: false when it, or the document
  * of an inline frame in it, nests elements deeper than MAX_PARSE_DEPTH, which
  * no real page does, or holds more than MAX_PARSE_ELEMENTS, which only the
- * densest 2 MB pages near, or when it nests one `srcdoc` in another deeper than
+ * densest 2 MB pages near, or when it holds more than MAX_INLINE_FRAMES
+ * inline frames, or nests one `srcdoc` in another deeper than
  * MAX_NESTED_DOCUMENTS, which are not read; the viewer offers Open instead.
  * The file is read as a frame that runs scripts, or one that does not
  * (`scripting: false`, under Electron), reads it.
@@ -866,18 +874,28 @@ function frameRunsScripts(iframe: ParsedElement): boolean {
  * itself, and is as slow as the parser on markup nested past MAX_PARSE_DEPTH
  * -- Chromium and WebKit each took over a minute on a megabyte of nested
  * divs, on web on the app's own thread. An inline frame in an ordinary
- * template never loads. Each document is read as its frame reads it, which
- * runs scripts only where the frame around it does and its own sandbox
- * allows them (frameRunsScripts).
+ * template never loads; every other frame counts against MAX_INLINE_FRAMES
+ * (`frames`, shared by the whole walk). Each document is read as its frame
+ * reads it, which runs scripts only where the frame around it does and its
+ * own sandbox allows them (frameRunsScripts).
  */
 function framesReadable(
   document: ParsedDocument,
   scripting: boolean,
-  depth = 0
+  depth = 0,
+  frames = { left: MAX_INLINE_FRAMES }
 ): boolean {
   for (const element of elementsOf(document, shadowRootsAttached())) {
+    if (
+      (element.nodeName !== 'iframe' && element.nodeName !== 'frame') ||
+      element.namespaceURI !== NS.HTML
+    ) {
+      continue;
+    }
+    frames.left -= 1;
+    if (frames.left < 0) return false;
     const srcdoc =
-      element.nodeName === 'iframe' && element.namespaceURI === NS.HTML
+      element.nodeName === 'iframe'
         ? attributeOf(element, 'srcdoc')
         : undefined;
     if (srcdoc === undefined) continue;
@@ -886,7 +904,7 @@ function framesReadable(
     const nested = parseHtml(srcdoc, frameScripting);
     if (
       !nested ||
-      !framesReadable(nested.document, frameScripting, depth + 1)
+      !framesReadable(nested.document, frameScripting, depth + 1, frames)
     ) {
       return false;
     }
@@ -1060,41 +1078,35 @@ function scriptKind(script: ParsedElement): 'classic' | 'module' | undefined {
   return essence === 'module' ? 'module' : undefined;
 }
 
-// The events an `on<event>` content attribute handles on some element in
-// Chromium or WebKit: every event handler property of an HTML, SVG or MathML
-// element interface, the window's that <body> forwards, and the attributes
-// each engine's source maps beside those -- WebKit's legacy table (iOS's
-// gesture and video fullscreen events among them) and Chromium's attribute
-// table, which is ahead of the Chromium the tests run. Any other attribute
-// starting with `on` (`only`, `onward`) is data.
+// The events an `on<event>` content attribute handles on every HTML, SVG and
+// MathML element in Chromium or WebKit, as measured by setting each on every
+// kind of element, with the ones only their sources show: WebKit's legacy
+// table (iOS's gesture and video fullscreen events among them) and Chromium's
+// attribute table, which is ahead of the Chromium the tests run. Some more
+// are handled only on certain elements (handlesEvent), and any other
+// attribute starting with `on` (`only`, `onward`) is data.
 const HANDLED_EVENTS = new Set(
   `
-  abort afterprint animationcancel animationend animationiteration
-  animationstart autocomplete autocompleteerror auxclick beforecopy
-  beforecut beforefilter beforeinput beforeload beforematch beforepaste
-  beforeprint beforetoggle beforeunload beforexrselect begin blur cancel
-  canplay canplaythrough change click close command
+  abort animationcancel animationend animationiteration animationstart
+  autocomplete autocompleteerror auxclick beforecopy beforecut beforefilter
+  beforeinput beforeload beforematch beforepaste beforetoggle beforexrselect
+  blur cancel canplay canplaythrough change click close command
   contentvisibilityautostatechange contextlost contextmenu contextrestored
   copy cuechange cut dblclick drag dragend dragenter dragleave dragover
-  dragstart drop durationchange emptied encrypted end ended
-  enterpictureinpicture error focus focusin focusout formdata
-  fullscreenchange fullscreenerror gamepadconnected gamepaddisconnected
-  gesturechange gestureend gesturestart gotpointercapture hashchange input
-  installresult invalid keydown keypress keyup languagechange
-  leavepictureinpicture load loadeddata loadedmetadata loadstart location
-  lostpointercapture message messageerror mousedown mouseenter mouseleave
-  mousemove mouseout mouseover mouseup mousewheel offline online
-  orientationchange pagehide pagereveal pageshow pageswap paste pause play
-  playing pointercancel pointerdown pointerenter pointerleave pointermove
-  pointerout pointerover pointerrawupdate pointerup popstate progress
-  promptaction promptdismiss ratechange rejectionhandled repeat reset resize
-  scroll scrollend scrollsnapchange scrollsnapchanging search
+  dragstart drop durationchange emptied ended error focus focusin focusout
+  formdata fullscreenchange fullscreenerror gesturechange gestureend
+  gesturestart gotpointercapture input installresult invalid keydown
+  keypress keyup load loadeddata loadedmetadata loadstart location
+  lostpointercapture mousedown mouseenter mouseleave mousemove mouseout
+  mouseover mouseup mousewheel paste pause play playing pointercancel
+  pointerdown pointerenter pointerleave pointermove pointerout pointerover
+  pointerrawupdate pointerup progress promptaction promptdismiss ratechange
+  reset resize scroll scrollend scrollsnapchange scrollsnapchanging
   securitypolicyviolation seeked seeking select selectionchange selectstart
-  slotchange stalled storage stream submit suspend timeupdate toggle
-  touchcancel touchend touchforcechange touchmove touchstart
-  transitioncancel transitionend transitionrun transitionstart
-  unhandledrejection unload validationstatuschange volumechange waiting
-  waitingforkey webkitanimationend webkitanimationiteration
+  slotchange stalled stream submit suspend timeupdate toggle touchcancel
+  touchend touchforcechange touchmove touchstart transitioncancel
+  transitionend transitionrun transitionstart validationstatuschange
+  volumechange waiting webkitanimationend webkitanimationiteration
   webkitanimationstart webkitbeginfullscreen
   webkitcurrentplaybacktargetiswirelesschanged webkitendfullscreen
   webkitfullscreenchange webkitfullscreenerror webkitkeyadded webkitkeyerror
@@ -1106,6 +1118,49 @@ const HANDLED_EVENTS = new Set(
     .trim()
     .split(/\s+/)
 );
+
+// The window's events, which <body> and <frameset> take on its behalf, as an
+// <svg> takes unload; the media elements' that neither engine maps from
+// markup (measured) but their interfaces name; and Chromium's SVG animation
+// events.
+const WINDOW_EVENTS = new Set(
+  `
+  afterprint beforeprint beforeunload gamepadconnected gamepaddisconnected
+  hashchange languagechange message messageerror offline online
+  orientationchange pagehide pagereveal pageshow pageswap popstate
+  rejectionhandled storage unhandledrejection unload
+`
+    .trim()
+    .split(/\s+/)
+);
+const MEDIA_EVENTS = new Set([
+  'encrypted',
+  'enterpictureinpicture',
+  'leavepictureinpicture',
+  'waitingforkey',
+]);
+const SVG_ANIMATION_EVENTS = new Set(['begin', 'end', 'repeat']);
+const SVG_ANIMATION_ELEMENTS = new Set([
+  'animate',
+  'animateMotion',
+  'animateTransform',
+  'set',
+]);
+
+/** Whether an `on<event>` content attribute is a handler on `element` in Chromium or WebKit. */
+function handlesEvent(element: ParsedElement, event: string): boolean {
+  if (HANDLED_EVENTS.has(event)) return true;
+  const name = element.nodeName;
+  if (element.namespaceURI === NS.HTML) {
+    if (name === 'body' || name === 'frameset') return WINDOW_EVENTS.has(event);
+    if (name === 'audio' || name === 'video') return MEDIA_EVENTS.has(event);
+    return name === 'input' && event === 'search';
+  }
+  if (element.namespaceURI !== NS.SVG) return false;
+  return name === 'svg'
+    ? event === 'unload'
+    : SVG_ANIMATION_ELEMENTS.has(name) && SVG_ANIMATION_EVENTS.has(event);
+}
 
 /**
  * Whether a browser would run a `javascript:` URL in this attribute of this
@@ -1139,8 +1194,13 @@ function runsJavascriptUrl(
   }
 }
 
-// The HTML elements a shadow root may attach to, besides custom elements, and
-// the hyphenated names a custom element may not take.
+// The HTML elements a shadow root may attach to, besides custom elements; the
+// names a custom element may take (a lowercase ASCII letter, then the
+// standard's PCENChar, with a hyphen among them), as Chromium and WebKit
+// measured, which is how the parser left them (ASCII lowercased); and the
+// hyphenated names a custom element may not take.
+const CUSTOM_ELEMENT_NAME =
+  /^[a-z][-.0-9_a-z\u00b7\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u037d\u037f-\u1fff\u200c-\u200d\u203f\u2040\u2070-\u218f\u2c00-\u2fef\u3001-\ud7ff\uf900-\ufdcf\ufdf0-\ufffd\u{10000}-\u{effff}]*$/u;
 const SHADOW_HOSTS = new Set([
   'article',
   'aside',
@@ -1202,7 +1262,7 @@ function shadowRootsAttached(): (template: ParsedElement) => boolean {
     const name = host.nodeName;
     const canHost =
       SHADOW_HOSTS.has(name) ||
-      (/^[a-z]/.test(name) &&
+      (CUSTOM_ELEMENT_NAME.test(name) &&
         name.includes('-') &&
         !RESERVED_CUSTOM_ELEMENT_NAMES.has(name));
     if (canHost) hosts.add(host);
@@ -1247,7 +1307,7 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
       if (
         attribute.namespace === undefined &&
         attribute.name.startsWith('on') &&
-        HANDLED_EVENTS.has(attribute.name.slice(2))
+        handlesEvent(element, attribute.name.slice(2))
       ) {
         return true;
       }
