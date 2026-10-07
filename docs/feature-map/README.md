@@ -124,13 +124,20 @@ the anchors removed:
   flag is off there) keeps its previously published wording, as long as that
   wording still passes for this release. Otherwise it is left out.
 - An entry that was published before and is no longer in the map stays
-  published while the release still has what it describes. So when a feature
-  is removed on develop, delete its entry as the check asks: people on the
-  store build keep the instructions until a release drops the feature.
+  published only when develop has lost what it describes and the release still
+  has it. So when a feature is removed on develop, delete its entry as the
+  check asks: people on the store build keep the instructions until a release
+  drops the feature.
+- If develop still has what a removed entry describes, the entry was renamed,
+  merged into another, or deleted as wrong, and its old copy goes with it.
 
-That last rule means deleting an entry does not unpublish it straight away. To
-stop publishing one regardless, for example because it was wrong, run
-`promote` with `--drop file.md#heading-slug`.
+`--drop file.md#heading-slug` leaves an entry out regardless. It is for a kept
+or held-over copy that turns out to be wrong; once dropped, those stay out. An
+entry still in the map is published again by the next promote, so fix or
+delete it there instead. A `--drop` that names no entry fails.
+
+`promote` writes nothing if the release tag is not in the checkout or
+`SKILL.md` has lost its index markers.
 
 Beside the reference files, `promote` writes `RELEASE.json` (the tag, what was
 held back, what was kept after leaving the map), and it rewrites the index in

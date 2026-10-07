@@ -253,6 +253,9 @@ test('flags a question whose entry is not in the map', () => {
 const RELEASE = fakeReader({
   'app/Menu.tsx': `title: 'Pin'\ntitle: 'Mute'`,
 });
+const DEVELOP = fakeReader({
+  'app/Menu.tsx': `title: 'Keep'\ntitle: 'Mute'`,
+});
 const entry = (heading, label, extra = '') =>
   `## ${heading}\n<!-- src: app/Menu.tsx -->\n${extra}\nPhone: tap \`${label}\`.\n`;
 const mapOf = (...entries) => [
@@ -274,7 +277,12 @@ const anchor = (label) => ({
   flag: [],
 });
 const plan = (input) =>
-  planRelease({ release: RELEASE, flagsOn: new Set(), ...input });
+  planRelease({
+    release: RELEASE,
+    current: DEVELOP,
+    flagsOn: new Set(),
+    ...input,
+  });
 const headings = (result) =>
   result.published.flatMap((file) => file.entries.map((item) => item.heading));
 
@@ -348,6 +356,40 @@ test('keeps an entry the map dropped while the release still has the feature', (
     drop: ['lists.md#pin-a-chat'],
   });
   assert.deepEqual(headings(dropped), ['Mute a chat']);
+});
+
+test('does not keep the old copy of an entry that was only renamed', () => {
+  // Mute is still on develop, so its entry left the map by choice.
+  const result = plan({
+    mapFiles: mapOf(entry('Silence a chat', 'Mute')),
+    previous: {
+      files: publishedCopy(['Mute a chat', 'Phone: tap `Mute`, then wait.']),
+      anchors: { 'lists.md#mute-a-chat': anchor('Mute') },
+    },
+  });
+  assert.deepEqual(headings(result), ['Silence a chat']);
+  assert.deepEqual(result.carried, []);
+});
+
+test('drops an entry that is still in the map, and refuses a drop that names nothing', () => {
+  const input = {
+    mapFiles: mapOf(entry('Pin a chat', 'Pin'), entry('Mute a chat', 'Mute')),
+    previous: { files: {}, anchors: {} },
+  };
+  const result = plan({ ...input, drop: ['lists.md#pin-a-chat'] });
+  assert.deepEqual(headings(result), ['Mute a chat']);
+  assert.deepEqual(result.held, [
+    {
+      file: 'lists.md',
+      entry: 'Pin a chat',
+      kept: 'left out',
+      why: ['dropped with --drop'],
+    },
+  ]);
+  assert.throws(
+    () => plan({ ...input, drop: ['lists.md#pin-chat'] }),
+    /--drop names no entry: lists\.md#pin-chat/
+  );
 });
 
 test('keeps a whole file the map dropped while its entries still fit', () => {
