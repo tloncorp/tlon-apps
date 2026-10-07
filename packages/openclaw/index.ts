@@ -969,7 +969,6 @@ export default defineBundledChannelEntry({
     // capability propagation plus state polling can outlast 45s on an
     // otherwise fine Bucket operation. An explicit setting still wins.
     const toolTimeoutMs = account.lifecycle.toolTimeoutMs ?? undefined;
-    const tlonShipHosts = configuredTlonShipHosts(api.config);
     const handleMigrateCommand = createMigrateCommandHandler({
       runCommand: (args, commandCredentials, timeoutMs, onDeadline) =>
         runTlonCommand(tlonBinary, args, commandCredentials, {
@@ -1076,7 +1075,10 @@ export default defineBundledChannelEntry({
               allowedProviderIds
             )));
       const tlonAppBrowser = isMcpCall
-        ? resolveTlonAppBrowserBlock(event.params, tlonShipHosts)
+        ? resolveTlonAppBrowserBlock(
+            event.params,
+            configuredTlonShipHosts(api.config)
+          )
         : { blocked: false };
       const isBlocked =
         blocksNonOwner || blocksOnboardingMcp || tlonAppBrowser.blocked;

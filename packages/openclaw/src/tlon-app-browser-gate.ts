@@ -81,7 +81,9 @@ export function isTlonWebAppUrl(
   // host the plugin cannot derive.
   if (
     (segments[0] === 'apps' &&
-      (segments[1] === 'groups' || segments[1] === 'landscape')) ||
+      (segments[1] === 'groups' ||
+        segments[1] === 'landscape' ||
+        segments[1] === 'tm-alpha')) ||
     (segments.length === 2 && segments[0] === '~' && segments[1] === 'login')
   ) {
     return true;
@@ -90,10 +92,18 @@ export function isTlonWebAppUrl(
   if (url.pathname === '/' || segments[0] === 'apps' || segments[0] === '~') {
     return true;
   }
-  // %notes serves its UI under /notes but public pages under pub/ and share/.
-  return (
-    segments[0] === 'notes' && segments[1] !== 'pub' && segments[1] !== 'share'
-  );
+  return segments[0] === 'notes' && !isPublicNotesPath(segments);
+}
+
+// The exact public shapes %notes serves (desk/app/notes.hoon); everything else
+// under /notes is its UI. Whether the publication exists is not knowable here.
+function isPublicNotesPath(segments: string[]) {
+  const [, kind, ship, , id] = segments;
+  if (!ship?.startsWith('~')) return false;
+  if (kind === 'pub') {
+    return segments.length === 5 && /^\d+$/.test(id) && id !== '0';
+  }
+  return kind === 'share' && segments.length === 4;
 }
 
 function record(value: unknown): Record<string, unknown> | null {
