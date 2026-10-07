@@ -1077,7 +1077,7 @@ export default defineBundledChannelEntry({
       const tlonAppBrowser = isMcpCall
         ? resolveTlonAppBrowserBlock(
             event.params,
-            configuredTlonShipHosts(api.config)
+            configuredTlonShipHosts(api.runtime.config.loadConfig())
           )
         : { blocked: false };
       const isBlocked =
