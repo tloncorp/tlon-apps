@@ -11,6 +11,7 @@ import {
   View,
   XStack,
   YStack,
+  getGroupMemberCount,
   useChatOptions,
   useChatTitle,
   useCurrentUserId,
@@ -70,7 +71,7 @@ export function ChannelDetailsScreenView({
       default:
         return group
           ? group.channels?.length === 1
-            ? `Group with ${group.members?.length ?? 0} members`
+            ? `Group with ${getGroupMemberCount(group)} members`
             : channel.type === 'buckets'
               ? `Bucket in ${groupTitle}`
               : `Channel in ${groupTitle}`

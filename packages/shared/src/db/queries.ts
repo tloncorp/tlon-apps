@@ -166,6 +166,8 @@ const GROUP_META_COLUMNS = {
   iconImageColor: true,
   coverImage: true,
   coverImageColor: true,
+  // only foreign previews carry a count; a /gangs preview must not clear it
+  memberCount: true,
 };
 
 export interface GetGroupsOptions {
@@ -2019,7 +2021,10 @@ export const insertGroups = createWriteQuery(
                 $groups.currentUserIsMember,
                 $groups.haveInvite,
                 $groups.haveRequestedInvite,
-                $groups.memberCount
+                // same for the count, which most group payloads don't carry
+                ...(group.memberCount !== undefined
+                  ? [$groups.memberCount]
+                  : [])
               ),
             });
         } else {
@@ -2285,6 +2290,22 @@ export const updateGroup = createWriteQuery(
     return ctx.db.update($groups).set(group).where(eq($groups.id, group.id));
   },
   ['groups', 'channels', 'groupNavSections', 'groupNavSectionChannels']
+);
+
+// A live seat event moves the count without carrying it. A null count is
+// unknown, not zero, so it stays null until a payload carries one.
+export const adjustGroupMemberCount = createWriteQuery(
+  'adjustGroupMemberCount',
+  async (
+    { groupId, delta }: { groupId: string; delta: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groups)
+      .set({ memberCount: sql`max(${$groups.memberCount} + ${delta}, 0)` })
+      .where(and(eq($groups.id, groupId), isNotNull($groups.memberCount)));
+  },
+  ['groups']
 );
 
 export const deleteGroup = createWriteQuery(
@@ -2672,6 +2693,36 @@ export const deleteBucketUpload = createWriteQuery(
   'deleteBucketUpload',
   async (id: string, ctx: QueryCtx) => {
     await ctx.db.delete($bucketUploads).where(eq($bucketUploads.id, id));
+  },
+  ['bucketUploads']
+);
+
+/**
+ * Delete the given upload rows that are still failed, and return them.
+ *
+ * Checked and deleted in one statement, so a row retried in the meantime is
+ * not swept up with the failures. One write, so dismissing a thousand
+ * failures invalidates the readers once rather than a thousand times.
+ * Chunked to stay under SQLite's bound-parameter limit.
+ */
+export const deleteFailedBucketUploads = createWriteQuery(
+  'deleteFailedBucketUploads',
+  async (ids: string[], ctx: QueryCtx) => {
+    const deleted: (typeof $bucketUploads.$inferSelect)[] = [];
+    for (let i = 0; i < ids.length; i += 500) {
+      deleted.push(
+        ...(await ctx.db
+          .delete($bucketUploads)
+          .where(
+            and(
+              inArray($bucketUploads.id, ids.slice(i, i + 500)),
+              eq($bucketUploads.state, 'failed')
+            )
+          )
+          .returning())
+      );
+    }
+    return deleted;
   },
   ['bucketUploads']
 );

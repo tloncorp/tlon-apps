@@ -72,11 +72,16 @@ describe('tlon tool execution', () => {
 
   describe('browser handoff credential binding', () => {
     it.each(
-      ['--config', '--ship', '--url', '--code', '--cookie'].flatMap((flag) => [
-        `${flag} private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
-        `${flag}=private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
-        `browser handoff https://browser-session.tlon.network/s/private.signature ${flag}=private-value`,
-      ])
+      ['--config', '--ship', '--url', '--code', '--cookie']
+        .flatMap((flag) => [
+          `${flag} private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
+          `${flag}=private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
+          `browser handoff https://browser-session.tlon.network/s/private.signature ${flag}=private-value`,
+        ])
+        .flatMap((command) => [
+          command,
+          command.replace('browser handoff', 'browser share'),
+        ])
     )(
       'rejects an override without executing or logging the capability (%s)',
       async (command) => {
@@ -606,7 +611,7 @@ describe('checkBlockedTlonOperation', () => {
 
 const documentedActionOperations = {
   activity: ['mentions', 'replies', 'all', 'unreads'],
-  browser: ['handoff'],
+  browser: ['handoff', 'share'],
   buckets: [
     'list',
     'show',
