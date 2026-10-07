@@ -106,7 +106,7 @@ Examples:
 
 Hosted browser login (use the Tlon tool, not a shell command):
   {"command": "browser handoff <session_id>"}
-  Pass the sess_ handle from browser_session_create. The plugin resolves the
+  Pass the adjective-color-animal session ID from browser_session_create. The plugin resolves the
   signed viewer link; never copy or construct one in a model tool call.
 `);
 }

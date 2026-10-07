@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type BrowserCredentialHandoff,
   beginBrowserCredentialHandoff,
+  cancelBrowserCredentialHandoff,
   nextBrowserCredentialHandoff,
   submitBrowserCredentials,
 } from './browserCredentialHandoff';
@@ -51,6 +52,47 @@ afterEach(() => {
 });
 
 describe('secure browser form transport', () => {
+  it.each(['one-time-code', 'new-password', 'cc-number'])(
+    'ignores advertised saved logins for %s fields',
+    async (purpose) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          response(
+            body({
+              fields: [{ ...field, purpose }],
+              vault: {
+                available: true,
+                planet: 'sampel-palnet',
+                moon: 'pinser-botter-sampel-palnet',
+              },
+            })
+          )
+        )
+      );
+      const result = await beginBrowserCredentialHandoff(viewer);
+      expect(result.vault).toBeUndefined();
+      expect(result.fields[0].purpose).toBe(purpose);
+    }
+  );
+  it('cancels only the signed viewer session without sending values or owner proof', async () => {
+    const request = vi.fn().mockResolvedValue(response({ ok: true }));
+    vi.stubGlobal('fetch', request);
+    await cancelBrowserCredentialHandoff(viewer);
+    expect(String(request.mock.calls[0][0])).toBe(
+      'https://browser-session-ovh1.tlon.network/credentials/payload.signature'
+    );
+    expect(request.mock.calls[0][1]).toMatchObject({
+      method: 'DELETE',
+      credentials: 'omit',
+      redirect: 'error',
+    });
+    expect(request.mock.calls[0][1].body).toBeUndefined();
+    await expect(
+      cancelBrowserCredentialHandoff('https://evil.example/s/payload.signature')
+    ).rejects.toThrow('trusted');
+    expect(request).toHaveBeenCalledOnce();
+  });
   it('exchanges a trusted viewer capability, projects only metadata, and posts values only to its fill endpoint', async () => {
     const request = vi
       .fn()

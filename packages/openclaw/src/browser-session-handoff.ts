@@ -13,7 +13,7 @@ import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 
 export const BROWSER_SESSION_HANDOFF_HELP =
-  'Usage: browser handoff <session_id> (the sess_ handle from browser_session_create). Do not supply a viewer URL.';
+  'Usage: browser handoff <session_id> (the adjective-color-animal session ID from browser_session_create). Do not supply a viewer URL.';
 
 const LOOKUP_DEADLINE_MS = 15_000;
 const LOOKUP_ATTEMPT_TIMEOUT_MS = 5_000;
@@ -276,7 +276,7 @@ export async function runBrowserSessionHandoff(
     args.length !== 3 ||
     args[0] !== 'browser' ||
     args[1] !== 'handoff' ||
-    !/^sess_[A-Za-z0-9_-]{22}$/.test(args[2])
+    !/^[a-z]{2,12}-[a-z]{2,12}-[a-z]{2,12}$/.test(args[2])
   ) {
     throw new Error(BROWSER_SESSION_HANDOFF_HELP);
   }

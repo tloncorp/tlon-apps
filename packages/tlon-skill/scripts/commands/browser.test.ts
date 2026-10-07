@@ -42,7 +42,9 @@ describe('browser handoff', () => {
       expect(await run([...args], context.deps)).toBe(0);
       const help = context.stdout.join('');
       expect(help).toContain('Tlon tool: browser handoff <session_id>');
-      expect(help).toContain('sess_ handle from browser_session_create');
+      expect(help).toContain(
+        'adjective-color-animal session ID from browser_session_create'
+      );
       expect(help).not.toContain('<signed-viewer-url>');
       expect(help).not.toContain('https://');
       expect(context.sent).toEqual([]);
@@ -55,9 +57,7 @@ describe('browser handoff', () => {
     context.deps.authenticate = async () => {
       authenticated = true;
     };
-    expect(
-      await run(['handoff', 'sess_MHKz9dQ1TjqLmA7vXpR2bw'], context.deps)
-    ).toBe(1);
+    expect(await run(['handoff', 'eager-lilac-bear'], context.deps)).toBe(1);
     expect(context.stderr.join('')).toContain(
       'Tlon tool: browser handoff <session_id>'
     );

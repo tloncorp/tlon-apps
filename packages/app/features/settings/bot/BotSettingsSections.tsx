@@ -41,6 +41,7 @@ export type BotSettingsNavigate = (
     | 'BotModelSettings'
     | 'BotProviderListSettings'
     | 'BotMcpSettings'
+    | 'BotSavedLogins'
     | 'BotPermissionsSettings'
     | 'BotIdentitySettings',
   params?: Record<string, unknown>
@@ -190,6 +191,12 @@ export function BotSettingsSections({
               : `${connectedServicesCount} connected`
           }
           onPress={() => navigate('BotMcpSettings')}
+        />
+        <BotSettingsDivider />
+        <BotSettingsRow
+          label="Saved logins"
+          description="Website logins your bot can use"
+          onPress={() => navigate('BotSavedLogins')}
         />
       </BotSettingsSection>
 

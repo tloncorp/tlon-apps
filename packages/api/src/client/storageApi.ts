@@ -6,6 +6,7 @@ import { createDevLogger } from '../lib/logger';
 import { desig } from '../lib/urbit';
 import { StorageCredentials } from '../urbit';
 import * as ub from '../urbit';
+import { getMemexBaseUrl } from './memex';
 import { StorageConfiguration } from './upload';
 import { base, scryRequest, subscribeRequest } from './requests';
 import { getCurrentUserId, getCurrentUserIsHosted } from './urbit';
@@ -125,16 +126,6 @@ export const getStorageCredentials = async (): Promise<StorageCredentials> => {
   }>({});
   return credentials['storage-update'].credentials;
 };
-
-const MEMEX_BASE_URL = 'https://memex.tlon.network';
-
-function memexBaseUrl(): string {
-  if (typeof process !== 'undefined') {
-    const override = process.env?.TLON_MEMEX_URL?.trim();
-    if (override) return override.replace(/\/+$/, '');
-  }
-  return MEMEX_BASE_URL;
-}
 
 const mimeToExt: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -329,7 +320,7 @@ async function getMemexUploadUrl(params: {
   const currentUser = getCurrentUserId();
   const token = await scryRequest(base.genuineSecret)<string>({});
 
-  const endpoint = `${memexBaseUrl()}/v1/${desig(currentUser)}/upload`;
+  const endpoint = `${getMemexBaseUrl()}/v1/${desig(currentUser)}/upload`;
   const response = await fetch(endpoint, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

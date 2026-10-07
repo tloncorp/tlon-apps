@@ -518,6 +518,30 @@ export function useRootNavigation() {
     });
   }, [isWindowNarrow, navigationRef]);
 
+  const navigateToBotSavedLogins = useCallback(
+    (moon?: string) => {
+      const params = moon ? { moon } : undefined;
+      if (Platform.OS !== 'web' || isWindowNarrow)
+        navigationRef.current.navigate('BotSavedLogins', params);
+      else {
+        const navigate = navigationRef.current.navigate as (
+          screen: 'Settings',
+          params: {
+            screen: 'BotSavedLogins';
+            params: RootStackParamList['BotSavedLogins'];
+          },
+          options: { pop: true }
+        ) => void;
+        navigate(
+          'Settings',
+          { screen: 'BotSavedLogins', params },
+          { pop: true }
+        );
+      }
+    },
+    [isWindowNarrow, navigationRef]
+  );
+
   const navigateToBotMcpSettings = useCallback(
     (providerId?: string) => {
       if (Platform.OS === 'web') {
@@ -566,6 +590,7 @@ export function useRootNavigation() {
       resetToPost,
       navigateBack,
       navigateToBotSettings,
+      navigateToBotSavedLogins,
       navigateToBotMcpSettings,
       navigateToBrowserCredentialHandoff,
     }),
@@ -576,6 +601,7 @@ export function useRootNavigation() {
       navigateToChatDetails,
       navigateToChatVolume,
       navigateToBotSettings,
+      navigateToBotSavedLogins,
       navigateToBotMcpSettings,
       navigateToBrowserCredentialHandoff,
       navigateBackFromPost,

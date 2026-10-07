@@ -13,7 +13,7 @@ export const BROWSER_HANDOFF_HELP = `Usage: tlon browser --help
 
 Tlon tool: browser handoff <session_id>
 
-Use the sess_ handle from browser_session_create in the tool's command argument.
+Use the adjective-color-animal session ID from browser_session_create in the tool's command argument.
 The plugin resolves a fresh signed link and delivers the card through this CLI.
 Do not copy, construct, or pass a viewer URL in a model tool call. This CLI
 subcommand is the plugin's delivery transport, not a shell session-handle lookup.`;
@@ -172,7 +172,7 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 
-    if (args[1].startsWith('sess_')) {
+    if (/^[a-z]{2,12}-[a-z]{2,12}-[a-z]{2,12}$/.test(args[1])) {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 
