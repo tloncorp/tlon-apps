@@ -132,6 +132,33 @@ describe('syncGroup on a big group', () => {
     expect((await queries.getGroup({ id: groupId }))?.syncedAt).toBeTruthy();
   });
 
+  test('a light sync leaves seats and counts that moved while it was in flight', async () => {
+    await queries.insertGroups({
+      groups: [
+        group({
+          memberCount: 600,
+          members: [member('~zod'), member('~nec'), member('~bud')],
+        }),
+      ],
+    });
+    vi.spyOn(api, 'getGroupLight').mockImplementation(async () => {
+      await queries.removeChatMembers({
+        chatId: groupId,
+        contactIds: ['~nec'],
+      });
+      await queries.adjustGroupMemberCount({ groupId, delta: -1 });
+      return group({
+        memberCount: 600,
+        members: [member('~zod'), member('~nec')],
+      });
+    });
+
+    await syncGroup(groupId);
+
+    expect(await storedMemberIds()).toEqual(['~zod', '~bud']);
+    expect((await queries.getGroup({ id: groupId }))?.memberCount).toBe(599);
+  });
+
   test('syncs whole when the desk serves no pages', async () => {
     api.setDeskServesRosterPages(false);
     await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
@@ -397,6 +424,57 @@ describe('syncGroupMembersPage while the roster changes', () => {
       '~nec',
       '~bud',
     ]);
+  });
+
+  test('applies role changes made mid-fetch one role at a time', async () => {
+    const roles = ['admin', 'mods', 'ops'].map((id) => ({
+      id,
+      groupId,
+      title: id,
+    }));
+    await queries.insertGroups({
+      groups: [
+        group({
+          memberCount: 600,
+          roles,
+          members: [
+            member('~zod'),
+            member('~nec', { roleIds: ['admin'] }),
+            member('~bud'),
+          ],
+        }),
+      ],
+    });
+    vi.spyOn(api, 'getGroupMembersPage').mockImplementation(async () => {
+      await queries.removeChatMembersFromRoles({
+        groupId,
+        contactIds: ['~nec'],
+        roleIds: ['admin'],
+      });
+      await queries.addChatMembersToRoles({
+        groupId,
+        contactIds: ['~nec'],
+        roleIds: ['mods'],
+      });
+      // the page predates both, and knows of a grant made while we were away
+      return pageOf({
+        total: 600,
+        members: [
+          member('~zod'),
+          member('~nec', { roleIds: ['admin', 'ops'] }),
+          member('~bud'),
+        ],
+        next: '~ful',
+      });
+    });
+
+    await syncGroupMembersPage({ groupId });
+
+    const nec = (await queries.getGroupMemberRoles({ groupId }))
+      .filter((row) => row.contactId === '~nec')
+      .map((row) => row.roleId)
+      .sort();
+    expect(nec).toEqual(['mods', 'ops']);
   });
 
   // insertMembers logs a failed batch instead of throwing

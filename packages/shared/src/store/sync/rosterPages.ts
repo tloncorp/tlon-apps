@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 import { tryParse } from '@urbit/aura';
 
 import * as db from '../../db';
-import { batchEffects } from '../../db/query';
+import { QueryCtx, batchEffects } from '../../db/query';
 import {
   PAGED_ROSTER_THRESHOLD,
   compareShips,
@@ -23,6 +23,73 @@ export function isRosterPaged(group: Pick<db.Group, 'memberCount'>): boolean {
     api.getDeskServesRosterPages() &&
     (group.memberCount ?? 0) > PAGED_ROSTER_THRESHOLD
   );
+}
+
+/**
+ * A group's stored roster just before a fetch. Live seat and role events can
+ * land while the fetch is in flight, and its older response must not undo
+ * them, so the response is checked against this once it arrives.
+ */
+export type RosterSnapshot = {
+  seats: string[];
+  roles: Map<string, Set<string>>;
+  count: number | null;
+};
+
+export async function snapshotRoster(
+  groupId: string,
+  ctx?: QueryCtx
+): Promise<RosterSnapshot> {
+  return {
+    seats: await db.getGroupMemberIds({ groupId, seatedOnly: true }, ctx),
+    roles: rolesByMember(await db.getGroupMemberRoles({ groupId }, ctx)),
+    count: await db.getStoredMemberCount({ groupId }, ctx),
+  };
+}
+
+/**
+ * Fits members from a response fetched after `snapshot` to the live events
+ * applied since: a seat removed since stays removed, and each role granted
+ * or revoked since overrides what the response says.
+ */
+export async function fitToLiveChanges(
+  groupId: string,
+  snapshot: RosterSnapshot,
+  members: db.ChatMember[],
+  ctx: QueryCtx
+): Promise<db.ChatMember[]> {
+  const seatsNow = new Set(
+    await db.getGroupMemberIds({ groupId, seatedOnly: true }, ctx)
+  );
+  const removedSince = new Set(
+    snapshot.seats.filter((contactId) => !seatsNow.has(contactId))
+  );
+  const rolesNow = rolesByMember(
+    await db.getGroupMemberRoles({ groupId }, ctx)
+  );
+  return members
+    .filter((member) => !removedSince.has(member.contactId))
+    .map((member) => {
+      const before = snapshot.roles.get(member.contactId) ?? new Set();
+      const now = rolesNow.get(member.contactId) ?? new Set();
+      const granted = [...now].filter((roleId) => !before.has(roleId));
+      const revoked = [...before].filter((roleId) => !now.has(roleId));
+      if (!granted.length && !revoked.length) return member;
+      const roleIds = new Set(
+        (member.roles ?? [])
+          .map((role) => role.roleId)
+          .filter((roleId) => !revoked.includes(roleId))
+      );
+      granted.forEach((roleId) => roleIds.add(roleId));
+      return {
+        ...member,
+        roles: [...roleIds].map((roleId) => ({
+          groupId,
+          contactId: member.contactId,
+          roleId,
+        })),
+      };
+    });
 }
 
 /**
@@ -48,39 +115,22 @@ export async function syncGroupMembersPage(
   // the database follows the current client, so a page from the previous
   // one would land in the wrong account: check before every write
   const clientChanged = () => getClientGeneration() !== generation;
-  // live seat events can land while the page is in flight, and the older
-  // page must neither drop a seat added since nor bring back one removed
-  // since: only seats stored before the fetch are reconciled
-  const before = await db.getGroupMemberIds({ groupId, seatedOnly: true });
-  const rolesBefore = rolesByMember(await db.getGroupMemberRoles({ groupId }));
-  const countBefore = await db.getStoredMemberCount({ groupId });
+  // only seats and roles stored before the fetch are reconciled, so the
+  // older page drops nothing a live event added while it was in flight
+  const snapshot = await snapshotRoster(groupId);
   const page = await syncQueue.add('syncGroupMembersPage', ctx, () =>
     api.getGroupMembersPage({ groupId, limit, after, roleId })
   );
   if (clientChanged()) return page;
   await batchEffects('syncGroupMembersPage', async (ctx) => {
-    const current = new Set(
-      await db.getGroupMemberIds({ groupId, seatedOnly: true }, ctx)
-    );
-    const removedSince = new Set(before.filter((id) => !current.has(id)));
-    const members = page.members.filter(
-      (member) => !removedSince.has(member.contactId)
-    );
-    // likewise, a member whose roles a live event changed keeps them over
-    // the page's older ones
-    const rolesNow = rolesByMember(
-      await db.getGroupMemberRoles({ groupId }, ctx)
-    );
-    const rolesChangedSince = new Set(
-      [...rolesBefore.keys(), ...rolesNow.keys()].filter(
-        (contactId) => rolesBefore.get(contactId) !== rolesNow.get(contactId)
-      )
-    );
-    if (clientChanged()) return;
-    await db.insertGroupMembersPage(
-      { groupId, members, keepRolesOf: rolesChangedSince },
+    const members = await fitToLiveChanges(
+      groupId,
+      snapshot,
+      page.members,
       ctx
     );
+    if (clientChanged()) return;
+    await db.insertGroupMembersPage({ groupId, members }, ctx);
     // insertMembers logs a failed batch rather than throwing. A page whose
     // members didn't land must fail, or its cursor moves on and the page is
     // never fetched again.
@@ -98,10 +148,10 @@ export async function syncGroupMembersPage(
       // a role page holds every holder of the role in its range, so a holder
       // stored before the fetch that it lacks has lost the role (one granted
       // since is newer than the page). It says nothing about seats.
-      const lostRole = [...rolesBefore]
+      const lostRole = [...snapshot.roles]
         .filter(
           ([contactId, roleIds]) =>
-            roleIds.split(' ').includes(roleId) &&
+            roleIds.has(roleId) &&
             !onPage.has(contactId) &&
             isInPage(contactId, after, page.next)
         )
@@ -116,7 +166,7 @@ export async function syncGroupMembersPage(
       return;
     }
     // a page that has a next one ends at it; the last runs to the end
-    const departed = before.filter(
+    const departed = snapshot.seats.filter(
       (contactId) =>
         stored.has(contactId) &&
         !onPage.has(contactId) &&
@@ -132,23 +182,18 @@ export async function syncGroupMembersPage(
     // a live seat event that moved the count mid-fetch is newer than the
     // page's total, which may predate it
     const countNow = await db.getStoredMemberCount({ groupId }, ctx);
-    if (clientChanged() || countNow !== countBefore) return;
+    if (clientChanged() || countNow !== snapshot.count) return;
     await db.updateGroup({ id: groupId, memberCount: page.total }, ctx);
   });
   return page;
 }
 
 function rolesByMember(rows: { contactId: string; roleId: string }[]) {
-  const roles = new Map<string, string[]>();
+  const roles = new Map<string, Set<string>>();
   for (const { contactId, roleId } of rows) {
-    roles.set(contactId, [...(roles.get(contactId) ?? []), roleId]);
+    roles.set(contactId, (roles.get(contactId) ?? new Set()).add(roleId));
   }
-  return new Map(
-    [...roles].map(([contactId, roleIds]) => [
-      contactId,
-      roleIds.sort().join(' '),
-    ])
-  );
+  return roles;
 }
 
 function isInPage(

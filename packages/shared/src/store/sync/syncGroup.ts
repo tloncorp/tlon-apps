@@ -5,7 +5,7 @@ import { batchEffects } from '../../db/query';
 import { getClientGeneration, getSession } from '../session';
 import { SyncCtx, syncQueue } from '../syncQueue';
 import { logger } from './logger';
-import { isRosterPaged } from './rosterPages';
+import { fitToLiveChanges, isRosterPaged, snapshotRoster } from './rosterPages';
 import { updateLastActivityTime } from './updateLastActivityTime';
 
 // Keyed by client generation too: a previous account's sync of the same group
@@ -49,14 +49,43 @@ export async function syncGroup(
       }
       // the light group still brings metadata, channels, roles and our seat;
       // its members load a page at a time (syncGroupMembersPage), and with
-      // no whole roster to compare against, nothing is pruned here
+      // no whole roster to compare against, nothing is pruned here. A whole
+      // sync or a live event can land while it is in flight, and this older
+      // response must not undo either.
+      const snapshot = await snapshotRoster(id);
       const response = await syncQueue.add('syncGroup', ctx, () =>
         api.getGroupLight(id)
       );
       if (getClientGeneration() !== generation) return;
-      await batchEffects('syncGroup', (queryCtx) =>
-        db.insertGroups({ groups: [response] }, queryCtx)
-      );
+      await batchEffects('syncGroup', async (queryCtx) => {
+        const members = await fitToLiveChanges(
+          id,
+          snapshot,
+          response.members ?? [],
+          queryCtx
+        );
+        const countNow = await db.getStoredMemberCount(
+          { groupId: id },
+          queryCtx
+        );
+        if (getClientGeneration() !== generation) return;
+        await db.insertGroups(
+          {
+            groups: [
+              {
+                ...response,
+                members,
+                // left out, the stored count stands
+                memberCount:
+                  countNow === snapshot.count
+                    ? response.memberCount
+                    : undefined,
+              },
+            ],
+          },
+          queryCtx
+        );
+      });
       lightSyncedAt.set(syncKey, Date.now());
       updateLastActivityTime();
       return;
