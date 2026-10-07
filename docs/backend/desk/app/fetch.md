@@ -11,7 +11,7 @@ A **mode** is what the caller wants back from the same URL. It is part of the ca
 | Mode | Behaviour | Cached |
 |------|-----------|--------|
 | `%meta` | Issues its own `HEAD` (escalating to `GET` for html), parses the body via `/lib/metagrab`, returns JSON metadata. | yes, `~m5` |
-| `%raw` | Forwards the inbound request's method, headers (minus cookies) and body; relays the response back. | no |
+| `%raw` | Forwards the inbound request's method, headers (minus the caller's credentials and hop-by-hop headers) and body; relays the response back, sandboxed. | no |
 
 `%raw` is deliberately general rather than scoped to one use. It exists so the client can reach content it cannot fetch directly — oembed endpoints being the immediate case, but favicons, RSS, and readability extraction are the same problem.
 
@@ -36,6 +36,14 @@ These are the pre-`%fetch` endpoints and exist only for the transition. The clie
 `%meta` responses are JSON: `fetched_at`, `status`, and a `result` whose shape depends on the status. A `%200` carries either `{type: 'page', ...buckets}` or `{type: 'file', mime, size}`. See `+give-response`.
 
 `%raw` responses relay the upstream status code, headers, and body, with an `x-tlon-fetch` header appended (`finished`, `cancelled`, or `too-large`).
+
+## relaying from the ship's origin
+
+A relayed response is served from the ship's own origin, with the caller's session in the browser, so `%raw` treats both directions as crossing a trust boundary:
+
+- **Request.** The caller's credentials for the ship never reach the target: `cookie`, `authorization` (a reverse proxy in front of the ship may pass one through) and `host` are dropped, along with hop-by-hop headers and any header a `connection` header names.
+- **Response.** Headers that would act on the ship's origin are dropped: `set-cookie`, `set-cookie2`, `clear-site-data`, `strict-transport-security`, `service-worker-allowed`, plus hop-by-hop headers. Every relayed response gets `content-security-policy: sandbox` and `x-content-type-options: nosniff`, so an upstream HTML page opened directly runs in an opaque origin with scripts disabled rather than as the ship. Clients that `fetch` the bytes are unaffected; CSP governs documents.
+- **Redirects.** Iris is asked for none, so a 3xx is relayed and followed by the browser, never by the ship (see [address guard](#address-guard)).
 
 ## state model
 

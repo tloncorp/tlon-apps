@@ -88,8 +88,9 @@
 ::  +test-raw-strips-connection-names: connection-scoped headers stay put
 ::
 ::  headers a connection header names are hop-by-hop, in both directions,
-::  along with the fixed set. headers that would act on the ship's own
-::  origin, like set-cookie, are not relayed back either.
+::  along with the fixed set. the caller's authorization for the ship is
+::  not sent on. headers that would act on the ship's own origin, like
+::  set-cookie or hsts, are not relayed back, and the response is sandboxed.
 ::
 ++  test-raw-strips-connection-names
   %-  eval-mare
@@ -100,12 +101,14 @@
   =/  out=header-list:http
     :~  ['Connection' 'Keep-Alive, X-Hop']
         ['X-Hop' 'out']
+        ['Authorization' 'Basic c2hpcDpwYXNz']
         ['X-Keep' 'out']
     ==
   ;<  caz=(list card)  bind:m  (do-poke (get ~.e1 %raw safe out))
   =/  req  (request-card caz)
   =/  sent  (turn header-list.request.req head)
   ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('X-Hop' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('Authorization' k)))) !>(|))
   ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('X-Keep' k)))) !>(&))
   =/  back=header-list:http
     :~  ['connection' 'x-upstream-hop']
@@ -113,6 +116,8 @@
         ['content-length' '0']
         ['Set-Cookie' 'urbauth-~zod=evil; Path=/']
         ['clear-site-data' '"cookies"']
+        ['Strict-Transport-Security' 'max-age=31536000; includeSubDomains']
+        ['service-worker-allowed' '/']
         ['x-upstream-keep' 'in']
     ==
   ;<  caz=(list card)  bind:m  (do-arvo wire.req (finished 200 back))
@@ -121,6 +126,17 @@
   ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('content-length' k)))) !>(|))
   ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('Set-Cookie' k)))) !>(|))
   ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('clear-site-data' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('Strict-Transport-Security' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('service-worker-allowed' k)))) !>(|))
+  ::  and what is relayed is sandboxed, so an html page cannot run as us
+  ::
+  =/  all  (response-headers caz)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((skim all |=([k=@t v=@t] =('content-security-policy' k))))
+    !>(`header-list:http`~[['content-security-policy' 'sandbox']])
+  ;<  ~  bind:m
+    %+  ex-equal  !>((lien all |=([k=@t v=@t] &(=('x-content-type-options' k) =('nosniff' v)))))
+    !>(&)
   (ex-equal !>((lien got |=(k=@t =('x-upstream-keep' k)))) !>(&))
 ::  +test-raw-size-cap: the relay cap measures the body
 ::

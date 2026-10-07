@@ -146,11 +146,32 @@
 ::
 ::    a relayed response is served from the ship, so the browser applies
 ::    these to the ship's own origin: an upstream set-cookie could
-::    overwrite the session cookie, and clear-site-data could wipe it.
+::    overwrite the session cookie, clear-site-data could wipe it,
+::    strict-transport-security could pin the ship (and its subdomains) to
+::    https, and service-worker-allowed could widen a worker's scope.
 ::
 ++  origin-scoped
   ^~
-  (~(gas in *(set @t)) ~['set-cookie' 'set-cookie2' 'clear-site-data'])
+  %-  ~(gas in *(set @t))
+  :~  'set-cookie'
+      'set-cookie2'
+      'clear-site-data'
+      'strict-transport-security'
+      'service-worker-allowed'
+  ==
+::
+::  +contained: headers added to every relayed response
+::
+::    an upstream html page served from the ship's origin would run its
+::    scripts as the ship, with the caller's session. sandbox it into an
+::    opaque origin with scripts off, and refuse content sniffing. callers
+::    that fetch the bytes are unaffected: csp governs documents.
+::
+++  contained
+  ^-  header-list:http
+  :~  ['content-security-policy' 'sandbox']
+      ['x-content-type-options' 'nosniff']
+  ==
 ::
 ::  +connection-names: the field names a connection header lists,
 ::  lowercased, ignoring whitespace and empty entries
@@ -281,13 +302,14 @@
   ^-  card
   =.  url.request  url
   =.  header-list.request
-    ::  drop cookies from the original request, don't want to leak these,
-    ::  and drop the caller's host header -- it names *us*, not the target.
+    ::  drop the caller's credentials for *us*: cookies, and an authorization
+    ::  header a reverse proxy in front of the ship may pass through. drop
+    ::  the host header too -- it names us, not the target.
     ::
     %+  skip  header-list.request
     |=  [key=@t @t]
     =/  key  (crip (cass (trip key)))
-    |(=('cookie' key) =('host' key))
+    |(=('cookie' key) =('host' key) =('authorization' key))
   =.  header-list.request  (strip-hops header-list.request)
   =.  header-list.request
     =-  (set-header:http 'forwarded' - header-list.request)
@@ -695,8 +717,10 @@
     :-  =,  response-header.res
         :-  status-code
         %+  snoc
-          %+  skip  (strip-hops headers)
-          |=([key=@t @t] (~(has in origin-scoped) (crip (cass (trip key)))))
+          %+  weld
+            %+  skip  (strip-hops headers)
+            |=([key=@t @t] (~(has in origin-scoped) (crip (cass (trip key)))))
+          contained
         'x-tlon-fetch'^'finished'
     ?~  full-file.res  ~
     `data.u.full-file.res
