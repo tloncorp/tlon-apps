@@ -1,7 +1,7 @@
 import { da, dr, render } from '@urbit/aura';
 
 import type * as ub from '../urbit';
-import { pokeRequest, steward } from './requests';
+import { pokeRequest, scryRequest, steward } from './requests';
 
 /**
  * Build a raw poke payload for %steward's gateway module.
@@ -16,6 +16,14 @@ export function stewardGatewayAction(action: ub.StewardGatewayAction) {
 }
 
 const pokeGateway = pokeRequest(steward.gatewayAction);
+
+/**
+ * The owner's trusted bots, as `~ship` strings in a stable order. Refused
+ * with DeskUnsupportedError on a desk older than 12.3.2.
+ */
+export async function getStewardBots(): Promise<string[]> {
+  return scryRequest(steward.bots)<string[]>({});
+}
 
 /**
  * Configure the gateway module. The owner is shared across all of %steward's

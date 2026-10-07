@@ -3,6 +3,7 @@ import type { Noun } from '@urbit/nockjs';
 import {
   DeskUnsupportedError,
   getDeskSupportsBucketsState,
+  getDeskSupportsStewardBotsState,
   poke,
   pokeNoun,
   request,
@@ -102,6 +103,7 @@ function nameOf(entry: { agent: string; path?: string }) {
 // before the capability is known, and tests mock '../urbit' partially.
 const GUARD_FNS: Record<GuardName, () => boolean | null> = {
   deskSupportsBuckets: () => getDeskSupportsBucketsState(),
+  deskSupportsStewardBots: () => getDeskSupportsStewardBotsState(),
 };
 
 // Refuses a guarded request before anything is sent once its capability is

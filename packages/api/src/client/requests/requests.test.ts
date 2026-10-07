@@ -11,6 +11,7 @@ import {
   scry,
   scryNoun,
   setDeskSupportsBuckets,
+  setDeskSupportsStewardBots,
   subscribe,
   thread,
 } from '../urbit';
@@ -147,6 +148,18 @@ test('a guarded request is refused unsent while its guard is off', async () => {
   setDeskSupportsBuckets(true);
   await scryRequest(buckets.list)({});
   expect(calls(scry)).toEqual([[{ app: 'buckets', path: '/v1/buckets' }]]);
+});
+
+test('the steward bots read is refused unsent on a desk without it', async () => {
+  setDeskSupportsStewardBots(false);
+  expect(() => scryRequest(steward.bots)({})).toThrow(
+    'steward.bots needs desk 12.3.2 (deskSupportsStewardBots is off)'
+  );
+  expect(calls(scry)).toEqual([]);
+
+  setDeskSupportsStewardBots(true);
+  await scryRequest(steward.bots)({});
+  expect(calls(scry)).toEqual([[{ app: 'steward', path: '/v1/bots' }]]);
 });
 
 async function sendGuardedRequests() {
