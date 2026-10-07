@@ -48,6 +48,30 @@
       "entry": "Open, preview or download a file in a Bucket",
       "kept": "left out",
       "why": [
+        "cited file is missing: packages/app/features/top/BucketFileScreen.tsx",
+        "cited file is missing: packages/app/features/buckets/BucketsLiveFile.tsx",
+        "flag buckets is off in this release"
+      ]
+    },
+    {
+      "file": "galleries.md",
+      "entry": "Browse folders in a Bucket",
+      "kept": "left out",
+      "why": [
+        "cited file is missing: packages/app/features/top/BucketFolderScreen.tsx",
+        "flag buckets is off in this release"
+      ]
+    },
+    {
+      "file": "galleries.md",
+      "entry": "A Bucket upload failed or is waiting",
+      "kept": "left out",
+      "why": [
+        "cited file is missing: packages/app/features/buckets/bucketUploadQueue.ts",
+        "cited file is missing: packages/app/features/buckets/bucketUploadPreflight.ts",
+        "cited file is missing: packages/app/features/buckets/bucketUploadFinish.ts",
+        "label not in cited files: `Remove failed`",
+        "label not in cited files: `Uploaded, but the host has not confirmed it yet`",
         "flag buckets is off in this release"
       ]
     },
@@ -138,6 +162,14 @@
         "label not in cited files: `Request credit increase`",
         "label not in cited files: `Credit Increase Requested`",
         "label not in cited files: `Couldn't send the request. Please try again.`"
+      ]
+    },
+    {
+      "file": "workspaces-list.md",
+      "entry": "Show only DMs, or only workspaces shared with other people",
+      "kept": "previous published copy",
+      "why": [
+        "cited file is missing: packages/app/hooks/useChatListFilterSelection.ts"
       ]
     }
   ]
