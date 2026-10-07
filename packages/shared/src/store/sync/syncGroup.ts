@@ -5,11 +5,16 @@ import { batchEffects } from '../../db/query';
 import { getClientGeneration, getSession } from '../session';
 import { SyncCtx, syncQueue } from '../syncQueue';
 import { logger } from './logger';
+import { isRosterPaged } from './rosterPages';
 import { updateLastActivityTime } from './updateLastActivityTime';
 
 // Keyed by client generation too: a previous account's sync of the same group
 // is abandoned once the client changes, so it mustn't swallow the new one.
 const groupSyncsInProgress = new Set<string>();
+
+// When each big group last synced light, by the same key. A light sync never
+// marks the roster complete, so syncedAt can't gate repeats of it.
+const lightSyncedAt = new Map<string, number>();
 
 export async function syncGroup(
   id: string,
@@ -25,6 +30,28 @@ export async function syncGroup(
   try {
     const group = await db.getGroup({ id });
     const session = getSession();
+    if (group && isRosterPaged(group)) {
+      if (
+        session &&
+        (session.startTime ?? 0) < (lightSyncedAt.get(syncKey) ?? 0) &&
+        !config?.force
+      ) {
+        return;
+      }
+      // the light group still brings metadata, channels, roles and our seat;
+      // its members load a page at a time (syncGroupMembersPage), and with
+      // no whole roster to compare against, nothing is pruned here
+      const response = await syncQueue.add('syncGroup', ctx, () =>
+        api.getGroupLight(id)
+      );
+      if (getClientGeneration() !== generation) return;
+      await batchEffects('syncGroup', (queryCtx) =>
+        db.insertGroups({ groups: [response] }, queryCtx)
+      );
+      lightSyncedAt.set(syncKey, Date.now());
+      updateLastActivityTime();
+      return;
+    }
     if (
       group &&
       session &&

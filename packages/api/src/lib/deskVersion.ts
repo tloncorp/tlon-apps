@@ -53,3 +53,9 @@ export const BUCKETS_MIN_GROUPS_VERSION = '12.3.0';
 // 15 may be that cap (getDeskCountsAllSeats). Must move in lockstep with
 // desk/desk.docket-0's version if the release number changes.
 export const FULL_MEMBER_COUNT_MIN_GROUPS_VERSION = '12.3.2';
+
+// The first %groups release that serves a big roster in parts: the light ui
+// group and the seat pages (TLON-4698). Guarded registry entries name it as
+// their `since`. Must move in lockstep with desk/desk.docket-0's version if
+// the release number changes.
+export const ROSTER_PAGES_MIN_GROUPS_VERSION = '12.3.2';

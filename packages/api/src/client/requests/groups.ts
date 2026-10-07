@@ -13,6 +13,44 @@ export const groups = {
     path: '/v3/ui/groups/{groupId*}',
     since: '12.2.0',
   },
+  // The group with init's light roster and a count of every seat: how a big
+  // group syncs without pulling the whole roster.
+  uiGroupLight: {
+    kind: 'scry',
+    agent: 'groups',
+    path: '/v3/ui/groups/{groupId*}/light',
+    since: '12.3.2',
+    guardedBy: 'deskServesRosterPages',
+  },
+  // A big group's roster a page at a time, in @p order after `after`.
+  seatsPage: {
+    kind: 'scry',
+    agent: 'groups',
+    path: '/v3/groups/{groupId*}/seats/page/{limit}',
+    since: '12.3.2',
+    guardedBy: 'deskServesRosterPages',
+  },
+  seatsPageAfter: {
+    kind: 'scry',
+    agent: 'groups',
+    path: '/v3/groups/{groupId*}/seats/page/{limit}/{after}',
+    since: '12.3.2',
+    guardedBy: 'deskServesRosterPages',
+  },
+  roleSeatsPage: {
+    kind: 'scry',
+    agent: 'groups',
+    path: '/v3/groups/{groupId*}/seats/role/{roleId}/page/{limit}',
+    since: '12.3.2',
+    guardedBy: 'deskServesRosterPages',
+  },
+  roleSeatsPageAfter: {
+    kind: 'scry',
+    agent: 'groups',
+    path: '/v3/groups/{groupId*}/seats/role/{roleId}/page/{limit}/{after}',
+    since: '12.3.2',
+    guardedBy: 'deskServesRosterPages',
+  },
   negotiateStatus: {
     kind: 'scry',
     agent: 'groups',

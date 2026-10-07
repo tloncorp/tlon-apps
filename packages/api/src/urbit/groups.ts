@@ -537,6 +537,14 @@ export interface GroupV11 {
   init: boolean;
 }
 
+// One page of a group's seats in @p order, from groups-json `++seats-page`.
+// `next` is the ship to continue after, or null on the last page.
+export interface GroupSeatsPage {
+  total: number;
+  seats: { ship: string; roles: string[]; joined: number }[];
+  next: string | null;
+}
+
 export interface GroupIndex {
   [flag: string]: GroupPreview;
 }

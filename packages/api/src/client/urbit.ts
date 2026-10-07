@@ -69,6 +69,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   activitySupportsNotes: boolean;
   deskSupportsBuckets: boolean | null;
   deskCountsAllSeats: boolean;
+  deskServesRosterPages: boolean | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -194,6 +195,10 @@ const config: Config = {
   // Off until the app confirms the backend's groups version counts every seat
   // in init and changes, so a member count of 15 stays suspect by default.
   deskCountsAllSeats: false,
+  // Unknown (null) until the app confirms the backend's groups version.
+  // Unknown reads as unsupported for choosing how to sync a big group, so a
+  // ship whose version we cannot read gets the full roster it always had.
+  deskServesRosterPages: null,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -285,6 +290,22 @@ export const setDeskCountsAllSeats = (value: boolean) => {
 
 export const getDeskCountsAllSeats = (): boolean => {
   return config.deskCountsAllSeats;
+};
+
+// Whether the connected backend serves a big roster in parts: the light ui
+// group and the seat pages. Picks how a big group syncs and loads members.
+export const setDeskServesRosterPages = (value: boolean | null) => {
+  config.deskServesRosterPages = value;
+};
+
+export const getDeskServesRosterPages = (): boolean => {
+  return config.deskServesRosterPages === true;
+};
+
+// null until sync start resolves the capability; the request guard refuses
+// only a known false.
+export const getDeskServesRosterPagesState = (): boolean | null => {
+  return config.deskServesRosterPages;
 };
 
 const deskSupportsBucketsListeners = new Set<() => void>();
@@ -491,6 +512,7 @@ export function internalRemoveClient() {
   setActivitySupportsNotes(false);
   setDeskSupportsBuckets(null);
   setDeskCountsAllSeats(false);
+  setDeskServesRosterPages(null);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
