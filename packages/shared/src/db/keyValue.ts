@@ -35,6 +35,15 @@ export const dismissedPinnedPostBannerIds = createStorageItem<string[]>({
   defaultValue: [],
 });
 
+/**
+ * Average colors of avatar images, keyed by image URL, for tinting chat
+ * bubbles. A URL changes whenever its image does, so entries never go stale.
+ */
+export const avatarImageColors = createStorageItem<Record<string, string>>({
+  key: 'avatarImageColors',
+  defaultValue: {},
+});
+
 /** Local completion of credit request cards, keyed by source post id. */
 export const creditIncreaseRequested = createStorageItem<
   Record<string, string>

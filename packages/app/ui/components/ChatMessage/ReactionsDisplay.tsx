@@ -3,7 +3,7 @@ import * as store from '@tloncorp/shared/store';
 import { Icon, SizableEmoji, getNativeEmoji } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { ComponentProps, useCallback, useState } from 'react';
 import { Tooltip, View, XStack, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -13,6 +13,7 @@ import { useCanWrite } from '../../utils/channelUtils';
 import { ReactionListItem, useReactionDetails } from '../../utils/postUtils';
 import { useContactName } from '../ContactNameV2';
 import { EmojiPickerSheet } from '../Emoji';
+import { pickVisibleReactions } from './chatBubbleLayout';
 
 const TOOLTIP_USER_DISPLAY_COUNT = 3;
 const TOOLTIP_MAX_WIDTH_PX = 320;
@@ -75,14 +76,20 @@ function ReactionTooltipContent({ reaction }: { reaction: ReactionListItem }) {
   );
 }
 
+// Bubbles show this many reaction types; the rest collapse into an overflow
+// pill that opens the full reactions sheet.
+const BUBBLE_VISIBLE_REACTIONS = 2;
+
 export function ReactionsDisplay({
   post,
   onViewPostReactions,
   minimal = false,
+  bubble = false,
 }: {
   post: db.Post;
   onViewPostReactions?: (post: db.Post) => void;
   minimal?: boolean;
+  bubble?: boolean;
 }) {
   const currentUserId = useCurrentUserId();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -169,6 +176,59 @@ export function ReactionsDisplay({
     );
   }
 
+  if (bubble) {
+    if (reactionDetails.list.length === 0) {
+      return null;
+    }
+    const { visible: visibleReactions, hiddenCount } = pickVisibleReactions(
+      reactionDetails.list,
+      reactionDetails.self.value,
+      BUBBLE_VISIBLE_REACTIONS
+    );
+
+    return (
+      <XStack gap="$xs" alignItems="center">
+        {visibleReactions.map((reaction) => {
+          const isOwnReaction = reaction.value === reactionDetails.self.value;
+          return (
+            <BubbleReactionPill
+              key={reaction.value}
+              // See the note on the default pills below: the iOS context menu
+              // looks for this identifier on the press target.
+              testID="ReactionDisplay"
+              backgroundColor={
+                isOwnReaction ? '$positiveBackground' : '$background'
+              }
+              borderColor={isOwnReaction ? '$positiveBorder' : 'transparent'}
+              onPress={
+                canWrite
+                  ? () => handleModifyYourReaction(reaction.value)
+                  : undefined
+              }
+              onLongPress={() => handleOpenReactions(post)}
+            >
+              <SizableEmoji emojiInput={reaction.value} fontSize="$s" />
+              {reaction.count > 0 && (
+                <Text size="$label/s">{reaction.count}</Text>
+              )}
+            </BubbleReactionPill>
+          );
+        })}
+        {hiddenCount > 0 && (
+          <BubbleReactionPill
+            testID="ReactionDisplay"
+            backgroundColor="$background"
+            borderColor="transparent"
+            onPress={() => handleOpenReactions(post)}
+            onLongPress={() => handleOpenReactions(post)}
+          >
+            <Text size="$label/s">+{hiddenCount}</Text>
+          </BubbleReactionPill>
+        )}
+      </XStack>
+    );
+  }
+
   return (
     <XStack alignItems="center">
       <>
@@ -247,5 +307,22 @@ export function ReactionsDisplay({
         </>
       ) : null}
     </XStack>
+  );
+}
+
+function BubbleReactionPill(props: ComponentProps<typeof Pressable>) {
+  return (
+    <Pressable
+      flexDirection="row"
+      alignItems="center"
+      justifyContent="center"
+      gap="$xs"
+      height="$2xl"
+      minWidth="$2xl"
+      paddingHorizontal="$s"
+      borderRadius="$s"
+      borderWidth={1}
+      {...props}
+    />
   );
 }

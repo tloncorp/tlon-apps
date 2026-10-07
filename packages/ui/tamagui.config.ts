@@ -1,5 +1,6 @@
 import { createAnimations } from '@tamagui/animations-moti';
 import { createMedia } from '@tamagui/react-native-media-driver';
+import { getContrast, getLuminance, readableColorIsBlack } from 'color2k';
 import { Platform } from 'react-native';
 import { createFont, createTamagui, createTokens } from 'tamagui';
 
@@ -101,7 +102,7 @@ export const tokens = createTokens({
   zIndex,
 });
 
-export const themes = {
+const baseThemes = {
   dark: {
     primaryText: '#FFFFFF',
     color: '#FFFFFF',
@@ -345,6 +346,132 @@ export const themes = {
     systemNoticeText: '#ffe4f5',
     mediaScrim: tokens.color.mediaScrim.val,
   },
+};
+
+type BaseTheme = (typeof baseThemes)['light'];
+
+function withAlpha(hex: string, alpha: number) {
+  const value = parseInt(hex.slice(1), 16);
+  return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
+}
+
+// The native chat bubble layout puts other people's messages on
+// `$messageBubble` and wraps your own in <Theme name="ownMessage">, which
+// Tamagui resolves to `<parent>_ownMessage`. Everything inside your bubble --
+// text, links, mentions, timestamps, reply counts, reaction pills -- then reads
+// legibly on the accent color without per-component overrides.
+function withMessageBubble(base: BaseTheme) {
+  return { ...base, messageBubble: base.secondaryBackground };
+}
+
+// Cards nested in other people's bubbles (references, code, link previews,
+// A2UI) are a translucent veil over the bubble, so they stand off its fill in
+// whatever color it is: the author's tint, or the plain grey.
+function otherMessageTheme(base: BaseTheme) {
+  const veil =
+    getLuminance(base.background) < 0.5
+      ? {
+          fill: withAlpha(color.white, 0.08),
+          edge: withAlpha(color.white, 0.12),
+        }
+      : { fill: withAlpha(color.white, 0.6), edge: 'rgba(0, 0, 0, 0.08)' };
+  return {
+    ...withMessageBubble(base),
+    secondaryBackground: veil.fill,
+    border: veil.edge,
+    secondaryBorder: veil.edge,
+  };
+}
+
+function ownMessageTheme(
+  base: BaseTheme,
+  { bubble, text }: { bubble: string; text: string }
+) {
+  return {
+    ...base,
+    messageBubble: bubble,
+    primaryText: text,
+    color: text,
+    secondaryText: withAlpha(text, 0.8),
+    tertiaryText: withAlpha(text, 0.65),
+    background: withAlpha(text, 0.2),
+    secondaryBackground: withAlpha(text, 0.15),
+    shadow: withAlpha(text, 0.1),
+    border: withAlpha(text, 0.25),
+    secondaryBorder: withAlpha(text, 0.25),
+    activeBorder: withAlpha(text, 0.4),
+    positiveActionText: text,
+    positiveBackground: withAlpha(text, 0.3),
+    positiveBorder: withAlpha(text, 0.5),
+    neutralUnreadDot: withAlpha(text, 0.65),
+  };
+}
+
+// Light and dark use the bright blue from the original bubble designs; the
+// alternate themes set their background color on their own accent, or plain
+// ink where that background doesn't read on it (peony's pale pink on green).
+const MIN_BUBBLE_TEXT_CONTRAST = 4.5;
+const accentBubble = (base: BaseTheme) => {
+  const bubble = base.positiveActionText;
+  const text =
+    getContrast(bubble, base.background) >= MIN_BUBBLE_TEXT_CONTRAST
+      ? base.background
+      : readableColorIsBlack(bubble)
+        ? baseThemes.light.primaryText
+        : color.white;
+  return { bubble, text };
+};
+const blueBubble = { bubble: color.blue, text: color.white };
+
+export const themes = {
+  dark: withMessageBubble(baseThemes.dark),
+  dark_otherMessage: otherMessageTheme(baseThemes.dark),
+  dark_ownMessage: ownMessageTheme(baseThemes.dark, blueBubble),
+  light: withMessageBubble(baseThemes.light),
+  light_otherMessage: otherMessageTheme(baseThemes.light),
+  light_ownMessage: ownMessageTheme(baseThemes.light, blueBubble),
+  dracula: withMessageBubble(baseThemes.dracula),
+  dracula_otherMessage: otherMessageTheme(baseThemes.dracula),
+  dracula_ownMessage: ownMessageTheme(
+    baseThemes.dracula,
+    accentBubble(baseThemes.dracula)
+  ),
+  gruvbox: withMessageBubble(baseThemes.gruvbox),
+  gruvbox_otherMessage: otherMessageTheme(baseThemes.gruvbox),
+  gruvbox_ownMessage: ownMessageTheme(
+    baseThemes.gruvbox,
+    accentBubble(baseThemes.gruvbox)
+  ),
+  monokai: withMessageBubble(baseThemes.monokai),
+  monokai_otherMessage: otherMessageTheme(baseThemes.monokai),
+  monokai_ownMessage: ownMessageTheme(
+    baseThemes.monokai,
+    accentBubble(baseThemes.monokai)
+  ),
+  solarized: withMessageBubble(baseThemes.solarized),
+  solarized_otherMessage: otherMessageTheme(baseThemes.solarized),
+  solarized_ownMessage: ownMessageTheme(
+    baseThemes.solarized,
+    accentBubble(baseThemes.solarized)
+  ),
+  nord: withMessageBubble(baseThemes.nord),
+  nord_otherMessage: otherMessageTheme(baseThemes.nord),
+  nord_ownMessage: ownMessageTheme(
+    baseThemes.nord,
+    accentBubble(baseThemes.nord)
+  ),
+  greenscreen: withMessageBubble(baseThemes.greenscreen),
+  greenscreen_otherMessage: otherMessageTheme(baseThemes.greenscreen),
+  greenscreen_ownMessage: ownMessageTheme(
+    baseThemes.greenscreen,
+    accentBubble(baseThemes.greenscreen)
+  ),
+  peony: withMessageBubble(baseThemes.peony),
+  peony_otherMessage: otherMessageTheme(baseThemes.peony),
+  peony_ownMessage: ownMessageTheme(
+    baseThemes.peony,
+    accentBubble(baseThemes.peony)
+  ),
 };
 
 export const systemFont = createFont({

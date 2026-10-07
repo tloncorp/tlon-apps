@@ -6,6 +6,9 @@ export interface MessageContextMenuProps {
   children: (usesNativeMenu: boolean) => ReactNode;
   enabled: boolean;
   previewKey: string;
+  // Other people's bubbles are the default preview color, so bubble previews
+  // sit on the page color instead.
+  bubbleLayout?: boolean;
   post: db.Post;
   postActionIds: ChannelAction.Id[];
   canReact: boolean;
