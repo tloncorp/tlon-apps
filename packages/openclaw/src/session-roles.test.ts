@@ -7,6 +7,8 @@ import {
   clearSessionRunContext,
   getToolCallRole,
   finishSenderDispatch,
+  matchesIsolatedCronRun,
+  queuedSenderCorrelation,
   recordExternalSessionEvent,
   recordSenderRole,
   recordSessionRunContext,
@@ -189,6 +191,116 @@ describe('run-scoped sender roles', () => {
   });
 });
 
+describe('queued sender attribution', () => {
+  const queuedRun = {
+    sessionKey,
+    runId: 'queued-host-run',
+    trigger: 'user',
+    messageProvider: 'tlon',
+  };
+
+  it.each(['owner', 'user'] as const)(
+    'carries a queued %s into the actual host run after dispatch ends',
+    async (role) => {
+      recordSenderRole(ownerRun.runId, [sessionKey], role);
+      const correlation = queuedSenderCorrelation([sessionKey], role);
+      finishSenderDispatch(ownerRun);
+      expectMcpBlocked(queuedRun, true);
+      const end = correlation.begin();
+      await Promise.resolve();
+      recordSessionRunContext(queuedRun);
+      expectMcpBlocked(queuedRun, role !== 'owner');
+      expectMcpBlocked(ownerRun, true);
+      end();
+      expectMcpBlocked(queuedRun, true);
+      recordSessionRunContext({ ...queuedRun, runId: 'later-unattributed' });
+      expectMcpBlocked({ ...queuedRun, runId: 'later-unattributed' }, true);
+    }
+  );
+
+  it.each([
+    ['owner', 'owner'],
+    ['owner', 'user'],
+    ['user', 'owner'],
+  ] as const)(
+    'uses the least authority for collected %s/%s inputs',
+    (first, second) => {
+      const endFirst = queuedSenderCorrelation([sessionKey], first).begin();
+      const endSecond = queuedSenderCorrelation([sessionKey], second).begin();
+      recordSessionRunContext(queuedRun);
+      expectMcpBlocked(queuedRun, first !== 'owner' || second !== 'owner');
+      endSecond();
+      endFirst();
+      expectMcpBlocked(queuedRun, true);
+    }
+  );
+
+  it('keeps a queued owner restricted when non-owner input steers into it', () => {
+    const end = queuedSenderCorrelation([sessionKey], 'owner').begin();
+    recordSenderRole(userRun.runId, [sessionKey], 'user');
+    recordSessionRunContext(queuedRun);
+    finishSenderDispatch(userRun);
+    recordSessionRunContext(queuedRun);
+    expectMcpBlocked(queuedRun, true);
+    end();
+  });
+
+  it('does not grant other sessions, providers, or child runs queued authority', () => {
+    const end = queuedSenderCorrelation([sessionKey], 'owner').begin();
+    for (const ctx of [
+      { ...queuedRun, sessionKey: 'agent:other:main' },
+      { ...queuedRun, messageProvider: 'webchat' },
+      { ...queuedRun, trigger: 'subagent' },
+    ]) {
+      const run = { ...ctx, runId: JSON.stringify(ctx) };
+      recordSessionRunContext(run);
+      expectMcpBlocked(run, true);
+    }
+    end();
+  });
+
+  it('isolates concurrently draining queues across async execution contexts', async () => {
+    let resume!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const owner = Promise.resolve().then(async () => {
+      const end = queuedSenderCorrelation([sessionKey], 'owner').begin();
+      await ready;
+      recordSessionRunContext(queuedRun);
+      expectMcpBlocked(queuedRun, false);
+      end();
+    });
+    const user = Promise.resolve().then(async () => {
+      const other = {
+        ...queuedRun,
+        sessionKey: 'agent:other:main',
+        runId: 'other',
+      };
+      const end = queuedSenderCorrelation([other.sessionKey], 'user').begin();
+      await Promise.resolve();
+      recordSessionRunContext(other);
+      expectMcpBlocked(other, true);
+      end();
+      resume();
+    });
+    await Promise.all([owner, user]);
+  });
+
+  it('drops a completed attempt before retrying a deferred queued message', () => {
+    const correlation = queuedSenderCorrelation([sessionKey], 'owner');
+    correlation.begin()();
+    recordSessionRunContext(queuedRun);
+    expectMcpBlocked(queuedRun, true);
+    const end = correlation.begin();
+    recordSessionRunContext(queuedRun);
+    expectMcpBlocked(queuedRun, false);
+    clearSessionRunContext(queuedRun);
+    end();
+    expectMcpBlocked(queuedRun, true);
+  });
+});
+
 describe('internal run attribution', () => {
   const cronRun = {
     agentId: 'main',
@@ -199,6 +311,20 @@ describe('internal run attribution', () => {
     trigger: 'cron',
   };
   const cronJob = { id: 'job', sessionTarget: 'isolated' };
+
+  it('verifies the cron job from its exact run key when the host omits jobId', () => {
+    const ctx = { ...cronRun, jobId: undefined };
+    expect(matchesIsolatedCronRun(ctx, cronJob)).toBe(true);
+    recordSessionRunContext(ctx, { cronJob });
+    expectMcpBlocked(ctx, false);
+  });
+
+  it('rejects a supplied job ID that disagrees with the isolated run key', () => {
+    const ctx = { ...cronRun, jobId: 'other-job' };
+    expect(matchesIsolatedCronRun(ctx, cronJob)).toBe(false);
+    recordSessionRunContext(ctx, { cronJob });
+    expectMcpBlocked(ctx, true);
+  });
 
   it('allows an exact cron run without granting concurrent interactive runs access', () => {
     recordSenderRole(userRun.runId, [sessionKey], 'user');

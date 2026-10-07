@@ -73,6 +73,7 @@ import {
   clearSessionRuns,
   clearSessionRunContext,
   getToolCallRole,
+  matchesIsolatedCronRun,
   recordSessionRunContext,
 } from './src/session-roles.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
@@ -1536,6 +1537,7 @@ export default defineBundledChannelEntry({
       trigger?: string;
       jobId?: string;
       runId?: string;
+      messageProvider?: string;
     }) => {
       recordSessionRunContext(ctx);
       if (ctx.trigger === 'cron') {
@@ -1595,11 +1597,11 @@ export default defineBundledChannelEntry({
         // Only isolated jobs receive fresh transcripts; shared-session cron
         // history can contain non-owner input even with an exact run ID.
         let cronJob;
-        if (ctx.jobId && event.queuedInjections.length === 0) {
+        if (event.queuedInjections.length === 0) {
           try {
             cronJob = (
               await getTlonCronService()?.list({ includeDisabled: true })
-            )?.find((job) => job.id === ctx.jobId);
+            )?.find((job) => matchesIsolatedCronRun(ctx, job));
           } catch (error) {
             api.logger.warn(
               `[tlon] Cannot verify cron isolation: ${String(error)}`

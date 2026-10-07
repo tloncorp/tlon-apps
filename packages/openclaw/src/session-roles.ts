@@ -1,5 +1,7 @@
 /** Run-scoped sender roles for the owner-only tool gate. */
-import { sharedMap } from './shared-state.js';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+import { sharedMap, sharedSlot } from './shared-state.js';
 
 export type SenderRole = 'owner' | 'user';
 
@@ -10,6 +12,7 @@ type SessionRunContext = {
   jobId?: string;
   runId?: string;
   trigger?: string;
+  messageProvider?: string;
 };
 
 type RunRole = {
@@ -24,6 +27,38 @@ const pendingNonOwnerDispatches = sharedMap<string, string[]>(
 const externalEventSessions = sharedMap<string, true>(
   'session-roles.external-events'
 );
+type QueuedSender = RunRole & { active: boolean; runIds: Set<string> };
+const queuedSenderSlot = sharedSlot<AsyncLocalStorage<QueuedSender[]>>(
+  'session-roles.queued-senders'
+);
+const queuedSenders =
+  queuedSenderSlot.get() ?? new AsyncLocalStorage<QueuedSender[]>();
+queuedSenderSlot.set(queuedSenders);
+
+/** The host carries this callback with the queued message, including collect. */
+export function queuedSenderCorrelation(
+  sessionKeys: string[],
+  role: SenderRole
+) {
+  return {
+    begin: () => {
+      const sender: QueuedSender = {
+        sessionKeys: [...sessionKeys],
+        role,
+        active: true,
+        runIds: new Set(),
+      };
+      queuedSenders.enterWith([
+        ...(queuedSenders.getStore() ?? []).filter((input) => input.active),
+        sender,
+      ]);
+      return () => {
+        sender.active = false;
+        for (const runId of sender.runIds) clearSessionRunContext({ runId });
+      };
+    },
+  };
+}
 
 function matchesSession(keys: Iterable<string>, sessionKey: string): boolean {
   for (const key of keys) {
@@ -91,6 +126,21 @@ export function recordExternalSessionEvent(sessionKey: string): void {
   externalEventSessions.set(sessionKey, true);
 }
 
+export function matchesIsolatedCronRun(
+  ctx: SessionRunContext,
+  job: { id: string; sessionTarget?: string }
+): boolean {
+  return Boolean(
+    ctx.trigger === 'cron' &&
+    ctx.agentId &&
+    ctx.sessionId &&
+    (!ctx.jobId || ctx.jobId === job.id) &&
+    job.sessionTarget === 'isolated' &&
+    ctx.sessionKey ===
+      `agent:${ctx.agentId}:cron:${job.id}:run:${ctx.sessionId}`
+  );
+}
+
 /** Record only host-provided context and session-store metadata. */
 export function recordSessionRunContext(
   ctx: SessionRunContext,
@@ -105,6 +155,23 @@ export function recordSessionRunContext(
   if (!ctx.runId || !ctx.sessionKey) return;
   // Sender attribution and prepare-hook verification survive later model hooks.
   if (runRoles.has(ctx.runId)) return;
+  if (ctx.trigger === 'user' && ctx.messageProvider === 'tlon') {
+    const senders = (queuedSenders.getStore() ?? []).filter(
+      (input) => input.active
+    );
+    if (senders.length > 0) {
+      const role = senders.every(
+        (input) =>
+          input.role === 'owner' &&
+          matchesSession(input.sessionKeys, ctx.sessionKey!)
+      )
+        ? 'owner'
+        : 'user';
+      storeRunRole(ctx.runId, [ctx.sessionKey], role);
+      for (const sender of senders) sender.runIds.add(ctx.runId);
+    }
+    return;
+  }
   if (ctx.trigger !== 'cron' && ctx.trigger !== 'heartbeat') return;
 
   const heartbeatSession = source?.heartbeatSession;
@@ -117,14 +184,8 @@ export function recordSessionRunContext(
     !externalEventSessions.has(base) &&
     !externalEventSessions.has(ctx.sessionKey);
   const trustedCron =
-    ctx.trigger === 'cron' &&
-    ctx.agentId &&
-    ctx.jobId &&
-    ctx.sessionId &&
-    source?.cronJob?.id === ctx.jobId &&
-    source.cronJob.sessionTarget === 'isolated' &&
-    ctx.sessionKey ===
-      `agent:${ctx.agentId}:cron:${ctx.jobId}:run:${ctx.sessionId}` &&
+    source?.cronJob &&
+    matchesIsolatedCronRun(ctx, source.cronJob) &&
     !externalEventSessions.has(ctx.sessionKey);
   storeRunRole(
     ctx.runId,
@@ -151,6 +212,7 @@ export function clearSessionRunContext(
 export function clearSessionRuns(): void {
   runRoles.clear();
   pendingNonOwnerDispatches.clear();
+  queuedSenders.disable();
 }
 
 export function getToolCallRole(ctx: SessionRunContext): SenderRole {
@@ -166,5 +228,6 @@ export const _testing = {
     runRoles.clear();
     pendingNonOwnerDispatches.clear();
     externalEventSessions.clear();
+    queuedSenders.disable();
   },
 };

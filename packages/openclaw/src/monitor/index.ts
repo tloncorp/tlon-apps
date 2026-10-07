@@ -72,6 +72,7 @@ import {
 } from '../owner-only-tools.js';
 import {
   finishSenderDispatch,
+  queuedSenderCorrelation,
   recordExternalSessionEvent,
   recordSenderRole,
 } from '../session-roles.js';
@@ -3482,6 +3483,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ...(sourceReplyDeliveryMode ? { sourceReplyDeliveryMode } : {}),
         ...resolveTimeoutOverrideReplyOptions(dispatchTimeoutMs),
         runId,
+        queuedDeliveryCorrelations: [
+          queuedSenderCorrelation(lensSessionKeys, senderRole),
+        ],
         onCompactionStart: compactionTimeoutObserver.start,
         onCompactionEnd: compactionTimeoutObserver.complete,
         onModelSelected: ({ provider, model, thinkLevel }) => {
