@@ -38,3 +38,4 @@ export * from './presence';
 export * from './stewardAutomation';
 export * from './stewardGateway';
 export * from './lens';
+export * from './stewardPrompts';
