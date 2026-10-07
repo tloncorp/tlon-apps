@@ -1,6 +1,6 @@
 ---
 name: tlon
-description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups (called workspaces in the Tlon Messenger app); hosted-browser secure form handoffs; group/channel administration; profile management; and exposing content to the clearweb.
+description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups (called workspaces in the Tlon Messenger app); hosted-browser session sharing and secure form handoffs; group/channel administration; profile management; and exposing content to the clearweb.
 ---
 
 # Tlon Skill
@@ -27,6 +27,23 @@ tlon upload https://example.com/x.png  # remote URL
 ```
 
 Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting. Self-hosted moons have no storage, so `upload` refuses immediately with `This ship cannot store uploads …`; for a local file, retry through the owner ship's config: `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`. For a source that is already a public https URL, `media=` takes it directly — no upload needed. Never claim an image was sent unless the upload and the send both returned success.
+
+### Share a hosted browser session
+
+When the owner wants to see or interact with a browser session, use the `tlon`
+tool with `{"command": "browser share <session_id>"}`. Pass the `sess_` handle
+returned by `browser_session_create`. This sends a rich link card in Tlon
+Messenger that opens the live session in the browser. It does not request credentials or send a task
+continuation. Use `browser handoff` below when sensitive input is needed.
+
+Never send a browser-session URL as a raw link or a labeled Markdown link in
+ordinary chat messages. Use the card command instead. Do not fetch, copy,
+construct, or expose the signed viewer URL; the plugin resolves it privately. If sharing fails, explain the failure and
+retry the command when appropriate; do not fall back to sending a URL.
+
+Both browser commands are exceptions to the ordinary-message rule above.
+They send only to the configured owner; never claim delivery until the command
+succeeds.
 
 ### Hosted-browser secure form handoff
 
@@ -59,7 +76,7 @@ uses MCP viewer/elicitation capabilities to arrange human browser control; it
 does not issue or refresh signed viewer URLs. Its `client_capability_missing`
 error does not determine whether the Tlon secure form is available.
 
-This is the one exception to the rule against using that tool to send a message.
+Like browser sharing, this is an exception to the rule against using that tool to send a message.
 The command
 always sends the handoff card to the owner configured for the active bot
 account. It has no recipient argument or override. If no owner is configured,
