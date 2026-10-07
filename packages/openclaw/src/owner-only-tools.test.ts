@@ -16,6 +16,8 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
   'sessions_send',
   'subagents',
   'openclaw',
+  'tool_search',
+  'tool_describe',
 ] as const;
 const MCP_TOOLS = [
   'mcp__list_upstreams',
@@ -59,11 +61,12 @@ describe('resolveOwnerOnlyToolBlock', () => {
   });
 
   it.each(RESTRICTED_TOOLS)(
-    'allows %s for internal sessions without a stored role',
+    'blocks %s without explicit run authority',
     (tool) => {
       expect(resolveOwnerOnlyToolBlock(tool, undefined)).toEqual({
         ownerOnly: true,
-        blocked: false,
+        blocked: true,
+        reason: formatOwnerOnlyToolBlockReason(tool),
       });
     }
   );

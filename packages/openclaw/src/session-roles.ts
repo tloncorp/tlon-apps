@@ -21,7 +21,6 @@ const runRoles = sharedMap<string, RunRole>('session-roles.runs');
 const pendingNonOwnerDispatches = sharedMap<string, string[]>(
   'session-roles.pending-non-owner-dispatches'
 );
-const tlonSessions = sharedMap<string, true>('session-roles.tlon-sessions');
 const externalEventSessions = sharedMap<string, true>(
   'session-roles.external-events'
 );
@@ -41,12 +40,6 @@ function sessionsOverlap(left: string[], right: string[]): boolean {
       matchesSession(right, key) ||
       right.some((other) => matchesSession([key], other))
   );
-}
-
-function rememberTlonSession(sessionKey: string): void {
-  // Channel-scoped keys already fail closed by shape. Only shared/custom keys
-  // need a marker, so new correspondents do not accumulate scope aliases.
-  if (!sessionKey.includes(':tlon:')) tlonSessions.set(sessionKey, true);
 }
 
 function storeRunRole(
@@ -69,7 +62,6 @@ export function recordSenderRole(
   sessionKeys: string[],
   role: SenderRole
 ): void {
-  for (const key of sessionKeys) rememberTlonSession(key);
   if (role === 'user') {
     // Keep the restriction through dispatch: the host can publish an active
     // steering target before its first plugin hook registers the run.
@@ -97,14 +89,12 @@ export function finishSenderDispatch(ctx: SessionRunContext): void {
 /** System-event queues are process-local; keep provenance for their lifetime. */
 export function recordExternalSessionEvent(sessionKey: string): void {
   externalEventSessions.set(sessionKey, true);
-  rememberTlonSession(sessionKey);
 }
 
 /** Record only host-provided context and session-store metadata. */
 export function recordSessionRunContext(
   ctx: SessionRunContext,
   source?: {
-    senderIsOwner?: boolean;
     heartbeatSession?: {
       sessionId: string;
       heartbeatIsolatedBaseSessionKey?: string;
@@ -115,18 +105,6 @@ export function recordSessionRunContext(
   if (!ctx.runId || !ctx.sessionKey) return;
   // Sender attribution and prepare-hook verification survive later model hooks.
   if (runRoles.has(ctx.runId)) return;
-  if (ctx.trigger === 'user') {
-    // Channel names do not establish authority. The before_agent_run event
-    // carries the host's trusted sender bit; absence of that bit denies access.
-    if (source && 'senderIsOwner' in source) {
-      storeRunRole(
-        ctx.runId,
-        [ctx.sessionKey],
-        source.senderIsOwner === true ? 'owner' : 'user'
-      );
-    }
-    return;
-  }
   if (ctx.trigger !== 'cron' && ctx.trigger !== 'heartbeat') return;
 
   const heartbeatSession = source?.heartbeatSession;
@@ -175,34 +153,18 @@ export function clearSessionRuns(): void {
   pendingNonOwnerDispatches.clear();
 }
 
-export function getToolCallRole(
-  ctx: SessionRunContext
-): SenderRole | undefined {
+export function getToolCallRole(ctx: SessionRunContext): SenderRole {
   if (!ctx.sessionKey) return 'user';
   const run = ctx.runId ? runRoles.get(ctx.runId) : undefined;
-  if (run && matchesSession(run.sessionKeys, ctx.sessionKey)) return run.role;
-  // Exact and derived-thread lookups do not scan historical correspondents.
-  const threadIndex = ctx.sessionKey.indexOf(':thread:');
-  const parentKey =
-    threadIndex > 0 ? ctx.sessionKey.slice(0, threadIndex) : ctx.sessionKey;
-  if (
-    tlonSessions.has(ctx.sessionKey) ||
-    tlonSessions.has(parentKey) ||
-    ctx.sessionKey.includes(':tlon:') ||
-    ctx.sessionKey.endsWith(':heartbeat') ||
-    ctx.sessionKey.includes(':cron:')
-  ) {
-    return 'user';
-  }
-  return undefined;
+  return run && matchesSession(run.sessionKeys, ctx.sessionKey)
+    ? run.role
+    : 'user';
 }
 
 export const _testing = {
-  knownSessionCount: () => tlonSessions.size,
   clearAll: () => {
     runRoles.clear();
     pendingNonOwnerDispatches.clear();
-    tlonSessions.clear();
     externalEventSessions.clear();
   },
 };

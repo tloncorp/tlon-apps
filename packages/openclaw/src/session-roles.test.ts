@@ -36,6 +36,8 @@ function expectMcpBlocked(
     'sessions_spawn',
     'sessions_send',
     'openclaw',
+    'tool_search',
+    'tool_describe',
   ]) {
     expect(resolveOwnerOnlyToolBlock(tool, getToolCallRole(ctx)).blocked).toBe(
       blocked
@@ -46,64 +48,50 @@ function expectMcpBlocked(
 afterEach(() => _testing.clearAll());
 
 describe('run-scoped sender roles', () => {
-  it('keeps a non-owner restricted while a later owner turn shares its session', () => {
+  it('allows an attributed Tlon owner and restricts unclassified runs', () => {
+    recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
+    expectMcpBlocked(ownerRun, false);
+    expectMcpBlocked(userRun, true);
+    expectMcpBlocked({ sessionKey }, true);
+  });
+
+  it('keeps a pending non-owner restriction on a later overlapping owner', () => {
     recordSenderRole(userRun.runId, [sessionKey], 'user');
     recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
     expectMcpBlocked(userRun, true);
     expectMcpBlocked(ownerRun, true);
-    expectMcpBlocked({ sessionKey, runId: 'queued-run' }, true);
-    expectMcpBlocked({ sessionKey }, true);
   });
 
   it('restricts an active owner before non-owner input can be steered into it', () => {
     recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
     recordSenderRole(userRun.runId, [sessionKey], 'user');
-    // The steering dispatch ends while tools retain the original owner's ID.
+    // Steering dispatch cleanup cannot restore the original run's authority.
     finishSenderDispatch(userRun);
-    recordSessionRunContext(
-      {
-        ...ownerRun,
-        trigger: 'user',
-      },
-      { senderIsOwner: true }
-    );
+    recordSessionRunContext({ ...ownerRun, trigger: 'user' });
     recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
     expectMcpBlocked(ownerRun, true);
-    expectMcpBlocked(userRun, true);
   });
 
-  it('binds aliases and thread keys to the same run, not other runs or sessions', () => {
+  it('binds aliases and threads to the exact run', () => {
     const alias = 'agent:main:tlon:direct:~ten';
     recordSenderRole(ownerRun.runId, [sessionKey, alias], 'owner');
     expectMcpBlocked({ ...ownerRun, sessionKey: `${alias}:thread:1` }, false);
     expectMcpBlocked({ ...userRun, sessionKey: alias }, true);
-    expectMcpBlocked(
-      { ...ownerRun, sessionKey: 'agent:main:tlon:group:other' },
-      true
-    );
+    expectMcpBlocked({ ...ownerRun, sessionKey: 'another-session' }, true);
   });
 
   it('cleans only the matching run and fails closed after cleanup', () => {
-    recordSenderRole(userRun.runId, [sessionKey], 'user');
-    finishSenderDispatch(userRun);
     recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
     clearSessionRunContext({ ...ownerRun, sessionKey: 'other' });
     clearSessionRunContext({ sessionKey });
     expectMcpBlocked(ownerRun, false);
     clearSessionRunContext(ownerRun);
     expectMcpBlocked(ownerRun, true);
-    expectMcpBlocked(userRun, true);
   });
 
-  it('restricts an active thread run when a non-owner steers its parent route', () => {
+  it('restricts active thread runs when non-owner input uses the parent route', () => {
     const threadRun = { ...ownerRun, sessionKey: `${sessionKey}:thread:1` };
-    recordSessionRunContext(
-      {
-        ...threadRun,
-        trigger: 'user',
-      },
-      { senderIsOwner: true }
-    );
+    recordSenderRole(threadRun.runId, [threadRun.sessionKey], 'owner');
     recordSenderRole(userRun.runId, [sessionKey], 'user');
     finishSenderDispatch(userRun);
     expectMcpBlocked(threadRun, true);
@@ -115,55 +103,15 @@ describe('run-scoped sender roles', () => {
     expectMcpBlocked({ ...ownerRun, sessionKey: 'other-session' }, false);
   });
 
-  it.each(['webchat', 'tui', 'discord'])(
-    'allows a host-authenticated owner from %s in a shared main session',
-    (messageProvider) => {
-      recordSenderRole(userRun.runId, [sessionKey], 'user');
-      finishSenderDispatch(userRun);
-      const ctx = { ...ownerRun, trigger: 'user', messageProvider };
-      recordSessionRunContext(ctx, { senderIsOwner: true });
-      expectMcpBlocked(ownerRun, false);
-      expectMcpBlocked({ ...ownerRun, runId: 'unattributed' }, true);
-    }
-  );
-
-  it('restricts an active WebChat run when non-owner steering arrives', () => {
-    const ctx = { ...ownerRun, trigger: 'user', messageProvider: 'webchat' };
-    recordSessionRunContext(ctx, { senderIsOwner: true });
+  it('retains pending input after agent end until dispatch completes', () => {
     recordSenderRole(userRun.runId, [sessionKey], 'user');
-    finishSenderDispatch(userRun);
-    recordSessionRunContext(ctx, { senderIsOwner: true });
-    expectMcpBlocked(ownerRun, true);
-    clearSessionRunContext(ownerRun);
-    const next = { ...ctx, runId: 'next-webchat-run' };
-    recordSessionRunContext(next, { senderIsOwner: true });
-    expectMcpBlocked(next, false);
-  });
-
-  it('does not grant an unclassified Tlon run another channel’s authority', () => {
-    recordSenderRole(userRun.runId, [sessionKey], 'user');
-    recordSessionRunContext(
-      {
-        ...ownerRun,
-        trigger: 'user',
-      },
-      { senderIsOwner: undefined }
-    );
-    expectMcpBlocked(ownerRun, true);
-  });
-
-  it('restricts a host run whose first hook arrives while steering is pending', () => {
-    recordSenderRole(userRun.runId, [sessionKey], 'user');
-    // Agent end is not dispatch completion: the steering decision is pending.
     clearSessionRunContext(userRun);
-    const ctx = { ...ownerRun, trigger: 'user', messageProvider: 'webchat' };
-    recordSessionRunContext(ctx, { senderIsOwner: true });
+    recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
     finishSenderDispatch(userRun);
-    recordSessionRunContext(ctx, { senderIsOwner: true });
     expectMcpBlocked(ownerRun, true);
     clearSessionRunContext(ownerRun);
-    const next = { ...ctx, runId: 'next-owner' };
-    recordSessionRunContext(next, { senderIsOwner: true });
+    const next = { ...ownerRun, runId: 'next-owner' };
+    recordSenderRole(next.runId, [sessionKey], 'owner');
     expectMcpBlocked(next, false);
   });
 
@@ -172,13 +120,7 @@ describe('run-scoped sender roles', () => {
     const other = { ...userRun, runId: 'other-user' };
     recordSenderRole(other.runId, [sessionKey], 'user');
     finishSenderDispatch(userRun);
-    recordSessionRunContext(
-      {
-        ...ownerRun,
-        trigger: 'user',
-      },
-      { senderIsOwner: true }
-    );
+    recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
     finishSenderDispatch(other);
     expectMcpBlocked(ownerRun, true);
   });
@@ -189,7 +131,7 @@ describe('run-scoped sender roles', () => {
     expectMcpBlocked(ownerRun, true);
   });
 
-  it('cleans up by event run ID even when the end context omits its session', () => {
+  it('cleans up by event run ID when the end context omits its session', () => {
     recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
     clearSessionRunContext({}, { runId: ownerRun.runId });
     expectMcpBlocked(ownerRun, true);
@@ -204,66 +146,45 @@ describe('run-scoped sender roles', () => {
     expectMcpBlocked(ownerRun, false);
   });
 
-  it('does not retain channel-scoped aliases for historical correspondents', () => {
-    for (let i = 0; i < 1000; i++) {
-      const key = `agent:main:tlon:direct:ship-${i}`;
-      recordSenderRole(`run-${i}`, [sessionKey, key], 'user');
-      finishSenderDispatch({ runId: `run-${i}`, sessionKey: key });
-    }
-    expect(_testing.knownSessionCount()).toBe(1);
-    expectMcpBlocked({ sessionKey: `${sessionKey}:thread:1` }, true);
-    expectMcpBlocked(
-      { sessionKey: 'agent:main:tlon:direct:ship-999:thread:1' },
-      true
-    );
-  });
-
-  it.each(['webchat', 'tui', 'discord', 'slack', 'unknown'])(
-    'does not infer owner authority from the %s provider',
+  it.each(['discord', 'slack', 'webhook', 'webchat', 'tui'])(
+    'restricts %s runs with missing hooks or changing host sender attribution',
     (messageProvider) => {
-      for (const senderIsOwner of [false, undefined]) {
-        const ctx = {
-          sessionKey: `agent:main:${messageProvider}:room`,
-          runId: `${messageProvider}-${senderIsOwner}`,
-          trigger: 'user',
-          messageProvider,
-        };
-        recordSessionRunContext(ctx, { senderIsOwner });
-        expectMcpBlocked(ctx, true);
-      }
+      // Host owner flags cannot grant authority outside Tlon. No external run
+      // gains privileges that an unobserved steering message could inherit.
+      const ctx = {
+        sessionKey: `agent:main:${messageProvider}:room`,
+        runId: 'external-run',
+        trigger: 'user',
+        messageProvider,
+      };
+      expectMcpBlocked(ctx, true);
+      const ownerContext = { ...ctx, senderIsOwner: true };
+      recordSessionRunContext(ownerContext);
+      expectMcpBlocked(ctx, true);
+      const nonOwnerContext = { ...ctx, senderIsOwner: false };
+      recordSessionRunContext(nonOwnerContext);
+      expectMcpBlocked(ctx, true);
+      recordSessionRunContext(ctx);
+      expectMcpBlocked(ctx, true);
     }
   );
 
-  it('does not promote an unverified sender on a later owner-claiming hook', () => {
-    const ctx = { ...ownerRun, trigger: 'user' };
-    recordSessionRunContext(ctx, { senderIsOwner: undefined });
-    recordSessionRunContext(ctx, { senderIsOwner: true });
-    expectMcpBlocked(ctx, true);
-  });
-
-  it('preserves Tlon sender attribution when the host sender bit differs', () => {
+  it('does not grant external runs access through a shared Tlon session key', () => {
     recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
-    recordSessionRunContext(
-      { ...ownerRun, trigger: 'user' },
-      { senderIsOwner: false }
-    );
+    const external = { ...ownerRun, runId: 'external-run', trigger: 'user' };
+    recordSessionRunContext(external);
+    expectMcpBlocked(external, true);
     expectMcpBlocked(ownerRun, false);
-    recordSenderRole(userRun.runId, [sessionKey], 'user');
-    recordSessionRunContext(
-      { ...userRun, trigger: 'user' },
-      { senderIsOwner: true }
-    );
-    expectMcpBlocked(userRun, true);
   });
 
   it('fails closed for missing tool context', () => {
     expectMcpBlocked({ runId: ownerRun.runId }, true);
   });
 
-  it('preserves separate internal-session access', () => {
+  it('does not infer internal authority from a session name', () => {
     expectMcpBlocked(
       { sessionKey: 'agent:main:subagent:child', runId: 'child' },
-      false
+      true
     );
   });
 });
@@ -322,7 +243,7 @@ describe('internal run attribution', () => {
     expectMcpBlocked(userRun, true);
   });
 
-  it('clears run grants at shutdown while retaining known Tlon sessions', () => {
+  it('clears run grants at shutdown', () => {
     recordSenderRole(userRun.runId, [sessionKey], 'user');
     recordSessionRunContext(cronRun, { cronJob });
     clearSessionRuns();

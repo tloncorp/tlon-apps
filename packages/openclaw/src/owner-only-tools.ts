@@ -19,6 +19,9 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'sessions_send',
   'subagents',
   'openclaw',
+  // Generic discovery controls can expose the owner's MCP catalog.
+  'tool_search',
+  'tool_describe',
 ]);
 
 export const OWNER_ONLY_TOOL_PATTERNS = ['mcp_*', '*__*'] as const;
@@ -45,7 +48,7 @@ export function formatOwnerOnlyToolBlockReason(toolName: string): string {
 export type OwnerOnlyToolDecision = {
   /** The tool matches an owner-only name or MCP namespace. */
   ownerOnly: boolean;
-  /** Veto the call: owner-only tool and the session role is a non-owner user. */
+  /** Veto restricted tools unless the run has explicit owner authority. */
   blocked: boolean;
   /** Model-facing reason; present iff `blocked`. */
   reason?: string;
@@ -56,9 +59,8 @@ export function resolveOwnerOnlyToolBlock(
   role: SenderRole | undefined
 ): OwnerOnlyToolDecision {
   const ownerOnly = OWNER_ONLY_TOOLS.has(toolName) || isMcpToolName(toolName);
-  // Only an explicit non-owner ('user') role blocks. Owner sessions and
-  // trusted internal runs pass after run attribution in session-roles.
-  const blocked = ownerOnly && role === 'user';
+  // Missing attribution never grants access to owner-connected services.
+  const blocked = ownerOnly && role !== 'owner';
   return blocked
     ? { ownerOnly, blocked, reason: formatOwnerOnlyToolBlockReason(toolName) }
     : { ownerOnly, blocked };

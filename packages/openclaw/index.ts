@@ -1566,9 +1566,6 @@ export default defineBundledChannelEntry({
       }
       await ensureCronContextLens(ctx);
     };
-    api.on('before_agent_run', (event, ctx) => {
-      recordSessionRunContext(ctx, { senderIsOwner: event.senderIsOwner });
-    });
     api.on('agent_turn_prepare', async (event, ctx) => {
       if (ctx.trigger === 'heartbeat') {
         // The host gives isolated heartbeats a fresh transcript and records
