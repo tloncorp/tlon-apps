@@ -1,14 +1,10 @@
 import * as db from '@tloncorp/shared/db';
-import {
-  BlockSectionList,
-  PlainSectionList,
-  Text,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
+import { BlockSectionList, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Insets,
   Keyboard,
+  SectionList,
   SectionListRenderItemInfo,
   StyleProp,
   ViewStyle,
@@ -25,9 +21,6 @@ import { useSheetCoveredHeight } from '../hooks/useSheetCoveredHeight';
 import { ContactRow } from './ContactRow';
 import { ListEmptyState } from './ListEmptyState';
 import { SearchBar } from './SearchBar';
-
-// Letter headings help scan a long list. On a short one they are just noise.
-const SHORT_LIST_MAX = 10;
 
 export function ContactBook({
   autoFocus = false,
@@ -57,8 +50,9 @@ export function ContactBook({
   onSelect?: (contactId: string) => void;
   multiSelect?: boolean;
   /**
-   * `block` draws each section as a grey card, for full screens. `plain`
-   * draws rows straight on the surface, for pickers inside a sheet.
+   * `block` draws each section as a grey card under its heading, for full
+   * screens. `plain` draws one run of rows straight on the surface, with no
+   * headings, for pickers inside a sheet.
    */
   appearance?: 'block' | 'plain';
   onSelectedChange?: (selected: string[]) => void;
@@ -90,32 +84,18 @@ export function ContactBook({
     sortOrder: [],
   });
   const showSearchResults = searchable && query.length > 0;
+  const isPlain = appearance === 'plain';
   const sections = useMemo(() => {
     if (showSearchResults) {
       const label = `Contacts matching ‘${query}’`;
       return queryContacts?.length ? [{ label, data: queryContacts }] : [];
-    } else if (
-      appearance === 'plain' &&
-      contactsForBook.length > 0 &&
-      contactsForBook.length <= SHORT_LIST_MAX
-    ) {
-      return [
-        {
-          label: 'Contacts',
-          data: segmentedContacts.flatMap((section) => section.data),
-        },
-      ];
+    } else if (isPlain) {
+      const data = segmentedContacts.flatMap((section) => section.data);
+      return data.length ? [{ label: 'Contacts', data }] : [];
     } else {
       return segmentedContacts;
     }
-  }, [
-    showSearchResults,
-    query,
-    queryContacts,
-    segmentedContacts,
-    appearance,
-    contactsForBook.length,
-  ]);
+  }, [showSearchResults, query, queryContacts, segmentedContacts, isPlain]);
 
   const [selected, setSelected] = useState<string[]>([]);
   const selectedRef = useRef(selected);
@@ -159,7 +139,6 @@ export function ContactBook({
     }
   }, [disabledSet, onSelectedChange]);
 
-  const isPlain = appearance === 'plain';
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<db.Contact, { label: string }>) => {
       const isSelected = !!selected?.includes(item.id);
@@ -208,8 +187,7 @@ export function ContactBook({
   const coveredHeight = useSheetCoveredHeight();
   const contentContainerStyle = useStyle({
     paddingBottom: insets.bottom + coveredHeight,
-    // Plain section labels bring their own space above.
-    paddingTop: isPlain ? 0 : '$s',
+    paddingTop: '$s',
   }) as StyleProp<ViewStyle>;
 
   const scrollIndicatorInsets = useStyle({
@@ -218,7 +196,10 @@ export function ContactBook({
   }) as Insets;
 
   const isWindowNarrow = useIsWindowNarrow();
-  const List = isPlain ? PlainSectionList : BlockSectionList;
+  // The plain list is the bare one: it draws no section headings.
+  const List = isPlain
+    ? SectionList<db.Contact, { label: string }>
+    : BlockSectionList;
 
   const listStyle = useMemo(() => {
     if (!isWindowNarrow) {
@@ -270,18 +251,6 @@ export function ContactBook({
         <View flex={1} onTouchStart={Keyboard.dismiss}>
           <List
             ListHeaderComponent={!showSearchResults ? quickActions : null}
-            ListFooterComponent={
-              isPlain && searchable && !showSearchResults ? (
-                <Text
-                  size="$label/m"
-                  color="$tertiaryText"
-                  paddingHorizontal="$l"
-                  paddingTop="$l"
-                >
-                  Not in your contacts? Enter their full ID.
-                </Text>
-              ) : null
-            }
             ListEmptyComponent={
               showSearchResults ? (
                 <ListEmptyState

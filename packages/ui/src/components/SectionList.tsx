@@ -130,36 +130,6 @@ export const PlainSectionListHeader = withStaticProperties(
   { Text: SectionListHeaderText }
 );
 
-/**
- * Sections drawn straight on the surface, with no card behind them. The
- * labels sit on a list row's own padding, so they line up with its avatar.
- */
-export const PlainSectionList = <
-  TItem,
-  TSection extends { label: string; data: TItem[] },
->(
-  props: SectionListProps<TItem, TSection>
-) => {
-  const renderSectionHeader = useCallback(
-    ({ section }: { section: SectionListData<TItem, TSection> }) => (
-      <PlainSectionListHeader>
-        <PlainSectionListHeader.Text>
-          {section.label}
-        </PlainSectionListHeader.Text>
-      </PlainSectionListHeader>
-    ),
-    []
-  );
-
-  return (
-    <SectionList
-      stickySectionHeadersEnabled={false}
-      renderSectionHeader={renderSectionHeader}
-      {...props}
-    />
-  );
-};
-
 export const BlockSectionList = withStaticProperties(
   BlockSectionListComponent,
   {
