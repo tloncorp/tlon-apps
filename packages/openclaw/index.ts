@@ -1535,6 +1535,7 @@ export default defineBundledChannelEntry({
       trigger?: string;
       jobId?: string;
       runId?: string;
+      messageProvider?: string;
     }) => {
       recordSessionRunContext(ctx);
       if (ctx.trigger === 'cron') {

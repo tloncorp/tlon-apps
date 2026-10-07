@@ -392,7 +392,8 @@ Cross-session delegation is owner-only: non-owners cannot spawn a child, send wo
 
 **Implementation:**
 - `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `OWNER_ONLY_TOOL_PATTERNS`, `resolveOwnerOnlyToolBlock`)
-- Binds the DM or group sender role to the dispatch run ID and its session keys, including thread keys. Concurrent turns cannot overwrite each other's role. Unclassified runs in known Tlon sessions fail closed.
+- Binds the DM or group sender role to the dispatch run ID and its session keys, including thread keys. Non-owner input restricts overlapping active runs before dispatch because the host can steer it into those runs; the restriction lasts until each run ends. Owner input cannot restore a restricted run's privileges. Unclassified runs in known Tlon sessions fail closed.
+- Host-attributed interactive runs from WebChat, TUI, and other channels retain their own authority in shared main sessions. A prior Tlon dispatch does not restrict those later runs.
 - Host-attributed cron runs retain access for their exact run ID and session key.
 - Heartbeat access requires host session-store metadata identifying an isolated transcript, matching the active session ID and source session. Queued plugin injections disqualify the run. Every passive Tlon system event marks its source session as untrusted for heartbeats for the lifetime of the process, including events forwarded into an isolated heartbeat. Shared-history heartbeats remain restricted even after an owner turn or process restart.
 - Run attribution is removed at `agent_end`, dispatch cleanup, or gateway shutdown. Tool parameters and session-level cron-job records cannot grant access.

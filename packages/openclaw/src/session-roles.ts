@@ -8,6 +8,7 @@ type SessionRunContext = {
   sessionId?: string;
   runId?: string;
   trigger?: string;
+  messageProvider?: string;
 };
 
 type RunRole = {
@@ -36,7 +37,27 @@ export function recordSenderRole(
   role: SenderRole
 ): void {
   for (const key of sessionKeys) tlonSessions.set(key, true);
-  runRoles.set(runId, { sessionKeys, role });
+  if (role === 'user') {
+    // The host can steer this dispatch into an existing run. Restrict every
+    // overlapping run before dispatch, and retain the restriction until it ends.
+    for (const run of runRoles.values()) {
+      if (
+        sessionKeys.some(
+          (key) =>
+            matchesSession(run.sessionKeys, key) ||
+            run.sessionKeys.some((activeKey) =>
+              matchesSession([key], activeKey)
+            )
+        )
+      ) {
+        run.role = 'user';
+      }
+    }
+  }
+  runRoles.set(runId, {
+    sessionKeys,
+    role: runRoles.get(runId)?.role === 'user' ? 'user' : role,
+  });
 }
 
 /** System-event queues are process-local; keep provenance for their lifetime. */
@@ -56,6 +77,17 @@ export function recordSessionRunContext(
   if (!ctx.runId || !ctx.sessionKey) return;
   // Sender attribution and prepare-hook verification survive later model hooks.
   if (runRoles.has(ctx.runId)) return;
+  // Shared main sessions also serve WebChat, TUI, and other channels. Their
+  // host-attributed interactive runs keep their own authority; a prior Tlon
+  // dispatch does not classify them as non-owner.
+  if (
+    ctx.trigger === 'user' &&
+    ctx.messageProvider &&
+    ctx.messageProvider !== 'tlon'
+  ) {
+    runRoles.set(ctx.runId, { sessionKeys: [ctx.sessionKey], role: 'owner' });
+    return;
+  }
   if (ctx.trigger !== 'cron' && ctx.trigger !== 'heartbeat') return;
 
   const base = heartbeatSession?.heartbeatIsolatedBaseSessionKey;
