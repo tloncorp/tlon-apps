@@ -34,6 +34,10 @@ import {
 } from '../../ui';
 import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
 import {
+  WorkspaceInstructionsSheet,
+  hasWorkspaceInstructions,
+} from '../../ui/components/WorkspaceInstructionsSheet';
+import {
   channelSupportsNotifications,
   getChannelActionCapabilities,
   getChannelHost,
@@ -425,6 +429,16 @@ export function SettingsSection({
     }
   }, [group, onPressRoles]);
 
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const handlePressInstructions = useCallback(
+    () => setInstructionsOpen(true),
+    []
+  );
+  const handleCloseInstructions = useCallback(
+    () => setInstructionsOpen(false),
+    []
+  );
+
   const handlePressEditChannelPrivacy = useCallback(() => {
     if (channel?.groupId) {
       navigateToEditChannelPrivacy(channel.id, channel.groupId);
@@ -554,6 +568,13 @@ export function SettingsSection({
           disabled: !actionsEnabled,
           onPress: handlePressManageChannels,
         },
+        {
+          title: 'Bot instructions',
+          endValue: hasWorkspaceInstructions(group) ? 'On' : 'Off',
+          testID: 'GroupInstructions',
+          disabled: !actionsEnabled,
+          onPress: handlePressInstructions,
+        },
         notificationAction,
         ...scheduledTasksActions,
       ];
@@ -588,6 +609,7 @@ export function SettingsSection({
     handlePressGroupPrivacy,
     handlePressRoles,
     handlePressManageChannels,
+    handlePressInstructions,
     handlePressEditChannelPrivacy,
     groupRoles,
     showsScheduledTasks,
@@ -618,6 +640,12 @@ export function SettingsSection({
           />
         ))}
       </ActionSheet.ActionGroup>
+      {instructionsOpen && group ? (
+        <WorkspaceInstructionsSheet
+          group={group}
+          onClose={handleCloseInstructions}
+        />
+      ) : null}
     </View>
   );
 }
