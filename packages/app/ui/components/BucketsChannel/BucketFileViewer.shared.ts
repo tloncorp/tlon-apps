@@ -1464,7 +1464,7 @@ function baseResolver(
   };
 }
 
-/** A script element's own text, which a browser runs when it has no address; with none, nothing runs. */
+/** A script element's own text, which a browser runs when it has no address; with none but whitespace, nothing happens. */
 function scriptText(script: ParsedElement): string {
   return script.childNodes
     .map((node) => (defaultTreeAdapter.isTextNode(node) ? node.value : ''))
@@ -1560,9 +1560,9 @@ const HOST_SOURCE =
 
 /**
  * Whether one source expression matches a script address the preview's
- * policy allows (`data:`, `blob:`, or https from a CDN) in Chromium or WebKit,
+ * policy allows (`data:`, or https from a CDN) in Chromium or WebKit,
  * as both were measured: `*` matches web addresses; a scheme its own and,
- * upgraded, `http:` an https one; 'self' an https or blob one (WebKit, from a
+ * upgraded, `http:` an https one; 'self' an https one (WebKit, from a
  * srcdoc document); a host source an https address on that host (or under
  * `*.` it, below), with or without a scheme, on its default port or one the
  * source names (443 or `*`), and under its path -- a prefix ending in `/`, or
@@ -1571,7 +1571,7 @@ const HOST_SOURCE =
 function sourceMatches(source: string, url: URL): boolean {
   const lower = asciiLowercase(source);
   const scheme = url.protocol.slice(0, -1);
-  if (lower === "'self'") return scheme === 'https' || scheme === 'blob';
+  if (lower === "'self'") return scheme === 'https';
   if (lower === '*') return scheme === 'https';
   if (/^[a-z][a-z0-9+.-]*:$/.test(lower)) {
     const named = lower.slice(0, -1);
@@ -1665,7 +1665,7 @@ export function htmlPreviewHasScripts(
             (element.namespaceURI === NS.SVG ||
               attributeOf(element, 'nomodule') === undefined))) &&
         (src === undefined
-          ? scriptText(element) !== '' &&
+          ? scriptText(element).trim() !== '' &&
             policies.every((p) => allowsInline(p.elements, nonce))
           : externalRuns(
               scriptSource(src, baseFor(element), kind === 'module'),
@@ -1681,6 +1681,7 @@ export function htmlPreviewHasScripts(
         attribute.namespace === undefined &&
         attribute.name.startsWith('on') &&
         handlesEvent(element, attribute.name.slice(2)) &&
+        attribute.value.trim() !== '' &&
         policies.every((p) => allowsInline(p.attributes))
       ) {
         return true;
@@ -1691,10 +1692,11 @@ export function htmlPreviewHasScripts(
       if (
         runsJavascriptUrl(element, attribute) &&
         urlScheme(attribute.value) === 'javascript' &&
-        // A frame runs its javascript: source only without a sandbox of its
-        // own, even one allowing scripts (Chromium; WebKit runs none).
+        // An iframe runs its javascript: source only without a sandbox of
+        // its own, even one allowing scripts (Chromium; WebKit runs none); a
+        // <frame> has no sandbox attribute, so one on it does nothing.
         !(
-          (element.nodeName === 'iframe' || element.nodeName === 'frame') &&
+          element.nodeName === 'iframe' &&
           attributeOf(element, 'sandbox') !== undefined
         ) &&
         policies.every((p) =>
@@ -1827,10 +1829,11 @@ function dataUrlEssence(href: string): string {
 }
 
 /**
- * Where a script element loads `src` from, when HTML_PREVIEW_POLICY lets it (undefined when not), resolved
- * against the document's web base (webBase) when it has one: a `data:` or
- * `blob:` URL, or https from one of the script CDNs on its default port, as
- * Chromium and WebKit measured. A relative address with no web base resolves
+ * Where a script element loads `src` from, when HTML_PREVIEW_POLICY lets it
+ * and it can load (undefined when not), resolved against the document's web
+ * base (webBase) when it has one: a `data:` URL, or https from one of the
+ * script CDNs on its default port, as Chromium and WebKit measured -- not a
+ * `blob:` one, which markup cannot name. A relative address with no web base resolves
  * against the app's own, which the policy refuses, and an empty one loads
  * nothing; either way the element's own text never runs. A scheme-relative
  * one takes https, as on the app's own page. A module runs from `data:` only
@@ -1852,13 +1855,14 @@ function scriptSource(
   } catch {
     return undefined;
   }
+  // A blob: URL loads only while a script that made it keeps it registered,
+  // under a name no markup can know beforehand.
   const allowed =
     url.protocol === 'data:'
       ? !module || JAVASCRIPT_MIME_TYPES.has(dataUrlEssence(url.href))
-      : url.protocol === 'blob:' ||
-        (url.protocol === 'https:' &&
-          url.port === '' &&
-          SCRIPT_HOSTS.has(url.hostname));
+      : url.protocol === 'https:' &&
+        url.port === '' &&
+        SCRIPT_HOSTS.has(url.hostname);
   return allowed ? url : undefined;
 }
 

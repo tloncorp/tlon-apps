@@ -553,6 +553,8 @@ describe('htmlPreviewHasScripts', () => {
     '<svg><a xlink:href="javascript:go()"><text>x</text></a></svg>',
     '<math><mtext href="javascript:go()">x</mtext></math>',
     '<iframe src="javascript:go()"></iframe>',
+    // A <frame> has no sandbox attribute, so one on it holds nothing back.
+    '<frameset><frame sandbox src="javascript:go()"></frameset>',
     // A handler only one engine has: WebKit's focusin and iOS's video
     // fullscreen, Chromium's SVG begin and validationstatuschange, and a
     // window event <body> forwards.
@@ -635,8 +637,11 @@ describe('htmlPreviewHasScripts', () => {
     // a table's misplaced one moved ahead of it included.
     '<script src="lib.js"></script><base href="https://cdn.jsdelivr.net/npm/pkg/">',
     '<table><script src="lib.js"></script><base href="https://cdn.jsdelivr.net/npm/pkg/"></table>',
-    // A script with neither an address nor text runs nothing.
-    '<script></script><script type="module"></script><svg><script></script></svg>',
+    // A script or handler with no code but whitespace does nothing, and a
+    // blob: address in markup names nothing a script registered.
+    '<script></script><script type="module"> \n </script><svg><script></script></svg>',
+    '<button onclick="">x</button><div onmouseover="  ">y</div>',
+    '<script src="blob:https://a.example/00000000-0000-0000-0000-000000000000"></script>',
     // A module from data: runs only as JavaScript.
     '<script type="module" src="data:text/plain,export default 1"></script>',
     // The file's own policy, from <head>, where it refuses the code: 'none',
