@@ -64,10 +64,15 @@ const htmlFile: BucketFileViewerItem = {
 // A static page whose only title is in a noscript.
 const offlinePage = '<noscript><title>Offline</title></noscript><p>x</p>';
 
-function render(item: BucketFileViewerItem) {
+function render(
+  item: BucketFileViewerItem,
+  state: { error?: string; loading?: boolean } = {}
+) {
   let renderer!: ReactTestRenderer;
   act(() => {
-    renderer = create(<BucketFileViewer item={item} onClose={() => {}} />);
+    renderer = create(
+      <BucketFileViewer item={item} onClose={() => {}} {...state} />
+    );
   });
   return renderer;
 }
@@ -147,6 +152,12 @@ describe('BucketFileViewer html preview (web)', () => {
     expect(frames(renderer)[0].props.srcDoc).toContain("'nonce-");
     expect(enableScriptsButton(renderer)).toBeUndefined();
     expect(headerOf(renderer).title).toBe('report.html');
+    // Nor while a page with scripts loads, or over an error in its place.
+    for (const state of [{ loading: true }, { error: 'Grant expired' }]) {
+      const pending = render(htmlFile, state);
+      expect(frames(pending)).toHaveLength(0);
+      expect(enableScriptsButton(pending)).toBeUndefined();
+    }
   });
 
   // The desktop shell disables web security, which defeats the opaque origin,

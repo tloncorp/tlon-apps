@@ -63,7 +63,14 @@ export function BucketFileViewer({
   );
   const fileId = item.uri ?? item.name;
   const runScripts = !isElectron && pageHasScripts && scriptsRunFor === fileId;
-  const offerScripts = !isElectron && pageHasScripts && !runScripts;
+  // Offered only over a page on screen: not while it loads, nor over an error.
+  const offerScripts =
+    !isElectron &&
+    pageHasScripts &&
+    !runScripts &&
+    !loading &&
+    !error &&
+    Boolean(item.uri);
   const scripts: HtmlPreviewScripts = isElectron
     ? 'none'
     : runScripts

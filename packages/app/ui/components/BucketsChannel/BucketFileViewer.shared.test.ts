@@ -474,6 +474,10 @@ describe('htmlPreviewHasScripts', () => {
     `<head><meta http-equiv="Content-Security-Policy" content="script-src-elem 'none'"></head><img src="x" onerror="go()">`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'"></head><script nonce="abc">go()</script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'sha256-abc='"></head><script>go()</script>`,
+    // Our link script runs an HTML or SVG link's javascript: by eval; WebKit
+    // runs a MathML element's itself, as inline code.
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-eval'"></head><a href="javascript:go()">x</a>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline'"></head><math><mtext href="javascript:go()">x</mtext></math>`,
     `<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'"></head><script src="https://cdn.jsdelivr.net/x.js"></script>`,
     '<button onclick="go()">go</button>',
     '<svg onload = "go()"></svg>',
@@ -629,6 +633,8 @@ describe('htmlPreviewHasScripts', () => {
     `<head><meta http-equiv="Content-Security-Policy" content="SCRIPT-SRC 'unsafe-inline' 'strict-dynamic'"></head><script>go()</script><img src="x" onerror="go()">`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'"></head><script nonce="xyz">go()</script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src"></head><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline'"></head><a href="javascript:go()">x</a><svg><a href="javascript:go()"><text>x</text></a></svg>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-eval'"></head><math><mtext href="javascript:go()">x</mtext></math><iframe src="javascript:go()"></iframe>`,
     // A handler only some elements take, on one that does not.
     '<div onbegin="go()" ononline="go()">x</div><span onsearch="go()" onencrypted="go()"></span><svg><g onunload="go()"/></svg>',
     '<div srcdoc="&lt;script&gt;go()&lt;/script&gt;">x</div>',
@@ -883,6 +889,10 @@ describe('htmlPreviewDocument without scripts', () => {
     ['<base href="https://exa mple.com/"><a href="/~/logout">x</a>', '<a target="_blank">x</a>'],
     ['<base href="/docs/"><a href="/~/logout">x</a>', '<a target="_blank">x</a>'],
     ['<template><base href="https://t.example/"></template><a href="help.html">x</a>', '<a target="_blank">x</a>'],
+    // An ordinary template never renders without a script, so its links and
+    // frames are left alone; a declarative shadow root's are live.
+    ['<template><a href="tlon://open" target="_self">x</a><iframe srcdoc="<a href=tlon://open>y</a>"></iframe></template>', '<template><a href="tlon://open" target="_self">x</a><iframe srcdoc="<a href=tlon://open>y</a>"></iframe></template>'],
+    ['<div><template shadowrootmode="open"><a href="tlon://open" target="_self">x</a></template></div>', '<a target="_blank">x</a>'],
     ['<svg><base href="https://t.example/"/></svg><a href="help.html">x</a>', '<a target="_blank">x</a>'],
     ['<math><base href="https://t.example/"></base></math><a href="help.html">x</a>', '<a target="_blank">x</a>'],
     // Electron's parser, like WebKit's, drops a base inside a select.
@@ -962,6 +972,8 @@ describe('hostile markup', () => {
       expect(htmlPreviewTitle(html)).toBeUndefined();
     }
     expect(scriptless('<a'.repeat(200_000))).toContain('<a<a');
+    const inert = `<template>${'<iframe srcdoc="x"></iframe>'.repeat(70_000)}</template>`;
+    expect(scriptless(inert).endsWith(`${inert}`)).toBe(true);
     for (const html of [
       '<div>'.repeat(200_000),
       '<svg>'.repeat(100_000) + '</x>'.repeat(100_000),

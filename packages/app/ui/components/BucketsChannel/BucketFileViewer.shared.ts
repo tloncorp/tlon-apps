@@ -1538,13 +1538,17 @@ export function htmlPreviewHasScripts(
       ) {
         return true;
       }
-      // Our link script runs a javascript: link by eval; WebKit and
-      // Chromium run some natively, as inline code.
+      // Our link script runs an HTML or SVG link's javascript: by eval;
+      // WebKit runs a MathML element's, and Chromium a frame's, itself, as
+      // inline code.
       if (
         runsJavascriptUrl(element, attribute) &&
         urlScheme(attribute.value) === 'javascript' &&
-        policies.every(
-          (p) => allowsEvaluation(p.evaluation) || allowsInline(p.elements)
+        policies.every((p) =>
+          (element.nodeName === 'a' || element.nodeName === 'area') &&
+          element.namespaceURI !== NS.MATHML
+            ? allowsEvaluation(p.evaluation)
+            : allowsInline(p.elements)
         )
       ) {
         return true;
@@ -2276,7 +2280,9 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
  *   the parser reached the frame, as Chromium takes it.
  *
  * With no script to change it, the markup is the document, so rewriting it
- * covers every link. Each document is parsed as a frame without scripts
+ * covers every link. An ordinary template's content never renders without a
+ * script, so its links and frames are left as they are (a declarative shadow
+ * root's are rewritten). Each document is parsed as a frame without scripts
  * parses it, and each link's start tag rewritten where it stands in the
  * source, so text that only looks like a link is left as it is, and so is a
  * link the parser drops (inside a select). Null when the file cannot be read
@@ -2293,7 +2299,7 @@ function withLinksAimedAtBlank(
   const base = webBase(bases[0], inherited);
   const edits: { start: number; end: number; text: string }[] = [];
   const rewritten = new Set<number>();
-  for (const element of elementsOf(parsed.document, () => true)) {
+  for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
     const tag = element.sourceCodeLocation?.startTag;
     const link =
       element.namespaceURI === NS.MATHML

@@ -81,10 +81,15 @@ const scriptedFile: BucketFileViewerItem = {
     '<!doctype html><title>Quarterly numbers</title><p id="n">three</p><script>document.getElementById("n").textContent = "3";</script>',
 };
 
-function render(item: BucketFileViewerItem = htmlFile) {
+function render(
+  item: BucketFileViewerItem = htmlFile,
+  state: { error?: string; loading?: boolean } = {}
+) {
   let renderer!: ReactTestRenderer;
   act(() => {
-    renderer = create(<BucketFileViewer item={item} onClose={() => {}} />);
+    renderer = create(
+      <BucketFileViewer item={item} onClose={() => {}} {...state} />
+    );
   });
   return renderer;
 }
@@ -147,6 +152,12 @@ describe('BucketFileViewer html preview (native)', () => {
 
   it('offers nothing to run for a page without scripts', () => {
     expect(enableScriptsButton(render())).toBeUndefined();
+    // Nor while a page with scripts loads, or over an error in its place.
+    for (const state of [{ loading: true }, { error: 'Grant expired' }]) {
+      const pending = render(scriptedFile, state);
+      expect(pending.root.findAllByType('WebView' as never)).toHaveLength(0);
+      expect(enableScriptsButton(pending)).toBeUndefined();
+    }
   });
 
   // Nesting deeper than the preview reads, it gets the notice and Open.

@@ -62,7 +62,9 @@ export function BucketFileViewer({
   );
   const fileId = item.uri ?? item.name;
   const runScripts = pageHasScripts && scriptsRunFor === fileId;
-  const offerScripts = pageHasScripts && !runScripts;
+  // Offered only over a page on screen: not while it loads, nor over an error.
+  const offerScripts =
+    pageHasScripts && !runScripts && !loading && !error && Boolean(item.uri);
 
   return (
     <YStack flex={1} minHeight={0} backgroundColor="$background">
