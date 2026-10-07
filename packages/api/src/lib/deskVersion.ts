@@ -47,3 +47,9 @@ export const MIN_GROUPS_VERSION = '12.2.0';
 // move in lockstep with desk/desk.docket-0's version if the release number
 // changes.
 export const BUCKETS_MIN_GROUPS_VERSION = '12.3.0';
+
+// The first %groups release whose init and changes scries count every seat,
+// not just the 15 they keep (TLON-6779). Below it, a member count of exactly
+// 15 may be that cap (getDeskCountsAllSeats). Must move in lockstep with
+// desk/desk.docket-0's version if the release number changes.
+export const FULL_MEMBER_COUNT_MIN_GROUPS_VERSION = '12.3.2';

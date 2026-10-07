@@ -83,7 +83,7 @@ The tab bar along the bottom is icons only, so describe them by shape:
 
 Until the bot finishes setting you up, the other tabs stay locked.
 
-Outside of groups, you can send direct messages to individuals. DMs appear alongside your workspaces on the Workspaces tab. The filters at the top narrow the list: `Messages` shows only DMs, `Just me` shows workspaces that hold only you and your bot, and `With others` shows the rest.
+Outside of groups, you can send direct messages to individuals. DMs appear alongside your workspaces on the Workspaces tab. The filters at the top narrow the list: `Messages` shows only DMs, `Just me` shows workspaces that hold only you and your bot, and `With others` shows the rest. `Just me` only appears when you have a workspace like that; without one, the filters are `All`, `With others`, and `Messages`.
 
 ### Sync your contacts
 

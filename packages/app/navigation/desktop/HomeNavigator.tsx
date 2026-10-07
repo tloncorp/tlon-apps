@@ -19,6 +19,8 @@ import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { HomeEmptyState } from '../../features/top/DesktopEmptyStates';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../../features/top/MediaViewerScreen';
+import { BucketFileScreen } from '../../features/top/BucketFileScreen';
+import { BucketFolderScreen } from '../../features/top/BucketFolderScreen';
 import { NotesDetailScreen } from '../../features/top/NotesDetailScreen';
 import { NotesFolderScreen } from '../../features/top/NotesFolderScreen';
 import { NotesSearchScreen } from '../../features/top/NotesSearchScreen';
@@ -238,6 +240,16 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="NotesSearch"
           component={NotesSearchScreen}
+          initialParams={channelParams}
+        />
+        <ChannelStackNavigator.Screen
+          name="BucketFolder"
+          component={BucketFolderScreen}
+          initialParams={channelParams}
+        />
+        <ChannelStackNavigator.Screen
+          name="BucketFile"
+          component={BucketFileScreen}
           initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen

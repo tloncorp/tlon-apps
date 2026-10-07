@@ -24,6 +24,7 @@ import { useCurrentUserId } from '../../contexts/appDataContext';
 import {
   getChannelHost,
   getChannelTypeLabel,
+  getGroupMemberCount,
   useChatDescription,
   useChatTitle,
 } from '../../utils';
@@ -273,7 +274,7 @@ export function ChannelHeader({
           return group.description;
         }
         // If it's a single-channel group without explicit title/description, show member count
-        const memberCount = group.members?.length ?? 0;
+        const memberCount = getGroupMemberCount(group);
         const result = `Chat with ${memberCount} members`;
         return result;
       }
