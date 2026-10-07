@@ -619,6 +619,30 @@ export const useJoinedGroupSeats = (contactIds: string[]) => {
   });
 };
 
+export const useMemberGroupRoles = (contactId: string) => {
+  const deps = useKeyFromQueryDeps(db.getMemberGroupRoles);
+  return useQuery({
+    queryKey: ['memberGroupRoles', deps, contactId],
+    queryFn: () => db.getMemberGroupRoles({ contactId }),
+  });
+};
+
+export const useChannelWriterRoles = () => {
+  const deps = useKeyFromQueryDeps(db.getChannelWriterRoles);
+  return useQuery({
+    queryKey: ['channelWriterRoles', deps],
+    queryFn: () => db.getChannelWriterRoles(),
+  });
+};
+
+export const useChannelReaderRoles = () => {
+  const deps = useKeyFromQueryDeps(db.getChannelReaderRoles);
+  return useQuery({
+    queryKey: ['channelReaderRoles', deps],
+    queryFn: () => db.getChannelReaderRoles(),
+  });
+};
+
 export const useGroupPreview = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getGroup, groupId);
   const { data: group } = useGroup({ id: groupId });
@@ -819,6 +843,27 @@ export const useDeskSupportsBuckets = (): boolean | undefined => {
     return undefined;
   }
   return logic.deskVersionSupportsBuckets(appInfo?.groupsVersion);
+};
+
+/**
+ * Whether this ship's %steward serves scheduled tasks the way the app uses
+ * them, for showing the ways into the task screens. Resolved the same way as
+ * useDeskSupportsBuckets: the client capability once sync start has set it,
+ * the stored app info before then, and undefined while neither is known.
+ */
+export const useDeskSupportsAutomations = (): boolean | undefined => {
+  const clientSupports = useSyncExternalStore(
+    api.onDeskSupportsAutomationsChange,
+    api.getDeskSupportsAutomationsState
+  );
+  const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
+  if (clientSupports !== null) {
+    return clientSupports;
+  }
+  if (isLoading) {
+    return undefined;
+  }
+  return logic.deskVersionSupportsAutomations(appInfo?.groupsVersion);
 };
 
 /**
