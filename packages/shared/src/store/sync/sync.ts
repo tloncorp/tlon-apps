@@ -17,6 +17,7 @@ import { httpStatusFromError, isIgnoredError } from '../../errorReporting';
 import {
   MIN_GROUPS_VERSION,
   activityVersionSupportsNotes,
+  deskVersionServesLureOnReel,
   deskVersionSupportsBuckets,
   activityVersionSupportsReactions,
   classifyDeskVersion,
@@ -667,6 +668,9 @@ export const syncAppInfo = async (
   api.setDeskSupportsBuckets(
     deskVersionSupportsBuckets(appInfo?.groupsVersion)
   );
+  api.setDeskServesLureOnReel(
+    deskVersionServesLureOnReel(appInfo?.groupsVersion)
+  );
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -703,6 +707,7 @@ export const syncReactionSupport = async () => {
   );
   api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
   api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
+  api.setDeskServesLureOnReel(deskVersionServesLureOnReel(groupsVersion));
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {

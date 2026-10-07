@@ -2,7 +2,7 @@ import { InviteLinkMetadata } from '../types/invite.types';
 import type * as db from '../types/models';
 import { GroupMeta } from '../urbit';
 import { base, pokeRequest, reel, subscribeOnceRequest } from './requests';
-import { getCurrentUserId } from './urbit';
+import { getCurrentUserId, getDeskServesLureOnReelState } from './urbit';
 
 const ID_LINK_TIMEOUT = 3 * 1000;
 
@@ -28,8 +28,21 @@ export async function createInviteLink(
   });
 }
 
+// %reel takes grouper-enable from the %tlon desk (13.0.0); older desks still
+// run %grouper. While the desk version is unresolved, try %reel and fall back.
 export async function enableGroup(name: string) {
-  return await pokeRequest(base.grouperEnable)(name);
+  const onReel = getDeskServesLureOnReelState();
+  if (onReel === false) {
+    return await pokeRequest(base.grouperEnable)(name);
+  }
+  try {
+    return await pokeRequest(reel.enableGroup)(name);
+  } catch (e) {
+    if (onReel === true) {
+      throw e;
+    }
+    return await pokeRequest(base.grouperEnable)(name);
+  }
 }
 
 export async function checkExistingUserInviteLink(): Promise<string | null> {
@@ -58,9 +71,8 @@ export async function createPersonalInviteLink(
 ): Promise<string> {
   const currentUserId = getCurrentUserId();
 
-  // first tell grouper our fake group exists so it can process the bite
-  // correctly
-  await pokeRequest(base.grouperEnable)(SELF_INVITE_KEY);
+  // first enable our fake group so the bite is processed correctly
+  await enableGroup(SELF_INVITE_KEY);
 
   // then create the invite link entry on the providers
   await createInviteLink(

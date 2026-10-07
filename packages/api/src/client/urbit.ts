@@ -68,6 +68,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
   deskSupportsBuckets: boolean | null;
+  deskServesLureOnReel: boolean | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -190,6 +191,9 @@ const config: Config = {
   // whose version we cannot read is asked for /v10, which every backend has —
   // a 404 there costs the whole init. Guarded requests refuse only false.
   deskSupportsBuckets: null,
+  // Unknown (null) until the app confirms the backend's desk version. Lure
+  // pokes try %reel first while unknown; see enableGroup.
+  deskServesLureOnReel: null,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -293,6 +297,16 @@ export const getDeskSupportsBuckets = (): boolean => {
 // only a known false.
 export const getDeskSupportsBucketsState = (): boolean | null => {
   return config.deskSupportsBuckets;
+};
+
+// Whether the connected backend's %reel takes the lure pokes %grouper used
+// to (the %tlon desk, 13.0.0). null until sync start resolves it.
+export const setDeskServesLureOnReel = (value: boolean | null) => {
+  config.deskServesLureOnReel = value;
+};
+
+export const getDeskServesLureOnReelState = (): boolean | null => {
+  return config.deskServesLureOnReel;
 };
 
 export const onDeskSupportsBucketsChange = (
@@ -475,6 +489,7 @@ export function internalRemoveClient() {
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
   setDeskSupportsBuckets(null);
+  setDeskServesLureOnReel(null);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
