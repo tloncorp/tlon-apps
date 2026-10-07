@@ -4,6 +4,7 @@ Where things are when Tlon Messenger runs in a browser or the desktop app: the l
 
 ## Find my way around Tlon Messenger on a computer
 <!-- src: packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/HomeNavigator.tsx, packages/app/navigation/desktop/HomeSidebar.tsx, packages/app/features/top/DesktopEmptyStates.tsx -->
+<!-- covers: route:MainContent, route:ActivityEmpty, route:SettingsEmpty -->
 
 Desktop: the window has three parts. A thin rail of icons runs down the far left. Beside it is a sidebar holding a list. The rest of the window is the main pane, which shows whatever you click in the sidebar. The rail chooses which list the sidebar shows, and it starts on `Home`.
 Notes: there is no tab bar along the bottom. Until you pick a chat, the main pane on Home says `Start messaging!` and `Your chats will appear here.` On Messages, Activity and Settings the main pane is blank until you pick something. On Contacts it shows your own profile.

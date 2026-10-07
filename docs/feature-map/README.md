@@ -24,7 +24,10 @@ Notes: pinned chats move to a `Pinned` section at the top.
 ```
 
 - The `# ` title and the first line under it become the file's line in the
-  skill's index, so the first line says what questions the file answers.
+  skill's index, so the first line says what questions the file answers. That
+  line is published as written, whatever the release, so keep it to the area
+  and do not name a feature that is behind a flag or newer than the store
+  build. The index lists each published entry by its heading anyway.
 - Each `## ` heading is one task, phrased the way a person would ask about it.
   Headings are also listed in the index, so the bot picks a file by them.
 - `<!-- src: … -->` lists the files the entry was written from, as paths from
@@ -93,12 +96,28 @@ happens after a tap, read the entries that cite the files you touched.
 node scripts/feature-map.mjs promote --app ios-production-789
 ```
 
-`promote` checks every entry against the code at that tag. Entries that pass
-are written to `packages/openclaw/skills/tlon-product-guide/references/` with their anchors
-removed. An entry that does not pass (its labels arrived after the release, or
-its flag is off there) keeps its previously published wording, or is left out
-if it was never published. `references/RELEASE.json` records the tag and what
-was held back, and the index in `SKILL.md` is rewritten to match.
+`promote` checks every entry against the code at that tag and writes what is
+true for it to `packages/openclaw/skills/tlon-product-guide/references/`, with
+the anchors removed:
+
+- An entry that passes is published as written.
+- An entry that does not pass (its labels arrived after the release, or its
+  flag is off there) keeps its previously published wording, as long as that
+  wording still passes for this release. Otherwise it is left out.
+- An entry that was published before and is no longer in the map stays
+  published while the release still has what it describes. So when a feature
+  is removed on develop, delete its entry as the check asks: people on the
+  store build keep the instructions until a release drops the feature.
+
+That last rule means deleting an entry does not unpublish it straight away. To
+stop publishing one regardless, for example because it was wrong, run
+`promote` with `--drop file.md#heading-slug`.
+
+Beside the reference files, `promote` writes `RELEASE.json` (the tag, what was
+held back, what was kept after leaving the map), and it rewrites the index in
+`SKILL.md`. In this folder it writes `release-anchors.json`: the files and
+labels each published entry rested on, which is how an old copy can be tested
+against a release. That file is generated too; don't edit it.
 
 ## Testing answers
 

@@ -7,8 +7,7 @@
 //   labels   loose check for a Markdown file without anchors: each quoted
 //            label must appear somewhere in the app's source
 //   surface  print the inventory the coverage check uses
-//   promote  write the copy bots read, holding back entries whose labels are
-//            not in the given release
+//   promote  write the copy bots read: only what is true for the given release
 //
 // See docs/feature-map/README.md for the entry format.
 import { execFileSync } from 'node:child_process';
@@ -21,6 +20,9 @@ export const SKILL_DIR = 'packages/openclaw/skills/tlon-product-guide';
 export const PUBLISHED_DIR = `${SKILL_DIR}/references`;
 const IGNORE_FILE = `${MAP_DIR}/surface-ignore.txt`;
 const QUESTIONS_DIR = `${MAP_DIR}/questions`;
+// What each published entry rested on. Kept out of the skill's folder: it is
+// for `promote`, not for bots, and it is nearly as large as the references.
+const ANCHORS_FILE = `${MAP_DIR}/release-anchors.json`;
 const INDEX_START = '<!-- feature-map:index:start -->';
 const INDEX_END = '<!-- feature-map:index:end -->';
 
@@ -235,15 +237,18 @@ function routeNames(text) {
   let depth = 0;
   let inList = false;
   for (const line of text.split('\n')) {
-    if (depth === 0) inList = /^export type \w+ParamList\b/.test(line);
+    // A declaration runs to its closing `;`, so a list written as
+    // `Pick<…> & {` with the brace on a later line is still read.
+    if (depth === 0 && /^export type \w+ParamList\b/.test(line)) inList = true;
     if (inList && depth === 1) {
-      const key = /^\s{2}([A-Z]\w+)\??:/.exec(line);
+      const key = /^\s+([A-Z]\w+)\??:/.exec(line);
       if (key) names.add(key[1]);
     }
     for (const char of line) {
       if (char === '{') depth += 1;
       if (char === '}') depth -= 1;
     }
+    if (depth === 0 && /;\s*$/.test(line)) inList = false;
   }
   return [...names];
 }
@@ -495,12 +500,98 @@ export function replaceIndex(skillText, index) {
   return `${skillText.slice(0, start + INDEX_START.length)}\n${index}\n${skillText.slice(end)}`;
 }
 
+/** What stops an entry, or the anchors saved with a published one, being true for a release. */
+function releaseProblems(anchors, release, flagsOn) {
+  const problems = checkEntry({ absent: [], ...anchors }, release);
+  const flagOff = (anchors.flag ?? []).find((flag) => !flagsOn.has(flag));
+  if (flagOff) problems.push(`flag ${flagOff} is off in this release`);
+  return problems;
+}
+
+const anchorsOf = ({ src, labels, absent, flag }) => ({
+  src,
+  labels,
+  absent,
+  flag,
+});
+
 /**
- * Take the working tree's map and keep the entries that are true for `app`.
- * An entry that is not (its labels arrived after the release, or its flag is
- * off there) falls back to the copy already published, or is left out.
+ * Decide what bots should read for one release.
+ *
+ * - An entry in the map that is true for the release is published as written.
+ * - One that is not (its labels arrived after the release, or its flag is off
+ *   there) falls back to the copy published before, but only if that copy is
+ *   itself true for this release. Otherwise it is left out.
+ * - An entry published before that the map no longer has is kept while the
+ *   release still has what it describes: a feature removed on develop is
+ *   still in people's hands until a store build drops it. `drop` names
+ *   entries (`file.md#slug`) to stop publishing regardless.
+ *
+ * `previous.anchors` holds, for each published entry, the files and labels it
+ * rested on, which is what lets an old copy be tested against a release.
  */
-export function promote(root, app) {
+export function planRelease({
+  mapFiles,
+  previous,
+  release,
+  flagsOn,
+  drop = [],
+}) {
+  const held = [];
+  const carried = [];
+  const published = [];
+  const names = [
+    ...mapFiles.map((file) => file.file),
+    ...Object.keys(previous.files).filter(
+      (name) => !mapFiles.some((file) => file.file === name)
+    ),
+  ];
+  for (const name of names) {
+    const mapFile = mapFiles.find((file) => file.file === name);
+    const oldFile = previous.files[name];
+    const usableOld = (slug) => {
+      const key = `${name}#${slug}`;
+      const old = oldFile?.entries.find((entry) => entry.slug === slug);
+      const anchors = previous.anchors[key];
+      if (!old || !anchors || drop.includes(key)) return undefined;
+      if (releaseProblems(anchors, release, flagsOn).length) return undefined;
+      return { heading: old.heading, slug, body: old.body, anchors };
+    };
+    const entries = [];
+    const inMap = new Set();
+    for (const entry of mapFile?.entries ?? []) {
+      inMap.add(entry.slug);
+      const problems = releaseProblems(entry, release, flagsOn);
+      if (!problems.length) {
+        entries.push({ ...entry, anchors: anchorsOf(entry) });
+        continue;
+      }
+      const fallback = usableOld(entry.slug);
+      if (fallback) entries.push(fallback);
+      held.push({
+        file: name,
+        entry: entry.heading,
+        kept: fallback ? 'previous published copy' : 'left out',
+        why: problems,
+      });
+    }
+    for (const old of oldFile?.entries ?? []) {
+      if (inMap.has(old.slug)) continue;
+      const kept = usableOld(old.slug);
+      if (!kept) continue;
+      entries.push(kept);
+      carried.push({ file: name, entry: old.heading });
+    }
+    if (entries.length) {
+      const { title, intro } = mapFile ?? oldFile;
+      published.push({ name, file: { title, intro }, entries });
+    }
+  }
+  return { published, held, carried };
+}
+
+/** Run `planRelease` for the working tree's map and write the result. */
+export function promote(root, app, drop = []) {
   const git = (args) =>
     execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
   const head = makeReader(root);
@@ -512,48 +603,47 @@ export function promote(root, app) {
       ),
     ].map((m) => m[1])
   );
-  const held = [];
-  const published = [];
-  for (const file of readMap(head)) {
-    const previousText = head.read(`${PUBLISHED_DIR}/${file.file}`);
-    const previous = previousText ? parseMapFile(previousText).entries : [];
-    const entries = [];
-    for (const entry of file.entries) {
-      const problems = checkEntry(entry, release);
-      const flagOff = entry.flag.find((flag) => !flagsOn.has(flag));
-      if (flagOff) problems.push(`flag ${flagOff} is off in this release`);
-      if (!problems.length) {
-        entries.push(entry);
-        continue;
-      }
-      const fallback = previous.find((old) => old.slug === entry.slug);
-      if (fallback) entries.push(fallback);
-      held.push({
-        file: file.file,
-        entry: entry.heading,
-        kept: fallback ? 'previous published copy' : 'left out',
-        why: problems,
-      });
-    }
-    if (entries.length) published.push({ name: file.file, file, entries });
-  }
+  const previous = {
+    files: Object.fromEntries(
+      head
+        .list(PUBLISHED_DIR)
+        .filter((name) => name.endsWith('.md'))
+        .map((name) => [
+          name,
+          parseMapFile(head.read(`${PUBLISHED_DIR}/${name}`) ?? '', name),
+        ])
+    ),
+    anchors: JSON.parse(head.read(ANCHORS_FILE) ?? '{}'),
+  };
+  const { published, held, carried } = planRelease({
+    mapFiles: readMap(head),
+    previous,
+    release,
+    flagsOn,
+    drop,
+  });
 
   const outDir = path.join(root, PUBLISHED_DIR);
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
+  const anchors = {};
   for (const { name, file, entries } of published) {
     fs.writeFileSync(path.join(outDir, name), renderPublished(file, entries));
+    for (const entry of entries)
+      anchors[`${name}#${entry.slug}`] = entry.anchors;
   }
-  const releaseInfo = {
-    note: 'Generated by scripts/feature-map.mjs promote. Edit docs/feature-map instead.',
-    app,
-    appCommit: git(['rev-parse', `${app}^{commit}`]),
-    held,
-  };
+  const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
   fs.writeFileSync(
     path.join(outDir, 'RELEASE.json'),
-    `${JSON.stringify(releaseInfo, null, 2)}\n`
+    json({
+      note: 'Generated by scripts/feature-map.mjs promote. Edit docs/feature-map instead.',
+      app,
+      appCommit: git(['rev-parse', `${app}^{commit}`]),
+      held,
+      carried,
+    })
   );
+  fs.writeFileSync(path.join(root, ANCHORS_FILE), json(anchors));
   const skillPath = path.join(root, SKILL_DIR, 'SKILL.md');
   const skill = replaceIndex(
     fs.readFileSync(skillPath, 'utf8'),
@@ -563,6 +653,7 @@ export function promote(root, app) {
   return {
     published,
     held,
+    carried,
     indexUpdated: skill !== null,
     entryCount: published.reduce((sum, item) => sum + item.entries.length, 0),
   };
@@ -619,13 +710,19 @@ function main(argv) {
   if (command === 'promote') {
     const app = option(args, '--app');
     if (!app) return usage();
-    const result = promote(root, app);
+    const drop = (option(args, '--drop') ?? '').split(',').filter(Boolean);
+    const result = promote(root, app, drop);
     for (const { file, entry, kept, why } of result.held) {
       console.log(`held back: ${file} › ${entry} (${kept}): ${why[0]}`);
     }
+    for (const { file, entry } of result.carried) {
+      console.log(
+        `still published, though gone from the map: ${file} › ${entry}`
+      );
+    }
     console.log(
       `published ${result.entryCount} entries in ${result.published.length} files for ${app}; ` +
-        `${result.held.length} held back` +
+        `${result.held.length} held back, ${result.carried.length} kept after leaving the map` +
         (result.indexUpdated
           ? ''
           : '; SKILL.md has no index markers, so its index was not updated')
@@ -641,7 +738,7 @@ function usage() {
     'usage: feature-map.mjs check [--ref <git-ref>]\n' +
       '       feature-map.mjs labels <file.md> [--ref <git-ref>]\n' +
       '       feature-map.mjs surface [--ref <git-ref>]\n' +
-      '       feature-map.mjs promote --app <release-tag>'
+      '       feature-map.mjs promote --app <release-tag> [--drop file.md#slug,…]'
   );
   return 2;
 }

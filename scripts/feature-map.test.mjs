@@ -9,6 +9,7 @@ import {
   labelInSources,
   normalize,
   parseMapFile,
+  planRelease,
   questionAnchors,
   readSurface,
   replaceIndex,
@@ -142,6 +143,19 @@ type Other = {
   NotARoute: undefined;
 };
 export type CombinedParamList = RootStackParamList & Other;
+export type ActivityDrawerParamList = Pick<
+  RootStackParamList,
+  'ChatList'
+> & {
+  ActivityEmpty: undefined;
+};
+export type HomeDrawerParamList = Pick<RootStackParamList, 'ChatList'> &
+  Pick<RootStackParamList, 'Channel'> & {
+    MainContent: undefined;
+    Wrapped:
+      | { inner: { Deep: never } }
+      | RootStackParamList['Channel'];
+  };
 `,
     'packages/api/src/types/ChannelActions.ts': `export type Id =\n  | 'quote'\n  | 'edit';\nconst other = 'nope';`,
     'packages/app/lib/featureFlags.ts': `export const featureMeta = {\n  buckets: {\n    default: false,\n  },\n} satisfies Record<string, unknown>;`,
@@ -155,9 +169,12 @@ export type CombinedParamList = RootStackParamList & Other;
       'command:help',
       'command:new',
       'flag:buckets',
+      'route:ActivityEmpty',
       'route:Channel',
       'route:ChatList',
+      'route:MainContent',
       'route:Optional',
+      'route:Wrapped',
     ],
     missingSources: [],
   });
@@ -228,4 +245,118 @@ test('flags a question whose entry is not in the map', () => {
       problem: 'no entry "What\'s in the list: rows" in workspaces-list.md',
     },
   ]);
+});
+
+// The release has `Pin` and `Mute`; develop has since renamed Pin to `Keep`.
+const RELEASE = fakeReader({
+  'app/Menu.tsx': `title: 'Pin'\ntitle: 'Mute'`,
+});
+const entry = (heading, label, extra = '') =>
+  `## ${heading}\n<!-- src: app/Menu.tsx -->\n${extra}\nPhone: tap \`${label}\`.\n`;
+const mapOf = (...entries) => [
+  parseMapFile(
+    `# Lists\n\nFinding chats.\n\n${entries.join('\n')}`,
+    'lists.md'
+  ),
+];
+const publishedCopy = (...entries) => ({
+  'lists.md': parseMapFile(
+    `# Lists\n\nFinding chats.\n\n${entries.map(([heading, body]) => `## ${heading}\n\n${body}`).join('\n\n')}\n`,
+    'lists.md'
+  ),
+});
+const anchor = (label) => ({
+  src: ['app/Menu.tsx'],
+  labels: [label],
+  absent: [],
+  flag: [],
+});
+const plan = (input) =>
+  planRelease({ release: RELEASE, flagsOn: new Set(), ...input });
+const headings = (result) =>
+  result.published.flatMap((file) => file.entries.map((item) => item.heading));
+
+test('publishes an entry that is true for the release, with its anchors', () => {
+  const result = plan({
+    mapFiles: mapOf(entry('Pin a chat', 'Pin')),
+    previous: { files: {}, anchors: {} },
+  });
+  assert.deepEqual(headings(result), ['Pin a chat']);
+  assert.deepEqual(result.published[0].entries[0].anchors, anchor('Pin'));
+  assert.deepEqual(result.held, []);
+});
+
+test('falls back to the published copy only when that copy fits the release', () => {
+  const mapFiles = mapOf(entry('Pin a chat', 'Keep'));
+  const files = publishedCopy(['Pin a chat', 'Phone: tap `Pin`.']);
+
+  const fits = plan({
+    mapFiles,
+    previous: { files, anchors: { 'lists.md#pin-a-chat': anchor('Pin') } },
+  });
+  assert.equal(fits.published[0].entries[0].body, 'Phone: tap `Pin`.');
+  assert.equal(fits.held[0].kept, 'previous published copy');
+
+  // Published for a newer build, then promoted for this older one.
+  const tooNew = plan({
+    mapFiles,
+    previous: { files, anchors: { 'lists.md#pin-a-chat': anchor('Stick') } },
+  });
+  assert.deepEqual(headings(tooNew), []);
+  assert.equal(tooNew.held[0].kept, 'left out');
+
+  // A copy with no record of what it rested on cannot be trusted either.
+  const unknown = plan({ mapFiles, previous: { files, anchors: {} } });
+  assert.deepEqual(headings(unknown), []);
+});
+
+test('holds back an entry behind a flag that is off in the release', () => {
+  const mapFiles = mapOf(entry('Mute a chat', 'Mute', '<!-- flag: quiet -->'));
+  const previous = { files: {}, anchors: {} };
+  assert.deepEqual(headings(plan({ mapFiles, previous })), []);
+  assert.deepEqual(
+    headings(plan({ mapFiles, previous, flagsOn: new Set(['quiet']) })),
+    ['Mute a chat']
+  );
+});
+
+test('keeps an entry the map dropped while the release still has the feature', () => {
+  const previous = {
+    files: publishedCopy(
+      ['Pin a chat', 'Phone: tap `Pin`.'],
+      ['Archive a chat', 'Phone: tap `Archive`.']
+    ),
+    anchors: {
+      'lists.md#pin-a-chat': anchor('Pin'),
+      'lists.md#archive-a-chat': anchor('Archive'),
+    },
+  };
+  // Develop removed both features, so the map has neither entry.
+  const result = plan({
+    mapFiles: mapOf(entry('Mute a chat', 'Mute')),
+    previous,
+  });
+  // Pin is still in the release; Archive is not.
+  assert.deepEqual(headings(result), ['Mute a chat', 'Pin a chat']);
+  assert.deepEqual(result.carried, [{ file: 'lists.md', entry: 'Pin a chat' }]);
+
+  const dropped = plan({
+    mapFiles: mapOf(entry('Mute a chat', 'Mute')),
+    previous,
+    drop: ['lists.md#pin-a-chat'],
+  });
+  assert.deepEqual(headings(dropped), ['Mute a chat']);
+});
+
+test('keeps a whole file the map dropped while its entries still fit', () => {
+  const result = plan({
+    mapFiles: [],
+    previous: {
+      files: publishedCopy(['Pin a chat', 'Phone: tap `Pin`.']),
+      anchors: { 'lists.md#pin-a-chat': anchor('Pin') },
+    },
+  });
+  assert.equal(result.published[0].name, 'lists.md');
+  assert.equal(result.published[0].file.title, 'Lists');
+  assert.deepEqual(headings(result), ['Pin a chat']);
 });

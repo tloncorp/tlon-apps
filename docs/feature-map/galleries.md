@@ -1,6 +1,6 @@
 # Galleries
 
-Browsing, posting to, commenting on, editing and saving from Gallery channels, plus the experimental Buckets file channel.
+Browsing, posting to, commenting on, editing and saving from Gallery channels.
 
 ## What does a gallery channel look like?
 <!-- src: packages/api/src/types/PostCollectionConfiguration.ts, packages/app/ui/components/Channel/Scroller.tsx, packages/app/ui/components/postCollectionViews/ListPostCollectionView.tsx, packages/app/ui/components/GalleryPost/GalleryPost.tsx, packages/app/ui/components/GalleryPost/GalleryContentRenderer.tsx -->

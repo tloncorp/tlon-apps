@@ -1,8 +1,11 @@
 name: Feature Map
 
-# Keeps the product guide's feature map true to the app's source. It runs when
-# either side changes: the UI the map describes, or the map itself. The script
-# has no dependencies, so there is nothing to install.
+# Keeps the product guide's feature map true to the app's source. The script
+# has no dependencies, so there is nothing to install and it takes seconds.
+#
+# It runs on every PR, with no path filter: entries cite files all over the
+# repo (app packages, native Android and iOS, the desk, package manifests), and
+# a filter that misses one lets a stale label through unnoticed.
 #
 # When this fails on a UI change, fix the map in the same PR. See
 # docs/feature-map/README.md.
@@ -10,21 +13,6 @@ name: Feature Map
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "packages/app/**"
-      - "packages/ui/src/**"
-      - "packages/shared/src/**"
-      - "packages/api/src/**"
-      - "packages/editor/src/**"
-      - "apps/tlon-mobile/src/**"
-      - "apps/tlon-mobile/modules/**"
-      - "apps/tlon-web/src/**"
-      - "apps/tlon-desktop/src/**"
-      - "packages/openclaw/src/**"
-      - "docs/feature-map/**"
-      - "packages/openclaw/skills/tlon-product-guide/**"
-      - "scripts/feature-map*"
-      - ".github/workflows/feature-map.yml"
 
 permissions:
   contents: read

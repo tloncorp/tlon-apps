@@ -89,7 +89,9 @@ jobs:
           base: develop
           branch: release/feature-map-${{ steps.release.outputs.app }}
           delete-branch: true
-          add-paths: packages/openclaw/skills/tlon-product-guide
+          add-paths: |
+            packages/openclaw/skills/tlon-product-guide
+            docs/feature-map/release-anchors.json
           commit-message: "product guide: publish the feature map for ${{ steps.release.outputs.app }}"
           title: "product guide: publish the feature map for ${{ steps.release.outputs.app }}"
           body: |
