@@ -173,18 +173,20 @@
 ::  .event names the event and .extra rides along as properties, so a
 ::  fleet-wide question has an answer without reading slogs on one ship.
 ::
-::    +log-fail is for faults only: it emits a %fail, which is what the
-::    crash dashboards and the unknown-crash burst alert count. An expected
-::    outcome, however unwelcome, is a +log-tell.
+::    +log-fail is for anything with a trace worth keeping, a nack or a
+::    crash: %logs fingerprints every %fail so dashboards group by cause.
+::    its volume says how serious it is, the same as a tell's: %error for
+::    a fault, %info for an expected failure we still want to see. a
+::    +log-tell is an event with no trace.
 ::
 ++  log-tell
   |=  [vol=volume:v1:lg event=@t =echo:v1:lg extra=log-data:v1:lg]
   ^+  cor
   (emit (tell:log vol echo ['event'^s+event extra]))
 ++  log-fail
-  |=  [event=@t =echo:v1:lg =tang extra=log-data:v1:lg]
+  |=  [vol=volume:v1:lg event=@t =echo:v1:lg =tang extra=log-data:v1:lg]
   ^+  cor
-  (emit (fail:log %error echo tang ['event'^s+event extra]))
+  (emit (fail:log vol echo tang ['event'^s+event extra]))
 ::
 ::  +load: progressive migration, one version per step, with cards emitted
 ::  at the version they belong to (the shape of +load in %activity).
@@ -441,14 +443,14 @@
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      (log-fail 'Lens Fan-out Nacked' ~['lens fan-out nacked'] u.p.sign ~)
+      (log-fail %error 'Lens Fan-out Nacked' ~['lens fan-out nacked'] u.p.sign ~)
     ==
   ::
       [%lens %retry *]
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      (log-fail 'Lens Retry Nacked' ~['lens retry relay nacked'] u.p.sign ~)
+      (log-fail %error 'Lens Retry Nacked' ~['lens retry relay nacked'] u.p.sign ~)
     ==
   ::
       [%activity ~]
@@ -466,7 +468,7 @@
     ::
         %watch-ack
       ?~  p.sign  cor
-      %:  log-fail  'Activity Watch Nacked'
+      %:  log-fail  %error  'Activity Watch Nacked'
           ~['activity watch nacked']  u.p.sign  ~
       ==
     ==
@@ -514,7 +516,7 @@
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      %:  log-fail  'Gateway DM Send Failed'
+      %:  log-fail  %error  'Gateway DM Send Failed'
           ~['gateway dm send failed']  u.p.sign  ~
       ==
     ==
@@ -523,7 +525,7 @@
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      %:  log-fail  'Gateway Liveness Nacked'
+      %:  log-fail  %error  'Gateway Liveness Nacked'
           ~['liveness publish nacked']  u.p.sign  ~
       ==
     ==
@@ -1374,9 +1376,9 @@
     ^+  cor
     (log-tell vol event echo ['flow'^s+'steward-automation' extra])
   ++  au-fail
-    |=  [event=@t =echo:v1:lg =tang extra=log-data:v1:lg]
+    |=  [vol=volume:v1:lg event=@t =echo:v1:lg =tang extra=log-data:v1:lg]
     ^+  cor
-    (log-fail event echo tang ['flow'^s+'steward-automation' extra])
+    (log-fail vol event echo tang ['flow'^s+'steward-automation' extra])
   ++  au-log-props
     |=  [rid=request-id:v1:sa key=@t who=ship]
     ^-  log-data:v1:lg
@@ -1497,7 +1499,7 @@
     ::
         %watch-ack
       ?~  p.sign  cor
-      %:  au-fail  'Mirror Watch Nacked'
+      %:  au-fail  %error  'Mirror Watch Nacked'
           ~['automation mirror watch nacked']  u.p.sign
           ~['bot'^s+(scot %p bot)]
       ==
@@ -1751,7 +1753,7 @@
     =.  props  ['errorType'^s+type.body props]
     =/  =echo:v1:lg  ~[(cat 3 'edit failed: ' type.body)]
     ?:  ?=(%error vol)
-      (au-fail 'Edit Failed' echo message.body props)
+      (au-fail %error 'Edit Failed' echo message.body props)
     (au-tell vol 'Edit Failed' echo props)
   ::
   ::  the pending wake: close a held HTTP request with %pending and keep
@@ -2095,9 +2097,9 @@
     ^+  cor
     (log-tell vol event echo ['flow'^s+'steward-prompts' extra])
   ++  po-fail
-    |=  [event=@t =echo:v1:lg =tang extra=log-data:v1:lg]
+    |=  [vol=volume:v1:lg event=@t =echo:v1:lg =tang extra=log-data:v1:lg]
     ^+  cor
-    (log-fail event echo tang ['flow'^s+'steward-prompts' extra])
+    (log-fail vol event echo tang ['flow'^s+'steward-prompts' extra])
   ++  po-log-props
     |=  [rid=request-id:v1:sp key=@t who=ship]
     ^-  log-data:v1:lg
@@ -2281,12 +2283,12 @@
       ?~  p.sign
         =.  rewatch.prompts.state  (~(del by rewatch.prompts.state) bot)
         cor
-      ::  expected during a rollout, and repeated on every retry: a tell,
-      ::  not a fault for the crash dashboards
+      ::  expected during a rollout and repeated on every retry, so %info;
+      ::  a %fail all the same, since the nack's trace is what says why
       ::
       =.  cor
-        %:  po-tell  %info  'Mirror Watch Nacked'
-            ~['prompts mirror watch nacked']
+        %:  po-fail  %info  'Mirror Watch Nacked'
+            ~['prompts mirror watch nacked']  u.p.sign
             ~['bot'^s+(scot %p bot)]
         ==
       ?.  (~(has in bots.state) bot)  cor

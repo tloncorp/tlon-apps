@@ -3383,6 +3383,30 @@
   ;<  caz=(list card)  bind:m  (do-req-poke-sign moon %poke-ack `why)
   (ex-equal !>((got-logs caz)) !>(~[[%error 'Edit Failed']]))
 ::
+::  a nacked prompts mirror watch is expected during a rollout, so it is
+::  reported at %info, but as a %fail: the nack's trace says why, and
+::  severity is the volume, not the choice of %fail over %tell
+::
+++  test-logs-mirror-nack-is-a-fail-at-info
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  why=tang  ~[leaf+"bad-watch-path"]
+  ;<  ~  bind:m  setup-owner
+  ;<  caz=(list card)  bind:m
+    (do-agent moon-files-wire [moon %steward] [%watch-ack `why])
+  =/  events=(list log-event:v1:lg)
+    %+  murn  caz
+    |=  =card
+    ^-  (unit log-event:v1:lg)
+    ?.  ?=([%pass [%logs ~] %agent [@ %logs] %poke %log-action-1 *] card)
+      ~
+    =+  !<(=a-log:v1:lg q.cage.task.q.card)
+    ?.  ?=(%log -.a-log)  ~
+    `event.a-log
+  %+  ex-equal  !>(events)
+  !>(`(list log-event:v1:lg)`~[[%fail %info ~['prompts mirror watch nacked'] why]])
+::
 ::  a bot with no harness subscribed is an expected outcome, not a fault:
 ::  refusing the edit must not report as a crash on either ship
 ::
