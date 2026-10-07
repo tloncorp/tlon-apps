@@ -107,6 +107,31 @@ describe('syncGroup on a big group', () => {
     expect(getGroupLight).not.toHaveBeenCalled();
   });
 
+  test('a light sync in flight does not stand in for a whole one', async () => {
+    await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
+    let finishLight = () => {};
+    vi.spyOn(api, 'getGroupLight').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishLight = () => resolve(group({ memberCount: 600 }));
+        })
+    );
+    const getGroup = vi
+      .spyOn(api, 'getGroup')
+      .mockResolvedValue(
+        group({ memberCount: 600, members: [member('~zod')] })
+      );
+
+    const light = syncGroup(groupId);
+    await vi.waitFor(() => expect(api.getGroupLight).toHaveBeenCalled());
+    await syncGroup(groupId, undefined, { wholeRoster: true });
+    finishLight();
+    await light;
+
+    expect(getGroup).toHaveBeenCalledWith(groupId);
+    expect((await queries.getGroup({ id: groupId }))?.syncedAt).toBeTruthy();
+  });
+
   test('syncs whole when the desk serves no pages', async () => {
     api.setDeskServesRosterPages(false);
     await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
@@ -287,6 +312,33 @@ describe('syncGroupMembersPage while the roster changes', () => {
     await syncGroupMembersPage({ groupId });
 
     expect((await queries.getGroup({ id: groupId }))?.memberCount).toBe(601);
+  });
+
+  test('keeps roles a live event changed while the page was in flight', async () => {
+    vi.spyOn(api, 'getGroupMembersPage').mockImplementation(async () => {
+      await queries.addChatMembersToRoles({
+        groupId,
+        contactIds: ['~nec'],
+        roleIds: ['admin'],
+      });
+      return pageOf({
+        total: 600,
+        members: [
+          member('~zod'),
+          member('~nec'),
+          member('~bud', { roleIds: ['admin'] }),
+        ],
+        next: '~ful',
+      });
+    });
+
+    await syncGroupMembersPage({ groupId });
+
+    const roles = await queries.getGroupMemberRoles({ groupId });
+    expect(roles.map((row) => row.contactId).sort(compareShips)).toEqual([
+      '~nec',
+      '~bud',
+    ]);
   });
 
   // insertMembers logs a failed batch instead of throwing

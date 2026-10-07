@@ -3245,22 +3245,31 @@ export const removeChatMembers = createWriteQuery(
 );
 
 // Stores the members of one roster page. A page carries every role each of
-// its members holds, so their stored roles are replaced, not added to.
+// its members holds, so their stored roles are replaced, not added to,
+// except for the members in keepRolesOf.
 export const insertGroupMembersPage = createWriteQuery(
   'insertGroupMembersPage',
   async (
-    { groupId, members }: { groupId: string; members: ChatMember[] },
+    {
+      groupId,
+      members,
+      keepRolesOf,
+    }: { groupId: string; members: ChatMember[]; keepRolesOf?: Set<string> },
     ctx: QueryCtx
   ) => {
     if (members.length === 0) return;
     return withTransactionCtx(ctx, async (txCtx) => {
       await insertMembers({ members }, txCtx);
+      const roleHolders = members.filter(
+        (member) => !keepRolesOf?.has(member.contactId)
+      );
+      if (roleHolders.length === 0) return;
       await txCtx.db.delete($chatMemberGroupRoles).where(
         and(
           eq($chatMemberGroupRoles.groupId, groupId),
           inArray(
             $chatMemberGroupRoles.contactId,
-            members.map((member) => member.contactId)
+            roleHolders.map((member) => member.contactId)
           )
         )
       );
@@ -3273,7 +3282,7 @@ export const insertGroupMembersPage = createWriteQuery(
             .where(eq($groupRoles.groupId, groupId))
         ).map((role) => role.id)
       );
-      const memberRoles = members.flatMap((member) =>
+      const memberRoles = roleHolders.flatMap((member) =>
         (member.roles ?? [])
           .filter((role) => roleIds.has(role.roleId))
           .map((role) => ({
@@ -3304,6 +3313,21 @@ export const getStoredMemberCount = createReadQuery(
     return row?.memberCount ?? null;
   },
   ['groups']
+);
+
+// Every stored role assignment in a group.
+export const getGroupMemberRoles = createReadQuery(
+  'getGroupMemberRoles',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        contactId: $chatMemberGroupRoles.contactId,
+        roleId: $chatMemberGroupRoles.roleId,
+      })
+      .from($chatMemberGroupRoles)
+      .where(eq($chatMemberGroupRoles.groupId, groupId));
+  },
+  ['chatMemberGroupRoles']
 );
 
 export const getGroupMemberIds = createReadQuery(

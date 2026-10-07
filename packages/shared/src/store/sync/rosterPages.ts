@@ -52,6 +52,7 @@ export async function syncGroupMembersPage(
   // page must neither drop a seat added since nor bring back one removed
   // since: only seats stored before the fetch are reconciled
   const before = await db.getGroupMemberIds({ groupId, seatedOnly: true });
+  const rolesBefore = rolesByMember(await db.getGroupMemberRoles({ groupId }));
   const countBefore = await db.getStoredMemberCount({ groupId });
   const page = await syncQueue.add('syncGroupMembersPage', ctx, () =>
     api.getGroupMembersPage({ groupId, limit, after, roleId })
@@ -65,8 +66,21 @@ export async function syncGroupMembersPage(
     const members = page.members.filter(
       (member) => !removedSince.has(member.contactId)
     );
+    // likewise, a member whose roles a live event changed keeps them over
+    // the page's older ones
+    const rolesNow = rolesByMember(
+      await db.getGroupMemberRoles({ groupId }, ctx)
+    );
+    const rolesChangedSince = new Set(
+      [...rolesBefore.keys(), ...rolesNow.keys()].filter(
+        (contactId) => rolesBefore.get(contactId) !== rolesNow.get(contactId)
+      )
+    );
     if (clientChanged()) return;
-    await db.insertGroupMembersPage({ groupId, members }, ctx);
+    await db.insertGroupMembersPage(
+      { groupId, members, keepRolesOf: rolesChangedSince },
+      ctx
+    );
     // insertMembers logs a failed batch rather than throwing. A page whose
     // members didn't land must fail, or its cursor moves on and the page is
     // never fetched again.
@@ -103,6 +117,19 @@ export async function syncGroupMembersPage(
     await db.updateGroup({ id: groupId, memberCount: page.total }, ctx);
   });
   return page;
+}
+
+function rolesByMember(rows: { contactId: string; roleId: string }[]) {
+  const roles = new Map<string, string[]>();
+  for (const { contactId, roleId } of rows) {
+    roles.set(contactId, [...(roles.get(contactId) ?? []), roleId]);
+  }
+  return new Map(
+    [...roles].map(([contactId, roleIds]) => [
+      contactId,
+      roleIds.sort().join(' '),
+    ])
+  );
 }
 
 function isInPage(

@@ -25,10 +25,17 @@ export async function syncGroup(
 ) {
   const generation = getClientGeneration();
   const syncKey = `${generation}:${id}`;
-  if (groupSyncsInProgress.has(syncKey)) {
+  // a whole sync in flight serves any caller, but a light one can't serve a
+  // caller that needs every seat
+  const wholeKey = `${syncKey}:whole`;
+  if (
+    groupSyncsInProgress.has(wholeKey) ||
+    (!config?.wholeRoster && groupSyncsInProgress.has(syncKey))
+  ) {
     return;
   }
-  groupSyncsInProgress.add(syncKey);
+  const inProgressKey = config?.wholeRoster ? wholeKey : syncKey;
+  groupSyncsInProgress.add(inProgressKey);
   try {
     const group = await db.getGroup({ id });
     const session = getSession();
@@ -119,6 +126,6 @@ export async function syncGroup(
     console.error(e);
     throw e;
   } finally {
-    groupSyncsInProgress.delete(syncKey);
+    groupSyncsInProgress.delete(inProgressKey);
   }
 }
