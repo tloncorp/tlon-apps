@@ -1273,8 +1273,10 @@ function shadowRootsAttached(): (template: ParsedElement) => boolean {
 /**
  * Whether an HTML file has anything a script would run from: an HTML or SVG
  * script element that runs code (scriptKind; a classic HTML one marked
- * `nomodule` is skipped by every browser that runs modules, and a MathML one
- * is never run), an event handler attribute (HANDLED_EVENTS), a
+ * `nomodule` is skipped by every browser that runs modules, a MathML one is
+ * never run, and one with an address runs only from where the policy lets it
+ * load: scriptSourceAllowed, against the base the document has or, for a
+ * `srcdoc` one, `inherited`), an event handler attribute (handlesEvent), a
  * `javascript:` URL where a browser runs one (runsJavascriptUrl), or any of
  * these in the `srcdoc` of an HTML iframe whose sandbox lets it run scripts
  * (frameRunsScripts) -- outside an ordinary template, whose content is inert,
@@ -1288,17 +1290,32 @@ function shadowRootsAttached(): (template: ParsedElement) => boolean {
  * as WebKit and Electron's Chromium read it, holding scripts but dropping
  * most other tags.
  */
-export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
+export function htmlPreviewHasScripts(
+  html: string,
+  depth = 0,
+  inherited?: string
+): boolean {
   const parsed = depth === 0 ? parsedHtml(html, true) : parseHtml(html, true);
   if (!parsed) return depth > 0;
+  let base: { href: string | undefined } | undefined;
+  const scriptBase = () =>
+    (base ??= { href: webBase(baseElements(parsed.document)[0], inherited) })
+      .href;
   for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
     if (element.nodeName === 'script' && element.namespaceURI !== NS.MATHML) {
       const kind = scriptKind(element);
+      // An SVG script's address is its href, or else its xlink:href.
+      const src =
+        element.namespaceURI === NS.SVG
+          ? (attributeOf(element, 'href') ??
+            attributeOf(element, 'href', NS.XLINK))
+          : attributeOf(element, 'src');
       if (
-        kind === 'module' ||
-        (kind === 'classic' &&
-          (element.namespaceURI === NS.SVG ||
-            attributeOf(element, 'nomodule') === undefined))
+        (kind === 'module' ||
+          (kind === 'classic' &&
+            (element.namespaceURI === NS.SVG ||
+              attributeOf(element, 'nomodule') === undefined))) &&
+        (src === undefined || scriptSourceAllowed(src, scriptBase()))
       ) {
         return true;
       }
@@ -1326,7 +1343,7 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
       srcdoc !== undefined &&
       frameRunsScripts(element) &&
       (depth >= MAX_NESTED_DOCUMENTS ||
-        htmlPreviewHasScripts(srcdoc, depth + 1))
+        htmlPreviewHasScripts(srcdoc, depth + 1, scriptBase()))
     ) {
       return true;
     }
@@ -1355,6 +1372,7 @@ export function htmlPreviewKey(): string {
 // from. None of them can be a reader's ship.
 const PREVIEW_CDNS =
   'https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com';
+const SCRIPT_CDNS = `${PREVIEW_CDNS} https://cdn.tailwindcss.com https://code.jquery.com`;
 
 /**
  * The policy every HTML preview runs under.
@@ -1401,11 +1419,45 @@ const PREVIEW_LIMITS = [
 
 export const HTML_PREVIEW_POLICY = [
   "default-src 'none'",
-  `script-src 'unsafe-inline' 'unsafe-eval' data: blob: ${PREVIEW_CDNS} https://cdn.tailwindcss.com https://code.jquery.com`,
+  `script-src 'unsafe-inline' 'unsafe-eval' data: blob: ${SCRIPT_CDNS}`,
   ...PREVIEW_LOADS,
   'worker-src blob:',
   ...PREVIEW_LIMITS,
 ].join('; ');
+
+// The hosts HTML_PREVIEW_POLICY lets a script load from, over https.
+const SCRIPT_HOSTS = new Set(
+  SCRIPT_CDNS.split(' ').map((source) => new URL(source).hostname)
+);
+
+/**
+ * Whether HTML_PREVIEW_POLICY lets a script element load `src`, resolved
+ * against the document's web base (webBase) when it has one: a `data:` or
+ * `blob:` URL, or https from one of the script CDNs on its default port, as
+ * Chromium and WebKit measured. A relative address with no web base resolves
+ * against the app's own, which the policy refuses, and an empty one loads
+ * nothing; either way the element's own text never runs. A scheme-relative
+ * one takes https, as on the app's own page.
+ */
+function scriptSourceAllowed(src: string, base: string | undefined): boolean {
+  const value = urlText(src);
+  if (value === '') return false;
+  let url: URL;
+  try {
+    url = new URL(
+      base === undefined && value.startsWith('//') ? `https:${value}` : value,
+      base
+    );
+  } catch {
+    return false;
+  }
+  if (url.protocol === 'data:' || url.protocol === 'blob:') return true;
+  return (
+    url.protocol === 'https:' &&
+    url.port === '' &&
+    SCRIPT_HOSTS.has(url.hostname)
+  );
+}
 
 /**
  * The policy while a file's scripts are held: the same loads and limits as

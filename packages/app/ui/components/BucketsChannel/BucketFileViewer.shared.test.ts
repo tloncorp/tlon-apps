@@ -441,7 +441,13 @@ describe('htmlPreviewSandboxes', () => {
 describe('htmlPreviewHasScripts', () => {
   it.each([
     '<script>go()</script>',
-    '<SCRIPT src="x.js"></SCRIPT>',
+    '<SCRIPT src="https://cdn.jsdelivr.net/npm/x.js"></SCRIPT>',
+    // An address the policy lets a script load from: a script CDN, directly
+    // or under the file's base, which a frame's document inherits, or data.
+    '<base href="https://unpkg.com/x/"><script src="lib.js"></script>',
+    '<base href="https://cdn.jsdelivr.net/npm/"><iframe srcdoc="<script src=x.js></script>"></iframe>',
+    '<script src="data:text/javascript,go()"></script>',
+    '<svg><script href="https://code.jquery.com/x.js"></script></svg>',
     '<button onclick="go()">go</button>',
     '<svg onload = "go()"></svg>',
     '<a href="javascript:go()">go</a>',
@@ -574,6 +580,11 @@ describe('htmlPreviewHasScripts', () => {
     // An attribute that only starts like a handler, and a srcdoc on anything
     // but an iframe.
     '<div only="true" one="1" onward="x">x</div>',
+    // An address the policy refuses -- another host, http, a relative one
+    // with no web base -- or none at all; the element's own text never runs.
+    '<script src="https://example.com/app.js">go()</script>',
+    '<script src="http://cdn.jsdelivr.net/x.js"></script><script src="x.js"></script><script src="">go()</script>',
+    '<svg><script href="https://example.com/x.js" xlink:href="https://cdn.jsdelivr.net/x.js">go()</script></svg>',
     // A handler only some elements take, on one that does not.
     '<div onbegin="go()" ononline="go()">x</div><span onsearch="go()" onencrypted="go()"></span><svg><g onunload="go()"/></svg>',
     '<div srcdoc="&lt;script&gt;go()&lt;/script&gt;">x</div>',
