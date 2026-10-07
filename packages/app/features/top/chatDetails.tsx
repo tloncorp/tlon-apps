@@ -39,6 +39,11 @@ import {
   getChannelHost,
   getGroupMemberCount,
 } from '../../ui/utils';
+import { tasksPostingTo } from '../../ui/components/automationTaskDraft';
+import {
+  useOpenScheduledTasks,
+  useScheduledTasksEntry,
+} from '../automations/useScheduledTasksEntry';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
@@ -434,8 +439,58 @@ export function SettingsSection({
     }
   }, [entityType, group, channel, onPressChatVolume]);
 
+  // Anyone with a bot can see what it is scheduled to post into this group,
+  // admin or not. The row shows once the bot has something scheduled here or
+  // is a member with a channel to post in, so it could be given something.
+  const scheduledTasks = useScheduledTasksEntry({
+    enabled: entityType === 'group' && !!group,
+  });
+  const openScheduledTasks = useOpenScheduledTasks();
+  const groupTaskCount = useMemo(
+    () =>
+      scheduledTasks.tasks && group
+        ? Object.keys(
+            tasksPostingTo(
+              scheduledTasks.tasks,
+              new Set(group.channels?.map(({ id }) => id))
+            )
+          ).length
+        : undefined,
+    [scheduledTasks.tasks, group]
+  );
+  const botCouldPostHere =
+    Boolean(group?.channels?.length) &&
+    Boolean(
+      group?.members?.some(
+        (member) => member.contactId === scheduledTasks.botShip
+      )
+    );
+  const showsScheduledTasks =
+    scheduledTasks.visible &&
+    groupTaskCount !== undefined &&
+    (groupTaskCount > 0 || botCouldPostHere);
+  const handlePressScheduledTasks = useCallback(() => {
+    if (group) {
+      openScheduledTasks(
+        { botShip: scheduledTasks.botShip, groupId: group.id },
+        group.channels?.[0]?.id
+      );
+    }
+  }, [group, openScheduledTasks, scheduledTasks.botShip]);
+
   const actions = useMemo(() => {
     const supportsNotifications = channelSupportsNotifications(channel);
+    const scheduledTasksActions: SettingsActionProps[] = showsScheduledTasks
+      ? [
+          {
+            title: 'Scheduled tasks',
+            endValue: `${groupTaskCount}`,
+            testID: 'GroupScheduledTasks',
+            disabled: false,
+            onPress: handlePressScheduledTasks,
+          },
+        ]
+      : [];
     const notificationAction: SettingsActionProps = {
       title: 'Notifications',
       description: notificationTitle,
@@ -446,7 +501,10 @@ export function SettingsSection({
     };
 
     if (!currentUserIsAdmin) {
-      return supportsNotifications ? [notificationAction] : [];
+      return [
+        ...(supportsNotifications ? [notificationAction] : []),
+        ...scheduledTasksActions,
+      ];
     }
 
     if (entityType === 'group' && group) {
@@ -474,6 +532,7 @@ export function SettingsSection({
           onPress: handlePressManageChannels,
         },
         notificationAction,
+        ...scheduledTasksActions,
       ];
     }
 
@@ -508,6 +567,9 @@ export function SettingsSection({
     handlePressManageChannels,
     handlePressEditChannelPrivacy,
     groupRoles,
+    showsScheduledTasks,
+    groupTaskCount,
+    handlePressScheduledTasks,
   ]);
 
   return (
