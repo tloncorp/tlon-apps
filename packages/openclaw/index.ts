@@ -68,7 +68,12 @@ import {
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
-import { getSessionRole } from './src/session-roles.js';
+import {
+  clearInternalSessionRuns,
+  clearSessionRunContext,
+  getToolCallRole,
+  recordSessionRunContext,
+} from './src/session-roles.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
@@ -1044,7 +1049,10 @@ export default defineBundledChannelEntry({
 
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
-      const role = getSessionRole(ctx.sessionKey ?? '');
+      const role = getToolCallRole({
+        sessionKey: ctx.sessionKey,
+        runId: ctx.runId ?? event.runId,
+      });
       const ownerOnlyDecision = resolveOwnerOnlyToolBlock(event.toolName, role);
       const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
       const blocksNonOwner = ownerOnlyDecision.blocked;
@@ -1144,8 +1152,8 @@ export default defineBundledChannelEntry({
       }
 
       // Allow owner sessions and internal sessions (heartbeat, cron, etc.).
-      // Internal sessions have no role because they're not triggered by DMs.
-      // Only block when role is explicitly "user" (non-owner DM).
+      // Internal run attribution overrides a shared session's sender role.
+      // Only block when the tool-call role is explicitly "user".
       if (isBlocked) {
         api.logger.warn(
           `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
@@ -1350,6 +1358,7 @@ export default defineBundledChannelEntry({
       }
     });
     api.on('gateway_stop', () => {
+      clearInternalSessionRuns();
       clearCronServiceAccessor();
       resetTlonCronObservability();
     });
@@ -1527,6 +1536,7 @@ export default defineBundledChannelEntry({
       jobId?: string;
       runId?: string;
     }) => {
+      recordSessionRunContext(ctx);
       if (ctx.trigger === 'cron') {
         rememberCronJobForSession(ctx.sessionKey, ctx.jobId);
         recordTlonCronAgentContext({
@@ -1575,6 +1585,7 @@ export default defineBundledChannelEntry({
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (event, ctx) => {
+      clearSessionRunContext(ctx);
       recordCronSilenceOutput(event, ctx);
       recordTlonTurnSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);

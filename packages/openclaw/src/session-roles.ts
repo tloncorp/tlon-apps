@@ -16,6 +16,49 @@ interface RoleEntry {
 }
 
 const sessionRoles = sharedMap<string, RoleEntry>('session-roles');
+const internalRuns = sharedMap<string, string>('session-roles.internal-runs');
+
+type SessionRunContext = {
+  sessionKey?: string;
+  runId?: string;
+  trigger?: string;
+};
+
+/** Record only host-provided agent context, never model-authored tool params. */
+export function recordSessionRunContext(ctx: SessionRunContext): void {
+  if (!ctx.runId || !ctx.sessionKey || !ctx.trigger) return;
+  if (ctx.trigger === 'cron' || ctx.trigger === 'heartbeat') {
+    internalRuns.set(ctx.runId, ctx.sessionKey);
+  } else {
+    clearSessionRunContext(ctx);
+  }
+}
+
+export function clearSessionRunContext(ctx: SessionRunContext): void {
+  if (ctx.runId && internalRuns.get(ctx.runId) === ctx.sessionKey) {
+    internalRuns.delete(ctx.runId);
+  }
+}
+
+export function clearInternalSessionRuns(): void {
+  internalRuns.clear();
+}
+
+export function getToolCallRole(
+  ctx: SessionRunContext
+): SenderRole | undefined {
+  // A main-session cron/heartbeat may share a key with a non-owner turn.
+  // Exempt only the exact trusted run, preserving the stored sender role for
+  // concurrent and subsequent interactive turns using the same session.
+  if (
+    ctx.runId &&
+    ctx.sessionKey &&
+    internalRuns.get(ctx.runId) === ctx.sessionKey
+  ) {
+    return undefined;
+  }
+  return getSessionRole(ctx.sessionKey ?? '');
+}
 
 // TTL for role entries (1 hour - sessions shouldn't last longer)
 const ROLE_TTL_MS = 60 * 60 * 1000;
@@ -63,6 +106,9 @@ export function getSessionRole(sessionKey: string): SenderRole | undefined {
 
 // Exported for testing - allows time manipulation
 export const _testing = {
-  clearAll: () => sessionRoles.clear(),
+  clearAll: () => {
+    sessionRoles.clear();
+    internalRuns.clear();
+  },
   getRoleTtlMs: () => ROLE_TTL_MS,
 };
