@@ -1454,17 +1454,118 @@ function allowsInline(list: string[] | undefined, nonce?: string): boolean {
   if (allowsNothing(list)) return false;
   const lower = list.map(asciiLowercase);
   if (lower.some((source) => /^'sha(256|384|512)-/.test(source))) return true;
-  // Only a nonce source in the standard's grammar counts; one that is not,
-  // such as `'nonce-'`, is ignored, by Chromium and WebKit alike.
-  const nonces = list
-    .map((source) => NONCE_SOURCE.exec(source)?.[1])
-    .filter((value) => value !== undefined);
+  const nonces = nonceValues(list);
   if (nonce !== undefined && nonces.includes(nonce)) return true;
   return (
     lower.includes("'unsafe-inline'") &&
     !lower.includes("'strict-dynamic'") &&
     nonces.length === 0
   );
+}
+
+/**
+ * The nonces a source list names: only nonce sources in the standard's
+ * grammar count; one that is not, such as `'nonce-'`, is ignored, by
+ * Chromium and WebKit alike.
+ */
+function nonceValues(list: string[]): string[] {
+  return list
+    .map((source) => NONCE_SOURCE.exec(source)?.[1])
+    .filter((value) => value !== undefined);
+}
+
+/** Whether a script element loads from `url`: the preview's policy allows it (scriptSource), and so does every policy of the file's own in force. */
+function externalRuns(
+  url: URL | undefined,
+  script: ParsedElement,
+  policies: AuthoredPolicy[]
+): boolean {
+  const nonce = attributeOf(script, 'nonce');
+  const integrity = attributeOf(script, 'integrity') !== undefined;
+  return (
+    url !== undefined &&
+    policies.every((p) => allowsExternal(p.elements, url, nonce, integrity))
+  );
+}
+
+/**
+ * Whether a source list lets a script load from `url` in Chromium or
+ * WebKit, where they differ:
+ * a nonce the script carries; under 'strict-dynamic' nothing else, but a hash
+ * its integrity check might match; otherwise a source expression matching
+ * the address in either engine (sourceMatches). A script it lets load in one
+ * engine counts, so the reader can enable it there.
+ */
+function allowsExternal(
+  list: string[] | undefined,
+  url: URL,
+  nonce: string | undefined,
+  integrity: boolean
+): boolean {
+  if (list === undefined) return true;
+  if (allowsNothing(list)) return false;
+  if (nonce !== undefined && nonceValues(list).includes(nonce)) return true;
+  const lower = list.map(asciiLowercase);
+  if (integrity && lower.some((source) => /^'sha(256|384|512)-/.test(source))) {
+    return true;
+  }
+  if (lower.includes("'strict-dynamic'")) return false;
+  return list.some((source) => sourceMatches(source, url));
+}
+
+// A host source: an optional scheme, a host (or `*.` and a host), an
+// optional port and an optional path.
+const HOST_SOURCE =
+  /^(?:([a-z][a-z0-9+.-]*):\/\/)?(\*|(?:\*\.)?[^/:?#*]+)(?::(\d+|\*))?(\/[^?#]*)?$/i;
+
+/**
+ * Whether one source expression matches a script address the preview's
+ * policy allows (`data:`, `blob:`, or https from a CDN) in Chromium or WebKit,
+ * as both were measured: `*` matches web addresses; a scheme its own and,
+ * upgraded, `http:` an https one; 'self' an https or blob one (WebKit, from a
+ * srcdoc document); a host source an https address on that host (or under
+ * `*.` it, below), with or without a scheme, on its default port or one the
+ * source names (443 or `*`), and under its path -- a prefix ending in `/`, or
+ * else the whole path, case and all.
+ */
+function sourceMatches(source: string, url: URL): boolean {
+  const lower = asciiLowercase(source);
+  const scheme = url.protocol.slice(0, -1);
+  if (lower === "'self'") return scheme === 'https' || scheme === 'blob';
+  if (lower === '*') return scheme === 'https';
+  if (/^[a-z][a-z0-9+.-]*:$/.test(lower)) {
+    const named = lower.slice(0, -1);
+    return named === scheme || (named === 'http' && scheme === 'https');
+  }
+  const host = HOST_SOURCE.exec(source);
+  if (scheme !== 'https' || !host || lower.startsWith("'")) return false;
+  const [, sourceScheme, sourceHost, port, path] = host;
+  if (
+    sourceScheme !== undefined &&
+    !['http', 'https'].includes(asciiLowercase(sourceScheme))
+  ) {
+    return false;
+  }
+  const name = asciiLowercase(sourceHost);
+  const hostMatches =
+    name === '*' ||
+    (name.startsWith('*.')
+      ? url.hostname.endsWith(name.slice(1))
+      : url.hostname === name);
+  const portMatches =
+    port === undefined ||
+    port === '*' ||
+    port === '443' ||
+    (port === '80' && asciiLowercase(sourceScheme ?? '') === 'http');
+  if (!hostMatches || !portMatches) return false;
+  if (path === undefined || path === '') return true;
+  try {
+    const want = decodeURIComponent(path);
+    const have = decodeURIComponent(url.pathname);
+    return want.endsWith('/') ? have.startsWith(want) : have === want;
+  } catch {
+    return true;
+  }
 }
 
 /** Whether a source list lets code run through eval: 'unsafe-eval'. */
@@ -1479,7 +1580,7 @@ function allowsEvaluation(list: string[] | undefined): boolean {
  * script element that runs code (scriptKind; a classic HTML one marked
  * `nomodule` is skipped by every browser that runs modules, a MathML one is
  * never run, and one with an address runs only from where the policy lets it
- * load: scriptSourceAllowed, against the base the document has or, for a
+ * load (scriptSource, and the file's own policy: allowsExternal), against the base the document has or, for a
  * `srcdoc` one, `inherited`), an event handler attribute (handlesEvent), a
  * `javascript:` URL where a browser runs one (runsJavascriptUrl), or any of
  * these in the `srcdoc` of an HTML iframe whose sandbox lets it run scripts
@@ -1505,11 +1606,9 @@ export function htmlPreviewHasScripts(
   // An element resolves addresses against the base set when the parser made
   // it, and the file's own policies apply from where they stand.
   const bases = baseElements(parsed.document);
+  const reached = baseReached(bases);
   const baseFor = (element: ParsedElement) =>
-    webBase(
-      bases.find((base) => createdAt(base) < createdAt(element)),
-      inherited
-    );
+    webBase(reached(element), inherited);
   const policies = [...inheritedPolicies];
   for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
     const policy = authoredPolicy(element);
@@ -1531,8 +1630,11 @@ export function htmlPreviewHasScripts(
         (src === undefined
           ? scriptText(element) !== '' &&
             policies.every((p) => allowsInline(p.elements, nonce))
-          : scriptSourceAllowed(src, baseFor(element), kind === 'module') &&
-            policies.every((p) => !allowsNothing(p.elements)))
+          : externalRuns(
+              scriptSource(src, baseFor(element), kind === 'module'),
+              element,
+              policies
+            ))
       ) {
         return true;
       }
@@ -1685,7 +1787,7 @@ function dataUrlEssence(href: string): string {
 }
 
 /**
- * Whether HTML_PREVIEW_POLICY lets a script element load `src`, resolved
+ * Where a script element loads `src` from, when HTML_PREVIEW_POLICY lets it (undefined when not), resolved
  * against the document's web base (webBase) when it has one: a `data:` or
  * `blob:` URL, or https from one of the script CDNs on its default port, as
  * Chromium and WebKit measured. A relative address with no web base resolves
@@ -1694,13 +1796,13 @@ function dataUrlEssence(href: string): string {
  * one takes https, as on the app's own page. A module runs from `data:` only
  * as JavaScript, by its media type; a classic script runs as whatever it is.
  */
-function scriptSourceAllowed(
+function scriptSource(
   src: string,
   base: string | undefined,
   module: boolean
-): boolean {
+): URL | undefined {
   const value = urlText(src);
-  if (value === '') return false;
+  if (value === '') return undefined;
   let url: URL;
   try {
     url = new URL(
@@ -1708,17 +1810,16 @@ function scriptSourceAllowed(
       base
     );
   } catch {
-    return false;
+    return undefined;
   }
-  if (url.protocol === 'data:') {
-    return !module || JAVASCRIPT_MIME_TYPES.has(dataUrlEssence(url.href));
-  }
-  if (url.protocol === 'blob:') return true;
-  return (
-    url.protocol === 'https:' &&
-    url.port === '' &&
-    SCRIPT_HOSTS.has(url.hostname)
-  );
+  const allowed =
+    url.protocol === 'data:'
+      ? !module || JAVASCRIPT_MIME_TYPES.has(dataUrlEssence(url.href))
+      : url.protocol === 'blob:' ||
+        (url.protocol === 'https:' &&
+          url.port === '' &&
+          SCRIPT_HOSTS.has(url.hostname));
+  return allowed ? url : undefined;
 }
 
 /**
@@ -2192,6 +2293,32 @@ function baseElements(document: ParsedDocument): ParsedElement[] {
 }
 
 /**
+ * For an element, the base in force when the parser made it: the first of
+ * `bases` (in tree order) made before it. The earliest any of the first
+ * bases was made only falls along the list, so a binary search finds it --
+ * a file can hold tens of thousands of each.
+ */
+function baseReached(
+  bases: ParsedElement[]
+): (element: ParsedElement) => ParsedElement | undefined {
+  const earliest: number[] = [];
+  for (const base of bases) {
+    earliest.push(Math.min(earliest.at(-1) ?? Infinity, createdAt(base)));
+  }
+  return (element) => {
+    const at = createdAt(element);
+    let low = 0;
+    let high = bases.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (earliest[middle] < at) high = middle;
+      else low = middle + 1;
+    }
+    return bases[low];
+  };
+}
+
+/**
  * Where relative links under `base` resolve, when they may: its address
  * resolved against the base its document inherits, when that is a web
  * address. A Bucket file inherits none it may use -- it has no address of its
@@ -2305,6 +2432,7 @@ function withLinksAimedAtBlank(
   if (!parsed) return null;
   const bases = baseElements(parsed.document);
   const base = webBase(bases[0], inherited);
+  const reached = baseReached(bases);
   const edits: { start: number; end: number; text: string }[] = [];
   const rewritten = new Set<number>();
   for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
@@ -2355,17 +2483,12 @@ function withLinksAimedAtBlank(
     } else {
       // The frame's document inherits the base set by the time the parser
       // reached the frame.
-      const reached = bases.find(
-        (candidate) =>
-          (candidate.sourceCodeLocation?.startOffset ?? Infinity) <
-          tag.startOffset
-      );
       const nested =
         depth < MAX_NESTED_DOCUMENTS && srcdoc !== undefined
           ? withLinksAimedAtBlank(
               srcdoc,
               depth + 1,
-              webBase(reached, inherited)
+              webBase(reached(element), inherited)
             )
           : null;
       text =

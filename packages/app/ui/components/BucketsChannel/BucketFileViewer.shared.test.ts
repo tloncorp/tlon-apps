@@ -480,6 +480,12 @@ describe('htmlPreviewHasScripts', () => {
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-eval'"></head><a href="javascript:go()">x</a>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline'"></head><math><mtext href="javascript:go()">x</mtext></math>`,
     `<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'"></head><script src="https://cdn.jsdelivr.net/x.js"></script>`,
+    // An address the file's own sources match in either engine: 'self' from
+    // a srcdoc document in WebKit, a host without a scheme or a wildcard one
+    // in Chromium, a path prefix, a nonce the script carries.
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src *.jsdelivr.net"></head><script src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src https://cdn.jsdelivr.net/npm/"></head><script src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'strict-dynamic' 'nonce-abc'"></head><script nonce="abc" src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
     '<button onclick="go()">go</button>',
     '<svg onload = "go()"></svg>',
     '<a href="javascript:go()">go</a>',
@@ -636,6 +642,12 @@ describe('htmlPreviewHasScripts', () => {
     `<head><meta http-equiv="Content-Security-Policy" content="SCRIPT-SRC 'unsafe-inline' 'strict-dynamic'"></head><script>go()</script><img src="x" onerror="go()">`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'"></head><script nonce="xyz">go()</script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'nonce-a$b'"></head><script nonce="a$b">go()</script>`,
+    // An address the file's own sources match in neither engine: another
+    // host or path, a wrong port, data: under anything but data:, or any
+    // host under 'strict-dynamic' without the script's nonce.
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src https://unpkg.com https://cdn.jsdelivr.net/other/ https://cdn.jsdelivr.net:8443"></head><script src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'strict-dynamic' https://cdn.jsdelivr.net"></head><script src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'self' * https:"></head><script src="data:text/javascript,go()"></script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src"></head><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline'"></head><a href="javascript:go()">x</a><svg><a href="javascript:go()"><text>x</text></a></svg>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-eval'"></head><math><mtext href="javascript:go()">x</mtext></math><iframe src="javascript:go()"></iframe>`,
@@ -997,6 +1009,13 @@ describe('hostile markup', () => {
     expect(htmlPreviewReadable('<br>'.repeat(199_990))).toBe(true);
     // Each attribute is checked against every one before it on its tag.
     expect(htmlPreviewReadable(`<p ${attributes(256)}>`)).toBe(true);
+    // Each script finds the base it resolves against among many.
+    expect(
+      htmlPreviewHasScripts(
+        '<script src="x"></script>'.repeat(30_000) +
+          '<base href="https://cdn.jsdelivr.net/">'.repeat(30_000)
+      )
+    ).toBe(false);
     expect(htmlPreviewReadable(`<p ${attributes(250_000)}>`)).toBe(false);
     expect(
       htmlPreviewTitle(nearCap + '</svg>'.repeat(120) + '<title>T</title>')
