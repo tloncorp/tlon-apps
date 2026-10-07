@@ -142,7 +142,7 @@ Notes: the reply box works like the main message box: the plus icon for attachme
 <!-- src: apps/tlon-mobile/src/components/ShareIntentForwardSheetProvider.tsx, apps/tlon-mobile/src/lib/shareIntent.ts, packages/app/ui/components/useForwardToChannelSheet.tsx, packages/app/ui/components/ForwardToChannelSheet.tsx, packages/app/ui/components/Channel/index.tsx -->
 
 Phone: in the other app, use its share button and choose Tlon Messenger. A sheet titled `Send to channel` opens, with `Select where to send it` under the title. Tap a chat, then tap the button at the bottom, which reads "Forward to" followed by the chat's name. That chat opens with the shared text or link in the message box, or the file attached. Check it, add anything you like, and tap the up arrow.
-Notes: nothing is sent until you tap the up arrow. One file comes across per share. Bulletin, Notebook and Bucket channels are not offered as destinations. This is on phones only.
+Notes: nothing is sent until you tap the up arrow. One file comes across per share. Bulletin and Notebook channels are not offered as destinations. This is on phones only.
 
 ## Can I schedule a message, send a GIF, or see who is typing?
 <!-- src: packages/app/ui/components/MessageInput/MessageInputBase.tsx, packages/app/ui/components/BareChatInput/index.tsx -->

@@ -7,6 +7,7 @@ import {
   checkQuestions,
   checkLooseLabels,
   extractLabels,
+  flagLeaks,
   labelInSources,
   normalize,
   parseMapFile,
@@ -129,6 +130,33 @@ test('an entry needs a src or an absent anchor', () => {
     'no `src:` or `absent:` anchor',
     'quotes labels but cites no files',
   ]);
+});
+
+test('finds a flagged feature talked about in an entry without the flag', () => {
+  const words = [['buckets', ['Bucket', 'Buckets']]];
+  assert.deepEqual(
+    flagLeaks(
+      'Leave a channel\nWho: anyone. A Bucket can not be left.',
+      [],
+      words
+    ),
+    [{ flag: 'buckets', word: 'Bucket' }]
+  );
+  // The entry carries the flag, so promote holds it back with the feature.
+  assert.deepEqual(
+    flagLeaks('Phone: open the Bucket.', ['buckets'], words),
+    []
+  );
+  // A quoted label is on screen whatever the flag says; a storage bucket is
+  // another thing.
+  assert.deepEqual(
+    flagLeaks(
+      'Phone: flip `Enable Buckets channels`.\n<!-- absent: Buckets -->\nNotes: your own bucket.',
+      [],
+      words
+    ),
+    []
+  );
 });
 
 test('reads screens, actions, flags and commands from their sources', () => {

@@ -65,7 +65,7 @@ Notes: all of these open `Channel info`. In a group with a single channel, the m
 ## What the Channel info screen shows
 <!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/utils/channelUtils.tsx -->
 
-Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Host`, the node that runs the channel, which you can tap to open its profile; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen. A Bucket has no `Notifications`, `Leave channel` or `Delete channel`.
+Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Host`, the node that runs the channel, which you can tap to open its profile; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen.
 
 ## Rename a channel or change its description
 <!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/ui/components/ManageChannels/EditChannelMetaScreenView.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx -->
@@ -111,26 +111,26 @@ Notes: the app starts on `Sort by recency`, which lists a group's channels under
 
 Phone: open the group, press and hold the channel in its channel list, tap `Leave channel`, then `Leave` to confirm. `Leave channel` is also at the bottom of the channel's info screen.
 Desktop: hover the channel in the group's channel list and open its three-dot menu.
-Who: anyone except the channel's host. A Bucket can't be left.
+Who: anyone except the channel's host.
 Notes: the confirmation says `You will no longer receive updates from this channel.` You stay in the group, and the channel moves to `Available Channels` at the bottom of the group's channel list, where you can join it again.
 
 ## Why the menu says Cannot leave channel
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/shared/src/store/channelActions.ts -->
 
-Notes: your node hosts that channel, usually because you made it. The press-and-hold menu shows `Cannot leave channel` with `Host (you) must delete to leave` under it, greyed out, and the channel's info screen has no `Leave channel` for you. The only way out is `Delete channel` at the bottom of the channel's info screen, which removes the channel for everyone (a Bucket can't be deleted either). The `Host` row on that screen shows whose node runs a channel.
+Notes: your node hosts that channel, usually because you made it. The press-and-hold menu shows `Cannot leave channel` with `Host (you) must delete to leave` under it, greyed out, and the channel's info screen has no `Leave channel` for you. The only way out is `Delete channel` at the bottom of the channel's info screen, which removes the channel for everyone. The `Host` row on that screen shows whose node runs a channel.
 
 ## Rejoin a channel you left
 <!-- src: packages/app/ui/components/GroupChannelsScreenView.tsx, packages/app/features/top/GroupChannelsScreen.tsx, packages/shared/src/db/queries.ts -->
 
 Phone: open the group and scroll to `Available Channels` at the bottom of its channel list. Tap the channel with the `Join` badge.
 Desktop: the same section is at the bottom of the group's channel list in the sidebar.
-Notes: `Available Channels` holds the channels in the group that you aren't in and that your roles are allowed to read, so it is also where you join a channel you were never in. One tap joins; there is no confirmation. A Bucket just opens instead. The section isn't shown when there is nothing to join.
+Notes: `Available Channels` holds the channels in the group that you aren't in and that your roles are allowed to read, so it is also where you join a channel you were never in. One tap joins; there is no confirmation. The section isn't shown when there is nothing to join.
 
 ## Delete a channel
 <!-- src: packages/app/features/top/chatDetails.tsx, packages/app/ui/utils/channelUtils.tsx -->
 
 Phone: open the channel's info screen, scroll to the bottom, and tap `Delete channel`. In the dialog, tap `Delete channel` again to confirm or `Cancel` to back out.
-Who: group admins, and the channel's host. A Bucket can't be deleted here.
+Who: group admins, and the channel's host.
 Notes: the dialog warns `This action cannot be undone. All messages in this channel will be permanently deleted.` For a Notebook it says the notebook and its notes will be permanently deleted. The channel goes away for everyone, and there is no archive or undo. Deleting is only on the info screen, not in the press-and-hold menu.
 
 ## Use a channel as a template for a new one

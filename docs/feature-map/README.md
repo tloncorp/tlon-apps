@@ -57,7 +57,13 @@ tab names (Bot, Workspaces, Activity, Settings).
 - `<!-- covers: route:ChatVolume, action:pinPost -->` claims items from the
   surface inventory (below).
 - `<!-- flag: scheduledTasks -->` marks an entry for a feature behind a flag.
-  `promote` leaves it out until the flag defaults to on in the release.
+  `promote` leaves it out until the flag defaults to on in the release. An
+  entry without the anchor must not talk about the feature, or that sentence
+  is published anyway: `flag-words.txt` lists the words that give each
+  flagged feature away, and the check fails on one outside a marked entry.
+  Put what the feature changes about other things (it can't be left, it isn't
+  a place to forward to) in its own marked entries. A quoted label is allowed,
+  so the entry for a settings screen can still list the switch.
 - `<!-- absent: disappearing messages, read receipt -->` is for entries that say
   the app does not have something. The check fails if any term shows up in the
   app's source, which is the cue to rewrite the entry.

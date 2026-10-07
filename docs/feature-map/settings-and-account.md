@@ -302,6 +302,6 @@ Notes: there is nothing to download or install. No yellow icon means the app has
 
 ## Use my own storage for pictures and files
 <!-- src: packages/shared/src/store/storage/storageUtils.ts, packages/app/ui/components/Form/inputs.tsx -->
-<!-- absent: S3 endpoint, bucket name -->
+<!-- absent: S3 endpoint, secret access key -->
 
 Notes: Tlon Messenger has no screen for storage settings, on the phone or on desktop. It uses whatever storage your node already has set up: Tlon's on a hosted account, or your own S3-compatible storage if that was configured on the node outside the app. When the node has no storage at all, image pickers such as the one for a group's icon are greyed out and read `Storage not configured`.

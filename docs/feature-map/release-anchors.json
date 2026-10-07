@@ -4435,7 +4435,7 @@
     ],
     "absent": [
       "S3 endpoint",
-      "bucket name"
+      "secret access key"
     ],
     "flag": []
   },

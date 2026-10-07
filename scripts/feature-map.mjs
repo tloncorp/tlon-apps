@@ -21,6 +21,7 @@ export const MAP_DIR = 'docs/feature-map';
 export const SKILL_DIR = 'packages/openclaw/skills/tlon-product-guide';
 export const PUBLISHED_DIR = `${SKILL_DIR}/references`;
 const IGNORE_FILE = `${MAP_DIR}/surface-ignore.txt`;
+const FLAG_WORDS_FILE = `${MAP_DIR}/flag-words.txt`;
 const QUESTIONS_DIR = `${MAP_DIR}/questions`;
 // What each published entry rested on. Kept out of the skill's folder: it is
 // for `promote`, not for bots, and it is nearly as large as the references.
@@ -38,6 +39,8 @@ const SOURCE_ROOTS = [
   'packages/editor/src',
   'apps/tlon-mobile/src',
   'apps/tlon-mobile/modules',
+  'apps/tlon-mobile/android',
+  'apps/tlon-mobile/ios',
   'apps/tlon-web/src',
   'apps/tlon-desktop/src',
   'packages/openclaw/src',
@@ -298,12 +301,24 @@ export function readSurface(reader) {
   return { items: [...new Set(items)].sort(), missingSources };
 }
 
-function readIgnored(reader) {
-  const text = reader.read(IGNORE_FILE) ?? '';
-  return text
+/** The lines of one of the map's small list files, without comments. */
+function listLines(reader, file) {
+  return (reader.read(file) ?? '')
     .split('\n')
     .map((line) => line.replace(/#.*$/, '').trim())
     .filter(Boolean);
+}
+
+function readIgnored(reader) {
+  return listLines(reader, IGNORE_FILE);
+}
+
+/** `[flag, words]` pairs: the words that give each flagged feature away. */
+function readFlagWords(reader) {
+  return listLines(reader, FLAG_WORDS_FILE).map((line) => {
+    const [flag, words = ''] = line.split(':');
+    return [flag.trim(), splitList(words)];
+  });
 }
 
 // --- checks ----------------------------------------------------------------
@@ -415,6 +430,27 @@ export function checkEntry(entry, reader) {
   return problems;
 }
 
+/**
+ * Flagged features that `text` talks about in its own words without carrying
+ * the flag. `promote` holds an entry back by its flag anchor, so a sentence
+ * about the feature in an unmarked entry would be published all the same. A
+ * quoted label does not count: the label check proves that text is on screen.
+ */
+export function flagLeaks(text, ownFlags, flagWords) {
+  const prose = normalize(
+    stripAnchors(text)
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`\n]+`/g, '')
+  );
+  const leaks = [];
+  for (const [flag, words] of flagWords) {
+    if (ownFlags.includes(flag)) continue;
+    const word = words.find((item) => includesWhole(prose, item));
+    if (word) leaks.push({ flag, word });
+  }
+  return leaks;
+}
+
 export function checkMap(reader) {
   const files = readMap(reader);
   const failures = [];
@@ -424,11 +460,40 @@ export function checkMap(reader) {
   const flags = surface.items
     .filter((item) => item.startsWith('flag:'))
     .map((item) => item.slice(5));
+  const flagWords = readFlagWords(reader);
+  for (const [flag] of flagWords) {
+    if (!flags.includes(flag)) {
+      failures.push({
+        file: FLAG_WORDS_FILE,
+        problem: `lists flag ${flag}, which is not in the code`,
+      });
+    }
+  }
   for (const file of files) {
     if (!file.title)
       failures.push({ file: file.file, problem: 'no `# ` title' });
+    for (const { flag, word } of flagLeaks(
+      `${file.title}\n${file.intro}`,
+      [],
+      flagWords
+    )) {
+      failures.push({
+        file: file.file,
+        problem: `its opening lines say "${word}", which is behind the ${flag} flag; they are published whatever the release`,
+      });
+    }
     for (const entry of file.entries) {
       const where = { file: file.file, entry: entry.heading };
+      for (const { flag, word } of flagLeaks(
+        `${entry.heading}\n${entry.raw}`,
+        entry.flag,
+        flagWords
+      )) {
+        failures.push({
+          ...where,
+          problem: `says "${word}", which is behind the ${flag} flag: add \`<!-- flag: ${flag} -->\` or move that sentence to an entry that has it`,
+        });
+      }
       const key = `${file.file}#${entry.slug}`;
       if (slugs.has(key))
         failures.push({ ...where, problem: 'duplicate heading' });
