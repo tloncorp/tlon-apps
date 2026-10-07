@@ -50,4 +50,4 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 
 ## When discovery fails
 
-If this skill or a linked reference is unavailable, `help` and command help still provide local syntax. Report a missing installation resource rather than inventing a path. A permission failure or unsupported command is not a reason to bypass the tool through a shell or raw API.
+If this skill or a linked reference is unavailable, `help` and command help still provide local syntax. Report a missing installation resource rather than inventing a path. A permission failure or unsupported command is not a reason to bypass the tool through a shell, raw API, or the hosted browser. If neither `tlon` nor `message` covers the request, tell the user your Tlon tools do not support it yet and, where the Tlon app offers it, that they can do it there.
