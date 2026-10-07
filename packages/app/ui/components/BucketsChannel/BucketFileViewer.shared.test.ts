@@ -289,6 +289,12 @@ describe('previewEncoding', () => {
     ['<meta name="description" content="charset=windows-1252">', undefined, 'utf-8'],
     ['<meta http-equiv="refresh" content="0; charset=windows-1252">', undefined, 'utf-8'],
     ['<!-- <meta charset="shift_jis"> --><meta charset="windows-1252">', undefined, 'windows-1252'],
+    // Other bogus markup runs to its first `>`, a <meta> in it included, and
+    // an end tag is read like a start tag, quoted values and all.
+    ['<?ignored <meta charset="windows-1252">?><meta charset="iso-8859-2">', undefined, 'iso-8859-2'],
+    ['<!x <meta charset="windows-1252">><p>x</p>', undefined, 'utf-8'],
+    ['</x a="<meta charset=windows-1252>"><meta charset="iso-8859-2">', undefined, 'iso-8859-2'],
+    ['</ <meta charset="windows-1252">><p>x</p>', undefined, 'utf-8'],
     ['<meta charset="x-invalid"><meta charset="windows-1252">', undefined, 'windows-1252'],
     ['<meta http-equiv="Content-Type" content="text/html; charset=bogus"><meta charset="iso-8859-2">', undefined, 'iso-8859-2'],
     // A charset attribute, even an empty one, stops its meta's pragma.
@@ -451,6 +457,13 @@ describe('htmlPreviewHasScripts', () => {
     '<base href="https://unpkg.com/x/"><script src="lib.js"></script>',
     '<base href="https://cdn.jsdelivr.net/npm/"><iframe srcdoc="<script src=x.js></script>"></iframe>',
     '<script src="data:text/javascript,go()"></script>',
+    '<script src="data:text/plain,go()"></script>',
+    '<script type="module" src="data:text/javascript,go()"></script>',
+    // The base set when the parser made the script, which a table's
+    // misplaced base, moved ahead of it, may be; a frame's document in
+    // WebKit takes the base its document has once its scripts load.
+    '<table><base href="https://cdn.jsdelivr.net/npm/pkg/"><script src="lib.js"></script></table>',
+    '<iframe srcdoc="<script src=lib.js></script>"></iframe><base href="https://cdn.jsdelivr.net/npm/pkg/">',
     '<svg><script href="https://code.jquery.com/x.js"></script></svg>',
     // The file's own policy counts from its <meta> in <head>: not on a
     // script before it, nor from <body>, nor where it allows inline code, a
@@ -601,8 +614,12 @@ describe('htmlPreviewHasScripts', () => {
     '<script src="https://example.com/app.js">go()</script>',
     '<script src="http://cdn.jsdelivr.net/x.js"></script><script src="x.js"></script><script src="">go()</script>',
     '<svg><script href="https://example.com/x.js" xlink:href="https://cdn.jsdelivr.net/x.js">go()</script></svg>',
-    // A script resolves its address before a base the parser has yet to reach.
+    // A script resolves its address before a base the parser has yet to reach,
+    // a table's misplaced one moved ahead of it included.
     '<script src="lib.js"></script><base href="https://cdn.jsdelivr.net/npm/pkg/">',
+    '<table><script src="lib.js"></script><base href="https://cdn.jsdelivr.net/npm/pkg/"></table>',
+    // A module from data: runs only as JavaScript.
+    '<script type="module" src="data:text/plain,export default 1"></script>',
     // The file's own policy, from <head>, where it refuses the code: 'none',
     // a list with no 'unsafe-inline' (or one 'strict-dynamic' or a nonce
     // overrides), for script elements, handlers, javascript: links and an

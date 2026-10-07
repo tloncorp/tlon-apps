@@ -177,11 +177,25 @@ function metaCharset(head: string): string | undefined {
       i = close + 3;
       continue;
     }
-    if (!isAsciiLetter(head.charCodeAt(open + 1))) {
-      i = open + 1;
+    // An end tag is read like a start tag, attributes and all; any other
+    // `<!`, `</` or `<?` runs to the first `>`, a `<meta>` in it included.
+    const name =
+      head.charCodeAt(open + 1) === 47 &&
+      isAsciiLetter(head.charCodeAt(open + 2))
+        ? open + 2
+        : open + 1;
+    if (!isAsciiLetter(head.charCodeAt(name))) {
+      const code = head.charCodeAt(open + 1);
+      if (code === 33 || code === 47 || code === 63) {
+        const close = head.indexOf('>', open + 1);
+        if (close < 0) return undefined;
+        i = close + 1;
+      } else {
+        i = open + 1;
+      }
       continue;
     }
-    let nameEnd = open + 1;
+    let nameEnd = name;
     while (nameEnd < head.length) {
       const code = head.charCodeAt(nameEnd);
       if (isHtmlSpace(code) || code === 47 || code === 62) break;
@@ -190,7 +204,12 @@ function metaCharset(head: string): string | undefined {
     const tagEnd = startTagEnd(head, nameEnd);
     if (tagEnd < 0) return undefined;
     i = tagEnd;
-    if (asciiLowercase(head.slice(open + 1, nameEnd)) !== 'meta') continue;
+    if (
+      name !== open + 1 ||
+      asciiLowercase(head.slice(name, nameEnd)) !== 'meta'
+    ) {
+      continue;
+    }
     const attributes = tagAttributes(head.slice(nameEnd, tagEnd - 1));
     const charset = attributes.get('charset');
     if (charset !== undefined) {
@@ -776,6 +795,16 @@ class PreviewParser extends Parser<DefaultTreeAdapterMap> {
 const DEPTH = Symbol('depth');
 type Nested = { [DEPTH]?: number };
 
+// The order the parser made elements in, which is the order it inserted them
+// in: a table's misplaced content lands ahead of it in the tree, but later.
+const CREATED = Symbol('created');
+let created = 0;
+
+/** When the parser made `element`, against the others it made. */
+function createdAt(element: ParsedElement): number {
+  return (element as { [CREATED]?: number })[CREATED] ?? 0;
+}
+
 /**
  * Records a node's depth as the parser attaches it, and stops the parse past
  * MAX_PARSE_DEPTH or MAX_PARSE_ELEMENTS. Text and comments are attached
@@ -792,6 +821,15 @@ function attach(parent: ParsedNode, child: ParsedNode): void {
 
 const depthCappedTreeAdapter: typeof defaultTreeAdapter = {
   ...defaultTreeAdapter,
+  createElement(tagName, namespaceURI, attrs) {
+    const element = defaultTreeAdapter.createElement(
+      tagName,
+      namespaceURI,
+      attrs
+    );
+    (element as { [CREATED]?: number })[CREATED] = ++created;
+    return element;
+  },
   appendChild(parent, child) {
     attach(parent, child);
     defaultTreeAdapter.appendChild(parent, child);
@@ -1337,13 +1375,6 @@ function shadowRootsAttached(): (template: ParsedElement) => boolean {
   };
 }
 
-/** Whether an element is in its document's tree, not a template's content. */
-function inDocument(element: ParsedElement): boolean {
-  let node: ParsedNode = element;
-  while ('parentNode' in node && node.parentNode) node = node.parentNode;
-  return node.nodeName === '#document';
-}
-
 /**
  * The parts of a file's own `Content-Security-Policy` that decide whether its
  * scripts run: the source lists for script elements (script-src-elem, else
@@ -1464,21 +1495,16 @@ export function htmlPreviewHasScripts(
 ): boolean {
   const parsed = depth === 0 ? parsedHtml(html, true) : parseHtml(html, true);
   if (!parsed) return depth > 0;
-  // The base and the file's own policies in force where the parser has got to.
-  let base = inherited;
-  let baseSet = false;
+  // An element resolves addresses against the base set when the parser made
+  // it, and the file's own policies apply from where they stand.
+  const bases = baseElements(parsed.document);
+  const baseFor = (element: ParsedElement) =>
+    webBase(
+      bases.find((base) => createdAt(base) < createdAt(element)),
+      inherited
+    );
   const policies = [...inheritedPolicies];
   for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
-    if (
-      !baseSet &&
-      element.nodeName === 'base' &&
-      element.namespaceURI === NS.HTML &&
-      attributeOf(element, 'href') !== undefined &&
-      inDocument(element)
-    ) {
-      baseSet = true;
-      base = webBase(element, inherited);
-    }
     const policy = authoredPolicy(element);
     if (policy) policies.push(policy);
     if (element.nodeName === 'script' && element.namespaceURI !== NS.MATHML) {
@@ -1497,7 +1523,7 @@ export function htmlPreviewHasScripts(
               attributeOf(element, 'nomodule') === undefined))) &&
         (src === undefined
           ? policies.every((p) => allowsInline(p.elements, nonce))
-          : scriptSourceAllowed(src, base) &&
+          : scriptSourceAllowed(src, baseFor(element), kind === 'module') &&
             policies.every((p) => !allowsNothing(p.elements)))
       ) {
         return true;
@@ -1528,13 +1554,20 @@ export function htmlPreviewHasScripts(
       element.nodeName === 'iframe' && element.namespaceURI === NS.HTML
         ? attributeOf(element, 'srcdoc')
         : undefined;
-    if (
-      srcdoc !== undefined &&
-      frameRunsScripts(element) &&
-      (depth >= MAX_NESTED_DOCUMENTS ||
-        htmlPreviewHasScripts(srcdoc, depth + 1, base, policies))
-    ) {
-      return true;
+    if (srcdoc !== undefined && frameRunsScripts(element)) {
+      if (depth >= MAX_NESTED_DOCUMENTS) return true;
+      // A frame's document resolves against the base its document had when
+      // the parser reached the frame in Chromium, but in WebKit against the
+      // one it has once the frame's scripts load, which later markup may set.
+      const frameBases = new Set([
+        baseFor(element),
+        webBase(bases[0], inherited),
+      ]);
+      for (const frameBase of frameBases) {
+        if (htmlPreviewHasScripts(srcdoc, depth + 1, frameBase, policies)) {
+          return true;
+        }
+      }
     }
   }
   return false;
@@ -1585,7 +1618,13 @@ const SCRIPT_CDNS = `${PREVIEW_CDNS} https://cdn.tailwindcss.com https://code.jq
  * by a socket, not by a beacon -- its forms cannot submit (Android never
  * reports a POST navigation to the load handler), no object may load in it,
  * and the only frame it may hold is an inline one, which inherits this same
- * policy. It still runs its scripts against its own DOM.
+ * policy. It still runs its scripts against its own DOM -- and those scripts
+ * can still reach any host through WebRTC, a peer connection's STUN and TURN
+ * servers: neither Chromium nor WebKit enforces the policy's `webrtc`
+ * directive, `frame-src` does not stop an inline frame the page makes, and
+ * that frame gets the API back if ours is removed (all measured). Only
+ * holding a page's scripts, as the preview does until the reader asks,
+ * keeps it offline.
  *
  * The policy is delivered by the shell (htmlPreviewShell), whose markup the
  * file cannot reach: a document loaded through `srcdoc` inherits the policy
@@ -1620,15 +1659,34 @@ const SCRIPT_HOSTS = new Set(
 );
 
 /**
+ * The essence of a `data:` URL's media type, as fetch reads it: what comes
+ * before the comma, less a `;base64` ending, `text/plain` when it names none.
+ */
+function dataUrlEssence(href: string): string {
+  const comma = href.indexOf(',');
+  let type = href
+    .slice('data:'.length, comma < 0 ? href.length : comma)
+    .replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '')
+    .replace(/; *base64$/i, '');
+  if (type === '' || type.startsWith(';')) type = `text/plain${type}`;
+  return asciiLowercase(type.split(';')[0].replace(/[\t\n\f\r ]+$/, ''));
+}
+
+/**
  * Whether HTML_PREVIEW_POLICY lets a script element load `src`, resolved
  * against the document's web base (webBase) when it has one: a `data:` or
  * `blob:` URL, or https from one of the script CDNs on its default port, as
  * Chromium and WebKit measured. A relative address with no web base resolves
  * against the app's own, which the policy refuses, and an empty one loads
  * nothing; either way the element's own text never runs. A scheme-relative
- * one takes https, as on the app's own page.
+ * one takes https, as on the app's own page. A module runs from `data:` only
+ * as JavaScript, by its media type; a classic script runs as whatever it is.
  */
-function scriptSourceAllowed(src: string, base: string | undefined): boolean {
+function scriptSourceAllowed(
+  src: string,
+  base: string | undefined,
+  module: boolean
+): boolean {
   const value = urlText(src);
   if (value === '') return false;
   let url: URL;
@@ -1640,7 +1698,10 @@ function scriptSourceAllowed(src: string, base: string | undefined): boolean {
   } catch {
     return false;
   }
-  if (url.protocol === 'data:' || url.protocol === 'blob:') return true;
+  if (url.protocol === 'data:') {
+    return !module || JAVASCRIPT_MIME_TYPES.has(dataUrlEssence(url.href));
+  }
+  if (url.protocol === 'blob:') return true;
   return (
     url.protocol === 'https:' &&
     url.port === '' &&
