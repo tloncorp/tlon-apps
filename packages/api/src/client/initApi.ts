@@ -9,6 +9,7 @@ import {
   toClientGroups,
   toClientGroupsFromForeigns,
   toClientPinnedItems,
+  withoutTruncatedMemberCount,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
 import { groupsUi, scryRequest } from './requests';
@@ -119,7 +120,11 @@ export const toInitData = (
 
   logger.crumb('converting groups to client data');
 
-  const groups = toClientGroups(response.groups, true, options.currentUserId);
+  const groups = toClientGroups(
+    response.groups,
+    true,
+    options.currentUserId
+  ).map(withoutTruncatedMemberCount);
 
   logger.crumb('converting unjoined groups to client data');
 

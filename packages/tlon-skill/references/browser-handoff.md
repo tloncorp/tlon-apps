@@ -1,4 +1,29 @@
-# Hosted-browser secure form handoff
+# Hosted-browser sharing and secure form handoff
+
+## Share a hosted browser session
+
+When the owner wants to see or interact with a browser session, call the `tlon`
+tool with:
+
+```json
+{"command":"browser share <session_id>"}
+```
+
+Pass the `sess_` handle returned by `browser_session_create`. This sends a rich
+link card in Tlon Messenger that opens the live session in the browser. It does
+not request credentials or send a task continuation. Use `browser handoff`
+below when sensitive input is needed.
+
+Never send a browser-session URL as a raw or labeled Markdown link in ordinary
+chat messages. Do not fetch, copy, construct, or expose the signed viewer URL;
+the plugin resolves it privately. If sharing fails, explain the failure and
+retry when appropriate; do not fall back to sending a URL.
+
+Both browser commands are exceptions to routing ordinary messages through
+`message`. They send only to the configured owner; never claim delivery until
+the command succeeds.
+
+## Secure form handoff
 
 Use a secure form handoff when you are controlling a hosted browser on behalf
 of your owner and the live page needs sensitive input that they should provide,

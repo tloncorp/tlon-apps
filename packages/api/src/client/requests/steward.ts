@@ -1,7 +1,8 @@
 import type { Entry } from './types';
 
-// Automation routes (/v1/automation, /steward/~/v1/automation) are bot-facing
-// and excluded by oxlint/desk-request-scope.json.
+// Automation and prompts routes (/v1/automation, /v1/prompts, and their
+// /steward/~/v1 HTTP forms) are bot-facing and excluded by
+// oxlint/desk-request-scope.json.
 export const steward = {
   lensRecent: {
     kind: 'scry',

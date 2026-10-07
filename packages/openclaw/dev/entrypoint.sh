@@ -47,6 +47,13 @@ minimumReleaseAge: 0
 verifyDepsBeforeRun: false
 PNPM_EOF
 pnpm install
+# Local package overrides below are symlinks into the mounted checkout. Keep
+# Node resolving through those links, so their dependencies come from this
+# container-local, Linux-compatible install rather than the host checkout.
+case " ${NODE_OPTIONS:-} " in
+  *" --preserve-symlinks "*) ;;
+  *) export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--preserve-symlinks" ;;
+esac
 # Override registry deps with local builds BEFORE compiling: the plugin may
 # use @tloncorp/api exports that exist only in the local checkout, so tsc
 # must see the overridden package. Both overrides need only the installed

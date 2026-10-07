@@ -30,6 +30,18 @@ public class TlonMessageContextMenuModule: Module {
             Prop("previewBackgroundColor") { (view, color: UIColor?) in
                 view.previewBackgroundColor = color ?? .secondarySystemBackground
             }
+
+            Prop("menuBackgroundColor") { (view, color: UIColor?) in
+                view.menuColors.background = color ?? .secondarySystemBackground
+            }
+
+            Prop("menuForegroundColor") { (view, color: UIColor?) in
+                view.menuColors.foreground = color ?? .label
+            }
+
+            Prop("menuDestructiveColor") { (view, color: UIColor?) in
+                view.menuColors.destructive = color ?? .systemRed
+            }
         }
     }
 }
@@ -46,6 +58,17 @@ struct TlonMessageMenuReaction: Record {
     @Field var value: String = ""
     @Field var selected: Bool = false
     @Field var token: String = ""
+}
+
+struct TlonMessageMenuColors {
+    var background: UIColor = .secondarySystemBackground
+    var foreground: UIColor = .label
+    var destructive: UIColor = .systemRed
+
+    // Derived from the foreground so they stay visible on any theme's surface.
+    var separator: UIColor { foreground.withAlphaComponent(0.14) }
+    var highlight: UIColor { foreground.withAlphaComponent(0.12) }
+    var selection: UIColor { foreground.withAlphaComponent(0.14) }
 }
 
 enum TlonMessageMenuAlignment {

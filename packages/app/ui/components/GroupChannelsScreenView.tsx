@@ -26,6 +26,7 @@ import { useCurrentUserId } from '../contexts/appDataContext';
 import { useChatOptions } from '../contexts/chatOptions';
 import { useNotebookSidebarContent } from '../contexts/notebookSidebar';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
+import { getGroupMemberCount } from '../utils/groupUtils';
 import { Badge } from './Badge';
 import { GroupAvatar } from './GroupAvatar';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
@@ -105,7 +106,7 @@ export const GroupChannelsScreenView = React.memo(
       if (group?.description) {
         return group.description;
       }
-      const memberCount = group?.members?.length ?? 0;
+      const memberCount = group ? getGroupMemberCount(group) : 0;
       const privacy = group?.privacy
         ? `${capitalize(group.privacy)} group`
         : 'Group';
@@ -114,7 +115,7 @@ export const GroupChannelsScreenView = React.memo(
         return `${privacy} with ${memberCount} ${pluralize(memberCount, 'member')}`;
       }
       return privacy;
-    }, [group?.description, group?.members?.length, group?.privacy]);
+    }, [group]);
 
     const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
     const isWindowNarrow = useIsWindowNarrow();

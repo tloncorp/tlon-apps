@@ -72,7 +72,7 @@ const INVALID_OPERATION = 'invalid';
 
 const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
   ['activity', new Set(['mentions', 'replies', 'all', 'unreads'])],
-  ['browser', new Set(['handoff'])],
+  ['browser', new Set(['handoff', 'share'])],
   [
     'buckets',
     new Set([
@@ -302,7 +302,7 @@ export function isBrowserHandoffCommand(args: string[]): boolean {
   const subIdx = findTlonSubcommandIndex(args);
   return (
     args[subIdx]?.toLowerCase() === 'browser' &&
-    args[subIdx + 1]?.toLowerCase() === 'handoff'
+    ['handoff', 'share'].includes(args[subIdx + 1]?.toLowerCase())
   );
 }
 
@@ -324,10 +324,10 @@ export function redactBrowserHandoffCommand(command: string): string {
   }
   if (
     args[subIdx]?.toLowerCase() === 'browser' &&
-    args[subIdx + 1]?.toLowerCase() === 'handoff'
+    ['handoff', 'share'].includes(args[subIdx + 1]?.toLowerCase())
   ) {
     // Keep only the operation: arguments can carry a signed viewer capability.
-    return 'browser handoff [REDACTED]';
+    return `browser ${args[subIdx + 1].toLowerCase()} [REDACTED]`;
   }
   return command;
 }

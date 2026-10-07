@@ -399,6 +399,57 @@ describe('NativeDb', () => {
         payload.missingTables.includes('groups')
     );
     expect(schemaFailure).toBeDefined();
+
+    expect(
+      loggerSpies.trackEvent.mock.calls.filter(
+        ([event, payload]) =>
+          event === 'ErrorNativeDb' &&
+          (payload as TrackPayload).severity === 'Critical'
+      )
+    ).toHaveLength(0);
+    const initialFailures = loggerSpies.trackEvent.mock.calls.filter(
+      ([event, payload]) =>
+        event === 'NativeDbDebug' &&
+        (payload as TrackPayload).context ===
+          'runMigrations: schema health check failed'
+    );
+    expect(initialFailures).toHaveLength(1);
+    expect(initialFailures[0][1]).toMatchObject({
+      migrationPhase: 'initial',
+      missingTables: ['groups'],
+      severity: 'Low',
+    });
+  });
+
+  it('pages Critical once when the schema health check also fails on retry', async () => {
+    const failGroupsProbe = () =>
+      sqliteRuntime.makeConnection({
+        execute: vi.fn(async (query: string) => {
+          if (query === 'SELECT 1 FROM "groups" LIMIT 1') {
+            throw new Error('no such table: groups');
+          }
+        }),
+      });
+    sqliteRuntime.enqueueConnection(failGroupsProbe());
+    sqliteRuntime.enqueueConnection(failGroupsProbe());
+    const db = new NativeDb();
+
+    await expect(db.runMigrations()).rejects.toThrow(
+      'runMigrations: schema health check failed. Missing required tables: groups'
+    );
+
+    const healthCheckCritical = loggerSpies.trackEvent.mock.calls.filter(
+      ([event, payload]) =>
+        event === 'ErrorNativeDb' &&
+        (payload as TrackPayload).context ===
+          'runMigrations: schema health check failed'
+    );
+    expect(healthCheckCritical).toHaveLength(1);
+    expect(healthCheckCritical[0][1]).toMatchObject({
+      migrationPhase: 'retry',
+      missingTables: ['groups'],
+      severity: 'Critical',
+    });
   });
 
   it('throws if retry purge fails', async () => {

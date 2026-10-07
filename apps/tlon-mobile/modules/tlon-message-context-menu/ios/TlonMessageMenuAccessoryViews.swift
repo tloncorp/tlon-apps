@@ -9,7 +9,7 @@ private final class TlonMessageMenuButton: UIButton {
         }
     }
 
-    var highlightedBackgroundColor = UIColor.white.withAlphaComponent(0.12)
+    var highlightedBackgroundColor: UIColor = .clear
 
     override var isHighlighted: Bool {
         didSet {
@@ -58,9 +58,10 @@ private final class TlonMessageActionRowView: UIView {
     private let separator = UIView()
     private let showsSeparator: Bool
 
-    init(showsSeparator: Bool) {
+    init(showsSeparator: Bool, colors: TlonMessageMenuColors) {
         self.showsSeparator = showsSeparator
         super.init(frame: .zero)
+        button.highlightedBackgroundColor = colors.highlight
         addSubview(button)
         iconView.contentMode = .scaleAspectFit
         iconView.isUserInteractionEnabled = false
@@ -71,7 +72,7 @@ private final class TlonMessageActionRowView: UIView {
         titleLabel.lineBreakMode = .byWordWrapping
         titleLabel.isUserInteractionEnabled = false
         addSubview(titleLabel)
-        separator.backgroundColor = UIColor.white.withAlphaComponent(0.14)
+        separator.backgroundColor = colors.separator
         addSubview(separator)
     }
 
@@ -137,9 +138,7 @@ private final class TlonMessageActionRowView: UIView {
 }
 
 final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
-    private let blurView = UIVisualEffectView(
-        effect: UIBlurEffect(style: .systemMaterialDark)
-    )
+    private let colors: TlonMessageMenuColors
     private let scrollView = UIScrollView()
     private let stackView = UIStackView()
     private var rowHeights: [CGFloat] = []
@@ -152,15 +151,16 @@ final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
         rowHeights.reduce(0, +)
     }
 
-    init(actions: [TlonMessageMenuAction]) {
+    init(actions: [TlonMessageMenuAction], colors: TlonMessageMenuColors) {
+        self.colors = colors
         super.init(frame: .zero)
 
+        backgroundColor = colors.background
         layer.cornerRadius = 16
         layer.cornerCurve = .continuous
         clipsToBounds = true
 
-        addSubview(blurView)
-        blurView.contentView.addSubview(scrollView)
+        addSubview(scrollView)
         scrollView.addSubview(stackView)
         scrollView.showsVerticalScrollIndicator = actions.count > 6
         scrollView.alwaysBounceVertical = false
@@ -187,7 +187,6 @@ final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        blurView.frame = bounds
         scrollView.frame = bounds
         stackView.frame = CGRect(
             x: 0,
@@ -208,15 +207,18 @@ final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
         action: TlonMessageMenuAction,
         showsSeparator: Bool
     ) -> TlonMessageActionRowView {
-        let row = TlonMessageActionRowView(showsSeparator: showsSeparator)
+        let row = TlonMessageActionRowView(
+            showsSeparator: showsSeparator,
+            colors: colors
+        )
         let button = row.button
         button.accessibilityLabel = action.title
         button.accessibilityTraits = .button
         button.tag = buttons.count
         button.addTarget(self, action: #selector(actionPressed(_:)), for: .touchUpInside)
-        let foregroundColor: UIColor = action.destructive
-            ? .systemRed
-            : .white
+        let foregroundColor = action.destructive
+            ? colors.destructive
+            : colors.foreground
         row.configure(
             title: action.title,
             image: action.systemImage.flatMap(UIImage.init(systemName:)),
@@ -237,9 +239,7 @@ final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
 }
 
 final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection {
-    private let blurView = UIVisualEffectView(
-        effect: UIBlurEffect(style: .systemMaterialDark)
-    )
+    private let colors: TlonMessageMenuColors
     private let stackView = UIStackView()
     var buttons: [(payload: TlonMessageMenuSelection, button: UIButton)] = []
 
@@ -252,16 +252,18 @@ final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection 
 
     init(
         reactions: [TlonMessageMenuReaction],
-        moreReactionsToken: String?
+        moreReactionsToken: String?,
+        colors: TlonMessageMenuColors
     ) {
+        self.colors = colors
         super.init(frame: .zero)
 
+        backgroundColor = colors.background
         layer.cornerRadius = barHeight / 2
         layer.cornerCurve = .continuous
         clipsToBounds = true
 
-        addSubview(blurView)
-        blurView.contentView.addSubview(stackView)
+        addSubview(stackView)
         stackView.axis = .horizontal
         stackView.alignment = .center
         stackView.distribution = .fillEqually
@@ -290,7 +292,7 @@ final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection 
                 UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold),
                 forImageIn: .normal
             )
-            moreButton.tintColor = .white
+            moreButton.tintColor = colors.foreground
             moreButton.accessibilityLabel = "More reactions"
             stackView.addArrangedSubview(moreButton)
         }
@@ -303,7 +305,6 @@ final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection 
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        blurView.frame = bounds
         stackView.frame = bounds.insetBy(dx: 8, dy: 6)
     }
 
@@ -318,14 +319,15 @@ final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection 
     ) -> UIButton {
         let button = TlonMessageMenuButton(type: .custom)
         button.setTitle(title, for: .normal)
-        button.setTitleColor(.white, for: .normal)
+        button.setTitleColor(colors.foreground, for: .normal)
+        button.highlightedBackgroundColor = colors.highlight
         button.titleLabel?.font = .systemFont(ofSize: 26)
         button.accessibilityLabel = title
         button.accessibilityTraits = .button
         button.layer.cornerRadius = 20
         button.layer.cornerCurve = .continuous
         button.restingBackgroundColor = selected
-            ? UIColor.white.withAlphaComponent(0.14)
+            ? colors.selection
             : .clear
         button.tag = buttons.count
         button.addTarget(self, action: #selector(reactionPressed(_:)), for: .touchUpInside)

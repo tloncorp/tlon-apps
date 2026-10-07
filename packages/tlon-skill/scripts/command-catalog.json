@@ -5,7 +5,7 @@
     "toolGuidance": "Read activity; results are bounded."
   },
   "browser": {
-    "summary": "Hosted-browser secure form handoff",
+    "summary": "Hosted-browser sharing and secure form handoff",
     "reference": "references/browser-handoff.md",
     "toolGuidance": "Use a session_id from browser_session_create, never a viewer URL; no credential or recipient overrides."
   },

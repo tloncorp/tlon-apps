@@ -27,7 +27,11 @@ Discover the group with `groups list` / `groups info`, then:
 {"command":"channels create ~host/group \"Research\" --kind notes"}
 ```
 
-Use the returned notebook nest. `%notes` owns its listing, so `--description` and writer-role flags are not accepted for this channel kind. `notes create` creates a standalone notebook, not an app/group channel. The deprecated `notebook` command operates on neither of these supported workflows.
+Use the returned notebook nest. `%notes` creates its listing, so `--description` is not accepted at create; set it afterwards with `channels update`. Writer roles are not supported for this channel kind. `notes create` creates a standalone notebook, not an app/group channel. The deprecated `notebook` command operates on neither of these supported workflows.
+
+To rename a group notebook as it appears in the app, use `channels rename notes/~host/name "New Title"` or `channels update notes/~host/name --title "New Title"`. To change its description, use `channels update notes/~host/name --description "Description"`. These operations require group admin rights.
+`notes list/show` pick up the new title once the notebook host runs a desk with
+%notes title sync; on older desks they keep the original title.
 
 ## Write and verify content
 
