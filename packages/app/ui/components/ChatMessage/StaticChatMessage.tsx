@@ -413,6 +413,7 @@ export function StaticChatMessage({
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
           allowBrowserCredentialHandoff: allowBrowserHandoff,
+          allowBrowserSession: allowBrowserHandoff,
           onBrowserCredentialHandoffComplete:
             target.type === 'screen' &&
             target.screen === 'browserCredentialHandoff'
@@ -484,7 +485,10 @@ export function StaticChatMessage({
       if (action.event.name === A2UI.action.navigate) {
         const target = action.event.context.target;
         if (target.type !== 'screen') return true;
-        if (target.screen === 'browserCredentialHandoff') {
+        if (
+          target.screen === 'browserCredentialHandoff' ||
+          target.screen === 'browserSession'
+        ) {
           return allowBrowserHandoff;
         }
         return canUseAgentProviderControls;
@@ -849,6 +853,7 @@ const WebChatVideoRenderer: DefaultRendererProps['video'] = {
 };
 
 const ChatContentRenderer = createContentRenderer({
+  renderBrowserSessionCards: true,
   blockRenderers: {
     a2ui: A2UIBlock,
   },
