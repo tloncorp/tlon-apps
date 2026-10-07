@@ -1,14 +1,15 @@
 import {
   type DefaultTreeAdapterMap,
+  Parser,
+  type ParserOptions,
   type Token,
   type TokenHandler,
   Tokenizer,
   defaultTreeAdapter,
   html as htmlSpec,
-  parse,
 } from 'parse5';
 
-const { NS } = htmlSpec;
+const { NS, TAG_ID } = htmlSpec;
 
 export type BucketPreviewKind =
   | 'image'
@@ -712,9 +713,65 @@ const MAX_PARSE_DEPTH = 128;
 // 250 MB in parse5. A dense 2 MB data table builds about 150,000.
 const MAX_PARSE_ELEMENTS = 200_000;
 
+// How many attributes one tag, and one document in all, may carry before its
+// file is declined. parse5 checks each attribute against every one before it
+// on the same tag, so a tag's time grows with the square of its count: it
+// took 19 s on one tag of 100,000 (0.55 MB), which Chromium and WebKit read
+// in 0.1 s. Real tags carry a few dozen.
+const MAX_TAG_ATTRIBUTES = 256;
+const MAX_PARSE_ATTRIBUTES = 400_000;
+
 class ParseLimit extends Error {}
 
 let elementsLeft = 0;
+let attributesLeft = 0;
+
+/** parse5's tokenizer, stopping the parse past MAX_TAG_ATTRIBUTES or MAX_PARSE_ATTRIBUTES. */
+class CappedTokenizer extends Tokenizer {
+  protected override _createAttr(attrNameFirstCh: string): void {
+    attributesLeft -= 1;
+    const tag = this.currentToken as Token.TagToken;
+    if (attributesLeft < 0 || tag.attrs.length >= MAX_TAG_ATTRIBUTES) {
+      throw new ParseLimit();
+    }
+    super._createAttr(attrNameFirstCh);
+  }
+}
+
+/**
+ * parse5's parser, with CappedTokenizer, resetting its insertion mode by HTML
+ * elements alone, as the standard does. parse5 takes a foreign element with
+ * an HTML element's name (an SVG `<template>`) on its stack for the HTML one
+ * and drops what follows -- a script after an HTML template closed inside an
+ * SVG template's foreignObject, which Chromium and WebKit run.
+ */
+class PreviewParser extends Parser<DefaultTreeAdapterMap> {
+  constructor(options?: ParserOptions<DefaultTreeAdapterMap>) {
+    super(options);
+    this.tokenizer = new CappedTokenizer(this.options, this);
+  }
+
+  override _resetInsertionMode(): void {
+    const { items, stackTop, tagIDs } = this.openElements;
+    const foreign: number[] = [];
+    for (let i = 0; i <= stackTop; i++) {
+      const item = items[i];
+      if (
+        this.treeAdapter.isElementNode(item) &&
+        this.treeAdapter.getNamespaceURI(item) !== NS.HTML
+      ) {
+        foreign.push(i);
+      }
+    }
+    const ids = foreign.map((i) => tagIDs[i]);
+    for (const i of foreign) tagIDs[i] = TAG_ID.UNKNOWN;
+    try {
+      super._resetInsertionMode();
+    } finally {
+      foreign.forEach((i, n) => (tagIDs[i] = ids[n]));
+    }
+  }
+}
 
 const DEPTH = Symbol('depth');
 type Nested = { [DEPTH]?: number };
@@ -753,8 +810,9 @@ interface ParsedHtml {
 
 /**
  * `html` as a browser's parser builds it, with scripting on or off, which
- * decides whether a `<noscript>` holds text or markup; null when it nests
- * past MAX_PARSE_DEPTH or builds more than MAX_PARSE_ELEMENTS. A leading
+ * decides whether a `<noscript>` holds text or markup (PreviewParser); null
+ * when it nests past MAX_PARSE_DEPTH, builds more than MAX_PARSE_ELEMENTS or
+ * carries more attributes than MAX_TAG_ATTRIBUTES or MAX_PARSE_ATTRIBUTES. A leading
  * byte order mark is skipped, as Chromium and WebKit skip one in a srcdoc
  * document, so the tree's source offsets lie one short of `html`'s. Only a
  * tree read as a frame without scripts has source offsets: they are read to
@@ -763,8 +821,9 @@ interface ParsedHtml {
 function parseHtml(html: string, scripting: boolean): ParsedHtml | null {
   const offset = html.charCodeAt(0) === 0xfeff ? 1 : 0;
   elementsLeft = MAX_PARSE_ELEMENTS;
+  attributesLeft = MAX_PARSE_ATTRIBUTES;
   try {
-    const document = parse(offset ? html.slice(1) : html, {
+    const document = PreviewParser.parse(offset ? html.slice(1) : html, {
       scriptingEnabled: scripting,
       sourceCodeLocationInfo: !scripting,
       treeAdapter: depthCappedTreeAdapter,
@@ -1278,6 +1337,105 @@ function shadowRootsAttached(): (template: ParsedElement) => boolean {
   };
 }
 
+/** Whether an element is in its document's tree, not a template's content. */
+function inDocument(element: ParsedElement): boolean {
+  let node: ParsedNode = element;
+  while ('parentNode' in node && node.parentNode) node = node.parentNode;
+  return node.nodeName === '#document';
+}
+
+/**
+ * The parts of a file's own `Content-Security-Policy` that decide whether its
+ * scripts run: the source lists for script elements (script-src-elem, else
+ * script-src, else default-src), for event handlers (script-src-attr, else
+ * the same) and for eval (script-src, else default-src), undefined where the
+ * policy sets none. Chromium and WebKit enforce it beside the preview's own
+ * from where the parser reaches its `<meta>`, which counts only in `<head>`,
+ * and an inline frame's document inherits it.
+ */
+interface AuthoredPolicy {
+  elements?: string[];
+  attributes?: string[];
+  evaluation?: string[];
+}
+
+/** The policy a `<meta http-equiv="Content-Security-Policy">` in `<head>` sets, if `element` is one. */
+function authoredPolicy(element: ParsedElement): AuthoredPolicy | undefined {
+  const head = element.parentNode;
+  if (
+    element.nodeName !== 'meta' ||
+    element.namespaceURI !== NS.HTML ||
+    !head ||
+    !defaultTreeAdapter.isElementNode(head) ||
+    head.nodeName !== 'head' ||
+    head.namespaceURI !== NS.HTML ||
+    asciiLowercase(attributeOf(element, 'http-equiv') ?? '') !==
+      'content-security-policy'
+  ) {
+    return undefined;
+  }
+  const content = attributeOf(element, 'content');
+  if (content === undefined) return undefined;
+  const directives = new Map<string, string[]>();
+  for (const directive of content.split(';')) {
+    const [name, ...sources] = directive
+      .split(/[\t\n\f\r ]+/)
+      .filter((token) => token !== '');
+    if (name !== undefined && !directives.has(asciiLowercase(name))) {
+      directives.set(asciiLowercase(name), sources);
+    }
+  }
+  const scripts = directives.get('script-src') ?? directives.get('default-src');
+  return {
+    elements: directives.get('script-src-elem') ?? scripts,
+    attributes: directives.get('script-src-attr') ?? scripts,
+    evaluation: scripts,
+  };
+}
+
+/** Whether a source list names nothing: empty, or `'none'` alone. */
+function allowsNothing(list: string[] | undefined): boolean {
+  return (
+    list !== undefined &&
+    (list.length === 0 ||
+      (list.length === 1 && asciiLowercase(list[0]) === "'none'"))
+  );
+}
+
+/**
+ * Whether a source list lets inline code run (`nonce` an element's): a
+ * matching nonce, or 'unsafe-inline' where no nonce source, hash source or
+ * 'strict-dynamic' overrides it. A hash might match the code, which is not
+ * hashed here, so a list with one is taken to.
+ */
+function allowsInline(list: string[] | undefined, nonce?: string): boolean {
+  if (list === undefined) return true;
+  if (allowsNothing(list)) return false;
+  const lower = list.map(asciiLowercase);
+  if (lower.some((source) => /^'sha(256|384|512)-/.test(source))) return true;
+  if (
+    nonce !== undefined &&
+    list.some(
+      (source, i) =>
+        lower[i].startsWith("'nonce-") && source.slice(7, -1) === nonce
+    )
+  ) {
+    return true;
+  }
+  return (
+    lower.includes("'unsafe-inline'") &&
+    !lower.includes("'strict-dynamic'") &&
+    !lower.some((source) => source.startsWith("'nonce-"))
+  );
+}
+
+/** Whether a source list lets code run through eval: 'unsafe-eval'. */
+function allowsEvaluation(list: string[] | undefined): boolean {
+  return (
+    list === undefined || list.map(asciiLowercase).includes("'unsafe-eval'")
+  );
+}
+
 /**
  * Whether an HTML file has anything a script would run from: an HTML or SVG
  * script element that runs code (scriptKind; a classic HTML one marked
@@ -1301,15 +1459,28 @@ function shadowRootsAttached(): (template: ParsedElement) => boolean {
 export function htmlPreviewHasScripts(
   html: string,
   depth = 0,
-  inherited?: string
+  inherited?: string,
+  inheritedPolicies: AuthoredPolicy[] = []
 ): boolean {
   const parsed = depth === 0 ? parsedHtml(html, true) : parseHtml(html, true);
   if (!parsed) return depth > 0;
-  let base: { href: string | undefined } | undefined;
-  const scriptBase = () =>
-    (base ??= { href: webBase(baseElements(parsed.document)[0], inherited) })
-      .href;
+  // The base and the file's own policies in force where the parser has got to.
+  let base = inherited;
+  let baseSet = false;
+  const policies = [...inheritedPolicies];
   for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
+    if (
+      !baseSet &&
+      element.nodeName === 'base' &&
+      element.namespaceURI === NS.HTML &&
+      attributeOf(element, 'href') !== undefined &&
+      inDocument(element)
+    ) {
+      baseSet = true;
+      base = webBase(element, inherited);
+    }
+    const policy = authoredPolicy(element);
+    if (policy) policies.push(policy);
     if (element.nodeName === 'script' && element.namespaceURI !== NS.MATHML) {
       const kind = scriptKind(element);
       // An SVG script's address is its href, or else its xlink:href.
@@ -1318,12 +1489,16 @@ export function htmlPreviewHasScripts(
           ? (attributeOf(element, 'href') ??
             attributeOf(element, 'href', NS.XLINK))
           : attributeOf(element, 'src');
+      const nonce = attributeOf(element, 'nonce');
       if (
         (kind === 'module' ||
           (kind === 'classic' &&
             (element.namespaceURI === NS.SVG ||
               attributeOf(element, 'nomodule') === undefined))) &&
-        (src === undefined || scriptSourceAllowed(src, scriptBase()))
+        (src === undefined
+          ? policies.every((p) => allowsInline(p.elements, nonce))
+          : scriptSourceAllowed(src, base) &&
+            policies.every((p) => !allowsNothing(p.elements)))
       ) {
         return true;
       }
@@ -1332,13 +1507,19 @@ export function htmlPreviewHasScripts(
       if (
         attribute.namespace === undefined &&
         attribute.name.startsWith('on') &&
-        handlesEvent(element, attribute.name.slice(2))
+        handlesEvent(element, attribute.name.slice(2)) &&
+        policies.every((p) => allowsInline(p.attributes))
       ) {
         return true;
       }
+      // Our link script runs a javascript: link by eval; WebKit and
+      // Chromium run some natively, as inline code.
       if (
         runsJavascriptUrl(element, attribute) &&
-        urlScheme(attribute.value) === 'javascript'
+        urlScheme(attribute.value) === 'javascript' &&
+        policies.every(
+          (p) => allowsEvaluation(p.evaluation) || allowsInline(p.elements)
+        )
       ) {
         return true;
       }
@@ -1351,7 +1532,7 @@ export function htmlPreviewHasScripts(
       srcdoc !== undefined &&
       frameRunsScripts(element) &&
       (depth >= MAX_NESTED_DOCUMENTS ||
-        htmlPreviewHasScripts(srcdoc, depth + 1, scriptBase()))
+        htmlPreviewHasScripts(srcdoc, depth + 1, base, policies))
     ) {
       return true;
     }

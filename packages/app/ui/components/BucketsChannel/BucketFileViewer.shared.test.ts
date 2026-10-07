@@ -28,6 +28,10 @@ const TOKEN = 'fedcba9876543210fedcba9876543210';
 const scriptless = (html: string) =>
   htmlPreviewDocument(html, KEY, { scripts: 'none' });
 
+// `count` distinct attributes, for one tag.
+const attributes = (count: number) =>
+  Array.from({ length: count }, (_, i) => `a${i.toString(36)}`).join(' ');
+
 // `html` as the document of an inline frame, `levels` frames deep.
 function nested(html: string, levels: number): string {
   let doc = html;
@@ -448,6 +452,16 @@ describe('htmlPreviewHasScripts', () => {
     '<base href="https://cdn.jsdelivr.net/npm/"><iframe srcdoc="<script src=x.js></script>"></iframe>',
     '<script src="data:text/javascript,go()"></script>',
     '<svg><script href="https://code.jquery.com/x.js"></script></svg>',
+    // The file's own policy counts from its <meta> in <head>: not on a
+    // script before it, nor from <body>, nor where it allows inline code, a
+    // nonce the script carries, a hash, or a host, which are not checked.
+    `<head><script>go()</script><meta http-equiv="Content-Security-Policy" content="script-src 'none'"></head>`,
+    `<body><meta http-equiv="Content-Security-Policy" content="script-src 'none'"><script>go()</script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'none' 'unsafe-inline'"></head><script>go()</script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src-elem 'none'"></head><img src="x" onerror="go()">`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'"></head><script nonce="abc">go()</script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'sha256-abc='"></head><script>go()</script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'"></head><script src="https://cdn.jsdelivr.net/x.js"></script>`,
     '<button onclick="go()">go</button>',
     '<svg onload = "go()"></svg>',
     '<a href="javascript:go()">go</a>',
@@ -500,6 +514,10 @@ describe('htmlPreviewHasScripts', () => {
     // the element it names, with the svg or math inside.
     '<template><svg></template></svg><script>go()</script>',
     '<template><math><mi><svg></template><script>go()</script>',
+    // An HTML template closed inside an SVG template's foreignObject: the
+    // parser resets its mode by HTML elements alone, as Chromium and WebKit
+    // do, where parse5 took the SVG template for an HTML one.
+    '<svg><template><foreignObject><template></template><script>go()</script></foreignObject></template></svg>',
     '<div><math></div><script>go()</script>',
     '<table><tr><td><math></td></tr></table><script>go()</script>',
     // Where a javascript: URL runs: a link, an SVG link by either attribute,
@@ -567,10 +585,8 @@ describe('htmlPreviewHasScripts', () => {
     '<div><template shadowrootmode="open"></template><template shadowrootmode="open"><script>go()</script></template></div>',
     '<x-@><template shadowrootmode="open"><script>go()</script></template></x-@>',
     '<x-×><template shadowrootmode="open"><script>go()</script></template></x-×>',
-    // Chromium and WebKit run this script, but parse5 drops what follows an
-    // HTML template closed inside an SVG template's foreignObject: it takes
-    // the SVG element for an HTML template when it resets its mode.
-    '<svg><template><foreignObject><template></template><script>go()</script></foreignObject></template></svg>',
+    // A foreignObject's end tag inside an HTML template is ignored, so the
+    // script stays in the template's content.
     '<svg><foreignObject><template></foreignObject><script>go()</script></template></foreignObject></svg>',
     // A javascript: URL where none runs: a form cannot submit, an object or
     // embed cannot load, and other elements fetch theirs.
@@ -585,6 +601,17 @@ describe('htmlPreviewHasScripts', () => {
     '<script src="https://example.com/app.js">go()</script>',
     '<script src="http://cdn.jsdelivr.net/x.js"></script><script src="x.js"></script><script src="">go()</script>',
     '<svg><script href="https://example.com/x.js" xlink:href="https://cdn.jsdelivr.net/x.js">go()</script></svg>',
+    // A script resolves its address before a base the parser has yet to reach.
+    '<script src="lib.js"></script><base href="https://cdn.jsdelivr.net/npm/pkg/">',
+    // The file's own policy, from <head>, where it refuses the code: 'none',
+    // a list with no 'unsafe-inline' (or one 'strict-dynamic' or a nonce
+    // overrides), for script elements, handlers, javascript: links and an
+    // inline frame's document, which inherits it.
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'none'"></head><script>go()</script><script src="https://cdn.jsdelivr.net/x.js"></script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'"></head><script>go()</script><img src="x" onerror="go()"><a href="javascript:go()">x</a>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="SCRIPT-SRC 'unsafe-inline' 'strict-dynamic'"></head><script>go()</script><img src="x" onerror="go()">`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'"></head><script nonce="xyz">go()</script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src"></head><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>`,
     // A handler only some elements take, on one that does not.
     '<div onbegin="go()" ononline="go()">x</div><span onsearch="go()" onencrypted="go()"></span><svg><g onunload="go()"/></svg>',
     '<div srcdoc="&lt;script&gt;go()&lt;/script&gt;">x</div>',
@@ -924,6 +951,8 @@ describe('hostile markup', () => {
       '<template>'.repeat(100_000) + '<script>go()</script>',
       '<svg>' + '<g>'.repeat(100_000) + '</svg><title>T</title>',
       '<title>T</title>' + '<br>'.repeat(200_000),
+      `<title>T</title><p ${attributes(257)}>`,
+      `<title>T</title>${`<i ${attributes(8)}></i>`.repeat(50_001)}`,
     ]) {
       expect(htmlPreviewReadable(html)).toBe(false);
       expect(htmlPreviewTitle(html)).toBeUndefined();
@@ -933,6 +962,9 @@ describe('hostile markup', () => {
     const nearCap = '<svg>'.repeat(120) + '</x>'.repeat(50_000);
     expect(htmlPreviewReadable(nearCap + '<title>T</title>')).toBe(true);
     expect(htmlPreviewReadable('<br>'.repeat(199_990))).toBe(true);
+    // Each attribute is checked against every one before it on its tag.
+    expect(htmlPreviewReadable(`<p ${attributes(256)}>`)).toBe(true);
+    expect(htmlPreviewReadable(`<p ${attributes(250_000)}>`)).toBe(false);
     expect(
       htmlPreviewTitle(nearCap + '</svg>'.repeat(120) + '<title>T</title>')
     ).toBe('T');
