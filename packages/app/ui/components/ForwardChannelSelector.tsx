@@ -162,8 +162,9 @@ export function ForwardChannelSelector({
     <>
       {/* The title's icon, the labels and the avatars share one line, a
           row's own padding in from here. The field reaches past that line by
-          its corner radius, which is the same amount. */}
-      <XStack paddingHorizontal="$xl">
+          its corner radius, which is the same amount. The space above matches
+          the contact pickers' gap between header and search. */}
+      <XStack paddingHorizontal="$xl" paddingTop="$l">
         <SearchBar
           placeholder="Search channels"
           onChangeQuery={handleQueryChanged}
