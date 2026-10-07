@@ -130,6 +130,24 @@ function urlScheme(value: string): string | undefined {
   return URL_SCHEME.exec(urlText(value))?.[1].toLowerCase();
 }
 
+/**
+ * A `javascript:` URL's code, percent-decoded as a browser decodes it (and
+ * as our link script does): an escape that is not two hex digits stays as
+ * written, and the escaped bytes decode as UTF-8, a malformed sequence as
+ * U+FFFD.
+ */
+function javascriptCode(value: string): string {
+  return urlText(value)
+    .replace(URL_SCHEME, '')
+    .replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
+      const bytes = new Uint8Array(run.length / 3);
+      for (let i = 0; i < bytes.length; i += 1) {
+        bytes[i] = parseInt(run.slice(i * 3 + 1, i * 3 + 3), 16);
+      }
+      return new TextDecoder().decode(bytes);
+    });
+}
+
 // The schemes a link in a preview may open: web, mail and phone.
 const LINK_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
 
@@ -1730,6 +1748,7 @@ export function htmlPreviewHasScripts(
       if (
         runsJavascriptUrl(element, attribute) &&
         urlScheme(attribute.value) === 'javascript' &&
+        javascriptCode(attribute.value).trim() !== '' &&
         // An iframe runs its javascript: source only without a sandbox of
         // its own, even one allowing scripts (Chromium; WebKit runs none); a
         // <frame> has no sandbox attribute, so one on it does nothing.

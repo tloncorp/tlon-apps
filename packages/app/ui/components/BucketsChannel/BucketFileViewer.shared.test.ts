@@ -490,6 +490,8 @@ describe('htmlPreviewHasScripts', () => {
     `<head><meta http-equiv="Content-Security-Policy" content="script-src https://cdn.jsdelivr.net/npm/"></head><script src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
     // Both engines decode a source's whole path, an escaped slash included.
     `<head><meta http-equiv="Content-Security-Policy" content="script-src https://cdn.jsdelivr.net/pkg%2F"></head><script src="https://cdn.jsdelivr.net/pkg/x.js"></script>`,
+    // A file's own frame-src does not stop an inline frame in either engine.
+    `<head><meta http-equiv="Content-Security-Policy" content="frame-src 'none'; child-src 'none'"></head><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'strict-dynamic' 'nonce-abc'"></head><script nonce="abc" src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
     '<button onclick="go()">go</button>',
     '<svg onload = "go()"></svg>',
@@ -555,6 +557,7 @@ describe('htmlPreviewHasScripts', () => {
     '<svg><a xlink:href="javascript:go()"><text>x</text></a></svg>',
     '<math><mtext href="javascript:go()">x</mtext></math>',
     '<iframe src="javascript:go()"></iframe>',
+    '<a href="javascript:%20go()">go</a>',
     // A <frame> has no sandbox attribute, so one on it holds nothing back.
     '<frameset><frame sandbox src="javascript:go()"></frameset>',
     // A handler only one engine has: WebKit's focusin and iOS's video
@@ -626,6 +629,9 @@ describe('htmlPreviewHasScripts', () => {
     // A frame with a sandbox of its own runs no javascript: source, even one
     // allowing scripts (Chromium; WebKit runs none).
     '<iframe sandbox="allow-scripts" src="javascript:go()"></iframe><iframe sandbox src="javascript:go()"></iframe>',
+    // A javascript: URL whose code, once decoded, is only whitespace.
+    '<a href="javascript:">x</a><area href=" JavaScript:%20 ">',
+    '<svg><a href="javascript:%C2%A0%0A"><text>x</text></a></svg><iframe src="javascript:"></iframe>',
     '<object data="javascript:go()"></object><embed src="javascript:go()"><img src="javascript:go()">',
     // An attribute that only starts like a handler, and a srcdoc on anything
     // but an iframe.
