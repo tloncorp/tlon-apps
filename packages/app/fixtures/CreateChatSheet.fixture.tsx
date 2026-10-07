@@ -1,12 +1,12 @@
 import { CreateChatSheet } from '../features/top/CreateChatSheet';
 import { AppDataContextProvider } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
-import { initialContacts } from './fakeData';
+import { savedContacts } from './fakeData';
 
 export default {
   basic: (
     <FixtureWrapper>
-      <AppDataContextProvider contacts={initialContacts} currentUserId="zod">
+      <AppDataContextProvider contacts={savedContacts} currentUserId="zod">
         <CreateChatSheet defaultOpen={true} trigger={<button>Open</button>} />
       </AppDataContextProvider>
     </FixtureWrapper>
