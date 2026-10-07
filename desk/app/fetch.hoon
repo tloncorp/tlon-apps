@@ -737,15 +737,19 @@
         :-  status-code
         %+  snoc
           %+  weld
-            ::  a relative location would resolve against the ship, not
-            ::  the upstream, so make it absolute
+            ::  point a redirect back through %raw, so the next hop stays
+            ::  same-origin for the caller and passes the address guard
+            ::  like any other request
             ::
             %+  turn
               %+  skip  (strip-hops headers)
               |=([key=@t @t] (~(has in origin-scoped) (crip (cass (trip key)))))
             |=  [key=@t val=@t]
             ?.  =('location' (crip (cass (trip key))))  [key val]
-            [key (expand-url:mg url val)]
+            :-  key
+            %+  cat  3
+            :-  '/apps/groups/~/fetch/raw/'
+            (scot %uw (expand-url:mg url val))
           contained
         'x-tlon-fetch'^'finished'
     ?~  full-file.res  ~

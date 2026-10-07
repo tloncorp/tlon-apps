@@ -43,7 +43,7 @@ A relayed response is served from the ship's own origin, with the caller's sessi
 
 - **Request.** Nothing describing the caller to the ship reaches the target: credentials (`cookie`, an `authorization` a reverse proxy may pass through), location on the ship (`referer`, `origin`), network identity (`forwarded`, `x-forwarded-*`, `x-real-ip`) and `host` are dropped, along with hop-by-hop headers and any header a `connection` header names.
 - **Response.** Headers that would act on the ship's origin are dropped: `set-cookie`, `set-cookie2`, `clear-site-data`, `strict-transport-security`, `service-worker-allowed`, plus hop-by-hop headers. Every relayed response gets `content-security-policy: sandbox` and `x-content-type-options: nosniff`, so an upstream HTML page opened directly runs in an opaque origin with scripts disabled rather than as the ship. Clients that `fetch` the bytes are unaffected; CSP governs documents.
-- **Redirects.** Iris is asked for none, so a 3xx is relayed and followed by the browser, never by the ship (see [address guard](#address-guard)). A relative `location` is resolved against the upstream URL first; left relative, the browser would resolve it against the ship.
+- **Redirects.** Iris is asked for none, so a 3xx is relayed and followed by the browser, never by the ship. Its `location` is resolved against the upstream URL and rewritten to another `/apps/groups/~/fetch/raw/<@uw>` URL, so the next hop stays same-origin for the caller (no CORS) and goes through the [address guard](#address-guard) like any other request.
 
 ## state model
 

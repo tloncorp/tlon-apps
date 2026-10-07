@@ -171,7 +171,8 @@
 ::  +test-raw-no-implicit-redirects: iris must not follow for us
 ::
 ::  iris follows 301/303/307 while redirects remain, without our address
-::  guard. a %raw request asks for none, so a redirect is relayed back.
+::  guard. a %raw request asks for none, and relays the redirect pointed
+::  back through %raw, so the next hop is same-origin and guarded.
 ::
 ++  test-raw-no-implicit-redirects
   %-  eval-mare
@@ -192,11 +193,18 @@
   ;<  caz=(list card)  bind:m
     (do-arvo wire (finished 307 ['location' lan]~))
   ;<  ~  bind:m  (ex-equal !>((status caz)) !>(`307))
-  ::  a relative location is resolved against the upstream, not the ship
+  ::  a relative location is resolved against the upstream, then wrapped
   ::
   ;<  caz=(list card)  bind:m  (do-poke (get ~.e2 %raw safe ~))
   ;<  caz=(list card)  bind:m
     (do-arvo wire:(request-card caz) (finished 302 ['Location' '/login']~))
   =/  loc  (skim (response-headers caz) |=([k=@t v=@t] =('Location' k)))
-  (ex-equal !>(loc) !>(`header-list:http`~[['Location' 'https://example.com/login']]))
+  =/  via=@t
+    (cat 3 '/apps/groups/~/fetch/raw/' (scot %uw 'https://example.com/login'))
+  ;<  ~  bind:m  (ex-equal !>(loc) !>(`header-list:http`~[['Location' via]]))
+  ::  following it is an ordinary %raw request for the upstream target
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-poke handle-http-request+!>([~.e3 `inbound-request:eyre`[& & ipv4+.127.0.0.1 [%'GET' via ~ ~]]]))
+  (ex-equal !>(url.request:(request-card caz)) !>('https://example.com/login'))
 --
