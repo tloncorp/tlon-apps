@@ -4,16 +4,18 @@ import { test } from 'node:test';
 import {
   affectedEntries,
   checkEntry,
-  checkQuestions,
   checkLooseLabels,
+  checkMap,
+  checkQuestions,
   extractLabels,
   flagLeaks,
   labelInSources,
   normalize,
   parseMapFile,
-  planRelease,
+  publishedFiles,
   questionAnchors,
   readSurface,
+  recordedBuild,
   renderAffected,
   replaceIndex,
   slugify,
@@ -283,13 +285,6 @@ test('flags a question whose entry is not in the map', () => {
   ]);
 });
 
-// The release has `Pin` and `Mute`; develop has since renamed Pin to `Keep`.
-const RELEASE = fakeReader({
-  'app/Menu.tsx': `title: 'Pin'\ntitle: 'Mute'`,
-});
-const DEVELOP = fakeReader({
-  'app/Menu.tsx': `title: 'Keep'\ntitle: 'Mute'`,
-});
 const entry = (heading, label, extra = '') =>
   `## ${heading}\n<!-- src: app/Menu.tsx -->\n${extra}\nPhone: tap \`${label}\`.\n`;
 const mapOf = (...entries) => [
@@ -298,161 +293,85 @@ const mapOf = (...entries) => [
     'lists.md'
   ),
 ];
-const publishedCopy = (...entries) => ({
-  'lists.md': parseMapFile(
-    `# Lists\n\nFinding chats.\n\n${entries.map(([heading, body]) => `## ${heading}\n\n${body}`).join('\n\n')}\n`,
-    'lists.md'
-  ),
-});
-const anchor = (label) => ({
-  src: ['app/Menu.tsx'],
-  labels: [label],
-  absent: [],
-  flag: [],
-});
-const plan = (input) =>
-  planRelease({
-    release: RELEASE,
-    current: DEVELOP,
-    flagsOn: new Set(),
-    ...input,
+
+test('checks the map in this checkout against the source of the build', () => {
+  const map = fakeReader({
+    'docs/feature-map/lists.md': `# Lists\n\nFinding chats.\n\n${entry('Pin a chat', 'Pin', '<!-- covers: route:ChatList -->')}\n${entry('Keep a chat', 'Keep')}`,
+    'docs/feature-map/surface-ignore.txt':
+      'action:quote # not worth an entry\n',
   });
-const headings = (result) =>
-  result.published.flatMap((file) => file.entries.map((item) => item.heading));
-
-test('publishes an entry that is true for the release, with its anchors', () => {
-  const result = plan({
-    mapFiles: mapOf(entry('Pin a chat', 'Pin')),
-    previous: { files: {}, anchors: {} },
+  // The build has `Pin`. `Keep` is what develop renamed it to afterwards.
+  const code = fakeReader({
+    'app/Menu.tsx': `title: 'Pin'`,
+    'packages/app/navigation/types.ts': `export type RootStackParamList = {\n  ChatList: undefined;\n};\n`,
+    'packages/api/src/types/ChannelActions.ts': `export type Id =\n  | 'quote';`,
+    'packages/app/lib/featureFlags.ts': `export const featureMeta = {\n  quiet: {\n    default: false,\n  },\n} satisfies Record<string, unknown>;`,
+    'packages/openclaw/src/commands-registry.ts': `export const CORE_COMMAND_TOKENS = ['/help'];`,
   });
-  assert.deepEqual(headings(result), ['Pin a chat']);
-  assert.deepEqual(result.published[0].entries[0].anchors, anchor('Pin'));
-  assert.deepEqual(result.held, []);
-});
-
-test('falls back to the published copy only when that copy fits the release', () => {
-  const mapFiles = mapOf(entry('Pin a chat', 'Keep'));
-  const files = publishedCopy(['Pin a chat', 'Phone: tap `Pin`.']);
-
-  const fits = plan({
-    mapFiles,
-    previous: { files, anchors: { 'lists.md#pin-a-chat': anchor('Pin') } },
-  });
-  assert.equal(fits.published[0].entries[0].body, 'Phone: tap `Pin`.');
-  assert.equal(fits.held[0].kept, 'previous published copy');
-
-  // Published for a newer build, then promoted for this older one.
-  const tooNew = plan({
-    mapFiles,
-    previous: { files, anchors: { 'lists.md#pin-a-chat': anchor('Stick') } },
-  });
-  assert.deepEqual(headings(tooNew), []);
-  assert.equal(tooNew.held[0].kept, 'left out');
-
-  // A copy with no record of what it rested on cannot be trusted either.
-  const unknown = plan({ mapFiles, previous: { files, anchors: {} } });
-  assert.deepEqual(headings(unknown), []);
-});
-
-test('holds back an entry behind a flag that is off in the release', () => {
-  const mapFiles = mapOf(entry('Mute a chat', 'Mute', '<!-- flag: quiet -->'));
-  const previous = { files: {}, anchors: {} };
-  assert.deepEqual(headings(plan({ mapFiles, previous })), []);
-  assert.deepEqual(
-    headings(plan({ mapFiles, previous, flagsOn: new Set(['quiet']) })),
-    ['Mute a chat']
+  const problems = checkMap(map, code).failures.map(
+    (failure) => `${failure.entry ?? failure.file}: ${failure.problem}`
   );
+  assert.equal(problems.length, 3);
+  assert.equal(problems[0], 'Keep a chat: label not in cited files: `Keep`');
+  assert.match(problems[1], /command:help is not covered by any entry/);
+  assert.match(problems[2], /flag:quiet is not covered by any entry/);
 });
 
-test('keeps an entry the map dropped while the release still has the feature', () => {
-  const previous = {
-    files: publishedCopy(
-      ['Pin a chat', 'Phone: tap `Pin`.'],
-      ['Archive a chat', 'Phone: tap `Archive`.']
+test('publishes the map without the entries for a feature that is switched off', () => {
+  const mapFiles = [
+    ...mapOf(
+      entry('Pin a chat', 'Pin'),
+      entry('Mute a chat', 'Mute', '<!-- flag: quiet -->')
     ),
-    anchors: {
-      'lists.md#pin-a-chat': anchor('Pin'),
-      'lists.md#archive-a-chat': anchor('Archive'),
-    },
-  };
-  // Develop removed both features, so the map has neither entry.
-  const result = plan({
-    mapFiles: mapOf(entry('Mute a chat', 'Mute')),
-    previous,
-  });
-  // Pin is still in the release; Archive is not.
-  assert.deepEqual(headings(result), ['Mute a chat', 'Pin a chat']);
-  assert.deepEqual(result.carried, [{ file: 'lists.md', entry: 'Pin a chat' }]);
+    parseMapFile(
+      `# Drafts\n\nNot ready.\n\n${entry('Schedule a chat', 'Later', '<!-- flag: quiet -->')}`,
+      'later.md'
+    ),
+  ];
+  const headings = (result) =>
+    result.published.map((item) => [
+      item.name,
+      item.entries.map((each) => each.heading),
+    ]);
 
-  const dropped = plan({
-    mapFiles: mapOf(entry('Mute a chat', 'Mute')),
-    previous,
-    drop: ['lists.md#pin-a-chat'],
-  });
-  assert.deepEqual(headings(dropped), ['Mute a chat']);
-});
-
-test('does not keep the old copy of an entry that was only renamed', () => {
-  // Mute is still on develop, so its entry left the map by choice.
-  const result = plan({
-    mapFiles: mapOf(entry('Silence a chat', 'Mute')),
-    previous: {
-      files: publishedCopy(['Mute a chat', 'Phone: tap `Mute`, then wait.']),
-      anchors: { 'lists.md#mute-a-chat': anchor('Mute') },
-    },
-  });
-  assert.deepEqual(headings(result), ['Silence a chat']);
-  assert.deepEqual(result.carried, []);
-});
-
-test('drops an entry that is still in the map, and refuses a drop that names nothing', () => {
-  const input = {
-    mapFiles: mapOf(entry('Pin a chat', 'Pin'), entry('Mute a chat', 'Mute')),
-    previous: { files: {}, anchors: {} },
-  };
-  const result = plan({ ...input, drop: ['lists.md#pin-a-chat'] });
-  assert.deepEqual(headings(result), ['Mute a chat']);
-  assert.deepEqual(result.held, [
-    {
-      file: 'lists.md',
-      entry: 'Pin a chat',
-      kept: 'left out',
-      why: ['dropped with --drop'],
-    },
+  const off = publishedFiles(mapFiles, new Set());
+  // A file with nothing left to say is not published at all.
+  assert.deepEqual(headings(off), [['lists.md', ['Pin a chat']]]);
+  assert.deepEqual(off.leftOut, [
+    { file: 'lists.md', entry: 'Mute a chat', flag: 'quiet' },
+    { file: 'later.md', entry: 'Schedule a chat', flag: 'quiet' },
   ]);
+
+  const on = publishedFiles(mapFiles, new Set(['quiet']));
+  assert.deepEqual(headings(on), [
+    ['lists.md', ['Pin a chat', 'Mute a chat']],
+    ['later.md', ['Schedule a chat']],
+  ]);
+  assert.deepEqual(on.leftOut, []);
+});
+
+test('reads which build the map describes', () => {
+  const build = { app: 'ios-production-1', commit: 'abc123' };
+  assert.deepEqual(
+    recordedBuild(
+      fakeReader({ 'docs/feature-map/release.json': JSON.stringify(build) })
+    ),
+    build
+  );
   assert.throws(
-    () => plan({ ...input, drop: ['lists.md#pin-chat'] }),
-    /--drop names no entry: lists\.md#pin-chat/
+    () => recordedBuild(fakeReader({})),
+    /release\.json is missing/
   );
 });
 
-test('keeps a whole file the map dropped while its entries still fit', () => {
-  const result = plan({
-    mapFiles: [],
-    previous: {
-      files: publishedCopy(['Pin a chat', 'Phone: tap `Pin`.']),
-      anchors: { 'lists.md#pin-a-chat': anchor('Pin') },
-    },
-  });
-  assert.equal(result.published[0].name, 'lists.md');
-  assert.equal(result.published[0].file.title, 'Lists');
-  assert.deepEqual(headings(result), ['Pin a chat']);
-});
-
-test('lists the entries that cite a changed file, and says which were rewritten', () => {
-  const before = mapOf(
-    entry('Pin a chat', 'Pin'),
-    entry('Mute a chat', 'Mute')
-  );
+test('lists the entries that cite a file that changed between two builds', () => {
   const mapFiles = mapOf(
     entry('Pin a chat', 'Pin'),
-    entry('Mute a chat', 'Silence'),
-    entry('Archive a chat', 'Archive'),
+    entry('Mute a chat', 'Mute'),
     '## Leave a chat\n<!-- src: app/Leave.tsx -->\n\nPhone: tap `Leave`.\n'
   );
   const result = affectedEntries({
     mapFiles,
-    before,
     changed: [
       { status: 'M', file: 'app/Menu.tsx', lines: 12 },
       { status: 'A', file: 'packages/app/ui/NewSheet.tsx', lines: 80 },
@@ -464,23 +383,20 @@ test('lists the entries that cite a changed file, and says which were rewritten'
     ],
   });
   assert.deepEqual(result.entries, [
-    { file: 'lists.md', entry: 'Pin a chat', state: 'same' },
-    { file: 'lists.md', entry: 'Mute a chat', state: 'edited' },
-    { file: 'lists.md', entry: 'Archive a chat', state: 'new' },
+    { file: 'lists.md', entry: 'Pin a chat' },
+    { file: 'lists.md', entry: 'Mute a chat' },
   ]);
   assert.deepEqual(result.files, [
-    { file: 'app/Menu.tsx', lines: 12, entries: 3 },
+    { file: 'app/Menu.tsx', lines: 12, entries: 2 },
   ]);
   // Tests, deleted files and files outside the app are not worth a look.
   assert.deepEqual(result.added, ['packages/app/ui/NewSheet.tsx']);
   assert.equal(result.otherUncited, 1);
 
   const text = renderAffected(result, 'between `a` and `b`');
-  assert.match(text, /Entries to re-read: 3/);
-  assert.match(text, /1 of them kept the same text/);
+  assert.match(text, /Entries to re-read: 2/);
   assert.match(text, /^- Pin a chat$/m);
-  assert.match(text, /^- Mute a chat \(text changed too\)$/m);
-  assert.match(text, /^- `app\/Menu.tsx`: 12 lines, 3 entries$/m);
+  assert.match(text, /^- `app\/Menu.tsx`: 12 lines, 2 entries$/m);
   assert.match(text, /1 other changed source file cited by no entry/);
 });
 

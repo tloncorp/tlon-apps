@@ -3,10 +3,11 @@
 How to do each thing in Tlon Messenger, written for Tlonbot to answer from.
 One file per area of the app, one entry per task.
 
-This directory is the source. It follows the code on `develop`, and CI checks
-it against that code. Bots do not read it. They read the copy in
-`packages/openclaw/skills/tlon-product-guide/references/`, which `promote` writes at each store
-release. Never edit that copy by hand.
+This directory is the source. It describes the app at one store build, the one
+named in `release.json`, and is brought up to date once per build, not on every
+change to `develop`. Bots do not read it. They read the copy in
+`packages/openclaw/skills/tlon-product-guide/references/`, which `publish`
+writes from it. Never edit that copy by hand.
 
 ## Entry format
 
@@ -57,7 +58,7 @@ tab names (Bot, Workspaces, Activity, Settings).
 - `<!-- covers: route:ChatVolume, action:pinPost -->` claims items from the
   surface inventory (below).
 - `<!-- flag: scheduledTasks -->` marks an entry for a feature behind a flag.
-  `promote` leaves it out until the flag defaults to on in the release. An
+  `publish` leaves it out while the flag is off by default in the store build. An
   entry without the anchor must not talk about the feature, or that sentence
   is published anyway: `flag-words.txt` lists the words that give each
   flagged feature away, and the check fails on one outside a marked entry.
@@ -74,13 +75,15 @@ tab names (Bot, Workspaces, Activity, Settings).
 node scripts/feature-map.mjs check
 ```
 
-It fails when:
+It reads the app's source at the store build named in `release.json`, and
+fails when:
 
 - a quoted label is not in the entry's cited files, or a cited file is gone;
 - an `absent` term appears in the app's source;
 - a screen, message action, feature flag or slash command is in the code but
   no entry covers it and `surface-ignore.txt` does not skip it;
-- an entry or the ignore file names one that is no longer in the code.
+- an entry or the ignore file names one that is not in the code;
+- an entry talks about a flagged feature without carrying its flag.
 
 The inventory comes from `packages/app/navigation/types.ts` (screens),
 `packages/api/src/types/ChannelActions.ts` (message actions),
@@ -88,96 +91,77 @@ The inventory comes from `packages/app/navigation/types.ts` (screens),
 `packages/openclaw/src/commands-registry.ts` (slash commands). Print it with
 `feature-map.mjs surface`.
 
-So when a UI change breaks the check, fix the entry in the same PR: update the
-label, add an entry for the new screen, or delete the entry for what was
-removed.
+CI runs the check when the map, the script or the guide changes. It does not
+run on app changes: `develop` moves ahead of the map between store builds, and
+that is expected. `--ref <git-ref>` checks against another point, such as the
+next build's tag.
 
-## What the check cannot see
+What the check cannot see is behaviour that changes while the labels stay the
+same: a new permission rule, a button that now opens a different screen. The
+read at each store build is for that.
 
-Behaviour that changes while the labels stay the same: a new permission rule,
-a button that now opens a different screen, a setting that moved. Nothing
-fails, and the entry is wrong.
+## Updating for a new store build
 
-The entries at risk are the ones that cite a file you changed. This lists them:
+Do this once per store build, as one PR. It is a job for a coding agent, with
+a person reviewing the result. `<new>` is the build's tag, such as
+`ios-production-801`. When the newest iOS and Android builds are different
+commits, use the older one.
 
-```bash
-node scripts/feature-map.mjs affected --since origin/develop
-```
+1. See what the build broke:
 
-It prints the entries, then the changed files they cite with the size of each
-change. Many entries cite the same few files, so work through the files: read
-each one's diff, then the entries that cite it. An entry needs fixing when the
-diff changes who can do the thing, where it is found, or what happens
-afterwards, and the text does not say so. The list ends with new files no
-entry cites, which is where a new button or menu item with no new screen
-shows up.
+   ```bash
+   node scripts/feature-map.mjs check --ref <new>
+   ```
 
-The check's CI job prints this list in its summary for every PR. It is not a
-gate: nothing fails because of it.
+   Fix each problem by reading the source at that tag
+   (`git show <new>:<file>`): update a renamed label, write an entry for a new
+   screen, delete the entry for something removed.
 
-## Releasing to bots
+2. List the entries whose code changed since the build in `release.json`:
 
-```bash
-node scripts/feature-map.mjs promote --app ios-production-789
-```
+   ```bash
+   node scripts/feature-map.mjs affected --until <new>
+   ```
 
-`promote` checks every entry against the code at that tag and writes what is
-true for it to `packages/openclaw/skills/tlon-product-guide/references/`, with
-the anchors removed:
+   It prints the entries, then the changed files they cite with the size of
+   each change, then new files no entry cites. Many entries cite the same few
+   files, so work through the files: read the diff of each between the two
+   builds, then the entries that cite it. Fix an entry when the diff changes
+   who can do the thing, where it is found, or what happens afterwards.
+   Otherwise leave its wording alone. Look at each new file for something a
+   person could ask how to do, such as a new button on an existing screen, and
+   write an entry if there is one.
 
-- An entry that passes is published as written.
-- An entry that does not pass (its labels arrived after the release, or its
-  flag is off there) keeps its previously published wording, as long as that
-  wording still passes for this release. Otherwise it is left out.
-- An entry that was published before and is no longer in the map stays
-  published only when develop has lost what it describes and the release still
-  has it. So when a feature is removed on develop, delete its entry as the
-  check asks: people on the store build keep the instructions until a release
-  drops the feature.
-- If develop still has what a removed entry describes, the entry was renamed,
-  merged into another, or deleted as wrong, and its old copy goes with it.
+3. Look in `drafts/`. It holds entries, and lines for `surface-ignore.txt`,
+   that were written ahead of a build. Nothing reads that folder. Move across
+   the ones this build now has and check them like any other.
 
-`--drop file.md#heading-slug` leaves an entry out regardless. It is for a kept
-or held-over copy that turns out to be wrong; once dropped, those stay out. An
-entry still in the map is published again by the next promote, so fix or
-delete it there instead. A `--drop` that names no entry fails.
+4. Record the build and write the copy bots read:
 
-`promote` writes nothing if the release tag is not in the checkout or
-`SKILL.md` has lost its index markers.
+   ```bash
+   node scripts/feature-map.mjs publish --app <new>
+   ```
 
-Beside the reference files, `promote` writes `RELEASE.json` (the tag, what was
-held back, what was kept after leaving the map), and it rewrites the index in
-`SKILL.md`. In this folder it writes `release-anchors.json`: the files and
-labels each published entry rested on, which is how an old copy can be tested
-against a release. That file is generated too; don't edit it.
+   It refuses while `check --ref <new>` still reports problems.
 
-### Re-reading at a release
+5. Before the PR is opened, have a second agent read the changed entries
+   against the source at `<new>`. A first pass gets things wrong.
 
-A release is the last point to catch an entry that went wrong without tripping
-the check, so the release PR lists the published entries whose code changed
-since the previous release. The same list, by hand:
+Between builds, fix a wrong entry by hand whenever one is found, then run
+`publish` with no `--app`.
 
-```bash
-node scripts/feature-map.mjs affected --published \
-  --since ios-production-781 --until ios-production-789
-```
+Bots run the newest bot code, not the store build, so a new slash command can
+reach them a build before its entry does.
 
-`--published` looks at the copy bots read instead of the map. An entry marked
-"text changed too" or "new entry" is one this checkout is about to publish
-differently from the last commit, so it shows in the PR's diff. The unmarked
-ones are the point: their code changed and their text did not.
+## The copy bots read
 
-Reading them is a job for a coding agent, since a busy release can list half
-the map. Give it the list and these steps:
+`publish` writes `packages/openclaw/skills/tlon-product-guide/references/`
+from the map: the same text without the anchors, without the entries whose flag
+is off in the store build, and it rewrites the index in `SKILL.md`. CI fails
+when that copy differs from what `publish` writes.
 
-1. For each file under "Changed files they cite", read
-   `git diff <previous> <release> -- <file>`.
-2. Read the entries that cite it. Their `src` lines are in this folder.
-3. Report each entry the diff makes untrue, with the line of the diff that
-   does it. Leave wording alone.
-
-Fix what it finds in the map on develop, then run the promote workflow again.
-Until someone does this read, the release PR's list is only a list.
+`release.json` names the store build the map describes: its tag, and the
+commit the tag pointed at. Only `publish --app` changes it.
 
 ## Testing answers
 

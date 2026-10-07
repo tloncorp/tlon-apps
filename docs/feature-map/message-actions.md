@@ -79,12 +79,6 @@ Phone: press and hold the message and tap `Copy message text`.
 Desktop: hover the message, open its three-dot menu and pick `Copy message text`.
 Notes: offered in group chats, DMs and group DMs, and it works without a connection. Gallery and Bulletin posts have no copy-text action.
 
-## Copy only part of a message
-<!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/MessageTextSelectionSheet.tsx, apps/tlon-mobile/src/components/AuthenticatedApp.tsx -->
-
-Phone: press and hold the message and tap `Select text`. Drag the handles over the part you want and copy it. `Copy all text` at the bottom of that sheet takes the lot.
-Notes: `Select text` is on the phone only, and only for messages that contain text in group chats, DMs and group DMs.
-
 ## Copy a link to a message
 <!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/api/src/types/ChannelActions.ts, packages/api/src/client/references.ts, packages/app/ui/components/BareChatInput/index.tsx -->
 <!-- covers: action:copyRef -->
@@ -92,14 +86,6 @@ Notes: `Select text` is on the phone only, and only for messages that contain te
 Phone: press and hold the message and tap `Copy link to message`. On a Gallery or Bulletin post it reads `Copy link to post`.
 Desktop: hover the message, open its three-dot menu and pick the same item.
 Notes: what gets copied is an in-app reference, not a web address, so it will not open in a browser. Paste it into a message box in Tlon Messenger and it turns into an embedded preview of the original that people can tap to jump to it. Messages in DMs and group DMs have no link to copy.
-
-## Copy the link to a photo or file in a message
-<!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/api/src/types/ChannelActions.ts, packages/api/src/client/postContent.ts -->
-<!-- covers: action:copyFileUrl -->
-
-Phone: press and hold the message and tap `Copy link to file`. If the message holds more than one, it reads `Copy links to files` and copies them one per line.
-Desktop: hover the message, open its three-dot menu and pick the same item.
-Notes: this copies the web address where the uploaded image, video, voice memo or file is stored. It only appears on messages that have one, in group chats, DMs, group DMs and Galleries. It works without a connection.
 
 ## Edit a message
 <!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/api/src/types/ChannelActions.ts, packages/app/ui/components/MessageInput/MessageInputBase.tsx, packages/app/ui/components/MessageInput/helpers.ts, packages/app/ui/components/BareChatInput/index.tsx, packages/app/ui/components/AuthorRow.tsx, packages/shared/src/store/postActions/postActions.ts -->

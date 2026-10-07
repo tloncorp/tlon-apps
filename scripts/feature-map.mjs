@@ -1,17 +1,22 @@
 #!/usr/bin/env node
 // Keeps the product guide's feature map honest against the app's source.
 //
+// The map describes the app at one store build, recorded in release.json. It
+// is brought up to date once per build, not on every change to develop, so
+// every command here reads the app's source at that build unless told another.
+//
 //   check    every entry's quoted labels exist in the files it cites, its
 //            "absent" terms appear nowhere, and every screen, message action,
 //            feature flag and slash command is covered or explicitly skipped
 //   labels   loose check for a Markdown file without anchors: each quoted
 //            label must appear somewhere in the app's source
 //   surface  print the inventory the coverage check uses
-//   affected list the entries citing files that changed, for a re-read: the
-//            check cannot see behaviour that changes behind the same labels
-//   promote  write the copy bots read: only what is true for the given release
+//   affected list the entries citing files that changed between the recorded
+//            build and a newer one: the work list for bringing the map up to it
+//   publish  write the copy bots read from the map; with --app, first record
+//            that the map now describes that build
 //
-// See docs/feature-map/README.md for the entry format.
+// See docs/feature-map/README.md for the entry format and the release steps.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,9 +28,9 @@ export const PUBLISHED_DIR = `${SKILL_DIR}/references`;
 const IGNORE_FILE = `${MAP_DIR}/surface-ignore.txt`;
 const FLAG_WORDS_FILE = `${MAP_DIR}/flag-words.txt`;
 const QUESTIONS_DIR = `${MAP_DIR}/questions`;
-// What each published entry rested on. Kept out of the skill's folder: it is
-// for `promote`, not for bots, and it is nearly as large as the references.
-const ANCHORS_FILE = `${MAP_DIR}/release-anchors.json`;
+// The store build the map describes: its tag, and the commit the tag pointed
+// at. The commit is what gets read, since a build's tag can be moved.
+const RELEASE_FILE = `${MAP_DIR}/release.json`;
 const INDEX_START = '<!-- feature-map:index:start -->';
 const INDEX_END = '<!-- feature-map:index:end -->';
 
@@ -234,6 +239,21 @@ export function makeReader(root, ref) {
   };
 }
 
+/** A reader over the app's source at `ref`, which must be in this checkout. */
+function codeAt(root, ref) {
+  try {
+    execFileSync('git', ['cat-file', '-e', `${ref}^{commit}`], {
+      cwd: root,
+      stdio: 'ignore',
+    });
+  } catch {
+    throw new Error(
+      `${ref} is not in this checkout; fetch it first (git fetch origin ${ref})`
+    );
+  }
+  return makeReader(root, ref);
+}
+
 // --- surface inventory -----------------------------------------------------
 
 /** Keys one level inside the braces of every `export type …ParamList`. */
@@ -387,28 +407,6 @@ export function readMap(reader) {
     .map((name) => parseMapFile(reader.read(`${MAP_DIR}/${name}`) ?? '', name));
 }
 
-/**
- * The copy bots read. Its text carries no anchors, so each entry's `src` comes
- * from ANCHORS_FILE.
- */
-function readPublished(reader) {
-  const anchors = JSON.parse(reader.read(ANCHORS_FILE) ?? '{}');
-  return reader
-    .list(PUBLISHED_DIR)
-    .filter((name) => name.endsWith('.md'))
-    .sort()
-    .map((name) => {
-      const file = parseMapFile(
-        reader.read(`${PUBLISHED_DIR}/${name}`) ?? '',
-        name
-      );
-      for (const entry of file.entries) {
-        entry.src = anchors[`${name}#${entry.slug}`]?.src ?? [];
-      }
-      return file;
-    });
-}
-
 /** Problems that make one entry wrong for the code the reader points at. */
 export function checkEntry(entry, reader) {
   const problems = [];
@@ -443,7 +441,7 @@ export function checkEntry(entry, reader) {
 
 /**
  * Flagged features that `text` talks about in its own words without carrying
- * the flag. `promote` holds an entry back by its flag anchor, so a sentence
+ * the flag. `publish` leaves an entry out by its flag anchor, so a sentence
  * about the feature in an unmarked entry would be published all the same. A
  * quoted label does not count: the label check proves that text is on screen.
  */
@@ -462,16 +460,21 @@ export function flagLeaks(text, ownFlags, flagWords) {
   return leaks;
 }
 
-export function checkMap(reader) {
-  const files = readMap(reader);
+/**
+ * Check the map against the app's source. `map` reads the map and its side
+ * files, from this checkout. `code` reads the app's source, at the store build
+ * the map describes.
+ */
+export function checkMap(map, code) {
+  const files = readMap(map);
   const failures = [];
   const slugs = new Map();
   const covered = new Set();
-  const surface = readSurface(reader);
+  const surface = readSurface(code);
   const flags = surface.items
     .filter((item) => item.startsWith('flag:'))
     .map((item) => item.slice(5));
-  const flagWords = readFlagWords(reader);
+  const flagWords = readFlagWords(map);
   for (const [flag] of flagWords) {
     if (!flags.includes(flag)) {
       failures.push({
@@ -490,7 +493,7 @@ export function checkMap(reader) {
     )) {
       failures.push({
         file: file.file,
-        problem: `its opening lines say "${word}", which is behind the ${flag} flag; they are published whatever the release`,
+        problem: `its opening lines say "${word}", which is behind the ${flag} flag; a file's opening lines are always published`,
       });
     }
     for (const entry of file.entries) {
@@ -509,7 +512,7 @@ export function checkMap(reader) {
       if (slugs.has(key))
         failures.push({ ...where, problem: 'duplicate heading' });
       slugs.set(key, true);
-      for (const problem of checkEntry(entry, reader)) {
+      for (const problem of checkEntry(entry, code)) {
         failures.push({ ...where, problem });
       }
       for (const item of entry.covers) {
@@ -531,8 +534,8 @@ export function checkMap(reader) {
       }
     }
   }
-  failures.push(...checkQuestions(reader, files));
-  const ignored = readIgnored(reader);
+  failures.push(...checkQuestions(map, files));
+  const ignored = readIgnored(map);
   for (const file of surface.missingSources) {
     failures.push({
       file,
@@ -573,7 +576,7 @@ export function checkLooseLabels(text, reader) {
     .filter((label) => reader.grep(needleFor(label)).length === 0);
 }
 
-// --- promote ---------------------------------------------------------------
+// --- publish ---------------------------------------------------------------
 
 function renderPublished(file, entries) {
   const parts = [`# ${file.title}`];
@@ -600,160 +603,73 @@ export function replaceIndex(skillText, index) {
   return `${skillText.slice(0, start + INDEX_START.length)}\n${index}\n${skillText.slice(end)}`;
 }
 
-/** What stops an entry, or the anchors saved with a published one, being true for a release. */
-function releaseProblems(anchors, release, flagsOn) {
-  const problems = checkEntry({ absent: [], ...anchors }, release);
-  const flagOff = (anchors.flag ?? []).find((flag) => !flagsOn.has(flag));
-  if (flagOff) problems.push(`flag ${flagOff} is off in this release`);
-  return problems;
+/** The store build the map describes, from RELEASE_FILE. */
+export function recordedBuild(reader) {
+  const text = reader.read(RELEASE_FILE);
+  if (text === null) throw new Error(`${RELEASE_FILE} is missing`);
+  return JSON.parse(text);
 }
-
-const anchorsOf = ({ src, labels, absent, flag }) => ({
-  src,
-  labels,
-  absent,
-  flag,
-});
 
 /**
- * Decide what bots should read for one release.
- *
- * - An entry in the map that is true for the release is published as written.
- * - One that is not (its labels arrived after the release, or its flag is off
- *   there) falls back to the copy published before, but only if that copy is
- *   itself true for this release. Otherwise it is left out.
- * - An entry published before that the map no longer has is kept when the
- *   release still has what it describes and `current`, the code the map
- *   follows, does not: a feature removed on develop is still in people's
- *   hands until a store build drops it. If `current` still has it, the entry
- *   left the map for another reason (renamed, merged, wrong) and its old copy
- *   goes with it.
- * - `drop` names entries (`file.md#slug`) to leave out regardless.
- *
- * `previous.anchors` holds, for each published entry, the files and labels it
- * rested on, which is what lets an old copy be tested against a release.
+ * What bots read: the map without its anchors, and without the entries for a
+ * feature whose flag is not on by default in the build. `flagsOn` is the set
+ * of flags the build turns on.
  */
-export function planRelease({
-  mapFiles,
-  previous,
-  release,
-  current,
-  flagsOn,
-  drop = [],
-}) {
-  const held = [];
-  const carried = [];
+export function publishedFiles(mapFiles, flagsOn) {
+  const leftOut = [];
   const published = [];
-  const names = [
-    ...mapFiles.map((file) => file.file),
-    ...Object.keys(previous.files).filter(
-      (name) => !mapFiles.some((file) => file.file === name)
-    ),
-  ];
-  const known = new Set(
-    [...mapFiles, ...Object.values(previous.files)].flatMap((file) =>
-      file.entries.map((entry) => `${file.file}#${entry.slug}`)
-    )
-  );
-  const unknown = drop.filter((key) => !known.has(key));
-  if (unknown.length) {
-    throw new Error(`--drop names no entry: ${unknown.join(', ')}`);
-  }
-  for (const name of names) {
-    const mapFile = mapFiles.find((file) => file.file === name);
-    const oldFile = previous.files[name];
-    const usableOld = (slug) => {
-      const key = `${name}#${slug}`;
-      const old = oldFile?.entries.find((entry) => entry.slug === slug);
-      const anchors = previous.anchors[key];
-      if (!old || !anchors || drop.includes(key)) return undefined;
-      if (releaseProblems(anchors, release, flagsOn).length) return undefined;
-      return { heading: old.heading, slug, body: old.body, anchors };
-    };
+  for (const file of mapFiles) {
     const entries = [];
-    const inMap = new Set();
-    for (const entry of mapFile?.entries ?? []) {
-      inMap.add(entry.slug);
-      if (drop.includes(`${name}#${entry.slug}`)) {
-        held.push({
-          file: name,
-          entry: entry.heading,
-          kept: 'left out',
-          why: ['dropped with --drop'],
-        });
-        continue;
-      }
-      const problems = releaseProblems(entry, release, flagsOn);
-      if (!problems.length) {
-        entries.push({ ...entry, anchors: anchorsOf(entry) });
-        continue;
-      }
-      const fallback = usableOld(entry.slug);
-      if (fallback) entries.push(fallback);
-      held.push({
-        file: name,
-        entry: entry.heading,
-        kept: fallback ? 'previous published copy' : 'left out',
-        why: problems,
-      });
+    for (const entry of file.entries) {
+      const off = entry.flag.find((flag) => !flagsOn.has(flag));
+      if (off)
+        leftOut.push({ file: file.file, entry: entry.heading, flag: off });
+      else entries.push(entry);
     }
-    for (const old of oldFile?.entries ?? []) {
-      if (inMap.has(old.slug)) continue;
-      const kept = usableOld(old.slug);
-      if (!kept) continue;
-      // Still true for the code the map follows, so the feature is not gone:
-      // the entry was renamed, merged into another, or deleted as wrong.
-      const gone = checkEntry({ absent: [], ...kept.anchors }, current).length;
-      if (!gone) continue;
-      entries.push(kept);
-      carried.push({ file: name, entry: old.heading });
-    }
-    if (entries.length) {
-      const { title, intro } = mapFile ?? oldFile;
-      published.push({ name, file: { title, intro }, entries });
-    }
+    if (entries.length) published.push({ name: file.file, file, entries });
   }
-  return { published, held, carried };
+  return { published, leftOut };
 }
 
-/** Run `planRelease` for the working tree's map and write the result. */
-export function promote(root, app, drop = []) {
-  // Everything that can fail is settled before the published copy is touched:
-  // a mistyped tag reads as a release with no files in it, and would otherwise
-  // empty the folder.
-  let appCommit;
-  try {
-    appCommit = execFileSync(
-      'git',
-      ['rev-parse', '--verify', '--quiet', `${app}^{commit}`],
-      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
-    ).trim();
-  } catch {
-    throw new Error(`no such release in this checkout: ${app}`);
+/**
+ * Write the copy bots read. With `app`, the map is first checked against that
+ * build and, if it holds, the build is recorded as the one the map describes.
+ * Nothing is written unless the map passes its check: a published copy that
+ * quotes a label the build does not have is worse than a stale one.
+ */
+export function publish(root, app) {
+  const map = makeReader(root);
+  let build;
+  if (app) {
+    try {
+      const commit = execFileSync(
+        'git',
+        ['rev-parse', '--verify', '--quiet', `${app}^{commit}`],
+        { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+      ).trim();
+      build = { app, commit };
+    } catch {
+      throw new Error(`no such build in this checkout: ${app}`);
+    }
+  } else {
+    build = recordedBuild(map);
   }
-  const head = makeReader(root);
-  const release = makeReader(root, app);
+  const code = codeAt(root, build.commit);
+  const { files, failures } = checkMap(map, code);
+  if (failures.length) {
+    throw new Error(
+      `the map has ${failures.length} problems against ${build.app}; ` +
+        `see \`feature-map.mjs check --ref ${build.app}\``
+    );
+  }
   const flagsOn = new Set(
     [
-      ...(release.read(SURFACE_SOURCES.flag) ?? '').matchAll(
+      ...(code.read(SURFACE_SOURCES.flag) ?? '').matchAll(
         /^ {2}(\w+): \{\s*default: true/gm
       ),
     ].map((m) => m[1])
   );
-  const previous = {
-    files: Object.fromEntries(
-      readPublished(head).map((file) => [file.file, file])
-    ),
-    anchors: JSON.parse(head.read(ANCHORS_FILE) ?? '{}'),
-  };
-  const { published, held, carried } = planRelease({
-    mapFiles: readMap(head),
-    previous,
-    release,
-    current: head,
-    flagsOn,
-    drop,
-  });
+  const { published, leftOut } = publishedFiles(files, flagsOn);
   const skillPath = path.join(root, SKILL_DIR, 'SKILL.md');
   const skill = replaceIndex(
     fs.readFileSync(skillPath, 'utf8'),
@@ -769,60 +685,45 @@ export function promote(root, app, drop = []) {
   const outDir = path.join(root, PUBLISHED_DIR);
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
-  const anchors = {};
   for (const { name, file, entries } of published) {
     fs.writeFileSync(path.join(outDir, name), renderPublished(file, entries));
-    for (const entry of entries)
-      anchors[`${name}#${entry.slug}`] = entry.anchors;
   }
-  const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
-  fs.writeFileSync(
-    path.join(outDir, 'RELEASE.json'),
-    json({
-      note: 'Generated by scripts/feature-map.mjs promote. Edit docs/feature-map instead.',
-      app,
-      appCommit,
-      held,
-      carried,
-    })
-  );
-  fs.writeFileSync(path.join(root, ANCHORS_FILE), json(anchors));
   fs.writeFileSync(skillPath, skill);
+  if (app) {
+    fs.writeFileSync(
+      path.join(root, RELEASE_FILE),
+      `${JSON.stringify(build, null, 2)}\n`
+    );
+  }
   return {
+    build,
     published,
-    held,
-    carried,
+    leftOut,
     entryCount: published.reduce((sum, item) => sum + item.entries.length, 0),
   };
 }
 
-// --- what to re-read after a change ----------------------------------------
+// --- what to re-read for a newer build --------------------------------------
 
 const isAppSource = (file) =>
   SOURCE_ROOTS.some((root) => file.startsWith(`${root}/`)) &&
   !/\.(test|fixture)\.|\/test\//.test(file);
 
 /**
- * `check` proves an entry's labels are still in the code. It cannot tell that
- * a tap now does something else, or that fewer people may do it. The entries
- * that could have gone wrong that way are the ones citing a file that changed,
- * so this lists them for a person or a model to read against the diff.
+ * The work list for bringing the map up to a newer build. `check` against the
+ * new build finds the labels and screens that changed. It cannot tell that a
+ * tap now does something else, or that fewer people may do it. The entries
+ * that could have gone wrong that way are the ones citing a file that changed
+ * between the two builds, so this lists them to be read against the diff.
  *
  * `changed` is `[{ status, file, lines }]`: git's one-letter status and how
- * many lines the change added and removed. `before` is the same set of entries
- * as it stood earlier: an entry rewritten alongside the code has probably been
- * looked at, one left alone has not.
+ * many lines the change added and removed.
  *
  * Many entries cite the same few files, so the result also lists those files:
  * one diff read covers every entry that cites it.
  */
-export function affectedEntries({ mapFiles, before = [], changed }) {
+export function affectedEntries({ mapFiles, changed }) {
   const lines = new Map(changed.map((item) => [item.file, item.lines]));
-  const earlier = new Map(
-    before.flatMap(({ file, entries }) =>
-      entries.map((entry) => [`${file}#${entry.slug}`, entry.body])
-    )
-  );
   const cited = new Set();
   const citing = new Map();
   const entries = [];
@@ -832,13 +733,7 @@ export function affectedEntries({ mapFiles, before = [], changed }) {
       const hits = entry.src.filter((src) => lines.has(src));
       if (!hits.length) continue;
       for (const src of hits) citing.set(src, (citing.get(src) ?? 0) + 1);
-      const was = earlier.get(`${file}#${entry.slug}`);
-      entries.push({
-        file,
-        entry: entry.heading,
-        state:
-          was === undefined ? 'new' : was === entry.body ? 'same' : 'edited',
-      });
+      entries.push({ file, entry: entry.heading });
     }
   }
   const uncited = changed.filter(
@@ -860,24 +755,17 @@ export function affectedEntries({ mapFiles, before = [], changed }) {
   };
 }
 
-const AFFECTED_NOTES = {
-  same: '',
-  edited: ' (text changed too)',
-  new: ' (new entry)',
-};
-
-/** Markdown, so it reads the same in a terminal, a job summary and a PR. */
+/** Markdown, so it reads the same in a terminal and in a PR. */
 export function renderAffected({ entries, files, added, otherUncited }, range) {
   const out = [];
   const plural = (count, noun) => `${count} ${noun}${count === 1 ? '' : 's'}`;
   if (entries.length) {
-    const untouched = entries.filter(({ state }) => state === 'same').length;
     out.push(
       `### Entries to re-read: ${entries.length}`,
       '',
-      `Each cites a file that changed ${range}; ${untouched} of them kept ` +
-        'the same text. The check covers their quoted labels. What it cannot ' +
-        'see is a change to who can do it, where it is, or what happens next.',
+      `Each cites a file that changed ${range}. The check covers their ` +
+        'quoted labels. What it cannot see is a change to who can do it, ' +
+        'where it is, or what happens next.',
       ''
     );
     let file = '';
@@ -887,7 +775,7 @@ export function renderAffected({ entries, files, added, otherUncited }, range) {
         file = item.file;
         out.push(`**${file}**`, '');
       }
-      out.push(`- ${item.entry}${AFFECTED_NOTES[item.state]}`);
+      out.push(`- ${item.entry}`);
     }
     out.push(
       '',
@@ -924,22 +812,14 @@ export function renderAffected({ entries, files, added, otherUncited }, range) {
   return out.join('\n');
 }
 
-/**
- * With `until`, what differs between the two named points, whichever is newer:
- * republishing for an older build is a change too. Without it, what this
- * checkout changed since it left `since`, so a branch that is behind does not
- * list the other side's work. A rename counts as one file removed, one added.
- */
+/** What differs between two commits. A rename counts as one file removed, one added. */
 function changedFiles(root, since, until) {
-  const git = (args) =>
-    execFileSync('git', args, {
+  const diff = (format) =>
+    execFileSync('git', ['diff', format, '--no-renames', '-z', since, until], {
       cwd: root,
       encoding: 'utf8',
       maxBuffer: 256 * 1024 * 1024,
-    });
-  const base = until ? since : git(['merge-base', since, 'HEAD']).trim();
-  const diff = (format) =>
-    git(['diff', format, '--no-renames', '-z', base, ...(until ? [until] : [])])
+    })
       .split('\0')
       .filter(Boolean);
   const lines = new Map(
@@ -955,7 +835,7 @@ function changedFiles(root, since, until) {
     const file = fields[i + 1];
     changed.push({ status: fields[i], file, lines: lines.get(file) ?? 0 });
   }
-  return { base, changed };
+  return changed;
 }
 
 // --- command line ----------------------------------------------------------
@@ -965,24 +845,29 @@ function option(args, name) {
   return index === -1 ? undefined : args[index + 1];
 }
 
-function main(argv) {
+function run(argv) {
   const [command, ...args] = argv;
   const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
     encoding: 'utf8',
   }).trim();
+  const map = makeReader(root);
+  // The app's source is read at the build the map describes, unless --ref
+  // names another: the next build, say, to see what it breaks.
   const ref = option(args, '--ref');
-  const reader = makeReader(root, ref);
+  const build = () => recordedBuild(map);
+  const code = () => codeAt(root, ref ?? build().commit);
+  const against = () => ref ?? build().app;
 
   if (command === 'check') {
-    const result = checkMap(reader);
+    const result = checkMap(map, code());
     for (const { file, entry, problem } of result.failures) {
       console.log(`${file}${entry ? ` › ${entry}` : ''}: ${problem}`);
     }
     console.log(
       `${result.entryCount} entries in ${result.files.length} files; ` +
         `${result.covered.size} of ${result.surface.items.length} surface items covered, ` +
-        `${result.ignored.length} skipped; ${result.failures.length} problems` +
-        (ref ? ` (against ${ref})` : '')
+        `${result.ignored.length} skipped; ${result.failures.length} problems ` +
+        `against ${against()}`
     );
     return result.failures.length ? 1 : 0;
   }
@@ -990,71 +875,49 @@ function main(argv) {
   if (command === 'labels') {
     const file = args.find((arg) => !arg.startsWith('--') && arg !== ref);
     if (!file) return usage();
-    const missing = checkLooseLabels(fs.readFileSync(file, 'utf8'), reader);
+    const missing = checkLooseLabels(fs.readFileSync(file, 'utf8'), code());
     for (const label of missing)
       console.log(`not in the app's source: \`${label}\``);
     console.log(
-      `${missing.length} quoted labels not found${ref ? ` (against ${ref})` : ''}`
+      `${missing.length} quoted labels not found against ${against()}`
     );
     return missing.length ? 1 : 0;
   }
 
   if (command === 'surface') {
-    const { items, missingSources } = readSurface(reader);
+    const { items, missingSources } = readSurface(code());
     for (const item of items) console.log(item);
     for (const file of missingSources) console.error(`could not read ${file}`);
     return missingSources.length ? 1 : 0;
   }
 
   if (command === 'affected') {
-    const since = option(args, '--since');
-    if (!since) return usage();
     const until = option(args, '--until');
-    const { base, changed } = changedFiles(root, since, until);
-    // At a release the question is about the copy bots read, and "the same
-    // text" means the text this checkout is about to replace.
-    const result = args.includes('--published')
-      ? affectedEntries({
-          mapFiles: readPublished(reader),
-          before: readPublished(makeReader(root, 'HEAD')),
-          changed,
-        })
-      : affectedEntries({
-          mapFiles: readMap(reader),
-          before: readMap(makeReader(root, base)),
-          changed,
-        });
+    if (!until) return usage();
+    const since = option(args, '--since') ?? build().commit;
+    const sinceName = option(args, '--since') ?? build().app;
+    codeAt(root, since);
+    codeAt(root, until);
+    const result = affectedEntries({
+      mapFiles: readMap(map),
+      changed: changedFiles(root, since, until),
+    });
     console.log(
-      renderAffected(
-        result,
-        `between \`${since}\` and ${until ? `\`${until}\`` : 'this checkout'}`
-      )
+      renderAffected(result, `between \`${sinceName}\` and \`${until}\``)
     );
     return 0;
   }
 
-  if (command === 'promote') {
-    const app = option(args, '--app');
-    if (!app) return usage();
-    const drop = (option(args, '--drop') ?? '').split(',').filter(Boolean);
-    let result;
-    try {
-      result = promote(root, app, drop);
-    } catch (error) {
-      console.error(`nothing was published: ${error.message}`);
-      return 1;
-    }
-    for (const { file, entry, kept, why } of result.held) {
-      console.log(`held back: ${file} › ${entry} (${kept}): ${why[0]}`);
-    }
-    for (const { file, entry } of result.carried) {
+  if (command === 'publish') {
+    const result = publish(root, option(args, '--app'));
+    for (const { file, entry, flag } of result.leftOut) {
       console.log(
-        `still published, though gone from the map: ${file} › ${entry}`
+        `left out: ${file} › ${entry} (flag ${flag} is off in this build)`
       );
     }
     console.log(
-      `published ${result.entryCount} entries in ${result.published.length} files for ${app}; ` +
-        `${result.held.length} held back, ${result.carried.length} kept after leaving the map`
+      `published ${result.entryCount} entries in ${result.published.length} files ` +
+        `for ${result.build.app}; ${result.leftOut.length} left out`
     );
     return 0;
   }
@@ -1062,13 +925,22 @@ function main(argv) {
   return usage();
 }
 
+function main(argv) {
+  try {
+    return run(argv);
+  } catch (error) {
+    console.error(error.message);
+    return 1;
+  }
+}
+
 function usage() {
   console.error(
     'usage: feature-map.mjs check [--ref <git-ref>]\n' +
       '       feature-map.mjs labels <file.md> [--ref <git-ref>]\n' +
       '       feature-map.mjs surface [--ref <git-ref>]\n' +
-      '       feature-map.mjs affected --since <git-ref> [--until <git-ref>] [--published]\n' +
-      '       feature-map.mjs promote --app <release-tag> [--drop file.md#slug,…]'
+      '       feature-map.mjs affected --until <git-ref> [--since <git-ref>]\n' +
+      '       feature-map.mjs publish [--app <build-tag>]'
   );
   return 2;
 }

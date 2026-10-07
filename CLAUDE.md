@@ -574,10 +574,10 @@ Uses Drizzle ORM with SQLite for local data storage:
 
 `docs/feature-map/` describes how to do each thing in the app, one file per area. Tlonbot answers "how do I…" questions from it, so a stale entry sends a real person looking for a button that isn't there. **Read `docs/feature-map/README.md` before editing it.**
 
--   `node scripts/feature-map.mjs check` runs in CI on any UI change. It fails when an entry quotes a label that is no longer in the files it cites, when a screen, message action, feature flag or slash command has no entry, or when an entry describes something that was removed.
--   When your change trips it, fix the map in the same PR: update the label, add an entry for the new screen, or delete the entry. Add `<!-- flag: name -->` to an entry for anything behind a feature flag.
--   The check cannot see behaviour that changes while labels stay the same. If you change who can do something, or what happens after a tap, read the entries that cite the files you touched. `node scripts/feature-map.mjs affected --since origin/develop` lists them.
--   Never edit `packages/openclaw/skills/tlon-product-guide/references/` by hand. `scripts/feature-map.mjs promote` generates it for the current store build.
+-   The map describes the app at one store build, named in `docs/feature-map/release.json`, not `develop`. A UI change on develop does not need a map edit. The map is brought up to date once per store build; the README's "Updating for a new store build" has the steps.
+-   `node scripts/feature-map.mjs check` compares the map with that build's source. CI runs it when the map, its script or the guide changes.
+-   To fix a wrong entry between builds, edit it in `docs/feature-map/`, make sure it is true for the store build rather than for develop, then run `node scripts/feature-map.mjs publish`.
+-   Never edit `packages/openclaw/skills/tlon-product-guide/references/` by hand. `publish` writes it from the map, and CI fails when the two differ.
 
 ## Adding a New Post Blob Entry Type
 

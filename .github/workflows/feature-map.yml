@@ -1,18 +1,21 @@
 name: Feature Map
 
-# Keeps the product guide's feature map true to the app's source. The script
-# has no dependencies, so there is nothing to install and it takes seconds.
+# The product guide's feature map (docs/feature-map) describes the app at one
+# store build, recorded in docs/feature-map/release.json. It is brought up to
+# date once per build, not on every change to develop, so app changes do not
+# run this: only a change to the map, its script or the guide does.
 #
-# It runs on every PR, with no path filter: entries cite files all over the
-# repo (app packages, native Android and iOS, the desk, package manifests), and
-# a filter that misses one lets a stale label through unnoticed.
-#
-# When this fails on a UI change, fix the map in the same PR. See
-# docs/feature-map/README.md.
+# It checks the map against that build's source, and that the copy bots read
+# is what `publish` writes from the map. See docs/feature-map/README.md.
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "docs/feature-map/**"
+      - "scripts/feature-map*"
+      - "packages/openclaw/skills/tlon-product-guide/**"
+      - ".github/workflows/feature-map.yml"
 
 permissions:
   contents: read
@@ -23,31 +26,42 @@ concurrency:
 
 jobs:
   check:
-    name: Feature map matches the app
+    name: Feature map matches the store build
     runs-on: ubuntu-24.04
     timeout-minutes: 5
 
     steps:
-      # Depth 2 brings in the base commit. On a pull request the checkout is
-      # the PR merged into its base, so HEAD^1 is the base.
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
 
-      - name: Test the checker
+      # The checkout is shallow, and the map is read against the store build's
+      # commit, so fetch that one commit.
+      - name: Fetch the store build the map describes
+        run: git fetch --depth 1 origin "$(node -p "require('./docs/feature-map/release.json').commit")"
+
+      - name: Test the script
         run: node --test scripts/feature-map.test.mjs
 
-      - name: Check the feature map against the source
+      - name: Check the map against the store build
         run: node scripts/feature-map.mjs check
 
+      # The guide's own text is edited on develop alongside the app, unlike the
+      # map, so its labels are looked for in this checkout's source.
       - name: Check the guide's own quoted labels
-        run: node scripts/feature-map.mjs labels packages/openclaw/skills/tlon-product-guide/SKILL.md
+        run: node scripts/feature-map.mjs labels packages/openclaw/skills/tlon-product-guide/SKILL.md --ref HEAD
 
-      # Not a gate. The checks above cannot see behaviour that changes behind
-      # the same labels, so this lists the entries worth reading again.
-      - name: List the entries this PR may have made untrue
-        run: node scripts/feature-map.mjs affected --since HEAD^1 >> "$GITHUB_STEP_SUMMARY"
+      # `publish` rewrites the copy from the map. Any difference means the copy
+      # was edited by hand, or the map changed without being published.
+      - name: Check the copy bots read is the one the map publishes
+        run: |
+          node scripts/feature-map.mjs publish
+          changed=$(git status --porcelain -- packages/openclaw/skills/tlon-product-guide)
+          if [ -n "$changed" ]; then
+            echo "::error::The copy bots read does not match the map. Run: node scripts/feature-map.mjs publish"
+            echo "$changed"
+            git diff -- packages/openclaw/skills/tlon-product-guide
+            exit 1
+          fi

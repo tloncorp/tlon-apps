@@ -22,5 +22,4 @@ command:unban
 action:debugJson      # development builds only
 route:AppSettings     # link path only; no screen is registered for it
 route:Empty           # declared in the types, never shown
-route:Root            # wrapper navigator, not a screen
 route:VerifierStub    # declared in the types, never shown

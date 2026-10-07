@@ -16,12 +16,12 @@
 
 ## Feature Map
 
-`docs/feature-map/` is what Tlonbot tells people about the app. CI checks that every label an entry quotes is still in the code. It cannot see a behaviour change behind an unchanged label, so that part is for review.
+`docs/feature-map/` is what Tlonbot tells people about the app. It describes one store build, named in `docs/feature-map/release.json`, and is updated once per build. CI checks that every label an entry quotes is in that build's source. It cannot see behaviour, so that part is for review.
 
--   When a PR changes a file that an entry cites in its `<!-- src: … -->` line, read that entry against the diff. Flag it if the PR changes who can do the thing, where it is found, or what happens afterwards, and the entry was not updated. `node scripts/feature-map.mjs affected --since <base>` lists the entries; the Feature Map job prints the same list in its summary.
--   A new button, menu item or setting with no new screen, message action, feature flag or slash command needs an entry. CI will not ask for one.
--   PRs from `release/feature-map-*` publish the map to bots. Their description lists entries whose code changed between two releases but whose text did not. Read those against `git diff <previous> <release>` for the files they cite, not just the lines the PR changes.
--   Files under `packages/openclaw/skills/tlon-product-guide/references/` are generated. Flag a hand edit there; do not review their wording outside a release PR.
+-   App changes on develop do not need a map edit. Do not ask for one.
+-   In a PR that changes the map, read each changed entry against the source at the store build's commit, using the files in its `<!-- src: … -->` line, not against develop. Flag an entry that describes something only develop has.
+-   A PR that changes `release.json` moves the map to a new store build. Also check the entries that `node scripts/feature-map.mjs affected --since <old commit> --until <new tag>` lists: their code changed between the two builds, whether or not their text did.
+-   Files under `packages/openclaw/skills/tlon-product-guide/references/` are written by `publish`. Flag a hand edit there.
 
 ## Style Rules
 

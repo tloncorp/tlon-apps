@@ -38,7 +38,7 @@ Notes: these rows have no press-and-hold menu and can't be swiped. A DM someone 
 
 Phone: at the top of the Workspaces tab, tap `All`, `Just me`, `With others` or `Messages`.
 Desktop: the Home sidebar has no filter row. To see DMs on their own, use the Messages sidebar.
-Notes: `Messages` shows DMs and group DMs only. `Just me` shows groups with nobody in them but you and your Tlonbot. `With others` shows the other groups, plus pinned channels. `All` shows everything. Pinned chats are filtered too. The filter row only appears once the list has something in it, and it goes back to `All` when the app restarts. There is no unread-only filter.
+Notes: `Messages` shows DMs and group DMs only. `Just me` shows groups with nobody in them but you, with or without your Tlonbot. Newer versions of the app hide `Just me` when you have no group like that. `With others` shows the other groups, plus pinned channels. `All` shows everything. Pinned chats are filtered too. The filter row only appears once the list has something in it, and it goes back to `All` when the app restarts. There is no unread-only filter.
 
 ## Find a chat by name
 
