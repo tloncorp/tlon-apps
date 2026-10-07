@@ -106,6 +106,8 @@ export const base = {
     mark: 'notify-client-action',
     since: '12.2.0',
   },
+  // Served by %fetch from 13.0.0, which keeps this path as an alias for
+  // its /fetch/meta endpoint (docs/backend/desk/app/fetch.md).
   metagrab: {
     kind: 'raw',
     agent: 'metagrab',

@@ -1,0 +1,210 @@
+/+  *test-agent, test
+/=  fetch-agent  /app/fetch
+|%
+++  dap  %fetch-test
+++  safe  'https://example.com/'
+++  lan   'http://192.168.1.1/'
+::  +get: an inbound request for one of our endpoints
+::
+++  get
+  |=  [id=@ta mode=@ta url=@t hes=header-list:http]
+  ^-  cage
+  =/  =request:http
+    [%'GET' (rap 3 '/apps/groups/~/fetch/' mode '/' (scot %uw url) ~) hes ~]
+  handle-http-request+!>([id `inbound-request:eyre`[& & ipv4+.127.0.0.1 request]])
+::  +request-card: the one outbound request among a poke's cards
+::
+::    /lib/verb adds its own facts, so pick the request out by shape.
+::
+++  request-card
+  |=  caz=(list card)
+  ^-  [=wire =request:http]
+  =/  reqs
+    %+  murn  caz
+    |=  car=card
+    ?.  ?=([%pass * %arvo %i %request *] car)  ~
+    `[p.car request.q.car]
+  ?>  ?=([* ~] reqs)
+  i.reqs
+::  +finished: an iris response with no body
+::
+++  finished
+  |=  [status=@ud hes=header-list:http]
+  ^-  sign-arvo
+  [%iris %http-response %finished [status hes] ~]
+::  +status: the status code a response card sequence gives
+::
+++  status
+  |=  caz=(list card)
+  ^-  (unit @ud)
+  |-
+  ?~  caz  ~
+  ?.  ?=([%give %fact * %http-response-header *] i.caz)  $(caz t.caz)
+  `status-code:!<(response-header:http q.cage.p.i.caz)
+::  +body: the response body a response card sequence gives, as text
+::
+++  body
+  |=  caz=(list card)
+  ^-  tape
+  |-
+  ?~  caz  ~
+  ?.  ?=([%give %fact * %http-response-data *] i.caz)  $(caz t.caz)
+  =+  !<(dat=(unit octs) q.cage.p.i.caz)
+  ?~(dat ~ (trip q.u.dat))
+::  +response-headers: the headers a response card sequence gives
+::
+++  response-headers
+  |=  caz=(list card)
+  ^-  header-list:http
+  |-
+  ?~  caz  ~
+  ?.  ?=([%give %fact * %http-response-header *] i.caz)  $(caz t.caz)
+  headers:!<(response-header:http q.cage.p.i.caz)
+::  +test-unsafe-redirect-not-cached: a refused redirect stays refused
+::
+::  a safe target that redirects into private space is answered with a
+::  500 result, and is not cached: asking again fetches the safe target anew
+::  rather than following a cached redirect to the private one.
+::
+++  test-unsafe-redirect-not-cached
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~zod, src ~zod)))
+  ;<  *  bind:m  (do-init dap fetch-agent)
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e1 %meta safe ~))
+  =/  out  (request-card caz)
+  ;<  ~  bind:m  (ex-equal !>(url.request.out) !>(safe))
+  ;<  caz=(list card)  bind:m  (do-arvo wire.out (finished 302 ['location' lan]~))
+  ::  %meta reports the upstream outcome in the body, over a 200
+  ::
+  ;<  ~  bind:m  (ex-equal !>(?=(^ (find "\"status\":500" (body caz)))) !>(&))
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e2 %meta safe ~))
+  ;<  ~  bind:m  (ex-equal !>(url.request:(request-card caz)) !>(safe))
+  ::  and a private target asked for directly is refused outright
+  ::
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e3 %meta lan ~))
+  ;<  ~  bind:m  (ex-equal !>((status caz)) !>(`400))
+  ::  shared address space (cgnat, tailscale) is private too
+  ::
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e4 %raw 'http://100.64.0.1/' ~))
+  (ex-equal !>((status caz)) !>(`400))
+::  +test-raw-strips-connection-names: connection-scoped headers stay put
+::
+::  headers a connection header names are hop-by-hop, in both directions,
+::  along with the fixed set. the caller's authorization for the ship is
+::  not sent on. headers that would act on the ship's own origin, like
+::  set-cookie or hsts, are not relayed back, and the response is sandboxed.
+::
+++  test-raw-strips-connection-names
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~zod, src ~zod)))
+  ;<  *  bind:m  (do-init dap fetch-agent)
+  =/  out=header-list:http
+    :~  ['Connection' 'Keep-Alive, X-Hop']
+        ['X-Hop' 'out']
+        ['Authorization' 'Basic c2hpcDpwYXNz']
+        ['Referer' 'https://ship.example/apps/groups/~/dm/~fed']
+        ['X-Forwarded-For' '203.0.113.7']
+        ['X-Keep' 'out']
+    ==
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e1 %raw safe out))
+  =/  req  (request-card caz)
+  =/  sent  (turn header-list.request.req head)
+  ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('X-Hop' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('Authorization' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('Referer' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('X-Forwarded-For' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('X-Keep' k)))) !>(&))
+  =/  back=header-list:http
+    :~  ['connection' 'x-upstream-hop']
+        ['x-upstream-hop' 'in']
+        ['content-length' '0']
+        ['Set-Cookie' 'urbauth-~zod=evil; Path=/']
+        ['clear-site-data' '"cookies"']
+        ['Strict-Transport-Security' 'max-age=31536000; includeSubDomains']
+        ['service-worker-allowed' '/']
+        ['x-upstream-keep' 'in']
+    ==
+  ;<  caz=(list card)  bind:m  (do-arvo wire.req (finished 200 back))
+  =/  got  (turn (response-headers caz) head)
+  ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('x-upstream-hop' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('content-length' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('Set-Cookie' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('clear-site-data' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('Strict-Transport-Security' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien got |=(k=@t =('service-worker-allowed' k)))) !>(|))
+  ::  and what is relayed is sandboxed, so an html page cannot run as us
+  ::
+  =/  all  (response-headers caz)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((skim all |=([k=@t v=@t] =('content-security-policy' k))))
+    !>(`header-list:http`~[['content-security-policy' 'sandbox']])
+  ;<  ~  bind:m
+    %+  ex-equal  !>((lien all |=([k=@t v=@t] &(=('x-content-type-options' k) =('nosniff' v)))))
+    !>(&)
+  (ex-equal !>((lien got |=(k=@t =('x-upstream-keep' k)))) !>(&))
+::  +test-raw-size-cap: the relay cap measures the body
+::
+::  a body over max-relay (4MiB) is refused whatever its content type, and
+::  a small body passes even under an absurdly long content type.
+::
+++  test-raw-size-cap
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~zod, src ~zod)))
+  ;<  *  bind:m  (do-init dap fetch-agent)
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e1 %raw safe ~))
+  =/  big=sign-arvo
+    [%iris %http-response %finished [200 ~] `['text/html' [+((bex 22)) 0]]]
+  ;<  caz=(list card)  bind:m  (do-arvo wire:(request-card caz) big)
+  ;<  ~  bind:m  (ex-equal !>((status caz)) !>(`502))
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e2 %raw safe ~))
+  =/  long-type=@t  (crip (reap 5.000.000 'x'))
+  =/  small=sign-arvo
+    [%iris %http-response %finished [200 ~] `[long-type [2 'ok']]]
+  ;<  caz=(list card)  bind:m  (do-arvo wire:(request-card caz) small)
+  (ex-equal !>((status caz)) !>(`200))
+::  +test-raw-no-implicit-redirects: iris must not follow for us
+::
+::  iris follows 301/303/307 while redirects remain, without our address
+::  guard. a %raw request asks for none, and relays the redirect pointed
+::  back through %raw, so the next hop is same-origin and guarded.
+::
+++  test-raw-no-implicit-redirects
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~zod, src ~zod)))
+  ;<  *  bind:m  (do-init dap fetch-agent)
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e1 %raw safe ~))
+  =/  cons=(list outbound-config:iris)
+    %+  murn  caz
+    |=  car=card
+    ?.  ?=([%pass * %arvo *] car)  ~
+    =/  =note-arvo  +.q.car
+    ?.  ?=([%i %request *] note-arvo)  ~
+    `outbound-config.note-arvo
+  ;<  ~  bind:m  (ex-equal !>(cons) !>(`(list outbound-config:iris)`~[[0 3]]))
+  =/  wire  wire:(request-card caz)
+  ;<  caz=(list card)  bind:m
+    (do-arvo wire (finished 307 ['location' lan]~))
+  ;<  ~  bind:m  (ex-equal !>((status caz)) !>(`307))
+  ::  a relative location is resolved against the upstream, then wrapped
+  ::
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e2 %raw safe ~))
+  ;<  caz=(list card)  bind:m
+    (do-arvo wire:(request-card caz) (finished 302 ['Location' '/login']~))
+  =/  loc  (skim (response-headers caz) |=([k=@t v=@t] =('Location' k)))
+  =/  via=@t
+    (cat 3 '/apps/groups/~/fetch/raw/' (scot %uw 'https://example.com/login'))
+  ;<  ~  bind:m  (ex-equal !>(loc) !>(`header-list:http`~[['Location' via]]))
+  ::  following it is an ordinary %raw request for the upstream target
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-poke handle-http-request+!>([~.e3 `inbound-request:eyre`[& & ipv4+.127.0.0.1 [%'GET' via ~ ~]]]))
+  (ex-equal !>(url.request:(request-card caz)) !>('https://example.com/login'))
+--
