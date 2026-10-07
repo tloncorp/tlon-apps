@@ -8,6 +8,7 @@ import {
   type BucketFileViewerItem,
   HTML_PREVIEW_POLICY,
   htmlPreviewHeldPolicy,
+  releaseHtmlPreview,
 } from './BucketFileViewer.shared';
 
 const mocks = vi.hoisted(() => ({ isElectron: false }));
@@ -31,6 +32,15 @@ vi.mock('tamagui', () => ({
   XStack: 'XStack',
   YStack: 'YStack',
 }));
+
+vi.mock('./BucketFileViewer.shared', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./BucketFileViewer.shared')>();
+  return {
+    ...actual,
+    releaseHtmlPreview: vi.fn(actual.releaseHtmlPreview),
+  };
+});
 
 vi.mock('../ScreenHeader', () => {
   const ScreenHeader = () => null;
@@ -83,6 +93,14 @@ afterEach(() => {
 });
 
 describe('BucketFileViewer html preview (web)', () => {
+  // Its parsed tree can hold tens of megabytes, so it goes with the viewer.
+  it('lets go of the file it read once it closes', () => {
+    const renderer = render(htmlFile);
+    vi.mocked(releaseHtmlPreview).mockClear();
+    act(() => renderer.unmount());
+    expect(releaseHtmlPreview).toHaveBeenCalledTimes(1);
+  });
+
   // From its text, so the storage's headers cannot turn the preview into a
   // download, inside a shell of ours whose policy the file's frame inherits.
   // A page's scripts share the app's thread, so until the reader asks the

@@ -778,7 +778,7 @@ function parseHtml(html: string, scripting: boolean): ParsedHtml | null {
 
 // The last file parsed: the viewer asks whether it can read a file on every
 // render, and reads its title, its scripts and its markup in turn, each from
-// the same tree.
+// the same tree, which it lets go of once it closes (releaseHtmlPreview).
 let lastParsed:
   | {
       html: string;
@@ -799,6 +799,14 @@ function lastParsedOf(html: string, scripting: boolean) {
 /** parseHtml, kept for the file read last. */
 function parsedHtml(html: string, scripting: boolean): ParsedHtml | null {
   return lastParsedOf(html, scripting).parsed;
+}
+
+/**
+ * Lets go of the file read last and its tree, which can hold tens of
+ * megabytes; the viewer calls it when it closes.
+ */
+export function releaseHtmlPreview(): void {
+  lastParsed = undefined;
 }
 
 /**

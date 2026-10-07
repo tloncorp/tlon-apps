@@ -1,6 +1,6 @@
 import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
@@ -20,6 +20,7 @@ import {
   htmlPreviewNavigation,
   htmlPreviewReadable,
   htmlPreviewShell,
+  releaseHtmlPreview,
 } from './BucketFileViewer.shared';
 
 export function BucketFileViewer({
@@ -45,8 +46,10 @@ export function BucketFileViewer({
   // every message reaches the app's JavaScript thread. Until then only our
   // link script runs (htmlPreviewHeldPolicy).
   const [scriptsRunFor, setScriptsRunFor] = useState<string>();
-  // A file nesting deeper than the preview reads is not rendered: it gets the
-  // unsupported notice and its Open button (htmlPreviewReadable).
+  // A file the preview cannot read is not rendered: it gets the unsupported
+  // notice and its Open button (htmlPreviewReadable). The tree it read is let
+  // go once the viewer closes.
+  useEffect(() => releaseHtmlPreview, []);
   const html =
     previewKind === 'html' &&
     item.textContent !== undefined &&

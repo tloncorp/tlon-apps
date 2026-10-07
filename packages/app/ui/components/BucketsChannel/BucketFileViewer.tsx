@@ -1,5 +1,5 @@
 import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
 import { useIsElectron } from '../../../hooks/useIsElectron';
@@ -16,6 +16,7 @@ import {
   htmlPreviewReadable,
   htmlPreviewSandboxes,
   htmlPreviewShell,
+  releaseHtmlPreview,
 } from './BucketFileViewer.shared';
 
 export function BucketFileViewer({
@@ -46,8 +47,10 @@ export function BucketFileViewer({
   // only our link script runs (htmlPreviewHeldPolicy). Under Electron no
   // script runs (htmlPreviewSandboxes).
   const [scriptsRunFor, setScriptsRunFor] = useState<string>();
-  // A file nesting deeper than the preview reads is not rendered: it gets the
-  // unsupported notice and its Open button (htmlPreviewReadable).
+  // A file the preview cannot read is not rendered: it gets the unsupported
+  // notice and its Open button (htmlPreviewReadable). The tree it read is let
+  // go once the viewer closes.
+  useEffect(() => releaseHtmlPreview, []);
   const html =
     previewKind === 'html' &&
     item.textContent !== undefined &&

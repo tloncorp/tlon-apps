@@ -9,6 +9,7 @@ import {
   HTML_PREVIEW_LINK_MESSAGE,
   HTML_PREVIEW_POLICY,
   htmlPreviewHeldPolicy,
+  releaseHtmlPreview,
 } from './BucketFileViewer.shared';
 
 const mocks = vi.hoisted(() => ({
@@ -49,6 +50,15 @@ vi.mock('tamagui', () => ({
   XStack: 'XStack',
   YStack: 'YStack',
 }));
+
+vi.mock('./BucketFileViewer.shared', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./BucketFileViewer.shared')>();
+  return {
+    ...actual,
+    releaseHtmlPreview: vi.fn(actual.releaseHtmlPreview),
+  };
+});
 
 vi.mock('../ScreenHeader', () => {
   const ScreenHeader = () => null;
@@ -96,6 +106,14 @@ afterEach(() => {
 });
 
 describe('BucketFileViewer html preview (native)', () => {
+  // Its parsed tree can hold tens of megabytes, so it goes with the viewer.
+  it('lets go of the file it read once it closes', () => {
+    const renderer = render(htmlFile);
+    vi.mocked(releaseHtmlPreview).mockClear();
+    act(() => renderer.unmount());
+    expect(releaseHtmlPreview).toHaveBeenCalledTimes(1);
+  });
+
   // The WebView loads a shell of ours that carries the policy, not the file's
   // URL; the file sits in a sandboxed frame inside it and inherits the policy.
   // Until the reader asks, it runs ours alone: a running page could post to
