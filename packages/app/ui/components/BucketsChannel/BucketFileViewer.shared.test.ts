@@ -474,6 +474,7 @@ describe('htmlPreviewHasScripts', () => {
     `<head><meta http-equiv="Content-Security-Policy" content="script-src-elem 'none'"></head><img src="x" onerror="go()">`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'"></head><script nonce="abc">go()</script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'sha256-abc='"></head><script>go()</script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline' 'nonce-'"></head><script>go()</script>`,
     // Our link script runs an HTML or SVG link's javascript: by eval; WebKit
     // runs a MathML element's itself, as inline code.
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-eval'"></head><a href="javascript:go()">x</a>`,
@@ -622,6 +623,8 @@ describe('htmlPreviewHasScripts', () => {
     // a table's misplaced one moved ahead of it included.
     '<script src="lib.js"></script><base href="https://cdn.jsdelivr.net/npm/pkg/">',
     '<table><script src="lib.js"></script><base href="https://cdn.jsdelivr.net/npm/pkg/"></table>',
+    // A script with neither an address nor text runs nothing.
+    '<script></script><script type="module"></script><svg><script></script></svg>',
     // A module from data: runs only as JavaScript.
     '<script type="module" src="data:text/plain,export default 1"></script>',
     // The file's own policy, from <head>, where it refuses the code: 'none',
@@ -632,6 +635,7 @@ describe('htmlPreviewHasScripts', () => {
     `<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'"></head><script>go()</script><img src="x" onerror="go()"><a href="javascript:go()">x</a>`,
     `<head><meta http-equiv="Content-Security-Policy" content="SCRIPT-SRC 'unsafe-inline' 'strict-dynamic'"></head><script>go()</script><img src="x" onerror="go()">`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'nonce-abc'"></head><script nonce="xyz">go()</script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="script-src 'nonce-a$b'"></head><script nonce="a$b">go()</script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src"></head><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline'"></head><a href="javascript:go()">x</a><svg><a href="javascript:go()"><text>x</text></a></svg>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-eval'"></head><math><mtext href="javascript:go()">x</mtext></math><iframe src="javascript:go()"></iframe>`,

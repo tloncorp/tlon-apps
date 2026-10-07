@@ -1424,6 +1424,13 @@ function authoredPolicy(element: ParsedElement): AuthoredPolicy | undefined {
   };
 }
 
+/** A script element's own text, which a browser runs when it has no address; with none, nothing runs. */
+function scriptText(script: ParsedElement): string {
+  return script.childNodes
+    .map((node) => (defaultTreeAdapter.isTextNode(node) ? node.value : ''))
+    .join('');
+}
+
 /** Whether a source list names nothing: empty, or `'none'` alone. */
 function allowsNothing(list: string[] | undefined): boolean {
   return (
@@ -1432,6 +1439,9 @@ function allowsNothing(list: string[] | undefined): boolean {
       (list.length === 1 && asciiLowercase(list[0]) === "'none'"))
   );
 }
+
+// A nonce source: `'nonce-` (in any case), a base64 value, and `'`.
+const NONCE_SOURCE = /^'nonce-([A-Za-z0-9+/_-]+={0,2})'$/i;
 
 /**
  * Whether a source list lets inline code run (`nonce` an element's): a
@@ -1444,19 +1454,16 @@ function allowsInline(list: string[] | undefined, nonce?: string): boolean {
   if (allowsNothing(list)) return false;
   const lower = list.map(asciiLowercase);
   if (lower.some((source) => /^'sha(256|384|512)-/.test(source))) return true;
-  if (
-    nonce !== undefined &&
-    list.some(
-      (source, i) =>
-        lower[i].startsWith("'nonce-") && source.slice(7, -1) === nonce
-    )
-  ) {
-    return true;
-  }
+  // Only a nonce source in the standard's grammar counts; one that is not,
+  // such as `'nonce-'`, is ignored, by Chromium and WebKit alike.
+  const nonces = list
+    .map((source) => NONCE_SOURCE.exec(source)?.[1])
+    .filter((value) => value !== undefined);
+  if (nonce !== undefined && nonces.includes(nonce)) return true;
   return (
     lower.includes("'unsafe-inline'") &&
     !lower.includes("'strict-dynamic'") &&
-    !lower.some((source) => source.startsWith("'nonce-"))
+    nonces.length === 0
   );
 }
 
@@ -1522,7 +1529,8 @@ export function htmlPreviewHasScripts(
             (element.namespaceURI === NS.SVG ||
               attributeOf(element, 'nomodule') === undefined))) &&
         (src === undefined
-          ? policies.every((p) => allowsInline(p.elements, nonce))
+          ? scriptText(element) !== '' &&
+            policies.every((p) => allowsInline(p.elements, nonce))
           : scriptSourceAllowed(src, baseFor(element), kind === 'module') &&
             policies.every((p) => !allowsNothing(p.elements)))
       ) {
