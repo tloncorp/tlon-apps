@@ -386,17 +386,18 @@ Cross-session delegation is owner-only: non-owners cannot spawn a child, send wo
 | Owner uses restricted tool | ✅ Allowed |
 | Non-owner uses restricted tool (DM or group) | ❌ Blocked; the tool result tells the model the tool is owner-only and what to say |
 | Non-owner tricks LLM into using tool | ❌ Still blocked (hook-level enforcement) |
-| Host-attributed cron run | ✅ Allowed for its exact run ID and session key |
+| Verified isolated cron run | ✅ Allowed for its exact job, session ID, and run key |
+| Shared-history or unverified cron run | ❌ Restricted |
 | Verified isolated heartbeat without queued external input | ✅ Allowed |
 | Shared-history or unverified heartbeat | ❌ Restricted |
 
 **Implementation:**
 - `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `OWNER_ONLY_TOOL_PATTERNS`, `resolveOwnerOnlyToolBlock`)
-- Binds the DM or group sender role to the dispatch run ID and its session keys, including thread keys. Non-owner input restricts overlapping active runs before dispatch because the host can steer it into those runs; the restriction lasts until each run ends. Owner input cannot restore a restricted run's privileges. Unclassified runs in known Tlon sessions fail closed.
+- Binds the DM or group sender role to the dispatch run ID and its session keys, including thread keys. Non-owner input restricts overlapping active runs before dispatch because the host can steer it into those runs; the restriction lasts until each run ends. Pending non-owner dispatches also restrict runs registered before the dispatch/steering decision finishes. Owner input cannot restore a restricted run's privileges. Unclassified runs in known Tlon sessions fail closed using exact or parent-thread lookups; channel-scoped aliases are not retained per correspondent.
 - Host-attributed interactive runs from WebChat, TUI, and other channels retain their own authority in shared main sessions. A prior Tlon dispatch does not restrict those later runs.
-- Host-attributed cron runs retain access for their exact run ID and session key.
+- Cron access requires a host job configured with `sessionTarget: "isolated"` and a run key matching the host agent, job, and session IDs. Shared-history cron runs stay restricted. Queued plugin injections disqualify the run.
 - Heartbeat access requires host session-store metadata identifying an isolated transcript, matching the active session ID and source session. Queued plugin injections disqualify the run. Every passive Tlon system event marks its source session as untrusted for heartbeats for the lifetime of the process, including events forwarded into an isolated heartbeat. Shared-history heartbeats remain restricted even after an owner turn or process restart.
-- Run attribution is removed at `agent_end`, dispatch cleanup, or gateway shutdown. Tool parameters and session-level cron-job records cannot grant access.
+- Run attribution is removed at `agent_end` (using the context or event run ID), dispatch cleanup, or gateway shutdown. Pending input restrictions are released only by dispatch completion or gateway shutdown. Tool parameters and session-level cron-job records cannot grant access.
 - Returns `{ block: true, blockReason }`. OpenClaw core (verified on 2026.5.28 through 2026.8.2) hands `blockReason` to the model verbatim as the tool result, so the reason states the owner-only policy and tells the model what to say; the earlier `The X tool is not available.` led bots to invent reloads and outages (TLON-6363)
 
 **Critical Invariant:**

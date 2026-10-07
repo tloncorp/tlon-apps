@@ -28,6 +28,7 @@ import {
 } from './src/cron-observability.js';
 import {
   clearCronServiceAccessor,
+  getTlonCronService,
   handleCronChangedEvent,
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
@@ -1590,7 +1591,23 @@ export default defineBundledChannelEntry({
             );
           }
         }
-        recordSessionRunContext(ctx, heartbeatSession);
+        recordSessionRunContext(ctx, { heartbeatSession });
+      } else if (ctx.trigger === 'cron') {
+        // Only isolated jobs receive fresh transcripts; shared-session cron
+        // history can contain non-owner input even with an exact run ID.
+        let cronJob;
+        if (ctx.jobId && event.queuedInjections.length === 0) {
+          try {
+            cronJob = (
+              await getTlonCronService()?.list({ includeDisabled: true })
+            )?.find((job) => job.id === ctx.jobId);
+          } catch (error) {
+            api.logger.warn(
+              `[tlon] Cannot verify cron isolation: ${String(error)}`
+            );
+          }
+        }
+        recordSessionRunContext(ctx, { cronJob });
       }
       beginCronSilenceObservation(ctx);
       beginTlonTurnSilenceObservation(ctx);
@@ -1611,7 +1628,7 @@ export default defineBundledChannelEntry({
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (event, ctx) => {
-      clearSessionRunContext(ctx);
+      clearSessionRunContext(ctx, event);
       recordCronSilenceOutput(event, ctx);
       recordTlonTurnSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);

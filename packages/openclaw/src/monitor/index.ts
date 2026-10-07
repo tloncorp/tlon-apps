@@ -71,7 +71,7 @@ import {
   OWNER_ONLY_TOOL_PATTERNS,
 } from '../owner-only-tools.js';
 import {
-  clearSessionRunContext,
+  finishSenderDispatch,
   recordExternalSessionEvent,
   recordSenderRole,
 } from '../session-roles.js';
@@ -3202,9 +3202,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           },
         });
       }
-      recordSenderRole(runId, lensSessionKeys, senderRole);
       runtime.log?.(
-        `[tlon] Stored session role: sessionKeys=${lensSessionKeys.join(', ')}, role=${senderRole}`
+        `[tlon] Resolved sender role: sessionKeys=${lensSessionKeys.join(', ')}, role=${senderRole}`
       );
 
       const senderDisplay = formatShipWithNickname(senderShip);
@@ -3528,6 +3527,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let turnSummary: TlonAgentTurnSummary | undefined;
 
       try {
+        recordSenderRole(runId, lensSessionKeys, senderRole);
         try {
           contextLenses.setStatus(lens.lensId, 'dispatching');
           contextLenses.recordLifecycle(lens.lensId, {
@@ -3806,7 +3806,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           dispatchError ? 'error' : 'completed',
           dispatchError
         );
-        clearSessionRunContext({ runId, sessionKey: route.sessionKey });
+        finishSenderDispatch({ runId, sessionKey: route.sessionKey });
         unbindContextLensFromSession(lensSessionKeys, lens.lensId);
         // A reply the model issued by calling the `message` tool itself lands
         // through the outbound adapter, which records it on the lens but never
