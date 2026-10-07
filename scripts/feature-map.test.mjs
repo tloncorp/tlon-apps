@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  affectedEntries,
   checkEntry,
   checkQuestions,
   checkLooseLabels,
@@ -12,6 +13,7 @@ import {
   planRelease,
   questionAnchors,
   readSurface,
+  renderAffected,
   replaceIndex,
   slugify,
 } from './feature-map.mjs';
@@ -359,4 +361,66 @@ test('keeps a whole file the map dropped while its entries still fit', () => {
   assert.equal(result.published[0].name, 'lists.md');
   assert.equal(result.published[0].file.title, 'Lists');
   assert.deepEqual(headings(result), ['Pin a chat']);
+});
+
+test('lists the entries that cite a changed file, and says which were rewritten', () => {
+  const before = mapOf(
+    entry('Pin a chat', 'Pin'),
+    entry('Mute a chat', 'Mute')
+  );
+  const mapFiles = mapOf(
+    entry('Pin a chat', 'Pin'),
+    entry('Mute a chat', 'Silence'),
+    entry('Archive a chat', 'Archive'),
+    '## Leave a chat\n<!-- src: app/Leave.tsx -->\n\nPhone: tap `Leave`.\n'
+  );
+  const result = affectedEntries({
+    mapFiles,
+    before,
+    changed: [
+      { status: 'M', file: 'app/Menu.tsx', lines: 12 },
+      { status: 'A', file: 'packages/app/ui/NewSheet.tsx', lines: 80 },
+      { status: 'A', file: 'packages/app/ui/NewSheet.test.tsx', lines: 40 },
+      { status: 'A', file: 'packages/app/test/sheetUtils.tsx', lines: 9 },
+      { status: 'M', file: 'packages/shared/src/logic/roles.ts', lines: 3 },
+      { status: 'D', file: 'packages/app/ui/Gone.tsx', lines: 50 },
+      { status: 'M', file: 'README.md', lines: 1 },
+    ],
+  });
+  assert.deepEqual(result.entries, [
+    { file: 'lists.md', entry: 'Pin a chat', state: 'same' },
+    { file: 'lists.md', entry: 'Mute a chat', state: 'edited' },
+    { file: 'lists.md', entry: 'Archive a chat', state: 'new' },
+  ]);
+  assert.deepEqual(result.files, [
+    { file: 'app/Menu.tsx', lines: 12, entries: 3 },
+  ]);
+  // Tests, deleted files and files outside the app are not worth a look.
+  assert.deepEqual(result.added, ['packages/app/ui/NewSheet.tsx']);
+  assert.equal(result.otherUncited, 1);
+
+  const text = renderAffected(result, 'between `a` and `b`');
+  assert.match(text, /Entries to re-read: 3/);
+  assert.match(text, /1 of them kept the same text/);
+  assert.match(text, /^- Pin a chat$/m);
+  assert.match(text, /^- Mute a chat \(text changed too\)$/m);
+  assert.match(text, /^- `app\/Menu.tsx`: 12 lines, 3 entries$/m);
+  assert.match(text, /1 other changed source file cited by no entry/);
+});
+
+test('says so when nothing on the list changed', () => {
+  const result = affectedEntries({
+    mapFiles: mapOf(entry('Pin a chat', 'Pin')),
+    changed: [{ status: 'M', file: 'docs/notes.md', lines: 4 }],
+  });
+  assert.deepEqual(result, {
+    entries: [],
+    files: [],
+    added: [],
+    otherUncited: 0,
+  });
+  assert.equal(
+    renderAffected(result, 'between `a` and `b`'),
+    'No entry cites a file that changed between `a` and `b`.'
+  );
 });

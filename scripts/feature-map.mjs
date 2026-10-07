@@ -7,6 +7,8 @@
 //   labels   loose check for a Markdown file without anchors: each quoted
 //            label must appear somewhere in the app's source
 //   surface  print the inventory the coverage check uses
+//   affected list the entries citing files that changed, for a re-read: the
+//            check cannot see behaviour that changes behind the same labels
 //   promote  write the copy bots read: only what is true for the given release
 //
 // See docs/feature-map/README.md for the entry format.
@@ -359,6 +361,28 @@ export function readMap(reader) {
     .map((name) => parseMapFile(reader.read(`${MAP_DIR}/${name}`) ?? '', name));
 }
 
+/**
+ * The copy bots read. Its text carries no anchors, so each entry's `src` comes
+ * from ANCHORS_FILE.
+ */
+function readPublished(reader) {
+  const anchors = JSON.parse(reader.read(ANCHORS_FILE) ?? '{}');
+  return reader
+    .list(PUBLISHED_DIR)
+    .filter((name) => name.endsWith('.md'))
+    .sort()
+    .map((name) => {
+      const file = parseMapFile(
+        reader.read(`${PUBLISHED_DIR}/${name}`) ?? '',
+        name
+      );
+      for (const entry of file.entries) {
+        entry.src = anchors[`${name}#${entry.slug}`]?.src ?? [];
+      }
+      return file;
+    });
+}
+
 /** Problems that make one entry wrong for the code the reader points at. */
 export function checkEntry(entry, reader) {
   const problems = [];
@@ -605,13 +629,7 @@ export function promote(root, app, drop = []) {
   );
   const previous = {
     files: Object.fromEntries(
-      head
-        .list(PUBLISHED_DIR)
-        .filter((name) => name.endsWith('.md'))
-        .map((name) => [
-          name,
-          parseMapFile(head.read(`${PUBLISHED_DIR}/${name}`) ?? '', name),
-        ])
+      readPublished(head).map((file) => [file.file, file])
     ),
     anchors: JSON.parse(head.read(ANCHORS_FILE) ?? '{}'),
   };
@@ -657,6 +675,168 @@ export function promote(root, app, drop = []) {
     indexUpdated: skill !== null,
     entryCount: published.reduce((sum, item) => sum + item.entries.length, 0),
   };
+}
+
+// --- what to re-read after a change ----------------------------------------
+
+const isAppSource = (file) =>
+  SOURCE_ROOTS.some((root) => file.startsWith(`${root}/`)) &&
+  !/\.(test|fixture)\.|\/test\//.test(file);
+
+/**
+ * `check` proves an entry's labels are still in the code. It cannot tell that
+ * a tap now does something else, or that fewer people may do it. The entries
+ * that could have gone wrong that way are the ones citing a file that changed,
+ * so this lists them for a person or a model to read against the diff.
+ *
+ * `changed` is `[{ status, file, lines }]`: git's one-letter status and how
+ * many lines the change added and removed. `before` is the same set of entries
+ * as it stood earlier: an entry rewritten alongside the code has probably been
+ * looked at, one left alone has not.
+ *
+ * Many entries cite the same few files, so the result also lists those files:
+ * one diff read covers every entry that cites it.
+ */
+export function affectedEntries({ mapFiles, before = [], changed }) {
+  const lines = new Map(changed.map((item) => [item.file, item.lines]));
+  const earlier = new Map(
+    before.flatMap(({ file, entries }) =>
+      entries.map((entry) => [`${file}#${entry.slug}`, entry.body])
+    )
+  );
+  const cited = new Set();
+  const citing = new Map();
+  const entries = [];
+  for (const { file, entries: fileEntries } of mapFiles) {
+    for (const entry of fileEntries) {
+      for (const src of entry.src) cited.add(src);
+      const hits = entry.src.filter((src) => lines.has(src));
+      if (!hits.length) continue;
+      for (const src of hits) citing.set(src, (citing.get(src) ?? 0) + 1);
+      const was = earlier.get(`${file}#${entry.slug}`);
+      entries.push({
+        file,
+        entry: entry.heading,
+        state:
+          was === undefined ? 'new' : was === entry.body ? 'same' : 'edited',
+      });
+    }
+  }
+  const uncited = changed.filter(
+    ({ status, file }) =>
+      status !== 'D' && isAppSource(file) && !cited.has(file)
+  );
+  const added = uncited.filter(({ status }) => status === 'A');
+  return {
+    entries,
+    files: [...citing]
+      .map(([file, count]) => ({
+        file,
+        lines: lines.get(file),
+        entries: count,
+      }))
+      .sort((a, b) => b.lines - a.lines || a.file.localeCompare(b.file)),
+    added: added.map(({ file }) => file),
+    otherUncited: uncited.length - added.length,
+  };
+}
+
+const AFFECTED_NOTES = {
+  same: '',
+  edited: ' (text changed too)',
+  new: ' (new entry)',
+};
+
+/** Markdown, so it reads the same in a terminal, a job summary and a PR. */
+export function renderAffected({ entries, files, added, otherUncited }, range) {
+  const out = [];
+  const plural = (count, noun) => `${count} ${noun}${count === 1 ? '' : 's'}`;
+  if (entries.length) {
+    const untouched = entries.filter(({ state }) => state === 'same').length;
+    out.push(
+      `### Entries to re-read: ${entries.length}`,
+      '',
+      `Each cites a file that changed ${range}; ${untouched} of them kept ` +
+        'the same text. The check covers their quoted labels. What it cannot ' +
+        'see is a change to who can do it, where it is, or what happens next.',
+      ''
+    );
+    let file = '';
+    for (const item of entries) {
+      if (item.file !== file) {
+        if (file) out.push('');
+        file = item.file;
+        out.push(`**${file}**`, '');
+      }
+      out.push(`- ${item.entry}${AFFECTED_NOTES[item.state]}`);
+    }
+    out.push(
+      '',
+      `### Changed files they cite: ${files.length}`,
+      '',
+      'Biggest change first. Reading one diff covers every entry that cites it.',
+      '',
+      ...files.map(
+        (item) =>
+          `- \`${item.file}\`: ${plural(item.lines, 'line')}, ` +
+          `${item.entries} ${item.entries === 1 ? 'entry' : 'entries'}`
+      )
+    );
+  } else {
+    out.push(`No entry cites a file that changed ${range}.`);
+  }
+  if (added.length) {
+    out.push(
+      '',
+      `### New files no entry cites: ${added.length}`,
+      '',
+      'If one adds something a person could ask how to do, it needs an entry.',
+      '',
+      ...added.map((file) => `- \`${file}\``)
+    );
+  }
+  if (otherUncited) {
+    out.push(
+      '',
+      `${plural(otherUncited, 'other changed source file')} cited by no ` +
+        'entry. A behaviour change there is not on this list.'
+    );
+  }
+  return out.join('\n');
+}
+
+/**
+ * With `until`, what differs between the two named points, whichever is newer:
+ * republishing for an older build is a change too. Without it, what this
+ * checkout changed since it left `since`, so a branch that is behind does not
+ * list the other side's work. A rename counts as one file removed, one added.
+ */
+function changedFiles(root, since, until) {
+  const git = (args) =>
+    execFileSync('git', args, {
+      cwd: root,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+    });
+  const base = until ? since : git(['merge-base', since, 'HEAD']).trim();
+  const diff = (format) =>
+    git(['diff', format, '--no-renames', '-z', base, ...(until ? [until] : [])])
+      .split('\0')
+      .filter(Boolean);
+  const lines = new Map(
+    diff('--numstat').map((row) => {
+      const [added, removed, file] = row.split('\t');
+      // Binary files report "-" for both counts.
+      return [file, (Number(added) || 0) + (Number(removed) || 0)];
+    })
+  );
+  const fields = diff('--name-status');
+  const changed = [];
+  for (let i = 0; i < fields.length; i += 2) {
+    const file = fields[i + 1];
+    changed.push({ status: fields[i], file, lines: lines.get(file) ?? 0 });
+  }
+  return { base, changed };
 }
 
 // --- command line ----------------------------------------------------------
@@ -707,6 +887,33 @@ function main(argv) {
     return missingSources.length ? 1 : 0;
   }
 
+  if (command === 'affected') {
+    const since = option(args, '--since');
+    if (!since) return usage();
+    const until = option(args, '--until');
+    const { base, changed } = changedFiles(root, since, until);
+    // At a release the question is about the copy bots read, and "the same
+    // text" means the text this checkout is about to replace.
+    const result = args.includes('--published')
+      ? affectedEntries({
+          mapFiles: readPublished(reader),
+          before: readPublished(makeReader(root, 'HEAD')),
+          changed,
+        })
+      : affectedEntries({
+          mapFiles: readMap(reader),
+          before: readMap(makeReader(root, base)),
+          changed,
+        });
+    console.log(
+      renderAffected(
+        result,
+        `between \`${since}\` and ${until ? `\`${until}\`` : 'this checkout'}`
+      )
+    );
+    return 0;
+  }
+
   if (command === 'promote') {
     const app = option(args, '--app');
     if (!app) return usage();
@@ -738,6 +945,7 @@ function usage() {
     'usage: feature-map.mjs check [--ref <git-ref>]\n' +
       '       feature-map.mjs labels <file.md> [--ref <git-ref>]\n' +
       '       feature-map.mjs surface [--ref <git-ref>]\n' +
+      '       feature-map.mjs affected --since <git-ref> [--until <git-ref>] [--published]\n' +
       '       feature-map.mjs promote --app <release-tag> [--drop file.md#slug,…]'
   );
   return 2;

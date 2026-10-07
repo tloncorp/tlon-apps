@@ -28,7 +28,11 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      # Depth 2 brings in the base commit. On a pull request the checkout is
+      # the PR merged into its base, so HEAD^1 is the base.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: actions/setup-node@v4
         with:
@@ -42,3 +46,8 @@ jobs:
 
       - name: Check the guide's own quoted labels
         run: node scripts/feature-map.mjs labels packages/openclaw/skills/tlon-product-guide/SKILL.md
+
+      # Not a gate. The checks above cannot see behaviour that changes behind
+      # the same labels, so this lists the entries worth reading again.
+      - name: List the entries this PR may have made untrue
+        run: node scripts/feature-map.mjs affected --since HEAD^1 >> "$GITHUB_STEP_SUMMARY"

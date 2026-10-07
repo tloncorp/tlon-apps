@@ -14,6 +14,15 @@
 -   Error states are handled explicitly (shown, logged, and recoverable), not silently swallowed.
 -   Native dependency changes (new packages, version bumps) include a regenerated Android Gradle lockfile.
 
+## Feature Map
+
+`docs/feature-map/` is what Tlonbot tells people about the app. CI checks that every label an entry quotes is still in the code. It cannot see a behaviour change behind an unchanged label, so that part is for review.
+
+-   When a PR changes a file that an entry cites in its `<!-- src: … -->` line, read that entry against the diff. Flag it if the PR changes who can do the thing, where it is found, or what happens afterwards, and the entry was not updated. `node scripts/feature-map.mjs affected --since <base>` lists the entries; the Feature Map job prints the same list in its summary.
+-   A new button, menu item or setting with no new screen, message action, feature flag or slash command needs an entry. CI will not ask for one.
+-   PRs from `release/feature-map-*` publish the map to bots. Their description lists entries whose code changed between two releases but whose text did not. Read those against `git diff <previous> <release>` for the files they cite, not just the lines the PR changes.
+-   Files under `packages/openclaw/skills/tlon-product-guide/references/` are generated. Flag a hand edit there; do not review their wording outside a release PR.
+
 ## Style Rules
 
 -   Scope stays tight to the PR goal; remove non-essential churn.

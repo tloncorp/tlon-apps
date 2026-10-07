@@ -86,9 +86,28 @@ So when a UI change breaks the check, fix the entry in the same PR: update the
 label, add an entry for the new screen, or delete the entry for what was
 removed.
 
-What the check cannot see: behaviour that changes while the labels stay the
-same, such as a new permission rule. If you change who can do something or what
-happens after a tap, read the entries that cite the files you touched.
+## What the check cannot see
+
+Behaviour that changes while the labels stay the same: a new permission rule,
+a button that now opens a different screen, a setting that moved. Nothing
+fails, and the entry is wrong.
+
+The entries at risk are the ones that cite a file you changed. This lists them:
+
+```bash
+node scripts/feature-map.mjs affected --since origin/develop
+```
+
+It prints the entries, then the changed files they cite with the size of each
+change. Many entries cite the same few files, so work through the files: read
+each one's diff, then the entries that cite it. An entry needs fixing when the
+diff changes who can do the thing, where it is found, or what happens
+afterwards, and the text does not say so. The list ends with new files no
+entry cites, which is where a new button or menu item with no new screen
+shows up.
+
+The check's CI job prints this list in its summary for every PR. It is not a
+gate: nothing fails because of it.
 
 ## Releasing to bots
 
@@ -118,6 +137,34 @@ held back, what was kept after leaving the map), and it rewrites the index in
 `SKILL.md`. In this folder it writes `release-anchors.json`: the files and
 labels each published entry rested on, which is how an old copy can be tested
 against a release. That file is generated too; don't edit it.
+
+### Re-reading at a release
+
+A release is the last point to catch an entry that went wrong without tripping
+the check, so the release PR lists the published entries whose code changed
+since the previous release. The same list, by hand:
+
+```bash
+node scripts/feature-map.mjs affected --published \
+  --since ios-production-781 --until ios-production-789
+```
+
+`--published` looks at the copy bots read instead of the map. An entry marked
+"text changed too" or "new entry" is one this checkout is about to publish
+differently from the last commit, so it shows in the PR's diff. The unmarked
+ones are the point: their code changed and their text did not.
+
+Reading them is a job for a coding agent, since a busy release can list half
+the map. Give it the list and these steps:
+
+1. For each file under "Changed files they cite", read
+   `git diff <previous> <release> -- <file>`.
+2. Read the entries that cite it. Their `src` lines are in this folder.
+3. Report each entry the diff makes untrue, with the line of the diff that
+   does it. Leave wording alone.
+
+Fix what it finds in the map on develop, then run the promote workflow again.
+Until someone does this read, the release PR's list is only a list.
 
 ## Testing answers
 

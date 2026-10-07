@@ -576,7 +576,7 @@ Uses Drizzle ORM with SQLite for local data storage:
 
 -   `node scripts/feature-map.mjs check` runs in CI on any UI change. It fails when an entry quotes a label that is no longer in the files it cites, when a screen, message action, feature flag or slash command has no entry, or when an entry describes something that was removed.
 -   When your change trips it, fix the map in the same PR: update the label, add an entry for the new screen, or delete the entry. Add `<!-- flag: name -->` to an entry for anything behind a feature flag.
--   The check cannot see behaviour that changes while labels stay the same. If you change who can do something, or what happens after a tap, read the entries that cite the files you touched.
+-   The check cannot see behaviour that changes while labels stay the same. If you change who can do something, or what happens after a tap, read the entries that cite the files you touched. `node scripts/feature-map.mjs affected --since origin/develop` lists them.
 -   Never edit `packages/openclaw/skills/tlon-product-guide/references/` by hand. `scripts/feature-map.mjs promote` generates it for the current store build.
 
 ## Adding a New Post Blob Entry Type
