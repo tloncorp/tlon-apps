@@ -386,14 +386,16 @@ Cross-session delegation is owner-only: non-owners cannot spawn a child, send wo
 | Owner uses restricted tool | ✅ Allowed |
 | Non-owner uses restricted tool (DM or group) | ❌ Blocked; the tool result tells the model the tool is owner-only and what to say |
 | Non-owner tricks LLM into using tool | ❌ Still blocked (hook-level enforcement) |
-| Internal session (heartbeat, cron) | ✅ Allowed, including trusted internal runs sharing an interactive session key |
+| Host-attributed cron run | ✅ Allowed for its exact run ID and session key |
+| Verified isolated heartbeat without queued external input | ✅ Allowed |
+| Shared-history or unverified heartbeat | ❌ Restricted |
 
 **Implementation:**
 - `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `OWNER_ONLY_TOOL_PATTERNS`, `resolveOwnerOnlyToolBlock`)
-- Checks SenderRole from session tracker (stored the same way for DM and group senders)
-- Only blocks when role is explicitly `"user"` (a non-owner sender, DM or group)
-- Owner sessions (`"owner"`) and internal sessions (`undefined` role) are allowed
-- Host agent hooks record cron and heartbeat attribution by run ID and session key. The exact internal run overrides a stored interactive sender role; other runs using that session remain subject to the sender gate. Attribution is removed at `agent_end` or gateway shutdown. Tool parameters and session-level cron-job records cannot grant this exemption.
+- Binds the DM or group sender role to the dispatch run ID and its session keys, including thread keys. Concurrent turns cannot overwrite each other's role. Unclassified runs in known Tlon sessions fail closed.
+- Host-attributed cron runs retain access for their exact run ID and session key.
+- Heartbeat access requires host session-store metadata identifying an isolated transcript, matching the active session ID and source session. Queued plugin injections disqualify the run. Every passive Tlon system event marks its source session as untrusted for heartbeats for the lifetime of the process, including events forwarded into an isolated heartbeat. Shared-history heartbeats remain restricted even after an owner turn or process restart.
+- Run attribution is removed at `agent_end`, dispatch cleanup, or gateway shutdown. Tool parameters and session-level cron-job records cannot grant access.
 - Returns `{ block: true, blockReason }`. OpenClaw core (verified on 2026.5.28 through 2026.8.2) hands `blockReason` to the model verbatim as the tool result, so the reason states the owner-only policy and tells the model what to say; the earlier `The X tool is not available.` led bots to invent reloads and outages (TLON-6363)
 
 **Critical Invariant:**

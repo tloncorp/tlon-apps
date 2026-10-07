@@ -69,7 +69,7 @@ import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
 import {
-  clearInternalSessionRuns,
+  clearSessionRuns,
   clearSessionRunContext,
   getToolCallRole,
   recordSessionRunContext,
@@ -1358,7 +1358,7 @@ export default defineBundledChannelEntry({
       }
     });
     api.on('gateway_stop', () => {
-      clearInternalSessionRuns();
+      clearSessionRuns();
       clearCronServiceAccessor();
       resetTlonCronObservability();
     });
@@ -1565,7 +1565,32 @@ export default defineBundledChannelEntry({
       }
       await ensureCronContextLens(ctx);
     };
-    api.on('agent_turn_prepare', async (_event, ctx) => {
+    api.on('agent_turn_prepare', async (event, ctx) => {
+      if (ctx.trigger === 'heartbeat') {
+        // The host gives isolated heartbeats a fresh transcript and records
+        // their source session. Shared-history and queued-input runs fail closed.
+        let heartbeatSession;
+        if (
+          ctx.sessionKey &&
+          ctx.sessionId &&
+          event.queuedInjections.length === 0
+        ) {
+          try {
+            const session = api.runtime.agent.session;
+            heartbeatSession = session.getSessionEntry({
+              sessionKey: ctx.sessionKey,
+              storePath: session.resolveStorePath(api.config.session?.store, {
+                agentId: ctx.agentId,
+              }),
+            });
+          } catch (error) {
+            api.logger.warn(
+              `[tlon] Cannot verify heartbeat isolation: ${String(error)}`
+            );
+          }
+        }
+        recordSessionRunContext(ctx, heartbeatSession);
+      }
       beginCronSilenceObservation(ctx);
       beginTlonTurnSilenceObservation(ctx);
       // Cron has no active Tlon turn recorder, so its output trace stays nullable.

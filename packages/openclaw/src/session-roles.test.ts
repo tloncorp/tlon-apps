@@ -3,143 +3,173 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { resolveOwnerOnlyToolBlock } from './owner-only-tools.js';
 import {
   _testing,
-  clearInternalSessionRuns,
+  clearSessionRuns,
   clearSessionRunContext,
-  getSessionRole,
   getToolCallRole,
+  recordExternalSessionEvent,
+  recordSenderRole,
   recordSessionRunContext,
-  setSessionRole,
 } from './session-roles.js';
 
-describe('session roles', () => {
-  afterEach(() => {
-    _testing.clearAll();
+const sessionKey = 'agent:main:main';
+const userRun = { sessionKey, runId: 'user-run' };
+const ownerRun = { sessionKey, runId: 'owner-run' };
+const heartbeatRun = {
+  sessionKey: `${sessionKey}:heartbeat`,
+  sessionId: 'fresh-heartbeat-session',
+  runId: 'heartbeat-run',
+  trigger: 'heartbeat',
+};
+const isolatedSession = {
+  sessionId: heartbeatRun.sessionId,
+  heartbeatIsolatedBaseSessionKey: sessionKey,
+};
+
+function expectMcpBlocked(
+  ctx: Parameters<typeof getToolCallRole>[0],
+  blocked: boolean
+) {
+  for (const tool of [
+    'mcp__call',
+    'linear__create_issue',
+    'sessions_spawn',
+    'sessions_send',
+  ]) {
+    expect(resolveOwnerOnlyToolBlock(tool, getToolCallRole(ctx)).blocked).toBe(
+      blocked
+    );
+  }
+}
+
+afterEach(() => _testing.clearAll());
+
+describe('run-scoped sender roles', () => {
+  it('keeps a non-owner restricted while a later owner turn shares its session', () => {
+    recordSenderRole(userRun.runId, [sessionKey], 'user');
+    recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
+    expectMcpBlocked(userRun, true);
+    expectMcpBlocked(ownerRun, false);
+    expectMcpBlocked({ sessionKey, runId: 'queued-run' }, true);
+    expectMcpBlocked({ sessionKey }, true);
   });
 
-  it('returns the stored role for an exact session key', () => {
-    setSessionRole('agent:main:tlon:direct:~ten', 'owner');
-    expect(getSessionRole('agent:main:tlon:direct:~ten')).toBe('owner');
-    expect(getSessionRole('agent:main:tlon:direct:~zod')).toBeUndefined();
+  it('does not downgrade an active owner when a non-owner arrives', () => {
+    recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
+    recordSenderRole(userRun.runId, [sessionKey], 'user');
+    expectMcpBlocked(ownerRun, false);
+    expectMcpBlocked(userRun, true);
   });
 
-  it('falls back to the thread parent key', () => {
-    setSessionRole('agent:main:tlon:direct:~ten', 'user');
-    expect(
-      getSessionRole('agent:main:tlon:direct:~ten:thread:170.141.184')
-    ).toBe('user');
+  it('binds aliases and thread keys to the same run, not other runs or sessions', () => {
+    const alias = 'agent:main:tlon:direct:~ten';
+    recordSenderRole(ownerRun.runId, [sessionKey, alias], 'owner');
+    expectMcpBlocked({ ...ownerRun, sessionKey: `${alias}:thread:1` }, false);
+    expectMcpBlocked({ ...userRun, sessionKey: alias }, true);
+    expectMcpBlocked(
+      { ...ownerRun, sessionKey: 'agent:main:tlon:group:other' },
+      true
+    );
   });
 
-  it('prefers a role stored under the exact thread key', () => {
-    setSessionRole('agent:main:tlon:direct:~ten', 'owner');
-    setSessionRole('agent:main:tlon:direct:~ten:thread:1', 'user');
-    expect(getSessionRole('agent:main:tlon:direct:~ten:thread:1')).toBe('user');
+  it('cleans only the matching run and fails closed after cleanup', () => {
+    recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
+    recordSenderRole(userRun.runId, [sessionKey], 'user');
+    clearSessionRunContext({ ...ownerRun, sessionKey: 'other' });
+    clearSessionRunContext({ sessionKey });
+    expectMcpBlocked(ownerRun, false);
+    clearSessionRunContext(ownerRun);
+    expectMcpBlocked(ownerRun, true);
+    expectMcpBlocked(userRun, true);
   });
 
-  it('returns undefined when neither thread nor parent key has a role', () => {
-    expect(
-      getSessionRole('agent:main:tlon:direct:~ten:thread:1')
-    ).toBeUndefined();
+  it('fails closed for missing tool context', () => {
+    expectMcpBlocked({ runId: ownerRun.runId }, true);
+  });
+
+  it('preserves separate internal-session access', () => {
+    expectMcpBlocked(
+      { sessionKey: 'agent:main:subagent:child', runId: 'child' },
+      false
+    );
   });
 });
 
-describe('tool-call roles for shared sessions', () => {
-  const sessionKey = 'agent:main:main';
+describe('internal run attribution', () => {
   const cronRun = { sessionKey, runId: 'cron-run', trigger: 'cron' };
 
-  afterEach(() => {
-    _testing.clearAll();
+  it('allows an exact cron run without granting concurrent interactive runs access', () => {
+    recordSenderRole(userRun.runId, [sessionKey], 'user');
+    recordSessionRunContext(cronRun);
+    expectMcpBlocked(cronRun, false);
+    expectMcpBlocked(userRun, true);
+    expectMcpBlocked({ ...cronRun, runId: 'other' }, true);
   });
 
-  it.each(['cron', 'heartbeat'])(
-    'allows a trusted %s run without changing the non-owner sender role',
-    (trigger) => {
-      setSessionRole(sessionKey, 'user');
-      const run = { ...cronRun, trigger };
-      recordSessionRunContext(run);
+  it('does not overwrite an attributed sender with an internal trigger', () => {
+    recordSenderRole(userRun.runId, [sessionKey], 'user');
+    recordSessionRunContext({ ...userRun, trigger: 'cron' });
+    expectMcpBlocked(userRun, true);
+  });
 
-      for (const tool of ['mcp__call', 'linear__create_issue']) {
-        expect(resolveOwnerOnlyToolBlock(tool, getToolCallRole(run))).toEqual({
-          ownerOnly: true,
-          blocked: false,
-        });
-      }
-      expect(getSessionRole(sessionKey)).toBe('user');
-      expect(
-        resolveOwnerOnlyToolBlock(
-          'mcp__call',
-          getToolCallRole({ sessionKey, runId: 'interactive-run' })
-        ).blocked
-      ).toBe(true);
+  it('clears run grants at shutdown while retaining known Tlon sessions', () => {
+    recordSenderRole(userRun.runId, [sessionKey], 'user');
+    recordSessionRunContext(cronRun);
+    clearSessionRuns();
+    expectMcpBlocked(cronRun, true);
+  });
+
+  it('does not grant shared-history heartbeats access, even after an owner turn', () => {
+    recordSenderRole(userRun.runId, [sessionKey], 'user');
+    recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
+    const run = { ...heartbeatRun, sessionKey };
+    recordSessionRunContext(run, { sessionId: run.sessionId });
+    expectMcpBlocked(run, true);
+  });
+
+  it('blocks unverified heartbeats even without any in-memory sender history', () => {
+    const run = { ...heartbeatRun, sessionKey };
+    recordSessionRunContext(run);
+    expectMcpBlocked(run, true);
+  });
+
+  it('preserves access for a verified isolated heartbeat with no external events', () => {
+    recordSenderRole(userRun.runId, [sessionKey], 'user');
+    recordSessionRunContext(heartbeatRun, isolatedSession);
+    recordSessionRunContext(heartbeatRun);
+    recordSessionRunContext({ ...heartbeatRun, trigger: undefined });
+    expectMcpBlocked(heartbeatRun, false);
+    expectMcpBlocked(userRun, true);
+    expectMcpBlocked({ ...heartbeatRun, runId: 'unverified-heartbeat' }, true);
+  });
+
+  it.each([sessionKey, heartbeatRun.sessionKey])(
+    'blocks external events queued on %s from elevating an isolated heartbeat',
+    (eventSession) => {
+      recordExternalSessionEvent(eventSession);
+      recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
+      recordSessionRunContext(heartbeatRun, isolatedSession);
+      expectMcpBlocked(heartbeatRun, true);
+      clearSessionRuns();
+      recordSessionRunContext(heartbeatRun, isolatedSession);
+      expectMcpBlocked(heartbeatRun, true);
     }
   );
 
-  it('requires both the recorded run ID and session key', () => {
-    setSessionRole(sessionKey, 'user');
-    setSessionRole('another-session', 'user');
-    recordSessionRunContext(cronRun);
-
-    expect(getToolCallRole({ sessionKey })).toBe('user');
-    expect(getToolCallRole({ sessionKey, runId: 'another-run' })).toBe('user');
-    expect(
-      getToolCallRole({ sessionKey: 'another-session', runId: cronRun.runId })
-    ).toBe('user');
+  it('does not taint a separate isolated heartbeat source', () => {
+    recordExternalSessionEvent('agent:other:main');
+    recordSessionRunContext(heartbeatRun, isolatedSession);
+    expectMcpBlocked(heartbeatRun, false);
   });
 
-  it('does not infer a grant from an unrecorded trigger or incomplete context', () => {
-    setSessionRole(sessionKey, 'user');
-    expect(getToolCallRole(cronRun)).toBe('user');
-    recordSessionRunContext({ sessionKey, trigger: 'cron' });
-    recordSessionRunContext({ runId: cronRun.runId, trigger: 'cron' });
-    recordSessionRunContext({ sessionKey, runId: cronRun.runId });
-    expect(getToolCallRole(cronRun)).toBe('user');
-  });
-
-  it('keeps attribution across duplicate hooks and hooks without a trigger', () => {
-    setSessionRole(sessionKey, 'user');
-    recordSessionRunContext(cronRun);
-    recordSessionRunContext(cronRun);
-    recordSessionRunContext({ sessionKey, runId: cronRun.runId });
-    expect(getToolCallRole(cronRun)).toBeUndefined();
-  });
-
-  it('revokes attribution when the host explicitly marks the run interactive', () => {
-    setSessionRole(sessionKey, 'user');
-    recordSessionRunContext(cronRun);
-    recordSessionRunContext({ ...cronRun, trigger: 'user' });
-    expect(getToolCallRole(cronRun)).toBe('user');
-  });
-
-  it('cleans up only the matching run at agent end', () => {
-    setSessionRole(sessionKey, 'user');
-    recordSessionRunContext(cronRun);
-    clearSessionRunContext({ sessionKey, runId: 'older-run' });
-    clearSessionRunContext({
-      sessionKey: 'another-session',
-      runId: cronRun.runId,
-    });
-    clearSessionRunContext({ sessionKey });
-    expect(getToolCallRole(cronRun)).toBeUndefined();
-
-    clearSessionRunContext(cronRun);
-    expect(getToolCallRole(cronRun)).toBe('user');
-    expect(getSessionRole(sessionKey)).toBe('user');
-  });
-
-  it('clears internal attribution at shutdown without erasing sender roles', () => {
-    setSessionRole(sessionKey, 'user');
-    recordSessionRunContext(cronRun);
-    clearInternalSessionRuns();
-    expect(getToolCallRole(cronRun)).toBe('user');
-  });
-
-  it('preserves owner and separate internal-session access', () => {
-    setSessionRole(sessionKey, 'owner');
-    expect(getToolCallRole({ sessionKey, runId: 'owner-run' })).toBe('owner');
-    expect(
-      getToolCallRole({
-        sessionKey: 'agent:main:cron:job',
-        runId: 'isolated-run',
-      })
-    ).toBeUndefined();
+  it.each([
+    { sessionId: 'stale-session', heartbeatIsolatedBaseSessionKey: sessionKey },
+    { sessionId: heartbeatRun.sessionId },
+    {
+      sessionId: heartbeatRun.sessionId,
+      heartbeatIsolatedBaseSessionKey: 'other',
+    },
+  ])('rejects missing or mismatched isolation metadata: %j', (entry) => {
+    recordSessionRunContext(heartbeatRun, entry);
+    expectMcpBlocked(heartbeatRun, true);
   });
 });
