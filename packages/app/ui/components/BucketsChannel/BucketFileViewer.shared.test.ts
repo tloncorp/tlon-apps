@@ -460,8 +460,8 @@ describe('htmlPreviewHasScripts', () => {
     '<select><iframe><script>run()</script></iframe></select>',
     '<select><style><script>run()</script></style></select>',
     '<select><xmp><script>run()</script></xmp></select>',
-    // A script runs when its type, or without one its language, names
-    // JavaScript or a module. The standard trims a module type too, and
+    // A script runs when its type, or without one an HTML script's language,
+    // names JavaScript or a module. The standard trims a module type too, and
     // Chromium a vertical tab.
     '<script type=" TEXT/JavaScript ">go()</script>',
     '<script type="text&#47;javascript">go()</script>',
@@ -471,6 +471,7 @@ describe('htmlPreviewHasScripts', () => {
     '<script type=" module ">go()</script>',
     '<script type="\u000btext/javascript">go()</script>',
     '<svg><script type="text/ecmascript">go()</script></svg>',
+    '<svg><script language="vbscript">go()</script></svg>',
     '<script type="application/ld+json">{}</script><script>go()</script>',
     // A browser that runs modules skips a classic HTML script marked
     // nomodule, but not a module or an SVG script.
@@ -813,6 +814,13 @@ describe('htmlPreviewDocument without scripts', () => {
     ['<select><base href="https://t.example/"></select><a href="help.html">x</a>', '<a target="_blank">x</a>'],
     // An input closes the select, so a base after it is the document's.
     ['<select><input><base href="https://t.example/"><a href="help.html">x</a>', '<a target="_blank" href="https://t.example/help.html">x</a>'],
+    // A frame's document inherits the base set by the time the parser reached
+    // the frame, which its own base resolves against, or replaces.
+    ['<base href="https://docs.example/guide/"><iframe srcdoc="<a href=help>h</a>"></iframe>', 'href=&quot;https://docs.example/guide/help&quot;'],
+    ['<iframe srcdoc="<a href=help>h</a>"></iframe><base href="https://late.example/">', 'srcdoc="&lt;a target=&quot;_blank&quot;&gt;h&lt;/a&gt;"'],
+    ['<base href="https://docs.example/guide/"><iframe srcdoc="<base href=sub/><a href=help>h</a>"></iframe>', 'href=&quot;https://docs.example/guide/sub/help&quot;'],
+    ['<base href="https://docs.example/guide/"><iframe srcdoc="<base href=data:,x><a href=help>h</a>"></iframe>', 'href=&quot;https://docs.example/guide/help&quot;'],
+    ['<base href="https://docs.example/guide/"><iframe srcdoc="<base href=mid/><iframe srcdoc=&quot;<a href=help>h</a>&quot;></iframe>"></iframe>', 'https://docs.example/guide/mid/help'],
     // A MathML element's href, which WebKit follows, is settled too.
     ['<math><mtext href="tlon://open">x</mtext></math>', '<mtext target="_blank">x</mtext>'],
     // An area inside an svg is an unknown element, which nothing follows.
@@ -895,6 +903,27 @@ describe('hostile markup', () => {
       htmlPreviewTitle(nearCap + '</svg>'.repeat(120) + '<title>T</title>')
     ).toBe('T');
     expect(htmlPreviewHasScripts(nested('<p>static</p>', 400))).toBe(true);
+  });
+
+  // The browser parses an inline frame's document itself, as slowly. One the
+  // frame's own sandbox keeps from scripts holds markup in its noscript.
+  it('declines a file whose inline frame nests too deep', () => {
+    const deep = '<div>'.repeat(1000);
+    for (const html of [
+      nested(deep, 1),
+      nested(deep, 3),
+      nested('<p>static</p>', 4),
+      `<iframe sandbox="allow-popups" srcdoc="<noscript>${deep}</noscript>"></iframe>`,
+    ]) {
+      expect(htmlPreviewReadable(html)).toBe(false);
+    }
+    const noscript = `<iframe srcdoc="<noscript>${deep}</noscript>"></iframe>`;
+    expect(htmlPreviewReadable(noscript)).toBe(true);
+    expect(htmlPreviewReadable(noscript, { scripting: false })).toBe(false);
+    expect(htmlPreviewReadable(nested('<p>static</p>', 3))).toBe(true);
+    expect(htmlPreviewReadable(`<template>${nested(deep, 1)}</template>`)).toBe(
+      true
+    );
   });
 });
 

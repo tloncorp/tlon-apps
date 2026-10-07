@@ -753,18 +753,29 @@ function parseHtml(html: string, scripting: boolean): ParsedHtml | null {
   }
 }
 
-// The last file parsed: the viewer reads a file's title, its scripts and its
-// markup in turn, each from the same tree.
+// The last file parsed: the viewer asks whether it can read a file on every
+// render, and reads its title, its scripts and its markup in turn, each from
+// the same tree.
 let lastParsed:
-  | { html: string; scripting: boolean; parsed: ParsedHtml | null }
+  | {
+      html: string;
+      scripting: boolean;
+      parsed: ParsedHtml | null;
+      readable?: boolean;
+    }
   | undefined;
 
-/** parseHtml, kept for the file read last. */
-function parsedHtml(html: string, scripting: boolean): ParsedHtml | null {
+/** The file read last, parsed (parseHtml). */
+function lastParsedOf(html: string, scripting: boolean) {
   if (lastParsed?.html !== html || lastParsed.scripting !== scripting) {
     lastParsed = { html, scripting, parsed: parseHtml(html, scripting) };
   }
-  return lastParsed.parsed;
+  return lastParsed;
+}
+
+/** parseHtml, kept for the file read last. */
+function parsedHtml(html: string, scripting: boolean): ParsedHtml | null {
+  return lastParsedOf(html, scripting).parsed;
 }
 
 /**
@@ -801,16 +812,60 @@ function attributeOf(
 }
 
 /**
- * Whether the preview can read an HTML file: false when it nests elements
- * deeper than MAX_PARSE_DEPTH, which no real page does, so the viewer offers
- * Open instead. Read as a frame that runs scripts, or one that does not
+ * Whether the preview can read an HTML file: false when it, or the document
+ * of an inline frame in it, nests elements deeper than MAX_PARSE_DEPTH, which
+ * no real page does, or when it nests one `srcdoc` in another deeper than
+ * MAX_NESTED_DOCUMENTS, which are not read; the viewer offers Open instead.
+ * The file is read as a frame that runs scripts, or one that does not
  * (`scripting: false`, under Electron), reads it.
  */
 export function htmlPreviewReadable(
   html: string,
   { scripting = true }: { scripting?: boolean } = {}
 ): boolean {
-  return parsedHtml(html, scripting) !== null;
+  const read = lastParsedOf(html, scripting);
+  read.readable ??=
+    read.parsed !== null && framesReadable(read.parsed.document, scripting);
+  return read.readable;
+}
+
+/**
+ * Whether the `srcdoc` documents in `document` read: the browser parses each
+ * itself, and is as slow as the parser on markup nested past MAX_PARSE_DEPTH
+ * -- Chromium and WebKit each took over a minute on a megabyte of nested
+ * divs, on web on the app's own thread. An inline frame in an ordinary
+ * template never loads. Each document is read as its frame reads it, which
+ * runs scripts only where the frame around it does and its own `sandbox`
+ * allows them.
+ */
+function framesReadable(
+  document: ParsedDocument,
+  scripting: boolean,
+  depth = 0
+): boolean {
+  for (const element of elementsOf(document, shadowRootsAttached())) {
+    const srcdoc =
+      element.nodeName === 'iframe' && element.namespaceURI === NS.HTML
+        ? attributeOf(element, 'srcdoc')
+        : undefined;
+    if (srcdoc === undefined) continue;
+    if (depth >= MAX_NESTED_DOCUMENTS) return false;
+    const sandbox = attributeOf(element, 'sandbox');
+    const frameScripting =
+      scripting &&
+      (sandbox === undefined ||
+        asciiLowercase(sandbox)
+          .split(/[\t\n\f\r ]/)
+          .includes('allow-scripts'));
+    const nested = parseHtml(srcdoc, frameScripting);
+    if (
+      !nested ||
+      !framesReadable(nested.document, frameScripting, depth + 1)
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -827,7 +882,7 @@ export function htmlPreviewTitle(
   { scripting = true }: { scripting?: boolean } = {}
 ): string | undefined {
   const parsed = parsedHtml(html, scripting);
-  if (!parsed) return undefined;
+  if (!parsed || !htmlPreviewReadable(html, { scripting })) return undefined;
   for (const element of elementsOf(parsed.document, () => false)) {
     if (element.nodeName !== 'title' || element.namespaceURI !== NS.HTML) {
       continue;
@@ -947,17 +1002,21 @@ const JAVASCRIPT_MIME_TYPES = new Set([
 /**
  * What a browser prepares a script element as: a classic script, a module,
  * or data it never runs.
- * Without a type its language names one (`text/` and the language), and with
- * neither it is JavaScript; an empty type is JavaScript; any other type,
- * trimmed, must be exactly a JavaScript MIME type (a `charset` parameter makes
- * it data) or `module`. JSON-LD, `text/plain`, a template, an import map or
- * speculation rules never run. Chromium also trims a vertical tab from the
- * type.
+ * Without a type an HTML script's language names one (`text/` and the
+ * language), and with neither it is JavaScript, as an SVG script without a
+ * type always is: Chromium and WebKit ignore its language. An empty type is
+ * JavaScript; any other type, trimmed, must be exactly a JavaScript MIME type
+ * (a `charset` parameter makes it data) or `module`. JSON-LD, `text/plain`, a
+ * template, an import map or speculation rules never run. Chromium also trims
+ * a vertical tab from the type.
  */
 function scriptKind(script: ParsedElement): 'classic' | 'module' | undefined {
   const value = attributeOf(script, 'type');
   if (value === undefined) {
-    const language = attributeOf(script, 'language');
+    const language =
+      script.namespaceURI === NS.HTML
+        ? attributeOf(script, 'language')
+        : undefined;
     if (language === undefined) return 'classic';
     return language === '' ||
       JAVASCRIPT_MIME_TYPES.has(`text/${asciiLowercase(language)}`)
@@ -1128,8 +1187,9 @@ function shadowRootsAttached(): (template: ParsedElement) => boolean {
  * content is inert, though inside a declarative shadow root. A page without
  * any renders the same with scripts off, so there is nothing to run. A
  * `srcdoc` nested deeper than MAX_NESTED_DOCUMENTS, or deeper than the parser
- * reads, is taken to have some; a file the preview cannot read
- * (htmlPreviewReadable) offers nothing to run.
+ * reads, is taken to have some, and a file itself nesting deeper than the
+ * parser reads offers nothing to run; the preview reads neither file
+ * (htmlPreviewReadable).
  *
  * Each document is read as a frame that runs scripts reads it, and a select
  * as WebKit and Electron's Chromium read it, holding scripts but dropping
@@ -1704,26 +1764,58 @@ function withoutAttributes(attributes: string, names: Set<string>): string {
 }
 
 /**
- * The file's own base, when its relative links may resolve against it: the
- * first HTML `<base href>` the parser makes the document's -- not one in a
- * template, an svg or math, nor, as Electron's parser drops it, one in a
- * select -- when that is an absolute web address, or a scheme-relative one,
- * which takes https as a link does. No base, a relative one or one that does
- * not parse gives them nowhere to go: a Bucket file has no address of its own
- * its neighbours could be reached from.
+ * A document's `<base href>` elements, in tree order: the HTML ones the
+ * parser makes the document's -- not one in a template, an svg or math, nor,
+ * as Electron's parser drops it, one in a select. The first sets the
+ * document's base.
  */
-function fileWebBase(document: ParsedDocument): string | undefined {
+function baseElements(document: ParsedDocument): ParsedElement[] {
+  const bases: ParsedElement[] = [];
   for (const element of elementsOf(document, () => false)) {
-    if (element.nodeName !== 'base' || element.namespaceURI !== NS.HTML) {
-      continue;
+    if (
+      element.nodeName === 'base' &&
+      element.namespaceURI === NS.HTML &&
+      attributeOf(element, 'href') !== undefined
+    ) {
+      bases.push(element);
     }
-    const href = attributeOf(element, 'href');
-    if (href === undefined) continue;
-    const value = urlText(href);
-    const base = linkAddress(value.startsWith('//') ? `https:${value}` : value);
-    return base !== undefined && /^https?:/.test(base) ? base : undefined;
   }
-  return undefined;
+  return bases;
+}
+
+/**
+ * Where relative links under `base` resolve, when they may: its address
+ * resolved against the base its document inherits, when that is a web
+ * address. A Bucket file inherits none it may use -- it has no address of its
+ * own its neighbours could be reached from -- so there only an absolute web
+ * base counts, or a scheme-relative one, which takes https as a link does;
+ * without one, links go nowhere. A `srcdoc` document inherits the base around
+ * it. A base that does not parse is passed over for the inherited one, and,
+ * as in Chromium, so is one naming a `data:` or `javascript:` URL.
+ */
+function webBase(
+  base: ParsedElement | undefined,
+  inherited: string | undefined
+): string | undefined {
+  if (base === undefined) return inherited;
+  const value = urlText(attributeOf(base, 'href') ?? '');
+  let url: URL;
+  try {
+    url = new URL(
+      inherited === undefined && value.startsWith('//')
+        ? `https:${value}`
+        : value,
+      inherited
+    );
+  } catch {
+    return inherited;
+  }
+  if (url.protocol === 'data:' || url.protocol === 'javascript:') {
+    return inherited;
+  }
+  return url.protocol === 'http:' || url.protocol === 'https:'
+    ? url.href
+    : undefined;
 }
 
 /**
@@ -1778,13 +1870,14 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
  * - Any other scheme -- `data:`, `javascript:`, `file:`, an app's own -- loses
  *   its address and with it its link, so no click can open an unsandboxed
  *   document or hand an address to another app.
- * - A relative link resolves against the file's own base (fileWebBase), and
+ * - A relative link resolves against the file's own base (webBase), and
  *   without one goes nowhere, except that a fragment stays in the file: it
  *   points at `about:srcdoc#section`, aimed at the frame itself, which
  *   scrolls there without reloading. A scheme-relative one takes https.
  * - A document in an `<iframe srcdoc>` inherits the frame's popups, so its
  *   links are settled too, MAX_NESTED_DOCUMENTS deep; a `srcdoc` deeper than
- *   that is dropped.
+ *   that is dropped. It inherits the base the document around it had when
+ *   the parser reached the frame, as Chromium takes it.
  *
  * With no script to change it, the markup is the document, so rewriting it
  * covers every link. Each document is parsed as a frame without scripts
@@ -1793,10 +1886,15 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
  * link the parser drops (inside a select). Null when the file cannot be read
  * (htmlPreviewReadable); a nested document that cannot be is dropped.
  */
-function withLinksAimedAtBlank(html: string, depth = 0): string | null {
+function withLinksAimedAtBlank(
+  html: string,
+  depth = 0,
+  inherited?: string
+): string | null {
   const parsed = depth === 0 ? parsedHtml(html, false) : parseHtml(html, false);
   if (!parsed) return null;
-  const base = fileWebBase(parsed.document);
+  const bases = baseElements(parsed.document);
+  const base = webBase(bases[0], inherited);
   const edits: { start: number; end: number; text: string }[] = [];
   const rewritten = new Set<number>();
   for (const element of elementsOf(parsed.document, () => true)) {
@@ -1845,9 +1943,20 @@ function withLinksAimedAtBlank(html: string, depth = 0): string | null {
         (address === undefined ? '' : ` href="${escapeAttribute(address)}"`) +
         withoutAttributes(attributes, LINK_ATTRIBUTES);
     } else {
+      // The frame's document inherits the base set by the time the parser
+      // reached the frame.
+      const reached = bases.find(
+        (candidate) =>
+          (candidate.sourceCodeLocation?.startOffset ?? Infinity) <
+          tag.startOffset
+      );
       const nested =
         depth < MAX_NESTED_DOCUMENTS && srcdoc !== undefined
-          ? withLinksAimedAtBlank(srcdoc, depth + 1)
+          ? withLinksAimedAtBlank(
+              srcdoc,
+              depth + 1,
+              webBase(reached, inherited)
+            )
           : null;
       text =
         (nested === null ? '' : ` srcdoc="${escapeAttribute(nested)}"`) +

@@ -162,14 +162,17 @@ describe('BucketFileViewer html preview (web)', () => {
       subtitle: '4 KB',
     });
 
-    // Nesting deeper than the preview reads, it gets the notice and Open.
-    const deep = render({
-      ...htmlFile,
-      textContent: '<title>Deep</title>' + '<div>'.repeat(1000),
-    });
-    expect(frames(deep)).toHaveLength(0);
-    expect(enableScriptsButton(deep)).toBeUndefined();
-    expect(headerOf(deep).title).toBe('report.html');
+    // Nesting deeper than the preview reads, in the file or an inline frame's
+    // document, it gets the notice and Open.
+    for (const textContent of [
+      '<title>Deep</title>' + '<div>'.repeat(1000),
+      `<title>Deep</title><iframe srcdoc="${'<div>'.repeat(1000)}"></iframe>`,
+    ]) {
+      const deep = render({ ...htmlFile, textContent });
+      expect(frames(deep)).toHaveLength(0);
+      expect(enableScriptsButton(deep)).toBeUndefined();
+      expect(headerOf(deep).title).toBe('report.html');
+    }
 
     const notes = render({
       ...htmlFile,
