@@ -484,6 +484,9 @@ describe('htmlPreviewHasScripts', () => {
     // a srcdoc document in WebKit, a host without a scheme or a wildcard one
     // in Chromium, a path prefix, a nonce the script carries.
     `<head><meta http-equiv="Content-Security-Policy" content="script-src *.jsdelivr.net"></head><script src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
+    // A base the file's own base-uri allows, or one set before that policy.
+    `<head><meta http-equiv="Content-Security-Policy" content="base-uri https://cdn.jsdelivr.net"></head><base href="https://cdn.jsdelivr.net/npm/"><script src="app.js"></script>`,
+    `<head><base href="https://cdn.jsdelivr.net/npm/"><meta http-equiv="Content-Security-Policy" content="base-uri 'none'"></head><script src="app.js"></script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src https://cdn.jsdelivr.net/npm/"></head><script src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'strict-dynamic' 'nonce-abc'"></head><script nonce="abc" src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
     '<button onclick="go()">go</button>',
@@ -647,6 +650,9 @@ describe('htmlPreviewHasScripts', () => {
     // host under 'strict-dynamic' without the script's nonce.
     `<head><meta http-equiv="Content-Security-Policy" content="script-src https://unpkg.com https://cdn.jsdelivr.net/other/ https://cdn.jsdelivr.net:8443"></head><script src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'strict-dynamic' https://cdn.jsdelivr.net"></head><script src="https://cdn.jsdelivr.net/npm/x.js"></script>`,
+    // A base the file's own base-uri refuses is passed over.
+    `<head><meta http-equiv="Content-Security-Policy" content="base-uri 'none'"></head><base href="https://cdn.jsdelivr.net/npm/"><script src="app.js"></script>`,
+    `<head><meta http-equiv="Content-Security-Policy" content="base-uri https://unpkg.com"></head><base href="https://cdn.jsdelivr.net/npm/"><script src="app.js"></script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'self' * https:"></head><script src="data:text/javascript,go()"></script>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src"></head><iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>`,
     `<head><meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline'"></head><a href="javascript:go()">x</a><svg><a href="javascript:go()"><text>x</text></a></svg>`,
@@ -811,6 +817,7 @@ describe('htmlPreviewDocument', () => {
       'event.isTrusted',
       'if (event.defaultPrevented) return;',
       'new Observer(aim)',
+      "var code = percentDecoded(raw.replace(/^javascript:/i, ''));",
       'var result = evaluate(code);',
     ]) {
       expect(out).toContain(part);
@@ -905,6 +912,7 @@ describe('htmlPreviewDocument without scripts', () => {
     ['<base href="https://exa mple.com/"><a href="/~/logout">x</a>', '<a target="_blank">x</a>'],
     ['<base href="/docs/"><a href="/~/logout">x</a>', '<a target="_blank">x</a>'],
     ['<template><base href="https://t.example/"></template><a href="help.html">x</a>', '<a target="_blank">x</a>'],
+    [`<head><meta http-equiv="Content-Security-Policy" content="base-uri 'none'"></head><base href="https://t.example/"><a href="help.html">x</a>`, '<a target="_blank">x</a>'],
     // An ordinary template never renders without a script, so its links and
     // frames are left alone; a declarative shadow root's are live.
     ['<template><a href="tlon://open" target="_self">x</a><iframe srcdoc="<a href=tlon://open>y</a>"></iframe></template>', '<template><a href="tlon://open" target="_self">x</a><iframe srcdoc="<a href=tlon://open>y</a>"></iframe></template>'],

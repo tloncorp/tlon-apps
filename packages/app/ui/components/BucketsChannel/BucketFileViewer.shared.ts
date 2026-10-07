@@ -1388,6 +1388,7 @@ interface AuthoredPolicy {
   elements?: string[];
   attributes?: string[];
   evaluation?: string[];
+  bases?: string[];
 }
 
 /** The policy a `<meta http-equiv="Content-Security-Policy">` in `<head>` sets, if `element` is one. */
@@ -1421,6 +1422,45 @@ function authoredPolicy(element: ParsedElement): AuthoredPolicy | undefined {
     elements: directives.get('script-src-elem') ?? scripts,
     attributes: directives.get('script-src-attr') ?? scripts,
     evaluation: scripts,
+    bases: directives.get('base-uri'),
+  };
+}
+
+/**
+ * The base an element resolves addresses against: the base set when the
+ * parser made it (baseReached), or `inherited` without one -- or where a
+ * `base-uri` the file's own policies had set by the time the parser made the
+ * base refuses its address in both engines, as with 'none'.
+ */
+function baseResolver(
+  document: ParsedDocument,
+  inherited: string | undefined,
+  inheritedPolicies: AuthoredPolicy[]
+): (element: ParsedElement | undefined) => string | undefined {
+  const bases = baseElements(document);
+  const reached = baseReached(bases);
+  let authored: { at: number; policy: AuthoredPolicy }[] | undefined;
+  return (element) => {
+    const base = element === undefined ? bases[0] : reached(element);
+    const address = webBase(base, inherited);
+    if (base === undefined || address === undefined || address === inherited) {
+      return address;
+    }
+    authored ??= [...elementsOf(document, () => false)].flatMap((meta) => {
+      const policy = authoredPolicy(meta);
+      return policy ? [{ at: createdAt(meta), policy }] : [];
+    });
+    const url = new URL(address);
+    const refused = [
+      ...inheritedPolicies,
+      ...authored.filter(({ at }) => at < createdAt(base)).map((a) => a.policy),
+    ].some(
+      ({ bases: list }) =>
+        list !== undefined &&
+        (allowsNothing(list) ||
+          !list.some((source) => sourceMatches(source, url)))
+    );
+    return refused ? inherited : address;
   };
 }
 
@@ -1605,10 +1645,7 @@ export function htmlPreviewHasScripts(
   if (!parsed) return depth > 0;
   // An element resolves addresses against the base set when the parser made
   // it, and the file's own policies apply from where they stand.
-  const bases = baseElements(parsed.document);
-  const reached = baseReached(bases);
-  const baseFor = (element: ParsedElement) =>
-    webBase(reached(element), inherited);
+  const baseFor = baseResolver(parsed.document, inherited, inheritedPolicies);
   const policies = [...inheritedPolicies];
   for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
     const policy = authoredPolicy(element);
@@ -1673,10 +1710,7 @@ export function htmlPreviewHasScripts(
       // A frame's document resolves against the base its document had when
       // the parser reached the frame in Chromium, but in WebKit against the
       // one it has once the frame's scripts load, which later markup may set.
-      const frameBases = new Set([
-        baseFor(element),
-        webBase(bases[0], inherited),
-      ]);
+      const frameBases = new Set([baseFor(element), baseFor(undefined)]);
       for (const frameBase of frameBases) {
         if (htmlPreviewHasScripts(srcdoc, depth + 1, frameBase, policies)) {
           return true;
@@ -2132,6 +2166,16 @@ function linkScript(key: string, nonce?: string): string {
   // As the browser scrolls to a fragment: the fragment as the URL parser
   // writes it first, then percent-decoded, and the top of the document for an
   // empty one or one that decodes to "top".
+  // A javascript: URL's code, percent-decoded as a browser decodes it: an
+  // escape that is not two hex digits stays as written, and the escaped
+  // bytes decode as UTF-8, a malformed sequence as U+FFFD.
+  function percentDecoded(text) {
+    return text.replace(/(?:%[0-9A-Fa-f]{2})+/g, function (run) {
+      var bytes = new Uint8Array(run.length / 3);
+      for (var i = 0; i < bytes.length; i++) bytes[i] = parseInt(run.substr(i * 3 + 1, 2), 16);
+      return new TextDecoder().decode(bytes);
+    });
+  }
   function scrollToFragment(raw) {
     var url = parse(raw, 'about:srcdoc');
     var fragment = url ? url.hash.slice(1) : raw.slice(1);
@@ -2172,8 +2216,7 @@ function linkScript(key: string, nonce?: string): string {
       if (/^javascript:/i.test(raw)) {
         // WebKit runs a MathML element's javascript: href itself.
         if (!runsJavascriptLinks || link.namespaceURI === MATHML) return;
-        var code;
-        try { code = decodeURIComponent(raw.replace(/^javascript:/i, '')); } catch (error) { return; }
+        var code = percentDecoded(raw.replace(/^javascript:/i, ''));
         // As a browser runs such a link: a string it completes with is the
         // markup of the document that replaces this one, which our listeners
         // then watch as they did this.
@@ -2430,9 +2473,8 @@ function withLinksAimedAtBlank(
 ): string | null {
   const parsed = depth === 0 ? parsedHtml(html, false) : parseHtml(html, false);
   if (!parsed) return null;
-  const bases = baseElements(parsed.document);
-  const base = webBase(bases[0], inherited);
-  const reached = baseReached(bases);
+  const baseFor = baseResolver(parsed.document, inherited, []);
+  const base = baseFor(undefined);
   const edits: { start: number; end: number; text: string }[] = [];
   const rewritten = new Set<number>();
   for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
@@ -2485,11 +2527,7 @@ function withLinksAimedAtBlank(
       // reached the frame.
       const nested =
         depth < MAX_NESTED_DOCUMENTS && srcdoc !== undefined
-          ? withLinksAimedAtBlank(
-              srcdoc,
-              depth + 1,
-              webBase(reached(element), inherited)
-            )
+          ? withLinksAimedAtBlank(srcdoc, depth + 1, baseFor(element))
           : null;
       text =
         (nested === null ? '' : ` srcdoc="${escapeAttribute(nested)}"`) +
