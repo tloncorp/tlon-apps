@@ -463,6 +463,7 @@ With no entries at all the snapshot's exact JSON shape is `{ "tasks": {} }`. The
 
 ## scry surface
 
+- `/x/v1/bots` → `%steward-bots-1` `(set ship)` — the owner-side trusted bots. Grows to a JSON array of `@p` strings sorted with `aor`. Workspace config reads it to name the bot a workspace is for. Served from %groups 12.3.2.
 - `/x/v1/lens/recent` → `[%recent entries]` — newest 50 runs across all bots, for backfill. Grows to `{ "recent": [ entry, … ] }` (a JSON array of entry objects).
 - `/x/v1/lens/recent/[count]` → `[%recent entries]` — newest `count` runs.
 - `/x/v1/lens/since/[da]` → `[%recent entries]` — every run with `received >= da`, newest first; paginate history by passing the oldest `received` from the last page.
