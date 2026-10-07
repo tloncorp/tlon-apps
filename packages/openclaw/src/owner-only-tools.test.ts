@@ -8,7 +8,32 @@ import {
 } from './owner-only-tools.js';
 import type { SenderRole } from './session-roles.js';
 
-const EXPECTED_OWNER_ONLY_TOOLS = ['tlon', 'cron', 'read'] as const;
+const EXPECTED_OWNER_ONLY_TOOLS = [
+  'tlon',
+  'cron',
+  'read',
+  'sessions_spawn',
+  'sessions_send',
+  'subagents',
+  'openclaw',
+  'tool_search',
+  'tool_describe',
+] as const;
+const MCP_TOOLS = [
+  'mcp__list_upstreams',
+  'mcp__search',
+  'mcp__describe',
+  'mcp__call',
+  'mcp_browser_navigate',
+  'mcp_linear_create_issue',
+  'mcp_new_upstream_tool',
+  'linear__create_issue',
+  'browser__navigate',
+  'My-server-2__search',
+  'mcp-123__list_tools',
+  'a'.repeat(30) + '__read',
+] as const;
+const RESTRICTED_TOOLS = [...EXPECTED_OWNER_ONLY_TOOLS, ...MCP_TOOLS];
 
 describe('OWNER_ONLY_TOOLS', () => {
   it('contains exactly the expected tools in advertised order', () => {
@@ -17,7 +42,7 @@ describe('OWNER_ONLY_TOOLS', () => {
 });
 
 describe('resolveOwnerOnlyToolBlock', () => {
-  it.each(EXPECTED_OWNER_ONLY_TOOLS)(
+  it.each(RESTRICTED_TOOLS)(
     'blocks %s for a non-owner user session with the policy reason',
     (tool) => {
       expect(resolveOwnerOnlyToolBlock(tool, 'user')).toEqual({
@@ -28,21 +53,29 @@ describe('resolveOwnerOnlyToolBlock', () => {
     }
   );
 
-  it.each(EXPECTED_OWNER_ONLY_TOOLS)(
-    'allows %s for the owner session',
+  it.each(RESTRICTED_TOOLS)('allows %s for the owner session', (tool) => {
+    expect(resolveOwnerOnlyToolBlock(tool, 'owner')).toEqual({
+      ownerOnly: true,
+      blocked: false,
+    });
+  });
+
+  it.each(RESTRICTED_TOOLS)(
+    'blocks %s without explicit run authority',
     (tool) => {
-      expect(resolveOwnerOnlyToolBlock(tool, 'owner')).toEqual({
+      expect(resolveOwnerOnlyToolBlock(tool, undefined)).toEqual({
         ownerOnly: true,
-        blocked: false,
+        blocked: true,
+        reason: formatOwnerOnlyToolBlockReason(tool),
       });
     }
   );
 
-  it.each(EXPECTED_OWNER_ONLY_TOOLS)(
-    'allows %s for internal sessions without a stored role',
+  it.each(['mcp', 'mcpx_tool', 'other_mcp_tool'])(
+    'does not match %s as an MCP tool',
     (tool) => {
-      expect(resolveOwnerOnlyToolBlock(tool, undefined)).toEqual({
-        ownerOnly: true,
+      expect(resolveOwnerOnlyToolBlock(tool, 'user')).toEqual({
+        ownerOnly: false,
         blocked: false,
       });
     }
@@ -60,6 +93,16 @@ describe('resolveOwnerOnlyToolBlock', () => {
 });
 
 describe('formatOwnerOnlyToolBlockReason', () => {
+  it.each([...MCP_TOOLS, `mcp_${'upstream_'.repeat(100)}`])(
+    'identifies the MCP family for %s within the owner-notice cap',
+    (tool) => {
+      const reason = formatOwnerOnlyToolBlockReason(tool);
+      expect(reason).toBe(formatOwnerOnlyToolBlockReason('mcp_*'));
+      expect(reason).toContain('the MCP tool is owner-only');
+      expect(reason.length).toBeLessThanOrEqual(200);
+    }
+  );
+
   it.each(EXPECTED_OWNER_ONLY_TOOLS)(
     'states the owner-only policy for %s',
     (tool) => {

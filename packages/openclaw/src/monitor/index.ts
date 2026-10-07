@@ -66,8 +66,16 @@ import {
 } from '../pending-nudge.js';
 import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
-import { OWNER_ONLY_TOOLS } from '../owner-only-tools.js';
-import { setSessionRole } from '../session-roles.js';
+import {
+  OWNER_ONLY_TOOLS,
+  OWNER_ONLY_TOOL_PATTERNS,
+} from '../owner-only-tools.js';
+import {
+  finishSenderDispatch,
+  queuedSenderCorrelation,
+  recordExternalSessionEvent,
+  recordSenderRole,
+} from '../session-roles.js';
 import {
   DM_INVITE_PREVIEW,
   type TlonSettingsStore,
@@ -3184,7 +3192,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const currentLens = contextLenses.get(lens.lensId);
         contextLenses.update(lens.lensId, {
           tools: {
-            ownerOnlyAvailable: [...OWNER_ONLY_TOOLS],
+            ownerOnlyAvailable: [
+              ...OWNER_ONLY_TOOLS,
+              ...OWNER_ONLY_TOOL_PATTERNS,
+            ],
             called: currentLens?.tools.called ?? [],
             callCount: currentLens?.tools.callCount ?? 0,
             lastStartedAt: currentLens?.tools.lastStartedAt ?? null,
@@ -3192,12 +3203,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           },
         });
       }
-      // Store role for before_tool_call hook (tool access control)
-      for (const sessionKey of lensSessionKeys) {
-        setSessionRole(sessionKey, senderRole);
-      }
       runtime.log?.(
-        `[tlon] Stored session role: sessionKeys=${lensSessionKeys.join(', ')}, role=${senderRole}`
+        `[tlon] Resolved sender role: sessionKeys=${lensSessionKeys.join(', ')}, role=${senderRole}`
       );
 
       const senderDisplay = formatShipWithNickname(senderShip);
@@ -3476,6 +3483,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ...(sourceReplyDeliveryMode ? { sourceReplyDeliveryMode } : {}),
         ...resolveTimeoutOverrideReplyOptions(dispatchTimeoutMs),
         runId,
+        queuedDeliveryCorrelations: [
+          queuedSenderCorrelation(lensSessionKeys, senderRole),
+        ],
         onCompactionStart: compactionTimeoutObserver.start,
         onCompactionEnd: compactionTimeoutObserver.complete,
         onModelSelected: ({ provider, model, thinkLevel }) => {
@@ -3521,6 +3531,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let turnSummary: TlonAgentTurnSummary | undefined;
 
       try {
+        recordSenderRole(runId, lensSessionKeys, senderRole);
         try {
           contextLenses.setStatus(lens.lensId, 'dispatching');
           contextLenses.recordLifecycle(lens.lensId, {
@@ -3799,6 +3810,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           dispatchError ? 'error' : 'completed',
           dispatchError
         );
+        finishSenderDispatch({ runId, sessionKey: route.sessionKey });
         unbindContextLensFromSession(lensSessionKeys, lens.lensId);
         // A reply the model issued by calling the `message` tool itself lands
         // through the outbound adapter, which records it on the lens but never
@@ -4268,6 +4280,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   // Reactions on other people's messages are passive system
                   // events, including targets whose author cannot be resolved.
                   enqueueSystemEvent: (eventText) => {
+                    recordExternalSessionEvent(route.sessionKey);
                     core.system.enqueueSystemEvent(eventText, {
                       sessionKey: route.sessionKey,
                       contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
@@ -4910,6 +4923,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   : '';
                 const reactorDisplay = formatShipWithNickname(reactAuthor);
                 const eventText = `Tlon DM reaction ${action}: ${reactEmoji} by ${reactorDisplay} on message ${messageId}${authorInfo}${contentSnippet}`;
+                recordExternalSessionEvent(route.sessionKey);
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${reactAuthor}:${action}`,
@@ -5973,6 +5987,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                           });
                           if (route?.sessionKey) {
                             const memberDisplay = formatShipWithNickname(ship);
+                            recordExternalSessionEvent(route.sessionKey);
                             core.system.enqueueSystemEvent(
                               `[${memberDisplay} joined group ${groupFlag}]`,
                               {

@@ -28,6 +28,7 @@ import {
 } from './src/cron-observability.js';
 import {
   clearCronServiceAccessor,
+  getTlonCronService,
   handleCronChangedEvent,
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
@@ -68,7 +69,13 @@ import {
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
-import { getSessionRole } from './src/session-roles.js';
+import {
+  clearSessionRuns,
+  clearSessionRunContext,
+  getToolCallRole,
+  matchesIsolatedCronRun,
+  recordSessionRunContext,
+} from './src/session-roles.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
@@ -1044,7 +1051,10 @@ export default defineBundledChannelEntry({
 
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
-      const role = getSessionRole(ctx.sessionKey ?? '');
+      const role = getToolCallRole({
+        sessionKey: ctx.sessionKey,
+        runId: ctx.runId ?? event.runId,
+      });
       const ownerOnlyDecision = resolveOwnerOnlyToolBlock(event.toolName, role);
       const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
       const blocksNonOwner = ownerOnlyDecision.blocked;
@@ -1144,8 +1154,8 @@ export default defineBundledChannelEntry({
       }
 
       // Allow owner sessions and internal sessions (heartbeat, cron, etc.).
-      // Internal sessions have no role because they're not triggered by DMs.
-      // Only block when role is explicitly "user" (non-owner DM).
+      // Internal run attribution overrides a shared session's sender role.
+      // Only block when the tool-call role is explicitly "user".
       if (isBlocked) {
         api.logger.warn(
           `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
@@ -1350,6 +1360,7 @@ export default defineBundledChannelEntry({
       }
     });
     api.on('gateway_stop', () => {
+      clearSessionRuns();
       clearCronServiceAccessor();
       resetTlonCronObservability();
     });
@@ -1526,7 +1537,9 @@ export default defineBundledChannelEntry({
       trigger?: string;
       jobId?: string;
       runId?: string;
+      messageProvider?: string;
     }) => {
+      recordSessionRunContext(ctx);
       if (ctx.trigger === 'cron') {
         rememberCronJobForSession(ctx.sessionKey, ctx.jobId);
         recordTlonCronAgentContext({
@@ -1555,7 +1568,48 @@ export default defineBundledChannelEntry({
       }
       await ensureCronContextLens(ctx);
     };
-    api.on('agent_turn_prepare', async (_event, ctx) => {
+    api.on('agent_turn_prepare', async (event, ctx) => {
+      if (ctx.trigger === 'heartbeat') {
+        // The host gives isolated heartbeats a fresh transcript and records
+        // their source session. Shared-history and queued-input runs fail closed.
+        let heartbeatSession;
+        if (
+          ctx.sessionKey &&
+          ctx.sessionId &&
+          event.queuedInjections.length === 0
+        ) {
+          try {
+            const session = api.runtime.agent.session;
+            heartbeatSession = session.getSessionEntry({
+              sessionKey: ctx.sessionKey,
+              storePath: session.resolveStorePath(api.config.session?.store, {
+                agentId: ctx.agentId,
+              }),
+            });
+          } catch (error) {
+            api.logger.warn(
+              `[tlon] Cannot verify heartbeat isolation: ${String(error)}`
+            );
+          }
+        }
+        recordSessionRunContext(ctx, { heartbeatSession });
+      } else if (ctx.trigger === 'cron') {
+        // Only isolated jobs receive fresh transcripts; shared-session cron
+        // history can contain non-owner input even with an exact run ID.
+        let cronJob;
+        if (event.queuedInjections.length === 0) {
+          try {
+            cronJob = (
+              await getTlonCronService()?.list({ includeDisabled: true })
+            )?.find((job) => matchesIsolatedCronRun(ctx, job));
+          } catch (error) {
+            api.logger.warn(
+              `[tlon] Cannot verify cron isolation: ${String(error)}`
+            );
+          }
+        }
+        recordSessionRunContext(ctx, { cronJob });
+      }
       beginCronSilenceObservation(ctx);
       beginTlonTurnSilenceObservation(ctx);
       // Cron has no active Tlon turn recorder, so its output trace stays nullable.
@@ -1575,6 +1629,7 @@ export default defineBundledChannelEntry({
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (event, ctx) => {
+      clearSessionRunContext(ctx, event);
       recordCronSilenceOutput(event, ctx);
       recordTlonTurnSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
