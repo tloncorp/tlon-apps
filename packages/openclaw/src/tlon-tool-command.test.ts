@@ -1,3 +1,5 @@
+import catalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
+import { ALLOWED_TLON_COMMANDS } from './tlon-tool-guard.js';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -38,6 +40,41 @@ function beforeImmediate<T>(promise: Promise<T>) {
 }
 
 describe('tlon tool execution', () => {
+  it.each(['--help', '-h', '', '--version', '-v'])(
+    'classifies discovery as a known utility: %s',
+    (command) => {
+      expect(summarizeTlonCommand(command)).toMatchObject({
+        isKnownSubcommand: true,
+        intent: 'utility',
+      });
+    }
+  );
+
+  it('keeps reviewed tool policy aligned with the discoverable command catalog', () => {
+    // A catalog addition must be explicitly reviewed in the policy list.
+    expect(
+      ALLOWED_TLON_COMMANDS.filter(
+        (name) => !['help', 'version', 'notebook'].includes(name)
+      ).sort()
+    ).toEqual(Object.keys(catalog).sort());
+  });
+
+  it.each(['help', '--help', '-h', ''])(
+    'answers top-level discovery locally: %s',
+    async (command) => {
+      const runCommand = vi.fn();
+      const execute = createTlonToolExecutor({
+        runCommand,
+        notifyDiaryMigrationDiscovery: vi.fn(),
+      });
+      const result = await execute('help', { command });
+      expect(result.details).toBeUndefined();
+      expect(result.content[0].text).toContain('help notes note-create');
+      expect(result.content[0].text).toContain('stdin is shell-only');
+      expect(runCommand).not.toHaveBeenCalled();
+    }
+  );
+
   it.each([
     'notes note-create notes/~zod/blog root "Title" --stdin',
     'notes note-update notes/~zod/blog 1 --stdin',
