@@ -1691,6 +1691,12 @@ export function htmlPreviewHasScripts(
       if (
         runsJavascriptUrl(element, attribute) &&
         urlScheme(attribute.value) === 'javascript' &&
+        // A frame runs its javascript: source only without a sandbox of its
+        // own, even one allowing scripts (Chromium; WebKit runs none).
+        !(
+          (element.nodeName === 'iframe' || element.nodeName === 'frame') &&
+          attributeOf(element, 'sandbox') !== undefined
+        ) &&
         policies.every((p) =>
           (element.nodeName === 'a' || element.nodeName === 'area') &&
           element.namespaceURI !== NS.MATHML
@@ -2140,13 +2146,16 @@ function linkScript(key: string, nonce?: string): string {
   }
   // The file's own base: the document's first HTML <base href>, when it is
   // an absolute web address, or a scheme-relative one, which takes https as
-  // a link does. With any other the browser would resolve a relative link
+  // a link does, and the browser took it -- the file's own base-uri may
+  // refuse it. With any other the browser would resolve a relative link
   // against the app's address.
   function webBase() {
     var elements = document.querySelectorAll('base[href]');
     for (var i = 0; i < elements.length; i++) {
       if (elements[i].namespaceURI !== XHTML) continue;
       var href = urlText(elements[i].getAttribute('href'));
+      var taken = parse(href, document.baseURI);
+      if (!taken || taken.href !== document.baseURI) return null;
       var url = parse(href.slice(0, 2) === '//' ? 'https:' + href : href);
       return url && /^https?:$/.test(url.protocol) ? url.href : null;
     }
@@ -2423,7 +2432,9 @@ function settledLink(
   return { aimed: '_blank' };
 }
 
-const LINK_ATTRIBUTES = new Set(['href', 'target', 'xlink:href']);
+// A link's address, its target, and `download`: the frame cannot download,
+// so a link that asked to would be left doing nothing.
+const LINK_ATTRIBUTES = new Set(['download', 'href', 'target', 'xlink:href']);
 const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
 
 /**

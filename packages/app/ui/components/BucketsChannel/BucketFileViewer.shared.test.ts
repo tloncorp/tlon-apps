@@ -619,6 +619,9 @@ describe('htmlPreviewHasScripts', () => {
     // embed cannot load, and other elements fetch theirs.
     '<div href="javascript:go()">x</div><a xlink:href="javascript:go()">x</a>',
     '<form action="javascript:go()"><button formaction="javascript:go()">Go</button></form>',
+    // A frame with a sandbox of its own runs no javascript: source, even one
+    // allowing scripts (Chromium; WebKit runs none).
+    '<iframe sandbox="allow-scripts" src="javascript:go()"></iframe><iframe sandbox src="javascript:go()"></iframe>',
     '<object data="javascript:go()"></object><embed src="javascript:go()"><img src="javascript:go()">',
     // An attribute that only starts like a handler, and a srcdoc on anything
     // but an iframe.
@@ -818,6 +821,7 @@ describe('htmlPreviewDocument', () => {
       'if (event.defaultPrevented) return;',
       'new Observer(aim)',
       "var code = percentDecoded(raw.replace(/^javascript:/i, ''));",
+      'if (!taken || taken.href !== document.baseURI) return null;',
       'var result = evaluate(code);',
     ]) {
       expect(out).toContain(part);
@@ -883,6 +887,8 @@ describe('htmlPreviewDocument without scripts', () => {
     ['<A HREF=https://b.example TARGET=_top>b</A>', '<A target="_blank" href="https://b.example/">b</A>'],
     ["<map><area href=\"mailto:c@example.com\" target='_parent'></map>", '<area target="_blank" href="mailto:c@example.com">'],
     ['<a href="tel:+15555550100">d</a>', '<a target="_blank" href="tel:+15555550100">d</a>'],
+    // The frame cannot download, so a link loses `download` and opens.
+    ['<a href="https://a.example/f.zip" download="f.zip">f</a>', '<a target="_blank" href="https://a.example/f.zip">f</a>'],
     ['<svg><a xlink:href="https://e.example"><text>e</text></a></svg>', '<a target="_blank" href="https://e.example/">'],
     ['<a title="target=_self" href="https://x.example">x</a>', '<a target="_blank" href="https://x.example/" title="target=_self">'],
     // Any other scheme loses its address; xlink:href is one only on SVG.
