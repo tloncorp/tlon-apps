@@ -460,6 +460,11 @@ describe('htmlPreviewHasScripts', () => {
     '<script src="data:text/plain,go()"></script>',
     '<script type="module" src="data:text/javascript,go()"></script>',
     '<script src="data:text/javascript,go()//#x"></script>',
+    // A base64 body as fetch decodes it: unpadded, spaced, or with the
+    // marker in another case.
+    '<script src="data:text/javascript;base64,Z28oKQ"></script>',
+    '<script src="data:text/javascript;base64,Z28o KQ%3D%3D"></script>',
+    '<script src="data:text/javascript; BASE64,Z28oKQ=="></script>',
     // The base set when the parser made the script, which a table's
     // misplaced base, moved ahead of it, may be; a frame's document in
     // WebKit takes the base its document has once its scripts load.
@@ -661,6 +666,9 @@ describe('htmlPreviewHasScripts', () => {
     '<script src="data:text/javascript"></script><script type="module" src="data:text/javascript;base64"></script>',
     '<script src="data:text/javascript#,go()"></script><script src="data:"></script>',
     '<script src="data:text/javascript,"></script><script src="data:text/javascript,%20%0A%09"></script><script src="data:text/javascript;base64,"></script>',
+    // A base64 body that decodes to whitespace, or fails to decode.
+    '<script src="data:text/javascript;base64,IA=="></script><script src="data:text/javascript;base64,wqA="></script>',
+    '<script src="data:text/javascript;base64,!!!!"></script><script src="data:text/javascript;base64,ZG9j=dW1l"></script><script src="data:text/javascript;base64,Z28oKSAgA"></script>',
     // The file's own policy, from <head>, where it refuses the code: 'none',
     // a list with no 'unsafe-inline' (or one 'strict-dynamic' or a nonce
     // overrides), for script elements, handlers, javascript: links and an
@@ -941,6 +949,10 @@ describe('htmlPreviewDocument without scripts', () => {
     ['<base href="/docs/"><a href="/~/logout">x</a>', '<a target="_blank">x</a>'],
     ['<template><base href="https://t.example/"></template><a href="help.html">x</a>', '<a target="_blank">x</a>'],
     [`<head><meta http-equiv="Content-Security-Policy" content="base-uri 'none'"></head><base href="https://t.example/"><a href="help.html">x</a>`, '<a target="_blank">x</a>'],
+    // Electron's Chromium matches 'self' against the app's own file: origin,
+    // which no web base shares.
+    [`<head><meta http-equiv="Content-Security-Policy" content="base-uri 'self'"></head><base href="https://t.example/"><a href="help.html">x</a>`, '<a target="_blank">x</a>'],
+    [`<head><meta http-equiv="Content-Security-Policy" content="base-uri 'self' https:"></head><base href="https://t.example/"><a href="help.html">x</a>`, '<a target="_blank" href="https://t.example/help.html">x</a>'],
     // An ordinary template never renders without a script, so its links and
     // frames are left alone; a declarative shadow root's are live.
     ['<template><a href="tlon://open" target="_self">x</a><iframe srcdoc="<a href=tlon://open>y</a>"></iframe></template>', '<template><a href="tlon://open" target="_self">x</a><iframe srcdoc="<a href=tlon://open>y</a>"></iframe></template>'],

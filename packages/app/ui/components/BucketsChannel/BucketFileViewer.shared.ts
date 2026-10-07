@@ -1484,12 +1484,15 @@ function authoredPolicy(element: ParsedElement): AuthoredPolicy | undefined {
  * The base an element resolves addresses against: the base set when the
  * parser made it (baseReached), or `inherited` without one -- or where a
  * `base-uri` the file's own policies had set by the time the parser made the
- * base refuses its address in both engines, as with 'none'.
+ * base refuses its address in both engines, as with 'none'. Read for
+ * Electron's Chromium alone (`selfMatchesWeb` false), a 'self' there allows
+ * no web base (sourceMatches).
  */
 function baseResolver(
   document: ParsedDocument,
   inherited: string | undefined,
-  inheritedPolicies: AuthoredPolicy[]
+  inheritedPolicies: AuthoredPolicy[],
+  selfMatchesWeb = true
 ): (element: ParsedElement | undefined) => string | undefined {
   const bases = baseElements(document);
   const reached = baseReached(bases);
@@ -1516,7 +1519,7 @@ function baseResolver(
       ({ bases: list }) =>
         list !== undefined &&
         (allowsNothing(list) ||
-          !list.some((source) => sourceMatches(source, url)))
+          !list.some((source) => sourceMatches(source, url, selfMatchesWeb)))
     );
     judged.set(base, refused ? inherited : address);
     return judged.get(base);
@@ -1608,15 +1611,21 @@ const HOST_SOURCE =
  * policy allows (`data:`, or https from a CDN) in Chromium or WebKit,
  * as both were measured: `*` matches web addresses; a scheme its own and,
  * upgraded, `http:` an https one; 'self' an https one (WebKit, from a
- * srcdoc document); a host source an https address on that host (or under
- * `*.` it, below), with or without a scheme, on its default port or one the
- * source names (443 or `*`), and under its path -- a prefix ending in `/`, or
- * else the whole path, case and all.
+ * srcdoc document), where Chromium matches it only against the origin the
+ * frames descend from, the app's own, which on desktop is a `file:` page no
+ * web address shares (`selfMatchesWeb` false); a host source an https
+ * address on that host (or under `*.` it, below), with or without a scheme,
+ * on its default port or one the source names (443 or `*`), and under its
+ * path -- a prefix ending in `/`, or else the whole path, case and all.
  */
-function sourceMatches(source: string, url: URL): boolean {
+function sourceMatches(
+  source: string,
+  url: URL,
+  selfMatchesWeb = true
+): boolean {
   const lower = asciiLowercase(source);
   const scheme = url.protocol.slice(0, -1);
-  if (lower === "'self'") return scheme === 'https';
+  if (lower === "'self'") return selfMatchesWeb && scheme === 'https';
   if (lower === '*') return scheme === 'https';
   if (/^[a-z][a-z0-9+.-]*:$/.test(lower)) {
     const named = lower.slice(0, -1);
@@ -1911,6 +1920,37 @@ function dataUrlEssence(type: string): string {
   return asciiLowercase(type.split(';')[0].replace(/[\t\n\f\r ]+$/, ''));
 }
 
+const BASE64_DIGITS =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+/**
+ * A base64 `data:` body decoded as fetch decodes it (forgiving-base64),
+ * then read as UTF-8: whitespace dropped, up to two `=` at the end of a
+ * whole number of quads, and undefined where it fails -- a stray character,
+ * or a length one past a whole quad -- which fails the load.
+ */
+function base64Text(body: string): string | undefined {
+  let digits = body.replace(/[\t\n\f\r ]+/g, '');
+  if (digits.length % 4 === 0) digits = digits.replace(/={1,2}$/, '');
+  if (digits.length % 4 === 1 || !/^[A-Za-z0-9+/]*$/.test(digits)) {
+    return undefined;
+  }
+  const bytes = new Uint8Array(Math.floor((digits.length * 3) / 4));
+  let buffer = 0;
+  let bits = 0;
+  let at = 0;
+  for (let i = 0; i < digits.length; i += 1) {
+    buffer = ((buffer << 6) | BASE64_DIGITS.indexOf(digits[i])) & 0xffffff;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes[at] = (buffer >> bits) & 0xff;
+      at += 1;
+    }
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 /**
  * Where a script element loads `src` from, when HTML_PREVIEW_POLICY lets it
  * and it can load (undefined when not), resolved against the document's web
@@ -1921,9 +1961,9 @@ function dataUrlEssence(type: string): string {
  * loads nothing; either way the element's own text never runs. A
  * scheme-relative one takes https, as on the app's own page. A module runs
  * from `data:` only as JavaScript, by its media type; a classic script runs
- * as whatever it is. A `data:` URL with no body (dataUrlParts), or one of
- * nothing but whitespace, runs nothing, like an empty script element; a
- * base64 body counts as one only when empty.
+ * as whatever it is. A `data:` URL with no body (dataUrlParts), or a base64
+ * one that fails to decode (base64Text), fails to load, and one of nothing
+ * but whitespace runs nothing, like an empty script element.
  */
 function scriptSource(
   src: string,
@@ -1944,10 +1984,9 @@ function scriptSource(
   if (url.protocol === 'data:') {
     const data = dataUrlParts(url.href);
     if (data === undefined) return undefined;
-    const code = data.base64
-      ? data.body.replace(/[\t\n\f\r ]+/g, '')
-      : data.body.trim();
-    return code !== '' &&
+    const code = data.base64 ? base64Text(data.body) : data.body;
+    return code !== undefined &&
+      code.trim() !== '' &&
       (!module || JAVASCRIPT_MIME_TYPES.has(dataUrlEssence(data.type)))
       ? url
       : undefined;
@@ -2585,7 +2624,13 @@ function withLinksAimedAtBlank(
 ): string | null {
   const parsed = depth === 0 ? parsedHtml(html, false) : parseHtml(html, false);
   if (!parsed) return null;
-  const baseFor = baseResolver(parsed.document, inherited, inheritedPolicies);
+  // Electron's Chromium judges the file's base-uri, so its 'self' too.
+  const baseFor = baseResolver(
+    parsed.document,
+    inherited,
+    inheritedPolicies,
+    false
+  );
   const base = baseFor(undefined);
   const policies = [...inheritedPolicies];
   const edits: { start: number; end: number; text: string }[] = [];
