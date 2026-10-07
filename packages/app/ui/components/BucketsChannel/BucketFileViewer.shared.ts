@@ -131,21 +131,24 @@ function urlScheme(value: string): string | undefined {
 }
 
 /**
- * A `javascript:` URL's code, percent-decoded as a browser decodes it (and
- * as our link script does): an escape that is not two hex digits stays as
- * written, and the escaped bytes decode as UTF-8, a malformed sequence as
- * U+FFFD.
+ * `text` percent-decoded as a browser decodes a `javascript:` or `data:`
+ * URL (and as our link script does): an escape that is not two hex digits
+ * stays as written, and the escaped bytes decode as UTF-8, a malformed
+ * sequence as U+FFFD.
  */
+function percentDecoded(text: string): string {
+  return text.replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
+    const bytes = new Uint8Array(run.length / 3);
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = parseInt(run.slice(i * 3 + 1, i * 3 + 3), 16);
+    }
+    return new TextDecoder().decode(bytes);
+  });
+}
+
+/** A `javascript:` URL's code: its text (urlText) after the scheme, percent-decoded. */
 function javascriptCode(value: string): string {
-  return urlText(value)
-    .replace(URL_SCHEME, '')
-    .replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
-      const bytes = new Uint8Array(run.length / 3);
-      for (let i = 0; i < bytes.length; i += 1) {
-        bytes[i] = parseInt(run.slice(i * 3 + 1, i * 3 + 3), 16);
-      }
-      return new TextDecoder().decode(bytes);
-    });
+  return percentDecoded(urlText(value).replace(URL_SCHEME, ''));
 }
 
 // The schemes a link in a preview may open: web, mail and phone.
@@ -1756,6 +1759,12 @@ export function htmlPreviewHasScripts(
           element.nodeName === 'iframe' &&
           attributeOf(element, 'sandbox') !== undefined
         ) &&
+        // Nor does a frame of either kind with a srcdoc beside it, even an
+        // empty one (Chromium, measured): an iframe loads the srcdoc instead.
+        !(
+          attribute.name === 'src' &&
+          attributeOf(element, 'srcdoc') !== undefined
+        ) &&
         allow((p) =>
           (element.nodeName === 'a' || element.nodeName === 'area') &&
           element.namespaceURI !== NS.MATHML
@@ -1874,15 +1883,30 @@ const SCRIPT_HOSTS = new Set(
 );
 
 /**
- * The essence of a `data:` URL's media type, as fetch reads it: what comes
- * before the comma, less a `;base64` ending, `text/plain` when it names none.
+ * A `data:` URL as fetch reads it: its media type, what comes before the
+ * first comma, less a `;base64` ending that marks a base64 body; and its
+ * body, the rest up to any fragment, percent-decoded. Undefined with no
+ * comma before the fragment, where it fails to load.
  */
-function dataUrlEssence(href: string): string {
-  const comma = href.indexOf(',');
-  let type = href
-    .slice('data:'.length, comma < 0 ? href.length : comma)
-    .replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '')
-    .replace(/; *base64$/i, '');
+function dataUrlParts(
+  href: string
+): { type: string; base64: boolean; body: string } | undefined {
+  const input = href.split('#')[0];
+  const comma = input.indexOf(',');
+  if (comma < 0) return undefined;
+  const type = input
+    .slice('data:'.length, comma)
+    .replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '');
+  const base64 = /; *base64$/i.test(type);
+  return {
+    type: base64 ? type.replace(/; *base64$/i, '') : type,
+    base64,
+    body: percentDecoded(input.slice(comma + 1)),
+  };
+}
+
+/** The essence of a `data:` URL's media type (dataUrlParts), `text/plain` when it names none. */
+function dataUrlEssence(type: string): string {
   if (type === '' || type.startsWith(';')) type = `text/plain${type}`;
   return asciiLowercase(type.split(';')[0].replace(/[\t\n\f\r ]+$/, ''));
 }
@@ -1892,11 +1916,14 @@ function dataUrlEssence(href: string): string {
  * and it can load (undefined when not), resolved against the document's web
  * base (webBase) when it has one: a `data:` URL, or https from one of the
  * script CDNs on its default port, as Chromium and WebKit measured -- not a
- * `blob:` one, which markup cannot name. A relative address with no web base resolves
- * against the app's own, which the policy refuses, and an empty one loads
- * nothing; either way the element's own text never runs. A scheme-relative
- * one takes https, as on the app's own page. A module runs from `data:` only
- * as JavaScript, by its media type; a classic script runs as whatever it is.
+ * `blob:` one, which markup cannot name. A relative address with no web base
+ * resolves against the app's own, which the policy refuses, and an empty one
+ * loads nothing; either way the element's own text never runs. A
+ * scheme-relative one takes https, as on the app's own page. A module runs
+ * from `data:` only as JavaScript, by its media type; a classic script runs
+ * as whatever it is. A `data:` URL with no body (dataUrlParts), or one of
+ * nothing but whitespace, runs nothing, like an empty script element; a
+ * base64 body counts as one only when empty.
  */
 function scriptSource(
   src: string,
@@ -1914,15 +1941,24 @@ function scriptSource(
   } catch {
     return undefined;
   }
+  if (url.protocol === 'data:') {
+    const data = dataUrlParts(url.href);
+    if (data === undefined) return undefined;
+    const code = data.base64
+      ? data.body.replace(/[\t\n\f\r ]+/g, '')
+      : data.body.trim();
+    return code !== '' &&
+      (!module || JAVASCRIPT_MIME_TYPES.has(dataUrlEssence(data.type)))
+      ? url
+      : undefined;
+  }
   // A blob: URL loads only while a script that made it keeps it registered,
   // under a name no markup can know beforehand.
-  const allowed =
-    url.protocol === 'data:'
-      ? !module || JAVASCRIPT_MIME_TYPES.has(dataUrlEssence(url.href))
-      : url.protocol === 'https:' &&
-        url.port === '' &&
-        SCRIPT_HOSTS.has(url.hostname);
-  return allowed ? url : undefined;
+  return url.protocol === 'https:' &&
+    url.port === '' &&
+    SCRIPT_HOSTS.has(url.hostname)
+    ? url
+    : undefined;
 }
 
 /**
@@ -2529,7 +2565,8 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
  * - A document in an `<iframe srcdoc>` inherits the frame's popups, so its
  *   links are settled too, MAX_NESTED_DOCUMENTS deep; a `srcdoc` deeper than
  *   that is dropped. It inherits the base the document around it had when
- *   the parser reached the frame, as Chromium takes it.
+ *   the parser reached the frame, as Chromium takes it, and the policies in
+ *   force then, whose `base-uri` can refuse a `<base>` of its own.
  *
  * With no script to change it, the markup is the document, so rewriting it
  * covers every link. An ordinary template's content never renders without a
@@ -2543,15 +2580,19 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
 function withLinksAimedAtBlank(
   html: string,
   depth = 0,
-  inherited?: string
+  inherited?: string,
+  inheritedPolicies: AuthoredPolicy[] = []
 ): string | null {
   const parsed = depth === 0 ? parsedHtml(html, false) : parseHtml(html, false);
   if (!parsed) return null;
-  const baseFor = baseResolver(parsed.document, inherited, []);
+  const baseFor = baseResolver(parsed.document, inherited, inheritedPolicies);
   const base = baseFor(undefined);
+  const policies = [...inheritedPolicies];
   const edits: { start: number; end: number; text: string }[] = [];
   const rewritten = new Set<number>();
   for (const element of elementsOf(parsed.document, shadowRootsAttached())) {
+    const policy = authoredPolicy(element);
+    if (policy) policies.push(policy);
     const tag = element.sourceCodeLocation?.startTag;
     const link =
       element.namespaceURI === NS.MATHML
@@ -2598,10 +2639,10 @@ function withLinksAimedAtBlank(
         withoutAttributes(attributes, LINK_ATTRIBUTES);
     } else {
       // The frame's document inherits the base set by the time the parser
-      // reached the frame.
+      // reached the frame, and the policies in force then.
       const nested =
         depth < MAX_NESTED_DOCUMENTS && srcdoc !== undefined
-          ? withLinksAimedAtBlank(srcdoc, depth + 1, baseFor(element))
+          ? withLinksAimedAtBlank(srcdoc, depth + 1, baseFor(element), policies)
           : null;
       text =
         (nested === null ? '' : ` srcdoc="${escapeAttribute(nested)}"`) +

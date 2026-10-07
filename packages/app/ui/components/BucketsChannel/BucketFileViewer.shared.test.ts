@@ -459,6 +459,7 @@ describe('htmlPreviewHasScripts', () => {
     '<script src="data:text/javascript,go()"></script>',
     '<script src="data:text/plain,go()"></script>',
     '<script type="module" src="data:text/javascript,go()"></script>',
+    '<script src="data:text/javascript,go()//#x"></script>',
     // The base set when the parser made the script, which a table's
     // misplaced base, moved ahead of it, may be; a frame's document in
     // WebKit takes the base its document has once its scripts load.
@@ -629,6 +630,9 @@ describe('htmlPreviewHasScripts', () => {
     // A frame with a sandbox of its own runs no javascript: source, even one
     // allowing scripts (Chromium; WebKit runs none).
     '<iframe sandbox="allow-scripts" src="javascript:go()"></iframe><iframe sandbox src="javascript:go()"></iframe>',
+    // Nor does a frame with a srcdoc beside it, an empty one included.
+    '<iframe srcdoc="" src="javascript:go()"></iframe><iframe src="javascript:go()" srcdoc></iframe>',
+    '<frameset><frame srcdoc="" src="javascript:go()"></frameset>',
     // A javascript: URL whose code, once decoded, is only whitespace.
     '<a href="javascript:">x</a><area href=" JavaScript:%20 ">',
     '<svg><a href="javascript:%C2%A0%0A"><text>x</text></a></svg><iframe src="javascript:"></iframe>',
@@ -652,6 +656,11 @@ describe('htmlPreviewHasScripts', () => {
     '<script src="blob:https://a.example/00000000-0000-0000-0000-000000000000"></script>',
     // A module from data: runs only as JavaScript.
     '<script type="module" src="data:text/plain,export default 1"></script>',
+    // A data: address with no comma before its fragment fails to load, and
+    // one whose body is only whitespace, or an empty base64 one, runs nothing.
+    '<script src="data:text/javascript"></script><script type="module" src="data:text/javascript;base64"></script>',
+    '<script src="data:text/javascript#,go()"></script><script src="data:"></script>',
+    '<script src="data:text/javascript,"></script><script src="data:text/javascript,%20%0A%09"></script><script src="data:text/javascript;base64,"></script>',
     // The file's own policy, from <head>, where it refuses the code: 'none',
     // a list with no 'unsafe-inline' (or one 'strict-dynamic' or a nonce
     // overrides), for script elements, handlers, javascript: links and an
@@ -949,6 +958,10 @@ describe('htmlPreviewDocument without scripts', () => {
     ['<base href="https://docs.example/guide/"><iframe srcdoc="<base href=sub/><a href=help>h</a>"></iframe>', 'href=&quot;https://docs.example/guide/sub/help&quot;'],
     ['<base href="https://docs.example/guide/"><iframe srcdoc="<base href=data:,x><a href=help>h</a>"></iframe>', 'href=&quot;https://docs.example/guide/help&quot;'],
     ['<base href="https://docs.example/guide/"><iframe srcdoc="<base href=mid/><iframe srcdoc=&quot;<a href=help>h</a>&quot;></iframe>"></iframe>', 'https://docs.example/guide/mid/help'],
+    // It inherits the policies in force there too, whose base-uri refuses a
+    // base of its own, as from a frame further up.
+    [`<head><base href="https://docs.example/"><meta http-equiv="Content-Security-Policy" content="base-uri 'none'"></head><iframe srcdoc="<base href=https://evil.example/><a href=help>h</a>"></iframe>`, 'href=&quot;https://docs.example/help&quot;'],
+    [`<head><base href="https://docs.example/"><meta http-equiv="Content-Security-Policy" content="base-uri https://docs.example"></head><iframe srcdoc="<iframe srcdoc=&quot;<base href=https://evil.example/><a href=help>h</a>&quot;></iframe>"></iframe>`, 'https://docs.example/help'],
     // A MathML element's href, which WebKit follows, is settled too.
     ['<math><mtext href="tlon://open">x</mtext></math>', '<mtext target="_blank">x</mtext>'],
     // An area inside an svg is an unknown element, which nothing follows.
