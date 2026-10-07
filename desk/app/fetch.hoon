@@ -96,8 +96,11 @@
       =(10 a)                             ::  10.0.0.0/8
       =(127 a)                            ::  loopback
       &(=(169 a) =(254 b))                ::  link-local
+      &(=(100 a) &((gte b 64) (lte b 127)))  ::  100.64.0.0/10, cgnat / tailscale
       &(=(172 a) &((gte b 16) (lte b 31)))  ::  172.16.0.0/12
       &(=(192 a) =(168 b))                ::  192.168.0.0/16
+      &(=(198 a) |(=(18 b) =(19 b)))       ::  198.18.0.0/15, benchmarking
+      (gte a 224)                          ::  multicast and reserved
   ==
 ::
 ::  +hop-by-hop: headers that describe a single connection, not the payload
@@ -158,6 +161,28 @@
       'clear-site-data'
       'strict-transport-security'
       'service-worker-allowed'
+  ==
+::
+::  +caller-scoped: request headers that describe the caller to *us*
+::
+::    their credentials for the ship (cookie, an authorization header a
+::    reverse proxy passes through), where they were on it (referer,
+::    origin), who they are on the network (proxy-added forwarding
+::    headers), and our own host. none of it is the target's business.
+::
+++  caller-scoped
+  ^~
+  %-  ~(gas in *(set @t))
+  :~  'cookie'
+      'authorization'
+      'host'
+      'referer'
+      'origin'
+      'forwarded'
+      'x-forwarded-for'
+      'x-forwarded-host'
+      'x-forwarded-proto'
+      'x-real-ip'
   ==
 ::
 ::  +contained: headers added to every relayed response
@@ -302,14 +327,8 @@
   ^-  card
   =.  url.request  url
   =.  header-list.request
-    ::  drop the caller's credentials for *us*: cookies, and an authorization
-    ::  header a reverse proxy in front of the ship may pass through. drop
-    ::  the host header too -- it names us, not the target.
-    ::
     %+  skip  header-list.request
-    |=  [key=@t @t]
-    =/  key  (crip (cass (trip key)))
-    |(=('cookie' key) =('host' key) =('authorization' key))
+    |=([key=@t @t] (~(has in caller-scoped) (crip (cass (trip key)))))
   =.  header-list.request  (strip-hops header-list.request)
   =.  header-list.request
     =-  (set-header:http 'forwarded' - header-list.request)
@@ -718,8 +737,15 @@
         :-  status-code
         %+  snoc
           %+  weld
-            %+  skip  (strip-hops headers)
-            |=([key=@t @t] (~(has in origin-scoped) (crip (cass (trip key)))))
+            ::  a relative location would resolve against the ship, not
+            ::  the upstream, so make it absolute
+            ::
+            %+  turn
+              %+  skip  (strip-hops headers)
+              |=([key=@t @t] (~(has in origin-scoped) (crip (cass (trip key)))))
+            |=  [key=@t val=@t]
+            ?.  =('location' (crip (cass (trip key))))  [key val]
+            [key (expand-url:mg url val)]
           contained
         'x-tlon-fetch'^'finished'
     ?~  full-file.res  ~

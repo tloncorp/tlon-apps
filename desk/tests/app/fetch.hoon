@@ -84,6 +84,10 @@
   ::  and a private target asked for directly is refused outright
   ::
   ;<  caz=(list card)  bind:m  (do-poke (get ~.e3 %meta lan ~))
+  ;<  ~  bind:m  (ex-equal !>((status caz)) !>(`400))
+  ::  shared address space (cgnat, tailscale) is private too
+  ::
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e4 %raw 'http://100.64.0.1/' ~))
   (ex-equal !>((status caz)) !>(`400))
 ::  +test-raw-strips-connection-names: connection-scoped headers stay put
 ::
@@ -102,6 +106,8 @@
     :~  ['Connection' 'Keep-Alive, X-Hop']
         ['X-Hop' 'out']
         ['Authorization' 'Basic c2hpcDpwYXNz']
+        ['Referer' 'https://ship.example/apps/groups/~/dm/~fed']
+        ['X-Forwarded-For' '203.0.113.7']
         ['X-Keep' 'out']
     ==
   ;<  caz=(list card)  bind:m  (do-poke (get ~.e1 %raw safe out))
@@ -109,6 +115,8 @@
   =/  sent  (turn header-list.request.req head)
   ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('X-Hop' k)))) !>(|))
   ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('Authorization' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('Referer' k)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('X-Forwarded-For' k)))) !>(|))
   ;<  ~  bind:m  (ex-equal !>((lien sent |=(k=@t =('X-Keep' k)))) !>(&))
   =/  back=header-list:http
     :~  ['connection' 'x-upstream-hop']
@@ -183,5 +191,12 @@
   =/  wire  wire:(request-card caz)
   ;<  caz=(list card)  bind:m
     (do-arvo wire (finished 307 ['location' lan]~))
-  (ex-equal !>((status caz)) !>(`307))
+  ;<  ~  bind:m  (ex-equal !>((status caz)) !>(`307))
+  ::  a relative location is resolved against the upstream, not the ship
+  ::
+  ;<  caz=(list card)  bind:m  (do-poke (get ~.e2 %raw safe ~))
+  ;<  caz=(list card)  bind:m
+    (do-arvo wire:(request-card caz) (finished 302 ['Location' '/login']~))
+  =/  loc  (skim (response-headers caz) |=([k=@t v=@t] =('Location' k)))
+  (ex-equal !>(loc) !>(`header-list:http`~[['Location' 'https://example.com/login']]))
 --
