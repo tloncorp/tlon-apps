@@ -211,13 +211,18 @@ export function useBotGroupMembership(
     // Cancel queued fetches when the groups, session, or account change.
     const controller = new AbortController();
     verifyKey.split('\n').forEach((groupId) => {
-      // syncGroup skips groups already fetched this session.
+      // syncGroup skips groups already fetched this session. A missing seat
+      // only means departed against a whole roster, so big groups get one.
       store
-        .syncGroup(groupId, {
-          priority: store.SyncPriority.Low,
-          retry: true,
-          abortSignal: controller.signal,
-        })
+        .syncGroup(
+          groupId,
+          {
+            priority: store.SyncPriority.Low,
+            retry: true,
+            abortSignal: controller.signal,
+          },
+          { wholeRoster: true }
+        )
         .catch((error) => {
           if (!controller.signal.aborted) {
             console.error('bot settings: group sync failed', groupId, error);
@@ -251,7 +256,7 @@ export function useBotGroupMembership(
           .syncGroup(
             groupId,
             { priority: store.SyncPriority.High },
-            { force: true }
+            { force: true, wholeRoster: true }
           )
           .catch((error) =>
             console.error('bot settings: group sync failed', groupId, error)

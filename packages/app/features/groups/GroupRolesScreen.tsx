@@ -40,8 +40,10 @@ function GroupRolesScreenView({
 
   const insets = useSafeAreaInsets();
 
+  // role counts come from the stored roster, so load all of it
   const { group, groupRoles, groupMembers } = useGroupContext({
     groupId,
+    wholeRoster: true,
   });
 
   const handleGoBack = useHandleGoBack(navigation, {

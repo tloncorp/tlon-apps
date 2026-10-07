@@ -5,7 +5,14 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from './useCurrentUser';
 
-export const useGroupContext = ({ groupId }: { groupId: string }) => {
+export const useGroupContext = ({
+  groupId,
+  wholeRoster,
+}: {
+  groupId: string;
+  // sync every seat of a big group, for screens that read the whole roster
+  wholeRoster?: boolean;
+}) => {
   const currentUserId = useCurrentUserId();
 
   const groupQuery = store.useGroup({
@@ -14,9 +21,13 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
 
   useEffect(() => {
     if (groupId) {
-      sync.syncGroup(groupId, { priority: store.SyncPriority.High });
+      sync.syncGroup(
+        groupId,
+        { priority: store.SyncPriority.High },
+        { wholeRoster }
+      );
     }
-  }, [groupId]);
+  }, [groupId, wholeRoster]);
 
   const group = groupQuery.data ?? null;
 

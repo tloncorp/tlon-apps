@@ -91,6 +91,22 @@ describe('syncGroup on a big group', () => {
     expect(stored?.syncedAt ?? null).toBeNull();
   });
 
+  // role management and bot settings judge membership from the stored roster
+  test('syncs whole for a caller that needs every seat', async () => {
+    await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
+    const getGroupLight = vi.spyOn(api, 'getGroupLight');
+    const getGroup = vi
+      .spyOn(api, 'getGroup')
+      .mockResolvedValue(
+        group({ memberCount: 600, members: [member('~zod')] })
+      );
+
+    await syncGroup(groupId, undefined, { wholeRoster: true });
+
+    expect(getGroup).toHaveBeenCalledWith(groupId);
+    expect(getGroupLight).not.toHaveBeenCalled();
+  });
+
   test('syncs whole when the desk serves no pages', async () => {
     api.setDeskServesRosterPages(false);
     await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
@@ -256,6 +272,21 @@ describe('syncGroupMembersPage while the roster changes', () => {
     await syncGroupMembersPage({ groupId });
 
     expect(await storedMemberIds()).toEqual(['~zod', '~bud']);
+  });
+
+  test('leaves a count a live event moved while the page was in flight', async () => {
+    vi.spyOn(api, 'getGroupMembersPage').mockImplementation(async () => {
+      await queries.adjustGroupMemberCount({ groupId, delta: 1 });
+      return pageOf({
+        total: 598,
+        members: [member('~zod'), member('~nec'), member('~bud')],
+        next: '~ful',
+      });
+    });
+
+    await syncGroupMembersPage({ groupId });
+
+    expect((await queries.getGroup({ id: groupId }))?.memberCount).toBe(601);
   });
 
   // insertMembers logs a failed batch instead of throwing

@@ -60,8 +60,10 @@ export function RoleFormScreen({ navigation, route }: Props) {
     deleteGroupRole,
     addUserToRole,
     removeUserFromRole,
+    // a role's holders come from the stored roster, so load all of it
   } = useGroupContext({
     groupId,
+    wholeRoster: true,
   });
 
   const role = useMemo(

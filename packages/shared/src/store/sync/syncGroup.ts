@@ -19,7 +19,9 @@ const lightSyncedAt = new Map<string, number>();
 export async function syncGroup(
   id: string,
   ctx?: SyncCtx,
-  config?: { force?: boolean }
+  // wholeRoster: callers that judge membership from the stored roster (role
+  // management, bot settings) still get every seat of a big group
+  config?: { force?: boolean; wholeRoster?: boolean }
 ) {
   const generation = getClientGeneration();
   const syncKey = `${generation}:${id}`;
@@ -30,7 +32,7 @@ export async function syncGroup(
   try {
     const group = await db.getGroup({ id });
     const session = getSession();
-    if (group && isRosterPaged(group)) {
+    if (group && isRosterPaged(group) && !config?.wholeRoster) {
       if (
         session &&
         (session.startTime ?? 0) < (lightSyncedAt.get(syncKey) ?? 0) &&

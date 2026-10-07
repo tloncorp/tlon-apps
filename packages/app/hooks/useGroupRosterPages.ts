@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { getDeskServesRosterPages } from '@tloncorp/api';
 import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo, useState } from 'react';
@@ -23,7 +24,10 @@ export function useGroupRosterPages(group: db.Group | null) {
   if (pagedNow && pagedGroupId !== groupId) {
     setPagedGroupId(groupId);
   }
-  const paged = pagedNow || (!!group && pagedGroupId === groupId);
+  // ...as long as the desk still serves pages
+  const paged =
+    pagedNow ||
+    (!!group && pagedGroupId === groupId && getDeskServesRosterPages());
   const roleIds = useMemo(
     () => (group?.roles ?? []).map((role) => role.id).sort(),
     [group?.roles]
@@ -33,6 +37,9 @@ export function useGroupRosterPages(group: db.Group | null) {
   useQuery({
     queryKey: ['groupRosterRoles', groupId, roleIds],
     enabled: paged && roleIds.length > 0,
+    // fresh on every visit: the cache never goes stale on its own, and a
+    // group left and rejoined would otherwise keep its old pages
+    gcTime: 0,
     queryFn: async () => {
       for (const roleId of roleIds) {
         let after: string | null = null;
@@ -53,6 +60,7 @@ export function useGroupRosterPages(group: db.Group | null) {
   const pages = useInfiniteQuery({
     queryKey: ['groupRosterPages', groupId],
     enabled: paged,
+    gcTime: 0,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
       store.syncGroupMembersPage({ groupId, after: pageParam }),

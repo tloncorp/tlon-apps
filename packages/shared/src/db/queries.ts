@@ -3293,6 +3293,19 @@ export const insertGroupMembersPage = createWriteQuery(
   ['groups', 'chatMembers', 'chatMemberGroupRoles']
 );
 
+// The stored count alone, without loading the group's members.
+export const getStoredMemberCount = createReadQuery(
+  'getStoredMemberCount',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const row = await ctx.db.query.groups.findFirst({
+      where: eq($groups.id, groupId),
+      columns: { memberCount: true },
+    });
+    return row?.memberCount ?? null;
+  },
+  ['groups']
+);
+
 export const getGroupMemberIds = createReadQuery(
   'getGroupMemberIds',
   async (

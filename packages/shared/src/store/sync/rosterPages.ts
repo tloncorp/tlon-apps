@@ -52,6 +52,7 @@ export async function syncGroupMembersPage(
   // page must neither drop a seat added since nor bring back one removed
   // since: only seats stored before the fetch are reconciled
   const before = await db.getGroupMemberIds({ groupId, seatedOnly: true });
+  const countBefore = await db.getStoredMemberCount({ groupId });
   const page = await syncQueue.add('syncGroupMembersPage', ctx, () =>
     api.getGroupMembersPage({ groupId, limit, after, roleId })
   );
@@ -95,7 +96,10 @@ export async function syncGroupMembersPage(
         ctx
       );
     }
-    if (clientChanged()) return;
+    // a live seat event that moved the count mid-fetch is newer than the
+    // page's total, which may predate it
+    const countNow = await db.getStoredMemberCount({ groupId }, ctx);
+    if (clientChanged() || countNow !== countBefore) return;
     await db.updateGroup({ id: groupId, memberCount: page.total }, ctx);
   });
   return page;
