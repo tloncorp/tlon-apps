@@ -845,6 +845,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     // The manifest as read, plus the revision it is at. No `snapshot`: there
     // is no private copy of one any more.
     entries,
+    // False until the subscription has reduced this Bucket's first snapshot:
+    // the local read finishes either way, so only this says an entry missing
+    // from the manifest is gone rather than not yet heard of.
+    manifestKnown: bucket != null,
     revision: bucket?.revision ?? 0,
     uploadAggregateProgress,
     uploads,
