@@ -6,6 +6,7 @@ import * as queries from '../../db/queries';
 import type * as db from '../../db/types';
 import { setupDatabaseTestSuite } from '../../test/helpers';
 import { updateInitializedClient } from '../session';
+import { SyncPriority } from '../syncQueue';
 import { compareShips, syncGroupMembersPage } from './rosterPages';
 import { syncGroup } from './syncGroup';
 
@@ -475,6 +476,27 @@ describe('syncGroupMembersPage while the roster changes', () => {
       .map((row) => row.roleId)
       .sort();
     expect(nec).toEqual(['mods', 'ops']);
+  });
+
+  // the members screen gives up on its pages when it closes
+  test('writes nothing for a caller that gave up on the page', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    vi.spyOn(api, 'getGroupMembersPage').mockResolvedValue(
+      pageOf({
+        total: 598,
+        members: [member('~zod'), member('~wes')],
+        next: '~wes',
+      })
+    );
+
+    await syncGroupMembersPage(
+      { groupId },
+      { priority: SyncPriority.Medium, abortSignal: controller.signal }
+    );
+
+    expect(await storedMemberIds()).toEqual(['~zod', '~nec', '~bud']);
+    expect((await queries.getGroup({ id: groupId }))?.memberCount).toBe(600);
   });
 
   // insertMembers logs a failed batch instead of throwing

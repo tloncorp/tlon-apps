@@ -112,16 +112,19 @@ export async function syncGroupMembersPage(
   ctx?: SyncCtx
 ): Promise<api.GroupMembersPage> {
   const generation = getClientGeneration();
-  // the database follows the current client, so a page from the previous
-  // one would land in the wrong account: check before every write
-  const clientChanged = () => getClientGeneration() !== generation;
+  // check before every write: the database follows the current client, so a
+  // page from the previous one would land in the wrong account, and a page
+  // its caller gave up on (the members screen closed) may predate a leave
+  // and rejoin
+  const abandoned = () =>
+    getClientGeneration() !== generation || !!ctx?.abortSignal?.aborted;
   // only seats and roles stored before the fetch are reconciled, so the
   // older page drops nothing a live event added while it was in flight
   const snapshot = await snapshotRoster(groupId);
   const page = await syncQueue.add('syncGroupMembersPage', ctx, () =>
     api.getGroupMembersPage({ groupId, limit, after, roleId })
   );
-  if (clientChanged()) return page;
+  if (abandoned()) return page;
   await batchEffects('syncGroupMembersPage', async (ctx) => {
     const members = await fitToLiveChanges(
       groupId,
@@ -129,7 +132,7 @@ export async function syncGroupMembersPage(
       page.members,
       ctx
     );
-    if (clientChanged()) return;
+    if (abandoned()) return;
     await db.insertGroupMembersPage({ groupId, members }, ctx);
     // insertMembers logs a failed batch rather than throwing. A page whose
     // members didn't land must fail, or its cursor moves on and the page is
@@ -156,7 +159,7 @@ export async function syncGroupMembersPage(
             isInPage(contactId, after, page.next)
         )
         .map(([contactId]) => contactId);
-      if (clientChanged()) return;
+      if (abandoned()) return;
       if (lostRole.length) {
         await db.removeChatMembersFromRoles(
           { groupId, contactIds: lostRole, roleIds: [roleId] },
@@ -172,7 +175,7 @@ export async function syncGroupMembersPage(
         !onPage.has(contactId) &&
         isInPage(contactId, after, page.next)
     );
-    if (clientChanged()) return;
+    if (abandoned()) return;
     if (departed.length) {
       await db.removeChatMembers(
         { chatId: groupId, contactIds: departed },
@@ -182,7 +185,7 @@ export async function syncGroupMembersPage(
     // a live seat event that moved the count mid-fetch is newer than the
     // page's total, which may predate it
     const countNow = await db.getStoredMemberCount({ groupId }, ctx);
-    if (clientChanged() || countNow !== snapshot.count) return;
+    if (abandoned() || countNow !== snapshot.count) return;
     await db.updateGroup({ id: groupId, memberCount: page.total }, ctx);
   });
   return page;

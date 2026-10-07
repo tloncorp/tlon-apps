@@ -1,8 +1,17 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { getDeskServesRosterPages } from '@tloncorp/api';
+import {
+  getDeskServesRosterPages,
+  onDeskServesRosterPagesChange,
+} from '@tloncorp/api';
 import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 // At most this many pages of holders per role section. A role held by most
 // of a big group would otherwise pull the whole roster in.
@@ -16,6 +25,11 @@ const MAX_ROLE_PAGES = 4;
  */
 export function useGroupRosterPages(group: db.Group | null) {
   const groupId = group?.id ?? '';
+  // re-render when the desk starts or stops serving pages
+  const servesPages = useSyncExternalStore(
+    onDeskServesRosterPagesChange,
+    getDeskServesRosterPages
+  );
   const pagedNow = !!group && store.isRosterPaged(group);
   // once this screen pages a group, it keeps paging: a count dipping under
   // the threshold mid-load would otherwise switch it to the partial roster
@@ -26,8 +40,17 @@ export function useGroupRosterPages(group: db.Group | null) {
   }
   // ...as long as the desk still serves pages
   const paged =
-    pagedNow ||
-    (!!group && pagedGroupId === groupId && getDeskServesRosterPages());
+    pagedNow || (!!group && pagedGroupId === groupId && servesPages);
+  // a desk that stops serving them leaves only part of the roster stored,
+  // so load the rest whole
+  const pagesWithdrawn = !!groupId && pagedGroupId === groupId && !servesPages;
+  useEffect(() => {
+    if (!pagesWithdrawn) return;
+    // syncGroup reports its own failures
+    store
+      .syncGroup(groupId, { priority: store.SyncPriority.High })
+      .catch(() => {});
+  }, [pagesWithdrawn, groupId]);
   const roleIds = useMemo(
     () => (group?.roles ?? []).map((role) => role.id).sort(),
     [group?.roles]
@@ -40,15 +63,15 @@ export function useGroupRosterPages(group: db.Group | null) {
     // fresh on every visit: the cache never goes stale on its own, and a
     // group left and rejoined would otherwise keep its old pages
     gcTime: 0,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       for (const roleId of roleIds) {
         let after: string | null = null;
         for (let i = 0; i < MAX_ROLE_PAGES; i++) {
-          const page = await store.syncGroupMembersPage({
-            groupId,
-            roleId,
-            after,
-          });
+          if (signal.aborted) return null;
+          const page = await store.syncGroupMembersPage(
+            { groupId, roleId, after },
+            { priority: store.SyncPriority.Medium, abortSignal: signal }
+          );
           after = page.next;
           if (!after) break;
         }
@@ -62,8 +85,13 @@ export function useGroupRosterPages(group: db.Group | null) {
     enabled: paged,
     gcTime: 0,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) =>
-      store.syncGroupMembersPage({ groupId, after: pageParam }),
+    // the signal cancels a page still in flight when the screen closes, so
+    // it can't write after a leave and rejoin
+    queryFn: ({ pageParam, signal }) =>
+      store.syncGroupMembersPage(
+        { groupId, after: pageParam },
+        { priority: store.SyncPriority.Medium, abortSignal: signal }
+      ),
     getNextPageParam: (page) => page.next ?? undefined,
   });
 

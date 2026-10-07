@@ -3,6 +3,7 @@ import { type Mock, beforeEach, describe, expect, test, vi } from 'vitest';
 import { getGroupLight, getGroupMembersPage } from '../client/groupsApi';
 import {
   DeskUnsupportedError,
+  onDeskServesRosterPagesChange,
   scry,
   setDeskServesRosterPages,
 } from '../client/urbit';
@@ -117,4 +118,17 @@ describe('getGroupLight', () => {
     expect(group.memberCount).toBe(11000);
     expect(group.members).toHaveLength(1);
   });
+});
+
+test('tells listeners when roster page support changes, and only then', () => {
+  const listener = vi.fn();
+  const unsubscribe = onDeskServesRosterPagesChange(listener);
+
+  setDeskServesRosterPages(true);
+  setDeskServesRosterPages(false);
+  setDeskServesRosterPages(false);
+  unsubscribe();
+  setDeskServesRosterPages(true);
+
+  expect(listener).toHaveBeenCalledTimes(1);
 });
