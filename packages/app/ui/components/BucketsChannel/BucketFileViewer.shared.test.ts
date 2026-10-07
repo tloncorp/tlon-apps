@@ -449,6 +449,7 @@ describe('htmlPreviewHasScripts', () => {
     '<a href="java\tscript:go()">go</a>',
     '<a href=" JAVASCRIPT:go()">go</a>',
     '<iframe srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>',
+    '<iframe sandbox="allow-popups ALLOW-SCRIPTS" srcdoc="&lt;script&gt;go()&lt;/script&gt;"></iframe>',
     '<p>İİİ</p><script>go()</script>',
     '<a data=x=" onclick=go()>x</a>',
     '<!--><script>go()</script><!-- -->',
@@ -562,6 +563,10 @@ describe('htmlPreviewHasScripts', () => {
     '<div only="true" one="1" onward="x">x</div>',
     '<div srcdoc="&lt;script&gt;go()&lt;/script&gt;">x</div>',
     nested('<p>static</p>', 3),
+    // A frame whose own sandbox keeps it from scripts runs none, nor does
+    // any frame inside it.
+    '<iframe sandbox srcdoc="&lt;script&gt;go()&lt;/script&gt;&lt;a href=&quot;javascript:go()&quot;&gt;x&lt;/a&gt;"></iframe>',
+    `<iframe sandbox="allow-popups" srcdoc="${nested('<script>go()</script>', 4).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"></iframe>`,
   ])('finds none in %j', (html) => {
     expect(htmlPreviewHasScripts(html)).toBe(false);
   });

@@ -830,13 +830,28 @@ export function htmlPreviewReadable(
 }
 
 /**
+ * Whether an iframe's own `sandbox` lets its document run scripts: none set,
+ * or one allowing them. A document it keeps from scripts runs none, nor does
+ * any frame inside it, whatever that frame's own sandbox says.
+ */
+function frameRunsScripts(iframe: ParsedElement): boolean {
+  const sandbox = attributeOf(iframe, 'sandbox');
+  return (
+    sandbox === undefined ||
+    asciiLowercase(sandbox)
+      .split(/[\t\n\f\r ]/)
+      .includes('allow-scripts')
+  );
+}
+
+/**
  * Whether the `srcdoc` documents in `document` read: the browser parses each
  * itself, and is as slow as the parser on markup nested past MAX_PARSE_DEPTH
  * -- Chromium and WebKit each took over a minute on a megabyte of nested
  * divs, on web on the app's own thread. An inline frame in an ordinary
  * template never loads. Each document is read as its frame reads it, which
- * runs scripts only where the frame around it does and its own `sandbox`
- * allows them.
+ * runs scripts only where the frame around it does and its own sandbox
+ * allows them (frameRunsScripts).
  */
 function framesReadable(
   document: ParsedDocument,
@@ -850,13 +865,7 @@ function framesReadable(
         : undefined;
     if (srcdoc === undefined) continue;
     if (depth >= MAX_NESTED_DOCUMENTS) return false;
-    const sandbox = attributeOf(element, 'sandbox');
-    const frameScripting =
-      scripting &&
-      (sandbox === undefined ||
-        asciiLowercase(sandbox)
-          .split(/[\t\n\f\r ]/)
-          .includes('allow-scripts'));
+    const frameScripting = scripting && frameRunsScripts(element);
     const nested = parseHtml(srcdoc, frameScripting);
     if (
       !nested ||
@@ -1183,13 +1192,13 @@ function shadowRootsAttached(): (template: ParsedElement) => boolean {
  * `nomodule` is skipped by every browser that runs modules, and a MathML one
  * is never run), an event handler attribute (HANDLED_EVENTS), a
  * `javascript:` URL where a browser runs one (runsJavascriptUrl), or any of
- * these in an HTML iframe's `srcdoc` -- outside an ordinary template, whose
- * content is inert, though inside a declarative shadow root. A page without
- * any renders the same with scripts off, so there is nothing to run. A
- * `srcdoc` nested deeper than MAX_NESTED_DOCUMENTS, or deeper than the parser
- * reads, is taken to have some, and a file itself nesting deeper than the
- * parser reads offers nothing to run; the preview reads neither file
- * (htmlPreviewReadable).
+ * these in the `srcdoc` of an HTML iframe whose sandbox lets it run scripts
+ * (frameRunsScripts) -- outside an ordinary template, whose content is inert,
+ * though inside a declarative shadow root. A page without any renders the
+ * same with scripts off, so there is nothing to run. A `srcdoc` nested deeper
+ * than MAX_NESTED_DOCUMENTS, or deeper than the parser reads, is taken to have
+ * some, and a file itself nesting deeper than the parser reads offers nothing
+ * to run; the preview reads neither file (htmlPreviewReadable).
  *
  * Each document is read as a frame that runs scripts reads it, and a select
  * as WebKit and Electron's Chromium read it, holding scripts but dropping
@@ -1231,6 +1240,7 @@ export function htmlPreviewHasScripts(html: string, depth = 0): boolean {
         : undefined;
     if (
       srcdoc !== undefined &&
+      frameRunsScripts(element) &&
       (depth >= MAX_NESTED_DOCUMENTS ||
         htmlPreviewHasScripts(srcdoc, depth + 1))
     ) {
