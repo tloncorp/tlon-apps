@@ -10,7 +10,6 @@ type SessionRunContext = {
   jobId?: string;
   runId?: string;
   trigger?: string;
-  messageProvider?: string;
 };
 
 type RunRole = {
@@ -105,6 +104,7 @@ export function recordExternalSessionEvent(sessionKey: string): void {
 export function recordSessionRunContext(
   ctx: SessionRunContext,
   source?: {
+    senderIsOwner?: boolean;
     heartbeatSession?: {
       sessionId: string;
       heartbeatIsolatedBaseSessionKey?: string;
@@ -115,15 +115,16 @@ export function recordSessionRunContext(
   if (!ctx.runId || !ctx.sessionKey) return;
   // Sender attribution and prepare-hook verification survive later model hooks.
   if (runRoles.has(ctx.runId)) return;
-  // Shared main sessions also serve WebChat, TUI, and other channels. Their
-  // host-attributed interactive runs keep their own authority; a prior Tlon
-  // dispatch does not classify them as non-owner.
-  if (
-    ctx.trigger === 'user' &&
-    ctx.messageProvider &&
-    ctx.messageProvider !== 'tlon'
-  ) {
-    storeRunRole(ctx.runId, [ctx.sessionKey], 'owner');
+  if (ctx.trigger === 'user') {
+    // Channel names do not establish authority. The before_agent_run event
+    // carries the host's trusted sender bit; absence of that bit denies access.
+    if (source && 'senderIsOwner' in source) {
+      storeRunRole(
+        ctx.runId,
+        [ctx.sessionKey],
+        source.senderIsOwner === true ? 'owner' : 'user'
+      );
+    }
     return;
   }
   if (ctx.trigger !== 'cron' && ctx.trigger !== 'heartbeat') return;

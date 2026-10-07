@@ -15,6 +15,7 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
   'sessions_spawn',
   'sessions_send',
   'subagents',
+  'openclaw',
 ] as const;
 const MCP_TOOLS = [
   'mcp__list_upstreams',

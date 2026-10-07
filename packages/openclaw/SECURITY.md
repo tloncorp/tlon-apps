@@ -375,11 +375,11 @@ try {
 
 **Principle:** Sensitive tools are owner-only. Non-owners cannot use them, enforced at the plugin level (not via prompt instructions).
 
-**Restricted tools:** `tlon`, `cron`, `read`, `sessions_spawn`, `sessions_send`, `subagents`, and every tool whose name starts with `mcp_` or contains `__`.
+**Restricted tools:** `tlon`, `cron`, `read`, `sessions_spawn`, `sessions_send`, `subagents`, `openclaw`, and every tool whose name starts with `mcp_` or contains `__`.
 
 The MCP restriction includes discovery (`mcp__list_upstreams`, `mcp__search`, `mcp__describe`), invocation (`mcp__call`), and OpenClaw's `server__tool` namespace (for example, `linear__create_issue`). The entire namespace shape is owner-only, including sanitized server names and collision suffixes, independently of server configuration or bundled plugins. Other tools using that naming shape are also owner-only. Non-owner turns cannot access connected services, including the owner's hosted browser profile and OAuth-authorized services.
 
-Cross-session delegation is owner-only: non-owners cannot spawn a child, send work to another session, or steer a subagent. This blocks delegation before execution can escape the requester's role gate. Owner and internal sessions retain delegation access.
+Cross-session delegation is owner-only: non-owners cannot spawn a child, send work to another session, steer a subagent, or delegate to the OpenClaw system agent. This blocks delegation before execution can escape the requester's role gate. Owner and internal sessions retain delegation access.
 
 | Scenario | Behavior |
 | -------- | -------- |
@@ -394,7 +394,7 @@ Cross-session delegation is owner-only: non-owners cannot spawn a child, send wo
 **Implementation:**
 - `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `OWNER_ONLY_TOOL_PATTERNS`, `resolveOwnerOnlyToolBlock`)
 - Binds the DM or group sender role to the dispatch run ID and its session keys, including thread keys. Non-owner input restricts overlapping active runs before dispatch because the host can steer it into those runs; the restriction lasts until each run ends. Pending non-owner dispatches also restrict runs registered before the dispatch/steering decision finishes. Owner input cannot restore a restricted run's privileges. Unclassified runs in known Tlon sessions fail closed using exact or parent-thread lookups; channel-scoped aliases are not retained per correspondent.
-- Host-attributed interactive runs from WebChat, TUI, and other channels retain their own authority in shared main sessions. A prior Tlon dispatch does not restrict those later runs.
+- Other interactive runs require `senderIsOwner: true` from the host's `before_agent_run` event. Channel names, including WebChat and TUI, do not grant authority. False or missing sender authority restricts the run; verified owners retain access in shared main sessions. Tlon dispatch attribution remains authoritative for Tlon senders.
 - Cron access requires a host job configured with `sessionTarget: "isolated"` and a run key matching the host agent, job, and session IDs. Shared-history cron runs stay restricted. Queued plugin injections disqualify the run.
 - Heartbeat access requires host session-store metadata identifying an isolated transcript, matching the active session ID and source session. Queued plugin injections disqualify the run. Every passive Tlon system event marks its source session as untrusted for heartbeats for the lifetime of the process, including events forwarded into an isolated heartbeat. Shared-history heartbeats remain restricted even after an owner turn or process restart.
 - Run attribution is removed at `agent_end` (using the context or event run ID), dispatch cleanup, or gateway shutdown. Pending input restrictions are released only by dispatch completion or gateway shutdown. Tool parameters and session-level cron-job records cannot grant access.

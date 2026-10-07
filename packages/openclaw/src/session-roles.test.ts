@@ -35,6 +35,7 @@ function expectMcpBlocked(
     'linear__create_issue',
     'sessions_spawn',
     'sessions_send',
+    'openclaw',
   ]) {
     expect(resolveOwnerOnlyToolBlock(tool, getToolCallRole(ctx)).blocked).toBe(
       blocked
@@ -59,11 +60,13 @@ describe('run-scoped sender roles', () => {
     recordSenderRole(userRun.runId, [sessionKey], 'user');
     // The steering dispatch ends while tools retain the original owner's ID.
     finishSenderDispatch(userRun);
-    recordSessionRunContext({
-      ...ownerRun,
-      trigger: 'user',
-      messageProvider: 'webchat',
-    });
+    recordSessionRunContext(
+      {
+        ...ownerRun,
+        trigger: 'user',
+      },
+      { senderIsOwner: true }
+    );
     recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
     expectMcpBlocked(ownerRun, true);
     expectMcpBlocked(userRun, true);
@@ -94,11 +97,13 @@ describe('run-scoped sender roles', () => {
 
   it('restricts an active thread run when a non-owner steers its parent route', () => {
     const threadRun = { ...ownerRun, sessionKey: `${sessionKey}:thread:1` };
-    recordSessionRunContext({
-      ...threadRun,
-      trigger: 'user',
-      messageProvider: 'webchat',
-    });
+    recordSessionRunContext(
+      {
+        ...threadRun,
+        trigger: 'user',
+      },
+      { senderIsOwner: true }
+    );
     recordSenderRole(userRun.runId, [sessionKey], 'user');
     finishSenderDispatch(userRun);
     expectMcpBlocked(threadRun, true);
@@ -111,15 +116,12 @@ describe('run-scoped sender roles', () => {
   });
 
   it.each(['webchat', 'tui', 'discord'])(
-    'allows a later host-attributed %s run in a shared main session',
+    'allows a host-authenticated owner from %s in a shared main session',
     (messageProvider) => {
       recordSenderRole(userRun.runId, [sessionKey], 'user');
       finishSenderDispatch(userRun);
-      recordSessionRunContext({
-        ...ownerRun,
-        trigger: 'user',
-        messageProvider,
-      });
+      const ctx = { ...ownerRun, trigger: 'user', messageProvider };
+      recordSessionRunContext(ctx, { senderIsOwner: true });
       expectMcpBlocked(ownerRun, false);
       expectMcpBlocked({ ...ownerRun, runId: 'unattributed' }, true);
     }
@@ -127,24 +129,26 @@ describe('run-scoped sender roles', () => {
 
   it('restricts an active WebChat run when non-owner steering arrives', () => {
     const ctx = { ...ownerRun, trigger: 'user', messageProvider: 'webchat' };
-    recordSessionRunContext(ctx);
+    recordSessionRunContext(ctx, { senderIsOwner: true });
     recordSenderRole(userRun.runId, [sessionKey], 'user');
     finishSenderDispatch(userRun);
-    recordSessionRunContext(ctx);
+    recordSessionRunContext(ctx, { senderIsOwner: true });
     expectMcpBlocked(ownerRun, true);
     clearSessionRunContext(ownerRun);
     const next = { ...ctx, runId: 'next-webchat-run' };
-    recordSessionRunContext(next);
+    recordSessionRunContext(next, { senderIsOwner: true });
     expectMcpBlocked(next, false);
   });
 
   it('does not grant an unclassified Tlon run another channel’s authority', () => {
     recordSenderRole(userRun.runId, [sessionKey], 'user');
-    recordSessionRunContext({
-      ...ownerRun,
-      trigger: 'user',
-      messageProvider: 'tlon',
-    });
+    recordSessionRunContext(
+      {
+        ...ownerRun,
+        trigger: 'user',
+      },
+      { senderIsOwner: undefined }
+    );
     expectMcpBlocked(ownerRun, true);
   });
 
@@ -153,13 +157,13 @@ describe('run-scoped sender roles', () => {
     // Agent end is not dispatch completion: the steering decision is pending.
     clearSessionRunContext(userRun);
     const ctx = { ...ownerRun, trigger: 'user', messageProvider: 'webchat' };
-    recordSessionRunContext(ctx);
+    recordSessionRunContext(ctx, { senderIsOwner: true });
     finishSenderDispatch(userRun);
-    recordSessionRunContext(ctx);
+    recordSessionRunContext(ctx, { senderIsOwner: true });
     expectMcpBlocked(ownerRun, true);
     clearSessionRunContext(ownerRun);
     const next = { ...ctx, runId: 'next-owner' };
-    recordSessionRunContext(next);
+    recordSessionRunContext(next, { senderIsOwner: true });
     expectMcpBlocked(next, false);
   });
 
@@ -168,11 +172,13 @@ describe('run-scoped sender roles', () => {
     const other = { ...userRun, runId: 'other-user' };
     recordSenderRole(other.runId, [sessionKey], 'user');
     finishSenderDispatch(userRun);
-    recordSessionRunContext({
-      ...ownerRun,
-      trigger: 'user',
-      messageProvider: 'webchat',
-    });
+    recordSessionRunContext(
+      {
+        ...ownerRun,
+        trigger: 'user',
+      },
+      { senderIsOwner: true }
+    );
     finishSenderDispatch(other);
     expectMcpBlocked(ownerRun, true);
   });
@@ -210,6 +216,44 @@ describe('run-scoped sender roles', () => {
       { sessionKey: 'agent:main:tlon:direct:ship-999:thread:1' },
       true
     );
+  });
+
+  it.each(['webchat', 'tui', 'discord', 'slack', 'unknown'])(
+    'does not infer owner authority from the %s provider',
+    (messageProvider) => {
+      for (const senderIsOwner of [false, undefined]) {
+        const ctx = {
+          sessionKey: `agent:main:${messageProvider}:room`,
+          runId: `${messageProvider}-${senderIsOwner}`,
+          trigger: 'user',
+          messageProvider,
+        };
+        recordSessionRunContext(ctx, { senderIsOwner });
+        expectMcpBlocked(ctx, true);
+      }
+    }
+  );
+
+  it('does not promote an unverified sender on a later owner-claiming hook', () => {
+    const ctx = { ...ownerRun, trigger: 'user' };
+    recordSessionRunContext(ctx, { senderIsOwner: undefined });
+    recordSessionRunContext(ctx, { senderIsOwner: true });
+    expectMcpBlocked(ctx, true);
+  });
+
+  it('preserves Tlon sender attribution when the host sender bit differs', () => {
+    recordSenderRole(ownerRun.runId, [sessionKey], 'owner');
+    recordSessionRunContext(
+      { ...ownerRun, trigger: 'user' },
+      { senderIsOwner: false }
+    );
+    expectMcpBlocked(ownerRun, false);
+    recordSenderRole(userRun.runId, [sessionKey], 'user');
+    recordSessionRunContext(
+      { ...userRun, trigger: 'user' },
+      { senderIsOwner: true }
+    );
+    expectMcpBlocked(userRun, true);
   });
 
   it('fails closed for missing tool context', () => {

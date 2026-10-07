@@ -18,6 +18,7 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'sessions_spawn',
   'sessions_send',
   'subagents',
+  'openclaw',
 ]);
 
 export const OWNER_ONLY_TOOL_PATTERNS = ['mcp_*', '*__*'] as const;
@@ -56,7 +57,7 @@ export function resolveOwnerOnlyToolBlock(
 ): OwnerOnlyToolDecision {
   const ownerOnly = OWNER_ONLY_TOOLS.has(toolName) || isMcpToolName(toolName);
   // Only an explicit non-owner ('user') role blocks. Owner sessions and
-  // internal sessions (heartbeat, cron, subagents — no stored role) pass.
+  // trusted internal runs pass after run attribution in session-roles.
   const blocked = ownerOnly && role === 'user';
   return blocked
     ? { ownerOnly, blocked, reason: formatOwnerOnlyToolBlockReason(toolName) }
