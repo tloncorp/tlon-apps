@@ -169,7 +169,7 @@ Notes: hiding the bar with the X does not unpin anything for other people, and t
 
 Phone: tap the photo. Pinch to zoom, tap once to hide or show the buttons, and tap the X to close. Tap the down arrow to save it to your photo library; the first time, the phone asks for photo access. A video opens in a player with the same two buttons, without zoom.
 Desktop: click the photo or video. It opens over the whole window; the down arrow downloads the file and the X closes it. There is no zoom.
-Notes: the viewer shows one item at a time, so you cannot swipe to the next photo. It has no share button; to pass a photo on, save it, or copy its link from the message's menu.
+Notes: the viewer shows one item at a time, so you cannot swipe to the next photo. It has no share button; to pass a photo on, save it first.
 
 ## Search for a message inside a chat
 <!-- src: packages/app/ui/components/Channel/ChannelHeader.tsx, packages/app/ui/components/Channel/index.tsx, packages/app/ui/components/PostScreenView.tsx, packages/app/features/top/ChannelSearchScreen.tsx, packages/app/ui/components/ChannelSearch/SearchResults.tsx, packages/app/ui/components/ChannelSearch/SearchStatus.tsx, packages/api/src/client/channelsApi.ts, packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx -->

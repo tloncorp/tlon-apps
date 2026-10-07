@@ -41,7 +41,7 @@ Notes: if there is activity but the filter you picked has none, the list just sa
 ## What the unread numbers and dots mean
 <!-- src: packages/app/ui/components/ListItem.tsx, packages/app/ui/components/listItems/GroupListItem.tsx, packages/app/ui/components/listItems/ChannelListItem.tsx, packages/app/navigation/TopLevelTabNavigator.native.tsx, packages/app/navigation/desktop/TopLevelDrawer.tsx -->
 
-Phone: on the Workspaces tab, a chat with unread messages shows a number in a pill at the right of its row. Channels in a group's channel list show one too. The pill is coloured when something in there is set to notify you and grey when it isn't. Above 256 it reads "256+". A muted chat shows a small crossed-out bell in the same spot, with or without a number.
+Phone: on the Workspaces tab, a chat with unread messages shows a number in a pill at the right of its row. Channels in a group's channel list show one too. The pill is coloured when something in there is set to notify you and grey when it isn't. Above 256 it reads "256+". A muted chat shows a small crossed-out bell beside the number. Newer versions of the app keep the bell there when nothing is unread.
 Desktop: the same numbers sit in the sidebar. Hovering a row swaps the number for the three-dot menu button.
 Notes: in the tab bar only the bell and the Bot tab ever show a dot; the Workspaces tab doesn't. On desktop only the bell does, never the Home or Messages icons.
 
@@ -87,7 +87,7 @@ Notes: DMs and group chats are all or nothing; there is no mentions-only level f
 
 Phone: on the Workspaces tab, swipe the chat to the left and tap the crossed-out bell. To unmute, swipe left again and tap the bell. For full silence from a group, set its notifications to `Nothing` instead.
 Desktop: there is no swipe. Open the chat's three-dot menu, pick its notifications row, then `Nothing`.
-Notes: muting a DM by swipe sets it to `Nothing`. Muting a group by swipe sets it to `Mentions and replies`, so mentions still reach you. Channels inside a group can't be swiped; use their notifications menu. A muted chat shows a small crossed-out bell on its row and keeps counting unread messages. Unmuting by swipe puts the chat back on the default.
+Notes: muting a DM by swipe sets it to `Nothing`. Muting a group by swipe sets it to `Mentions and replies`, so mentions still reach you. Channels inside a group can't be swiped; use their notifications menu. A muted chat keeps counting unread messages and shows a small crossed-out bell beside the count. Unmuting by swipe puts the chat back on the default.
 
 ## Go back to the default for a chat
 <!-- src: packages/app/features/settings/PushNotificationSettingsScreen.tsx, packages/app/ui/contexts/chatOptions/useChatVolumeOptions.ts, packages/app/ui/components/SettingsScreenView.tsx -->
