@@ -76,6 +76,6 @@ await store.updateWorkspaceConfig(groupId, (config) => ({
 
 The updater cannot change `version`. `updateWorkspaceConfig` throws `WorkspaceConfigWriteError` rather than overwrite a `newer` or `foreign` blob. Two admins writing at the same moment is last-writer-wins.
 
-Saving instructions also names the bot when the document has none: the admin's first trusted bot from %steward's `/v1/bots` scry (`getStewardBots`, guarded by `deskSupportsStewardBots` on desks before 12.3.2). An existing `bot` is kept.
+Saving instructions also names the bot when the document has none: the admin's first trusted bot from %steward's `/v1/bots` scry (`getStewardBots`, guarded by `deskSupportsStewardBots`). An existing `bot` is kept. Group settings show the editor only once the user's own desk is known to serve that scry (12.3.2 and later, `useDeskSupportsStewardBots`).
 
 Only group admins can set the blob, and the host rejects a blob over 256 KB (measured as the jammed noun, `size-limit` in `desk/app/groups.hoon`). The write is an ordinary `%blob` group action. The host emits no update when the value is unchanged, so `updateGroupBlob` skips a no-op write rather than wait out its timeout.

@@ -291,15 +291,31 @@ export const getDeskCountsAllSeats = (): boolean => {
   return config.deskCountsAllSeats;
 };
 
-// Whether the connected backend's %steward serves its trusted bots.
+const deskSupportsStewardBotsListeners = new Set<() => void>();
+
+// Whether the connected backend's %steward serves its trusted bots. Views
+// gated on it listen below.
 export const setDeskSupportsStewardBots = (value: boolean | null) => {
+  const changed = config.deskSupportsStewardBots !== value;
   config.deskSupportsStewardBots = value;
+  if (changed) {
+    deskSupportsStewardBotsListeners.forEach((listener) => listener());
+  }
 };
 
 // null until sync start resolves the capability; the request guard refuses
 // only a known false.
 export const getDeskSupportsStewardBotsState = (): boolean | null => {
   return config.deskSupportsStewardBots;
+};
+
+export const onDeskSupportsStewardBotsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsStewardBotsListeners.add(listener);
+  return () => {
+    deskSupportsStewardBotsListeners.delete(listener);
+  };
 };
 
 const deskSupportsBucketsListeners = new Set<() => void>();
