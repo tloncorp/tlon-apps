@@ -221,7 +221,7 @@ describe('syncGroupMembersPage', () => {
     expect(await storedMemberIds()).toEqual(['~zod', '~nec', '~wes', '~per']);
   });
 
-  test('a role page replaces its members roles and removes nobody', async () => {
+  test('a role page replaces its members roles and removes no seats', async () => {
     vi.spyOn(api, 'getGroupMembersPage').mockResolvedValue(
       pageOf({
         total: 1,
@@ -243,6 +243,41 @@ describe('syncGroupMembersPage', () => {
     const nec = stored?.members?.find((m) => m.contactId === '~nec');
     expect(nec?.roles?.map((role) => role.roleId)).toEqual(['admin']);
     expect(stored?.memberCount).toBe(600);
+  });
+
+  test('a role page takes the role from holders in its range it lacks', async () => {
+    await queries.addChatMembersToRoles({
+      groupId,
+      contactIds: ['~nec', '~sev'],
+      roleIds: ['admin'],
+    });
+    vi.spyOn(api, 'getGroupMembersPage').mockResolvedValue(
+      pageOf({
+        total: 3,
+        members: [
+          member('~zod', { roleIds: ['admin'] }),
+          member('~bud', { roleIds: ['admin'] }),
+        ],
+        next: '~bud',
+      })
+    );
+
+    await syncGroupMembersPage({ groupId, roleId: 'admin' });
+
+    // ~nec is inside the page and missing from it; ~sev is past it
+    const holders = await queries.getGroupMemberRoles({ groupId });
+    expect(holders.map((row) => row.contactId).sort(compareShips)).toEqual([
+      '~zod',
+      '~bud',
+      '~sev',
+    ]);
+    expect(await storedMemberIds()).toEqual([
+      '~zod',
+      '~nec',
+      '~bud',
+      '~sev',
+      '~per',
+    ]);
   });
 });
 
@@ -336,6 +371,29 @@ describe('syncGroupMembersPage while the roster changes', () => {
 
     const roles = await queries.getGroupMemberRoles({ groupId });
     expect(roles.map((row) => row.contactId).sort(compareShips)).toEqual([
+      '~nec',
+      '~bud',
+    ]);
+  });
+
+  test('keeps a role a live event granted while a role page was in flight', async () => {
+    vi.spyOn(api, 'getGroupMembersPage').mockImplementation(async () => {
+      await queries.addChatMembersToRoles({
+        groupId,
+        contactIds: ['~bud'],
+        roleIds: ['admin'],
+      });
+      return pageOf({
+        total: 1,
+        members: [member('~nec', { roleIds: ['admin'] })],
+        next: null,
+      });
+    });
+
+    await syncGroupMembersPage({ groupId, roleId: 'admin' });
+
+    const holders = await queries.getGroupMemberRoles({ groupId });
+    expect(holders.map((row) => row.contactId).sort(compareShips)).toEqual([
       '~nec',
       '~bud',
     ]);

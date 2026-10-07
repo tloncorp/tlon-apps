@@ -93,9 +93,28 @@ export async function syncGroupMembersPage(
         `roster page stored ${members.length - missing.length} of ${members.length} members`
       );
     }
-    // a role page says nothing about members without that role
-    if (roleId) return;
     const onPage = new Set(page.members.map((member) => member.contactId));
+    if (roleId) {
+      // a role page holds every holder of the role in its range, so a holder
+      // stored before the fetch that it lacks has lost the role (one granted
+      // since is newer than the page). It says nothing about seats.
+      const lostRole = [...rolesBefore]
+        .filter(
+          ([contactId, roleIds]) =>
+            roleIds.split(' ').includes(roleId) &&
+            !onPage.has(contactId) &&
+            isInPage(contactId, after, page.next)
+        )
+        .map(([contactId]) => contactId);
+      if (clientChanged()) return;
+      if (lostRole.length) {
+        await db.removeChatMembersFromRoles(
+          { groupId, contactIds: lostRole, roleIds: [roleId] },
+          ctx
+        );
+      }
+      return;
+    }
     // a page that has a next one ends at it; the last runs to the end
     const departed = before.filter(
       (contactId) =>
