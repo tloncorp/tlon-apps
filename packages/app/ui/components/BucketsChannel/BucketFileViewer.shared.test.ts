@@ -501,10 +501,13 @@ describe('htmlPreviewHasScripts', () => {
     '<svg><a xlink:href="javascript:go()"><text>x</text></a></svg>',
     '<math><mtext href="javascript:go()">x</mtext></math>',
     '<iframe src="javascript:go()"></iframe>',
-    // A handler only one engine has: WebKit's focusin, Chromium's SVG begin,
-    // and a window event <body> forwards.
+    // A handler only one engine has: WebKit's focusin and iOS's video
+    // fullscreen, Chromium's SVG begin and validationstatuschange, and a
+    // window event <body> forwards.
     '<div onfocusin="go()">x</div>',
+    '<video controls onwebkitbeginfullscreen="go()"></video>',
     '<svg><animate onbegin="go()"/></svg>',
+    '<div onvalidationstatuschange="go()">x</div>',
     '<body ononline="go()">',
     // Nested deeper than it reads.
     nested('<p>static</p>', 4),
@@ -876,7 +879,8 @@ describe('htmlPreviewDocument without scripts', () => {
 
 // Anyone who can upload writes these. The parser's time grows with the
 // square of how deep a file nests, so a file nesting past the cap is declined
-// at once, and one just under it still parses in bounded time.
+// at once, and one just under it still parses in bounded time. A file
+// building more elements than the preview keeps is declined too.
 describe('hostile markup', () => {
   it('is read in bounded time, and a file nesting too deep is declined', () => {
     const blank = `${' '.repeat(200_000)}<p>x</p>`;
@@ -896,6 +900,7 @@ describe('hostile markup', () => {
       '<svg>'.repeat(100_000) + '</x>'.repeat(100_000),
       '<template>'.repeat(100_000) + '<script>go()</script>',
       '<svg>' + '<g>'.repeat(100_000) + '</svg><title>T</title>',
+      '<title>T</title>' + '<br>'.repeat(200_000),
     ]) {
       expect(htmlPreviewReadable(html)).toBe(false);
       expect(htmlPreviewTitle(html)).toBeUndefined();
@@ -904,6 +909,7 @@ describe('hostile markup', () => {
     // Just under the cap, each stray end tag rescans every open element.
     const nearCap = '<svg>'.repeat(120) + '</x>'.repeat(50_000);
     expect(htmlPreviewReadable(nearCap + '<title>T</title>')).toBe(true);
+    expect(htmlPreviewReadable('<br>'.repeat(199_990))).toBe(true);
     expect(
       htmlPreviewTitle(nearCap + '</svg>'.repeat(120) + '<title>T</title>')
     ).toBe('T');

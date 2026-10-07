@@ -699,15 +699,28 @@ type ParsedElement = DefaultTreeAdapterMap['element'];
 // deep; at this cap a crafted 2 MB file parses in about a second.
 const MAX_PARSE_DEPTH = 128;
 
-class NestedTooDeep extends Error {}
+// How many elements the parser may build for one document before its file is
+// declined. The tree is kept while the preview is open, beside the browser's
+// own DOM: a 2 MB file of bare <p>s built 700,000 elements in 1.8 s and kept
+// 250 MB in parse5. A dense 2 MB data table builds about 150,000.
+const MAX_PARSE_ELEMENTS = 200_000;
+
+class ParseLimit extends Error {}
+
+let elementsLeft = 0;
 
 const DEPTH = Symbol('depth');
 type Nested = { [DEPTH]?: number };
 
-/** Records a node's depth as the parser attaches it, and stops the parse past MAX_PARSE_DEPTH. */
+/**
+ * Records a node's depth as the parser attaches it, and stops the parse past
+ * MAX_PARSE_DEPTH or MAX_PARSE_ELEMENTS. Text and comments are attached
+ * without it, inside the elements it counts.
+ */
 function attach(parent: ParsedNode, child: ParsedNode): void {
   const depth = ((parent as Nested)[DEPTH] ?? 0) + 1;
-  if (depth > MAX_PARSE_DEPTH) throw new NestedTooDeep();
+  elementsLeft -= 1;
+  if (depth > MAX_PARSE_DEPTH || elementsLeft < 0) throw new ParseLimit();
   (child as Nested)[DEPTH] = depth;
   // A template's content is a fragment of its own, holding what nests in it.
   if ('content' in child) (child.content as Nested)[DEPTH] = depth;
@@ -734,21 +747,24 @@ interface ParsedHtml {
 /**
  * `html` as a browser's parser builds it, with scripting on or off, which
  * decides whether a `<noscript>` holds text or markup; null when it nests
- * past MAX_PARSE_DEPTH. A leading byte order mark is skipped, as Chromium
- * and WebKit skip one in a srcdoc document, so the tree's source offsets lie
- * one short of `html`'s.
+ * past MAX_PARSE_DEPTH or builds more than MAX_PARSE_ELEMENTS. A leading
+ * byte order mark is skipped, as Chromium and WebKit skip one in a srcdoc
+ * document, so the tree's source offsets lie one short of `html`'s. Only a
+ * tree read as a frame without scripts has source offsets: they are read to
+ * rewrite its markup (withLinksAimedAtBlank), and they double a tree's size.
  */
 function parseHtml(html: string, scripting: boolean): ParsedHtml | null {
   const offset = html.charCodeAt(0) === 0xfeff ? 1 : 0;
+  elementsLeft = MAX_PARSE_ELEMENTS;
   try {
     const document = parse(offset ? html.slice(1) : html, {
       scriptingEnabled: scripting,
-      sourceCodeLocationInfo: true,
+      sourceCodeLocationInfo: !scripting,
       treeAdapter: depthCappedTreeAdapter,
     });
     return { document, offset };
   } catch (error) {
-    if (error instanceof NestedTooDeep) return null;
+    if (error instanceof ParseLimit) return null;
     throw error;
   }
 }
@@ -814,7 +830,8 @@ function attributeOf(
 /**
  * Whether the preview can read an HTML file: false when it, or the document
  * of an inline frame in it, nests elements deeper than MAX_PARSE_DEPTH, which
- * no real page does, or when it nests one `srcdoc` in another deeper than
+ * no real page does, or holds more than MAX_PARSE_ELEMENTS, which only the
+ * densest 2 MB pages near, or when it nests one `srcdoc` in another deeper than
  * MAX_NESTED_DOCUMENTS, which are not read; the viewer offers Open instead.
  * The file is read as a frame that runs scripts, or one that does not
  * (`scripting: false`, under Electron), reads it.
@@ -1045,36 +1062,43 @@ function scriptKind(script: ParsedElement): 'classic' | 'module' | undefined {
 
 // The events an `on<event>` content attribute handles on some element in
 // Chromium or WebKit: every event handler property of an HTML, SVG or MathML
-// element interface, the window's that <body> forwards, and iOS's gesture
-// events. Any other attribute starting with `on` (`only`, `onward`) is data.
+// element interface, the window's that <body> forwards, and the attributes
+// each engine's source maps beside those -- WebKit's legacy table (iOS's
+// gesture and video fullscreen events among them) and Chromium's attribute
+// table, which is ahead of the Chromium the tests run. Any other attribute
+// starting with `on` (`only`, `onward`) is data.
 const HANDLED_EVENTS = new Set(
   `
   abort afterprint animationcancel animationend animationiteration
-  animationstart auxclick beforecopy beforecut beforeinput beforeload
-  beforematch beforepaste beforeprint beforetoggle beforeunload
-  beforexrselect begin blur cancel canplay canplaythrough change click close
-  command contentvisibilityautostatechange contextlost contextmenu
-  contextrestored copy cuechange cut dblclick drag dragend dragenter
-  dragleave dragover dragstart drop durationchange emptied encrypted end
-  ended enterpictureinpicture error focus focusin focusout formdata
+  animationstart autocomplete autocompleteerror auxclick beforecopy
+  beforecut beforefilter beforeinput beforeload beforematch beforepaste
+  beforeprint beforetoggle beforeunload beforexrselect begin blur cancel
+  canplay canplaythrough change click close command
+  contentvisibilityautostatechange contextlost contextmenu contextrestored
+  copy cuechange cut dblclick drag dragend dragenter dragleave dragover
+  dragstart drop durationchange emptied encrypted end ended
+  enterpictureinpicture error focus focusin focusout formdata
   fullscreenchange fullscreenerror gamepadconnected gamepaddisconnected
   gesturechange gestureend gesturestart gotpointercapture hashchange input
-  invalid keydown keypress keyup languagechange leavepictureinpicture load
-  loadeddata loadedmetadata loadstart lostpointercapture message
-  messageerror mousedown mouseenter mouseleave mousemove mouseout mouseover
-  mouseup mousewheel offline online orientationchange pagehide pagereveal
-  pageshow pageswap paste pause play playing pointercancel pointerdown
-  pointerenter pointerleave pointermove pointerout pointerover
-  pointerrawupdate pointerup popstate progress ratechange rejectionhandled
-  repeat reset resize scroll scrollend scrollsnapchange scrollsnapchanging
-  search securitypolicyviolation seeked seeking select selectionchange
-  selectstart slotchange stalled storage submit suspend timeupdate toggle
+  installresult invalid keydown keypress keyup languagechange
+  leavepictureinpicture load loadeddata loadedmetadata loadstart location
+  lostpointercapture message messageerror mousedown mouseenter mouseleave
+  mousemove mouseout mouseover mouseup mousewheel offline online
+  orientationchange pagehide pagereveal pageshow pageswap paste pause play
+  playing pointercancel pointerdown pointerenter pointerleave pointermove
+  pointerout pointerover pointerrawupdate pointerup popstate progress
+  promptaction promptdismiss ratechange rejectionhandled repeat reset resize
+  scroll scrollend scrollsnapchange scrollsnapchanging search
+  securitypolicyviolation seeked seeking select selectionchange selectstart
+  slotchange stalled storage stream submit suspend timeupdate toggle
   touchcancel touchend touchforcechange touchmove touchstart
   transitioncancel transitionend transitionrun transitionstart
-  unhandledrejection unload volumechange waiting waitingforkey
-  webkitanimationend webkitanimationiteration webkitanimationstart
-  webkitcurrentplaybacktargetiswirelesschanged webkitfullscreenchange
-  webkitfullscreenerror webkitmouseforcechanged webkitmouseforcedown
+  unhandledrejection unload validationstatuschange volumechange waiting
+  waitingforkey webkitanimationend webkitanimationiteration
+  webkitanimationstart webkitbeginfullscreen
+  webkitcurrentplaybacktargetiswirelesschanged webkitendfullscreen
+  webkitfullscreenchange webkitfullscreenerror webkitkeyadded webkitkeyerror
+  webkitkeymessage webkitmouseforcechanged webkitmouseforcedown
   webkitmouseforceup webkitmouseforcewillbegin webkitneedkey
   webkitplaybacktargetavailabilitychanged webkitpresentationmodechanged
   webkittransitionend wheel
