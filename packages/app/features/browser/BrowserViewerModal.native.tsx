@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Modal, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner, View, YStack } from 'tamagui';
 
-import type { BrowserViewerModalProps } from './BrowserViewerModal';
+import type { BrowserViewerModalProps } from './BrowserViewerModal.types';
 import { BrowserViewer } from './BrowserViewer.native';
 import { BrowserControlButton } from './BrowserViewerControls.native';
 

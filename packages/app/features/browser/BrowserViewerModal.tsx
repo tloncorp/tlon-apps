@@ -2,10 +2,7 @@ import { Button, Text } from '@tloncorp/ui';
 import { Modal } from 'react-native';
 import { YStack } from 'tamagui';
 
-export type BrowserViewerModalProps = {
-  viewerUrl: string;
-  onClose: () => void;
-};
+import type { BrowserViewerModalProps } from './BrowserViewerModal.types';
 
 // The service does not yet allow desktop iframe embedding. Keep the user in
 // the app rather than handing a signed session link to an external browser.
