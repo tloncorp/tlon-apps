@@ -146,13 +146,11 @@ export function WorkspaceInstructionsSheet({
     ? 'Saving…'
     : !writable
       ? "This group's bot settings were saved by a newer version of the app. Update to edit them."
-      : botsQuery.error instanceof api.DeskUnsupportedError
-        ? 'Update your ship to set instructions for your bot.'
-        : botsQuery.isSuccess && !bot
-          ? 'You need a bot to set instructions for this group.'
-          : isDirty
-            ? 'Unsaved changes'
-            : 'Anyone in this group can read these.';
+      : botsQuery.isSuccess && !bot
+        ? 'You need a bot to set instructions for this group.'
+        : isDirty
+          ? 'Unsaved changes'
+          : 'Anyone in this group can read these.';
 
   const saveButton = (
     <Button

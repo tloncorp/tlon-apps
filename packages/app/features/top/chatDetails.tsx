@@ -429,6 +429,7 @@ export function SettingsSection({
     }
   }, [group, onPressRoles]);
 
+  const supportsInstructions = store.useDeskSupportsStewardBots() === true;
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const handlePressInstructions = useCallback(
     () => setInstructionsOpen(true),
@@ -568,13 +569,17 @@ export function SettingsSection({
           disabled: !actionsEnabled,
           onPress: handlePressManageChannels,
         },
-        {
-          title: 'Bot instructions',
-          endValue: hasWorkspaceInstructions(group) ? 'On' : 'Off',
-          testID: 'GroupInstructions',
-          disabled: !actionsEnabled,
-          onPress: handlePressInstructions,
-        },
+        ...(supportsInstructions
+          ? [
+              {
+                title: 'Bot instructions',
+                endValue: hasWorkspaceInstructions(group) ? 'On' : 'Off',
+                testID: 'GroupInstructions',
+                disabled: !actionsEnabled,
+                onPress: handlePressInstructions,
+              },
+            ]
+          : []),
         notificationAction,
         ...scheduledTasksActions,
       ];
@@ -610,6 +615,7 @@ export function SettingsSection({
     handlePressRoles,
     handlePressManageChannels,
     handlePressInstructions,
+    supportsInstructions,
     handlePressEditChannelPrivacy,
     groupRoles,
     showsScheduledTasks,
