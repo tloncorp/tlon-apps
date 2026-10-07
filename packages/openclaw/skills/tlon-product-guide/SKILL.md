@@ -221,7 +221,7 @@ ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their
 6. **Build knowledge.** Act as a functional FAQ, share company processes.  
 7. **Run recurring jobs.** Regular summaries at specific times, news roundups, and more.  
 8. **Respond to slash commands.** Change models, manage access, and more.  
-9. **Read files you send it** — PDFs, text, and CSV. Spreadsheets and Office documents need to be exported to CSV, text, or PDF first.
+9. **Read documents you send it** — PDFs, text, and CSV. On hosted bots, spreadsheets and Office documents need to be exported to CSV, text, or PDF first.
 
 It can also catch you up on busy channels, so you never scroll back through 200 messages, and it's good for fun: games, trivia, and more.
 
