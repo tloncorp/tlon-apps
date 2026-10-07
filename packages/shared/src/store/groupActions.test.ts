@@ -3,7 +3,11 @@ import { afterEach, expect, test, vi } from 'vitest';
 
 import * as schema from '../db/schema';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
-import { createGroupFromTemplate, updateGroupBlob } from './groupActions';
+import {
+  createGroupFromTemplate,
+  updateGroupBlob,
+  updateWorkspaceConfig,
+} from './groupActions';
 
 setupDatabaseTestSuite();
 
@@ -74,6 +78,42 @@ test('updateGroupBlob pokes when clearing an existing blob', async () => {
   await updateGroupBlob({ id: groupId } as never, null);
 
   expect(updateGroupBlobApi).toHaveBeenCalledWith({ groupId, blob: null });
+});
+
+test('updateWorkspaceConfig merges into the stored blob', async () => {
+  await insertGroup('{"version":2,"bot":"~bot","future":1}');
+  const updateGroupBlobApi = vi
+    .spyOn(api, 'updateGroupBlob')
+    .mockResolvedValue(undefined as never);
+
+  await updateWorkspaceConfig(groupId, (config) => ({
+    ...config,
+    instructions: 'Be brief.',
+  }));
+
+  expect(updateGroupBlobApi).toHaveBeenCalledTimes(1);
+  const { blob } = updateGroupBlobApi.mock.calls[0][0];
+  expect(JSON.parse(blob!)).toEqual({
+    version: 2,
+    bot: '~bot',
+    future: 1,
+    instructions: 'Be brief.',
+  });
+});
+
+test('updateWorkspaceConfig never overwrites a foreign blob', async () => {
+  await insertGroup('{"k":1}');
+  const updateGroupBlobApi = vi
+    .spyOn(api, 'updateGroupBlob')
+    .mockResolvedValue(undefined as never);
+
+  await expect(
+    updateWorkspaceConfig(groupId, (config) => ({
+      ...config,
+      instructions: 'x',
+    }))
+  ).rejects.toBeInstanceOf(api.WorkspaceConfigWriteError);
+  expect(updateGroupBlobApi).not.toHaveBeenCalled();
 });
 
 // A %notes notebook can't ride the %groups create poke; it has to be created
