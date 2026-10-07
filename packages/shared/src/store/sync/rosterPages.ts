@@ -45,32 +45,57 @@ export async function syncGroupMembersPage(
   ctx?: SyncCtx
 ): Promise<api.GroupMembersPage> {
   const generation = getClientGeneration();
+  // the database follows the current client, so a page from the previous
+  // one would land in the wrong account: check before every write
+  const clientChanged = () => getClientGeneration() !== generation;
+  // live seat events can land while the page is in flight, and the older
+  // page must neither drop a seat added since nor bring back one removed
+  // since: only seats stored before the fetch are reconciled
+  const before = await db.getGroupMemberIds({ groupId, seatedOnly: true });
   const page = await syncQueue.add('syncGroupMembersPage', ctx, () =>
     api.getGroupMembersPage({ groupId, limit, after, roleId })
   );
-  // the database follows the current client; a page from the previous one
-  // would land in the wrong account
-  if (getClientGeneration() !== generation) return page;
+  if (clientChanged()) return page;
   await batchEffects('syncGroupMembersPage', async (ctx) => {
-    await db.insertGroupMembersPage({ groupId, members: page.members }, ctx);
+    const current = new Set(
+      await db.getGroupMemberIds({ groupId, seatedOnly: true }, ctx)
+    );
+    const removedSince = new Set(before.filter((id) => !current.has(id)));
+    const members = page.members.filter(
+      (member) => !removedSince.has(member.contactId)
+    );
+    if (clientChanged()) return;
+    await db.insertGroupMembersPage({ groupId, members }, ctx);
+    // insertMembers logs a failed batch rather than throwing. A page whose
+    // members didn't land must fail, or its cursor moves on and the page is
+    // never fetched again.
+    const stored = new Set(
+      await db.getGroupMemberIds({ groupId, seatedOnly: true }, ctx)
+    );
+    const missing = members.filter((member) => !stored.has(member.contactId));
+    if (missing.length) {
+      throw new Error(
+        `roster page stored ${members.length - missing.length} of ${members.length} members`
+      );
+    }
     // a role page says nothing about members without that role
     if (roleId) return;
     const onPage = new Set(page.members.map((member) => member.contactId));
-    const stored = await db.getGroupMemberIds(
-      { groupId, seatedOnly: true },
-      ctx
-    );
     // a page that has a next one ends at it; the last runs to the end
-    const departed = stored.filter(
+    const departed = before.filter(
       (contactId) =>
-        !onPage.has(contactId) && isInPage(contactId, after, page.next)
+        stored.has(contactId) &&
+        !onPage.has(contactId) &&
+        isInPage(contactId, after, page.next)
     );
+    if (clientChanged()) return;
     if (departed.length) {
       await db.removeChatMembers(
         { chatId: groupId, contactIds: departed },
         ctx
       );
     }
+    if (clientChanged()) return;
     await db.updateGroup({ id: groupId, memberCount: page.total }, ctx);
   });
   return page;

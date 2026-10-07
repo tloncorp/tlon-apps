@@ -1,9 +1,11 @@
 import * as api from '@tloncorp/api';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+import * as dbIndex from '../../db';
 import * as queries from '../../db/queries';
 import type * as db from '../../db/types';
 import { setupDatabaseTestSuite } from '../../test/helpers';
+import { updateInitializedClient } from '../session';
 import { compareShips, syncGroupMembersPage } from './rosterPages';
 import { syncGroup } from './syncGroup';
 
@@ -200,6 +202,92 @@ describe('syncGroupMembersPage', () => {
     const nec = stored?.members?.find((m) => m.contactId === '~nec');
     expect(nec?.roles?.map((role) => role.roleId)).toEqual(['admin']);
     expect(stored?.memberCount).toBe(600);
+  });
+});
+
+describe('syncGroupMembersPage while the roster changes', () => {
+  // ~zod ~nec ~bud ~wes ~sev ~per ~sut ~let ~ful are 0 through 8 by @p value
+  beforeEach(async () => {
+    await queries.insertGroups({
+      groups: [
+        group({
+          memberCount: 600,
+          members: [member('~zod'), member('~nec'), member('~bud')],
+        }),
+      ],
+    });
+  });
+
+  // the page snapshots the roster before a live event lands, then arrives
+  test('keeps a seat added while the page was in flight', async () => {
+    vi.spyOn(api, 'getGroupMembersPage').mockImplementation(async () => {
+      await queries.addChatMembers({
+        chatId: groupId,
+        contactIds: ['~let'],
+        type: 'group',
+        joinStatus: 'joined',
+      });
+      return pageOf({
+        total: 600,
+        members: [member('~zod'), member('~nec')],
+        next: '~ful',
+      });
+    });
+
+    await syncGroupMembersPage({ groupId });
+
+    // ~bud was stored before the fetch and missing from it, so it left
+    expect(await storedMemberIds()).toEqual(['~zod', '~nec', '~let']);
+  });
+
+  test('does not bring back a seat removed while the page was in flight', async () => {
+    vi.spyOn(api, 'getGroupMembersPage').mockImplementation(async () => {
+      await queries.removeChatMembers({
+        chatId: groupId,
+        contactIds: ['~nec'],
+      });
+      return pageOf({
+        total: 600,
+        members: [member('~zod'), member('~nec'), member('~bud')],
+        next: '~ful',
+      });
+    });
+
+    await syncGroupMembersPage({ groupId });
+
+    expect(await storedMemberIds()).toEqual(['~zod', '~bud']);
+  });
+
+  // insertMembers logs a failed batch instead of throwing
+  test('fails a page whose members did not land', async () => {
+    vi.spyOn(api, 'getGroupMembersPage').mockResolvedValue(
+      pageOf({ total: 600, members: [member('~wes')], next: '~wes' })
+    );
+    vi.spyOn(dbIndex, 'insertGroupMembersPage').mockResolvedValue(undefined);
+
+    await expect(syncGroupMembersPage({ groupId })).rejects.toThrow(
+      'roster page stored 0 of 1 members'
+    );
+  });
+
+  test('stops writing once the account changes mid-page', async () => {
+    vi.spyOn(api, 'getGroupMembersPage').mockResolvedValue(
+      pageOf({ total: 598, members: [member('~zod')], next: '~nec' })
+    );
+    const insert = dbIndex.insertGroupMembersPage;
+    vi.spyOn(dbIndex, 'insertGroupMembersPage').mockImplementation(
+      async (...args) => {
+        const result = await insert(...args);
+        updateInitializedClient(false);
+        return result;
+      }
+    );
+
+    await syncGroupMembersPage({ groupId });
+
+    // ~nec would have been reconciled away, and the count updated
+    expect(await storedMemberIds()).toEqual(['~zod', '~nec', '~bud']);
+    expect((await queries.getGroup({ id: groupId }))?.memberCount).toBe(600);
   });
 });
 

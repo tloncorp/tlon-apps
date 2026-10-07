@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 // At most this many pages of holders per role section. A role held by most
 // of a big group would otherwise pull the whole roster in.
@@ -15,7 +15,15 @@ const MAX_ROLE_PAGES = 4;
  */
 export function useGroupRosterPages(group: db.Group | null) {
   const groupId = group?.id ?? '';
-  const paged = !!group && store.isRosterPaged(group);
+  const pagedNow = !!group && store.isRosterPaged(group);
+  // once this screen pages a group, it keeps paging: a count dipping under
+  // the threshold mid-load would otherwise switch it to the partial roster
+  // stored so far, and nothing would load the rest until it remounts
+  const [pagedGroupId, setPagedGroupId] = useState<string | null>(null);
+  if (pagedNow && pagedGroupId !== groupId) {
+    setPagedGroupId(groupId);
+  }
+  const paged = pagedNow || (!!group && pagedGroupId === groupId);
   const roleIds = useMemo(
     () => (group?.roles ?? []).map((role) => role.id).sort(),
     [group?.roles]
