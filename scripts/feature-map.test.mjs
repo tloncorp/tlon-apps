@@ -186,6 +186,10 @@ export type HomeDrawerParamList = Pick<RootStackParamList, 'ChatList'> &
       | { inner: { Deep: never } }
       | RootStackParamList['Channel'];
   };
+export type ChannelStackParamList = Pick<
+  RootStackParamList,
+  'ChatList'
+> & { ChannelRoot: RootStackParamList['Channel']; Beside?: { Inner: never } };
 `,
     'packages/api/src/types/ChannelActions.ts': `export type Id =\n  | 'quote'\n  | 'edit';\nconst other = 'nope';`,
     'packages/app/lib/featureFlags.ts': `export const featureMeta = {\n  buckets: {\n    default: false,\n  },\n} satisfies Record<string, unknown>;`,
@@ -200,7 +204,9 @@ export type HomeDrawerParamList = Pick<RootStackParamList, 'ChatList'> &
       'command:new',
       'flag:buckets',
       'route:ActivityEmpty',
+      'route:Beside',
       'route:Channel',
+      'route:ChannelRoot',
       'route:ChatList',
       'route:MainContent',
       'route:Optional',

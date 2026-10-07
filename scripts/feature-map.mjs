@@ -236,24 +236,35 @@ export function makeReader(root, ref) {
 
 // --- surface inventory -----------------------------------------------------
 
-/** Keys one level inside every `export type …ParamList = {` block. */
+/** Keys one level inside the braces of every `export type …ParamList`. */
 function routeNames(text) {
   const names = new Set();
   let depth = 0;
   let inList = false;
+  // What sits one level inside the list's braces, with deeper levels cut out.
+  // Collected by character, not by line, so a key on the same line as its
+  // opening brace (`> & { ChannelRoot: … };`) is read too.
+  let top = '';
   for (const line of text.split('\n')) {
     // A declaration runs to its closing `;`, so a list written as
     // `Pick<…> & {` with the brace on a later line is still read.
     if (depth === 0 && /^export type \w+ParamList\b/.test(line)) inList = true;
-    if (inList && depth === 1) {
-      const key = /^\s+([A-Z]\w+)\??:/.exec(line);
-      if (key) names.add(key[1]);
-    }
     for (const char of line) {
-      if (char === '{') depth += 1;
       if (char === '}') depth -= 1;
+      if (inList && depth === 1) top += char;
+      if (char === '{') {
+        depth += 1;
+        if (inList && depth === 1) top += '{';
+      }
     }
-    if (depth === 0 && /;\s*$/.test(line)) inList = false;
+    top += '\n';
+    if (depth === 0 && /;\s*$/.test(line)) {
+      for (const key of top.matchAll(/(?:^|[{};,\n])\s*([A-Z]\w+)\??:/g)) {
+        names.add(key[1]);
+      }
+      top = '';
+      inList = false;
+    }
   }
   return [...names];
 }
