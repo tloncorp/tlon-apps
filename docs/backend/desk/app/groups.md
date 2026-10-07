@@ -37,7 +37,15 @@ As such, the group host keeps a record of ships in three different places:
 ## 3.2 Revoking group membership
 In addition to a group member leaving the group on their own, an admin can also remove an unwanted group member from the group by kicking them out. However, this does not prevent the removed group member from attempting to join again. See the below section.
 ## 3.3 Group banned list
-The group host also maintains a list of banned ships and banned ranks. When a ship is banned, it is automatically kicked from the group, if it is yet a member. Furthermore, a banned ship can not interact with the group in any way: all operations will result in permission denied error. 
+The group host also maintains a list of banned ships and banned ranks. When a ship is banned, it is automatically kicked from the group, if it is yet a member. Furthermore, a banned ship can not interact with the group in any way: all operations will result in permission denied error.
+## 3.4 Large rosters
+A group's seats can number in the thousands. The init and changes scries send a light roster (our seat plus 14 others), and `/v3/ui/groups/{ship}/{name}` sends every seat. For groups too big to fetch whole, these scries read the roster in parts:
+
+- `/v3/ui/groups/{ship}/{name}/light` (mark `%group-ui-3`): the group with the same light roster as init, and `member-count` counting every seat.
+- `/v3/groups/{ship}/{name}/seats/page/{limit}` and `.../page/{limit}/{after}` (mark `%group-seats-page-1`): up to `limit` seats in `@p` order, starting after the ship `after`.
+- `/v3/groups/{ship}/{name}/seats/role/{role}/page/{limit}[/{after}]`: the same, restricted to the holders of one role.
+
+A page carries `total` (seats matching the query, across all pages), `seats` (an array of `{ship, roles, joined}`), and `next`: the ship to pass as `after` for the following page, or null on the last one. The cursor is a ship rather than an offset, so seats added or removed between requests don't shift the pages that follow. 
 
 The same applies to rank-based ban list. Banning moons from a group would firstly kick-out all existing moon-class members, while also prohibiting any future interactions.
 # 4 Foreign groups
