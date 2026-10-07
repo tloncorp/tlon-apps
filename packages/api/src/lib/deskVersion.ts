@@ -48,6 +48,13 @@ export const MIN_GROUPS_VERSION = '12.2.0';
 // changes.
 export const BUCKETS_MIN_GROUPS_VERSION = '12.3.0';
 
+// The first %groups release whose %steward carries a task's delivery block.
+// The mirror and the edit loop arrived a release earlier, but an edit sent
+// to that release drops the destination and still answers "created", so the
+// owner's task screens are gated on this one. Guarded registry entries name
+// it as their `since`.
+export const AUTOMATIONS_MIN_GROUPS_VERSION = '12.3.1';
+
 // The first %groups release whose init and changes scries count every seat,
 // not just the 15 they keep (TLON-6779). Below it, a member count of exactly
 // 15 may be that cap (getDeskCountsAllSeats). Must move in lockstep with
