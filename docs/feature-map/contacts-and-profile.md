@@ -174,10 +174,10 @@ Desktop: click your avatar in the left rail, then the pencil icon, and use the s
 Notes: you can pin up to 5. Only groups you are a member of can be pinned, and secret groups can't be. Changes here apply straight away, without the `Save` at the top of the screen. People who open your profile see the groups as tiles and can tap one to preview it.
 
 ## Change your ID or username
-<!-- src: packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/UserProfileScreenView.tsx -->
+<!-- src: packages/app/ui/components/UserProfileScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/shared/src/store/contactActions.ts -->
 <!-- absent: change username -->
 
-Notes: you can't. Your ID, the name that starts with ~, belongs to your node, and the profile editor has no field for it. What you can change is your `Nickname`, which people see in place of the ID. To copy your ID, open your own profile and tap your name. The app shows `Copied!`.
+Notes: you can't. Your ID, the name that starts with ~, is the stable, unique network identity and address underneath your profile; it belongs to your node, and the profile editor has no field for it. A nickname is mutable display metadata layered over that ID. Nicknames do not have to be unique, so IDs disambiguate people. Your profile nickname is what you publish; a contact can separately give you a private nickname that only they see. Tlon Messenger normally shows nicknames, while profiles, copying, full-ID search and invites, and technical or admin commands expose or use IDs.
 
 ## Verify your phone number
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/EditProfile/EditAttestationsDisplay.tsx, packages/app/features/profile/AttestationScreen.tsx, packages/app/ui/components/PhoneAttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx -->
@@ -202,7 +202,7 @@ Notes: you can also tap the tile on your own profile. It opens the same details 
 ## Control who can find you by phone number
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/PrivacyScreen.tsx, packages/app/ui/components/PhoneAttestationPane.tsx, packages/shared/src/store/lanyardActions.ts -->
 
-Phone: open the Settings tab, tap `Privacy`, and use the `Phone number discovery` switch.
+Phone: open the Settings tab and tap `Privacy`, and use the `Phone number discovery` switch.
 Who: the switch only appears once you have a verified phone number on your profile.
 Notes: it starts switched on when you verify. While it is on, friends who already have your phone number can find you on Tlon Messenger. Switch it off and they can't find you that way. Either way, your number is never shown on your profile.
 
