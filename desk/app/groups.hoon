@@ -94,11 +94,6 @@
       [/x/v3/init %noun]
       [/x/v4/init %noun]
     ::
-      ::  ahead of /x/v3/groups, which would match these first
-      ::
-      [/x/v3/groups/$/$/seats/page %group-seats-page-1]
-      [/x/v3/groups/$/$/seats/role %group-seats-page-1]
-    ::
       [/x/v0/groups %groups]
       [/x/v1/groups %groups-1]
       [/x/v2/groups %groups-2]
@@ -114,6 +109,8 @@
       [/x/v2/groups/$/$/channels/$/$/$/writers %ships]
       [/x/groups/$/$/seats/$ %noun]
       [/x/v2/groups/$/$/seats/ships %ships]
+      [/x/v3/groups/$/$/seats/page %group-seats-page-1]
+      [/x/v3/groups/$/$/seats/role %group-seats-page-1]
     ::
       [/x/groups/light %groups]
       [/x/v0/light/groups %groups]
@@ -4866,7 +4863,7 @@
       (skim ships |=(=ship (gth ship u.after)))
     =/  page=(list ship)  (scag count left)
     =/  next=(unit ship)
-      ?:  |((lte (lent left) count) ?=(~ page))  ~
+      ?:  (lte (lent left) count)  ~
       `(rear page)
     =/  =seats-page:v11:gv
       :+  (lent ships)
