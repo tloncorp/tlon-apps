@@ -447,12 +447,12 @@ export function GroupOptionsSheetContent({
     ]
   );
 
-  const memberCount = group?.members?.length ? group.members.length : 0;
+  const memberCount = group ? utils.getGroupMemberCount(group) : 0;
   const privacy = group?.privacy
     ? group.privacy.charAt(0).toUpperCase() + group.privacy.slice(1)
     : '';
   const subtitle = memberCount
-    ? `${privacy} workspace with ${memberCount} member${group.members?.length === 1 ? '' : 's'}`
+    ? `${privacy} workspace with ${memberCount} member${memberCount === 1 ? '' : 's'}`
     : '';
 
   return (

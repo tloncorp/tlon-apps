@@ -79,6 +79,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         moreReactionsToken: String?,
         alignment: TlonMessageMenuAlignment,
         previewBackgroundColor: UIColor,
+        menuColors: TlonMessageMenuColors,
         completion: @escaping (TlonMessageMenuSelection?) -> Void
     ) {
         self.sourceView = sourceView
@@ -102,12 +103,16 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
                 dy: $0.minY - sourceView.bounds.minY
             )
         }
-        actionList = TlonMessageActionListView(actions: actions)
+        actionList = TlonMessageActionListView(
+            actions: actions,
+            colors: menuColors
+        )
         reactionBar = reactions.isEmpty
             ? nil
             : TlonMessageReactionBarView(
                 reactions: reactions,
-                moreReactionsToken: moreReactionsToken
+                moreReactionsToken: moreReactionsToken,
+                colors: menuColors
             )
         self.alignment = alignment
         self.previewBackgroundColor = previewBackgroundColor

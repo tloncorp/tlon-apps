@@ -330,3 +330,14 @@ describe('elideToolParamValues', () => {
     );
   });
 });
+
+it('redacts browser share capabilities before serializing', () => {
+  expect(
+    parsed(
+      detailToolParams({
+        command:
+          'browser share https://browser-session.tlon.network/s/private.signature',
+      })
+    )
+  ).toEqual({ command: 'browser share [REDACTED]' });
+});

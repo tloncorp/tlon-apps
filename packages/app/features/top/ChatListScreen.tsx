@@ -19,7 +19,11 @@ import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import type { ChatListFilter } from '../../hooks/chatListFilters';
-import { useFilteredChats } from '../../hooks/useFilteredChats';
+import { useChatListFilterSelection } from '../../hooks/useChatListFilterSelection';
+import {
+  useFilteredChats,
+  useVisibleChatListFilters,
+} from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
@@ -383,7 +387,11 @@ export function ChatListScreenView({
     handleSearchInputToggled();
   }, [handleSearchInputToggled]);
 
-  const [listFilter, setListFilter] = useState<ChatListFilter>('all');
+  const visibleFilters = useVisibleChatListFilters(resolvedChats);
+  const { listFilter, selectFilter } = useChatListFilterSelection({
+    visibleFilters,
+    loaded: !!chats,
+  });
   const drawerToggle = useTopLevelDrawerToggleAction();
   // The top-level sections share one native header, and it stays opaque until
   // a screen installs the scroll-edge options. Install them here rather than
@@ -394,14 +402,14 @@ export function ChatListScreenView({
     (filter: ChatListFilter) => {
       if (filter === listFilter) return;
       trackEvent(AnalyticsEvent.HomeFilterSelected, { tab: filter });
-      setListFilter(filter);
+      selectFilter(filter);
     },
-    [listFilter]
+    [listFilter, selectFilter]
   );
   const handlePressTryAll = useCallback(() => {
     trackEvent(AnalyticsEvent.HomeFilterSelected, { tab: 'all' });
-    setListFilter('all');
-  }, []);
+    selectFilter('all');
+  }, [selectFilter]);
 
   const displayData = useFilteredChats({
     ...resolvedChats,
@@ -477,6 +485,7 @@ export function ChatListScreenView({
                 chats.pinned.length) ? (
                 <>
                   <ChatListFilterTabs
+                    filters={visibleFilters}
                     activeFilter={listFilter}
                     onPressFilter={handlePressFilter}
                   />

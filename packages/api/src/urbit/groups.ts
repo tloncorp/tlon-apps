@@ -530,7 +530,10 @@ export interface GroupV11 {
   sections: SectionsV7;
   'section-order': string[];
   'flagged-content': FlaggedContent;
-  'member-count': number;
+  // Only group-ui payloads (init, changes, the ui group scry, the create
+  // thread) carry it; a bare group (`/v3/groups`, a %create response) doesn't.
+  // Init and changes cap it at 15 through desk 12.3.1.
+  'member-count'?: number;
   init: boolean;
 }
 

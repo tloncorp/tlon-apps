@@ -11,6 +11,7 @@ import SettingsScreen from '../features/settings/SettingsScreen';
 import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
+import { useWarmBotSettingsCard } from '../features/settings/bot/useWarmBotSettingsCard';
 import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import { useTopLevelSectionReselected } from './topLevelSectionReselect';
@@ -64,6 +65,7 @@ export function TopLevelNavigator() {
   // living in the Workspaces screen would never run on a fresh account; it
   // sits here, above every section, and can reset the root stack from here.
   useAgentOnboardingLandingConsumer();
+  useWarmBotSettingsCard();
   const navigation = useNavigation();
   const focusedBotTab = useRef(false);
 

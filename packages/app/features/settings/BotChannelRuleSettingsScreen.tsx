@@ -9,9 +9,14 @@ import {
 } from '@tloncorp/ui';
 import { valid } from '@urbit/aura';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
+import {
+  useSettingsListHeaderColor,
+  useSettingsListSurfaces,
+} from '../../ui/components/SettingsList';
 import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
 import { BotBadge } from '../../ui/components/BotBadge';
 import {
@@ -70,6 +75,8 @@ const ACCESS_MODES: {
 ];
 
 export function BotChannelRuleSettingsScreen(props: Props) {
+  const { page: settingsPage } = useSettingsListSurfaces();
+  const settingsHeaderColor = useSettingsListHeaderColor();
   const {
     channelKey,
     channelLabel,
@@ -316,10 +323,13 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     }, [allProviderModels.models, overrideProvider, normalizedModelSearch]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor={settingsPage}>
       <ScreenHeader
+        backgroundColor={settingsHeaderColor}
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={
+          Platform.OS !== 'web' || isWindowNarrow ? handleBack : undefined
+        }
         title={channelLabel || 'Channel'}
         placement="navigation"
       />
