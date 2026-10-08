@@ -103,6 +103,15 @@ describe('joined channels recently joined', () => {
     expect(joined.recentlyJoined(60_000)).toEqual([random]);
   });
 
+  it('records a join fact as recent while the set is unknown', () => {
+    const { now } = clock();
+    const joined = createJoinedChannels({ now });
+    joined.observe(join(general));
+    // The first snapshot then includes it, so it is no snapshot difference.
+    joined.applySync(joined.beginSync(), new Set([general]));
+    expect(joined.recentlyJoined(60_000)).toEqual([general]);
+  });
+
   it('does not count the first snapshot as joins', () => {
     const { now } = clock();
     expect(knownAt(now, general).recentlyJoined(60_000)).toEqual([]);

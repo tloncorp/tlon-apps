@@ -7,8 +7,10 @@
 export function createJoinedChannels({ now = Date.now } = {}) {
   let nests = new Set<string>();
   let known = false;
-  // When each nest became joined while the set was known, so a scan the
-  // guard skipped before the join can be retried for a while after it.
+  // When each nest became joined, so a scan the guard skipped before the join
+  // can be retried for a while after it. Join facts always count; snapshot
+  // differences count only once the set is known, so the first snapshot does
+  // not mark every joined channel as just joined.
   const joinedAt = new Map<string, number>();
   let nextToken = 0;
   let appliedToken = 0;
@@ -78,7 +80,7 @@ export function createJoinedChannels({ now = Date.now } = {}) {
         const wasJoined = nests.has(nest);
         record(nest, true);
         if (wasJoined) return null;
-        markTransition(nest, true);
+        joinedAt.set(nest, now());
         return 'became-joined';
       }
       return null;
