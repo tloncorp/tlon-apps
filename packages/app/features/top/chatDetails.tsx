@@ -420,7 +420,11 @@ export function SettingsSection({
     }
   }, [group, onPressRoles]);
 
-  const supportsInstructions = store.useDeskSupportsStewardBots() === true;
+  // Bots honor a workspace config only in groups their owner hosts, so
+  // only the host gets the editor.
+  const supportsInstructions =
+    store.useDeskSupportsStewardBots() === true &&
+    group?.hostUserId === currentUserId;
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const handlePressInstructions = useCallback(
     () => setInstructionsOpen(true),
