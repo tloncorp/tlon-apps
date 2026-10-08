@@ -10,9 +10,9 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 import { Platform } from 'react-native';
 
+import { carriedConversationParams } from '../navigation/drawerDestination';
 import {
   type RouteSnapshot,
-  getChannelDestinationRoutes,
   getLeftChatTopLevelTab,
   getTopLevelTabRoute,
 } from '../navigation/topLevelTabs';
@@ -230,15 +230,23 @@ export const useChatSettingsNavigation = () => {
         navigateToChannel(channel);
         return;
       }
-      const routes = getChannelDestinationRoutes(
-        getSectionStackState(navigationRef.current),
-        channel
+      // In place of the channel the user came from, if they came from one,
+      // keeping what that route was: a destination of the drawer stays one,
+      // and one pushed over a channel list keeps its way back to the list.
+      const replaced = getSectionStackState(navigationRef.current)
+        ?.routes?.filter((route) => route.name === 'Channel')
+        .at(-1);
+      navigationRef.current.navigate(
+        'Channel',
+        {
+          channelId: channel.id,
+          ...(channel.groupId ? { groupId: channel.groupId } : {}),
+          ...carriedConversationParams(replaced?.params),
+        },
+        { pop: true }
       );
-      if (routes) {
-        reset(routes);
-      }
     },
-    [isMobileTree, navigateToChannel, navigationRef, reset]
+    [isMobileTree, navigateToChannel, navigationRef]
   );
 
   const onPressChatVolume = useCallback(

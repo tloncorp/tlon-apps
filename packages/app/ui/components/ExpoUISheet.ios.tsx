@@ -251,15 +251,6 @@ function ActionRow({
           contentShape(shapes.rectangle()),
         ]}
       >
-        {action.startIcon ? (
-          <RNHostView matchContents>
-            {typeof action.startIcon === 'string' ? (
-              <Icon type={action.startIcon} size="$m" color={iconColor} />
-            ) : (
-              action.startIcon
-            )}
-          </RNHostView>
-        ) : null}
         <VStack
           alignment="leading"
           spacing={2}

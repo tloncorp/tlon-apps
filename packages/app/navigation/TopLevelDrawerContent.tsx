@@ -140,7 +140,7 @@ const ROW_AVATAR_RADIUS = '$2xs' as const;
 // and a press the height of the row taken: held out from the glyph by this
 // much on every side, and pulled back by as much so the row does not grow.
 const ROW_CONTROL_PAD = (CHAT_ROW_MIN_HEIGHT - ROW_ICON_SIZE) / 2;
-const GROUP_SETTINGS_LABEL = 'Group info & settings';
+const GROUP_SETTINGS_LABEL = 'Workspace info & settings';
 // A tab's list opens on a row of its own, one point tall and empty, that
 // never moves. The list holds its first visible row in place across a change
 // of data, so a chat moving up does not shift the rows being read — and at

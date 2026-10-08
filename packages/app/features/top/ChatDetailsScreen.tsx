@@ -126,7 +126,7 @@ function ChatDetailsScreenView() {
   const canInviteToGroup =
     (currentUserIsAdmin && actionsEnabled) || group?.privacy === 'public';
 
-  const groupTitle = useGroupTitle(group) ?? 'group';
+  const groupTitle = useGroupTitle(group) ?? 'workspace';
   const title = useChatTitle(channel, group);
   const insets = useSafeAreaInsets();
 
@@ -137,7 +137,7 @@ function ChatDetailsScreenView() {
   const subtitle = useMemo(() => {
     if (chatType === 'group') {
       return [
-        group?.privacy ? `${capitalize(group.privacy)} group` : 'Group',
+        group?.privacy ? `${capitalize(group.privacy)} workspace` : 'Workspace',
         memberCount
           ? `with ${memberCount} ${pluralize(memberCount, 'member')}`
           : null,
@@ -160,7 +160,7 @@ function ChatDetailsScreenView() {
       default:
         return group
           ? group.channels?.length === 1
-            ? `Group with ${getGroupMemberCount(group)} members`
+            ? `Workspace with ${getGroupMemberCount(group)} members`
             : `Channel in ${groupTitle}`
           : '';
     }
@@ -204,7 +204,7 @@ function ChatDetailsScreenView() {
   const getTitle = () => {
     switch (chatType) {
       case 'group':
-        return 'Group info & settings';
+        return 'Workspace info & settings';
       case 'channel':
         return 'Channel info';
       default:
@@ -397,7 +397,7 @@ function GroupQuickActions({
           action: handleForwardGroup,
         },
         {
-          title: 'Copy group ID',
+          title: 'Copy workspace ID',
           action: handleCopyShortcode,
         }
       ),
