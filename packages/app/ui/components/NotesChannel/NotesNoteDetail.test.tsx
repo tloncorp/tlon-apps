@@ -1777,6 +1777,14 @@ describe('NotesNoteDetail note switching', () => {
 describe('NotesNoteDetail scroll restoration', () => {
   registerNotesDetailTestHooks();
 
+  beforeEach(() => {
+    mocks.isWeb = false;
+    mocks.notes = [
+      note(800, 'A line\n'.repeat(30)),
+      note(801, 'B line\n'.repeat(30)),
+    ];
+  });
+
   // The resting offset at the top of a screen whose native header is
   // transparent: UIKit reports -adjustedContentInset.top, not 0.
   const HEADER_RESTING_OFFSET_Y = -96;
@@ -1786,7 +1794,7 @@ describe('NotesNoteDetail scroll restoration', () => {
   const bodyInput = (renderer: ReactTestRenderer) =>
     renderer.root.findByProps({ testID: 'NotesBodyInput' });
 
-  async function renderDetail(noteId = 1) {
+  async function renderDetail(noteId = 800) {
     const scrollTo = vi.fn();
     const scrollToEnd = vi.fn();
     let renderer!: ReactTestRenderer;
@@ -1806,6 +1814,11 @@ describe('NotesNoteDetail scroll restoration', () => {
         }
       );
     });
+    await act(async () => {
+      bodyInput(renderer).props.onLayout({
+        nativeEvent: { layout: { width: 360 } },
+      });
+    });
     return { renderer, scrollTo, scrollToEnd };
   }
 
@@ -1813,7 +1826,9 @@ describe('NotesNoteDetail scroll restoration', () => {
     const { renderer, scrollTo } = await renderDetail();
 
     await act(async () => {
-      bodyInput(renderer).props.onChangeText('Typed without scrolling');
+      bodyInput(renderer).props.onChangeText(
+        bodyInput(renderer).props.value + 'Typed without scrolling'
+      );
     });
 
     // Restoring an assumed 0 here scrolled the note down by the header height
@@ -1831,7 +1846,9 @@ describe('NotesNoteDetail scroll restoration', () => {
       );
     });
     await act(async () => {
-      bodyInput(renderer).props.onChangeText('Typed at the top of the note');
+      bodyInput(renderer).props.onChangeText(
+        bodyInput(renderer).props.value + 'Typed at the top of the note'
+      );
     });
 
     expect(scrollTo).toHaveBeenCalledWith({
@@ -1852,7 +1869,9 @@ describe('NotesNoteDetail scroll restoration', () => {
       scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 900 }));
     });
     await act(async () => {
-      bodyInput(renderer).props.onChangeText('Typed after the keyboard opened');
+      bodyInput(renderer).props.onChangeText(
+        bodyInput(renderer).props.value + 'Typed after the keyboard opened'
+      );
     });
 
     expect(scrollTo).toHaveBeenCalledWith({ y: 900, animated: false });
@@ -1876,19 +1895,102 @@ describe('NotesNoteDetail scroll restoration', () => {
       );
     });
     await act(async () => {
-      bodyInput(renderer).props.onChangeText('Typed near the end');
+      bodyInput(renderer).props.onChangeText(
+        bodyInput(renderer).props.value + 'Typed near the end'
+      );
     });
 
     expect(scrollTo).toHaveBeenCalledWith({ y: 640, animated: false });
     await act(async () => renderer.unmount());
   });
 
-  it('follows the end when the caret is there and the body grows', async () => {
-    const { renderer, scrollTo, scrollToEnd } = await renderDetail();
+  it.each([
+    [701, ''],
+    [702, 'First line'],
+    [703, 'First line\nSecond line'],
+  ] as const)(
+    'keeps short note %i in place when appending to %j',
+    async (noteId, draft) => {
+      mocks.notes = [note(noteId, draft)];
+      const { renderer, scrollTo, scrollToEnd } = await renderDetail(noteId);
+      expect(bodyInput(renderer).props.value).toBe(draft);
+
+      await act(async () => {
+        bodyInput(renderer).props.onLayout({
+          nativeEvent: { layout: { width: 360 } },
+        });
+        scrollView(renderer).props.onScroll(
+          scrollEvent({ offsetY: HEADER_RESTING_OFFSET_Y })
+        );
+        bodyInput(renderer).props.onSelectionChange({
+          nativeEvent: {
+            selection: { start: draft.length, end: draft.length },
+          },
+        });
+      });
+      await act(async () => {
+        bodyInput(renderer).props.onChangeText(draft + 'a');
+      });
+
+      // The minimum-height input ends well below the text. Following that
+      // empty space hides the header and fights UIKit's caret scrolling.
+      expect(scrollToEnd).not.toHaveBeenCalled();
+      expect(scrollTo).not.toHaveBeenCalled();
+      await act(async () => renderer.unmount());
+    }
+  );
+
+  it('leaves native caret scrolling alone when editing inside a short body', async () => {
+    mocks.notes = [note(705, 'First line')];
+    const { renderer, scrollTo, scrollToEnd } = await renderDetail(705);
+
+    await act(async () => {
+      scrollView(renderer).props.onScroll(scrollEvent({ offsetY: -10 }));
+      bodyInput(renderer).props.onSelectionChange({
+        nativeEvent: { selection: { start: 3, end: 3 } },
+      });
+    });
+    await act(async () => {
+      bodyInput(renderer).props.onChangeText('FirXst line');
+    });
+
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(scrollToEnd).not.toHaveBeenCalled();
+    await act(async () => renderer.unmount());
+  });
+
+  it('starts following the end when typing outgrows the minimum-height input', async () => {
+    const draft = Array.from({ length: 16 }, () => 'A line').join('\n');
+    mocks.notes = [note(706, draft)];
+    const { renderer, scrollTo, scrollToEnd } = await renderDetail(706);
+    expect(bodyInput(renderer).props.height).toBe(MIN_BODY_INPUT_HEIGHT);
+
+    await act(async () => {
+      scrollView(renderer).props.onScroll(scrollEvent({ offsetY: -10 }));
+      bodyInput(renderer).props.onSelectionChange({
+        nativeEvent: { selection: { start: draft.length, end: draft.length } },
+      });
+    });
+    await act(async () => {
+      bodyInput(renderer).props.onChangeText(draft + '\n');
+    });
+
+    expect(bodyInput(renderer).props.height).toBeGreaterThan(
+      MIN_BODY_INPUT_HEIGHT
+    );
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false });
+    expect(scrollTo).not.toHaveBeenCalled();
+    await act(async () => renderer.unmount());
+  });
+
+  it('follows the end when the caret is there and a long body grows', async () => {
+    mocks.notes = [note(704, 'A line\n'.repeat(30))];
+    const { renderer, scrollTo, scrollToEnd } = await renderDetail(704);
     const body = bodyInput(renderer);
     const draft = body.props.value as string;
 
     await act(async () => {
+      body.props.onLayout({ nativeEvent: { layout: { width: 360 } } });
       scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 640 }));
       // The input reports the caret at the very end of the draft.
       body.props.onSelectionChange({
@@ -1969,7 +2071,7 @@ describe('NotesNoteDetail scroll restoration', () => {
   });
 
   it('drops the previous note offsets when the note changes', async () => {
-    const { renderer, scrollTo } = await renderDetail(1);
+    const { renderer, scrollTo } = await renderDetail(800);
 
     await act(async () => {
       scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 700 }));
@@ -1978,13 +2080,19 @@ describe('NotesNoteDetail scroll restoration', () => {
 
     await act(async () => {
       renderer.update(
-        <NotesNoteDetail noteId={2} notebookFlag="~zod/notebook" startInEdit />
+        <NotesNoteDetail
+          noteId={801}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
       );
     });
     scrollTo.mockClear();
 
     await act(async () => {
-      bodyInput(renderer).props.onChangeText('Typed into the second note');
+      bodyInput(renderer).props.onChangeText(
+        bodyInput(renderer).props.value + 'Typed into the second note'
+      );
     });
 
     expect(scrollTo).not.toHaveBeenCalled();
