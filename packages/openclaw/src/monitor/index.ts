@@ -1023,6 +1023,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const joinedChannels = createJoinedChannels();
     workspaceInstructions = createWorkspaceInstructionsRuntime({
       botShip: botShipName,
+      ownerShip: () =>
+        getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
       channelToGroup,
       fetchBlob: (flag) =>
         inApiScope(() => getGroup(flag)).then((group) => group.blob ?? null),
