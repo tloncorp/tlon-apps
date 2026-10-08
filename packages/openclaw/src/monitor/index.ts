@@ -125,6 +125,7 @@ import {
   captureTlonApiScope,
   runWithTlonApiScope,
   setScopedTlonApiWithPoke,
+  sseScryFn,
 } from '../urbit/api-client.js';
 import {
   authenticate,
@@ -829,7 +830,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     api.poke.bind(api),
     botShipName,
     account.url,
-    ({ app, path }) => api.scry(`/~/scry/${app}${path}.json`),
+    sseScryFn((path) => api.scry(path)),
     (path, method, body, options) =>
       api.requestJson(path, method, body, options)
   );
