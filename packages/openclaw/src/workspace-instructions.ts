@@ -4,7 +4,9 @@
  *
  * The config lives in the group's blob (see docs/tlon-apps/workspace-config.md)
  * and applies only when its `bot` names this ship, since a group can hold
- * several members' bots. The turn's group comes from the session itself: a
+ * several members' bots, and only in a group hosted by this bot or its
+ * owner: any admin can write the blob, and the text lands in system context,
+ * so the bot trusts only admins its owner appointed. The turn's group comes from the session itself: a
  * group channel's session key carries its nest, and an isolated cron run
  * falls back to its job's delivery target. The monitor's channel → group
  * index maps the nest to the group.
@@ -50,6 +52,8 @@ export type WorkspaceInstructionsRuntime = {
 
 export function createWorkspaceInstructionsRuntime(deps: {
   botShip: string;
+  /** The bot's current owner, if one is configured. */
+  ownerShip: () => string | null;
   /** The monitor's live channel nest → group flag index. */
   channelToGroup: ReadonlyMap<string, string>;
   /** Read a group's blob from the ship. */
@@ -107,7 +111,10 @@ export function createWorkspaceInstructionsRuntime(deps: {
     const task = deps
       .fetchBlob(flag)
       .then((blob) => {
-        blobs.set(flag, { at: now(), blob });
+        // A `/v3/groups` fact that landed meanwhile is newer; keep it.
+        if (inFlight.get(flag) === task) {
+          blobs.set(flag, { at: now(), blob });
+        }
         return blob;
       })
       .finally(() => inFlight.delete(flag));
@@ -119,6 +126,11 @@ export function createWorkspaceInstructionsRuntime(deps: {
     async handleBeforePromptBuild(ctx) {
       const flag = await resolveGroup(ctx);
       if (!flag) return undefined;
+      const host = normalizeShip(flag.split('/')[0]);
+      const owner = deps.ownerShip();
+      if (host !== botShip && (!owner || host !== normalizeShip(owner))) {
+        return undefined;
+      }
       const config = readWorkspaceConfig(await readBlob(flag));
       const instructions = config?.instructions?.trim();
       if (!instructions || !config?.bot) return undefined;

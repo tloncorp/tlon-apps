@@ -47,6 +47,8 @@ export function WorkspaceInstructionsSheet({
   const botsQuery = useQuery({
     queryKey: ['stewardBots'],
     queryFn: () => api.getStewardBots(),
+    // Trust changes on the ship push nothing to the client; refetch per open.
+    staleTime: 0,
     retry: false,
   });
   const bot = config?.bot ?? botsQuery.data?.[0] ?? null;

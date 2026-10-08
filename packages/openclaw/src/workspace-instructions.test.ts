@@ -23,15 +23,21 @@ function setup(
     channelToGroup?: Map<string, string>;
     jobs?: unknown[];
     now?: () => number;
+    ownerShip?: string | null;
+    fetchBlob?: () => Promise<string | null>;
   } = {}
 ) {
-  const fetchBlob = vi.fn(async () =>
-    options.blob === undefined
-      ? blobFor({ bot: '~bot', instructions: 'Keep it short.' })
-      : options.blob
+  const fetchBlob = vi.fn(
+    options.fetchBlob ??
+      (async () =>
+        options.blob === undefined
+          ? blobFor({ bot: '~bot', instructions: 'Keep it short.' })
+          : options.blob)
   );
   const runtime = createWorkspaceInstructionsRuntime({
     botShip: 'bot',
+    ownerShip: () =>
+      options.ownerShip === undefined ? '~host' : options.ownerShip,
     channelToGroup: options.channelToGroup ?? new Map([[nest, flag]]),
     fetchBlob,
     getCron: () => ({ list: async () => options.jobs ?? [] }) as never,
@@ -65,6 +71,30 @@ describe('handleBeforePromptBuild', () => {
       `[Workspace instructions for group ${flag}]`
     );
     expect(result?.prependSystemContext).toMatch(/\n\nKeep it short\.$/);
+  });
+
+  it('ignores a group neither the bot nor its owner hosts', async () => {
+    const { runtime, fetchBlob } = setup({ ownerShip: '~someone-else' });
+    expect(
+      await runtime.handleBeforePromptBuild({ sessionKey })
+    ).toBeUndefined();
+    expect(fetchBlob).not.toHaveBeenCalled();
+  });
+
+  it('ignores every group when no owner is configured, except its own', async () => {
+    const { runtime } = setup({ ownerShip: null });
+    expect(
+      await runtime.handleBeforePromptBuild({ sessionKey })
+    ).toBeUndefined();
+
+    const own = setup({
+      ownerShip: null,
+      channelToGroup: new Map([['chat/~bot/discussion', '~bot/club']]),
+    });
+    const result = await own.runtime.handleBeforePromptBuild({
+      sessionKey: 'agent:main:tlon:group:chat/~bot/discussion',
+    });
+    expect(result?.prependSystemContext).toContain('Keep it short.');
   });
 
   it('applies in thread sessions', async () => {
@@ -158,6 +188,23 @@ describe('blob cache', () => {
     const result = await runtime.handleBeforePromptBuild({ sessionKey });
     expect(result?.prependSystemContext).toContain('Be formal.');
     expect(fetchBlob).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a fact that lands while a fetch is in flight', async () => {
+    let resolveFetch!: (blob: string) => void;
+    const { runtime, fetchBlob } = setup({
+      fetchBlob: () => new Promise((resolve) => (resolveFetch = resolve)),
+    });
+    const first = runtime.handleBeforePromptBuild({ sessionKey });
+    await vi.waitFor(() => expect(fetchBlob).toHaveBeenCalled());
+    runtime.handleGroupsResponse({
+      flag,
+      'r-group': { blob: blobFor({ bot: '~bot', instructions: 'Be formal.' }) },
+    });
+    resolveFetch(blobFor({ bot: '~bot', instructions: 'Keep it short.' }));
+    await first;
+    const result = await runtime.handleBeforePromptBuild({ sessionKey });
+    expect(result?.prependSystemContext).toContain('Be formal.');
   });
 
   it('takes a cleared blob', async () => {
