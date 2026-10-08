@@ -74,7 +74,7 @@ jobs:
           node --input-type=module -e "import {verifySource} from './scripts/agent-qa/common.mjs'; verifySource(JSON.parse(process.env.QA_PR_JSON).head.sha)"
       - uses: actions/setup-node@v4
         with:
-          node-version: "22.22.0"
+          node-version-file: .nvmrc
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-java@v4
         with:

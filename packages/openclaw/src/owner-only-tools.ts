@@ -12,6 +12,9 @@ import type { SenderRole } from './session-roles.js';
 
 export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'tlon',
+  'automations',
+  // OpenClaw 2026.9.x renamed the scheduler tool to `automations` but still
+  // accepts `cron` on inbound calls; gate both spellings.
   'cron',
   'read',
 ]);
@@ -22,7 +25,7 @@ export const OWNER_ONLY_BLOCK_REASON_MAX_CHARS = 200;
 export function formatOwnerOnlyToolBlockReason(toolName: string): string {
   return (
     `Blocked by policy: the ${toolName} tool is owner-only and this requester is not the owner. ` +
-    'Tell them you cannot do this for them; do not retry for them, and do not blame a reload, outage, or missing tool.'
+    'Tell them you cannot do this for them; do not retry, and do not blame a reload, outage, or missing tool.'
   );
 }
 

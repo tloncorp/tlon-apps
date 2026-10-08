@@ -8,7 +8,12 @@ import {
 } from './owner-only-tools.js';
 import type { SenderRole } from './session-roles.js';
 
-const EXPECTED_OWNER_ONLY_TOOLS = ['tlon', 'cron', 'read'] as const;
+const EXPECTED_OWNER_ONLY_TOOLS = [
+  'tlon',
+  'automations',
+  'cron',
+  'read',
+] as const;
 
 describe('OWNER_ONLY_TOOLS', () => {
   it('contains exactly the expected tools in advertised order', () => {
@@ -68,7 +73,7 @@ describe('formatOwnerOnlyToolBlockReason', () => {
       expect(reason).toContain(`the ${tool} tool is owner-only`);
       expect(reason).toContain('not the owner');
       expect(reason).toContain('Tell them you cannot do this for them');
-      expect(reason).toContain('do not retry for them');
+      expect(reason).toContain('do not retry,');
       expect(reason).toContain(
         'do not blame a reload, outage, or missing tool'
       );

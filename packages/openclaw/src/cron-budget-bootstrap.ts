@@ -1,7 +1,6 @@
 /** Run by the hosted wrapper BEFORE launching the gateway, never concurrently
  * with it. The public SDK owns storage compatibility (JSON vs SQLite). */
 import {
-  loadConfig,
   loadCronStore,
   resolveCronStorePath,
   saveCronStore,
@@ -18,7 +17,9 @@ import {
 const paths = budgetHoldPaths();
 if (paths) {
   const state = await readBudgetHoldState(paths.state);
-  const storePath = resolveCronStorePath(loadConfig().cron?.store);
+  // OpenClaw 2026.9.x no longer takes a cron store path from config; the SDK
+  // resolves the gateway's store location itself.
+  const storePath = resolveCronStorePath();
   const store = await loadCronStore(storePath);
   await reconcileBudgetHolds({
     budget: await readBudgetSignal(paths.signal),

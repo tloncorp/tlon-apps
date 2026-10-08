@@ -19,10 +19,10 @@ screenshot. Where noted, use your tool's own verbs for those actions.
 ## Gotchas (hit these before, save the debugging)
 
 - **asdf**: if the pnpm shim fails with "No version is set for command pnpm",
-  the pinned Node isn't installed. The repo pins 22.22.0 (`.nvmrc` and
-  `apps/tlon-web/.tool-versions`) — run `asdf install nodejs 22.22.0`, don't
-  override `ASDF_NODEJS_VERSION` to a newer Node: 24+ has no prebuilt
-  `better-sqlite3@11.x` binaries and falls back to compiling via node-gyp.
+  the pinned Node isn't installed. The repo pins 24.16.0 (`.nvmrc` and
+  `apps/tlon-web/.tool-versions`) — run `asdf install nodejs 24.16.0`, don't
+  override `ASDF_NODEJS_VERSION` to a different Node: `pnpm-workspace.yaml`
+  sets `engineStrict: true`, so installs abort outside the pinned range.
 - **peru**: rube's desk assembly needs `peru` on PATH (`brew install pipx &&
   pipx install peru`). Without it rube dies at "Vendoring desk dependencies".
 - **Process sandbox**: launch the ship and web server as real, long-lived

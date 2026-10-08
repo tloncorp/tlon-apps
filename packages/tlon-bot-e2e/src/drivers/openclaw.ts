@@ -44,7 +44,7 @@ const LEGACY_OPENCLAW_TOOLS = [
   'web_search',
   'image_search',
   'read',
-  'cron',
+  'automations',
   'tlon',
   'message',
 ] as const;
@@ -424,7 +424,7 @@ export const openclawDriver: BotDriver = {
         steps: [
           {
             kind: 'tool_call',
-            name: 'cron',
+            name: 'automations',
             args: {
               action: 'add',
               job: {
@@ -444,7 +444,7 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: finalText },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          advertisedTools: { exact: ['message', 'tlon', 'automations'] },
           expectedCallCount: 2,
           toolEffectOnly: true,
         },
@@ -857,7 +857,7 @@ function openClawToolsForCapability(
   capability: RuntimeCapability
 ): readonly string[] {
   if (capability === 'cron') {
-    return ['cron'];
+    return ['automations'];
   }
   if (capability === 'image_search') {
     return ['image_search'];

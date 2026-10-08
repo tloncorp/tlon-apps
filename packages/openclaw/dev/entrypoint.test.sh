@@ -16,7 +16,7 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
-requested_core_version="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.9.4}"
 installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
 if [ "$installed_core_version" != "$requested_core_version" ]; then
   echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"
@@ -156,7 +156,7 @@ TLON_CONFIG_CODE="${TLON_CODE:-lidlut-tabwed-pillex-ridrup}"
 TLON_CONFIG_OWNER="${TLON_OWNER_SHIP:-~ten}"
 TLON_CONFIG_DM_ALLOWLIST="${TLON_DM_ALLOWLIST:-~ten}"
 TLON_CONFIG_DM_ALLOWLIST_JSON="$(printf '%s' "$TLON_CONFIG_DM_ALLOWLIST" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
-DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON='["web_fetch","web_search","image_search","read","cron","tlon","message"]'
+DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON='["web_fetch","web_search","image_search","read","automations","tlon","message"]'
 OPENCLAW_CONFIG_TOOLS_ALLOW_JSON="${OPENCLAW_TEST_TOOLS_ALLOW_JSON:-$DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON}"
 TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES="${TLON_MAX_CONSECUTIVE_BOT_RESPONSES:-3}"
 
@@ -197,7 +197,8 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "workspace": "/root/.openclaw/workspace",
       "model": {
         "primary": "${MODEL:-custom-proxy/tlon-test-scripted}"
-      }
+      },
+      "heartbeat": { "every": "0m" }
     },
     "list": [
       {
@@ -211,6 +212,9 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
   },
   "session": {
     "dmScope": "per-channel-peer"
+  },
+  "commands": {
+    "ownerAllowFrom": ["tlon:$TLON_CONFIG_OWNER"]
   },
   "gateway": {
     "port": 18789,
@@ -229,7 +233,8 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
     },
     "entries": {
       "tlon": {
-        "enabled": true
+        "enabled": true,
+        "hooks": { "allowConversationAccess": true }
       }
     }
   },
@@ -461,16 +466,22 @@ if [ "${VERBOSE:-0}" = "1" ]; then
   echo "  URBIT_CODE=${URBIT_CODE:-<not set>}"
 fi
 
-# Create sessions directory
+# Create sessions directory. Do not seed a legacy sessions.json: OpenClaw
+# 2026.9.x keeps sessions in SQLite and refuses to start the gateway over a
+# legacy JSON store until doctor has migrated it.
 SESSIONS_DIR=/root/.openclaw/agents/test/sessions
 mkdir -p "$SESSIONS_DIR"
-echo "{}" > "$SESSIONS_DIR/sessions.json"
 
 if [ "${VERBOSE:-0}" = "1" ]; then
   echo "==> DEBUG: Directory structure:"
   ls -la /root/.openclaw/
   ls -la /root/.openclaw/agents/test/ 2>/dev/null || true
 fi
+
+# Finish any offline state migrations before the gateway starts, as the
+# hosting entrypoint does; the gateway refuses to boot over unmigrated state.
+echo "==> Running openclaw doctor --fix..."
+openclaw doctor --fix --non-interactive || echo "==> WARN: openclaw doctor --fix exited $?"
 
 # Exercise the same discovery path used to build the agent's available skills.
 # An npm package name in plugins.allow can load the channel via auto-enable

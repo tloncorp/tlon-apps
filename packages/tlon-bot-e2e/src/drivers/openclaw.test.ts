@@ -68,7 +68,7 @@ describe('OpenClaw driver runtime spec', () => {
         'web_search',
         'image_search',
         'read',
-        'cron',
+        'automations',
         'tlon',
         'message',
       ]),
@@ -172,7 +172,7 @@ describe('OpenClaw driver runtime spec', () => {
     expect(JSON.parse(ctx.composeEnv.OPENCLAW_TEST_TOOLS_ALLOW_JSON)).toEqual([
       'tlon',
       'message',
-      'cron',
+      'automations',
     ]);
   });
 
@@ -241,7 +241,7 @@ describe('OpenClaw driver runtime spec', () => {
       steps: [
         {
           kind: 'tool_call',
-          name: 'cron',
+          name: 'automations',
           args: {
             action: 'add',
             job: {
@@ -258,7 +258,7 @@ describe('OpenClaw driver runtime spec', () => {
         { kind: 'text', content: 'Scheduled.' },
       ],
       expectations: {
-        advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+        advertisedTools: { exact: ['message', 'tlon', 'automations'] },
         expectedCallCount: 2,
         toolEffectOnly: true,
       },

@@ -7,7 +7,7 @@ import {
 } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
-import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
+import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-outbound';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
@@ -364,7 +364,7 @@ export type MonitorTlonOpts = {
   activityReadsReady?: Promise<void>;
   /**
    * Channel-start config snapshot (the gateway adapter's `ctx.cfg`), used
-   * instead of an independent `core.config.loadConfig()` call so
+   * instead of an independent `core.config.current()` call so
    * gateway-status eligibility (Fix B) reads the SAME config OpenClaw used
    * to enumerate/start accounts, avoiding a transient mismatch if a second
    * config write races. Falls back to `loadConfig()` when absent (e.g. a
@@ -456,7 +456,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   const core = getTlonRuntime();
   // Prefer the channel-start config snapshot (Fix B) over an independent
   // load: see the MonitorTlonOpts.cfg doc comment.
-  const cfg = opts.cfg ?? core.config.loadConfig();
+  const cfg = (opts.cfg ?? core.config.current()) as OpenClawConfig;
   if (cfg.channels?.tlon?.enabled === false) {
     return;
   }
@@ -3233,12 +3233,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let commandAuthorized = false;
 
       if (shouldComputeAuth) {
-        const useAccessGroups = cfg.commands?.useAccessGroups !== false;
         const senderIsOwner = isOwner(senderShip);
 
         commandAuthorized =
           core.channel.commands.resolveCommandAuthorizedFromAuthorizers({
-            useAccessGroups,
+            // Tlon commands require owner authorization.
+            useAccessGroups: true,
             authorizers: [
               {
                 configured: Boolean(effectiveOwnerShip),
@@ -3564,6 +3564,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               ? (msg) => runtime.log?.(msg)
               : undefined,
             onRecord: routeDebug,
+            // No run happened, so the finalize below must not read this as
+            // an empty DM reply and page the owner.
+            onNotDispatched: () => recordDeliverySkip('not_dispatched'),
             dispatch: () =>
               turnRecorder.run(async () => {
                 let activeDispatchError: unknown;
