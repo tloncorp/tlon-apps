@@ -10,6 +10,7 @@ import {
   extractLabels,
   flagLeaks,
   labelInSources,
+  nextBuild,
   normalize,
   parseMapFile,
   publishedFiles,
@@ -362,6 +363,40 @@ test('reads which build the map describes', () => {
     () => recordedBuild(fakeReader({})),
     /release\.json is missing/
   );
+});
+
+test('picks the next build to describe, the older one when the stores differ', () => {
+  // History runs a -> b -> c.
+  const order = ['a', 'b', 'c'];
+  const isAncestor = (x, y) => order.indexOf(x) <= order.indexOf(y);
+  const ios = (commit) => ({ tag: `ios-${commit}`, commit });
+  const android = (commit) => ({ tag: `android-${commit}`, commit });
+  const next = (input) => nextBuild({ isAncestor, ...input });
+
+  assert.equal(
+    next({ ios: ios('b'), android: android('b'), recorded: 'a' }),
+    'ios-b'
+  );
+  // Android has not caught up, and its build is the one the map describes.
+  assert.equal(
+    next({ ios: ios('c'), android: android('a'), recorded: 'a' }),
+    undefined
+  );
+  assert.equal(
+    next({ ios: ios('c'), android: android('b'), recorded: 'a' }),
+    'android-b'
+  );
+  assert.equal(
+    next({ ios: ios('b'), android: android('c'), recorded: 'a' }),
+    'ios-b'
+  );
+  // Already described, or the map is ahead of the newest build.
+  assert.equal(
+    next({ ios: ios('b'), android: android('b'), recorded: 'b' }),
+    undefined
+  );
+  assert.equal(next({ ios: ios('a'), recorded: 'b' }), undefined);
+  assert.equal(next({ recorded: 'a' }), undefined);
 });
 
 test('lists the entries that cite a file that changed between two builds', () => {

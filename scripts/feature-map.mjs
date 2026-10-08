@@ -13,6 +13,8 @@
 //   surface  print the inventory the coverage check uses
 //   affected list the entries citing files that changed between the recorded
 //            build and a newer one: the work list for bringing the map up to it
+//   next     print the tag of a store build newer than the recorded one, if
+//            there is one
 //   publish  write the copy bots read from the map; with --app, first record
 //            that the map now describes that build
 //
@@ -838,6 +840,64 @@ function changedFiles(root, since, until) {
   return changed;
 }
 
+// --- finding the next build ------------------------------------------------
+
+/**
+ * The build the map should describe next, if it is not there already: the
+ * newest store build, or the older of the two when iOS and Android are on
+ * different commits, so every step holds on both phones. `ios` and `android`
+ * are `{ tag, commit }` for the newest build of each, `recorded` is the commit
+ * the map describes, and `isAncestor(a, b)` says whether `a` is in `b`'s
+ * history.
+ */
+export function nextBuild({ ios, android, recorded, isAncestor }) {
+  let pick = ios ?? android;
+  if (
+    ios &&
+    android &&
+    ios.commit !== android.commit &&
+    isAncestor(android.commit, ios.commit)
+  ) {
+    pick = android;
+  }
+  // Not newer than what the map describes: nothing to do.
+  if (!pick || pick.commit === recorded || !isAncestor(recorded, pick.commit)) {
+    return undefined;
+  }
+  return pick.tag;
+}
+
+function newestBuilds(root) {
+  const git = (args) =>
+    execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+  const newest = (platform) => {
+    const [tag] = git([
+      'tag',
+      '--list',
+      `${platform}-production-*`,
+      '--sort=-v:refname',
+    ]).split('\n');
+    return tag
+      ? { tag, commit: git(['rev-parse', `${tag}^{commit}`]) }
+      : undefined;
+  };
+  return {
+    ios: newest('ios'),
+    android: newest('android'),
+    isAncestor: (a, b) => {
+      try {
+        execFileSync('git', ['merge-base', '--is-ancestor', a, b], {
+          cwd: root,
+          stdio: 'ignore',
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  };
+}
+
 // --- command line ----------------------------------------------------------
 
 function option(args, name) {
@@ -908,6 +968,15 @@ function run(argv) {
     return 0;
   }
 
+  if (command === 'next') {
+    const tag = nextBuild({
+      ...newestBuilds(root),
+      recorded: build().commit,
+    });
+    if (tag) console.log(tag);
+    return 0;
+  }
+
   if (command === 'publish') {
     const result = publish(root, option(args, '--app'));
     for (const { file, entry, flag } of result.leftOut) {
@@ -940,6 +1009,7 @@ function usage() {
       '       feature-map.mjs labels <file.md> [--ref <git-ref>]\n' +
       '       feature-map.mjs surface [--ref <git-ref>]\n' +
       '       feature-map.mjs affected --until <git-ref> [--since <git-ref>]\n' +
+      '       feature-map.mjs next\n' +
       '       feature-map.mjs publish [--app <build-tag>]'
   );
   return 2;
