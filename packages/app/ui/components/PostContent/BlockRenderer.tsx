@@ -102,7 +102,7 @@ export function ListBlock({
   ...props
 }: { block: cn.ListBlockData } & Omit<
   ComponentProps<typeof ListNode>,
-  'node'
+  'node' | 'indentChildren'
 >) {
   return <ListNode node={block.list} {...props} />;
 }

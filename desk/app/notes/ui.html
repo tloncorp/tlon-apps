@@ -3142,7 +3142,7 @@ function renderMarkdown(src) {
   function openListItem(tag, m) {
     const indent = columns(m[1]);
     const gap = columns(m[1] + m[2] + m[3]) - indent - m[2].length;
-    const textCol = indent + m[2].length + (gap > 4 ? 1 : gap);
+    const textCol = indent + m[2].length + (gap > 4 || !m[4] ? 1 : gap);
     let depth = lists.length;
     while (depth > 0 && indent < lists[depth - 1].textCol) depth--;
     closeListsTo(depth + 1);
@@ -3177,8 +3177,9 @@ function renderMarkdown(src) {
     }
     if (inCode) { codeLines.push(line); continue; }
 
-    // blank line
-    if (!line.trim()) { flushList(); flushBlockquote(); html += "\n"; continue; }
+    // blank line. Lists stay open across it (a loose list); the next line
+    // closes them unless it's another list item.
+    if (!line.trim()) { flushBlockquote(); html += "\n"; continue; }
 
     // headings
     const hm = line.match(/^(#{1,6})\s+(.*)/);
