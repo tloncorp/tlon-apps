@@ -32,6 +32,7 @@ type Deps = {
 type Monitor = {
   handleChannelsFirehose(event: unknown): Promise<void>;
   scanAgentOnboardingNest(nest: string): Promise<boolean | undefined>;
+  rescanRecentlyJoinedChannels(): Promise<void>;
 };
 let makeMonitor: (deps: Deps & { isDmNest: typeof isDmNest }) => Monitor;
 
@@ -57,9 +58,17 @@ beforeAll(async () => {
       const trackOnboardingStep = () => () => {};
       const randomUUID = () => 'uuid';
       const createAgentOnboardingReconciliationPresence = () => ({});
+      const onboardingDiscoveryFlights = new Set();
+      let drainingOnboardingDiscovery = false;
       ${sliceFrom('const scanAgentOnboardingNest = async')}
       ${sliceFrom('const handleChannelsFirehose = async')}
-      return { handleChannelsFirehose, scanAgentOnboardingNest };
+      ${sliceFrom('const scanDiscoveredAgentOnboardingNest = async')}
+      ${sliceFrom('const rescanRecentlyJoinedChannels = async')}
+      return {
+        handleChannelsFirehose,
+        scanAgentOnboardingNest,
+        rescanRecentlyJoinedChannels,
+      };
     }
     `,
     'joined-channels-monitor.ts',
@@ -72,8 +81,12 @@ beforeAll(async () => {
 
 const general = 'chat/~zod/general';
 
-function setup(options: { watched?: string[]; joined?: string[] | null }) {
-  const joinedChannels = createJoinedChannels();
+function setup(options: {
+  watched?: string[];
+  joined?: string[] | null;
+  now?: () => number;
+}) {
+  const joinedChannels = createJoinedChannels({ now: options.now });
   if (options.joined !== null) {
     joinedChannels.applySync(
       joinedChannels.beginSync(),
@@ -149,6 +162,33 @@ describe('channel firehose with a joined set', () => {
   });
 });
 
+describe('poll re-scan of recently joined channels', () => {
+  it('re-scans watched chat nests joined within the window', async () => {
+    const time = { now: 1_000_000 };
+    const heap = 'heap/~zod/links';
+    const unwatched = 'chat/~zod/unwatched';
+    const { deps, monitor } = setup({
+      watched: [general, heap],
+      joined: [],
+      now: () => time.now,
+    });
+    // Missed join fact: only the poll's snapshot shows the nests.
+    deps.joinedChannels.applySync(
+      deps.joinedChannels.beginSync(),
+      new Set([general, heap, unwatched])
+    );
+
+    await monitor.rescanRecentlyJoinedChannels();
+    expect(deps.onboardingCatchUp.reconcile).toHaveBeenCalledExactlyOnceWith(
+      general
+    );
+
+    time.now += 10 * 60_000 + 1;
+    await monitor.rescanRecentlyJoinedChannels();
+    expect(deps.onboardingCatchUp.reconcile).toHaveBeenCalledOnce();
+  });
+});
+
 describe('onboarding scan with a joined set', () => {
   it('skips a watched nest known not to be joined and stops its retry', async () => {
     const { deps, monitor } = setup({ watched: [general], joined: [] });
@@ -207,5 +247,15 @@ describe('joined set wiring', () => {
     expect(tick.slice(otherwise, tick.indexOf('} catch'))).toContain(
       'await syncJoinedChannels();'
     );
+  });
+
+  it('re-scans recent joins on every poll tick, with discovery on or off', () => {
+    const tick = source.slice(source.indexOf('const pollInterval'));
+    const merge = tick.indexOf('await mergeDiscoveredChannels();');
+    const branchEnd = tick.indexOf('\n              }\n', merge);
+    const rescan = tick.indexOf('await rescanRecentlyJoinedChannels();');
+    expect(branchEnd).toBeGreaterThan(merge);
+    expect(rescan).toBeGreaterThan(branchEnd);
+    expect(rescan).toBeLessThan(tick.indexOf('} catch'));
   });
 });

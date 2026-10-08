@@ -57,11 +57,78 @@ describe('joined channels while unknown', () => {
     expect(joined.observe(leave(general))).toBe('left');
     expect(joined.isKnownNotJoined(general)).toBe(false);
   });
+});
 
-  it('becomes unknown again when a sync has no snapshot', () => {
-    const joined = known(general);
+describe('joined channels after a failed fetch', () => {
+  it('keeps the set and a left nest stays not joined', () => {
+    const joined = known(general, random);
+    joined.observe(leave(random));
     joined.applySync(joined.beginSync(), null);
-    expect(joined.isKnownNotJoined(random)).toBe(false);
+    expect(joined.isKnownNotJoined(general)).toBe(false);
+    expect(joined.isKnownNotJoined(random)).toBe(true);
+    expect(joined.isKnownNotJoined('chat/~zod/other')).toBe(true);
+  });
+
+  it('stays unknown when it never had a snapshot', () => {
+    const joined = createJoinedChannels();
+    joined.applySync(joined.beginSync(), null);
+    expect(joined.isKnownNotJoined(general)).toBe(false);
+  });
+});
+
+describe('joined channels recently joined', () => {
+  const clock = (start = 1_000_000) => {
+    const time = { now: start };
+    return { time, now: () => time.now };
+  };
+  const knownAt = (now: () => number, ...nests: string[]) => {
+    const joined = createJoinedChannels({ now });
+    joined.applySync(joined.beginSync(), new Set(nests));
+    return joined;
+  };
+
+  it('records a join fact', () => {
+    const { now } = clock();
+    const joined = knownAt(now);
+    joined.observe(join(general));
+    joined.observe(create(random));
+    expect(joined.recentlyJoined(60_000)).toEqual([general, random]);
+  });
+
+  it('records a nest that first appears in a snapshot', () => {
+    const { now } = clock();
+    const joined = knownAt(now, general);
+    // The join fact was missed; only the next snapshot shows it.
+    joined.applySync(joined.beginSync(), new Set([general, random]));
+    expect(joined.recentlyJoined(60_000)).toEqual([random]);
+  });
+
+  it('does not count the first snapshot as joins', () => {
+    const { now } = clock();
+    expect(knownAt(now, general).recentlyJoined(60_000)).toEqual([]);
+  });
+
+  it('drops a nest once it leaves', () => {
+    const { now } = clock();
+    const joined = knownAt(now);
+    joined.observe(join(general));
+    joined.observe(join(random));
+    joined.observe(leave(general));
+    // Gone from the snapshot too.
+    joined.applySync(joined.beginSync(), new Set());
+    expect(joined.recentlyJoined(60_000)).toEqual([]);
+  });
+
+  it('forgets joins older than the window', () => {
+    const { time, now } = clock();
+    const joined = knownAt(now);
+    joined.observe(join(general));
+    time.now += 30_000;
+    joined.observe(join(random));
+    time.now += 40_000;
+    expect(joined.recentlyJoined(60_000)).toEqual([random]);
+    // Pruned, so a wider window no longer finds it.
+    expect(joined.recentlyJoined(600_000)).toEqual([random]);
   });
 });
 

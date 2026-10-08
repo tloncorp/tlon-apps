@@ -4167,6 +4167,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     };
 
+    // A nest watched before its join had its scan skipped, and the
+    // became-joined reconcile can miss the intro request: the host may not
+    // have backfilled it within the catch-up window, or the join fact was
+    // dropped and only a later snapshot shows it.
+    const rescanRecentlyJoinedChannels = async () => {
+      for (const nest of joinedChannels.recentlyJoined(10 * 60_000)) {
+        if (nest.startsWith('chat/') && watchedChannels.has(nest)) {
+          await scanDiscoveredAgentOnboardingNest(nest);
+        }
+      }
+    };
+
     // The SSE client does not await event callbacks. Keep already-started
     // channel handlers alive through monitor teardown so they cannot resume
     // against a closed Urbit transport.
@@ -6373,6 +6385,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 // drift from a dropped subscription either way.
                 await syncJoinedChannels();
               }
+              await rescanRecentlyJoinedChannels();
             } catch (error: any) {
               runtime.error?.(
                 `[tlon] Channel refresh error: ${error?.message ?? String(error)}`
