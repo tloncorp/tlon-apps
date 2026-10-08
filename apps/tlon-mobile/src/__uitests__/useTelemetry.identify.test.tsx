@@ -99,6 +99,7 @@ jest.mock('tamagui', () => ({ isWeb: false }));
 // than acting as a hook call.
 import { usePosthog as readFakePosthog } from '@tloncorp/app/hooks/usePosthog';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
+import { updateEnableTelemetry } from '@tloncorp/shared/store';
 
 const posthog = readFakePosthog();
 
@@ -217,5 +218,39 @@ describe('useTelemetry identify-on-session', () => {
     await settleReady();
 
     expect(posthog.identify).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useTelemetry enableTelemetry back-fill', () => {
+  it('back-fills once even when the poke fails and the setting rolls back', async () => {
+    mockState.settings = {
+      data: { enableTelemetry: null, logActivity: null },
+      isLoading: false,
+    };
+    jest.mocked(updateEnableTelemetry).mockResolvedValue(false);
+
+    const { rerender } = renderHook(() => useTelemetry());
+    await settleReady();
+
+    expect(updateEnableTelemetry).toHaveBeenCalledTimes(1);
+    expect(updateEnableTelemetry).toHaveBeenCalledWith(true);
+
+    // A refetch after the rollback yields a new object with the same values.
+    mockState.settings = {
+      data: { enableTelemetry: null, logActivity: null },
+      isLoading: false,
+    };
+    await act(async () => {
+      rerender(undefined);
+    });
+
+    expect(updateEnableTelemetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not back-fill when the setting is present', async () => {
+    renderHook(() => useTelemetry());
+    await settleReady();
+
+    expect(updateEnableTelemetry).not.toHaveBeenCalled();
   });
 });

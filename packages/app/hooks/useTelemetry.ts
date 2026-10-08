@@ -11,7 +11,7 @@ import {
   lastAnonymousAppOpenAt,
 } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { isWeb } from 'tamagui';
 
 import { TelemetryClient } from '../types/telemetry';
@@ -218,6 +218,11 @@ export function useTelemetry(): TelemetryClient {
     captureMandatoryEvent,
   ]);
 
+  // A failed poke rolls the local value back to null, which re-fires the
+  // back-fill effect; without this guard it retries for as long as the ship
+  // rejects it. The next launch tries again.
+  const backfillAttempted = useRef(false);
+
   useEffect(() => {
     // explicitly set the enableTelemetry setting if it's not present
     if (
@@ -226,6 +231,11 @@ export function useTelemetry(): TelemetryClient {
         settings.enableTelemetry === null) &&
       ready
     ) {
+      if (backfillAttempted.current) {
+        return;
+      }
+      backfillAttempted.current = true;
+
       if (settings.logActivity !== undefined && settings.logActivity !== null) {
         logger.log('Updating telemetry setting from logActivity');
         store.updateEnableTelemetry(settings.logActivity);
