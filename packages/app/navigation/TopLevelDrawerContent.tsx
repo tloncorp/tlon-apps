@@ -103,7 +103,6 @@ import {
   TOP_LEVEL_TABS,
   TopLevelTabName,
   getActiveTopLevelTab,
-  getChannelDestinationRoutes,
   getInitialTopLevelTab,
   getStandingTopLevelTabRoute,
   getTopLevelTabNavigateAction,
@@ -1789,15 +1788,6 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     };
     return {
       ...closing,
-      // A channel picked from a sheet's list of its group's channels opens as
-      // a row of the panel opens one.
-      onPressChannel: (channel: db.Channel) => {
-        const routes = getChannelDestinationRoutes(readStack(), channel);
-        if (routes) {
-          reset(routes);
-        }
-        navigation.closeDrawer();
-      },
       // Leaving a channel only moves its row down among the channels not
       // joined, so the panel stays open on it. The app moves only if it was standing in that
       // channel, and then to the channel now at the top of the group's list

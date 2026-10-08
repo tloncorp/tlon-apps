@@ -9,7 +9,7 @@ import { getTokenValue } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+import { useIsMobileTree, useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
   ForwardGroupSheetProvider,
@@ -36,9 +36,11 @@ import {
   useIsWindowNarrow,
   useToast,
 } from '../../ui';
+import { CreateChannelSheet } from '../../ui/components/ManageChannels/CreateChannelSheet';
 import {
   ChannelHost,
   ChannelQuickActions,
+  GroupChannelsSection,
   LeaveActionsSection,
   MembersList,
   SettingsSection,
@@ -105,10 +107,14 @@ function ChatDetailsScreenView() {
     onPressGroupMeta: navigateToGroupMeta,
     onPressEditChannelMeta,
     onPressEditChannelPrivacy,
+    onPressCreateChannelPermissions,
   } = useChatSettingsNavigation();
   const { navigateToGroup, navigateToChannel, navigateBack } =
     useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
+  // The desktop sidebar beside this screen already lists the channels.
+  const isMobileTree = useIsMobileTree();
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
 
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
@@ -295,6 +301,20 @@ function ChatDetailsScreenView() {
             </>
           )}
 
+          {isMobileTree &&
+          group &&
+          (chatType === 'group' ||
+            (chatType === 'channel' && channel?.groupId)) ? (
+            <GroupChannelsSection
+              group={group}
+              currentChannelId={
+                chatType === 'channel' ? channel?.id : undefined
+              }
+              canCreateChannel={actionsEnabled}
+              onPressNewChannel={() => setShowCreateChannel(true)}
+            />
+          ) : null}
+
           {members?.length ? (
             <MembersList
               entityType={chatType}
@@ -313,6 +333,13 @@ function ChatDetailsScreenView() {
           )}
         </ScreenScrollView>
       )}
+      {showCreateChannel && group ? (
+        <CreateChannelSheet
+          group={group}
+          onOpenChange={setShowCreateChannel}
+          navigateToPermissions={onPressCreateChannelPermissions}
+        />
+      ) : null}
     </View>
   );
 }

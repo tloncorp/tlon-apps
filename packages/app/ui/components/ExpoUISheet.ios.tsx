@@ -75,8 +75,6 @@ const headerLeadingInset = 24;
 const headerTrailingInset = 64;
 const headerActionGap = 36;
 const groupGap = 32;
-const groupTitleHeight = 20;
-const groupTitleGap = 8;
 const rowContentHeight = 48;
 const rowHorizontalInset = 24;
 const rowVerticalInset = 12;
@@ -323,8 +321,7 @@ export function ExpoUIActionContent({
       0
     );
     const dividerCount = rowCount - visibleGroups.length;
-    const titleCount = visibleGroups.filter((group) => group.title).length;
-    // Header + outer padding + group spacing + titles + minimum row heights.
+    // Header + outer padding + group spacing + minimum row heights.
     return (
       contentTopInset +
       40 +
@@ -333,7 +330,6 @@ export function ExpoUIActionContent({
       8 +
       rowCount * (rowContentHeight + rowVerticalInset * 2) +
       dividerCount +
-      titleCount * (groupTitleHeight + groupTitleGap) +
       (visibleGroups.length - 1) * groupGap
     );
   }, [bottom, visibleGroups]);
@@ -439,53 +435,36 @@ export function ExpoUIActionContent({
           {visibleGroups.map((group, groupIndex) => (
             <VStack
               key={groupIndex}
-              alignment="leading"
-              spacing={groupTitleGap}
+              spacing={0}
+              modifiers={[
+                background(
+                  theme.background.val,
+                  shapes.roundedRectangle({ cornerRadius: 16 })
+                ),
+                clipShape('roundedRectangle', 16),
+                strokeBorder({
+                  color: getActionGroupBorderColor(theme, group.accent),
+                  style: { lineWidth: 1 },
+                  shape: 'roundedRectangle',
+                  cornerRadius: 16,
+                }),
+              ]}
             >
-              {group.title ? (
-                <Text
-                  modifiers={[
-                    font({ size: 14, weight: 'regular' }),
-                    lineHeight(groupTitleHeight),
-                    foregroundStyle(theme.secondaryText.val),
-                    padding({ horizontal: rowHorizontalInset }),
-                  ]}
-                >
-                  {group.title}
-                </Text>
-              ) : null}
-              <VStack
-                spacing={0}
-                modifiers={[
-                  background(
-                    theme.background.val,
-                    shapes.roundedRectangle({ cornerRadius: 16 })
-                  ),
-                  clipShape('roundedRectangle', 16),
-                  strokeBorder({
-                    color: getActionGroupBorderColor(theme, group.accent),
-                    style: { lineWidth: 1 },
-                    shape: 'roundedRectangle',
-                    cornerRadius: 16,
-                  }),
-                ]}
-              >
-                {group.actions.map((action, actionIndex) => (
-                  <Group key={`${action.title}-${actionIndex}`}>
-                    {actionIndex > 0 ? (
-                      <Divider
-                        modifiers={[
-                          background(
-                            theme.secondaryBorder.val,
-                            shapes.rectangle()
-                          ),
-                        ]}
-                      />
-                    ) : null}
-                    <ActionRow action={action} groupAccent={group.accent} />
-                  </Group>
-                ))}
-              </VStack>
+              {group.actions.map((action, actionIndex) => (
+                <Group key={`${action.title}-${actionIndex}`}>
+                  {actionIndex > 0 ? (
+                    <Divider
+                      modifiers={[
+                        background(
+                          theme.secondaryBorder.val,
+                          shapes.rectangle()
+                        ),
+                      ]}
+                    />
+                  ) : null}
+                  <ActionRow action={action} groupAccent={group.accent} />
+                </Group>
+              ))}
             </VStack>
           ))}
         </VStack>

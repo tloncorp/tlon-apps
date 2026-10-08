@@ -19,8 +19,6 @@ const defaultValue: ChatOptionsContextValue = {
   onPressChannelMeta: noop,
   onPressChannelTemplate: noop,
   onPressChatDetails: noop,
-  onPressChannel: noop,
-  onPressNewChannel: noop,
   togglePinned: noop,
   leaveGroup: noopAsync,
   leaveChannel: noop,

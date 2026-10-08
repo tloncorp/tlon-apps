@@ -13,7 +13,6 @@ vi.mock('@tloncorp/ui', () => ({
   Icon: () => null,
   Pressable: 'Button',
   Sheet: {},
-  Text: 'Text',
   View: 'View',
   useCopy: () => ({}),
   useIsWindowNarrow: () => true,

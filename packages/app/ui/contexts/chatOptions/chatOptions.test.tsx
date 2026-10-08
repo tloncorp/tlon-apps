@@ -8,7 +8,6 @@ import { ChatOptionsProvider } from './chatOptions';
 import { ChatOptionsContext, type ChatOptionsContextValue } from './context';
 import { ChatOptionsSheet } from '../../components/ChatOptionsSheet';
 import { InviteUsersSheet } from '../../components/InviteUsersSheet';
-import { CreateChannelSheet } from '../../components/ManageChannels/CreateChannelSheet';
 
 const mocks = vi.hoisted(() => ({
   platform: { OS: 'ios' },
@@ -41,9 +40,6 @@ vi.mock('../../components/ChatOptionsSheet', () => ({
 }));
 vi.mock('../../components/InviteUsersSheet', () => ({
   InviteUsersSheet: () => null,
-}));
-vi.mock('../../components/ManageChannels/CreateChannelSheet', () => ({
-  CreateChannelSheet: () => null,
 }));
 vi.mock('../../utils', () => ({ useChannelTitle: () => '' }));
 
@@ -81,15 +77,6 @@ function renderProvider(
     },
     invite() {
       act(() => context.onPressInvite?.());
-    },
-    newChannel() {
-      act(() => context.onPressNewChannel());
-    },
-    pressChannel(channel: { id: string }) {
-      act(() => context.onPressChannel(channel as never));
-    },
-    createChannelSheets() {
-      return tree.root.findAllByType(CreateChannelSheet);
     },
     sheet() {
       return tree.root.findByType(ChatOptionsSheet);
@@ -213,99 +200,5 @@ describe('Chat Options invite handoff', () => {
       ].value;
     provider.unmount();
     expect(clear).toHaveBeenCalledWith(timer);
-  });
-});
-
-describe('Chat Options channel menu', () => {
-  it.each(['ios', 'android'])(
-    'opens a picked channel once the %s sheet has dismissed',
-    (platform) => {
-      mocks.platform.OS = platform;
-      const onPressChannel = vi.fn();
-      const provider = renderProvider({ onPressChannel });
-      provider.open('selected-group');
-      provider.pressChannel({ id: 'next-channel' });
-      expect(provider.sheet().props.open).toBe(false);
-      expect(onPressChannel).not.toHaveBeenCalled();
-      act(() => provider.sheet().props.onNativeDismissed());
-      expect(onPressChannel).toHaveBeenCalledWith({ id: 'next-channel' });
-      provider.unmount();
-    }
-  );
-
-  it('opens a picked channel at once on web', () => {
-    mocks.platform.OS = 'web';
-    const onPressChannel = vi.fn();
-    const provider = renderProvider({ onPressChannel });
-    provider.open('selected-group');
-    provider.pressChannel({ id: 'next-channel' });
-    expect(onPressChannel).toHaveBeenCalledWith({ id: 'next-channel' });
-    expect(provider.sheet().props.open).toBe(false);
-    provider.unmount();
-  });
-
-  it.each(['ios', 'android'])(
-    'waits for the %s dismissal before opening the new channel sheet',
-    (platform) => {
-      mocks.platform.OS = platform;
-      const onPressCreateChannelPermissions = vi.fn();
-      const provider = renderProvider({ onPressCreateChannelPermissions });
-      provider.open('selected-group');
-      provider.newChannel();
-      act(() => {
-        vi.advanceTimersByTime(5000);
-      });
-      expect(provider.sheet().props.open).toBe(false);
-      expect(provider.createChannelSheets()).toHaveLength(0);
-      act(() => provider.sheet().props.onNativeDismissed());
-      const [sheet] = provider.createChannelSheets();
-      expect(sheet.props.group).toEqual({ id: 'selected-group' });
-      expect(sheet.props.navigateToPermissions).toBe(
-        onPressCreateChannelPermissions
-      );
-      act(() => sheet.props.onOpenChange(false));
-      expect(provider.createChannelSheets()).toHaveLength(0);
-      provider.unmount();
-    }
-  );
-
-  it("creates in a channel's group", () => {
-    const provider = renderProvider();
-    provider.open('selected-channel', 'channel');
-    provider.newChannel();
-    act(() => provider.sheet().props.onNativeDismissed());
-    expect(provider.createChannelSheets()[0].props.group).toEqual({
-      id: 'channel-group',
-    });
-    provider.unmount();
-  });
-
-  it('opens the new channel sheet after the web timer', () => {
-    mocks.platform.OS = 'web';
-    const provider = renderProvider();
-    provider.open();
-    provider.newChannel();
-    act(() => {
-      vi.advanceTimersByTime(299);
-    });
-    expect(provider.createChannelSheets()).toHaveLength(0);
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(provider.createChannelSheets()[0].props.group).toEqual({
-      id: 'group',
-    });
-    provider.unmount();
-  });
-
-  it('drops a queued new channel sheet when another sheet opens', () => {
-    const provider = renderProvider();
-    provider.open();
-    const stale = provider.sheet().props.onNativeDismissed;
-    provider.newChannel();
-    provider.open('new-group');
-    act(() => stale());
-    expect(provider.createChannelSheets()).toHaveLength(0);
-    provider.unmount();
   });
 });
