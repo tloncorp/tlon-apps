@@ -68,6 +68,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
   deskSupportsBuckets: boolean | null;
+  deskCountsAllSeats: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -190,6 +191,9 @@ const config: Config = {
   // whose version we cannot read is asked for /v10, which every backend has —
   // a 404 there costs the whole init. Guarded requests refuse only false.
   deskSupportsBuckets: null,
+  // Off until the app confirms the backend's groups version counts every seat
+  // in init and changes, so a member count of 15 stays suspect by default.
+  deskCountsAllSeats: false,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -270,6 +274,17 @@ export const setActivitySupportsNotes = (value: boolean) => {
 
 export const getActivitySupportsNotes = (): boolean => {
   return config.activitySupportsNotes;
+};
+
+// Whether the connected backend's init and changes member counts cover every
+// seat. Older desks counted only the 15 seats they keep, so
+// withoutTruncatedMemberCount distrusts a count of exactly 15 until this is set.
+export const setDeskCountsAllSeats = (value: boolean) => {
+  config.deskCountsAllSeats = value;
+};
+
+export const getDeskCountsAllSeats = (): boolean => {
+  return config.deskCountsAllSeats;
 };
 
 const deskSupportsBucketsListeners = new Set<() => void>();
@@ -475,6 +490,7 @@ export function internalRemoveClient() {
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
   setDeskSupportsBuckets(null);
+  setDeskCountsAllSeats(false);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {

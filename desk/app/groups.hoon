@@ -1271,10 +1271,11 @@
       %-  ~(urn by groups)
       |=  [=flag:g =net:g =group:g]
       =*  light-group  (drop-seats:group:v11:gc group our.bowl)
-      =+  (group-ui:v7:group:v11:gc net light-group)
-      ::  restore member count after dropping seats
+      =/  ui=group-ui:v7:gv  (group-ui:v7:group:v11:gc net light-group)
+      ::  restore member count after dropping seats. faced as .ui,
+      ::  its light .group can't shadow the full one
       ::
-      -(member-count ~(wyt by seats.group))
+      ui(member-count ~(wyt by seats.group))
     =/  foreigns-8=foreigns:v8:gv
       (~(run by foreigns) v8:foreign:v10:gc)
     ``unsafe+noun+!>([groups-light-ui-7 foreigns-8])
@@ -1284,10 +1285,11 @@
       %-  ~(urn by groups)
       |=  [=flag:g =net:g =group:g]
       =*  light-group  (drop-seats:group:v11:gc group our.bowl)
-      =+  (group-ui:v9:group:v11:gc net light-group)
-      ::  restore member count after dropping seats
+      =/  ui=group-ui:v9:gv  (group-ui:v9:group:v11:gc net light-group)
+      ::  restore member count after dropping seats. faced as .ui,
+      ::  its light .group can't shadow the full one
       ::
-      -(member-count ~(wyt by seats.group))
+      ui(member-count ~(wyt by seats.group))
     =/  foreigns-8=foreigns:v8:gv
       (~(run by foreigns) v8:foreign:v10:gc)
     ``unsafe+noun+!>([groups-light-ui-9 foreigns-8])
@@ -1297,10 +1299,11 @@
       %-  ~(urn by groups)
       |=  [=flag:g =net:g =group:g]
       =*  light-group  (drop-seats:group:v11:gc group our.bowl)
-      =+  (group-ui:group:v11:gc net light-group)
-      ::  restore member count after dropping seats
+      =/  ui=group-ui:v11:gv  (group-ui:group:v11:gc net light-group)
+      ::  restore member count after dropping seats. faced as .ui,
+      ::  its light .group can't shadow the full one
       ::
-      -(member-count ~(wyt by seats.group))
+      ui(member-count ~(wyt by seats.group))
     =/  foreigns-8=foreigns:v8:gv
       (~(run by foreigns) v8:foreign:v10:gc)
     ``unsafe+noun+!>([groups-light-ui-11 foreigns-8])
@@ -1335,19 +1338,37 @@
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-1
-    (~(run by (changes since)) group-ui:v5:group:v11:gc)
+    %-  ~(run by (changes since))
+    |=  [=net:g =group:g]
+    =*  light-group  (drop-seats:group:v11:gc group our.bowl)
+    =/  ui=group-ui:v5:gv  (group-ui:v5:group:v11:gc net light-group)
+    ::  restore member count after dropping seats
+    ::
+    ui(count ~(wyt by seats.group))
   ::
       [%x %v2 %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-2
-    (~(run by (changes since)) group-ui:v9:group:v11:gc)
+    %-  ~(run by (changes since))
+    |=  [=net:g =group:g]
+    =*  light-group  (drop-seats:group:v11:gc group our.bowl)
+    =/  ui=group-ui:v9:gv  (group-ui:v9:group:v11:gc net light-group)
+    ::  restore member count after dropping seats
+    ::
+    ui(member-count ~(wyt by seats.group))
   ::
       [%x %v3 %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-3
-    (~(run by (changes since)) group-ui:group:v11:gc)
+    %-  ~(run by (changes since))
+    |=  [=net:g =group:g]
+    =*  light-group  (drop-seats:group:v11:gc group our.bowl)
+    =/  ui=group-ui:v11:gv  (group-ui:group:v11:gc net light-group)
+    ::  restore member count after dropping seats
+    ::
+    ui(member-count ~(wyt by seats.group))
   ::
       [%x ver=?(%v0 %v1 %v2 %v3) %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
@@ -1444,9 +1465,9 @@
         %pub  key:(fall (ram:log-on:g log.net) [key=now.bowl ~])
       ==
     ?.  fresh  ~
-    %-  some
-    :-  flag
-    [net (drop-seats:group:v11:gc group our.bowl)]
+    ::  callers drop the seats, after counting them
+    ::
+    `[flag net group]
   --
 ::
 ++  agent

@@ -829,9 +829,11 @@
         %kick
       (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
         %fact
-      ::  r-groups fact is [flag r-group]; decode just the flag head.
+      ::  r-groups fact is [flag r-group]; decode just the flag head
+      ::  here; +sync-listing-title soft-decodes the channel %edit case.
       =+  !<([=flag:n *] q.cage.sign)
-      (recheck-group-access flag)
+      =.  cor  (recheck-group-access flag)
+      (sync-listing-title q.q.cage.sign)
     ==
   ::
       [%notes %sub ship=@ name=@ ~]
@@ -1209,6 +1211,28 @@
     ?:  (can-view-flag flag who)  ~
     `[%give %kick ~[pax] `who]
   (emil kicks)
+::  +sync-listing-title: the %groups channel listing is the user-visible
+::  name of a group notebook, and group admins rename it there. When a
+::  listing %edit for a group notebook we host carries a new title, apply
+::  it to the %notes title. Soft-decoded and guarded before se-abed's
+::  asserts, so an unrelated or malformed fact is a no-op.
+::
+++  sync-listing-title
+  |=  fact=*
+  ^+  cor
+  =/  ed  ((soft ,[grp=flag:n %channel =nest:n %edit chan=group-channel:n]) fact)
+  ?~  ed  cor
+  =*  nest  nest.u.ed
+  ?.  &(=(%notes kind.nest) =(our.bowl host.nest))  cor
+  =/  nf=flag:n  [host.nest name.nest]
+  ?~  entry=(~(get by books) nf)  cor
+  ?.  ?=(%pub -.net.u.entry)  cor
+  =*  ns  notebook-state.u.entry
+  ?.  =(`grp.u.ed group.ns)  cor
+  =/  new=@t  title.meta.chan.u.ed
+  ?:  =(new title.notebook.ns)  cor
+  ?.  =(`%owner (~(get by members.ns) our.bowl))  cor
+  se-abet:(se-rename-notebook:(se-abed:se-core nf) new)
 ::  +find-flag-by-nid: find the flag for a notebook by numeric notebook id
 ::
 ++  find-flag-by-nid

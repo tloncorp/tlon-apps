@@ -149,6 +149,31 @@ export const openclawDriver: BotDriver = {
     // registry platform package. Same env-plus-file double opt-in as the api
     // tarball above.
     const skillDir = path.join(ctx.repoRoot, 'packages/tlon-skill');
+    // Install branch documentation and discovery metadata alongside the binary.
+    // A binary-only override silently tests registry skill instructions.
+    const skillPackDir = await mkdtemp(
+      path.join(os.tmpdir(), 'tlon-skill-pack-')
+    );
+    try {
+      const packed = await runCommand(
+        'pnpm',
+        ['pack', '--pack-destination', skillPackDir],
+        { cwd: skillDir, env }
+      );
+      if (packed.exitCode !== 0)
+        throw new Error(`Packing workspace skill failed: ${packed.stderr}`);
+      const archive = (await readdir(skillPackDir)).find((file) =>
+        file.endsWith('.tgz')
+      );
+      if (!archive) throw new Error('Workspace skill pack produced no archive');
+      await copyFile(
+        path.join(skillPackDir, archive),
+        path.join(ctx.packageDir, 'dev/tlon-skill-workspace.tgz')
+      );
+    } finally {
+      await rm(skillPackDir, { recursive: true, force: true });
+    }
+
     // The container runs on the Docker daemon's platform, which need not
     // match this Node process (Rosetta node on an arm64 Mac, a remote
     // docker context), so ask the daemon rather than trusting process.arch.

@@ -72,6 +72,9 @@
     "local-testing": {
       "extends": "base",
       "channel": "local",
+      "env": {
+        "APP_VARIANT": "e2e"
+      },
       "android": {
         "resourceClass": "large",
         "gradleCommand": ":app:assembleProductionRelease",
@@ -100,7 +103,8 @@
       "extends": "base",
       "withoutCredentials": true,
       "env": {
-        "AUTOMATED_TEST": "true"
+        "AUTOMATED_TEST": "true",
+        "APP_VARIANT": "e2e"
       },
       "ios": {
         "simulator": true,
