@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import type { PropsWithChildren } from 'react';
 import { useSelect, useValue } from 'react-cosmos/client';
 
 import {
@@ -6,7 +7,11 @@ import {
   GroupOptionsSheetContent,
 } from '../ui/components/ChatOptionsSheet';
 import { AppDataContextProvider } from '../ui/contexts/appDataContext';
-import { ChatOptionsProvider } from '../ui/contexts/chatOptions';
+import {
+  ChatOptionsProvider,
+  useChatOptions,
+} from '../ui/contexts/chatOptions';
+import { ChatOptionsContext } from '../ui/contexts/chatOptions/context';
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialContacts, jamesContact } from './fakeData';
 
@@ -277,8 +282,101 @@ const DMOptions = () => {
   );
 };
 
+const menuChannels: Pick<db.Channel, 'title' | 'type'>[] = [
+  { title: 'General', type: 'chat' },
+  { title: 'Announcements', type: 'chat' },
+  { title: 'Moodboard', type: 'gallery' },
+  { title: 'Field notes', type: 'notes' },
+  { title: 'Shared files', type: 'buckets' },
+];
+
+/** Gives the sheet the group a provider would have loaded for the chat. */
+function WithChatGroup({
+  group,
+  channel,
+  children,
+}: PropsWithChildren<{ group: db.Group; channel: db.Channel | null }>) {
+  const chatOptions = useChatOptions();
+  return (
+    <ChatOptionsContext.Provider value={{ ...chatOptions, group, channel }}>
+      {children}
+    </ChatOptionsContext.Provider>
+  );
+}
+
+/**
+ * The block of the group's channels, with "New channel" for an admin.
+ *
+ * A channel's own sheet works out admin from the database, which Cosmos does
+ * not have, so its "New channel" row shows only on the group sheet here.
+ */
+const ChannelMenu = () => {
+  const [sheet] = useSelect('Sheet', {
+    options: ['channel', 'group'],
+    defaultValue: 'channel',
+  });
+  const [channelCount] = useValue('Channels in group', { defaultValue: 4 });
+  const [isAdmin] = useValue('Is Admin', { defaultValue: true });
+
+  const { group: baseGroup, groupUnread } = createMockData({
+    type: 'group',
+    isHost: isAdmin,
+  });
+  const channels = menuChannels
+    .slice(0, Math.max(1, Math.min(channelCount, menuChannels.length)))
+    .map(
+      (channel, index) =>
+        ({
+          ...channel,
+          id: `${channel.type}/~sampel-palnet/menu-${index}`,
+          groupId: baseGroup!.id,
+          currentUserIsMember: true,
+          lastPostAt: index,
+        }) as db.Channel
+    );
+  const group = { ...baseGroup!, channels } as db.Group;
+  const [current] = channels;
+  // The app opens a group's sheet from one of its channels only when that
+  // channel is the group's only one.
+  const sheetChannel =
+    sheet === 'channel' || channels.length === 1 ? current : null;
+
+  return (
+    <AppDataContextProvider
+      currentUserId={jamesContact.id}
+      contacts={initialContacts}
+    >
+      <FixtureWrapper>
+        <ChatOptionsProvider {...mockFunctions}>
+          <WithChatGroup group={group} channel={sheetChannel}>
+            {sheet === 'group' ? (
+              <GroupOptionsSheetContent
+                chatTitle="Test Group"
+                group={group}
+                groupUnread={groupUnread || null}
+                currentUserIsAdmin={isAdmin}
+                onPressNotifications={() => {}}
+                onPressSort={() => {}}
+                onOpenChange={() => {}}
+              />
+            ) : (
+              <ChannelOptionsSheetContent
+                chatTitle={current.title ?? ''}
+                channel={current}
+                onPressNotifications={() => {}}
+                onOpenChange={() => {}}
+              />
+            )}
+          </WithChatGroup>
+        </ChatOptionsProvider>
+      </FixtureWrapper>
+    </AppDataContextProvider>
+  );
+};
+
 export default {
   'Channel Options': ChannelOptions,
   'Group Options': GroupOptions,
   'DM Options': DMOptions,
+  'Channel Menu': ChannelMenu,
 };

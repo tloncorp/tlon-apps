@@ -2,6 +2,7 @@ import { CommonActions } from '@react-navigation/routers';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import type { IconType } from '@tloncorp/ui';
 
+import { buildDrawerChannelRoute } from './drawerDestination';
 import type { RootStackParamList, TopLevelTabParamList } from './types';
 
 export type TopLevelTabName = keyof TopLevelTabParamList;
@@ -237,4 +238,26 @@ export function getStandingTopLevelTabRoute(
     key?: string;
     params?: NonNullable<RootStackParamList['MainTabs']>;
   };
+}
+
+/**
+ * The stack that opens a channel the way the drawer does: over the section as
+ * it stands, as a destination of its own. For a channel picked out of a list
+ * of its group's channels, which is a move sideways rather than deeper.
+ *
+ * `null` when the stack already shows that channel, so picking the one the
+ * user is in does not rebuild it underneath them.
+ */
+export function getChannelDestinationRoutes(
+  stackState: RouteSnapshot['state'],
+  channel: { id: string; groupId?: string | null }
+) {
+  const channelRoute = buildDrawerChannelRoute(channel);
+  const focused = stackState?.routes?.[stackState.index ?? 0];
+  const focusedChannelId = (focused?.params as { channelId?: string })
+    ?.channelId;
+  if (focused?.name === channelRoute.name && focusedChannelId === channel.id) {
+    return null;
+  }
+  return [getStandingTopLevelTabRoute(stackState, 'ChatList'), channelRoute];
 }

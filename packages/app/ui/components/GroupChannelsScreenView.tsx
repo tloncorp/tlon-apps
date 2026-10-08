@@ -26,6 +26,7 @@ import { useCurrentUserId } from '../contexts/appDataContext';
 import { useChatOptions } from '../contexts/chatOptions';
 import { useNotebookSidebarContent } from '../contexts/notebookSidebar';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
+import { getGroupChannelSections } from '../utils/groupChannelSections';
 import { Badge } from './Badge';
 import { GroupAvatar } from './GroupAvatar';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
@@ -171,75 +172,14 @@ export const GroupChannelsScreenView = React.memo(
 
       const result: ChannelListData[] = [];
 
-      // Add regular channels - either by section or by recency
-      if (sortBy === 'recency') {
-        // Sort channels by recency: whichever is newer of the latest post
-        // or the activity summary's recency — non-post activity (e.g. a
-        // note in a notebook channel, which never has posts) also counts
-        const channelsSortedByRecency = [...group.channels].sort((a, b) => {
-          const aRecency = Math.max(
-            a.lastPostAt ?? 0,
-            a.unread?.updatedAt ?? 0
-          );
-          const bRecency = Math.max(
-            b.lastPostAt ?? 0,
-            b.unread?.updatedAt ?? 0
-          );
-          return bRecency - aRecency;
+      getGroupChannelSections(group, sortBy).forEach((section) => {
+        result.push({
+          type: 'sectionHeader',
+          title: section.title,
+          id: section.id,
         });
-
-        if (channelsSortedByRecency.length > 0) {
-          result.push({
-            type: 'sectionHeader',
-            title: 'Recent Channels',
-            id: 'recent-channels',
-          });
-          result.push(...channelsSortedByRecency);
-        }
-      } else {
-        // Add sections
-        group.navSections?.forEach((section) => {
-          const sectionChannels = group.channels?.filter((c) =>
-            section.channels?.some((sc) => sc.channelId === c.id)
-          );
-
-          if (sectionChannels && sectionChannels.length > 0) {
-            result.push({
-              type: 'sectionHeader',
-              title: section.title ?? '',
-              id: `section-${section.id}`,
-            });
-            // Sort section channels by their index within the section
-            const sortedSectionChannels = [...sectionChannels].sort((a, b) => {
-              const aIndex =
-                section.channels?.find((c) => c.channelId === a.id)
-                  ?.channelIndex ?? 0;
-              const bIndex =
-                section.channels?.find((c) => c.channelId === b.id)
-                  ?.channelIndex ?? 0;
-              return aIndex - bIndex;
-            });
-            result.push(...sortedSectionChannels);
-          }
-        });
-
-        // Add ungrouped channels
-        const unGroupedChannels = group.channels.filter(
-          (c) =>
-            !group.navSections?.some((s) =>
-              s.channels?.some((sc) => sc.channelId === c.id)
-            )
-        );
-
-        if (unGroupedChannels.length > 0) {
-          result.push({
-            type: 'sectionHeader',
-            title: 'All Channels',
-            id: 'all-channels',
-          });
-          result.push(...unGroupedChannels);
-        }
-      }
+        result.push(...section.channels);
+      });
 
       // Add unjoined channels section
       if (unjoinedChannels.length > 0) {

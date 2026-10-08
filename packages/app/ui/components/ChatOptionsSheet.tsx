@@ -21,6 +21,7 @@ import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
 import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
 import { useIsNativeSheet } from '../hooks/useIsNativeSheet';
 import * as utils from '../utils';
+import { getGroupChannelMenu } from '../utils/groupChannelSections';
 import {
   Action,
   ActionGroup,
@@ -318,8 +319,13 @@ export function GroupOptionsSheetContent({
   onPressSort: () => void;
   onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
-  const { markGroupRead, onPressChatDetails, togglePinned, onPressInvite } =
-    useChatOptions();
+  const {
+    channel,
+    markGroupRead,
+    onPressChatDetails,
+    togglePinned,
+    onPressInvite,
+  } = useChatOptions();
   const canMarkRead = !(group.unread?.count === 0 || groupUnread?.count === 0);
   const canSortChannels = (group.channels?.length ?? 0) > 1;
   const canInvite = currentUserIsAdmin || group.privacy === 'public';
@@ -355,6 +361,14 @@ export function GroupOptionsSheetContent({
     () => getNotificationTitle(group.volumeSettings, baseVolumeLevel),
     [group.volumeSettings, baseVolumeLevel]
   );
+
+  const channelsGroup = useGroupChannelsActionGroup({
+    group,
+    // Set when the sheet is a single channel's group, opened from it.
+    currentChannelId: channel?.id,
+    canCreateChannel: currentUserIsAdmin,
+    wrappedAction,
+  });
 
   const actionGroups = useMemo(
     () =>
@@ -403,6 +417,7 @@ export function GroupOptionsSheetContent({
             testID: 'GroupOptionsGroupInfoButton',
           },
         ],
+        channelsGroup,
         // this is CYA in case the group somehow looks joined but isn't
         isErrored && [
           'negative',
@@ -428,6 +443,7 @@ export function GroupOptionsSheetContent({
       wrappedInviteAction,
       handleCancel,
       isErrored,
+      channelsGroup,
     ]
   );
 
@@ -733,6 +749,8 @@ export function ChannelOptionsSheetContent({
     markChannelRead,
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
+  const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
 
   const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
   const channelActionCapabilities = utils.getChannelActionCapabilities(channel);
@@ -773,6 +791,13 @@ export function ChannelOptionsSheetContent({
     () => getNotificationTitle(channel.volumeSettings, baseVolumeLevel),
     [channel.volumeSettings, baseVolumeLevel]
   );
+
+  const channelsGroup = useGroupChannelsActionGroup({
+    group,
+    currentChannelId: channel.id,
+    canCreateChannel: currentUserIsAdmin,
+    wrappedAction,
+  });
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -837,6 +862,7 @@ export function ChannelOptionsSheetContent({
               action: wrappedAction.bind(null, onPressChannelTemplate),
             },
           ],
+        channelsGroup,
         currentUserIsChannelHost && [
           'negative',
           {
@@ -874,6 +900,7 @@ export function ChannelOptionsSheetContent({
       currentUserIsChannelHost,
       channelActionCapabilities.canLeave,
       leaveChannel,
+      channelsGroup,
     ]
   );
 
@@ -905,6 +932,57 @@ export function ChannelOptionsSheetContent({
       icon={<ListItem.ChannelIcon model={channel} />}
     />
   );
+}
+
+/** The group's channels to move to, and for an admin a way to add one. */
+function useGroupChannelsActionGroup({
+  group,
+  currentChannelId,
+  canCreateChannel,
+  wrappedAction,
+}: {
+  group: db.Group | null | undefined;
+  currentChannelId?: string;
+  canCreateChannel: boolean;
+  wrappedAction: (action: () => void, clearChat?: boolean) => void;
+}): ActionGroup | null {
+  const { onPressChannel, onPressNewChannel } = useChatOptions();
+  const sortBy = db.channelSortPreference.useValue();
+
+  return useMemo((): ActionGroup | null => {
+    if (!group) {
+      return null;
+    }
+    const menu = getGroupChannelMenu(group, sortBy, currentChannelId);
+    const actions: Action[] = menu.channels.map((channel) => ({
+      title: utils.getChannelTitle({
+        usesMemberListAsFallbackTitle: false,
+        channelTitle: channel.title,
+        disableNicknames: false,
+      }),
+      startIcon: utils.getChannelTypeIcon(channel.type),
+      action: wrappedAction.bind(null, () => onPressChannel(channel)),
+    }));
+    if (canCreateChannel) {
+      actions.push({
+        title: 'New channel',
+        startIcon: 'Add',
+        action: wrappedAction.bind(null, onPressNewChannel),
+        testID: 'ChatOptionsNewChannelButton',
+      });
+    }
+    return actions.length > 0
+      ? { accent: 'neutral', title: menu.title, actions }
+      : null;
+  }, [
+    group,
+    sortBy,
+    currentChannelId,
+    canCreateChannel,
+    wrappedAction,
+    onPressChannel,
+    onPressNewChannel,
+  ]);
 }
 
 export function ChatOptionsSheetContent({
