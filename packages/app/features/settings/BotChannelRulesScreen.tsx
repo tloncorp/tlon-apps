@@ -1,29 +1,15 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
-import {
-  Button,
-  ConfirmDialog,
-  LoadingSpinner,
-  Text,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
+import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
-  ScreenHeader,
-  SettingsContentScrollView,
-  Tabs,
-  TextInput,
-} from '../../ui';
-import {
-  BotSettingsDivider,
-  BotSettingsErrorText,
-  BotSettingsRow,
-  BotSettingsSection,
-} from './bot/BotSettingsUI';
+  type SettingsRowModel,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 import { BASIC_PROVIDER_ID, providerLabel } from './bot/constants';
 import {
   ChannelRuleDraft,
@@ -63,7 +49,6 @@ const ruleChanged = (
   JSON.stringify(current ?? null) !== JSON.stringify(initial ?? null);
 
 export function BotChannelRulesScreen(props: Props) {
-  const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
   // Sync the draft from the server before editing so reaching this screen
   // directly (cold launch / deep link) doesn't start from an empty draft and
@@ -297,302 +282,226 @@ export function BotChannelRulesScreen(props: Props) {
   // refetch would discard the rendered tree (and scroll position) each poll.
   const loading = queries.channelsQuery.isLoading;
 
-  return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        borderBottom
-        backAction={
-          isWindowNarrow ? () => props.navigation.goBack() : undefined
-        }
-        title="Channel rules"
-        placement="navigation"
-      />
-      {!ready ? (
-        <View flex={1} alignItems="center" justifyContent="center">
-          <LoadingSpinner />
-        </View>
-      ) : (
-        <SettingsContentScrollView
-          paddingHorizontal="$l"
-          paddingTop="$l"
-          safeAreaBottomOffset={24}
-        >
-          <YStack gap="$l" paddingBottom="$2xl">
-            <TextInput
-              icon="Search"
-              placeholder="Filter by name"
-              value={search}
-              onChangeText={setSearch}
-              spellCheck={false}
-              autoCorrect={false}
-              autoCapitalize="none"
-              rightControls={
-                search !== '' ? (
-                  <TextInput.InnerButton
-                    label="Clear"
-                    onPress={() => setSearch('')}
-                  />
-                ) : undefined
+  const navigate = props.navigation.navigate;
+  const sections = useMemo<SettingsSectionModel[]>(() => {
+    const noteRow = (key: string, title: string): SettingsRowModel => ({
+      key,
+      title,
+    });
+
+    const filterSection: SettingsSectionModel = {
+      key: 'filter',
+      footer: joinError ?? undefined,
+      rows: [
+        {
+          key: 'enabled-only',
+          title: 'Enabled only',
+          toggle: { value: enabledOnly, onValueChange: setEnabledOnly },
+        },
+      ],
+    };
+
+    const disableSection: SettingsSectionModel[] = enabledOnly
+      ? [
+          {
+            key: 'disable-everywhere',
+            footer: canUndoDisableEverywhere
+              ? 'Restore the channels that were previously enabled.'
+              : allChannelsDisabled
+                ? 'No channels are enabled.'
+                : `Turn off ${enabledChannelCount} enabled ${
+                    enabledChannelCount === 1 ? 'channel' : 'channels'
+                  }.`,
+            rows: [
+              canUndoDisableEverywhere
+                ? {
+                    key: 'undo-disable',
+                    title: 'Undo',
+                    action: true,
+                    onPress: handleDisableEverywhereToggle,
+                  }
+                : {
+                    key: 'disable-all',
+                    title: 'Disable all channels',
+                    destructive: true,
+                    disabled: allChannelsDisabled,
+                    onPress: handleDisableEverywhereToggle,
+                  },
+            ],
+          },
+        ]
+      : [];
+
+    if (loading || filteredGroups.length === 0) {
+      return [
+        filterSection,
+        ...disableSection,
+        {
+          key: 'status',
+          rows: [
+            loading
+              ? noteRow('loading', 'Loading channels…')
+              : noteRow(
+                  'empty',
+                  groups.length === 0
+                    ? 'No channels found on this node yet.'
+                    : enabledOnly
+                      ? 'No enabled channels.'
+                      : 'No channels match.'
+                ),
+          ],
+        },
+      ];
+    }
+
+    const groupSections = filteredGroups.map((group): SettingsSectionModel => {
+      const groupKey = `${group.host}/${group.group}`;
+      const isUnknownGroup = group.group === 'unknown';
+      const membership = isUnknownGroup
+        ? 'not-member'
+        : getMembership(
+            group.host,
+            group.group,
+            groupHasRules(group.host, group.group)
+          );
+      const isGroupMember = membership === 'member';
+      const isDeparted = membership === 'departed';
+      const canJoinGroup =
+        (membership === 'not-member' || isDeparted) &&
+        !isUnknownGroup &&
+        Boolean(queries.ship) &&
+        Boolean(queries.moon);
+      const isJoining = Boolean(joiningGroups[groupKey]);
+      const groupLabel = group.title || group.group;
+      const enabledCount = group.channels.filter((channel) =>
+        Boolean(drafts[channel.key])
+      ).length;
+      const hasDraftRules =
+        isDeparted &&
+        getGroupChannelRuleKeys(rawGroups, group.host, group.group, drafts)
+          .length > 0;
+
+      const groupRows: SettingsRowModel[] = [];
+      if (isDeparted) {
+        groupRows.push({
+          key: 'departed',
+          title: 'Tlonbot is no longer in this group',
+          subtitle: hasDraftRules
+            ? 'Its rules here are paused. Join again to resume them.'
+            : 'Its rules here will be removed when you apply.',
+        });
+        groupRows.push(
+          hasDraftRules
+            ? {
+                key: 'clear-rules',
+                title: 'Clear rules',
+                destructive: true,
+                onPress: () =>
+                  handleClearGroupRulesToggle(group.host, group.group),
               }
-            />
-            <Tabs>
-              <Tabs.Tab
-                name="all"
-                activeTab={enabledOnly ? 'enabled' : 'all'}
-                onTabPress={() => setEnabledOnly(false)}
-              >
-                <Tabs.Title cursor="pointer" active={!enabledOnly}>
-                  All
-                </Tabs.Title>
-              </Tabs.Tab>
-              <Tabs.Tab
-                name="enabled"
-                activeTab={enabledOnly ? 'enabled' : 'all'}
-                onTabPress={() => setEnabledOnly(true)}
-              >
-                <Tabs.Title cursor="pointer" active={enabledOnly}>
-                  Enabled
-                </Tabs.Title>
-              </Tabs.Tab>
-            </Tabs>
+            : {
+                key: 'undo-clear',
+                title: 'Undo',
+                action: true,
+                onPress: () =>
+                  handleClearGroupRulesToggle(group.host, group.group),
+              }
+        );
+      }
+      if (!isGroupMember) {
+        groupRows.push({
+          key: 'join',
+          title: isJoining ? 'Joining…' : 'Join group',
+          action: true,
+          disabled: isJoining || !canJoinGroup,
+          onPress: () =>
+            setJoinTarget({
+              groupHost: group.host,
+              groupName: group.group,
+              sampleChannelKey: group.channels[0]?.key ?? '',
+              label: groupLabel,
+            }),
+        });
+      }
+      group.channels.forEach((channel) => {
+        const rule = drafts[channel.key];
+        const accessLabel = rule?.mode === 'allowlist' ? 'Allowlist' : 'Open';
+        const modelLabel = rule?.modelOverrideProvider
+          ? rule.modelOverrideProvider === BASIC_PROVIDER_ID
+            ? 'Basic'
+            : providerLabel(rule.modelOverrideProvider)
+          : 'Default';
+        groupRows.push({
+          key: channel.key,
+          title: channel.label,
+          subtitle: channel.key,
+          value: !rule
+            ? 'Off'
+            : isDeparted
+              ? 'Paused'
+              : modelLabel === 'Default'
+                ? accessLabel
+                : `${accessLabel} · ${modelLabel}`,
+          pending: ruleChanged(rule, baselineDrafts[channel.key]),
+          // Only block navigation when membership is truly unknown. A group
+          // already resolved as a member stays editable even while the moon
+          // listing loads/errors.
+          disabled: membership === 'unknown',
+          onPress: () =>
+            navigate('BotChannelRuleSettings', {
+              channelKey: channel.key,
+              channelLabel: channel.label,
+              groupJoined: isUnknownGroup || isGroupMember,
+            }),
+        });
+      });
 
-            {enabledOnly ? (
-              <BotSettingsSection>
-                <XStack
-                  minHeight={56}
-                  alignItems="center"
-                  gap="$l"
-                  paddingHorizontal="$l"
-                  paddingVertical="$m"
-                >
-                  <YStack flex={1} minWidth={0} gap="$l">
-                    <Text size="$label/l" color="$primaryText">
-                      Disable everywhere
-                    </Text>
-                    <Text size="$label/s" color="$secondaryText">
-                      {canUndoDisableEverywhere
-                        ? 'Restore the channels that were previously enabled'
-                        : allChannelsDisabled
-                          ? 'No channels are enabled'
-                          : `Turn off ${enabledChannelCount} enabled ${
-                              enabledChannelCount === 1 ? 'channel' : 'channels'
-                            }`}
-                    </Text>
-                  </YStack>
-                  <Button
-                    preset={
-                      canUndoDisableEverywhere
-                        ? 'secondaryOutline'
-                        : 'destructive'
-                    }
-                    size="small"
-                    label={canUndoDisableEverywhere ? 'Undo' : 'Disable all'}
-                    disabled={!canUndoDisableEverywhere && allChannelsDisabled}
-                    onPress={handleDisableEverywhereToggle}
-                  />
-                </XStack>
-              </BotSettingsSection>
-            ) : null}
+      const path = `${formatChannelHost(group.host)}/${group.group}`;
+      return {
+        key: groupKey,
+        title: groupLabel,
+        footer: isGroupMember
+          ? `${path} · ${enabledCount}/${group.channels.length} enabled`
+          : path,
+        rows: groupRows,
+      };
+    });
 
-            <BotSettingsErrorText>{joinError}</BotSettingsErrorText>
+    return [filterSection, ...disableSection, ...groupSections];
+  }, [
+    allChannelsDisabled,
+    baselineDrafts,
+    canUndoDisableEverywhere,
+    drafts,
+    enabledChannelCount,
+    enabledOnly,
+    filteredGroups,
+    getMembership,
+    groupHasRules,
+    groups.length,
+    handleClearGroupRulesToggle,
+    handleDisableEverywhereToggle,
+    joinError,
+    joiningGroups,
+    loading,
+    navigate,
+    queries.moon,
+    queries.ship,
+    rawGroups,
+  ]);
 
-            {loading ? (
-              <YStack alignItems="center" gap="$m" paddingVertical="$2xl">
-                <LoadingSpinner />
-                <Text size="$label/m" color="$secondaryText">
-                  Loading channels…
-                </Text>
-              </YStack>
-            ) : filteredGroups.length === 0 ? (
-              <Text
-                size="$label/m"
-                color="$secondaryText"
-                paddingHorizontal="$s"
-              >
-                {groups.length === 0
-                  ? 'No channels found on this node yet.'
-                  : enabledOnly
-                    ? 'No enabled channels.'
-                    : 'No channels match.'}
-              </Text>
-            ) : (
-              filteredGroups.map((group) => {
-                const groupKey = `${group.host}/${group.group}`;
-                const isUnknownGroup = group.group === 'unknown';
-                const membership = isUnknownGroup
-                  ? 'not-member'
-                  : getMembership(
-                      group.host,
-                      group.group,
-                      groupHasRules(group.host, group.group)
-                    );
-                const isGroupMember = membership === 'member';
-                const isDeparted = membership === 'departed';
-                const canJoinGroup =
-                  (membership === 'not-member' || isDeparted) &&
-                  !isUnknownGroup &&
-                  Boolean(queries.ship) &&
-                  Boolean(queries.moon);
-                const isJoining = Boolean(joiningGroups[groupKey]);
-                const groupLabel = group.title || group.group;
-                const enabledCount = group.channels.filter((channel) =>
-                  Boolean(drafts[channel.key])
-                ).length;
-                const hasDraftRules =
-                  isDeparted &&
-                  getGroupChannelRuleKeys(
-                    rawGroups,
-                    group.host,
-                    group.group,
-                    drafts
-                  ).length > 0;
-
-                return (
-                  <YStack key={groupKey} gap="$m">
-                    <XStack
-                      alignItems="center"
-                      justifyContent="space-between"
-                      gap="$l"
-                      paddingHorizontal="$s"
-                    >
-                      <YStack flex={1} minWidth={0} gap="$l">
-                        <Text
-                          size="$label/l"
-                          fontWeight="500"
-                          color="$primaryText"
-                          numberOfLines={1}
-                        >
-                          {groupLabel}
-                        </Text>
-                        <Text
-                          size="$label/s"
-                          color="$secondaryText"
-                          numberOfLines={1}
-                        >
-                          {formatChannelHost(group.host)}/{group.group}
-                        </Text>
-                      </YStack>
-                      {!isGroupMember ? (
-                        <Button
-                          preset="secondaryOutline"
-                          size="small"
-                          label={isJoining ? 'Joining…' : 'Join'}
-                          disabled={isJoining || !canJoinGroup}
-                          onPress={() =>
-                            setJoinTarget({
-                              groupHost: group.host,
-                              groupName: group.group,
-                              sampleChannelKey: group.channels[0]?.key ?? '',
-                              label: groupLabel,
-                            })
-                          }
-                        />
-                      ) : (
-                        <Text size="$label/s" color="$secondaryText">
-                          {enabledCount}/{group.channels.length} enabled
-                        </Text>
-                      )}
-                    </XStack>
-                    <BotSettingsSection>
-                      {isDeparted ? (
-                        <>
-                          <XStack
-                            minHeight={56}
-                            alignItems="center"
-                            gap="$l"
-                            paddingHorizontal="$l"
-                            paddingVertical="$m"
-                          >
-                            <YStack flex={1} minWidth={0} gap="$l">
-                              <Text size="$label/l" color="$primaryText">
-                                Tlonbot is no longer in this group
-                              </Text>
-                              <Text size="$label/s" color="$secondaryText">
-                                {hasDraftRules
-                                  ? 'Its rules here are paused. Join again to resume them.'
-                                  : 'Its rules here will be removed when you apply.'}
-                              </Text>
-                            </YStack>
-                            <Button
-                              preset={
-                                hasDraftRules
-                                  ? 'destructive'
-                                  : 'secondaryOutline'
-                              }
-                              size="small"
-                              label={hasDraftRules ? 'Clear rules' : 'Undo'}
-                              onPress={() =>
-                                handleClearGroupRulesToggle(
-                                  group.host,
-                                  group.group
-                                )
-                              }
-                            />
-                          </XStack>
-                          <BotSettingsDivider />
-                        </>
-                      ) : null}
-                      {group.channels.map((channel, index) => {
-                        const rule = drafts[channel.key];
-                        const pending = ruleChanged(
-                          rule,
-                          baselineDrafts[channel.key]
-                        );
-                        const isEnabled = Boolean(rule);
-                        const accessLabel =
-                          rule?.mode === 'allowlist' ? 'Allowlist' : 'Open';
-                        const modelLabel = rule?.modelOverrideProvider
-                          ? rule.modelOverrideProvider === BASIC_PROVIDER_ID
-                            ? 'Basic'
-                            : providerLabel(rule.modelOverrideProvider)
-                          : 'Default';
-
-                        return (
-                          <YStack key={channel.key}>
-                            <BotSettingsRow
-                              label={channel.label}
-                              description={channel.key}
-                              value={
-                                !isEnabled
-                                  ? 'Off'
-                                  : isDeparted
-                                    ? 'Paused'
-                                    : modelLabel === 'Default'
-                                      ? accessLabel
-                                      : `${accessLabel} · ${modelLabel}`
-                              }
-                              pending={pending}
-                              // Only block navigation when membership is truly
-                              // unknown. A group already resolved as a member
-                              // stays editable even while the moon listing
-                              // loads/errors.
-                              disabled={membership === 'unknown'}
-                              onPress={() =>
-                                props.navigation.navigate(
-                                  'BotChannelRuleSettings',
-                                  {
-                                    channelKey: channel.key,
-                                    channelLabel: channel.label,
-                                    groupJoined:
-                                      isUnknownGroup || isGroupMember,
-                                  }
-                                )
-                              }
-                            />
-                            {index < group.channels.length - 1 ? (
-                              <BotSettingsDivider />
-                            ) : null}
-                          </YStack>
-                        );
-                      })}
-                    </BotSettingsSection>
-                  </YStack>
-                );
-              })
-            )}
-          </YStack>
-        </SettingsContentScrollView>
-      )}
+  return (
+    <SettingsListScreenView
+      title="Channel rules"
+      sections={sections}
+      onBackPressed={() => props.navigation.goBack()}
+      loading={!ready}
+      search={{
+        value: search,
+        onChangeText: setSearch,
+        placeholder: 'Filter by name',
+      }}
+    >
       <ConfirmDialog
         open={Boolean(joinTarget)}
         onOpenChange={(open) => {
@@ -612,6 +521,6 @@ export function BotChannelRulesScreen(props: Props) {
           );
         }}
       />
-    </View>
+    </SettingsListScreenView>
   );
 }
