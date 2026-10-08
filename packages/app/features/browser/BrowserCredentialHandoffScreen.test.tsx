@@ -3,6 +3,7 @@ import { ReactTestRenderer, act, create } from 'react-test-renderer';
 import {
   afterAll,
   beforeAll,
+  afterEach,
   beforeEach,
   describe,
   expect,
@@ -25,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   resolve: vi.fn(),
   isWeb: false,
   openURL: vi.fn(),
+  openWindow: vi.fn(),
 }));
 vi.mock('react-native', () => ({
   Linking: { openURL: mocks.openURL },
@@ -135,8 +137,10 @@ describe('secure browser form screen', () => {
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT;
   });
+  afterEach(() => vi.unstubAllGlobals());
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubGlobal('window', { open: mocks.openWindow });
     mocks.isWeb = false;
     mocks.resolve.mockReturnValue(
       'https://browser-session.tlon.network/s/payload.signature'
@@ -519,6 +523,7 @@ describe('secure browser form screen', () => {
     );
     expect(mocks.complete).not.toHaveBeenCalled();
     expect(mocks.openURL).not.toHaveBeenCalled();
+    expect(mocks.openWindow).not.toHaveBeenCalled();
     expect(mocks.submitCredentials).not.toHaveBeenCalled();
     act(() => renderer.unmount());
   });
@@ -537,26 +542,35 @@ describe('secure browser form screen', () => {
     act(() => renderer.unmount());
   });
 
-  it('does not embed an untrusted handoff URL', async () => {
-    const { renderer } = await render();
-    mocks.resolve.mockReturnValue('https://evil.example/s/payload.signature');
-    await press(renderer, 'Open live browser');
-    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
-    expect(JSON.stringify(renderer.toJSON())).toContain(
-      'not from a trusted Tlon host'
-    );
-    act(() => renderer.unmount());
-  });
+  it.each([false, true])(
+    'rejects untrusted handoff URLs (web=%s)',
+    async (web) => {
+      mocks.isWeb = web;
+      const { renderer } = await render();
+      mocks.resolve.mockReturnValue('https://evil.example/s/payload.signature');
+      await press(renderer, 'Open live browser');
+      expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+      expect(mocks.openWindow).not.toHaveBeenCalled();
+      expect(JSON.stringify(renderer.toJSON())).toContain(
+        'not from a trusted Tlon host'
+      );
+      act(() => renderer.unmount());
+    }
+  );
 
-  it('keeps desktop and web handoffs inside the app', async () => {
+  it('opens web handoffs in a separate tab without completing or submitting the form', async () => {
     mocks.isWeb = true;
     const { renderer } = await render();
     await press(renderer, 'Open live browser');
-    expect(mocks.openURL).not.toHaveBeenCalled();
-    expect(renderer.root.findByType(BrowserViewerModal).props.viewerUrl).toBe(
-      'https://browser-session.tlon.network/s/payload.signature'
+    expect(mocks.openWindow).toHaveBeenCalledOnce();
+    expect(mocks.openWindow).toHaveBeenCalledWith(
+      'https://browser-session.tlon.network/s/payload.signature',
+      '_blank',
+      'noopener,noreferrer'
     );
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
     expect(mocks.complete).not.toHaveBeenCalled();
+    expect(mocks.submitCredentials).not.toHaveBeenCalled();
     act(() => renderer.unmount());
   });
 

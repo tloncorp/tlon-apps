@@ -327,7 +327,11 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       const url = trustedBrowserViewerUrl(viewerUrl);
       Keyboard.dismiss();
       setValues({});
-      setLiveViewer({ url, handoffId });
+      if (isWeb) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        setLiveViewer({ url, handoffId });
+      }
     } catch (nextError) {
       setError(errorMessage(nextError));
     }
@@ -465,7 +469,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               />
               <Text color="$secondaryText">
                 {isWeb
-                  ? 'Use the Tlon Messenger mobile app for live browser control.'
+                  ? 'The browser opens in a new tab. Return here when you’re done.'
                   : 'Complete any additional steps here, then continue the task.'}
               </Text>
               <Button
