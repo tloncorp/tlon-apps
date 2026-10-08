@@ -1,12 +1,11 @@
 import * as db from '@tloncorp/shared/db';
 import { collectDescendantFolderIds } from '@tloncorp/shared/logic/notesTree';
-import { Button, Text } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { Platform } from 'react-native';
-import { YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
-import { TextInput } from '../Form';
+import { Field, TextInput } from '../Form';
 import { NotesDialog } from './NotesDialogPrimitives';
 import {
   FolderDestinationSearch,
@@ -26,10 +25,7 @@ function FolderNameField({
   onSubmit: () => void;
 }) {
   return (
-    <YStack gap="$s">
-      <Text size="$label/s" color="$secondaryText">
-        Name
-      </Text>
+    <Field label="Name">
       <TextInput
         autoFocus={Platform.OS === 'web'}
         value={name}
@@ -38,7 +34,7 @@ function FolderNameField({
         onSubmitEditing={onSubmit}
         returnKeyType="done"
       />
-    </YStack>
+    </Field>
   );
 }
 
@@ -119,19 +115,11 @@ export function RenameFolderDialog({
       title="Rename folder"
       subtitle={`Update ${label}.`}
       testID="NotesRenameFolderDialog"
-      cancelDisabled={isRenaming}
-      confirmButton={
-        <Button
-          size="small"
-          fill="solid"
-          type="primary"
-          leadingIcon="EditList"
-          label="Rename"
-          loading={isRenaming}
-          disabled={!name.trim()}
-          onPress={onRename}
-        />
-      }
+      confirmIcon="EditList"
+      confirmLabel="Rename"
+      confirming={isRenaming}
+      confirmDisabled={!name.trim()}
+      onConfirm={onRename}
     >
       <FolderNameField
         name={name}

@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./config": "./tamagui.config.ts",
-    "./assets/icons": "./src/assets/icons/index.ts"
+    "./assets/icons": "./src/assets/icons/index.ts",
+    "./babel/android-text-styles": "./babel/androidTextStyles.cjs"
   },
   "files": [
     "types",

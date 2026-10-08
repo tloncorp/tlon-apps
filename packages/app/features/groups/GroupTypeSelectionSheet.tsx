@@ -8,10 +8,10 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack, getTokens, useTheme } from 'tamagui';
 
 import { ActionSheet, ListItem, useIsWindowNarrow } from '../../ui';
+import { useSheetBottomInset } from '../../ui/hooks/useSheetBottomInset';
 
 export type GroupType = 'quick' | 'custom' | 'template';
 
@@ -323,7 +323,7 @@ export function GroupTypeSelectionSheet({
   onOpenChange: (open: boolean) => void;
   onSelectGroupType: (type: GroupType, templateId?: GroupTemplateId) => void;
 }) {
-  const { bottom } = useSafeAreaInsets();
+  const bottom = useSheetBottomInset();
   const isWindowNarrow = useIsWindowNarrow();
 
   const content = (
