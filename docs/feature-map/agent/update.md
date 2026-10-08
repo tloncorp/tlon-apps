@@ -38,8 +38,9 @@ The guide is `docs/feature-map/`. A support bot answers "how do I…" questions 
 Your final message is read by the person who reviews the pull request. Plain text, no preamble:
 
 - **Changed:** one line per entry, as `file.md › heading: what changed and why`, naming the source file that shows it.
-- **Added:** one line per new entry, with the file it came from.
-- **Moved in from drafts:** the headings.
+- **Added:** one line per entry you wrote from scratch, with the source file it came from. An entry from `drafts/` goes in the next list, not this one.
+- **Moved in from drafts:** the headings, and what you corrected in each.
+- **Questions:** any you added or changed in `questions/`.
 - **Removed:** one line per entry, with the reason.
 - **Not settled:** anything you could not confirm from the source at NEW.
 
