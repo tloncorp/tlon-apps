@@ -1,4 +1,9 @@
-import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from './cli-utils';
+import {
+  DIARY_REMOVED,
+  NOTES_CHANNEL_CONTENT_UNSUPPORTED,
+  nonGroupChannelNestMessage,
+  notesChannelMembershipMessage,
+} from './cli-utils';
 
 export const COMMAND_FAMILIES = [
   'activity',
@@ -1550,21 +1555,23 @@ export const NOTES_CHANNEL_KIND_CASES: CliCase[] = [
     ['channels', 'del-writers', 'notes/~host/blog', 'admin'],
     'Writer roles are not supported for %notes channels'
   ),
-  refusalCase(
-    'channels update --description on a notes nest refuses',
-    ['channels', 'update', 'notes/~host/blog', '--description', 'x'],
-    'Channel metadata updates are not supported for %notes channels'
+  authRequiredCase(
+    'channels update --description on a notes nest reaches auth',
+    ['channels', 'update', 'notes/~host/blog', '--description', 'x']
   ),
-  refusalCase(
-    'channels update --title on a notes nest refuses',
-    ['channels', 'update', 'notes/~host/blog', '--title', 'New Title'],
-    'Channel metadata updates are not supported for %notes channels'
-  ),
-  refusalCase(
-    'channels rename on a notes nest refuses',
-    ['channels', 'rename', 'notes/~host/blog', 'New Title'],
-    'Channel metadata updates are not supported for %notes channels'
-  ),
+  authRequiredCase('channels update --title on a notes nest reaches auth', [
+    'channels',
+    'update',
+    'notes/~host/blog',
+    '--title',
+    'New Title',
+  ]),
+  authRequiredCase('channels rename on a notes nest reaches auth', [
+    'channels',
+    'rename',
+    'notes/~host/blog',
+    'New Title',
+  ]),
 ];
 
 export const NOTES_CONTENT_UNSUPPORTED_CASES: CliCase[] = [
@@ -1682,7 +1689,69 @@ export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
   },
 ];
 
+// `channels leave` / `channels join` pre-auth validation: only chat/heap nests
+// reach auth; diary, %notes, and other nests are refused locally.
+export const CHANNEL_MEMBERSHIP_CASES: CliCase[] = (
+  ['leave', 'join'] as const
+).flatMap((verb) => [
+  usageErrorCase(
+    `channels ${verb} missing nest`,
+    ['channels', verb],
+    `Usage: tlon channels ${verb}`
+  ),
+  helpCase(
+    `channels ${verb} --help`,
+    ['channels', verb, '--help'],
+    `Usage: tlon channels ${verb}`
+  ),
+  diaryRefusedCase(`channels ${verb} diary nest refuses`, [
+    'channels',
+    verb,
+    'diary/~host/blog',
+  ]),
+  refusalCase(
+    `channels ${verb} notes nest points at tlon notes`,
+    ['channels', verb, 'notes/~host/blog'],
+    notesChannelMembershipMessage('notes/~host/blog', verb)
+  ),
+  refusalCase(
+    `channels ${verb} buckets nest refuses`,
+    ['channels', verb, 'buckets/~zod/x'],
+    nonGroupChannelNestMessage('buckets/~zod/x', verb)
+  ),
+  refusalCase(
+    `channels ${verb} malformed nest refuses`,
+    ['channels', verb, 'chat/~zod'],
+    'Invalid nest format: chat/~zod'
+  ),
+  authRequiredCase(`channels ${verb} chat nest reaches auth`, [
+    'channels',
+    verb,
+    'chat/~zod/x',
+  ]),
+  authRequiredCase(`channels ${verb} heap nest reaches auth`, [
+    'channels',
+    verb,
+    'heap/~zod/x',
+  ]),
+]);
+
 export const CLI_MATRIX_CASES: CliCase[] = [
+  ...(['channels', 'groups'] as const).flatMap((family) => {
+    const operation = family === 'channels' ? 'create' : 'add-channel';
+    return [[], [operation]].map(
+      (suffix): CliCase => ({
+        name: `${family} ${suffix.join(' ')} help separates notes creation flags`,
+        args: [family, ...suffix, '--help'],
+        expectedExitCode: 0,
+        stdoutIncludes: [
+          '[--kind chat|heap] [--description "..."]',
+          '"Channel Name" --kind notes',
+        ],
+        stdoutExcludes: ['[--kind chat|heap|notes] [--description'],
+      })
+    );
+  }),
   TOP_LEVEL_HELP_CASE,
   UNKNOWN_TOP_LEVEL_CASE,
   ...FAMILY_HELP_CASES,
@@ -1699,6 +1768,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NOTES_CONTENT_UNSUPPORTED_CASES,
   ...DIARY_REMOVED_CASES,
   ...INVITE_LINK_CREDENTIAL_CASES,
+  ...CHANNEL_MEMBERSHIP_CASES,
 ];
 
 export type HostileHelpCommand = {

@@ -159,10 +159,15 @@
 ::  ship's key, mirrored remote bots under theirs), plus the edit loop's
 ::  request records on each side
 ::
+::    .sweep: when the armed cleanup timer wakes. a wake for any other
+::    time is stale and ignored; one that has passed on load was dropped
+::    and is re-armed
+::
 +$  state
   $:  tasks=(map ship tasks)
       =requests
       =pending
+      sweep=@da
   ==
 ::  $a-automation: local-only actions, src == our on every variant
 ::

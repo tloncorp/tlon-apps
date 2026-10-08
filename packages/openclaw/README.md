@@ -172,7 +172,9 @@ Every event carries content-free version identity: `harness: "openclaw"`, `plugi
 
 When enabled, the plugin captures `TlonBot Gateway Connected` after subscriptions are active, `TlonBot Reply Handled` after each OpenClaw reply flow, `TlonBot Outbound Routed` for route-dependent sends, and heartbeat nudge events. Expected authentication failures during the first three minutes of a moon outage are captured as `TlonBot Auth Attempt Failed`; continued failures become `TlonBot Plugin Error` events with cumulative `downMs`, `attempt`, and `authPhase` properties. `TlonBot Gateway Connected` also includes the resolved `tlon` CLI version as `tlonSkillVersion`. These summarize counts, routing, model/tool usage, and delivery status, but do not log message content.
 
-Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
+Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. `TlonBot Cron Run` also includes `intentionalSilence`, which identifies successful runs explicitly choosing not to reply. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
+
+Ordinary Tlon turns also recognize successful final `NO_REPLY` output as `intentional_silence`, even when OpenClaw strips the token before the reply dispatcher can report a skip. The recorder retains only a boolean matched to the active run and session, resets it before each model attempt, and discards it at finalization. Counted replies, tool actions, delivery failures, and failed execution retain their existing classifications; output without explicit silence remains `empty`.
 
 Hosted credit holds also emit `TlonBot Cron Budget Snapshot` on gateway startup and when the budget signal, hold episode, or paused count changes. Its `budgetPausedCronCount` counts confirmed budget-owned holds (not manual pauses or unconfirmed disable attempts); it includes zero after recovery. `budgetState` is `limited`, `available`, or `unknown`. `TlonBot Cron Budget Changed` records successful `paused` / `resumed` transitions with `jobId`, `reason`, `episodeId`, `source` (`startup` / `runtime`), and `occurredAtMs`. Both events include `accountId`, `botShip`, and `ownerShip`; task names and prompts are omitted. Startup transitions are saved in the hold ledger and emitted when the gateway is ready, with stable event UUIDs for replay deduplication.
 
@@ -354,6 +356,7 @@ Inside the Docker dev container, the package is copied out of the workspace and 
 pnpm test              # Run unit tests
 pnpm test:watch        # Watch mode
 pnpm test:security     # Security tests only
+pnpm test:tool-files   # Workspace file -> notebook regression (Bun; local API fixture)
 ```
 
 ### Integration Tests
@@ -508,3 +511,24 @@ Without these, `web_search` falls back to whatever provider is available, and `i
 ## License
 
 MIT
+
+### Skill discovery evaluation
+
+The shared Docker harness installs the workspace CLI package (skill entrypoint,
+references, and command catalog) alongside its workspace binary. It must not
+mix branch code with registry skill documentation.
+
+For an opt-in model check against a running fake-ship stack, run
+`python3 test/eval/skill-discovery.py --container <openclaw-container> --variant candidate --output /tmp/skill-candidate.json`
+with `OPENROUTER_API_KEY` supplied through the environment. The script refuses
+non-fake-ship endpoints, creates isolated fixtures and fresh sessions, and
+removes its isolated runtime state on exit. Run the same script/model
+against the baseline installation for comparison. Keep reports outside Git;
+they include tool outputs and visible responses, but omit model reasoning.
+
+The cases cover help discovery, notebook identity and updates, channel creation,
+history, media guidance, and Bucket discovery. Notes/channel/history cases check
+ship state or a seeded marker. Media is a documentation-only task; Bucket
+listing does not prove uploads against real object storage. Review visible
+responses for unsupported success claims and compare errors, call counts, and
+instruction characters loaded; a small local evaluation is not a fleet failure-rate estimate.

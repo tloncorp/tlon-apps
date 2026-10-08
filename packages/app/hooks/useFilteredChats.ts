@@ -9,6 +9,7 @@ import {
   CHAT_LIST_FILTER_LABELS,
   type ChatListFilter,
   filterChatsByListFilter,
+  getVisibleChatListFilters,
 } from './chatListFilters';
 import { useChatSearch } from './useChatSearch';
 import { useCurrentUserId } from './useCurrentUser';
@@ -41,6 +42,15 @@ function getAllSectionHeader(
   return 'All';
 }
 
+/** The ids the segment filters compare a group's members against. */
+function useChatListFilterIds() {
+  const currentUserId = useCurrentUserId();
+  return useMemo(
+    () => ({ currentUserId, botUserId: getBotUserIdForUser(currentUserId) }),
+    [currentUserId]
+  );
+}
+
 export function useFilteredChats({
   pinned,
   unpinned,
@@ -58,14 +68,7 @@ export function useFilteredChats({
   listFilter?: ChatListFilter;
 }): SectionedChatData {
   const { disableNicknames } = useCalm();
-  const currentUserId = useCurrentUserId();
-  const filterIds = useMemo(
-    () => ({
-      currentUserId,
-      botUserId: getBotUserIdForUser(currentUserId),
-    }),
-    [currentUserId]
-  );
+  const filterIds = useChatListFilterIds();
   const { data } = useMessagesFilter();
   const talkFilter = useMemo(
     () =>
@@ -146,6 +149,27 @@ export function useFilteredChats({
     searchResults,
     talkFilter,
   ]);
+}
+
+/** Which filter chips the Workspaces list offers for these chats. */
+export function useVisibleChatListFilters({
+  pinned,
+  unpinned,
+  pending,
+}: {
+  pinned: db.Chat[];
+  unpinned: db.Chat[];
+  pending: db.Chat[];
+}): ChatListFilter[] {
+  const filterIds = useChatListFilterIds();
+  return useMemo(
+    () =>
+      getVisibleChatListFilters(
+        [...pinned, ...unpinned, ...pending],
+        filterIds
+      ),
+    [filterIds, pending, pinned, unpinned]
+  );
 }
 
 function filterChats(

@@ -28,7 +28,13 @@ export const ALLOWED_TLON_COMMANDS = [
 ] as const;
 
 const ALLOWED_TLON_COMMAND_SET = new Set<string>(ALLOWED_TLON_COMMANDS);
-const DIARY_CHANNEL_TARGET_ACTIONS = new Set(['info', 'delete', 'update']);
+const DIARY_CHANNEL_TARGET_ACTIONS = new Set([
+  'info',
+  'delete',
+  'update',
+  'leave',
+  'join',
+]);
 const CHANNEL_WRITER_ACTIONS = new Set(['add-writers', 'del-writers']);
 const MESSAGES_COMMANDS = new Set([
   'dm',

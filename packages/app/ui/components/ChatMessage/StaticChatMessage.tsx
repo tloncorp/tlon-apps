@@ -24,6 +24,7 @@ import { canUseBrowserHandoff } from '../../../features/browser/browserHandoffTr
 import {
   BROWSER_HANDOFF_CONTINUATION,
   getBrowserHandoffContinuationSelection,
+  isBrowserHandoffContinuationSelection,
   sendBrowserHandoffContinuation,
 } from '../../../features/browser/browserHandoffContinuation';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
@@ -375,7 +376,7 @@ export function StaticChatMessage({
           replyToPostId: null,
           isEdit: false,
         });
-      if (trimmed === BROWSER_HANDOFF_CONTINUATION && selection) {
+      if (selection && isBrowserHandoffContinuationSelection(post, selection)) {
         await sendBrowserHandoffContinuation({
           channelId: post.channelId,
           authorId: currentUserId,
@@ -386,7 +387,7 @@ export function StaticChatMessage({
         await send();
       }
     },
-    [draftInputContext, post.channelId, currentUserId]
+    [draftInputContext, post, currentUserId]
   );
 
   const handleA2UIAction = useCallback(
@@ -412,6 +413,7 @@ export function StaticChatMessage({
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
           allowBrowserCredentialHandoff: allowBrowserHandoff,
+          allowBrowserSession: allowBrowserHandoff,
           onBrowserCredentialHandoffComplete:
             target.type === 'screen' &&
             target.screen === 'browserCredentialHandoff'
@@ -483,7 +485,10 @@ export function StaticChatMessage({
       if (action.event.name === A2UI.action.navigate) {
         const target = action.event.context.target;
         if (target.type !== 'screen') return true;
-        if (target.screen === 'browserCredentialHandoff') {
+        if (
+          target.screen === 'browserCredentialHandoff' ||
+          target.screen === 'browserSession'
+        ) {
           return allowBrowserHandoff;
         }
         return canUseAgentProviderControls;
@@ -848,6 +853,7 @@ const WebChatVideoRenderer: DefaultRendererProps['video'] = {
 };
 
 const ChatContentRenderer = createContentRenderer({
+  renderBrowserSessionCards: true,
   blockRenderers: {
     a2ui: A2UIBlock,
   },

@@ -5,7 +5,11 @@ import {
   useContext,
   useMemo,
   useRef,
+  useState,
 } from 'react';
+
+import { BrowserViewerModal } from './BrowserViewerModal';
+import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
 
 type Handoff = {
   viewerUrl: string;
@@ -15,6 +19,7 @@ type Handoff = {
 type RegisteredHandoff = Handoff & { completing?: boolean };
 
 type BrowserCredentialHandoffContextValue = {
+  openViewer: (viewerUrl: string) => void;
   register: (handoff: Handoff) => string;
   resolve: (id: string) => string | undefined;
   complete: (id: string) => Promise<void>;
@@ -27,6 +32,10 @@ const BrowserCredentialHandoffContext =
 export function BrowserCredentialHandoffProvider({
   children,
 }: PropsWithChildren) {
+  const [viewerUrl, setViewerUrl] = useState<string>();
+  const openViewer = useCallback((url: string) => {
+    setViewerUrl(trustedBrowserViewerUrl(url));
+  }, []);
   const handoffs = useRef(new Map<string, RegisteredHandoff>());
   const sequence = useRef(0);
 
@@ -62,13 +71,19 @@ export function BrowserCredentialHandoffProvider({
   }, []);
 
   const value = useMemo(
-    () => ({ register, resolve, complete, discard }),
-    [complete, discard, register, resolve]
+    () => ({ register, resolve, complete, discard, openViewer }),
+    [complete, discard, register, resolve, openViewer]
   );
 
   return (
     <BrowserCredentialHandoffContext.Provider value={value}>
       {children}
+      {viewerUrl ? (
+        <BrowserViewerModal
+          viewerUrl={viewerUrl}
+          onClose={() => setViewerUrl(undefined)}
+        />
+      ) : null}
     </BrowserCredentialHandoffContext.Provider>
   );
 }

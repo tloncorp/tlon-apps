@@ -51,6 +51,21 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+describe('runTlonCommand input transport', () => {
+  it('closes unavailable stdin so readers see EOF instead of hanging', async () => {
+    const output = await runTlonCommand(
+      process.execPath,
+      [
+        '-e',
+        "process.stdin.resume(); process.stdin.on('end', () => process.stdout.write('EOF'));",
+      ],
+      undefined,
+      { timeoutMs: 2_000 }
+    );
+    expect(output).toBe('EOF');
+  });
+});
+
 describe('defaultTlonCliTimeoutMs', () => {
   it('allows Buckets operations enough time for broker retries and uploads', () => {
     expect(defaultTlonCliTimeoutMs(['buckets', 'upload'])).toBe(

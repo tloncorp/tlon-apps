@@ -41,6 +41,7 @@ const InviteUsersSheetComponent = ({
       snapPoints={[85]}
       snapPointsMode="percent"
       disableDrag={isScrolling}
+      dialogScrollEnabled={false}
       modal
     >
       <ActionSheet.Content

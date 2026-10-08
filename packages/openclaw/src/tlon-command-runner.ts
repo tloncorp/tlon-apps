@@ -44,17 +44,15 @@ export type TlonCommandDeadlineOutput = {
 
 export type TlonCommandRunnerOptions = {
   timeoutMs?: number;
+  /** Active agent workspace; relative file inputs share read/write semantics. */
+  cwd?: string;
   /** Trusted owner from the active OpenClaw account, not tool arguments. */
   ownerShip?: string;
   onDeadline?: (output: TlonCommandDeadlineOutput) => void;
 };
 
 /** Browser capabilities require credentials and owner from one unambiguous account. */
-export function runBrowserHandoffCommand(
-  binary: string,
-  args: string[],
-  config: OpenClawConfig
-): Promise<string> {
+export function resolveBrowserHandoffAccount(config: OpenClawConfig) {
   const accountIds = listRunnableTlonAccountIds(config);
   if (accountIds.length !== 1) {
     throw new Error(
@@ -68,6 +66,22 @@ export function runBrowserHandoffCommand(
       'Browser handoff requires bot credentials and a configured owner.'
     );
   }
+  return {
+    ...account,
+    ship: account.ship,
+    url: account.url,
+    code: account.code,
+    ownerShip,
+  };
+}
+
+/** Runs a trusted handoff command using the active bot's credentials and owner. */
+export function runBrowserHandoffCommand(
+  binary: string,
+  args: string[],
+  config: OpenClawConfig
+): Promise<string> {
+  const account = resolveBrowserHandoffAccount(config);
   return runTlonCommand(
     binary,
     args,
@@ -77,7 +91,7 @@ export function runBrowserHandoffCommand(
       code: account.code,
     },
     {
-      ownerShip,
+      ownerShip: account.ownerShip,
       timeoutMs: account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS,
     }
   );
@@ -106,7 +120,13 @@ export function runTlonCommand(
       env.URBIT_CODE = credentials.code;
     }
 
-    const child = spawn(binary, args, { env });
+    // This runner has no input transport. Close stdin instead of leaving a
+    // pipe open that can hang CLI commands waiting for input.
+    const child = spawn(binary, args, {
+      env,
+      cwd: options?.cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     let stdout = '';
     let stderr = '';
     let completionSettled = false;

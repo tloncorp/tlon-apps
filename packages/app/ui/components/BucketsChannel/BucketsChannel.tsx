@@ -217,9 +217,11 @@ export function BucketsPane({
   layout = 'stack',
   rootLabel = 'Project Files',
   selectedItemId,
+  showBreadcrumb = true,
   state = 'populated',
   uploadAggregateProgress,
   uploadItems,
+  onCopyItemLink,
   onDeleteItem,
   onDownloadItem,
   onCancelUpload,
@@ -228,6 +230,7 @@ export function BucketsPane({
   onNavigateRoot,
   onOpenItem,
   onRenameItem,
+  onRemoveFailedUploads,
   onRetryUpload,
 }: {
   canEdit: boolean;
@@ -236,9 +239,12 @@ export function BucketsPane({
   layout?: 'stack' | 'takeover';
   rootLabel?: string;
   selectedItemId?: string | null;
+  /** Off where the header above already names `currentFolder`. */
+  showBreadcrumb?: boolean;
   state?: BucketsPaneState;
   uploadAggregateProgress?: number;
   uploadItems?: BucketItem[];
+  onCopyItemLink?: (item: BucketItem) => void;
   onDeleteItem?: (item: BucketItem) => void;
   onDownloadItem?: (item: BucketItem) => void;
   onCancelUpload?: (item: BucketItem) => void;
@@ -247,6 +253,7 @@ export function BucketsPane({
   onNavigateRoot?: () => void;
   onOpenItem: (item: BucketItem) => void;
   onRenameItem?: (item: BucketItem) => void;
+  onRemoveFailedUploads?: (items: BucketItem[]) => void;
   onRetryUpload?: (item: BucketItem) => void;
 }) {
   const listRef = useRef<FlashListRef<BucketItem>>(null);
@@ -269,8 +276,9 @@ export function BucketsPane({
   }, [selectedIndex]);
 
   const populated = state === 'populated' && items.length > 0;
+  const breadcrumbShown = !!currentFolder && showBreadcrumb;
   const horizontalPadding = getTokenValue('$l', 'size');
-  const topPadding = getTokenValue(currentFolder ? '$xs' : '$m', 'size');
+  const topPadding = getTokenValue(breadcrumbShown ? '$xs' : '$m', 'size');
 
   return (
     <BucketsDropTarget
@@ -281,7 +289,7 @@ export function BucketsPane({
       onFilesDropped={onFilesDropped}
     >
       <YStack flex={1} minHeight={0} backgroundColor="$background">
-        {currentFolder ? (
+        {currentFolder && breadcrumbShown ? (
           <BucketBreadcrumb
             rootLabel={rootLabel}
             folderLabel={currentFolder}
@@ -310,6 +318,7 @@ export function BucketsPane({
                   canEdit={canEdit}
                   item={item}
                   selected={selectedItemId === item.id}
+                  onCopyItemLink={onCopyItemLink}
                   onDeleteItem={onDeleteItem}
                   onDownloadItem={onDownloadItem}
                   onCancelUpload={onCancelUpload}
@@ -328,7 +337,7 @@ export function BucketsPane({
               maxWidth={layout === 'takeover' ? 'unset' : 760}
               marginHorizontal="auto"
               paddingHorizontal="$l"
-              paddingTop={currentFolder ? '$xs' : '$m'}
+              paddingTop={breadcrumbShown ? '$xs' : '$m'}
               paddingBottom="$2xl"
             >
               {state === 'loading' ? (
@@ -343,6 +352,7 @@ export function BucketsPane({
           <BucketsUploadTray
             aggregateProgress={uploadAggregateProgress}
             items={trayItems}
+            onRemoveFailedUploads={onRemoveFailedUploads}
             onRetryUpload={onRetryUpload}
           />
         ) : null}
@@ -355,6 +365,7 @@ function BucketRow({
   canEdit,
   item,
   selected,
+  onCopyItemLink,
   onDeleteItem,
   onDownloadItem,
   onCancelUpload,
@@ -366,6 +377,7 @@ function BucketRow({
   canEdit: boolean;
   item: BucketItem;
   selected: boolean;
+  onCopyItemLink?: (item: BucketItem) => void;
   onDeleteItem?: (item: BucketItem) => void;
   onDownloadItem?: (item: BucketItem) => void;
   onCancelUpload?: (item: BucketItem) => void;
@@ -405,6 +417,12 @@ function BucketRow({
         startIcon: 'ArrowDown',
         action: () => onDownloadItem?.(item),
       },
+      item.kind === 'file' &&
+        onCopyItemLink && {
+          title: 'Copy link',
+          startIcon: 'Link',
+          action: () => onCopyItemLink(item),
+        },
     ],
     canEdit &&
       (onRenameItem || onMoveItem) && [
@@ -1039,10 +1057,12 @@ function UploadProgress({ progress }: { progress: number }) {
 function BucketsUploadTray({
   aggregateProgress,
   items,
+  onRemoveFailedUploads,
   onRetryUpload,
 }: {
   aggregateProgress?: number;
   items: BucketItem[];
+  onRemoveFailedUploads?: (items: BucketItem[]) => void;
   onRetryUpload?: (item: BucketItem) => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -1110,6 +1130,18 @@ function BucketsUploadTray({
             : 'You can keep browsing'}
         </Text>
       </YStack>
+      {failedItems.length > 0 && onRemoveFailedUploads ? (
+        <UploadAction
+          accessibilityLabel={
+            failedItems.length === 1
+              ? 'Remove failed upload'
+              : 'Remove failed uploads'
+          }
+          label={failedItems.length === 1 ? 'Remove' : 'Remove failed'}
+          onPress={() => onRemoveFailedUploads(failedItems)}
+          testID="BucketsRemoveFailedUploads"
+        />
+      ) : null}
       {failedItems.length > 0 ? (
         <UploadAction
           accessibilityLabel={

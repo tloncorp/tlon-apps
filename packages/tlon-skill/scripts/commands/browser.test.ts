@@ -1,3 +1,5 @@
+import { convertContent } from '@tloncorp/api/client/postContent';
+
 import { describe, expect, it } from 'bun:test';
 
 import type { PostSendInput, PostsApi } from './posts';
@@ -31,6 +33,40 @@ function makeDeps(ownerShip = '~owner') {
 }
 
 describe('browser handoff', () => {
+  it.each([
+    { args: ['--help'] },
+    { args: ['handoff', '--help'] },
+    { args: ['handoff', '-h'] },
+  ])(
+    'directs browser help to the handle-based OpenClaw tool (%j)',
+    async ({ args }) => {
+      const context = makeDeps();
+      expect(await run([...args], context.deps)).toBe(0);
+      const help = context.stdout.join('');
+      expect(help).toContain('Tlon tool: browser handoff <session_id>');
+      expect(help).toContain('sess_ handle from browser_session_create');
+      expect(help).not.toContain('<signed-viewer-url>');
+      expect(help).not.toContain('https://');
+      expect(context.sent).toEqual([]);
+    }
+  );
+
+  it('directs shell session handles to the model tool without authenticating', async () => {
+    const context = makeDeps();
+    let authenticated = false;
+    context.deps.authenticate = async () => {
+      authenticated = true;
+    };
+    expect(
+      await run(['handoff', 'sess_MHKz9dQ1TjqLmA7vXpR2bw'], context.deps)
+    ).toBe(1);
+    expect(context.stderr.join('')).toContain(
+      'Tlon tool: browser handoff <session_id>'
+    );
+    expect(authenticated).toBe(false);
+    expect(context.sent).toEqual([]);
+  });
+
   it.each([2048, 2049])(
     'checks the renderer URL length limit (%s characters)',
     async (length) => {
@@ -91,7 +127,7 @@ describe('browser handoff', () => {
     expect(await run(['handoff', viewerUrl], context.deps)).toBe(0);
     expect(context.stderr).toEqual([]);
     expect(context.stdout.join('')).toBe(
-      '✓ Browser login handoff sent to ~owner\n'
+      '✓ Secure browser form sent to ~owner\n'
     );
     expect(context.sent).toHaveLength(1);
     expect(context.sent[0]).toMatchObject({
@@ -114,13 +150,13 @@ describe('browser handoff', () => {
     expect(components).toContainEqual(
       expect.objectContaining({
         id: 'privacy-direct',
-        text: 'Your credentials go directly to the live browser.',
+        text: 'Your input goes directly to the live browser.',
       })
     );
     expect(components).toContainEqual(
       expect.objectContaining({
         id: 'privacy-context',
-        text: 'They are never posted to chat or returned to the bot.',
+        text: 'It does not pass through chat or the bot.',
       })
     );
   });
@@ -156,5 +192,61 @@ describe('browser handoff', () => {
       )
     ).toBe(1);
     expect(context.sent).toEqual([]);
+  });
+});
+
+describe('browser share', () => {
+  it('sends an existing rich link card to the owner, without credential controls or a raw inline link', async () => {
+    const context = makeDeps();
+    const viewerUrl =
+      'https://browser-session.tlon.network/s/payload.signature';
+    expect(await run(['share', viewerUrl], context.deps)).toBe(0);
+    expect(context.sent).toHaveLength(1);
+    const post = context.sent[0];
+    expect(post.channelId).toBe('~owner');
+    expect(post.authorId).toBe('~bot');
+    expect(post.blob).toBeUndefined();
+    expect(post.content).toEqual([
+      {
+        block: {
+          link: {
+            url: viewerUrl,
+            meta: {
+              siteName: 'Browser session',
+              title: 'Open browser',
+              description: 'View and control the shared browser.',
+            },
+          },
+        },
+      },
+    ]);
+    // Use develop's existing renderer parser: no new A2UI target or client
+    // release is required, and its LinkBlock opens the normal browser.
+    expect(convertContent(post.content, post.blob)).toEqual([
+      {
+        type: 'link',
+        url: viewerUrl,
+        siteName: 'Browser session',
+        title: 'Open browser',
+        description: 'View and control the shared browser.',
+      },
+    ]);
+    expect(context.stdout.join('')).toBe('✓ Browser session sent to ~owner\n');
+    expect(context.stderr).toEqual([]);
+  });
+  it.each([
+    { args: ['share', 'https://attacker.example/s/payload.signature'] },
+    { args: ['share', 'sess_MHKz9dQ1TjqLmA7vXpR2bw'] },
+    {
+      args: [
+        'share',
+        'https://browser-session.tlon.network/s/payload.signature',
+        '~other',
+      ],
+    },
+  ])('rejects invalid sharing arguments %j', async ({ args }) => {
+    const context = makeDeps();
+    expect(await run([...args], context.deps)).toBe(1);
+    expect(context.sent).toHaveLength(0);
   });
 });

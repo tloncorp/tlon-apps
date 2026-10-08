@@ -89,6 +89,12 @@ const notes = [
     'A long note title that should wrap onto the next line instead of getting cut off on narrow screens',
     'Long note title fixture body.'
   ),
+  makeNote(
+    9,
+    6,
+    'Nested lists',
+    '## Tasks\n\n- [ ] Parent task\n  - [ ] Child task\n    - [x] Grandchild task\n- [x] Second parent task\n  - Plain bullet under a task\n\n## Bullets\n\n- Top-level bullet\n  - Nested bullet\n    - [ ] Task under a bullet'
+  ),
 ];
 const emptyFolders = [folders[0]];
 const emptyNotes: db.NotesNote[] = [];
@@ -447,5 +453,6 @@ export default {
   'Editor Header': <NotesEditorFixture />,
   'Long Title': <NotesEditorFixture noteId={8} />,
   'Table Preview': <NotesEditorFixture noteId={5} />,
+  'Nested List Preview': <NotesEditorFixture noteId={9} />,
   'Saving Header': <NotesEditorFixture saving />,
 };

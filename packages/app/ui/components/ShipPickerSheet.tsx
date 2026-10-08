@@ -71,7 +71,8 @@ export function ShipPickerSheet({
       onOpenChange={onOpenChange}
       mode="dialog"
       closeButton
-      dialogContentProps={{ height: 'auto', maxHeight: 1200, width: 600 }}
+      dialogScrollEnabled={false}
+      dialogContentProps={{ width: 600 }}
     >
       <View flex={1} padding="$m">
         {body}

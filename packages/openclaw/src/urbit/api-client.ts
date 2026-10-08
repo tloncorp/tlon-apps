@@ -105,6 +105,15 @@ export function withTlonApiPoke<T>(
 }
 
 /**
+ * Adapt an SSE client's `scry(path)` to the shim's `{ app, path }` form.
+ * `UrbitSSEClient.scry` adds the `/~/scry` prefix itself; passing it here too
+ * requests `/~/scry/~/scry/...`, which 404s.
+ */
+export function sseScryFn(scry: (path: string) => Promise<unknown>): ScryFn {
+  return ({ app, path }) => scry(`/${app}${path}.json`);
+}
+
+/**
  * Install a monitor's authenticated SSE transport in its own async scope.
  */
 export function setScopedTlonApiWithPoke(

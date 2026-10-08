@@ -32,6 +32,10 @@ import {
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
 import {
+  beginCronSilenceObservation,
+  recordCronSilenceOutput,
+} from './src/cron-silence.js';
+import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
@@ -68,6 +72,10 @@ import { getSessionRole } from './src/session-roles.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
+  configuredTlonShipHosts,
+  resolveTlonAppBrowserBlock,
+} from './src/tlon-app-browser-gate.js';
+import {
   type TlonDiagnosticLogAttributes,
   type TlonSessionDiagnosticReportInput,
   formatTlonTelemetryErrorText,
@@ -82,13 +90,11 @@ import {
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
-import {
-  runBrowserHandoffCommand,
-  runTlonCommand,
-} from './src/tlon-command-runner.js';
+import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
+import { runTlonCommand } from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
-  isBrowserHandoffCommand,
+  findTlonSubcommandIndex,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
@@ -98,6 +104,8 @@ import {
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
 import {
+  beginTlonTurnSilenceObservation,
+  recordTlonTurnSilenceOutput,
   recordActiveTlonTurnToolCall,
   recordTlonAgentRunTrace,
 } from './src/turn-recorder.js';
@@ -978,52 +986,56 @@ export default defineBundledChannelEntry({
       );
     }
 
-    const executeTlonTool = createTlonToolExecutor({
-      runCommand: (args) =>
-        isBrowserHandoffCommand(args)
-          ? runBrowserHandoffCommand(tlonBinary, args, api.config)
-          : runTlonCommand(tlonBinary, args, credentials, {
-              timeoutMs: toolTimeoutMs,
-              ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
-            }),
-      notifyDiaryMigrationDiscovery: (nest) =>
-        notifyDiaryMigrationDiscovery(nest, api.config),
-      logError: (message) => api.logger.warn(`[tlon] ${message}`),
-      // Lets the executor run `groups invite-link` as the owner, so invites
-      // attribute to the owner rather than the bot.
-      ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
-      env: process.env,
-      fileExists: (path) => existsSync(path),
-    });
+    // Tool factories receive the active agent workspace, including cron runs.
+    api.registerTool(
+      (ctx) => {
+        const executeTlonTool = createTlonToolExecutor({
+          runCommand: (args) =>
+            args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
+              ? runBrowserSessionHandoff(tlonBinary, args, api.config)
+              : runTlonCommand(tlonBinary, args, credentials, {
+                  timeoutMs: toolTimeoutMs,
+                  cwd: ctx.workspaceDir,
+                  ownerShip:
+                    normalizeShip(account.ownerShip ?? '') || undefined,
+                }),
+          notifyDiaryMigrationDiscovery: (nest) =>
+            notifyDiaryMigrationDiscovery(nest, api.config),
+          logError: (message) => api.logger.warn(`[tlon] ${message}`),
+          // Lets the executor run `groups invite-link` as the owner, so invites
+          // attribute to the owner rather than the bot.
+          ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
+          env: process.env,
+          fileExists: (path) => existsSync(path),
+        });
 
-    api.registerTool({
-      name: 'tlon',
-      label: 'Tlon CLI',
-      description:
-        'Tlon/Urbit API for reading data and administration: activity, Buckets shared files, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
-        'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
-        '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
-        'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
-        'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
-        "Examples: 'activity mentions --limit 10', 'buckets list', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
-        'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
-      parameters: {
-        type: 'object',
-        properties: {
-          command: {
-            type: 'string',
-            description:
-              'The tlon command and arguments (read/admin operations and browser login handoff). ' +
-              'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
-              'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
-              'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
-              "Examples: 'activity mentions --limit 10', 'buckets list', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
+        return {
+          name: 'tlon',
+          label: 'Tlon CLI',
+          description:
+            'Read Tlon data and manage Tlon workspaces (groups), channels, notes, shared Bucket files, contacts, and settings. ' +
+            'In Tlon requests, "workspace" means a group; use groups commands and groups create-owned to create one for a user. Explicit requests about files or paths refer to the agent workspace directory. ' +
+            'Read the tlon skill at its available-skills location for the task workflow. Use command "help" or "help <command> [operation]" to discover exact syntax. ' +
+            'Pass arguments only, without a leading tlon executable. Relative files use the active agent workspace; shell expansion, pipes, redirections, and stdin are unavailable. ' +
+            'Use message for ordinary sends/replies. To share a hosted browser for viewing or control, use browser share <session_id> to send a rich browser-session link card; never send raw or labeled browser-session links in ordinary messages. For secure browser input, use browser handoff <session_id>. Both browser commands take the sess_ handle from browser_session_create, never a viewer URL. Legacy diary migrations require the owner’s /migrate command. ' +
+            'Never use a browser to operate Tlon itself: if neither this tool nor message can do what was asked, say your Tlon tools do not support it yet and, where the Tlon app offers it, that the user can do it there. ' +
+            'Verify the result and report any unresolved failure before ending the turn.',
+          parameters: {
+            type: 'object',
+            properties: {
+              command: {
+                type: 'string',
+                description:
+                  'Tlon command arguments, for example "help", "help notes note-create", "notes list", or "buckets list". See the tlon skill for task guidance.',
+              },
+            },
+            required: ['command'],
           },
-        },
-        required: ['command'],
+          execute: executeTlonTool,
+        };
       },
-      execute: executeTlonTool,
-    });
+      { name: 'tlon' }
+    );
 
     // Tool access control: block sensitive tools for non-owners
     const logToolTraceContents = liveToolTraceContentsEnabled();
@@ -1062,10 +1074,17 @@ export default defineBundledChannelEntry({
               event.params,
               allowedProviderIds
             )));
-      const isBlocked = blocksNonOwner || blocksOnboardingMcp;
+      const tlonAppBrowser = isMcpCall
+        ? resolveTlonAppBrowserBlock(
+            event.params,
+            configuredTlonShipHosts(api.runtime.config.loadConfig())
+          )
+        : { blocked: false };
+      const isBlocked =
+        blocksNonOwner || blocksOnboardingMcp || tlonAppBrowser.blocked;
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
-        : ownerOnlyDecision.reason;
+        : (ownerOnlyDecision.reason ?? tlonAppBrowser.reason);
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
@@ -1125,16 +1144,18 @@ export default defineBundledChannelEntry({
         );
       }
 
-      if (!isOwnerOnlyTool && !blocksOnboardingMcp) {
+      if (!isOwnerOnlyTool && !isBlocked) {
         return undefined;
       }
 
-      // Allow owner sessions and internal sessions (heartbeat, cron, etc.).
-      // Internal sessions have no role because they're not triggered by DMs.
-      // Only block when role is explicitly "user" (non-owner DM).
       if (isBlocked) {
+        const blockCause = blocksOnboardingMcp
+          ? 'outside onboarding MCP policy'
+          : blocksNonOwner
+            ? 'for non-owner'
+            : 'targeting the Tlon app in the hosted browser';
         api.logger.warn(
-          `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
+          `[tlon] Blocked ${event.toolName} tool ${blockCause}. Session: ${ctx.sessionKey}, Role: ${role}`
         );
         if (contextLensEnabled) {
           const blockedLens = recordContextLensToolResultForSession(
@@ -1542,19 +1563,27 @@ export default defineBundledChannelEntry({
       await ensureCronContextLens(ctx);
     };
     api.on('agent_turn_prepare', async (_event, ctx) => {
+      beginCronSilenceObservation(ctx);
+      beginTlonTurnSilenceObservation(ctx);
       // Cron has no active Tlon turn recorder, so its output trace stays nullable.
       if (ctx.trigger !== 'cron') {
         recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
       }
       await onCronAgentHook(ctx);
     });
-    api.on('model_call_started', async (_event, ctx) => onCronAgentHook(ctx));
+    api.on('model_call_started', async (_event, ctx) => {
+      beginCronSilenceObservation(ctx);
+      beginTlonTurnSilenceObservation(ctx);
+      await onCronAgentHook(ctx);
+    });
 
     // Background lenses normally finalize on tool-result idle; agent_end
     // re-arms the window so runs that end with model output (no trailing
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
-    api.on('agent_end', (_event, ctx) => {
+    api.on('agent_end', (event, ctx) => {
+      recordCronSilenceOutput(event, ctx);
+      recordTlonTurnSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
       if (!contextLensEnabled) {
         return;

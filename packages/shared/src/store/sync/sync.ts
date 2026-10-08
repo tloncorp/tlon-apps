@@ -13,9 +13,11 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
+import { httpStatusFromError, isIgnoredError } from '../../errorReporting';
 import {
   MIN_GROUPS_VERSION,
   activityVersionSupportsNotes,
+  deskVersionCountsAllSeats,
   deskVersionSupportsBuckets,
   activityVersionSupportsReactions,
   classifyDeskVersion,
@@ -666,6 +668,7 @@ export const syncAppInfo = async (
   api.setDeskSupportsBuckets(
     deskVersionSupportsBuckets(appInfo?.groupsVersion)
   );
+  api.setDeskCountsAllSeats(deskVersionCountsAllSeats(appInfo?.groupsVersion));
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -702,6 +705,7 @@ export const syncReactionSupport = async () => {
   );
   api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
   api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
+  api.setDeskCountsAllSeats(deskVersionCountsAllSeats(groupsVersion));
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -1354,6 +1358,10 @@ export async function handleGroupUpdate(
         ctx
       );
       break;
+    // The stored roster can't tell whether a seat event changed the count:
+    // init keeps only 15 seats, and kicks and accepted joins are written
+    // optimistically before their event arrives. So trust the event; a no-op
+    // one (re-adding a member) drifts the count until init resets it.
     case 'addGroupMembers':
       await db.addChatMembers(
         {
@@ -1364,6 +1372,10 @@ export async function handleGroupUpdate(
         },
         ctx
       );
+      await db.adjustGroupMemberCount(
+        { groupId: update.groupId, delta: update.ships.length },
+        ctx
+      );
       break;
     case 'removeGroupMembers': {
       await db.removeChatMembers(
@@ -1371,6 +1383,10 @@ export async function handleGroupUpdate(
           chatId: update.groupId,
           contactIds: update.ships,
         },
+        ctx
+      );
+      await db.adjustGroupMemberCount(
+        { groupId: update.groupId, delta: -update.ships.length },
         ctx
       );
       if (update.ships.includes(currentUserId)) {
@@ -2615,9 +2631,17 @@ const checkDeskCompatibility = async (
       { priority: syncStartPriority.high, retry: false },
       { timeout: DESK_PROBE_TIMEOUT, isStale: isAbandoned }
     ).catch((err) => {
-      logger.trackError('Desk compatibility probe failed', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      const message = err instanceof Error ? err.message : String(err);
+      // Transient network failures are expected here, and the persisted desk
+      // version covers them.
+      if (isIgnoredError(err)) {
+        logger.crumb('Desk compatibility probe failed', message);
+      } else {
+        logger.trackError('Desk compatibility probe failed', {
+          error: message,
+          status: httpStatusFromError(err),
+        });
+      }
       return null;
     }),
     probeTimedOut,
