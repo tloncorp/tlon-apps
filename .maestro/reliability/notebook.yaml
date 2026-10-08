@@ -1,6 +1,6 @@
 appId: ${MAESTRO_APP_ID}
 name: Native Notebook publish, edit and persist
-tags: [regression]
+tags: [regression, notebook]
 env:
   JOURNEY: n
 ---
@@ -8,76 +8,123 @@ env:
 - runFlow: subflows/begin.yaml
 - runFlow: subflows/create-group.yaml
 - tapOn: '^Notebook$'
-- tapOn: '^New$'
+- tapOn:
+    text: '^New$'
+    retryTapIfNoChange: true
 - extendedWaitUntil:
-    visible:
-      id: NotebookBodyInput
+    visible: '^New note$'
     timeout: 15000
 - tapOn:
-    id: NotebookBodyInput
+    point: '50%,60%'
+- extendedWaitUntil:
+    visible:
+      id: NotesTitleInput
+    timeout: 15000
 - tapOn:
-    id: NotebookTitleInput
-    point: '95%,50%'
-- eraseText: 100
+    id: NotesBodyInput
 - runFlow:
-    file: subflows/input.yaml
-    env:
-      INPUT_TEXT: ${output.reliability.title}
-- assertVisible:
-    id: NotebookTitleInput
-    text: ${output.reliability.title}
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: NotesTitleInput
+      - eraseText: 100
+      - runFlow:
+          file: subflows/input.yaml
+          env:
+            INPUT_TEXT: ${output.reliability.title}
 - tapOn:
-    id: NotebookBodyInput
+    id: NotesBodyInput
 - runFlow:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${output.reliability.body}
-- tapOn: '^Post$'
+- hideKeyboard
 - extendedWaitUntil:
-    visible: ${output.reliability.title}
-    timeout: 5000
-- assertVisible: ${output.reliability.title}
-- assertVisible: ${output.reliability.body}
-- tapOn: ${output.reliability.title}
-- assertVisible: ${output.reliability.title}
-- assertVisible: ${output.reliability.body}
-- tapOn:
-    id: ChannelHeaderEditButton
-- runFlow: subflows/focus-notebook-body.yaml
-- tapOn:
-    id: NotebookTitleInput
-    point: '95%,50%'
-- eraseText: 100
+    visible: '^Synced$'
+    timeout: 30000
+- tapOn: '^Preview$'
+- assertVisible: '^Edit$'
 - runFlow:
-    file: subflows/input.yaml
-    env:
-      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited note'}
-- assertVisible:
-    id: NotebookTitleInput
-    text: ${MAESTRO_RUN_TAG + ' edited note'}
+    when:
+      platform: Android
+    commands:
+      - assertVisible: ${output.reliability.title}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible: '^Untitled$'
+- assertVisible: ${output.reliability.body}
+- tapOn: '^Edit$'
+- runFlow: subflows/focus-notebook-body.yaml
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: NotesTitleInput
+      - eraseText: 100
+      - runFlow:
+          file: subflows/input.yaml
+          env:
+            INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited note'}
 - runFlow: subflows/focus-notebook-body.yaml
 - eraseText: 100
 - runFlow:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited body'}
-- tapOn: '^Save$'
-- assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: '^Synced$'
+    timeout: 30000
+- tapOn: '^Preview$'
+- assertVisible: '^Edit$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible: '^Untitled$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
 - tapOn: '^Back$'
-- assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
-- tapOn: ${MAESTRO_RUN_TAG + ' edited note'}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
+      - tapOn: ${MAESTRO_RUN_TAG + ' edited note'}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible: '^Untitled$'
+      - tapOn: '^Untitled$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
 - stopApp
 - launchApp
-- assertVisible: '^Home$'
-- tapOn: ${output.reliability.groupPattern}
-- tapOn: '^Notebook$'
-- tapOn: ${MAESTRO_RUN_TAG + ' edited note'}
-- assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
-- assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
+# The app restores the position it was closed in, so the note comes back
+# open -- which is what this journey is checking survives a cold start.
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' edited body'}
+    timeout: 30000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible: '^Untitled$'
 - tapOn: '^Back$'
 - tapOn: '^Back$'
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'

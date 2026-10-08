@@ -71,6 +71,7 @@ const finishedRun: TlonCronRunFinished = {
   delivered: true,
   deliveryError: null,
   deliveryStatus: 'delivered',
+  intentionalSilence: false,
   durationMs: 2_500,
   model: 'claude-sonnet-5',
   nextRunAtMs: 20_000,

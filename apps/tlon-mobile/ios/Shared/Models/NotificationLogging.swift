@@ -52,13 +52,26 @@ extension LogEvent {
             case .delivery(let properties):
                 properties
             case .error(let error): {
+                // Read `errorDescription` directly rather than going through
+                // `localizedDescription`: the latter is Foundation's `Error`
+                // bridging, which reported nothing but "The operation couldn't be
+                // completed. (Notifications.NotificationError error 0.)" for years.
                 var payload: [String: CodableValue] = [
                     "uid": .string(error.uid),
                     "message": .string(error.message),
-                    "errorMessage": .string(error.localizedDescription),
-                    "errorType": .string(String(describing: type(of: error)))
+                    "errorMessage": .string(error.errorDescription ?? error.message),
+                    "errorType": .string(error.errorType)
                 ]
-                
+
+                if let underlyingError = error.underlyingError {
+                    // Non-localized, so it groups the same way on a device set to
+                    // any language.
+                    payload["underlyingError"] = .string(String(describing: underlyingError))
+                    if let httpStatus = underlyingError.httpStatusCode {
+                        payload["httpStatus"] = .int(httpStatus)
+                    }
+                }
+
                 return payload
             }()
         }
@@ -86,6 +99,7 @@ extension LogEvent {
 }
 
 enum NotificationError: Error, LocalizedError {
+    case backgroundSyncFailed(uid: String, underlyingError: Error? = nil)
     case activityEventFetchFailed(uid: String, underlyingError: Error? = nil)
     case activityEventMissing(uid: String, underlyingError: Error? = nil)
     case badgeSettingFailed(uid: String, underlyingError: Error? = nil)
@@ -97,6 +111,7 @@ enum NotificationError: Error, LocalizedError {
     
     var message: String {
         switch self {
+        case .backgroundSyncFailed: return "Background changes sync failed"
         case .activityEventFetchFailed: return "Activity event fetch failed"
         case .activityEventMissing: return "Activity event is missing"
         case .badgeSettingFailed: return "Setting badge from dismissal failed"
@@ -110,7 +125,8 @@ enum NotificationError: Error, LocalizedError {
     
     var uid: String {
         switch self {
-        case .activityEventFetchFailed(let uid, _),
+        case .backgroundSyncFailed(let uid, _),
+             .activityEventFetchFailed(let uid, _),
              .activityEventMissing(let uid, _),
              .badgeSettingFailed(let uid, _),
              .previewRenderFailed(let uid, _, _),
@@ -122,9 +138,10 @@ enum NotificationError: Error, LocalizedError {
         }
     }
 
-    var localizedDescription: String? {
+    var underlyingError: Error? {
         switch self {
-        case .activityEventFetchFailed(_, let underlyingError),
+        case .backgroundSyncFailed(_, let underlyingError),
+             .activityEventFetchFailed(_, let underlyingError),
              .activityEventMissing(_, let underlyingError),
              .badgeSettingFailed(_, let underlyingError),
              .previewRenderFailed(_, _, let underlyingError),
@@ -132,7 +149,22 @@ enum NotificationError: Error, LocalizedError {
              .notificationDisplayFailed(_, _, let underlyingError),
              .notificationDismissalFailed(_, _, let underlyingError),
              .unknown(_, _, let underlyingError):
-            return underlyingError?.localizedDescription
+            return underlyingError
         }
+    }
+
+    /// Type of whatever actually failed, for grouping. Reporting the wrapper's
+    /// own type instead puts every event in one bucket named `NotificationError`.
+    var errorType: String {
+        guard let underlyingError else { return String(describing: type(of: self)) }
+        return String(describing: type(of: underlyingError))
+    }
+
+    /// `LocalizedError`'s only requirement. Implementing `localizedDescription`
+    /// instead leaves Foundation's bridging in charge and the cause never
+    /// surfaces, so keep this named `errorDescription`.
+    var errorDescription: String? {
+        guard let underlyingError else { return message }
+        return "\(message): \(underlyingError.localizedDescription)"
     }
 }

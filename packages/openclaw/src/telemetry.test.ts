@@ -80,6 +80,67 @@ describe('telemetry tool tracking', () => {
     });
   }
 
+  it('captures budget snapshots and deduplicatable transition events with their original time', () => {
+    const telemetry = createEnabledTelemetry()!;
+    const identity = {
+      accountId: 'default',
+      ownerShip: '~nec',
+      botShip: '~zod',
+    };
+    telemetry.captureCronBudgetSnapshot({
+      ...identity,
+      budgetState: 'available',
+      budgetPausedCronCount: 0,
+      episodeId: 'episode',
+      reason: 'gateway_start',
+    });
+    const change = {
+      ...identity,
+      eventId: 'change',
+      occurredAtMs: 1_000_000,
+      episodeId: 'episode',
+      jobId: 'news',
+      action: 'paused',
+      reason: 'credit_budget',
+      source: 'startup',
+    } as const;
+    telemetry.captureCronBudgetChanged(change);
+    telemetry.captureCronBudgetChanged(change);
+    telemetry.captureCronBudgetChanged({ ...change, accountId: 'other' });
+    const changes = postHogMocks.capture.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event.event === 'TlonBot Cron Budget Changed');
+    expect(changes[0].uuid).toBe(changes[1].uuid);
+    expect(changes[0].uuid).not.toBe(changes[2].uuid);
+    expect(postHogMocks.capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        distinctId: '~nec',
+        event: 'TlonBot Cron Budget Snapshot',
+        properties: expect.objectContaining({
+          ...identity,
+          budgetPausedCronCount: 0,
+          budgetState: 'available',
+          ...VERSION_IDENTITY_MATCH,
+        }),
+      })
+    );
+    expect(postHogMocks.capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        distinctId: '~nec',
+        event: 'TlonBot Cron Budget Changed',
+        timestamp: new Date(1_000_000),
+        uuid: expect.stringMatching(
+          /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
+        ),
+        properties: expect.objectContaining({
+          jobId: 'news',
+          action: 'paused',
+          episodeId: 'episode',
+        }),
+      })
+    );
+  });
+
   async function captureReply(params?: {
     sessionKey?: string;
     deliveredMessageCount?: number;
@@ -2193,6 +2254,7 @@ describe('cron telemetry capture', () => {
       nextRunAtMs: 20_000,
       delivered: false,
       deliveryStatus: 'not-delivered',
+      intentionalSilence: false,
       deliveryError: null,
       model: 'claude-sonnet-5',
       provider: 'anthropic',
@@ -2209,6 +2271,7 @@ describe('cron telemetry capture', () => {
     expect(call.properties.cronError).toBe('model timed out');
     expect(call.properties.durationMs).toBe(1_234);
     expect(call.properties.deliveryStatus).toBe('not-delivered');
+    expect(call.properties.intentionalSilence).toBe(false);
     expect(call.properties.$set).toBeUndefined();
   });
 
@@ -2263,6 +2326,7 @@ describe('cron telemetry capture', () => {
       nextRunAtMs: null,
       delivered: null,
       deliveryStatus: null,
+      intentionalSilence: false,
       deliveryError: null,
       model: null,
       provider: null,

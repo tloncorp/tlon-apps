@@ -9,9 +9,14 @@ import {
 } from '@tloncorp/ui';
 import { valid } from '@urbit/aura';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
+import {
+  useSettingsListHeaderColor,
+  useSettingsListSurfaces,
+} from '../../ui/components/SettingsList';
 import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
 import { BotBadge } from '../../ui/components/BotBadge';
 import {
@@ -31,10 +36,11 @@ import {
 } from './bot/constants';
 import {
   ChannelRuleDraft,
+  formatChannelHost,
   formatShipList,
   getErrorMessage,
+  getGroupChannelRuleKeys,
   getModelDisplayName,
-  hasGroupMembership,
   normalizeShip,
   normalizeShipList,
   parseChannelRuleKey,
@@ -42,6 +48,7 @@ import {
 } from './bot/helpers';
 import {
   useAllProviderModels,
+  useBotGroupMembership,
   useBotSettingsQueries,
 } from './bot/useBotSettingsData';
 import {
@@ -68,6 +75,8 @@ const ACCESS_MODES: {
 ];
 
 export function BotChannelRuleSettingsScreen(props: Props) {
+  const { page: settingsPage } = useSettingsListSurfaces();
+  const settingsHeaderColor = useSettingsListHeaderColor();
   const {
     channelKey,
     channelLabel,
@@ -93,7 +102,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   // The route's groupJoined was computed for the ship active at navigation. If
   // the desktop drawer keeps this screen mounted across a ship switch, that
   // value is stale for the new ship, so stop trusting it and let membership be
-  // re-derived from the new ship's moon listing. (Only drop it on a genuine
+  // re-derived for the new ship. (Only drop it on a genuine
   // ship→ship transition, not the initial resolve.)
   // Remember the rule as it was when the channel was last disabled, so a
   // canceling off→on toggle restores the exact settings (allowlist, mode, model
@@ -142,52 +151,66 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   );
 
   // Membership can change while this screen is open (a Join completing on the
-  // rules screen, auto-discovery), so derive it live from the moon's channel
-  // listing and fall back to the value captured at navigation time.
-  const groupJoined = useMemo(() => {
-    // The bot can't have a saved rule for a channel in a group it isn't in, so
-    // an existing baseline rule means it's a member (the moon's live listing
-    // lags/omits joined groups). Also trust the navigation-time value, which
-    // already factors this in for the whole group.
-    if (draft.baseline.chat.channelRuleDrafts[channelKey] || routeGroupJoined) {
-      return true;
-    }
+  // rules screen, a kick), so derive it live, the same way the rules screen
+  // does for the whole group.
+  const channelGroup = useMemo(() => {
     const parsed = parseChannelRuleKey(channelKey);
-    if (!parsed || !queries.channelsQuery.data) {
-      return routeGroupJoined;
-    }
+    const channels = queries.channelsQuery.data;
+    if (!parsed || !channels) return null;
     const group = resolveGroupForChannel(
-      queries.channelsQuery.data,
+      channels,
       parsed.host,
       parsed.channelId
     );
-    if (!group) {
-      return routeGroupJoined;
-    }
-    // Until the moon's channel listing has loaded, membership is unknown —
-    // keep the value captured at navigation time rather than reading the empty
-    // fallback as "not joined" and flipping a joined channel to read-only.
-    if (queries.moonChannelsQuery.data === undefined) {
-      return routeGroupJoined;
-    }
-    return hasGroupMembership(
-      queries.moonChannelsQuery.data,
-      parsed.host,
-      group
+    if (!group) return null;
+    // Rules saved or pending anywhere in the group, as on the rules screen.
+    const hasRules = [
+      draft.baseline.chat.channelRuleDrafts,
+      draft.draft.chat.channelRuleDrafts,
+    ].some(
+      (rules) =>
+        getGroupChannelRuleKeys(channels, parsed.host, group, rules).length > 0
     );
+    return {
+      host: parsed.host,
+      group,
+      id: `${formatChannelHost(parsed.host)}/${group}`,
+      hasRules,
+    };
   }, [
     channelKey,
-    routeGroupJoined,
     draft.baseline.chat.channelRuleDrafts,
+    draft.draft.chat.channelRuleDrafts,
     queries.channelsQuery.data,
-    queries.moonChannelsQuery.data,
   ]);
+  const verifyGroupIds = useMemo(
+    () => (channelGroup?.hasRules ? [channelGroup.id] : []),
+    [channelGroup]
+  );
+  const { getMembership } = useBotGroupMembership(queries, verifyGroupIds);
+  const membership = channelGroup
+    ? getMembership(
+        channelGroup.host,
+        channelGroup.group,
+        channelGroup.hasRules
+      )
+    : 'unknown';
+  // Until membership resolves (or for a channel no listed group contains), keep
+  // the value captured at navigation time rather than flipping a joined
+  // channel to read-only.
+  const groupJoined =
+    membership === 'unknown' ? routeGroupJoined : membership === 'member';
+  const groupDeparted = membership === 'departed';
   const readOnly = !groupJoined;
   // The access-mode, allowlist, and model controls only make sense once the
   // channel has a rule. Disable them (and no-op patch) while it's off so
   // merely inspecting a disabled channel can't create a rule and silently
   // enable Tlonbot in it.
   const controlsDisabled = readOnly || !rule;
+  // A paused rule in a group the bot has left can still be switched off (and
+  // back on to its saved state before applying), but never newly created.
+  const switchDisabled =
+    readOnly && !(groupDeparted && Boolean(rule ?? baselineRule));
 
   const availableProviders = useMemo(
     () =>
@@ -300,10 +323,13 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     }, [allProviderModels.models, overrideProvider, normalizedModelSearch]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor={settingsPage}>
       <ScreenHeader
+        backgroundColor={settingsHeaderColor}
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={
+          Platform.OS !== 'web' || isWindowNarrow ? handleBack : undefined
+        }
         title={channelLabel || 'Channel'}
         placement="navigation"
       />
@@ -320,20 +346,24 @@ export function BotChannelRuleSettingsScreen(props: Props) {
           <YStack gap="$2xl" paddingBottom="$2xl">
             <BotSettingsSection
               description={
-                !groupJoined
-                  ? 'Join this group to enable Tlonbot in this channel.'
-                  : undefined
+                groupDeparted
+                  ? 'Tlonbot is no longer in this group, so this channel is paused. Join again from Channel rules to resume it.'
+                  : !groupJoined
+                    ? 'Join this group to enable Tlonbot in this channel.'
+                    : undefined
               }
             >
               <BotSwitchRow
                 label="Enable Tlonbot here"
                 description={
-                  rule
-                    ? 'Listening for prompts'
-                    : 'Tlonbot will ignore this channel'
+                  !rule
+                    ? 'Tlonbot will ignore this channel'
+                    : groupDeparted
+                      ? 'Paused'
+                      : 'Listening for prompts'
                 }
                 checked={Boolean(rule)}
-                disabled={readOnly}
+                disabled={switchDisabled}
                 onCheckedChange={(checked) => {
                   setValidationError(null);
                   if (!checked) {

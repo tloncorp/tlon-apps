@@ -5,7 +5,8 @@ import * as db from '../db';
 import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { publishedNotePath, publishedNoteUrl } from '../logic';
-import { setupDatabaseTestSuite } from '../test/helpers';
+import * as schema from '../db/schema';
+import { getClient, setupDatabaseTestSuite } from '../test/helpers';
 import {
   makeApiNotesFolder,
   makeApiNotesNote,
@@ -20,6 +21,7 @@ import {
   createNotebookNote,
   deleteNotebookFolder,
   deleteNotebookNote,
+  ensureNotesNotebookJoined,
   markNotesNotebookStale,
   markNotesNotebookStaleForNoteEvent,
   noteIsPublished,
@@ -1895,4 +1897,102 @@ test('deleteNotebookNote holds the queue across the remote and local delete', as
   await expect(
     db.getNotesNote({ notebookFlag, noteId: note.noteId })
   ).resolves.toBeNull();
+});
+
+async function insertNotebookChannel(
+  currentUserIsMember: boolean,
+  {
+    readerRoleIds = [],
+    inGroup = true,
+  }: { readerRoleIds?: string[]; inGroup?: boolean } = {}
+) {
+  const groupId = '~zod/notes-group';
+  await db.insertGroups({
+    groups: [
+      {
+        id: groupId,
+        currentUserIsMember: inGroup,
+        currentUserIsHost: false,
+        hostUserId: '~zod',
+      } as db.Group,
+    ],
+  });
+  await db.insertChannels([
+    {
+      id: api.notesChannelId(notebookFlag),
+      type: 'notes',
+      groupId,
+      currentUserIsMember,
+    } as db.Channel,
+  ]);
+  if (readerRoleIds.length) {
+    await getClient()!
+      .insert(schema.channelReaders)
+      .values(
+        readerRoleIds.map((roleId) => ({
+          channelId: api.notesChannelId(notebookFlag),
+          roleId,
+        }))
+      );
+  }
+}
+
+test('ensureNotesNotebookJoined does not rejoin a group notebook the user left', async () => {
+  await insertNotebookChannel(false);
+  // settled from the channel row, so a failing %notes probe can't keep a
+  // stale "joined" answer standing
+  const listNotebooks = vi
+    .spyOn(api.notes, 'listNotebooks')
+    .mockRejectedValue(new Error('offline'));
+  const join = vi.spyOn(api, 'joinNotesNotebook').mockResolvedValue(1);
+
+  await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(
+    'notMember'
+  );
+  expect(listNotebooks).not.toHaveBeenCalled();
+  expect(join).not.toHaveBeenCalled();
+});
+
+test('ensureNotesNotebookJoined does not join a notebook the channel list withholds', async () => {
+  await insertNotebookChannel(false, { readerRoleIds: ['admin'] });
+  vi.spyOn(api.notes, 'listNotebooks').mockResolvedValue([]);
+  const join = vi.spyOn(api, 'joinNotesNotebook').mockResolvedValue(1);
+
+  await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(false);
+  expect(join).not.toHaveBeenCalled();
+});
+
+test('ensureNotesNotebookJoined does not point at the channel list of a group the user left', async () => {
+  await insertNotebookChannel(false, { inGroup: false });
+  const join = vi.spyOn(api, 'joinNotesNotebook').mockResolvedValue(1);
+
+  await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(false);
+  expect(join).not.toHaveBeenCalled();
+});
+
+test('ensureNotesNotebookJoined counts a group member as joined when the notes probe fails', async () => {
+  await insertNotebookChannel(true);
+  vi.spyOn(api.notes, 'listNotebooks').mockRejectedValue(new Error('offline'));
+  vi.spyOn(api.notes, 'getNotebook').mockRejectedValue(new Error('offline'));
+  const join = vi.spyOn(api, 'joinNotesNotebook').mockResolvedValue(1);
+
+  await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(true);
+  expect(join).not.toHaveBeenCalled();
+});
+
+test('ensureNotesNotebookJoined still joins a group notebook the user belongs to', async () => {
+  await insertNotebookChannel(true);
+  vi.spyOn(api.notes, 'listNotebooks')
+    .mockResolvedValueOnce([])
+    .mockResolvedValue([notebookSummary]);
+  const join = vi.spyOn(api, 'joinNotesNotebook').mockResolvedValue(1);
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+
+  await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(true);
+  expect(join).toHaveBeenCalledTimes(1);
 });

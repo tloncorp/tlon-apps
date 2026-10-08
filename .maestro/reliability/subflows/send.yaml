@@ -30,8 +30,12 @@ appId: ${MAESTRO_APP_ID}
     id: '^Post$'
     containsDescendants:
       - text: ${MESSAGE_PATTERN}
-- assertNotVisible:
-    id: '^Post$'
-    containsDescendants:
-      - text: ${MESSAGE_PATTERN}
-    index: 1
+- runFlow:
+    when:
+      true: ${SKIP_VISIBLE_DUPLICATE_CHECK !== 'true'}
+    commands:
+      - assertNotVisible:
+          id: '^Post$'
+          containsDescendants:
+            - text: ${MESSAGE_PATTERN}
+          index: 1

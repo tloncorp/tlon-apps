@@ -358,6 +358,12 @@ export const initialContacts: db.Contact[] = [
   edContact,
 ];
 
+// ContactBook only lists saved contacts.
+export const savedContacts: db.Contact[] = initialContacts.map((contact) => ({
+  ...contact,
+  isContact: true,
+}));
+
 export const roles: db.GroupRole[] = [
   {
     id: 'admin',

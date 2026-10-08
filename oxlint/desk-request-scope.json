@@ -1,0 +1,31 @@
+{
+  "appRoots": [
+    "packages/api/src",
+    "packages/shared/src",
+    "packages/app",
+    "apps/tlon-web/src",
+    "apps/tlon-mobile/src"
+  ],
+  "consumedPackages": [
+    "packages/ui",
+    "packages/editor"
+  ],
+  "excludedModules": [
+    "packages/api/src/client/stewardAutomationApi",
+    "packages/api/src/client/stewardPromptsApi"
+  ],
+  "excludedHttpPrefixes": [
+    "/steward/~/v1/automation",
+    "/steward/~/v1/prompts"
+  ],
+  "excludedAgentPaths": [
+    {
+      "agent": "steward",
+      "prefix": "/v1/automation"
+    },
+    {
+      "agent": "steward",
+      "prefix": "/v1/prompts"
+    }
+  ]
+}

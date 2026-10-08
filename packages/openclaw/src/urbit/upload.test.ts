@@ -397,6 +397,19 @@ describe('prepareOutboundMedia', () => {
       };
       expect(guardArg.signal).toBe(deadlineSignal);
     });
+
+    it('sends the descriptive User-Agent', async () => {
+      mockImageFetch();
+      mockNoStorage();
+      await prepareOutboundMedia('https://example.com/image.png');
+
+      const guardArg = mockFetchGuard.mock.calls[0][0] as {
+        init?: { headers?: Record<string, string> };
+      };
+      expect(guardArg.init?.headers?.['User-Agent']).toMatch(
+        /^TlonBot\/\S+ \(https:\/\/tlon\.io; support@tlon\.io\) openclaw-tlon\/\S+$/
+      );
+    });
   });
 
   describe('fetch failures', () => {

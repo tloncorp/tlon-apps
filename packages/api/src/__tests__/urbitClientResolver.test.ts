@@ -8,10 +8,28 @@ import {
   setClientResolver,
   startSpinHintCheck,
 } from '../client/urbit';
+import { configureLoggerFactory } from '../lib/logger';
 import { AuthError, type Urbit } from '../http-api';
+
+function makeLoggerStub() {
+  return {
+    ...console,
+    crumb: vi.fn(),
+    sensitiveCrumb: vi.fn(),
+    trackError: vi.fn(),
+    trackEvent: vi.fn(),
+  };
+}
+
+function stubLogger() {
+  const stub = makeLoggerStub();
+  configureLoggerFactory(() => stub as any);
+  return stub;
+}
 
 afterEach(() => {
   setClientResolver(null);
+  configureLoggerFactory(() => makeLoggerStub() as any);
 });
 
 describe('client resolver', () => {
@@ -73,6 +91,36 @@ describe('client resolver', () => {
       rejection
     );
     expect(scopedClient.poke).toHaveBeenCalledOnce();
+  });
+
+  test('a failed scoped poke reports no singleton session state', async () => {
+    // config's epoch, pending login and connection status belong to the
+    // singleton; a scoped client owns its own auth, so they would describe
+    // the wrong connection entirely
+    const { trackError } = stubLogger();
+    const scopedClient = {
+      channelId: '1700000000-abc123',
+      channelOpened: true,
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    };
+    setClientResolver(() => scopedClient as unknown as Urbit);
+
+    await expect(
+      poke({ app: 'chat', mark: 'test', json: {} })
+    ).rejects.toBeInstanceOf(AuthError);
+
+    const props = trackError.mock.calls[0][1] as Record<string, unknown>;
+    expect(props).toMatchObject({ app: 'chat', mark: 'test' });
+    expect(props.channelOpened).toBe(true);
+    expect(props.channelAgeSeconds).toEqual(expect.any(Number));
+    for (const key of [
+      'authEpoch',
+      'reauthsDuringPoke',
+      'reauthInFlight',
+      'connectionStatus',
+    ]) {
+      expect(props).not.toHaveProperty(key);
+    }
   });
 
   test('an empty scope does not fall through to the configured client', async () => {

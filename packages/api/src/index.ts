@@ -12,14 +12,24 @@ export {
   logInHostingUser,
   markUserTlonbotEnabled,
   requestLoginOtp,
+  requestLoginOtpForUser,
   requestPhoneVerify,
   setShipRevivalStatus,
   startTlawnOAuth,
   setUserTlonbotEnabled,
   signUpHostingUser,
+  verifyLoginOtpForUser,
   checkNodeIsTlonbotReady,
 } from './client/hostingApi';
+export type {
+  HostingLoginOtpInfo,
+  HostingRecaptchaPlatform,
+} from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
+export {
+  isTrustedBrowserViewerHost,
+  MAX_BROWSER_VIEWER_URL_LENGTH,
+} from './client/browserSession';
 export {
   AuthError,
   Urbit,
@@ -28,7 +38,14 @@ export {
   type PokeHandlers,
   type Scry,
 } from './http-api';
-export type { Contact, Group, Channel, Post } from './types/models';
+export type {
+  ActivityInit,
+  Contact,
+  Group,
+  Channel,
+  Post,
+} from './types/models';
+export * from './urbit/buckets';
 export type {
   AppReference,
   ChannelReference,
@@ -38,6 +55,7 @@ export type {
 export {
   checkNest,
   getChannelType,
+  isThirdPartyChannel,
   nestToFlag,
   whomIsDm,
   whomIsMultiDm,
@@ -59,9 +77,13 @@ export {
   type WritDelta,
   type WritDiff,
   type StewardGatewayAction,
+  pathToCite,
   type Cite,
   type PostDataResponse,
   type ReplyWithMemo,
+  type Reply,
+  type WritReply,
+  type ChangesV11,
 } from './urbit';
 export {
   appendFileUploadToPostBlob,

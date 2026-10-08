@@ -1,0 +1,112 @@
+import * as db from '@tloncorp/shared/db';
+
+export type ChatListFilter = 'all' | 'just-me' | 'with-others' | 'messages';
+
+export const CHAT_LIST_FILTER_LABELS: Record<ChatListFilter, string> = {
+  all: 'All',
+  'just-me': 'Just me',
+  'with-others': 'With others',
+  messages: 'Messages',
+};
+
+export const CHAT_LIST_FILTERS = Object.keys(
+  CHAT_LIST_FILTER_LABELS
+) as ChatListFilter[];
+
+function isDirectMessage(chat: db.Chat) {
+  return (
+    chat.type === 'channel' &&
+    (chat.channel.type === 'dm' || chat.channel.type === 'groupDm')
+  );
+}
+
+/**
+ * Whether a group holds nobody but its owner and their bot.
+ *
+ * `getChats` loads only the first few members for avatar display, so an
+ * unloaded member still counts: trust `memberCount` when it exceeds what was
+ * loaded rather than reading the truncated list as the whole membership.
+ *
+ * A group with no loaded roster at all — a pending invite, or a create whose
+ * seats have not landed — is not known to be solo, so it falls to
+ * `with-others`, the catch-all, rather than flickering a segment on.
+ */
+function isSoloGroup(
+  group: db.Group,
+  currentUserId: string,
+  botUserId: string
+) {
+  const members = group.members ?? [];
+  if (members.length === 0) return false;
+  const hasOther = members.some(
+    (member) =>
+      member.contactId !== currentUserId && member.contactId !== botUserId
+  );
+  if (hasOther) return false;
+  return (group.memberCount ?? members.length) <= members.length;
+}
+
+/**
+ * Split the chat list the way the filter tabs read it.
+ *
+ * The three narrow filters partition the list rather than each matching their
+ * own idea of a chat: `with-others` is everything that is neither a DM nor a
+ * solo group, so a pinned group channel — whose group's membership the list
+ * query does not load — still appears somewhere instead of falling out.
+ */
+export function chatMatchesListFilter(
+  chat: db.Chat,
+  filter: ChatListFilter,
+  { currentUserId, botUserId }: { currentUserId: string; botUserId: string }
+): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'messages') return isDirectMessage(chat);
+
+  if (isDirectMessage(chat)) return false;
+  const solo =
+    chat.type === 'group' && isSoloGroup(chat.group, currentUserId, botUserId);
+  return filter === 'just-me' ? solo : !solo;
+}
+
+export function filterChatsByListFilter(
+  chats: db.Chat[],
+  filter: ChatListFilter,
+  ids: { currentUserId: string; botUserId: string }
+): db.Chat[] {
+  if (filter === 'all') return chats;
+  return chats.filter((chat) => chatMatchesListFilter(chat, filter, ids));
+}
+
+/**
+ * The chips the Workspaces list offers for these chats.
+ *
+ * `just-me` hides when nothing matches it: a self-hosted user with no bot and
+ * no solo group would otherwise carry a chip that never shows anything
+ * (TLON-6775). `with-others` and `messages` can be empty too, but they stay,
+ * so the row reads the same everywhere and the narrow segments still add back
+ * up to the whole list.
+ *
+ * Safe to compute over the raw list without the tab pre-filter: a solo match
+ * needs `chat.type === 'group'`, and the combined tab keeps every group, so a
+ * channel row can never make this chip available. Extending this to
+ * `with-others` would need the tab-filtered list.
+ */
+export function getVisibleChatListFilters(
+  chats: db.Chat[],
+  ids: { currentUserId: string; botUserId: string }
+): ChatListFilter[] {
+  const hasSolo = chats.some((chat) =>
+    chatMatchesListFilter(chat, 'just-me', ids)
+  );
+  return hasSolo
+    ? CHAT_LIST_FILTERS
+    : CHAT_LIST_FILTERS.filter((filter) => filter !== 'just-me');
+}
+
+/** A selection whose chip is no longer offered reads as All. */
+export function resolveListFilter(
+  selected: ChatListFilter,
+  visible: ChatListFilter[]
+): ChatListFilter {
+  return visible.includes(selected) ? selected : 'all';
+}

@@ -1,3 +1,5 @@
+import commandCatalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
+import { locateOwnerShipConfig } from './owner-ship-config.js';
 import {
   ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
   checkBlockedDiaryOperation,
@@ -30,7 +32,7 @@ const PROFILE_UPDATE_FIELDS = [
 export type TlonProfileUpdateField =
   (typeof PROFILE_UPDATE_FIELDS)[number]['field'];
 export type TlonToolIntent = 'read' | 'write' | 'admin' | 'config' | 'utility';
-export type TlonChannelKind = 'chat' | 'heap' | 'notes';
+export type TlonChannelKind = 'buckets' | 'chat' | 'heap' | 'notes';
 export type TlonDmTargetKind = 'ship' | 'club' | 'unknown';
 export type TlonUploadSource = 'url' | 'local' | 'stdin' | 'unknown';
 
@@ -70,6 +72,24 @@ const INVALID_OPERATION = 'invalid';
 
 const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
   ['activity', new Set(['mentions', 'replies', 'all', 'unreads'])],
+  ['browser', new Set(['handoff', 'share'])],
+  [
+    'buckets',
+    new Set([
+      'list',
+      'show',
+      'files',
+      'search',
+      'create',
+      'mkdir',
+      'upload',
+      'read',
+      'rename',
+      'move',
+      'delete',
+      'set-writers',
+    ]),
+  ],
   [
     'channels',
     new Set([
@@ -82,6 +102,8 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'update',
       'rename',
       'delete',
+      'leave',
+      'join',
       'add-writers',
       'del-writers',
       'add-readers',
@@ -123,6 +145,7 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'create-owned',
       'invite',
       'info',
+      'invite-link',
       'leave',
       'join',
       'request-invite',
@@ -275,9 +298,47 @@ export function findTlonSubcommandIndex(args: string[]): number {
   return findFirstPositionalArgumentIndex(args, 0, CREDENTIAL_FLAGS_WITH_VALUE);
 }
 
+export function isBrowserHandoffCommand(args: string[]): boolean {
+  const subIdx = findTlonSubcommandIndex(args);
+  return (
+    args[subIdx]?.toLowerCase() === 'browser' &&
+    ['handoff', 'share'].includes(args[subIdx + 1]?.toLowerCase())
+  );
+}
+
+function hasCredentialOverride(args: string[]): boolean {
+  return args.some((arg) =>
+    CREDENTIAL_FLAGS_WITH_VALUE.has(arg.split('=', 1)[0])
+  );
+}
+
+export function redactBrowserHandoffCommand(command: string): string {
+  const args = shellSplitCommand(command);
+  let subIdx = findTlonSubcommandIndex(args);
+  if (args[subIdx]?.toLowerCase() === 'tlon') {
+    subIdx = findFirstPositionalArgumentIndex(
+      args,
+      subIdx + 1,
+      CREDENTIAL_FLAGS_WITH_VALUE
+    );
+  }
+  if (
+    args[subIdx]?.toLowerCase() === 'browser' &&
+    ['handoff', 'share'].includes(args[subIdx + 1]?.toLowerCase())
+  ) {
+    // Keep only the operation: arguments can carry a signed viewer capability.
+    return `browser ${args[subIdx + 1].toLowerCase()} [REDACTED]`;
+  }
+  return command;
+}
+
 export type BlockedTlonOperation = {
   message: string;
-  reason: 'diary_operation' | 'migration_operation' | 'send_operation';
+  reason:
+    | 'diary_operation'
+    | 'migration_operation'
+    | 'send_operation'
+    | 'browser_account_override';
   diaryNest?: string;
 };
 
@@ -289,6 +350,13 @@ export type BlockedTlonOperation = {
 export function checkBlockedTlonOperation(
   args: string[]
 ): BlockedTlonOperation | null {
+  if (isBrowserHandoffCommand(args) && hasCredentialOverride(args)) {
+    return {
+      message:
+        'Browser handoff does not allow credential overrides. Use the configured Tlon account.',
+      reason: 'browser_account_override',
+    };
+  }
   const subIdx = findTlonSubcommandIndex(args);
   const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
   const migration = checkBlockedMigrationOperation(commandArgs);
@@ -311,21 +379,136 @@ export function checkBlockedTlonOperation(
   return send ? { message: send, reason: 'send_operation' } : null;
 }
 
+const HELP_TOKENS = new Set(['-h', '--help']);
+
+/**
+ * The shared owner-injection predicate (the Hermes adapter implements the same
+ * truth table): a bare `groups invite-link`, with no credential flag in either
+ * form, no `--self`, and no help token. Anything else runs on the bot's own
+ * credentials, exactly as the model wrote it.
+ */
+export function shouldInjectOwnerCredentials(args: string[]): boolean {
+  if (hasCredentialOverride(args)) return false;
+
+  const subIdx = findTlonSubcommandIndex(args);
+  if (subIdx < 0) return false;
+  const commandArgs = args.slice(subIdx);
+  if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
+  if (commandArgs[1]?.toLowerCase() !== 'invite-link') return false;
+
+  return !commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg));
+}
+
+const OWNER_INVITE_LINK_SELF_HINT =
+  "Add --self to retrieve this bot's own invite link instead.";
+
+/**
+ * `--ship <owner>`, never `--config <path>`: ship-only resolution validates the
+ * file's ship and its cookie-derived ship against the requested owner, so a
+ * stale owner-named file holding bot credentials hard-fails instead of quietly
+ * minting a bot-attributed link. Missing provisioning is a tool error for the
+ * same reason — never a silent fall back to the bot's own credentials.
+ */
+function ownerInviteLinkPrefixArgs(
+  deps: TlonToolExecutorDeps
+): string[] | { error: string } {
+  const ownerShip = deps.ownerShip?.trim();
+  if (!ownerShip) {
+    return {
+      error:
+        "Retrieving the owner's invite link requires a configured owner ship. " +
+        OWNER_INVITE_LINK_SELF_HINT,
+    };
+  }
+
+  const location = locateOwnerShipConfig(ownerShip, deps);
+  if (location.kind === 'no-skill-dir') {
+    return {
+      error:
+        `Retrieving the invite link as ${ownerShip} requires TLON_SKILL_DIR so the owner credential file can be located. ` +
+        OWNER_INVITE_LINK_SELF_HINT,
+    };
+  }
+  if (location.kind === 'no-config-file') {
+    return {
+      error:
+        `Retrieving the invite link as ${ownerShip} requires owner credentials at ${location.configPath}. ` +
+        OWNER_INVITE_LINK_SELF_HINT,
+    };
+  }
+  return ['--ship', ownerShip];
+}
+
 export type TlonToolExecutorDeps = {
   runCommand: (args: string[]) => Promise<string>;
   notifyDiaryMigrationDiscovery: (nest: string) => Promise<boolean>;
   logError?: (message: string) => void;
+  /** Configured owner ship, already normalized to `~ship`. */
+  ownerShip?: string;
+  env?: NodeJS.ProcessEnv;
+  fileExists?: (path: string) => boolean;
 };
+
+export function formatTlonToolHelp(): string {
+  const commands = Object.entries(commandCatalog)
+    .filter(([name]) => isAllowedTlonSubcommand(name))
+    .map(
+      ([name, entry]) => `  ${name}: ${entry.summary}. ${entry.toolGuidance}`
+    );
+  return [
+    'Tlon tool — command discovery',
+    'Usage: {"command":"<command> <operation> [arguments]"}',
+    'Use {"command":"help notes"} or {"command":"help notes note-create"} for exact syntax.',
+    'CLI usage may show a leading tlon: omit it in this tool. No shell expansion, pipes, redirects, or stdin.',
+    'Relative file paths use the active agent workspace. Use message for ordinary sends/replies.',
+    'Read the tlon skill at its discovered location for task-specific references.',
+    '',
+    ...commands,
+  ].join('\n');
+}
 
 export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
   return async function execute(_id: string, params: { command: string }) {
     try {
-      const args = shellSplitCommand(params.command);
+      let args = shellSplitCommand(params.command);
+      const discoveryIndex = findTlonSubcommandIndex(args);
+      const discoveryArgs = args.slice(Math.max(0, discoveryIndex));
+      if (
+        args.length === 0 ||
+        (discoveryArgs.length === 1 &&
+          ['help', '--help', '-h'].includes(discoveryArgs[0]))
+      ) {
+        return {
+          content: [{ type: 'text' as const, text: formatTlonToolHelp() }],
+          details: undefined,
+        };
+      }
+      if (
+        discoveryArgs.length === 1 &&
+        ['version', '--version', '-v'].includes(discoveryArgs[0])
+      ) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: await deps.runCommand(['--version']),
+            },
+          ],
+          details: undefined,
+        };
+      }
+      if (discoveryArgs[0] === 'help') {
+        args = [
+          ...args.slice(0, discoveryIndex),
+          ...discoveryArgs.slice(1),
+          '--help',
+        ];
+      }
 
       const subIdx = findTlonSubcommandIndex(args);
       const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
       if (!isAllowedTlonSubcommand(subcommand)) {
-        const message = `Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}`;
+        const message = `Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}. Use {"command":"help"} to discover commands; omit the leading tlon executable.`;
         return {
           content: [{ type: 'text' as const, text: `Error: ${message}` }],
           details: { status: 'error', error: message },
@@ -362,7 +545,44 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         };
       }
 
-      const output = await deps.runCommand(args);
+      // Only inspect the option region, not titles or file names that happen
+      // to contain the flag. CLI help remains available for these commands.
+      const command = args.slice(subIdx);
+      const optionStart =
+        command[0] === 'upload'
+          ? 1
+          : command[0] === 'notes' && command[1] === 'note-create'
+            ? 5
+            : command[0] === 'notes' && command[1] === 'note-update'
+              ? 4
+              : command.length;
+      if (
+        !command.some((arg) => HELP_TOKENS.has(arg)) &&
+        command
+          .slice(optionStart)
+          .some((arg) => arg === '--stdin' || arg.startsWith('--stdin='))
+      ) {
+        const message =
+          'The tlon tool cannot supply stdin. Write content to a workspace file, then use notes note-create/note-update --body <file> or upload <file>. Shell pipes and redirections are not supported.';
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${message}` }],
+          details: { status: 'error', error: message },
+        };
+      }
+
+      let commandArgs = args;
+      if (shouldInjectOwnerCredentials(args)) {
+        const prefixArgs = ownerInviteLinkPrefixArgs(deps);
+        if (!Array.isArray(prefixArgs)) {
+          return {
+            content: [{ type: 'text' as const, text: prefixArgs.error }],
+            details: { error: true },
+          };
+        }
+        commandArgs = [...prefixArgs, ...args];
+      }
+
+      const output = await deps.runCommand(commandArgs);
       return {
         content: [{ type: 'text' as const, text: output }],
         details: undefined,
@@ -379,6 +599,16 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
 
 export function summarizeTlonCommand(command: string): TlonToolCallContext {
   const args = shellSplitCommand(command);
+  const discovery = args[0];
+  if (
+    args.length <= 1 &&
+    (!discovery || ['--help', '-h', '--version', '-v'].includes(discovery))
+  ) {
+    return summarizeKnownTlonCommand(
+      [discovery === '--version' || discovery === '-v' ? 'version' : 'help'],
+      false
+    );
+  }
   const subIdx = findTlonSubcommandIndex(args);
   const subcommand = args[subIdx]?.toLowerCase() ?? UNKNOWN_SUBCOMMAND;
   const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
@@ -442,6 +672,10 @@ function summarizeKnownTlonCommand(
   switch (subcommand) {
     case 'activity':
       return build('read');
+    case 'browser':
+      return build('write');
+    case 'buckets':
+      return summarizeBucketsOperation(operation, remainder, build);
     case 'channels':
       return summarizeChannelsOperation(operation, remainder, build);
     case 'contacts':
@@ -475,6 +709,52 @@ function summarizeKnownTlonCommand(
     case 'help':
     case 'version':
       return build('utility');
+    default:
+      return build('utility');
+  }
+}
+
+function summarizeBucketsOperation(
+  operation: string,
+  args: string[],
+  build: (
+    intent: TlonToolIntent,
+    extra?: Omit<
+      Partial<TlonToolCallContext>,
+      | 'kind'
+      | 'summaryKey'
+      | 'subcommand'
+      | 'operation'
+      | 'intent'
+      | 'isKnownSubcommand'
+      | 'blockedSendOperation'
+    >
+  ) => TlonToolCallContext
+): TlonToolCallContext {
+  switch (operation) {
+    case 'list':
+    case 'show':
+    case 'files':
+    case 'search':
+    case 'read':
+      return build('read', { channelKind: 'buckets' });
+    case 'delete':
+    case 'set-writers':
+      return build('admin', { channelKind: 'buckets' });
+    case 'create':
+    case 'mkdir':
+    case 'rename':
+    case 'move':
+      return build('write', {
+        channelKind: 'buckets',
+        hasTitle: operation === 'create' || operation === 'rename',
+      });
+    case 'upload':
+      return build('write', {
+        channelKind: 'buckets',
+        uploadSource: detectUploadSource(args.slice(1)),
+        contentTypeProvided: hasFlag(args, '-t', '--type'),
+      });
     default:
       return build('utility');
   }
@@ -534,6 +814,11 @@ function summarizeChannelsOperation(
       });
     case 'delete':
       return build('admin', {
+        channelKind: detectChannelKind(positionals[0]),
+      });
+    case 'join':
+    case 'leave':
+      return build('write', {
         channelKind: detectChannelKind(positionals[0]),
       });
     case 'add-writers':
@@ -1022,7 +1307,10 @@ function parseChannelKind(
     parts[0] === '' && parts[1] === '1' && parts[2] === 'chan'
       ? parts[3]
       : parts[0];
-  return kind === 'chat' || kind === 'heap' || kind === 'notes'
+  return kind === 'buckets' ||
+    kind === 'chat' ||
+    kind === 'heap' ||
+    kind === 'notes'
     ? kind
     : undefined;
 }

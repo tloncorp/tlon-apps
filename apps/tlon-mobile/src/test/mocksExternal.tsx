@@ -12,11 +12,6 @@ jest.mock('react-native-reanimated', () =>
 // TODO: Why is `doMock` necessary? Why doesn't `require`ing inline work?
 jest.doMock('react-native-safe-area-context', () => RNSafeAreaContextMock);
 
-jest.mock('@gorhom/bottom-sheet', () => ({
-  __esModule: true,
-  ...require('@gorhom/bottom-sheet/mock'),
-}));
-
 jest.mock('expo-clipboard', () => ({
   getStringAsync: jest.fn(async () => ''),
   setStringAsync: jest.fn(async () => {}),

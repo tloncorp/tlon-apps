@@ -22,6 +22,7 @@
     },
     "./api/*": "./src/client/*.ts",
     "./client": "./src/client/index.ts",
+    "./client/requests": "./src/client/requests/index.ts",
     "./client/*": "./src/client/*.ts",
     "./dev/*": "./src/dev/*.ts",
     "./client/markdown": "./src/client/markdown/index.ts",

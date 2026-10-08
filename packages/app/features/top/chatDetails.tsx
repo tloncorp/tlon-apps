@@ -33,7 +33,12 @@ import {
   useIsAdmin,
 } from '../../ui';
 import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
-import { getChannelActionCapabilities, getChannelHost } from '../../ui/utils';
+import {
+  channelSupportsNotifications,
+  getChannelActionCapabilities,
+  getChannelHost,
+  getGroupMemberCount,
+} from '../../ui/utils';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
@@ -149,7 +154,10 @@ export function MembersList({
   canManage,
 }: MembersListProps) {
   const joinedMembers = members?.filter((m) => m.status === 'joined');
-  const memberCount = joinedMembers?.length ?? 0;
+  const memberCount =
+    entityType === 'group' && group
+      ? getGroupMemberCount(group)
+      : (joinedMembers?.length ?? 0);
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const { onPressGroupMembers, onPressChannelMembers, onPressInvite } =
     useChatOptions();
@@ -427,6 +435,7 @@ export function SettingsSection({
   }, [entityType, group, channel, onPressChatVolume]);
 
   const actions = useMemo(() => {
+    const supportsNotifications = channelSupportsNotifications(channel);
     const notificationAction: SettingsActionProps = {
       title: 'Notifications',
       description: notificationTitle,
@@ -437,7 +446,7 @@ export function SettingsSection({
     };
 
     if (!currentUserIsAdmin) {
-      return [notificationAction];
+      return supportsNotifications ? [notificationAction] : [];
     }
 
     if (entityType === 'group' && group) {
@@ -472,7 +481,7 @@ export function SettingsSection({
       const isPrivate =
         (channel.readerRoles?.length ?? 0) > 0 ||
         (channel.writerRoles?.length ?? 0) > 0;
-      return [
+      const channelActions: SettingsActionProps[] = [
         {
           title: 'Permissions',
           endValue: isPrivate ? 'Custom' : 'Public',
@@ -480,8 +489,9 @@ export function SettingsSection({
           disabled: !actionsEnabled,
           onPress: handlePressEditChannelPrivacy,
         },
-        notificationAction,
       ];
+      if (supportsNotifications) channelActions.push(notificationAction);
+      return channelActions;
     }
 
     return [notificationAction];
@@ -568,7 +578,9 @@ export function LeaveActionsSection({
   const channelActionCapabilities = getChannelActionCapabilities(channel);
   const canLeave =
     !isHost && (entityType !== 'channel' || channelActionCapabilities.canLeave);
-  const canDelete = isHost || (entityType === 'channel' && currentUserIsAdmin);
+  const canDelete =
+    (entityType !== 'channel' || channelActionCapabilities.canDelete) &&
+    (isHost || (entityType === 'channel' && currentUserIsAdmin));
 
   const chatTitle =
     entityType === 'group'

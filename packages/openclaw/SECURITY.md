@@ -66,9 +66,11 @@ Evaluated in this order per unprocessed valid invite:
 | 5   | On allowlist, **confirmed blocked**                | Silent ignore (no card), mark processed   | yes                 |
 | 6   | On allowlist, lookup failed/timed out (_unknown_)  | Fall through to row 2/3 (card, or ignore) | yes (attempted)     |
 
-The `autoAcceptGroupInvites` flag no longer governs invite authorization; it
-remains a persistence input (auto-detected channels are persisted to
-`groupChannels` only when it is true).
+The `autoAcceptGroupInvites` flag no longer governs invite authorization or
+channel persistence. The channels of joined groups are journaled to
+`groupChannels` from `%groups` facts, best-effort: transient settings failures
+are retried, and a hosted save rewrites the key (see the ownership rule in
+`src/monitor/group-channels.ts`).
 
 **Critical Invariants:**
 
@@ -388,6 +390,7 @@ try {
 - Only blocks when role is explicitly `"user"` (a non-owner sender, DM or group)
 - Owner sessions (`"owner"`) and internal sessions (`undefined` role) are allowed
 - Returns `{ block: true, blockReason }`. OpenClaw core (verified on 2026.5.28 through 2026.8.2) hands `blockReason` to the model verbatim as the tool result, so the reason states the owner-only policy and tells the model what to say; the earlier `The X tool is not available.` led bots to invent reloads and outages (TLON-6363)
+- The same hook blocks, for every role, an `mcp__call` that points a hosted-browser tool at a Tlon web-app route (policy in `src/tlon-app-browser-gate.ts`); public ship pages such as `/expose`, `/notes/pub`, `/profile`, and `/lure` stay reachable
 
 **Critical Invariant:**
 

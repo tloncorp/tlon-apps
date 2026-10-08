@@ -1,5 +1,128 @@
+diff --git a/android/src/main/java/com/swmansion/rnscreens/Screen.kt b/android/src/main/java/com/swmansion/rnscreens/Screen.kt
+index 04c53160789e9ef19529c532f83331859630d5f9..8c5b2efb15c238dd72bbf2b145b27b9d9a5dd02d 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/Screen.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/Screen.kt
+@@ -71,6 +71,8 @@ class Screen(
+     var screenId: String? = null
+     var isStatusBarAnimated: Boolean? = null
+     var isBeingRemoved = false
++    private var isEndingRemovalTransition = false
++    private val removalTransitionViews = ArrayList<Pair<ViewGroup, View>>()
+ 
+     // Props for controlling modal presentation
+     var isSheetGrabberVisible: Boolean = false
+@@ -446,24 +448,19 @@ class Screen(
+     }
+ 
+     fun endRemovalTransition() {
+-        if (!isBeingRemoved) {
++        if (!isBeingRemoved || isEndingRemovalTransition) {
+             return
+         }
+-        isBeingRemoved = false
+-        endTransitionRecursive(this)
+-    }
+-
+-    private fun endTransitionRecursive(parent: ViewGroup) {
+-        parent.children.forEach { childView ->
+-            parent.endViewTransition(childView)
+-
+-            if (childView is ScreenStackHeaderConfig) {
+-                endTransitionRecursive(childView.toolbar)
+-            }
+-
+-            if (childView is ViewGroup) {
+-                endTransitionRecursive(childView)
++        isEndingRemovalTransition = true
++        val viewsToFinish = removalTransitionViews.toList()
++        removalTransitionViews.clear()
++        try {
++            for ((parent, child) in viewsToFinish.asReversed()) {
++                parent.endViewTransition(child)
+             }
++        } finally {
++            isBeingRemoved = false
++            isEndingRemovalTransition = false
+         }
+     }
+ 
+@@ -481,7 +478,10 @@ class Screen(
+                     // TODO: find a better way to handle this scenario
+                     it.addView(View(context), i)
+                 } else {
+-                    child?.let { view -> it.startViewTransition(view) }
++                    child?.let { view ->
++                        it.startViewTransition(view)
++                        removalTransitionViews.add(it to view)
++                    }
+                 }
+ 
+                 if (child is ScreenStackHeaderConfig) {
+diff --git a/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt b/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt
+index bffd9c7c72f6f56e499f51d92e8ad3e597a63687..ec5f9c7b70a9610b6fda340667fb5097188d34a5 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt
+@@ -76,6 +76,10 @@ class ScreenStack(
+     }
+ 
+     override fun endViewTransition(view: View) {
++        // Finish descendants before Android detaches the fragment's root view.
++        if (view is ScreensCoordinatorLayout) {
++            view.fragment.screen.endRemovalTransition()
++        }
+         super.endViewTransition(view)
+ 
+         disappearingTransitioningChildren.remove(view)
+diff --git a/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt b/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt
+index 8ab37c88691b94b619014959fe2d896a259db62f..c458ca3b4e3e118465ccdda0e6ee4fa427a8153f 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt
+@@ -7,6 +7,7 @@ import android.text.TextUtils
+ import android.util.TypedValue
+ import android.view.Gravity
+ import android.view.View.OnClickListener
++import android.view.ViewParent
+ import android.widget.ImageView
+ import android.widget.TextView
+ import androidx.appcompat.app.ActionBar
+@@ -195,6 +196,17 @@ class ScreenStackHeaderConfig(
+     private val screen: Screen?
+         get() = parent as? Screen
+ 
++    private fun isInRemovalTransition(): Boolean {
++        var ancestor: ViewParent? = parent
++        while (ancestor != null) {
++            if (ancestor is Screen && ancestor.isBeingRemoved) {
++                return true
++            }
++            ancestor = ancestor.parent
++        }
++        return false
++    }
++
+     private val screenStack: ScreenStack?
+         get() = screen?.container as? ScreenStack
+ 
+@@ -214,7 +226,7 @@ class ScreenStackHeaderConfig(
+         val stack = screenStack
+         val isTop = stack == null || stack.topScreen == parent
+ 
+-        if (!isAttachedToWindow || !isTop || isDestroyed) {
++        if (!isAttachedToWindow || !isTop || isDestroyed || isInRemovalTransition()) {
+             return
+         }
+ 
+@@ -373,7 +385,7 @@ class ScreenStackHeaderConfig(
+     }
+ 
+     private fun maybeUpdate() {
+-        if (parent != null && !isDestroyed && screen?.isBeingRemoved == false) {
++        if (parent != null) {
+             onUpdate()
+         }
+     }
 diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
-index 10cd91b2867dcbbc125df0797740e9b79eceb335..a36837191e96f37dcf0285108d046d83a8463d23 100644
+index 10cd91b2867dcbbc125df0797740e9b79eceb335..629f53e4b3661543c3445918ff3e22979d694f9b 100644
 --- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
 +++ b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
 @@ -14,11 +14,12 @@ import com.facebook.react.common.assets.ReactFontManager
@@ -27,6 +150,26 @@ index 10cd91b2867dcbbc125df0797740e9b79eceb335..a36837191e96f37dcf0285108d046d83
      }
  
      internal fun updateBadgeAppearance(
+@@ -218,9 +223,17 @@ internal class TabsAppearanceApplicator(
+         badge.clearText()
+         badge.clearNumber()
+ 
+-        if (badgeValueNumber != null) {
++        if (badgeValue.isBlank()) {
++            // A blank badge is Material's text-less dot, moved from the icon's top-end corner to sit
++            // centred 2dp beneath the icon. Material centres it at `right + r - horizontalOffset`
++            // and `top + verticalOffset - r`.
++            val iconSize = bottomNavigationView.itemIconSize
++            val dotSize = context.resources.getDimensionPixelSize(R.dimen.m3_badge_size)
++            badge.horizontalOffsetWithoutText = iconSize / 2 + dotSize / 2
++            badge.verticalOffsetWithoutText = iconSize + PixelUtil.toPixelFromDIP(2f).toInt() + dotSize
++        } else if (badgeValueNumber != null) {
+             badge.number = badgeValueNumber
+-        } else if (badgeValue != "") {
++        } else {
+             badge.text = badgeValue
+         }
+ 
 diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreen.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreen.kt
 index 24d107f6fe3e99aecf416a3f56ffe01e87a195e5..2c7fc987ebd4b94aadb2af5379de44b1c1765ce1 100644
 --- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreen.kt
@@ -60,6 +203,105 @@ index 60059b4c4ad08987b51f34ce77f79af48642d29b..36f011e06b808dddc98a78cc5b45d236
      override fun setSelectedImageIconResource(
          view: TabsScreen,
          value: ReadableMap?,
+diff --git a/ios/tabs/RNSTabBarAppearanceCoordinator.mm b/ios/tabs/RNSTabBarAppearanceCoordinator.mm
+index ae5873c18ea764f819676c1743fba16759f0948f..6b7dfe9c8b4f5d11da80d25f831f08fefb237636 100644
+--- a/ios/tabs/RNSTabBarAppearanceCoordinator.mm
++++ b/ios/tabs/RNSTabBarAppearanceCoordinator.mm
+@@ -1,6 +1,7 @@
+ #import "RNSTabBarAppearanceCoordinator.h"
+ #import <React/RCTFont.h>
+ #import <React/RCTImageLoader.h>
++#import "NSString+RNSUtility.h"
+ #import "RCTConvert+RNSTabs.h"
+ #import "RNSConversions.h"
+ #import "RNSImageLoadingHelper.h"
+@@ -40,6 +41,86 @@ - (void)updateAppearanceOfTabBar:(nullable UITabBar *)tabBar
+ 
+     [self configureTabBarItemForTabScreenController:tabScreenCtrl imageLoader:imageLoader];
+   }
++
++  // Step 3 - draw blank badges as dots
++  [self configureDotBadgesForTabScreenControllers:tabScreenCtrls];
++}
++
++// On iOS 26 and later, while every badge on the bar is blank, each one draws as a 6pt dot centred 2pt
++// beneath its 24pt icon instead of UIKit's pill at the icon's corner. UIKit pads the badge's text by a
++// fixed amount, so the badge cannot shrink to a dot itself: the dot is a U+25CF glyph in the badge colour
++// on a clear badge. The bar draws every badge with the selected item's appearance, so the style goes on
++// every item or on none, and a bar that also shows a text or number badge keeps UIKit's pills. The offset
++// is measured on iOS 26.5, where UIKit moves the badge towards the icon for a positive horizontal value.
++- (void)configureDotBadgesForTabScreenControllers:(nonnull NSArray<RNSTabsScreenViewController *> *)tabScreenCtrls
++{
++  BOOL drawsDots = [RNSTabBarAppearanceCoordinator shouldDrawDotBadgesForTabScreenControllers:tabScreenCtrls];
++  for (RNSTabsScreenViewController *tabScreenCtrl in tabScreenCtrls) {
++    UITabBarItem *tabBarItem = tabScreenCtrl.tabBarItem;
++    NSString *badgeValue = tabScreenCtrl.tabScreenComponentView.badgeValue;
++    if (drawsDots) {
++      tabBarItem.standardAppearance =
++          [RNSTabBarAppearanceCoordinator dotBadgeAppearanceFrom:tabBarItem.standardAppearance];
++      if (tabBarItem.scrollEdgeAppearance != nil) {
++        tabBarItem.scrollEdgeAppearance =
++            [RNSTabBarAppearanceCoordinator dotBadgeAppearanceFrom:tabBarItem.scrollEdgeAppearance];
++      }
++      if (badgeValue != nil) {
++        badgeValue = @"\u25CF";
++      }
++    }
++    // Set it either way, so a glyph from an earlier dot pass never outlives the dots.
++    if (![tabBarItem.badgeValue isEqualToString:badgeValue]) {
++      tabBarItem.badgeValue = badgeValue;
++    }
++  }
++}
++
+++ (BOOL)shouldDrawDotBadgesForTabScreenControllers:(nonnull NSArray<RNSTabsScreenViewController *> *)tabScreenCtrls
++{
++  if (@available(iOS 26.0, *)) {
++    BOOL hasDotBadge = NO;
++    for (RNSTabsScreenViewController *tabScreenCtrl in tabScreenCtrls) {
++      NSString *badgeValue = tabScreenCtrl.tabScreenComponentView.badgeValue;
++      if (badgeValue == nil) {
++        continue;
++      }
++      if (![NSString rnscreens_isBlankOrNull:badgeValue]) {
++        return NO;
++      }
++      hasDotBadge = YES;
++    }
++    return hasDotBadge;
++  }
++  return NO;
++}
++
+++ (nonnull UITabBarAppearance *)dotBadgeAppearanceFrom:(nonnull UITabBarAppearance *)appearance
++{
++  UITabBarAppearance *dotAppearance = [appearance copy];
++  for (UITabBarItemAppearance *itemAppearance in @[
++         dotAppearance.stackedLayoutAppearance,
++         dotAppearance.inlineLayoutAppearance,
++         dotAppearance.compactInlineLayoutAppearance
++       ]) {
++    NSArray<UITabBarItemStateAppearance *> *stateAppearances =
++        @[ itemAppearance.normal, itemAppearance.selected, itemAppearance.focused, itemAppearance.disabled ];
++    // Read every colour before clearing any: an unset state reports the normal state's colour.
++    NSMutableArray<UIColor *> *badgeColors = [NSMutableArray arrayWithCapacity:stateAppearances.count];
++    for (UITabBarItemStateAppearance *stateAppearance in stateAppearances) {
++      [badgeColors addObject:stateAppearance.badgeBackgroundColor ?: UIColor.systemRedColor];
++    }
++    for (NSUInteger i = 0; i < stateAppearances.count; i++) {
++      UITabBarItemStateAppearance *stateAppearance = stateAppearances[i];
++      stateAppearance.badgeTextAttributes = @{
++        NSFontAttributeName : [UIFont systemFontOfSize:8],
++        NSForegroundColorAttributeName : badgeColors[i],
++      };
++      stateAppearance.badgeBackgroundColor = UIColor.clearColor;
++      stateAppearance.badgePositionAdjustment = UIOffsetMake(14.67, 35.17);
++    }
++  }
++  return dotAppearance;
+ }
+ 
+ - (void)configureTabBarItemForTabScreenController:(nonnull RNSTabsScreenViewController *)tabScreenCtrl
 diff --git a/src/components/tabs/screen/TabsScreen.android.tsx b/src/components/tabs/screen/TabsScreen.android.tsx
 index df1f86aeed2a9a5173edff88a6dca0e5c0faaa04..fd28d9c88312258fb15fa6f8dd03743489d35b1e 100644
 --- a/src/components/tabs/screen/TabsScreen.android.tsx

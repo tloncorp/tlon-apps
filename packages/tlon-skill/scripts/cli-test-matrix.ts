@@ -1,7 +1,14 @@
-import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from './cli-utils';
+import {
+  DIARY_REMOVED,
+  NOTES_CHANNEL_CONTENT_UNSUPPORTED,
+  nonGroupChannelNestMessage,
+  notesChannelMembershipMessage,
+} from './cli-utils';
 
 export const COMMAND_FAMILIES = [
   'activity',
+  'browser',
+  'buckets',
   'channels',
   'contacts',
   'dms',
@@ -34,6 +41,7 @@ export type CliCase = {
 const SCRIPT_ERA_PATTERNS = [
   'npx ts-node',
   'Usage: activity.ts',
+  'Usage: browser.ts',
   'Usage: channels.ts',
   'Usage: contacts.ts',
   'Usage: dms.ts',
@@ -45,6 +53,7 @@ const SCRIPT_ERA_PATTERNS = [
   'Usage: settings.ts',
   'Usage: upload.ts',
   'Example: activity.ts',
+  'Example: browser.ts',
   'Example: channels.ts',
   'Example: contacts.ts',
   'Example: dms.ts',
@@ -55,6 +64,7 @@ const SCRIPT_ERA_PATTERNS = [
   'Example: posts.ts',
   'Example: settings.ts',
   'Example: upload.ts',
+  'scripts/browser.ts',
   'scripts/channels.ts',
   'scripts/contacts.ts',
   'scripts/dms.ts',
@@ -217,6 +227,16 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'groups info missing id',
     ['groups', 'info'],
     'Usage: tlon groups info'
+  ),
+  usageErrorCase(
+    'groups invite-link missing flag',
+    ['groups', 'invite-link'],
+    'Usage: tlon groups invite-link'
+  ),
+  usageErrorCase(
+    'groups invite-link rejects malformed flag',
+    ['groups', 'invite-link', 'not-a-flag'],
+    'Usage: tlon groups invite-link'
   ),
   usageErrorCase(
     'hooks init missing name',
@@ -493,6 +513,11 @@ export const NESTED_HELP_CASES: CliCase[] = [
     'groups info --help',
     ['groups', 'info', '--help'],
     'Usage: tlon groups info'
+  ),
+  helpCase(
+    'groups invite-link --help',
+    ['groups', 'invite-link', '--help'],
+    'Usage: tlon groups invite-link'
   ),
   helpCase(
     'posts react --help',
@@ -1530,21 +1555,23 @@ export const NOTES_CHANNEL_KIND_CASES: CliCase[] = [
     ['channels', 'del-writers', 'notes/~host/blog', 'admin'],
     'Writer roles are not supported for %notes channels'
   ),
-  refusalCase(
-    'channels update --description on a notes nest refuses',
-    ['channels', 'update', 'notes/~host/blog', '--description', 'x'],
-    'Channel metadata updates are not supported for %notes channels'
+  authRequiredCase(
+    'channels update --description on a notes nest reaches auth',
+    ['channels', 'update', 'notes/~host/blog', '--description', 'x']
   ),
-  refusalCase(
-    'channels update --title on a notes nest refuses',
-    ['channels', 'update', 'notes/~host/blog', '--title', 'New Title'],
-    'Channel metadata updates are not supported for %notes channels'
-  ),
-  refusalCase(
-    'channels rename on a notes nest refuses',
-    ['channels', 'rename', 'notes/~host/blog', 'New Title'],
-    'Channel metadata updates are not supported for %notes channels'
-  ),
+  authRequiredCase('channels update --title on a notes nest reaches auth', [
+    'channels',
+    'update',
+    'notes/~host/blog',
+    '--title',
+    'New Title',
+  ]),
+  authRequiredCase('channels rename on a notes nest reaches auth', [
+    'channels',
+    'rename',
+    'notes/~host/blog',
+    'New Title',
+  ]),
 ];
 
 export const NOTES_CONTENT_UNSUPPORTED_CASES: CliCase[] = [
@@ -1638,7 +1665,93 @@ export const NOTES_CONTENT_UNSUPPORTED_CASES: CliCase[] = [
   ]),
 ];
 
+// Black-box credential-routing cases for `groups invite-link` — deterministic
+// and pre-network (the hermetic env carries no credentials at all).
+export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
+  authRequiredCase('groups invite-link reaches normal resolution', [
+    'groups',
+    'invite-link',
+    '~zod/test',
+  ]),
+  authRequiredCase('groups invite-link --self reaches normal resolution', [
+    'groups',
+    'invite-link',
+    '~zod/test',
+    '--self',
+  ]),
+  {
+    name: 'groups invite-link explicit --config beats owner routing',
+    args: ['--config', '/nonexistent', 'groups', 'invite-link', '~zod/test'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Ship config not found'],
+    stderrExcludes: ['Usage:', ...STACK_PATTERNS],
+  },
+];
+
+// `channels leave` / `channels join` pre-auth validation: only chat/heap nests
+// reach auth; diary, %notes, and other nests are refused locally.
+export const CHANNEL_MEMBERSHIP_CASES: CliCase[] = (
+  ['leave', 'join'] as const
+).flatMap((verb) => [
+  usageErrorCase(
+    `channels ${verb} missing nest`,
+    ['channels', verb],
+    `Usage: tlon channels ${verb}`
+  ),
+  helpCase(
+    `channels ${verb} --help`,
+    ['channels', verb, '--help'],
+    `Usage: tlon channels ${verb}`
+  ),
+  diaryRefusedCase(`channels ${verb} diary nest refuses`, [
+    'channels',
+    verb,
+    'diary/~host/blog',
+  ]),
+  refusalCase(
+    `channels ${verb} notes nest points at tlon notes`,
+    ['channels', verb, 'notes/~host/blog'],
+    notesChannelMembershipMessage('notes/~host/blog', verb)
+  ),
+  refusalCase(
+    `channels ${verb} buckets nest refuses`,
+    ['channels', verb, 'buckets/~zod/x'],
+    nonGroupChannelNestMessage('buckets/~zod/x', verb)
+  ),
+  refusalCase(
+    `channels ${verb} malformed nest refuses`,
+    ['channels', verb, 'chat/~zod'],
+    'Invalid nest format: chat/~zod'
+  ),
+  authRequiredCase(`channels ${verb} chat nest reaches auth`, [
+    'channels',
+    verb,
+    'chat/~zod/x',
+  ]),
+  authRequiredCase(`channels ${verb} heap nest reaches auth`, [
+    'channels',
+    verb,
+    'heap/~zod/x',
+  ]),
+]);
+
 export const CLI_MATRIX_CASES: CliCase[] = [
+  ...(['channels', 'groups'] as const).flatMap((family) => {
+    const operation = family === 'channels' ? 'create' : 'add-channel';
+    return [[], [operation]].map(
+      (suffix): CliCase => ({
+        name: `${family} ${suffix.join(' ')} help separates notes creation flags`,
+        args: [family, ...suffix, '--help'],
+        expectedExitCode: 0,
+        stdoutIncludes: [
+          '[--kind chat|heap] [--description "..."]',
+          '"Channel Name" --kind notes',
+        ],
+        stdoutExcludes: ['[--kind chat|heap|notes] [--description'],
+      })
+    );
+  }),
   TOP_LEVEL_HELP_CASE,
   UNKNOWN_TOP_LEVEL_CASE,
   ...FAMILY_HELP_CASES,
@@ -1654,6 +1767,8 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NOTES_CHANNEL_KIND_CASES,
   ...NOTES_CONTENT_UNSUPPORTED_CASES,
   ...DIARY_REMOVED_CASES,
+  ...INVITE_LINK_CREDENTIAL_CASES,
+  ...CHANNEL_MEMBERSHIP_CASES,
 ];
 
 export type HostileHelpCommand = {
@@ -1670,6 +1785,7 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
     name: family,
     args: [family, '--help'],
   })),
+  { name: 'groups invite-link', args: ['groups', 'invite-link', '--help'] },
   { name: 'posts react', args: ['posts', 'react', '--help'] },
   { name: 'posts send', args: ['posts', 'send', '--help'] },
   { name: 'posts reply', args: ['posts', 'reply', '--help'] },

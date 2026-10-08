@@ -5,14 +5,30 @@ import type {
 } from '@react-navigation/native';
 
 export type TopLevelTabParamList = {
-  Contacts: undefined;
+  // The bot tab renders a channel directly, so it shares the root stack's
+  // native header the way the other tabs do. Its params are always supplied
+  // through initialParams, so they are not optional.
+  BotChat: ChannelRouteParams;
   ChatList:
     | { previewGroupId: string; previewGroupFromInviteNotification?: boolean }
     | undefined;
   Activity: undefined;
+  Settings: undefined;
+};
+
+// Spelled out rather than read off `RootStackParamList['Channel']`: the root
+// stack reaches this list through MainTabs, and the round trip would make the
+// alias circular.
+export type ChannelRouteParams = {
+  channelId: string;
+  disableTransition?: boolean;
+  groupId?: string;
+  selectedPostId?: string | null;
+  startDraft?: boolean;
 };
 
 export type RootStackParamList = {
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
   OnboardingStartup: {
     channelId: string;
@@ -20,7 +36,7 @@ export type RootStackParamList = {
   };
   VerifierStub: undefined;
   Empty: undefined;
-  Settings: undefined;
+  Contacts: undefined;
   DM: {
     channelId: string;
     selectedPostId?: string | null;
@@ -31,13 +47,7 @@ export type RootStackParamList = {
     selectedPostId?: string | null;
     startDraft?: boolean;
   };
-  Channel: {
-    channelId: string;
-    disableTransition?: boolean;
-    groupId?: string;
-    selectedPostId?: string | null;
-    startDraft?: boolean;
-  };
+  Channel: ChannelRouteParams;
   GroupChannels: {
     groupId: string;
   };
@@ -80,6 +90,21 @@ export type RootStackParamList = {
     channelId: string;
     groupId?: string;
   };
+  // A Bucket's folders and files are pushed, as a notebook's are, so that the
+  // stack's own back -- the edge swipe, the caret, Android's back -- climbs
+  // one level at a time. Held in the pane instead, the only route behind them
+  // was the one the Bucket was opened from, so back left the Bucket rather
+  // than the folder.
+  BucketFolder: {
+    channelId: string;
+    folderId: number;
+    groupId?: string;
+  };
+  BucketFile: {
+    channelId: string;
+    entryId: number;
+    groupId?: string;
+  };
   MediaViewer: {
     mediaType: 'image' | 'video';
     uri?: string;
@@ -107,6 +132,11 @@ export type RootStackParamList = {
     channelLabel: string;
     groupJoined: boolean;
   };
+  BotPermissionsSettings: undefined;
+  BotIdentitySettings: undefined;
+  BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
+  BotModels: undefined;
+  BotConnections: undefined;
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -163,8 +193,21 @@ export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
-} & Pick<TopLevelTabParamList, 'Activity' | 'Contacts'> &
-  Pick<RootStackParamList, 'Settings'>;
+} & Pick<RootStackParamList, 'Contacts'> &
+  Pick<TopLevelTabParamList, 'Activity' | 'Settings'>;
+
+export type BrowserCredentialHandoffParams = {
+  handoffId: string;
+};
+
+export type MobileBasePathStackParamList = {
+  Root: NavigatorScreenParams<RootStackParamList>;
+};
+
+export type DesktopBasePathStackParamList = {
+  Root: NavigatorScreenParams<RootDrawerParamList>;
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+};
 
 // hack: adding the true contacts types causes lots of tsc failures that need
 // resolving. Added to support navigating deeply within the contacts drawer
@@ -172,8 +215,7 @@ export type ActualRootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
   Contacts: NavigatorScreenParams<ProfileDrawerParamList>;
-} & Pick<TopLevelTabParamList, 'Activity'> &
-  Pick<RootStackParamList, 'Settings'>;
+} & Pick<TopLevelTabParamList, 'Activity' | 'Settings'>;
 
 export type CombinedParamList = RootStackParamList & RootDrawerParamList;
 
@@ -191,7 +233,7 @@ export type HomeDrawerParamList = Pick<TopLevelTabParamList, 'ChatList'> &
     ChatVolume: RootStackParamList['ChatVolume'];
   };
 
-export type ProfileDrawerParamList = Pick<TopLevelTabParamList, 'Contacts'> &
+export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
   Pick<
     RootStackParamList,
     'AddContacts' | 'UserProfile' | 'EditProfile' | 'Attestation'
@@ -219,6 +261,11 @@ export type SettingsDrawerParamList = Pick<
   | 'BotShipListSettings'
   | 'BotChannelRulesSettings'
   | 'BotChannelRuleSettings'
+  | 'BotPermissionsSettings'
+  | 'BotIdentitySettings'
+  | 'BotProviderListSettings'
+  | 'BotModels'
+  | 'BotConnections'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
@@ -230,12 +277,14 @@ export type SettingsDrawerParamList = Pick<
 };
 
 // ChannelScreen is registered under several route names: the root stack's
-// Channel/DM/GroupDM and the desktop channel stack's ChannelRoot.
+// Channel/DM/GroupDM, the desktop channel stack's ChannelRoot, and the bot
+// tab.
 export type ChannelScreenParamList = {
   Channel: RootStackParamList['Channel'];
   DM: RootStackParamList['Channel'];
   GroupDM: RootStackParamList['Channel'];
   ChannelRoot: RootStackParamList['Channel'];
+  BotChat: RootStackParamList['Channel'];
 };
 
 export type ChannelStackParamList = {
@@ -246,6 +295,8 @@ export type ChannelStackParamList = {
   NotesDetail: RootStackParamList['NotesDetail'];
   NotesFolder: RootStackParamList['NotesFolder'];
   NotesSearch: RootStackParamList['NotesSearch'];
+  BucketFolder: RootStackParamList['BucketFolder'];
+  BucketFile: RootStackParamList['BucketFile'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
@@ -261,6 +312,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'NotesDetail'
   | 'NotesFolder'
   | 'NotesSearch'
+  | 'BucketFolder'
+  | 'BucketFile'
   | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'
@@ -280,7 +333,7 @@ export type RoleSelectionReturn =
       returnParams: {
         groupId: string;
         channelTitle: string;
-        channelType: 'chat' | 'gallery' | 'notes';
+        channelType: 'chat' | 'gallery' | 'notes' | 'buckets';
       };
     }
   | {
@@ -361,7 +414,7 @@ export type GroupSettingsStackParamList = {
   CreateChannelPermissions: {
     groupId: string;
     channelTitle: string;
-    channelType: 'chat' | 'gallery' | 'notes';
+    channelType: 'chat' | 'gallery' | 'notes' | 'buckets';
     createdRoleId?: string;
     selectedRoleIds?: string[];
   };

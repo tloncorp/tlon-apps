@@ -9,10 +9,10 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
-## expo-notifications@57.0.6
+## expo-notifications@57.0.21
 
 Local patch:
-`patches/expo-notifications@57.0.6.patch`
+`patches/expo-notifications@57.0.21.patch`
 
 Why:
 On Android cold starts, expo-notifications queues the notification response
@@ -49,6 +49,10 @@ Local patches:
 - `patches/@react-navigation__bottom-tabs@7.18.14.patch`
 - `patches/react-native-screens@4.25.2.patch`
 
+The react-native-screens patch carries three independent fixes.
+
+### 1. Full-color Android tab icons
+
 Why:
 Android native tabs tint every image icon with the navigation bar's active or
 inactive color. That is correct for our monochrome Home and Activity assets,
@@ -78,78 +82,135 @@ Removal:
 Remove both patches together once React Navigation and react-native-screens
 ship Android support for untinted native-tab image icons.
 
-## @gorhom/bottom-sheet@5.2.14
-
-Local patch:
-`patches/@gorhom__bottom-sheet@5.2.14.patch`
-
-This patch carries two independent fixes.
-
-### 1. First-open layout of flex:1 sheet content
+### 2. Android header children retained during screen removal
 
 Why:
-On the first open of a bottom sheet whose content is a `flex:1` ScrollView/View
-with content larger than the eventual viewport (a long scrollable list with a
-footer/submit button below it), the footer ends up positioned past the bottom
-of the visible sheet. The first frame of `contentMaskContainerAnimatedStyle`
-returns `{}` while the container height is still being measured, so the
-flex:1 child is laid out at intrinsic content size; once the real height
-arrives a frame later, Yoga keeps the stale flex-basis from the unconstrained
-pass and the child overflows.
-
-The patch returns `{ height: 0 }` on the initial frame so children never get
-a chance to lay out at intrinsic size, then snaps the height directly
-(without going through `withTiming`) on the first real layout pass to avoid
-animating the height up from 0. Subsequent transitions use the normal
-animated path.
-
-This is a workaround for an underlying Yoga bug that affects any flex tree
-with the same shape, not just gorhom — see facebook/yoga#1552. The proper RN
-fix (enabling Yoga's `WebFlexBasis` flag) requires building React Native
-from source, which we currently don't do; the writeup is in the closed
-draft PR linked below.
-
-Background and reproduction details: PR #5790 (closed, kept for reference).
-
-Validation:
-Open any sheet whose content is a `flex:1` `ScrollView` with content larger
-than the viewport plus a footer (e.g. CreateChatSheet). The footer should be
-visible at the bottom of the sheet on first open.
-
-Removal:
-Drop this hunk once we either move to building React Native from source
-(so we can flip the Yoga `WebFlexBasis` flag and fix the bug at the
-layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
-workaround upstream.
-
-### 2. Modal dismiss() bricks the modal when already dismissed
-
-Why:
-`BottomSheetModal.dismiss()` called while the modal's status is `INITIAL`
-(never presented, or already fully dismissed and reset) falls through the
-already-closed early-exit, permanently sets the internal status to
-`DISMISSING`, and every later `present()` silently no-ops. Our
-`BottomSheetWrapper` calls `dismiss()` whenever `open` flips false — which
-is always the case right after a user-initiated close (backdrop tap / swipe
-down) has already dismissed the modal internally — so modal sheets (e.g. the
-personal invite sheet) could only be opened once per mount.
+During an Android screen removal transition, `startViewTransition` keeps a
+removed header child attached to its toolbar until the matching
+`endViewTransition` call. The existing cleanup walks the current child tree,
+so it misses children already removed from that tree. A concurrent header
+update can then try to add the retained child again and crash with `The
+specified child already has a parent` in `ScreenStackHeaderConfig.onUpdate`.
 
 What it does:
-Adds `MODAL_STATUS.INITIAL` to the already-closed early-exit in
-`handleDismiss` (`src/components/bottomSheetModal/BottomSheetModal.tsx`),
-making `dismiss()` idempotent.
+Records every parent-child transition pair when removal starts and finishes
+those pairs in reverse order, including children no longer present in the
+current view tree. Descendant transitions finish before the fragment root is
+detached. Header rebuilds are also skipped while the owning screen, or an
+ancestor screen, is being removed.
 
 Upstream:
-- issue: `gorhom/react-native-bottom-sheet#2669`
-- fix submitted: `gorhom/react-native-bottom-sheet#2711`
+- issue: [software-mansion/react-native-screens#3249](https://github.com/software-mansion/react-native-screens/issues/3249)
+- candidate fix: [software-mansion/react-native-screens#3777](https://github.com/software-mansion/react-native-screens/pull/3777)
+- Linear: `TLON-6547`
 
 Validation:
-- Home header → AddPerson opens the invite sheet; close it via the backdrop;
-  tap AddPerson again — the sheet must open again (repeat a few times).
+- Build and launch Android `productionDebug` on a physical device.
+- Start a removal transition for a screen with a custom header child, remove
+  that child from the toolbar, and finish the transition. The child's parent
+  must be null and adding it back to the toolbar must not throw.
+- The TLON-6547 device probe reproduced the exception before the patch and
+  passed after it on a Pixel 7a running Android 17.
 
 Removal:
-Drop this hunk once `gorhom/react-native-bottom-sheet#2711` (or an
-equivalent fix) ships in a release we use.
+Drop this hunk once the pinned react-native-screens release includes the
+transition cleanup and removal guard from #3777 or an equivalent upstream fix.
+
+### 3. Tab bar badges as a dot beneath the icon
+
+Why:
+The Bot and Activity tabs mark unread with a blank badge (`tabBarBadge: ' '`).
+Natively that is a large pill over the icon's top-end corner: UIKit's empty
+badge on iOS, a Material text badge on Android. The design is a small round
+dot beneath the icon, like the web nav bar's, without moving the icons.
+
+What it does:
+- Android: a blank badge becomes Material's text-less dot (`m3_badge_size`,
+  6dp), offset to sit centred 2dp beneath the icon. The offsets come from the
+  bar's `itemIconSize`, so the icon view is untouched.
+- iOS 26 and later: UIKit pads a badge's text by a fixed amount, so the badge
+  cannot shrink below about 8pt. A blank badge instead draws a U+25CF glyph
+  in the badge colour, at 8pt on a clear badge. That gives a 6pt dot, and a
+  `badgePositionAdjustment` centres it 2pt beneath the 24pt icon. The tab bar
+  draws every badge with the selected item's appearance, so the style goes on
+  every item. It applies only while every badge on the bar is blank: a bar
+  that also shows a text or number badge keeps UIKit's pills throughout.
+- iOS before 26 is unchanged, because its badge anchoring differs and it could
+  not be verified here.
+
+The iOS offset was measured on iOS 26.5, where a positive horizontal
+adjustment moves the badge towards the icon. It assumes the 24pt icons in
+`packages/app/navigation/assets`. In the bar's minimised state, UIKit anchors
+the badge to a shorter button, so the dot sits about 3pt lower there.
+
+Upstream:
+- react-native-screens 4.25.2 has no badge size, shape or position options
+  for native tabs.
+- Linear: `TLON-6649`
+
+Validation:
+- Rebuild iOS and Android so the native patch is compiled in.
+- Light both badges (an unread bot DM, unseen activity) and select a third
+  tab. Each dot should be blue, round, about 6pt/dp, and centred beneath its
+  icon. Select a badged tab: its dot keeps the same colour and position.
+- The icons must not move: compare the tab bar against a build without the
+  patch.
+- Give one tab a numeric badge. On iOS 26 every badge on the bar returns to
+  UIKit's pill.
+
+Removal:
+Drop these hunks if react-native-screens gains native badge styling that can
+draw a small dot beneath the icon, or if the tab bar stops using blank badges.
+
+## @expo/ui@57.0.21
+
+Local patch:
+`patches/@expo__ui@57.0.21.patch`
+
+Why:
+The shared mobile sheets present through Expo UI's `community/bottom-sheet`
+adapter. Stock Expo UI 57 has no close control on its iOS sheet, reports
+`onDismiss` on iOS in the same call as `onClose`, expands every single Android
+snap point to full height, ignores `enableContentPanningGesture`, and unmounts
+an Android sheet closed through its `index` prop without waiting for the hide
+animation.
+
+Only the close control is native code (`ios/BottomSheetView.swift`). The rest
+is JavaScript in `src/community/bottom-sheet`.
+
+What it does:
+- iOS: adds a `showCloseButton` prop that draws a native close control in the
+  sheet's top-trailing corner and hides the drag indicator. Dismissible generic
+  content reserves the control's header area inside its measured height so
+  inputs cannot sit beneath its hit target; non-dismissible sheets omit it.
+- iOS: `onClose` and `onChange(-1)` fire when the sheet starts closing, and
+  `onDismiss` fires from SwiftUI's own `onDismiss`, after the transition ends.
+  Follow-up presentations wait for `onDismiss`.
+- Android: sizes a single percentage or point snap to its requested total
+  height, including Material's drag-handle area.
+- Android: `enableContentPanningGesture={false}` disables sheet gestures so
+  nested content owns vertical pans. Back and scrim still dismiss.
+- Android: a close driven by `index` or `close()` awaits Compose's `hide()`
+  before unmounting, then fires `onDismiss`. A remount key rejects callbacks
+  from an earlier presentation.
+
+Validation:
+- Build the iOS preview app from source.
+- Open Chat Options and a generic sheet (for example the attachment sheet).
+  Confirm the close control aligns with the header, and that each sheet can be
+  dismissed and reopened repeatedly in light and dark mode.
+- From the attachment sheet, pick "Photo Library". The picker must appear after
+  the sheet has gone.
+- Build the Android preview app, open sheets with 60%, 70%, 80%, 85% and 90%
+  snap points, and confirm each opens at the requested height rather than full
+  screen. Close one with the back button and confirm it animates out.
+
+Removal:
+Drop the patch once Expo UI exposes sheet chrome configuration, a dismissal
+callback separate from `onClose`, single-snap Android sizing and
+`enableContentPanningGesture` upstream. Expo UI 57.0.21 already defers its iOS
+close callbacks to native dismissal, but fires them together, so the shared
+dismissal hook cannot tell "closing" from "dismissed" without this patch.
 
 ## @10play/tentap-editor@0.5.21
 
@@ -588,179 +649,6 @@ Drop this patch once we pin a `react-native-worklets` release that includes
 [#10278](https://github.com/software-mansion/react-native-reanimated/pull/10278)
 (0.13.0 or later) together with the Reanimated release that pins it, and confirm
 the Crashlytics issue stays closed.
-
-## expo-modules-core@57.0.6
-
-Local patch:
-`patches/expo-modules-core@57.0.6.patch`
-
-Why:
-Android release builds crash at launch with a `ClassNotFoundException` inside
-`AppContextActivityResultRegistry.register$lambda$4` whenever an
-activity-result launch (image picker, document picker, file picker) was
-interrupted by the OS killing our Activity.
-
-`AppContextActivityResultRegistry.persistInstanceState` marshals its in-flight
-state — including the `androidx.activity.result.ActivityResult` pending
-result — into a base64 `Bundle` in `SharedPreferences` on `onHostDestroy`.
-`DataPersistor.toBundle()` read that `Bundle` back with `readBundle(null)`,
-which leaves the `Bundle`'s class loader at the framework default: the boot
-class loader, which cannot resolve *any* class from the app's dex. The
-`Bundle` unparcels lazily, so the failure does not surface at the read. It
-surfaces at the first strict read of a `Parcelable`, which is the pending-result
-lookup in the `ON_START` observer that `register` installs:
-
-```kotlin
-val activityResult = pendingResults.safeGetParcelable<ActivityResult>(key)
-```
-
-`expo-file-system` registers its picker contract at module initialization, so
-every launch of our app reaches that observer — a persisted pending result
-therefore crashes the next cold start rather than just dropping a picker
-result. R8 is on for release builds
-(`android.enableProguardInReleaseBuilds=true`), so Crashlytics reports the
-obfuscated name (`g.a`) instead of `androidx.activity.result.ActivityResult`.
-
-The record expires after 5 minutes and `DataPersistor.retrieveData()` clears
-the store as it reads, so this is one crash per interrupted launch rather than
-a boot loop — which is why it reads as a random launch crash. Measured on a
-Pixel 7a (Android 17, API 37) against the shipped `io.tlon.groups.preview`
-9.4.3: one `FATAL EXCEPTION`, then three clean cold starts. Upstream reports
-the record instead being renewed on every `onHostDestroy` and never healing;
-we did not see that, because the crash kills the process before any
-`onHostDestroy` can re-persist it.
-
-Crashlytics `64ea60afab69dc0c718aeada5d06e6c7`, first seen on 9.5.1 — exception
-and blamed frame (`register$lambda$4` is that `LifecycleEventObserver`, the only
-non-inline lambda in `register`):
-
-```
-java.lang.ClassNotFoundException: g.a
-  expo.modules.kotlin.activityresult.AppContextActivityResultRegistry.register$lambda$4
-```
-
-Reproduced on-device (see Validation below). The obfuscated stack matches
-upstream's unobfuscated one frame for frame, and shows the lazy-value path that
-defers the failure from the read to the `getParcelable`:
-
-```
-android.os.BadParcelableException: ClassNotFoundException when unmarshalling: g.a
-  at android.os.Parcel$LazyValue.apply(Parcel.java:4894)
-  at android.os.BaseBundle.unwrapLazyValueFromMapLocked(BaseBundle.java:450)
-  at android.os.Bundle.getParcelable(Bundle.java:1121)
-  at Kb.i.o(...)                    <- register$lambda$4
-  at androidx.lifecycle.t.a(...)    <- LifecycleRegistry.addObserver
-  at Kb.i.n(...)                    <- register
-  at Kb.a$b.a(...)                  <- ActivityResultsManager.registerForActivityResult
-  Suppressed: [CoroutineName(expo.modules.MainQueue), ...]
-Caused by: java.lang.ClassNotFoundException: g.a
-  at java.lang.Class.forName(Class.java:591)
-  at android.os.Parcel.readParcelableCreatorInternal(Parcel.java:5407)
-```
-
-What it does:
-Carries upstream commit `ba1b90db769f` verbatim (minus its CHANGELOG entry):
-passes the `expo-modules-core` class loader to `readBundle` in
-`DataPersistor.toBundle()`, and drops the `@Suppress("ParcelClassLoader")` that
-hid the lint for it. Nested `Bundle`s inherit the parent's class loader while
-they unparcel, so setting it once at the read covers every `retrieve*` method.
-The persisted bytes, the keys and the write path are untouched.
-
-iOS is unaffected: `DataPersistor` and the whole
-`expo.modules.kotlin.activityresult` package are Android-only.
-
-No `buildFromSource` entry is needed: `expo-modules-core` declares no
-`android.publication` in its `expo-module.config.json`, so Expo autolinking
-always compiles it from `node_modules` sources rather than resolving a
-prebuilt AAR. (This is why `expo-notifications` and `expo-background-task`,
-which do publish prebuilt AARs, need their `buildFromSource` entries and this
-patch does not.)
-
-Upstream:
-- repo: `expo/expo`
-- issue: [#49782](https://github.com/expo/expo/issues/49782); earlier report
-  of the same crash: [#26446](https://github.com/expo/expo/issues/26446)
-  (closed as stale, never fixed)
-- fix: [#49836](https://github.com/expo/expo/pull/49836), merged 2026-09-08 as
-  `ba1b90db769f`
-- as of September 8, 2026 the fix is on `main` only. `origin/sdk-57` still
-  carries `readBundle(null)`, so no published `expo-modules-core@57.0.x`
-  includes it and bumping the pin does not help.
-- Linear: `TLON-6495`
-
-Validation done here:
-- `corepack pnpm install --frozen-lockfile` applies the patch and its lockfile
-  hash is current.
-- `./gradlew :expo-modules-core:compileReleaseKotlin` succeeds, and
-  `javap -c` on the resulting `DataPersistorKt.class` shows
-  `Parcel.readBundle(ClassLoader)` fed by
-  `DataPersistor.class.getClassLoader()`. Dropping the `@Suppress` raises no
-  lint in a consumer build.
-- **A/B on a device, patched vs unpatched `previewRelease`.** Two APKs built
-  from this tree, differing only in this patch. They are byte-identical apart
-  from one instruction in the obfuscated `toBundle` (`Kb.l.d`), at the same
-  address in the same dex:
-
-  | APK | `toBundle` argument |
-  | --- | --- |
-  | patched | `const-class LKb/k;` -> `Class.getClassLoader()` -> `readBundle(v3)` |
-  | unpatched | `const/4 v3, #0` -> `readBundle(v3)` |
-
-  Same Pixel 7a, same signed-in account, same steps (below), swapped in place
-  with `adb install -r` so the session carried across:
-
-  | APK | Cold start into a poisoned record |
-  | --- | --- |
-  | patched | starts normally; 0 `FATAL EXCEPTION`, 0 `ClassNotFoundException` |
-  | unpatched | `FATAL EXCEPTION` / `BadParcelableException: ClassNotFoundException when unmarshalling: g.a`; app never reaches the foreground |
-
-On-device repro (Pixel 7a, Android 17 / API 37). Two things make it fiddly:
-
-- `settings put global always_finish_activities 1` is **not** enough — the
-  framework only picks that value up at boot or when the Developer options
-  switch is tapped. Cycle the switch (off, then on) and confirm with
-  `dumpsys activity activities`: a backgrounded Activity must report
-  `state=DESTROYED`, not `state=STOPPED`.
-- Android 13+'s system Photo Picker is translucent and launches **into the
-  caller's own task** (`numActivities=2`, `isTopActivityTransparent=true`), so
-  our Activity stays visible and is never destroyed behind it. Pressing Home
-  while the picker is open is what backgrounds the whole task and destroys us.
-
-Full sequence, which poisons the record and then crashes on the next cold
-start:
-
-1. Cycle "Don't keep activities" on.
-2. Open a chat, `+` -> Media Library.
-3. Press Home while the picker is open. Our Activity is destroyed while the
-   launch is in flight: `persistInstanceState` writes the state, and the
-   observer's `ON_DESTROY` branch calls `unregister(key)`, which drops the main
-   callback.
-4. Reopen the app. The picker's result now dispatches with no main callback and
-   no lifecycle container, so `doDispatch` falls to case 3 and puts an
-   `ActivityResult` into `pendingResults`. Re-registration uses fresh
-   `AppContext_rq#N` keys, so nothing reads it yet.
-5. Press Home again. `onHostDestroy` persists the poisoned `pendingResults`.
-6. `am force-stop`, then launch. The new process restarts `nextLocalRequestCode`
-   at 0, so re-registration reproduces the persisted key, the `ON_START`
-   observer reads it, and the app dies with the stack above.
-
-Still to validate:
-- Watch Crashlytics issue `64ea60afab69dc0c718aeada5d06e6c7` on the release
-  after this lands.
-
-Removal:
-Drop this patch once we pin an `expo-modules-core` release that includes
-[#49836](https://github.com/expo/expo/pull/49836), and confirm the Crashlytics
-issue stays closed.
-
-Known limit (not fixed here):
-`restoreInstanceState` still propagates any value it cannot read, so a record
-that is unreadable for some *other* reason stays fatal. The realistic case is
-an app update landing between `persistInstanceState` and the restore, inside
-the 5-minute window: the persisted class names are R8-obfuscated and the
-mapping is per-build. Making the restore path non-fatal is a separate change
-that upstream deliberately left to a maintainer
-([option 3](https://github.com/expo/expo/pull/49836) in the PR description).
 
 ## @tamagui/build@2.4.2
 

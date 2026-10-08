@@ -155,8 +155,10 @@ class NotificationService: UNNotificationServiceExtension {
           do {
               try await ChangesLoader.sync(notificationReceivedAt: Date())
           } catch {
-              // TODO: we should be logging this via telemetry
-              print("[NotificationService] Failed to sync changes: \(error)")
+              await NotificationLogger.logError(.backgroundSyncFailed(
+                  uid: request.content.userInfo["uid"] as? String ?? "unknown",
+                  underlyingError: error
+              ))
           }
       }
 

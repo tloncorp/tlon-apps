@@ -2,6 +2,7 @@ import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import type { Foreigns } from '../urbit/foreigns.js';
 import { formatChangesDate } from './utils.js';
+import { stringList } from './group-channels.js';
 
 export async function fetchGroupChanges(
   api: { scry: (path: string) => Promise<unknown> },
@@ -27,6 +28,12 @@ export interface InitData {
   channelNames: Map<string, string>;
   /** Map from group flag to human-readable group title */
   groupNames: Map<string, string>;
+  /**
+   * Per group: the bot's roles (its seat's `roles`) and the admin roles
+   * (`admins`), for the channel readability filter. Empty unless `botShip`
+   * was given, and absent for a group where the bot has no seat.
+   */
+  groupRoles: Map<string, { botSects: string[]; bloc: string[] }>;
   foreigns: Foreigns | null;
 }
 
@@ -43,7 +50,7 @@ function extractTitle(value: unknown): string | undefined {
 }
 
 /**
- * Fetch groups-ui init data, returning channels and foreigns.
+ * Fetch groups-ui init data, returning channels, per-group roles and foreigns.
  * This is a single scry that provides both channel discovery and pending invites.
  */
 export async function fetchInitData(
@@ -54,7 +61,7 @@ export async function fetchInitData(
     ) => Promise<unknown>;
   },
   runtime: RuntimeEnv,
-  options?: { signal?: AbortSignal }
+  options?: { signal?: AbortSignal; botShip?: string }
 ): Promise<InitData> {
   try {
     const initData = (await api.scry('/groups-ui/v7/init.json', {
@@ -65,6 +72,10 @@ export async function fetchInitData(
     const channelToGroup = new Map<string, string>();
     const channelNames = new Map<string, string>();
     const groupNames = new Map<string, string>();
+    const groupRoles = new Map<
+      string,
+      { botSects: string[]; bloc: string[] }
+    >();
     if (initData?.groups) {
       for (const [groupFlag, groupData] of Object.entries(
         initData.groups as Record<string, any>
@@ -74,6 +85,15 @@ export async function fetchInitData(
           const title = extractTitle(groupData);
           if (title) {
             groupNames.set(groupFlag, title);
+          }
+          if (options?.botShip) {
+            const seat = groupData.seats?.[options.botShip];
+            if (seat && typeof seat === 'object') {
+              groupRoles.set(groupFlag, {
+                botSects: stringList(seat.roles),
+                bloc: stringList(groupData.admins),
+              });
+            }
           }
           if (groupData.channels) {
             for (const [channelNest, channelData] of Object.entries(
@@ -99,7 +119,14 @@ export async function fetchInitData(
 
     const foreigns = (initData?.foreigns as Foreigns) || null;
 
-    return { channels, channelToGroup, channelNames, groupNames, foreigns };
+    return {
+      channels,
+      channelToGroup,
+      channelNames,
+      groupNames,
+      groupRoles,
+      foreigns,
+    };
   } catch (error: any) {
     if (
       options?.signal?.aborted ||
@@ -115,6 +142,7 @@ export async function fetchInitData(
       channelToGroup: new Map(),
       channelNames: new Map(),
       groupNames: new Map(),
+      groupRoles: new Map(),
       foreigns: null,
     };
   }
