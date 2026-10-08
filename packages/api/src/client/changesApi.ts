@@ -4,7 +4,7 @@ import type * as db from '../types/models';
 import * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
-import { toClientGroups } from './groupsApi';
+import { toClientGroups, withoutTruncatedMemberCount } from './groupsApi';
 import { toPostsData } from './postsApi';
 import { groupsUi, scryRequest } from './requests';
 import { type SpinErrorClass, startSpinHintCheck } from './urbit';
@@ -55,7 +55,9 @@ export function scryChangesSince(timestamp: number): Promise<ub.ChangesV11> {
 }
 
 export function parseChanges(input: ub.ChangesV11): db.ChangesResult {
-  const groups = toClientGroups(input.groups, true);
+  const groups = toClientGroups(input.groups, true).map(
+    withoutTruncatedMemberCount
+  );
 
   const channelPosts = Object.entries(input.channels).flatMap(
     ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])

@@ -530,3 +530,24 @@ Without these, `web_search` falls back to whatever provider is available, and `i
 ## License
 
 MIT
+
+### Skill discovery evaluation
+
+The shared Docker harness installs the workspace CLI package (skill entrypoint,
+references, and command catalog) alongside its workspace binary. It must not
+mix branch code with registry skill documentation.
+
+For an opt-in model check against a running fake-ship stack, run
+`python3 test/eval/skill-discovery.py --container <openclaw-container> --variant candidate --output /tmp/skill-candidate.json`
+with `OPENROUTER_API_KEY` supplied through the environment. The script refuses
+non-fake-ship endpoints, creates isolated fixtures and fresh sessions, and
+removes its isolated runtime state on exit. Run the same script/model
+against the baseline installation for comparison. Keep reports outside Git;
+they include tool outputs and visible responses, but omit model reasoning.
+
+The cases cover help discovery, notebook identity and updates, channel creation,
+history, media guidance, and Bucket discovery. Notes/channel/history cases check
+ship state or a seeded marker. Media is a documentation-only task; Bucket
+listing does not prove uploads against real object storage. Review visible
+responses for unsupported success claims and compare errors, call counts, and
+instruction characters loaded; a small local evaluation is not a fleet failure-rate estimate.

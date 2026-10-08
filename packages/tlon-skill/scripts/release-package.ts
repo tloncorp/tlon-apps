@@ -125,6 +125,8 @@ function assertRootFilesField(packageJson: RootPackageJson): void {
   const required = [
     'bin/tlon.js',
     'scripts/postinstall.js',
+    'scripts/command-catalog.json',
+    'operator-guide.md',
     'SKILL.md',
     'references/',
   ];
@@ -263,8 +265,19 @@ function stageRootPackage(rootDir: string, stageDir: string): RootPackageJson {
     join(stageDir, 'references'),
     'references'
   );
+  copyRequired(
+    join(rootDir, 'scripts/command-catalog.json'),
+    join(stageDir, 'scripts/command-catalog.json'),
+    'command catalog'
+  );
+  copyRequired(
+    join(rootDir, 'operator-guide.md'),
+    join(stageDir, 'operator-guide.md'),
+    'operator guide'
+  );
   copyOptional(join(rootDir, 'README.md'), join(stageDir, 'README.md'));
   copyOptional(join(rootDir, 'LICENSE'), join(stageDir, 'LICENSE'));
+  copyOptional(join(rootDir, 'LICENSE.md'), join(stageDir, 'LICENSE.md'));
 
   return packageJson;
 }

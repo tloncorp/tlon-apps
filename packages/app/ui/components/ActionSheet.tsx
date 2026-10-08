@@ -119,6 +119,12 @@ type ActionSheetProps = {
   trigger?: ReactNode;
   mode?: AdaptiveMode;
   dialogContentProps?: ComponentProps<typeof Dialog.Content>;
+  /**
+   * Dialog mode scrolls its whole body by default. Set to false for content
+   * that fills the dialog and scrolls internally, so a footer below the list
+   * stays pinned to the bottom of the dialog.
+   */
+  dialogScrollEnabled?: boolean;
   closeButton?: boolean;
   footerComponent?: React.FC<any>;
   /** Render this sheet's content with Expo UI's native platform components. */
@@ -174,6 +180,7 @@ const ActionSheetComponent = ({
   mode: forcedMode,
   children,
   dialogContentProps,
+  dialogScrollEnabled = true,
   closeButton,
   footerComponent,
   nativeExpoUI = false,
@@ -318,11 +325,19 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            <ScrollView flex={1} showsVerticalScrollIndicator={true}>
-              <ActionSheetContext.Provider value={actionSheetContextValue}>
-                {children}
-              </ActionSheetContext.Provider>
-            </ScrollView>
+            {dialogScrollEnabled ? (
+              <ScrollView flex={1} showsVerticalScrollIndicator={true}>
+                <ActionSheetContext.Provider value={actionSheetContextValue}>
+                  {children}
+                </ActionSheetContext.Provider>
+              </ScrollView>
+            ) : (
+              <YStack flex={1}>
+                <ActionSheetContext.Provider value={actionSheetContextValue}>
+                  {children}
+                </ActionSheetContext.Provider>
+              </YStack>
+            )}
             {footerComponent && footerComponent({})}
           </Dialog.Content>
         </Dialog.Portal>

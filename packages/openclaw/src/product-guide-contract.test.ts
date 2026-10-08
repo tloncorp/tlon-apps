@@ -27,4 +27,10 @@ describe('Tlon product guide contracts', () => {
       "don't substitute generic OpenClaw or OpenRouter billing advice"
     );
   });
+
+  it('describes the Just me filter as conditional', () => {
+    expect(guide).toContain(
+      '`Just me` only appears when you have a workspace like that'
+    );
+  });
 });

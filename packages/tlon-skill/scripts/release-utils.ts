@@ -267,8 +267,30 @@ export function listTarballFiles(tarballPath: string, cwd: string): string[] {
 
 export function assertRootTarball(tarballPath: string, cwd: string): void {
   const files = listTarballFiles(tarballPath, cwd);
+  for (const required of [
+    'SKILL.md',
+    'scripts/command-catalog.json',
+    'operator-guide.md',
+  ]) {
+    if (!files.includes(required))
+      fail(`Root tarball is missing ${required}: ${tarballPath}`);
+  }
   if (!files.includes('bin/tlon.js')) {
     fail(`Root tarball is missing bin/tlon.js: ${tarballPath}`);
+  }
+  const readPacked = (file: string) =>
+    runCommand('tar', ['-xOf', tarballPath, `package/${file}`], {
+      cwd,
+      timeoutMs: 30_000,
+    }).stdout;
+  const catalog = JSON.parse(
+    readPacked('scripts/command-catalog.json')
+  ) as Record<string, { reference: string }>;
+  const entry = readPacked('SKILL.md');
+  for (const { reference } of Object.values(catalog)) {
+    if (!files.includes(reference) || !entry.includes(`(${reference})`)) {
+      fail(`Packed skill does not route to ${reference}`);
+    }
   }
   if (files.includes('bin/tlon')) {
     fail(`Root tarball must not contain bin/tlon: ${tarballPath}`);
@@ -279,9 +301,12 @@ export function assertRootTarball(tarballPath: string, cwd: string): void {
       file === 'package.json' ||
       file === 'README.md' ||
       file === 'LICENSE' ||
+      file === 'LICENSE.md' ||
       file === 'SKILL.md' ||
       file === 'bin/tlon.js' ||
-      file === 'scripts/postinstall.js'
+      file === 'scripts/postinstall.js' ||
+      file === 'scripts/command-catalog.json' ||
+      file === 'operator-guide.md'
     ) {
       return false;
     }

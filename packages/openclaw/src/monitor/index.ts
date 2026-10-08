@@ -56,6 +56,11 @@ import {
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import { recordTlonMessageJourneyEvent } from '../message-journey.js';
 import {
+  type PromptSync,
+  createPromptSync,
+  shouldRunPromptSync,
+} from '../prompt-sync.js';
+import {
   type PendingNudge,
   clearPendingNudge,
   getPendingNudge,
@@ -86,7 +91,10 @@ import {
   STEWARD_AUTOMATION_FINALIZE_PATH,
   StewardAutomationEditProcessor,
 } from '../steward-automation-edit.js';
-import { isStewardAutomationProjectionEligible } from '../steward-automation-reconciliation.js';
+import {
+  getStewardAutomationReconciler,
+  isStewardAutomationProjectionEligible,
+} from '../steward-automation-reconciliation.js';
 import {
   canonicalizeNest,
   normalizeShip,
@@ -634,6 +642,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   };
 
   let api: UrbitSSEClient | null = null;
+  let promptSync: PromptSync | null = null;
   let clearAgentOnboardingRetries: (() => void) | null = null;
   // The groupChannels journal and the settings refresh it depends on live at
   // function scope: the SSE client's reconnect hook (built in the first try
@@ -776,6 +785,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // publish, or a key cleared while this process stayed alive, would
           // otherwise persist until a restart. Fire-and-forget and non-fatal.
           void publishBotInfoNow('reconnect');
+          // A reconnect may follow a failed initial project or a ship-side
+          // state reset. Re-assert the workspace projection; steward retains
+          // pending edits and will replay them through the harness feed.
+          void promptSync?.project('reconnect');
           if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
             capturePluginError(
               'sse_stream',
@@ -5182,6 +5195,103 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     try {
       runtime.log?.('[tlon] Subscribing to firehose updates...');
 
+      // The OpenClaw workspace is %steward's source of truth for prompt
+      // files. Register its local harness feed before connecting so a queued
+      // owner edit cannot slip between the initial projection and the watch.
+      // Multiple accounts share this workspace, so exactly one monitor owns
+      // the relay.
+      if (!effectiveOwnerShip) {
+        runtime.log?.(
+          '[tlon] Prompt sync disabled: no ownerShip is configured'
+        );
+      } else if (!shouldRunPromptSync(cfg, account.accountId)) {
+        runtime.log?.(
+          `[tlon] Prompt sync disabled for account ${account.accountId}: accounts share one agent workspace`
+        );
+      } else {
+        // Project the workspace the owner's own messages are routed to, the
+        // way restart catch-up resolves BOOT.md. Assuming the default agent
+        // would project and edit an unrelated agent's prompts whenever this
+        // account is bound to a non-default one.
+        const promptRoute = core.channel.routing.resolveAgentRoute({
+          cfg,
+          channel: 'tlon',
+          accountId: account.accountId,
+          peer: { kind: 'direct', id: effectiveOwnerShip },
+        });
+        promptSync = createPromptSync({
+          owner: effectiveOwnerShip,
+          workspaceDir: core.agent.resolveAgentWorkspaceDir(
+            cfg,
+            promptRoute.agentId
+          ),
+          poke: api.poke.bind(api),
+          requestJson: api.requestJson.bind(api),
+          logger: {
+            log: (message) => runtime.log?.(message),
+            warn: (message) => runtime.error?.(message),
+          },
+          // requestJson never refreshes the cookie itself; only an SSE
+          // reconnect does, and a healthy stream never has one.
+          reauthenticate: async () => {
+            api!.updateCookie(await authenticateWithRetry('re_auth'));
+          },
+        });
+        const sync = promptSync;
+        // Its retries run until the ship answers or the sync closes, and the
+        // teardown below only reaches close() once the main body settles.
+        // Close on abort directly so a ship outage cannot pin a config
+        // reload or a gateway shutdown. addEventListener does not replay an
+        // abort that already happened during the bootstrap above, so check
+        // first — a retiring monitor must not install a watcher or start
+        // projecting.
+        if (opts.abortSignal?.aborted) {
+          void sync.close();
+        } else {
+          opts.abortSignal?.addEventListener('abort', () => void sync.close(), {
+            once: true,
+          });
+        }
+        try {
+          await api.subscribe({
+            app: 'steward',
+            path: '/v1/prompts/harness',
+            event: (fact) => {
+              void sync.handleDispatch(fact);
+            },
+            err: (error) => {
+              capturePluginError('steward_subscription', error);
+              runtime.error?.(
+                `[tlon] Steward prompts harness subscription error: ${String(error)}`
+              );
+            },
+            quit: () => {
+              runtime.log?.(
+                '[tlon] Steward prompts harness quit received, SSE client will resubscribe'
+              );
+            },
+            // %steward can start with an empty prompts slice under a live
+            // harness: a desk that adds the module after the plugin is
+            // already running (the watch nacks until then), or an agent
+            // reset. Each time the watch goes live, push the workspace again;
+            // an unchanged projection is a no-op on the ship.
+            retryOnNack: true,
+            onLive: () => {
+              void sync.project('harness live');
+            },
+          });
+          runtime.log?.(
+            '[tlon] Subscribed to steward prompts harness (/v1/prompts/harness)'
+          );
+        } catch (error) {
+          // The subscription stays registered and is retried with the
+          // channel; the sync itself stays live for when it lands.
+          runtime.log?.(
+            `[tlon] Steward prompts harness subscription deferred: ${String(error)}`
+          );
+        }
+      }
+
       // Subscribe to channels firehose (/v4)
       await api.subscribe({
         app: 'channels',
@@ -5517,14 +5627,25 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 '[tlon] Steward automation harness quit received, SSE client will resubscribe'
               );
             },
+            // The cron projection otherwise runs only on gateway_start and
+            // cron_changed, so a %steward that starts empty under a running
+            // gateway (a desk upgrade adding the module, an agent reset)
+            // stays empty until the next cron edit. Reconcile whenever the
+            // harness watch goes live.
+            retryOnNack: true,
+            onLive: () => {
+              void getStewardAutomationReconciler()?.trigger(() =>
+                getTlonCronService()
+              );
+            },
           });
           runtime.log?.(
             `[tlon] Subscribed to steward automation harness feed (${STEWARD_AUTOMATION_HARNESS_PATH})`
           );
         } catch (error: any) {
-          // Ships without the edit loop nack the subscribe; owner edits then
-          // fail fast on the bot as harness-offline while everything else
-          // keeps working.
+          // A nack does not land here — it arrives later on the stream and is
+          // retried there. This catches only a failed send, which the channel
+          // also retries.
           runtime.log?.(
             `[tlon] Steward automation harness subscription unavailable: ${error?.message ?? String(error)}`
           );
@@ -6163,6 +6284,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      // Not awaited: the initial projection retries until the ship answers,
+      // and readiness, catch-up and onboarding must not wait on that.
+      void promptSync?.start();
       if (!opts.abortSignal?.aborted && api.isConnected) {
         opts.onReady?.({
           isConnected: () => api.isConnected,
@@ -6463,6 +6587,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // inside the queues we flush below, rather than leaking into a
       // half-closed api after cleanup.
       await nudgeRunner?.stop();
+      await promptSync?.close();
+      promptSync = null;
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
       // Drain the groupChannels journal before api.close(), which rejects
