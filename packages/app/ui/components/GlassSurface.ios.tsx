@@ -10,7 +10,10 @@ import { View as NativeView, ViewProps } from 'react-native';
 type GlassViewProps = ComponentProps<typeof GlassView>;
 type GlassSurfaceProps = PropsWithChildren<
   ViewProps &
-    Pick<GlassViewProps, 'glassEffectStyle' | 'isInteractive' | 'tintColor'>
+    Pick<
+      GlassViewProps,
+      'glassEffectStyle' | 'isInteractive' | 'tintColor' | 'colorScheme'
+    >
 >;
 
 export function supportsLiquidGlass() {
@@ -20,6 +23,7 @@ export function supportsLiquidGlass() {
 /** Liquid Glass when available, otherwise a regular view. */
 export function GlassSurface({
   glassEffectStyle,
+  colorScheme,
   isInteractive,
   tintColor,
   style,
@@ -30,6 +34,7 @@ export function GlassSurface({
       <GlassView
         {...viewProps}
         glassEffectStyle={glassEffectStyle}
+        colorScheme={colorScheme}
         isInteractive={isInteractive}
         tintColor={tintColor}
         style={style}
