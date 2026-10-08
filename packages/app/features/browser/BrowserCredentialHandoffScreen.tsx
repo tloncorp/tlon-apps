@@ -185,6 +185,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const { resolve, complete, discard } = useBrowserCredentialHandoff();
   const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
+  const externalViewerHandoff = useRef<string | null>(null);
   const submittingRef = useRef(false);
   const requestController = useRef<AbortController | undefined>(undefined);
 
@@ -313,6 +314,16 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     setError(undefined);
     void load(signal);
   }, [load]);
+  useEffect(() => {
+    if (!isWeb) return;
+    const refreshAfterBrowser = () => {
+      if (externalViewerHandoff.current !== handoffId) return;
+      externalViewerHandoff.current = null;
+      retry();
+    };
+    window.addEventListener('focus', refreshAfterBrowser);
+    return () => window.removeEventListener('focus', refreshAfterBrowser);
+  }, [handoffId, retry]);
   const dismiss = useCallback(() => {
     requestController.current?.abort();
     navigation.goBack();
@@ -328,6 +339,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       Keyboard.dismiss();
       setValues({});
       if (isWeb) {
+        externalViewerHandoff.current = handoffId;
         window.open(url, '_blank', 'noopener,noreferrer');
       } else {
         setLiveViewer({ url, handoffId });
