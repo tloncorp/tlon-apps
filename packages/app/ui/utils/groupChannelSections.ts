@@ -93,7 +93,10 @@ export function getGroupChannelMenu(
   const channels = getGroupChannelSections(group, sortBy).flatMap(
     (section) => section.channels
   );
-  if (channels.length !== 1 && currentChannelId != null) {
+  if (
+    channels.length !== 1 &&
+    channels.some((channel) => channel.id === currentChannelId)
+  ) {
     return {
       title: 'Other channels in this group',
       channels: channels.filter((channel) => channel.id !== currentChannelId),

@@ -113,7 +113,9 @@ export const useChatSettingsNavigation = () => {
     async (routes: GroupSettingsRoute[]) => {
       const { params } = routes[routes.length - 1];
       const state = { routes, index: routes.length - 1 };
-      if (!isWindowNarrow && 'groupId' in params && params.groupId) {
+      // The desktop tree nests GroupSettings under Channel. A wide native
+      // window is still the mobile tree, where it is a screen of the root.
+      if (!isMobileTree && 'groupId' in params && params.groupId) {
         // Navigate directly to Channel > GroupSettings in a single call.
         // The old 2-step approach (navigateToGroup + setTimeout) breaks in
         // React Navigation v7 because 'Home' is ambiguous (matches
@@ -136,7 +138,7 @@ export const useChatSettingsNavigation = () => {
         state,
       } as NavigatorScreenParams<GroupSettingsStackParamList>);
     },
-    [navigation, isWindowNarrow]
+    [navigation, isMobileTree]
   );
 
   const navigateToGroupSettings = useCallback(

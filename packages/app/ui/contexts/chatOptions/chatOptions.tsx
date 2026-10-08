@@ -25,8 +25,6 @@ import { ChatOptionsContext, ChatOptionsContextValue } from './context';
 
 export type { ChatOptionsContextValue };
 
-type HandoffSheet = 'invite' | 'createChannel';
-
 type ChatOptionsProviderProps = {
   children: ReactNode;
   onPressGroupMeta?: (
@@ -92,12 +90,12 @@ export const ChatOptionsProvider = ({
   const { data: createChannelGroup } = store.useGroup({
     id: createChannelGroupId ?? undefined,
   });
-  // A sheet the options sheet hands off to, which opens only once the options
-  // sheet has gone: a native sheet cannot present over one still dismissing.
+  // What an action of the options sheet leads to, held until that sheet has
+  // gone: a native sheet cannot present over one still dismissing, and a
+  // navigation that removes this screen would tear down the sheet mid-way.
   const pendingHandoff = useRef<{
     generation: number;
-    groupId: string;
-    sheet: HandoffSheet;
+    run: () => void;
   } | null>(null);
   const handoffTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelPendingHandoff = useCallback(() => {
@@ -108,17 +106,6 @@ export const ChatOptionsProvider = ({
     }
   }, []);
   useEffect(() => cancelPendingHandoff, [cancelPendingHandoff]);
-  const openHandoffSheet = useCallback(
-    (sheet: HandoffSheet, groupId: string) => {
-      if (sheet === 'invite') {
-        setInviteGroupId(groupId);
-        setInviteSheetOpen(true);
-      } else {
-        setCreateChannelGroupId(groupId);
-      }
-    },
-    []
-  );
   const [leaveChannelDialogOpen, setLeaveChannelDialogOpen] = useState(false);
   const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(
     null
@@ -175,22 +162,19 @@ export const ChatOptionsProvider = ({
     setSheetOpen(open);
   }, []);
 
-  const handleSheetDismissed = useCallback(
-    (generation: number) => {
-      if (sheetGenerationRef.current !== generation || sheetOpenRef.current) {
-        return;
-      }
+  const handleSheetDismissed = useCallback((generation: number) => {
+    if (sheetGenerationRef.current !== generation || sheetOpenRef.current) {
+      return;
+    }
 
-      setChat(null);
-      setSheetMountGeneration(null);
-      const handoff = pendingHandoff.current;
-      pendingHandoff.current = null;
-      if (handoff?.generation === generation) {
-        openHandoffSheet(handoff.sheet, handoff.groupId);
-      }
-    },
-    [openHandoffSheet]
-  );
+    setChat(null);
+    setSheetMountGeneration(null);
+    const handoff = pendingHandoff.current;
+    pendingHandoff.current = null;
+    if (handoff?.generation === generation) {
+      handoff.run();
+    }
+  }, []);
 
   const updateChat = useCallback(
     (newChat: { id: string; type: 'group' | 'channel' } | null) => {
@@ -382,8 +366,12 @@ export const ChatOptionsProvider = ({
     [closeSheet]
   );
 
-  const handOffTo = useCallback(
-    (sheet: HandoffSheet, handoffGroupId: string) => {
+  /**
+   * Close the options sheet, then `run`: on native once the sheet has finished
+   * dismissing, elsewhere after `webDelay` milliseconds.
+   */
+  const handOff = useCallback(
+    (run: () => void, webDelay: number) => {
       cancelPendingHandoff();
       if (
         Platform.OS !== 'web' &&
@@ -391,27 +379,21 @@ export const ChatOptionsProvider = ({
         sheetOpenRef.current &&
         sheetMountGeneration !== null
       ) {
-        pendingHandoff.current = {
-          generation: sheetMountGeneration,
-          groupId: handoffGroupId,
-          sheet,
-        };
+        pendingHandoff.current = { generation: sheetMountGeneration, run };
         closeSheet();
         return;
       }
       closeSheet();
+      if (webDelay === 0) {
+        run();
+        return;
+      }
       handoffTimer.current = setTimeout(() => {
         handoffTimer.current = null;
-        openHandoffSheet(sheet, handoffGroupId);
-      }, 300);
+        run();
+      }, webDelay);
     },
-    [
-      cancelPendingHandoff,
-      closeSheet,
-      isMobileTree,
-      openHandoffSheet,
-      sheetMountGeneration,
-    ]
+    [cancelPendingHandoff, closeSheet, isMobileTree, sheetMountGeneration]
   );
 
   const handlePressInvite = useCallback(() => {
@@ -421,23 +403,25 @@ export const ChatOptionsProvider = ({
         onPressInvite?.(groupId);
       } else {
         // if not handled by the parent, open built in invite sheet
-        handOffTo('invite', groupId);
+        handOff(() => {
+          setInviteGroupId(groupId);
+          setInviteSheetOpen(true);
+        }, 300);
       }
     }
-  }, [closeSheet, groupId, onPressInvite, handOffTo]);
+  }, [closeSheet, groupId, onPressInvite, handOff]);
 
   const handlePressNewChannel = useCallback(() => {
     if (groupId) {
-      handOffTo('createChannel', groupId);
+      handOff(() => setCreateChannelGroupId(groupId), 300);
     }
-  }, [groupId, handOffTo]);
+  }, [groupId, handOff]);
 
   const handlePressChannel = useCallback(
     (channelToOpen: db.Channel) => {
-      onPressChannel?.(channelToOpen);
-      closeSheet();
+      handOff(() => onPressChannel?.(channelToOpen), 0);
     },
-    [closeSheet, onPressChannel]
+    [handOff, onPressChannel]
   );
 
   const handleCreateChannelOpenChange = useCallback((open: boolean) => {

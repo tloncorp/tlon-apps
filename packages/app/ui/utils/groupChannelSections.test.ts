@@ -64,6 +64,13 @@ describe('getGroupChannelMenu', () => {
     });
   });
 
+  it('lists them all when the open channel is not among them', () => {
+    expect(getGroupChannelMenu(group, 'arranged', 'elsewhere')).toEqual({
+      title: 'Channels in this group',
+      channels: [general, random, lore],
+    });
+  });
+
   it('lists the one channel of a single-channel group, open or not', () => {
     const single = { channels: [general] } as db.Group;
     const expected = {

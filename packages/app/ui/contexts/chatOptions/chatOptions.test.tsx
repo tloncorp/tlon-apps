@@ -217,7 +217,24 @@ describe('Chat Options invite handoff', () => {
 });
 
 describe('Chat Options channel menu', () => {
-  it('opens a picked channel and closes the sheet', () => {
+  it.each(['ios', 'android'])(
+    'opens a picked channel once the %s sheet has dismissed',
+    (platform) => {
+      mocks.platform.OS = platform;
+      const onPressChannel = vi.fn();
+      const provider = renderProvider({ onPressChannel });
+      provider.open('selected-group');
+      provider.pressChannel({ id: 'next-channel' });
+      expect(provider.sheet().props.open).toBe(false);
+      expect(onPressChannel).not.toHaveBeenCalled();
+      act(() => provider.sheet().props.onNativeDismissed());
+      expect(onPressChannel).toHaveBeenCalledWith({ id: 'next-channel' });
+      provider.unmount();
+    }
+  );
+
+  it('opens a picked channel at once on web', () => {
+    mocks.platform.OS = 'web';
     const onPressChannel = vi.fn();
     const provider = renderProvider({ onPressChannel });
     provider.open('selected-group');
