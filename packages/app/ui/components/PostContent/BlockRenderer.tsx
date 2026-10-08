@@ -123,23 +123,38 @@ export function listItemMarkerType(
 
 function ListNode({
   node,
+  indentChildren = false,
 }: {
   node: cn.ListData;
+  // A nested level is normally offset by its parent's marker column. Task
+  // items draw no marker (the checkbox is inline), so their children need
+  // their own indent or they render flush with the parent.
+  indentChildren?: boolean;
 } & ComponentProps<typeof View>) {
   return (
     <View flex={1}>
       {node.content.length ? (
         <LineRenderer trimmed={false} inlines={node.content} />
       ) : null}
-      {node.children?.map((childNode, i) => (
-        <XStack key={i} gap="$m">
-          <ListItemMarker
-            index={i}
-            type={listItemMarkerType(node.type ?? 'unordered', childNode)}
-          />
-          <ListNode key={i} node={childNode} />
-        </XStack>
-      ))}
+      {node.children?.map((childNode, i) => {
+        const markerType = listItemMarkerType(
+          node.type ?? 'unordered',
+          childNode
+        );
+        return (
+          <XStack
+            key={i}
+            gap="$m"
+            paddingLeft={indentChildren ? '$xl' : undefined}
+          >
+            <ListItemMarker index={i} type={markerType} />
+            <ListNode
+              node={childNode}
+              indentChildren={markerType === 'tasklist'}
+            />
+          </XStack>
+        );
+      })}
     </View>
   );
 }
