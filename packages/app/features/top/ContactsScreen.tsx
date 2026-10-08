@@ -23,7 +23,8 @@ import SystemNotices from '../../ui/components/SystemNotices';
 
 export default function ContactsScreen() {
   const theme = useTheme();
-  const { navigate } = useNavigation();
+  const navigation = useNavigation();
+  const { navigate } = navigation;
 
   const inviteSystemContacts = useInviteSystemContacts();
   const inviteLink = db.personalInviteLink.useValue();
@@ -94,23 +95,15 @@ export default function ContactsScreen() {
         <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
           <ScreenHeader
             title="Contacts"
+            backAction={navigation.goBack}
             borderBottom
-            leftActions={[
+            rightActions={[
               {
                 id: 'add-contacts',
                 icon: 'Add',
                 label: 'Add contacts',
                 testID: 'ContactsAddButton',
                 onPress: () => navigate('AddContacts'),
-              },
-            ]}
-            rightActions={[
-              {
-                id: 'contacts-settings',
-                icon: 'Settings',
-                label: 'Settings',
-                testID: 'ContactsSettingsButton',
-                onPress: () => navigate('Settings', undefined, { pop: true }),
               },
             ]}
             placement="navigation"

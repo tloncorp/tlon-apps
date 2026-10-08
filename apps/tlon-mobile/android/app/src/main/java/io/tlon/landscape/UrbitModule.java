@@ -39,6 +39,30 @@ public class UrbitModule extends ReactContextBaseJavaModule {
         editor.apply();
     }
 
+    // A mid-session reauth mints a new cookie; the notification service reads
+    // its own copy out of SharedPreferences, so without this it keeps using the
+    // one from login and every push fetch comes back 401/403. Writes only the
+    // cookie -- setUrbit would also rotate CHANNEL_URL and drop the cached
+    // activity capabilities, which a reauth has no business doing.
+    //
+    // The ship and url are verified here rather than by the caller because
+    // only here can the check and the write happen together. JS reaches this
+    // point through awaits, and an account switch calls setUrbit synchronously,
+    // so any decision the caller made can already be stale on arrival. A
+    // cookie for a ship this device is no longer pointed at is dropped: pairing
+    // it with the stored url is what breaks every push fetch.
+    @ReactMethod
+    public void setAuthCookie(String shipName, String shipUrl, String authCookie) {
+        String currentShipName = SecureStorage.getString(SecureStorage.SHIP_NAME_KEY);
+        String currentShipUrl = SecureStorage.getString(SecureStorage.SHIP_URL_KEY);
+        if (!shipName.equals(currentShipName) || !shipUrl.equals(currentShipUrl)) {
+            return;
+        }
+        SharedPreferences.Editor editor = SecureStorage.sharedPreferences.edit();
+        editor.putString(SecureStorage.AUTH_COOKIE_KEY, authCookie.split(";")[0]);
+        editor.apply();
+    }
+
     @ReactMethod
     public void clearUrbit() {
         NotificationPresentationState.setActiveChannelId(null);

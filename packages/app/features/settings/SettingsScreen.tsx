@@ -1,32 +1,39 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getCurrentUserIsHosted } from '@tloncorp/api';
 import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useState } from 'react';
+import * as store from '@tloncorp/shared/store';
+import { triggerHaptic } from '@tloncorp/ui';
+import { ComponentProps, useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import { getVariableValue, useTheme } from 'tamagui';
 
-import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
-import { RootStackParamList } from '../../navigation/types';
+import { useNavigation } from '../../navigation/utils';
 import { SettingsScreenView, View, openTlonWebApp } from '../../ui';
+import ProfileStatusSheet from '../../ui/components/ProfileStatusSheet';
+import { useSettingsListSurfaces } from '../../ui/components/SettingsList';
 import {
   openExternalBotSettings,
   useHasExpectedBotDm,
 } from '../../utils/botSettings';
+import {
+  BotSettingsApplyBar,
+  BotSettingsNavigate,
+  useBotSettingsHub,
+  useBotSettingsSectionModels,
+} from './bot/BotSettingsSections';
+import { useHostingSession } from './bot/useHostingSession';
+import { useSettingsRowLabels } from './useSettingsRowLabels';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
-
-export default function SettingsScreen(props: Props) {
+export default function SettingsScreen() {
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
-  const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
+  const hostingSession = useHostingSession();
   const hasExpectedBotDm = useHasExpectedBotDm(
     currentUserId,
     Platform.OS === 'web' && isHostedUser
@@ -35,7 +42,22 @@ export default function SettingsScreen(props: Props) {
     Platform.OS === 'web'
       ? isHostedUser && hasExpectedBotDm
       : isHostedUser && hostingBotEnabled;
-  const navigationRef = useMutableRef(props.navigation);
+  // Web has no inline bot settings — its row opens the hosted page instead. And
+  // the bot queries retry on an interval until they succeed, so mounting them
+  // without a usable hosting session would poll forever rather than surface
+  // anything; the standalone screen can prompt for re-auth, a tab root cannot.
+  // The card mounts while the session is still being read, so it is there on
+  // the first frame instead of pushing the list down a moment later; a session
+  // that turns out missing or expired takes it away again.
+  const showsInlineBotSettings =
+    botEnabled &&
+    Platform.OS !== 'web' &&
+    (hostingSession === 'valid' || hostingSession === 'checking');
+
+  const { page: settingsPage } = useSettingsListSurfaces();
+  const navigationRef = useMutableRef(useNavigation());
+  const [statusSheetOpen, setStatusSheetOpen] = useState(false);
+  const { themeLabel, notificationsLabel } = useSettingsRowLabels();
 
   const onAppInfoPressed = useCallback(() => {
     navigationRef.current.navigate('AppInfo');
@@ -69,10 +91,6 @@ export default function SettingsScreen(props: Props) {
     navigationRef.current.navigate('WompWomp');
   }, [navigationRef]);
 
-  const onBack = useCallback(() => {
-    navigationRef.current.goBack();
-  }, [navigationRef]);
-
   const onThemePressed = useCallback(() => {
     navigationRef.current.navigate('Theme');
   }, [navigationRef]);
@@ -80,29 +98,96 @@ export default function SettingsScreen(props: Props) {
   const onPrivacyPressed = useCallback(() => {
     navigationRef.current.navigate('PrivacySettings');
   }, [navigationRef]);
-  const backgroundColor = getVariableValue(useTheme().background);
+
+  const onProfilePressed = useCallback(() => {
+    navigationRef.current.navigate('UserProfile', { userId: currentUserId });
+  }, [currentUserId, navigationRef]);
+
+  const onProfileLongPressed = useCallback(() => {
+    triggerHaptic('sheetOpen');
+    setStatusSheetOpen(true);
+  }, []);
+
+  const onContactsPressed = useCallback(() => {
+    navigationRef.current.navigate('Contacts', undefined, { pop: true });
+  }, [navigationRef]);
+
+  const onUpdateStatus = useCallback((status: string) => {
+    store.updateCurrentUserProfile({ status });
+    setStatusSheetOpen(false);
+  }, []);
+
+  const viewProps: ComponentProps<typeof SettingsScreenView> = {
+    hasHostedAuth,
+    currentUserId,
+    onLogoutPressed: handleLogout,
+    onSendBugReportPressed,
+    onAppInfoPressed,
+    onNotificationSettingsPressed: onPushNotifPressed,
+    onBlockedUsersPressed,
+    onManageAccountPressed,
+    onBotSettingsPressed,
+    onExperimentalFeaturesPressed,
+    onThemePressed,
+    onPrivacyPressed,
+    onProfilePressed,
+    onProfileLongPressed,
+    onContactsPressed,
+    onWebAppPressed: isHostedUser ? openTlonWebApp : undefined,
+    botEnabled,
+    themeLabel,
+    notificationsLabel,
+  };
 
   return (
-    <View backgroundColor={backgroundColor} flex={1}>
-      <SettingsScreenView
-        hasHostedAuth={hasHostedAuth}
-        currentUserId={currentUserId}
-        onLogoutPressed={handleLogout}
-        onSendBugReportPressed={onSendBugReportPressed}
-        onAppInfoPressed={onAppInfoPressed}
-        onNotificationSettingsPressed={onPushNotifPressed}
-        onBlockedUsersPressed={onBlockedUsersPressed}
-        onManageAccountPressed={onManageAccountPressed}
-        onBotSettingsPressed={onBotSettingsPressed}
-        onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
-        onThemePressed={onThemePressed}
-        onPrivacyPressed={onPrivacyPressed}
-        onWebAppPressed={isHostedUser ? openTlonWebApp : undefined}
-        dmLink={dmLink}
-        onBackPressed={onBack}
-        botEnabled={botEnabled}
-      />
+    <View backgroundColor={settingsPage} flex={1}>
+      {showsInlineBotSettings ? (
+        <SettingsViewWithBot viewProps={viewProps} />
+      ) : (
+        <SettingsScreenView {...viewProps} />
+      )}
+      {statusSheetOpen && (
+        <ProfileStatusSheet
+          open
+          onOpenChange={() => setStatusSheetOpen(false)}
+          onUpdateStatus={onUpdateStatus}
+        />
+      )}
     </View>
+  );
+}
+
+/**
+ * Mounts the bot queries and draft once, and hands the view its sections plus
+ * the apply bar that commits them. Separate from the screen above so that the
+ * bot flag resolving swaps only the view, not the screen's own state.
+ */
+function SettingsViewWithBot({
+  viewProps,
+}: {
+  viewProps: ComponentProps<typeof SettingsScreenView>;
+}) {
+  const hub = useBotSettingsHub();
+  const navigationRef = useMutableRef(useNavigation());
+  const navigate = useCallback(
+    (screen: Parameters<BotSettingsNavigate>[0], params?: object) => {
+      (
+        navigationRef.current.navigate as unknown as (
+          name: string,
+          params?: object
+        ) => void
+      )(screen, params);
+    },
+    [navigationRef]
+  );
+  const botSections = useBotSettingsSectionModels(hub, navigate).overview;
+
+  return (
+    <SettingsScreenView
+      {...viewProps}
+      botSections={botSections}
+      bottomBar={<BotSettingsApplyBar hub={hub} />}
+    />
   );
 }
 

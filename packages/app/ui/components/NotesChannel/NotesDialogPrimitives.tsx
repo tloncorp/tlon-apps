@@ -1,6 +1,6 @@
 import { Button } from '@tloncorp/ui';
 import { useCallback, useRef, useState } from 'react';
-import type { ComponentProps, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
@@ -10,7 +10,6 @@ export function NotesDialog({
   cancelDisabled = false,
   children,
   confirmButton,
-  keyboardBehavior,
   onOpenChange,
   open,
   subtitle,
@@ -21,7 +20,6 @@ export function NotesDialog({
   cancelDisabled?: boolean;
   children: ReactNode;
   confirmButton?: ReactNode;
-  keyboardBehavior?: ComponentProps<typeof ActionSheet>['keyboardBehavior'];
   onOpenChange: (open: boolean) => void;
   open: boolean;
   subtitle?: string;
@@ -38,7 +36,6 @@ export function NotesDialog({
       closeButton={isWeb}
       modal
       snapPointsMode="fit"
-      keyboardBehavior={keyboardBehavior}
       unmountOnClose={unmountOnClose}
       dialogContentProps={{ width: 420, maxWidth: '90%' }}
     >

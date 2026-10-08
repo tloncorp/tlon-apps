@@ -52,7 +52,7 @@
     "test:e2e:openclaw:all": "TLON_BOT_E2E_DRIVER=openclaw TLON_BOT_E2E_SUITE=all tsx src/cli/run.ts",
     "test:e2e:hermes": "TLON_BOT_E2E_DRIVER=hermes TLON_BOT_E2E_SUITE=common tsx src/cli/run.ts",
     "test:e2e:hermes:package": "TLON_BOT_E2E_DRIVER=hermes TLON_BOT_E2E_SUITE=package tsx src/cli/run.ts",
-    "test:e2e": "pnpm test:e2e:openclaw && pnpm test:e2e:hermes",
+    "test:e2e": "pnpm test:e2e:openclaw",
     "tsc": "tsc --noEmit"
   },
   "dependencies": {

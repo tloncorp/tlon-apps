@@ -131,6 +131,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Test reliability fixture names
+        run: node --test .maestro/reliability/data.test.mjs
       - name: Download iOS app
         if: ${{ inputs.ios-app-binary-id == '' }}
         uses: actions/download-artifact@v4

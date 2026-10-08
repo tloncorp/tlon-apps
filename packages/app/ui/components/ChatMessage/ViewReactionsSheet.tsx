@@ -29,7 +29,6 @@ export function ViewReactionsSheet({
       onOpenChange={onOpenChange}
       snapPointsMode="percent"
       snapPoints={[70]}
-      hasScrollableContent
       modal
     >
       {/* Since the modaled sheet gets pulled above the contacts provider, we inject a manual one here */}

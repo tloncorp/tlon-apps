@@ -1,6 +1,6 @@
 ::  groups subscriber unit tests
 ::
-/-  g=groups, gv=groups-ver, meta, s=story
+/-  g=groups, gv=groups-ver, cv=channels-ver, meta, s=story
 /+  *test, *test-negotiate-agent
 /+  gc=groups-conv
 /=  groups-agent  /app/groups
@@ -249,7 +249,10 @@
     ==
   (pure:m invite)
 ::
-++  do-join-group
+++  do-join-group  (do-join-this-group my-group)
+::
+++  do-join-this-group
+  |=  =group:g
   =/  m  (mare (list card))
   ^-  form:m
   ;<  caz=(list card)  bind:m  (do-a-foreigns [%foreign my-flag %join ~])
@@ -282,13 +285,41 @@
   =/  init-log=log:g
     %+  gas:log-on:g  *log:g
     ^-  (list [@da u-group:g])
-    :~  now.bowl^[%create my-group]
+    :~  now.bowl^[%create group]
     ==
   ;<  caz=(list card)  bind:m
     %^  do-agent  (weld go-area /updates)
       [~zod my-agent]
     [%fact group-log+!>(init-log)]
   (pure:m caz)
+::
+::  +test-can-write-resolves-for-a-non-member: a ship holding no seat must
+::  make this scry resolve to ~, not to no-such-path.
+::
+::  Both readers of it use .^ and then ?~ on a unit -- lib/channel-utils
+::  +can-write, and %buckets +group-can-write. A scry that resolves to nothing
+::  does not hand them ~, it crashes the event. So answering [~ ~] here meant
+::  a stranger or an ex-member writing to any channel took the event down
+::  instead of being denied.
+::
+++  test-can-write-resolves-for-a-non-member
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-join-group
+  ::  the group's only seat is ~zod, so ~fun holds none
+  ;<  stranger=cage  bind:m
+    (got-peek /x/v2/groups/~zod/my-test-group/channels/chat/~zod/general/can-write/~fun)
+  ;<  seated=cage  bind:m
+    (got-peek /x/v2/groups/~zod/my-test-group/channels/chat/~zod/general/can-write/~zod)
+  =/  perms
+    |=  caz=cage
+    ^-  (unit [admin=? roles=(set role-id:v7:gv)])
+    !<((unit [admin=? roles=(set role-id:v7:gv)]) q.caz)
+  =/  absent  (perms stranger)
+  =/  present  (perms seated)
+  (ex-equal !>([absent ?~(present | admin.u.present)]) !>([~ &]))
 ::
 ++  test-join-group
   %-  eval-mare
@@ -301,6 +332,144 @@
     :~  [my-flag %create my-group]
     ==
   (pure:m ~)
+::  +test-light-scries-count-every-seat: the init and changes scries
+::  truncate a big group's seats, but still report its full member count
+::
+::  +drop-seats keeps ours and 14 others. The changes scries built their
+::  group-ui from that light group, and the init scries' recount read the
+::  light group too (the group-ui's own .group face shadowed the full one),
+::  so a group of 20 reported 15.
+::
+++  test-light-scries-count-every-seat
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  =group:g  my-group
+  =.  seats.group
+    %-  ~(gas by seats.group)
+    %+  turn  (gulf 1 19)
+    |=(i=@ [`ship`i [~ ~2000.1.1]])
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-join-this-group group)
+  =/  since=@ta  (scot %da *@da)
+  ;<  in-2=cage  bind:m  (got-peek /x/v2/init)
+  ;<  in-3=cage  bind:m  (got-peek /x/v3/init)
+  ;<  in-4=cage  bind:m  (got-peek /x/v4/init)
+  ;<  ch-1=cage  bind:m  (got-peek /x/v1/changes/[since])
+  ;<  ch-2=cage  bind:m  (got-peek /x/v2/changes/[since])
+  ;<  ch-3=cage  bind:m  (got-peek /x/v3/changes/[since])
+  =/  init-2
+    %.  my-flag
+    %~  got  by
+    -:!<([(map flag:v7:gv group-ui:v7:gv) foreigns:v8:gv] q.in-2)
+  =/  init-3
+    %.  my-flag
+    %~  got  by
+    -:!<([(map flag:v9:gv group-ui:v9:gv) foreigns:v8:gv] q.in-3)
+  =/  init-4
+    %.  my-flag
+    %~  got  by
+    -:!<([(map flag:v11:gv group-ui:v11:gv) foreigns:v8:gv] q.in-4)
+  =/  ui-1  (~(got by !<((map flag:v5:gv group-ui:v5:gv) q.ch-1)) my-flag)
+  =/  ui-2  (~(got by !<((map flag:v9:gv group-ui:v9:gv) q.ch-2)) my-flag)
+  =/  ui-3  (~(got by !<((map flag:v11:gv group-ui:v11:gv) q.ch-3)) my-flag)
+  ::  the seats are still dropped; only the count covers them all
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>([~(wyt by seats.group.init-4) ~(wyt by seats.group.ui-3)])
+    !>([15 15])
+  %+  ex-equal
+    !>  :*  init-2=member-count.init-2
+            init-3=member-count.init-3
+            init-4=member-count.init-4
+            changes-1=count.ui-1
+            changes-2=member-count.ui-2
+            changes-3=member-count.ui-3
+        ==
+  !>([init-2=20 init-3=20 init-4=20 changes-1=20 changes-2=20 changes-3=20])
+::  +initial-nest: a channel the test group arrives with
+::
+++  initial-nest  ^-(nest:g [%chat ~zod %general])
+::
+++  set-channels-joined
+  |=  joined=?
+  %-  set-scry-gate
+  |=  =path
+  ?:  ?=([%gu @ %channels @ *] path)  `!>(joined)
+  (my-scry-gate path)
+::
+++  do-channels-response
+  |=  =r-channel:v7:cv
+  %^  do-agent  /channels
+    [~dev %channels]
+  =/  =r-channels:v7:cv  [[%chat ~zod %general] r-channel]
+  [%fact channel-response-2+!>(r-channels)]
+::  +do-join-initial-channel: join a group that arrives with
+::  +initial-nest, which %channels then joins
+::
+++  do-join-initial-channel
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  =channel:g
+    :*  meta=[title='General' description='' image='' cover='']
+        added=~2000.1.1
+        section=%default
+        readers=~
+        join=&
+    ==
+  =/  =group:g  my-group
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (set-channels-joined |)
+  ;<  *  bind:m
+    (do-join-this-group group(channels (my initial-nest^channel ~)))
+  ;<  *  bind:m  (do-channels-response %join my-flag)
+  (set-channels-joined &)
+::
+++  ex-left-initial-channel
+  |=  caz=(list card)
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~[/v2/groups]
+      group-response-2+!>(`r-groups:v10:gv`[my-flag %active-channel initial-nest |])
+    ::
+      %+  ex-fact  ~[/v3/groups]
+      group-response-3+!>(`r-groups:v11:gv`[my-flag %active-channel initial-nest |])
+  ==
+::  +test-leave-initial-channel: leaving a channel the group arrived with
+::  takes it out of .active-channels and tells subscribers so.
+::
+::  Such a channel was only ever indexed when added after the join, so
+::  %channels' %leave for it was dropped: %groups kept it active, and a
+::  client's next init marked the channel joined again.
+::
+++  test-leave-initial-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  do-join-initial-channel
+  ;<  caz=(list card)  bind:m  (do-channels-response %leave ~)
+  (ex-left-initial-channel caz)
+::  +test-leave-initial-channel-after-reload: a group joined before its
+::  initial channels were indexed has them indexed on reload.
+::
+++  test-leave-initial-channel-after-reload
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  do-join-initial-channel
+  ::  drop the index, as a ship that joined before the fix has it
+  ::
+  ;<  save=vase  bind:m  get-save
+  =.  save
+    ;:  slop
+      (slot 2 save)  ::  lib discipline
+      (slot 6 save)  ::  lib negotiate
+      (slap (slot 7 save) (ream '.(channels-index ~)'))
+    ==
+  ;<  *  bind:m  (do-load groups-agent `save)
+  ;<  *  bind:m  (do-arvo /load/active-channels %behn %wake ~)
+  ;<  caz=(list card)  bind:m  (do-channels-response %leave ~)
+  (ex-left-initial-channel caz)
 ::  +test-a-foreigns-revoke: test invite revocation
 ::
 ++  test-a-foreigns-revoke

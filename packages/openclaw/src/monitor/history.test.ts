@@ -250,6 +250,53 @@ describe('fetchChannelHistory', () => {
     ).resolves.toEqual([]);
   });
 
+  it('reads a DM from %chat rather than %channels', async () => {
+    // A DM has no kind/host/slug nest, so the %channels scry cannot serve it
+    // at all — onboarding in the bot DM depends on this branch.
+    const scry = vi.fn(async () => ({
+      writs: {
+        '170.141.184.507.123': {
+          seal: { id: '~ten/170.141.184.507.123' },
+          essay: {
+            author: '~ten',
+            content: [{ inline: ["Let's get set up."] }],
+            sent: 7,
+            blob: '[{"type":"tlon-agent-intro-request"}]',
+          },
+        },
+      },
+      newer: null,
+      older: null,
+      total: 1,
+      newest: 7,
+    }));
+
+    await expect(
+      fetchChannelHistoryOrThrow({ scry }, '~ten', 50)
+    ).resolves.toEqual([
+      expect.objectContaining({
+        author: '~ten',
+        id: '~ten/170.141.184.507.123',
+        blob: '[{"type":"tlon-agent-intro-request"}]',
+      }),
+    ]);
+    expect(scry).toHaveBeenCalledWith(
+      '/chat/v4/dm/~ten/writs/newest/50/light.json',
+      expect.anything()
+    );
+  });
+
+  it('keeps reading group channels from %channels', async () => {
+    const scry = vi.fn(async () => ({ posts: {} }));
+
+    await fetchChannelHistoryOrThrow({ scry }, 'chat/~ten/general', 50);
+
+    expect(scry).toHaveBeenCalledWith(
+      '/channels/v4/chat/~ten/general/posts/newest/50/outline.json',
+      expect.anything()
+    );
+  });
+
   it('forwards cancellation to the history scry', async () => {
     const controller = new AbortController();
     const scry = vi.fn(async () => []);

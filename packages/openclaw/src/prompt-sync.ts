@@ -34,6 +34,12 @@ export type PromptFileName = (typeof PROMPT_FILE_NAMES)[number];
 export const MAX_PROMPT_BYTES = 65_536;
 /** The bot's HTTP finalize route; its reply confirms steward consumed it. */
 export const STEWARD_PROMPTS_FINALIZE_PATH = '/steward/~/v1/prompts/finalize';
+/**
+ * The bot's HTTP projection route, a wrapper over the %project poke. Its reply
+ * confirms the projection was stored or rejected; a rejected channel poke is
+ * only a log line, so the poke would report success either way.
+ */
+export const STEWARD_PROMPTS_PROJECT_PATH = '/steward/~/v1/prompts/project';
 const MAX_COMPLETED_REQUESTS = 1_000;
 /** Coalesce an editor's write/rename event burst into one projection. */
 export const PROMPT_WATCH_DEBOUNCE_MS = 150;
@@ -191,11 +197,24 @@ async function readPromptFile(filePath: string): Promise<string | null> {
     if (info.size > MAX_PROMPT_BYTES) {
       throw new Error(`exceeds ${MAX_PROMPT_BYTES} byte limit`);
     }
-    const text = await handle.readFile('utf8');
-    if (!isWithinSizeLimit(text)) {
+    // The stat is only an early out: a file can grow after it, and readFile
+    // would buffer it to EOF. Read at most one byte past the cap instead.
+    const buffer = Buffer.alloc(MAX_PROMPT_BYTES + 1);
+    let length = 0;
+    while (length < buffer.length) {
+      const { bytesRead } = await handle.read(
+        buffer,
+        length,
+        buffer.length - length,
+        null
+      );
+      if (bytesRead === 0) break;
+      length += bytesRead;
+    }
+    if (length > MAX_PROMPT_BYTES) {
       throw new Error(`exceeds ${MAX_PROMPT_BYTES} byte limit`);
     }
-    return text;
+    return buffer.toString('utf8', 0, length);
   } finally {
     await handle.close().catch(() => {});
   }
@@ -330,6 +349,15 @@ export function createPromptSync(opts: {
 
   const isUnauthorized = (error: unknown) =>
     error instanceof UrbitHttpError && error.status === 401;
+  // A client error other than an expired session (401), a timeout (408) or
+  // a rate limit (429) means the request itself is wrong — a route missing
+  // after plugin/desk version skew, a body the ship rejects. It fails the
+  // same way every time, so retrying would only hold the serialized queue.
+  const isPermanent = (error: unknown) =>
+    error instanceof UrbitHttpError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    ![401, 408, 429].includes(error.status);
 
   const sleep = (ms: number) =>
     new Promise<void>((resolve) => {
@@ -356,7 +384,7 @@ export function createPromptSync(opts: {
         await work();
         return;
       } catch (error) {
-        if (closed || attempt >= retryAttempts) {
+        if (closed || attempt >= retryAttempts || isPermanent(error)) {
           throw error;
         }
         if (isUnauthorized(error) && opts.reauthenticate) {
@@ -402,14 +430,13 @@ export function createPromptSync(opts: {
   const publish = async (reason: string) => {
     // The read stays outside the retry on purpose. An oversized or symlinked
     // file fails the same way every time, and looping on it would hold
-    // startup and every later owner edit behind one bad file. Only the poke
-    // is a network step worth retrying.
+    // startup and every later owner edit behind one bad file. Only the
+    // request is a network step worth retrying, and a 4xx from it (an
+    // invalid projection) is terminal like any other.
     const prompts = await readWorkspacePrompts(opts.workspaceDir);
     await withRetry(`Prompt projection (${reason})`, async () => {
-      await opts.poke({
-        app: 'steward',
-        mark: 'steward-prompts-action-1',
-        json: { project: prompts },
+      await opts.requestJson(STEWARD_PROMPTS_PROJECT_PATH, 'POST', {
+        project: prompts,
       });
     });
     opts.logger.log(
@@ -509,7 +536,17 @@ export function createPromptSync(opts: {
       enqueue(async () => {
         // Install the watcher first. A local edit made during the initial
         // owner configuration is then queued after this startup projection.
-        await startWatcher();
+        // It is optional, though: if it cannot open (inotify exhausted, a
+        // filesystem that cannot be watched), only local-edit detection is
+        // lost, and that must not take the owner configuration and the
+        // initial projection down with it.
+        try {
+          await startWatcher();
+        } catch (error) {
+          opts.logger.warn(
+            `[tlon] Prompt workspace watcher unavailable; local edits will not be projected until restart: ${errorMessage(error)}`
+          );
+        }
         await configure();
         await publish('startup');
       }),
@@ -589,15 +626,29 @@ export function createPromptSync(opts: {
         if (outcome.type === 'updated') {
           // The projection lands before %finalize, so every terminal owner
           // response corresponds to the workspace snapshot it requested. A
-          // projection that fails anyway must not turn a completed write
-          // into an error: the write stands, the watcher this write already
-          // woke re-projects it, and a reconnect re-projects it again.
+          // projection that fails transiently must not turn a completed
+          // write into an error: the write stands, the watcher this write
+          // already woke re-projects it, and a reconnect re-projects it
+          // again. One the ship refuses (a name its allowlist lacks, a body
+          // over its cap) fails the same way on every retry, so reporting
+          // `updated` would tell the owner of a change its mirror never
+          // shows.
           try {
             await publish(`edit ${action.set.name}`);
           } catch (error) {
             opts.logger.warn(
               `[tlon] Prompt edit ${requestId} was written but not projected: ${errorMessage(error)}`
             );
+            if (isPermanent(error)) {
+              outcome = {
+                type: 'error',
+                errorType: 'harness-error',
+                message: [
+                  `${action.set.name} was written but the ship refused its projection: ${errorMessage(error)}`,
+                ],
+              };
+              rememberCompleted(dispatch, outcome);
+            }
           }
         }
         await finalize(requestId, outcome);

@@ -10,8 +10,10 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useShip } from '../contexts/ship';
+import { resetUploadQueue } from '../features/buckets/bucketUploadQueue';
 import { resetBotSettingsDraft } from '../features/settings/bot/useBotSettingsDraft';
 import { cancelNodeResumeNudge } from '../lib/notifications';
+import { resetNavigationRestored } from '../navigation/navigationRestore';
 
 const logger = createDevLogger('logout', true);
 
@@ -28,6 +30,9 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     store.clearSyncStartLock();
     cancelNodeResumeNudge();
     resetBotSettingsDraft();
+    resetNavigationRestored();
+    // Queued Bucket uploads belong to this account; the next must not run them.
+    resetUploadQueue();
 
     // Clear Electron stored credentials if in Electron environment
     if (isElectronEnv()) {

@@ -119,7 +119,6 @@ export function RenameFolderDialog({
       title="Rename folder"
       subtitle={`Update ${label}.`}
       testID="NotesRenameFolderDialog"
-      keyboardBehavior="interactive"
       cancelDisabled={isRenaming}
       confirmButton={
         <Button

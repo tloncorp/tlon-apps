@@ -1,9 +1,11 @@
 import {
   ACTIVITY_SOURCE_PAGESIZE,
+  type BucketsEntry,
   ChannelInit,
   formatNotesFlag,
   getCurrentUserId,
   getTextContent,
+  isGroupChannelId,
   parseNotesChannelId,
 } from '@tloncorp/api';
 import { parseGroupId } from '@tloncorp/api';
@@ -78,6 +80,9 @@ import {
   botReplyFeedback as $botReplyFeedback,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
+  bucketEntries as $bucketEntries,
+  bucketUploads as $bucketUploads,
+  buckets as $buckets,
   channelWriters as $channelWriters,
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
@@ -131,7 +136,6 @@ import {
   GroupJoinRequest,
   GroupNavSection,
   GroupNotesActivity,
-  GroupRole,
   GroupUnread,
   NotesFolder,
   NotesMember,
@@ -162,6 +166,8 @@ const GROUP_META_COLUMNS = {
   iconImageColor: true,
   coverImage: true,
   coverImageColor: true,
+  // only foreign previews carry a count; a /gangs preview must not clear it
+  memberCount: true,
 };
 
 export interface GetGroupsOptions {
@@ -2015,7 +2021,10 @@ export const insertGroups = createWriteQuery(
                 $groups.currentUserIsMember,
                 $groups.haveInvite,
                 $groups.haveRequestedInvite,
-                $groups.memberCount
+                // same for the count, which most group payloads don't carry
+                ...(group.memberCount !== undefined
+                  ? [$groups.memberCount]
+                  : [])
               ),
             });
         } else {
@@ -2283,6 +2292,22 @@ export const updateGroup = createWriteQuery(
   ['groups', 'channels', 'groupNavSections', 'groupNavSectionChannels']
 );
 
+// A live seat event moves the count without carrying it. A null count is
+// unknown, not zero, so it stays null until a payload carries one.
+export const adjustGroupMemberCount = createWriteQuery(
+  'adjustGroupMemberCount',
+  async (
+    { groupId, delta }: { groupId: string; delta: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groups)
+      .set({ memberCount: sql`max(${$groups.memberCount} + ${delta}, 0)` })
+      .where(and(eq($groups.id, groupId), isNotNull($groups.memberCount)));
+  },
+  ['groups']
+);
+
 export const deleteGroup = createWriteQuery(
   'deleteGroup',
   async (groupId: string, ctx: QueryCtx) => {
@@ -2453,6 +2478,297 @@ export const getContextLensBotsInChat = createReadQuery(
   ['contextLensRuns', 'chatMembers']
 );
 
+type BucketEntryRow = typeof $bucketEntries.$inferInsert;
+
+function toBucketEntryRow(
+  channelId: string,
+  entry: BucketsEntry
+): BucketEntryRow {
+  return {
+    channelId,
+    entryId: entry.id,
+    parentId: entry.parentId,
+    name: entry.name,
+    kind: entry.kind,
+    createdBy: entry.createdBy,
+    createdAt: entry.createdAt,
+    updatedBy: entry.updatedBy,
+    updatedAt: entry.updatedAt,
+    mime: entry.kind === 'file' ? entry.file.mime : null,
+    size: entry.kind === 'file' ? entry.file.size : null,
+    checksum: entry.kind === 'file' ? entry.file.checksum : null,
+    objectKey: entry.kind === 'file' ? entry.file.objectKey : null,
+    status: entry.kind === 'file' ? entry.file.status : null,
+  };
+}
+
+/**
+ * Replace a Bucket's manifest wholesale.
+ *
+ * For a snapshot, which carries the whole thing: anything not in it is gone,
+ * so the entries are deleted and rewritten rather than merged.
+ */
+export const replaceBucketEntries = createWriteQuery(
+  'replaceBucketEntries',
+  async (
+    {
+      channelId,
+      entries,
+      revision,
+    }: { channelId: string; entries: BucketsEntry[]; revision: number },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .insert($buckets)
+      .values({ channelId, revision })
+      .onConflictDoUpdate({ target: $buckets.channelId, set: { revision } });
+    await ctx.db
+      .delete($bucketEntries)
+      .where(eq($bucketEntries.channelId, channelId));
+    if (entries.length === 0) return;
+    await ctx.db
+      .insert($bucketEntries)
+      .values(entries.map((entry) => toBucketEntryRow(channelId, entry)));
+  },
+  ['buckets', 'bucketEntries']
+);
+
+/** Upsert one entry, from a create or an update. */
+/**
+ * Advance a Bucket's revision on its own.
+ *
+ * Entry writes carry the revision with them, but a writers-updated event
+ * changes no entries — and the revision is what tells a late init summary it
+ * is stale, so leaving it behind makes that summary look current.
+ */
+export const setBucketRevision = createWriteQuery(
+  'setBucketRevision',
+  async (
+    { channelId, revision }: { channelId: string; revision: number },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .insert($buckets)
+      .values({ channelId, revision })
+      .onConflictDoUpdate({ target: $buckets.channelId, set: { revision } });
+  },
+  ['buckets']
+);
+
+export const upsertBucketEntry = createWriteQuery(
+  'upsertBucketEntry',
+  async (
+    {
+      channelId,
+      entry,
+      revision,
+    }: { channelId: string; entry: BucketsEntry; revision: number },
+    ctx: QueryCtx
+  ) => {
+    const row = toBucketEntryRow(channelId, entry);
+    await ctx.db
+      .insert($buckets)
+      .values({ channelId, revision })
+      .onConflictDoUpdate({ target: $buckets.channelId, set: { revision } });
+    await ctx.db
+      .insert($bucketEntries)
+      .values(row)
+      .onConflictDoUpdate({
+        target: [$bucketEntries.channelId, $bucketEntries.entryId],
+        set: row,
+      });
+  },
+  ['buckets', 'bucketEntries']
+);
+
+export const deleteBucketEntries = createWriteQuery(
+  'deleteBucketEntries',
+  async (
+    {
+      channelId,
+      entryIds,
+      revision,
+    }: { channelId: string; entryIds: number[]; revision: number },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .insert($buckets)
+      .values({ channelId, revision })
+      .onConflictDoUpdate({ target: $buckets.channelId, set: { revision } });
+    if (entryIds.length === 0) return;
+    await ctx.db
+      .delete($bucketEntries)
+      .where(
+        and(
+          eq($bucketEntries.channelId, channelId),
+          inArray($bucketEntries.entryId, entryIds)
+        )
+      );
+  },
+  ['buckets', 'bucketEntries']
+);
+
+/** Forget a Bucket we no longer hold. */
+export const deleteBucket = createWriteQuery(
+  'deleteBucket',
+  async (channelId: string, ctx: QueryCtx) => {
+    await ctx.db
+      .delete($bucketEntries)
+      .where(eq($bucketEntries.channelId, channelId));
+    // Queued, failed and active transfers go with it. Left behind, a pane
+    // still mounted on the Bucket goes on showing uploads for something the
+    // ship no longer holds, and rejoining in the same process resurrects
+    // those rows over newly published entries.
+    await ctx.db
+      .delete($bucketUploads)
+      .where(eq($bucketUploads.channelId, channelId));
+    await ctx.db.delete($buckets).where(eq($buckets.channelId, channelId));
+  },
+  ['buckets', 'bucketEntries', 'bucketUploads']
+);
+
+/**
+ * Put back what an optimistic channel delete took with it.
+ *
+ * Deleting a channel clears its Bucket's rows too, so a delete the server
+ * then refuses would otherwise leave the restored channel with an empty
+ * manifest and no record of the uploads that were running.
+ * Existing rows win: by the time a rollback runs, the subscription may
+ * already have written something newer than this snapshot.
+ */
+export const restoreBucket = createWriteQuery(
+  'restoreBucket',
+  async (
+    {
+      bucket,
+      entries,
+      uploads,
+    }: {
+      bucket: typeof $buckets.$inferInsert;
+      entries: (typeof $bucketEntries.$inferInsert)[];
+      uploads: (typeof $bucketUploads.$inferInsert)[];
+    },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db.insert($buckets).values(bucket).onConflictDoNothing();
+    if (entries.length) {
+      await ctx.db.insert($bucketEntries).values(entries).onConflictDoNothing();
+    }
+    if (uploads.length) {
+      await ctx.db.insert($bucketUploads).values(uploads).onConflictDoNothing();
+    }
+  },
+  ['buckets', 'bucketEntries', 'bucketUploads']
+);
+
+export const upsertBucketUpload = createWriteQuery(
+  'upsertBucketUpload',
+  async (upload: typeof $bucketUploads.$inferInsert, ctx: QueryCtx) => {
+    await ctx.db
+      .insert($bucketUploads)
+      .values(upload)
+      .onConflictDoUpdate({ target: $bucketUploads.id, set: upload });
+  },
+  ['bucketUploads']
+);
+
+export const updateBucketUpload = createWriteQuery(
+  'updateBucketUpload',
+  async (
+    {
+      id,
+      ...patch
+    }: { id: string } & Partial<typeof $bucketUploads.$inferInsert>,
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .update($bucketUploads)
+      .set(patch)
+      .where(eq($bucketUploads.id, id));
+  },
+  ['bucketUploads']
+);
+
+export const deleteBucketUpload = createWriteQuery(
+  'deleteBucketUpload',
+  async (id: string, ctx: QueryCtx) => {
+    await ctx.db.delete($bucketUploads).where(eq($bucketUploads.id, id));
+  },
+  ['bucketUploads']
+);
+
+/**
+ * Delete the given upload rows that are still failed, and return them.
+ *
+ * Checked and deleted in one statement, so a row retried in the meantime is
+ * not swept up with the failures. One write, so dismissing a thousand
+ * failures invalidates the readers once rather than a thousand times.
+ * Chunked to stay under SQLite's bound-parameter limit.
+ */
+export const deleteFailedBucketUploads = createWriteQuery(
+  'deleteFailedBucketUploads',
+  async (ids: string[], ctx: QueryCtx) => {
+    const deleted: (typeof $bucketUploads.$inferSelect)[] = [];
+    for (let i = 0; i < ids.length; i += 500) {
+      deleted.push(
+        ...(await ctx.db
+          .delete($bucketUploads)
+          .where(
+            and(
+              inArray($bucketUploads.id, ids.slice(i, i + 500)),
+              eq($bucketUploads.state, 'failed')
+            )
+          )
+          .returning())
+      );
+    }
+    return deleted;
+  },
+  ['bucketUploads']
+);
+
+export const getBucketUploads = createReadQuery(
+  'getBucketUploads',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.bucketUploads.findMany({
+      where: eq($bucketUploads.channelId, channelId),
+      orderBy: asc($bucketUploads.startedAt),
+    });
+  },
+  ['bucketUploads']
+);
+
+/**
+ * Every upload row, whichever Bucket it belongs to.
+ *
+ * Read once at startup: a row with no transfer behind it is one this process
+ * did not start, so its bytes are unreachable and its host session wants
+ * cancelling.
+ */
+export const getAllBucketUploads = createReadQuery(
+  'getAllBucketUploads',
+  async (_: undefined, ctx: QueryCtx) => {
+    return ctx.db.query.bucketUploads.findMany({});
+  },
+  ['bucketUploads']
+);
+
+/** One Bucket's manifest, or null if this ship does not hold it. */
+export const getBucket = createReadQuery(
+  'getBucket',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    const bucket = await ctx.db.query.buckets.findFirst({
+      where: eq($buckets.channelId, channelId),
+    });
+    if (!bucket) return null;
+    const entries = await ctx.db.query.bucketEntries.findMany({
+      where: eq($bucketEntries.channelId, channelId),
+    });
+    return { ...bucket, entries };
+  },
+  ['buckets', 'bucketEntries']
+);
+
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
   async (channelsInit: Omit<ChannelInit, 'order'>[], ctx: QueryCtx) => {
@@ -2552,6 +2868,18 @@ export const getChannelHasBotPost = createReadQuery(
   ['posts']
 );
 
+// Content-free, unjoined read for thread sync diagnostics. This reads SQLite
+// directly so it can detect a stale React Query result without refreshing it.
+export const getThreadPostDiagnostics = createReadQuery(
+  'getThreadPostDiagnostics',
+  ({ parentId }: { parentId: string }, ctx: QueryCtx) =>
+    ctx.db.query.posts.findMany({
+      where: eq($posts.parentId, parentId),
+      columns: { id: true, isDeleted: true, deliveryStatus: true },
+    }),
+  ['posts']
+);
+
 export const getThreadPosts = createReadQuery(
   'getThreadPosts',
   ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
@@ -2621,6 +2949,32 @@ export const getChatMember = createReadQuery(
       .then(returnNullIfUndefined);
   },
   ['chatMembers', 'chatMemberGroupRoles']
+);
+
+export const getJoinedGroupSeats = createReadQuery(
+  'getJoinedGroupSeats',
+  async ({ contactIds }: { contactIds: string[] }, ctx: QueryCtx) => {
+    if (contactIds.length === 0) return [];
+    return ctx.db
+      .select({
+        groupId: $chatMembers.chatId,
+        contactId: $chatMembers.contactId,
+        // When the group's full roster was last fetched (see syncGroup).
+        syncedAt: $groups.syncedAt,
+      })
+      .from($chatMembers)
+      .leftJoin($groups, eq($groups.id, $chatMembers.chatId))
+      .where(
+        and(
+          eq($chatMembers.membershipType, 'group'),
+          // status is only set for invite flows; anything but 'invited' is a
+          // joined seat (see getContextLensBotsInChat).
+          or(isNull($chatMembers.status), ne($chatMembers.status, 'invited')),
+          inArray($chatMembers.contactId, contactIds)
+        )
+      );
+  },
+  ['chatMembers', 'groups']
 );
 
 export const addChatMembers = createWriteQuery(
@@ -2833,49 +3187,6 @@ export const deleteGroupRankBans = createWriteQuery(
   ['groupRankBans']
 );
 
-export const addRole = createWriteQuery(
-  'addRole',
-  async (role: GroupRole, ctx: QueryCtx) => {
-    return ctx.db
-      .insert($groupRoles)
-      .values(role)
-      .onConflictDoUpdate({
-        target: $groupRoles.id,
-        set: conflictUpdateSetAll($groupRoles),
-      });
-  },
-  ['groupRoles']
-);
-
-export const deleteRole = createWriteQuery(
-  'deleteRole',
-  async (
-    { roleId, groupId }: { roleId: string; groupId: string },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db
-      .delete($groupRoles)
-      .where(and(eq($groupRoles.id, roleId), eq($groupRoles.groupId, groupId)));
-  },
-  ['groupRoles']
-);
-
-export const updateRole = createWriteQuery(
-  'updateRole',
-  async (
-    role: Partial<GroupRole> & { id: string; groupId: string },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db
-      .update($groupRoles)
-      .set(role)
-      .where(
-        and(eq($groupRoles.groupId, role.groupId), eq($groupRoles.id, role.id))
-      );
-  },
-  ['groupRoles']
-);
-
 export const addChatMembersToRoles = createWriteQuery(
   'addChatMembersToRoles',
   async (
@@ -2890,15 +3201,25 @@ export const addChatMembersToRoles = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
-    return ctx.db.insert($chatMemberGroupRoles).values(
-      contactIds.flatMap((contactId) =>
-        roleIds.map((roleId) => ({
-          groupId,
-          contactId,
-          roleId,
-        }))
+    if (contactIds.length === 0 || roleIds.length === 0) return;
+    return ctx.db
+      .insert($chatMemberGroupRoles)
+      .values(
+        contactIds.flatMap((contactId) =>
+          roleIds.map((roleId) => ({
+            groupId,
+            contactId,
+            roleId,
+          }))
+        )
       )
-    );
+      .onConflictDoNothing({
+        target: [
+          $chatMemberGroupRoles.groupId,
+          $chatMemberGroupRoles.contactId,
+          $chatMemberGroupRoles.roleId,
+        ],
+      });
   },
   ['chatMembers', 'chatMemberGroupRoles']
 );
@@ -2946,6 +3267,57 @@ export const removeChatMembers = createWriteQuery(
           inArray($chatMembers.contactId, contactIds)
         )
       );
+  },
+  ['chatMembers', 'groups']
+);
+
+export const getGroupMemberIds = createReadQuery(
+  'getGroupMemberIds',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .select({ contactId: $chatMembers.contactId })
+      .from($chatMembers)
+      .where(
+        and(
+          eq($chatMembers.chatId, groupId),
+          eq($chatMembers.membershipType, 'group')
+        )
+      );
+    return rows.map((row) => row.contactId);
+  },
+  ['chatMembers']
+);
+
+// insertGroups only upserts members, so a seat removed while this client
+// wasn't listening (a kick or leave during a long offline stretch) is never
+// deleted. Given a group's full roster (`keepIds`), drop the stored seats it
+// omits. Only `candidateIds` — seats stored before the roster was requested —
+// can go, so a seat added by a live event in the meantime survives. Init and
+// changes truncate large groups' seats, so only pass a full per-group fetch.
+export const deleteAbsentGroupMembers = createWriteQuery(
+  'deleteAbsentGroupMembers',
+  async (
+    {
+      groupId,
+      keepIds,
+      candidateIds,
+    }: { groupId: string; keepIds: string[]; candidateIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    const keep = new Set(keepIds);
+    const absent = candidateIds.filter((contactId) => !keep.has(contactId));
+    const batchSize = 200;
+    for (let i = 0; i < absent.length; i += batchSize) {
+      await ctx.db
+        .delete($chatMembers)
+        .where(
+          and(
+            eq($chatMembers.chatId, groupId),
+            eq($chatMembers.membershipType, 'group'),
+            inArray($chatMembers.contactId, absent.slice(i, i + batchSize))
+          )
+        );
+    }
   },
   ['chatMembers', 'groups']
 );
@@ -3571,10 +3943,27 @@ export const deleteChannels = createWriteQuery(
     await ctx.db
       .delete($chatMembers)
       .where(inArray($chatMembers.chatId, channels));
+    // A Bucket's rows are keyed by channel but not foreign-keyed to it, so
+    // they are cleared here rather than by a cascade -- which fires or not
+    // depending on a PRAGMA the drivers do not agree on.
+    await ctx.db
+      .delete($bucketEntries)
+      .where(inArray($bucketEntries.channelId, channels));
+    await ctx.db
+      .delete($bucketUploads)
+      .where(inArray($bucketUploads.channelId, channels));
+    await ctx.db.delete($buckets).where(inArray($buckets.channelId, channels));
     await ctx.db.delete($channels).where(inArray($channels.id, channels));
     return;
   },
-  ['channels', 'posts', 'chatMembers']
+  [
+    'channels',
+    'posts',
+    'chatMembers',
+    'buckets',
+    'bucketEntries',
+    'bucketUploads',
+  ]
 );
 
 export const addNavSectionToGroup = createWriteQuery(
@@ -3674,6 +4063,14 @@ export const updateNavSectionOrder = createWriteQuery(
     { groupId, sectionIds }: { groupId: string; sectionIds: string[] },
     ctx: QueryCtx
   ) => {
+    // A desk/client fact-shape drift (TLON-6696) should skip the reorder, not abort the group update.
+    if (!Array.isArray(sectionIds)) {
+      logger.trackError('updateNavSectionOrder: sectionIds is not an array', {
+        groupId,
+        type: typeof sectionIds,
+      });
+      return;
+    }
     // Update each section's index based on position in array
     for (let i = 0; i < sectionIds.length; i++) {
       const navSectionId = `${groupId}-${sectionIds[i]}`;
@@ -6538,7 +6935,13 @@ export const insertActivityEvents = createWriteQuery(
     const currentUserId = getCurrentUserId();
     if (events.length === 0) return;
 
-    const activityEventChannels = events.flatMap((e) => e.channelId || []);
+    // Only DMs and group DMs. %groups' active-channels owns group-channel
+    // membership (reconcileJoinedGroupChannels, active-channel deltas), and
+    // an event naming a channel doesn't mean we're in it: a group-sourced
+    // flag report outlives our leaving the channel it names.
+    const activityEventChannels = events.flatMap((e) =>
+      e.channelId && !isGroupChannelId(e.channelId) ? e.channelId : []
+    );
 
     const activityEventGroups = events.flatMap(
       (contact) => contact.contactUpdateGroups || []
@@ -7120,10 +7523,29 @@ export const addGroupRole = createWriteQuery(
     }: { groupId: string; roleId: string; meta?: ClientMeta },
     ctx: QueryCtx
   ) => {
-    return ctx.db
+    const insert = ctx.db
       .insert($groupRoles)
-      .values({ groupId, id: roleId, ...meta })
-      .onConflictDoNothing();
+      .values({ groupId, id: roleId, ...meta });
+
+    // A role add can legitimately arrive for an id we already hold carrying
+    // newer metadata (the desk only rejects a batch whose ids *all* exist, and
+    // a client that missed a deletion keeps the stale row through a recreate),
+    // so the insert has to upsert on the composite key rather than do nothing.
+    // Overwrite only the fields the caller actually supplied: a set-all would
+    // null out an existing row for the metadata-free callers.
+    const columns = getTableColumns($groupRoles);
+    const providedColumns = Object.entries(meta ?? {})
+      .filter(([key, value]) => value !== undefined && key in columns)
+      .map(([key]) => columns[key as keyof typeof columns]);
+
+    if (providedColumns.length === 0) {
+      return insert.onConflictDoNothing();
+    }
+
+    return insert.onConflictDoUpdate({
+      target: [$groupRoles.groupId, $groupRoles.id],
+      set: conflictUpdateSet(...providedColumns),
+    });
   },
   ['groupRoles']
 );

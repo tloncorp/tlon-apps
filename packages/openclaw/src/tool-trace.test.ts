@@ -64,6 +64,37 @@ describe('tool trace helpers', () => {
     expect(event).not.toContain('hunter2');
   });
 
+  it.each(['before', 'after'] as const)(
+    'redacts browser handoff commands in %s events before truncation',
+    (phase) => {
+      for (const command of [
+        'browser handoff https://browser.example/s/private.signature',
+        'tlon browser handoff https://browser.example/s/private.signature',
+        'tlon --ship=~zod browser handoff https://browser.example/s/private.signature',
+        '--ship ~zod tlon browser handoff https://browser.example/s/private.signature',
+        '--ship=~zod browser handoff "https://browser.example/s/private.signature"',
+        `browser handoff https://browser.example/s/private.signature${'x'.repeat(3000)}`,
+      ]) {
+        const payload = { params: { command } };
+        const event = formatToolTraceEvent({
+          phase,
+          toolName: 'tlon',
+          payload,
+        });
+        expect(event).toContain('"command":"browser handoff [REDACTED]"');
+        expect(event).not.toContain('browser.example');
+        expect(event).not.toContain('private.signature');
+        expect(payload.params.command).toBe(command);
+      }
+    }
+  );
+
+  it('preserves ordinary command arguments', () => {
+    expect(_testing.sanitizeValue({ command: 'contacts get ~zod' })).toEqual({
+      command: 'contacts get ~zod',
+    });
+  });
+
   it('collapses deep and oversized structures', () => {
     const sanitized = _testing.sanitizeValue({
       items: Array.from({ length: 25 }, (_, i) => i),

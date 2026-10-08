@@ -63,6 +63,7 @@ interface SharedScreenHeaderProps {
   borderBottom?: boolean;
   onTitlePress?: () => void;
   useHorizontalTitleLayout?: boolean;
+  includeTopSafeArea?: boolean;
   loadingSubtitle?: string | null;
   testID?: string;
 }
@@ -104,6 +105,7 @@ export const ScreenHeaderComponent = ({
   borderBottom,
   onTitlePress,
   useHorizontalTitleLayout = false,
+  includeTopSafeArea = true,
   loadingSubtitle,
   testID,
   placement = 'content',
@@ -203,6 +205,7 @@ export const ScreenHeaderComponent = ({
     ? getNativeTitleMaxWidth({
         width: screenWidth - leftInset - rightInset,
         fontScale,
+        platform: Platform.OS,
         left: navigationLeftActions,
         right: rightActions ?? [],
       })
@@ -345,7 +348,7 @@ export const ScreenHeaderComponent = ({
 
   return (
     <View
-      paddingTop={top}
+      paddingTop={includeTopSafeArea ? top : 0}
       zIndex={50}
       backgroundColor={backgroundColor ?? '$background'}
       borderColor="$border"

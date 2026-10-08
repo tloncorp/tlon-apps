@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/openclaw",
-  "version": "0.30.0",
+  "version": "0.32.2",
   "description": "OpenClaw Tlon/Urbit channel plugin",
   "license": "MIT",
   "repository": {
@@ -46,7 +46,9 @@
     "test:integration:watch": "./test/run-dev.sh --watch",
     "test:manual": "bash ./test/run-manual.sh",
     "test:security": "vitest run src/security.test.ts",
+    "test:browser-handoff-package": "pnpm --dir ../api build && tsc && node scripts/test-browser-handoff-package.mjs",
     "test:watch": "vitest src/",
+    "test:tool-files": "bun test test/hermetic",
     "prepare:publish": "npm run build && node scripts/prepare-publish-package.js",
     "pack:publish": "npm run prepare:publish && npm pack .publish",
     "publish:clean": "npm run prepare:publish && npm publish .publish --access public"
@@ -54,7 +56,7 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@tloncorp/api": "workspace:^",
-    "@tloncorp/tlon-skill": "workspace:^",
+    "@tloncorp/tlon-skill": "workspace:^0.8.0",
     "@urbit/aura": "^3.0.0",
     "posthog-node": "^5.28.9",
     "zod": "^4.4.1"

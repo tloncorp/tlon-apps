@@ -1,0 +1,74 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Leaves any screen stacked above the tabs so that a tab can be selected.
+# Contacts, a channel and every settings detail are root-stack screens that
+# cover the tab bar, and a journey can arrive at a tab selection from one --
+# most often a cleanup hook running after a failure, but also an ordinary warm
+# launch, which restores the position the last run was closed in.
+# The notifications notice floats over the bottom of the chat list, covering
+# part of the tab bar, and its primary action is a second exact "Settings" --
+# one that calls `openSettings()` and leaves the app altogether. Dismissed
+# after the unwind, not before: a screen stacked above the tabs hides the
+# notice too, so a check up front would miss it and the unwind would then
+# expose it in front of the tab about to be tapped.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # Wait for the app to be up before unwinding. A cold start shows neither
+      # the tab bar nor a back button for a while, and the loop below would
+      # otherwise spend all its runs against a splash screen and give up.
+      - extendedWaitUntil:
+          visible: '^(Tab Bar|Back)$'
+          timeout: 60000
+      - repeat:
+          times: 8
+          while:
+            notVisible: '^Tab Bar$'
+          commands:
+            - runFlow:
+                when:
+                  visible: '^Back$'
+                commands:
+                  - tapOn: '^Back$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # Do not test for the tab labels here. Android carries them only as the
+      # buttons' content descriptions, and those same words occur in ordinary
+      # content: a contact row shows a "Bot" badge, which satisfied this guard
+      # on the Contacts screen. The unwind was then skipped, the screen stayed
+      # over the bar, and every later tab selection tapped a tab that was not
+      # there -- which is how `profile` failed looking for "Workspaces".
+      # The native bar's own view ids cannot be spoofed that way:
+      # `navigation_bar_item_icon_view` exists only in the tab bar.
+      #
+      # Both back buttons have to be listed. A navigation-placement header
+      # renders `screen-header-back` (ScreenHeader.tsx) but a custom header
+      # renders `HeaderBackButton` (ScreenHeader.BackButton), and a warm run
+      # can restore either -- User Profile is the second kind. Matching only
+      # the first left those screens unwindable: the bar was covered, so the
+      # readiness wait timed out before the loop could tap anything.
+      - extendedWaitUntil:
+          visible:
+            id: '.*(navigation_bar_item_icon_view|screen-header-back|HeaderBackButton)'
+          timeout: 60000
+      - repeat:
+          times: 8
+          while:
+            notVisible:
+              id: '.*navigation_bar_item_icon_view'
+          commands:
+            - runFlow:
+                when:
+                  visible:
+                    id: '.*(screen-header-back|HeaderBackButton)'
+                commands:
+                  - tapOn:
+                      id: '.*(screen-header-back|HeaderBackButton)'
+- runFlow:
+    when:
+      visible: '^Stay in the loop$'
+    commands:
+      - tapOn: '^Not now$'

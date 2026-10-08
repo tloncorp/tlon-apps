@@ -33,6 +33,7 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
+import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -67,6 +68,7 @@ import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
+import { ConversationLayout } from './ConversationLayout';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
@@ -275,6 +277,11 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
+  /**
+   * The channel is a top-level tab's own screen: it has nothing to go back to,
+   * and the floating tab bar would otherwise cover its message input.
+   */
+  isTopLevelTab?: boolean;
   disableBackButton?: boolean;
   onPressLogout?: () => void;
   suppressEmptyState?: boolean;
@@ -322,6 +329,7 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
+  isTopLevelTab,
   disableBackButton,
   onPressLogout,
   suppressEmptyState,
@@ -376,6 +384,7 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
   const isNarrow = useIsWindowNarrow();
+  const tabBarClearance = useTopLevelTabBarClearance();
   const inView = useIsFocused();
   const collectionRef = useRef<PostCollectionHandle>(null);
   const orientationCompletePostId = useMemo(
@@ -402,6 +411,9 @@ export function Channel({
   useEffect(() => {
     if (
       disableBackButton ||
+      // The hint points at the back control. A tab root has none, so the
+      // one-shot waits for a pushed conversation that does.
+      isTopLevelTab ||
       !inView ||
       !isNarrow ||
       shownOnboardingBackTooltipsLoading ||
@@ -420,6 +432,7 @@ export function Channel({
     hasFirstGroupOnboardingRequest,
     inView,
     isNarrow,
+    isTopLevelTab,
     orientationCompletePostId,
     shownOnboardingBackTooltips,
     shownOnboardingBackTooltipsLoading,
@@ -724,7 +737,7 @@ export function Channel({
       sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
         await finalizeAndSendPost(draft, options);
-        if (!draft.isEdit) {
+        if (!draft.isEdit && !options?.scrollHandled) {
           scrollToNewMessage();
         }
       },
@@ -869,16 +882,12 @@ export function Channel({
   const usesFloatingPinnedPostBanner = isChatChannel && supportsLiquidGlass();
   const shouldReservePinnedPostBannerSpace =
     usesFloatingPinnedPostBanner && shouldRenderPinnedPostBanner;
-  const {
-    contentInsets,
-    navigationHeaderHeight,
-    floatingHeaderHeight,
-    onFloatingHeightChange,
-  } = useConversationInsets({
-    hasFloatingComposer: draftInputType === DraftInputId.chat,
-    hasTransparentHeader: isChatChannel,
-    hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
-  });
+  const { contentInsets, navigationHeaderHeight, floatingHeaderHeight } =
+    useConversationInsets({
+      hasFloatingComposer: false,
+      hasTransparentHeader: isChatChannel,
+      hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
+    });
   const sharedTopInset =
     floatingHeaderHeight +
     (shouldReservePinnedPostBannerSpace
@@ -924,6 +933,7 @@ export function Channel({
               >
                 <View backgroundColor={backgroundColor} flex={1}>
                   <FileDrop
+                    dropEnabled={channel.type !== 'buckets'}
                     flexDirection="column"
                     justifyContent="space-between"
                     width="100%"
@@ -939,7 +949,7 @@ export function Channel({
                           description={''}
                           backDisabled={disableBackButton}
                           goBack={
-                            isNarrow ||
+                            (isNarrow && !isTopLevelTab) ||
                             draftInputPresentationMode === 'fullscreen'
                               ? handleGoBack
                               : undefined
@@ -1010,7 +1020,15 @@ export function Channel({
                             }
                             position="relative"
                           >
-                            <YStack alignItems="stretch" flex={1} minWidth={0}>
+                            <ConversationLayout
+                              bottomChromeClearance={
+                                isTopLevelTab ? tabBarClearance : 0
+                              }
+                              enabled={
+                                draftInputType === DraftInputId.chat &&
+                                !readOnlyNoticeType
+                              }
+                            >
                               {shouldRenderJoinRequestNotice && (
                                 <SystemNotices.ConnectedJoinRequestNotice
                                   group={group}
@@ -1023,7 +1041,11 @@ export function Channel({
                               <AnimatePresence>
                                 {draftInputPresentationMode !==
                                   'fullscreen' && (
-                                  <View flex={1}>
+                                  <View
+                                    flex={1}
+                                    minHeight={0}
+                                    overflow="hidden"
+                                  >
                                     <PostCollectionContext.Provider
                                       value={{
                                         contentInsets: postCollectionInsets,
@@ -1092,8 +1114,8 @@ export function Channel({
                                 <DraftInputView
                                   draftInputContext={draftInputContext}
                                   type={draftInputType}
-                                  onFloatingHeightChange={
-                                    onFloatingHeightChange
+                                  bottomChromeClearance={
+                                    isTopLevelTab ? tabBarClearance : 0
                                   }
                                 />
                               ) : null}
@@ -1104,7 +1126,7 @@ export function Channel({
                                   goBack={goBack}
                                 />
                               )}
-                            </YStack>
+                            </ConversationLayout>
                             {contextLensAvailable &&
                               contextLensOpen &&
                               !isNarrow && (

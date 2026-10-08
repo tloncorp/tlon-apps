@@ -20,7 +20,6 @@ const responseSchema = z.object({
       type: z.literal('error'),
       errorType: z.enum([
         'not-authorized',
-        'not-found',
         'invalid',
         'harness-offline',
         'harness-error',
@@ -197,7 +196,10 @@ export function subscribeToStewardPrompts(
   handler: (update: StewardPromptUpdate) => void,
   onQuit?: () => void
 ) {
-  return subscribe({ app: 'steward', path: '/v1/prompts/files' }, handler, {
-    onQuit,
-  });
+  return subscribe(
+    { app: 'steward', path: '/v1/prompts/files' },
+    handler,
+    undefined,
+    { onQuit }
+  );
 }

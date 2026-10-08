@@ -182,8 +182,20 @@ export function BigInput({
   const [imageUri, setImageUri] = useState<string | null>(
     editingPost?.image || null
   );
-  const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
-  const [showInlineImageSheet, setShowInlineImageSheet] = useState(false);
+  const [showAttachmentSheet, updateShowAttachmentSheet] = useState(false);
+  const [showInlineImageSheet, updateShowInlineImageSheet] = useState(false);
+  const [hasOpenedAttachmentSheet, setHasOpenedAttachmentSheet] =
+    useState(false);
+  const [hasOpenedInlineImageSheet, setHasOpenedInlineImageSheet] =
+    useState(false);
+  const setShowAttachmentSheet = useCallback((open: boolean) => {
+    if (open) setHasOpenedAttachmentSheet(true);
+    updateShowAttachmentSheet(open);
+  }, []);
+  const setShowInlineImageSheet = useCallback((open: boolean) => {
+    if (open) setHasOpenedInlineImageSheet(true);
+    updateShowInlineImageSheet(open);
+  }, []);
   const [hasContentChanges, setHasContentChanges] = useState(false);
   const [hasTitleChanges, setHasTitleChanges] = useState(false);
   const [hasImageChanges, setHasImageChanges] = useState(false);
@@ -791,7 +803,8 @@ export function BigInput({
         </>
       )}
 
-      {channelType === 'notebook' && showAttachmentSheet && (
+      {/* Mount lazily, then retain through native dismissal and picker handoff. */}
+      {channelType === 'notebook' && hasOpenedAttachmentSheet && (
         <AttachmentSheet
           isOpen={showAttachmentSheet}
           onOpenChange={setShowAttachmentSheet}
@@ -803,7 +816,7 @@ export function BigInput({
         />
       )}
 
-      {channelType === 'notebook' && showInlineImageSheet && (
+      {channelType === 'notebook' && hasOpenedInlineImageSheet && (
         <AttachmentSheet
           isOpen={showInlineImageSheet}
           onOpenChange={setShowInlineImageSheet}

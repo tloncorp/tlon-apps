@@ -354,7 +354,7 @@ export type GroupResponseData =
   | { role: { roles: string[]; 'r-role': GroupResponseRole } }
   | { channel: { nest: string; 'r-channel': GroupResponseChannel } }
   | { section: { 'section-id': string; 'r-section': GroupResponseSection } }
-  | { 'section-order': { order: string[] } }
+  | { 'section-order': { 'section-order': string[] } }
   | { 'active-channel': { nest: string; joined: boolean } }
   | {
       'flag-content': {
@@ -530,7 +530,10 @@ export interface GroupV11 {
   sections: SectionsV7;
   'section-order': string[];
   'flagged-content': FlaggedContent;
-  'member-count': number;
+  // Only group-ui payloads (init, changes, the ui group scry, the create
+  // thread) carry it; a bare group (`/v3/groups`, a %create response) doesn't.
+  // Init and changes cap it at 15 through desk 12.3.1.
+  'member-count'?: number;
   init: boolean;
 }
 
@@ -615,7 +618,7 @@ export interface NewChannelFormSchema extends ChannelFormSchema {
 export interface ChannelPreview {
   nest: string;
   meta: GroupMeta;
-  group: GroupPreview;
+  group: GroupPreviewV7;
 }
 
 export function isGroup(obj: any): obj is Group {
@@ -651,13 +654,8 @@ export type GroupAction =
   | { channel: { nest: string; 'a-channel': GroupChannelAction } }
   | { section: { 'section-id': string; 'a-section': GroupSectionAction } }
   | { navigation: GroupNavigationAction }
-  | {
-      'flag-content': {
-        nest: string;
-        plan: [number, number | null]; // [post-time, reply-time?]
-        src: string; // ship
-      };
-    }
+  // The desk's dejs reads post-key here, not plan (groups-json ++flag-content).
+  | FlagContentDiff
   | { delete: null };
 
 export type GroupEntryAction =

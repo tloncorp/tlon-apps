@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import { hasAmbiguousMigrationAccount } from './migration-account-safety.js';
@@ -16,6 +14,7 @@ import {
   type BuildMigrateCard,
   buildMigrateCard,
 } from './monitor/migrate-card.js';
+import { locateOwnerShipConfig } from './owner-ship-config.js';
 import { sharedMap } from './shared-state.js';
 import { canonicalizeNest, normalizeShip } from './targets.js';
 import { formatTlonTelemetryErrorText, reportMigration } from './telemetry.js';
@@ -159,27 +158,20 @@ function selectCredentials(
     };
   }
   if (host && host === ownerShip) {
-    const skillDir = String(
-      (deps.env ?? process.env).TLON_SKILL_DIR ?? ''
-    ).trim();
-    if (!skillDir) {
+    const location = locateOwnerShipConfig(ownerShip, deps);
+    if (location.kind === 'no-skill-dir') {
       return {
         error: `Migration for host ${host} requires TLON_SKILL_DIR so the owner credential file can be located.`,
       };
     }
-    const configPath = join(
-      skillDir,
-      'ships',
-      `${ownerShip.replace(/^~/, '')}.json`
-    );
-    if (!(deps.fileExists ?? existsSync)(configPath)) {
+    if (location.kind === 'no-config-file') {
       return {
-        error: `Migration for host ${host} requires owner credentials at ${configPath}.`,
+        error: `Migration for host ${host} requires owner credentials at ${location.configPath}.`,
       };
     }
     return {
       kind: 'owner-hosted',
-      prefixArgs: ['--config', configPath],
+      prefixArgs: ['--config', location.configPath],
       credentials: undefined,
     };
   }

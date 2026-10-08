@@ -1,0 +1,32 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Maestro's own clipboard commands do not touch the operating-system clipboard.
+# Seed it through the platform search field before testing an in-app copy action.
+- pressKey: Home
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '^Search$'
+      - tapOn:
+          id: input
+      - inputText: ${CLIPBOARD_SENTINEL}
+      - longPressOn:
+          id: input
+      - tapOn: '^Select all$'
+      - tapOn: '^Cut$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Home
+      - tapOn: '^Search$'
+      - tapOn:
+          id: SpotlightSearchField
+      - inputText: ${CLIPBOARD_SENTINEL}
+      - longPressOn:
+          id: SpotlightSearchField
+      - tapOn: '^Select All$'
+      - tapOn: '^Cut$'
+- launchApp:
+    stopApp: false

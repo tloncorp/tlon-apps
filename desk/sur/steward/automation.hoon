@@ -18,13 +18,48 @@
       [%at at=(unit @da)]
       [%every every=(unit @dr) anchor=(unit @da)]
   ==
+::  $task-payload: the agentTurn payload. .tools-allow is the host's
+::  tool allow-list; when it is set the model is offered only those tools,
+::  which is how the bot keeps publishing out of the model's reach. the
+::  remaining agentTurn fields (model, fallbacks, thinking, timeout,
+::  light-context) are not mirrored yet; a patch that omits a field leaves
+::  the host's value alone, so they survive an edit from here
+::
 +$  task-payload
   $:  kind=(unit @t)
       message=(unit @t)
+      tools-allow=(unit (list @t))
   ==
-::  $task: the supported definition-only PluginHookGatewayCronJob subset; the ID
-::  from OpenClaw is stored separately as the map key. runtime job state and
+::  $delivery-mode: where a run's output goes. %none keeps it in the run
+::
++$  delivery-mode  ?(%none %announce %webhook)
+::  $failure-destination: separate target for failure notices
+::
++$  failure-destination
+  $:  mode=(unit ?(%announce %webhook))
+      channel=(unit @t)
+      to=(unit @t)
+      account-id=(unit @t)
+  ==
+::  $delivery: the job's destination. .channel names the transport
+::  ('tlon') and .to the address within it, a channel nest for Tlon. the
+::  host's .thread-id and .best-effort are not mirrored; as above, a patch
+::  that omits them leaves them alone
+::
++$  delivery
+  $:  mode=(unit delivery-mode)
+      channel=(unit @t)
+      to=(unit @t)
+      account-id=(unit @t)
+      failure-destination=(unit failure-destination)
+  ==
+::  $task: the definition-only subset of the host's cron job; the ID from
+::  OpenClaw is stored separately as the map key. runtime job state and
 ::  execution history are not represented
+::
+::    the plugin SDK's declared PluginHookGatewayCronJob omits .delivery,
+::    which the host nonetheless stores and routes on, so this follows the
+::    host's own cron store shape rather than the plugin declaration
 ::
 +$  task
   $:  agent-id=(unit @t)
@@ -35,6 +70,7 @@
       session-target=(unit @t)
       wake-mode=(unit @t)
       payload=(unit task-payload)
+      delivery=(unit delivery)
       created-at=(unit @da)
       updated-at=(unit @da)
   ==
@@ -123,10 +159,15 @@
 ::  ship's key, mirrored remote bots under theirs), plus the edit loop's
 ::  request records on each side
 ::
+::    .sweep: when the armed cleanup timer wakes. a wake for any other
+::    time is stale and ignored; one that has passed on load was dropped
+::    and is re-armed
+::
 +$  state
   $:  tasks=(map ship tasks)
       =requests
       =pending
+      sweep=@da
   ==
 ::  $a-automation: local-only actions, src == our on every variant
 ::
@@ -161,5 +202,71 @@
 ::
 +$  action   a-automation
 +$  command  c-automation
+::  +v0: the task shapes as %steward state %3 stored them, before
+::  .delivery and .tools-allow. kept so +on-load can read a %3 state and
+::  widen it; nothing outside the migration should reference them
+::
+++  v0
+  |%
+  +$  task-payload
+    $:  kind=(unit @t)
+        message=(unit @t)
+    ==
+  +$  task
+    $:  agent-id=(unit @t)
+        name=(unit @t)
+        description=(unit @t)
+        enabled=(unit ?)
+        schedule=(unit cron-schedule)
+        session-target=(unit @t)
+        wake-mode=(unit @t)
+        payload=(unit task-payload)
+        created-at=(unit @da)
+        updated-at=(unit @da)
+    ==
+  +$  edit
+    $%  [%create =task]
+        [%update id=@t =task]
+        [%delete id=@t]
+    ==
+  +$  pending-command
+    $:  id=request-id
+        requester=ship
+        =edit
+        sent-at=@da
+    ==
+  +$  state
+    $:  tasks=(map ship (map @t task))
+        requests=requests
+        pending=(map request-id pending-command)
+    ==
+  --
+::  +widen-task, +widen-edit: carry a v0 task into the current shape. the
+::  two new fields start empty, since the mirror is derived and the
+::  harness's next projection supplies them
+::
+++  widen-task
+  |=  old=task:v0
+  ^-  task
+  :*  agent-id.old
+      name.old
+      description.old
+      enabled.old
+      schedule.old
+      session-target.old
+      wake-mode.old
+      ?~(payload.old ~ `[kind.u.payload.old message.u.payload.old ~])
+      ~
+      created-at.old
+      updated-at.old
+  ==
+++  widen-edit
+  |=  old=edit:v0
+  ^-  edit
+  ?-  -.old
+    %delete  [%delete id.old]
+    %create  [%create (widen-task task.old)]
+    %update  [%update id.old (widen-task task.old)]
+  ==
 ++  v1  .
 --

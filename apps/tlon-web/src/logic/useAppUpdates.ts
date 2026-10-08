@@ -1,4 +1,8 @@
-import { createDevLogger, queryClient } from '@tloncorp/shared';
+import {
+  createDevLogger,
+  httpStatusFromError,
+  queryClient,
+} from '@tloncorp/shared';
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -13,9 +17,22 @@ const logger = createDevLogger('appUpdates', false);
 // ['app_error', logger, errorTitle] fingerprint to message captures, so an
 // exception capture would not group into the per-poller issues either. The
 // stack would only point at the fetch call site the context already names.
-function reportCheckFailed(context: 'serviceWorker' | 'pikes', e: unknown) {
+// The pikes scry rejects with the raw Response on a non-OK reply, which would
+// otherwise stringify to `[object Response]`.
+export function reportCheckFailed(
+  context: 'serviceWorker' | 'pikes',
+  e: unknown
+) {
+  if (typeof Response !== 'undefined' && e instanceof Response) {
+    logger.trackError(`app update check failed: ${context}`, {
+      errorMessage: `HTTP ${e.status}`,
+      status: e.status,
+    });
+    return;
+  }
   logger.trackError(`app update check failed: ${context}`, {
     errorMessage: e instanceof Error ? e.message : String(e),
+    status: httpStatusFromError(e),
   });
 }
 

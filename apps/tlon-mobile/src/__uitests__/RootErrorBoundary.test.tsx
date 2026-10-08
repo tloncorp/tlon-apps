@@ -11,12 +11,13 @@ import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import { useDebugStore } from '@tloncorp/shared';
 import * as SplashScreen from 'expo-splash-screen';
-import { Platform, Text } from 'react-native';
+import { AppState, Platform, Text } from 'react-native';
 import { act } from 'react-test-renderer';
 
 import { useDbReady } from '../hooks/useDbReady';
 
 jest.mock('@tloncorp/app/lib/nativeDb', () => ({
+  abandonDbInit: jest.fn(() => true),
   ensureDbReady: jest.fn(),
 }));
 
@@ -84,6 +85,9 @@ describe.each(platforms)('RootErrorBoundary on %s', (os) => {
       'OS',
       os
     );
+    // The db deadline only counts foreground time, and the preset's AppState
+    // mock reports no state at all.
+    AppState.currentState = 'active';
     ensureDbReadyMock.mockReset();
     hideAsyncMock.mockClear();
     capture = jest.fn();
@@ -125,6 +129,7 @@ describe.each(platforms)('RootErrorBoundary on %s', (os) => {
     expect(payload.lastError).toBeNull();
     expect(payload.attempt).toBe(1);
     expect(payload.elapsedMs).toBe(30_000);
+    expect(payload.activeElapsedMs).toBe(30_000);
 
     ensureDbReadyMock.mockImplementation(() => Promise.resolve());
 
@@ -133,5 +138,57 @@ describe.each(platforms)('RootErrorBoundary on %s', (os) => {
 
     expect(screen.queryByText('Something went wrong')).toBeNull();
     expect(screen.getByText('READY')).toBeTruthy();
+  });
+});
+
+describe('RootErrorBoundary retryability', () => {
+  function Throw({ error }: { error: Error }): null {
+    throw error;
+  }
+
+  function errorWithDetails(details: Record<string, unknown>) {
+    return Object.assign(new Error('boom'), { details });
+  }
+
+  beforeEach(() => {
+    useDebugStore.getState().initializeErrorLogger({
+      capture: jest.fn() as unknown as (
+        event: string,
+        data: Record<string, unknown>
+      ) => void,
+    });
+  });
+
+  it('offers a retry for an error that says nothing about retrying', () => {
+    render(
+      <RootErrorBoundary>
+        <Throw error={new Error('boom')} />
+      </RootErrorBoundary>
+    );
+
+    expect(screen.getByText('Try again')).toBeTruthy();
+    expect(screen.queryByText('Close and reopen Tlon to continue.')).toBeNull();
+  });
+
+  it('offers a retry for a timeout that is still worth retrying', () => {
+    render(
+      <RootErrorBoundary>
+        <Throw error={errorWithDetails({ canRetry: true })} />
+      </RootErrorBoundary>
+    );
+
+    expect(screen.getByText('Try again')).toBeTruthy();
+  });
+
+  it('drops the retry when the error says retrying cannot help', () => {
+    render(
+      <RootErrorBoundary>
+        <Throw error={errorWithDetails({ canRetry: false })} />
+      </RootErrorBoundary>
+    );
+
+    expect(screen.getByText('Something went wrong')).toBeTruthy();
+    expect(screen.queryByText('Try again')).toBeNull();
+    expect(screen.getByText('Close and reopen Tlon to continue.')).toBeTruthy();
   });
 });

@@ -4,8 +4,8 @@
 /+  *test-agent, pj=steward-prompts-json
 /=  agent  /app/steward
 |%
-+$  state-3
-  $:  %3
++$  state-5
+  $:  %5
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:l
@@ -13,12 +13,23 @@
       automation=state:v1:au
       prompts=state:v1:pr
   ==
-++  moon  ^-  ship  ~bus
+::  the other ship in every two-party test: the managed bot when ~dev is
+::  the owner, and the owner when ~dev is the bot
+::
+++  peer  ^-  ship  ~bus
+::  the bowl is set before do-init so on-init's watches are recorded under
+::  our real ship; otherwise every reload re-emits them as missing
+::
 ++  setup
   =/  m  (mare ,~)
   ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
   ;<  *  bind:m  (do-init %steward agent)
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev, now ~2024.1.1)))
+  ::  do-init resets the bowl, so set the clock after it. on-init armed
+  ::  the sweeps against the bunt clock; a reload re-arms them against
+  ::  this one, as a real ship's on-init would have
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1)))
+  ;<  *  bind:m  (do-load agent ~)
   (pure:m ~)
 ++  configure
   |=  owner=ship
@@ -34,20 +45,20 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot bot]))
   (pure:m ~)
-::  an owner that already manages +moon. only a managed bot may be sent a
+::  an owner that already manages +peer. only a managed bot may be sent a
 ::  workspace edit, so every relay test starts from here
 ::
 ++  setup-owner
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (trust moon)
+  ;<  ~  bind:m  (trust peer)
   (pure:m ~)
 ++  got-state
-  =/  m  (mare ,state-3)
+  =/  m  (mare ,state-5)
   ^-  form:m
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  (pure:m !<(state-3 !<(vase q.res)))
+  (pure:m !<(state-5 !<(vase q.res)))
 ++  rid  ^-  request-id:v1:pr  `@uv`0x1234.5678
 ++  edit-set  ^-  edit:v1:pr  [%set 'SOUL.md' 'new text']
 ++  updated  ^-  outcome:v1:pr  [%updated 'SOUL.md']
@@ -61,7 +72,6 @@
   /v1/prompts/request/(scot %p requester)/(scot %uv rid)
 ++  local-req-path  ^-  path  /v1/prompts/request/(scot %uv rid)
 ++  harness-path  ^-  path  /v1/prompts/harness
-++  cleanup-wire  ^-  wire  /prompts/cleanup
 ::
 ++  do-edit
   |=  [bot=ship =edit:v1:pr]
@@ -81,8 +91,13 @@
 ++  do-req-wake
   |=  bot=ship
   (do-arvo (req-wire bot %wake) [%behn %wake ~])
+::  wakes the armed sweep: its wire carries the time the agent recorded
+::
 ++  do-cleanup-wake
-  (do-arvo cleanup-wire [%behn %wake ~])
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  st=state-5  bind:m  got-state
+  (do-arvo /prompts/cleanup/(scot %da sweep.prompts.st) [%behn %wake ~])
 ++  response-fact
   |=  body=response-body:v1:pr
   ^-  sign:agent:gall
@@ -115,13 +130,29 @@
   !>(`dispatch:v1:pr`[rid requester edit])
 ++  ex-cleanup-timer
   |=  at=@da
-  (ex-card %pass cleanup-wire %arvo %b %wait (add at ~m5))
+  =/  wake=@da  (add at ~m5)
+  (ex-card %pass /prompts/cleanup/(scot %da wake) %arvo %b %wait wake)
 ++  ex-eyre-connect
   (ex-card %pass /eyre/steward %arvo %e %connect [~ /steward] %steward)
 ++  ex-files-watch
   |=  bot=ship
   %^  ex-task  /prompts/files/(scot %p bot)  [bot %steward]
   [%watch /v1/prompts/files]
+++  ex-rewatch-timer
+  |=  [bot=ship at=@da]
+  (ex-card %pass /prompts/rewatch/(scot %p bot)/(scot %da at) %arvo %b %wait at)
+++  do-rewatch-wake-at
+  |=  [bot=ship at=@da]
+  (do-arvo /prompts/rewatch/(scot %p bot)/(scot %da at) [%behn %wake ~])
+::  wakes the armed retry for .bot, at the time the agent recorded
+::
+++  do-rewatch-wake
+  |=  bot=ship
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  st=state-5  bind:m  got-state
+  =/  wake=@da  wake:(~(got by rewatch.prompts.st) bot)
+  (do-arvo /prompts/rewatch/(scot %p bot)/(scot %da wake) [%behn %wake ~])
 ++  do-bot-sign
   |=  [bot=ship =sign:agent:gall]
   (do-agent /prompts/files/(scot %p bot) [bot %steward] sign)
@@ -133,17 +164,17 @@
 ++  got-request
   =/  m  (mare ,incoming-request:v1:pr)
   ^-  form:m
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (pure:m (~(got by requests.prompts.st) rid))
 ++  got-requests
   =/  m  (mare ,requests:v1:pr)
   ^-  form:m
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (pure:m requests.prompts.st)
 ++  got-pending
   =/  m  (mare ,pending:v1:pr)
   ^-  form:m
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (pure:m pending.prompts.st)
 ++  advance-clock
   |=  by=@dr
@@ -151,13 +182,23 @@
 ::
 ::  HTTP fixtures
 ::
+::  a request with a body declares it JSON, as every real client does;
+::  +http-request-typed sets the content-type explicitly
+::
 ++  http-request
   |=  [authenticated=? method=method:http url=@t body=(unit @t)]
+  ^-  inbound-request:eyre
+  =/  ct=(unit @t)  ?~(body ~ `'application/json')
+  (http-request-typed authenticated method url body ct)
+++  http-request-typed
+  |=  [authenticated=? method=method:http url=@t body=(unit @t) ct=(unit @t)]
   ^-  inbound-request:eyre
   :*  authenticated
       |
       [%ipv4 .127.0.0.1]
-      [method url ~ ?~(body ~ `(as-octs:mimes:html u.body))]
+      :^  method  url
+        ?~(ct ~ ~[['content-type' u.ct]])
+      ?~(body ~ `(as-octs:mimes:html u.body))
   ==
 ++  do-http
   |=  [eyre-id=@ta req=inbound-request:eyre]
@@ -179,6 +220,11 @@
   (en:json:html (response:enjs:pj [rid body]))
 ++  edit-url  ^-  @t  '/steward/~/v1/prompts'
 ++  finalize-url  ^-  @t  '/steward/~/v1/prompts/finalize'
+++  project-url  ^-  @t  '/steward/~/v1/prompts/project'
+++  project-post-body
+  |=  files=prompts:v1:pr
+  ^-  @t
+  (en:json:html (action:enjs:pj [%project files]))
 ++  request-url
   ^-  @t
   (crip "/steward/~/v1/prompts/request/{(scow %uv rid)}")
@@ -186,7 +232,7 @@
   |=  with-rid=?
   ^-  @t
   =/  fields=(list [@t json])
-    :~  ['bot' s+(scot %p moon)]
+    :~  ['bot' s+(scot %p peer)]
         ['action' (edit:enjs:pj edit-set)]
     ==
   =?  fields  with-rid  [['requestId' s+(scot %uv rid)] fields]
@@ -222,10 +268,10 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  caz=(list card)  bind:m  (do-edit moon edit-set)
-  ;<  ~  bind:m  (ex-cards caz (ex-relay moon edit-set ~2024.1.1))
+  ;<  caz=(list card)  bind:m  (do-edit peer edit-set)
+  ;<  ~  bind:m  (ex-cards caz (ex-relay peer edit-set ~2024.1.1))
   ;<  req=incoming-request:v1:pr  bind:m  got-request
-  ;<  ~  bind:m  (ex-equal !>(bot.req) !>(moon))
+  ;<  ~  bind:m  (ex-equal !>(bot.req) !>(peer))
   ;<  ~  bind:m  (ex-equal !>(http-id.req) !>(*(unit @ta)))
   ;<  ~  bind:m  (ex-equal !>(poke-status.req) !>(%sending))
   (ex-equal !>(result.req) !>(*(unit response-body:v1:pr)))
@@ -235,12 +281,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  ~  bind:m
-    %-  ex-fail
-    %-  (do-as ~zod)
-    (do-edit moon edit-set)
-  ;<  reqs=requests:v1:pr  bind:m  got-requests
-  (ex-equal !>(reqs) !>(*requests:v1:pr))
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-edit peer edit-set)
 ::
 ::  a nacked per-request watch is a typed not-authorized response
 ::
@@ -250,8 +293,8 @@
   ^-  form:m
   =/  why=tang  ~[leaf+"denied"]
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon %watch-ack `why)
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign peer %watch-ack `why)
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-local-response [%error %not-authorized why])])
   ;<  req=incoming-request:v1:pr  bind:m  got-request
@@ -262,8 +305,8 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  caz=(list card)  bind:m  (do-req-poke-sign moon %poke-ack ~)
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  caz=(list card)  bind:m  (do-req-poke-sign peer %poke-ack ~)
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   (ex-equal !>(poke-status.req) !>(%acked))
@@ -276,10 +319,10 @@
   ^-  form:m
   =/  why=tang  ~[leaf+"crash"]
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  caz=(list card)  bind:m  (do-req-poke-sign moon %poke-ack `why)
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  caz=(list card)  bind:m  (do-req-poke-sign peer %poke-ack `why)
   ;<  ~  bind:m
-    (ex-cards caz ~[(ex-local-response [%error %unknown why]) (ex-req-leave moon)])
+    (ex-cards caz ~[(ex-local-response [%error %unknown why]) (ex-req-leave peer)])
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   ;<  ~  bind:m  (ex-equal !>(poke-status.req) !>(%nacked))
   (ex-equal !>(result.req) !>(`[%error %unknown why]))
@@ -292,10 +335,10 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon (response-fact updated))
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign peer (response-fact updated))
   ;<  ~  bind:m
-    (ex-cards caz ~[(ex-local-response updated) (ex-req-leave moon)])
+    (ex-cards caz ~[(ex-local-response updated) (ex-req-leave peer)])
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   ;<  ~  bind:m  (ex-equal !>(result.req) !>(`updated))
   (ex-equal !>(final-at.req) !>(`~2024.1.1))
@@ -308,9 +351,9 @@
   ^-  form:m
   =/  other=response:v1:pr  [`@uv`0xdead updated]
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
+  ;<  *  bind:m  (do-edit peer edit-set)
   ;<  caz=(list card)  bind:m
-    (do-req-watch-sign moon %fact %steward-prompts-response-1 !>(other))
+    (do-req-watch-sign peer %fact %steward-prompts-response-1 !>(other))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   (ex-equal !>(result.req) !>(*(unit response-body:v1:pr)))
@@ -322,14 +365,14 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  caz=(list card)  bind:m  (do-req-wake moon)
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  caz=(list card)  bind:m  (do-req-wake peer)
   ;<  ~  bind:m  (ex-cards caz ~[(ex-local-response [%pending %sending])])
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   ;<  ~  bind:m  (ex-equal !>(result.req) !>(`[%pending %sending]))
-  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon (response-fact updated))
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign peer (response-fact updated))
   ;<  ~  bind:m
-    (ex-cards caz ~[(ex-local-response updated) (ex-req-leave moon)])
+    (ex-cards caz ~[(ex-local-response updated) (ex-req-leave peer)])
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   (ex-equal !>(result.req) !>(`updated))
 ::
@@ -338,9 +381,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  *  bind:m  (do-req-watch-sign moon (response-fact updated))
-  ;<  caz=(list card)  bind:m  (do-req-wake moon)
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  *  bind:m  (do-req-watch-sign peer (response-fact updated))
+  ;<  caz=(list card)  bind:m  (do-req-wake peer)
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   (ex-equal !>(result.req) !>(`updated))
@@ -353,10 +396,10 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
+  ;<  *  bind:m  (do-edit peer edit-set)
   ;<  caz=(list card)  bind:m  (do-watch local-req-path)
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  *  bind:m  (do-req-watch-sign moon (response-fact updated))
+  ;<  *  bind:m  (do-req-watch-sign peer (response-fact updated))
   ;<  *  bind:m  (do-leave local-req-path)
   ;<  caz=(list card)  bind:m  (do-watch local-req-path)
   %+  ex-cards  caz
@@ -367,14 +410,10 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
+  ;<  *  bind:m  (do-edit peer edit-set)
   %-  ex-fail
   %-  (do-as ~zod)
   (do-watch local-req-path)
-::
-::  sweep: a recent unfetched terminal record survives; an aged one, a
-::  pending one past its hour, and a fetched one are evicted; an
-::  in-flight record is left for its wake
 ::
 ++  test-prompts-command-requires-owner
   %-  eval-mare
@@ -383,16 +422,14 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m
     %-  ex-fail
-    %-  (do-as ~bus)
+    %-  (do-as peer)
     (do-command edit-set)
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  ~  bind:m
     %-  ex-fail
     %-  (do-as ~zod)
     (do-command edit-set)
-  ;<  ~  bind:m  (ex-fail (do-command edit-set))
-  ;<  pen=pending:v1:pr  bind:m  got-pending
-  (ex-equal !>(pen) !>(*pending:v1:pr))
+  (ex-fail (do-command edit-set))
 ::
 ::  with no harness subscribed the bot refuses at once
 ::
@@ -401,14 +438,126 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  caz=(list card)  bind:m
-    %-  (do-as ~bus)
+    %-  (do-as peer)
     (do-command edit-set)
   ;<  ~  bind:m
-    (ex-cards caz ~[(ex-bot-response ~bus [%error %harness-offline ~])])
+    (ex-cards caz ~[(ex-bot-response peer [%error %harness-offline ~])])
+  ::  recorded as already terminal, so a late watch can still be answered
+  ::
   ;<  pen=pending:v1:pr  bind:m  got-pending
-  (ex-equal !>(pen) !>(*pending:v1:pr))
+  =/  expected=pending-command:v1:pr
+    [rid peer edit-set ~2024.1.1 `[%error %harness-offline ~]]
+  (ex-equal !>((~(get by pen) rid)) !>(`expected))
+::
+::  the harness projects over HTTP so the reply confirms the projection
+::  landed; the route wraps the %project poke, sharing its decode and arm
+::
+++  test-prompts-http-project-stores-and-answers
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-1'
+    (http-request & %'POST' project-url `(project-post-body files))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    %+  weld
+      :~  %^  ex-fact  ~[/v1/prompts/files]  %steward-prompts-update-1
+          !>(`update:v1:pr`[%files (my ~[[~dev files]])])
+      ==
+    (ex-http 'eyre-1' 200 'application/json' '{"projected":true}')
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>((~(get by files.prompts.st) ~dev)) !>(`files))
+::
+::  an invalid projection is a 400, not the poke's crash, and stores nothing
+::
+++  test-prompts-http-project-rejects-invalid
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-1'
+    (http-request & %'POST' project-url `(project-post-body (my ~[['MEMORY.md' 'x']])))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    (ex-http 'eyre-1' 400 'text/plain' 'unsupported file or oversized text')
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-2' (http-request & %'POST' project-url `'{"edit":{}}'))
+  ;<  ~  bind:m
+    (ex-cards caz (ex-http 'eyre-2' 400 'text/plain' 'malformed projection'))
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-3' (http-request & %'GET' project-url ~))
+  ;<  ~  bind:m
+    (ex-cards caz (ex-http 'eyre-3' 405 'text/plain' 'method not allowed'))
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(files.prompts.st) !>(*(map ship prompts:v1:pr)))
+::
+::  a cross-site form can send only text/plain, urlencoded or multipart, so
+::  every POST must declare JSON. a charset parameter is still JSON
+::
+++  test-prompts-http-post-requires-json
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  =/  forged
+    (http-request-typed & %'POST' edit-url `(edit-post-body &) `'text/plain')
+  ;<  caz=(list card)  bind:m  (do-http 'eyre-1' forged)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    (ex-http 'eyre-1' 415 'text/plain' 'content-type must be application/json')
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-2'
+    (http-request-typed & %'POST' finalize-url `(finalize-post-body updated) ~)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    (ex-http 'eyre-2' 415 'text/plain' 'content-type must be application/json')
+  ;<  reqs=requests:v1:pr  bind:m  got-requests
+  ;<  ~  bind:m  (ex-equal !>(reqs) !>(*requests:v1:pr))
+  =/  charset
+    %:  http-request-typed  &  %'POST'  edit-url  `(edit-post-body &)
+        `'application/json; charset=utf-8'
+    ==
+  ;<  caz=(list card)  bind:m  (do-http 'eyre-3' charset)
+  (ex-cards caz (ex-relay peer edit-set ~2024.1.1))
+::
+::  the owner's watch and the command poke ride separate ames flows, so the
+::  poke can win. the offline answer it gets must still reach the watch
+::  that lands afterwards
+::
+++  test-prompts-offline-answer-replays-to-late-watch
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure peer)
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
+  ;<  caz=(list card)  bind:m
+    %-  (do-as peer)
+    (do-watch (req-path peer))
+  %+  ex-cards  caz
+  :~  %^  ex-fact  ~  %steward-prompts-response-1
+      !>(`response:v1:pr`[rid [%error %harness-offline ~]])
+  ==
+::
+::  a resend of a command already answered offline gets the same answer,
+::  and is never dispatched even once a harness has subscribed
+::
+++  test-prompts-offline-answer-is-final
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure peer)
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
+  ;<  caz=(list card)  bind:m  (do-watch harness-path)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  caz=(list card)  bind:m  ((do-as peer) (do-command edit-set))
+  (ex-cards caz ~[(ex-bot-response peer [%error %harness-offline ~])])
 ::
 ::  with a harness subscribed the command is recorded and dispatched
 ::
@@ -417,15 +566,15 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  caz=(list card)  bind:m  (do-watch harness-path)
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  caz=(list card)  bind:m
-    %-  (do-as ~bus)
+    %-  (do-as peer)
     (do-command edit-set)
-  ;<  ~  bind:m  (ex-cards caz ~[(ex-dispatch ~[harness-path] ~bus edit-set)])
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-dispatch ~[harness-path] peer edit-set)])
   ;<  pen=pending:v1:pr  bind:m  got-pending
-  =/  expected=pending-command:v1:pr  [rid ~bus edit-set ~2024.1.1 ~]
+  =/  expected=pending-command:v1:pr  [rid peer edit-set ~2024.1.1 ~]
   (ex-equal !>((~(get by pen) rid)) !>(`expected))
 ::
 ++  test-prompts-finalize-retains-result-for-dedup
@@ -433,13 +582,13 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  *  bind:m  (do-watch harness-path)
   ;<  *  bind:m
-    %-  (do-as ~bus)
+    %-  (do-as peer)
     (do-command edit-set)
   ;<  caz=(list card)  bind:m  (do-finalize updated)
-  ;<  ~  bind:m  (ex-cards caz ~[(ex-bot-response ~bus updated)])
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-bot-response peer updated)])
   ;<  pen=pending:v1:pr  bind:m  got-pending
   (ex-equal !>(result:(~(got by pen) rid)) !>(`updated))
 ::
@@ -450,21 +599,21 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  *  bind:m  (do-watch harness-path)
   ;<  *  bind:m
-    %-  (do-as ~bus)
+    %-  (do-as peer)
     (do-command edit-set)
   ;<  ~  bind:m  (advance-clock ~m10)
   ;<  caz=(list card)  bind:m  (do-finalize updated)
-  (ex-cards caz ~[(ex-bot-response ~bus updated)])
+  (ex-cards caz ~[(ex-bot-response peer updated)])
 ::
 ++  test-prompts-finalize-unknown-id-ignored
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  caz=(list card)  bind:m  (do-finalize updated)
   (ex-cards caz ~)
 ::
@@ -473,9 +622,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   %-  ex-fail
-  %-  (do-as ~bus)
+  %-  (do-as peer)
   (do-finalize updated)
 ::
 ::  a harness (re)subscribing receives every outstanding command; a
@@ -486,23 +635,23 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  *  bind:m  (do-watch harness-path)
   ;<  *  bind:m
-    %-  (do-as ~bus)
+    %-  (do-as peer)
     (do-command edit-set)
   ;<  *  bind:m  (do-leave harness-path)
   ;<  caz=(list card)  bind:m  (do-watch harness-path)
-  (ex-cards caz ~[(ex-dispatch ~ ~bus edit-set)])
+  (ex-cards caz ~[(ex-dispatch ~ peer edit-set)])
 ::
 ++  test-prompts-harness-watch-rejects-foreign
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   %-  ex-fail
-  %-  (do-as ~bus)
+  %-  (do-as peer)
   (do-watch harness-path)
 ::
 ::  the bot's per-request path admits only the owner, on its own path
@@ -512,20 +661,18 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  caz=(list card)  bind:m
-    %-  (do-as ~bus)
-    (do-watch (req-path ~bus))
+    %-  (do-as peer)
+    (do-watch (req-path peer))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  ~  bind:m
     %-  ex-fail
     %-  (do-as ~zod)
     (do-watch (req-path ~zod))
   %-  ex-fail
-  %-  (do-as ~bus)
+  %-  (do-as peer)
   (do-watch (req-path ~zod))
-::
-::  the edit loop never touches the file map
 ::
 ++  test-prompts-http-response-watch-accepted
   %-  eval-mare
@@ -546,23 +693,22 @@
     %-  ex-fail
     %-  (do-as ~zod)
     (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
-  ;<  ~  bind:m
-    %-  ex-fail
-    %-  (do-as ~zod)
-    (do-watch /http-response/eyre-1)
-  ;<  reqs=requests:v1:pr  bind:m  got-requests
-  (ex-equal !>(reqs) !>(*requests:v1:pr))
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-watch /http-response/eyre-1)
 ::
-++  test-prompts-http-unauthenticated-is-401
+::  eyre forwards a guest session's request as the guest's made-up ship,
+::  unauthenticated, and the poke's source check refuses it (eyre then
+::  answers 500). an expired session never reaches us: eyre answers 401
+::
+++  test-prompts-http-guest-session-is-refused
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  caz=(list card)  bind:m
-    (do-http 'eyre-1' (http-request | %'POST' edit-url `(edit-post-body &)))
-  ;<  ~  bind:m  (ex-cards caz (ex-http 'eyre-1' 401 'text/plain' 'unauthorized'))
-  ;<  reqs=requests:v1:pr  bind:m  got-requests
-  (ex-equal !>(reqs) !>(*requests:v1:pr))
+  %-  ex-fail
+  %-  (do-as ~sampel-palnet)
+  (do-http 'eyre-1' (http-request | %'POST' edit-url `(edit-post-body &)))
 ::
 ::  a POST registers the request with its eyre id and relays it; the
 ::  held request completes when the response lands
@@ -574,16 +720,16 @@
   ;<  ~  bind:m  setup-owner
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
-  ;<  ~  bind:m  (ex-cards caz (ex-relay moon edit-set ~2024.1.1))
+  ;<  ~  bind:m  (ex-cards caz (ex-relay peer edit-set ~2024.1.1))
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   ;<  ~  bind:m  (ex-equal !>(http-id.req) !>(`'eyre-1'))
-  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon (response-fact updated))
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign peer (response-fact updated))
   ;<  ~  bind:m
     %+  ex-cards  caz
     ;:  weld
       `(list $-(card tang))`~[(ex-local-response updated)]
       (ex-http-response 'eyre-1' updated)
-      `(list $-(card tang))`~[(ex-req-leave moon)]
+      `(list $-(card tang))`~[(ex-req-leave peer)]
     ==
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   (ex-equal !>(http-id.req) !>(*(unit @ta)))
@@ -598,14 +744,14 @@
   ;<  ~  bind:m  setup-owner
   ;<  *  bind:m
     (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
-  ;<  caz=(list card)  bind:m  (do-req-wake moon)
+  ;<  caz=(list card)  bind:m  (do-req-wake peer)
   ;<  ~  bind:m
     %+  ex-cards  caz
     %+  weld  `(list $-(card tang))`~[(ex-local-response [%pending %sending])]
     (ex-http-response 'eyre-1' [%pending %sending])
-  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon (response-fact updated))
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign peer (response-fact updated))
   ;<  ~  bind:m
-    (ex-cards caz ~[(ex-local-response updated) (ex-req-leave moon)])
+    (ex-cards caz ~[(ex-local-response updated) (ex-req-leave peer)])
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   (ex-equal !>(result.req) !>(`updated))
 ::
@@ -619,7 +765,7 @@
   ;<  reqs=requests:v1:pr  bind:m  got-requests
   ;<  ~  bind:m  (ex-equal !>(~(wyt by reqs)) !>(1))
   =/  req=incoming-request:v1:pr  q:(head ~(tap by reqs))
-  ;<  ~  bind:m  (ex-equal !>(bot.req) !>(moon))
+  ;<  ~  bind:m  (ex-equal !>(bot.req) !>(peer))
   (ex-equal !>(http-id.req) !>(`'eyre-1'))
 ::
 ++  test-prompts-http-post-malformed-is-400
@@ -661,14 +807,14 @@
     (do-http 'eyre-1' (http-request & %'GET' request-url ~))
   ;<  ~  bind:m
     (ex-cards caz (ex-http 'eyre-1' 404 'text/plain' 'request not found'))
-  ;<  *  bind:m  (do-edit moon edit-set)
+  ;<  *  bind:m  (do-edit peer edit-set)
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-2' (http-request & %'GET' request-url ~))
   ;<  ~  bind:m  (ex-cards caz (ex-http-response 'eyre-2' [%pending %sending]))
   ::  a pending read does not count as fetched
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   ;<  ~  bind:m  (ex-equal !>(fetched.req) !>(|))
-  ;<  *  bind:m  (do-req-watch-sign moon (response-fact updated))
+  ;<  *  bind:m  (do-req-watch-sign peer (response-fact updated))
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-3' (http-request & %'GET' request-url ~))
   ;<  ~  bind:m  (ex-cards caz (ex-http-response 'eyre-3' updated))
@@ -684,13 +830,8 @@
     (do-http 'eyre-1' (http-request & %'GET' '/steward/~/v1/nope' ~))
   (ex-cards caz (ex-http 'eyre-1' 404 'text/plain' 'not found'))
 ::
-::  OWNER-INITIATED RESTART NOTICES + LIVENESS PUBLICATION
-::  ==========================================================
-::
-::  a %gateway-stop with an owner-initiated reason ('model-change') sends the
-::  specific 🔧 notice even though the owner never messaged, and latches
-::  notify-on-start. card order: %rest, DM, liveness poke, status fact.
-::
+::  PROJECTION, FILES FEED AND MIRROR
+::  ==================================
 ::
 ++  files  ^-  prompts:v1:pr  (my ~[['SOUL.md' 'original']])
 ++  project
@@ -698,7 +839,7 @@
   (do-poke %steward-prompts-action-1 !>(`action:v1:pr`[%project files]))
 ++  bot-update
   |=  =update:v1:pr
-  %^  do-agent  /prompts/files/(scot %p moon)  [moon %steward]
+  %^  do-agent  /prompts/files/(scot %p peer)  [peer %steward]
   [%fact %steward-prompts-update-1 !>(update)]
 ++  test-project-empty-is-present
   %-  eval-mare
@@ -706,7 +847,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  *  bind:m  (project *prompts:v1:pr)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>((~(get by files.prompts.st) ~dev)) !>(`*prompts:v1:pr))
 ::
 ++  test-project-replaces-and-unchanged-is-silent
@@ -720,7 +861,7 @@
   ;<  caz=(list card)  bind:m  (project *prompts:v1:pr)
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-fact ~[/v1/prompts/files] %steward-prompts-update-1 !>(`update:v1:pr`[%del ~dev 'SOUL.md']))])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>((~(get by files.prompts.st) ~dev)) !>(`*prompts:v1:pr))
 ::
 ++  test-project-is-local-only
@@ -729,7 +870,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   %-  ex-fail
-  %-  (do-as ~bus)
+  %-  (do-as peer)
   (project files)
 ::
 ++  test-project-rejects-unsupported-file
@@ -745,12 +886,12 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  *  bind:m  (project files)
   ;<  *  bind:m  (do-watch harness-path)
-  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
   ;<  *  bind:m  (do-finalize updated)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>((~(got by files.prompts.st) ~dev)) !>(files))
 ::
 ++  test-mirror-applies-only-wire-ship
@@ -759,11 +900,11 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
-  ;<  *  bind:m  (bot-update [%files (my ~[[moon files] [~zod files]])])
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot peer]))
+  ;<  *  bind:m  (bot-update [%files (my ~[[peer files] [~zod files]])])
   ;<  *  bind:m  (bot-update [%set ~zod 'SOUL.md' 'forged'])
-  ;<  st=state-3  bind:m  got-state
-  (ex-equal !>(files.prompts.st) !>((my ~[[moon files]])))
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(files.prompts.st) !>((my ~[[peer files]])))
 ::
 ++  test-untrust-removes-mirror-and-ignores-late-fact
   %-  eval-mare
@@ -771,35 +912,191 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
-  ;<  *  bind:m  (bot-update [%files (my ~[[moon files]])])
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot peer]))
+  ;<  *  bind:m  (bot-update [%files (my ~[[peer files]])])
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot peer]))
   ;<  caz=(list card)  bind:m
     %-  do
     |=  s=state
-    %:  ~(on-agent agent.s bowl.s(src moon))
-      /prompts/files/(scot %p moon)
-      [%fact %steward-prompts-update-1 !>(`update:v1:pr`[%files (my ~[[moon files]])])]
+    %:  ~(on-agent agent.s bowl.s(src peer))
+      /prompts/files/(scot %p peer)
+      [%fact %steward-prompts-update-1 !>(`update:v1:pr`[%files (my ~[[peer files]])])]
     ==
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>(files.prompts.st) !>(*(map ship prompts:v1:pr)))
+::
+++  files-path  ^-  path  /v1/prompts/files
+++  ex-update
+  |=  =update:v1:pr
+  (ex-fact ~[files-path] %steward-prompts-update-1 !>(update))
+++  untrust
+  |=  bot=ship
+  (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot bot]))
+::
+::  the feed opens with the whole ship-keyed map, for the local ship and
+::  for the owner. any other ship is refused, as is every remote ship
+::  while no owner is set
+::
+++  test-files-watch-opens-with-snapshot
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (project files)
+  ;<  caz=(list card)  bind:m  (do-watch files-path)
+  %+  ex-cards  caz
+  :~  %^  ex-fact  ~  %steward-prompts-update-1
+      !>(`update:v1:pr`[%files (my ~[[~dev files]])])
+  ==
+::
+++  test-files-watch-admits-owner-only
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (ex-fail ((do-as peer) (do-watch files-path)))
+  ;<  ~  bind:m  (configure peer)
+  ;<  caz=(list card)  bind:m  ((do-as peer) (do-watch files-path))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    ~[(ex-fact ~ %steward-prompts-update-1 !>(`update:v1:pr`[%files ~]))]
+  (ex-fail ((do-as ~zod) (do-watch files-path)))
+::
+::  creating an entry cannot be said as file deltas, so the first
+::  projection goes out as a full snapshot
+::
+++  test-first-project-gives-snapshot
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (project files)
+  (ex-cards caz ~[(ex-update [%files (my ~[[~dev files]])])])
+::
+++  test-files-scry-and-get
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (project files)
+  =/  all  (my ~[[~dev files]])
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts/files)
+  ;<  ~  bind:m  (ex-equal !>(p.res) !>(%steward-prompts-files-1))
+  ;<  ~  bind:m  (ex-equal q.res !>(all))
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-1'
+    (http-request & %'GET' '/steward/~/v1/prompts/files' ~)
+  %+  ex-cards  caz
+  %-  ex-http
+  ['eyre-1' 200 'application/json' (en:json:html (ship-files:enjs:pj all))]
+::
+::  the owner republishes its bot's feed: the first snapshot creates the
+::  entry and goes out whole, later snapshots go out as deltas, deltas
+::  pass through, and a snapshot without the bot is a wipe
+::
+++  test-mirror-republishes-bot-feed
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  caz=(list card)  bind:m  (bot-update [%files (my ~[[peer files]])])
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-update [%files (my ~[[peer files]])])])
+  =/  user  (my ~[['USER.md' 'user']])
+  ;<  caz=(list card)  bind:m  (bot-update [%files (my ~[[peer user]])])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-update [%set peer 'USER.md' 'user'])
+        (ex-update [%del peer 'SOUL.md'])
+    ==
+  ;<  caz=(list card)  bind:m  (bot-update [%set peer 'SOUL.md' 'back'])
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-update [%set peer 'SOUL.md' 'back'])])
+  ;<  caz=(list card)  bind:m  (bot-update [%del peer 'USER.md'])
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-update [%del peer 'USER.md'])])
+  ;<  caz=(list card)  bind:m  (bot-update [%files ~])
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-update [%gone peer])])
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(files.prompts.st) !>(*(map ship prompts:v1:pr)))
+::
+::  a %gone from the bot passes through like the other deltas
+::
+++  test-mirror-passes-gone-through
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (bot-update [%files (my ~[[peer files]])])
+  ;<  caz=(list card)  bind:m  (bot-update [%gone peer])
+  (ex-cards caz ~[(ex-update [%gone peer])])
+::
+++  test-untrust-mirrored-bot-gives-gone
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (bot-update [%files (my ~[[peer files]])])
+  ;<  caz=(list card)  bind:m  (untrust peer)
+  ;<  st=state-5  bind:m  got-state
+  ;<  ~  bind:m
+    (ex-equal !>((~(has by files.prompts.st) peer)) !>(|))
+  %+  ex-cards  caz
+  :~  (ex-task /automation/tasks/(scot %p peer) [peer %steward] %leave ~)
+      (ex-task /prompts/files/(scot %p peer) [peer %steward] %leave ~)
+      (ex-update [%gone peer])
+  ==
+::
+::  a kicked feed resubscribes; the fresh snapshot repairs anything
+::  missed meanwhile
+::
+++  test-mirror-kick-rewatches
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  caz=(list card)  bind:m  (do-bot-sign peer [%kick ~])
+  (ex-cards caz ~[(ex-files-watch peer)])
+::
+::  protocol drift and invalid content crash rather than mirror
+::
+++  test-mirror-rejects-unexpected-mark
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  (ex-fail (do-bot-sign peer [%fact %noun !>(~)]))
+::
+::  content this ship rejects is dropped with a log line, and the watch
+::  stays open: a crash would kick it into a re-watch loop
+::
+++  test-mirror-drops-invalid-content
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  caz=(list card)  bind:m
+    (bot-update [%files (my ~[[peer (my ~[['../secret' 'x']])]])])
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  *  bind:m  (bot-update [%files (my ~[[peer files]])])
+  ;<  caz=(list card)  bind:m  (bot-update [%set peer '../secret' 'x'])
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(files.prompts.st) !>((my ~[[peer files]])))
 ::
 ++  test-finalized-command-does-not-replay
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  *  bind:m  (do-watch harness-path)
-  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
   ;<  *  bind:m  (do-finalize updated)
   ;<  *  bind:m  (do-leave harness-path)
   ;<  caz=(list card)  bind:m  (do-watch harness-path)
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  caz=(list card)  bind:m  ((do-as ~bus) (do-command edit-set))
-  (ex-cards caz ~[(ex-bot-response ~bus updated)])
+  ;<  caz=(list card)  bind:m  ((do-as peer) (do-command edit-set))
+  (ex-cards caz ~[(ex-bot-response peer updated)])
 ::
 ++  test-http-duplicate-preserves-first-wait
   %-  eval-mare
@@ -819,7 +1116,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon [%set 'SOUL.md' 'different'])
+  ;<  *  bind:m  (do-edit peer [%set 'SOUL.md' 'different'])
   ;<  caz=(list card)  bind:m
     (do-http 'second' (http-request & %'POST' edit-url `(edit-post-body &)))
   (ex-cards caz (ex-http 'second' 409 'text/plain' 'request id already used for another edit'))
@@ -829,14 +1126,14 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  *  bind:m  (do-watch harness-path)
-  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
   ;<  caz=(list card)  bind:m
     (do-http 'finalize' (http-request & %'POST' finalize-url `(finalize-post-body updated)))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    [(ex-bot-response ~bus updated) (ex-finalize-http 'finalize' &)]
+    [(ex-bot-response peer updated) (ex-finalize-http 'finalize' &)]
   ;<  caz=(list card)  bind:m
     (do-http 'retry' (http-request & %'POST' finalize-url `(finalize-post-body updated)))
   (ex-cards caz (ex-finalize-http 'retry' |))
@@ -846,9 +1143,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  *  bind:m  (do-req-watch-sign moon (response-fact updated))
-  ;<  *  bind:m  (do-req-poke-sign moon %poke-ack `~[leaf+"late nack"])
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  *  bind:m  (do-req-watch-sign peer (response-fact updated))
+  ;<  *  bind:m  (do-req-poke-sign peer %poke-ack `~[leaf+"late nack"])
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   (ex-equal !>(result.req) !>(`updated))
 ::
@@ -858,12 +1155,14 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   =/  old
-    [%1 `~bus (sy ~[~zod]) *state:v1:l *state:v1:g]
+    [%1 `peer (sy ~[~zod]) *state:v1:l +:*state:v1:g]
   ;<  *  bind:m  (do-load agent `!>(old))
-  ;<  st=state-3  bind:m  got-state
-  ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`~bus))
+  ;<  st=state-5  bind:m  got-state
+  ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`peer))
   ;<  ~  bind:m  (ex-equal !>(bots.st) !>((sy ~[~zod])))
-  (ex-equal !>(prompts.st) !>(*state:v1:pr))
+  ::  the slice arrives empty; only its sweep is armed
+  ::
+  (ex-equal !>(prompts.st) !>(%*(. *state:v1:pr sweep (add ~2024.1.1 ~m5))))
 ::
 ++  test-reload-preserves-projection-and-does-not-duplicate-timer
   %-  eval-mare
@@ -871,10 +1170,10 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  *  bind:m  (project files)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   ;<  caz=(list card)  bind:m  (do-load agent `!>(st))
   ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])
-  ;<  after=state-3  bind:m  got-state
+  ;<  after=state-5  bind:m  got-state
   (ex-equal !>(st) !>(after))
 ::
 ++  test-finalize-rejects-pending
@@ -891,35 +1190,63 @@
   ^-  form:m
   ;<  ~  bind:m  setup-owner
   %-  ex-fail
-  (do-edit moon [%set 'SOUL.md' (fil 3 65.537 'a')])
+  (do-edit peer [%set 'SOUL.md' (fil 3 65.537 'a')])
 ::
 ++  test-owner-change-does-not-replay-old-commands
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  *  bind:m  (do-watch harness-path)
-  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
   ;<  ~  bind:m  (configure ~zod)
   ;<  *  bind:m  (do-leave harness-path)
   ;<  caz=(list card)  bind:m  (do-watch harness-path)
   (ex-cards caz ~)
+::
+::  the harness's verdict on a replay authorized by a previous owner has
+::  to settle that command; otherwise it stays pending and is replayed on
+::  every resubscribe until the sweep, while the HTTP route already told
+::  the harness it was finalized
+::
+++  test-finalize-after-owner-change-settles-captured-requester
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure peer)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
+  ;<  ~  bind:m  (configure ~zod)
+  =/  denied=outcome:v1:pr  [%error %not-authorized ~]
+  ;<  caz=(list card)  bind:m  (do-finalize denied)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-bot-response peer denied)])
+  ;<  pen=pending:v1:pr  bind:m  got-pending
+  (ex-equal !>((bind (~(get by pen) rid) |=(p=pending-command:v1:pr result.p))) !>(``denied))
 ::
 ++  test-expired-request-releases-subscriptions
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  *  bind:m  (do-req-wake moon)
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  *  bind:m  (do-req-wake peer)
+  ::  still kept at ~h2: the bot's own ~h1 expiry plus a sweep period has to
+  ::  fit inside the owner's wait, so its %harness-offline can land
+  ::
   ;<  ~  bind:m  (advance-clock ~h2)
+  ;<  caz=(list card)  bind:m  do-cleanup-wake
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-cleanup-timer (add ~2024.1.1 ~h2))])
+  ;<  reqs=requests:v1:pr  bind:m  got-requests
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by reqs)) !>(1))
+  ;<  ~  bind:m  (advance-clock ~h1)
   ;<  caz=(list card)  bind:m  do-cleanup-wake
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-req-leave moon)
+    :~  (ex-req-leave peer)
         (ex-card %give %kick ~[local-req-path] ~)
-        (ex-cleanup-timer (add ~2024.1.1 ~h2))
+        (ex-cleanup-timer (add ~2024.1.1 ~h3))
     ==
   ;<  reqs=requests:v1:pr  bind:m  got-requests
   (ex-equal !>(reqs) !>(*requests:v1:pr))
@@ -933,7 +1260,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   %-  ex-fail
-  (do-edit moon edit-set)
+  (do-edit peer edit-set)
 ::
 ++  test-prompts-http-edit-untrusted-bot-is-403
   %-  eval-mare
@@ -944,20 +1271,83 @@
     (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
   (ex-cards caz (ex-http 'eyre-1' 403 'text/plain' 'bot is not trusted'))
 ::
-::  a nacked files watch schedules no retry, so the last good mirror is
-::  kept rather than wiped until someone re-pokes %trust-bot
+::  a nacked files watch keeps the last good mirror rather than wiping
+::  it, and arms a retry
 ::
 ++  test-prompts-watch-nack-retains-mirror
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (bot-update [%files (my ~[[moon files]])])
+  ;<  *  bind:m  (bot-update [%files (my ~[[peer files]])])
   ;<  caz=(list card)  bind:m
-    (do-bot-sign moon [%watch-ack `~[leaf+"denied"]])
+    (do-bot-sign peer [%watch-ack `~[leaf+"denied"]])
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-rewatch-timer peer (add ~2024.1.1 ~m1))])
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>((~(get by files.prompts.st) peer)) !>(`files))
+::
+::  the upgrade race: the owner reached the prompts module first, so the
+::  bot nacks the migration's watch. it is retried on a backoff and lands
+::  once the bot upgrades
+::
+++  test-prompts-nacked-watch-retries-with-backoff
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  =/  nack=sign:agent:gall  [%watch-ack `~[leaf+"bad-watch-path"]]
+  ;<  caz=(list card)  bind:m  (do-bot-sign peer nack)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-rewatch-timer peer (add ~2024.1.1 ~m1))])
+  ;<  ~  bind:m  (advance-clock ~m1)
+  ;<  caz=(list card)  bind:m  (do-rewatch-wake peer)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-files-watch peer)])
+  ;<  caz=(list card)  bind:m  (do-bot-sign peer nack)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-rewatch-timer peer (add ~2024.1.1 ~m3))])
+  ::  a positive ack clears the backoff
+  ::
+  ;<  ~  bind:m  (advance-clock ~m2)
+  ;<  caz=(list card)  bind:m  (do-rewatch-wake peer)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-files-watch peer)])
+  ;<  *  bind:m  (do-bot-sign peer [%watch-ack ~])
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(rewatch.prompts.st) !>(*(map ship [attempt=@ud wake=@da])))
+::
+::  an untrusted bot is never retried, and a retry that fires after an
+::  untrust does nothing
+::
+++  test-prompts-nacked-watch-not-retried-once-untrusted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (do-bot-sign peer [%watch-ack `~[leaf+"denied"]])
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot peer]))
+  ;<  ~  bind:m  (advance-clock ~m1)
+  ;<  caz=(list card)  bind:m  (do-rewatch-wake-at peer (add ~2024.1.1 ~m1))
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-3  bind:m  got-state
-  (ex-equal !>((~(get by files.prompts.st) moon)) !>(`files))
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(rewatch.prompts.st) !>(*(map ship [attempt=@ud wake=@da])))
+::
+::  a %trust-bot re-poke during the backoff watches again, and that
+::  watch's nack arms the next retry; the first retry's wake is then
+::  stale and does nothing, so only one chain runs
+::
+++  test-prompts-stale-rewatch-wake-is-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  =/  nack=sign:agent:gall  [%watch-ack `~[leaf+"bad-watch-path"]]
+  ;<  *  bind:m  (do-bot-sign peer nack)
+  ;<  ~  bind:m  (trust peer)
+  ;<  caz=(list card)  bind:m  (do-bot-sign peer nack)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-rewatch-timer peer (add ~2024.1.1 ~m2))])
+  ;<  ~  bind:m  (advance-clock ~m1)
+  ;<  caz=(list card)  bind:m  (do-rewatch-wake-at peer (add ~2024.1.1 ~m1))
+  (ex-cards caz ~)
 ::
 ::  a late poke-ack refreshes an already-stored %pending result, or a
 ::  poller reads %sending until the request is swept
@@ -967,9 +1357,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  *  bind:m  (do-req-wake moon)
-  ;<  *  bind:m  (do-req-poke-sign moon %poke-ack ~)
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  *  bind:m  (do-req-wake peer)
+  ;<  *  bind:m  (do-req-poke-sign peer %poke-ack ~)
   ;<  req=incoming-request:v1:pr  bind:m  got-request
   (ex-equal !>(result.req) !>(`[%pending %acked]))
 ::
@@ -981,40 +1371,133 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  *  bind:m  (do-watch harness-path)
-  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
   ;<  ~  bind:m  (advance-clock ~h2)
   ;<  caz=(list card)  bind:m  do-cleanup-wake
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-bot-response ~bus [%error %harness-offline ~])
+    :~  (ex-bot-response peer [%error %harness-offline ~])
         (ex-cleanup-timer (add ~2024.1.1 ~h2))
     ==
   ;<  pen=pending:v1:pr  bind:m  got-pending
   (ex-equal !>(pen) !>(*pending:v1:pr))
 ::
-::  upgrading into %3 must subscribe the bots already trusted: prompt
+::  a requester the bot no longer serves is told not-authorized: a
+::  reconnecting harness is only replayed the current owner's commands
+::
+++  test-prompts-expired-command-of-replaced-owner-is-not-authorized
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure peer)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
+  ;<  ~  bind:m  (configure ~zod)
+  ;<  ~  bind:m  (advance-clock ~h2)
+  ;<  caz=(list card)  bind:m  do-cleanup-wake
+  %+  ex-cards  caz
+  :~  (ex-bot-response peer [%error %not-authorized ~])
+      (ex-cleanup-timer (add ~2024.1.1 ~h2))
+  ==
+::
+::  RECONCILE ON LOAD
+::  =================
+::
+::  a suspended agent's due behn wakes are dropped, and a crashed sweep
+::  discards its own re-arm. a load re-arms a sweep whose recorded wake
+::  has passed, and leaves one still ahead alone
+::
+++  ex-automation-cleanup-timer
+  |=  at=@da
+  =/  wake=@da  (add at ~m5)
+  (ex-card %pass /automation/cleanup/(scot %da wake) %arvo %b %wait wake)
+++  ex-automation-watch
+  |=  bot=ship
+  %^  ex-task  /automation/tasks/(scot %p bot)  [bot %steward]
+  [%watch /v1/automation/tasks]
+::
+++  test-reload-rearms-only-overdue-sweeps
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])
+  ;<  ~  bind:m  (advance-clock ~m10)
+  =/  now=@da  (add ~2024.1.1 ~m10)
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  ex-eyre-connect
+        (ex-automation-cleanup-timer now)
+        (ex-cleanup-timer now)
+    ==
+  ::  the dropped wakes, were they to arrive after all, are stale
+  ::
+  ;<  caz=(list card)  bind:m
+    =/  old=@da  (add ~2024.1.1 ~m5)
+    (do-arvo /prompts/cleanup/(scot %da old) [%behn %wake ~])
+  (ex-cards caz ~)
+::
+::  a mirror watch lost to a nack or an unseen kick is sent again on load,
+::  for both modules. automation has no retry of its own, so this is its
+::  only repair short of a re-poked %trust-bot
+::
+++  test-reload-rewatches-lost-automation-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m
+    %^  do-agent  /automation/tasks/(scot %p peer)  [peer %steward]
+    [%watch-ack `~[leaf+"bad-watch-path"]]
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  (ex-cards caz ~[ex-eyre-connect (ex-automation-watch peer)])
+::
+::  a prompts bot still nacking has no wire until its retry wakes. a load
+::  while the retry is ahead leaves it to the retry; once its wake has
+::  passed (dropped while suspended) the load watches it
+::
+++  test-reload-rewatches-prompts-mirror-once-retry-is-overdue
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (do-bot-sign peer [%watch-ack `~[leaf+"bad-watch-path"]])
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])
+  ;<  ~  bind:m  (advance-clock ~m2)
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  (ex-cards caz ~[ex-eyre-connect (ex-files-watch peer)])
+::
+::  upgrading into %5 must subscribe the bots already trusted: prompt
 ::  watches are otherwise only created by %trust-bot
 ::
-++  test-migrate-state-2-watches-trusted-bots
+++  test-migrate-state-4-watches-trusted-bots
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
   =/  old
-    :*  %2  `~bus  (sy ~[moon ~dev])
-        *state:v1:l  *state:v1:g  *state:v1:au
+    :*  %4  `peer  (sy ~[peer ~dev])
+        *state:v1:l  *state:v1:g
+        *[(map ship tasks:v1:au) requests:v1:au pending:v1:au]
     ==
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
   ;<  ~  bind:m
     %+  ex-cards  caz
+    =/  au-wake=@da  (add ~2024.1.1 ~m5)
     :~  ex-eyre-connect
+        (ex-card %pass /automation/cleanup/(scot %da au-wake) %arvo %b %wait au-wake)
+        (ex-task /automation/tasks/(scot %p peer) [peer %steward] %watch /v1/automation/tasks)
         (ex-cleanup-timer ~2024.1.1)
-        (ex-files-watch moon)
+        (ex-files-watch peer)
     ==
-  ;<  st=state-3  bind:m  got-state
-  (ex-equal !>(bots.st) !>((sy ~[moon ~dev])))
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(bots.st) !>((sy ~[peer ~dev])))
 ::
 ::  a kick on the per-request watch while the edit is in flight re-watches,
 ::  or the bot's answer would arrive with no subscriber
@@ -1024,10 +1507,32 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon %kick ~)
-  (ex-cards caz ~[(ex-req-watch moon)])
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign peer %kick ~)
+  (ex-cards caz ~[(ex-req-watch peer)])
 
+::
+::  an untrusted bot is never watched again, even for an edit already
+::  sent; a self-edit is editable without trust, so its loopback watch is
+::
+++  test-prompts-req-kick-after-untrust-does-not-resubscribe
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  *  bind:m  (untrust peer)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign peer %kick ~)
+  (ex-cards caz ~)
+::
+++  test-prompts-req-kick-self-edit-resubscribes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit ~dev edit-set)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign ~dev %kick ~)
+  (ex-cards caz ~[(ex-req-watch ~dev)])
 ::
 ::  a %pending result is not terminal, so a kick still re-watches
 ::
@@ -1036,10 +1541,10 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup-owner
-  ;<  *  bind:m  (do-edit moon edit-set)
-  ;<  *  bind:m  (do-req-wake moon)
-  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon %kick ~)
-  (ex-cards caz ~[(ex-req-watch moon)])
+  ;<  *  bind:m  (do-edit peer edit-set)
+  ;<  *  bind:m  (do-req-wake peer)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign peer %kick ~)
+  (ex-cards caz ~[(ex-req-watch peer)])
 ::
 ::  bot side: an owner re-subscribing after a kick is handed the result the
 ::  harness already reported, so the dropped subscription loses nothing
@@ -1049,13 +1554,13 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  *  bind:m  (do-watch harness-path)
-  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
   ;<  *  bind:m  (do-finalize updated)
   ;<  caz=(list card)  bind:m
-    %-  (do-as ~bus)
-    (do-watch (req-path ~bus))
+    %-  (do-as peer)
+    (do-watch (req-path peer))
   %+  ex-cards  caz
   :~  %^  ex-fact  ~  %steward-prompts-response-1
       !>(`response:v1:pr`[rid updated])
@@ -1069,11 +1574,11 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (configure peer)
   ;<  *  bind:m  (do-watch harness-path)
-  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  *  bind:m  ((do-as peer) (do-command edit-set))
   ;<  caz=(list card)  bind:m
-    %-  (do-as ~bus)
-    (do-watch (req-path ~bus))
+    %-  (do-as peer)
+    (do-watch (req-path peer))
   (ex-cards caz ~)
 --

@@ -8,6 +8,13 @@
   ++  prompts  (om so)
   ++  ship-files  (op ;~(pfix sig fed:ag) prompts)
   ++  request-id  (se %uv)
+  ::  the enums parse with su/perk: an unknown value is a parse error with
+  ::  the accepted set visible here, not an opaque cast crash
+  ::
+  ++  poke-status  (su (perk %sending %acked %nacked ~))
+  ++  action-error
+    %-  su
+    (perk %not-authorized %invalid %harness-offline %harness-error %unknown ~)
   ++  edit
     |=  jon=json
     ^-  edit:v1:p
@@ -25,10 +32,10 @@
     =/  type  (so (~(got by p.jon) 'type'))
     ?:  =('updated' type)  [%updated (so (~(got by p.jon) 'name'))]
     ?:  =('pending' type)
-      [%pending ;;(poke-status:v1:p (so (~(got by p.jon) 'status')))]
+      [%pending (poke-status (~(got by p.jon) 'status'))]
     ?>  =('error' type)
     :+  %error
-      ;;(action-error:v1:p (so (~(got by p.jon) 'errorType')))
+      (action-error (~(got by p.jon) 'errorType'))
     =/  message  (~(get by p.jon) 'message')
     ?~  message  ~
     ((ar (cu |=(t=@t leaf+(trip t)) so)) u.message)
@@ -95,7 +102,7 @@
         %error
       %-  pairs
       :~  ['type' s+'error']
-          ['errorType' s+(scot %tas type.body)]
+          ['errorType' s+(scot %tas action-error.body)]
           ['message' (tang-json message.body)]
       ==
         %pending

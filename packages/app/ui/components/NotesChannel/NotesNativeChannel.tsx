@@ -35,12 +35,17 @@ import { YStack } from 'tamagui';
 import { useShip } from '../../../contexts/ship';
 import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
+import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import { ActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import type { ScreenHeaderAction } from '../ScreenHeader';
 import { useFloatingHeaderHeight } from '../conversationScrollChrome';
 import { NotesActionGroupList } from './NotesActions';
-import { NotebookGateMessage, useNotebookData } from './NotesData';
+import {
+  NotebookGateMessage,
+  notebookGateBlocksAccess,
+  useNotebookData,
+} from './NotesData';
 import { useEntityDialog } from './NotesDialogPrimitives';
 import {
   AddFolderDialog,
@@ -531,11 +536,20 @@ export function NotesNativeChannel({
         setStartEditNoteId(noteId);
       }
 
-      setPendingDesktopNoteId(null);
       if (useDesktopSplit) {
-        selectNoteInPane(noteId);
+        // A note that isn't in `notes` yet (just created, or a search hit on
+        // a thin client) would be deselected straight away by the effect
+        // that drops missing selections, so hold it until it syncs.
+        if (notes.some((note) => note.noteId === noteId)) {
+          setPendingDesktopNoteId(null);
+          selectNoteInPane(noteId);
+        } else {
+          setPendingDesktopNoteId(noteId);
+        }
         return;
       }
+
+      setPendingDesktopNoteId(null);
 
       navigation.navigate('NotesDetail', {
         channelId,
@@ -616,11 +630,7 @@ export function NotesNativeChannel({
         setDesktopFolderId(noteFolderId === rootFolderId ? null : noteFolderId);
       }
 
-      if (notes.some((candidate) => candidate.noteId === note.noteId)) {
-        openNoteId(note.noteId);
-      } else {
-        setPendingDesktopNoteId(note.noteId);
-      }
+      openNoteId(note.noteId);
     }
   );
 
@@ -766,7 +776,7 @@ export function NotesNativeChannel({
     }
   });
 
-  const canDropImportNotes = canImportFolder && gate !== 'unjoinable';
+  const canDropImportNotes = canImportFolder && !notebookGateBlocksAccess(gate);
   const {
     dropImportProps,
     importFiles,
@@ -1083,30 +1093,25 @@ export function NotesNativeChannel({
     }
   );
 
-  const runImportAfterSheetCloses = useMutableCallback((action: () => void) => {
-    setNewActionSheetOpen(false);
-    if (Platform.OS === 'web') {
-      action();
-      return;
-    }
-
-    setTimeout(action, 50);
+  // The folder dialog and the import pickers cannot present while the "New"
+  // sheet is still dismissing, so its actions run once that completes.
+  const {
+    dismissThenRun: dismissNewSheetThenRun,
+    onDismissed: onNewSheetDismissed,
+    presentationKey: newSheetKey,
+  } = useSheetDismissalAction({
+    open: newActionSheetOpen,
+    onOpenChange: setNewActionSheetOpen,
   });
 
   const createActions = [
     createNotesNewNoteAction({
-      action: () => {
-        setNewActionSheetOpen(false);
-        void handleCreateNote();
-      },
+      action: () => void handleCreateNote(),
       disabled: isCreatingNote,
       testID: 'NotesNewNoteAction',
     }),
     createNotesNewFolderAction({
-      action: () => {
-        setNewActionSheetOpen(false);
-        openAddFolderDialog();
-      },
+      action: () => openAddFolderDialog(),
       disabled: isCreatingFolder,
       testID: 'NotesNewFolderAction',
     }),
@@ -1118,9 +1123,7 @@ export function NotesNativeChannel({
           {
             title: 'Import files',
             startIcon: 'ChannelNote' as const,
-            action: () => {
-              runImportAfterSheetCloses(importFiles);
-            },
+            action: importFiles,
             disabled: isImportingNotes,
             testID: 'NotesImportFilesAction',
           },
@@ -1131,9 +1134,7 @@ export function NotesNativeChannel({
           {
             title: 'Import folder',
             startIcon: 'Folder' as const,
-            action: () => {
-              runImportAfterSheetCloses(importFolder);
-            },
+            action: importFolder,
             disabled: isImportingNotes,
             testID: 'NotesImportFolderAction',
           },
@@ -1169,14 +1170,14 @@ export function NotesNativeChannel({
   );
   const headerActions = useMemo(
     () =>
-      !notebookFlag || gate === 'unjoinable'
+      !notebookFlag || notebookGateBlocksAccess(gate)
         ? null
         : createNotesHeaderActions(headerActionOptions),
     [gate, notebookFlag, headerActionOptions]
   );
 
   const sidebarHeaderActions = useMemo<ScreenHeaderAction[]>(() => {
-    if (!notebookFlag || gate === 'unjoinable' || !canEdit) {
+    if (!notebookFlag || notebookGateBlocksAccess(gate) || !canEdit) {
       return [];
     }
     return [
@@ -1314,8 +1315,10 @@ export function NotesNativeChannel({
         />
       ) : null}
       <ActionSheet
+        key={newSheetKey}
         open={newActionSheetOpen}
         onOpenChange={setNewActionSheetOpen}
+        onNativeDismissed={onNewSheetDismissed}
         modal
         unmountOnClose
       >
@@ -1326,10 +1329,7 @@ export function NotesNativeChannel({
         <ActionSheet.Content>
           <NotesActionGroupList
             groups={newActionGroups}
-            onAction={(action) => {
-              setNewActionSheetOpen(false);
-              action?.();
-            }}
+            onAction={(action) => dismissNewSheetThenRun(() => action?.())}
           />
         </ActionSheet.Content>
       </ActionSheet>

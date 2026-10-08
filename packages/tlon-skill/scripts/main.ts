@@ -8,6 +8,8 @@
  *
  * Commands:
  *   activity     Activity/notifications (mentions, replies, all, unreads)
+ *   browser      Hosted browser handoff operations
+ *   buckets      Shared %buckets file channels
  *   channels     Channel listing and management
  *   contacts     Contact/profile management
  *   dms          Direct message operations
@@ -18,9 +20,13 @@
  *   settings     OpenClaw settings management
  */
 import { createActivityDeps } from './activity-runtime';
-import { setCliCredentialOverrides } from './api-client';
+import { getConfig, setCliCredentialOverrides } from './api-client';
+import { resolveBrowserOwnerShip } from './browser-owner';
+import { createBucketsDeps } from './buckets-runtime';
 import { DIARY_REMOVED } from './cli-utils';
 import { run as runActivityCommand } from './commands/activity';
+import { run as runBrowserCommand } from './commands/browser';
+import { run as runBucketsCommand } from './commands/buckets';
 import { formatUnexpectedError } from './commands/command';
 import { run as runNotesCommand } from './commands/notes';
 import { run as runPostsCommand } from './commands/posts';
@@ -28,32 +34,18 @@ import { run as runUploadCommand } from './commands/upload';
 import { CredentialFlagError, parseGlobalCliOptions } from './credential-flags';
 import { createNotesDeps } from './notes-runtime';
 import { createPostsDeps } from './posts-runtime';
-import { isTopLevelCommand } from './top-level-commands';
+import { formatCommandIndex, isTopLevelCommand } from './top-level-commands';
 import { createUploadDeps } from './upload-runtime';
-
-// Version is injected at build time via --define
-declare const __VERSION__: string;
-const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'dev';
+import { CLI_VERSION } from './version';
 
 function printHelp() {
-  console.log(`tlon v${VERSION} - Tlon/Urbit CLI
+  console.log(`tlon v${CLI_VERSION} - Tlon/Urbit CLI
 
 Usage:
   tlon [options] <command> <subcommand> [args...]
 
 Commands:
-  activity     Activity/notifications (mentions, replies, all, unreads)
-  channels     Channel listing and management (dms, groups, info, update, delete, add/del-writers, add/del-readers)
-  contacts     Contact/profile management (list, get, self, sync, add, remove, update-profile)
-  dms          Direct message operations (send, reply, react, unreact, delete, accept, decline)
-  expose       Manage public content exposure (list, show, hide, check, url)
-  groups       Group management (list, create, info, join, request/accept invites, leave, delete, ...)
-  hooks        Channel hooks management (list, add, edit, delete, order, config, cron, rest)
-  messages     Message history and search (dm, channel, history, search, context, post)
-  notes        %notes notebooks (list, show, request, note-create, note-update, join, leave)
-  posts        Post reactions, edits, deletes (react, unreact, edit, delete)
-  settings     OpenClaw settings management (get, set, delete, allow-dm, ...)
-  upload       Upload a file from URL, local path, or stdin
+${formatCommandIndex()}
 
 Credential Options (override defaults):
   --config <file>   Path to JSON config file with url + cookie or url + ship + code
@@ -98,6 +90,11 @@ Examples:
   tlon --config ~/ships/zod.json contacts self
   tlon --url https://zod.tlon.network --cookie "urbauth-~zod=0v..." contacts self
   tlon --url https://zod.tlon.network --ship ~zod --code abcd-efgh-ijkl-mnop contacts self
+
+Hosted browser login (use the Tlon tool, not a shell command):
+  {"command": "browser handoff <session_id>"}
+  Pass the sess_ handle from browser_session_create. The plugin resolves the
+  signed viewer link; never copy or construct one in a model tool call.
 `);
 }
 
@@ -121,7 +118,13 @@ async function main() {
   }
 
   setCliCredentialOverrides(parsed.credentialOverrides);
-  const args = parsed.args;
+  // Aliases share the same dispatch and help paths as flag-based discovery.
+  const args =
+    parsed.args[0] === 'help'
+      ? [...parsed.args.slice(1), '--help']
+      : parsed.args[0] === 'version'
+        ? ['--version', ...parsed.args.slice(1)]
+        : parsed.args;
 
   const command = args[0];
 
@@ -131,7 +134,7 @@ async function main() {
   }
 
   if (command === '--version' || command === '-v') {
-    console.log(VERSION);
+    console.log(CLI_VERSION);
     process.exit(0);
   }
 
@@ -158,6 +161,23 @@ async function main() {
         const exitCode = await runActivityCommand(
           scriptArgs,
           createActivityDeps()
+        );
+        process.exit(exitCode);
+        break;
+      }
+      case 'browser': {
+        const exitCode = await runBrowserCommand(scriptArgs, {
+          ...createPostsDeps(),
+          getOwnerShip: () =>
+            resolveBrowserOwnerShip({ activeShip: getConfig().ship }),
+        });
+        process.exit(exitCode);
+        break;
+      }
+      case 'buckets': {
+        const exitCode = await runBucketsCommand(
+          scriptArgs,
+          createBucketsDeps()
         );
         process.exit(exitCode);
         break;

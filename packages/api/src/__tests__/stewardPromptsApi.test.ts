@@ -130,6 +130,7 @@ test('reads and subscribes to projections independently of edit results', async 
   expect(subscribe).toHaveBeenCalledWith(
     { app: 'steward', path: '/v1/prompts/files' },
     handler,
+    undefined,
     { onQuit }
   );
 });

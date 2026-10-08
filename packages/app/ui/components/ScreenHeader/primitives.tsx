@@ -6,7 +6,7 @@ import {
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { ComponentProps, PropsWithChildren, forwardRef, useState } from 'react';
-import { ColorTokens, TamaguiElement, XStack, styled } from 'tamagui';
+import { ColorTokens, TamaguiElement, View, XStack, styled } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
 import {
@@ -24,6 +24,44 @@ export const HeaderIconButton = styled(Icon, {
     opacity: 0.5,
   },
 });
+
+/**
+ * The React counterpart of the iOS 26 UIBarButtonItem badge, for Android, web
+ * and older iOS. A blank value is a dot; anything else is drawn as a count.
+ */
+export function HeaderIconBadge({
+  value,
+  color,
+  testID,
+}: {
+  value: number | string;
+  color: ColorTokens;
+  testID?: string;
+}) {
+  const label = String(value).trim();
+  return (
+    <View
+      position="absolute"
+      top={2}
+      right={2}
+      minWidth={label ? 16 : 10}
+      height={label ? 16 : 10}
+      paddingHorizontal={label ? 4 : 0}
+      borderRadius={8}
+      backgroundColor={color}
+      alignItems="center"
+      justifyContent="center"
+      pointerEvents="none"
+      testID={testID}
+    >
+      {label ? (
+        <Text size="$label/s" color="$white" numberOfLines={1}>
+          {label}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 export function HeaderTextButton({
   children,
@@ -107,10 +145,10 @@ export const HeaderControls = styled(XStack, {
 /** React renderer for the shared item model, used by web and Android. */
 export function ScreenHeaderItemElements({
   actions,
-  nativeHeader = false,
+  nativeHeader,
 }: {
   actions: ScreenHeaderAction[];
-  nativeHeader?: boolean;
+  nativeHeader?: 'left' | 'right';
 }) {
   const visible = visibleScreenHeaderActions(actions);
   if (visible.length === 0) {
@@ -122,6 +160,10 @@ export function ScreenHeaderItemElements({
       alignItems="center"
       height={nativeHeader ? '$4xl' : undefined}
       gap={nativeHeader ? '$l' : undefined}
+      // The Android toolbar slides a title too wide to center until it touches
+      // these buttons, so they carry the gap on the side facing it.
+      paddingLeft={nativeHeader === 'right' ? '$l' : undefined}
+      paddingRight={nativeHeader === 'left' ? '$l' : undefined}
     >
       {visible.map((action) => {
         if ('items' in action) {
@@ -141,18 +183,26 @@ export function ScreenHeaderItemElements({
           );
         }
         return (
-          <HeaderIconButton
-            key={action.id}
-            type={action.icon}
-            disabled={action.disabled}
-            onPress={action.disabled ? undefined : action.onPress}
-            color={(action.tint as ColorTokens) ?? '$primaryText'}
-            backgroundColor={
-              (action.backgroundTint as ColorTokens) ?? 'transparent'
-            }
-            testID={action.testID ?? action.id}
-            aria-label={action.label}
-          />
+          <View key={action.id} position="relative">
+            <HeaderIconButton
+              type={action.icon}
+              disabled={action.disabled}
+              onPress={action.disabled ? undefined : action.onPress}
+              color={(action.tint as ColorTokens) ?? '$primaryText'}
+              backgroundColor={
+                (action.backgroundTint as ColorTokens) ?? 'transparent'
+              }
+              testID={action.testID ?? action.id}
+              aria-label={action.label}
+            />
+            {action.badge != null && (
+              <HeaderIconBadge
+                value={action.badge}
+                color={(action.tint as ColorTokens) ?? '$blue'}
+                testID={`${action.testID ?? action.id}-badge`}
+              />
+            )}
+          </View>
         );
       })}
     </XStack>
