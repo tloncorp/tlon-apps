@@ -144,6 +144,10 @@ describe('secure browser form screen', () => {
       'window',
       Object.assign(new EventTarget(), { open: mocks.openWindow })
     );
+    vi.stubGlobal(
+      'document',
+      Object.assign(new EventTarget(), { visibilityState: 'visible' })
+    );
     mocks.isWeb = false;
     mocks.resolve.mockReturnValue(
       'https://browser-session.tlon.network/s/payload.signature'
@@ -577,29 +581,42 @@ describe('secure browser form screen', () => {
     act(() => renderer.unmount());
   });
 
-  it('refreshes the secure form on return from the browser tab', async () => {
-    mocks.isWeb = true;
-    const { renderer } = await render();
-    await act(async () => window.dispatchEvent(new Event('focus')));
-    expect(mocks.beginHandoff).toHaveBeenCalledTimes(1);
-    await press(renderer, 'Open live browser');
-    mocks.beginHandoff.mockResolvedValue(form([code], { formId: 'form-2' }));
-    await act(async () => window.dispatchEvent(new Event('focus')));
-    expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
-    expect(
-      renderer.root.findAllByProps({ accessibilityLabel: 'Password' })
-    ).toHaveLength(0);
-    expect(
-      renderer.root.findByProps({ accessibilityLabel: 'Verification code' })
-    ).toBeDefined();
-    await act(async () => window.dispatchEvent(new Event('focus')));
-    expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
-    expect(mocks.complete).not.toHaveBeenCalled();
-    expect(mocks.submitCredentials).not.toHaveBeenCalled();
-    act(() => renderer.unmount());
-    window.dispatchEvent(new Event('focus'));
-    expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
-  });
+  it.each(['focus', 'visibility', 'both'] as const)(
+    'refreshes once on browser return via %s',
+    async (signal) => {
+      mocks.isWeb = true;
+      const { renderer } = await render();
+      await act(async () => window.dispatchEvent(new Event('focus')));
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(1);
+      await press(renderer, 'Open live browser');
+      mocks.beginHandoff.mockResolvedValue(form([code], { formId: 'form-2' }));
+      Object.assign(document, { visibilityState: 'hidden' });
+      await act(async () =>
+        document.dispatchEvent(new Event('visibilitychange'))
+      );
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(1);
+      Object.assign(document, { visibilityState: 'visible' });
+      await act(async () => {
+        if (signal !== 'focus')
+          document.dispatchEvent(new Event('visibilitychange'));
+        if (signal !== 'visibility') window.dispatchEvent(new Event('focus'));
+      });
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
+      expect(
+        renderer.root.findAllByProps({ accessibilityLabel: 'Password' })
+      ).toHaveLength(0);
+      expect(
+        renderer.root.findByProps({ accessibilityLabel: 'Verification code' })
+      ).toBeDefined();
+      await act(async () => window.dispatchEvent(new Event('focus')));
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
+      expect(mocks.complete).not.toHaveBeenCalled();
+      expect(mocks.submitCredentials).not.toHaveBeenCalled();
+      act(() => renderer.unmount());
+      window.dispatchEvent(new Event('focus'));
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
+    }
+  );
 
   it('requires reopening an unavailable in-memory handoff', async () => {
     mocks.resolve.mockReturnValue(undefined);

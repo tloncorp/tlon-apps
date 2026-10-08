@@ -321,8 +321,15 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       externalViewerHandoff.current = null;
       retry();
     };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshAfterBrowser();
+    };
     window.addEventListener('focus', refreshAfterBrowser);
-    return () => window.removeEventListener('focus', refreshAfterBrowser);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.removeEventListener('focus', refreshAfterBrowser);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [handoffId, retry]);
   const dismiss = useCallback(() => {
     requestController.current?.abort();
