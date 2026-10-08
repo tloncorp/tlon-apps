@@ -207,12 +207,12 @@ export function carriedConversationParams(params: object | undefined): {
 /**
  * How to open a channel picked from its workspace's info screen.
  *
- * It replaces the channel the user came from when that is the stack's last
- * channel and belongs to the same workspace, keeping what that route was: a
- * destination of the drawer stays one, and one pushed over a channel list
- * keeps its way back to the list. Anything else -- no channel beneath, or the
- * last one in another workspace -- is pushed over the info screen, so the
- * stack never rewrites a channel of one workspace into another's.
+ * It replaces the channel the info screen was opened from, when that channel
+ * is directly beneath it and in the same workspace, keeping what that route
+ * was: a destination of the drawer stays one, and one pushed over a channel
+ * list keeps its way back to the list. Anything else -- no channel beneath,
+ * another workspace's, or one further down under a DM -- is pushed over the
+ * info screen, so no route the user could go back to is rewritten or popped.
  */
 export function getPickedChannelNavigation(
   stackState: StackSnapshot,
@@ -225,15 +225,18 @@ export function getPickedChannelNavigation(
     channelId: channel.id,
     ...(channel.groupId ? { groupId: channel.groupId } : {}),
   };
-  const last = stackState?.routes
-    ?.filter((route) => route.name === 'Channel')
-    .at(-1);
-  const lastGroupId = (last?.params as { groupId?: string } | undefined)
+  const index = stackState?.index ?? (stackState?.routes?.length ?? 0) - 1;
+  const beneath = stackState?.routes?.[index - 1];
+  const beneathGroupId = (beneath?.params as { groupId?: string } | undefined)
     ?.groupId;
-  if (last && channel.groupId && lastGroupId === channel.groupId) {
+  if (
+    beneath?.name === 'Channel' &&
+    channel.groupId &&
+    beneathGroupId === channel.groupId
+  ) {
     return {
       mode: 'replace',
-      params: { ...params, ...carriedConversationParams(last.params) },
+      params: { ...params, ...carriedConversationParams(beneath.params) },
     };
   }
   return { mode: 'push', params };

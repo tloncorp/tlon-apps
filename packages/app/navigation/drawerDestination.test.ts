@@ -411,6 +411,21 @@ describe('getPickedChannelNavigation', () => {
     });
   });
 
+  it('pushes rather than pop a DM opened over the channel', () => {
+    const stack = {
+      index: 3,
+      routes: [
+        mainTabs,
+        { name: 'Channel', params: { channelId: 'a', groupId: 'w' } },
+        { name: 'DM', params: { channelId: 'dm' } },
+        { name: 'ChatDetails', params: { chatType: 'group', chatId: 'w' } },
+      ],
+    };
+    expect(
+      getPickedChannelNavigation(stack, { id: 'b', groupId: 'w' }).mode
+    ).toBe('push');
+  });
+
   it('pushes when no channel sits beneath the info screen', () => {
     const stack = {
       index: 2,

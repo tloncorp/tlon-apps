@@ -643,6 +643,9 @@ export default function ChannelScreen(props: Props) {
 
   return (
     <ChatOptionsProvider
+      // A channel can replace another in this route (picked from Channel
+      // info); the provider reads initialChat only when it mounts.
+      key={currentChannelId}
       initialChat={initialChat}
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
