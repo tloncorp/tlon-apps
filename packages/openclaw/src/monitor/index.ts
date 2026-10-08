@@ -4156,9 +4156,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     const onboardingDiscoveryFlights = new Set<Promise<boolean | undefined>>();
     let drainingOnboardingDiscovery = false;
-    const scanDiscoveredAgentOnboardingNest = async (nest: string) => {
+    const runOnboardingDiscoveryFlight = async (
+      scan: () => Promise<boolean | undefined>
+    ) => {
       if (drainingOnboardingDiscovery || opts.abortSignal?.aborted) return;
-      const flight = onboardingCatchUp.reconcile(nest);
+      const flight = scan();
       onboardingDiscoveryFlights.add(flight);
       try {
         await flight;
@@ -4166,15 +4168,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         onboardingDiscoveryFlights.delete(flight);
       }
     };
+    const scanDiscoveredAgentOnboardingNest = (nest: string) =>
+      runOnboardingDiscoveryFlight(() => onboardingCatchUp.reconcile(nest));
 
     // A nest watched before its join had its scan skipped, and the
     // became-joined reconcile can miss the intro request: the host may not
     // have backfilled it within the catch-up window, or the join fact was
-    // dropped and only a later snapshot shows it.
+    // dropped and only a later snapshot shows it. Each poll tick in the
+    // window repeats this, so one history read per tick suffices; opening a
+    // catch-up window here would multiply the reads.
     const rescanRecentlyJoinedChannels = async () => {
       for (const nest of joinedChannels.recentlyJoined(10 * 60_000)) {
         if (nest.startsWith('chat/') && watchedChannels.has(nest)) {
-          await scanDiscoveredAgentOnboardingNest(nest);
+          await runOnboardingDiscoveryFlight(() =>
+            scanAgentOnboardingNest(nest)
+          );
         }
       }
     };

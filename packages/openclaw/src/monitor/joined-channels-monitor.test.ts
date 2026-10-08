@@ -20,11 +20,23 @@ const sliceFrom = (marker: string) => {
   return source.slice(start, end + '\n    };'.length);
 };
 
+/** A closure-scope single-expression arrow function of the monitor. */
+const sliceStatement = (marker: string) => {
+  const start = source.indexOf(marker);
+  expect(start).toBeGreaterThan(-1);
+  const end = source.indexOf(';\n', start);
+  expect(end).toBeGreaterThan(start);
+  return source.slice(start, end + 1);
+};
+
 type Deps = {
   watchedChannels: Set<string>;
   joinedChannels: JoinedChannels;
   clearAgentOnboardingRetry: ReturnType<typeof vi.fn>;
-  onboardingCatchUp: { reconcile: ReturnType<typeof vi.fn> };
+  onboardingCatchUp: {
+    reconcile: ReturnType<typeof vi.fn>;
+    schedule: ReturnType<typeof vi.fn>;
+  };
   processedTracker: { mark: ReturnType<typeof vi.fn> };
   scanAgentOnboardingChannel: ReturnType<typeof vi.fn>;
   runtime: { log: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
@@ -33,6 +45,8 @@ type Monitor = {
   handleChannelsFirehose(event: unknown): Promise<void>;
   scanAgentOnboardingNest(nest: string): Promise<boolean | undefined>;
   rescanRecentlyJoinedChannels(): Promise<void>;
+  onboardingDiscoveryFlights: Set<Promise<boolean | undefined>>;
+  startDrainingOnboardingDiscovery(): void;
 };
 let makeMonitor: (deps: Deps & { isDmNest: typeof isDmNest }) => Monitor;
 
@@ -62,12 +76,17 @@ beforeAll(async () => {
       let drainingOnboardingDiscovery = false;
       ${sliceFrom('const scanAgentOnboardingNest = async')}
       ${sliceFrom('const handleChannelsFirehose = async')}
-      ${sliceFrom('const scanDiscoveredAgentOnboardingNest = async')}
+      ${sliceFrom('const runOnboardingDiscoveryFlight = async')}
+      ${sliceStatement('const scanDiscoveredAgentOnboardingNest =')}
       ${sliceFrom('const rescanRecentlyJoinedChannels = async')}
       return {
         handleChannelsFirehose,
         scanAgentOnboardingNest,
         rescanRecentlyJoinedChannels,
+        onboardingDiscoveryFlights,
+        startDrainingOnboardingDiscovery: () => {
+          drainingOnboardingDiscovery = true;
+        },
       };
     }
     `,
@@ -97,7 +116,10 @@ function setup(options: {
     watchedChannels: new Set(options.watched ?? []),
     joinedChannels,
     clearAgentOnboardingRetry: vi.fn(),
-    onboardingCatchUp: { reconcile: vi.fn(async () => true) },
+    onboardingCatchUp: {
+      reconcile: vi.fn(async () => true),
+      schedule: vi.fn(),
+    },
     // Refusing the message ends the handler at its first step.
     processedTracker: { mark: vi.fn(() => false) },
     scanAgentOnboardingChannel: vi.fn(async () => true),
@@ -163,29 +185,60 @@ describe('channel firehose with a joined set', () => {
 });
 
 describe('poll re-scan of recently joined channels', () => {
-  it('re-scans watched chat nests joined within the window', async () => {
-    const time = { now: 1_000_000 };
-    const heap = 'heap/~zod/links';
-    const unwatched = 'chat/~zod/unwatched';
+  const recentlyJoined = (time: { now: number }) => {
     const { deps, monitor } = setup({
-      watched: [general, heap],
+      watched: [general, 'heap/~zod/links'],
       joined: [],
       now: () => time.now,
     });
     // Missed join fact: only the poll's snapshot shows the nests.
     deps.joinedChannels.applySync(
       deps.joinedChannels.beginSync(),
-      new Set([general, heap, unwatched])
+      new Set([general, 'heap/~zod/links', 'chat/~zod/unwatched'])
+    );
+    return { deps, monitor };
+  };
+
+  it('reads each watched chat nest joined within the window once per tick', async () => {
+    const time = { now: 1_000_000 };
+    const { deps, monitor } = recentlyJoined(time);
+
+    await monitor.rescanRecentlyJoinedChannels();
+    expect(deps.scanAgentOnboardingChannel).toHaveBeenCalledOnce();
+    expect(deps.scanAgentOnboardingChannel).toHaveBeenCalledWith(
+      expect.objectContaining({ channelNest: general })
     );
 
     await monitor.rescanRecentlyJoinedChannels();
-    expect(deps.onboardingCatchUp.reconcile).toHaveBeenCalledExactlyOnceWith(
-      general
-    );
+    expect(deps.scanAgentOnboardingChannel).toHaveBeenCalledTimes(2);
 
     time.now += 10 * 60_000 + 1;
     await monitor.rescanRecentlyJoinedChannels();
-    expect(deps.onboardingCatchUp.reconcile).toHaveBeenCalledOnce();
+    expect(deps.scanAgentOnboardingChannel).toHaveBeenCalledTimes(2);
+    // No catch-up window: the next tick is the repeat.
+    expect(deps.onboardingCatchUp.reconcile).not.toHaveBeenCalled();
+    expect(deps.onboardingCatchUp.schedule).not.toHaveBeenCalled();
+  });
+
+  it('holds its scan in the drained flight set and skips once draining', async () => {
+    const { deps, monitor } = recentlyJoined({ now: 1_000_000 });
+    let finish!: (reconciled: boolean) => void;
+    deps.scanAgentOnboardingChannel.mockImplementationOnce(
+      () => new Promise<boolean>((resolve) => (finish = resolve))
+    );
+
+    const tick = monitor.rescanRecentlyJoinedChannels();
+    await vi.waitFor(() =>
+      expect(deps.scanAgentOnboardingChannel).toHaveBeenCalledOnce()
+    );
+    expect(monitor.onboardingDiscoveryFlights.size).toBe(1);
+    finish(true);
+    await tick;
+    expect(monitor.onboardingDiscoveryFlights.size).toBe(0);
+
+    monitor.startDrainingOnboardingDiscovery();
+    await monitor.rescanRecentlyJoinedChannels();
+    expect(deps.scanAgentOnboardingChannel).toHaveBeenCalledOnce();
   });
 });
 
