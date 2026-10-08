@@ -20,6 +20,7 @@ const mockState = {
     data: { enableTelemetry: true as boolean | null, logActivity: null },
     isLoading: false,
   },
+  clientGeneration: 0,
 };
 
 // The real web variant of this module calls `posthog.init` at import time.
@@ -80,6 +81,7 @@ jest.mock('@tloncorp/shared/db', () => {
 jest.mock('@tloncorp/shared/store', () => ({
   useTelemetrySettings: () => mockState.settings,
   updateEnableTelemetry: jest.fn(),
+  getClientGeneration: () => mockState.clientGeneration,
 }));
 
 // `@tloncorp/api`'s exports map has no `require` condition, so jest cannot
@@ -116,6 +118,8 @@ beforeEach(() => {
   mockState.readyPromise = new Promise<void>((resolve) => {
     resolveReady = resolve;
   });
+  // The back-fill guard is module-level, so each case starts a new lifetime.
+  mockState.clientGeneration += 1;
   jest.clearAllMocks();
 });
 
@@ -245,6 +249,15 @@ describe('useTelemetry enableTelemetry back-fill', () => {
     });
 
     expect(updateEnableTelemetry).toHaveBeenCalledTimes(1);
+
+    // Another consumer mounting later, as each BotFeedbackRow does.
+    mockState.readyPromise = new Promise<void>((resolve) => {
+      resolveReady = resolve;
+    });
+    renderHook(() => useTelemetry());
+    await settleReady();
+
+    expect(updateEnableTelemetry).toHaveBeenCalledTimes(1);
   });
 
   it('does not back-fill when the setting is present', async () => {
@@ -252,5 +265,28 @@ describe('useTelemetry enableTelemetry back-fill', () => {
     await settleReady();
 
     expect(updateEnableTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('back-fills again in a new client lifetime', async () => {
+    mockState.settings = {
+      data: { enableTelemetry: null, logActivity: null },
+      isLoading: false,
+    };
+    jest.mocked(updateEnableTelemetry).mockResolvedValue(false);
+
+    const first = renderHook(() => useTelemetry());
+    await settleReady();
+
+    expect(updateEnableTelemetry).toHaveBeenCalledTimes(1);
+
+    first.unmount();
+    mockState.clientGeneration += 1;
+    mockState.readyPromise = new Promise<void>((resolve) => {
+      resolveReady = resolve;
+    });
+    renderHook(() => useTelemetry());
+    await settleReady();
+
+    expect(updateEnableTelemetry).toHaveBeenCalledTimes(2);
   });
 });
