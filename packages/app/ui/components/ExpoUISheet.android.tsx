@@ -47,6 +47,7 @@ import type {
 
 const contentHorizontalInset = 8;
 const groupGap = 24;
+const groupTitleGap = 8;
 const rowMinHeight = 72;
 const actionGroupShape = Shapes.RoundedCorner(16);
 const actionGroupInnerShape = Shapes.RoundedCorner(15);
@@ -342,32 +343,46 @@ export function ExpoUIActionContent({
         {visibleGroups.map((group, groupIndex) => (
           <Column
             key={groupIndex}
-            modifiers={[
-              fillMaxWidth(),
-              clip(actionGroupShape),
-              background(getActionGroupBorderColor(theme, group.accent)),
-              padding(1, 1, 1, 1),
-            ]}
+            verticalArrangement={{ spacedBy: groupTitleGap }}
+            modifiers={[fillMaxWidth()]}
           >
-            {/* An inset rounded fill draws a continuous 1dp border using stock Expo UI. */}
+            {group.title ? (
+              <Text
+                color={theme.secondaryText.val}
+                style={{ fontSize: 14, fontWeight: '400', lineHeight: 20 }}
+                modifiers={[padding(24, 0, 24, 0)]}
+              >
+                {group.title}
+              </Text>
+            ) : null}
             <Column
               modifiers={[
                 fillMaxWidth(),
-                clip(actionGroupInnerShape),
-                background(theme.background.val),
+                clip(actionGroupShape),
+                background(getActionGroupBorderColor(theme, group.accent)),
+                padding(1, 1, 1, 1),
               ]}
             >
-              {group.actions.map((action, actionIndex) => (
-                <React.Fragment key={`${action.title}-${actionIndex}`}>
-                  {actionIndex > 0 ? (
-                    <HorizontalDivider
-                      color={theme.secondaryBorder.val}
-                      thickness={1}
-                    />
-                  ) : null}
-                  <ActionRow action={action} groupAccent={group.accent} />
-                </React.Fragment>
-              ))}
+              {/* An inset rounded fill draws a continuous 1dp border using stock Expo UI. */}
+              <Column
+                modifiers={[
+                  fillMaxWidth(),
+                  clip(actionGroupInnerShape),
+                  background(theme.background.val),
+                ]}
+              >
+                {group.actions.map((action, actionIndex) => (
+                  <React.Fragment key={`${action.title}-${actionIndex}`}>
+                    {actionIndex > 0 ? (
+                      <HorizontalDivider
+                        color={theme.secondaryBorder.val}
+                        thickness={1}
+                      />
+                    ) : null}
+                    <ActionRow action={action} groupAccent={group.accent} />
+                  </React.Fragment>
+                ))}
+              </Column>
             </Column>
           </Column>
         ))}

@@ -21,6 +21,10 @@ export type ChatOptionsContextValue = {
     id: string;
     groupId?: string;
   }) => void;
+  /** Open a channel picked from the sheet's list of the group's channels. */
+  onPressChannel: (channel: db.Channel) => void;
+  /** Start creating a channel in the sheet's group. */
+  onPressNewChannel: () => void;
   togglePinned: () => void;
   leaveGroup: () => Promise<void>;
   leaveChannel: () => void;

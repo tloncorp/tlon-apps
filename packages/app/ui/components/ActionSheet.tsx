@@ -4,6 +4,7 @@ import {
   IconType,
   Pressable,
   Sheet,
+  Text,
   useCopy,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
@@ -68,11 +69,14 @@ export type ActionRenderProps = {
 export type ActionGroup = {
   accent: Accent;
   actions: Action[];
+  /** A heading above the group, naming what its actions have in common. */
+  title?: string;
 };
 
 export type CreateActionInput = Action | false | null | undefined;
 export type CreateActionGroupsInput =
   | [Accent, ...CreateActionInput[]]
+  | ActionGroup
   | false
   | null
   | undefined;
@@ -81,8 +85,17 @@ export function createActionGroups(
   ...inputs: CreateActionGroupsInput[]
 ): ActionGroup[] {
   return inputs
-    .filter((input): input is [Accent, ...CreateActionInput[]] => !!input)
-    .map(([accent, ...actions]) => createActionGroup(accent, ...actions));
+    .filter(
+      (input): input is [Accent, ...CreateActionInput[]] | ActionGroup =>
+        !!input
+    )
+    .map((input) => {
+      if (!Array.isArray(input)) {
+        return input;
+      }
+      const [accent, ...actions] = input;
+      return createActionGroup(accent, ...actions);
+    });
 }
 
 export function createActionGroup(
@@ -565,10 +578,14 @@ const ActionSheetActionGroupFrame = styled(ActionSheetContentBlock, {
  */
 const ActionSheetActionGroup = ActionSheetActionGroupFrame.styleable<{
   contentProps?: ComponentProps<typeof ActionSheetActionGroupContent>;
-}>(({ contentProps, ...props }, ref) => {
+  title?: string;
+}>(({ contentProps, title, ...props }, ref) => {
   const actions = Children.toArray(props.children);
   return (
     <ActionSheetActionGroupFrame {...props} ref={ref} accessible={false}>
+      {title ? (
+        <ActionSheetActionGroupTitle>{title}</ActionSheetActionGroupTitle>
+      ) : null}
       <ActionSheetActionGroupContent {...contentProps} accessible={false}>
         {actions.map((c, index) => (
           <Fragment key={index}>
@@ -581,6 +598,18 @@ const ActionSheetActionGroup = ActionSheetActionGroupFrame.styleable<{
       </ActionSheetActionGroupContent>
     </ActionSheetActionGroupFrame>
   );
+});
+
+// Inset to line up with the titles of the rows below it.
+const ActionSheetActionGroupTitle = styled(Text, {
+  name: 'ActionSheetActionGroupTitle',
+  size: '$label/m',
+  color: '$secondaryText',
+  paddingHorizontal: '$2xl',
+  paddingBottom: '$m',
+  $gtSm: {
+    paddingHorizontal: '$l',
+  },
 });
 
 const ActionSheetActionGroupSeparator = styled(View, {
@@ -870,7 +899,11 @@ export const SimpleActionGroupList = ({
 }) => {
   return actionGroups.map((group, i) => {
     return (
-      <ActionSheet.ActionGroup key={i} accent={group.accent}>
+      <ActionSheet.ActionGroup
+        key={i}
+        accent={group.accent}
+        title={group.title}
+      >
         {group.actions.map((action, index) => (
           <ActionSheet.Action
             key={index}

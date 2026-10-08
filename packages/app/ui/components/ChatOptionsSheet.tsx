@@ -21,6 +21,7 @@ import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
 import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
 import { useIsNativeSheet } from '../hooks/useIsNativeSheet';
 import * as utils from '../utils';
+import { getGroupChannelMenu } from '../utils/groupChannelSections';
 import {
   Action,
   ActionGroup,
@@ -318,8 +319,13 @@ export function GroupOptionsSheetContent({
   onPressSort: () => void;
   onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
-  const { markGroupRead, onPressChatDetails, togglePinned, onPressInvite } =
-    useChatOptions();
+  const {
+    channel,
+    markGroupRead,
+    onPressChatDetails,
+    togglePinned,
+    onPressInvite,
+  } = useChatOptions();
   const canMarkRead = !(group.unread?.count === 0 || groupUnread?.count === 0);
   const canSortChannels = (group.channels?.length ?? 0) > 1;
   const canInvite = currentUserIsAdmin || group.privacy === 'public';
@@ -356,13 +362,21 @@ export function GroupOptionsSheetContent({
     [group.volumeSettings, baseVolumeLevel]
   );
 
+  const channelsGroup = useGroupChannelsActionGroup({
+    group,
+    // Set when the sheet is a single channel's group, opened from it.
+    currentChannelId: channel?.id,
+    canCreateChannel: currentUserIsAdmin,
+    wrappedAction,
+  });
+
   const actionGroups = useMemo(
     () =>
       createActionGroups(
         [
           'neutral',
           {
-            title: 'Group notifications',
+            title: 'Workspace notifications',
             description: notificationTitle,
             action: onPressNotifications,
             endIcon: 'ChevronRight',
@@ -394,21 +408,22 @@ export function GroupOptionsSheetContent({
             : {
                 accent: 'disabled',
                 title: 'Invites disabled',
-                description: 'Only admins may invite people to this group.',
+                description: 'Only admins may invite people to this workspace.',
               },
           {
-            title: 'Group info & settings',
+            title: 'Workspace info & settings',
             action: wrappedAction.bind(null, handlePressChatDetails, false),
             endIcon: 'ChevronRight',
             testID: 'GroupOptionsGroupInfoButton',
           },
         ],
+        channelsGroup,
         // this is CYA in case the group somehow looks joined but isn't
         isErrored && [
           'negative',
           {
             title: 'Cancel join',
-            description: 'Group joining failed or timed out',
+            description: 'Workspace joining failed or timed out',
             action: wrappedAction.bind(null, handleCancel),
           },
         ]
@@ -428,6 +443,7 @@ export function GroupOptionsSheetContent({
       wrappedInviteAction,
       handleCancel,
       isErrored,
+      channelsGroup,
     ]
   );
 
@@ -436,7 +452,7 @@ export function GroupOptionsSheetContent({
     ? group.privacy.charAt(0).toUpperCase() + group.privacy.slice(1)
     : '';
   const subtitle = memberCount
-    ? `${privacy} group with ${memberCount} member${group.members?.length === 1 ? '' : 's'}`
+    ? `${privacy} workspace with ${memberCount} member${group.members?.length === 1 ? '' : 's'}`
     : '';
 
   return (
@@ -511,7 +527,7 @@ function EditGroupSheetContent({
       createActionGroups([
         'neutral',
         {
-          title: 'Edit group info',
+          title: 'Edit workspace info',
           description: 'Change name, description, and image',
           action: wrappedAction.bind(null, onPressGroupMeta, false),
           endIcon: 'ChevronRight',
@@ -519,13 +535,13 @@ function EditGroupSheetContent({
         },
         {
           title: 'Manage channels',
-          description: 'Add or remove channels in this group',
+          description: 'Add or remove channels in this workspace',
           action: wrappedAction.bind(null, onPressManageChannels, false),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Privacy',
-          description: 'Change who can find or join this group',
+          description: 'Change who can find or join this workspace',
           action: wrappedAction.bind(null, onPressGroupPrivacy, false),
           endIcon: 'ChevronRight',
         },
@@ -548,7 +564,7 @@ function EditGroupSheetContent({
   return (
     <ChatOptionsSheetContent
       title={'Edit ' + chatTitle}
-      subtitle="Edit group details"
+      subtitle="Edit workspace details"
       actionGroups={editActions}
       icon={<SheetBackButton onPress={onPressBack} />}
       onBack={onPressBack}
@@ -590,7 +606,7 @@ const ChannelOptionsSheetLoader = memo(
     const { data: group } = store.useGroup({
       id: groupId,
     });
-    const groupTitle = utils.useGroupTitle(group) ?? 'group';
+    const groupTitle = utils.useGroupTitle(group) ?? 'workspace';
     const channelTitle =
       utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
     const isSingleChannelGroup = !asChannel && group?.channels.length === 1;
@@ -733,11 +749,13 @@ export function ChannelOptionsSheetContent({
     markChannelRead,
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
+  const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
 
   const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
   const channelActionCapabilities = utils.getChannelActionCapabilities(channel);
 
-  const groupTitle = utils.useGroupTitle(group) ?? 'group';
+  const groupTitle = utils.useGroupTitle(group) ?? 'workspace';
   const isSingleChannelGroup = !asChannel && group?.channels?.length === 1;
   // A Bucket has no unread row at all, so the bare `!== 0` test read
   // `undefined` as unread and offered the action; +readChannel then retries
@@ -773,6 +791,13 @@ export function ChannelOptionsSheetContent({
     () => getNotificationTitle(channel.volumeSettings, baseVolumeLevel),
     [channel.volumeSettings, baseVolumeLevel]
   );
+
+  const channelsGroup = useGroupChannelsActionGroup({
+    group,
+    currentChannelId: channel.id,
+    canCreateChannel: currentUserIsAdmin,
+    wrappedAction,
+  });
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -818,7 +843,7 @@ export function ChannelOptionsSheetContent({
             endIcon: 'ChevronRight',
           },
           {
-            title: 'Group info & settings',
+            title: 'Workspace info & settings',
             action: wrappedAction.bind(null, handlePressGroupDetails, false),
             endIcon: 'ChevronRight',
             testID: 'GroupOptionsGroupInfoButton',
@@ -837,6 +862,7 @@ export function ChannelOptionsSheetContent({
               action: wrappedAction.bind(null, onPressChannelTemplate),
             },
           ],
+        channelsGroup,
         currentUserIsChannelHost && [
           'negative',
           {
@@ -874,6 +900,7 @@ export function ChannelOptionsSheetContent({
       currentUserIsChannelHost,
       channelActionCapabilities.canLeave,
       leaveChannel,
+      channelsGroup,
     ]
   );
 
@@ -891,7 +918,7 @@ export function ChannelOptionsSheetContent({
       default:
         return group
           ? isSingleChannelGroup
-            ? `Group with ${group.members?.length ?? 0} members`
+            ? `Workspace with ${group.members?.length ?? 0} members`
             : `Channel in ${groupTitle}`
           : '';
     }
@@ -905,6 +932,65 @@ export function ChannelOptionsSheetContent({
       icon={<ListItem.ChannelIcon model={channel} />}
     />
   );
+}
+
+/**
+ * The group's channels to move to, and for an admin a way to add one.
+ *
+ * Not in the desktop flyout: the sidebar beside it already lists the group's
+ * channels, and the flyout opens from one of their rows.
+ */
+function useGroupChannelsActionGroup({
+  group,
+  currentChannelId,
+  canCreateChannel,
+  wrappedAction,
+}: {
+  group: db.Group | null | undefined;
+  currentChannelId?: string;
+  canCreateChannel: boolean;
+  wrappedAction: (action: () => void, clearChat?: boolean) => void;
+}): ActionGroup | null {
+  const { onPressChannel, onPressNewChannel } = useChatOptions();
+  const sortBy = db.channelSortPreference.useValue();
+  const isWindowNarrow = useIsWindowNarrow();
+  const isDesktopFlyout = isWeb && !isWindowNarrow;
+
+  return useMemo((): ActionGroup | null => {
+    if (!group || isDesktopFlyout) {
+      return null;
+    }
+    const menu = getGroupChannelMenu(group, sortBy, currentChannelId);
+    const actions: Action[] = menu.channels.map((channel) => ({
+      title: utils.getChannelTitle({
+        usesMemberListAsFallbackTitle: false,
+        channelTitle: channel.title,
+        disableNicknames: false,
+      }),
+      startIcon: utils.getChannelTypeIcon(channel.type),
+      action: wrappedAction.bind(null, () => onPressChannel(channel)),
+    }));
+    if (canCreateChannel) {
+      actions.push({
+        title: 'New channel',
+        startIcon: 'Add',
+        action: wrappedAction.bind(null, onPressNewChannel),
+        testID: 'ChatOptionsNewChannelButton',
+      });
+    }
+    return actions.length > 0
+      ? { accent: 'neutral', title: menu.title, actions }
+      : null;
+  }, [
+    group,
+    isDesktopFlyout,
+    sortBy,
+    currentChannelId,
+    canCreateChannel,
+    wrappedAction,
+    onPressChannel,
+    onPressNewChannel,
+  ]);
 }
 
 export function ChatOptionsSheetContent({

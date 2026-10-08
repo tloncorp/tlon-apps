@@ -15,9 +15,11 @@ import {
 } from 'react';
 import { Platform } from 'react-native';
 
+import type { GroupSettingsStackParamList } from '../../../navigation/types';
 import { useIsMobileTree } from '../../../navigation/utils';
 import { ChatOptionsSheet } from '../../components/ChatOptionsSheet';
 import { InviteUsersSheet } from '../../components/InviteUsersSheet';
+import { CreateChannelSheet } from '../../components/ManageChannels/CreateChannelSheet';
 import { useChannelTitle } from '../../utils';
 import { ChatOptionsContext, ChatOptionsContextValue } from './context';
 
@@ -43,6 +45,10 @@ type ChatOptionsProviderProps = {
     id: string;
     groupId?: string;
   }) => void;
+  onPressChannel?: (channel: db.Channel) => void;
+  onPressCreateChannelPermissions?: (
+    params: GroupSettingsStackParamList['CreateChannelPermissions']
+  ) => void;
   onLeaveGroup?: (leftChannelId?: string) => void;
   onLeaveChannel?: (groupId: string, channelId: string) => void;
   initialChat?: {
@@ -65,6 +71,8 @@ export const ChatOptionsProvider = ({
   onPressChannelTemplate = noop,
   onPressRoles,
   onPressChatDetails = noop,
+  onPressChannel,
+  onPressCreateChannelPermissions,
   onLeaveGroup: navigateOnLeave,
   onLeaveChannel: navigateToGroupOnLeave,
 }: ChatOptionsProviderProps) => {
@@ -76,18 +84,28 @@ export const ChatOptionsProvider = ({
   const sheetOpenRef = useRef(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [inviteGroupId, setInviteGroupId] = useState<string>();
-  const pendingInvite = useRef<{ generation: number; groupId: string } | null>(
-    null
-  );
-  const inviteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cancelPendingInvite = useCallback(() => {
-    pendingInvite.current = null;
-    if (inviteTimer.current !== null) {
-      clearTimeout(inviteTimer.current);
-      inviteTimer.current = null;
+  const [createChannelGroupId, setCreateChannelGroupId] = useState<
+    string | null
+  >(null);
+  const { data: createChannelGroup } = store.useGroup({
+    id: createChannelGroupId ?? undefined,
+  });
+  // What an action of the options sheet leads to, held until that sheet has
+  // gone: a native sheet cannot present over one still dismissing, and a
+  // navigation that removes this screen would tear down the sheet mid-way.
+  const pendingHandoff = useRef<{
+    generation: number;
+    run: () => void;
+  } | null>(null);
+  const handoffTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPendingHandoff = useCallback(() => {
+    pendingHandoff.current = null;
+    if (handoffTimer.current !== null) {
+      clearTimeout(handoffTimer.current);
+      handoffTimer.current = null;
     }
   }, []);
-  useEffect(() => cancelPendingInvite, [cancelPendingInvite]);
+  useEffect(() => cancelPendingHandoff, [cancelPendingHandoff]);
   const [leaveChannelDialogOpen, setLeaveChannelDialogOpen] = useState(false);
   const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(
     null
@@ -114,7 +132,7 @@ export const ChatOptionsProvider = ({
       options?: { asChannel?: boolean }
     ) => {
       trackEvent(AnalyticsEvent.ChatOptionsOpened, { type: chatType });
-      cancelPendingInvite();
+      cancelPendingHandoff();
       const generation = sheetGenerationRef.current + 1;
       sheetGenerationRef.current = generation;
       setChat({
@@ -126,7 +144,7 @@ export const ChatOptionsProvider = ({
       sheetOpenRef.current = true;
       setSheetOpen(true);
     },
-    [cancelPendingInvite]
+    [cancelPendingHandoff]
   );
 
   const closeInviteSheet = useCallback(() => {
@@ -151,11 +169,10 @@ export const ChatOptionsProvider = ({
 
     setChat(null);
     setSheetMountGeneration(null);
-    const invite = pendingInvite.current;
-    pendingInvite.current = null;
-    if (invite?.generation === generation) {
-      setInviteGroupId(invite.groupId);
-      setInviteSheetOpen(true);
+    const handoff = pendingHandoff.current;
+    pendingHandoff.current = null;
+    if (handoff?.generation === generation) {
+      handoff.run();
     }
   }, []);
 
@@ -180,12 +197,12 @@ export const ChatOptionsProvider = ({
 
   useEffect(() => {
     if (!isMobileTree) {
-      cancelPendingInvite();
+      cancelPendingHandoff();
       sheetOpenRef.current = false;
       setSheetOpen(false);
       setSheetMountGeneration(null);
     }
-  }, [isMobileTree, cancelPendingInvite]);
+  }, [isMobileTree, cancelPendingHandoff]);
 
   const isChannel = chat?.type === 'channel';
   const isGroup = chat?.type === 'group';
@@ -349,6 +366,36 @@ export const ChatOptionsProvider = ({
     [closeSheet]
   );
 
+  /**
+   * Close the options sheet, then `run`: on native once the sheet has finished
+   * dismissing, elsewhere after `webDelay` milliseconds.
+   */
+  const handOff = useCallback(
+    (run: () => void, webDelay: number) => {
+      cancelPendingHandoff();
+      if (
+        Platform.OS !== 'web' &&
+        isMobileTree &&
+        sheetOpenRef.current &&
+        sheetMountGeneration !== null
+      ) {
+        pendingHandoff.current = { generation: sheetMountGeneration, run };
+        closeSheet();
+        return;
+      }
+      closeSheet();
+      if (webDelay === 0) {
+        run();
+        return;
+      }
+      handoffTimer.current = setTimeout(() => {
+        handoffTimer.current = null;
+        run();
+      }, webDelay);
+    },
+    [cancelPendingHandoff, closeSheet, isMobileTree, sheetMountGeneration]
+  );
+
   const handlePressInvite = useCallback(() => {
     if (groupId) {
       if (onPressInvite) {
@@ -356,36 +403,32 @@ export const ChatOptionsProvider = ({
         onPressInvite?.(groupId);
       } else {
         // if not handled by the parent, open built in invite sheet
-        cancelPendingInvite();
-        if (
-          Platform.OS !== 'web' &&
-          isMobileTree &&
-          sheetOpenRef.current &&
-          sheetMountGeneration !== null
-        ) {
-          pendingInvite.current = {
-            generation: sheetMountGeneration,
-            groupId,
-          };
-          closeSheet();
-          return;
-        }
-        closeSheet();
-        inviteTimer.current = setTimeout(() => {
-          inviteTimer.current = null;
+        handOff(() => {
           setInviteGroupId(groupId);
           setInviteSheetOpen(true);
         }, 300);
       }
     }
-  }, [
-    closeSheet,
-    groupId,
-    onPressInvite,
-    cancelPendingInvite,
-    isMobileTree,
-    sheetMountGeneration,
-  ]);
+  }, [closeSheet, groupId, onPressInvite, handOff]);
+
+  const handlePressNewChannel = useCallback(() => {
+    if (groupId) {
+      handOff(() => setCreateChannelGroupId(groupId), 300);
+    }
+  }, [groupId, handOff]);
+
+  const handlePressChannel = useCallback(
+    (channelToOpen: db.Channel) => {
+      handOff(() => onPressChannel?.(channelToOpen), 0);
+    },
+    [handOff, onPressChannel]
+  );
+
+  const handleCreateChannelOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setCreateChannelGroupId(null);
+    }
+  }, []);
 
   const handlePressChannelMeta = useCallback(() => {
     if (channelId) {
@@ -467,6 +510,8 @@ export const ChatOptionsProvider = ({
       onPressGroupPrivacy: handlePressGroupPrivacy,
       onPressRoles: handlePressGroupRoles,
       onPressChatDetails: handlePressChatDetails,
+      onPressChannel: handlePressChannel,
+      onPressNewChannel: handlePressNewChannel,
       leaveGroup,
       leaveChannel,
       togglePinned,
@@ -490,6 +535,8 @@ export const ChatOptionsProvider = ({
       handlePressGroupPrivacy,
       handlePressGroupRoles,
       handlePressChatDetails,
+      handlePressChannel,
+      handlePressNewChannel,
       leaveGroup,
       leaveChannel,
       togglePinned,
@@ -526,6 +573,14 @@ export const ChatOptionsProvider = ({
             onInviteComplete={() => closeInviteSheet()}
             groupId={inviteGroupId}
           />
+          {createChannelGroupId &&
+            createChannelGroup?.id === createChannelGroupId && (
+              <CreateChannelSheet
+                group={createChannelGroup}
+                onOpenChange={handleCreateChannelOpenChange}
+                navigateToPermissions={onPressCreateChannelPermissions}
+              />
+            )}
         </>
       )}
       <ConfirmDialog

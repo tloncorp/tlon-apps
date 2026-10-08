@@ -66,6 +66,7 @@ export function CreateChannelSheet({
   onOpenChange,
   group,
   sheetProps,
+  navigateToPermissions,
 }: {
   onOpenChange: (open: boolean) => void;
   group: db.Group;
@@ -73,6 +74,14 @@ export function CreateChannelSheet({
     ComponentProps<typeof ActionSheet>,
     'snapPoints' | 'snapPointsMode'
   >;
+  /**
+   * Where a private channel's permissions are set. Without it the sheet
+   * navigates to the screen itself, which reaches it only from inside the
+   * group settings stack.
+   */
+  navigateToPermissions?: (
+    params: GroupSettingsStackParamList['CreateChannelPermissions']
+  ) => void;
 }) {
   const navigation =
     useNavigation<
@@ -131,12 +140,13 @@ export function CreateChannelSheet({
     if (!title) return;
 
     onOpenChange(false);
-    navigation.navigate('CreateChannelPermissions', {
-      groupId: group.id,
-      channelTitle: title,
-      channelType,
-    });
-  }, [watch, onOpenChange, navigation, group.id]);
+    const params = { groupId: group.id, channelTitle: title, channelType };
+    if (navigateToPermissions) {
+      navigateToPermissions(params);
+    } else {
+      navigation.navigate('CreateChannelPermissions', params);
+    }
+  }, [watch, onOpenChange, navigation, group.id, navigateToPermissions]);
 
   const handlePressSave = useCallback(
     async (data: CreateChannelFormSchema) => {

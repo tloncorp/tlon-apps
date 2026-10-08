@@ -1,4 +1,9 @@
-import { NavigatorScreenParams, useNavigation } from '@react-navigation/native';
+import {
+  NavigationProp,
+  NavigatorScreenParams,
+  ParamListBase,
+  useNavigation,
+} from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -6,12 +11,18 @@ import { useCallback } from 'react';
 import { Platform } from 'react-native';
 
 import {
+  type RouteSnapshot,
+  getChannelDestinationRoutes,
   getLeftChatTopLevelTab,
   getTopLevelTabRoute,
 } from '../navigation/topLevelTabs';
 import type { RootStackParamList } from '../navigation/types';
 import { GroupSettingsStackParamList } from '../navigation/types';
-import { useRootNavigation, useTypedReset } from '../navigation/utils';
+import {
+  useIsMobileTree,
+  useRootNavigation,
+  useTypedReset,
+} from '../navigation/utils';
 import { useIsWindowNarrow } from '../ui';
 import { useBotDmTab } from './useBotDmTab';
 
@@ -54,6 +65,29 @@ export const useHandleGoBack = (
   }, [navigation, fromChatDetails, fromBlankChannel, groupId, isWindowNarrow]);
 };
 
+type GroupSettingsRoute = {
+  [Screen in keyof GroupSettingsStackParamList]: {
+    name: Screen;
+    params: GroupSettingsStackParamList[Screen];
+  };
+}[keyof GroupSettingsStackParamList];
+
+/**
+ * The state of the stack the sections sit at the bottom of, read from any
+ * screen of it or of a navigator nested beneath it.
+ */
+function getSectionStackState(
+  navigation: NavigationProp<ParamListBase> | undefined
+): RouteSnapshot['state'] {
+  for (let current = navigation; current; current = current.getParent()) {
+    const state = current.getState();
+    if (state?.routeNames.includes('MainTabs')) {
+      return state as unknown as RouteSnapshot['state'];
+    }
+  }
+  return undefined;
+}
+
 export const useChatSettingsNavigation = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -63,21 +97,25 @@ export const useChatSettingsNavigation = () => {
 
   const {
     navigateToGroup,
+    navigateToChannel,
     navigateToChatVolume: rootNavigateToChatVolume,
     resetToGroup,
     resetToChannel,
   } = useRootNavigation();
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
+  const isMobileTree = useIsMobileTree();
   const botDm = useBotDmTab();
   const botChannelId = botDm.enabled ? botDm.channelId : null;
 
-  const navigateToGroupSettings = useCallback(
-    async <T extends keyof GroupSettingsStackParamList>(
-      screen: T,
-      params: GroupSettingsStackParamList[T]
-    ) => {
-      if (!isWindowNarrow && 'groupId' in params && params.groupId) {
+  /** Open the group settings stack on `routes`, the last of them focused. */
+  const navigateToGroupSettingsRoutes = useCallback(
+    async (routes: GroupSettingsRoute[]) => {
+      const { params } = routes[routes.length - 1];
+      const state = { routes, index: routes.length - 1 };
+      // The desktop tree nests GroupSettings under Channel. A wide native
+      // window is still the mobile tree, where it is a screen of the root.
+      if (!isMobileTree && 'groupId' in params && params.groupId) {
         // Navigate directly to Channel > GroupSettings in a single call.
         // The old 2-step approach (navigateToGroup + setTimeout) breaks in
         // React Navigation v7 because 'Home' is ambiguous (matches
@@ -91,24 +129,27 @@ export const useChatSettingsNavigation = () => {
           groupId: params.groupId,
           screen: 'GroupSettings',
           pop: true,
-          params: {
-            state: {
-              routes: [{ name: screen, params }],
-              index: 0,
-            },
-          },
+          params: { state },
         });
         return;
       }
 
       navigation.navigate('GroupSettings', {
-        state: {
-          routes: [{ name: screen, params }],
-          index: 0,
-        },
+        state,
       } as NavigatorScreenParams<GroupSettingsStackParamList>);
     },
-    [navigation, isWindowNarrow]
+    [navigation, isMobileTree]
+  );
+
+  const navigateToGroupSettings = useCallback(
+    <T extends keyof GroupSettingsStackParamList>(
+      screen: T,
+      params: GroupSettingsStackParamList[T]
+    ) =>
+      navigateToGroupSettingsRoutes([
+        { name: screen, params } as GroupSettingsRoute,
+      ]),
+    [navigateToGroupSettingsRoutes]
   );
 
   const onPressGroupMeta = useCallback(
@@ -167,6 +208,37 @@ export const useChatSettingsNavigation = () => {
       });
     },
     [navigateToGroupSettings]
+  );
+
+  const onPressCreateChannelPermissions = useCallback(
+    (params: GroupSettingsStackParamList['CreateChannelPermissions']) => {
+      // Over Manage channels, which the permissions screen returns to once the
+      // channel is made: the stack then ends where it does when the channel is
+      // started from Manage channels, rather than stacking Manage channels
+      // over a finished permissions screen.
+      navigateToGroupSettingsRoutes([
+        { name: 'ManageChannels', params: { groupId: params.groupId } },
+        { name: 'CreateChannelPermissions', params },
+      ]);
+    },
+    [navigateToGroupSettingsRoutes]
+  );
+
+  const onPressChannel = useCallback(
+    (channel: db.Channel) => {
+      if (!isMobileTree) {
+        navigateToChannel(channel);
+        return;
+      }
+      const routes = getChannelDestinationRoutes(
+        getSectionStackState(navigationRef.current),
+        channel
+      );
+      if (routes) {
+        reset(routes);
+      }
+    },
+    [isMobileTree, navigateToChannel, navigationRef, reset]
   );
 
   const onPressChatVolume = useCallback(
@@ -275,6 +347,8 @@ export const useChatSettingsNavigation = () => {
     onPressManageChannels,
     onPressGroupPrivacy,
     onPressChatDetails: navigateToChatDetails,
+    onPressChannel,
+    onPressCreateChannelPermissions,
     onPressChatVolume,
     onPressRoles,
     onPressCreateRole,
