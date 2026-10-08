@@ -75,15 +75,22 @@ export const BottomSheetWrapper = forwardRef<
       if (!snapPoints) return undefined;
       if (snapPointsMode !== 'percent') return snapPoints;
       return snapPoints.map((point) => {
-        if (typeof point !== 'number') return point;
+        // A percentage may come as 90 or as '90%'.
+        const percent =
+          typeof point === 'number'
+            ? point
+            : point.trim().endsWith('%')
+              ? parseFloat(point)
+              : NaN;
+        if (Number.isNaN(percent)) return point;
         // Compose sizes a sheet against the whole window, status bar included,
         // and then lifts it above the navigation bar, so a tall sheet ends up
         // under the status bar. Size it against the app's own frame and take
         // the navigation bar back out, which leaves the top edge where the
         // percentage puts it. SwiftUI detents already account for both.
         return Platform.OS === 'android'
-          ? (point / 100) * frameHeight - bottomInset
-          : `${point}%`;
+          ? (percent / 100) * frameHeight - bottomInset
+          : `${percent}%`;
       });
     }, [snapPoints, snapPointsMode, frameHeight, bottomInset]);
 

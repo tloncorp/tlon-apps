@@ -210,7 +210,7 @@ describe('native unmount-on-close lifetime', () => {
 });
 
 describe('percent snap points', () => {
-  const snapPoints = (os: string) => {
+  const snapPoints = (os: string, given: (number | string)[] = [90]) => {
     platform.OS = os;
     let tree: ReturnType<typeof create>;
     act(() => {
@@ -219,7 +219,7 @@ describe('percent snap points', () => {
           open
           onOpenChange={vi.fn()}
           snapPointsMode="percent"
-          snapPoints={[90]}
+          snapPoints={given}
         >
           {null}
         </BottomSheetWrapper>
@@ -237,6 +237,11 @@ describe('percent snap points', () => {
 
   it('sizes an Android sheet against the app frame, less the navigation bar', () => {
     expect(snapPoints('android')).toEqual([0.9 * 800 - 48]);
+  });
+
+  it("reads a percentage written as a string, such as '90%'", () => {
+    expect(snapPoints('android', ['90%'])).toEqual([0.9 * 800 - 48]);
+    expect(snapPoints('ios', ['90%'])).toEqual(['90%']);
   });
 });
 
