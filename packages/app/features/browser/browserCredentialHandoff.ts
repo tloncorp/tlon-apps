@@ -46,14 +46,6 @@ export function trustedBrowserViewerUrl(viewerUrl: string): string {
   return parseViewerUrl(viewerUrl).url.toString();
 }
 
-class BrowserFormError extends Error {
-  constructor(
-    message: string,
-    readonly status: number
-  ) {
-    super(message);
-  }
-}
 async function responseJson(
   response: Response
 ): Promise<Record<string, unknown>> {
@@ -158,9 +150,8 @@ export async function beginBrowserCredentialHandoff(
   );
   const body = await responseJson(response);
   if (!response.ok)
-    throw new BrowserFormError(
-      'Could not find a live secure form. Open the browser or try again.',
-      response.status
+    throw new Error(
+      'Could not find a live secure form. Open the browser or try again.'
     );
   if (
     typeof body.handoffId !== 'string' ||
@@ -247,44 +238,4 @@ export async function submitBrowserCredentials(
   if (body.ok !== true)
     throw new Error('The browser did not confirm that the fields were filled.');
   return { submitted: body.submitted === true };
-}
-
-function pause(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(signal.reason ?? new Error('Canceled'));
-      return;
-    }
-    const abort = () => {
-      clearTimeout(timer);
-      reject(signal.reason);
-    };
-    const timer = setTimeout(() => {
-      signal.removeEventListener('abort', abort);
-      resolve();
-    }, ms);
-    signal.addEventListener('abort', abort, { once: true });
-  });
-}
-
-/** Wait through navigation/rerenders without treating a missing form as proof of success. */
-export async function nextBrowserCredentialHandoff(
-  viewerUrl: string,
-  formId: string,
-  signal: AbortSignal
-): Promise<BrowserCredentialHandoff | null> {
-  const deadline = Date.now() + 5_000;
-  let next: BrowserCredentialHandoff | null = null;
-  do {
-    await pause(300, signal);
-    try {
-      next = await beginBrowserCredentialHandoff(viewerUrl, signal);
-      if (next.formId !== formId) return next;
-    } catch (error) {
-      if (!(error instanceof BrowserFormError) || error.status !== 404)
-        throw error;
-      next = null;
-    }
-  } while (Date.now() < deadline);
-  return next;
 }

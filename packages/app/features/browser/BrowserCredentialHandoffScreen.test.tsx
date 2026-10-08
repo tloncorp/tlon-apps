@@ -17,7 +17,6 @@ import type {
 
 const mocks = vi.hoisted(() => ({
   beginHandoff: vi.fn(),
-  nextHandoff: vi.fn(),
   submitCredentials: vi.fn(),
   complete: vi.fn(),
   discard: vi.fn(),
@@ -57,7 +56,6 @@ vi.mock('./BrowserCredentialHandoffProvider', () => ({
 vi.mock('./browserCredentialHandoff', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./browserCredentialHandoff')>()),
   beginBrowserCredentialHandoff: mocks.beginHandoff,
-  nextBrowserCredentialHandoff: mocks.nextHandoff,
   submitBrowserCredentials: mocks.submitCredentials,
 }));
 
@@ -135,7 +133,6 @@ describe('secure browser form screen', () => {
       'https://browser-session.tlon.network/s/payload.signature'
     );
     mocks.beginHandoff.mockResolvedValue(form());
-    mocks.nextHandoff.mockResolvedValue(null);
     mocks.submitCredentials.mockResolvedValue({ submitted: false });
     mocks.complete.mockResolvedValue(undefined);
   });
@@ -178,49 +175,28 @@ describe('secure browser form screen', () => {
     }
   );
 
-  it('stays in secure entry through identifier, password, and code steps', async () => {
-    mocks.beginHandoff.mockResolvedValue(form([username]));
-    mocks.submitCredentials.mockResolvedValue({ submitted: true });
-    const passwordStep = form([password], {
-      formId: 'form-2',
-      origin: 'https://identity.example',
-    });
-    const codeStep = form([code], {
-      formId: 'form-3',
-      origin: 'https://identity.example',
-    });
-    mocks.nextHandoff
-      .mockResolvedValueOnce(passwordStep)
-      .mockResolvedValueOnce(codeStep)
-      .mockResolvedValueOnce(null);
-    const { renderer, navigation } = await render();
-    for (const [index, field] of [username, password, code].entries()) {
-      expect(
-        renderer.root.findByProps({ accessibilityLabel: field.label }).props
-          .value
-      ).toBe('');
-      act(() =>
-        enter(
-          renderer,
-          field.label,
-          index === 2 ? 'aBc123' : `private-${index}`
-        )
-      );
+  it.each([username, password, code])(
+    'returns to the bot after filling $purpose without discovering another form',
+    async (field) => {
+      mocks.beginHandoff.mockResolvedValueOnce(form([field]));
+      mocks.beginHandoff.mockRejectedValue(new Error('No live form'));
+      mocks.submitCredentials.mockResolvedValue({ submitted: true });
+      const { renderer, navigation } = await render();
+      act(() => enter(renderer, field.label, 'aBc123'));
       await press(renderer);
-      if (index < 2) {
-        expect(mocks.complete).not.toHaveBeenCalled();
-        expect(navigation.goBack).not.toHaveBeenCalled();
-      }
+      expect(mocks.submitCredentials).toHaveBeenCalledWith(
+        expect.anything(),
+        { values: { [field.id]: 'aBc123' }, submit: true },
+        expect.any(AbortSignal)
+      );
+      expect(mocks.beginHandoff).toHaveBeenCalledOnce();
+      expect(mocks.complete).toHaveBeenCalledOnce();
+      expect(mocks.complete).toHaveBeenCalledWith('opaque-handoff-id');
+      expect(navigation.goBack).toHaveBeenCalledOnce();
+      expect(JSON.stringify(renderer.toJSON())).not.toContain('aBc123');
+      act(() => renderer.unmount());
     }
-    expect(mocks.submitCredentials.mock.calls.map((call) => call[1])).toEqual([
-      { values: { f0: 'private-0' }, submit: true },
-      { values: { f1: 'private-1' }, submit: true },
-      { values: { f2: 'aBc123' }, submit: true },
-    ]);
-    expect(mocks.complete).toHaveBeenCalledOnce();
-    expect(navigation.goBack).toHaveBeenCalledOnce();
-    act(() => renderer.unmount());
-  });
+  );
 
   it('fills card and address fields and choices without requesting transaction submission', async () => {
     const fields: BrowserSecureField[] = [
@@ -267,7 +243,7 @@ describe('secure browser form screen', () => {
       },
       expect.any(AbortSignal)
     );
-    expect(mocks.nextHandoff).not.toHaveBeenCalled();
+    expect(mocks.beginHandoff).toHaveBeenCalledOnce();
     expect(mocks.complete).toHaveBeenCalledOnce();
     expect(JSON.stringify(renderer.toJSON())).not.toContain('4111111111111111');
     act(() => renderer.unmount());
@@ -277,12 +253,6 @@ describe('secure browser form screen', () => {
     const handoff = form([password]);
     mocks.beginHandoff.mockResolvedValue(handoff);
     mocks.submitCredentials.mockResolvedValue({ submitted: false });
-    mocks.nextHandoff.mockResolvedValue(
-      form([password], {
-        fillUrl:
-          'https://browser-session.tlon.network/credential-fills/fresh-handle',
-      })
-    );
     const { renderer, navigation } = await render();
     act(() => enter(renderer, 'Password', 'private-input'));
     await press(renderer);
@@ -292,36 +262,10 @@ describe('secure browser form screen', () => {
       { values: { f1: 'private-input' }, submit: true },
       expect.any(AbortSignal)
     );
-    expect(mocks.nextHandoff).toHaveBeenCalledWith(
-      'https://browser-session.tlon.network/s/payload.signature',
-      handoff.formId,
-      expect.any(AbortSignal)
-    );
     expect(mocks.complete).toHaveBeenCalledOnce();
     expect(mocks.complete).toHaveBeenCalledWith('opaque-handoff-id');
     expect(navigation.goBack).toHaveBeenCalledOnce();
     expect(JSON.stringify(renderer.toJSON())).not.toContain('private-input');
-    act(() => renderer.unmount());
-  });
-
-  it('does not auto-replay a form that remains after submission', async () => {
-    mocks.beginHandoff.mockResolvedValue(form([password]));
-    mocks.submitCredentials.mockResolvedValue({ submitted: true });
-    mocks.nextHandoff.mockResolvedValue(form([password]));
-    const { renderer } = await render();
-    act(() => enter(renderer, 'Password', 'private-input'));
-    await press(renderer);
-    expect(mocks.complete).not.toHaveBeenCalled();
-    expect(
-      renderer.root.findByProps({ accessibilityLabel: 'Password' }).props.value
-    ).toBe('');
-    expect(
-      renderer.root.findByProps({ label: 'Continue' }).props.disabled
-    ).toBe(true);
-    expect(JSON.stringify(renderer.toJSON())).toContain(
-      'The site still shows this form'
-    );
-    expect(mocks.submitCredentials).toHaveBeenCalledOnce();
     act(() => renderer.unmount());
   });
 
@@ -359,7 +303,7 @@ describe('secure browser form screen', () => {
         await pending;
       });
       expect(renderer.toJSON()).toEqual(tree);
-      expect(mocks.nextHandoff).not.toHaveBeenCalled();
+      expect(mocks.beginHandoff).toHaveBeenCalledOnce();
       expect(mocks.complete).not.toHaveBeenCalled();
       expect(navigation.goBack).toHaveBeenCalledTimes(
         dismissal === 'back' ? 1 : 0
@@ -368,34 +312,6 @@ describe('secure browser form screen', () => {
       expect(mocks.discard).toHaveBeenCalledWith('opaque-handoff-id');
     }
   );
-
-  it('aborts waiting for a next step without resuming the bot', async () => {
-    let finish!: (value: BrowserCredentialHandoff | null) => void;
-    mocks.beginHandoff.mockResolvedValue(form([password]));
-    mocks.submitCredentials.mockResolvedValue({ submitted: true });
-    mocks.nextHandoff.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve;
-        })
-    );
-    const { renderer } = await render();
-    act(() => enter(renderer, 'Password', 'secret'));
-    let pending!: Promise<void>;
-    await act(async () => {
-      pending = renderer.root
-        .findByProps({ label: 'Continue' })
-        .props.onPress();
-    });
-    const signal = mocks.nextHandoff.mock.calls[0][2];
-    act(() => renderer.unmount());
-    await act(async () => {
-      finish(null);
-      await pending;
-    });
-    expect(signal.aborted).toBe(true);
-    expect(mocks.complete).not.toHaveBeenCalled();
-  });
 
   it('requires a fresh handle and fresh input after an uncertain fill response', async () => {
     mocks.beginHandoff.mockResolvedValue(form([password]));

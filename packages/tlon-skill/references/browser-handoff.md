@@ -32,17 +32,18 @@ the command succeeds.
 Use a secure form handoff when you are controlling a hosted browser on behalf
 of your owner and the live page needs sensitive input that they should provide,
 including identifier-only, password, and verification steps, as well as address
-and payment-card fields. The handoff follows the fields visible on the page;
-login steps can continue within the same handoff. Address and card entry fills
-fields without submitting a transaction.
+and payment-card fields. Each handoff fills the fields visible on one page and
+returns control to the bot. Login forms can submit; other forms fill without submitting.
 
 Do not ask the owner to send credentials, card details, or private addresses in chat. Do not type, store,
 repeat, summarize, or otherwise bring those values into model context. Ordinary
 navigation and non-sensitive form filling should continue through the browser
 tools without a handoff.
 
-First navigate the live session all the way to the visible form. Use the `session_id` (`sess_` handle) returned by `browser_session_create`
-for that same session. In OpenClaw, call the model-facing `tlon` tool with:
+First navigate the live session all the way to the visible form. If the page
+contains multiple forms, focus a field in the intended form with the browser
+tools before sending the handoff. Use the `session_id` (`sess_` handle) returned
+by `browser_session_create` for that same session. In OpenClaw, call the model-facing `tlon` tool with:
 
 ```json
 {"command": "browser handoff <session_id>"}
@@ -70,17 +71,20 @@ card details. Each fill is bound to the exact live controls and origin. Values
 travel directly to the browser service, without passing through chat or the
 bot. Do not read or repeat filled sensitive fields through browser tools.
 
-Keep the session live while the owner completes the form. The same handoff
-follows successive login steps without another message or model-generated
-selector. Each step shows its destination and requires fresh input. Card and
-address forms are filled without a submit click; filling them does not authorize
-a purchase, payment, or other consequential action.
+Keep the session live while the owner completes the form. Each handoff shows
+its destination and requires fresh input. Filling fields does not authorize a
+purchase, payment, or other consequential action.
 
 When entry finishes, the app resumes the conversation automatically. Wait for
 that continuation message, then inspect the same browser session, check the
-current page and validation state, and continue the task. Entry does not prove
-sign-in or transaction completion. Do not ask the owner to press both controls;
-the card's “Continue task” button is a manual alternative. Release the session
+current page and validation state, and continue the task. For each new page or
+step that needs owner input, send a fresh `browser handoff <session_id>` using
+the same session handle and wait for its continuation. This includes separate
+identifier, password, verification-code, and signup-details steps. The app does
+not discover or chain the next form. If the site still shows the submitted form,
+inspect its validation state before requesting another handoff. Entry does not
+prove sign-in or transaction completion. Do not ask the owner to press both
+controls; the card's “Continue task” button is a manual alternative. Release the session
 promptly when the browser task is finished.
 
 Ambiguous forms, custom controls, passkeys, CAPTCHA, and unsupported steps can

@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type BrowserCredentialHandoff,
   beginBrowserCredentialHandoff,
-  nextBrowserCredentialHandoff,
   submitBrowserCredentials,
 } from './browserCredentialHandoff';
 
@@ -47,7 +46,6 @@ function handoff(
 }
 afterEach(() => {
   vi.unstubAllGlobals();
-  vi.useRealTimers();
 });
 
 describe('secure browser form transport', () => {
@@ -227,78 +225,5 @@ describe('secure browser form transport', () => {
     await expect(
       submitBrowserCredentials(target, { values: { f0: '4111111111111111' } })
     ).rejects.toThrow('Reconnect before trying again');
-  });
-});
-
-describe('next secure step', () => {
-  it('waits through navigation, then returns a changed form without submitting it', async () => {
-    vi.useFakeTimers();
-    const request = vi
-      .fn()
-      .mockResolvedValueOnce(response({}, 404))
-      .mockResolvedValueOnce(
-        response(body({ formId: 'next', origin: 'https://identity.example' }))
-      );
-    vi.stubGlobal('fetch', request);
-    const pending = nextBrowserCredentialHandoff(
-      viewer,
-      'form-1',
-      new AbortController().signal
-    );
-    await vi.advanceTimersByTimeAsync(600);
-    await expect(pending).resolves.toMatchObject({
-      formId: 'next',
-      origin: 'https://identity.example',
-    });
-    expect(request.mock.calls.every((call) => call[1].method === 'GET')).toBe(
-      true
-    );
-  });
-  it.each(['same', 'missing'])(
-    'waits for settling and returns %s without assuming authentication',
-    async (state) => {
-      vi.useFakeTimers();
-      vi.stubGlobal(
-        'fetch',
-        vi
-          .fn()
-          .mockImplementation(async () =>
-            state === 'same' ? response(body()) : response({}, 404)
-          )
-      );
-      const pending = nextBrowserCredentialHandoff(
-        viewer,
-        'form-1',
-        new AbortController().signal
-      );
-      await vi.advanceTimersByTimeAsync(5100);
-      if (state === 'same')
-        await expect(pending).resolves.toMatchObject({ formId: 'form-1' });
-      else await expect(pending).resolves.toBeNull();
-    }
-  );
-  it('aborts polling immediately and never turns a network failure into completion', async () => {
-    vi.useFakeTimers();
-    const request = vi.fn();
-    vi.stubGlobal('fetch', request);
-    const controller = new AbortController();
-    const pending = nextBrowserCredentialHandoff(
-      viewer,
-      'form-1',
-      controller.signal
-    );
-    const rejected = expect(pending).rejects.toBeDefined();
-    controller.abort();
-    await rejected;
-    expect(request).not.toHaveBeenCalled();
-    request.mockRejectedValue(new Error('Network unavailable'));
-    const failure = nextBrowserCredentialHandoff(
-      viewer,
-      'form-1',
-      new AbortController().signal
-    );
-    const failed = expect(failure).rejects.toThrow('Network unavailable');
-    await vi.advanceTimersByTimeAsync(300);
-    await failed;
   });
 });

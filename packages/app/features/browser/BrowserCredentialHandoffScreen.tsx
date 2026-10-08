@@ -14,7 +14,6 @@ import {
   type BrowserCredentialHandoff,
   type BrowserSecureField,
   beginBrowserCredentialHandoff,
-  nextBrowserCredentialHandoff,
   submitBrowserCredentials,
   trustedBrowserViewerUrl,
   validBrowserFormValues,
@@ -252,7 +251,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     setSubmitting(true);
     setError(undefined);
     try {
-      const result = await submitBrowserCredentials(
+      await submitBrowserCredentials(
         handoff,
         { values, submit: handoff.kind === 'login' },
         signal
@@ -260,31 +259,6 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       if (signal.aborted) return;
       setValues({});
       setHandoff(undefined);
-      if (handoff.kind === 'login') {
-        const viewerUrl = resolve(handoffId);
-        if (!viewerUrl)
-          throw new Error(
-            'Reopen the secure browser form from the conversation.'
-          );
-        setLoading(true);
-        const next = await nextBrowserCredentialHandoff(
-          viewerUrl,
-          handoff.formId,
-          signal
-        );
-        if (signal.aborted) return;
-        setLoading(false);
-        // A filled form with no safe submit control continues through the bot's
-        // browser-owned receipt instead of asking the user to enter it again.
-        if (next && (next.formId !== handoff.formId || result.submitted)) {
-          setHandoff(next);
-          if (next.formId === handoff.formId)
-            setError(
-              'The site still shows this form. Check the browser before trying again.'
-            );
-          return;
-        }
-      }
       setFilled(true);
       // The agent checks the resulting page; filling does not prove sign-in
       // or authorize a payment, order, or other consequential action.
@@ -299,7 +273,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       submittingRef.current = false;
       if (!signal.aborted) setSubmitting(false);
     }
-  }, [handoff, values, resolve, handoffId, returnToConversation]);
+  }, [handoff, values, returnToConversation]);
 
   const retry = useCallback(() => {
     const signal = requestController.current?.signal;
@@ -347,9 +321,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
             gap="$xl"
           >
             {loading ? (
-              <Text color="$secondaryText">
-                {submitting ? 'Checking the next step…' : 'Finding the form…'}
-              </Text>
+              <Text color="$secondaryText">Finding the form…</Text>
             ) : filled ? (
               <>
                 <Text size="$label/l" fontWeight="600">

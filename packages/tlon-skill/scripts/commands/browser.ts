@@ -26,9 +26,10 @@ Never send raw or labeled browser-session links in ordinary messages.
 
 Send the owner a secure form for the login, address, or card fields visible in
 a hosted browser session. The form sends input directly to the browser service,
-without passing it through chat or the bot. Login steps continue inside the
-handoff; address and card entry fills fields without submitting a transaction. The recipient is always the owner configured for the active bot
-account and cannot be overridden.
+without passing it through chat or the bot. Each fill returns control to the bot.
+Inspect the current page and send a fresh handoff for each step needing owner
+input. Login forms can submit; other forms fill without submitting. The recipient
+is always the owner configured for the active bot account and cannot be overridden.
 
 Tlon tool call:
   {"command": "browser handoff <session_id>"}`;
