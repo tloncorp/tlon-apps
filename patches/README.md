@@ -345,7 +345,7 @@ Reassess each part independently when upgrading keyboard-controller:
 Remove the whole patch only after both conditions hold. Closing a related
 upstream issue alone is not sufficient.
 
-## react-native-reanimated@4.5.0
+## react-native-reanimated@4.5.5
 
 Why:
 - Fixes production-only web crashes in Reanimated's JS web updater
@@ -368,7 +368,7 @@ Note: 4.x already fixed the older v3 `getInlinePropsUpdate` recursion bug
 needed.
 
 Local patch:
-`patches/react-native-reanimated@4.5.0.patch`
+`patches/react-native-reanimated@4.5.5.patch`
 
 Upstream:
 - repo: `software-mansion/react-native-reanimated`
@@ -625,8 +625,8 @@ Upstream:
   merge) and present only from `0.13.0-nightly-20260814`.
   `AnimationFrameBatchinator.cpp` and `WorkletsModuleProxy.cpp` are otherwise
   unchanged 0.10.3 -> 0.12.1, so bumping to a stable release does not help.
-- a bump is also blocked by Reanimated's peer pin: `react-native-reanimated@4.5.0`
-  requires `react-native-worklets: 0.10.x`, and `4.6.0` requires `0.12.x`. The
+- a bump is also blocked by Reanimated's peer pin: `react-native-reanimated@4.5.5`
+  requires `react-native-worklets: 0.10.x-0.11.x`, and `4.6.0` requires `0.12.x`. The
   release carrying the fix will be `0.13.x`, so picking it up means moving
   Reanimated too, once a Reanimated release pins `0.13.x`.
 - Linear: `TLON-6469`
