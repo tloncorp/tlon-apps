@@ -10,6 +10,7 @@ import {
   vi,
 } from 'vitest';
 import { BrowserCredentialHandoffScreen } from './BrowserCredentialHandoffScreen';
+import { BrowserViewerModal } from './BrowserViewerModal';
 import type {
   BrowserCredentialHandoff,
   BrowserSecureField,
@@ -22,8 +23,12 @@ const mocks = vi.hoisted(() => ({
   complete: vi.fn(),
   discard: vi.fn(),
   resolve: vi.fn(),
-  openURL: vi.fn(),
   isWeb: false,
+  openURL: vi.fn(),
+}));
+vi.mock('react-native', () => ({
+  Linking: { openURL: mocks.openURL },
+  Keyboard: { dismiss: vi.fn() },
 }));
 vi.mock('@tloncorp/ui', () => ({
   Button: 'Button',
@@ -31,7 +36,9 @@ vi.mock('@tloncorp/ui', () => ({
   Pressable: 'Pressable',
   Text: 'Text',
 }));
-vi.mock('react-native', () => ({ Linking: { openURL: mocks.openURL } }));
+vi.mock('./BrowserViewerModal', () => ({
+  BrowserViewerModal: 'BrowserViewerModal',
+}));
 vi.mock('tamagui', () => ({
   get isWeb() {
     return mocks.isWeb;
@@ -507,10 +514,49 @@ describe('secure browser form screen', () => {
     mocks.beginHandoff.mockRejectedValue(new Error('No supported form'));
     const { renderer } = await render();
     await press(renderer, 'Open live browser');
-    expect(mocks.openURL).toHaveBeenCalledWith(
+    expect(renderer.root.findByType(BrowserViewerModal).props.viewerUrl).toBe(
       'https://browser-session.tlon.network/s/payload.signature'
     );
+    expect(mocks.complete).not.toHaveBeenCalled();
+    expect(mocks.openURL).not.toHaveBeenCalled();
     expect(mocks.submitCredentials).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+  });
+
+  it('clears typed secrets and reloads the form after closing live control', async () => {
+    const { renderer } = await render();
+    act(() => enter(renderer, 'Password', 'private-password'));
+    await press(renderer, 'Open live browser');
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('private-password');
+    await act(async () =>
+      renderer.root.findByType(BrowserViewerModal).props.onClose()
+    );
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+    expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
+    expect(mocks.complete).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+  });
+
+  it('does not embed an untrusted handoff URL', async () => {
+    const { renderer } = await render();
+    mocks.resolve.mockReturnValue('https://evil.example/s/payload.signature');
+    await press(renderer, 'Open live browser');
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+    expect(JSON.stringify(renderer.toJSON())).toContain(
+      'not from a trusted Tlon host'
+    );
+    act(() => renderer.unmount());
+  });
+
+  it('keeps desktop and web handoffs inside the app', async () => {
+    mocks.isWeb = true;
+    const { renderer } = await render();
+    await press(renderer, 'Open live browser');
+    expect(mocks.openURL).not.toHaveBeenCalled();
+    expect(renderer.root.findByType(BrowserViewerModal).props.viewerUrl).toBe(
+      'https://browser-session.tlon.network/s/payload.signature'
+    );
+    expect(mocks.complete).not.toHaveBeenCalled();
     act(() => renderer.unmount());
   });
 

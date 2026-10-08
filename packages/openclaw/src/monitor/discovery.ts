@@ -35,6 +35,8 @@ export interface InitData {
    */
   groupRoles: Map<string, { botSects: string[]; bloc: string[] }>;
   foreigns: Foreigns | null;
+  /** Nests of every channel joined in `%channels`; null when unknown. */
+  joinedChannels: Set<string> | null;
 }
 
 function extractTitle(value: unknown): string | undefined {
@@ -118,6 +120,13 @@ export async function fetchInitData(
     }
 
     const foreigns = (initData?.foreigns as Foreigns) || null;
+    // `groups` lists every channel in a group's map, joined or not; the
+    // `%channels` init lists only the joined ones.
+    const joined = initData?.channel?.channels;
+    const joinedChannels =
+      joined && typeof joined === 'object' && !Array.isArray(joined)
+        ? new Set(Object.keys(joined))
+        : null;
 
     return {
       channels,
@@ -126,6 +135,7 @@ export async function fetchInitData(
       groupNames,
       groupRoles,
       foreigns,
+      joinedChannels,
     };
   } catch (error: any) {
     if (
@@ -144,6 +154,7 @@ export async function fetchInitData(
       groupNames: new Map(),
       groupRoles: new Map(),
       foreigns: null,
+      joinedChannels: null,
     };
   }
 }

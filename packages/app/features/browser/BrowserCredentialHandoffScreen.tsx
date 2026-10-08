@@ -1,6 +1,6 @@
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking } from 'react-native';
+import { Keyboard } from 'react-native';
 import { ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/types';
@@ -20,6 +20,7 @@ import {
   validBrowserFormValues,
 } from './browserCredentialHandoff';
 import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffProvider';
+import { BrowserViewerModal } from './BrowserViewerModal';
 
 type Props = {
   navigation: { goBack(): void; isFocused(): boolean };
@@ -176,6 +177,10 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [returning, setReturning] = useState(false);
   const [filled, setFilled] = useState(false);
+  const [liveViewer, setLiveViewer] = useState<{
+    url: string;
+    handoffId: string;
+  }>();
   const [error, setError] = useState<string>();
   const { resolve, complete, discard } = useBrowserCredentialHandoff();
   const handoffId = route.params.handoffId;
@@ -319,14 +324,26 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         throw new Error(
           'Reopen the secure browser form from the conversation.'
         );
-      await Linking.openURL(trustedBrowserViewerUrl(viewerUrl));
+      const url = trustedBrowserViewerUrl(viewerUrl);
+      Keyboard.dismiss();
+      setValues({});
+      setLiveViewer({ url, handoffId });
     } catch (nextError) {
       setError(errorMessage(nextError));
     }
   }, [resolve, handoffId]);
 
+  const closeBrowser = useCallback(() => {
+    setLiveViewer(undefined);
+    // Human navigation can change the form; never reuse the old controls.
+    retry();
+  }, [retry]);
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
+      {liveViewer?.handoffId === handoffId ? (
+        <BrowserViewerModal viewerUrl={liveViewer.url} onClose={closeBrowser} />
+      ) : null}
       <ScreenHeader
         borderBottom
         backAction={dismiss}
@@ -447,8 +464,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                 onPress={openBrowser}
               />
               <Text color="$secondaryText">
-                You can complete any additional steps in the browser, then
-                return to the conversation.
+                {isWeb
+                  ? 'Use the Tlon Messenger mobile app for live browser control.'
+                  : 'Complete any additional steps here, then continue the task.'}
               </Text>
               <Button
                 preset="secondary"

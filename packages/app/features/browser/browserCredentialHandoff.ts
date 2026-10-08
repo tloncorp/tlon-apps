@@ -32,7 +32,20 @@ export type BrowserCredentialValues = {
 
 function parseViewerUrl(viewerUrl: string): { url: URL; capability: string } {
   const url = new URL(viewerUrl);
-  if (url.protocol !== 'https:' || !isTrustedBrowserViewerHost(url.hostname)) {
+  // Explicit development opt-in for the local native handoff demo. Never
+  // accept remote HTTP hosts or enable this exception in a release build.
+  const developmentOrigin = process.env.EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN;
+  const localDemo =
+    typeof __DEV__ !== 'undefined' &&
+    __DEV__ &&
+    url.protocol === 'http:' &&
+    url.hostname === '127.0.0.1' &&
+    !!developmentOrigin &&
+    url.origin === developmentOrigin;
+  if (
+    !localDemo &&
+    (url.protocol !== 'https:' || !isTrustedBrowserViewerHost(url.hostname))
+  ) {
     throw new Error('This browser link is not from a trusted Tlon host.');
   }
   if (url.username || url.password)
