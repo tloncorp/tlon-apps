@@ -39,12 +39,14 @@ type Deps = {
   };
   processedTracker: { mark: ReturnType<typeof vi.fn> };
   scanAgentOnboardingChannel: ReturnType<typeof vi.fn>;
+  fetchInitData: ReturnType<typeof vi.fn>;
   runtime: { log: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
 };
 type Monitor = {
   handleChannelsFirehose(event: unknown): Promise<void>;
   scanAgentOnboardingNest(nest: string): Promise<boolean | undefined>;
   rescanRecentlyJoinedChannels(): Promise<void>;
+  syncJoinedChannels(): Promise<unknown>;
   onboardingDiscoveryFlights: Set<Promise<boolean | undefined>>;
   startDrainingOnboardingDiscovery(): void;
 };
@@ -59,7 +61,7 @@ beforeAll(async () => {
       const {
         watchedChannels, joinedChannels, clearAgentOnboardingRetry,
         onboardingCatchUp, processedTracker, scanAgentOnboardingChannel,
-        runtime, isDmNest,
+        fetchInitData, runtime, isDmNest,
       } = deps;
       const opts = {};
       const account = { accountId: 'test' };
@@ -74,6 +76,9 @@ beforeAll(async () => {
       const createAgentOnboardingReconciliationPresence = () => ({});
       const onboardingDiscoveryFlights = new Set();
       let drainingOnboardingDiscovery = false;
+      ${sliceStatement('const unwatchedByLeave =')}
+      ${sliceFrom('const rewatchAfterRejoin =')}
+      ${sliceFrom('const syncJoinedChannels = async')}
       ${sliceFrom('const scanAgentOnboardingNest = async')}
       ${sliceFrom('const handleChannelsFirehose = async')}
       ${sliceFrom('const runOnboardingDiscoveryFlight = async')}
@@ -83,6 +88,7 @@ beforeAll(async () => {
         handleChannelsFirehose,
         scanAgentOnboardingNest,
         rescanRecentlyJoinedChannels,
+        syncJoinedChannels,
         onboardingDiscoveryFlights,
         startDrainingOnboardingDiscovery: () => {
           drainingOnboardingDiscovery = true;
@@ -123,6 +129,7 @@ function setup(options: {
     // Refusing the message ends the handler at its first step.
     processedTracker: { mark: vi.fn(() => false) },
     scanAgentOnboardingChannel: vi.fn(async () => true),
+    fetchInitData: vi.fn(async () => ({ joinedChannels: null })),
     runtime: { log: vi.fn(), error: vi.fn() },
   };
   return { deps, monitor: makeMonitor({ ...deps, isDmNest }) };
@@ -181,6 +188,78 @@ describe('channel firehose with a joined set', () => {
     expect(deps.onboardingCatchUp.reconcile).toHaveBeenCalledExactlyOnceWith(
       general
     );
+  });
+});
+
+describe('a leave racing a join', () => {
+  it('stays unwatched when the leave lands during the join reconcile', async () => {
+    const { deps, monitor } = setup({ watched: [general], joined: [] });
+    let finish!: (reconciled: boolean) => void;
+    deps.onboardingCatchUp.reconcile.mockImplementationOnce(
+      () => new Promise<boolean>((resolve) => (finish = resolve))
+    );
+
+    const joining = monitor.handleChannelsFirehose({
+      nest: general,
+      response: { join: '~zod/test' },
+    });
+    await vi.waitFor(() =>
+      expect(deps.onboardingCatchUp.reconcile).toHaveBeenCalledOnce()
+    );
+    await monitor.handleChannelsFirehose({
+      nest: general,
+      response: { leave: null },
+    });
+    finish(true);
+    await joining;
+
+    expect(deps.watchedChannels.has(general)).toBe(false);
+  });
+});
+
+describe('re-watching a channel after rejoin', () => {
+  const leftGeneral = async (time = { now: 1_000_000 }) => {
+    const ctx = setup({
+      watched: [general],
+      joined: [general],
+      now: () => time.now,
+    });
+    await ctx.monitor.handleChannelsFirehose({
+      nest: general,
+      response: { leave: null },
+    });
+    expect(ctx.deps.watchedChannels.has(general)).toBe(false);
+    return ctx;
+  };
+
+  it('re-watches and rescans a left nest a later snapshot shows joined', async () => {
+    const { deps, monitor } = await leftGeneral();
+    // The rejoin's join fact was missed.
+    deps.fetchInitData.mockResolvedValueOnce({
+      joinedChannels: new Set([general]),
+    });
+
+    await monitor.syncJoinedChannels();
+    expect(deps.watchedChannels.has(general)).toBe(true);
+
+    await monitor.rescanRecentlyJoinedChannels();
+    expect(deps.scanAgentOnboardingChannel).toHaveBeenCalledWith(
+      expect.objectContaining({ channelNest: general })
+    );
+  });
+
+  it('does not watch a nest it never unwatched when a snapshot shows it', async () => {
+    const { deps, monitor } = setup({ joined: [general] });
+    await monitor.handleChannelsFirehose({
+      nest: general,
+      response: { leave: null },
+    });
+    deps.fetchInitData.mockResolvedValueOnce({
+      joinedChannels: new Set([general]),
+    });
+
+    await monitor.syncJoinedChannels();
+    expect(deps.watchedChannels.has(general)).toBe(false);
   });
 });
 

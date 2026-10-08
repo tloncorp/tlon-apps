@@ -33,8 +33,10 @@ export function createJoinedChannels({ now = Date.now } = {}) {
       pending.add(++nextToken);
       return nextToken;
     },
-    applySync(token: number, snapshot: Set<string> | null): void {
+    /** Returns the nests the snapshot newly shows joined; none on the first. */
+    applySync(token: number, snapshot: Set<string> | null): string[] {
       pending.delete(token);
+      const newlyJoined: string[] = [];
       // A failed fetch says nothing about membership; keep what is known.
       if (snapshot !== null && token > appliedToken) {
         appliedToken = token;
@@ -47,7 +49,9 @@ export function createJoinedChannels({ now = Date.now } = {}) {
         }
         // A missed join fact shows up only as a snapshot difference.
         for (const nest of nests) {
-          if (!before.has(nest)) markTransition(nest, true);
+          if (before.has(nest)) continue;
+          if (known) newlyJoined.push(nest);
+          markTransition(nest, true);
         }
         for (const nest of before) {
           if (!nests.has(nest)) markTransition(nest, false);
@@ -56,6 +60,7 @@ export function createJoinedChannels({ now = Date.now } = {}) {
       }
       const oldest = Math.min(...pending);
       deltas = deltas.filter((delta) => delta.token >= oldest);
+      return newlyJoined;
     },
     observe(event: {
       nest?: string;

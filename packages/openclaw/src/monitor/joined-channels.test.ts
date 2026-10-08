@@ -174,3 +174,25 @@ describe('joined channels sync ordering', () => {
     expect(joined.isKnownNotJoined(general)).toBe(true);
   });
 });
+
+describe('joined channels snapshot result', () => {
+  it('returns the nests a snapshot newly shows joined', () => {
+    const joined = known(general);
+    joined.observe(leave(general));
+    expect(
+      joined.applySync(joined.beginSync(), new Set([general, random]))
+    ).toEqual([general, random]);
+    expect(
+      joined.applySync(joined.beginSync(), new Set([general, random]))
+    ).toEqual([]);
+  });
+
+  it('returns none for the first snapshot or a failed fetch', () => {
+    const joined = createJoinedChannels();
+    expect(joined.applySync(joined.beginSync(), null)).toEqual([]);
+    expect(joined.applySync(joined.beginSync(), new Set([general]))).toEqual(
+      []
+    );
+    expect(joined.applySync(joined.beginSync(), null)).toEqual([]);
+  });
+});

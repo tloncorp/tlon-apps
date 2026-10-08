@@ -3928,12 +3928,27 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const watchedChannels = new Set<string>(groupChannels);
     const _watchedDMs = new Set<string>();
 
+    // Nests the firehose leave branch unwatched. Nothing else re-watches a
+    // configured channel with discovery off, so a rejoin must.
+    const unwatchedByLeave = new Set<string>();
+    const rewatchAfterRejoin = (nest: string) => {
+      if (!unwatchedByLeave.delete(nest)) return;
+      watchedChannels.add(nest);
+      runtime.log?.(`[tlon] Re-watching channel ${nest} after rejoin`);
+    };
+
     const syncJoinedChannels = async () => {
       const token = joinedChannels.beginSync();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
       });
-      joinedChannels.applySync(token, initData.joinedChannels);
+      // A rejoin whose join fact was missed shows up only here.
+      for (const nest of joinedChannels.applySync(
+        token,
+        initData.joinedChannels
+      )) {
+        rewatchAfterRejoin(nest);
+      }
       return initData;
     };
 
@@ -4208,14 +4223,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // still admit a nest the joined set wrongly lacks.
         const joinChange = joinedChannels.observe(event);
         if (joinChange === 'left') {
-          watchedChannels.delete(nest);
+          if (watchedChannels.delete(nest)) unwatchedByLeave.add(nest);
           clearAgentOnboardingRetry(nest);
           runtime.log?.(`[tlon] Left channel ${nest}; no longer watching`);
           return;
         }
+        if (joinChange === 'became-joined') rewatchAfterRejoin(nest);
         // A nest watched before its join fact had its onboarding scan skipped.
         if (joinChange === 'became-joined' && watchedChannels.has(nest)) {
           await onboardingCatchUp.reconcile(nest);
+          // A join fact carries no message work, and a leave handled during
+          // the await must not be undone by the auto-watch below.
+          return;
         }
 
         // Auto-watch channels from firehose: if we receive events for a channel,
