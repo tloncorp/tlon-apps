@@ -263,6 +263,7 @@ import {
 import { recordSentTlonReply } from './output.js';
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
+import { buildProgressReplyOptions } from './progress-reply-options.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
 import {
   type TlonInboundRouteRecord,
@@ -3519,6 +3520,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             });
           }
         },
+        ...buildProgressReplyOptions({
+          enabled: account.showCommentary,
+          presenceConversationId,
+          presenceRunId,
+          computingPresence,
+        }),
       };
 
       let dispatchResult:
@@ -3798,6 +3805,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         } finally {
           compactionTimeoutObserver.stop();
           stopAgentEventObservation();
+          // A tool call can revive a run that deliver already stopped; a turn
+          // that ends without another delivery would leave it showing.
+          if (presenceConversationId) {
+            computingPresence.stopRun({
+              conversationId: presenceConversationId,
+              runId: presenceRunId,
+            });
+          }
         }
       } catch (error) {
         dispatchError = error;
