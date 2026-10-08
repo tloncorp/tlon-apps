@@ -305,35 +305,35 @@ function WithChatGroup({
 }
 
 /**
- * The block of the group's channels, with "New channel" for an admin.
+ * The block of the group's channels, with "New channel" for an admin. It shows
+ * in the mobile tree only, so view these at a narrow width.
  *
  * A channel's own sheet works out admin from the database, which Cosmos does
- * not have, so its "New channel" row shows only on the group sheet here.
+ * not have, so its "New channel" row shows only on the group sheets here.
  */
-const ChannelMenu = () => {
-  const [sheet] = useSelect('Sheet', {
-    options: ['channel', 'group'],
-    defaultValue: 'channel',
-  });
-  const [channelCount] = useValue('Channels in group', { defaultValue: 4 });
+const ChannelMenu = ({
+  sheet,
+  channelCount,
+}: {
+  sheet: 'channel' | 'group';
+  channelCount: number;
+}) => {
   const [isAdmin] = useValue('Is Admin', { defaultValue: true });
 
   const { group: baseGroup, groupUnread } = createMockData({
     type: 'group',
     isHost: isAdmin,
   });
-  const channels = menuChannels
-    .slice(0, Math.max(1, Math.min(channelCount, menuChannels.length)))
-    .map(
-      (channel, index) =>
-        ({
-          ...channel,
-          id: `${channel.type}/~sampel-palnet/menu-${index}`,
-          groupId: baseGroup!.id,
-          currentUserIsMember: true,
-          lastPostAt: index,
-        }) as db.Channel
-    );
+  const channels = menuChannels.slice(0, channelCount).map(
+    (channel, index) =>
+      ({
+        ...channel,
+        id: `${channel.type}/~sampel-palnet/menu-${index}`,
+        groupId: baseGroup!.id,
+        currentUserIsMember: true,
+        lastPostAt: index,
+      }) as db.Channel
+  );
   const group = { ...baseGroup!, channels } as db.Group;
   const [current] = channels;
   // The app opens a group's sheet from one of its channels only when that
@@ -378,5 +378,11 @@ export default {
   'Channel Options': ChannelOptions,
   'Group Options': GroupOptions,
   'DM Options': DMOptions,
-  'Channel Menu': ChannelMenu,
+  'Channel Menu: Channel': () => (
+    <ChannelMenu sheet="channel" channelCount={4} />
+  ),
+  'Channel Menu: Group': () => <ChannelMenu sheet="group" channelCount={4} />,
+  'Channel Menu: Single-channel group': () => (
+    <ChannelMenu sheet="group" channelCount={1} />
+  ),
 };
