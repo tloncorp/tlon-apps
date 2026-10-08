@@ -137,7 +137,9 @@ describe('secure browser form screen', () => {
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT;
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
   beforeEach(() => {
     vi.resetAllMocks();
     vi.stubGlobal(
@@ -586,14 +588,16 @@ describe('secure browser form screen', () => {
     async (signal) => {
       mocks.isWeb = true;
       const { renderer } = await render();
-      await act(async () => window.dispatchEvent(new Event('focus')));
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+      });
       expect(mocks.beginHandoff).toHaveBeenCalledTimes(1);
       await press(renderer, 'Open live browser');
       mocks.beginHandoff.mockResolvedValue(form([code], { formId: 'form-2' }));
       Object.assign(document, { visibilityState: 'hidden' });
-      await act(async () =>
-        document.dispatchEvent(new Event('visibilitychange'))
-      );
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
       expect(mocks.beginHandoff).toHaveBeenCalledTimes(1);
       Object.assign(document, { visibilityState: 'visible' });
       await act(async () => {
@@ -608,7 +612,9 @@ describe('secure browser form screen', () => {
       expect(
         renderer.root.findByProps({ accessibilityLabel: 'Verification code' })
       ).toBeDefined();
-      await act(async () => window.dispatchEvent(new Event('focus')));
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+      });
       expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
       expect(mocks.complete).not.toHaveBeenCalled();
       expect(mocks.submitCredentials).not.toHaveBeenCalled();

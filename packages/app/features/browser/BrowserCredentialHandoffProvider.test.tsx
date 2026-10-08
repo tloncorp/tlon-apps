@@ -49,7 +49,9 @@ describe('browser handoff registry', () => {
     openWindow.mockClear();
     vi.stubGlobal('window', { open: openWindow });
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('opens trusted session actions in a new tab on web without mounting a modal', async () => {
     platform.isWeb = true;
