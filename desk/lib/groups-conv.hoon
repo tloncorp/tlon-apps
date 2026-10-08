@@ -13,14 +13,6 @@
       ++  drop-seats
         |=  [=group:v11:gv our=ship]
         ^-  group:v11:gv
-        ::  a seated ship has joined. once its seat is dropped, an invite
-        ::  it was sent would read as one still pending
-        ::
-        =.  invited.admissions.group
-          %-  malt
-          %+  skip  ~(tap by invited.admissions.group)
-          |=  [=ship *]
-          (~(has by seats.group) ship)
         =.  seats.group
           =/  our-seat=seat:v9:gv
             (~(gut by seats.group) our *seat:v9:gv)
