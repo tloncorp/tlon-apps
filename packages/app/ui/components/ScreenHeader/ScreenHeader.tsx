@@ -205,6 +205,7 @@ export const ScreenHeaderComponent = ({
     ? getNativeTitleMaxWidth({
         width: screenWidth - leftInset - rightInset,
         fontScale,
+        platform: Platform.OS,
         left: navigationLeftActions,
         right: rightActions ?? [],
       })

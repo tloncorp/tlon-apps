@@ -12,6 +12,7 @@ import {
 export const BROWSER_HANDOFF_HELP = `Usage: tlon browser --help
 
 Tlon tool: browser handoff <session_id>
+Tlon tool: browser share <session_id>
 
 Use the sess_ handle from browser_session_create in the tool's command argument.
 The plugin resolves a fresh signed link and delivers the card through this CLI.
@@ -19,6 +20,9 @@ Do not copy, construct, or pass a viewer URL in a model tool call. This CLI
 subcommand is the plugin's delivery transport, not a shell session-handle lookup.`;
 
 export const BROWSER_HELP = `${BROWSER_HANDOFF_HELP}
+
+Use browser share to send a rich link card that opens the live session in the browser.
+Never send raw or labeled browser-session links in ordinary messages.
 
 Send the owner a secure form for the login, address, or card fields visible in
 a hosted browser session. The form sends input directly to the browser service,
@@ -164,7 +168,7 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
     if (!args[0]) {
       throw usageError(BROWSER_HELP);
     }
-    if (args[0] !== 'handoff' || !args[1]) {
+    if (!['handoff', 'share'].includes(args[0]) || !args[1]) {
       throw usageError(BROWSER_HELP);
     }
 
@@ -176,6 +180,7 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 
+    const sharing = args[0] === 'share';
     const viewerUrl = validateBrowserViewerUrl(args[1]);
     const target = deps.getOwnerShip();
 
@@ -185,13 +190,33 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       channelId: target,
       authorId: deps.getCurrentUserId(),
       sentAt,
-      content: markdownToStory(
-        'The browser needs you to sign in before I can continue.'
-      ),
-      blob: browserCredentialHandoffBlob(viewerUrl, `browser-form-${sentAt}`),
+      content: sharing
+        ? [
+            {
+              block: {
+                link: {
+                  url: viewerUrl,
+                  meta: {
+                    siteName: 'Browser session',
+                    title: 'Open browser',
+                    description: 'View and control the shared browser.',
+                  },
+                },
+              },
+            },
+          ]
+        : markdownToStory(
+            'The browser needs you to sign in before I can continue.'
+          ),
+      blob: sharing
+        ? undefined
+        : browserCredentialHandoffBlob(viewerUrl, `browser-form-${sentAt}`),
       botProfile: { nickname: null, avatar: null },
     });
-    writeLine(deps.stdout, `✓ Secure browser form sent to ${target}`);
+    writeLine(
+      deps.stdout,
+      `✓ ${sharing ? 'Browser session' : 'Secure browser form'} sent to ${target}`
+    );
     return 0;
   } catch (error) {
     const handled = handleExpectedCommandError(error, deps);

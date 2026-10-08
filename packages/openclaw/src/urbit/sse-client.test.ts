@@ -314,6 +314,170 @@ describe('UrbitSSEClient', () => {
     });
   });
 
+  describe('watch acks', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const okFetch = async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue({
+        response: { ok: true, status: 200 },
+        finalUrl: 'https://example.com',
+        release: vi.fn().mockResolvedValue(undefined),
+      });
+      return mockUrbitFetch;
+    };
+
+    const connectedClient = () => {
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      (client as { isConnected: boolean }).isConnected = true;
+      return client;
+    };
+
+    const nack = '{"id":1,"response":"subscribe","err":"%bad-watch-path"}';
+
+    it('fires onLive on a positive watch-ack', async () => {
+      await okFetch();
+      const client = connectedClient();
+      const onLive = vi.fn();
+      await client.subscribe({ app: 'steward', path: '/v1/x', onLive });
+
+      client.processEvent(
+        'id: 1\ndata: {"id":1,"response":"subscribe","ok":"ok"}'
+      );
+
+      expect(onLive).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a nack to err, and leaves it alone without retryOnNack', async () => {
+      const mockUrbitFetch = await okFetch();
+      const client = connectedClient();
+      const err = vi.fn();
+      const onLive = vi.fn();
+      await client.subscribe({ app: 'steward', path: '/v1/x', err, onLive });
+      mockUrbitFetch.mockClear();
+
+      client.processEvent(`id: 1\ndata: ${nack}`);
+      await vi.advanceTimersByTimeAsync(15 * 60_000);
+
+      // A nack used to fall through silently: no err, no retry, no signal.
+      expect(err).toHaveBeenCalledWith('%bad-watch-path');
+      expect(onLive).not.toHaveBeenCalled();
+      expect(mockUrbitFetch).not.toHaveBeenCalled();
+    });
+
+    it('retries a nacked watch with slow backoff when opted in', async () => {
+      const mockUrbitFetch = await okFetch();
+      const client = connectedClient();
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/x',
+        retryOnNack: true,
+      });
+      mockUrbitFetch.mockClear();
+
+      client.processEvent(`id: 1\ndata: ${nack}`);
+
+      // Nothing inside the first backoff step: each retry crashes the
+      // remote on-watch, so they must stay slow.
+      await vi.advanceTimersByTimeAsync(59_000);
+      expect(mockUrbitFetch).not.toHaveBeenCalled();
+
+      // The retry reuses the quit path's short delay on top of the backoff.
+      await vi.advanceTimersByTimeAsync(3_100);
+      expect(mockUrbitFetch).toHaveBeenCalledTimes(1);
+      const body = JSON.parse(
+        mockUrbitFetch.mock.calls[0][0].init.body as string
+      );
+      expect(body[0]).toMatchObject({
+        action: 'subscribe',
+        app: 'steward',
+        path: '/v1/x',
+        id: 2,
+      });
+    });
+
+    it('fires onLive once a retried watch finally lands', async () => {
+      await okFetch();
+      const client = connectedClient();
+      const onLive = vi.fn();
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/x',
+        retryOnNack: true,
+        onLive,
+      });
+
+      client.processEvent(`id: 1\ndata: ${nack}`);
+      await vi.advanceTimersByTimeAsync(62_100);
+      // The replacement subscription (id 2) is acked once the desk has the path.
+      client.processEvent(
+        'id: 2\ndata: {"id":2,"response":"subscribe","ok":"ok"}'
+      );
+
+      expect(onLive).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels a pending nack retry once the original watch is acked', async () => {
+      // The race: a stream reconnect recreates the nacked subscription under
+      // its original id before the retry timer fires, and that watch lands.
+      // A late retry would strand the live id without handlers, so its facts
+      // would be broadcast to every other subscription.
+      const mockUrbitFetch = await okFetch();
+      const client = connectedClient();
+      const event = vi.fn();
+      const other = vi.fn();
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/x',
+        retryOnNack: true,
+        event,
+      });
+      await client.subscribe({ app: 'channels', path: '/v4', event: other });
+
+      client.processEvent(`id: 1\ndata: ${nack}`);
+      client.processEvent(
+        'id: 2\ndata: {"id":1,"response":"subscribe","ok":"ok"}'
+      );
+      mockUrbitFetch.mockClear();
+      await vi.advanceTimersByTimeAsync(15 * 60_000);
+
+      expect(mockUrbitFetch).not.toHaveBeenCalled();
+      expect(client.subscriptions).toHaveLength(2);
+      client.processEvent(
+        'id: 3\ndata: {"id":1,"response":"diff","json":{"fact":1}}'
+      );
+      expect(event).toHaveBeenCalledWith({ fact: 1 });
+      expect(other).not.toHaveBeenCalled();
+    });
+
+    it('does not retry a nack after the client closes', async () => {
+      const mockUrbitFetch = await okFetch();
+      const client = connectedClient();
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/x',
+        retryOnNack: true,
+      });
+      client.processEvent(`id: 1\ndata: ${nack}`);
+      await client.close();
+      mockUrbitFetch.mockClear();
+
+      await vi.advanceTimersByTimeAsync(15 * 60_000);
+
+      expect(mockUrbitFetch).not.toHaveBeenCalled();
+    });
+  });
+
   describe('resubscribe after quit', () => {
     beforeEach(() => {
       vi.useFakeTimers();

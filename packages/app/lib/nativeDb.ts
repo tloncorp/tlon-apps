@@ -519,16 +519,24 @@ export class NativeDb extends BaseDb {
           ', '
         )}`
       );
-      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
-        context: 'runMigrations: schema health check failed',
-        error,
-        errorMessage: error.message,
-        missingTables,
-        attemptId: opts?.attemptId,
-        elapsedMs: opts?.elapsedMs?.(),
-        migrationPhase: opts?.migrationPhase,
-        severity: AnalyticsSeverity.Critical,
-      });
+      // The initial attempt is recoverable by design (the caller purges and
+      // retries), so only a failure on the retry path pages.
+      const isInitial = opts?.migrationPhase === 'initial';
+      logger.trackEvent(
+        isInitial ? AnalyticsEvent.NativeDbDebug : AnalyticsEvent.ErrorNativeDb,
+        {
+          context: 'runMigrations: schema health check failed',
+          error,
+          errorMessage: error.message,
+          missingTables,
+          attemptId: opts?.attemptId,
+          elapsedMs: opts?.elapsedMs?.(),
+          migrationPhase: opts?.migrationPhase,
+          severity: isInitial
+            ? AnalyticsSeverity.Low
+            : AnalyticsSeverity.Critical,
+        }
+      );
       throw error;
     }
 

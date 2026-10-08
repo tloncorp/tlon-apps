@@ -913,13 +913,18 @@
   #preview blockquote { border-left: 3px solid var(--accent); padding-left: 14px; color: var(--text-muted); margin: 0.5em 0; }
   #preview ul, #preview ol { padding-left: 1.5em; margin: 0.4em 0; }
   #preview li { margin: 0.15em 0; }
+  #preview li > ul, #preview li > ol { margin: 0; }
   /* Themed task-list checkboxes — square outline, accent fill when checked. */
   #preview li.task-item {
     list-style: none;
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: 0.5em;
+    column-gap: 0.5em;
   }
+  #preview li.task-item > .task-text { flex: 1 1 0; min-width: 0; }
+  /* A nested list takes its own row under the task. */
+  #preview li.task-item > ul, #preview li.task-item > ol { flex-basis: 100%; }
   #preview li.task-item > input[type="checkbox"] {
     appearance: none;
     -webkit-appearance: none;
@@ -957,8 +962,9 @@
     opacity: 0.55;
     cursor: not-allowed;
   }
-  /* Strike-through and dim the label text once a task is checked. */
-  #preview li.task-item:has(> input[type="checkbox"]:checked) {
+  /* Strike-through and dim the label text once a task is checked. Scoped to
+     the label so a checked parent leaves its nested items alone. */
+  #preview li.task-item > input[type="checkbox"]:checked ~ .task-text {
     color: var(--text-muted);
     text-decoration: line-through;
   }
@@ -3109,7 +3115,9 @@ function renderMarkdown(src) {
   const lines = src.split("\n");
   let html = "";
   let inCode = false, codeLang = "", codeLines = [];
-  let inList = false, listType = "";
+  // Open lists, outermost first. Each one's last <li> stays open so that a
+  // more deeply indented item can nest inside it.
+  const lists = [];
   let inBlockquote = false;
   let cbIndex = 0;
   previewCheckboxOffsets = [];
@@ -3117,8 +3125,37 @@ function renderMarkdown(src) {
   const lineOffs = new Array(lines.length);
   { let acc = 0; for (let k = 0; k < lines.length; k++) { lineOffs[k] = acc; acc += lines[k].length + 1; } }
 
-  function flushList() {
-    if (inList) { html += listType === "ul" ? "</ul>\n" : "</ol>\n"; inList = false; }
+  function closeListsTo(depth) {
+    while (lists.length > depth) html += "</li>\n</" + lists.pop().tag + ">\n";
+  }
+  function flushList() { closeListsTo(0); }
+  // Column width of leading whitespace; tabs advance to the next multiple of 4.
+  function columns(s) {
+    let w = 0;
+    for (const c of s) w = c === "\t" ? w + 4 - (w % 4) : w + 1;
+    return w;
+  }
+  // Open a list item for m = [line, indent, marker, gap, text], nesting it
+  // the way CommonMark (and so the app's preview) does: an item indented to
+  // the text column of the open item above becomes its child; a shallower
+  // one closes back out to the level it reaches.
+  function openListItem(tag, m) {
+    const indent = columns(m[1]);
+    const gap = columns(m[1] + m[2] + m[3]) - indent - m[2].length;
+    const textCol = indent + m[2].length + (gap > 4 || !m[4] ? 1 : gap);
+    // The bullet character, or the ordered delimiter; changing it starts a
+    // new list.
+    const marker = m[2].slice(-1);
+    let depth = lists.length;
+    while (depth > 0 && indent < lists[depth - 1].textCol) depth--;
+    closeListsTo(depth + 1);
+    if (lists[depth] && lists[depth].marker === marker) {
+      html += "</li>\n";
+    } else {
+      closeListsTo(depth);
+      html += "<" + tag + ">\n";
+    }
+    lists[depth] = { tag, marker, textCol, empty: !m[4] };
   }
   function flushBlockquote() {
     if (inBlockquote) { html += "</blockquote>\n"; inBlockquote = false; }
@@ -3143,8 +3180,14 @@ function renderMarkdown(src) {
     }
     if (inCode) { codeLines.push(line); continue; }
 
-    // blank line
-    if (!line.trim()) { flushList(); flushBlockquote(); html += "\n"; continue; }
+    // blank line. Lists stay open across it (a loose list); the next line
+    // closes them unless it's another list item. An item can start with at
+    // most one blank line, so an empty item followed by one takes no children.
+    if (!line.trim()) {
+      const last = lists[lists.length - 1];
+      if (last && last.empty) last.textCol = Infinity;
+      flushBlockquote(); html += "\n"; continue;
+    }
 
     // headings
     const hm = line.match(/^(#{1,6})\s+(.*)/);
@@ -3163,29 +3206,29 @@ function renderMarkdown(src) {
     } else { flushBlockquote(); }
 
     // unordered list
-    const ulm = line.match(/^(\s*)[-*+]\s+(.*)/);
+    const ulm = line.match(/^(\s*)([-*+])(\s+)(.*)/);
     if (ulm) {
-      if (!inList || listType !== "ul") { flushList(); html += "<ul>\n"; inList = true; listType = "ul"; }
+      openListItem("ul", ulm);
       // checkbox
-      const cbm = ulm[2].match(/^\[([ xX])\]\s*(.*)/);
+      const cbm = ulm[4].match(/^\[([ xX])\]\s*(.*)/);
       if (cbm) {
         const checked = cbm[1] !== " " ? " checked" : "";
         const ro = historyViewing ? " disabled" : "";
-        const charOff = lineOffs[i] + (ulm[0].length - ulm[2].length) + 1;
+        const charOff = lineOffs[i] + (ulm[0].length - ulm[4].length) + 1;
         previewCheckboxOffsets.push(charOff);
-        html += "<li class=\"task-item\"><input type=\"checkbox\" data-cb-index=\"" + cbIndex + "\"" + checked + ro + "> " + inline(cbm[2]) + "</li>\n";
+        html += "<li class=\"task-item\"><input type=\"checkbox\" data-cb-index=\"" + cbIndex + "\"" + checked + ro + "> <span class=\"task-text\">" + inline(cbm[2]) + "</span>\n";
         cbIndex++;
       } else {
-        html += "<li>" + inline(ulm[2]) + "</li>\n";
+        html += "<li>" + inline(ulm[4]) + "\n";
       }
       continue;
     }
 
     // ordered list
-    const olm = line.match(/^(\s*)\d+[.)]\s+(.*)/);
+    const olm = line.match(/^(\s*)(\d+[.)])(\s+)(.*)/);
     if (olm) {
-      if (!inList || listType !== "ol") { flushList(); html += "<ol>\n"; inList = true; listType = "ol"; }
-      html += "<li>" + inline(olm[2]) + "</li>\n";
+      openListItem("ol", olm);
+      html += "<li>" + inline(olm[4]) + "\n";
       continue;
     }
 
@@ -4785,6 +4828,7 @@ function publishTemplate(title, bodyHtml) {
   }
   ul, ol { padding-left: 24px; margin: 0.8em 0; }
   li { margin: 0.3em 0; }
+  li > ul, li > ol { margin: 0; }
   hr { border: none; border-top: 1px solid #2e2e2e; margin: 2em 0; }
   img { max-width: 100%; border-radius: 6px; }
   table { border-collapse: collapse; margin: 1em 0; width: 100%; }

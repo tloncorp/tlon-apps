@@ -7,6 +7,7 @@ import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
+import { resetUploadQueue } from '../features/buckets/bucketUploadQueue';
 import { resetBotSettingsDraft } from '../features/settings/bot/useBotSettingsDraft';
 import { cancelNodeResumeNudge } from '../lib/notifications';
 import { resetNavigationRestored } from '../navigation/navigationRestore';
@@ -43,6 +44,8 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     cancelNodeResumeNudge();
     resetBotSettingsDraft();
     resetNavigationRestored();
+    // Queued Bucket uploads belong to this account; the next must not run them.
+    resetUploadQueue();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;

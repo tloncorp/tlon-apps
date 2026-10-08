@@ -37,6 +37,7 @@ import {
   channelSupportsNotifications,
   getChannelActionCapabilities,
   getChannelHost,
+  getGroupMemberCount,
 } from '../../ui/utils';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
@@ -153,7 +154,10 @@ export function MembersList({
   canManage,
 }: MembersListProps) {
   const joinedMembers = members?.filter((m) => m.status === 'joined');
-  const memberCount = joinedMembers?.length ?? 0;
+  const memberCount =
+    entityType === 'group' && group
+      ? getGroupMemberCount(group)
+      : (joinedMembers?.length ?? 0);
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const { onPressGroupMembers, onPressChannelMembers, onPressInvite } =
     useChatOptions();

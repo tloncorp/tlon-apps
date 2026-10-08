@@ -5,7 +5,6 @@ import * as store from '@tloncorp/shared/store';
 import { triggerHaptic } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import { getVariableValue, useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
@@ -13,6 +12,7 @@ import { useResetDb } from '../../hooks/useResetDb';
 import { useNavigation } from '../../navigation/utils';
 import { SettingsScreenView, View, openTlonWebApp } from '../../ui';
 import ProfileStatusSheet from '../../ui/components/ProfileStatusSheet';
+import { useSettingsListSurfaces } from '../../ui/components/SettingsList';
 import {
   openExternalBotSettings,
   useHasExpectedBotDm,
@@ -20,8 +20,8 @@ import {
 import {
   BotSettingsApplyBar,
   BotSettingsNavigate,
-  BotSettingsSections,
   useBotSettingsHub,
+  useBotSettingsSectionModels,
 } from './bot/BotSettingsSections';
 import { useHostingSession } from './bot/useHostingSession';
 import { useSettingsRowLabels } from './useSettingsRowLabels';
@@ -46,9 +46,15 @@ export default function SettingsScreen() {
   // the bot queries retry on an interval until they succeed, so mounting them
   // without a usable hosting session would poll forever rather than surface
   // anything; the standalone screen can prompt for re-auth, a tab root cannot.
+  // The card mounts while the session is still being read, so it is there on
+  // the first frame instead of pushing the list down a moment later; a session
+  // that turns out missing or expired takes it away again.
   const showsInlineBotSettings =
-    botEnabled && Platform.OS !== 'web' && hostingSession === 'valid';
+    botEnabled &&
+    Platform.OS !== 'web' &&
+    (hostingSession === 'valid' || hostingSession === 'checking');
 
+  const { page: settingsPage } = useSettingsListSurfaces();
   const navigationRef = useMutableRef(useNavigation());
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
   const { themeLabel, notificationsLabel } = useSettingsRowLabels();
@@ -111,8 +117,6 @@ export default function SettingsScreen() {
     setStatusSheetOpen(false);
   }, []);
 
-  const backgroundColor = getVariableValue(useTheme().background);
-
   const viewProps: ComponentProps<typeof SettingsScreenView> = {
     hasHostedAuth,
     currentUserId,
@@ -136,7 +140,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View backgroundColor={backgroundColor} flex={1}>
+    <View backgroundColor={settingsPage} flex={1}>
       {showsInlineBotSettings ? (
         <SettingsViewWithBot viewProps={viewProps} />
       ) : (
@@ -176,11 +180,12 @@ function SettingsViewWithBot({
     },
     [navigationRef]
   );
+  const botSections = useBotSettingsSectionModels(hub, navigate).overview;
 
   return (
     <SettingsScreenView
       {...viewProps}
-      botSections={<BotSettingsSections hub={hub} navigate={navigate} />}
+      botSections={botSections}
       bottomBar={<BotSettingsApplyBar hub={hub} />}
     />
   );

@@ -1,24 +1,18 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
-import { useCallback } from 'react';
-import { useForm } from 'react-hook-form';
-import { Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Platform } from 'react-native';
 
 import { RootStackParamList } from '../../navigation/types';
-import {
-  Button,
-  ControlledTextareaField,
-  FormFrame,
-  FormText,
-  ScreenHeader,
-  ScreenScrollView,
-  View,
-  useIsWindowNarrow,
-} from '../../ui';
+import { SettingsListScreenView } from '../../ui/components/SettingsList';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WompWomp'>;
 
 const logger = createDevLogger('bug-report', false);
+
+const maxNotesLength = 300;
+/** The footer starts counting down once this few characters remain. */
+const remainingNoticeAt = 50;
 
 const showAlert = () => {
   if (Platform.OS === 'web') {
@@ -34,78 +28,56 @@ const showAlert = () => {
   );
 };
 
+/** Composed like a message, with Send in the navigation bar. */
 export function UserBugReportScreen({ navigation }: Props) {
-  const { control, handleSubmit } = useForm({
-    defaultValues: {
-      additionalNotes: '',
-    },
-  });
+  const [notes, setNotes] = useState('');
 
-  const sendBugReport = useCallback(
-    (submission: { additionalNotes: string }) => {
-      if (submission.additionalNotes) {
-        logger.crumb(`User attached notes:`);
-        logger.sensitiveCrumb(submission.additionalNotes);
-      }
-      logger.trackError('User manually submitted a bug report');
-      showAlert();
-    },
-    []
-  );
+  const sendBugReport = useCallback(() => {
+    if (notes) {
+      logger.crumb(`User attached notes:`);
+      logger.sensitiveCrumb(notes);
+    }
+    logger.trackError('User manually submitted a bug report');
+    showAlert();
+  }, [notes]);
 
-  const isWindowNarrow = useIsWindowNarrow();
+  const remaining = maxNotesLength - notes.length;
 
   return (
-    <View backgroundColor="$background" flex={1}>
-      <ScreenHeader
-        title="Report a bug"
-        borderBottom
-        backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
-        placement="navigation"
-      />
-      <KeyboardAvoidingView
-        style={{
-          flex: 1,
-          width: '100%',
-          maxWidth: 600,
-          marginHorizontal: 'auto',
-        }}
-      >
-        <ScreenScrollView flex={1} keyboardDismissMode="on-drag">
-          <FormFrame>
-            <FormText>
-              If you experienced an issue, let us know! Sending reports helps us
-              improve the app for everyone.
-            </FormText>
-            <ControlledTextareaField
-              name="additionalNotes"
-              label="Additional notes"
-              control={control}
-              inputProps={{
+    <SettingsListScreenView
+      title="Report a bug"
+      sections={[
+        {
+          key: 'notes',
+          footer: [
+            'If you experienced an issue, let us know! Sending reports helps us improve the app for everyone.',
+            'Information to help us diagnose the issue will be automatically attached.',
+            remaining <= remainingNoticeAt
+              ? `${remaining} ${remaining === 1 ? 'character' : 'characters'} left.`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' '),
+          rows: [
+            {
+              key: 'notes',
+              title: 'Additional notes',
+              textField: {
+                value: notes,
+                onChangeText: setNotes,
                 placeholder: 'What went wrong?',
-                numberOfLines: 5,
-                multiline: true,
-              }}
-              rules={{
-                maxLength: {
-                  value: 300,
-                  message: 'Bug report notes are limited to 300 characters',
-                },
-              }}
-            />
-            <FormText size="$label/m" color="$tertiaryText">
-              Information to help us diagnose the issue will be automatically
-              attached.
-            </FormText>
-            <Button
-              preset="primary"
-              onPress={handleSubmit(sendBugReport)}
-              label="Send Report"
-              centered
-            />
-          </FormFrame>
-        </ScreenScrollView>
-      </KeyboardAvoidingView>
-    </View>
+                lines: 6,
+                maxLength: maxNotesLength,
+                capitalization: 'sentences',
+              },
+            },
+          ],
+        },
+      ]}
+      onBackPressed={() => navigation.goBack()}
+      rightActions={[
+        { id: 'send-report', text: 'Send', onPress: sendBugReport },
+      ]}
+    />
   );
 }

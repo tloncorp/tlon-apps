@@ -50,6 +50,20 @@ export const getMobileLinkingConfig = (
           folderId: Number,
         },
       },
+      BucketFolder: {
+        path: 'group/:groupId/channel/:channelId/bucket/folder/:folderId',
+        parse: {
+          ...parsePathParams('channelId', 'groupId'),
+          folderId: Number,
+        },
+      },
+      BucketFile: {
+        path: 'group/:groupId/channel/:channelId/bucket/file/:entryId',
+        parse: {
+          ...parsePathParams('channelId', 'groupId'),
+          entryId: Number,
+        },
+      },
       ChannelSearch: { path: 'channel/:channelId/search' },
       NotesSearch: {
         path: 'channel/:channelId/search-notes',
@@ -197,6 +211,14 @@ export const getDesktopLinkingConfig = (
                   NotesFolder: {
                     path: 'folder/:folderId',
                     parse: { folderId: Number },
+                  },
+                  BucketFolder: {
+                    path: 'bucket/folder/:folderId',
+                    parse: { folderId: Number },
+                  },
+                  BucketFile: {
+                    path: 'bucket/file/:entryId',
+                    parse: { entryId: Number },
                   },
                   Post: postScreenConfig(mode),
                   MediaViewer: {},

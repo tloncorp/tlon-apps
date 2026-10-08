@@ -427,3 +427,33 @@ describe('browser session handoff', () => {
     expect(urbitFetch).toHaveBeenCalledOnce();
   });
 });
+
+describe('browser session sharing', () => {
+  it('privately resolves the handle and delivers a standalone share card', async () => {
+    const url = viewerUrl();
+    reply({ session_id: handle, viewer_url: url });
+    const result = await runBrowserSessionHandoff(
+      'tlon',
+      ['browser', 'share', handle],
+      config
+    );
+    expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
+      'tlon',
+      ['browser', 'share', url],
+      config
+    );
+    expect(result).toBe('✓ Browser session sent to ~nec');
+    expect(result).not.toContain(url);
+  });
+  it('rejects model-supplied URLs before any lookup or send', async () => {
+    await expect(
+      runBrowserSessionHandoff(
+        'tlon',
+        ['browser', 'share', viewerUrl()],
+        config
+      )
+    ).rejects.toThrow('Do not supply a viewer URL');
+    expect(urbitFetch).not.toHaveBeenCalled();
+    expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+  });
+});
