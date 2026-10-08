@@ -78,6 +78,6 @@ The updater cannot change `version`. `updateWorkspaceConfig` throws `WorkspaceCo
 
 Saving instructions also names the bot when the document has none: the admin's first trusted bot from %steward's `/v1/bots` scry (`getStewardBots`, guarded by `deskSupportsStewardBots`). An existing `bot` is kept.
 
-The bot honors the document only in a group hosted by itself or its owner. Any admin can write the blob and the instructions land in the bot's system context, so the bot trusts only admins its owner appointed. A config naming a bot in someone else's group is ignored. Group settings show the editor only once the user's own desk is known to serve that scry (12.3.2 and later, `useDeskSupportsStewardBots`).
+The bot honors the document only in a group hosted by itself or its owner. Any admin can write the blob and the instructions land in the bot's system context, so the bot trusts only admins its owner appointed. A config naming a bot in someone else's group is ignored. Group settings show the editor only to the group's host, and only once the host's desk is known to serve that scry (12.3.2 and later, `useDeskSupportsStewardBots`).
 
 Only group admins can set the blob, and the host rejects a blob over 256 KB (measured as the jammed noun, `size-limit` in `desk/app/groups.hoon`). The write is an ordinary `%blob` group action. The host emits no update when the value is unchanged, so `updateGroupBlob` skips a no-op write rather than wait out its timeout.
