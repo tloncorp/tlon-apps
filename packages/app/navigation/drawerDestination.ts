@@ -203,3 +203,38 @@ export function carriedConversationParams(params: object | undefined): {
     ...(marks?.isDrawerDestination ? { isDrawerDestination: true } : {}),
   };
 }
+
+/**
+ * How to open a channel picked from its workspace's info screen.
+ *
+ * It replaces the channel the user came from when that is the stack's last
+ * channel and belongs to the same workspace, keeping what that route was: a
+ * destination of the drawer stays one, and one pushed over a channel list
+ * keeps its way back to the list. Anything else -- no channel beneath, or the
+ * last one in another workspace -- is pushed over the info screen, so the
+ * stack never rewrites a channel of one workspace into another's.
+ */
+export function getPickedChannelNavigation(
+  stackState: StackSnapshot,
+  channel: { id: string; groupId?: string | null }
+): {
+  mode: 'replace' | 'push';
+  params: { channelId: string; groupId?: string; isDrawerDestination?: true };
+} {
+  const params = {
+    channelId: channel.id,
+    ...(channel.groupId ? { groupId: channel.groupId } : {}),
+  };
+  const last = stackState?.routes
+    ?.filter((route) => route.name === 'Channel')
+    .at(-1);
+  const lastGroupId = (last?.params as { groupId?: string } | undefined)
+    ?.groupId;
+  if (last && channel.groupId && lastGroupId === channel.groupId) {
+    return {
+      mode: 'replace',
+      params: { ...params, ...carriedConversationParams(last.params) },
+    };
+  }
+  return { mode: 'push', params };
+}
