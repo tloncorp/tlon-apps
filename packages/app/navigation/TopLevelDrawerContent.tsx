@@ -888,14 +888,12 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   const { disableNicknames } = useCalm();
   const reset = useTypedReset();
   // What each footer control marks: the bot's conversation is the one chat the
-  // list does not carry, and it marks its own pill, so one message from it
-  // never lights both that pill and the bubble's Activity slot.
+  // list does not carry, so it marks its own pill. A message from it that
+  // notifies is activity like any other and marks the Activity slot as well.
   const botDmHasUnread = store.useChannelHasUnread(
     botDm.enabled ? botDm.channelId : undefined
   );
-  const unseenActivityCount = store.useUnreadUnseenActivityCount({
-    excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
-  });
+  const haveUnseenActivity = store.useHaveUnreadUnseenActivity();
   const onboardingLock = useAnyAgentGroupOnboardingLock();
   // Every request to leave the drawer takes the next number; a continuation
   // that finishes holding an older one has been superseded and drops what it
@@ -1732,7 +1730,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           }
           createDisabled={chatsLocked}
           activitySelected={selected === 'Activity'}
-          activityHasUnread={unseenActivityCount > 0}
+          activityHasUnread={haveUnseenActivity}
           activityDisabled={activityDisabled}
           settingsSelected={selected === 'Settings'}
           settingsDisabled={settingsDisabled}
