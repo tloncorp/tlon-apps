@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDrawerChannelRoute,
   focusedRouteIsInChannel,
+  getPickedChannelNavigation,
   carriedConversationParams,
   drawerOwnsEdge,
   isDrawerDestinationRoute,
@@ -347,5 +348,95 @@ describe('focusedRouteIsInChannel', () => {
     expect(
       focusedRouteIsInChannel(stack({ name: 'MainTabs' }), 'chat/~zod/a')
     ).toBe(false);
+  });
+});
+
+describe('getPickedChannelNavigation', () => {
+  const mainTabs = { name: 'MainTabs' };
+  const info = { name: 'ChatDetails', params: { chatType: 'channel' } };
+
+  it('replaces a drawer destination of the same workspace, keeping it one', () => {
+    const stack = {
+      index: 2,
+      routes: [
+        mainTabs,
+        {
+          name: 'Channel',
+          params: { channelId: 'a', groupId: 'w', isDrawerDestination: true },
+        },
+        info,
+      ],
+    };
+    expect(
+      getPickedChannelNavigation(stack, { id: 'b', groupId: 'w' })
+    ).toEqual({
+      mode: 'replace',
+      params: { channelId: 'b', groupId: 'w', isDrawerDestination: true },
+    });
+  });
+
+  it('replaces a channel pushed over the list without making it a destination', () => {
+    const stack = {
+      index: 3,
+      routes: [
+        mainTabs,
+        { name: 'GroupChannels', params: { groupId: 'w' } },
+        { name: 'Channel', params: { channelId: 'a', groupId: 'w' } },
+        info,
+      ],
+    };
+    expect(
+      getPickedChannelNavigation(stack, { id: 'b', groupId: 'w' })
+    ).toEqual({
+      mode: 'replace',
+      params: { channelId: 'b', groupId: 'w' },
+    });
+  });
+
+  it("pushes rather than rewrite another workspace's channel", () => {
+    const stack = {
+      index: 3,
+      routes: [
+        mainTabs,
+        { name: 'GroupChannels', params: { groupId: 'x' } },
+        { name: 'Channel', params: { channelId: 'x1', groupId: 'x' } },
+        { name: 'ChatDetails', params: { chatType: 'group', chatId: 'w' } },
+      ],
+    };
+    expect(
+      getPickedChannelNavigation(stack, { id: 'b', groupId: 'w' })
+    ).toEqual({
+      mode: 'push',
+      params: { channelId: 'b', groupId: 'w' },
+    });
+  });
+
+  it('pushes rather than pop a DM opened over the channel', () => {
+    const stack = {
+      index: 3,
+      routes: [
+        mainTabs,
+        { name: 'Channel', params: { channelId: 'a', groupId: 'w' } },
+        { name: 'DM', params: { channelId: 'dm' } },
+        { name: 'ChatDetails', params: { chatType: 'group', chatId: 'w' } },
+      ],
+    };
+    expect(
+      getPickedChannelNavigation(stack, { id: 'b', groupId: 'w' }).mode
+    ).toBe('push');
+  });
+
+  it('pushes when no channel sits beneath the info screen', () => {
+    const stack = {
+      index: 2,
+      routes: [
+        mainTabs,
+        { name: 'GroupChannels', params: { groupId: 'w' } },
+        { name: 'ChatDetails', params: { chatType: 'group', chatId: 'w' } },
+      ],
+    };
+    expect(
+      getPickedChannelNavigation(stack, { id: 'b', groupId: 'w' }).mode
+    ).toBe('push');
   });
 });

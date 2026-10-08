@@ -203,3 +203,41 @@ export function carriedConversationParams(params: object | undefined): {
     ...(marks?.isDrawerDestination ? { isDrawerDestination: true } : {}),
   };
 }
+
+/**
+ * How to open a channel picked from its workspace's info screen.
+ *
+ * It replaces the channel the info screen was opened from, when that channel
+ * is directly beneath it and in the same workspace, keeping what that route
+ * was: a destination of the drawer stays one, and one pushed over a channel
+ * list keeps its way back to the list. Anything else -- no channel beneath,
+ * another workspace's, or one further down under a DM -- is pushed over the
+ * info screen, so no route the user could go back to is rewritten or popped.
+ */
+export function getPickedChannelNavigation(
+  stackState: StackSnapshot,
+  channel: { id: string; groupId?: string | null }
+): {
+  mode: 'replace' | 'push';
+  params: { channelId: string; groupId?: string; isDrawerDestination?: true };
+} {
+  const params = {
+    channelId: channel.id,
+    ...(channel.groupId ? { groupId: channel.groupId } : {}),
+  };
+  const index = stackState?.index ?? (stackState?.routes?.length ?? 0) - 1;
+  const beneath = stackState?.routes?.[index - 1];
+  const beneathGroupId = (beneath?.params as { groupId?: string } | undefined)
+    ?.groupId;
+  if (
+    beneath?.name === 'Channel' &&
+    channel.groupId &&
+    beneathGroupId === channel.groupId
+  ) {
+    return {
+      mode: 'replace',
+      params: { ...params, ...carriedConversationParams(beneath.params) },
+    };
+  }
+  return { mode: 'push', params };
+}

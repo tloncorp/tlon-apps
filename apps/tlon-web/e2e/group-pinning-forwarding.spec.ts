@@ -28,7 +28,7 @@ test('should handle group pinning/unpinning and forwarding', async ({
 
   // Open group settings
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Test pin functionality
   const pinStatus = await helpers.toggleChatPin(page);
@@ -51,7 +51,7 @@ test('should handle group pinning/unpinning and forwarding', async ({
   // Return to group settings for forwarding test
   await page.getByText('Untitled group').first().click();
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Test forwarding group reference
   await helpers.forwardGroupReference(page, 'General');

@@ -103,7 +103,6 @@ import {
   TOP_LEVEL_TABS,
   TopLevelTabName,
   getActiveTopLevelTab,
-  getChannelDestinationRoutes,
   getInitialTopLevelTab,
   getStandingTopLevelTabRoute,
   getTopLevelTabNavigateAction,
@@ -141,7 +140,7 @@ const ROW_AVATAR_RADIUS = '$2xs' as const;
 // and a press the height of the row taken: held out from the glyph by this
 // much on every side, and pulled back by as much so the row does not grow.
 const ROW_CONTROL_PAD = (CHAT_ROW_MIN_HEIGHT - ROW_ICON_SIZE) / 2;
-const GROUP_SETTINGS_LABEL = 'Group info & settings';
+const GROUP_SETTINGS_LABEL = 'Workspace info & settings';
 // A tab's list opens on a row of its own, one point tall and empty, that
 // never moves. The list holds its first visible row in place across a change
 // of data, so a chat moving up does not shift the rows being read — and at
@@ -1789,15 +1788,6 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     };
     return {
       ...closing,
-      // A channel picked from a sheet's list of its group's channels opens as
-      // a row of the panel opens one.
-      onPressChannel: (channel: db.Channel) => {
-        const routes = getChannelDestinationRoutes(readStack(), channel);
-        if (routes) {
-          reset(routes);
-        }
-        navigation.closeDrawer();
-      },
       // Leaving a channel only moves its row down among the channels not
       // joined, so the panel stays open on it. The app moves only if it was standing in that
       // channel, and then to the channel now at the top of the group's list

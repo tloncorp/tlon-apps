@@ -16,7 +16,7 @@ test('should allow banning and unbanning users in public groups', async ({
   // Keep it public (default)
   await helpers.openGroupSettings(zodPage);
   // Just verify we're in settings, don't check exact text
-  await expect(zodPage.getByText('Group info')).toBeVisible();
+  await expect(zodPage.getByText('Workspace info')).toBeVisible();
 
   // Invite ~ten
   await helpers.openInvitePeople(zodPage);

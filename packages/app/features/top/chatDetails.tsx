@@ -37,8 +37,11 @@ import {
   channelSupportsNotifications,
   getChannelActionCapabilities,
   getChannelHost,
+  getChannelTitle,
+  getChannelTypeIcon,
   getGroupMemberCount,
 } from '../../ui/utils';
+import { getGroupChannelMenu } from '../../ui/utils/groupChannelSections';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
@@ -261,6 +264,102 @@ export function MembersList({
           onPressGoToProfile={handlePressGoToProfile}
         />
       ) : null}
+    </View>
+  );
+}
+
+// GroupChannelsSection - the workspace's channels to move to, and for an
+// admin a way to add one
+
+export function GroupChannelsSection({
+  group,
+  currentChannelId,
+  canCreateChannel,
+  onPressNewChannel,
+}: {
+  group: db.Group;
+  /** The channel this screen is about, left out of the list. */
+  currentChannelId?: string;
+  canCreateChannel: boolean;
+  onPressNewChannel: () => void;
+}) {
+  const { onPressChannel } = useChatSettingsNavigation();
+  const sortBy = db.channelSortPreference.useValue();
+  const menu = useMemo(
+    () => getGroupChannelMenu(group, sortBy, currentChannelId),
+    [group, sortBy, currentChannelId]
+  );
+
+  if (menu.channels.length === 0 && !canCreateChannel) {
+    return null;
+  }
+
+  return (
+    <View paddingHorizontal={'$l'}>
+      <PaddedBlock width="100%" gap="$l" paddingBottom="$xl">
+        <TlonText.Text size="$label/m" color="$tertiaryText">
+          {menu.title}
+        </TlonText.Text>
+        <YStack>
+          {menu.channels.map((channel) => (
+            <Pressable
+              key={channel.id}
+              onPress={() => onPressChannel(channel)}
+              testID={`ChatDetailsChannel-${channel.id}`}
+            >
+              <XStack gap="$l" alignItems="center" height="$4xl">
+                <View
+                  width="$3xl"
+                  height="$3xl"
+                  backgroundColor={'$secondaryBackground'}
+                  borderRadius="$xs"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <Icon
+                    type={getChannelTypeIcon(channel.type)}
+                    customSize={[20, 20]}
+                  />
+                </View>
+                <TlonText.Text size="$label/l" flex={1} numberOfLines={1}>
+                  {getChannelTitle({
+                    usesMemberListAsFallbackTitle: false,
+                    channelTitle: channel.title,
+                    disableNicknames: false,
+                  })}
+                </TlonText.Text>
+                <Icon type="ChevronRight" color="$tertiaryText" />
+              </XStack>
+            </Pressable>
+          ))}
+          {canCreateChannel ? (
+            <Pressable
+              onPress={onPressNewChannel}
+              testID="ChatDetailsNewChannelButton"
+            >
+              <XStack gap="$l" alignItems="center" height="$4xl">
+                <View
+                  width="$3xl"
+                  height="$3xl"
+                  backgroundColor={'$blueSoft'}
+                  borderRadius="$xs"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <Icon
+                    type="Add"
+                    color="$positiveActionText"
+                    customSize={[20, 20]}
+                  />
+                </View>
+                <TlonText.Text size="$label/l" color="$positiveActionText">
+                  New channel
+                </TlonText.Text>
+              </XStack>
+            </Pressable>
+          ) : null}
+        </YStack>
+      </PaddedBlock>
     </View>
   );
 }
@@ -584,12 +683,12 @@ export function LeaveActionsSection({
 
   const chatTitle =
     entityType === 'group'
-      ? (groupTitle ?? 'group')
+      ? (groupTitle ?? 'workspace')
       : (channel?.title ?? 'channel');
 
   const handleLeaveWithConfirm = useCallback(async () => {
     if (entityType === 'group') {
-      const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
+      const message = `You will no longer receive updates from this workspace.\n\nWarning: Leaving this workspace will invalidate any invitations you've sent.`;
 
       if (isWeb) {
         const confirmed = window.confirm(`Leave ${chatTitle}?\n\n${message}`);
@@ -599,7 +698,11 @@ export function LeaveActionsSection({
       } else {
         Alert.alert(`Leave ${chatTitle}?`, message, [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Leave Group', style: 'destructive', onPress: leaveGroup },
+          {
+            text: 'Leave Workspace',
+            style: 'destructive',
+            onPress: leaveGroup,
+          },
         ]);
       }
     } else {
@@ -643,11 +746,11 @@ export function LeaveActionsSection({
   const leaveActions = createActionGroup(
     'negative',
     canLeave && {
-      title: entityType === 'group' ? 'Leave group' : 'Leave channel',
+      title: entityType === 'group' ? 'Leave workspace' : 'Leave channel',
       action: handleLeaveWithConfirm,
     },
     canDelete && {
-      title: entityType === 'group' ? 'Delete group' : 'Delete channel',
+      title: entityType === 'group' ? 'Delete workspace' : 'Delete channel',
       action: () => setShowDeleteDialog(true),
     }
   );
@@ -682,7 +785,9 @@ export function LeaveActionsSection({
         onOpenChange={setShowDeleteDialog}
         title={`Delete ${chatTitle}?`}
         description={deleteDescription}
-        confirmText={entityType === 'group' ? 'Delete group' : 'Delete channel'}
+        confirmText={
+          entityType === 'group' ? 'Delete workspace' : 'Delete channel'
+        }
         cancelText="Cancel"
         onConfirm={handleDelete}
         destructive

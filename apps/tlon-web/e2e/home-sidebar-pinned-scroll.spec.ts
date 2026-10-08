@@ -138,7 +138,9 @@ test('home sidebar mounts at the top with the Pinned section visible', async ({
     // The Group info header must be present before toggleChatPin queries for
     // Pin/Unpin — without this wait, isVisible races against the screen mount
     // and reports false.
-    await expect(page.getByText('Group info')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Workspace info')).toBeVisible({
+      timeout: 10000,
+    });
     const pinStatus = await helpers.toggleChatPin(page);
     expect(pinStatus).toBe('pinned');
     await helpers.navigateBack(page);

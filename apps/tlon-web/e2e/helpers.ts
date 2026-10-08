@@ -175,7 +175,7 @@ export async function verifyGroupChannels(
 ) {
   // Navigate to group settings
   await openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
 
   // Navigate to Channels
   await page.getByTestId('GroupChannels').getByText('Channels').click();
@@ -259,7 +259,7 @@ export async function leaveGroup(page: Page, groupName: string) {
   if (await page.getByText(groupName).first().isVisible()) {
     await page.getByText(groupName).first().click();
     await openGroupSettings(page);
-    await page.waitForSelector('text=Group Info');
+    await page.waitForSelector('text=Workspace Info');
 
     // Set up dialog handler to accept the confirmation
     page.once('dialog', async (dialog) => {
@@ -269,7 +269,7 @@ export async function leaveGroup(page: Page, groupName: string) {
       await dialog.accept();
     });
 
-    await page.getByText('Leave group').click();
+    await page.getByText('Leave workspace').click();
   }
 }
 
@@ -442,17 +442,19 @@ export async function rejectGroupInvite(page: Page) {
 export async function deleteGroup(page: Page, groupName?: string) {
   // Ensure session is stable before deleting group
   await waitForSessionStability(page);
-  await expect(page.getByTestId('GroupLeaveAction-Delete group')).toBeVisible({
+  await expect(
+    page.getByTestId('GroupLeaveAction-Delete workspace')
+  ).toBeVisible({
     timeout: 10000,
   });
 
-  await page.getByTestId('GroupLeaveAction-Delete group').click();
+  await page.getByTestId('GroupLeaveAction-Delete workspace').click();
   await expect(page.getByText('This action cannot be undone.')).toBeVisible({
     timeout: 10000,
   });
   await page
     .getByRole('dialog')
-    .getByText('Delete group', { exact: true })
+    .getByText('Delete workspace', { exact: true })
     .click();
   await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible({
     timeout: 20000,
@@ -463,7 +465,7 @@ export async function openGroupSettings(page: Page) {
   // If we're already in settings, no action needed.
   if (
     await page
-      .getByText('Group info & settings')
+      .getByText('Workspace info & settings')
       .isVisible({ timeout: 1000 })
       .catch(() => false)
   ) {
@@ -487,7 +489,7 @@ export async function openGroupSettings(page: Page) {
   // Some layouts navigate directly to settings from the trigger.
   if (
     await page
-      .getByText('Group info & settings')
+      .getByText('Workspace info & settings')
       .isVisible({ timeout: 3000 })
       .catch(() => false)
   ) {
@@ -556,7 +558,7 @@ export async function setupMultiChannelGroup(
   secondChannelName = 'Second Channel'
 ) {
   await openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
   await page.getByTestId('GroupChannels').getByText('Channels').click();
   await expect(page.getByText('New', { exact: true })).toBeVisible({
     timeout: 5000,
@@ -1228,7 +1230,7 @@ export async function setGroupPrivacy(
   await navigateBack(page);
 
   // Wait for navigation and verify we're back on group settings
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
 
   // Wait additional time for the privacy change to sync
   await page.waitForTimeout(1000);

@@ -31,7 +31,7 @@ test('should prevent Admin role from being edited', async ({ zodPage }) => {
 
   // Open group settings and navigate to Roles
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
   await page.getByTestId('GroupRoles').click();
 
   // Verify Admin role is visible
@@ -98,7 +98,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Open group settings and navigate to Roles
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
   await page.getByTestId('GroupRoles').click();
 
   // Create a new role and check that the count label updates
@@ -108,7 +108,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Navigate back to Group Settings
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Assign role to a user (member)
   await page.waitForTimeout(2000);
@@ -178,7 +178,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Open group settings to get to Group Info
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Attempt to delete role that still has members/channels assigned
   await page.getByTestId('GroupRoles').click();
@@ -312,7 +312,7 @@ test('should persist role permissions after save and reopen', async ({
 
   // Open group settings and create a role
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
   await page.getByTestId('GroupRoles').click();
 
   await helpers.createRole(page, 'Writer role', 'Role with write access');
@@ -321,7 +321,7 @@ test('should persist role permissions after save and reopen', async ({
 
   // Navigate to Channels and open the General channel's info screen
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
   await page.getByTestId('GroupChannels').click();
 
   await expect(page.getByText('Sort', { exact: true })).toBeVisible();
@@ -368,7 +368,7 @@ test('should persist role permissions after save and reopen', async ({
 
   // Navigate to channel info to re-open permissions and verify persistence
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
   await page.getByTestId('GroupChannels').click();
   await expect(page.getByText('Sort', { exact: true })).toBeVisible();
   const generalChannelReopen = page.getByTestId(/^ChannelItem-General-/);

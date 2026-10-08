@@ -26,12 +26,12 @@ test('should handle group privacy and role management', async ({ zodPage }) => {
 
   // Open group settings
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Test privacy settings
   await helpers.setGroupPrivacy(page, 'private');
   // setGroupPrivacy now navigates back to group settings, so we're already there
-  await expect(page.getByText('Private group with 1 member')).toBeVisible();
+  await expect(page.getByText('Private workspace with 1 member')).toBeVisible();
   // Note: Skipping verification of Privacy field update due to sync delay issue
   // The privacy value doesn't update immediately in the UI after clicking the radio button
 

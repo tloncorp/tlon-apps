@@ -24,11 +24,11 @@ test('should create, verify, and delete a group', async ({ zodPage }) => {
   await helpers.openGroupSettings(page);
 
   // Verify group status (check for any group with 1 member text pattern)
-  const groupStatusText = page.locator('text=/.*group with 1 member/');
+  const groupStatusText = page.locator('text=/.*workspace with 1 member/');
   await expect(groupStatusText).toBeVisible();
 
   // Assert we're in group settings
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Delete the group (this handles the entire deletion flow)
   await helpers.deleteGroup(page);

@@ -12,8 +12,8 @@ export type GroupChannelSection = {
  * group's own sections in their arranged order followed by the channels no
  * section holds.
  *
- * Shared by the channel list and the options sheet's channel menu, so the menu
- * follows the sort the sheet's own "Sort channels" sets.
+ * Shared by the channel list and the info screens' list of channels, so both
+ * follow the sort the options sheet's "Sort channels" sets.
  */
 export function getGroupChannelSections(
   group: Pick<db.Group, 'channels' | 'navSections'>,
@@ -78,12 +78,13 @@ export function getGroupChannelSections(
 }
 
 /**
- * The channels the options sheet offers to move to, and what it calls them.
+ * The channels a workspace or channel info screen offers to move to, and what
+ * it calls them.
  *
- * A channel's sheet lists the group's other channels. A group's sheet lists
- * all of them, and so does any sheet of a group with a single channel, where
- * that channel is the group: it is the user's way in, not a duplicate of where
- * they already are.
+ * A channel's screen lists the workspace's other channels. A workspace's screen
+ * lists all of them, and so does any screen of a workspace with a single
+ * channel, where that channel is the workspace: it is the user's way in, not a
+ * duplicate of where they already are.
  */
 export function getGroupChannelMenu(
   group: Pick<db.Group, 'channels' | 'navSections'>,

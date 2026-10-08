@@ -10,9 +10,9 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 import { Platform } from 'react-native';
 
+import { getPickedChannelNavigation } from '../navigation/drawerDestination';
 import {
   type RouteSnapshot,
-  getChannelDestinationRoutes,
   getLeftChatTopLevelTab,
   getTopLevelTabRoute,
 } from '../navigation/topLevelTabs';
@@ -230,15 +230,17 @@ export const useChatSettingsNavigation = () => {
         navigateToChannel(channel);
         return;
       }
-      const routes = getChannelDestinationRoutes(
+      const { mode, params } = getPickedChannelNavigation(
         getSectionStackState(navigationRef.current),
         channel
       );
-      if (routes) {
-        reset(routes);
+      if (mode === 'replace') {
+        navigationRef.current.navigate('Channel', params, { pop: true });
+      } else {
+        navigationRef.current.push('Channel', params);
       }
     },
-    [isMobileTree, navigateToChannel, navigationRef, reset]
+    [isMobileTree, navigateToChannel, navigationRef]
   );
 
   const onPressChatVolume = useCallback(

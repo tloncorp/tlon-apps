@@ -1,6 +1,6 @@
 import { getStateFromPath } from '@react-navigation/core';
 import { StackRouter } from '@react-navigation/routers';
-import { describe, expect, it, test, vi } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import { getMobileLinkingConfig } from './linking';
 import {
@@ -8,7 +8,6 @@ import {
   isAtColdStartPosition,
   isAwaitingRestoredBotTab,
   getActiveTopLevelTab,
-  getChannelDestinationRoutes,
   getTopLevelTabNavigateAction,
   getInitialTopLevelTab,
   getLeftChatTopLevelTab,
@@ -446,63 +445,5 @@ describe('getStandingTopLevelTabRoute', () => {
         'ChatList'
       )
     ).toEqual({ name: 'MainTabs', params: { screen: 'ChatList' } });
-  });
-});
-
-describe('getChannelDestinationRoutes', () => {
-  const mainTabs = {
-    name: 'MainTabs',
-    key: 'tabs',
-    state: { index: 1, routes: [{ name: 'Home' }, { name: 'ChatList' }] },
-  };
-
-  it('opens the channel as a destination over the section as it stands', () => {
-    const stack = {
-      index: 2,
-      routes: [
-        mainTabs,
-        { name: 'GroupChannels', params: { groupId: 'g' } },
-        { name: 'Channel', params: { channelId: 'a', groupId: 'g' } },
-      ],
-    };
-    expect(
-      getChannelDestinationRoutes(stack, { id: 'b', groupId: 'g' })
-    ).toEqual([
-      mainTabs,
-      {
-        name: 'Channel',
-        params: { channelId: 'b', groupId: 'g', isDrawerDestination: true },
-      },
-    ]);
-  });
-
-  it('leaves the stack alone when it already shows the channel', () => {
-    const stack = {
-      index: 1,
-      routes: [
-        mainTabs,
-        {
-          name: 'Channel',
-          params: { channelId: 'a', groupId: 'g', isDrawerDestination: true },
-        },
-      ],
-    };
-    expect(getChannelDestinationRoutes(stack, { id: 'a', groupId: 'g' })).toBe(
-      null
-    );
-  });
-
-  it('still opens the channel from a thread inside it', () => {
-    const stack = {
-      index: 2,
-      routes: [
-        mainTabs,
-        { name: 'Channel', params: { channelId: 'a', groupId: 'g' } },
-        { name: 'Post', params: { channelId: 'a', postId: 'p' } },
-      ],
-    };
-    expect(
-      getChannelDestinationRoutes(stack, { id: 'a', groupId: 'g' })
-    ).toHaveLength(2);
   });
 });
