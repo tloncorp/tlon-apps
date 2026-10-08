@@ -3143,16 +3143,19 @@ function renderMarkdown(src) {
     const indent = columns(m[1]);
     const gap = columns(m[1] + m[2] + m[3]) - indent - m[2].length;
     const textCol = indent + m[2].length + (gap > 4 || !m[4] ? 1 : gap);
+    // The bullet character, or the ordered delimiter; changing it starts a
+    // new list.
+    const marker = m[2].slice(-1);
     let depth = lists.length;
     while (depth > 0 && indent < lists[depth - 1].textCol) depth--;
     closeListsTo(depth + 1);
-    if (lists[depth] && lists[depth].tag === tag) {
+    if (lists[depth] && lists[depth].marker === marker) {
       html += "</li>\n";
     } else {
       closeListsTo(depth);
       html += "<" + tag + ">\n";
     }
-    lists[depth] = { tag, textCol };
+    lists[depth] = { tag, marker, textCol, empty: !m[4] };
   }
   function flushBlockquote() {
     if (inBlockquote) { html += "</blockquote>\n"; inBlockquote = false; }
@@ -3178,8 +3181,13 @@ function renderMarkdown(src) {
     if (inCode) { codeLines.push(line); continue; }
 
     // blank line. Lists stay open across it (a loose list); the next line
-    // closes them unless it's another list item.
-    if (!line.trim()) { flushBlockquote(); html += "\n"; continue; }
+    // closes them unless it's another list item. An item can start with at
+    // most one blank line, so an empty item followed by one takes no children.
+    if (!line.trim()) {
+      const last = lists[lists.length - 1];
+      if (last && last.empty) last.textCol = Infinity;
+      flushBlockquote(); html += "\n"; continue;
+    }
 
     // headings
     const hm = line.match(/^(#{1,6})\s+(.*)/);
