@@ -934,7 +934,12 @@ export function ChannelOptionsSheetContent({
   );
 }
 
-/** The group's channels to move to, and for an admin a way to add one. */
+/**
+ * The group's channels to move to, and for an admin a way to add one.
+ *
+ * Not in the desktop flyout: the sidebar beside it already lists the group's
+ * channels, and the flyout opens from one of their rows.
+ */
 function useGroupChannelsActionGroup({
   group,
   currentChannelId,
@@ -948,9 +953,11 @@ function useGroupChannelsActionGroup({
 }): ActionGroup | null {
   const { onPressChannel, onPressNewChannel } = useChatOptions();
   const sortBy = db.channelSortPreference.useValue();
+  const isWindowNarrow = useIsWindowNarrow();
+  const isDesktopFlyout = isWeb && !isWindowNarrow;
 
   return useMemo((): ActionGroup | null => {
-    if (!group) {
+    if (!group || isDesktopFlyout) {
       return null;
     }
     const menu = getGroupChannelMenu(group, sortBy, currentChannelId);
@@ -976,6 +983,7 @@ function useGroupChannelsActionGroup({
       : null;
   }, [
     group,
+    isDesktopFlyout,
     sortBy,
     currentChannelId,
     canCreateChannel,

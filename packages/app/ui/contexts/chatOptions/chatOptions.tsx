@@ -589,16 +589,16 @@ export const ChatOptionsProvider = ({
             onInviteComplete={() => closeInviteSheet()}
             groupId={inviteGroupId}
           />
+          {createChannelGroupId &&
+            createChannelGroup?.id === createChannelGroupId && (
+              <CreateChannelSheet
+                group={createChannelGroup}
+                onOpenChange={handleCreateChannelOpenChange}
+                navigateToPermissions={onPressCreateChannelPermissions}
+              />
+            )}
         </>
       )}
-      {createChannelGroupId &&
-        createChannelGroup?.id === createChannelGroupId && (
-          <CreateChannelSheet
-            group={createChannelGroup}
-            onOpenChange={handleCreateChannelOpenChange}
-            navigateToPermissions={onPressCreateChannelPermissions}
-          />
-        )}
       <ConfirmDialog
         open={leaveChannelDialogOpen && !!leaveChannelTitle}
         onOpenChange={(open) => {
