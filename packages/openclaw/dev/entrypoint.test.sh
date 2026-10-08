@@ -52,6 +52,16 @@ if [ "${OPENCLAW_WORKSPACE_API_TARBALL:-0}" = "1" ] \
 elif [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
   echo "==> Ignoring workspace @tloncorp/api tarball (no harness opt-in); using registry"
 fi
+# Use the whole branch skill package: its SKILL.md, references, and command
+# catalog must match the workspace binary installed below.
+if [ "${OPENCLAW_WORKSPACE_SKILL_BIN:-0}" = "1" ]; then
+  if [ ! -f /workspace/tlon/dev/tlon-skill-workspace.tgz ]; then
+    echo "FATAL: workspace skill archive is missing; refusing mixed registry docs"
+    exit 1
+  fi
+  jq '.dependencies["@tloncorp/tlon-skill"] = "file:dev/tlon-skill-workspace.tgz"' package.json > package.json.tmp \
+    && mv package.json.tmp package.json
+fi
 # This is a standalone install of the plugin (no root pnpm-workspace.yaml), so
 # the monorepo's pnpm settings aren't in scope. Generate a container-local
 # workspace file: pnpm reads these settings only from pnpm-workspace.yaml
@@ -88,6 +98,16 @@ overrides:
 PNPM_EOF
 fi
 pnpm install
+# A reused node_modules volume may contain a previous test's skill snapshot,
+# even when pnpm considers the file dependency current. Restore the exact packed
+# files instead of allowing an installed binary and stale guidance to diverge.
+if [ "${OPENCLAW_WORKSPACE_SKILL_BIN:-0}" = "1" ]; then
+  SKILL_PKG_DIR=/workspace/tlon/node_modules/@tloncorp/tlon-skill
+  rm -rf "$SKILL_PKG_DIR"
+  mkdir -p "$SKILL_PKG_DIR"
+  tar xzf dev/tlon-skill-workspace.tgz --strip-components=1 -C "$SKILL_PKG_DIR"
+  echo "[tlon-e2e] workspace-skill-sha256=$(sha256sum dev/tlon-skill-workspace.tgz | cut -d' ' -f1)"
+fi
 pnpm build
 
 # Expose tlon CLI to PATH
@@ -177,7 +197,8 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "workspace": "/root/.openclaw/workspace",
       "model": {
         "primary": "${MODEL:-custom-proxy/tlon-test-scripted}"
-      }
+      },
+      "heartbeat": { "every": "0m" }
     },
     "list": [
       {
@@ -461,6 +482,28 @@ fi
 # hosting entrypoint does; the gateway refuses to boot over unmigrated state.
 echo "==> Running openclaw doctor --fix..."
 openclaw doctor --fix --non-interactive || echo "==> WARN: openclaw doctor --fix exited $?"
+
+# Exercise the same discovery path used to build the agent's available skills.
+# An npm package name in plugins.allow can load the channel via auto-enable
+# while leaving its skills invisible; the allowlist above must use plugin IDs.
+if [ "${OPENCLAW_WORKSPACE_SKILL_BIN:-0}" = "1" ]; then
+  openclaw skills list --json > /tmp/tlon-e2e-skills.json
+  node --input-type=module - <<'NODE'
+import fs from 'node:fs';
+const raw = fs.readFileSync('/tmp/tlon-e2e-skills.json', 'utf8');
+const report = JSON.parse(raw.slice(raw.indexOf('{')));
+const matches = report.skills.filter((skill) => skill.name === 'tlon');
+if (matches.length !== 1 || !matches[0].eligible) {
+  throw new Error('Workspace tlon skill must be discovered exactly once and eligible');
+}
+const root = '/workspace/tlon/node_modules/@tloncorp/tlon-skill';
+const catalog = JSON.parse(fs.readFileSync(`${root}/scripts/command-catalog.json`, 'utf8'));
+for (const { reference } of Object.values(catalog)) {
+  if (!fs.existsSync(`${root}/${reference}`)) throw new Error(`Missing installed skill reference: ${reference}`);
+}
+console.log('[tlon-e2e] workspace-skill-discovery=passed');
+NODE
+fi
 
 echo "==> Starting OpenClaw gateway..."
 exec openclaw gateway --port 18789 --bind lan --verbose

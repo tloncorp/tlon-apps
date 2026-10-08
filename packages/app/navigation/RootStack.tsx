@@ -40,6 +40,8 @@ import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
+import { BucketFileScreen } from '../features/top/BucketFileScreen';
+import { BucketFolderScreen } from '../features/top/BucketFolderScreen';
 import { NotesDetailScreen } from '../features/top/NotesDetailScreen';
 import { NotesFolderScreen } from '../features/top/NotesFolderScreen';
 import { NotesSearchScreen } from '../features/top/NotesSearchScreen';
@@ -162,6 +164,8 @@ function RootStackContent() {
         options={nativeHeaderScreenOptions}
       />
       <Root.Screen name="NotesSearch" component={NotesSearchScreen} />
+      <Root.Screen name="BucketFolder" component={BucketFolderScreen} />
+      <Root.Screen name="BucketFile" component={BucketFileScreen} />
       <Root.Screen
         name="GroupChannels"
         component={GroupChannelsScreen}

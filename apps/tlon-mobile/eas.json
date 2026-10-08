@@ -7,7 +7,7 @@
   "build": {
     "base": {
       "pnpm": "11.9.0",
-      "node": "22.22.0",
+      "node": "24.16.0",
       "env": {
         "EXPO_USE_PRECOMPILED_MODULES": "0"
       },
@@ -72,6 +72,9 @@
     "local-testing": {
       "extends": "base",
       "channel": "local",
+      "env": {
+        "APP_VARIANT": "e2e"
+      },
       "android": {
         "resourceClass": "large",
         "gradleCommand": ":app:assembleProductionRelease",
@@ -100,7 +103,8 @@
       "extends": "base",
       "withoutCredentials": true,
       "env": {
-        "AUTOMATED_TEST": "true"
+        "AUTOMATED_TEST": "true",
+        "APP_VARIANT": "e2e"
       },
       "ios": {
         "simulator": true,

@@ -13,7 +13,7 @@ import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 
 export const BROWSER_SESSION_HANDOFF_HELP =
-  'Usage: browser handoff <session_id> (the sess_ handle from browser_session_create). Do not supply a viewer URL.';
+  'Usage: browser handoff <session_id> or browser share <session_id> (the sess_ handle from browser_session_create). Do not supply a viewer URL.';
 
 const LOOKUP_DEADLINE_MS = 15_000;
 const LOOKUP_ATTEMPT_TIMEOUT_MS = 5_000;
@@ -275,7 +275,7 @@ export async function runBrowserSessionHandoff(
   if (
     args.length !== 3 ||
     args[0] !== 'browser' ||
-    args[1] !== 'handoff' ||
+    !['handoff', 'share'].includes(args[1]) ||
     !/^sess_[A-Za-z0-9_-]{22}$/.test(args[2])
   ) {
     throw new Error(BROWSER_SESSION_HANDOFF_HELP);
@@ -289,11 +289,15 @@ export async function runBrowserSessionHandoff(
   try {
     await runBrowserHandoffCommand(
       binary,
-      ['browser', 'handoff', viewerUrl],
+      ['browser', args[1], viewerUrl],
       config
     );
-    return `✓ Secure browser form sent to ${account.ownerShip}`;
+    return `✓ ${args[1] === 'share' ? 'Browser session' : 'Secure browser form'} sent to ${account.ownerShip}`;
   } catch {
-    throw new Error('Could not send the secure browser form.');
+    throw new Error(
+      args[1] === 'share'
+        ? 'Could not send the browser session card.'
+        : 'Could not send the secure browser form.'
+    );
   }
 }
