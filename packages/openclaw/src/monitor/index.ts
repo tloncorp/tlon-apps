@@ -1,5 +1,6 @@
 import {
   type Story,
+  getGroup,
   readAll,
   readChannel,
   scryChangesSince,
@@ -95,6 +96,12 @@ import {
   getStewardAutomationReconciler,
   isStewardAutomationProjectionEligible,
 } from '../steward-automation-reconciliation.js';
+import {
+  type WorkspaceInstructionsRuntime,
+  createWorkspaceInstructionsRuntime,
+  publishWorkspaceInstructionsRuntime,
+  unpublishWorkspaceInstructionsRuntime,
+} from '../workspace-instructions.js';
 import {
   canonicalizeNest,
   normalizeShip,
@@ -926,6 +933,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // edits in this large pre-try region) would leave the shared slot
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
+  let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
     const contextLensConfig = account.contextLens;
@@ -1010,6 +1018,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Config-sourced nests are immune to settings-key removal; see the
     // ownership rule in group-channels.ts.
     const discoveredNests = new Set<string>();
+    workspaceInstructions = createWorkspaceInstructionsRuntime({
+      botShip: botShipName,
+      channelToGroup,
+      fetchBlob: (flag) =>
+        inApiScope(() => getGroup(flag)).then((group) => group.blob ?? null),
+      getCron: getTlonCronService,
+      log: (msg) => runtime.log?.(msg),
+    });
+    publishWorkspaceInstructionsRuntime(workspaceInstructions);
     // Where onboarding stands in each DM: the group its last request named,
     // or that it has finished (or holds no request) and replies are just talk.
     const onboardingDmState = new OnboardingDmState();
@@ -6161,6 +6178,35 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         );
       }
 
+      // Group blob changes arrive only on /v3/groups (%groups keeps %blob
+      // off the older paths). Each fact carries the new blob, so the
+      // workspace instructions cache takes it in place; the cache's TTL
+      // covers facts missed while the subscription was down.
+      try {
+        await api.subscribe({
+          app: 'groups',
+          path: '/v3/groups',
+          event: (event: unknown) =>
+            workspaceInstructions?.handleGroupsResponse(event),
+          err: (error) => {
+            capturePluginError('groups_v3_subscription', error);
+            runtime.error?.(
+              `[tlon] Groups v3 subscription error: ${String(error)}`
+            );
+          },
+          quit: () => {
+            runtime.log?.(
+              '[tlon] Groups v3 quit received, SSE client will resubscribe'
+            );
+          },
+        });
+      } catch (err) {
+        capturePluginError('groups_v3_subscription', err);
+        runtime.log?.(
+          `[tlon] Groups v3 subscription failed (workspace config falls back to its cache TTL): ${String(err)}`
+        );
+      }
+
       // Subscribe to foreigns for auto-accepting group invites
       // Always subscribe so we can hot-reload the setting via settings store
       let groupInviteRunner: ReturnType<typeof createCatchUpRunner>;
@@ -6628,6 +6674,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // after the helper definitions). Anything that throws before the
     // inner finally can run hits this one. Idempotent via the helper.
     cleanupGatewayStatus();
+    if (workspaceInstructions) {
+      unpublishWorkspaceInstructionsRuntime(workspaceInstructions);
+    }
     // Remove the early abort listener so the host's signal does not
     // retain `cleanupGatewayStatus` (which transitively pins
     // `myApiClientParams.poke` and the SSE client) after the monitor

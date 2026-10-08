@@ -8,6 +8,7 @@ export * from './bucketsBroker';
 export * from './chatApi';
 export * from './contactsApi';
 export * from './groupsApi';
+export * from './workspaceConfig';
 export * from './landscapeApi';
 export * from './notesApi';
 export * from './postsApi';

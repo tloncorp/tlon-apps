@@ -513,6 +513,28 @@ export async function updateGroupBlob(
   }
 }
 
+/**
+ * Edit a group's workspace config. The merge happens here on the client:
+ * `update` sees the freshest blob this client holds and changes only the
+ * fields it owns; everything else, unknown keys included, is written back
+ * as it was. Two admins editing at once is last-writer-wins.
+ *
+ * Throws WorkspaceConfigWriteError rather than overwrite a blob this client
+ * can't interpret.
+ */
+export async function updateWorkspaceConfig(
+  groupId: string,
+  update: (config: api.WorkspaceConfig) => api.WorkspaceConfig,
+  config?: { shouldThrow?: boolean }
+) {
+  const group = await db.getGroup({ id: groupId });
+  if (!group) {
+    throw new Error(`group ${groupId} not found`);
+  }
+  const blob = api.updateWorkspaceConfigBlob(group.blob, update);
+  await updateGroupBlob(group, blob, config);
+}
+
 export async function deleteGroup(group: db.Group) {
   logger.log('deleting group', group.id);
   logger.trackEvent(

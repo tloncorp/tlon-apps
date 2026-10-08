@@ -1033,6 +1033,25 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   (ex-cards caz ~)
 ::
+::  the bots scry returns the owner-side trusted set, and tracks
+::  untrust
+::
+++  test-bots-scry-returns-trusted-set
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  res=cage  bind:m  (got-peek /x/v1/bots)
+  ;<  ~  bind:m  (ex-equal !>(p.res) !>(%steward-bots-1))
+  ;<  ~  bind:m  (ex-equal q.res !>(*(set ship)))
+  ;<  ~  bind:m  trust-moon
+  ;<  res=cage  bind:m  (got-peek /x/v1/bots)
+  ;<  ~  bind:m  (ex-equal q.res !>((sy moon ~)))
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  res=cage  bind:m  (got-peek /x/v1/bots)
+  (ex-equal q.res !>(*(set ship)))
+::
 ::  ==========================================================
 ::  automation sync tests: owner-side mirror
 ::  ==========================================================

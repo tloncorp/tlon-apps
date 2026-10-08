@@ -822,6 +822,27 @@ export const useDeskSupportsBuckets = (): boolean | undefined => {
 };
 
 /**
+ * Whether the user's own ship serves %steward's trusted bots, which editing
+ * workspace instructions needs. Resolved as useDeskSupportsBuckets is: the
+ * client capability once sync start sets it, else the stored app info, and
+ * undefined until either is known.
+ */
+export const useDeskSupportsStewardBots = (): boolean | undefined => {
+  const clientSupports = useSyncExternalStore(
+    api.onDeskSupportsStewardBotsChange,
+    api.getDeskSupportsStewardBotsState
+  );
+  const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
+  if (clientSupports !== null) {
+    return clientSupports;
+  }
+  if (isLoading) {
+    return undefined;
+  }
+  return logic.deskVersionSupportsStewardBots(appInfo?.groupsVersion);
+};
+
+/**
  * One Bucket's manifest, as reduced from the %buckets subscription.
  *
  * Invalidated by the tables the reducer writes, so an update arriving on that

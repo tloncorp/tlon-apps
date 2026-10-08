@@ -110,6 +110,7 @@ import {
   recordTlonAgentRunTrace,
 } from './src/turn-recorder.js';
 import { resolveTlonAccount } from './src/types.js';
+import { handleWorkspaceBeforePromptBuild } from './src/workspace-instructions.js';
 import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
@@ -1294,6 +1295,20 @@ export default defineBundledChannelEntry({
             }
           );
         }
+      }
+    });
+
+    // ── Workspace instructions ─────────────────────────────────────────
+    // The monitor publishes the runtime; until it does, this is a no-op.
+    // Fail open: a failed read never blocks the turn.
+    api.on('before_prompt_build', async (_event, ctx) => {
+      try {
+        return await handleWorkspaceBeforePromptBuild(ctx);
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] workspace instructions failed: ${String(error)}`
+        );
+        return undefined;
       }
     });
 

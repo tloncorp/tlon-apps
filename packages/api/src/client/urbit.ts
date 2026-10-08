@@ -69,6 +69,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   activitySupportsNotes: boolean;
   deskSupportsBuckets: boolean | null;
   deskCountsAllSeats: boolean;
+  deskSupportsStewardBots: boolean | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -194,6 +195,9 @@ const config: Config = {
   // Off until the app confirms the backend's groups version counts every seat
   // in init and changes, so a member count of 15 stays suspect by default.
   deskCountsAllSeats: false,
+  // Unknown (null) until the app confirms the backend's groups version.
+  // Guarded requests refuse only false.
+  deskSupportsStewardBots: null,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -285,6 +289,33 @@ export const setDeskCountsAllSeats = (value: boolean) => {
 
 export const getDeskCountsAllSeats = (): boolean => {
   return config.deskCountsAllSeats;
+};
+
+const deskSupportsStewardBotsListeners = new Set<() => void>();
+
+// Whether the connected backend's %steward serves its trusted bots. Views
+// gated on it listen below.
+export const setDeskSupportsStewardBots = (value: boolean | null) => {
+  const changed = config.deskSupportsStewardBots !== value;
+  config.deskSupportsStewardBots = value;
+  if (changed) {
+    deskSupportsStewardBotsListeners.forEach((listener) => listener());
+  }
+};
+
+// null until sync start resolves the capability; the request guard refuses
+// only a known false.
+export const getDeskSupportsStewardBotsState = (): boolean | null => {
+  return config.deskSupportsStewardBots;
+};
+
+export const onDeskSupportsStewardBotsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsStewardBotsListeners.add(listener);
+  return () => {
+    deskSupportsStewardBotsListeners.delete(listener);
+  };
 };
 
 const deskSupportsBucketsListeners = new Set<() => void>();
@@ -491,6 +522,7 @@ export function internalRemoveClient() {
   setActivitySupportsNotes(false);
   setDeskSupportsBuckets(null);
   setDeskCountsAllSeats(false);
+  setDeskSupportsStewardBots(null);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
