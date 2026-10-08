@@ -141,12 +141,16 @@ export type RootStackParamList = {
     botShip: string;
     /** Narrows the list to the tasks that post into this group. */
     groupId?: string;
+    /** Narrows it further, to the tasks that post into this one channel. */
+    channelId?: string;
   };
   ScheduledTaskEditor: {
     botShip: string;
     taskId?: string;
     /** For a new task: the group it was started from, where it should post. */
     groupId?: string;
+    /** For a new task: the channel it was started from, where it should post. */
+    channelId?: string;
   };
   BlockedUsers: undefined;
   PrivacySettings: undefined;

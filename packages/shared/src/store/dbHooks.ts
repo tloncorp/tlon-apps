@@ -611,35 +611,49 @@ export const useMemberRoles = (chatId: string, userId: string) => {
   return memberRoles;
 };
 
-export const useJoinedGroupSeats = (contactIds: string[]) => {
+export const useJoinedGroupSeats = (
+  contactIds: string[],
+  { enabled = true }: { enabled?: boolean } = {}
+) => {
   const deps = useKeyFromQueryDeps(db.getJoinedGroupSeats);
   return useQuery({
     queryKey: ['joinedGroupSeats', deps, contactIds],
     queryFn: () => db.getJoinedGroupSeats({ contactIds }),
+    enabled,
   });
 };
 
-export const useMemberGroupRoles = (contactId: string) => {
+export const useMemberGroupRoles = (
+  contactId: string,
+  { enabled = true }: { enabled?: boolean } = {}
+) => {
   const deps = useKeyFromQueryDeps(db.getMemberGroupRoles);
   return useQuery({
     queryKey: ['memberGroupRoles', deps, contactId],
     queryFn: () => db.getMemberGroupRoles({ contactId }),
+    enabled,
   });
 };
 
-export const useChannelWriterRoles = () => {
+export const useChannelWriterRoles = ({
+  enabled = true,
+}: { enabled?: boolean } = {}) => {
   const deps = useKeyFromQueryDeps(db.getChannelWriterRoles);
   return useQuery({
     queryKey: ['channelWriterRoles', deps],
     queryFn: () => db.getChannelWriterRoles(),
+    enabled,
   });
 };
 
-export const useChannelReaderRoles = () => {
+export const useChannelReaderRoles = ({
+  enabled = true,
+}: { enabled?: boolean } = {}) => {
   const deps = useKeyFromQueryDeps(db.getChannelReaderRoles);
   return useQuery({
     queryKey: ['channelReaderRoles', deps],
     queryFn: () => db.getChannelReaderRoles(),
+    enabled,
   });
 };
 

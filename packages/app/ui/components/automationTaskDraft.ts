@@ -385,14 +385,20 @@ export function tasksPostingTo(
 }
 
 /**
- * The first of a group's channels a new task could post to, for a task
- * started from that group.
+ * Where a new task started from a group should post: the channel it was
+ * started from, if it was started from one and the bot can write there, or
+ * else the group's first chat the bot can write in, or failing that any
+ * channel there it can.
  */
 export function firstDestinationIn(
   channels: Iterable<{ id: string; type: string; groupId?: string | null }>,
-  delivery: BotDelivery
+  delivery: BotDelivery,
+  startChannelId?: string
 ): AutomationDestination | undefined {
-  for (const channel of channels) {
+  const rank = (channel: { id: string; type: string }) =>
+    channel.id === startChannelId ? 0 : channel.type === 'chat' ? 1 : 2;
+  const inOrder = [...channels].sort((a, b) => rank(a) - rank(b));
+  for (const channel of inOrder) {
     const destination = destinationForChannel(channel, delivery);
     if (destination) return destination;
   }

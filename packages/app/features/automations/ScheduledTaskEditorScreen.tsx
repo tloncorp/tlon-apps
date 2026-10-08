@@ -16,7 +16,6 @@ import {
 import {
   type AutomationDestination,
   type AutomationTaskDraft,
-  botDeliveryFrom,
   buildTaskCreate,
   buildTaskUpdate,
   canEditPrompt,
@@ -31,6 +30,7 @@ import {
 } from '../../ui/components/automationTaskDraft';
 import { formatAutomationSchedule } from '../../ui/components/formatAutomationSchedule';
 import { useContact } from '../../ui/contexts/appDataContext';
+import { useBotDelivery } from './useBotDelivery';
 import {
   refetchAutomationsOnFocus,
   tasksForShip,
@@ -82,17 +82,17 @@ function useDestinationLabel(
  * must never be laid over another.
  */
 export function ScheduledTaskEditorScreen(props: Props) {
-  const { botShip, taskId, groupId } = props.route.params;
+  const { botShip, taskId, groupId, channelId } = props.route.params;
   return (
     <TaskEditor
-      key={`${botShip}/${taskId ?? ''}/${groupId ?? ''}`}
+      key={`${botShip}/${taskId ?? ''}/${groupId ?? ''}/${channelId ?? ''}`}
       {...props}
     />
   );
 }
 
 function TaskEditor({ navigation, route }: Props) {
-  const { botShip, taskId, groupId } = route.params;
+  const { botShip, taskId, groupId, channelId } = route.params;
   const currentUserId = useCurrentUserId();
   const showToast = useToast();
   const actions = useAutomationTaskActions(botShip);
@@ -108,44 +108,17 @@ function TaskEditor({ navigation, route }: Props) {
     (taskId ? tasksForShip(query.data, botShip)?.[taskId] : undefined) ??
     deleting;
 
-  // A channel is offered only when the bot may write in it: a seat in the
-  // group and, where the channel asks roles of its readers or its writers,
-  // one of each. All of it comes from this device's copy of the groups, and
-  // until that has loaded no channel is offered.
-  const botContactIds = useMemo(() => [botShip], [botShip]);
-  const { data: botSeats } = store.useJoinedGroupSeats(botContactIds);
-  const { data: botRoleRows } = store.useMemberGroupRoles(botShip);
-  const { data: writerRows } = store.useChannelWriterRoles();
-  const { data: readerRows } = store.useChannelReaderRoles();
-  const deliveryKnown = Boolean(
-    botSeats && botRoleRows && writerRows && readerRows
-  );
-  const delivery = useMemo(
-    () =>
-      botDeliveryFrom({
-        botShip,
-        ownerShip: currentUserId,
-        seats: botSeats,
-        roles: botRoleRows,
-        writers: writerRows,
-        readers: readerRows,
-      }),
-    [botRoleRows, botSeats, botShip, currentUserId, readerRows, writerRows]
-  );
-  // A task started from a group's list posts to that group: its first chat
-  // the bot can write in, or failing that any channel it can.
+  // A channel is offered only when the bot may write in it.
+  const { delivery, known: deliveryKnown } = useBotDelivery(botShip);
+  // A task started from a channel's list posts to that channel, and one
+  // started from a group's list to that group's first chat. Where the bot
+  // cannot write there, it is the next best place in the same group.
   const { data: startGroup } = store.useGroup({
     id: taskId ? undefined : groupId,
   });
   const groupDestination = useMemo(
-    () =>
-      firstDestinationIn(
-        [...(startGroup?.channels ?? [])].sort(
-          (a, b) => Number(b.type === 'chat') - Number(a.type === 'chat')
-        ),
-        delivery
-      ),
-    [startGroup?.channels, delivery]
+    () => firstDestinationIn(startGroup?.channels ?? [], delivery, channelId),
+    [startGroup?.channels, delivery, channelId]
   );
 
   const savedDraft = useMemo(

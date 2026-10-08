@@ -39,11 +39,15 @@ import {
   getChannelHost,
   getGroupMemberCount,
 } from '../../ui/utils';
-import { tasksPostingTo } from '../../ui/components/automationTaskDraft';
+import {
+  destinationForChannel,
+  tasksPostingTo,
+} from '../../ui/components/automationTaskDraft';
 import {
   useOpenScheduledTasks,
   useScheduledTasksEntry,
 } from '../automations/useScheduledTasksEntry';
+import { useBotDelivery } from '../automations/useBotDelivery';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
@@ -439,44 +443,60 @@ export function SettingsSection({
     }
   }, [entityType, group, channel, onPressChatVolume]);
 
-  // Anyone with a bot can see what it is scheduled to post into this group,
-  // admin or not. The row shows once the bot has something scheduled here or
-  // is a member with a channel to post in, so it could be given something.
+  // Anyone with a bot can see what it is scheduled to post into this group
+  // or this channel, admin or not. The row shows once the bot has something
+  // scheduled here or could be given something: in a group, as a member with
+  // a channel to post in; in a channel, where it may write in that channel.
+  const isGroupChannel = entityType === 'channel' && !!channel?.groupId;
   const scheduledTasks = useScheduledTasksEntry({
-    enabled: entityType === 'group' && !!group,
+    enabled: (entityType === 'group' && !!group) || isGroupChannel,
   });
   const openScheduledTasks = useOpenScheduledTasks();
-  const groupTaskCount = useMemo(
+  const { delivery: botDelivery } = useBotDelivery(scheduledTasks.botShip, {
+    enabled: isGroupChannel && scheduledTasks.visible,
+  });
+  const channelIdsHere = useMemo(() => {
+    if (entityType === 'channel') return channel ? [channel.id] : undefined;
+    return group ? (group.channels?.map(({ id }) => id) ?? []) : undefined;
+  }, [entityType, channel, group]);
+  const scheduledTaskCount = useMemo(
     () =>
-      scheduledTasks.tasks && group
+      scheduledTasks.tasks && channelIdsHere
         ? Object.keys(
-            tasksPostingTo(
-              scheduledTasks.tasks,
-              new Set(group.channels?.map(({ id }) => id))
-            )
+            tasksPostingTo(scheduledTasks.tasks, new Set(channelIdsHere))
           ).length
         : undefined,
-    [scheduledTasks.tasks, group]
+    [scheduledTasks.tasks, channelIdsHere]
   );
   const botCouldPostHere =
-    Boolean(group?.channels?.length) &&
-    Boolean(
-      group?.members?.some(
-        (member) => member.contactId === scheduledTasks.botShip
-      )
-    );
+    entityType === 'channel'
+      ? Boolean(channel && destinationForChannel(channel, botDelivery))
+      : Boolean(group?.channels?.length) &&
+        Boolean(
+          group?.members?.some(
+            (member) => member.contactId === scheduledTasks.botShip
+          )
+        );
   const showsScheduledTasks =
     scheduledTasks.visible &&
-    groupTaskCount !== undefined &&
-    (groupTaskCount > 0 || botCouldPostHere);
+    scheduledTaskCount !== undefined &&
+    (scheduledTaskCount > 0 || botCouldPostHere);
+  const { botShip } = scheduledTasks;
   const handlePressScheduledTasks = useCallback(() => {
-    if (group) {
+    if (entityType === 'channel') {
+      if (channel?.groupId) {
+        openScheduledTasks(
+          { botShip, groupId: channel.groupId, channelId: channel.id },
+          channel.id
+        );
+      }
+    } else if (group) {
       openScheduledTasks(
-        { botShip: scheduledTasks.botShip, groupId: group.id },
+        { botShip, groupId: group.id },
         group.channels?.[0]?.id
       );
     }
-  }, [group, openScheduledTasks, scheduledTasks.botShip]);
+  }, [entityType, channel, group, openScheduledTasks, botShip]);
 
   const actions = useMemo(() => {
     const supportsNotifications = channelSupportsNotifications(channel);
@@ -484,8 +504,11 @@ export function SettingsSection({
       ? [
           {
             title: 'Scheduled tasks',
-            endValue: `${groupTaskCount}`,
-            testID: 'GroupScheduledTasks',
+            endValue: `${scheduledTaskCount}`,
+            testID:
+              entityType === 'group'
+                ? 'GroupScheduledTasks'
+                : 'ChannelScheduledTasks',
             disabled: false,
             onPress: handlePressScheduledTasks,
           },
@@ -550,7 +573,7 @@ export function SettingsSection({
         },
       ];
       if (supportsNotifications) channelActions.push(notificationAction);
-      return channelActions;
+      return [...channelActions, ...scheduledTasksActions];
     }
 
     return [notificationAction];
@@ -568,7 +591,7 @@ export function SettingsSection({
     handlePressEditChannelPrivacy,
     groupRoles,
     showsScheduledTasks,
-    groupTaskCount,
+    scheduledTaskCount,
     handlePressScheduledTasks,
   ]);
 

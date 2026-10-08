@@ -75,19 +75,27 @@ export function useOpenScheduledTasks() {
   const isWindowNarrow = useIsWindowNarrow();
   return useCallback(
     (
-      params: { botShip: string; groupId?: string },
+      params: { botShip: string; groupId?: string; channelId?: string },
       /**
-       * For a screen whose own navigator has no task list, as a group's
+       * For a screen with no task list in reach, as a group's or a channel's
        * details have beside a sidebar: the list opens in this channel's
        * stack, the way the group's settings screens do.
        */
       inChannelId?: string
     ) => {
-      // Going by the navigator rather than the window: a wide tablet still
-      // has the phone's single stack, with the list in it.
-      const listIsHere = navigation
-        .getState()
-        ?.routeNames.includes('ScheduledTasks');
+      // Going by the navigators rather than the window: a wide tablet still
+      // has the phone's single stack, with the list in it. A screen nested
+      // in that stack, as a channel's info is in the group's settings,
+      // reaches the list through it.
+      let listIsHere = false;
+      for (
+        let reached: typeof navigation | undefined = navigation;
+        reached && !listIsHere;
+        reached = reached.getParent()
+      ) {
+        listIsHere =
+          reached.getState()?.routeNames.includes('ScheduledTasks') ?? false;
+      }
       if (!listIsHere && inChannelId) {
         navigation.navigate('Channel' as any, {
           channelId: inChannelId,

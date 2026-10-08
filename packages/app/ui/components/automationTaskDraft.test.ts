@@ -761,6 +761,15 @@ describe('tasksPostingTo', () => {
     expect(tasksPostingTo(tasks, new Set(['chat/~nec/quiet']))).toEqual({});
     expect(tasksPostingTo(tasks, new Set())).toEqual({});
   });
+
+  it('narrows to one channel when given only that channel', () => {
+    expect(
+      Object.keys(tasksPostingTo(tasks, new Set(['chat/~ten/general']))).sort()
+    ).toEqual(['chat', 'prefixed']);
+    expect(
+      Object.keys(tasksPostingTo(tasks, new Set(['notes/~ten/wiki'])))
+    ).toEqual(['notebook']);
+  });
 });
 
 describe('firstDestinationIn', () => {
@@ -792,6 +801,55 @@ describe('firstDestinationIn', () => {
       firstDestinationIn([channel('chat/~ten/announcements')], delivery)
     ).toBeUndefined();
     expect(firstDestinationIn([], delivery)).toBeUndefined();
+  });
+
+  it('takes a chat before a notebook or a gallery, whatever their order', () => {
+    expect(
+      firstDestinationIn(
+        [
+          channel('diary/~ten/journal', 'notebook'),
+          channel('heap/~ten/photos', 'gallery'),
+          channel('chat/~ten/general'),
+        ],
+        delivery
+      )
+    ).toEqual({ kind: 'channel', nest: 'chat/~ten/general' });
+  });
+
+  it('takes the channel the task was started from before any other', () => {
+    const channels = [
+      channel('chat/~ten/general'),
+      channel('diary/~ten/journal', 'notebook'),
+      channel('chat/~ten/watering'),
+    ];
+    expect(
+      firstDestinationIn(channels, delivery, 'diary/~ten/journal')
+    ).toEqual({ kind: 'channel', nest: 'diary/~ten/journal' });
+    expect(
+      firstDestinationIn(channels, delivery, 'chat/~ten/watering')
+    ).toEqual({ kind: 'channel', nest: 'chat/~ten/watering' });
+  });
+
+  it('falls back to the group when the bot cannot post where the task was started', () => {
+    expect(
+      firstDestinationIn(
+        [
+          channel('chat/~ten/announcements'),
+          channel('heap/~ten/photos', 'gallery'),
+          channel('chat/~ten/general'),
+        ],
+        delivery,
+        'chat/~ten/announcements'
+      )
+    ).toEqual({ kind: 'channel', nest: 'chat/~ten/general' });
+    // A channel that is not one of the group's changes nothing.
+    expect(
+      firstDestinationIn(
+        [channel('chat/~ten/general')],
+        delivery,
+        'chat/~bus/x'
+      )
+    ).toEqual({ kind: 'channel', nest: 'chat/~ten/general' });
   });
 
   it('starts a new task there, or in the DM by default', () => {
