@@ -23,6 +23,13 @@ export interface ForbiddenCronArg {
 const GUARDED_CRON_ACTIONS = new Set(['add', 'update']);
 const GUARD_DISABLED_VALUES = new Set(['0', 'false', 'off']);
 const MAX_DEPTH = 16;
+const CRON_TOOL_NAMES = new Set(['cron', 'automations']);
+
+// OpenClaw 2026.9.x advertises the scheduler tool as `automations`; `cron` is
+// the legacy name it still accepts on inbound calls (and the only name on 2026.7.1).
+export function isCronToolName(toolName: string): boolean {
+  return CRON_TOOL_NAMES.has(toolName);
+}
 
 /**
  * The only text the model receives for the vetoed call: OpenClaw returns
@@ -57,7 +64,7 @@ export function findForbiddenCronArgs(
   toolName: string,
   params: unknown
 ): ForbiddenCronArg[] {
-  if (toolName !== 'cron' || !isPlainObject(params)) {
+  if (!isCronToolName(toolName) || !isPlainObject(params)) {
     return [];
   }
   if (!GUARDED_CRON_ACTIONS.has(String(params.action).trim())) {

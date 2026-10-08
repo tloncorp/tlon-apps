@@ -4,6 +4,7 @@ import {
   CRON_ARGS_BLOCK_REASON,
   findForbiddenCronArgs,
   isCronArgsGuardEnabled,
+  isCronToolName,
 } from './cron-tool-args-guard.js';
 
 function nest(
@@ -36,17 +37,20 @@ describe('findForbiddenCronArgs positives', () => {
     ).toEqual([{ path: 'job.delivery.bestEffort', kind: 'best-effort' }]);
   });
 
-  it('reports both findings in document order', () => {
-    expect(
-      findForbiddenCronArgs('cron', {
-        action: 'add',
-        job: { payload: { fallbacks: [] }, delivery: { bestEffort: true } },
-      })
-    ).toEqual([
-      { path: 'job.payload.fallbacks', kind: 'empty-fallbacks' },
-      { path: 'job.delivery.bestEffort', kind: 'best-effort' },
-    ]);
-  });
+  it.each(['cron', 'automations'])(
+    'reports both findings in document order on the %s tool',
+    (toolName) => {
+      expect(
+        findForbiddenCronArgs(toolName, {
+          action: 'add',
+          job: { payload: { fallbacks: [] }, delivery: { bestEffort: true } },
+        })
+      ).toEqual([
+        { path: 'job.payload.fallbacks', kind: 'empty-fallbacks' },
+        { path: 'job.delivery.bestEffort', kind: 'best-effort' },
+      ]);
+    }
+  );
 
   it('flags the data-wrapped spelling', () => {
     expect(
@@ -311,6 +315,22 @@ describe('findForbiddenCronArgs negatives', () => {
       })
     ).toEqual([]);
   });
+});
+
+describe('isCronToolName', () => {
+  it.each(['cron', 'automations'])(
+    'accepts the %s scheduler tool name',
+    (toolName) => {
+      expect(isCronToolName(toolName)).toBe(true);
+    }
+  );
+
+  it.each(['tlon', 'Cron', 'automation', ''])(
+    'rejects the %s tool name',
+    (toolName) => {
+      expect(isCronToolName(toolName)).toBe(false);
+    }
+  );
 });
 
 describe('isCronArgsGuardEnabled', () => {

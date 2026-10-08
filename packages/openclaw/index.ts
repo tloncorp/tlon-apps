@@ -35,6 +35,7 @@ import {
   CRON_ARGS_BLOCK_REASON,
   findForbiddenCronArgs,
   isCronArgsGuardEnabled,
+  isCronToolName,
 } from './src/cron-tool-args-guard.js';
 import {
   beginCronSilenceObservation,
@@ -1125,7 +1126,7 @@ export default defineBundledChannelEntry({
       // Decided here, with the other block decisions, so the trace and the
       // allowed/blocked logs below all describe the same outcome.
       const forbiddenCronArgs =
-        !blocksPolicy && cronArgsGuardEnabled && event.toolName === 'cron'
+        !blocksPolicy && cronArgsGuardEnabled && isCronToolName(event.toolName)
           ? findForbiddenCronArgs(event.toolName, event.params)
           : [];
       const blocksCronArgs = forbiddenCronArgs.length > 0;

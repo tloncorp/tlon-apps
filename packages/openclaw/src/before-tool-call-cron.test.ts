@@ -157,6 +157,14 @@ const DIRTY_ADD = {
   },
 };
 
+const DIRTY_AUTOMATIONS_ADD = {
+  toolName: 'automations',
+  params: {
+    action: 'add',
+    job: { name: 'daily', payload: { fallbacks: [] } },
+  },
+};
+
 const CLEAN_ADD = {
   toolName: 'cron',
   params: {
@@ -184,6 +192,20 @@ describe('before_tool_call cron args guard', () => {
     const { handler, logs } = registerEntry();
     await expect(
       handler(DIRTY_ADD, { sessionKey: OWNER_SESSION })
+    ).resolves.toEqual({
+      block: true,
+      blockReason: CRON_ARGS_BLOCK_REASON,
+    });
+    expect(cronArgsBlockedLogs(logs)).toHaveLength(1);
+    expect(cronArgsBlockedLogs(logs)[0]).toContain(
+      'job.payload.fallbacks=empty-fallbacks'
+    );
+  });
+
+  it('blocks an owner automations add that carries an empty fallbacks list', async () => {
+    const { handler, logs } = registerEntry();
+    await expect(
+      handler(DIRTY_AUTOMATIONS_ADD, { sessionKey: OWNER_SESSION })
     ).resolves.toEqual({
       block: true,
       blockReason: CRON_ARGS_BLOCK_REASON,
