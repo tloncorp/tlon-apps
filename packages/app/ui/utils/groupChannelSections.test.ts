@@ -52,21 +52,21 @@ describe('getGroupChannelSections', () => {
 describe('getGroupChannelMenu', () => {
   it("lists a channel's others in the arranged order", () => {
     expect(getGroupChannelMenu(group, 'arranged', 'random')).toEqual({
-      title: 'Other channels in this group',
+      title: 'Other channels in this workspace',
       channels: [general, lore],
     });
   });
 
   it("lists all of a group's channels when no channel is open", () => {
     expect(getGroupChannelMenu(group, 'recency')).toEqual({
-      title: 'Channels in this group',
+      title: 'Channels in this workspace',
       channels: [random, lore, general],
     });
   });
 
   it('lists them all when the open channel is not among them', () => {
     expect(getGroupChannelMenu(group, 'arranged', 'elsewhere')).toEqual({
-      title: 'Channels in this group',
+      title: 'Channels in this workspace',
       channels: [general, random, lore],
     });
   });
@@ -74,7 +74,7 @@ describe('getGroupChannelMenu', () => {
   it('lists the one channel of a single-channel group, open or not', () => {
     const single = { channels: [general] } as db.Group;
     const expected = {
-      title: 'Channels in this group',
+      title: 'Channels in this workspace',
       channels: [general],
     };
     expect(getGroupChannelMenu(single, 'arranged', 'general')).toEqual(

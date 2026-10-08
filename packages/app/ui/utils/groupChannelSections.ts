@@ -98,9 +98,9 @@ export function getGroupChannelMenu(
     channels.some((channel) => channel.id === currentChannelId)
   ) {
     return {
-      title: 'Other channels in this group',
+      title: 'Other channels in this workspace',
       channels: channels.filter((channel) => channel.id !== currentChannelId),
     };
   }
-  return { title: 'Channels in this group', channels };
+  return { title: 'Channels in this workspace', channels };
 }

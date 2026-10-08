@@ -473,7 +473,10 @@ export async function openGroupSettings(page: Page) {
   await openGroupOptionsSheet(page);
   const clicked = await clickFirstVisibleTestId(
     page,
-    ['GroupOptionsGroupInfoButton', 'ActionSheetAction-Group info & settings'],
+    [
+      'GroupOptionsGroupInfoButton',
+      'ActionSheetAction-Workspace info & settings',
+    ],
     3000
   );
 
@@ -491,7 +494,7 @@ export async function openGroupSettings(page: Page) {
     return;
   }
 
-  const groupSettingsByText = page.getByText('Group info & settings', {
+  const groupSettingsByText = page.getByText('Workspace info & settings', {
     exact: true,
   });
   if (
@@ -501,7 +504,7 @@ export async function openGroupSettings(page: Page) {
     return;
   }
 
-  throw new Error('Could not find the "Group info & settings" action');
+  throw new Error('Could not find the "Workspace info & settings" action');
 }
 
 /**
