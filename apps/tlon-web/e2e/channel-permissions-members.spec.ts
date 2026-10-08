@@ -86,7 +86,7 @@ test('Members row appears in GroupRolesScreen', async ({ zodPage }) => {
 
   // Open group settings and navigate to Roles
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
   await page.getByTestId('GroupRoles').click();
 
   // Verify Members row is visible

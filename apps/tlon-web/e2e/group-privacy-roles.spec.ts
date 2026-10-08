@@ -26,7 +26,7 @@ test('should handle group privacy and role management', async ({ zodPage }) => {
 
   // Open group settings
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Test privacy settings
   await helpers.setGroupPrivacy(page, 'private');

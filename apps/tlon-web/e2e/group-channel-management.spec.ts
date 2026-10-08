@@ -18,7 +18,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
 
   // Open group settings
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Test channel management
   await page.getByTestId('GroupChannels').getByText('Channels').click();
@@ -258,7 +258,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
 
   // Open Group Settings
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
 
   // Test notification settings
   await helpers.setGroupNotifications(page, 'All group activity');
@@ -270,7 +270,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await page.waitForTimeout(1000);
 
   // Verify we're back on Group Info & Settings
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
 
   // Navigate back to verify multi-channel navigation
   // this is mobile only

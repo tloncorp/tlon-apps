@@ -175,7 +175,7 @@ export async function verifyGroupChannels(
 ) {
   // Navigate to group settings
   await openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
 
   // Navigate to Channels
   await page.getByTestId('GroupChannels').getByText('Channels').click();
@@ -558,7 +558,7 @@ export async function setupMultiChannelGroup(
   secondChannelName = 'Second Channel'
 ) {
   await openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
   await page.getByTestId('GroupChannels').getByText('Channels').click();
   await expect(page.getByText('New', { exact: true })).toBeVisible({
     timeout: 5000,
@@ -1230,7 +1230,7 @@ export async function setGroupPrivacy(
   await navigateBack(page);
 
   // Wait for navigation and verify we're back on group settings
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
 
   // Wait additional time for the privacy change to sync
   await page.waitForTimeout(1000);

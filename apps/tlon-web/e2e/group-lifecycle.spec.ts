@@ -28,7 +28,7 @@ test('should create, verify, and delete a group', async ({ zodPage }) => {
   await expect(groupStatusText).toBeVisible();
 
   // Assert we're in group settings
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Delete the group (this handles the entire deletion flow)
   await helpers.deleteGroup(page);
