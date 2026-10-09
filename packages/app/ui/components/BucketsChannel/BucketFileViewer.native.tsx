@@ -1,4 +1,4 @@
-import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
+import { FilePreview, Pressable, Text } from '@tloncorp/ui';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -9,6 +9,8 @@ import { ScreenHeader } from '../ScreenHeader';
 import { BucketFilePager } from './BucketFilePager';
 import { BucketPreviewControls } from './BucketPreviewControls';
 import { BucketPreviewOpenButton } from './BucketPreviewOpenButton';
+import { BucketPreviewContent } from './BucketPreviewContent';
+import { BucketPreviewImage } from './BucketPreviewImage';
 import { BucketAudioPreview } from './BucketAudioPreview';
 import {
   BucketFileViewerItem,
@@ -52,11 +54,10 @@ export function BucketFileViewer({
         title={item.name}
       />
       <BucketFilePager navigation={navigation}>
-        <View
+        <BucketPreviewContent
           key={item.id ?? item.uri ?? item.name}
-          flex={1}
-          minHeight={0}
-          backgroundColor="$secondaryBackground"
+          loading={loading}
+          animate={previewKind !== 'image'}
         >
           {loading ? (
             <LoadingPreview />
@@ -65,13 +66,7 @@ export function BucketFileViewer({
           ) : !item.uri ? (
             <FailedPreview onRetry={onRetry} />
           ) : previewKind === 'image' ? (
-            <Image
-              source={{ uri: item.uri }}
-              width="100%"
-              height="100%"
-              contentFit="contain"
-              alt={item.name}
-            />
+            <BucketPreviewImage uri={item.uri} name={item.name} />
           ) : previewKind === 'audio' ? (
             <BucketAudioPreview item={{ ...item, uri: item.uri }} />
           ) : previewKind === 'video' ? (
@@ -98,7 +93,7 @@ export function BucketFileViewer({
               onOpen={onOpenExternally}
             />
           )}
-        </View>
+        </BucketPreviewContent>
       </BucketFilePager>
       <BucketPreviewControls navigation={navigation} />
     </YStack>
