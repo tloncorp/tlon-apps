@@ -66,7 +66,18 @@ export function useBotSystemPrompts(botShip: string) {
  * sets for bots that configured us as their owner and that we explicitly
  * trusted, so mirror presence is itself the ownership signal.
  */
+// Known false on a desk below the prompts module, including one rolled back
+// to it. Its every prompts request is refused, but a snapshot cached while it
+// was supported never goes stale on its own, so readers gate on this too.
+function useDeskSupportsPrompts() {
+  return useSyncExternalStore(
+    api.onDeskSupportsStewardPromptsChange,
+    api.getDeskSupportsStewardPromptsState
+  );
+}
+
 export function useIsOwnedBot(botShip: string) {
+  const deskSupportsPrompts = useDeskSupportsPrompts();
   // Keep the untransformed snapshot here: an empty projection means the bot
   // is still owned, even though there are no editable rows to render.
   const promptsQuery = useQuery({
@@ -74,6 +85,9 @@ export function useIsOwnedBot(botShip: string) {
     queryFn: api.getStewardPromptFiles,
     retry: retryPromptsQuery,
   });
+  if (deskSupportsPrompts === false) {
+    return { isOwnedBot: false, isPending: false };
+  }
   // A ship with no prompts endpoint is a settled answer once the retries are
   // spent: nothing it mirrors can be owned, and holding this pending forever
   // would strip Block from every profile on that ship.
@@ -151,10 +165,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   // A desk upgrade can turn prompt support on while this profile is open,
   // after the read and the watch were already refused. Resubscribing on a
   // change also refreshes the read, which nothing else would retry.
-  const deskSupportsPrompts = useSyncExternalStore(
-    api.onDeskSupportsStewardPromptsChange,
-    api.getDeskSupportsStewardPromptsState
-  );
+  const deskSupportsPrompts = useDeskSupportsPrompts();
 
   // The workspace feed is authoritative. A successful edit only confirms
   // the workspace write; an update from this feed supplies its contents.
@@ -240,7 +251,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     setEditingTarget(null);
   }, []);
 
-  const prompts = promptsQuery.data;
+  const prompts = deskSupportsPrompts === false ? undefined : promptsQuery.data;
   if (!prompts || prompts.length === 0) {
     return null;
   }

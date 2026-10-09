@@ -7,19 +7,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
-import { BotSystemPromptsSection } from './BotSystemPrompts';
+import { BotSystemPromptsSection, useIsOwnedBot } from './BotSystemPrompts';
 
 const mocks = vi.hoisted(() => ({
   files: {} as Record<string, Record<string, string>>,
   setStewardPrompt: vi.fn(),
+  deskSupports: null as boolean | null,
+  deskListeners: new Set<() => void>(),
 }));
 
 vi.mock('@tloncorp/api', () => ({
   getStewardPromptFiles: async () => mocks.files,
   subscribeToStewardPrompts: async () => 1,
   unsubscribe: vi.fn(),
-  onDeskSupportsStewardPromptsChange: () => () => {},
-  getDeskSupportsStewardPromptsState: () => null,
+  onDeskSupportsStewardPromptsChange: (listener: () => void) => {
+    mocks.deskListeners.add(listener);
+    return () => mocks.deskListeners.delete(listener);
+  },
+  getDeskSupportsStewardPromptsState: () => mocks.deskSupports,
   setStewardPrompt: mocks.setStewardPrompt,
   awaitStewardPromptRequest: vi.fn(),
   StewardPromptPendingError: class extends Error {},
@@ -98,15 +103,27 @@ let queryClient: QueryClient;
 beforeEach(() => {
   vi.clearAllMocks();
   queryClient = new QueryClient();
+  mocks.deskSupports = null;
+  mocks.deskListeners.clear();
   mocks.files = {
     '~bot-a': { 'SOUL.md': 'a soul' },
     '~bot-b': { 'SOUL.md': 'b soul' },
   };
 });
 
+// A host element the renderer keeps, carrying the hook's result as props.
+const OwnershipProbe = 'OwnershipProbe' as unknown as React.ComponentType<
+  ReturnType<typeof useIsOwnedBot> & { testID: string }
+>;
+
+function Ownership({ botShip }: { botShip: string }) {
+  return <OwnershipProbe testID="ownership" {...useIsOwnedBot(botShip)} />;
+}
+
 const section = (botShip: string) => (
   <QueryClientProvider client={queryClient}>
     <BotSystemPromptsSection botShip={botShip} />
+    <Ownership botShip={botShip} />
   </QueryClientProvider>
 );
 
@@ -175,5 +192,24 @@ describe('BotSystemPromptsSection', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(preview()).toEqual(['a soul, revised']);
+  });
+
+  it('drops a cached projection once the desk stops supporting prompts', async () => {
+    const tree = await render('~bot-a');
+    const ownership = () =>
+      tree.root.find((node) => node.props.testID === 'ownership').props;
+    expect(ownership()).toMatchObject({ isOwnedBot: true });
+
+    // A rollback below the prompts module: the cache is still fresh.
+    await act(async () => {
+      mocks.deskSupports = false;
+      mocks.deskListeners.forEach((listener) => listener());
+    });
+    expect(
+      tree.root.findAll(
+        (node) => node.props.accessibilityLabel === 'Edit Personality prompt'
+      )
+    ).toHaveLength(0);
+    expect(ownership()).toMatchObject({ isOwnedBot: false, isPending: false });
   });
 });
