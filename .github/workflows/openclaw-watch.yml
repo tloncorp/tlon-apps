@@ -160,16 +160,32 @@ jobs:
           node-version-file: .nvmrc
 
       # Blobless and one commit per tag: the digest reads a handful of files
-      # and a scoped diff, and git fetches those blobs on demand.
+      # and a scoped diff, and git fetches those blobs on demand. Discover
+      # already saw these tags with ls-remote, so a fetch failure is
+      # transient: retry, then fail the job. The post then says the digest
+      # step failed and leaves state alone, so the next run tries again.
       - name: Fetch upstream release tags
         run: |
+          set -euo pipefail
           git init -q "$RUNNER_TEMP/upstream"
           git -C "$RUNNER_TEMP/upstream" remote add origin https://github.com/openclaw/openclaw.git
           for v in "$PREV" "$NEXT" $(jq -r '.[]' <<<"$INTERMEDIATES"); do
-            # A missing tag shows up in the digest as an incomplete line.
-            git -C "$RUNNER_TEMP/upstream" fetch -q --depth 1 --filter=blob:none --no-tags \
-              origin "refs/tags/v${v}:refs/tags/v${v}" \
-              || echo "::warning::upstream has no tag v${v}"
+            fetched=false
+            for delay in 5 15 0; do
+              if git -C "$RUNNER_TEMP/upstream" fetch -q --depth 1 --filter=blob:none --no-tags \
+                origin "refs/tags/v${v}:refs/tags/v${v}"; then
+                fetched=true
+                break
+              fi
+              if [ "$delay" -gt 0 ]; then
+                echo "::warning::fetching tag v${v} failed; retrying in ${delay}s"
+                sleep "$delay"
+              fi
+            done
+            if [ "$fetched" != true ]; then
+              echo "::error::could not fetch upstream tag v${v} after 3 attempts"
+              exit 1
+            fi
           done
 
       - name: Build digest
@@ -348,14 +364,14 @@ jobs:
           DIGEST_PATH: ${{ steps.render.outputs.digest_path }}
         run: |
           set -euo pipefail
-          # A re-run of an older run's post job must not move state backwards
-          # past a release a later run already posted. A read failure is fatal.
+          # Compare-and-set against what discover read: a re-run of an older
+          # run's post job must not overwrite state a later run already
+          # advanced. Comparing versions instead would also block a genuine
+          # npm rollback of `latest`. A read failure is fatal.
           current=$(gh variable get OPENCLAW_WATCH_STATE --repo "$GITHUB_REPOSITORY")
           current_latest=$(jq -er '.lastLatest' <<<"$current")
-          order=$(node packages/openclaw/scripts/upstream-watch/versions.ts \
-            --compare "$current_latest" "$NEXT")
-          if [ "$order" -gt 0 ]; then
-            echo "state already at $current_latest, newer than $NEXT; not advancing"
+          if [ "$current_latest" != "$PREV" ]; then
+            echo "state moved from $PREV to $current_latest after discovery; not advancing"
             exit 0
           fi
           # Every absent-in-both subpath is recorded, whether reported now or

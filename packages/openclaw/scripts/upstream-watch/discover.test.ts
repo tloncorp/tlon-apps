@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { type DiscoverInput, discover, parseState } from './discover.ts';
-import { compareCli, compareVersions, parseTagList } from './versions.ts';
+import { compareVersions, parseTagList } from './versions.ts';
 
 const npm = {
   'dist-tags': {
@@ -179,16 +179,6 @@ describe('versions', () => {
   it('compares numerically per component', () => {
     expect(compareVersions('2026.9.10', '2026.9.9')).toBeGreaterThan(0);
     expect(compareVersions('2026.10.1', '2026.9.35')).toBeGreaterThan(0);
-  });
-
-  it('prints the comparison sign for the workflow', () => {
-    expect(compareCli(['--compare', '2026.10.1', '2026.9.35'])).toBe('1');
-    expect(compareCli(['--compare', '2026.9.8', '2026.9.8'])).toBe('0');
-    expect(compareCli(['--compare', '2026.9.4', '2026.9.10'])).toBe('-1');
-    expect(() => compareCli(['--compare', '2026.9.4'])).toThrow(/usage/);
-    expect(() => compareCli(['--compare', 'garbage', '2026.9.4'])).toThrow(
-      /not a stable/
-    );
   });
 
   it('reads stable tags only, peeled duplicates included once', () => {

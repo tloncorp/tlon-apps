@@ -1,5 +1,3 @@
-import { parseArgs } from 'node:util';
-
 // OpenClaw versions are YYYY.M.N; prereleases (`-beta.1`) and respins
 // (`-1`) are never `latest` and never count as releases here.
 const STABLE = /^(\d+)\.(\d+)\.(\d+)$/;
@@ -68,21 +66,6 @@ export function versionsBetween(
     .sort(compareVersions);
 }
 
-// For the workflow's shell steps:
-// node scripts/upstream-watch/versions.ts --compare <a> <b>
-// prints -1, 0 or 1 as a is older than, equal to or newer than b.
-export function compareCli(args: string[]) {
-  const { values, positionals } = parseArgs({
-    args,
-    options: { compare: { type: 'boolean' } },
-    allowPositionals: true,
-  });
-  if (!values.compare || positionals.length !== 2) {
-    throw new Error('usage: versions.ts --compare <a> <b>');
-  }
-  return String(Math.sign(compareVersions(positionals[0], positionals[1])));
-}
-
 // Stable tags from `git ls-remote --tags` output (`<sha>\trefs/tags/v<x>`,
 // plus peeled `^{}` duplicates).
 export function parseTagList(lsRemote: string) {
@@ -94,8 +77,4 @@ export function parseTagList(lsRemote: string) {
     }
   }
   return tags;
-}
-
-if (import.meta.main) {
-  process.stdout.write(compareCli(process.argv.slice(2)) + '\n');
 }
