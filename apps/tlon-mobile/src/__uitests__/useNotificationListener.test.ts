@@ -25,8 +25,11 @@ import {
 
 jest.mock('@react-navigation/native', () => {
   // No state yet: a push tapped at launch, before the navigator has mounted.
-  const navigation = { getState: () => undefined };
-  return { useNavigation: () => navigation };
+  const navigation = { getState: () => undefined, dispatch: jest.fn() };
+  return {
+    useNavigation: () => navigation,
+    DrawerActions: { closeDrawer: () => ({ type: 'CLOSE_DRAWER' }) },
+  };
 });
 
 jest.mock('@tloncorp/app/contexts/branch', () => {

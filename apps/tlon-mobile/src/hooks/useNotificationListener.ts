@@ -1,5 +1,5 @@
 import type { NavigationProp } from '@react-navigation/native';
-import { useNavigation } from '@react-navigation/native';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
 import {
   isDmChannelId,
   isGroupDmChannelId,
@@ -410,6 +410,7 @@ export default function useNotificationListener() {
         channelId: channel.id,
         initialLastPostId: channel.lastPostId ?? null,
       });
+      navigation.dispatch(DrawerActions.closeDrawer());
       typedReset(routeStack);
       setNotifToProcess(null);
       return true;
