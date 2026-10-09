@@ -1,17 +1,25 @@
 export type BucketPreviewKind =
   | 'image'
   | 'video'
+  | 'audio'
   | 'text'
   | 'pdf'
   | 'unsupported';
 
 export type BucketFileViewerItem = {
+  id?: string;
   name: string;
   mimeType?: string;
   size?: number;
   sizeLabel?: string;
   uri?: string;
   textContent?: string;
+};
+
+export type BucketFileNavigation = {
+  items: BucketFileViewerItem[];
+  index: number;
+  onSelect: (index: number) => void;
 };
 
 /**
@@ -52,6 +60,23 @@ export function getBucketPreviewKind({
   }
   if (normalizedMimeType.startsWith('video/')) {
     return 'video';
+  }
+  if (
+    normalizedMimeType.startsWith('audio/') ||
+    [
+      'mp3',
+      'm4a',
+      'aac',
+      'wav',
+      'ogg',
+      'oga',
+      'opus',
+      'flac',
+      'aiff',
+      'aif',
+    ].includes(extension ?? '')
+  ) {
+    return 'audio';
   }
   if (
     normalizedMimeType.startsWith('text/') ||

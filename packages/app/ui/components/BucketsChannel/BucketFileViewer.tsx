@@ -2,8 +2,12 @@ import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
 import { ScreenHeader } from '../ScreenHeader';
+import { BucketAudioPreview } from './BucketAudioPreview';
+import { BucketFilePager } from './BucketFilePager';
+import { BucketPreviewControls } from './BucketPreviewControls';
 import {
   BucketFileViewerItem,
+  BucketFileNavigation,
   getBucketPreviewKind,
 } from './BucketFileViewer.shared';
 
@@ -11,6 +15,7 @@ export function BucketFileViewer({
   error,
   item,
   loading = false,
+  navigation,
   onClose,
   onOpenExternally,
   onRetry,
@@ -18,6 +23,7 @@ export function BucketFileViewer({
   error?: string | null;
   item: BucketFileViewerItem;
   loading?: boolean;
+  navigation?: BucketFileNavigation;
   onClose: () => void;
   onOpenExternally?: () => void;
   onRetry?: () => void;
@@ -41,58 +47,72 @@ export function BucketFileViewer({
         title={item.name}
         useHorizontalTitleLayout
       />
-      <View flex={1} minHeight={0} backgroundColor="$secondaryBackground">
-        {loading ? (
-          <LoadingPreview />
-        ) : error ? (
-          <FailedPreview onRetry={onRetry} />
-        ) : !item.uri ? (
-          <FailedPreview onRetry={onRetry} />
-        ) : previewKind === 'image' ? (
-          <Image
-            source={{ uri: item.uri }}
-            width="100%"
-            height="100%"
-            contentFit="contain"
-            alt={item.name}
-          />
-        ) : previewKind === 'video' ? (
-          <View
-            flex={1}
-            alignItems="center"
-            justifyContent="center"
-            padding="$l"
-          >
-            <video
-              src={item.uri}
-              controls
-              preload="metadata"
-              style={{ display: 'block', maxHeight: '100%', maxWidth: '100%' }}
+      <BucketFilePager navigation={navigation}>
+        <View
+          key={item.id ?? item.uri ?? item.name}
+          flex={1}
+          minHeight={0}
+          backgroundColor="$secondaryBackground"
+        >
+          {loading ? (
+            <LoadingPreview />
+          ) : error ? (
+            <FailedPreview onRetry={onRetry} />
+          ) : !item.uri ? (
+            <FailedPreview onRetry={onRetry} />
+          ) : previewKind === 'image' ? (
+            <Image
+              source={{ uri: item.uri }}
+              width="100%"
+              height="100%"
+              contentFit="contain"
+              alt={item.name}
             />
-          </View>
-        ) : previewKind === 'pdf' ? (
-          <iframe
-            src={item.uri}
-            title={item.name}
-            style={{ border: 0, height: '100%', width: '100%' }}
-          />
-        ) : previewKind === 'text' && item.textContent !== undefined ? (
-          <ScrollView flex={1}>
-            <Text
-              color="$primaryText"
-              fontFamily="$mono"
-              lineHeight={24}
-              padding="$2xl"
-              selectable
-              size="$body"
+          ) : previewKind === 'audio' ? (
+            <BucketAudioPreview item={{ ...item, uri: item.uri }} />
+          ) : previewKind === 'video' ? (
+            <View
+              flex={1}
+              alignItems="center"
+              justifyContent="center"
+              padding="$l"
             >
-              {item.textContent}
-            </Text>
-          </ScrollView>
-        ) : (
-          <UnsupportedPreview item={item} onOpen={onOpenExternally} />
-        )}
-      </View>
+              <video
+                src={item.uri}
+                controls
+                preload="metadata"
+                style={{
+                  display: 'block',
+                  maxHeight: '100%',
+                  maxWidth: '100%',
+                }}
+              />
+            </View>
+          ) : previewKind === 'pdf' ? (
+            <iframe
+              src={item.uri}
+              title={item.name}
+              style={{ border: 0, height: '100%', width: '100%' }}
+            />
+          ) : previewKind === 'text' && item.textContent !== undefined ? (
+            <ScrollView flex={1}>
+              <Text
+                color="$primaryText"
+                fontFamily="$mono"
+                lineHeight={24}
+                padding="$2xl"
+                selectable
+                size="$body"
+              >
+                {item.textContent}
+              </Text>
+            </ScrollView>
+          ) : (
+            <UnsupportedPreview item={item} onOpen={onOpenExternally} />
+          )}
+        </View>
+      </BucketFilePager>
+      <BucketPreviewControls navigation={navigation} />
     </YStack>
   );
 }
@@ -167,7 +187,10 @@ function UnsupportedPreview({
         size="m"
       />
       <YStack alignItems="center" gap="$xs">
-        <Text color="$primaryText" size="$label/l">
+        <Text color="$primaryText" size="$label/l" textAlign="center">
+          {item.name}
+        </Text>
+        <Text color="$secondaryText" size="$label/m">
           Preview unavailable
         </Text>
         <Text color="$tertiaryText" size="$label/m" textAlign="center">

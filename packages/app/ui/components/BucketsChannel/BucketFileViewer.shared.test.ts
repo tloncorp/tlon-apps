@@ -10,6 +10,11 @@ describe('getBucketPreviewKind', () => {
   it.each([
     ['photo.jpg', 'image/jpeg', 'image'],
     ['demo.mp4', 'video/mp4', 'video'],
+    ['recording.mp3', 'audio/mpeg', 'audio'],
+    ['recording.M4A', undefined, 'audio'],
+    ['recording.wav', 'application/octet-stream', 'audio'],
+    ['recording', 'AUDIO/OGG', 'audio'],
+    ['audio-notes.txt', 'text/plain', 'text'],
     ['notes.md', undefined, 'text'],
     ['report.pdf', undefined, 'pdf'],
     ['archive.zip', 'application/zip', 'unsupported'],

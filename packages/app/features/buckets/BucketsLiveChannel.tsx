@@ -45,11 +45,14 @@ import { bucketLinkCopiedMessage, copyPendingText } from './bucketLinkCopy';
 import { imagePickerAssetsToBucketUploadCandidates } from './bucketMediaPicker';
 import { findUploadShadowEntryIds } from './bucketUploadReconciliation';
 import { useBucketPreview } from './useBucketPreview';
+import { getBucketPreviewFiles } from './bucketPreviewFiles';
 import {
   formatBucketTimestamp,
   formatFileSize,
   useLiveBucket,
 } from './useLiveBucket';
+
+const noChildCounts: ReadonlyMap<number, number> = new Map();
 
 type SearchOrigin = {
   activeFolderId: number | null;
@@ -161,6 +164,11 @@ export function BucketsLiveChannel({
   const [query, setQuery] = useState('');
   const preview = useBucketPreview(live.readGrant);
   const previewItem = preview.item;
+  const previewFiles = previewItem
+    ? getBucketPreviewFiles(live.entries, Number(previewItem.id)).map((entry) =>
+        toItem(entry, noChildCounts)
+      )
+    : [];
   const [operationError, setOperationError] = useState<string | null>(null);
   const [folderPendingDeletion, setFolderPendingDeletion] =
     useState<BucketItem | null>(null);
@@ -599,6 +607,19 @@ export function BucketsLiveChannel({
             error={preview.error}
             item={toViewerItem(previewItem)}
             loading={preview.loading}
+            navigation={{
+              items: previewFiles.map(toViewerItem),
+              index: previewFiles.findIndex(
+                (file) => file.id === previewItem.id
+              ),
+              onSelect: (index) => {
+                const file = previewFiles[index];
+                if (file) {
+                  setSelectedItemId(file.id);
+                  void preview.load(file);
+                }
+              },
+            }}
             onClose={preview.close}
             onOpenExternally={preview.openExternally}
             onRetry={() => void preview.load(previewItem)}
@@ -734,6 +755,8 @@ export function BucketsLiveChannel({
 
 export function toViewerItem(item: BucketItem) {
   return {
+    id: item.id,
+    size: item.size,
     name: item.name,
     mimeType: item.mimeType,
     sizeLabel: item.sizeLabel,

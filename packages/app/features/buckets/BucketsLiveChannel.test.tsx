@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
 import { BucketsLiveChannel } from './BucketsLiveChannel';
+import { BucketsLiveFile } from './BucketsLiveFile';
 
 const mocks = vi.hoisted(() => ({
   entries: [] as unknown[],
@@ -17,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   pane: vi.fn((_props: Record<string, unknown>) => null),
   search: vi.fn((_props: Record<string, unknown>) => null),
   viewer: vi.fn((_props: Record<string, unknown>) => null),
+  readGrant: vi.fn<[], Promise<{ readUrl: string }>>(
+    () => new Promise(() => {})
+  ),
 }));
 
 vi.mock('@react-navigation/native', async () => {
@@ -85,7 +89,7 @@ vi.mock('./useLiveBucket', () => ({
     loading: mocks.loading,
     localItems: [],
     manifestKnown: mocks.manifestKnown,
-    readGrant: () => new Promise(() => {}),
+    readGrant: mocks.readGrant,
     uploads: [],
   }),
 }));
@@ -188,6 +192,7 @@ beforeEach(() => {
   mocks.pane.mockClear();
   mocks.search.mockClear();
   mocks.viewer.mockClear();
+  mocks.readGrant.mockReset().mockImplementation(() => new Promise(() => {}));
 });
 
 describe('BucketsLiveChannel on the narrow layout', () => {
@@ -391,5 +396,81 @@ describe('BucketsLiveChannel outside a navigator', () => {
 
     expect(stackPane().currentFolder).toBe('Photos');
     expect(stackPane().items.map((item) => item.name)).toEqual(['notes.txt']);
+  });
+});
+
+describe('Bucket file preview navigation', () => {
+  function viewer() {
+    return mocks.viewer.mock.calls.at(-1)![0] as {
+      item: { id?: string; name: string; uri?: string };
+      navigation: {
+        index: number;
+        items: { name: string }[];
+        onSelect: (index: number) => void;
+      };
+      onRetry?: () => void;
+      error?: string;
+    };
+  }
+  const secondFile = { ...notes, id: 3, name: 'photo.jpg' };
+
+  it('moves between siblings on the same screen and ignores a late response for the previous file', async () => {
+    mocks.entries = [photos, notes, secondFile];
+    let first!: (grant: { readUrl: string }) => void;
+    let second!: (grant: { readUrl: string }) => void;
+    mocks.readGrant
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            first = resolve;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            second = resolve;
+          })
+      );
+    act(() => {
+      create(<BucketsLiveFile entryId={2} flag={flag} onClose={vi.fn()} />);
+    });
+    expect(viewer().navigation.items.map((item) => item.name)).toEqual([
+      'notes.txt',
+      'photo.jpg',
+    ]);
+    act(() => viewer().navigation.onSelect(1));
+    expect(viewer().item.name).toBe('photo.jpg');
+    await act(async () => second({ readUrl: 'https://files.test/photo.jpg' }));
+    await act(async () => first({ readUrl: 'https://files.test/notes.txt' }));
+    expect(viewer().item.uri).toBe('https://files.test/photo.jpg');
+    expect(viewer().navigation.index).toBe(1);
+    act(() => viewer().navigation.onSelect(0));
+    expect(viewer().item.name).toBe('notes.txt');
+    expect(mocks.readGrant).toHaveBeenCalledTimes(3);
+  });
+
+  it('allows moving to another file after a read grant fails', async () => {
+    mocks.entries = [photos, notes, secondFile];
+    mocks.readGrant.mockRejectedValueOnce(new Error('Offline'));
+    await act(async () => {
+      create(<BucketsLiveFile entryId={2} flag={flag} onClose={vi.fn()} />);
+    });
+    expect(viewer().error).toBe('Offline');
+    act(() => viewer().navigation.onSelect(1));
+    expect(viewer().item.name).toBe('photo.jpg');
+    expect(viewer().error).toBeNull();
+  });
+
+  it('gives the desktop in-place preview the same sibling navigation', () => {
+    mocks.narrow = false;
+    mocks.entries = [photos, notes, secondFile];
+    render(undefined, 1);
+    act(() => stackPane().onOpenItem(stackPane().items[0]));
+    expect(viewer().navigation.items.map((item) => item.name)).toEqual([
+      'notes.txt',
+      'photo.jpg',
+    ]);
+    act(() => viewer().navigation.onSelect(1));
+    expect(viewer().item.name).toBe('photo.jpg');
   });
 });
