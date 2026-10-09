@@ -58,7 +58,7 @@ export function ContextLensRunSheet({
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange} modal>
-      <ActionSheet.Header>
+      <ActionSheet.Header leadingIcon={!!botShip}>
         {botShip ? <ContactAvatar contactId={botShip} /> : null}
         <ActionSheet.ActionContent>
           <ListItem.Title>Bot run</ListItem.Title>

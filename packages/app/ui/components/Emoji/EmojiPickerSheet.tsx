@@ -12,6 +12,7 @@ import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
+import { useSheetCoveredHeight } from '../../hooks/useSheetCoveredHeight';
 import { ActionSheet } from '../ActionSheet';
 import { SearchBar } from '../SearchBar';
 
@@ -38,6 +39,36 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
     </Pressable>
   );
 });
+
+// Its own component so that it reads the covered height from inside the sheet.
+function NativeEmojiList({
+  size,
+  ...listProps
+}: {
+  size: { width: number; height: number };
+  data: readonly string[];
+  keyExtractor: (item: string) => string;
+  renderItem: (info: { item: string }) => React.ReactElement;
+}) {
+  // On Android the list keeps its height while the keyboard slides over the
+  // sheet, so it needs that much more room to scroll its last rows clear.
+  const coveredHeight = useSheetCoveredHeight();
+  const contentContainerStyle = useMemo(
+    () => ({ paddingBottom: coveredHeight }),
+    [coveredHeight]
+  );
+  return (
+    <View style={size}>
+      <FlashList
+        {...listProps}
+        numColumns={6}
+        extraData={listProps.data}
+        contentContainerStyle={contentContainerStyle}
+        nestedScrollEnabled
+      />
+    </View>
+  );
+}
 
 export function EmojiPickerSheet(
   props: ComponentProps<typeof ActionSheet> & {
@@ -132,21 +163,12 @@ export function EmojiPickerSheet(
             onChangeQuery={handleQueryChange}
             inputProps={{ spellCheck: false, autoComplete: 'off' }}
           />
-          <View
-            style={{
-              height: estimatedListSize.height,
-              width: estimatedListSize.width,
-            }}
-          >
-            <FlashList
-              data={listData}
-              keyExtractor={keyExtractor}
-              numColumns={6}
-              renderItem={renderItem}
-              extraData={listData}
-              nestedScrollEnabled
-            />
-          </View>
+          <NativeEmojiList
+            size={estimatedListSize}
+            data={listData}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+          />
         </ActionSheet.Content>
       )}
     </ActionSheet>

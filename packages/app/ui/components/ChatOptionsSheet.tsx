@@ -939,7 +939,7 @@ export function ChatOptionsSheetContent({
   return (
     <>
       {isWindowNarrow && (
-        <ActionSheet.Header>
+        <ActionSheet.Header leadingIcon={!!icon}>
           {icon}
           <ActionSheet.ActionContent>
             <ListItem.Title>{title}</ListItem.Title>

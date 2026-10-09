@@ -25,6 +25,13 @@ interface Props {
   onPrivacyPressed: () => void;
   onManageAccountPressed: () => void;
   onBotSettingsPressed?: () => void;
+  /**
+   * Opens the bot's scheduled tasks. Supplied where the bot's own card is
+   * not shown (web, a lapsed hosting session), since the tasks come from the
+   * ship and need neither.
+   */
+  onScheduledTasksPressed?: () => void;
+  scheduledTaskCount?: number;
   onThemePressed?: () => void;
   onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
@@ -45,6 +52,11 @@ interface Props {
   themeLabel?: string;
   notificationsLabel?: string;
 }
+
+const scheduledTaskRouteNames = new Set([
+  'ScheduledTasks',
+  'ScheduledTaskEditor',
+]);
 
 const botSettingsRouteNames = new Set([
   'BotSettings',
@@ -104,6 +116,8 @@ function useSettingsSections(
     botSections,
     botEnabled,
     onBotSettingsPressed,
+    onScheduledTasksPressed,
+    scheduledTaskCount,
   } = props;
 
   return useMemo(() => {
@@ -177,6 +191,22 @@ function useSettingsSections(
             },
           ]
         : [];
+    if (onScheduledTasksPressed && !botSections) {
+      botLinkRows.push({
+        key: 'scheduled-tasks',
+        title: 'Scheduled tasks',
+        leading: { kind: 'icon', icon: 'Clock' },
+        value:
+          scheduledTaskCount === undefined
+            ? undefined
+            : String(scheduledTaskCount),
+        onPress: onScheduledTasksPressed,
+        testID: 'SettingsScheduledTasksRow',
+        isFocused:
+          focusedRouteName !== undefined &&
+          scheduledTaskRouteNames.has(focusedRouteName),
+      });
+    }
 
     const preferenceRows: SettingsRowModel[] = [
       {
@@ -274,6 +304,8 @@ function useSettingsSections(
     focusedRouteName,
     onBotSettingsPressed,
     onLogoutPressed,
+    onScheduledTasksPressed,
+    scheduledTaskCount,
     profileName,
     props.currentUserId,
     props.hasHostedAuth,

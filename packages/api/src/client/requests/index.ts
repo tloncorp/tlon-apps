@@ -2,7 +2,9 @@ import type { Noun } from '@urbit/nockjs';
 
 import {
   DeskUnsupportedError,
+  getDeskSupportsAutomationsState,
   getDeskSupportsBucketsState,
+  getDeskSupportsStewardPromptsState,
   poke,
   pokeNoun,
   request,
@@ -102,6 +104,8 @@ function nameOf(entry: { agent: string; path?: string }) {
 // before the capability is known, and tests mock '../urbit' partially.
 const GUARD_FNS: Record<GuardName, () => boolean | null> = {
   deskSupportsBuckets: () => getDeskSupportsBucketsState(),
+  deskSupportsAutomations: () => getDeskSupportsAutomationsState(),
+  deskSupportsStewardPrompts: () => getDeskSupportsStewardPromptsState(),
 };
 
 // Refuses a guarded request before anything is sent once its capability is
@@ -230,7 +234,10 @@ export function scryNounRequest<E extends ScryReg>(entry: One<E>) {
   };
 }
 
-type SubscribeRest = [onRejected?: (error: unknown) => void];
+type SubscribeRest = [
+  onRejected?: (error: unknown) => void,
+  options?: { onQuit?: () => void },
+];
 
 export function subscribeRequest<E extends SubscribeReg>(entry: One<E>) {
   return <T = unknown>(
