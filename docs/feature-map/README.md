@@ -102,10 +102,24 @@ read at each store build is for that.
 
 ## Updating for a new store build
 
-Do this once per store build, as one PR. It is a job for a coding agent, with
-a person reviewing the result. `<new>` is the build's tag, such as
-`ios-production-801`. When the newest iOS and Android builds are different
-commits, use the older one.
+This happens once per store build, as one PR, and it is automated up to the
+PR. `.github/workflows/feature-map-update.yml` checks daily for a store build
+newer than the one in `release.json`. When there is one it runs
+`scripts/feature-map-update.sh`, which has a coding agent do the steps below
+and a second agent check the first, then opens a PR with both agents' reports.
+A person reviews and merges it; nothing here merges itself. The agents'
+instructions are in `agent/`.
+
+To run it yourself, from a clean checkout:
+
+```bash
+scripts/feature-map-update.sh            # the newest store build, if it is newer
+scripts/feature-map-update.sh --no-pr    # try it; touches nothing on the remote
+```
+
+The steps, for doing or checking it by hand. `<new>` is the build's tag, such
+as `ios-production-801`. When the newest iOS and Android builds are different
+commits, use the older one; `feature-map.mjs next` prints the right tag.
 
 1. See what the build broke:
 

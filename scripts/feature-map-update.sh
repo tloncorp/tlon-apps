@@ -2,12 +2,17 @@
 # Brings the product guide's feature map up to date with a newer store build
 # and opens a pull request for a person to review and merge.
 #
-#   scripts/feature-map-update.sh [--to <tag>] [--base <ref>] [--no-pr]
+#   scripts/feature-map-update.sh [--to <tag>] [--base <ref>] [--prepare | --no-pr]
 #
 # With no --to it asks `feature-map.mjs next` whether a store build newer than
 # the one in docs/feature-map/release.json has been tagged, and stops if there
-# is none or if a branch for it is already on the remote. So it is safe to run
-# on a schedule.
+# is none or if a pull request for it is already open. So it is safe to run on
+# a schedule.
+#
+#   --prepare  stop after the commit and say which branch and description to
+#              open the pull request with. A scheduled job uses this so the
+#              agent never runs alongside the token that can push.
+#   --no-pr    for trying it out: touch nothing on the remote at all.
 #
 # A coding agent does the reading and the edits, in two passes: one to update
 # the entries (docs/feature-map/agent/update.md), one to check the first
@@ -21,7 +26,8 @@ set -euo pipefail
 
 to=""
 base="origin/develop"
-open_pr=1
+check_remote=1
+push=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --to)
@@ -32,12 +38,17 @@ while [ $# -gt 0 ]; do
       base="$2"
       shift 2
       ;;
+    --prepare)
+      push=0
+      shift
+      ;;
     --no-pr)
-      open_pr=0
+      check_remote=0
+      push=0
       shift
       ;;
     *)
-      echo "usage: feature-map-update.sh [--to <tag>] [--base <ref>] [--no-pr]" >&2
+      echo "usage: feature-map-update.sh [--to <tag>] [--base <ref>] [--prepare | --no-pr]" >&2
       exit 2
       ;;
   esac
@@ -77,7 +88,7 @@ if [ -z "$target" ]; then
 fi
 
 branch="feature-map/$(printf '%s' "$target" | tr -c 'A-Za-z0-9._-' '-')"
-if [ "$open_pr" = 1 ]; then
+if [ "$check_remote" = 1 ]; then
   if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
     echo "a pull request for $target is already open"
     go_back
@@ -131,15 +142,9 @@ node scripts/feature-map.mjs publish --app "$target"
 node --test scripts/feature-map.test.mjs > /dev/null
 checked=$(node scripts/feature-map.mjs check | tail -n 1)
 
+title="product guide: describe $target"
 git add -A -- "$map" "$guide"
-git commit --quiet -m "product guide: describe $target"
-
-if [ "$open_pr" = 0 ]; then
-  echo "committed on $branch; no pull request opened"
-  echo "reports: $work/update-report.md $work/review-report.md"
-  go_back
-  exit 0
-fi
+git commit --quiet -m "$title"
 
 body="$work/body.md"
 write_body() {
@@ -201,7 +206,21 @@ if [ "$(wc -c < "$body")" -gt 60000 ]; then
   write_body "The list of entries whose code changed is too long to fit here: \`node scripts/feature-map.mjs affected --since $old_commit --until $target\`" > "$body"
 fi
 
+if [ "$push" = 0 ]; then
+  echo "committed on $branch; nothing pushed"
+  echo "description: $body"
+  # For a scheduled job's next step.
+  if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    {
+      echo "branch=$branch"
+      echo "title=$title"
+      echo "body=$body"
+    } >> "$GITHUB_OUTPUT"
+  fi
+  go_back
+  exit 0
+fi
+
 git push --quiet origin "$branch"
-gh pr create --base develop --head "$branch" \
-  --title "product guide: describe $target" --body-file "$body"
+gh pr create --base develop --head "$branch" --title "$title" --body-file "$body"
 go_back
