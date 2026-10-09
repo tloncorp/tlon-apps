@@ -39,24 +39,33 @@ export function useFilteredChannelChats({
   mode = 'live',
   searchQuery,
   channelFilter,
+  channelChats: channelChatsOverride,
 }: {
   mode?: 'live' | 'snapshot';
   searchQuery: string;
   channelFilter?: (channel: db.Channel) => boolean;
+  channelChats?: Array<db.Chat & { type: 'channel' }>;
 }) {
   const { disableNicknames } = useCalm();
   const { data: chats } = store.useCurrentChats();
   const resolvedChats = useResolvedChats(chats);
 
   const channelChats = useMemo(() => {
-    const all = [...resolvedChats.pinned, ...resolvedChats.unpinned].filter(
-      isChannelChat
-    );
+    const all =
+      channelChatsOverride ??
+      [...resolvedChats.pinned, ...resolvedChats.unpinned].filter(
+        isChannelChat
+      );
 
     return channelFilter
       ? all.filter((chat) => channelFilter(chat.channel))
       : all;
-  }, [channelFilter, resolvedChats.pinned, resolvedChats.unpinned]);
+  }, [
+    channelChatsOverride,
+    channelFilter,
+    resolvedChats.pinned,
+    resolvedChats.unpinned,
+  ]);
   const liveChannelChatsRef = useRef(channelChats);
   liveChannelChatsRef.current = channelChats;
   const [frozenChannelChats, setFrozenChannelChats] =

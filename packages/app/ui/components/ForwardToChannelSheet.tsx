@@ -3,7 +3,10 @@ import { ComponentProps, ReactElement, useMemo } from 'react';
 
 import { channelHasPosts } from '../utils/channelUtils';
 import { ActionSheet } from './ActionSheet';
-import { ForwardChannelSelector } from './ForwardChannelSelector';
+import {
+  ForwardChannelChat,
+  ForwardChannelSelector,
+} from './ForwardChannelSelector';
 import { FORWARD_SHEET_SNAP_POINTS } from './useForwardToChannelSheet';
 
 type ForwardToChannelSheetProps = {
@@ -20,6 +23,10 @@ type ForwardToChannelSheetProps = {
   // every caller -- see below -- so this is only for rules specific to what is
   // being forwarded.
   channelFilter?: (channel: db.Channel) => boolean;
+  channelChats?: ForwardChannelChat[];
+  // A notebook renders no posts, but a bot can still deliver a scheduled
+  // task's output to one as a new note.
+  allowNotebooks?: boolean;
   footerComponent?: ComponentProps<typeof ActionSheet>['footerComponent'];
 };
 
@@ -33,6 +40,8 @@ export function ForwardToChannelSheet({
   icon,
   onChannelSelected,
   channelFilter,
+  channelChats,
+  allowNotebooks = false,
   footerComponent,
 }: ForwardToChannelSheetProps) {
   // Every target here receives what it is given as a post, so a channel that
@@ -41,8 +50,10 @@ export function ForwardToChannelSheet({
   // intent excluded only notebooks.
   const targetFilter = useMemo(
     () => (channel: db.Channel) =>
-      channelHasPosts(channel) && (channelFilter?.(channel) ?? true),
-    [channelFilter]
+      (channelHasPosts(channel) ||
+        (allowNotebooks && channel.type === 'notes')) &&
+      (channelFilter?.(channel) ?? true),
+    [allowNotebooks, channelFilter]
   );
 
   if (!open && !keepMounted) {
@@ -69,6 +80,7 @@ export function ForwardToChannelSheet({
         <ForwardChannelSelector
           onChannelSelected={onChannelSelected}
           channelFilter={targetFilter}
+          channelChats={channelChats}
         />
       </ActionSheet.Content>
     </ActionSheet>

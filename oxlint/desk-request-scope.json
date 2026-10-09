@@ -10,16 +10,14 @@
     "packages/ui",
     "packages/editor"
   ],
-  "excludedModules": [
-    "packages/api/src/client/stewardAutomationApi"
-  ],
+  "excludedModules": [],
   "excludedHttpPrefixes": [
-    "/steward/~/v1/automation"
+    "/steward/~/v1/automation/finalize"
   ],
   "excludedAgentPaths": [
     {
       "agent": "steward",
-      "prefix": "/v1/automation"
+      "prefix": "/v1/automation/harness"
     }
   ]
 }

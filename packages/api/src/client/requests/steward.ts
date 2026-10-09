@@ -1,8 +1,51 @@
 import type { Entry } from './types';
 
-// Automation routes (/v1/automation and its /steward/~/v1 HTTP form) are
-// bot-facing and excluded by oxlint/desk-request-scope.json.
+// The owner's side of the automation module: the mirror of a bot's scheduled
+// tasks and the edit loop. The routes are a release older than their `since`,
+// which is the release that added a task's delivery block: the client always
+// reads and sends one.
+//
+// Still bot-facing, and excluded by oxlint/desk-request-scope.json: the bot's
+// own side of automation (the harness feed and its finalize route).
 export const steward = {
+  automationTasks: {
+    kind: 'scry',
+    agent: 'steward',
+    path: '/v1/automation/tasks',
+    since: '12.3.1',
+    guardedBy: 'deskSupportsAutomations',
+  },
+  automationTasksFeed: {
+    kind: 'subscribe',
+    agent: 'steward',
+    path: '/v1/automation/tasks',
+    since: '12.3.1',
+    guardedBy: 'deskSupportsAutomations',
+  },
+  automationTasksHttp: {
+    kind: 'http',
+    agent: 'steward',
+    method: 'GET',
+    path: '/steward/~/v1/automation/tasks',
+    since: '12.3.1',
+    guardedBy: 'deskSupportsAutomations',
+  },
+  automationEdit: {
+    kind: 'http',
+    agent: 'steward',
+    method: 'POST',
+    path: '/steward/~/v1/automation',
+    since: '12.3.1',
+    guardedBy: 'deskSupportsAutomations',
+  },
+  automationRequest: {
+    kind: 'http',
+    agent: 'steward',
+    method: 'GET',
+    path: '/steward/~/v1/automation/request/{requestId}',
+    since: '12.3.1',
+    guardedBy: 'deskSupportsAutomations',
+  },
   lensRecent: {
     kind: 'scry',
     agent: 'steward',

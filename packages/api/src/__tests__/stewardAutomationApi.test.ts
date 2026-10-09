@@ -1,6 +1,13 @@
+import { valid } from '@urbit/aura';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { requestJson, scry, subscribe } from '../client/urbit';
+import {
+  DeskUnsupportedError,
+  getDeskSupportsAutomationsState,
+  requestJson,
+  scry,
+  subscribe,
+} from '../client/urbit';
 import {
   StewardAutomationEditError,
   StewardAutomationPendingError,
@@ -9,12 +16,17 @@ import {
   deleteAutomation,
   getAutomationRequest,
   getAutomations,
+  newAutomationRequestId,
   scryAutomations,
   subscribeToAutomations,
   updateAutomation,
 } from '../client/stewardAutomationApi';
 
-vi.mock('../client/urbit', () => ({
+vi.mock('../client/urbit', async (importOriginal) => ({
+  DeskUnsupportedError: (
+    await importOriginal<typeof import('../client/urbit')>()
+  ).DeskUnsupportedError,
+  getDeskSupportsAutomationsState: vi.fn(),
   requestJson: vi.fn(),
   scry: vi.fn(),
   subscribe: vi.fn().mockResolvedValue(7),
@@ -35,6 +47,7 @@ beforeEach(() => {
   vi.mocked(requestJson).mockReset();
   vi.mocked(scry).mockReset();
   vi.mocked(subscribe).mockClear();
+  vi.mocked(getDeskSupportsAutomationsState).mockReturnValue(true);
 });
 
 describe('createAutomation', () => {
@@ -284,5 +297,63 @@ describe('reads', () => {
       { app: 'steward', path: '/v1/automation/tasks' },
       handler
     );
+  });
+
+  test('subscribeToAutomations hands a late rejection to its caller', async () => {
+    const handler = vi.fn();
+    const onRejected = vi.fn();
+
+    await subscribeToAutomations(handler, onRejected);
+    expect(subscribe).toHaveBeenCalledWith(
+      { app: 'steward', path: '/v1/automation/tasks' },
+      handler,
+      onRejected
+    );
+  });
+});
+
+describe('newAutomationRequestId', () => {
+  // The ship mints its own id when it cannot parse the one it is sent, and a
+  // retry under an id it never recorded would be relayed as a new edit.
+  test('is a @uv the ship can parse, and differs each time', () => {
+    const ids = Array.from({ length: 50 }, newAutomationRequestId);
+    for (const id of ids) {
+      expect(valid('uv', id)).toBe(true);
+    }
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('on a desk older than the one that added delivery', () => {
+  beforeEach(() => {
+    vi.mocked(getDeskSupportsAutomationsState).mockReturnValue(false);
+  });
+
+  test('every request is refused before anything is sent', async () => {
+    await expect(createAutomation({ bot, task })).rejects.toBeInstanceOf(
+      DeskUnsupportedError
+    );
+    await expect(getAutomationRequest(requestId)).rejects.toBeInstanceOf(
+      DeskUnsupportedError
+    );
+    await expect(getAutomations()).rejects.toBeInstanceOf(DeskUnsupportedError);
+    await expect(scryAutomations()).rejects.toBeInstanceOf(
+      DeskUnsupportedError
+    );
+    expect(() => subscribeToAutomations(() => {})).toThrow(
+      DeskUnsupportedError
+    );
+
+    expect(requestJson).not.toHaveBeenCalled();
+    expect(scry).not.toHaveBeenCalled();
+    expect(subscribe).not.toHaveBeenCalled();
+  });
+
+  test('requests go out while the desk version is not yet known', async () => {
+    vi.mocked(getDeskSupportsAutomationsState).mockReturnValue(null);
+    vi.mocked(scry).mockResolvedValue({});
+
+    await expect(scryAutomations()).resolves.toEqual({});
+    expect(scry).toHaveBeenCalledTimes(1);
   });
 });
