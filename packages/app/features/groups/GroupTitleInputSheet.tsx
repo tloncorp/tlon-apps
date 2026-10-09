@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack, getTokenValue } from 'tamagui';
 
 import { ActionSheet, Button, TextInput, useIsWindowNarrow } from '../../ui';
+import { useSheetBottomInset } from '../../ui/hooks/useSheetBottomInset';
 
 interface GroupTitleInputSheetProps {
   open: boolean;
@@ -15,7 +15,7 @@ export function GroupTitleInputSheet({
   onOpenChange,
   onSubmitTitle,
 }: GroupTitleInputSheetProps) {
-  const { bottom } = useSafeAreaInsets();
+  const bottom = useSheetBottomInset();
   const isWindowNarrow = useIsWindowNarrow();
   const [title, setTitle] = useState('');
 

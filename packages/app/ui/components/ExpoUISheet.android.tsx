@@ -45,7 +45,8 @@ import type {
   ExpoUISheetProps,
 } from './ExpoUISheet.types';
 
-const contentHorizontalInset = 8;
+// Groups sit 16dp from the sheet edge and text 40dp, like the other sheets.
+const contentHorizontalInset = 16;
 const groupGap = 24;
 const rowMinHeight = 72;
 const actionGroupShape = Shapes.RoundedCorner(16);
@@ -305,20 +306,22 @@ export function ExpoUIActionContent({
       <Row
         verticalAlignment="center"
         horizontalArrangement={{ spacedBy: 20 }}
-        modifiers={[fillMaxWidth(), padding(16, 0, 8, 0)]}
+        // 24 inside the row for text, 12 for an icon, which puts it at 28.
+        modifiers={[fillMaxWidth(), padding(icon ? 12 : 24, 0, 8, 0)]}
       >
         {icon ? <HostedIcon icon={icon} rounded={!onBack} /> : null}
         <Column
           verticalArrangement={{ spacedBy: 2 }}
           modifiers={[weight(1), defaultMinSize({ minHeight: 40 })]}
         >
+          {/* Matches the React Native sheet header ($label/l title, $label/m subtitle). */}
           <Text
             color={theme.primaryText.val}
             maxLines={1}
             overflow="ellipsis"
             style={{
-              fontSize: 17,
-              fontWeight: '500',
+              fontSize: 16,
+              fontWeight: '400',
               lineHeight: 24,
               letterSpacing: -0.2,
             }}
@@ -327,10 +330,15 @@ export function ExpoUIActionContent({
           </Text>
           {subtitle ? (
             <Text
-              color={theme.secondaryText.val}
+              color={theme.tertiaryText.val}
               maxLines={1}
               overflow="ellipsis"
-              style={{ fontSize: 14, fontWeight: '400', lineHeight: 20 }}
+              style={{
+                fontSize: 14,
+                fontWeight: '400',
+                lineHeight: 20,
+                letterSpacing: -0.187,
+              }}
             >
               {subtitle}
             </Text>

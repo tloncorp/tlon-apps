@@ -199,12 +199,10 @@ function BotSettingsListItem({ onPress }: { onPress: () => void }) {
           <ListItem.MainContent>
             <ListItem.Title>Bot settings</ListItem.Title>
           </ListItem.MainContent>
-          <ListItem.EndContent>
-            <ListItem.SystemIcon
-              icon="ChevronRight"
-              backgroundColor="$transparent"
-            />
-          </ListItem.EndContent>
+          <ListItem.SystemIcon
+            icon="ChevronRight"
+            backgroundColor="$transparent"
+          />
         </ListItem>
       </Pressable>
     </View>

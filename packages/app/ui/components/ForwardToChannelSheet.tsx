@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { ComponentProps, useMemo } from 'react';
+import { ComponentProps, ReactElement, useMemo } from 'react';
 
 import { channelHasPosts } from '../utils/channelUtils';
 import { ActionSheet } from './ActionSheet';
@@ -13,7 +13,9 @@ type ForwardToChannelSheetProps = {
   keepMounted: boolean;
   title: string;
   subtitle?: string;
-  onChannelSelected: (channel: db.Channel) => void;
+  /** An avatar for what is being forwarded, shown beside the title. */
+  icon?: ReactElement;
+  onChannelSelected: (channel: db.Channel | null) => void;
   // Narrows the targets further. Postless channels are already excluded for
   // every caller -- see below -- so this is only for rules specific to what is
   // being forwarded.
@@ -28,6 +30,7 @@ export function ForwardToChannelSheet({
   keepMounted,
   title,
   subtitle,
+  icon,
   onChannelSelected,
   channelFilter,
   footerComponent,
@@ -58,7 +61,11 @@ export function ForwardToChannelSheet({
       modal
     >
       <ActionSheet.Content flex={1} paddingBottom="$s">
-        <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
+        <ActionSheet.SimpleHeader
+          title={title}
+          subtitle={subtitle}
+          icon={icon}
+        />
         <ForwardChannelSelector
           onChannelSelected={onChannelSelected}
           channelFilter={targetFilter}

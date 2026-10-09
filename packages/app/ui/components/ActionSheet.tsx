@@ -14,6 +14,7 @@ import {
   PropsWithChildren,
   ReactElement,
   ReactNode,
+  createContext,
   forwardRef,
   useCallback,
   useContext,
@@ -38,6 +39,7 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
+import { useSheetBottomInset } from '../hooks/useSheetBottomInset';
 import {
   BottomSheetScrollView,
   BottomSheetWrapper,
@@ -169,6 +171,20 @@ export const desktopFlyoutContentProps = {
   minWidth: DESKTOP_FLYOUT_MIN_WIDTH,
   overflow: 'hidden',
 } as const;
+
+// The iOS sheet draws its close button in the top-trailing corner and keeps
+// content below the button's 52pt area (8pt inset plus a 44pt frame, see
+// patches/@expo__ui). A header at the top of the sheet moves up into that
+// area and lines up with the chat options header: title about 35pt from the
+// top of the sheet, first group about 111pt. Content in a scroll view stays
+// below the button, since the scroll view would clip anything moved above it.
+const CloseButtonRowContext = createContext(false);
+// True inside an Android sheet that shows the native drag handle.
+const HandleStripContext = createContext(false);
+const closeButtonClearance = 52;
+const closeButtonRowTop = 34;
+const closeButtonRowTrailingInset = 44;
+const closeButtonRowBottomGap = 5;
 
 // Main component
 
@@ -347,13 +363,6 @@ const ActionSheetComponent = ({
 
   // Use BottomSheetWrapper for native platforms, Sheet for web
   const useBottomSheet = Platform.OS !== 'web';
-  // `disableDrag` marks a sheet whose nested list scrolls. Compose cannot share
-  // vertical pans with that list, so on Android the list gets them outright.
-  const enableContentPanningGesture =
-    props.enableContentPanningGesture ??
-    (Platform.OS === 'android' && props.disableDrag !== undefined
-      ? false
-      : undefined);
 
   const sheetContent = nativePresentation ? (
     <ExpoUISheet
@@ -376,18 +385,27 @@ const ActionSheetComponent = ({
       snapPointsMode={props.snapPointsMode as any}
       showHandle={true}
       enablePanDownToClose={true}
-      enableContentPanningGesture={enableContentPanningGesture}
+      enableContentPanningGesture={props.enableContentPanningGesture}
       footerComponent={footerComponent}
       unmountOnClose={unmountOnClose}
     >
       <ActionSheetContext.Provider value={actionSheetContextValue}>
-        {forcedMode === 'popover' ? (
-          <ActionSheet.ScrollableContent>
-            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-          </ActionSheet.ScrollableContent>
-        ) : (
-          children
-        )}
+        <CloseButtonRowContext.Provider value={Platform.OS === 'ios'}>
+          <HandleStripContext.Provider
+            value={
+              Platform.OS === 'android' &&
+              props.enableContentPanningGesture !== false
+            }
+          >
+            {forcedMode === 'popover' ? (
+              <ActionSheet.ScrollableContent>
+                <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+              </ActionSheet.ScrollableContent>
+            ) : (
+              children
+            )}
+          </HandleStripContext.Provider>
+        </CloseButtonRowContext.Provider>
       </ActionSheetContext.Provider>
     </BottomSheetWrapper>
   ) : (
@@ -413,6 +431,7 @@ const ActionSheetComponent = ({
             children
           )}
         </ActionSheetContext.Provider>
+        {footerComponent && footerComponent({})}
       </Sheet.Frame>
     </Sheet>
   );
@@ -432,15 +451,48 @@ const ActionSheetHeaderFrame = styled(View, {
   paddingHorizontal: '$xl',
 });
 
-const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
-  ({ children, ...props }, ref) => {
-    return (
-      <ActionSheetHeaderFrame {...props} ref={ref}>
-        <ListItem paddingHorizontal="$2xl">{children}</ListItem>
-      </ActionSheetHeaderFrame>
-    );
-  }
-);
+const ActionSheetHeader = ActionSheetHeaderFrame.styleable<{
+  /** Inset both sides to clear the close button, for content centered on the sheet. */
+  centered?: boolean;
+  /**
+   * The header starts where an icon or avatar starts rather than where text
+   * does. A row is a box 16 from the sheet edge; text starts 24 inside it and
+   * an icon 12, which puts the icon at 28 and the text beside it at 88.
+   */
+  leadingIcon?: boolean;
+}>(({ children, centered, leadingIcon, ...props }, ref) => {
+  // Moves the row from below the close button up into its row.
+  const closeButtonOffset = useContext(CloseButtonRowContext)
+    ? closeButtonRowTop - closeButtonClearance
+    : 0;
+  const underHandleStrip = useContext(HandleStripContext);
+  return (
+    <ActionSheetHeaderFrame
+      {...(closeButtonOffset
+        ? {
+            // The row sits inside ListItem's padding.
+            marginTop: closeButtonOffset - getTokenValue('$l', 'space'),
+            marginBottom: closeButtonRowBottomGap,
+            paddingRight: closeButtonRowTrailingInset,
+            ...(centered ? { paddingLeft: closeButtonRowTrailingInset } : null),
+          }
+        : underHandleStrip
+          ? // Android's handle strip is 48 tall and already leaves room under
+            // the handle, so the row gives up its own padding above.
+            { marginTop: -getTokenValue('$l', 'space') }
+          : null)}
+      {...props}
+      ref={ref}
+    >
+      <ListItem
+        paddingHorizontal="$2xl"
+        {...(leadingIcon ? { paddingLeft: '$l' } : null)}
+      >
+        {children}
+      </ListItem>
+    </ActionSheetHeaderFrame>
+  );
+});
 
 // Content wrappers
 
@@ -469,6 +521,7 @@ const ActionSheetScrollableContent = forwardRef<
 
   // Use BottomSheetScrollView for native platforms
   if (useBottomSheet) {
+    const { children, ...scrollProps } = props;
     return (
       <BottomSheetScrollView
         ref={ref as any}
@@ -480,8 +533,12 @@ const ActionSheetScrollableContent = forwardRef<
           top: 0,
           bottom: contentStyle.paddingBottom as number,
         }}
-        {...(props as any)}
-      />
+        {...(scrollProps as any)}
+      >
+        <CloseButtonRowContext.Provider value={false}>
+          {children}
+        </CloseButtonRowContext.Provider>
+      </BottomSheetScrollView>
     );
   }
 
@@ -505,11 +562,11 @@ const ActionSheetScrollableContent = forwardRef<
 ActionSheetScrollableContent.displayName = 'ActionSheetScrollableContent';
 
 const useContentStyle = () => {
-  const insets = useSafeAreaInsets();
+  const sheetBottomInset = useSheetBottomInset();
   const isWindowNarrow = useIsWindowNarrow();
   return {
     paddingBottom: isWindowNarrow
-      ? insets.bottom + getTokenValue('$2xl', 'size')
+      ? sheetBottomInset + getTokenValue('$2xl', 'size')
       : getTokenValue('$xl', 'size'),
   };
 };
@@ -816,14 +873,20 @@ export const SimpleActionSheetHeader = ({
   title,
   subtitle,
   icon,
+  alignWithAvatars = false,
 }: {
   title?: string | null;
   subtitle?: string;
   icon?: ReactElement;
+  /**
+   * Starts a title that has no icon where an icon would start, for a sheet
+   * whose rows lead with avatars. The title then shares their left edge.
+   */
+  alignWithAvatars?: boolean;
 }) => {
   const isWindowNarrow = useIsWindowNarrow();
   return (
-    <ActionSheet.Header>
+    <ActionSheet.Header leadingIcon={!!icon || alignWithAvatars}>
       {icon ? icon : null}
       <ListItem.MainContent
         alignItems={isWindowNarrow ? 'flex-start' : 'center'}
@@ -910,7 +973,12 @@ function ActionSheetCopyAction({
       description: action.description,
       action: doCopy,
       startIcon: action.startIcon,
-      endIcon: didCopy ? 'Checkmark' : 'Copy',
+      // A row that already leads with a copy icon only shows the checkmark.
+      endIcon: didCopy
+        ? 'Checkmark'
+        : action.startIcon === 'Copy'
+          ? undefined
+          : 'Copy',
     }),
     [action.title, action.description, action.startIcon, doCopy, didCopy]
   );
