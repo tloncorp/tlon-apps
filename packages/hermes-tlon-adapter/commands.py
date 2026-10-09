@@ -211,8 +211,10 @@ def build_command_tokens_json() -> str:
     return json.dumps(command_tokens(), indent=2) + "\n"
 
 
-# Hermes CORE commands the client's popup offers alongside the registry
-# tokens. Audit-pinned constant mirroring the client's HERMES_CORE_COMMANDS,
+# The six core commands advertised by the client's popup. Runtime recognition
+# uses Hermes' gateway registry below; this small list is only the popup contract
+# and the compatibility fallback when that registry is unavailable.
+# Audit-pinned constant mirroring the client's HERMES_CORE_COMMANDS,
 # carrying the same audit citation (hermes-agent tag v2026.6.19, commit
 # 2bd1977): each is defined in core's command registry
 # (hermes_cli/commands.py) and dispatched by the gateway (gateway/run.py).
@@ -239,14 +241,33 @@ _CORE_COMMAND_REGEXES: tuple[re.Pattern[str], ...] = tuple(
 )
 
 
+# Replies consumed by GatewayInboundMixin._hm_slash_confirm_reply before
+# normal command dispatch. These are not all in GATEWAY_KNOWN_COMMANDS.
+# Preserve only explicit slash tokens; ordinary yes/no dialogue stays contextual.
+GATEWAY_CONFIRM_REPLY_NAMES: frozenset[str] = frozenset({
+    "approve", "yes", "ok", "confirm", "always", "remember",
+    "cancel", "no", "deny", "nevermind",
+})
+
+
 def is_core_command(text: str) -> bool:
-    """Whether the (stripped) message text is a bare Hermes core command,
-    optionally followed by arguments. Token-boundary safe: ``/new`` does
-    not match ``/newish``."""
+    """Recognize installed Hermes gateway commands, not just popup suggestions.
+
+    Keep the six advertised commands as a compatibility fallback when Hermes
+    is absent (standalone adapter tests) or predates the gateway registry.
+    Recognition preserves the payload; core still owns authorization and dispatch.
+    """
     stripped = str(text or "").strip()
-    if not stripped:
+    if not stripped.startswith("/"):
         return False
-    return any(regex.match(stripped) for regex in _CORE_COMMAND_REGEXES)
+    name = stripped.split(maxsplit=1)[0][1:].lower()
+    if name in GATEWAY_CONFIRM_REPLY_NAMES:
+        return True
+    try:
+        from hermes_cli.commands import GATEWAY_KNOWN_COMMANDS
+    except ImportError:
+        return any(regex.match(stripped) for regex in _CORE_COMMAND_REGEXES)
+    return name in GATEWAY_KNOWN_COMMANDS
 
 
 def engagement_tokens() -> list[str]:
