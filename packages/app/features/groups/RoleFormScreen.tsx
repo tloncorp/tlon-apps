@@ -438,7 +438,13 @@ export function RoleFormScreen({ navigation, route }: Props) {
               </Field>
             )}
           />
-          <Pressable onPress={handleNavigateToMemberSelector}>
+          {/* the picker starts from the holders loaded when it opens, so it
+              waits for the whole roster */}
+          <Pressable
+            onPress={handleNavigateToMemberSelector}
+            disabled={!rosterIsWhole}
+            disabledStyle={{ opacity: 0.5 }}
+          >
             <ListItem
               paddingHorizontal="$2xl"
               backgroundColor="$background"
