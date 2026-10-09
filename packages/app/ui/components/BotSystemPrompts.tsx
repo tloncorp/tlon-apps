@@ -446,7 +446,6 @@ function BotSystemPromptEditorSheet({
       title={`Edit ${title}`}
       modal
       closeButton
-      keyboardBehavior="interactive"
       dialogContentProps={{ width: 576, minWidth: 520, maxWidth: 576 }}
     >
       <ActionSheet.ScrollableContent
