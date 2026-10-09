@@ -305,3 +305,26 @@ When merged to OpenClaw, these run automatically:
 -   **Deprecated diary channels**: direct OpenClaw delivery still accepts `diary/` targets. The CLI tool does not manage them; the owner migration path is `/migrate <diary-nest>`. A migrated source is renamed but remains writable.
 -   **Message deduplication**: via processed-message tracker
 -   **History caching**: for context in replies
+
+---
+
+## Code Review Rules
+
+The root `AGENTS.md` rules apply. This package draws more bot review comments
+than any other, mostly about configurations that aren't deployed. Review against
+the real deployment:
+
+-   Hosted bots run exactly one harness (OpenClaw or Hermes, never handing a
+    bot between them) with exactly one Tlon account. Don't flag multi-account
+    or harness-handoff scenarios.
+-   Deployed plugins build against the **published** `@tloncorp/api` and
+    `tlon-skill` from npm, not the workspace. Do flag a plugin importing an
+    `@tloncorp/api` export that isn't published yet: the ship's build fails and
+    it silently keeps its old plugin.
+-   Monitor restarts and dispatch races self-heal. Flag only a lost owner
+    message, a message sent to the wrong recipient, or a reply that leaks
+    across conversations.
+-   Eyre HTTP scries apply the `%x` care implicitly: `/~/scry/<app>/v1/foo.json`,
+    never `/~/scry/<app>/x/v1/foo.json`.
+-   Content from other ships (messages, A2UI payloads, blobs) is a trust
+    boundary: flag parsing that can crash or exhaust memory on hostile input.
