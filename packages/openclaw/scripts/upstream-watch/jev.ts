@@ -230,7 +230,7 @@ export interface RetryOptions {
 const realSleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-// 429, 5xx and network failures are retried; other statuses, timeouts and
+// 429, 5xx, timeouts and network failures are retried; other statuses and
 // malformed or oversized bodies are not. Each attempt keeps its own
 // deadline, shortened so the attempts and waits together stay in budget.
 export async function decideWithRetry(
@@ -275,6 +275,7 @@ export async function decideWithRetry(
 function isTransient(result: DecisionResult) {
   return (
     result.outcome === 'error' ||
+    result.outcome === 'timeout' ||
     (result.outcome === 'http-error' &&
       (result.status === 429 || result.status >= 500))
   );

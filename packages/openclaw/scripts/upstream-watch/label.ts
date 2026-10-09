@@ -24,6 +24,10 @@ import {
 import { type LabeledRow, THRESHOLD, oursOf } from './policy.ts';
 
 const CONCURRENCY = 8;
+// Each bullet costs an authenticated request (two if in scope), so a
+// changelog with an unbounded bullet count must not mean unbounded spend.
+// Real releases carry a few hundred.
+export const MAX_LABELED_BULLETS = 1500;
 
 // Manifest profile entries that are deployment facts, regenerated from the
 // digest on every run so they cannot go stale. Each must appear in the
@@ -121,6 +125,7 @@ export interface LabelOptions extends RetryOptions {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   concurrency?: number;
+  maxBullets?: number;
 }
 
 export async function labelBullets(
@@ -164,8 +169,17 @@ export async function labelBullets(
       }
     );
 
-  const rows = await mapPool(
-    bullets,
+  const maxBullets = options.maxBullets ?? MAX_LABELED_BULLETS;
+  const capped = bullets.slice(0, maxBullets);
+  const overCap = bullets.slice(maxBullets);
+  if (overCap.length > 0) {
+    process.stderr.write(
+      `label cap: ${bullets.length} bullets, labeling the first ${maxBullets}; ${overCap.length} written as over-cap\n`
+    );
+  }
+
+  const labeledRows = await mapPool(
+    capped,
     options.concurrency ?? CONCURRENCY,
     async (bullet): Promise<LabeledRow> => {
       const result = await call(bullet, LABEL_QUESTIONS);
@@ -180,6 +194,16 @@ export async function labelBullets(
       return { ...base(bullet), labeled: true, ...label, ms: result.ms };
     }
   );
+  // Over-cap rows come after the labeled ones, so row i is still bullet i
+  // for the second pass, which only picks labeled rows.
+  const rows: LabeledRow[] = [
+    ...labeledRows,
+    ...overCap.map((b) => ({
+      ...base(b),
+      labeled: false,
+      reason: 'over-cap',
+    })),
+  ];
 
   // The workaround question only matters for bullets in our area, so it is a
   // second, smaller pass. A failure here leaves the label intact.

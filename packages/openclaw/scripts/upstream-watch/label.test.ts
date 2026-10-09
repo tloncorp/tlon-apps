@@ -160,7 +160,7 @@ describe('labelBullets', () => {
       ['throws', false, 'error'],
       ['hangs', false, 'timeout'],
     ]);
-    // only the 5xx and the network error are retried
+    // only the 5xx, the network error and the timeout are retried
     const attempts = (name: string) =>
       calls.filter((c) => c.state.bullet === name).length;
     expect(
@@ -173,7 +173,7 @@ describe('labelBullets', () => {
         'throws',
         'hangs',
       ].map(attempts)
-    ).toEqual([3, 1, 1, 1, 1, 3, 1]);
+    ).toEqual([3, 1, 1, 1, 1, 3, 3]);
   });
 
   it('times out a response whose body stalls after the headers', async () => {
@@ -237,6 +237,65 @@ describe('labelBullets', () => {
     // both passes ran, so the bound held across 60 requests and 10 retries
     expect(calls).toHaveLength(70);
     expect(peak).toBe(8);
+  });
+
+  it('retries a timeout and labels on the next answer', async () => {
+    let n = 0;
+    const { impl, calls } = stubFetch(() =>
+      n++ === 0
+        ? new Promise<Response>(() => undefined)
+        : json(answer('memory', 'fix'))
+    );
+    const { rows } = await labelBullets([bullet('x')], {
+      ...options,
+      workarounds: [],
+      fetchImpl: impl,
+      timeoutMs: 50,
+    });
+    expect(rows[0]).toMatchObject({ labeled: true, area: 'memory' });
+    expect(calls).toHaveLength(2);
+  });
+
+  it('bounds timeout retries by the budget', async () => {
+    const { impl, calls } = stubFetch(
+      () => new Promise<Response>(() => undefined)
+    );
+    const { rows } = await labelBullets([bullet('x')], {
+      ...options,
+      workarounds: [],
+      fetchImpl: impl,
+      timeoutMs: 50,
+      budgetMs: 1000,
+    });
+    // 50 ms + 500 ms backoff fits; another 1500 ms backoff does not
+    expect(calls).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ labeled: false, reason: 'timeout' });
+  });
+
+  it('labels at most maxBullets and writes the rest as over-cap', async () => {
+    const { impl, calls } = stubFetch((body) =>
+      body.questions.area
+        ? json(answer('gateway_runtime', 'fix'))
+        : json({
+            answers: { [addressesKey('fallback-patch')]: { noul: 0.1 } },
+          })
+    );
+    const cap = 3;
+    const bullets = Array.from({ length: cap + 5 }, (_, i) => bullet(`b${i}`));
+    const { rows } = await labelBullets(bullets, {
+      ...options,
+      fetchImpl: impl,
+      maxBullets: cap,
+    });
+    const firstPass = calls.filter((c) => c.questions.area);
+    expect(firstPass.map((c) => c.state.bullet)).toEqual(['b0', 'b1', 'b2']);
+    // the workaround pass only sees capped bullets
+    expect(calls.filter((c) => !c.questions.area)).toHaveLength(cap);
+    expect(rows).toHaveLength(cap + 5);
+    expect(rows.slice(0, cap).every((r) => r.labeled)).toBe(true);
+    expect(rows.slice(cap).map((r) => [r.bullet, r.labeled, r.reason])).toEqual(
+      [3, 4, 5, 6, 7].map((i) => [`b${i}`, false, 'over-cap'])
+    );
   });
 
   it('retries a 429 and labels on the next answer', async () => {

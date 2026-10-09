@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { dedupeBullets, parseChangelog } from './changelog.ts';
+import {
+  MAX_CHANGELOG_BYTES,
+  capChangelog,
+  dedupeBullets,
+  parseChangelog,
+} from './changelog.ts';
 
 const fixture = (name: string) =>
   readFileSync(path.join(import.meta.dirname, 'fixtures', name), 'utf8');
@@ -89,6 +94,44 @@ describe('dedupeBullets', () => {
       'No PR here',
       'No PR here',
       'B (#1)',
+    ]);
+  });
+});
+
+describe('capChangelog', () => {
+  it('passes a changelog under the cap through untouched', () => {
+    const markdown = '### Fixes\n\n- A (#1)\n';
+    expect(capChangelog(markdown)).toEqual({
+      text: markdown,
+      truncated: false,
+    });
+  });
+
+  it('truncates an oversized changelog at a line break within the cap', () => {
+    const line = (i: number) =>
+      `- Thing ${i}: a fix with a long enough description, déjà vu. (#${i})`;
+    const lines = ['### Fixes', ''];
+    let size = 0;
+    for (let i = 1; size <= MAX_CHANGELOG_BYTES + 4096; i++) {
+      lines.push(line(i));
+      size += Buffer.byteLength(line(i)) + 1;
+    }
+    const markdown = lines.join('\n');
+    const { text, truncated } = capChangelog(markdown);
+    expect(truncated).toBe(true);
+    expect(Buffer.byteLength(text)).toBeLessThanOrEqual(MAX_CHANGELOG_BYTES);
+    expect(text.endsWith('\n')).toBe(true);
+    expect(markdown.startsWith(text)).toBe(true);
+    // the cut lands between bullets, so the last parsed bullet is whole
+    const bullets = parseChangelog(text, '2026.1.1');
+    expect(bullets.length).toBeGreaterThan(1000);
+    expect(bullets.at(-1)?.text).toBe(line(bullets.length).slice(2));
+  });
+
+  it('parses a cut that lands mid-bullet without throwing', () => {
+    const { text } = capChangelog('### Fixes\n- A (#1)\n- B is cut', 24);
+    expect(parseChangelog(text, '2026.1.1').map((b) => b.text)).toEqual([
+      'A (#1)',
     ]);
   });
 });

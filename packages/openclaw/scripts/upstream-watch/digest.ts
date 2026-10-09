@@ -10,7 +10,12 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { type Bullet, dedupeBullets, parseChangelog } from './changelog.ts';
+import {
+  type Bullet,
+  capChangelog,
+  dedupeBullets,
+  parseChangelog,
+} from './changelog.ts';
 import { fallbackLines } from './render.ts';
 import {
   type Hints,
@@ -112,7 +117,11 @@ export function buildDigest({
       incomplete.push(`changelog missing for ${release}`);
       continue;
     }
-    const releaseBullets = parseChangelog(markdown, release);
+    const { text, truncated } = capChangelog(markdown);
+    if (truncated) {
+      incomplete.push(`CHANGELOG/${release}.md truncated at 1 MiB`);
+    }
+    const releaseBullets = parseChangelog(text, release);
     // A format change upstream reads as a quiet release otherwise.
     if (releaseBullets.length === 0) {
       incomplete.push(`no bullets parsed from CHANGELOG/${release}.md`);

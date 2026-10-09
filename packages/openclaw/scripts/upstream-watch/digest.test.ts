@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { MAX_CHANGELOG_BYTES } from './changelog.ts';
 import { type Manifest, buildDigest, gitIn } from './digest.ts';
 
 const manifest: Manifest = {
@@ -255,6 +256,39 @@ describe('buildDigest', () => {
     ]);
     expect(digest.bullets.length).toBeGreaterThan(0);
     expect(digest.bullets.every((b) => b.release === '2026.1.5')).toBe(true);
+  });
+
+  it('truncates an oversized changelog and records it as incomplete', () => {
+    const bulletLine = (i: number) => `- Thing ${i}: fixed. (#${i})`;
+    const lines = ['## 2026.1.3', '', '### Fixes', ''];
+    let size = 0;
+    for (let i = 1; size <= MAX_CHANGELOG_BYTES; i++) {
+      lines.push(bulletLine(i));
+      size += Buffer.byteLength(bulletLine(i)) + 1;
+    }
+    const real = gitIn(repo);
+    const { digest } = buildDigest({
+      git: (args) =>
+        args[0] === 'show' && args[1] === 'v2026.1.3:CHANGELOG/2026.1.3.md'
+          ? lines.join('\n')
+          : real(args),
+      prev: '2026.1.1',
+      next: '2026.1.3',
+      intermediates: [],
+      pluginDir: plugin,
+      manifest,
+      canaryNode: '24.16.0',
+      drift: { prodPins: {} },
+    });
+    expect(digest.incomplete).toEqual([
+      'CHANGELOG/2026.1.3.md truncated at 1 MiB',
+    ]);
+    const total = lines.length - 4;
+    expect(digest.bullets.length).toBeGreaterThan(0);
+    expect(digest.bullets.length).toBeLessThan(total);
+    expect(digest.bullets.at(-1)?.text).toBe(
+      bulletLine(digest.bullets.length).slice(2)
+    );
   });
 
   it('fires every hard signal with evidence on a breaking release', () => {
