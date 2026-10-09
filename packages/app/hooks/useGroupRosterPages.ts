@@ -46,9 +46,14 @@ export function useGroupRosterPages(group: db.Group | null) {
   const pagesWithdrawn = !!groupId && pagedGroupId === groupId && !servesPages;
   useEffect(() => {
     if (!pagesWithdrawn) return;
-    // syncGroup reports its own failures
+    // wholeRoster, so a light sync still in flight can't stand in for it.
+    // syncGroup reports its own failures.
     store
-      .syncGroup(groupId, { priority: store.SyncPriority.High })
+      .syncGroup(
+        groupId,
+        { priority: store.SyncPriority.High },
+        { wholeRoster: true }
+      )
       .catch(() => {});
   }, [pagesWithdrawn, groupId]);
   const roleIds = useMemo(
