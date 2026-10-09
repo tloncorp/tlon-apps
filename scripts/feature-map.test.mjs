@@ -413,6 +413,8 @@ test('lists the entries that cite a file that changed between two builds', () =>
       { status: 'A', file: 'packages/app/ui/NewSheet.test.tsx', lines: 40 },
       { status: 'A', file: 'packages/app/test/sheetUtils.tsx', lines: 9 },
       { status: 'M', file: 'packages/shared/src/logic/roles.ts', lines: 3 },
+      { status: 'M', file: 'desk/app/presence.hoon', lines: 20 },
+      { status: 'M', file: 'desk/tests/app/presence.hoon', lines: 30 },
       { status: 'D', file: 'packages/app/ui/Gone.tsx', lines: 50 },
       { status: 'M', file: 'README.md', lines: 1 },
     ],
@@ -426,7 +428,9 @@ test('lists the entries that cite a file that changed between two builds', () =>
   ]);
   // Tests, deleted files and files outside the app are not worth a look.
   assert.deepEqual(result.added, ['packages/app/ui/NewSheet.tsx']);
+  // The backend counts: a rule can change there with no app code changing.
   assert.deepEqual(result.uncited, [
+    { file: 'desk/app/presence.hoon', lines: 20 },
     { file: 'packages/shared/src/logic/roles.ts', lines: 3 },
   ]);
 
@@ -434,7 +438,7 @@ test('lists the entries that cite a file that changed between two builds', () =>
   assert.match(text, /Entries to re-read: 2/);
   assert.match(text, /^- Pin a chat$/m);
   assert.match(text, /^- `app\/Menu.tsx`: 12 lines, 2 entries$/m);
-  assert.match(text, /Changed files no entry cites: 1/);
+  assert.match(text, /Changed files no entry cites: 2/);
   assert.match(text, /^- `packages\/shared\/src\/logic\/roles.ts`: 3 lines$/m);
 });
 

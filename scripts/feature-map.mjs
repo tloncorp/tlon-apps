@@ -707,9 +707,15 @@ export function publish(root, app) {
 
 // --- what to re-read for a newer build --------------------------------------
 
-const isAppSource = (file) =>
-  SOURCE_ROOTS.some((root) => file.startsWith(`${root}/`)) &&
-  !/\.(test|fixture)\.|\/test\//.test(file);
+// The backend has no on-screen text, so it is not searched for labels. But a
+// rule about who may do something can change there with no app code changing,
+// so its files belong on the work list.
+const BACKEND_ROOTS = ['desk/app', 'desk/lib', 'desk/sur'];
+
+const isProductSource = (file) =>
+  [...SOURCE_ROOTS, ...BACKEND_ROOTS].some((root) =>
+    file.startsWith(`${root}/`)
+  ) && !/\.(test|fixture)\.|\/test\//.test(file);
 
 /**
  * The work list for bringing the map up to a newer build. `check` against the
@@ -740,7 +746,7 @@ export function affectedEntries({ mapFiles, changed }) {
   }
   const uncited = changed.filter(
     ({ status, file }) =>
-      status !== 'D' && isAppSource(file) && !cited.has(file)
+      status !== 'D' && isProductSource(file) && !cited.has(file)
   );
   const biggestFirst = (a, b) =>
     b.lines - a.lines || a.file.localeCompare(b.file);
