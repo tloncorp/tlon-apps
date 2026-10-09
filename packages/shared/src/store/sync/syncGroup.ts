@@ -57,7 +57,7 @@ export async function syncGroup(
         api.getGroupLight(id)
       );
       if (getClientGeneration() !== generation) return;
-      await batchEffects('syncGroup', async (queryCtx) => {
+      const stored = await batchEffects('syncGroup', async (queryCtx) => {
         const members = await fitToLiveChanges(
           id,
           snapshot,
@@ -68,7 +68,7 @@ export async function syncGroup(
           { groupId: id },
           queryCtx
         );
-        if (getClientGeneration() !== generation) return;
+        if (getClientGeneration() !== generation) return false;
         await db.insertGroups(
           {
             groups: [
@@ -85,7 +85,23 @@ export async function syncGroup(
           },
           queryCtx
         );
+        // insertMembers logs a failed batch rather than throwing, so only
+        // count the sync done once every member landed
+        const storedIds = new Set(
+          await db.getGroupMemberIds({ groupId: id }, queryCtx)
+        );
+        const missing = members.filter(
+          (member) => !storedIds.has(member.contactId)
+        );
+        if (missing.length) {
+          logger.trackError('light group sync stored an incomplete roster', {
+            missing: missing.length,
+          });
+          return false;
+        }
+        return true;
       });
+      if (!stored) return;
       lightSyncedAt.set(syncKey, Date.now());
       updateLastActivityTime();
       return;

@@ -5,7 +5,7 @@ import * as dbIndex from '../../db';
 import * as queries from '../../db/queries';
 import type * as db from '../../db/types';
 import { setupDatabaseTestSuite } from '../../test/helpers';
-import { updateInitializedClient } from '../session';
+import { updateInitializedClient, updateSession } from '../session';
 import { SyncPriority } from '../syncQueue';
 import { compareShips, syncGroupMembersPage } from './rosterPages';
 import { syncGroup } from './syncGroup';
@@ -158,6 +158,33 @@ describe('syncGroup on a big group', () => {
 
     expect(await storedMemberIds()).toEqual(['~zod', '~bud']);
     expect((await queries.getGroup({ id: groupId }))?.memberCount).toBe(599);
+  });
+
+  // insertMembers logs a failed batch instead of throwing
+  test('a light sync whose members did not land runs again', async () => {
+    // a session that started after earlier tests' light syncs of this group
+    updateSession({ startTime: Date.now() });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
+    const getGroupLight = vi
+      .spyOn(api, 'getGroupLight')
+      .mockResolvedValue(
+        group({ memberCount: 600, members: [member('~zod'), member('~nec')] })
+      );
+    const insertGroups = vi
+      .spyOn(dbIndex, 'insertGroups')
+      .mockResolvedValue(undefined);
+
+    try {
+      await syncGroup(groupId);
+      insertGroups.mockRestore();
+      await syncGroup(groupId);
+    } finally {
+      updateSession(null);
+    }
+
+    expect(getGroupLight).toHaveBeenCalledTimes(2);
+    expect(await storedMemberIds()).toEqual(['~zod', '~nec']);
   });
 
   test('syncs whole when the desk serves no pages', async () => {
