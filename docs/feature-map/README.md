@@ -158,8 +158,10 @@ commits, use the older one; `feature-map.mjs next` prints the right tag.
 
    It refuses while `check --ref <new>` still reports problems.
 
-5. Before the PR is opened, have a second agent read the changed entries
-   against the source at `<new>`. A first pass gets things wrong.
+5. Before the PR is opened, have a second agent read against the source at
+   `<new>`: the entries the first pass changed, and every other entry on the
+   list from step 2. A first pass gets about one edit in ten wrong, and it
+   also leaves alone some entries it should have changed.
 
 Between builds, fix a wrong entry by hand whenever one is found, then run
 `publish` with no `--app`.
