@@ -578,6 +578,35 @@ export function checkLooseLabels(text, reader) {
     .filter((label) => reader.grep(needleFor(label)).length === 0);
 }
 
+/**
+ * Lines in a file's `---` header that a strict YAML parser would reject. The
+ * header is what lets a bot load a skill at all, and one stray colon in its
+ * description is enough to lose the whole thing. This is not a YAML parser:
+ * it knows the plain `key: value` lines these headers use, and leaves quoted
+ * or indented values alone.
+ */
+export function headerProblems(text) {
+  const header = /^---\n([\s\S]*?)\n---(\n|$)/.exec(text);
+  if (!header) return [];
+  const problems = [];
+  for (const line of header[1].split('\n')) {
+    if (!line.trim() || /^\s|^#/.test(line)) continue;
+    const pair = /^([A-Za-z_][\w-]*):(?: (.*))?$/.exec(line);
+    if (!pair) {
+      problems.push(`not a \`key: value\` line: ${line.slice(0, 60)}`);
+      continue;
+    }
+    const value = pair[2] ?? '';
+    if (/^["'|>[{]/.test(value)) continue;
+    if (/: |:$| #/.test(value)) {
+      problems.push(
+        `\`${pair[1]}\` has ": " or " #" in an unquoted value, which is not valid YAML`
+      );
+    }
+  }
+  return problems;
+}
+
 // --- publish ---------------------------------------------------------------
 
 function renderPublished(file, entries) {
@@ -955,13 +984,17 @@ function run(argv) {
   if (command === 'labels') {
     const file = args.find((arg) => !arg.startsWith('--') && arg !== ref);
     if (!file) return usage();
-    const missing = checkLooseLabels(fs.readFileSync(file, 'utf8'), code());
+    const text = fs.readFileSync(file, 'utf8');
+    const header = headerProblems(text);
+    for (const problem of header) console.log(`header: ${problem}`);
+    const missing = checkLooseLabels(text, code());
     for (const label of missing)
       console.log(`not in the app's source: \`${label}\``);
     console.log(
-      `${missing.length} quoted labels not found against ${against()}`
+      `${missing.length} quoted labels not found against ${against()}` +
+        (header.length ? `; ${header.length} problems in the header` : '')
     );
-    return missing.length ? 1 : 0;
+    return missing.length || header.length ? 1 : 0;
   }
 
   if (command === 'surface') {

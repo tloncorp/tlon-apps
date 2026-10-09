@@ -80,8 +80,9 @@ jobs:
         run: npm install --global @openai/codex@0.160.1
 
       # The agent reads and edits here with the model key and nothing else: the
-      # token that can push is not in this step. Its sandbox lets it write to
-      # the checkout but not to .git, and gives it no network.
+      # token that can push is not in this step, and the script takes the
+      # read-only GH_TOKEN below out of the agent's environment. Its sandbox
+      # lets it write to the checkout but not to .git, and gives it no network.
       - name: Update the map
         id: update
         if: steps.secrets.outputs.ready == 'true'

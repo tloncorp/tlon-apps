@@ -9,6 +9,7 @@ import {
   checkQuestions,
   extractLabels,
   flagLeaks,
+  headerProblems,
   labelInSources,
   nextBuild,
   normalize,
@@ -228,6 +229,25 @@ test('the loose check skips paths, ships and placeholders', () => {
     'Tap `Share link`, run `/pending`, see `chat/~host/name`, `~sampel-palnet`, `<name> is on Tlon`, `New thing`.';
   const reader = fakeReader({}, { 'Share link': ['a.tsx'], pending: ['b.ts'] });
   assert.deepEqual(checkLooseLabels(text, reader), ['New thing']);
+});
+
+test('catches a header value that strict YAML would reject', () => {
+  const skill = (description) =>
+    `---\nname: guide\ndescription: ${description}\n---\n\n# Guide\n\nUse it: often.\n`;
+  // The colon after "Messenger" starts a mapping, and the skill fails to load.
+  assert.deepEqual(headerProblems(skill('About Tlon Messenger: read this.')), [
+    '`description` has ": " or " #" in an unquoted value, which is not valid YAML',
+  ]);
+  assert.deepEqual(
+    headerProblems(skill('About Tlon Messenger, so read this.')),
+    []
+  );
+  assert.deepEqual(
+    headerProblems(skill('"About Tlon Messenger: read this."')),
+    []
+  );
+  // Colons in the body are not the header's business.
+  assert.deepEqual(headerProblems('# Guide\n\nUse it: often.\n'), []);
 });
 
 test('rewrites only the index block', () => {

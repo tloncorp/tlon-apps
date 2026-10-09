@@ -135,8 +135,10 @@ run_agent() {
   local guide_before
   guide_before=$(guide_state)
 
+  # The agent gets no GitHub token, even a read-only one: it has no use for
+  # it, and anything in its environment can end up in what it sends or writes.
   sed -e "s|{{new}}|$target|g" -e "s|{{old}}|$old|g" -e "s|{{old_commit}}|$old_commit|g" \
-    "$map/agent/$1.md" | bash -c "$agent" > "$work/$1-report.md"
+    "$map/agent/$1.md" | env -u GH_TOKEN -u GITHUB_TOKEN bash -c "$agent" > "$work/$1-report.md"
 
   # The agent has write access to the checkout. Hold it to the map: no
   # commits, nothing outside the map, and nothing in the guide's folder, which
