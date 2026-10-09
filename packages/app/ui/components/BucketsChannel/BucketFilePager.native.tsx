@@ -39,13 +39,18 @@ export function BucketFilePager({
       ref={carousel}
       width="100%"
       flex={1}
+      backgroundColor="$secondaryBackground"
       hideOverlayOnTap={false}
       initialVisibleIndex={navigation.index}
       onVisibleIndexChange={onVisibleIndexChange}
       flatListProps={{ showsHorizontalScrollIndicator: false, bounces: false }}
     >
       {navigation.items.map((item, index) => (
-        <Carousel.Item key={item.id ?? item.name} flex={1}>
+        <Carousel.Item
+          key={item.id ?? item.name}
+          flex={1}
+          backgroundColor="$secondaryBackground"
+        >
           {index === navigation.index ? (
             children
           ) : (
