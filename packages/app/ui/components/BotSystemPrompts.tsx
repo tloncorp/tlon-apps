@@ -7,10 +7,11 @@ import {
   Fragment,
   useCallback,
   useEffect,
+  useMemo,
   useState,
   useSyncExternalStore,
 } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
@@ -139,8 +140,14 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   // Hold the name, not the row: the feed can change or delete this prompt
   // while the sheet is open, and a captured row would keep showing (and then
   // save over) text that is no longer current.
-  const [editingName, setEditingName] = useState<string | null>(null);
-  const [editingBaseText, setEditingBaseText] = useState<string | null>(null);
+  // The bot is held too: the profile screen can be reused for another bot
+  // while the sheet is open, and a draft must only ever save to the bot it
+  // was written for.
+  const [editingTarget, setEditingTarget] = useState<{
+    bot: string;
+    name: string;
+    baseText: string;
+  } | null>(null);
   // A desk upgrade can turn prompt support on while this profile is open,
   // after the read and the watch were already refused. Resubscribing on a
   // change also refreshes the read, which nothing else would retry.
@@ -230,8 +237,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   }, [queryClient]);
 
   const handleCloseEditor = useCallback(() => {
-    setEditingName(null);
-    setEditingBaseText(null);
+    setEditingTarget(null);
   }, []);
 
   const prompts = promptsQuery.data;
@@ -242,9 +248,9 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   // Resolved against the live query every render, so an edit or deletion
   // arriving on the feed reaches the open sheet instead of being saved over.
   const editing =
-    editingName === null
+    editingTarget === null || editingTarget.bot !== botShip
       ? null
-      : (prompts.find((prompt) => prompt.name === editingName) ?? null);
+      : (prompts.find((prompt) => prompt.name === editingTarget.name) ?? null);
 
   const orderedPrompts = [...prompts].sort((a, b) => {
     const aOrder = promptOrder.get(a.name) ?? Number.MAX_SAFE_INTEGER;
@@ -264,8 +270,11 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
               accessibilityRole="button"
               accessibilityLabel={`Edit ${PROMPT_LABELS[prompt.name] ?? prompt.name} prompt`}
               onPress={() => {
-                setEditingName(prompt.name);
-                setEditingBaseText(prompt.text);
+                setEditingTarget({
+                  bot: botShip,
+                  name: prompt.name,
+                  baseText: prompt.text,
+                });
               }}
               pressStyle={{ backgroundColor: '$secondaryBackground' }}
             >
@@ -297,13 +306,14 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
         <BotSystemPromptEditorSheet
           botShip={botShip}
           prompt={editing}
-          // Keyed by name only. Keying on the text too remounted the sheet
-          // whenever the projection changed — including on the fact for the
-          // edit being saved — which reset `saving` and reopened the
-          // dismiss/double-submit race the guard exists to prevent.
-          key={editing.name}
+          // Keyed by bot and name, never the text. Keying on the text
+          // remounted the sheet whenever the projection changed — including
+          // on the fact for the edit being saved — which reset `saving` and
+          // reopened the dismiss/double-submit race the guard exists to
+          // prevent.
+          key={`${botShip}/${editing.name}`}
           changedElsewhere={
-            editingBaseText !== null && editingBaseText !== editing.text
+            editingTarget !== null && editingTarget.baseText !== editing.text
           }
           onClose={handleCloseEditor}
           onSaved={handleSaved}
@@ -330,13 +340,8 @@ function BotSystemPromptEditorSheet({
   const isWindowNarrow = useIsWindowNarrow();
   const [saving, setSaving] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [previewState, setPreviewState] = useState<{
-    content: ReturnType<typeof convertContent>;
-    error: string | null;
-  }>({ content: [], error: null });
   const {
     control,
-    getValues,
     handleSubmit,
     reset,
     formState: { isDirty },
@@ -344,6 +349,25 @@ function BotSystemPromptEditorSheet({
     mode: 'onChange',
     defaultValues: { text: prompt.text },
   });
+  // Rendered from the live form value rather than captured on toggle, so a
+  // projection taken in below while previewing replaces what is shown.
+  const text = useWatch({ control, name: 'text' });
+  const previewState = useMemo(() => {
+    if (!isPreviewing) {
+      return { content: [], error: null };
+    }
+    try {
+      return {
+        content: convertContent(markdownToStory(text), null),
+        error: null,
+      };
+    } catch {
+      return {
+        content: [],
+        error: 'Unable to render this prompt as Markdown.',
+      };
+    }
+  }, [isPreviewing, text]);
 
   // Take a new projection into the form in place of remounting. Held back
   // while a save is in flight (that state must survive) and while the user
@@ -374,25 +398,11 @@ function BotSystemPromptEditorSheet({
   );
 
   const handleTogglePreview = useCallback(() => {
-    if (isPreviewing) {
-      setIsPreviewing(false);
-      return;
+    if (!isPreviewing) {
+      Keyboard.dismiss();
     }
-
-    Keyboard.dismiss();
-    try {
-      setPreviewState({
-        content: convertContent(markdownToStory(getValues('text')), null),
-        error: null,
-      });
-    } catch {
-      setPreviewState({
-        content: [],
-        error: 'Unable to render this prompt as Markdown.',
-      });
-    }
-    setIsPreviewing(true);
-  }, [getValues, isPreviewing]);
+    setIsPreviewing(!isPreviewing);
+  }, [isPreviewing]);
 
   const handleSave = useCallback(() => {
     if (!isDirty || saving) {
