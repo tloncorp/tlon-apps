@@ -610,9 +610,12 @@ export function Channel({
     // This prevents auto-marking on desktop when user is AFK
     if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
       // add slight delay to allow high priority tasks to hit the sync queue first
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         markRead();
       }, 150);
+      // overlapping reads snapshot each other's optimistic clear, so a re-run
+      // replaces the pending read rather than adding a second one
+      return () => clearTimeout(timeout);
     }
     // markChannelRead latches a failed read until the unread changes or the
     // connection comes back; these deps re-run the effect when either happens.

@@ -968,10 +968,13 @@ export async function markChannelRead({
   id,
   groupId,
   includeThreads,
+  force,
 }: {
   id: string;
   groupId?: string;
   includeThreads?: boolean;
+  // explicit user actions bypass the failure latch; the automatic screen read does not
+  force?: boolean;
 }) {
   // per-note unreads ride thread rows, so a notes channel read is only
   // meaningful deep — otherwise the note dots (and their backend sources)
@@ -995,6 +998,7 @@ export async function markChannelRead({
   );
   const previousFailure = failedChannelReads.get(id);
   if (
+    !force &&
     previousFailure?.generation === generation &&
     previousFailure.snapshot === snapshot
   ) {

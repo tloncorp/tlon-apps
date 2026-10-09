@@ -102,6 +102,7 @@ function BaseInteractableChatRow({
             store.markChannelRead({
               id: model.id,
               groupId: model.channel.groupId ?? undefined,
+              force: true,
             });
           }
           break;

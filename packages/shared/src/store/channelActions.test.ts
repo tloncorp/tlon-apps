@@ -887,6 +887,29 @@ test('markChannelRead retries a failed read after the client generation changes'
   expect(readChannel).toHaveBeenCalledTimes(2);
 });
 
+test('markChannelRead retries a latched read when forced and stays latched for unforced calls', async () => {
+  await insertGroupAndChannel();
+  await db.insertChannelUnreads([
+    makeChannelUnread({ count: 2, countWithoutThreads: 2 }),
+  ]);
+  const readChannel = vi
+    .spyOn(api, 'readChannel')
+    .mockRejectedValue(new Error('read failed'));
+
+  await markChannelRead({ id: channelId, groupId });
+  expect(readChannel).toHaveBeenCalledTimes(1);
+
+  await expect(
+    markChannelRead({ id: channelId, groupId, force: true })
+  ).resolves.toBe(false);
+  expect(readChannel).toHaveBeenCalledTimes(2);
+
+  await expect(markChannelRead({ id: channelId, groupId })).resolves.toBe(
+    false
+  );
+  expect(readChannel).toHaveBeenCalledTimes(2);
+});
+
 test('markGroupRead reports failure and restores unread state', async () => {
   await insertGroup();
   await db.insertGroupUnreads([makeGroupUnread()]);
