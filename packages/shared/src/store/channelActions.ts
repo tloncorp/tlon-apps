@@ -925,10 +925,27 @@ export async function markChannelVisited(channelId: string) {
 // in the channel screen. Without this latch a ship that keeps rejecting the
 // poke gets four pokes every ~16 s for as long as the channel is open. A
 // channel is retried once its unread changes or the connection comes back.
+// Shallow and deep reads latch separately: their snapshots differ, so one
+// mode's failure overwriting the other's would re-arm it.
 const failedChannelReads = new Map<
   string,
   { generation: number; snapshot: string }
 >();
+
+function failedChannelReadKey(id: string, includeThreads: boolean) {
+  return `${id}:${includeThreads ? 'deep' : 'shallow'}`;
+}
+
+// The ship accepted a read, so neither mode's latch says anything about it any
+// more. A read from an earlier login must not clear a latch the current one set.
+export function forgetFailedChannelReads(id: string, generation: number) {
+  for (const includeThreads of [false, true]) {
+    const key = failedChannelReadKey(id, includeThreads);
+    if (failedChannelReads.get(key)?.generation === generation) {
+      failedChannelReads.delete(key);
+    }
+  }
+}
 
 // Bumped by every reset, so a read that was already in flight when the
 // connection came back cannot latch the channel with its stale failure.
@@ -964,18 +981,42 @@ export function resetFailedChannelReads() {
   failedChannelReads.clear();
 }
 
-export async function markChannelRead({
-  id,
-  groupId,
-  includeThreads,
-  force,
-}: {
+type MarkChannelReadParams = {
   id: string;
   groupId?: string;
   includeThreads?: boolean;
   // explicit user actions bypass the failure latch; the automatic screen read does not
   force?: boolean;
-}) {
+};
+
+// Each read snapshots the unread and rolls back to it on failure, so two reads
+// of one channel in flight at once restore each other's optimistic clear. A
+// later call queues rather than sharing the earlier promise: activity that
+// arrived after the first read's snapshot still needs a read of its own.
+const inFlightChannelReads = new Map<string, Promise<boolean>>();
+
+export function markChannelRead(params: MarkChannelReadParams) {
+  const { id } = params;
+  const previous = inFlightChannelReads.get(id) ?? Promise.resolve(false);
+  const run = previous
+    .catch(() => false)
+    .then(() => markChannelReadOnce(params));
+  inFlightChannelReads.set(id, run);
+  const settle = () => {
+    if (inFlightChannelReads.get(id) === run) {
+      inFlightChannelReads.delete(id);
+    }
+  };
+  run.then(settle, settle);
+  return run;
+}
+
+async function markChannelReadOnce({
+  id,
+  groupId,
+  includeThreads,
+  force,
+}: MarkChannelReadParams) {
   // per-note unreads ride thread rows, so a notes channel read is only
   // meaningful deep — otherwise the note dots (and their backend sources)
   // survive the channel badge being cleared
@@ -996,7 +1037,8 @@ export async function markChannelRead({
     existingUnread,
     includeThreads ? existingThreadUnreads : null
   );
-  const previousFailure = failedChannelReads.get(id);
+  const latchKey = failedChannelReadKey(id, includeThreads);
+  const previousFailure = failedChannelReads.get(latchKey);
   if (
     !force &&
     previousFailure?.generation === generation &&
@@ -1099,12 +1141,12 @@ export async function markChannelRead({
       groupId: existingChannel.groupId,
       deep: !!includeThreads,
     });
-    failedChannelReads.delete(id);
+    forgetFailedChannelReads(id, generation);
     return true;
   } catch (e) {
     logger.error('Failed to read channel', { id, groupId }, e);
     if (resetEpoch === failedChannelReadsResetEpoch) {
-      failedChannelReads.set(id, { generation, snapshot });
+      failedChannelReads.set(latchKey, { generation, snapshot });
     }
     // rollback optimistic update
     if (existingUnread) {

@@ -10,6 +10,7 @@ import {
   canGroupHostBuckets,
   createChannel,
   deleteChannel,
+  forgetFailedChannelReads,
   joinGroupChannel,
   leaveGroupChannel,
   markChannelRead,
@@ -18,7 +19,11 @@ import {
   upsertDmChannel,
 } from './channelActions';
 import { markGroupRead } from './groupActions';
-import { getInitializedClient, updateInitializedClient } from './session';
+import {
+  getClientGeneration,
+  getInitializedClient,
+  updateInitializedClient,
+} from './session';
 import { handleChannelStatusChange, handleDmStatus } from './sync';
 
 setupDatabaseTestSuite();
@@ -908,6 +913,148 @@ test('markChannelRead retries a latched read when forced and stays latched for u
     false
   );
   expect(readChannel).toHaveBeenCalledTimes(2);
+});
+
+// New activity re-runs the screen effect while a read is still retrying, so
+// the second call must not snapshot the first one's optimistic clear.
+test('markChannelRead queues a read behind one in flight and checks the latch when it runs', async () => {
+  await insertGroupAndChannel();
+  await db.insertChannelUnreads([
+    makeChannelUnread({ count: 2, countWithoutThreads: 2 }),
+  ]);
+  let rejectFirst: (error: Error) => void = () => undefined;
+  const readChannel = vi
+    .spyOn(api, 'readChannel')
+    .mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectFirst = reject;
+        })
+    )
+    .mockRejectedValue(new Error('read failed'));
+
+  const first = markChannelRead({ id: channelId, groupId });
+  await vi.waitFor(() => expect(readChannel).toHaveBeenCalledTimes(1));
+  const second = markChannelRead({ id: channelId, groupId });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(readChannel).toHaveBeenCalledTimes(1);
+
+  rejectFirst(new Error('read failed'));
+  await expect(first).resolves.toBe(false);
+  await expect(second).resolves.toBe(false);
+  expect(readChannel).toHaveBeenCalledTimes(1);
+  expect(await db.getChannelUnread({ channelId })).toMatchObject({
+    count: 2,
+  });
+});
+
+test('markChannelRead sends a queued read for activity that arrived during the first', async () => {
+  await insertGroupAndChannel();
+  await db.insertChannelUnreads([
+    makeChannelUnread({ count: 2, countWithoutThreads: 2 }),
+  ]);
+  let resolveFirst: () => void = () => undefined;
+  const readChannel = vi
+    .spyOn(api, 'readChannel')
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = () => resolve(undefined);
+        })
+    )
+    .mockResolvedValue(undefined);
+
+  const first = markChannelRead({ id: channelId, groupId });
+  await vi.waitFor(() => expect(readChannel).toHaveBeenCalledTimes(1));
+  await db.insertChannelUnreads([
+    makeChannelUnread({ count: 3, countWithoutThreads: 3, updatedAt: 200 }),
+  ]);
+  const second = markChannelRead({ id: channelId, groupId });
+
+  resolveFirst();
+  await expect(first).resolves.toBe(true);
+  await expect(second).resolves.toBe(true);
+  expect(readChannel).toHaveBeenCalledTimes(2);
+  expect(await db.getChannelUnread({ channelId })).toMatchObject({
+    count: 0,
+  });
+});
+
+// Reads of one channel are serialized, so an earlier login's success cannot
+// settle after the current login's failure through markChannelRead itself;
+// this drives the eviction directly with the earlier generation.
+test('markChannelRead keeps a latch set in the current generation when an earlier generation succeeds', async () => {
+  await insertGroupAndChannel();
+  await db.insertChannelUnreads([
+    makeChannelUnread({ count: 2, countWithoutThreads: 2 }),
+  ]);
+  const readChannel = vi
+    .spyOn(api, 'readChannel')
+    .mockRejectedValue(new Error('read failed'));
+
+  await markChannelRead({ id: channelId, groupId });
+  const earlierGeneration = getClientGeneration();
+  updateInitializedClient(getInitializedClient());
+  await markChannelRead({ id: channelId, groupId });
+  expect(readChannel).toHaveBeenCalledTimes(2);
+
+  forgetFailedChannelReads(channelId, earlierGeneration);
+  await markChannelRead({ id: channelId, groupId });
+  expect(readChannel).toHaveBeenCalledTimes(2);
+
+  forgetFailedChannelReads(channelId, getClientGeneration());
+  await markChannelRead({ id: channelId, groupId });
+  expect(readChannel).toHaveBeenCalledTimes(3);
+});
+
+test('markChannelRead keeps a shallow latch when a forced deep read fails', async () => {
+  await insertGroupAndChannel();
+  await db.insertChannelUnreads([
+    makeChannelUnread({ count: 1, countWithoutThreads: 1 }),
+  ]);
+  await db.insertThreadUnreads([makeThreadUnread({ count: 1 })]);
+  const readChannel = vi
+    .spyOn(api, 'readChannel')
+    .mockRejectedValue(new Error('read failed'));
+
+  await markChannelRead({ id: channelId, groupId });
+  expect(readChannel).toHaveBeenCalledTimes(1);
+
+  await expect(
+    markChannelRead({
+      id: channelId,
+      groupId,
+      includeThreads: true,
+      force: true,
+    })
+  ).resolves.toBe(false);
+  expect(readChannel).toHaveBeenCalledTimes(2);
+
+  await expect(markChannelRead({ id: channelId, groupId })).resolves.toBe(
+    false
+  );
+  expect(readChannel).toHaveBeenCalledTimes(2);
+});
+
+test('markChannelRead clears the shallow latch when a deep read succeeds', async () => {
+  await insertGroupAndChannel();
+  const unread = makeChannelUnread({ count: 1, countWithoutThreads: 1 });
+  await db.insertChannelUnreads([unread]);
+  const readChannel = vi
+    .spyOn(api, 'readChannel')
+    .mockRejectedValueOnce(new Error('read failed'))
+    .mockResolvedValueOnce(undefined)
+    .mockRejectedValue(new Error('read failed'));
+
+  await markChannelRead({ id: channelId, groupId });
+  await expect(
+    markChannelRead({ id: channelId, groupId, includeThreads: true })
+  ).resolves.toBe(true);
+  expect(readChannel).toHaveBeenCalledTimes(2);
+
+  await db.insertChannelUnreads([unread]);
+  await markChannelRead({ id: channelId, groupId });
+  expect(readChannel).toHaveBeenCalledTimes(3);
 });
 
 test('markGroupRead reports failure and restores unread state', async () => {
