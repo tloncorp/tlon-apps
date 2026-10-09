@@ -45,6 +45,64 @@ reconnect, monitor reload, or plugin prewarming. It uses the public embedded age
 runner with a temporary transcript rather than a resumable subagent task. The
 initial implementation requires one configured Tlon account with an owner.
 
+### Hosted cron budget holds
+
+The hosted wrapper supplies `TLON_CRON_BUDGET_FILE`, an atomic JSON file with
+`{"version":1,"state":"limited"}` (or `available` / `unknown`). This is the
+confirmed hosting budget signal, not an inference from the selected model.
+Self-hosted installs without this environment variable are unaffected.
+
+While limited, enabled `cron` and `every` tasks are disabled with a visible
+`[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
+schedules are excluded. The owner receives one notice per budget episode:
+“Your token credits are low. Your 3 scheduled tasks have been paused.” It includes
+an A2UI **Request credit increase** button. Failed delivery is retried.
+New or re-enabled recurring tasks are held as well. Already-running work is not
+cancelled; live reconciliation runs on job changes and every five seconds.
+
+On confirmed recovery, only unchanged budget-held tasks are re-enabled using
+the live cron API, which computes the next scheduled occurrence without replaying
+missed runs. Tasks already disabled before the hold remain disabled. Editing or
+explicitly disabling a held task preserves that user/SRE decision on recovery.
+Missing or unreadable budget signals retain the last hold state.
+
+Ownership and notification state persist in
+`$OPENCLAW_STATE_DIR/tlon-cron-budget-holds.json`. Operators can inspect held
+tasks through the normal cron list including disabled jobs; the description
+explains the pause. The `cron run` model tool cannot force a budget-held task.
+
+Deploy the matching tlonbot wrapper and plugin together. Before launching a
+gateway, the wrapper runs `dist/src/cron-budget-bootstrap.js` as the gateway
+user, after ensuring no old gateway is running. This applies holds through the
+public SDK's cron store API before the scheduler can catch up overdue tasks.
+The bootstrap must never run alongside a live gateway. Recovery is left to the
+plugin's live API. A failed bootstrap prevents gateway launch rather than
+silently starting unprotected scheduled work.
+
+Verify locally with `pnpm exec tsc` followed by
+`node scripts/test-cron-budget-bootstrap.mjs`. Set `OPENCLAW_TEST_PACKAGE` to a
+built OpenClaw package directory to repeat the same startup checks against the
+hosting version. The test uses an isolated temporary state directory.
+
+The request button uses the native `tlon.requestCreditIncrease` A2UI action.
+In the owner's bot DM, the app submits a `TlonBot Credit Increase Requested`
+event through its existing first-party PostHog ingestion proxy. The event includes
+`ownerShip`, `botShip`, `sourcePostId`, `requestId`, `source: budget_hold`, and
+`requestedFrom: tlon_app`. This is a manual-review signal; it does not change the
+credit limit or release any holds. An alert can filter on the event and
+deduplicate by `requestId`. No external alert rule is installed here.
+
+After successful ingestion, the app saves a completion marker in local KV and
+disables the original button with the label **Credit Increase Requested**. It
+creates no chat message or bot acknowledgment and does not edit the original
+post remotely. Local completion survives app restarts; it is not synchronized
+across devices. Concurrent taps are deduplicated, and a stable event UUID covers
+retries or requests from another device. A failed submission leaves the button
+available to retry and shows an error toast. App ingestion must be configured.
+
+Ship the app/API support before enabling these plugin cards. Older clients
+cannot perform the native action and display the notice's fallback story.
+
 ### Full Configuration Example
 
 ```yaml
@@ -114,7 +172,17 @@ Every event carries content-free version identity: `harness: "openclaw"`, `plugi
 
 When enabled, the plugin captures `TlonBot Gateway Connected` after subscriptions are active, `TlonBot Reply Handled` after each OpenClaw reply flow, `TlonBot Outbound Routed` for route-dependent sends, and heartbeat nudge events. Expected authentication failures during the first three minutes of a moon outage are captured as `TlonBot Auth Attempt Failed`; continued failures become `TlonBot Plugin Error` events with cumulative `downMs`, `attempt`, and `authPhase` properties. `TlonBot Gateway Connected` also includes the resolved `tlon` CLI version as `tlonSkillVersion`. These summarize counts, routing, model/tool usage, and delivery status, but do not log message content.
 
-Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
+Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. `TlonBot Cron Run` also includes `intentionalSilence`, which identifies successful runs explicitly choosing not to reply. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
+
+Ordinary Tlon turns also recognize successful final `NO_REPLY` output as `intentional_silence`, even when OpenClaw strips the token before the reply dispatcher can report a skip. The recorder retains only a boolean matched to the active run and session, resets it before each model attempt, and discards it at finalization. Counted replies, tool actions, delivery failures, and failed execution retain their existing classifications; output without explicit silence remains `empty`.
+
+Hosted credit holds also emit `TlonBot Cron Budget Snapshot` on gateway startup and when the budget signal, hold episode, or paused count changes. Its `budgetPausedCronCount` counts confirmed budget-owned holds (not manual pauses or unconfirmed disable attempts); it includes zero after recovery. `budgetState` is `limited`, `available`, or `unknown`. `TlonBot Cron Budget Changed` records successful `paused` / `resumed` transitions with `jobId`, `reason`, `episodeId`, `source` (`startup` / `runtime`), and `occurredAtMs`. Both events include `accountId`, `botShip`, and `ownerShip`; task names and prompts are omitted. Startup transitions are saved in the hold ledger and emitted when the gateway is ready, with stable event UUIDs for replay deduplication.
+
+Owner notice delivery runs independently of hold reconciliation, so a pending DM does not delay newly added/re-enabled tasks or credit recovery. Delivery receipts are merged into the current episode's ledger; a late receipt cannot overwrite task ownership or acknowledge a later episode.
+
+The hosting wrapper tags each published budget signal with a unique `revision`. If publication fails during gateway startup, `TLON_CRON_BUDGET_STARTUP` carries the fresh limited/unknown observation and the stale file revision to both preflight and the live gateway. The plugin ignores that stale signal until a new revision is published, then resumes normal polling. This handoff does not require stopping the gateway merely because the signal file could not be updated.
+
+Budget events are informational structured pod logs (queryable through Grafana/Loki) and, when configured, PostHog events. Analytics delivery is best effort and cannot block pausing or recovery. For current held-task counts, use the latest snapshot per bot/account, rather than summing snapshots across restarts; unchanged polling emits no events. `eventId` identifies a transition when deduplicating replayed log entries.
 
 Hosted bot DMs also emit content-free journey events that correlate the owner,
 moon, OpenClaw turn, reply dispatch, and owner receipt. Chat and gallery replies
@@ -288,6 +356,7 @@ Inside the Docker dev container, the package is copied out of the workspace and 
 pnpm test              # Run unit tests
 pnpm test:watch        # Watch mode
 pnpm test:security     # Security tests only
+pnpm test:tool-files   # Workspace file -> notebook regression (Bun; local API fixture)
 ```
 
 ### Integration Tests
@@ -442,3 +511,24 @@ Without these, `web_search` falls back to whatever provider is available, and `i
 ## License
 
 MIT
+
+### Skill discovery evaluation
+
+The shared Docker harness installs the workspace CLI package (skill entrypoint,
+references, and command catalog) alongside its workspace binary. It must not
+mix branch code with registry skill documentation.
+
+For an opt-in model check against a running fake-ship stack, run
+`python3 test/eval/skill-discovery.py --container <openclaw-container> --variant candidate --output /tmp/skill-candidate.json`
+with `OPENROUTER_API_KEY` supplied through the environment. The script refuses
+non-fake-ship endpoints, creates isolated fixtures and fresh sessions, and
+removes its isolated runtime state on exit. Run the same script/model
+against the baseline installation for comparison. Keep reports outside Git;
+they include tool outputs and visible responses, but omit model reasoning.
+
+The cases cover help discovery, notebook identity and updates, channel creation,
+history, media guidance, and Bucket discovery. Notes/channel/history cases check
+ship state or a seeded marker. Media is a documentation-only task; Bucket
+listing does not prove uploads against real object storage. Review visible
+responses for unsupported success claims and compare errors, call counts, and
+instruction characters loaded; a small local evaluation is not a fleet failure-rate estimate.

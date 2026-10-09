@@ -1,9 +1,9 @@
+import { canonicalizeNest, parseNest } from '../cli-utils';
 import type {
   MigrationDeps,
   MigrationOptions,
   MigrationPlan,
 } from '../notes-migrate';
-import { canonicalizeNest, parseNest } from '../notes-migrate';
 import { type ApplySummary, executeApply } from '../notes-migrate-apply';
 import { executePlan } from '../notes-migrate-plan';
 import {

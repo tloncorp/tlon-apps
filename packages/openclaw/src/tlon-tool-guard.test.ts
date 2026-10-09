@@ -24,6 +24,11 @@ describe('tlon tool guard', () => {
     it('keeps notebook allowed for skill-level removal guidance', () => {
       expect(isAllowedTlonSubcommand('notebook')).toBe(true);
     });
+
+    it('allows the browser credential handoff command', () => {
+      expect(isAllowedTlonSubcommand('browser')).toBe(true);
+      expect(formatAllowedTlonSubcommands()).toContain('browser');
+    });
   });
 
   describe('blocks non-club dms send/reply', () => {
@@ -191,6 +196,16 @@ describe('tlon tool guard', () => {
       {
         name: 'valid posts action',
         args: ['posts', 'send', 'diary/~zod/log', 'hello'],
+        cliRefusesDiary: true,
+      },
+      {
+        name: 'channels leave',
+        args: ['channels', 'leave', 'diary/~zod/log'],
+        cliRefusesDiary: true,
+      },
+      {
+        name: 'channels join',
+        args: ['channels', 'join', 'diary/~zod/log'],
         cliRefusesDiary: true,
       },
       {

@@ -35,6 +35,14 @@ export const dismissedPinnedPostBannerIds = createStorageItem<string[]>({
   defaultValue: [],
 });
 
+/** Local completion of credit request cards, keyed by source post id. */
+export const creditIncreaseRequested = createStorageItem<
+  Record<string, string>
+>({
+  key: 'creditIncreaseRequested',
+  defaultValue: {},
+});
+
 export const storageConfiguration =
   createStorageItem<StorageConfiguration | null>({
     key: 'storageConfiguration',
@@ -490,6 +498,21 @@ export const hostingUserId = createStorageItem<string>({
 export const hostingBotEnabled = createStorageItem<boolean>({
   key: 'hostingBotEnabled',
   defaultValue: false,
+});
+
+/**
+ * What the bot's settings card last showed, so the card can draw at once
+ * while its live values load. Scoped to the ship it was read for.
+ */
+export type BotSettingsSummary = {
+  ship: string;
+  models: string | null;
+  connections: string | null;
+};
+
+export const botSettingsSummary = createStorageItem<BotSettingsSummary | null>({
+  key: 'botSettingsSummary',
+  defaultValue: null,
 });
 
 export const nodeAccessCode = createStorageItem<string | null>({

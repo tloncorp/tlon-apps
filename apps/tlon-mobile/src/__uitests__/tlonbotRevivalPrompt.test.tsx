@@ -15,7 +15,6 @@ import { useTlonbotRevivalPrompt } from '../components/TlonbotRevivalPromptSheet
 import type { NodeStatusCheckResult } from '../hooks/useCheckNodeStopped';
 
 const mockStartSplashSequence = jest.fn(() => true);
-const mockCloseAfterAnimation = jest.fn((action: () => void) => action());
 
 jest.mock('@tloncorp/app/contexts/ship', () => ({
   useShip: () => ({
@@ -25,11 +24,6 @@ jest.mock('@tloncorp/app/contexts/ship', () => ({
   }),
 }));
 jest.mock('@tloncorp/app/ui', () => ({}));
-jest.mock('@tloncorp/app/ui/hooks/useSheetCloseAfterAnimation', () => ({
-  useSheetCloseAfterAnimation: () => ({
-    closeAfterAnimation: mockCloseAfterAnimation,
-  }),
-}));
 jest.mock('@tloncorp/shared', () => ({
   AnalyticsEvent: {
     ErrorWayfinding: 'Error Wayfinding',
@@ -45,7 +39,7 @@ jest.mock('@tloncorp/shared/db', () => ({
 jest.mock('@tloncorp/shared/store', () => ({
   clearShipRevivalStatus: jest.fn(),
 }));
-jest.mock('@tloncorp/ui', () => ({}));
+jest.mock('@tloncorp/ui', () => ({ useIsWindowNarrow: () => true }));
 
 const revivalNode: NodeStatusCheckResult = {
   nodeStatus: HostedNodeStatus.Running,
@@ -56,9 +50,6 @@ const revivalNode: NodeStatusCheckResult = {
 describe('Tlonbot revival prompt hosting auth', () => {
   beforeEach(() => {
     mockStartSplashSequence.mockReset().mockReturnValue(true);
-    mockCloseAfterAnimation
-      .mockReset()
-      .mockImplementation((action: () => void) => action());
     jest
       .mocked(store.clearShipRevivalStatus)
       .mockReset()
@@ -138,9 +129,12 @@ describe('Tlonbot revival prompt hosting auth', () => {
       useTlonbotRevivalPrompt(requireHostingAuth)
     );
 
+    await act(async () => result.current.maybeShowPrompt(revivalNode));
     await act(async () => result.current.promptSheet.props.onStart());
-
-    expect(mockCloseAfterAnimation).toHaveBeenCalledTimes(1);
+    expect(result.current.promptSheet.props.open).toBe(false);
+    expect(mockStartSplashSequence).not.toHaveBeenCalled();
+    await act(async () => result.current.promptSheet.props.onNativeDismissed());
+    await act(async () => result.current.promptSheet.props.onNativeDismissed());
     expect(mockStartSplashSequence).toHaveBeenCalledWith('tlonbotRevival');
     expect(store.clearShipRevivalStatus).toHaveBeenCalledTimes(1);
   });
@@ -152,9 +146,24 @@ describe('Tlonbot revival prompt hosting auth', () => {
       useTlonbotRevivalPrompt(requireHostingAuth)
     );
 
+    await act(async () => result.current.maybeShowPrompt(revivalNode));
     await act(async () => result.current.promptSheet.props.onStart());
+    await act(async () => result.current.promptSheet.props.onNativeDismissed());
 
     expect(mockStartSplashSequence).toHaveBeenCalledWith('tlonbotRevival');
+    expect(store.clearShipRevivalStatus).not.toHaveBeenCalled();
+  });
+
+  it('cancels revival when the prompt owner unmounts during dismissal', async () => {
+    const { result, unmount } = renderHook(() =>
+      useTlonbotRevivalPrompt(jest.fn(async () => true))
+    );
+    await act(async () => result.current.maybeShowPrompt(revivalNode));
+    await act(async () => result.current.promptSheet.props.onStart());
+    const complete = result.current.promptSheet.props.onNativeDismissed;
+    unmount();
+    await act(async () => complete());
+    expect(mockStartSplashSequence).not.toHaveBeenCalled();
     expect(store.clearShipRevivalStatus).not.toHaveBeenCalled();
   });
 });

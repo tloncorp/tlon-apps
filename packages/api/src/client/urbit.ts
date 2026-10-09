@@ -68,6 +68,8 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
   deskSupportsBuckets: boolean | null;
+  deskSupportsStewardPrompts: boolean | null;
+  deskCountsAllSeats: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -190,6 +192,12 @@ const config: Config = {
   // whose version we cannot read is asked for /v10, which every backend has —
   // a 404 there costs the whole init. Guarded requests refuse only false.
   deskSupportsBuckets: null,
+  // Unknown (null) until the app confirms the backend's groups version.
+  // Guarded requests refuse only false.
+  deskSupportsStewardPrompts: null,
+  // Off until the app confirms the backend's groups version counts every seat
+  // in init and changes, so a member count of 15 stays suspect by default.
+  deskCountsAllSeats: false,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -272,6 +280,17 @@ export const getActivitySupportsNotes = (): boolean => {
   return config.activitySupportsNotes;
 };
 
+// Whether the connected backend's init and changes member counts cover every
+// seat. Older desks counted only the 15 seats they keep, so
+// withoutTruncatedMemberCount distrusts a count of exactly 15 until this is set.
+export const setDeskCountsAllSeats = (value: boolean) => {
+  config.deskCountsAllSeats = value;
+};
+
+export const getDeskCountsAllSeats = (): boolean => {
+  return config.deskCountsAllSeats;
+};
+
 const deskSupportsBucketsListeners = new Set<() => void>();
 
 // Whether the connected backend serves /v11/init (Buckets and their writer
@@ -301,6 +320,32 @@ export const onDeskSupportsBucketsChange = (
   deskSupportsBucketsListeners.add(listener);
   return () => {
     deskSupportsBucketsListeners.delete(listener);
+  };
+};
+
+const deskSupportsStewardPromptsListeners = new Set<() => void>();
+
+// Whether the connected backend's %steward serves the prompts routes. The
+// request guard refuses a known false; a view that already met that refusal
+// listens below to try again once a desk upgrade turns it on.
+export const setDeskSupportsStewardPrompts = (value: boolean | null) => {
+  const changed = config.deskSupportsStewardPrompts !== value;
+  config.deskSupportsStewardPrompts = value;
+  if (changed) {
+    deskSupportsStewardPromptsListeners.forEach((listener) => listener());
+  }
+};
+
+export const getDeskSupportsStewardPromptsState = (): boolean | null => {
+  return config.deskSupportsStewardPrompts;
+};
+
+export const onDeskSupportsStewardPromptsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsStewardPromptsListeners.add(listener);
+  return () => {
+    deskSupportsStewardPromptsListeners.delete(listener);
   };
 };
 
@@ -475,6 +520,8 @@ export function internalRemoveClient() {
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
   setDeskSupportsBuckets(null);
+  setDeskSupportsStewardPrompts(null);
+  setDeskCountsAllSeats(false);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
@@ -577,7 +624,8 @@ export async function subscribe<T>(
   // Hears a watch the ship rejects after this has resolved, once the retries
   // below have given up on it. This resolves when the channel PUT lands, so a
   // nack arriving later on the event stream has no promise left to reject.
-  onRejected?: (error: unknown) => void
+  onRejected?: (error: unknown) => void,
+  options?: { onQuit?: () => void }
 ): Promise<number> {
   // the account this is for. As in poke, the send and any retry go to it,
   // never to an account that replaced it mid-flight
@@ -627,6 +675,9 @@ export async function subscribe<T>(
       quit: () => {
         logger.log('subscription quit on', printEndpoint(endpoint));
         config.onQuitOrReset?.('subscriptionQuit', printEndpoint(endpoint));
+        // The client resubscribes, but facts emitted in the gap are gone.
+        // Let stateful callers request their own backfill.
+        options?.onQuit?.();
       },
       err: (error, id) => {
         logger.trackError('subscribe error', {

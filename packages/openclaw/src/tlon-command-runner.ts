@@ -1,4 +1,8 @@
 import { spawn } from 'node:child_process';
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+
+import { normalizeShip } from './targets.js';
+import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
 
 export const DEFAULT_TLON_CLI_TIMEOUT_MS = 45_000;
 export const DEFAULT_BUCKETS_CLI_TIMEOUT_MS = 120_000;
@@ -40,8 +44,58 @@ export type TlonCommandDeadlineOutput = {
 
 export type TlonCommandRunnerOptions = {
   timeoutMs?: number;
+  /** Active agent workspace; relative file inputs share read/write semantics. */
+  cwd?: string;
+  /** Trusted owner from the active OpenClaw account, not tool arguments. */
+  ownerShip?: string;
   onDeadline?: (output: TlonCommandDeadlineOutput) => void;
 };
+
+/** Browser capabilities require credentials and owner from one unambiguous account. */
+export function resolveBrowserHandoffAccount(config: OpenClawConfig) {
+  const accountIds = listRunnableTlonAccountIds(config);
+  if (accountIds.length !== 1) {
+    throw new Error(
+      'Browser handoff requires exactly one enabled, configured Tlon account.'
+    );
+  }
+  const account = resolveTlonAccount(config, accountIds[0]);
+  const ownerShip = normalizeShip(account.ownerShip ?? '');
+  if (!account.ship || !account.url || !account.code || !ownerShip) {
+    throw new Error(
+      'Browser handoff requires bot credentials and a configured owner.'
+    );
+  }
+  return {
+    ...account,
+    ship: account.ship,
+    url: account.url,
+    code: account.code,
+    ownerShip,
+  };
+}
+
+/** Runs a trusted handoff command using the active bot's credentials and owner. */
+export function runBrowserHandoffCommand(
+  binary: string,
+  args: string[],
+  config: OpenClawConfig
+): Promise<string> {
+  const account = resolveBrowserHandoffAccount(config);
+  return runTlonCommand(
+    binary,
+    args,
+    {
+      ship: account.ship,
+      url: account.url,
+      code: account.code,
+    },
+    {
+      ownerShip: account.ownerShip,
+      timeoutMs: account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS,
+    }
+  );
+}
 
 /**
  * Run the tlon command and return the result.
@@ -54,6 +108,9 @@ export function runTlonCommand(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
+    if (options?.ownerShip !== undefined) {
+      env.TLON_OWNER_SHIP = options.ownerShip;
+    }
     if (credentials) {
       for (const key of EXPLICIT_CREDENTIAL_ENV_KEYS_TO_CLEAR) {
         delete env[key];
@@ -63,7 +120,13 @@ export function runTlonCommand(
       env.URBIT_CODE = credentials.code;
     }
 
-    const child = spawn(binary, args, { env });
+    // This runner has no input transport. Close stdin instead of leaving a
+    // pipe open that can hang CLI commands waiting for input.
+    const child = spawn(binary, args, {
+      env,
+      cwd: options?.cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     let stdout = '';
     let stderr = '';
     let completionSettled = false;

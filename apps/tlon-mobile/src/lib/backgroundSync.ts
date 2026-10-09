@@ -1,5 +1,8 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
-import { abandonDbInit, ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import {
+  abandonDbInit,
+  ensureDbReadyForBackgroundSync,
+} from '@tloncorp/app/lib/nativeDb';
 import { discoverContactsAndNotify } from '@tloncorp/app/lib/notifications';
 import {
   SyncPriority,
@@ -24,11 +27,11 @@ const logger = createDevLogger('backgroundSync', true);
 // WorkManager budget is far larger and is not the constraint.
 export const DB_READY_TIMEOUT_MS = 20_000;
 
-async function waitForDbReady(): Promise<'ready' | 'timeout'> {
+async function waitForDbReady(): Promise<boolean | 'timeout'> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      ensureDbReady().then(() => 'ready' as const),
+      ensureDbReadyForBackgroundSync(),
       new Promise<'timeout'>((resolve) => {
         timer = setTimeout(() => resolve('timeout'), DB_READY_TIMEOUT_MS);
       }),
@@ -48,7 +51,8 @@ async function flushTelemetry() {
 }
 
 async function performSync(): Promise<BackgroundTask.BackgroundTaskResult> {
-  if ((await waitForDbReady()) === 'timeout') {
+  const dbReady = await waitForDbReady();
+  if (dbReady === 'timeout') {
     // Detach the pending init so the next task or foreground start begins
     // fresh instead of rejoining it for another full wait.
     const abandonOutcome = abandonDbInit();
@@ -59,6 +63,12 @@ async function performSync(): Promise<BackgroundTask.BackgroundTaskResult> {
     });
     await flushTelemetry();
     return BackgroundTask.BackgroundTaskResult.Failed;
+  }
+  if (!dbReady) {
+    logger.trackEvent('Skipping background sync', {
+      context: 'cache recovery requires foreground',
+    });
+    return BackgroundTask.BackgroundTaskResult.Success;
   }
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });

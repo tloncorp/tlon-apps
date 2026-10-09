@@ -66,9 +66,9 @@ StackComponent.displayName = 'StackComponent';
  * It provides the same props as `Stack` component.
  *
  * This component deliberately has no link support: it must be able to render
- * outside a `NavigationContainer` (e.g. inside a `@gorhom/portal` host), where
- * calling a navigation hook throws. If link-style pressables are ever needed,
- * they belong in a separate component that calls `useLinkProps`.
+ * outside a `NavigationContainer` (e.g. inside a native overlay), where calling
+ * a navigation hook throws. If link-style pressables are ever needed, they
+ * belong in a separate component that calls `useLinkProps`.
  *
  * @param props.onPress Function to call when the press is released.
  * @param props.onPressIn Function to call when the press starts.

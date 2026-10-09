@@ -1,11 +1,11 @@
 import { AppDataContextProvider, InviteUsersSheet } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
-import { group, initialContacts } from './fakeData';
+import { group, savedContacts } from './fakeData';
 
 function InviteUsersSheetFixture({
-  contacts = initialContacts,
+  contacts = savedContacts,
 }: {
-  contacts?: typeof initialContacts;
+  contacts?: typeof savedContacts;
 }) {
   return (
     <FixtureWrapper>

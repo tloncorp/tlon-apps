@@ -6,7 +6,7 @@
 ::  Multi-ship scenarios are NOT covered: test-agent.hoon is a single-bowl
 ::  harness with no cross-agent sign exchange.
 ::
-/-  n=notes, av=activity-ver
+/-  n=notes, av=activity-ver, gv=groups-ver
 /+  *test-agent
 /+  notes-json
 /=  notes-agent  /app/notes
@@ -3413,4 +3413,151 @@
   ;<  ~  b  (mk-n-notes f filler-count 'big' filler)
   ::  tries covers all 10 notes, so the walk exhausts and reports the end
   (ex-search f [~ +(filler-count) 'zzfindmezz'] [0 ~[3]])
+::
+::  %groups listing title sync. %notes watches /v1/groups; a channel
+::  %edit for a group notebook we host carries the listing title, which
+::  the notebook title follows. Facts are delivered as real r-groups:v9
+::  vases (the whole union, as %groups gives them).
+::
+::  +listing-edit: a %groups channel %edit fact for `nest` in group `gf`
+::
+++  listing-edit
+  |=  [gf=flag:n =nest:n title=@t]
+  ^-  sign:agent:gall
+  :+  %fact  %group-response-1
+  !>  ^-  r-groups:v9:gv
+  [gf %channel nest %edit [[title '' '' ''] ~2026.1.1 %$ ~ &]]
+::  +give-groups: deliver a sign on the /groups watch
+::
+++  give-groups
+  |=  =sign:agent:gall
+  (do-agent /groups [~zod %groups] sign)
+::  +get-book: read a notebook's state entry back via on-save
+::
+++  get-book
+  |=  f=flag:n
+  =/  m  (mare ,[=net:n =notebook-state:n])
+  ^-  form:m
+  ;<  sv=vase  bind:m  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  (pure:m (~(got by books.s) f))
+::  +log-size: number of entries in a hosted notebook's update log
+::
+++  log-size
+  |=  =net:n
+  ^-  @ud
+  ?.  ?=(%pub -.net)  0
+  (wyt:log-on:n log.net)
+::  +setup-listing-notebook: hosted group notebook 'GNB' in [~zod %grp]
+::
+++  setup-listing-notebook
+  =/  m  (mare ,flag:n)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  ~  bind:m  (set-scry-gate (said-group-scry & &))
+  ;<  *  bind:m  (poke-a %create-group-notebook 'GNB' [~zod %grp] ~)
+  (pure:m (nb-flag ~zod 'GNB' 1))
+::  +ex-book-unchanged: deliver `sign`; the notebook entry must not change
+::  and no %notes-response fact may be given
+::
+++  ex-book-unchanged
+  |=  [f=flag:n =sign:agent:gall]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  pre=[=net:n =notebook-state:n]  bind:m  (get-book f)
+  ;<  ~  bind:m  (wait ~s1)
+  ;<  caz=(list card)  bind:m  (give-groups sign)
+  ;<  post=[=net:n =notebook-state:n]  bind:m  (get-book f)
+  ;<  ~  bind:m  (ex-equal !>((log-size net.post)) !>((log-size net.pre)))
+  ;<  ~  bind:m  (ex-equal !>(post) !>(pre))
+  (ex-equal !>((has-fact-mark caz %notes-response)) !>(|))
+::  +test-listing-edit-syncs-title
+::
+::  a listing %edit with a new title renames the hosted group notebook,
+::  stamped by the host and logged once; an empty title syncs too
+::
+++  test-listing-edit-syncs-title
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  f=flag:n  bind:m  setup-listing-notebook
+  ;<  pre=[=net:n =notebook-state:n]  bind:m  (get-book f)
+  ;<  ~  bind:m  (wait ~s1)
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  caz=(list card)  bind:m
+    (give-groups (listing-edit [~zod %grp] [%notes f] 'Renamed'))
+  ;<  bk=[=net:n =notebook-state:n]  bind:m  (get-book f)
+  =*  nb  notebook.notebook-state.bk
+  ;<  ~  bind:m  (ex-equal !>(title.nb) !>(`@t`'Renamed'))
+  ;<  ~  bind:m  (ex-equal !>(updated-by.nb) !>(`ship`~zod))
+  ;<  ~  bind:m  (ex-equal !>(updated-at.nb) !>(`@da`now.bowl))
+  ;<  ~  bind:m  (ex-equal !>((log-size net.bk)) !>(+((log-size net.pre))))
+  ;<  ~  bind:m  (ex-equal !>((has-fact-mark caz %notes-response)) !>(&))
+  ;<  *  bind:m  (give-groups (listing-edit [~zod %grp] [%notes f] ''))
+  ;<  bk2=[=net:n =notebook-state:n]  bind:m  (get-book f)
+  (ex-equal !>(title.notebook.notebook-state.bk2) !>(`@t`''))
+::  +test-listing-edit-same-title-noop
+::
+::  an %edit that doesn't change the title (e.g. a description edit)
+::  must not rename or append to the log
+::
+++  test-listing-edit-same-title-noop
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  f=flag:n  bind:m  setup-listing-notebook
+  (ex-book-unchanged f (listing-edit [~zod %grp] [%notes f] 'GNB'))
+::  +test-listing-edit-other-group-ignored
+::
+++  test-listing-edit-other-group-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  f=flag:n  bind:m  setup-listing-notebook
+  (ex-book-unchanged f (listing-edit [~zod %other] [%notes f] 'Renamed'))
+::  +test-listing-edit-non-notes-nest-ignored
+::
+::  a %chat nest reusing the notebook's host and name: only the kind
+::  guard can reject it
+::
+++  test-listing-edit-non-notes-nest-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  f=flag:n  bind:m  setup-listing-notebook
+  (ex-book-unchanged f (listing-edit [~zod %grp] [%chat f] 'Renamed'))
+::  +test-listing-edit-other-r-group-ignored
+::
+::  an r-group other than a channel %edit (here a group %meta rename)
+::  must not rename
+::
+++  test-listing-edit-other-r-group-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  f=flag:n  bind:m  setup-listing-notebook
+  =/  meta-fact=r-groups:v9:gv  [[~zod %grp] %meta ['Renamed' '' '' '']]
+  (ex-book-unchanged f [%fact %group-response-1 !>(meta-fact)])
+::  +test-listing-edit-sub-notebook-ignored
+::
+++  test-listing-edit-sub-notebook-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  =/  f=flag:n  [~bus %nb]
+  ;<  *  bind:m  (poke-a %join f)
+  (ex-book-unchanged f (listing-edit [~zod %grp] [%notes f] 'Renamed'))
+::  +test-listing-edit-solo-notebook-ignored
+::
+::  a hosted notebook that isn't group-backed has no listing to follow
+::
+++  test-listing-edit-solo-notebook-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  *  bind:m  (poke-a [%create-notebook 'Solo'])
+  =/  f=flag:n  (nb-flag ~zod 'Solo' 1)
+  (ex-book-unchanged f (listing-edit [~zod %grp] [%notes f] 'Renamed'))
 --

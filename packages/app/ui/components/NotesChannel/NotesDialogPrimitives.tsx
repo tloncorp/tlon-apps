@@ -1,16 +1,18 @@
-import { Button } from '@tloncorp/ui';
+import { Button, type IconType } from '@tloncorp/ui';
 import { useCallback, useRef, useState } from 'react';
-import type { ComponentProps, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
 
 export function NotesDialog({
-  cancelDisabled = false,
   children,
-  confirmButton,
-  keyboardBehavior,
+  confirmIcon,
+  confirmLabel,
+  confirmDisabled = false,
+  confirming = false,
+  onConfirm,
   onOpenChange,
   open,
   subtitle,
@@ -18,10 +20,12 @@ export function NotesDialog({
   title,
   unmountOnClose = false,
 }: {
-  cancelDisabled?: boolean;
   children: ReactNode;
-  confirmButton?: ReactNode;
-  keyboardBehavior?: ComponentProps<typeof ActionSheet>['keyboardBehavior'];
+  confirmIcon?: IconType;
+  confirmLabel: string;
+  confirmDisabled?: boolean;
+  confirming?: boolean;
+  onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   subtitle?: string;
@@ -37,26 +41,53 @@ export function NotesDialog({
       mode={isWeb ? 'dialog' : 'sheet'}
       closeButton={isWeb}
       modal
+      moveOnKeyboardChange
       snapPointsMode="fit"
-      keyboardBehavior={keyboardBehavior}
       unmountOnClose={unmountOnClose}
       dialogContentProps={{ width: 420, maxWidth: '90%' }}
     >
-      <ActionSheet.ScrollableContent>
-        <YStack testID={testID} gap="$l" padding="$l">
-          <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
-          {children}
-          <XStack gap="$m" justifyContent="flex-end">
+      <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
+      {isWeb ? (
+        <ActionSheet.ScrollableContent>
+          <YStack testID={testID} gap="$l" padding="$l">
+            {children}
+            <XStack gap="$m" justifyContent="flex-end">
+              <Button
+                preset="minimal"
+                label="Cancel"
+                disabled={confirming}
+                onPress={() => onOpenChange(false)}
+              />
+              <Button
+                size="small"
+                fill="solid"
+                type="primary"
+                leadingIcon={confirmIcon}
+                label={confirmLabel}
+                loading={confirming}
+                disabled={confirmDisabled}
+                onPress={onConfirm}
+              />
+            </XStack>
+          </YStack>
+        </ActionSheet.ScrollableContent>
+      ) : (
+        // Same shape as the other single-field notes sheets: the native sheet
+        // has its own close control, so there is no Cancel button.
+        <ActionSheet.Content testID={testID}>
+          <ActionSheet.FormBlock>{children}</ActionSheet.FormBlock>
+          <ActionSheet.FormBlock>
             <Button
-              preset="minimal"
-              label="Cancel"
-              disabled={cancelDisabled}
-              onPress={() => onOpenChange(false)}
+              preset="primary"
+              label={confirmLabel}
+              centered
+              loading={confirming}
+              disabled={confirmDisabled}
+              onPress={onConfirm}
             />
-            {confirmButton}
-          </XStack>
-        </YStack>
-      </ActionSheet.ScrollableContent>
+          </ActionSheet.FormBlock>
+        </ActionSheet.Content>
+      )}
     </ActionSheet>
   );
 }

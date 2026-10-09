@@ -28,6 +28,7 @@ export type ChannelRouteParams = {
 };
 
 export type RootStackParamList = {
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
   OnboardingStartup: {
     channelId: string;
@@ -89,6 +90,21 @@ export type RootStackParamList = {
     channelId: string;
     groupId?: string;
   };
+  // A Bucket's folders and files are pushed, as a notebook's are, so that the
+  // stack's own back -- the edge swipe, the caret, Android's back -- climbs
+  // one level at a time. Held in the pane instead, the only route behind them
+  // was the one the Bucket was opened from, so back left the Bucket rather
+  // than the folder.
+  BucketFolder: {
+    channelId: string;
+    folderId: number;
+    groupId?: string;
+  };
+  BucketFile: {
+    channelId: string;
+    entryId: number;
+    groupId?: string;
+  };
   MediaViewer: {
     mediaType: 'image' | 'video';
     uri?: string;
@@ -119,6 +135,8 @@ export type RootStackParamList = {
   BotPermissionsSettings: undefined;
   BotIdentitySettings: undefined;
   BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
+  BotModels: undefined;
+  BotConnections: undefined;
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -178,6 +196,19 @@ export type RootDrawerParamList = {
 } & Pick<RootStackParamList, 'Contacts'> &
   Pick<TopLevelTabParamList, 'Activity' | 'Settings'>;
 
+export type BrowserCredentialHandoffParams = {
+  handoffId: string;
+};
+
+export type MobileBasePathStackParamList = {
+  Root: NavigatorScreenParams<RootStackParamList>;
+};
+
+export type DesktopBasePathStackParamList = {
+  Root: NavigatorScreenParams<RootDrawerParamList>;
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+};
+
 // hack: adding the true contacts types causes lots of tsc failures that need
 // resolving. Added to support navigating deeply within the contacts drawer
 export type ActualRootDrawerParamList = {
@@ -233,6 +264,8 @@ export type SettingsDrawerParamList = Pick<
   | 'BotPermissionsSettings'
   | 'BotIdentitySettings'
   | 'BotProviderListSettings'
+  | 'BotModels'
+  | 'BotConnections'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
@@ -262,6 +295,8 @@ export type ChannelStackParamList = {
   NotesDetail: RootStackParamList['NotesDetail'];
   NotesFolder: RootStackParamList['NotesFolder'];
   NotesSearch: RootStackParamList['NotesSearch'];
+  BucketFolder: RootStackParamList['BucketFolder'];
+  BucketFile: RootStackParamList['BucketFile'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
@@ -277,6 +312,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'NotesDetail'
   | 'NotesFolder'
   | 'NotesSearch'
+  | 'BucketFolder'
+  | 'BucketFile'
   | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'
