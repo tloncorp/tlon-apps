@@ -27,10 +27,14 @@ Never send raw or labeled browser-session links in ordinary messages.
 Ask for ordinary contact, shipping, billing-address, and delivery details in chat
 and enter them through browser tools. Send a secure form for login identifiers,
 passwords, verification codes, and card fields. Secure input goes directly to the
-browser service without passing through chat or the bot. Each handoff completes
-one fill; request a fresh handoff for another secure step. Card entry does not
-submit a transaction or grant purchase approval. The recipient is always the
-owner configured for the active bot account and cannot be overridden.
+browser service without passing through chat or the bot. Login handoffs can show
+successive identifier, password, and verification-code steps in the same secure
+screen; every fill handle is single-use. Card entry completes the handoff after
+one fill and does not submit a transaction or grant purchase approval. Request a
+fresh handoff for a later secure step after control returns to the bot. If a fill
+fails, inspect the page before retrying; some fields may already have been filled.
+The recipient is always the owner configured for the active bot account and
+cannot be overridden.
 
 Tlon tool call:
   {"command": "browser handoff <session_id>"}`;

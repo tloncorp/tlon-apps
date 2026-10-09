@@ -69,16 +69,19 @@ purposes for login identifiers, passwords, verification codes, and card details.
 Each fill is bound to the exact live controls and origin. Values travel directly
 to the browser service, without passing through chat or the bot. Do not read or repeat filled sensitive fields through browser tools.
 
-Keep the session live while the owner completes the form. Each handoff completes
-one successful fill, bound to the displayed destination. Card fields fill without
-a submit click. A fill does not authorize a purchase, payment, or other
-consequential action.
+Keep the session live while the owner completes the form. A login handoff can
+show successive identifier, password, and verification-code steps in the same
+secure screen. Each submission uses a fresh single-use fill handle bound to the
+displayed destination; values are never replayed. Card entry ends the handoff
+after one successful fill, without a submit click. A fill does not authorize a
+purchase, payment, or other consequential action.
 
 When entry finishes, the app resumes the conversation automatically. Wait for
 that continuation message, then inspect the same browser session, check the
 current page and validation state, and continue the task. Fill any remaining
-ordinary fields from the owner's supplied details. Send a fresh handoff if the
-next step needs another password, verification code, or card field. Before
+ordinary fields from the owner's supplied details. If a fill fails, inspect the
+page before retrying; some fields may already have been filled. Send a fresh
+handoff if another secure step is needed after control returns to the bot. Before
 placing an order, show the owner the items, delivery details, and total, and ask
 for purchase approval unless they have already approved that exact purchase.
 Entry does not prove sign-in or transaction completion. Do not ask the owner to
