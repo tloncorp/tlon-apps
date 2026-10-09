@@ -19,6 +19,10 @@ on:
         description: "Build tag to describe (default: the newest store build, if it is newer than the map)"
         required: false
         type: string
+      dry_run:
+        description: "Do the update and show the result in the run summary; push nothing, open no PR"
+        type: boolean
+        default: false
 
 # One update at a time, and never cancel one partway: a cancelled run has spent
 # the agent's time for nothing.
@@ -98,19 +102,32 @@ jobs:
             scripts/feature-map-update.sh --prepare
           fi
 
+      - name: Show the result
+        if: steps.update.outputs.branch != ''
+        env:
+          BRANCH: ${{ steps.update.outputs.branch }}
+          BODY: ${{ steps.update.outputs.body }}
+        run: |
+          {
+            cat "$BODY"
+            echo
+            echo '```diff'
+            git show --stat --format= "$BRANCH"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       # A PR opened with GITHUB_TOKEN gets only approval-gated CI, so it is
       # opened with the same fine-grained PAT the pier archive refresh uses
       # (Contents + Pull requests R/W on this repo). The PR is authored by the
       # token's owner.
       - name: Open the pull request
-        if: steps.update.outputs.branch != ''
+        if: steps.update.outputs.branch != '' && inputs.dry_run != true
         env:
           GH_TOKEN: ${{ secrets.PIER_ARCHIVE_GH_TOKEN }}
           BRANCH: ${{ steps.update.outputs.branch }}
           TITLE: ${{ steps.update.outputs.title }}
           BODY: ${{ steps.update.outputs.body }}
         run: |
-          cat "$BODY" >> "$GITHUB_STEP_SUMMARY"
           git push \
             "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
             "$BRANCH:refs/heads/$BRANCH"
