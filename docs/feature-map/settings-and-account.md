@@ -297,8 +297,8 @@ Notes: there is no way to skip it. Every other screen is hidden until you update
 ## Update Tlon Messenger on desktop
 <!-- src: packages/app/navigation/desktop/TopLevelDrawer.tsx, apps/tlon-web/src/logic/useAppUpdates.ts -->
 
-Desktop: when a newer version is ready, a yellow icon with an exclamation mark appears in the left rail, below the Contacts icon. Click it and the page reloads on the new version.
-Notes: there is nothing to download or install. No yellow icon means the app hasn't found a newer version.
+Desktop: when a newer version is ready, a yellow button with a starburst icon appears in the left rail, under your avatar. Click it and the page reloads on the new version.
+Notes: there is nothing to download or install. No yellow button means the app hasn't found a newer version.
 
 ## Use my own storage for pictures and files
 <!-- src: packages/shared/src/store/storage/storageUtils.ts, packages/app/ui/components/Form/inputs.tsx -->

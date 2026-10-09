@@ -426,13 +426,16 @@ test('lists the entries that cite a file that changed between two builds', () =>
   ]);
   // Tests, deleted files and files outside the app are not worth a look.
   assert.deepEqual(result.added, ['packages/app/ui/NewSheet.tsx']);
-  assert.equal(result.otherUncited, 1);
+  assert.deepEqual(result.uncited, [
+    { file: 'packages/shared/src/logic/roles.ts', lines: 3 },
+  ]);
 
   const text = renderAffected(result, 'between `a` and `b`');
   assert.match(text, /Entries to re-read: 2/);
   assert.match(text, /^- Pin a chat$/m);
   assert.match(text, /^- `app\/Menu.tsx`: 12 lines, 2 entries$/m);
-  assert.match(text, /1 other changed source file cited by no entry/);
+  assert.match(text, /Changed files no entry cites: 1/);
+  assert.match(text, /^- `packages\/shared\/src\/logic\/roles.ts`: 3 lines$/m);
 });
 
 test('says so when nothing on the list changed', () => {
@@ -444,7 +447,7 @@ test('says so when nothing on the list changed', () => {
     entries: [],
     files: [],
     added: [],
-    otherUncited: 0,
+    uncited: [],
   });
   assert.equal(
     renderAffected(result, 'between `a` and `b`'),

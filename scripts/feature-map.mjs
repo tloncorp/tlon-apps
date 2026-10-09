@@ -742,7 +742,8 @@ export function affectedEntries({ mapFiles, changed }) {
     ({ status, file }) =>
       status !== 'D' && isAppSource(file) && !cited.has(file)
   );
-  const added = uncited.filter(({ status }) => status === 'A');
+  const biggestFirst = (a, b) =>
+    b.lines - a.lines || a.file.localeCompare(b.file);
   return {
     entries,
     files: [...citing]
@@ -751,14 +752,21 @@ export function affectedEntries({ mapFiles, changed }) {
         lines: lines.get(file),
         entries: count,
       }))
-      .sort((a, b) => b.lines - a.lines || a.file.localeCompare(b.file)),
-    added: added.map(({ file }) => file),
-    otherUncited: uncited.length - added.length,
+      .sort(biggestFirst),
+    added: uncited
+      .filter(({ status }) => status === 'A')
+      .map(({ file }) => file),
+    // Changed files nothing cites. A new button on an existing screen lands
+    // in one of these and trips no check, so they are named, not counted.
+    uncited: uncited
+      .filter(({ status }) => status !== 'A')
+      .map(({ file, lines: count }) => ({ file, lines: count }))
+      .sort(biggestFirst),
   };
 }
 
 /** Markdown, so it reads the same in a terminal and in a PR. */
-export function renderAffected({ entries, files, added, otherUncited }, range) {
+export function renderAffected({ entries, files, added, uncited }, range) {
   const out = [];
   const plural = (count, noun) => `${count} ${noun}${count === 1 ? '' : 's'}`;
   if (entries.length) {
@@ -804,11 +812,17 @@ export function renderAffected({ entries, files, added, otherUncited }, range) {
       ...added.map((file) => `- \`${file}\``)
     );
   }
-  if (otherUncited) {
+  if (uncited.length) {
     out.push(
       '',
-      `${plural(otherUncited, 'other changed source file')} cited by no ` +
-        'entry. A behaviour change there is not on this list.'
+      `### Changed files no entry cites: ${uncited.length}`,
+      '',
+      'Biggest change first. A new button or menu item on an existing screen ' +
+        'shows up here and nowhere else.',
+      '',
+      ...uncited.map(
+        (item) => `- \`${item.file}\`: ${plural(item.lines, 'line')}`
+      )
     );
   }
   return out.join('\n');

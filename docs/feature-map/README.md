@@ -138,13 +138,13 @@ commits, use the older one; `feature-map.mjs next` prints the right tag.
    ```
 
    It prints the entries, then the changed files they cite with the size of
-   each change, then new files no entry cites. Many entries cite the same few
+   each change, then the new and changed files no entry cites. Many entries cite the same few
    files, so work through the files: read the diff of each between the two
    builds, then the entries that cite it. Fix an entry when the diff changes
    who can do the thing, where it is found, or what happens afterwards.
-   Otherwise leave its wording alone. Look at each new file for something a
-   person could ask how to do, such as a new button on an existing screen, and
-   write an entry if there is one.
+   Otherwise leave its wording alone. Look at each file no entry cites, new
+   or changed, for something a person could ask how to do, such as a new
+   button on an existing screen, and write an entry if there is one.
 
 3. Look in `drafts/`. It holds entries, and lines for `surface-ignore.txt`,
    that were written ahead of a build. Nothing reads that folder. Move across

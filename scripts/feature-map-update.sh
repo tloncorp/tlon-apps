@@ -13,6 +13,8 @@
 #              open the pull request with. A scheduled job uses this so the
 #              agent never runs alongside the token that can push.
 #   --no-pr    for trying it out: touch nothing on the remote at all.
+#   --base     where to start from instead of origin/develop. Only with
+#              --no-pr, since pull requests are opened against develop.
 #
 # A coding agent does the reading and the edits, in two passes: one to update
 # the entries (docs/feature-map/agent/update.md), one to check the first
@@ -53,6 +55,13 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+# The pull request is opened against develop, so the work has to start there.
+# Another base is only for trying the script out.
+if [ "$base" != "origin/develop" ] && [ "$check_remote" = 1 ]; then
+  echo "--base is only for use with --no-pr; pull requests are opened against develop" >&2
+  exit 2
+fi
 
 agent=${FEATURE_MAP_AGENT:-'codex exec -s workspace-write -c model_reasoning_effort="high" -'}
 guide=packages/openclaw/skills/tlon-product-guide
