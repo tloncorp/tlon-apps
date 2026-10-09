@@ -136,4 +136,22 @@ describe('satisfiesRange', () => {
     expect(satisfiesRange('24.16.0', '24.x')).toBe(true);
     expect(satisfiesRange('24.16.0', 'lts/*')).toBeUndefined();
   });
+
+  it('expands partial bounds the way node-semver does', () => {
+    const node = '24.16.0';
+    expect(satisfiesRange(node, '>24')).toBe(false);
+    expect(satisfiesRange(node, '<=24')).toBe(true);
+    expect(satisfiesRange(node, '>=24')).toBe(true);
+    expect(satisfiesRange(node, '<24')).toBe(false);
+    expect(satisfiesRange(node, '>24.1')).toBe(true);
+    expect(satisfiesRange(node, '<=24.16')).toBe(true);
+    expect(satisfiesRange(node, '<=24.15')).toBe(false);
+    expect(satisfiesRange(node, '=24')).toBe(true);
+    expect(satisfiesRange(node, '24')).toBe(true);
+    expect(satisfiesRange('25.0.0', '=24')).toBe(false);
+    expect(satisfiesRange(node, '>=24.16.0 <25 || >=26.1.0')).toBe(true);
+    expect(
+      satisfiesRange(node, '>=22.22.3 <23 || >=24.15.0 <25 || >=25.9.0')
+    ).toBe(true);
+  });
 });

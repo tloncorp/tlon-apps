@@ -14,7 +14,7 @@ import { type Manifest, buildDigest, gitIn } from './digest.ts';
 
 const manifest: Manifest = {
   configKeys: ['commands.ownerAllowFrom'],
-  extensions: ['brave', 'lossless'],
+  extensions: ['brave'],
   extraPaths: [
     'package.json',
     'src/state/openclaw-state-db-contract.ts',
@@ -201,7 +201,8 @@ const run = (
   prev: string,
   next: string,
   intermediates: string[] = [],
-  reportedUnresolved = ['plugin-sdk/already-reported']
+  reportedUnresolved = ['plugin-sdk/already-reported'],
+  watched: Manifest = manifest
 ) =>
   buildDigest({
     git: gitIn(repo),
@@ -209,7 +210,7 @@ const run = (
     next,
     intermediates,
     pluginDir: plugin,
-    manifest,
+    manifest: watched,
     canaryNode: '24.16.0',
     reportedUnresolved,
     drift: { prodPins: { default: '2026.1.1' } },
@@ -222,7 +223,23 @@ describe('buildDigest', () => {
     expect(digest.signals.engineChanged.fired).toBe(false);
     expect(digest.signals.stateSchemaBumped.fired).toBe(false);
     expect(digest.hints.configKeyInZodDiff.fired).toBe(false);
+    expect(digest.missingExtensions).toEqual([]);
+  });
+
+  it('records an extension missing at both releases as incomplete', () => {
+    const { digest } = run('2026.1.1', '2026.1.3', ['2026.1.2'], [], {
+      ...manifest,
+      extensions: ['brave', 'lossless'],
+    });
     expect(digest.missingExtensions).toEqual(['lossless']);
+    expect(digest.incomplete).toContain(
+      'extension lossless not found upstream at 2026.1.1 or 2026.1.3'
+    );
+    expect(
+      digest.incomplete.filter((line) => line.startsWith('extension '))
+    ).toEqual([
+      'extension lossless not found upstream at 2026.1.1 or 2026.1.3',
+    ]);
   });
 
   it('records a missing changelog as incomplete, never as no changes', () => {

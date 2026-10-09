@@ -348,6 +348,16 @@ jobs:
           DIGEST_PATH: ${{ steps.render.outputs.digest_path }}
         run: |
           set -euo pipefail
+          # A re-run of an older run's post job must not move state backwards
+          # past a release a later run already posted. A read failure is fatal.
+          current=$(gh variable get OPENCLAW_WATCH_STATE --repo "$GITHUB_REPOSITORY")
+          current_latest=$(jq -er '.lastLatest' <<<"$current")
+          order=$(node packages/openclaw/scripts/upstream-watch/versions.ts \
+            --compare "$current_latest" "$NEXT")
+          if [ "$order" -gt 0 ]; then
+            echo "state already at $current_latest, newer than $NEXT; not advancing"
+            exit 0
+          fi
           # Every absent-in-both subpath is recorded, whether reported now or
           # in an earlier post, so each is reported once while it stays absent.
           state=$(node -e '

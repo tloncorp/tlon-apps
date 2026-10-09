@@ -216,14 +216,21 @@ function testComparator(v: (number | undefined)[], comparator: string) {
   }
   const version = v.map((p) => p ?? 0);
   const low = bound.map((p) => p ?? 0);
+  // A partial bound covers every version it prefixes, so `>24` means
+  // `>=25.0.0` and `<=24.1` means `<24.2.0`, as in node-semver.
+  const given = bound.findIndex((p) => p === undefined);
+  const partial = given !== -1;
+  const above = partial
+    ? low.map((p, i) => (i < given - 1 ? p : i === given - 1 ? p + 1 : 0))
+    : low;
   const op = match[1] ?? '=';
   switch (op) {
     case '>=':
       return compare(version, low) >= 0;
     case '>':
-      return compare(version, low) > 0;
+      return partial ? compare(version, above) >= 0 : compare(version, low) > 0;
     case '<=':
-      return compare(version, low) <= 0;
+      return partial ? compare(version, above) < 0 : compare(version, low) <= 0;
     case '<':
       return compare(version, low) < 0;
     case '^':

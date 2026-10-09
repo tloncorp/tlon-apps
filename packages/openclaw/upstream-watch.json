@@ -18,13 +18,7 @@
     "models.providers.openrouter",
     "tools.web.search"
   ],
-  "extensions": [
-    "codex",
-    "brave",
-    "lossless",
-    "memory-core",
-    "active-memory"
-  ],
+  "extensions": ["codex", "brave", "memory-core", "active-memory"],
   "extraPaths": [
     "package.json",
     "src/state/openclaw-state-db-contract.ts",

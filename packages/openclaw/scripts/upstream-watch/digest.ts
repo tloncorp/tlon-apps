@@ -160,6 +160,11 @@ export function buildDigest({
       git(['cat-file', '-e', `v${next}:extensions/${name}`]) === undefined &&
       git(['cat-file', '-e', `v${prev}:extensions/${name}`]) === undefined
   );
+  for (const name of missingExtensions) {
+    incomplete.push(
+      `extension ${name} not found upstream at ${prev} or ${next}`
+    );
+  }
   // Core surface first, then each extension tree: git sorts a diff by path,
   // and the truncated copy should spend its lines on the SDK and config
   // before the much larger extensions. Upstream's own tests are not surface.
