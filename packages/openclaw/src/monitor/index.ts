@@ -6354,58 +6354,62 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         opts.onReady?.({
           isConnected: () => api.isConnected,
           readSettings: (signal) => api.scry('/settings/all.json', { signal }),
-          replayMissedMessages: async (signal) => {
-            // Changes are keyed by the ship's receipt time; the window is
-            // generous enough that clock skew against this host doesn't matter.
-            // One scry, so posts and their unread summaries agree. Retried:
-            // until it succeeds every source's read stays gated.
-            const since = Date.now() - RESTART_REPLAY_WINDOW_MS;
-            let changes: Awaited<ReturnType<typeof scryChangesSince>>;
-            for (let attempt = 1; ; attempt += 1) {
-              try {
-                changes = await inApiScope(() => scryChangesSince(since));
-                break;
-              } catch (error) {
-                if (attempt >= 3 || signal.aborted) throw error;
-                await new Promise((resolve) =>
-                  setTimeout(resolve, 2_000 * attempt)
-                );
-                signal.throwIfAborted();
+          // Replay runs from the restart-catchup lifecycle hook, outside the
+          // monitor's async context, so the replayed turns (presence, sending
+          // replies) need the monitor's API scope as much as the scry does.
+          replayMissedMessages: (signal) =>
+            inApiScope(async () => {
+              // Changes are keyed by the ship's receipt time; the window is
+              // generous enough that clock skew against this host doesn't matter.
+              // One scry, so posts and their unread summaries agree. Retried:
+              // until it succeeds every source's read stays gated.
+              const since = Date.now() - RESTART_REPLAY_WINDOW_MS;
+              let changes: Awaited<ReturnType<typeof scryChangesSince>>;
+              for (let attempt = 1; ; attempt += 1) {
+                try {
+                  changes = await scryChangesSince(since);
+                  break;
+                } catch (error) {
+                  if (attempt >= 3 || signal.aborted) throw error;
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, 2_000 * attempt)
+                  );
+                  signal.throwIfAborted();
+                }
               }
-            }
-            signal.throwIfAborted();
-            const missed = collectMissedMessages(
-              changes,
-              toClientUnreads(changes.activity)
-            );
-            // Sources without backlog have nothing to protect; each backlog
-            // source opens once its last replayed message is done.
-            const remaining = new Map<string, number>();
-            for (const item of missed) {
-              remaining.set(item.key, (remaining.get(item.key) ?? 0) + 1);
-            }
-            activityReads.releaseExcept(remaining.keys());
-            runtime.log?.(
-              `[tlon] Restart replay: ${missed.length} unread message(s) from the last ${RESTART_REPLAY_WINDOW_MS / 60_000} minutes`
-            );
-            // One at a time, oldest first, through the live handlers, which
-            // apply dedup, gating and read marking exactly as they do live.
-            for (const item of missed) {
               signal.throwIfAborted();
-              if (item.kind === 'channel') {
-                await handleChannelsFirehose(
-                  item.event as unknown as ChannelFirehoseEvent
-                );
-              } else {
-                await handleChatFirehose(
-                  item.event as unknown as ChatFirehoseEvent
-                );
+              const missed = collectMissedMessages(
+                changes,
+                toClientUnreads(changes.activity)
+              );
+              // Sources without backlog have nothing to protect; each backlog
+              // source opens once its last replayed message is done.
+              const remaining = new Map<string, number>();
+              for (const item of missed) {
+                remaining.set(item.key, (remaining.get(item.key) ?? 0) + 1);
               }
-              const left = (remaining.get(item.key) ?? 1) - 1;
-              remaining.set(item.key, left);
-              if (left === 0) activityReads.release(item.key);
-            }
-          },
+              activityReads.releaseExcept(remaining.keys());
+              runtime.log?.(
+                `[tlon] Restart replay: ${missed.length} unread message(s) from the last ${RESTART_REPLAY_WINDOW_MS / 60_000} minutes`
+              );
+              // One at a time, oldest first, through the live handlers, which
+              // apply dedup, gating and read marking exactly as they do live.
+              for (const item of missed) {
+                signal.throwIfAborted();
+                if (item.kind === 'channel') {
+                  await handleChannelsFirehose(
+                    item.event as unknown as ChannelFirehoseEvent
+                  );
+                } else {
+                  await handleChatFirehose(
+                    item.event as unknown as ChatFirehoseEvent
+                  );
+                }
+                const left = (remaining.get(item.key) ?? 1) - 1;
+                remaining.set(item.key, left);
+                if (left === 0) activityReads.release(item.key);
+              }
+            }),
           establishActivityReadBaseline: async (signal) => {
             signal.throwIfAborted();
             await inApiScope(() => readAll());
