@@ -7,6 +7,7 @@ import { Linking, useWindowDimensions } from 'react-native';
 import { imagePickerAssetsToBucketUploadCandidates } from '../features/buckets/bucketMediaPicker';
 import {
   BucketFileViewer,
+  BucketFileViewerItem,
   BucketItem,
   BucketSearchResult,
   BucketUploadCandidate,
@@ -639,7 +640,77 @@ function RegisteredHeaderActions({
   return null;
 }
 
+const previewFiles: BucketFileViewerItem[] = [
+  {
+    id: 'photo',
+    name: 'Garden.jpg',
+    mimeType: 'image/jpeg',
+    sizeLabel: '1.2 MB',
+    uri: 'https://d2w9rnfcy7mm78.cloudfront.net/25296321/original_81eb3ac8a95ce36dc8d64b1038234ec8.jpg',
+  },
+  {
+    id: 'audio',
+    name: 'Recording.mp3',
+    mimeType: 'audio/mpeg',
+    sizeLabel: '39 KB',
+    uri: 'https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3',
+  },
+  {
+    id: 'archive',
+    name: 'Project-assets.zip',
+    mimeType: 'application/zip',
+    sizeLabel: '12.4 MB',
+    uri: 'data:application/zip;base64,AA==',
+  },
+  {
+    id: 'notes',
+    name: 'Notes.txt',
+    mimeType: 'text/plain',
+    sizeLabel: '42 B',
+    textContent: 'Files can be browsed without leaving the preview.',
+    uri: 'data:text/plain,Files',
+  },
+];
+
+function PreviewFilesFixture({
+  initialIndex = 0,
+  readDelay = 0,
+}: {
+  initialIndex?: number;
+  readDelay?: number;
+}) {
+  const [index, setIndex] = useState(initialIndex);
+  const [readyIndex, setReadyIndex] = useState(initialIndex);
+  useEffect(() => {
+    if (!readDelay) return;
+    const timer = setTimeout(() => setReadyIndex(index), readDelay);
+    return () => clearTimeout(timer);
+  }, [index, readDelay]);
+  const loading = readDelay > 0 && readyIndex !== index;
+  const { height } = useWindowDimensions();
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <YStack width="100%" height={height}>
+        <BucketFileViewer
+          item={{
+            ...previewFiles[index],
+            uri: loading ? undefined : previewFiles[index].uri,
+          }}
+          loading={loading}
+          navigation={{ items: previewFiles, index, onSelect: setIndex }}
+          onClose={() => setIndex(0)}
+          onOpenExternally={() => Linking.openURL(previewFiles[index].uri!)}
+        />
+      </YStack>
+    </FixtureWrapper>
+  );
+}
+
 export default {
+  'File previews': <PreviewFilesFixture />,
+  'Header transitions': <PreviewFilesFixture readDelay={600} />,
+  'Audio preview': <PreviewFilesFixture initialIndex={1} />,
+  'Unsupported preview': <PreviewFilesFixture initialIndex={2} />,
   Mobile: <BucketsFixture viewport="mobile" />,
   'Mobile folder': (
     <BucketsFixture viewport="mobile" initialFolderId="launch" />

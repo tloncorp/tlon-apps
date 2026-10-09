@@ -177,7 +177,12 @@ function RootStackContent() {
       />
       <Root.Screen name="NotesSearch" component={NotesSearchScreen} />
       <Root.Screen name="BucketFolder" component={BucketFolderScreen} />
-      <Root.Screen name="BucketFile" component={BucketFileScreen} />
+      <Root.Screen
+        name="BucketFile"
+        component={BucketFileScreen}
+        // Horizontal swipes page through files; the header still closes the preview.
+        options={{ gestureEnabled: false }}
+      />
       <Root.Screen
         name="GroupChannels"
         component={GroupChannelsScreen}
