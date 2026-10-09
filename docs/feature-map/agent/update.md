@@ -20,7 +20,7 @@ The guide is `docs/feature-map/`. A support bot answers "how do I…" questions 
    - Entries may say "newer versions of the app…" about something OLD did not have. If NEW has it, rewrite the sentence as plain fact.
    - For each file under "New files no entry cites", read it at NEW. If it adds something a person could ask how to do, such as a new button or menu item on an existing screen, write an entry for it in the file for that area.
 
-3. Look in `docs/feature-map/drafts/`. For each entry there, check whether NEW has what it describes: every file in its `src` line exists at NEW and every label it quotes is in those files. If so, read it against the source at NEW, correct it, and move it into the map file of the same name. Do the same for the lines in `drafts/surface-ignore.txt`. Leave the rest where they are.
+3. Look in `docs/feature-map/drafts/`. For each entry there, check whether NEW has what it describes: every file in its `src` line exists at NEW and every label it quotes is in those files. If so, read it against the source at NEW, correct it, and move it into the map file of the same name. When that file already has an entry under the same heading, the draft is its newer version and replaces it. Do the same for the lines in `drafts/surface-ignore.txt`. Leave the rest where they are.
 
 4. If you renamed or removed a heading that a question in `docs/feature-map/questions/*.yaml` points at, update that question's `entry:`. Change a question's `must` or `must_not` only when the entry no longer says it.
 
