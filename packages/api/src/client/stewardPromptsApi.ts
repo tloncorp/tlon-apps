@@ -192,14 +192,17 @@ export async function getStewardPromptFiles(): Promise<StewardPromptFiles> {
 
 // Async so a desk without the prompts module rejects, as a failed watch does,
 // rather than throwing from the guard before the caller's catch is attached.
+// `onRejected` hears %steward refusing the watch, which arrives after this has
+// resolved.
 export async function subscribeToStewardPrompts(
   handler: (update: StewardPromptUpdate) => void,
-  onQuit?: () => void
+  onQuit?: () => void,
+  onRejected?: (error: unknown) => void
 ) {
   return subscribeRequest(steward.promptFeed)<StewardPromptUpdate>(
     {},
     handler,
-    undefined,
+    onRejected,
     { onQuit }
   );
 }

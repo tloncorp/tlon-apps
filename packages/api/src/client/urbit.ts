@@ -323,14 +323,30 @@ export const onDeskSupportsBucketsChange = (
   };
 };
 
-// Whether the connected backend's %steward serves the prompts routes. Read
-// only by the request guard, which refuses a known false.
+const deskSupportsStewardPromptsListeners = new Set<() => void>();
+
+// Whether the connected backend's %steward serves the prompts routes. The
+// request guard refuses a known false; a view that already met that refusal
+// listens below to try again once a desk upgrade turns it on.
 export const setDeskSupportsStewardPrompts = (value: boolean | null) => {
+  const changed = config.deskSupportsStewardPrompts !== value;
   config.deskSupportsStewardPrompts = value;
+  if (changed) {
+    deskSupportsStewardPromptsListeners.forEach((listener) => listener());
+  }
 };
 
 export const getDeskSupportsStewardPromptsState = (): boolean | null => {
   return config.deskSupportsStewardPrompts;
+};
+
+export const onDeskSupportsStewardPromptsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsStewardPromptsListeners.add(listener);
+  return () => {
+    deskSupportsStewardPromptsListeners.delete(listener);
+  };
 };
 
 export const client = new Proxy(

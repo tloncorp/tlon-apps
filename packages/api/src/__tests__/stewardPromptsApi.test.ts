@@ -149,6 +149,18 @@ test('an unbound prompts path reports an unsupported endpoint', async () => {
     PromptsUnsupportedError
   );
 });
+test('a watch refused after it resolved reaches the caller', async () => {
+  const handler = vi.fn();
+  const onQuit = vi.fn();
+  const onRejected = vi.fn();
+  await subscribeToStewardPrompts(handler, onQuit, onRejected);
+  expect(subscribe).toHaveBeenCalledWith(
+    { app: 'steward', path: '/v1/prompts/files' },
+    handler,
+    onRejected,
+    { onQuit }
+  );
+});
 test('a desk without the prompts module is refused before anything is sent', async () => {
   vi.mocked(getDeskSupportsStewardPromptsState).mockReturnValue(false);
   await expect(getStewardPromptFiles()).rejects.toBeInstanceOf(

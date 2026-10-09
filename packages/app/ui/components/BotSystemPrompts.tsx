@@ -3,7 +3,13 @@ import * as api from '@tloncorp/api';
 import { convertContent, markdownToStory } from '@tloncorp/shared';
 import { Button, Icon, Text, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
@@ -135,10 +141,20 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   // save over) text that is no longer current.
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editingBaseText, setEditingBaseText] = useState<string | null>(null);
+  // A desk upgrade can turn prompt support on while this profile is open,
+  // after the read and the watch were already refused. Resubscribing on a
+  // change also refreshes the read, which nothing else would retry.
+  const deskSupportsPrompts = useSyncExternalStore(
+    api.onDeskSupportsStewardPromptsChange,
+    api.getDeskSupportsStewardPromptsState
+  );
 
   // The workspace feed is authoritative. A successful edit only confirms
   // the workspace write; an update from this feed supplies its contents.
   useEffect(() => {
+    if (deskSupportsPrompts === false) {
+      return;
+    }
     let subscriptionId: number | null = null;
     let cancelled = false;
     api
@@ -173,6 +189,14 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
           if (!cancelled) {
             queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
           }
+        },
+        () => {
+          // %steward refused the watch after it was sent: the same loss of
+          // live updates as the catch below, so refresh the same way.
+          subscriptionId = null;
+          if (!cancelled) {
+            queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
+          }
         }
       )
       .then((id) => {
@@ -199,7 +223,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
         api.unsubscribe(subscriptionId);
       }
     };
-  }, [botShip, queryClient]);
+  }, [botShip, deskSupportsPrompts, queryClient]);
 
   const handleSaved = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
@@ -576,6 +600,9 @@ function BotSystemPromptEditorSheet({
                     minHeight: editorHeight,
                     textAlignVertical: 'top',
                     autoFocus: true,
+                    // Save submits the text as it was when pressed; edits
+                    // made while it is in flight would be dropped on success.
+                    editable: !saving,
                     testID: 'BotSystemPromptEditor',
                   }}
                 />
