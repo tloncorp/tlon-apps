@@ -267,17 +267,17 @@ describe('the check fails closed', () => {
     ],
     [
       'a path under a bot-only prefix',
-      scry('/v1/automation/tasks'),
+      scry('/v1/automation/harness'),
       'path can reach a prefix excluded',
     ],
     [
       'a hole that can reach a bot-only prefix',
-      scry('/v1/{module}/tasks'),
+      scry('/v1/{module}/harness'),
       'path can reach a prefix excluded',
     ],
     [
       '%2e segments reaching a bot-only route',
-      get('/steward/~/v1/lens/%2e%2E/automation/tasks'),
+      get('/steward/~/v1/lens/%2e%2E/automation/finalize'),
       'route can reach a prefix excluded',
     ],
   ])('%s', (_name, entry, message) => {
