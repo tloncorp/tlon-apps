@@ -15,8 +15,8 @@
 # It must take its instructions on stdin, be allowed to edit this checkout, and
 # print its final report on stdout. The default is the Codex CLI.
 #
-# Run it from a clean checkout. On success it returns to the branch it started
-# on. On failure it stays on the work branch, with the agent's edits in place.
+# Run it from a clean checkout. On success it returns to where it started. On
+# failure it stays on the work branch, with the agent's edits in place.
 set -euo pipefail
 
 to=""
@@ -52,7 +52,17 @@ if [ -n "$(git status --porcelain)" ]; then
   echo "this checkout has uncommitted changes; run from a clean one" >&2
   exit 1
 fi
-started_on=$(git symbolic-ref --quiet --short HEAD || git rev-parse HEAD)
+# Where to return to: a branch, or a bare commit when the checkout started
+# detached, as a scheduled job's does.
+started_branch=$(git symbolic-ref --quiet --short HEAD || true)
+started_commit=$(git rev-parse HEAD)
+go_back() {
+  if [ -n "$started_branch" ]; then
+    git switch --quiet "$started_branch"
+  else
+    git switch --quiet --detach "$started_commit"
+  fi
+}
 
 # A build's tag can be moved, so take the remote's word for where each one is.
 git fetch --quiet --tags --force origin
@@ -62,15 +72,26 @@ base_commit=$(git rev-parse HEAD)
 target=${to:-$(node scripts/feature-map.mjs next)}
 if [ -z "$target" ]; then
   echo "the map already describes the newest store build"
-  git switch --quiet "$started_on"
+  go_back
   exit 0
 fi
 
 branch="feature-map/$(printf '%s' "$target" | tr -c 'A-Za-z0-9._-' '-')"
-if [ "$open_pr" = 1 ] && git ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
-  echo "$branch is already on the remote; its pull request covers $target"
-  git switch --quiet "$started_on"
-  exit 0
+if [ "$open_pr" = 1 ]; then
+  if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+    echo "a pull request for $target is already open"
+    go_back
+    exit 0
+  fi
+  # A branch with no open pull request is a run that pushed and then failed,
+  # or a pull request someone closed. Either needs a person, and skipping it
+  # quietly would leave the map on the old build for good.
+  if git ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
+    echo "$branch is on the remote with no open pull request." >&2
+    echo "Open one from it, or delete the branch to run the update again." >&2
+    go_back
+    exit 1
+  fi
 fi
 
 old=$(node -p "require('./$map/release.json').app")
@@ -116,7 +137,7 @@ git commit --quiet -m "product guide: describe $target"
 if [ "$open_pr" = 0 ]; then
   echo "committed on $branch; no pull request opened"
   echo "reports: $work/update-report.md $work/review-report.md"
-  git switch --quiet "$started_on"
+  go_back
   exit 0
 fi
 
@@ -183,4 +204,4 @@ fi
 git push --quiet origin "$branch"
 gh pr create --base develop --head "$branch" \
   --title "product guide: describe $target" --body-file "$body"
-git switch --quiet "$started_on"
+go_back
