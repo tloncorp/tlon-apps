@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/openclaw",
-  "version": "0.32.3",
+  "version": "0.32.4",
   "description": "OpenClaw Tlon/Urbit channel plugin",
   "license": "MIT",
   "repository": {

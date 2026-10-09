@@ -1,128 +1,63 @@
-# Hosted-browser sharing and secure form handoff
+# Browser card commands
 
-The hosted browser may read public Tlon pages (exposed content, published notes,
-profiles, invite links). Do not use it to open or operate the Tlon app itself;
-Tlon operations go through the `tlon` and `message` tools only.
+The `hosted-browser` skill owns browser workflow: collecting checkout details,
+choosing secure entry or live sharing, successive login steps, recovery, and
+resuming the task. Read it from the available-skills listing before planning
+those flows. This reference covers only the Tlon command contract. If the
+browser skill is unavailable, report the missing installation resource rather
+than inventing a workflow or collecting secrets in chat.
 
-## Share a hosted browser session
+## Invocation and delivery
 
-When the owner wants to see or interact with a browser session, call the `tlon`
-tool with:
+Call the model-facing `tlon` tool with an argument string. Do not include the
+`tlon` executable name or invoke a shell. Both commands accept the `session_id`
+(`sess_` handle) returned by `browser_session_create` for the live session.
+
+The plugin resolves a fresh signed viewer URL through the authenticated
+browser service and passes it privately to its delivery transport. Do not
+fetch, copy, construct, edit, or supply a viewer URL in a model tool call, or
+send one as a raw or labeled link in ordinary chat.
+
+These commands are exceptions to sending ordinary messages through `message`.
+They deliver only to the configured owner of the active bot account, with no
+recipient argument or override. Missing owner configuration fails instead of
+sending to someone else. Claim delivery only after the command succeeds.
+
+## Share a live browser
 
 ```json
 {"command":"browser share <session_id>"}
 ```
 
-Pass the `sess_` handle returned by `browser_session_create`. This sends a rich
-link card in Tlon Messenger that opens the live session in the browser. It does
-not request credentials or send a task continuation. Use `browser handoff`
-below when sensitive input is needed.
+Sends a rich link card in Tlon Messenger that opens the live session for viewing
+and interaction. It does not request credentials or generate a task
+continuation.
 
-Never send a browser-session URL as a raw or labeled Markdown link in ordinary
-chat messages. Do not fetch, copy, construct, or expose the signed viewer URL;
-the plugin resolves it privately. If sharing fails, explain the failure and
-retry when appropriate; do not fall back to sending a URL.
-
-Both browser commands are exceptions to routing ordinary messages through
-`message`. They send only to the configured owner; never claim delivery until
-the command succeeds.
-
-## Secure form handoff
-
-Use secure entry for payment-card fields, login identifiers, passwords, and
-verification codes. Ask the owner for missing ordinary details in chat: contact
-email, name, shipping or billing address, phone number, and delivery preferences.
-Use those supplied details to fill the page through browser tools before
-requesting secure entry. If the owner prefers to enter ordinary details
-themselves, let them use the live browser.
-
-Never ask for passwords, verification codes, or card details in chat. Do not
-type, store, repeat, summarize, or read those values through browser tools.
-A checkout contact email is ordinary contact information; an identifier used
-to sign in belongs in secure entry. Do not guess missing information.
-
-First navigate the live session all the way to the visible form. Use the `session_id` (`sess_` handle) returned by `browser_session_create`
-for that same session. Call the model-facing `tlon` tool with:
+## Request secure entry
 
 ```json
-{"command": "browser handoff <session_id>"}
+{"command":"browser handoff <session_id>"}
 ```
 
-Do not include the executable name in the tool's `command` argument. Use this
-tool, not a shell command. The plugin resolves a fresh signed viewer link through
-the authenticated browser service and passes it directly to the CLI for card
-delivery. Never copy, construct, edit, or supply a viewer URL yourself.
+Sends a native Tlon secure-entry card for the session. Supported fields are
+login identifiers, passwords, verification codes, and payment-card details.
+Each fill is bound to the exact live controls and origin; values go directly
+to the browser service without passing through chat or the bot. Completing
+entry generates a task continuation. Sending the card or filling fields does
+not submit a purchase or grant purchase approval.
 
-Do not call `browser_session_handoff` as a prerequisite for this card. That tool
-uses MCP viewer/elicitation capabilities to arrange human browser control; it
-does not issue or refresh signed viewer URLs. Its `client_capability_missing`
-error does not determine whether the Tlon secure form is available.
+`browser_session_handoff` is a separate MCP viewer/elicitation operation, not
+a prerequisite for either Tlon command or a way to refresh signed viewer URLs.
+Its `client_capability_missing` error does not establish whether the Tlon card
+is available.
 
-The `browser handoff` operation is an exception to routing ordinary messages through `message`. It always sends the handoff card to the owner configured for the active bot
-account. It has no recipient argument or override. If no owner is configured,
-it fails instead of sending the form elsewhere. Never claim the handoff was
-sent unless the command returned success.
+## Errors and discovery
 
-The card opens a native Tlon secure form. It does not embed the remote page.
-The browser service describes the visible fields using standard autofill
-purposes for login identifiers, passwords, verification codes, and card details.
-Each fill is bound to the exact live controls and origin. Values travel directly
-to the browser service, without passing through chat or the bot. Do not read or repeat filled sensitive fields through browser tools.
+Invalid handles, failed session lookup, missing owner configuration, and
+failed delivery are errors; do not claim a card was sent or fall back to a raw
+viewer URL. Consult `hosted-browser` for recovery and session-lifetime behavior.
+An unavailable secure form is a client discovery state after card delivery,
+not proof that the delivery command failed.
 
-Keep the session live while the owner completes the form. A login handoff can
-show successive identifier, password, and verification-code steps in the same
-secure screen. Each submission uses a fresh single-use fill handle bound to the
-displayed destination; values are never replayed. Card entry ends the handoff
-after one successful fill, without a submit click. A fill does not authorize a
-purchase, payment, or other consequential action.
-
-When entry finishes, the app resumes the conversation automatically. Wait for
-that continuation message, then inspect the same browser session, check the
-current page and validation state, and continue the task. Fill any remaining
-ordinary fields from the owner's supplied details. If a fill fails, inspect the
-page before retrying; some fields may already have been filled. Send a fresh
-handoff if another secure step is needed after control returns to the bot. Before
-placing an order, show the owner the items, delivery details, and total, and ask
-for purchase approval unless they have already approved that exact purchase.
-Entry does not prove sign-in or transaction completion. Do not ask the owner to
-press both controls; the card's “Continue task” button is a manual alternative. Release the session
-promptly when the browser task is finished.
-
-Ambiguous forms, custom controls, passkeys, CAPTCHA, and unsupported steps can
-be completed through “Open live browser” on the same screen. Do not guess secret
-field selectors or ask for secret values in chat. If a card expires while its
-session is still live, send a fresh card using the same session handle. If the lookup
-fails, report the failure; do not invent or edit a URL or claim a card was sent.
-If the live session expires, create a new one and navigate to the required form
-before sending its handoff.
-
-#### What persists
-
-Do not describe the live session itself as permanent. A live Chrome session,
-its tabs, its current page, and its signed handoff URL are temporary and end on
-release, inactivity timeout, hard timeout, or Pod restart. Signed viewer URLs
-are temporary bearer capabilities handled by the plugin and browser service.
-Use only the session handle in the Tlon tool; never quote a signed link into
-chat or share it with another user.
-
-The browser *profile* is persistent. In the self-hosted deployment, the MCP
-credential identifies the owner and transparently selects that owner's durable
-browser profile. Cookies and browser storage saved when a session closes are
-reused by later sessions for the same owner, so a successful login normally
-survives without leaving Chrome or hundreds of idle tabs running. A new session
-may open on a fresh page, but it should retain the saved login state. Logging
-out or clearing site data can persist that logged-out state as well.
-
-Profiles and session handles are isolated by MCP credential. A caller cannot
-open another owner's profile or session merely by guessing or obtaining a
-session handle; each browser call is authorized as the current credential.
-Treat a signed handoff URL as sensitive anyway because it intentionally grants
-temporary access to that one live session.
-
-When the owner asks how this works, explain it plainly: they enter the secret in
-a native Tlon form; Tlon submits it directly to their live browser; the bot does
-not receive the value; and the resulting browser login is saved in their
-isolated profile for later browser tasks. Do not claim that Tlon or the bot has
-stored their raw password.
-
-> **Deprecated: diary channels.** `%diary` is not managed by the CLI: `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
+Use the `tlon` tool's `help browser` command for installed syntax if this
+reference and the available command disagree.
