@@ -27,6 +27,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
 
     var alignment: TlonMessageMenuAlignment = .leading
     var previewBackgroundColor: UIColor = .secondarySystemBackground
+    var menuColors = TlonMessageMenuColors()
 
     private weak var presentationView: TlonMessageMenuPresentationView?
     private var initialGestureLocation: CGPoint?
@@ -228,7 +229,8 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
             reactions: reactions,
             moreReactionsToken: moreReactionsToken,
             alignment: alignment,
-            previewBackgroundColor: previewBackgroundColor
+            previewBackgroundColor: previewBackgroundColor,
+            menuColors: menuColors
         ) { [weak self] selection in
             guard let self else {
                 return

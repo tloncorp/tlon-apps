@@ -2700,6 +2700,36 @@ export const deleteBucketUpload = createWriteQuery(
   ['bucketUploads']
 );
 
+/**
+ * Delete the given upload rows that are still failed, and return them.
+ *
+ * Checked and deleted in one statement, so a row retried in the meantime is
+ * not swept up with the failures. One write, so dismissing a thousand
+ * failures invalidates the readers once rather than a thousand times.
+ * Chunked to stay under SQLite's bound-parameter limit.
+ */
+export const deleteFailedBucketUploads = createWriteQuery(
+  'deleteFailedBucketUploads',
+  async (ids: string[], ctx: QueryCtx) => {
+    const deleted: (typeof $bucketUploads.$inferSelect)[] = [];
+    for (let i = 0; i < ids.length; i += 500) {
+      deleted.push(
+        ...(await ctx.db
+          .delete($bucketUploads)
+          .where(
+            and(
+              inArray($bucketUploads.id, ids.slice(i, i + 500)),
+              eq($bucketUploads.state, 'failed')
+            )
+          )
+          .returning())
+      );
+    }
+    return deleted;
+  },
+  ['bucketUploads']
+);
+
 export const getBucketUploads = createReadQuery(
   'getBucketUploads',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {

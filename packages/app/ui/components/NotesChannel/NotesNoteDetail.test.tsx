@@ -11,7 +11,10 @@ import {
   vi,
 } from 'vitest';
 
-import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
+import {
+  useRegisterChannelHeaderItem,
+  useRegisterChannelHeaderLoadingSubtitle,
+} from '../Channel/ChannelHeader';
 
 import {
   NotesNoteDetail,
@@ -246,6 +249,31 @@ function scrollEvent({
 
 describe('NotesNoteDetail note switching', () => {
   registerNotesDetailTestHooks();
+
+  it.each([false, true])(
+    'registers loading in the header for isWeb=%s',
+    async (isWeb) => {
+      mocks.isWeb = isWeb;
+      mocks.useNotebookData.mockReturnValue({
+        folders: [],
+        notes: [],
+        canEdit: false,
+        rootFolderId: null,
+        gate: 'loading',
+      });
+      let renderer!: ReactTestRenderer;
+      await act(async () => {
+        renderer = create(
+          <NotesNoteDetail noteId={1} notebookFlag="~zod/notebook" />
+        );
+      });
+
+      expect(useRegisterChannelHeaderLoadingSubtitle).toHaveBeenLastCalledWith(
+        isWeb ? null : 'Loading note…'
+      );
+      act(() => renderer.unmount());
+    }
+  );
 
   it('registers native actions that switch between editing and preview', async () => {
     let renderer!: ReactTestRenderer;

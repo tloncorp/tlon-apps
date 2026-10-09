@@ -1701,7 +1701,11 @@ export function NotesNoteDetail({
     headerActionsPlacement === 'channel-header' ? headerActions : null
   );
   useRegisterChannelHeaderLoadingSubtitle(
-    headerActionsPlacement === 'channel-header' ? headerSaveLabel : null
+    headerActionsPlacement === 'channel-header'
+      ? !isWeb && noteId !== null && gate === 'loading'
+        ? 'Loading note…'
+        : headerSaveLabel
+      : null
   );
 
   if (noteId === null) {

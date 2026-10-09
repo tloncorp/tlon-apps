@@ -56,6 +56,11 @@ import {
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import { recordTlonMessageJourneyEvent } from '../message-journey.js';
 import {
+  type PromptSync,
+  createPromptSync,
+  shouldRunPromptSync,
+} from '../prompt-sync.js';
+import {
   type PendingNudge,
   clearPendingNudge,
   getPendingNudge,
@@ -86,7 +91,10 @@ import {
   STEWARD_AUTOMATION_FINALIZE_PATH,
   StewardAutomationEditProcessor,
 } from '../steward-automation-edit.js';
-import { isStewardAutomationProjectionEligible } from '../steward-automation-reconciliation.js';
+import {
+  getStewardAutomationReconciler,
+  isStewardAutomationProjectionEligible,
+} from '../steward-automation-reconciliation.js';
 import {
   canonicalizeNest,
   normalizeShip,
@@ -117,6 +125,7 @@ import {
   captureTlonApiScope,
   runWithTlonApiScope,
   setScopedTlonApiWithPoke,
+  sseScryFn,
 } from '../urbit/api-client.js';
 import {
   authenticate,
@@ -201,6 +210,7 @@ import {
 import { createComputingPresenceTracker } from './computing-presence.js';
 import { resolveDeliverParentId } from './deliver-parent.js';
 import { fetchAllChannels, fetchInitData } from './discovery.js';
+import { createJoinedChannels } from './joined-channels.js';
 import {
   createCompactionTimeoutObserver,
   isAgentTimeoutEvent,
@@ -634,6 +644,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   };
 
   let api: UrbitSSEClient | null = null;
+  let promptSync: PromptSync | null = null;
   let clearAgentOnboardingRetries: (() => void) | null = null;
   // The groupChannels journal and the settings refresh it depends on live at
   // function scope: the SSE client's reconnect hook (built in the first try
@@ -776,6 +787,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // publish, or a key cleared while this process stayed alive, would
           // otherwise persist until a restart. Fire-and-forget and non-fatal.
           void publishBotInfoNow('reconnect');
+          // A reconnect may follow a failed initial project or a ship-side
+          // state reset. Re-assert the workspace projection; steward retains
+          // pending edits and will replay them through the harness feed.
+          void promptSync?.project('reconnect');
           if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
             capturePluginError(
               'sse_stream',
@@ -816,7 +831,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     api.poke.bind(api),
     botShipName,
     account.url,
-    ({ app, path }) => api.scry(`/~/scry/${app}${path}.json`),
+    sseScryFn((path) => api.scry(path)),
     (path, method, body, options) =>
       api.requestJson(path, method, body, options)
   );
@@ -997,6 +1012,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Config-sourced nests are immune to settings-key removal; see the
     // ownership rule in group-channels.ts.
     const discoveredNests = new Set<string>();
+    const joinedChannels = createJoinedChannels();
     // Where onboarding stands in each DM: the group its last request named,
     // or that it has finished (or holds no request) and replies are just talk.
     const onboardingDmState = new OnboardingDmState();
@@ -1667,10 +1683,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // snapshot is the only way to know which groups those are, so
     // no config gates the fetch.
     try {
+      const joinedSync = joinedChannels.beginSync();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
         botShip: botShipName,
       });
+      joinedChannels.applySync(joinedSync, initData.joinedChannels);
       if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
         groupChannels = initData.channels;
         for (const channelNest of initData.channels) {
@@ -3924,10 +3942,32 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const watchedChannels = new Set<string>(groupChannels);
     const _watchedDMs = new Set<string>();
 
-    const mergeDiscoveredChannels = async () => {
+    // Nests the firehose leave branch unwatched. Nothing else re-watches a
+    // configured channel with discovery off, so a rejoin must.
+    const unwatchedByLeave = new Set<string>();
+    const rewatchAfterRejoin = (nest: string) => {
+      if (!unwatchedByLeave.delete(nest)) return;
+      watchedChannels.add(nest);
+      runtime.log?.(`[tlon] Re-watching channel ${nest} after rejoin`);
+    };
+
+    const syncJoinedChannels = async () => {
+      const token = joinedChannels.beginSync();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
       });
+      // A rejoin whose join fact was missed shows up only here.
+      for (const nest of joinedChannels.applySync(
+        token,
+        initData.joinedChannels
+      )) {
+        rewatchAfterRejoin(nest);
+      }
+      return initData;
+    };
+
+    const mergeDiscoveredChannels = async () => {
+      const initData = await syncJoinedChannels();
       for (const [nest, groupFlag] of initData.channelToGroup) {
         channelToGroup.set(nest, groupFlag);
       }
@@ -4049,6 +4089,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // may still be pending; those must not query, or post into, a channel
       // the owner took away. The bot DM is never in the watched set.
       if (!nestIsDm && !watchedChannels.has(nest)) return;
+      // A left or never-joined channel has no history to read; retrying its
+      // failing scry would never end.
+      if (!nestIsDm && joinedChannels.isKnownNotJoined(nest)) {
+        clearAgentOnboardingRetry(nest);
+        return;
+      }
       let groupId = channelToGroup.get(nest);
       if (!groupId && nestIsDm) {
         // A DM names no group. The app's intro request, posted into this DM,
@@ -4139,14 +4185,34 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     const onboardingDiscoveryFlights = new Set<Promise<boolean | undefined>>();
     let drainingOnboardingDiscovery = false;
-    const scanDiscoveredAgentOnboardingNest = async (nest: string) => {
+    const runOnboardingDiscoveryFlight = async (
+      scan: () => Promise<boolean | undefined>
+    ) => {
       if (drainingOnboardingDiscovery || opts.abortSignal?.aborted) return;
-      const flight = onboardingCatchUp.reconcile(nest);
+      const flight = scan();
       onboardingDiscoveryFlights.add(flight);
       try {
         await flight;
       } finally {
         onboardingDiscoveryFlights.delete(flight);
+      }
+    };
+    const scanDiscoveredAgentOnboardingNest = (nest: string) =>
+      runOnboardingDiscoveryFlight(() => onboardingCatchUp.reconcile(nest));
+
+    // A nest watched before its join had its scan skipped, and the
+    // became-joined reconcile can miss the intro request: the host may not
+    // have backfilled it within the catch-up window, or the join fact was
+    // dropped and only a later snapshot shows it. Each poll tick in the
+    // window repeats this, so one history read per tick suffices; opening a
+    // catch-up window here would multiply the reads.
+    const rescanRecentlyJoinedChannels = async () => {
+      for (const nest of joinedChannels.recentlyJoined(10 * 60_000)) {
+        if (nest.startsWith('chat/') && watchedChannels.has(nest)) {
+          await runOnboardingDiscoveryFlight(() =>
+            scanAgentOnboardingNest(nest)
+          );
+        }
       }
     };
 
@@ -4164,6 +4230,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const nest = event?.nest;
 
         if (!nest) {
+          return;
+        }
+
+        // Only a leave may stop handling a channel: auto-watch below must
+        // still admit a nest the joined set wrongly lacks.
+        const joinChange = joinedChannels.observe(event);
+        if (joinChange === 'left') {
+          if (watchedChannels.delete(nest)) unwatchedByLeave.add(nest);
+          clearAgentOnboardingRetry(nest);
+          runtime.log?.(`[tlon] Left channel ${nest}; no longer watching`);
+          return;
+        }
+        if (joinChange === 'became-joined') rewatchAfterRejoin(nest);
+        // A nest watched before its join fact had its onboarding scan skipped.
+        if (joinChange === 'became-joined' && watchedChannels.has(nest)) {
+          await onboardingCatchUp.reconcile(nest);
+          // A join fact carries no message work, and a leave handled during
+          // the await must not be undone by the auto-watch below.
           return;
         }
 
@@ -5179,6 +5263,103 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     try {
       runtime.log?.('[tlon] Subscribing to firehose updates...');
 
+      // The OpenClaw workspace is %steward's source of truth for prompt
+      // files. Register its local harness feed before connecting so a queued
+      // owner edit cannot slip between the initial projection and the watch.
+      // Multiple accounts share this workspace, so exactly one monitor owns
+      // the relay.
+      if (!effectiveOwnerShip) {
+        runtime.log?.(
+          '[tlon] Prompt sync disabled: no ownerShip is configured'
+        );
+      } else if (!shouldRunPromptSync(cfg, account.accountId)) {
+        runtime.log?.(
+          `[tlon] Prompt sync disabled for account ${account.accountId}: accounts share one agent workspace`
+        );
+      } else {
+        // Project the workspace the owner's own messages are routed to, the
+        // way restart catch-up resolves BOOT.md. Assuming the default agent
+        // would project and edit an unrelated agent's prompts whenever this
+        // account is bound to a non-default one.
+        const promptRoute = core.channel.routing.resolveAgentRoute({
+          cfg,
+          channel: 'tlon',
+          accountId: account.accountId,
+          peer: { kind: 'direct', id: effectiveOwnerShip },
+        });
+        promptSync = createPromptSync({
+          owner: effectiveOwnerShip,
+          workspaceDir: core.agent.resolveAgentWorkspaceDir(
+            cfg,
+            promptRoute.agentId
+          ),
+          poke: api.poke.bind(api),
+          requestJson: api.requestJson.bind(api),
+          logger: {
+            log: (message) => runtime.log?.(message),
+            warn: (message) => runtime.error?.(message),
+          },
+          // requestJson never refreshes the cookie itself; only an SSE
+          // reconnect does, and a healthy stream never has one.
+          reauthenticate: async () => {
+            api!.updateCookie(await authenticateWithRetry('re_auth'));
+          },
+        });
+        const sync = promptSync;
+        // Its retries run until the ship answers or the sync closes, and the
+        // teardown below only reaches close() once the main body settles.
+        // Close on abort directly so a ship outage cannot pin a config
+        // reload or a gateway shutdown. addEventListener does not replay an
+        // abort that already happened during the bootstrap above, so check
+        // first — a retiring monitor must not install a watcher or start
+        // projecting.
+        if (opts.abortSignal?.aborted) {
+          void sync.close();
+        } else {
+          opts.abortSignal?.addEventListener('abort', () => void sync.close(), {
+            once: true,
+          });
+        }
+        try {
+          await api.subscribe({
+            app: 'steward',
+            path: '/v1/prompts/harness',
+            event: (fact) => {
+              void sync.handleDispatch(fact);
+            },
+            err: (error) => {
+              capturePluginError('steward_subscription', error);
+              runtime.error?.(
+                `[tlon] Steward prompts harness subscription error: ${String(error)}`
+              );
+            },
+            quit: () => {
+              runtime.log?.(
+                '[tlon] Steward prompts harness quit received, SSE client will resubscribe'
+              );
+            },
+            // %steward can start with an empty prompts slice under a live
+            // harness: a desk that adds the module after the plugin is
+            // already running (the watch nacks until then), or an agent
+            // reset. Each time the watch goes live, push the workspace again;
+            // an unchanged projection is a no-op on the ship.
+            retryOnNack: true,
+            onLive: () => {
+              void sync.project('harness live');
+            },
+          });
+          runtime.log?.(
+            '[tlon] Subscribed to steward prompts harness (/v1/prompts/harness)'
+          );
+        } catch (error) {
+          // The subscription stays registered and is retried with the
+          // channel; the sync itself stays live for when it lands.
+          runtime.log?.(
+            `[tlon] Steward prompts harness subscription deferred: ${String(error)}`
+          );
+        }
+      }
+
       // Subscribe to channels firehose (/v4)
       await api.subscribe({
         app: 'channels',
@@ -5514,14 +5695,25 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 '[tlon] Steward automation harness quit received, SSE client will resubscribe'
               );
             },
+            // The cron projection otherwise runs only on gateway_start and
+            // cron_changed, so a %steward that starts empty under a running
+            // gateway (a desk upgrade adding the module, an agent reset)
+            // stays empty until the next cron edit. Reconcile whenever the
+            // harness watch goes live.
+            retryOnNack: true,
+            onLive: () => {
+              void getStewardAutomationReconciler()?.trigger(() =>
+                getTlonCronService()
+              );
+            },
           });
           runtime.log?.(
             `[tlon] Subscribed to steward automation harness feed (${STEWARD_AUTOMATION_HARNESS_PATH})`
           );
         } catch (error: any) {
-          // Ships without the edit loop nack the subscribe; owner edits then
-          // fail fast on the bot as harness-offline while everything else
-          // keeps working.
+          // A nack does not land here — it arrives later on the stream and is
+          // retried there. This catches only a failed send, which the channel
+          // also retries.
           runtime.log?.(
             `[tlon] Steward automation harness subscription unavailable: ${error?.message ?? String(error)}`
           );
@@ -5798,31 +5990,26 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           const gapBefore = groupChannelJournal?.gapSeq;
           const unconfirmedBefore = groupChannelJournal?.unconfirmedSnapshot();
           const feedDownBefore = settingsFeedDown;
-          let superseded = false;
           try {
             const refreshResult = await settingsManager.load({
               logSnapshot: false,
-              // An echo or gap can invalidate this scry. Preserve the last
-              // observation before the manager installs it, or an unrelated
-              // settings fact could re-trust the journal from a pre-gap value.
-              reconcile: (parsed) => {
-                if (
-                  !groupChannelJournal ||
-                  (groupChannelJournal.observationSeq === seqBefore &&
-                    groupChannelJournal.gapSeq === gapBefore)
-                ) {
-                  return parsed;
-                }
-                superseded = true;
-                // Hand back the observed value in place of the stale one.
-                return {
-                  ...parsed,
-                  groupChannels: groupChannelJournal.lastObserved as
-                    | string[]
-                    | undefined,
-                };
-              },
+              // The manager replays echoes that overtook this scry, but a gap
+              // is not a fact. Keep the last observation over a pre-gap value,
+              // or an unrelated settings fact could re-trust the journal from it.
+              reconcile: (parsed) =>
+                !groupChannelJournal || groupChannelJournal.gapSeq === gapBefore
+                  ? parsed
+                  : {
+                      ...parsed,
+                      groupChannels: groupChannelJournal.lastObserved as
+                        | string[]
+                        | undefined,
+                    },
             });
+            const superseded =
+              groupChannelJournal !== undefined &&
+              (groupChannelJournal.observationSeq !== seqBefore ||
+                groupChannelJournal.gapSeq !== gapBefore);
             // A gap (subscription error/quit, stream reconnect) reported while
             // the scry was in flight, or a settings feed already down when it
             // began, means this result may predate edits whose echoes were or
@@ -6160,6 +6347,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      // Not awaited: the initial projection retries until the ship answers,
+      // and readiness, catch-up and onboarding must not wait on that.
+      void promptSync?.start();
       if (!opts.abortSignal?.aborted && api.isConnected) {
         opts.onReady?.({
           isConnected: () => api.isConnected,
@@ -6245,6 +6435,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // The foreigns subscription gets no snapshot on watch; catch up now
       // that the channel is live so the boot gap cannot lose an invite.
       await groupInviteRunner.catchUp();
+      // The firehose is live now, so no join or leave can fall between this
+      // snapshot and the facts that follow it.
+      await syncJoinedChannels();
       // watchedChannels holds group channels only; the bot DM is never added
       // to it, and the firehose auto-watch admits only kind/host/slug nests.
       // Without seeding it here an intro request posted while the bot was
@@ -6334,7 +6527,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     await scanDiscoveredAgentOnboardingNest(channelNest);
                   }
                 }
+              } else {
+                // Discovery's own fetch syncs the joined set; repair any
+                // drift from a dropped subscription either way.
+                await syncJoinedChannels();
               }
+              await rescanRecentlyJoinedChannels();
             } catch (error: any) {
               runtime.error?.(
                 `[tlon] Channel refresh error: ${error?.message ?? String(error)}`
@@ -6460,6 +6658,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // inside the queues we flush below, rather than leaking into a
       // half-closed api after cleanup.
       await nudgeRunner?.stop();
+      await promptSync?.close();
+      promptSync = null;
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
       // Drain the groupChannels journal before api.close(), which rejects

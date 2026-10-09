@@ -1,7 +1,7 @@
 import type { Entry } from './types';
 
-// Automation routes (/v1/automation, /steward/~/v1/automation) are bot-facing
-// and excluded by oxlint/desk-request-scope.json.
+// Automation routes (/v1/automation and its /steward/~/v1 HTTP form) are
+// bot-facing and excluded by oxlint/desk-request-scope.json.
 export const steward = {
   lensRecent: {
     kind: 'scry',
@@ -50,5 +50,36 @@ export const steward = {
     agent: 'steward',
     mark: 'steward-lens-action-1',
     since: '12.2.0',
+  },
+  promptFiles: {
+    kind: 'http',
+    agent: 'steward',
+    method: 'GET',
+    path: '/steward/~/v1/prompts/files',
+    since: '12.3.2',
+    guardedBy: 'deskSupportsStewardPrompts',
+  },
+  promptEdit: {
+    kind: 'http',
+    agent: 'steward',
+    method: 'POST',
+    path: '/steward/~/v1/prompts',
+    since: '12.3.2',
+    guardedBy: 'deskSupportsStewardPrompts',
+  },
+  promptRequest: {
+    kind: 'http',
+    agent: 'steward',
+    method: 'GET',
+    path: '/steward/~/v1/prompts/request/{requestId}',
+    since: '12.3.2',
+    guardedBy: 'deskSupportsStewardPrompts',
+  },
+  promptFeed: {
+    kind: 'subscribe',
+    agent: 'steward',
+    path: '/v1/prompts/files',
+    since: '12.3.2',
+    guardedBy: 'deskSupportsStewardPrompts',
   },
 } as const satisfies Record<string, Entry>;

@@ -1,7 +1,7 @@
 import { createAnimations } from '@tamagui/animations-moti';
 import { createMedia } from '@tamagui/react-native-media-driver';
 import { Platform } from 'react-native';
-import { createFont, createTamagui, createTokens } from 'tamagui';
+import { createFont, createTamagui, createTokens, isWeb } from 'tamagui';
 
 export const animations = createAnimations({
   simple: {
@@ -347,11 +347,36 @@ export const themes = {
   },
 };
 
+// Kept as plain literals: packages/ui/babel/androidTextStyles.cjs reads this
+// export as data. 'System-Monospaced' maps to SF Mono in
+// apps/tlon-mobile/ios/Landscape/UIFont+SystemDesign.m.
+export const fontFamilies = {
+  web: {
+    body: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    mono: 'monospace',
+  },
+  ios: {
+    body: 'System',
+    mono: 'System-Monospaced',
+  },
+  android: {
+    body: 'System',
+    mono: 'monospace',
+  },
+};
+
+// Pick families with isWeb rather than Platform.select; see the note on
+// `config` below. The Tamagui compiler can't tell iOS from Android, so it bakes
+// the iOS families into flattened styles and the Android build swaps them via
+// packages/ui/babel/androidTextStyles.cjs.
+const platformFontFamilies = isWeb
+  ? fontFamilies.web
+  : Platform.OS === 'android'
+    ? fontFamilies.android
+    : fontFamilies.ios;
+
 export const systemFont = createFont({
-  family: Platform.select({
-    web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    default: 'System',
-  }),
+  family: platformFontFamilies.body,
   size: {
     xs: 12,
     s: 14,
@@ -416,12 +441,7 @@ export const serifFont = createFont({
 });
 
 export const monoFont = createFont({
-  family: Platform.select({
-    android: 'monospace',
-    ios: 'System-Monospaced',
-    web: 'monospace',
-    default: 'monospace',
-  }),
+  family: platformFontFamilies.mono,
   size: {
     s: 14,
     m: 14,
@@ -539,52 +559,55 @@ export const desktopFonts = {
   // ===
 };
 
-export const config =
-  Platform.OS === 'web'
-    ? createTamagui({
-        tokens: createTokens({
-          color,
-          space: desktopMeasures,
-          size: desktopMeasures,
-          radius: desktopMeasures,
-          zIndex,
-        }),
-        fonts: desktopFonts,
-        themes,
-        media,
-        settings: {
-          defaultFont: 'body',
-          // Tamagui v2 expands flex: 1 to flex-grow: 1, flex-shrink: 1, flex-basis: 0 instead of flex-grow: 1, flex-shrink: 1, flex-basis: auto,
-          // this brings back the v1 behavior that we rely on.
-          styleCompat: 'legacy',
-          // This is also to match v1 default styles.
-          defaultPosition: 'relative',
-          allowedStyleValues: {
-            space: 'somewhat-strict',
-            size: 'somewhat-strict',
-            radius: 'somewhat-strict',
-            zIndex: 'somewhat-strict',
-          },
+// Branch on isWeb, not Platform.OS: the Tamagui compiler loads this file with
+// react-native swapped for its web build, so Platform.OS reads 'web' while it
+// bakes styles for iOS and Android, which would flatten desktop tokens into
+// the mobile app.
+export const config = isWeb
+  ? createTamagui({
+      tokens: createTokens({
+        color,
+        space: desktopMeasures,
+        size: desktopMeasures,
+        radius: desktopMeasures,
+        zIndex,
+      }),
+      fonts: desktopFonts,
+      themes,
+      media,
+      settings: {
+        defaultFont: 'body',
+        // Tamagui v2 expands flex: 1 to flex-grow: 1, flex-shrink: 1, flex-basis: 0 instead of flex-grow: 1, flex-shrink: 1, flex-basis: auto,
+        // this brings back the v1 behavior that we rely on.
+        styleCompat: 'legacy',
+        // This is also to match v1 default styles.
+        defaultPosition: 'relative',
+        allowedStyleValues: {
+          space: 'somewhat-strict',
+          size: 'somewhat-strict',
+          radius: 'somewhat-strict',
+          zIndex: 'somewhat-strict',
         },
-        animations,
-      })
-    : createTamagui({
-        tokens,
-        fonts,
-        themes,
-        media,
-        settings: {
-          defaultFont: 'body',
-          styleCompat: 'legacy',
-          defaultPosition: 'relative',
-          allowedStyleValues: {
-            space: 'somewhat-strict',
-            size: 'somewhat-strict',
-            radius: 'somewhat-strict',
-            zIndex: 'somewhat-strict',
-          },
+      },
+      animations,
+    })
+  : createTamagui({
+      tokens,
+      fonts,
+      themes,
+      media,
+      settings: {
+        defaultFont: 'body',
+        styleCompat: 'legacy',
+        defaultPosition: 'relative',
+        allowedStyleValues: {
+          space: 'somewhat-strict',
+          size: 'somewhat-strict',
+          radius: 'somewhat-strict',
+          zIndex: 'somewhat-strict',
         },
-        animations,
-      });
+      },
+      animations,
+    });
 
 export type Conf = typeof config;

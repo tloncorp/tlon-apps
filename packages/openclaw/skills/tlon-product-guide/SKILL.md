@@ -83,7 +83,7 @@ The tab bar along the bottom is icons only, so describe them by shape:
 
 Until the bot finishes setting you up, the other tabs stay locked.
 
-Outside of groups, you can send direct messages to individuals. DMs appear alongside your workspaces on the Workspaces tab. The filters at the top narrow the list: `Messages` shows only DMs, `Just me` shows workspaces that hold only you and your bot, and `With others` shows the rest.
+Outside of groups, you can send direct messages to individuals. DMs appear alongside your workspaces on the Workspaces tab. The filters at the top narrow the list: `Messages` shows only DMs, `Just me` shows workspaces that hold only you and your bot, and `With others` shows the rest. `Just me` only appears when you have a workspace like that; without one, the filters are `All`, `With others`, and `Messages`.
 
 ### Sync your contacts
 
@@ -221,7 +221,7 @@ ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their
 6. **Build knowledge.** Act as a functional FAQ, share company processes.  
 7. **Run recurring jobs.** Regular summaries at specific times, news roundups, and more.  
 8. **Respond to slash commands.** Change models, manage access, and more.  
-9. **Read files.**
+9. **Read documents you send it** — PDFs, text, and CSV. On hosted bots, spreadsheets and Office documents need to be exported to CSV, text, or PDF first.
 
 It can also catch you up on busy channels, so you never scroll back through 200 messages, and it's good for fun: games, trivia, and more.
 
@@ -297,7 +297,7 @@ Self-hosting means no included model, ChatGPT-subscription screen, or bot settin
 
 ### Guardrails
 
-Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the system prompt can't be modified, and the bot has no shell and can't write to the filesystem — the only thing it writes is Tlon Messenger content. It can read files, which is how it works with anything you send it. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
+Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the system prompt can't be modified, and the bot has no shell and can't write to the filesystem — the only thing it writes is Tlon Messenger content. It can read PDFs, text files, and CSVs you send it; spreadsheets and Office documents have to be exported first. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
 
 ### Self-hosting your bot
 

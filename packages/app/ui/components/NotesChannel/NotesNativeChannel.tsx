@@ -37,7 +37,10 @@ import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import { ActionSheet } from '../ActionSheet';
-import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
+import {
+  useRegisterChannelHeaderItem,
+  useRegisterChannelHeaderLoadingSubtitle,
+} from '../Channel/ChannelHeader';
 import type { ScreenHeaderAction } from '../ScreenHeader';
 import { useFloatingHeaderHeight } from '../conversationScrollChrome';
 import { NotesActionGroupList } from './NotesActions';
@@ -536,11 +539,20 @@ export function NotesNativeChannel({
         setStartEditNoteId(noteId);
       }
 
-      setPendingDesktopNoteId(null);
       if (useDesktopSplit) {
-        selectNoteInPane(noteId);
+        // A note that isn't in `notes` yet (just created, or a search hit on
+        // a thin client) would be deselected straight away by the effect
+        // that drops missing selections, so hold it until it syncs.
+        if (notes.some((note) => note.noteId === noteId)) {
+          setPendingDesktopNoteId(null);
+          selectNoteInPane(noteId);
+        } else {
+          setPendingDesktopNoteId(noteId);
+        }
         return;
       }
+
+      setPendingDesktopNoteId(null);
 
       navigation.navigate('NotesDetail', {
         channelId,
@@ -621,11 +633,7 @@ export function NotesNativeChannel({
         setDesktopFolderId(noteFolderId === rootFolderId ? null : noteFolderId);
       }
 
-      if (notes.some((candidate) => candidate.noteId === note.noteId)) {
-        openNoteId(note.noteId);
-      } else {
-        setPendingDesktopNoteId(note.noteId);
-      }
+      openNoteId(note.noteId);
     }
   );
 
@@ -1187,6 +1195,11 @@ export function NotesNativeChannel({
   }, [canEdit, gate, notebookFlag]);
 
   useRegisterChannelHeaderItem(useDesktopSplit ? null : headerActions);
+  useRegisterChannelHeaderLoadingSubtitle(
+    Platform.OS !== 'web' && isFocused && gate === 'loading'
+      ? 'Loading notebook…'
+      : null
+  );
 
   const notesTreePane = (
     <NotesTreePane

@@ -59,3 +59,10 @@ export const FULL_MEMBER_COUNT_MIN_GROUPS_VERSION = '12.3.2';
 // their `since`. Must move in lockstep with desk/desk.docket-0's version if
 // the release number changes.
 export const ROSTER_PAGES_MIN_GROUPS_VERSION = '12.3.2';
+
+// The first %groups release whose %steward has the prompts module: the
+// owner-side mirror of a bot's OpenClaw prompt files and the edit relay
+// (/steward/~/v1/prompts). Guarded registry entries name it as their `since`.
+// Must move in lockstep with desk/desk.docket-0's version if the release
+// number changes.
+export const STEWARD_PROMPTS_MIN_GROUPS_VERSION = '12.3.2';

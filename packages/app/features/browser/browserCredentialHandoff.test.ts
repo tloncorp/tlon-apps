@@ -4,6 +4,7 @@ import {
   beginBrowserCredentialHandoff,
   nextBrowserCredentialHandoff,
   submitBrowserCredentials,
+  trustedBrowserViewerUrl,
 } from './browserCredentialHandoff';
 
 const viewer =
@@ -300,5 +301,44 @@ describe('next secure step', () => {
     const failed = expect(failure).rejects.toThrow('Network unavailable');
     await vi.advanceTimersByTimeAsync(300);
     await failed;
+  });
+});
+
+describe('local viewer development opt-in', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+  it('allows only the configured loopback origin in a development build', () => {
+    vi.stubGlobal('__DEV__', true);
+    vi.stubEnv(
+      'EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN',
+      'http://127.0.0.1:8905'
+    );
+    expect(
+      trustedBrowserViewerUrl('http://127.0.0.1:8905/s/demo.signature')
+    ).toBe('http://127.0.0.1:8905/s/demo.signature');
+    expect(() =>
+      trustedBrowserViewerUrl('http://127.0.0.1:8906/s/demo.signature')
+    ).toThrow();
+    vi.stubEnv('EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN', 'http://example.com');
+    expect(() =>
+      trustedBrowserViewerUrl('http://example.com/s/demo.signature')
+    ).toThrow();
+  });
+  it('rejects the loopback exception in release builds or without opt-in', () => {
+    vi.stubGlobal('__DEV__', false);
+    vi.stubEnv(
+      'EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN',
+      'http://127.0.0.1:8905'
+    );
+    expect(() =>
+      trustedBrowserViewerUrl('http://127.0.0.1:8905/s/demo.signature')
+    ).toThrow();
+    vi.stubGlobal('__DEV__', true);
+    vi.stubEnv('EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN', '');
+    expect(() =>
+      trustedBrowserViewerUrl('http://127.0.0.1:8905/s/demo.signature')
+    ).toThrow();
   });
 });

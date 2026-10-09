@@ -25,8 +25,62 @@ vi.mock('@tloncorp/shared', () => ({
 }));
 vi.mock('@tloncorp/shared/db', () => ({}));
 vi.mock('@tloncorp/shared/logic', () => ({}));
+vi.mock('./BrowserViewerModal', () => ({ BrowserViewerModal: () => null }));
 
 describe('browser handoff registry', () => {
+  it('opens a separate session card directly, without form navigation or continuation', async () => {
+    navigate.mockClear();
+    let navigateA2UI!: ReturnType<typeof useA2UINavigation>;
+    function Consumer() {
+      const navigateToTarget = useA2UINavigation();
+      useEffect(() => {
+        navigateA2UI = navigateToTarget;
+      }, [navigateToTarget]);
+      return null;
+    }
+    const { BrowserViewerModal } = await import('./BrowserViewerModal');
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <BrowserCredentialHandoffProvider>
+          <Consumer />
+        </BrowserCredentialHandoffProvider>
+      );
+    });
+    const target = {
+      type: 'screen',
+      screen: 'browserSession',
+      viewerUrl: 'https://browser-session.tlon.network/s/payload.signature',
+    } as const;
+    const onComplete = vi.fn();
+    await act(async () => {
+      await navigateA2UI(target, { allowBrowserCredentialHandoff: true });
+    });
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+    await act(async () => {
+      await navigateA2UI(target, {
+        allowBrowserSession: true,
+        onBrowserCredentialHandoffComplete: onComplete,
+      });
+    });
+    const viewer = renderer.root.findByType(BrowserViewerModal);
+    expect(viewer.props.viewerUrl).toBe(target.viewerUrl);
+    expect(navigate).not.toHaveBeenCalled();
+    await act(async () => viewer.props.onClose());
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+    expect(onComplete).not.toHaveBeenCalled();
+    await expect(
+      navigateA2UI(
+        {
+          ...target,
+          viewerUrl: 'https://attacker.example/s/payload.signature',
+        },
+        { allowBrowserSession: true }
+      )
+    ).rejects.toThrow('trusted');
+    act(() => renderer.unmount());
+  });
+
   beforeAll(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   });
