@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as api from '@tloncorp/api';
 import React from 'react';
 import { useController } from 'react-hook-form';
 import { act, create } from 'react-test-renderer';
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   setStewardPrompt: vi.fn(),
   deskSupports: null as boolean | null,
   deskListeners: new Set<() => void>(),
+  minted: 0,
 }));
 
 vi.mock('@tloncorp/api', () => ({
@@ -27,6 +29,8 @@ vi.mock('@tloncorp/api', () => ({
   getDeskSupportsStewardPromptsState: () => mocks.deskSupports,
   setStewardPrompt: mocks.setStewardPrompt,
   awaitStewardPromptRequest: vi.fn(),
+  mintRequestId: () => `0v${++mocks.minted}`,
+  StewardPromptEditError: class extends Error {},
   StewardPromptPendingError: class extends Error {},
   PromptsUnsupportedError: class extends Error {},
   DeskUnsupportedError: class extends Error {},
@@ -50,6 +54,9 @@ vi.mock('tamagui', () => ({
   YStack: 'YStack',
 }));
 vi.mock('react-native', () => ({ Keyboard: { dismiss: vi.fn() } }));
+vi.mock('../contexts/appDataContext', () => ({
+  useCurrentUserId: () => '~owner',
+}));
 vi.mock('./ActionSheet', async () => {
   const { Passthrough } = await import('../../test/sheetTestUtils');
   return {
@@ -105,6 +112,7 @@ beforeEach(() => {
   queryClient = new QueryClient();
   mocks.deskSupports = null;
   mocks.deskListeners.clear();
+  mocks.minted = 0;
   mocks.files = {
     '~bot-a': { 'SOUL.md': 'a soul' },
     '~bot-b': { 'SOUL.md': 'b soul' },
@@ -129,7 +137,7 @@ const section = (botShip: string) => (
 
 async function render(botShip: string) {
   // Seeded so the first render already has the projection to list.
-  queryClient.setQueryData(['stewardPrompts'], mocks.files);
+  queryClient.setQueryData(['stewardPrompts', '~owner'], mocks.files);
   let tree!: ReactTestRenderer;
   await act(async () => {
     tree = create(section(botShip));
@@ -185,7 +193,7 @@ describe('BotSystemPromptsSection', () => {
     expect(preview()).toEqual(['a soul']);
 
     await act(async () => {
-      queryClient.setQueryData(['stewardPrompts'], {
+      queryClient.setQueryData(['stewardPrompts', '~owner'], {
         '~bot-a': { 'SOUL.md': 'a soul, revised' },
       });
       // React Query notifies its observers on a timer tick.
@@ -211,5 +219,44 @@ describe('BotSystemPromptsSection', () => {
       )
     ).toHaveLength(0);
     expect(ownership()).toMatchObject({ isOwnedBot: false, isPending: false });
+  });
+
+  it('resends an unanswered save under its id, and a settled one under a new id', async () => {
+    const tree = await render('~bot-a');
+    openPersonality(tree);
+    act(() => {
+      editor(tree)[0].props.onChange('new soul');
+    });
+    const save = async () => {
+      await act(async () => {
+        tree.root
+          .find((node) => node.props.testID === 'BotSystemPromptSave')
+          .props.onPress();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    };
+    const sentIds = () =>
+      mocks.setStewardPrompt.mock.calls.map(([params]) => params.requestId);
+
+    // The POST may have reached the ship; only its answer was lost.
+    mocks.setStewardPrompt.mockRejectedValueOnce(new Error('network'));
+    await save();
+    // The ship answered: that request is settled.
+    mocks.setStewardPrompt.mockRejectedValueOnce(
+      new api.StewardPromptEditError('0v1', {
+        type: 'error',
+        errorType: 'harness-error',
+        message: [],
+      })
+    );
+    await save();
+    mocks.setStewardPrompt.mockResolvedValueOnce({
+      requestId: '0v2',
+      name: 'SOUL.md',
+    });
+    await save();
+
+    expect(sentIds()).toEqual(['0v1', '0v1', '0v2']);
+    expect(editor(tree)).toHaveLength(0);
   });
 });

@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from 'react';
@@ -15,6 +16,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../contexts/appDataContext';
 import { ActionSheet } from './ActionSheet';
 import { ControlledTextareaField } from './Form';
 import { ListItem } from './ListItem';
@@ -23,8 +25,10 @@ import { SettingsDivider, SettingsSection } from './SettingsSection';
 
 // One key for the whole ship-keyed map, which is what the endpoint returns.
 // Keying per bot made every visited profile fetch and cache another copy of
-// every bot's prompts; observers narrow to their own bot with `select`.
-const promptsQueryKey = () => ['stewardPrompts'];
+// every bot's prompts; observers narrow to their own bot with `select`. The
+// connected ship is in it: the map is that ship's mirror, and the cache
+// outlives a switch to another account.
+const promptsQueryKey = (ship: string) => ['stewardPrompts', ship];
 // A 404 can mean an old ship or a %steward that is briefly down, so spend the
 // retries before believing either. A desk version below the prompts module
 // is already a settled answer.
@@ -53,8 +57,9 @@ const promptFilesForBot = (
  * prompts section and anything else that needs the ownership signal.
  */
 export function useBotSystemPrompts(botShip: string) {
+  const currentUserId = useCurrentUserId();
   return useQuery({
-    queryKey: promptsQueryKey(),
+    queryKey: promptsQueryKey(currentUserId),
     queryFn: api.getStewardPromptFiles,
     retry: retryPromptsQuery,
     select: (files) => promptFilesForBot(files, botShip),
@@ -77,11 +82,12 @@ function useDeskSupportsPrompts() {
 }
 
 export function useIsOwnedBot(botShip: string) {
+  const currentUserId = useCurrentUserId();
   const deskSupportsPrompts = useDeskSupportsPrompts();
   // Keep the untransformed snapshot here: an empty projection means the bot
   // is still owned, even though there are no editable rows to render.
   const promptsQuery = useQuery({
-    queryKey: promptsQueryKey(),
+    queryKey: promptsQueryKey(currentUserId),
     queryFn: api.getStewardPromptFiles,
     retry: retryPromptsQuery,
   });
@@ -150,6 +156,7 @@ const promptOrder = new Map(
  */
 export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   const queryClient = useQueryClient();
+  const currentUserId = useCurrentUserId();
   const promptsQuery = useBotSystemPrompts(botShip);
   // Hold the name, not the row: the feed can change or delete this prompt
   // while the sheet is open, and a captured row would keep showing (and then
@@ -184,11 +191,13 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
             // would overwrite this newer snapshot on arrival — permanently,
             // since nothing goes stale on its own and no later fact is promised.
             void (async () => {
-              await queryClient.cancelQueries({ queryKey: promptsQueryKey() });
+              await queryClient.cancelQueries({
+                queryKey: promptsQueryKey(currentUserId),
+              });
               if (cancelled) {
                 return;
               }
-              queryClient.setQueryData(promptsQueryKey(), files);
+              queryClient.setQueryData(promptsQueryKey(currentUserId), files);
             })();
           } else if (
             ('set' in update && update.set.ship === botShip) ||
@@ -196,7 +205,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
             ('gone' in update && update.gone.ship === botShip)
           ) {
             queryClient.invalidateQueries({
-              queryKey: promptsQueryKey(),
+              queryKey: promptsQueryKey(currentUserId),
             });
           }
         },
@@ -205,7 +214,9 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
           // resubscribes for us, but whatever it emitted meanwhile is lost and
           // nothing else would ever refresh this cache.
           if (!cancelled) {
-            queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
+            queryClient.invalidateQueries({
+              queryKey: promptsQueryKey(currentUserId),
+            });
           }
         },
         () => {
@@ -213,7 +224,9 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
           // live updates as the catch below, so refresh the same way.
           subscriptionId = null;
           if (!cancelled) {
-            queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
+            queryClient.invalidateQueries({
+              queryKey: promptsQueryKey(currentUserId),
+            });
           }
         }
       )
@@ -226,14 +239,18 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
           return;
         }
         subscriptionId = id;
-        queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
+        queryClient.invalidateQueries({
+          queryKey: promptsQueryKey(currentUserId),
+        });
       })
       .catch(() => {
         // No live updates from here on. A projection cached on an earlier
         // visit is fresh forever, so this mount may have issued no read at
         // all; refresh explicitly rather than leaving the editor and the
         // ownership signal on whatever that visit saw.
-        queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
+        queryClient.invalidateQueries({
+          queryKey: promptsQueryKey(currentUserId),
+        });
       });
     return () => {
       cancelled = true;
@@ -241,11 +258,11 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
         api.unsubscribe(subscriptionId);
       }
     };
-  }, [botShip, deskSupportsPrompts, queryClient]);
+  }, [botShip, currentUserId, deskSupportsPrompts, queryClient]);
 
   const handleSaved = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
-  }, [queryClient]);
+    queryClient.invalidateQueries({ queryKey: promptsQueryKey(currentUserId) });
+  }, [currentUserId, queryClient]);
 
   const handleCloseEditor = useCallback(() => {
     setEditingTarget(null);
@@ -351,6 +368,14 @@ function BotSystemPromptEditorSheet({
   const isWindowNarrow = useIsWindowNarrow();
   const [saving, setSaving] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  // The id a save of this exact text went out under, kept until the ship
+  // gives it a definite answer. A POST that reached %steward but lost its
+  // reply is resent under the same id, which the ship answers from its
+  // record instead of running the edit a second time.
+  const unsettledRequestRef = useRef<{
+    requestId: string;
+    text: string;
+  } | null>(null);
   const {
     control,
     handleSubmit,
@@ -430,15 +455,25 @@ function BotSystemPromptEditorSheet({
         return;
       }
       setSaving(true);
+      const unsettled = unsettledRequestRef.current;
+      const requestId =
+        unsettled?.text === text ? unsettled.requestId : api.mintRequestId();
+      unsettledRequestRef.current = { requestId, text };
       try {
         try {
-          await api.setStewardPrompt({ bot: botShip, name: prompt.name, text });
+          await api.setStewardPrompt({
+            bot: botShip,
+            name: prompt.name,
+            text,
+            requestId,
+          });
         } catch (error) {
           if (!(error instanceof api.StewardPromptPendingError)) {
             throw error;
           }
           await api.awaitStewardPromptRequest(error.requestId);
         }
+        unsettledRequestRef.current = null;
         onSaved(prompt.name, text);
         showToast({
           message: 'Changes saved.',
@@ -450,6 +485,11 @@ function BotSystemPromptEditorSheet({
         Keyboard.dismiss();
         onClose();
       } catch (error) {
+        // The ship's own answer settles the request: resending it would only
+        // replay that answer, so a retry gets a new id.
+        if (error instanceof api.StewardPromptEditError) {
+          unsettledRequestRef.current = null;
+        }
         setSaving(false);
         showToast({ message: 'Failed to save prompt.', duration: 3000 });
       }
