@@ -83,6 +83,19 @@ glob-http+['https://bootstrap.urbit.org/glob-0v5.fdf99.nph65.qecq3.ncpjn.q13mb.g
 
 11. The docket file containing a pointer to the new glob can now be safely committed and deployed via the Urbit network.
 
+## Windows Development
+
+Several `package.json` scripts use Unix shell tools (`rm -rf`, `cp -R`, `mkdir -p`). `pnpm-workspace.yaml` routes pnpm's `scriptShell` through `${TLON_SHELL-/bin/bash}` so those scripts work everywhere:
+
+-   **macOS/Linux**: nothing to do — `TLON_SHELL` is unset and pnpm falls back to `/bin/bash`.
+-   **Windows**: install [Git for Windows](https://git-scm.com/download/win), then point pnpm at its bash:
+    ```powershell
+    [System.Environment]::SetEnvironmentVariable("TLON_SHELL", "C:\Program Files\Git\bin\bash.exe", "User")
+    ```
+    Open a fresh terminal so the env var is loaded. Do **not** rely on bare `bash` on PATH — on Windows it usually resolves to `C:\Windows\System32\bash.exe` (WSL), which runs scripts inside Linux with the wrong filesystem view.
+
+Also: use the pinned Node version (`.nvmrc` → 22.22.0). Node 24+ has no prebuilt binaries for `better-sqlite3@11.x` and will fall back to compiling via node-gyp, which needs VS Build Tools + Windows SDK installed.
+
 ## Husky
 
 This project uses husky to run git pre-commit hooks. You may disable Husky by adding `HUSKY=0` to your `.zshrc` or `.bashrc`.
