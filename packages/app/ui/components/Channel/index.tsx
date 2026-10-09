@@ -601,6 +601,10 @@ export function Channel({
     };
   }, []);
 
+  const unreadUpdatedAt = channel?.unread?.updatedAt;
+  const unreadCount = channel?.unread?.count;
+  const channelStatus = store.useCurrentSession()?.channelStatus;
+
   useEffect(() => {
     // Only mark as read when user is actively using the app (not idle)
     // This prevents auto-marking on desktop when user is AFK
@@ -610,7 +614,18 @@ export function Channel({
         markRead();
       }, 150);
     }
-  }, [hasUnreadActivity, hasLoaded, inView, isUserActive, markRead]);
+    // markChannelRead latches a failed read until the unread changes or the
+    // connection comes back; these deps re-run the effect when either happens.
+  }, [
+    hasUnreadActivity,
+    hasLoaded,
+    inView,
+    isUserActive,
+    markRead,
+    unreadUpdatedAt,
+    unreadCount,
+    channelStatus,
+  ]);
 
   const handleRefPress = useCallback(
     (refChannel: db.Channel, post: db.Post) => {

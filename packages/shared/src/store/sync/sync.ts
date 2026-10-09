@@ -36,6 +36,7 @@ import {
 } from '../botReplyFeedback';
 import { createBatchHandler, createHandler } from '../bufferedSubscription';
 import * as LocalCache from '../cachedData';
+import { resetFailedChannelReads } from '../channelActions';
 import { addContacts, updateContactMetadata } from '../contactActions';
 import { updateChannelSections } from '../groupActions';
 import { verifyUserInviteLink } from '../inviteActions';
@@ -2490,6 +2491,12 @@ export const handleDiscontinuity = async (config: {
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {
   updateSession({ channelStatus: status });
+
+  // a read that failed while the ship was unreachable should be retried now,
+  // not only once the channel sees new activity
+  if (status === 'active' || status === 'reconnected') {
+    resetFailedChannelReads();
+  }
 
   // Trigger verification for posts marked as 'needs_verification' when connection becomes active
   if (status === 'active') {
