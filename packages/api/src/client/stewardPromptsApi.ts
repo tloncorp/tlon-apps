@@ -5,9 +5,8 @@ import type {
   StewardPromptResponse,
   StewardPromptUpdate,
 } from '../urbit/stewardPrompts';
-import { requestJson, scry, subscribe } from './urbit';
+import { httpRequest, steward, subscribeRequest } from './requests';
 
-const PATH = '/steward/~/v1/prompts';
 // Steward answers an expired session with 401, where requestJson only
 // reauthenticates on 403 by default. 403 is left out on purpose: the edit
 // route uses it for an untrusted bot, which no reauthentication can fix.
@@ -74,15 +73,16 @@ export async function setStewardPrompt(params: {
   requestId?: string;
 }) {
   const { bot, name, text, requestId } = params;
-  const raw = await requestJson(
-    PATH,
-    'POST',
+  const raw = await httpRequest(steward.promptEdit)(
+    {},
     {
-      ...(requestId ? { requestId } : {}),
-      bot,
-      action: { set: { name, text } },
-    },
-    OPTIONS
+      body: {
+        ...(requestId ? { requestId } : {}),
+        bot,
+        action: { set: { name, text } },
+      },
+      options: OPTIONS,
+    }
   );
   return settle(responseSchema.parse(raw));
 }
@@ -93,11 +93,13 @@ export async function getStewardPromptRequest(
   options: { signal?: AbortSignal } = {}
 ): Promise<StewardPromptResponse> {
   return responseSchema.parse(
-    await requestJson(
-      `${PATH}/request/${encodeURIComponent(requestId)}`,
-      'GET',
-      undefined,
-      options.signal ? { ...OPTIONS, signal: options.signal } : OPTIONS
+    await httpRequest(steward.promptRequest)(
+      { requestId: encodeURIComponent(requestId) },
+      {
+        options: options.signal
+          ? { ...OPTIONS, signal: options.signal }
+          : OPTIONS,
+      }
     )
   );
 }
@@ -179,7 +181,7 @@ export class PromptsUnsupportedError extends Error {
 
 export async function getStewardPromptFiles(): Promise<StewardPromptFiles> {
   try {
-    return await requestJson(`${PATH}/files`, 'GET', undefined, OPTIONS);
+    return await httpRequest(steward.promptFiles)({}, { options: OPTIONS });
   } catch (error) {
     if ((error as { status?: number } | null)?.status === 404) {
       throw new PromptsUnsupportedError();
@@ -188,16 +190,14 @@ export async function getStewardPromptFiles(): Promise<StewardPromptFiles> {
   }
 }
 
-export function scryStewardPromptFiles(): Promise<StewardPromptFiles> {
-  return scry({ app: 'steward', path: '/v1/prompts/files' });
-}
-
-export function subscribeToStewardPrompts(
+// Async so a desk without the prompts module rejects, as a failed watch does,
+// rather than throwing from the guard before the caller's catch is attached.
+export async function subscribeToStewardPrompts(
   handler: (update: StewardPromptUpdate) => void,
   onQuit?: () => void
 ) {
-  return subscribe(
-    { app: 'steward', path: '/v1/prompts/files' },
+  return subscribeRequest(steward.promptFeed)<StewardPromptUpdate>(
+    {},
     handler,
     undefined,
     { onQuit }

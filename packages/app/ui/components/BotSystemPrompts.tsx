@@ -19,8 +19,12 @@ import { SettingsDivider, SettingsSection } from './SettingsSection';
 // every bot's prompts; observers narrow to their own bot with `select`.
 const promptsQueryKey = () => ['stewardPrompts'];
 // A 404 can mean an old ship or a %steward that is briefly down, so spend the
-// retries before believing either.
+// retries before believing either. A desk version below the prompts module
+// is already a settled answer.
 const PROMPTS_QUERY_RETRIES = 3;
+const retryPromptsQuery = (failureCount: number, error: Error) =>
+  !(error instanceof api.DeskUnsupportedError) &&
+  failureCount < PROMPTS_QUERY_RETRIES;
 const MAX_PROMPT_BYTES = 65_536;
 
 const promptTextByteLength = (text: string) =>
@@ -45,7 +49,7 @@ export function useBotSystemPrompts(botShip: string) {
   return useQuery({
     queryKey: promptsQueryKey(),
     queryFn: api.getStewardPromptFiles,
-    retry: PROMPTS_QUERY_RETRIES,
+    retry: retryPromptsQuery,
     select: (files) => promptFilesForBot(files, botShip),
   });
 }
@@ -61,12 +65,14 @@ export function useIsOwnedBot(botShip: string) {
   const promptsQuery = useQuery({
     queryKey: promptsQueryKey(),
     queryFn: api.getStewardPromptFiles,
-    retry: PROMPTS_QUERY_RETRIES,
+    retry: retryPromptsQuery,
   });
   // A ship with no prompts endpoint is a settled answer once the retries are
   // spent: nothing it mirrors can be owned, and holding this pending forever
   // would strip Block from every profile on that ship.
-  const unsupported = promptsQuery.error instanceof api.PromptsUnsupportedError;
+  const unsupported =
+    promptsQuery.error instanceof api.PromptsUnsupportedError ||
+    promptsQuery.error instanceof api.DeskUnsupportedError;
   return {
     isOwnedBot:
       promptsQuery.data !== undefined &&

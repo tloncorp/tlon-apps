@@ -1,5 +1,10 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { requestJson, subscribe } from '../client/urbit';
+import {
+  DeskUnsupportedError,
+  getDeskSupportsStewardPromptsState,
+  requestJson,
+  subscribe,
+} from '../client/urbit';
 import {
   setStewardPrompt,
   getStewardPromptRequest,
@@ -11,8 +16,10 @@ import {
   StewardPromptPendingError,
 } from '../client/stewardPromptsApi';
 vi.mock('../client/urbit', () => ({
+  // The registry helpers throw it for a guard that is off.
+  DeskUnsupportedError: class DeskUnsupportedError extends Error {},
+  getDeskSupportsStewardPromptsState: vi.fn(),
   requestJson: vi.fn(),
-  scry: vi.fn(),
   subscribe: vi.fn(),
 }));
 const requestId = '0v4.jd3o0';
@@ -126,7 +133,7 @@ test('reads and subscribes to projections independently of edit results', async 
   await expect(getStewardPromptFiles()).resolves.toEqual(files);
   const handler = vi.fn();
   const onQuit = vi.fn();
-  subscribeToStewardPrompts(handler, onQuit);
+  await subscribeToStewardPrompts(handler, onQuit);
   expect(subscribe).toHaveBeenCalledWith(
     { app: 'steward', path: '/v1/prompts/files' },
     handler,
@@ -141,4 +148,18 @@ test('an unbound prompts path reports an unsupported endpoint', async () => {
   await expect(getStewardPromptFiles()).rejects.toBeInstanceOf(
     PromptsUnsupportedError
   );
+});
+test('a desk without the prompts module is refused before anything is sent', async () => {
+  vi.mocked(getDeskSupportsStewardPromptsState).mockReturnValue(false);
+  await expect(getStewardPromptFiles()).rejects.toBeInstanceOf(
+    DeskUnsupportedError
+  );
+  await expect(
+    setStewardPrompt({ bot: '~bus', name: 'SOUL.md', text: 'new' })
+  ).rejects.toBeInstanceOf(DeskUnsupportedError);
+  // rejects rather than throwing, so a caller's .catch still hears it
+  const subscription = subscribeToStewardPrompts(vi.fn());
+  await expect(subscription).rejects.toBeInstanceOf(DeskUnsupportedError);
+  expect(requestJson).not.toHaveBeenCalled();
+  expect(subscribe).not.toHaveBeenCalled();
 });

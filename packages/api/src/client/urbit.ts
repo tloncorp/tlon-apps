@@ -68,6 +68,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
   deskSupportsBuckets: boolean | null;
+  deskSupportsStewardPrompts: boolean | null;
   deskCountsAllSeats: boolean;
 }
 
@@ -191,6 +192,9 @@ const config: Config = {
   // whose version we cannot read is asked for /v10, which every backend has —
   // a 404 there costs the whole init. Guarded requests refuse only false.
   deskSupportsBuckets: null,
+  // Unknown (null) until the app confirms the backend's groups version.
+  // Guarded requests refuse only false.
+  deskSupportsStewardPrompts: null,
   // Off until the app confirms the backend's groups version counts every seat
   // in init and changes, so a member count of 15 stays suspect by default.
   deskCountsAllSeats: false,
@@ -317,6 +321,16 @@ export const onDeskSupportsBucketsChange = (
   return () => {
     deskSupportsBucketsListeners.delete(listener);
   };
+};
+
+// Whether the connected backend's %steward serves the prompts routes. Read
+// only by the request guard, which refuses a known false.
+export const setDeskSupportsStewardPrompts = (value: boolean | null) => {
+  config.deskSupportsStewardPrompts = value;
+};
+
+export const getDeskSupportsStewardPromptsState = (): boolean | null => {
+  return config.deskSupportsStewardPrompts;
 };
 
 export const client = new Proxy(
@@ -490,6 +504,7 @@ export function internalRemoveClient() {
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
   setDeskSupportsBuckets(null);
+  setDeskSupportsStewardPrompts(null);
   setDeskCountsAllSeats(false);
 }
 
