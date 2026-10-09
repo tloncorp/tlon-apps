@@ -218,6 +218,27 @@ describe('renderPost', () => {
     expect(post.lines).toContain('changes-for-us');
   });
 
+  it('prefixes a label-only breaking change under changes-for-us', () => {
+    const rows = [
+      labeled(
+        'CLI: reject unknown root options. (#3)',
+        { gateway_runtime: 0.8 },
+        { breaking: 0.8, fix: 0.2 }
+      ),
+      labeled(
+        'Config: new default. (#4)',
+        { config_doctor_update: 1 },
+        { behavior_default_change: 1 }
+      ),
+    ];
+    const { post } = renderPost({ digest: digest(), rows, canary: green });
+    expect(post.lines).toContain(
+      '  • breaking: CLI: reject unknown root options. (#3)'
+    );
+    expect(post.lines).toContain('  • Config: new default. (#4)');
+    expect(post.lines).not.toContain('breaks-us');
+  });
+
   it('keeps exactly half coverage on the labeled path', () => {
     const rows: LabeledRow[] = [
       labeled('a (#1)', { gateway_runtime: 1 }, { fix: 1 }),

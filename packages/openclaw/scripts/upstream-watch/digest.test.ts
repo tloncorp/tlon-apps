@@ -1,5 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -60,6 +66,7 @@ function release(
     schema,
     schemaFile = 'src/state/openclaw-state-db-contract.ts',
     changelog = true,
+    changelogText,
     zodLine,
   }: {
     engines: string;
@@ -67,6 +74,7 @@ function release(
     schema: number;
     schemaFile?: string;
     changelog?: boolean;
+    changelogText?: string;
     zodLine: string;
   }
 ) {
@@ -109,7 +117,8 @@ function release(
     write(
       repo,
       `CHANGELOG/${version}.md`,
-      `## ${version}\n\n### Highlights\n\n- Thing: restated. (#2, #1)\n\n### Fixes\n\n- Thing: fixed in ${version}. (#1, #2) Thanks @a.\n\n### Complete contribution record\n\n#### Pull requests\n\n- **PR #1**\n`
+      changelogText ??
+        `## ${version}\n\n### Highlights\n\n- Thing: restated. (#2, #1)\n\n### Fixes\n\n- Thing: fixed in ${version}. (#1, #2) Thanks @a.\n\n### Complete contribution record\n\n#### Pull requests\n\n- **PR #1**\n`
     );
   }
   commitAndTag(version);
@@ -147,6 +156,24 @@ beforeAll(() => {
     schema: 4,
     schemaFile: 'src/state/schema-version.ts',
     zodLine: '  ownerAllowFrom: z.array(OwnerSchema).optional(),',
+  });
+  const later = {
+    engines: '>=24.16.0 <25',
+    exportNames: ['core', 'config-runtime', 'routing'],
+    schema: 4,
+    zodLine: '  ownerAllowFrom: z.array(OwnerSchema).optional(),',
+  };
+  // a changelog that reads but has no level-3 sections to parse
+  release('2026.1.4', {
+    ...later,
+    changelogText: '## 2026.1.4\n\n## Fixes\n\n- Thing: fixed. (#3)\n',
+  });
+  release('2026.1.5', {
+    ...later,
+    changelogText: readFileSync(
+      path.join(import.meta.dirname, 'fixtures', 'changelog-9.8.md'),
+      'utf8'
+    ),
   });
 
   write(
@@ -202,6 +229,15 @@ describe('buildDigest', () => {
     const { digest } = run('2026.1.1', '2026.1.2');
     expect(digest.bullets).toEqual([]);
     expect(digest.incomplete).toEqual(['changelog missing for 2026.1.2']);
+  });
+
+  it('records a changelog that parses to no bullets as incomplete', () => {
+    const { digest } = run('2026.1.3', '2026.1.5', ['2026.1.4']);
+    expect(digest.incomplete).toEqual([
+      'no bullets parsed from CHANGELOG/2026.1.4.md',
+    ]);
+    expect(digest.bullets.length).toBeGreaterThan(0);
+    expect(digest.bullets.every((b) => b.release === '2026.1.5')).toBe(true);
   });
 
   it('fires every hard signal with evidence on a breaking release', () => {

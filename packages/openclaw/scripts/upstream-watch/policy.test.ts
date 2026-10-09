@@ -62,10 +62,17 @@ describe('policy golden', () => {
       // 5 under whole-bullet matching; the facades bullet that names
       // plugin-sdk/core only as its replacement is now a check: line
       check: 6,
-      changes: 7,
+      // 7 behavior_default_change, plus the CLI root-options bullet on its
+      // breaking label alone (0.81, ours 0.78)
+      changes: 8,
       relevant: 179,
-      dropped: 123,
+      dropped: 122,
     });
+    expect(
+      sections.changes
+        .filter((c) => c.breaking)
+        .map(({ row }) => row.bullet.slice(0, 33))
+    ).toEqual(['CLI: reject unknown root options ']);
     expect(sections.labeled).toBe(316);
     expect(sections.deprecations[0].names).toEqual([
       'plugin-sdk/config-runtime',
@@ -135,6 +142,28 @@ describe('policy rules', () => {
     expect(classifyRows([split], []).relevant).toHaveLength(1);
     const low = row({ gateway_runtime: 1 }, { fix: 0.5, breaking: 0.5 });
     expect(classifyRows([low], []).dropped).toHaveLength(1);
+  });
+
+  it('puts a breaking label for us under changes, flagged, never breaks-us', () => {
+    const breaking = row(
+      { gateway_runtime: 0.8 },
+      { breaking: 0.75, fix: 0.25 }
+    );
+    const sections = classifyRows([breaking], []);
+    expect(sections.changes).toEqual([
+      { row: breaking, ours: 0.8, breaking: true },
+    ]);
+    expect(sections.dropped).toHaveLength(0);
+    const notOurs = row({ other_channel: 0.8 }, { breaking: 0.9 });
+    expect(classifyRows([notOurs], []).dropped).toHaveLength(1);
+    // the deprecation rules still come first
+    const deprecated = row(
+      { plugin_sdk: 1 },
+      { deprecation_notice: 0.8, breaking: 0.8 }
+    );
+    expect(classifyRows([deprecated], []).check).toHaveLength(1);
+    const unflagged = row({ plugin_sdk: 1 }, { behavior_default_change: 0.9 });
+    expect(classifyRows([unflagged], []).changes[0].breaking).toBeUndefined();
   });
 
   it('never classifies an unlabeled row, and counts it against coverage', () => {

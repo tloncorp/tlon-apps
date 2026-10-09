@@ -58,10 +58,13 @@ function stubFetch(handler: Handler) {
 const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), { status });
 
+const noSleep = async () => undefined;
+
 const options = {
   apiKey: 'test-key',
   profile: { what: 'test' },
   workarounds: [{ id: 'fallback-patch', note: 'a patch' }],
+  sleep: noSleep,
 };
 
 describe('labelBullets', () => {
@@ -113,7 +116,7 @@ describe('labelBullets', () => {
   it('turns every failure into an unlabeled row instead of rejecting', async () => {
     const malformed = answer('gateway_runtime', 'fix');
     malformed.answers.kind.probabilities.fix = 0.5;
-    const { impl } = stubFetch(async (body) => {
+    const { impl, calls } = stubFetch(async (body) => {
       switch (body.state.bullet) {
         case 'non-200':
           return json({ error: 'nope' }, 502);
@@ -157,6 +160,20 @@ describe('labelBullets', () => {
       ['throws', false, 'error'],
       ['hangs', false, 'timeout'],
     ]);
+    // only the 5xx and the network error are retried
+    const attempts = (name: string) =>
+      calls.filter((c) => c.state.bullet === name).length;
+    expect(
+      [
+        'non-200',
+        'malformed',
+        'unknown-choice',
+        'not-json',
+        'too-big',
+        'throws',
+        'hangs',
+      ].map(attempts)
+    ).toEqual([3, 1, 1, 1, 1, 3, 1]);
   });
 
   it('times out a response whose body stalls after the headers', async () => {
@@ -182,14 +199,25 @@ describe('labelBullets', () => {
     expect(rows[0]).toMatchObject({ labeled: false, reason: 'timeout' });
   });
 
-  it('never has more than 8 requests in flight', async () => {
+  it('never has more than 8 requests in flight, retries included', async () => {
     let active = 0;
     let peak = 0;
+    const failedOnce = new Set<string>();
     const { impl, calls } = stubFetch(async (body) => {
       active++;
       peak = Math.max(peak, active);
       await new Promise((resolve) => setTimeout(resolve, 5));
       active--;
+      // every third bullet's label request fails once first
+      const key = body.state.bullet;
+      if (
+        body.questions.area &&
+        Number(key.slice(1)) % 3 === 0 &&
+        !failedOnce.has(key)
+      ) {
+        failedOnce.add(key);
+        return json({}, 503);
+      }
       return body.questions.area
         ? json(answer('gateway_runtime', 'fix'))
         : json({
@@ -197,14 +225,117 @@ describe('labelBullets', () => {
           });
     });
     const bullets = Array.from({ length: 30 }, (_, i) => bullet(`b${i}`));
+    // the backoff waits really, holding its slot meanwhile
+    const sleep = (ms: number) =>
+      new Promise<void>((resolve) => setTimeout(resolve, ms / 100));
     const { rows } = await labelBullets(bullets, {
       ...options,
       fetchImpl: impl,
+      sleep,
     });
     expect(rows.every((r) => r.labeled)).toBe(true);
-    // both passes ran, so the bound held across 60 requests
-    expect(calls).toHaveLength(60);
+    // both passes ran, so the bound held across 60 requests and 10 retries
+    expect(calls).toHaveLength(70);
     expect(peak).toBe(8);
+  });
+
+  it('retries a 429 and labels on the next answer', async () => {
+    let n = 0;
+    const waits: number[] = [];
+    const { impl, calls } = stubFetch(() =>
+      n++ === 0
+        ? new Response('{}', { status: 429 })
+        : json(answer('memory', 'fix'))
+    );
+    const { rows } = await labelBullets([bullet('x')], {
+      ...options,
+      workarounds: [],
+      fetchImpl: impl,
+      sleep: async (ms) => void waits.push(ms),
+    });
+    expect(rows[0]).toMatchObject({ labeled: true, area: 'memory' });
+    expect(calls).toHaveLength(2);
+    expect(waits).toEqual([500]);
+  });
+
+  it('gives up after three 503s with the last reason', async () => {
+    const waits: number[] = [];
+    const { impl, calls } = stubFetch(() => json({}, 503));
+    const { rows } = await labelBullets([bullet('x')], {
+      ...options,
+      workarounds: [],
+      fetchImpl: impl,
+      sleep: async (ms) => void waits.push(ms),
+    });
+    expect(rows[0]).toMatchObject({ labeled: false, reason: 'http-503' });
+    expect(calls).toHaveLength(3);
+    expect(waits).toEqual([500, 1500]);
+  });
+
+  it('does not retry a 400', async () => {
+    const { impl, calls } = stubFetch(() => json({}, 400));
+    const { rows } = await labelBullets([bullet('x')], {
+      ...options,
+      workarounds: [],
+      fetchImpl: impl,
+    });
+    expect(rows[0]).toMatchObject({ labeled: false, reason: 'http-400' });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('retries a network error and labels on the next answer', async () => {
+    let n = 0;
+    const { impl, calls } = stubFetch(() => {
+      if (n++ === 0) {
+        throw new TypeError('fetch failed');
+      }
+      return json(answer('memory', 'fix'));
+    });
+    const { rows } = await labelBullets([bullet('x')], {
+      ...options,
+      workarounds: [],
+      fetchImpl: impl,
+    });
+    expect(rows[0]).toMatchObject({ labeled: true, area: 'memory' });
+    expect(calls).toHaveLength(2);
+  });
+
+  it('waits a small retry-after and gives up on a long one', async () => {
+    const waits: number[] = [];
+    const sleep = async (ms: number) => void waits.push(ms);
+    const limited = (seconds: string) => () =>
+      new Response('{}', { status: 429, headers: { 'retry-after': seconds } });
+    const short = stubFetch(limited('2'));
+    await labelBullets([bullet('x')], {
+      ...options,
+      workarounds: [],
+      fetchImpl: short.impl,
+      sleep,
+    });
+    expect(short.calls).toHaveLength(3);
+    expect(waits).toEqual([2000, 2000]);
+    const long = stubFetch(limited('60'));
+    const { rows } = await labelBullets([bullet('x')], {
+      ...options,
+      workarounds: [],
+      fetchImpl: long.impl,
+      sleep,
+    });
+    expect(long.calls).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ labeled: false, reason: 'http-429' });
+  });
+
+  it('stops retrying when the budget would be exceeded', async () => {
+    const { impl, calls } = stubFetch(() => json({}, 503));
+    const { rows } = await labelBullets([bullet('x')], {
+      ...options,
+      workarounds: [],
+      fetchImpl: impl,
+      budgetMs: 1000,
+    });
+    // 500 ms fits; 500 + 1500 does not
+    expect(calls).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ labeled: false, reason: 'http-503' });
   });
 
   it('keeps the label when the workaround pass fails', async () => {

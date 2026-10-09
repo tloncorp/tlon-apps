@@ -12,10 +12,11 @@ import type { Bullet } from './changelog.ts';
 import type { DigestInput, Manifest } from './digest.ts';
 import {
   type DecisionResult,
+  type RetryOptions,
   type Workaround,
   LABEL_QUESTIONS,
   costOf,
-  decide,
+  decideWithRetry,
   parseAddresses,
   parseLabel,
   workaroundQuestions,
@@ -113,7 +114,7 @@ function nodeLine(
   );
 }
 
-export interface LabelOptions {
+export interface LabelOptions extends RetryOptions {
   apiKey: string | undefined;
   profile: Record<string, unknown>;
   workarounds: Workaround[];
@@ -145,7 +146,8 @@ export async function labelBullets(
     };
   }
   const call = (bullet: Bullet, questions: Record<string, unknown>) =>
-    decide(
+    // Retries wait inside the pool slot, so the concurrency bound holds.
+    decideWithRetry(
       {
         release: bullet.release,
         section: bullet.section,
@@ -153,7 +155,13 @@ export async function labelBullets(
         plugin_profile: profile,
       },
       questions,
-      { apiKey, fetchImpl: options.fetchImpl, timeoutMs: options.timeoutMs }
+      {
+        apiKey,
+        fetchImpl: options.fetchImpl,
+        timeoutMs: options.timeoutMs,
+        sleep: options.sleep,
+        budgetMs: options.budgetMs,
+      }
     );
 
   const rows = await mapPool(

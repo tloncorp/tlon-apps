@@ -124,7 +124,7 @@ export function renderPost({
   } else {
     // Per-section caps keep one long section from pushing the relevant line
     // out of the post; what is cut is counted in the title.
-    const byAffects = (list: { row: LabeledRow }[]) =>
+    const byAffects = <T extends { row: LabeledRow }>(list: T[]) =>
       [...list].sort((x, y) => (y.row.affects ?? 0) - (x.row.affects ?? 0));
     const changes = byAffects(sections.changes);
     // confirmed deprecations first, then the check: subset, under one cap
@@ -149,7 +149,9 @@ export function renderPost({
           ...signalChanges(digest),
           ...changes
             .slice(0, SECTION_CAP)
-            .map(({ row }) => item(row.bullet, rowPrs(row))),
+            .map(({ row, breaking }) =>
+              item(row.bullet, rowPrs(row), breaking ? 'breaking: ' : '')
+            ),
         ],
         Math.max(0, changes.length - SECTION_CAP)
       ),
@@ -479,8 +481,8 @@ function prSuffix(prs: number[]) {
   return ` (#${prs[0]}${prs.length > 1 ? ` +${prs.length - 1}` : ''})`;
 }
 
-function item(text: string, prs: number[]) {
-  return `  • ${clip(plain(text), 150)}${prSuffix(prs)}`;
+function item(text: string, prs: number[], prefix = '') {
+  return `  • ${prefix}${clip(plain(text), 150)}${prSuffix(prs)}`;
 }
 
 function monthDay(iso: string) {

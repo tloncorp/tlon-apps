@@ -1,7 +1,7 @@
 // Jev (TypeSafe's decision model) through OpenRouter. Shape lifted from
-// serverless-infra lib/sentryTriage.ts: one attempt, a deadline that races the
-// whole exchange, a bounded body read, a strict parse, and a typed failure
-// instead of a rejection.
+// serverless-infra lib/sentryTriage.ts: a deadline that races the whole
+// exchange, a bounded body read, a strict parse, and a typed failure instead
+// of a rejection. `decideWithRetry` adds bounded retries on transient failures.
 
 export const DECISIONS_ENDPOINT = 'https://openrouter.ai/api/alpha/decisions';
 // the dated id `typesafe/jev-1.13` resolved to when the questions were probed
@@ -9,6 +9,12 @@ export const JEV_MODEL = 'typesafe/jev-1.13-20260917';
 const DEFAULT_TIMEOUT_MS = 3000;
 // real responses are 1-2 kB
 const MAX_RESPONSE_BYTES = 16 * 1024;
+// backoff before the second and third attempts
+const RETRY_DELAYS_MS = [500, 1500];
+// a longer Retry-After than this is not worth waiting out
+const MAX_RETRY_AFTER_MS = 5000;
+// all attempts and waits for one request
+const DEFAULT_RETRY_BUDGET_MS = 10_000;
 
 export const AREAS = [
   'plugin_sdk',
@@ -156,7 +162,7 @@ export function workaroundQuestions(workarounds: Workaround[]) {
 
 export type DecisionResult =
   | { outcome: 'ok'; body: Record<string, unknown>; ms: number }
-  | { outcome: 'http-error'; status: number }
+  | { outcome: 'http-error'; status: number; retryAfterMs?: number }
   | { outcome: 'timeout' | 'invalid-response' | 'error' };
 
 export async function decide(
@@ -191,7 +197,10 @@ export async function decide(
     });
     if (response.status !== 200) {
       response.body?.cancel().catch(() => undefined);
-      return { outcome: 'http-error', status: response.status };
+      const retryAfterMs = retryAfterOf(response);
+      return retryAfterMs === undefined
+        ? { outcome: 'http-error', status: response.status }
+        : { outcome: 'http-error', status: response.status, retryAfterMs };
     }
     const text = await readBounded(response, MAX_RESPONSE_BYTES);
     let body: unknown;
@@ -211,6 +220,70 @@ export async function decide(
   } finally {
     clearTimeout(timer);
   }
+}
+
+export interface RetryOptions {
+  sleep?: (ms: number) => Promise<void>;
+  budgetMs?: number;
+}
+
+const realSleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// 429, 5xx and network failures are retried; other statuses, timeouts and
+// malformed or oversized bodies are not. Each attempt keeps its own
+// deadline, shortened so the attempts and waits together stay in budget.
+export async function decideWithRetry(
+  state: Record<string, unknown>,
+  questions: Record<string, unknown>,
+  options: {
+    apiKey: string;
+    fetchImpl?: typeof fetch;
+    timeoutMs?: number;
+  } & RetryOptions
+): Promise<DecisionResult> {
+  const {
+    sleep = realSleep,
+    budgetMs = DEFAULT_RETRY_BUDGET_MS,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  } = options;
+  const started = Date.now();
+  let result = await decide(state, questions, { ...options, timeoutMs });
+  for (const backoff of RETRY_DELAYS_MS) {
+    if (!isTransient(result)) {
+      break;
+    }
+    const retryAfter =
+      result.outcome === 'http-error' ? result.retryAfterMs : undefined;
+    if (retryAfter !== undefined && retryAfter > MAX_RETRY_AFTER_MS) {
+      break;
+    }
+    const delay = retryAfter ?? backoff;
+    const left = budgetMs - (Date.now() - started) - delay;
+    if (left <= 0) {
+      break;
+    }
+    await sleep(delay);
+    result = await decide(state, questions, {
+      ...options,
+      timeoutMs: Math.min(timeoutMs, left),
+    });
+  }
+  return result;
+}
+
+function isTransient(result: DecisionResult) {
+  return (
+    result.outcome === 'error' ||
+    (result.outcome === 'http-error' &&
+      (result.status === 429 || result.status >= 500))
+  );
+}
+
+// Only the delta-seconds form; an HTTP date reads as absent.
+function retryAfterOf(response: Response) {
+  const value = response.headers.get('retry-after')?.trim();
+  return value && /^\d+$/.test(value) ? Number(value) * 1000 : undefined;
 }
 
 export interface Label {

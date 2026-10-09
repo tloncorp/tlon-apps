@@ -112,7 +112,12 @@ export function buildDigest({
       incomplete.push(`changelog missing for ${release}`);
       continue;
     }
-    parsed.push(...parseChangelog(markdown, release));
+    const releaseBullets = parseChangelog(markdown, release);
+    // A format change upstream reads as a quiet release otherwise.
+    if (releaseBullets.length === 0) {
+      incomplete.push(`no bullets parsed from CHANGELOG/${release}.md`);
+    }
+    parsed.push(...releaseBullets);
   }
   const bullets = dedupeBullets(parsed);
 

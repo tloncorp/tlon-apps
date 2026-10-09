@@ -30,6 +30,8 @@ export interface Classified {
   ours: number;
   // imported subpaths named in a deprecation's subject
   names?: string[];
+  // a changes-for-us item that got there on the breaking label
+  breaking?: boolean;
 }
 
 export interface MayFix {
@@ -95,6 +97,9 @@ export function classifyRows(rows: LabeledRow[], subpaths: string[]): Sections {
       kind('behavior_default_change') >= THRESHOLD
     ) {
       sections.changes.push({ row, ours });
+    } else if (ours >= THRESHOLD && kind('breaking') >= THRESHOLD) {
+      // A label alone never reaches breaks-us, which takes hard signals only.
+      sections.changes.push({ row, ours, breaking: true });
     } else if (
       ours >= THRESHOLD &&
       // Jev splits some bullets 0.5 fix / 0.4 internal; a single-kind rule
