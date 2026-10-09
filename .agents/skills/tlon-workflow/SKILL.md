@@ -189,7 +189,7 @@ node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs record stop
 
 EAS also records the whole session and attaches it once the session stops (`eas sim:get --id <session id> --json`, the `screen-recording` artifact). It is a backup to check a clip against, not a clip source: its timeline drifts from the wall clock, so a cut by timestamp lands on the wrong moment.
 
-**Web** is driven by whatever browser automation you have (this repository sets up the Playwright MCP server, see `CLAUDE.md`; a browser pane works too). Same names: `before-web.png` for a static state, a recording for motion. Use the desktop window size a person would, not a phone-width viewport, which shows the mobile navigation you already tested.
+**Web** is driven by whatever browser automation you have (this repository sets up the Playwright MCP server, see `apps/tlon-web/AGENTS.md`; a browser pane works too). Same names: `before-web.png` for a static state, a recording for motion. Use the desktop window size a person would, not a phone-width viewport, which shows the mobile navigation you already tested.
 
 **Two cases need stills as well as the clip.** A state that lasts under about a second (a delivery indicator between send and server echo): record from before the trigger, then prove it with frames (`ffmpeg -ss <t> -i <clip> -frames:v 1 <png>`). A difference between two discrete states (with the indicator and without, empty and populated, collapsed and expanded): a still of each. Attach the stills and the clip. For a difference that lives in one component rather than a flow, a pair of Cosmos specimens differing only in the prop under test is better still (step 6).
 
@@ -286,47 +286,26 @@ comment with findings and video. It does not fix, push, request reviewers, or me
 
 ### 9. Follow the review
 
-```bash
-node /absolute/path/to/repo/.agents/skills/tlon-workflow/pr-watch.mjs <number>
-```
+Follow the [pr-review-loop](../pr-review-loop/SKILL.md) skill: it runs
+`pr-watch.mjs` round by round, triages and answers every finding, and hands the
+pull request to a human reviewer once it is clean. Two additions for this
+workflow:
 
-Unsandboxed (sandboxed it stops at once with `gh cannot reach this repository`), in the foreground, with the longest timeout your shell tool allows. If the call times out before it prints: a harness that moved it to the background is still running, so wait on that one rather than starting a second (two watchers share one seen-state file); one that killed it can be run again, since it keeps what it already reported.
+- If a fix changes visible behavior, re-capture the evidence from step 4 before
+  pushing, and update the pull request's evidence tables.
+- A `qa-result` is an advisory hosted test report for its `headSha`, not a
+  request to restart the review loop. Read it once, check that it matches the
+  current PR commit, and address verified findings as part of the current
+  round. Do not rerun QA merely because it posted or edited its comment. Rerun
+  only after a relevant fix or at the user's request; incomplete platform
+  coverage is not a code defect. If you explicitly dispatched hosted QA, pass
+  `--qa-run <EAS workflow UUID>` to the watcher before the human handoff. It
+  waits for that run on the current head within `--timeout`, or reports that
+  the head changed. Without this option, it only surfaces results already
+  published. A completed review can contain findings or unexplored paths;
+  neither starts another run automatically.
 
-It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or someone with write access, keeps collecting until the round is complete (Codex's status for the head commit, then its CI result, up to twenty minutes later), prints each item as one JSON line (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. Other lines: `{"kind":"codex-status","headSha":...,"findings":<n>}` once, when Codex's review completes, `findings` counting its inline comments on that commit; `{"kind":"ci","status":"failure","failed":[{name,url}]}` as soon as a check fails, or `{"kind":"ci","status":"success"}` once every check on the head commit has passed; `{"kind":"closed","merged":true}`, at which go to step 10; `{"kind":"timeout"}`, when nothing has happened on the pull request, by anyone, for `--timeout` seconds (default 1800; pass a shorter one for a quick run) -- any commit, comment, or review restarts that budget.
-
-One run is one round. A failed check is an item like any other: `gh run view --job <job id> --log-failed` (the job id is the last path segment of its url), fix, and it re-runs on the push. A `qa-result` is an advisory hosted test report for its `headSha`, not a request
-to restart the review loop. Read it once, check that it matches the current PR
-commit, and address verified findings as part of the current round. Do not rerun
-QA merely because it posted or edited its comment. Rerun only after a relevant
-fix or at the user's request; incomplete platform coverage is not a code defect.
-If you explicitly dispatched hosted QA, pass `--qa-run <EAS workflow UUID>` to
-the same watcher before the human handoff. It waits for that run on the current
-head within `--timeout`, or reports that the head changed. Without this option,
-it only surfaces results already published. A completed review can contain
-findings or unexplored paths; neither starts another run automatically.
-
-For every review item: fix what is real, reply in that thread with what changed (`kind: review_comment` → `gh api repos/{owner}/{repo}/pulls/<number>/comments/<root>/replies -f body=...`, where `<root>` is the watcher's `replyTo` when set and its numeric `commentId` otherwise, since GitHub only accepts replies to a thread's first comment; `kind: comment` or `review` → `gh pr comment`), and push back, with reasons, on what is not. End every reply and comment you post with the line `<!-- tlon-workflow:agent -->`; it is how the watcher tells your replies from a reviewer's. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
-
-Codex reports only what is new on each push, so `findings: 0` means nothing new, not clean. Keep your own list of every thread the watcher has printed and what you did with it. Stop when every thread on that list has a reply from you (a fix or a reasoned push-back), the head commit has `{"kind":"ci","status":"success"}` (every check, including workflows for packages you did not touch; a running check counts as activity, so the budget waits for it) and its `{"kind":"codex-status"}` has arrived with nothing unanswered; or when the pull request is merged or closed; or on `{"kind":"timeout"}`. Report what is still open.
-
-**Then ask for a human.** Once CI is green and every Codex thread has an answer, and also on `{"kind":"timeout"}`, request a reviewer yourself. Say in your report who you tagged and why. There is no `CODEOWNERS`, so the signal is who maintains the files you touched:
-
-```bash
-git log --since='12 months ago' --format='%an' -- <changed path> | grep -v '\[bot\]' | sort | uniq -c | sort -rn
-gh api "repos/tloncorp/tlon-apps/commits/<sha>" --jq '.author.login'   # name -> login
-gh api "repos/tloncorp/tlon-apps/collaborators/<login>/permission" --jq '.permission'
-gh pr edit <number> --add-reviewer <login>
-```
-
-Weight by the file the change actually lives in, not by file count: the component you edited over the fixture you added a specimen to. Take the top one or two. Check each candidate's permission before tagging; on a public repository the endpoint does **not** 404 for someone who has left, so the departure signal is the value:
-
-| answer | means |
-| --- | --- |
-| `admin`, `maintain`, `write` | current collaborator -- tag them |
-| `read` | a real account with no access here: left, or never had it |
-| 404 `is not a user` | the login does not exist; you mis-mapped the name |
-
-Accept only `admin`, `maintain` or `write`; move to the next candidate on anything else.
+When the pull request is merged or closed, go to step 10.
 
 ### 10. Clean up
 
