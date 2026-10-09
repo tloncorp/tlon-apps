@@ -35,7 +35,7 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 | Shared group files and folders | [Buckets](references/buckets.md) |
 | Upload media for messages or profiles | [Media](references/media.md) |
 | Contacts, profile changes, bot settings | [Contacts and settings](references/contacts-settings.md) |
-| Share a hosted browser or have the owner enter credentials, address, or card details | [Browser sharing and handoff](references/browser-handoff.md) |
+| Share a hosted browser or have the owner enter credentials or card details | [Browser sharing and handoff](references/browser-handoff.md) |
 | Channel hooks and advanced automation | [Hooks](references/hooks-workflow.md) |
 
 ## Identity, delivery, and completion

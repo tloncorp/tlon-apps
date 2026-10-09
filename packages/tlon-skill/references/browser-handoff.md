@@ -29,20 +29,20 @@ the command succeeds.
 
 ## Secure form handoff
 
-Use a secure form handoff when you are controlling a hosted browser on behalf
-of your owner and the live page needs sensitive input that they should provide,
-including identifier-only, password, and verification steps, as well as address
-and payment-card fields. The handoff follows the fields visible on the page;
-login steps can continue within the same handoff. Address and card entry fills
-fields without submitting a transaction.
+Use secure entry for payment-card fields, login identifiers, passwords, and
+verification codes. Ask the owner for missing ordinary details in chat: contact
+email, name, shipping or billing address, phone number, and delivery preferences.
+Use those supplied details to fill the page through browser tools before
+requesting secure entry. If the owner prefers to enter ordinary details
+themselves, let them use the live browser.
 
-Do not ask the owner to send credentials, card details, or private addresses in chat. Do not type, store,
-repeat, summarize, or otherwise bring those values into model context. Ordinary
-navigation and non-sensitive form filling should continue through the browser
-tools without a handoff.
+Never ask for passwords, verification codes, or card details in chat. Do not
+type, store, repeat, summarize, or read those values through browser tools.
+A checkout contact email is ordinary contact information; an identifier used
+to sign in belongs in secure entry. Do not guess missing information.
 
 First navigate the live session all the way to the visible form. Use the `session_id` (`sess_` handle) returned by `browser_session_create`
-for that same session. In OpenClaw, call the model-facing `tlon` tool with:
+for that same session. Call the model-facing `tlon` tool with:
 
 ```json
 {"command": "browser handoff <session_id>"}
@@ -65,28 +65,30 @@ sent unless the command returned success.
 
 The card opens a native Tlon secure form. It does not embed the remote page.
 The browser service describes the visible fields using standard autofill
-purposes, including identifiers, passwords, verification codes, addresses, and
-card details. Each fill is bound to the exact live controls and origin. Values
-travel directly to the browser service, without passing through chat or the
-bot. Do not read or repeat filled sensitive fields through browser tools.
+purposes for login identifiers, passwords, verification codes, and card details.
+Each fill is bound to the exact live controls and origin. Values travel directly
+to the browser service, without passing through chat or the bot. Do not read or repeat filled sensitive fields through browser tools.
 
-Keep the session live while the owner completes the form. The same handoff
-follows successive login steps without another message or model-generated
-selector. Each step shows its destination and requires fresh input. Card and
-address forms are filled without a submit click; filling them does not authorize
-a purchase, payment, or other consequential action.
+Keep the session live while the owner completes the form. Each handoff completes
+one successful fill, bound to the displayed destination. Card fields fill without
+a submit click. A fill does not authorize a purchase, payment, or other
+consequential action.
 
 When entry finishes, the app resumes the conversation automatically. Wait for
 that continuation message, then inspect the same browser session, check the
-current page and validation state, and continue the task. Entry does not prove
-sign-in or transaction completion. Do not ask the owner to press both controls;
-the card's “Continue task” button is a manual alternative. Release the session
+current page and validation state, and continue the task. Fill any remaining
+ordinary fields from the owner's supplied details. Send a fresh handoff if the
+next step needs another password, verification code, or card field. Before
+placing an order, show the owner the items, delivery details, and total, and ask
+for purchase approval unless they have already approved that exact purchase.
+Entry does not prove sign-in or transaction completion. Do not ask the owner to
+press both controls; the card's “Continue task” button is a manual alternative. Release the session
 promptly when the browser task is finished.
 
 Ambiguous forms, custom controls, passkeys, CAPTCHA, and unsupported steps can
-be completed through “Open live browser” on the same screen. Do not guess field
-selectors or ask for the values in chat. If a card expires while its session is
-still live, send a fresh card using the same session handle. If the lookup
+be completed through “Open live browser” on the same screen. Do not guess secret
+field selectors or ask for secret values in chat. If a card expires while its
+session is still live, send a fresh card using the same session handle. If the lookup
 fails, report the failure; do not invent or edit a URL or claim a card was sent.
 If the live session expires, create a new one and navigate to the required form
 before sending its handoff.
