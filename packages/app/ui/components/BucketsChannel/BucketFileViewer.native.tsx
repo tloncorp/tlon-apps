@@ -8,6 +8,7 @@ import { useWebView } from '../../../hooks/useWebview';
 import { ScreenHeader } from '../ScreenHeader';
 import { BucketFilePager } from './BucketFilePager';
 import { BucketPreviewControls } from './BucketPreviewControls';
+import { BucketPreviewOpenButton } from './BucketPreviewOpenButton';
 import { BucketAudioPreview } from './BucketAudioPreview';
 import {
   BucketFileViewerItem,
@@ -38,14 +39,13 @@ export function BucketFileViewer({
   return (
     <YStack flex={1} minHeight={0} backgroundColor="$background">
       <ScreenHeader
+        animateTitleChanges
         backAction={onClose}
         borderBottom
         rightControls={
-          item.uri && onOpenExternally ? (
-            <ScreenHeader.TextButton onPress={onOpenExternally}>
-              Open
-            </ScreenHeader.TextButton>
-          ) : null
+          <BucketPreviewOpenButton
+            onPress={item.uri ? onOpenExternally : undefined}
+          />
         }
         showSubtitle
         subtitle={item.sizeLabel ?? 'File'}

@@ -672,14 +672,31 @@ const previewFiles: BucketFileViewerItem[] = [
   },
 ];
 
-function PreviewFilesFixture({ initialIndex = 0 }: { initialIndex?: number }) {
+function PreviewFilesFixture({
+  initialIndex = 0,
+  readDelay = 0,
+}: {
+  initialIndex?: number;
+  readDelay?: number;
+}) {
   const [index, setIndex] = useState(initialIndex);
+  const [readyIndex, setReadyIndex] = useState(initialIndex);
+  useEffect(() => {
+    if (!readDelay) return;
+    const timer = setTimeout(() => setReadyIndex(index), readDelay);
+    return () => clearTimeout(timer);
+  }, [index, readDelay]);
+  const loading = readDelay > 0 && readyIndex !== index;
   const { height } = useWindowDimensions();
   return (
     <FixtureWrapper fillWidth fillHeight>
       <YStack width="100%" height={height}>
         <BucketFileViewer
-          item={previewFiles[index]}
+          item={{
+            ...previewFiles[index],
+            uri: loading ? undefined : previewFiles[index].uri,
+          }}
+          loading={loading}
           navigation={{ items: previewFiles, index, onSelect: setIndex }}
           onClose={() => setIndex(0)}
           onOpenExternally={() => Linking.openURL(previewFiles[index].uri!)}
@@ -691,6 +708,7 @@ function PreviewFilesFixture({ initialIndex = 0 }: { initialIndex?: number }) {
 
 export default {
   'File previews': <PreviewFilesFixture />,
+  'Header transitions': <PreviewFilesFixture readDelay={600} />,
   'Audio preview': <PreviewFilesFixture initialIndex={1} />,
   'Unsupported preview': <PreviewFilesFixture initialIndex={2} />,
   Mobile: <BucketsFixture viewport="mobile" />,

@@ -5,6 +5,7 @@ import { ScreenHeader } from '../ScreenHeader';
 import { BucketAudioPreview } from './BucketAudioPreview';
 import { BucketFilePager } from './BucketFilePager';
 import { BucketPreviewControls } from './BucketPreviewControls';
+import { BucketPreviewOpenButton } from './BucketPreviewOpenButton';
 import {
   BucketFileViewerItem,
   BucketFileNavigation,
@@ -33,14 +34,13 @@ export function BucketFileViewer({
   return (
     <YStack flex={1} minHeight={0} backgroundColor="$background">
       <ScreenHeader
+        animateTitleChanges
         backAction={onClose}
         borderBottom
         rightControls={
-          item.uri && onOpenExternally ? (
-            <ScreenHeader.TextButton onPress={onOpenExternally}>
-              Open
-            </ScreenHeader.TextButton>
-          ) : null
+          <BucketPreviewOpenButton
+            onPress={item.uri ? onOpenExternally : undefined}
+          />
         }
         showSubtitle
         subtitle={item.sizeLabel ?? 'File'}
