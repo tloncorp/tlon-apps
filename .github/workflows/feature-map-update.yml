@@ -43,15 +43,17 @@ jobs:
     env:
       HAS_MODEL_KEY: ${{ secrets.FEATURE_MAP_OPENROUTER_API_KEY != '' }}
       HAS_PR_TOKEN: ${{ secrets.PIER_ARCHIVE_GH_TOKEN != '' }}
+      DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
 
     steps:
       # Skip, not fail, so a fork or a repo without the secrets stays quiet.
+      # A dry run opens no PR, so it does not need the token for one.
       - name: Check the secrets are set
         id: secrets
         run: |
           missing=()
           [ "$HAS_MODEL_KEY" = "true" ] || missing+=(FEATURE_MAP_OPENROUTER_API_KEY)
-          [ "$HAS_PR_TOKEN" = "true" ] || missing+=(PIER_ARCHIVE_GH_TOKEN)
+          [ "$HAS_PR_TOKEN" = "true" ] || [ "$DRY_RUN" = "true" ] || missing+=(PIER_ARCHIVE_GH_TOKEN)
           if [ "${#missing[@]}" -gt 0 ]; then
             echo "::notice::Skipping: missing secrets: ${missing[*]}"
           else

@@ -122,13 +122,25 @@ echo "updating the map from $old to $target on $branch"
 
 node scripts/feature-map.mjs affected --since "$old_commit" --until "$target" > "$work/worklist.md"
 
+# A fingerprint of every file under the guide's folder, tracked or not.
+guide_state() {
+  find "$guide" -type f | LC_ALL=C sort | while IFS= read -r file; do
+    printf '%s %s\n' "$(git hash-object "$file")" "$file"
+  done | git hash-object --stdin
+}
+
 # Fills in a brief's placeholders and hands it to the agent. The agent's
 # report, its final message, is kept for the pull request.
 run_agent() {
+  local guide_before
+  guide_before=$(guide_state)
+
   sed -e "s|{{new}}|$target|g" -e "s|{{old}}|$old|g" -e "s|{{old_commit}}|$old_commit|g" \
     "$map/agent/$1.md" | bash -c "$agent" > "$work/$1-report.md"
 
-  # The agent has write access to the checkout. Hold it to the guide.
+  # The agent has write access to the checkout. Hold it to the map: no
+  # commits, nothing outside the map, and nothing in the guide's folder, which
+  # holds the bot's own instructions. Only `publish` writes there.
   if [ "$(git rev-parse HEAD)" != "$base_commit" ]; then
     echo "the agent made commits; it must only edit files" >&2
     exit 1
@@ -136,8 +148,13 @@ run_agent() {
   local stray
   stray=$(git status --porcelain | cut -c4- | grep -v -E "^($map/|$guide/)" || true)
   if [ -n "$stray" ]; then
-    echo "the agent changed files outside the guide:" >&2
+    echo "the agent changed files outside the map:" >&2
     echo "$stray" >&2
+    exit 1
+  fi
+  if [ "$(guide_state)" != "$guide_before" ]; then
+    echo "the agent changed files under $guide; only publish may" >&2
+    git status --short -- "$guide" >&2
     exit 1
   fi
 }
