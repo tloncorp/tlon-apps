@@ -162,6 +162,7 @@ export function ChannelHeader({
   goToEdit,
   goToChatDetails,
   goToProfile,
+  goToScheduledTasks,
   onToggleContextLens,
   contextLensOpen = false,
   contextLensActive = false,
@@ -187,6 +188,8 @@ export function ChannelHeader({
   goToEdit?: () => void;
   goToChatDetails?: () => void;
   goToProfile?: () => void;
+  /** Present in the owner's conversation with their bot. */
+  goToScheduledTasks?: () => void;
   onToggleContextLens?: () => void;
   contextLensOpen?: boolean;
   contextLensActive?: boolean;
@@ -452,6 +455,14 @@ export function ChannelHeader({
       label: 'Search',
       onPress: goToSearch,
       visible: showSearchButton,
+    },
+    {
+      id: 'scheduled-tasks',
+      icon: 'Clock',
+      label: 'Scheduled tasks',
+      onPress: goToScheduledTasks,
+      testID: 'ChannelHeaderScheduledTasksButton',
+      visible: !!goToScheduledTasks,
     },
     ...contextActions,
     {

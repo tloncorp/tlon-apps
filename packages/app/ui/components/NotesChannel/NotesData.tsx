@@ -8,7 +8,7 @@ import * as db from '@tloncorp/shared/db';
 import { LoadingSpinner, Text } from '@tloncorp/ui';
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { YStack } from 'tamagui';
+import { YStack, isWeb } from 'tamagui';
 
 const EMPTY_FOLDERS: db.NotesFolder[] = [];
 const EMPTY_NOTES: db.NotesNote[] = [];
@@ -37,7 +37,7 @@ export function useNotebookData(
     enabled:
       Boolean(notebookFlag) && joined && !joinQuery.isLoading && syncEnabled,
   });
-  const notebookQuery = useNotesNotebookWithRelations(notebookFlag, joined);
+  const notebookQuery = useNotesNotebookWithRelations(notebookFlag);
 
   const notebook = notebookQuery.data ?? null;
   const folders = notebook?.folders ?? EMPTY_FOLDERS;
@@ -57,21 +57,23 @@ export function useNotebookData(
     markNotesNotebookOpened(notebookFlag);
   }, [notebookFlag]);
 
-  // A joined notebook with no local row means the sync failed (or hasn't
-  // run) before anything was cached — gate as unavailable rather than
-  // rendering an empty notebook. With a cached row, stale data renders and
-  // sync failures stay non-blocking.
+  // Cached rows render while membership and sync are pending or fail, but
+  // a confirmed loss of access must still hide them.
   const gate: NotebookGate = !notebookFlag
     ? 'unavailable'
-    : joinQuery.isLoading ||
-        (!notebook && (syncQuery.isLoading || notebookQuery.isLoading))
-      ? 'loading'
-      : joinQuery.data === 'notMember'
-        ? 'notMember'
-        : !joined
-          ? 'unjoinable'
+    : joinQuery.data === 'notMember'
+      ? 'notMember'
+      : joinQuery.data === false
+        ? 'unjoinable'
+        : !notebook &&
+            (joinQuery.isLoading ||
+              syncQuery.isLoading ||
+              notebookQuery.isLoading)
+          ? 'loading'
           : !notebook
-            ? 'unavailable'
+            ? joined
+              ? 'unavailable'
+              : 'unjoinable'
             : null;
 
   return { notebook, folders, notes, canEdit, rootFolderId, gate };
@@ -90,6 +92,19 @@ export function NotebookGateMessage({
     return <NotesMessage title={unavailableTitle} />;
   }
   if (gate === 'loading') {
+    // Mobile names what is loading in the channel header.
+    if (!isWeb) {
+      return (
+        <YStack
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          backgroundColor="$background"
+        >
+          <LoadingSpinner size="small" />
+        </YStack>
+      );
+    }
     return (
       <NotesMessage title={loadingTitle}>
         <LoadingSpinner />

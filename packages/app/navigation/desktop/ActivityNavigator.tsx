@@ -9,6 +9,8 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
+import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { ActivityEmptyState } from '../../features/top/DesktopEmptyStates';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -120,6 +122,14 @@ export const ActivityNavigator = () => {
         component={GroupSettingsStack}
       />
       <ActivityDrawer.Screen name="UserProfile" component={UserProfileScreen} />
+      <ActivityDrawer.Screen
+        name="ScheduledTasks"
+        component={ScheduledTasksScreen}
+      />
+      <ActivityDrawer.Screen
+        name="ScheduledTaskEditor"
+        component={ScheduledTaskEditorScreen}
+      />
       <ActivityDrawer.Screen name="EditProfile" component={EditProfileScreen} />
     </ActivityDrawer.Navigator>
   );

@@ -10,6 +10,7 @@ module.exports = function (api) {
     }
     return caller.isDev === false ? 'production' : 'development';
   });
+  const platform = api.caller((caller) => caller?.platform);
 
   return {
     presets: [
@@ -51,6 +52,10 @@ module.exports = function (api) {
           experimentalFlattenThemesOnNative: true,
         },
       ],
+      // The Tamagui compiler can't tell Android from iOS, so it bakes iOS text
+      // trims and font families into flattened text; this swaps in Android's.
+      platform === 'android' &&
+        require.resolve('@tloncorp/ui/babel/android-text-styles'),
       'react-native-worklets/plugin',
     ].filter(Boolean),
   };

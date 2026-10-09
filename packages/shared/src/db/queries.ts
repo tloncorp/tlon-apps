@@ -2253,6 +2253,7 @@ export const insertGroups = createWriteQuery(
       'chatMembers',
       'chatMemberGroupRoles',
       'channels',
+      'channelReaders',
       'pins',
     ];
     if (groups.some((group) => group.channels?.length)) {
@@ -2978,6 +2979,52 @@ export const getJoinedGroupSeats = createReadQuery(
       );
   },
   ['chatMembers', 'groups']
+);
+
+// A member's roles in every group, and below, every channel's writer and
+// reader roles. Together they answer where that member may post (see
+// useCanWrite, and notesPermissionsCompat for notebooks) for a whole list of
+// channels at once, without loading each one's relations.
+export const getMemberGroupRoles = createReadQuery(
+  'getMemberGroupRoles',
+  async ({ contactId }: { contactId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        groupId: $chatMemberGroupRoles.groupId,
+        roleId: $chatMemberGroupRoles.roleId,
+      })
+      .from($chatMemberGroupRoles)
+      .where(eq($chatMemberGroupRoles.contactId, contactId));
+  },
+  ['chatMemberGroupRoles']
+);
+
+// Only channels that restrict writing have rows here.
+export const getChannelWriterRoles = createReadQuery(
+  'getChannelWriterRoles',
+  async (ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        channelId: $channelWriters.channelId,
+        roleId: $channelWriters.roleId,
+      })
+      .from($channelWriters);
+  },
+  ['channelWriters']
+);
+
+// Only channels that restrict reading have rows here.
+export const getChannelReaderRoles = createReadQuery(
+  'getChannelReaderRoles',
+  async (ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        channelId: $channelReaders.channelId,
+        roleId: $channelReaders.roleId,
+      })
+      .from($channelReaders);
+  },
+  ['channelReaders']
 );
 
 export const addChatMembers = createWriteQuery(

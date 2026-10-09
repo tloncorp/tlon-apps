@@ -41,11 +41,14 @@ export function ChannelListItem({
   disableOptions = false,
   disableFocusedStyle = false,
   showGroupTitle = false,
+  showActivity = true,
   onLayout,
   hoverStyle,
   ...props
 }: {
   showGroupTitle?: boolean;
+  /** The latest post preview, its time and the unread count. */
+  showActivity?: boolean;
   useTypeIcon?: boolean;
   customSubtitle?: string;
   dimmed?: boolean;
@@ -209,7 +212,7 @@ export function ChannelListItem({
                 {memberCount > 3 && ` and ${memberCount - 1} others`}
               </ListItem.SubtitleWithIcon>
             ) : null}
-            {model.lastPost && !model.isDmInvite && (
+            {showActivity && model.lastPost && !model.isDmInvite && (
               <ListItem.PostPreview
                 post={model.lastPost}
                 showAuthor={model.type !== 'dm'}
@@ -217,25 +220,29 @@ export function ChannelListItem({
             )}
           </ListItem.MainContent>
 
-          {EndContent ?? (
-            <ListItem.EndContent>
-              {model.lastPost?.receivedAt ? (
-                <ListItem.Time time={model.lastPost.receivedAt} />
-              ) : null}
+          {EndContent ??
+            (showActivity ? (
+              <ListItem.EndContent>
+                {model.lastPost?.receivedAt ? (
+                  <ListItem.Time time={model.lastPost.receivedAt} />
+                ) : null}
 
-              {model.isDmInvite ? (
-                <Badge text="Invite" />
-              ) : (
-                <ListItem.Count
-                  opacity={isHovered ? 0 : 1}
-                  notified={notified}
-                  count={unreadCount}
-                  muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
-                  marginTop={isWeb ? 3 : 'unset'}
-                />
-              )}
-            </ListItem.EndContent>
-          )}
+                {model.isDmInvite ? (
+                  <Badge text="Invite" />
+                ) : (
+                  <ListItem.Count
+                    opacity={isHovered ? 0 : 1}
+                    notified={notified}
+                    count={unreadCount}
+                    muted={logic.isMuted(
+                      model.volumeSettings?.level,
+                      'channel'
+                    )}
+                    marginTop={isWeb ? 3 : 'unset'}
+                  />
+                )}
+              </ListItem.EndContent>
+            ) : null)}
         </ListItem>
         {isWeb && !disableOptions && (isHovered || open) && (
           <View position="absolute" right={10} top="$3xl">

@@ -1,7 +1,13 @@
+import { render } from '@urbit/aura';
 import { z } from 'zod';
 
 import type * as ub from '../urbit';
-import { requestJson, scry, subscribe } from './urbit';
+import {
+  httpRequest,
+  scryRequest,
+  steward,
+  subscribeRequest,
+} from './requests';
 
 /**
  * Client for %steward's automation module on the owner ship: read the
@@ -18,10 +24,6 @@ import { requestJson, scry, subscribe } from './urbit';
  * feed once the harness re-projects.
  */
 
-const AUTOMATION_V1_PATH = '/steward/~/v1/automation';
-const REQUEST_V1_PATH = `${AUTOMATION_V1_PATH}/request`;
-const TASKS_V1_PATH = `${AUTOMATION_V1_PATH}/tasks`;
-const TASKS_FEED = { app: 'steward', path: '/v1/automation/tasks' };
 // Steward answers an expired session with 401, where requestJson only
 // reauthenticates on 403 by default. 403 is left out on purpose: the edit
 // route uses it for an untrusted bot, which no reauthentication can fix.
@@ -134,11 +136,9 @@ export interface StewardAutomationEditResult {
 export async function editAutomation(
   request: ub.StewardAutomationEditRequest
 ): Promise<StewardAutomationEditResult> {
-  const raw = await requestJson(
-    AUTOMATION_V1_PATH,
-    'POST',
-    request,
-    REQUEST_OPTIONS
+  const raw = await httpRequest(steward.automationEdit)<unknown>(
+    {},
+    { body: request, options: REQUEST_OPTIONS }
   );
   const response = parseResponse(raw);
   return settle(response);
@@ -162,6 +162,18 @@ function settle(
     case 'pending':
       throw new StewardAutomationPendingError(response.requestId, body.status);
   }
+}
+
+/**
+ * A request id to send with an edit. The owner's ship answers an id it
+ * already holds from its record and never relays it a second time, so an
+ * edit that must not run twice is retried under the id it first went out
+ * with.
+ */
+export function newAutomationRequestId(): string {
+  const time = BigInt(Date.now());
+  const noise = BigInt(Math.floor(Math.random() * 0x1_0000_0000));
+  return render('uv', (time << 32n) | noise);
 }
 
 /** Create a task on `bot`. Resolves with the job id the harness assigned. */
@@ -216,13 +228,13 @@ export async function getAutomationRequest(
   requestId: string,
   options: { signal?: AbortSignal } = {}
 ): Promise<ub.StewardAutomationResponse> {
-  const raw = await requestJson(
-    `${REQUEST_V1_PATH}/${requestId}`,
-    'GET',
-    undefined,
-    options.signal
-      ? { ...REQUEST_OPTIONS, signal: options.signal }
-      : REQUEST_OPTIONS
+  const raw = await httpRequest(steward.automationRequest)<unknown>(
+    { requestId },
+    {
+      options: options.signal
+        ? { ...REQUEST_OPTIONS, signal: options.signal }
+        : REQUEST_OPTIONS,
+    }
   );
   return parseResponse(raw);
 }
@@ -258,29 +270,31 @@ export async function awaitAutomationRequest(
 
 /** The mirror: every ship's tasks keyed by `~ship`, over HTTP. */
 export async function getAutomations(): Promise<ub.StewardAutomationShipTasks> {
-  return requestJson<ub.StewardAutomationShipTasks>(
-    TASKS_V1_PATH,
-    'GET',
-    undefined,
-    REQUEST_OPTIONS
-  );
+  return httpRequest(
+    steward.automationTasksHttp
+  )<ub.StewardAutomationShipTasks>({}, { options: REQUEST_OPTIONS });
 }
 
 /** The mirror via scry, for callers already on a channel. */
 export async function scryAutomations(): Promise<ub.StewardAutomationShipTasks> {
-  return scry<ub.StewardAutomationShipTasks>({
-    app: 'steward',
-    path: '/v1/automation/tasks',
-  });
+  return scryRequest(steward.automationTasks)<ub.StewardAutomationShipTasks>(
+    {}
+  );
 }
 
 /**
  * Live updates to the mirror. The first fact is a complete `tasks`
  * snapshot; thereafter `set` / `del` per task and `gone` when a bot's
- * entry is removed. Resolves with the subscription id for unsubscribe.
+ * entry is removed. Resolves with the subscription id for unsubscribe. A
+ * channel reset replays the watch under a new id, which the handler's
+ * second argument reports with each fact. `onRejected` hears a watch the
+ * ship turns down after this has resolved.
  */
 export function subscribeToAutomations(
-  handler: (update: ub.StewardAutomationUpdate) => void
+  handler: (update: ub.StewardAutomationUpdate, id?: number) => void,
+  ...rest: [onRejected?: (error: unknown) => void]
 ): Promise<number> {
-  return subscribe<ub.StewardAutomationUpdate>(TASKS_FEED, handler);
+  return subscribeRequest(
+    steward.automationTasksFeed
+  )<ub.StewardAutomationUpdate>({}, handler, ...rest);
 }

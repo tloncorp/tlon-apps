@@ -42,6 +42,15 @@ import {
   getGroupMemberCount,
 } from '../../ui/utils';
 import { getGroupChannelMenu } from '../../ui/utils/groupChannelSections';
+import {
+  destinationForChannel,
+  tasksPostingTo,
+} from '../../ui/components/automationTaskDraft';
+import {
+  useOpenScheduledTasks,
+  useScheduledTasksEntry,
+} from '../automations/useScheduledTasksEntry';
+import { useBotDelivery } from '../automations/useBotDelivery';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
@@ -533,8 +542,77 @@ export function SettingsSection({
     }
   }, [entityType, group, channel, onPressChatVolume]);
 
+  // Anyone with a bot can see what it is scheduled to post into this group
+  // or this channel, admin or not. The row shows once the bot has something
+  // scheduled here or could be given something: in a group, as a member with
+  // a channel to post in; in a channel, where it may write in that channel.
+  const isGroupChannel = entityType === 'channel' && !!channel?.groupId;
+  const scheduledTasks = useScheduledTasksEntry({
+    enabled: (entityType === 'group' && !!group) || isGroupChannel,
+  });
+  const openScheduledTasks = useOpenScheduledTasks();
+  const { delivery: botDelivery } = useBotDelivery(scheduledTasks.botShip, {
+    enabled: isGroupChannel && scheduledTasks.visible,
+  });
+  const channelIdsHere = useMemo(() => {
+    if (entityType === 'channel') return channel ? [channel.id] : undefined;
+    return group ? (group.channels?.map(({ id }) => id) ?? []) : undefined;
+  }, [entityType, channel, group]);
+  const scheduledTaskCount = useMemo(
+    () =>
+      scheduledTasks.tasks && channelIdsHere
+        ? Object.keys(
+            tasksPostingTo(scheduledTasks.tasks, new Set(channelIdsHere))
+          ).length
+        : undefined,
+    [scheduledTasks.tasks, channelIdsHere]
+  );
+  const botCouldPostHere =
+    entityType === 'channel'
+      ? Boolean(channel && destinationForChannel(channel, botDelivery))
+      : Boolean(group?.channels?.length) &&
+        Boolean(
+          group?.members?.some(
+            (member) => member.contactId === scheduledTasks.botShip
+          )
+        );
+  const showsScheduledTasks =
+    scheduledTasks.visible &&
+    scheduledTaskCount !== undefined &&
+    (scheduledTaskCount > 0 || botCouldPostHere);
+  const { botShip } = scheduledTasks;
+  const handlePressScheduledTasks = useCallback(() => {
+    if (entityType === 'channel') {
+      if (channel?.groupId) {
+        openScheduledTasks(
+          { botShip, groupId: channel.groupId, channelId: channel.id },
+          channel.id
+        );
+      }
+    } else if (group) {
+      openScheduledTasks(
+        { botShip, groupId: group.id },
+        group.channels?.[0]?.id
+      );
+    }
+  }, [entityType, channel, group, openScheduledTasks, botShip]);
+
   const actions = useMemo(() => {
     const supportsNotifications = channelSupportsNotifications(channel);
+    const scheduledTasksActions: SettingsActionProps[] = showsScheduledTasks
+      ? [
+          {
+            title: 'Scheduled tasks',
+            endValue: `${scheduledTaskCount}`,
+            testID:
+              entityType === 'group'
+                ? 'GroupScheduledTasks'
+                : 'ChannelScheduledTasks',
+            disabled: false,
+            onPress: handlePressScheduledTasks,
+          },
+        ]
+      : [];
     const notificationAction: SettingsActionProps = {
       title: 'Notifications',
       description: notificationTitle,
@@ -545,7 +623,10 @@ export function SettingsSection({
     };
 
     if (!currentUserIsAdmin) {
-      return supportsNotifications ? [notificationAction] : [];
+      return [
+        ...(supportsNotifications ? [notificationAction] : []),
+        ...scheduledTasksActions,
+      ];
     }
 
     if (entityType === 'group' && group) {
@@ -573,6 +654,7 @@ export function SettingsSection({
           onPress: handlePressManageChannels,
         },
         notificationAction,
+        ...scheduledTasksActions,
       ];
     }
 
@@ -590,7 +672,7 @@ export function SettingsSection({
         },
       ];
       if (supportsNotifications) channelActions.push(notificationAction);
-      return channelActions;
+      return [...channelActions, ...scheduledTasksActions];
     }
 
     return [notificationAction];
@@ -607,6 +689,9 @@ export function SettingsSection({
     handlePressManageChannels,
     handlePressEditChannelPrivacy,
     groupRoles,
+    showsScheduledTasks,
+    scheduledTaskCount,
+    handlePressScheduledTasks,
   ]);
 
   return (

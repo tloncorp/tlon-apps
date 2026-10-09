@@ -26,7 +26,6 @@ import {
   foregroundStyle,
   frame,
   kerning,
-  lineHeight,
   lineLimit,
   onGeometryChange,
   padding,
@@ -69,10 +68,14 @@ const SheetHeightContext = createContext(420);
 const SheetExpandedContext = createContext(false);
 const platformColor = PlatformColor;
 const contentTopInset = 36;
-const contentHorizontalInset = 8;
+// Groups sit 16pt from the sheet edge and text 40pt, like the other sheets.
+const contentHorizontalInset = 16;
+// A header starts 24 inside its row when it opens with text and 12 when it
+// opens with an icon or the back chevron, which puts those at 28.
 const headerLeadingInset = 24;
+const headerLeadingIconInset = 12;
 // Keep long titles clear of the native 44-point close control and its trailing gap.
-const headerTrailingInset = 64;
+const headerTrailingInset = 56;
 const headerActionGap = 36;
 const groupGap = 32;
 const rowContentHeight = 48;
@@ -351,7 +354,8 @@ export function ExpoUIActionContent({
           spacing={20}
           modifiers={[
             padding({
-              leading: headerLeadingInset,
+              leading:
+                onBack || icon ? headerLeadingIconInset : headerLeadingInset,
               trailing: headerTrailingInset,
             }),
           ]}
@@ -395,12 +399,15 @@ export function ExpoUIActionContent({
               }),
             ]}
           >
+            {/* Matches the React Native sheet header ($label/l title, $label/m subtitle).
+                No fixed line height: it pads the lines and pushes the subtitle
+                further down than React Native's trimmed text does. */}
             <Text
               modifiers={[
-                font({ size: 17, weight: 'medium' }),
-                lineHeight(24),
+                font({ size: 16, weight: 'regular' }),
                 kerning(-0.2),
                 lineLimit(1),
+                foregroundStyle(theme.primaryText.val),
               ]}
             >
               {title}
@@ -409,11 +416,9 @@ export function ExpoUIActionContent({
               <Text
                 modifiers={[
                   font({ size: 14, weight: 'regular' }),
+                  kerning(-0.187),
                   lineLimit(1),
-                  foregroundStyle({
-                    type: 'hierarchical',
-                    style: 'secondary',
-                  }),
+                  foregroundStyle(theme.tertiaryText.val),
                 ]}
               >
                 {subtitle}

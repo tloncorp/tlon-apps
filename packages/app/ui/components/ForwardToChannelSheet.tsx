@@ -1,9 +1,12 @@
 import * as db from '@tloncorp/shared/db';
-import { ComponentProps, useMemo } from 'react';
+import { ComponentProps, ReactElement, useMemo } from 'react';
 
 import { channelHasPosts } from '../utils/channelUtils';
 import { ActionSheet } from './ActionSheet';
-import { ForwardChannelSelector } from './ForwardChannelSelector';
+import {
+  ForwardChannelChat,
+  ForwardChannelSelector,
+} from './ForwardChannelSelector';
 import { FORWARD_SHEET_SNAP_POINTS } from './useForwardToChannelSheet';
 
 type ForwardToChannelSheetProps = {
@@ -13,11 +16,17 @@ type ForwardToChannelSheetProps = {
   keepMounted: boolean;
   title: string;
   subtitle?: string;
-  onChannelSelected: (channel: db.Channel) => void;
+  /** An avatar for what is being forwarded, shown beside the title. */
+  icon?: ReactElement;
+  onChannelSelected: (channel: db.Channel | null) => void;
   // Narrows the targets further. Postless channels are already excluded for
   // every caller -- see below -- so this is only for rules specific to what is
   // being forwarded.
   channelFilter?: (channel: db.Channel) => boolean;
+  channelChats?: ForwardChannelChat[];
+  // A notebook renders no posts, but a bot can still deliver a scheduled
+  // task's output to one as a new note.
+  allowNotebooks?: boolean;
   footerComponent?: ComponentProps<typeof ActionSheet>['footerComponent'];
 };
 
@@ -28,8 +37,11 @@ export function ForwardToChannelSheet({
   keepMounted,
   title,
   subtitle,
+  icon,
   onChannelSelected,
   channelFilter,
+  channelChats,
+  allowNotebooks = false,
   footerComponent,
 }: ForwardToChannelSheetProps) {
   // Every target here receives what it is given as a post, so a channel that
@@ -38,8 +50,10 @@ export function ForwardToChannelSheet({
   // intent excluded only notebooks.
   const targetFilter = useMemo(
     () => (channel: db.Channel) =>
-      channelHasPosts(channel) && (channelFilter?.(channel) ?? true),
-    [channelFilter]
+      (channelHasPosts(channel) ||
+        (allowNotebooks && channel.type === 'notes')) &&
+      (channelFilter?.(channel) ?? true),
+    [allowNotebooks, channelFilter]
   );
 
   if (!open && !keepMounted) {
@@ -58,10 +72,15 @@ export function ForwardToChannelSheet({
       modal
     >
       <ActionSheet.Content flex={1} paddingBottom="$s">
-        <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
+        <ActionSheet.SimpleHeader
+          title={title}
+          subtitle={subtitle}
+          icon={icon}
+        />
         <ForwardChannelSelector
           onChannelSelected={onChannelSelected}
           channelFilter={targetFilter}
+          channelChats={channelChats}
         />
       </ActionSheet.Content>
     </ActionSheet>

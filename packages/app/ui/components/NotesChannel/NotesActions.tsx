@@ -46,7 +46,7 @@ export function NotesActionMenu({
       trigger={trigger}
     >
       {header && isWindowNarrow ? (
-        <ActionSheet.Header>
+        <ActionSheet.Header leadingIcon>
           <ListItem.SystemIcon icon={header.icon} />
           <ActionSheet.ActionContent>
             <ListItem.Title>{header.title}</ListItem.Title>

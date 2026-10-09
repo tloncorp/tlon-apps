@@ -6,7 +6,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
+import { Icon, type IconType } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useEffect, useMemo } from 'react';
@@ -27,6 +27,7 @@ import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
 import { BotBadge } from './BotBadge';
+import { BotSystemPromptsSection, useIsOwnedBot } from './BotSystemPrompts';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { ListItem } from './ListItem';
@@ -41,6 +42,9 @@ interface Props {
   userId: string;
   connectionStatus: api.ConnectionStatus | null;
   onPressBotSettings?: () => void;
+  /** Present on the owner's bot when it can show its scheduled tasks. */
+  onPressScheduledTasks?: () => void;
+  scheduledTaskCount?: number;
   onPressGroup: (group: db.Group) => void;
 }
 
@@ -128,7 +132,25 @@ export function UserProfileScreenView(props: Props) {
         ) : null}
 
         {props.onPressBotSettings ? (
-          <BotSettingsListItem onPress={props.onPressBotSettings} />
+          <ProfileLinkItem
+            icon="Face"
+            title="Bot settings"
+            onPress={props.onPressBotSettings}
+          />
+        ) : null}
+
+        {props.onPressScheduledTasks ? (
+          <ProfileLinkItem
+            icon="Clock"
+            title="Scheduled tasks"
+            value={
+              props.scheduledTaskCount === undefined
+                ? undefined
+                : `${props.scheduledTaskCount}`
+            }
+            testID="ScheduledTasksButton"
+            onPress={props.onPressScheduledTasks}
+          />
         ) : null}
 
         {userContact?.status && (
@@ -157,6 +179,15 @@ export function UserProfileScreenView(props: Props) {
             <StatusBlock status={sponsorStatus} label="Sponsor" />
           </View>
         </XStack>
+
+        {/* Data-gated rather than riding the hosted-bot check: our steward
+            only serves prompt sets for bots that configured us as their
+            owner (including a self-owned bot on this very ship, so no
+            own-profile guard here). Presence of prompt data is itself the
+            ownership signal — the section renders nothing for everyone
+            else. */}
+        <BotSystemPromptsSection botShip={props.userId} />
+
         <PinnedGroupsDisplay
           groups={pinnedGroups}
           onPressGroup={onPressGroup}
@@ -166,7 +197,19 @@ export function UserProfileScreenView(props: Props) {
   );
 }
 
-function BotSettingsListItem({ onPress }: { onPress: () => void }) {
+function ProfileLinkItem({
+  icon,
+  title,
+  value,
+  testID,
+  onPress,
+}: {
+  icon: IconType;
+  title: string;
+  value?: string;
+  testID?: string;
+  onPress: () => void;
+}) {
   const handlePress = useCallback(() => {
     onPress();
     triggerHaptic('baseButtonClick');
@@ -178,6 +221,7 @@ function BotSettingsListItem({ onPress }: { onPress: () => void }) {
         borderRadius="$2xl"
         onPress={handlePress}
         pressStyle={{ backgroundColor: '$secondaryBackground' }}
+        testID={testID}
       >
         <ListItem
           alignItems="center"
@@ -185,16 +229,19 @@ function BotSettingsListItem({ onPress }: { onPress: () => void }) {
           borderRadius="$2xl"
           padding="$l"
         >
-          <ListItem.SystemIcon icon="Face" rounded />
+          <ListItem.SystemIcon icon={icon} rounded />
           <ListItem.MainContent>
-            <ListItem.Title>Bot settings</ListItem.Title>
+            <ListItem.Title>{title}</ListItem.Title>
           </ListItem.MainContent>
-          <ListItem.EndContent>
-            <ListItem.SystemIcon
-              icon="ChevronRight"
-              backgroundColor="$transparent"
-            />
-          </ListItem.EndContent>
+          {value ? (
+            <Text size="$label/l" color="$tertiaryText">
+              {value}
+            </Text>
+          ) : null}
+          <ListItem.SystemIcon
+            icon="ChevronRight"
+            backgroundColor="$transparent"
+          />
         </ListItem>
       </Pressable>
     </View>
@@ -466,6 +513,14 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useContextNavigation();
   const queryClient = db.queryClient;
+  const currentUserId = useCurrentUserId();
+  // Blocking your own bot makes no sense; hide the button on an owned
+  // bot's profile. Unblock stays reachable so an already-blocked bot
+  // can't get stranded.
+  const { isOwnedBot, isPending: isOwnedBotPending } = useIsOwnedBot(
+    props.userId
+  );
+  const isCurrentUsersBot = api.isBotUserIdForUser(props.userId, currentUserId);
 
   const handleMessageUser = useCallback(() => {
     if (!navContext.onPressGoToDm) {
@@ -531,10 +586,13 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
             onPress={handleRemoveContactSuggestion}
           />
         ) : null}
-        <ProfileButton
-          title={isBlocked ? 'Unblock' : 'Block'}
-          onPress={handleBlock}
-        />
+        {isBlocked ||
+        (!isOwnedBot && !isCurrentUsersBot && !isOwnedBotPending) ? (
+          <ProfileButton
+            title={isBlocked ? 'Unblock' : 'Block'}
+            onPress={handleBlock}
+          />
+        ) : null}
       </ScrollView>
     </View>
   );

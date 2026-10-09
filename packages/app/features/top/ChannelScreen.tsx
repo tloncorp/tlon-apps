@@ -34,6 +34,10 @@ import { isDrawerDestinationRoute } from '../../navigation/drawerDestination';
 import { useDrawerEdgeGesture } from '../../navigation/useDrawerEdgeGesture';
 import { useRootNavigation } from '../../navigation/utils';
 import {
+  useOpenScheduledTasks,
+  useScheduledTasksEntry,
+} from '../automations/useScheduledTasksEntry';
+import {
   AttachmentProvider,
   Channel,
   ChatOptionsProvider,
@@ -273,6 +277,15 @@ export default function ChannelScreen(props: Props) {
     navigateToContextLensRun,
   } = useChannelNavigation({ channelId: currentChannelId });
   const { navigation } = useRootNavigation();
+  // The owner's own conversation with their bot gets a way into its tasks.
+  const scheduledTasks = useScheduledTasksEntry({
+    forShip: channel?.type === 'dm' ? channel.id : null,
+  });
+  const openScheduledTasks = useOpenScheduledTasks();
+  const handleGoToScheduledTasks = useCallback(
+    () => openScheduledTasks({ botShip: scheduledTasks.botShip }),
+    [openScheduledTasks, scheduledTasks.botShip]
+  );
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
@@ -681,6 +694,9 @@ export default function ChannelScreen(props: Props) {
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
+          goToScheduledTasks={
+            scheduledTasks.visible ? handleGoToScheduledTasks : undefined
+          }
           goToContextLensRuns={navigateToContextLensRuns}
           goToContextLensRun={navigateToContextLensRun}
           goToDm={handleGoToDm}
