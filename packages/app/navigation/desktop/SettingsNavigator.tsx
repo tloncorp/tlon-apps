@@ -9,6 +9,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { SettingsDrawerParamList } from '../types';
+import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
 import { BotApiKeySettingsScreen } from '../../features/settings/BotApiKeySettingsScreen';
@@ -37,6 +39,7 @@ import { useSettingsRowLabels } from '../../features/settings/useSettingsRowLabe
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
+import { useScheduledTasksEntry } from '../../features/automations/useScheduledTasksEntry';
 import { DESKTOP_SIDEBAR_WIDTH, SettingsScreenView } from '../../ui';
 import {
   openExternalBotSettings,
@@ -63,6 +66,13 @@ function DrawerContent(props: DrawerContentComponentProps) {
       : isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
   const { themeLabel, notificationsLabel } = useSettingsRowLabels();
+  const scheduledTasks = useScheduledTasksEntry({
+    enabled: botEnabled,
+    whileLoading: true,
+  });
+  const onScheduledTasksPressed = useCallback(() => {
+    navigate('ScheduledTasks', { botShip: scheduledTasks.botShip });
+  }, [navigate, scheduledTasks.botShip]);
 
   const onAppInfoPressed = useCallback(() => {
     navigate('AppInfo');
@@ -115,6 +125,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onBlockedUsersPressed={onBlockedUsersPressed}
       onManageAccountPressed={onManageAccountPressed}
       onBotSettingsPressed={onBotSettingsPressed}
+      onScheduledTasksPressed={
+        scheduledTasks.visible ? onScheduledTasksPressed : undefined
+      }
+      scheduledTaskCount={scheduledTasks.count}
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
@@ -209,6 +223,14 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen
         name="BotConnections"
         component={BotConnectionsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="ScheduledTasks"
+        component={ScheduledTasksScreen}
+      />
+      <SettingsDrawer.Screen
+        name="ScheduledTaskEditor"
+        component={ScheduledTaskEditorScreen}
       />
       <SettingsDrawer.Screen
         name="FeatureFlags"

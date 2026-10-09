@@ -1,7 +1,16 @@
 import { getPathFromState } from '@react-navigation/core';
 import React, { useEffect } from 'react';
 import { type ReactTestRenderer, act, create } from 'react-test-renderer';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
 import { useA2UINavigation } from '../../hooks/useA2UINavigation';
 import {
@@ -9,9 +18,16 @@ import {
   useBrowserCredentialHandoff,
 } from './BrowserCredentialHandoffProvider';
 
-const { navigate, navigateToGroup } = vi.hoisted(() => ({
+const { navigate, navigateToGroup, platform, openWindow } = vi.hoisted(() => ({
+  platform: { isWeb: false },
+  openWindow: vi.fn(),
   navigate: vi.fn(),
   navigateToGroup: vi.fn(),
+}));
+vi.mock('tamagui', () => ({
+  get isWeb() {
+    return platform.isWeb;
+  },
 }));
 vi.mock('../../navigation/utils', () => ({
   useRootNavigation: () => ({
@@ -28,6 +44,50 @@ vi.mock('@tloncorp/shared/logic', () => ({}));
 vi.mock('./BrowserViewerModal', () => ({ BrowserViewerModal: () => null }));
 
 describe('browser handoff registry', () => {
+  beforeEach(() => {
+    platform.isWeb = false;
+    openWindow.mockClear();
+    vi.stubGlobal('window', { open: openWindow });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('opens trusted session actions in a new tab on web without mounting a modal', async () => {
+    platform.isWeb = true;
+    let registry!: ReturnType<typeof useBrowserCredentialHandoff>;
+    function Consumer() {
+      const value = useBrowserCredentialHandoff();
+      useEffect(() => {
+        registry = value;
+      }, [value]);
+      return null;
+    }
+    const { BrowserViewerModal } = await import('./BrowserViewerModal');
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <BrowserCredentialHandoffProvider>
+          <Consumer />
+        </BrowserCredentialHandoffProvider>
+      );
+    });
+    const url = 'https://browser-session.tlon.network/s/payload.signature';
+    act(() => registry.openViewer(url));
+    expect(openWindow).toHaveBeenCalledOnce();
+    expect(openWindow).toHaveBeenCalledWith(
+      url,
+      '_blank',
+      'noopener,noreferrer'
+    );
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+    openWindow.mockClear();
+    expect(() =>
+      registry.openViewer('https://evil.example/s/payload.signature')
+    ).toThrow('trusted');
+    expect(openWindow).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+  });
   it('opens a separate session card directly, without form navigation or continuation', async () => {
     navigate.mockClear();
     let navigateA2UI!: ReturnType<typeof useA2UINavigation>;

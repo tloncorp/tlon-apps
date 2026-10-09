@@ -68,6 +68,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
   deskSupportsBuckets: boolean | null;
+  deskSupportsAutomations: boolean | null;
   deskSupportsStewardPrompts: boolean | null;
   deskCountsAllSeats: boolean;
   deskServesRosterPages: boolean | null;
@@ -195,6 +196,7 @@ const config: Config = {
   deskSupportsBuckets: null,
   // Unknown (null) until the app confirms the backend's groups version.
   // Guarded requests refuse only false.
+  deskSupportsAutomations: null,
   deskSupportsStewardPrompts: null,
   // Off until the app confirms the backend's groups version counts every seat
   // in init and changes, so a member count of 15 stays suspect by default.
@@ -349,6 +351,34 @@ export const getDeskSupportsBuckets = (): boolean => {
 // only a known false.
 export const getDeskSupportsBucketsState = (): boolean | null => {
   return config.deskSupportsBuckets;
+};
+
+const deskSupportsAutomationsListeners = new Set<() => void>();
+
+// Whether the connected backend's %steward serves scheduled tasks with their
+// delivery block. The request guard reads it, and so do the ways into the
+// task screens, which listen below.
+export const setDeskSupportsAutomations = (value: boolean | null) => {
+  const changed = config.deskSupportsAutomations !== value;
+  config.deskSupportsAutomations = value;
+  if (changed) {
+    deskSupportsAutomationsListeners.forEach((listener) => listener());
+  }
+};
+
+// null until sync start resolves the capability; the request guard refuses
+// only a known false.
+export const getDeskSupportsAutomationsState = (): boolean | null => {
+  return config.deskSupportsAutomations;
+};
+
+export const onDeskSupportsAutomationsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsAutomationsListeners.add(listener);
+  return () => {
+    deskSupportsAutomationsListeners.delete(listener);
+  };
 };
 
 export const onDeskSupportsBucketsChange = (
@@ -552,11 +582,12 @@ export function internalRemoveClient() {
   // backend capabilities belong to the ship we were connected to; reset
   // so an account switch to an older backend doesn't request newer
   // endpoints until app-info sync resolves the new ship's version. The
-  // buckets capability goes back to unknown, not unsupported: the next
+  // guarded capabilities go back to unknown, not unsupported: the next
   // login's guarded requests go out until the probe says otherwise.
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
   setDeskSupportsBuckets(null);
+  setDeskSupportsAutomations(null);
   setDeskSupportsStewardPrompts(null);
   setDeskCountsAllSeats(false);
   setDeskServesRosterPages(null);

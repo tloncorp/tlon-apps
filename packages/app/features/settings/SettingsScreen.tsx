@@ -10,6 +10,7 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { useNavigation } from '../../navigation/utils';
+import { useScheduledTasksEntry } from '../automations/useScheduledTasksEntry';
 import { SettingsScreenView, View, openTlonWebApp } from '../../ui';
 import ProfileStatusSheet from '../../ui/components/ProfileStatusSheet';
 import { useSettingsListSurfaces } from '../../ui/components/SettingsList';
@@ -54,6 +55,13 @@ export default function SettingsScreen() {
     Platform.OS !== 'web' &&
     (hostingSession === 'valid' || hostingSession === 'checking');
 
+  // The bot's card carries its own Scheduled tasks row. Where the card is
+  // not shown, the tasks still are: they come from the ship, not hosting.
+  const scheduledTasks = useScheduledTasksEntry({
+    enabled: botEnabled && !showsInlineBotSettings,
+    whileLoading: true,
+  });
+
   const { page: settingsPage } = useSettingsListSurfaces();
   const navigationRef = useMutableRef(useNavigation());
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
@@ -82,6 +90,12 @@ export default function SettingsScreen() {
     }
     navigationRef.current.navigate('BotSettings');
   }, [navigationRef]);
+
+  const onScheduledTasksPressed = useCallback(() => {
+    navigationRef.current.navigate('ScheduledTasks', {
+      botShip: scheduledTasks.botShip,
+    });
+  }, [navigationRef, scheduledTasks.botShip]);
 
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigationRef.current.navigate('FeatureFlags');
@@ -127,6 +141,10 @@ export default function SettingsScreen() {
     onBlockedUsersPressed,
     onManageAccountPressed,
     onBotSettingsPressed,
+    onScheduledTasksPressed: scheduledTasks.visible
+      ? onScheduledTasksPressed
+      : undefined,
+    scheduledTaskCount: scheduledTasks.count,
     onExperimentalFeaturesPressed,
     onThemePressed,
     onPrivacyPressed,

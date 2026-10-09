@@ -15,13 +15,16 @@ import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { ListEmptyState } from './ListEmptyState';
 import { SearchBar } from './SearchBar';
 
+export type ForwardChannelChat = db.Chat & { type: 'channel' };
+
 type ForwardChannelSelectorProps = {
   // Null clears the selection, when a search hides the chosen row.
   onChannelSelected: (channel: db.Channel | null) => void;
   channelFilter?: (channel: db.Channel) => boolean;
+  channelChats?: ForwardChannelChat[];
 };
 
-type ChannelChat = db.Chat & { type: 'channel' };
+type ChannelChat = ForwardChannelChat;
 type SectionLabel = { label: string };
 type Row = ChannelChat | SectionLabel;
 
@@ -52,6 +55,7 @@ const getRowKey = (row: Row) =>
 export function ForwardChannelSelector({
   onChannelSelected,
   channelFilter,
+  channelChats: channelChatsOverride,
 }: ForwardChannelSelectorProps) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const listRef = useRef<FlashListRef<Row>>(null);
@@ -64,6 +68,7 @@ export function ForwardChannelSelector({
     mode: 'snapshot',
     searchQuery: query,
     channelFilter,
+    channelChats: channelChatsOverride,
   });
 
   const handleQueryChanged = useCallback(

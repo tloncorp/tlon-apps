@@ -6,7 +6,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
+import { Icon, type IconType } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useEffect, useMemo } from 'react';
@@ -42,6 +42,9 @@ interface Props {
   userId: string;
   connectionStatus: api.ConnectionStatus | null;
   onPressBotSettings?: () => void;
+  /** Present on the owner's bot when it can show its scheduled tasks. */
+  onPressScheduledTasks?: () => void;
+  scheduledTaskCount?: number;
   onPressGroup: (group: db.Group) => void;
 }
 
@@ -129,7 +132,25 @@ export function UserProfileScreenView(props: Props) {
         ) : null}
 
         {props.onPressBotSettings ? (
-          <BotSettingsListItem onPress={props.onPressBotSettings} />
+          <ProfileLinkItem
+            icon="Face"
+            title="Bot settings"
+            onPress={props.onPressBotSettings}
+          />
+        ) : null}
+
+        {props.onPressScheduledTasks ? (
+          <ProfileLinkItem
+            icon="Clock"
+            title="Scheduled tasks"
+            value={
+              props.scheduledTaskCount === undefined
+                ? undefined
+                : `${props.scheduledTaskCount}`
+            }
+            testID="ScheduledTasksButton"
+            onPress={props.onPressScheduledTasks}
+          />
         ) : null}
 
         {userContact?.status && (
@@ -176,7 +197,19 @@ export function UserProfileScreenView(props: Props) {
   );
 }
 
-function BotSettingsListItem({ onPress }: { onPress: () => void }) {
+function ProfileLinkItem({
+  icon,
+  title,
+  value,
+  testID,
+  onPress,
+}: {
+  icon: IconType;
+  title: string;
+  value?: string;
+  testID?: string;
+  onPress: () => void;
+}) {
   const handlePress = useCallback(() => {
     onPress();
     triggerHaptic('baseButtonClick');
@@ -188,6 +221,7 @@ function BotSettingsListItem({ onPress }: { onPress: () => void }) {
         borderRadius="$2xl"
         onPress={handlePress}
         pressStyle={{ backgroundColor: '$secondaryBackground' }}
+        testID={testID}
       >
         <ListItem
           alignItems="center"
@@ -195,10 +229,15 @@ function BotSettingsListItem({ onPress }: { onPress: () => void }) {
           borderRadius="$2xl"
           padding="$l"
         >
-          <ListItem.SystemIcon icon="Face" rounded />
+          <ListItem.SystemIcon icon={icon} rounded />
           <ListItem.MainContent>
-            <ListItem.Title>Bot settings</ListItem.Title>
+            <ListItem.Title>{title}</ListItem.Title>
           </ListItem.MainContent>
+          {value ? (
+            <Text size="$label/l" color="$tertiaryText">
+              {value}
+            </Text>
+          ) : null}
           <ListItem.SystemIcon
             icon="ChevronRight"
             backgroundColor="$transparent"

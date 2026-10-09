@@ -17,6 +17,7 @@ import { httpStatusFromError, isIgnoredError } from '../../errorReporting';
 import {
   MIN_GROUPS_VERSION,
   activityVersionSupportsNotes,
+  deskVersionSupportsAutomations,
   deskVersionCountsAllSeats,
   deskVersionServesRosterPages,
   deskVersionSupportsBuckets,
@@ -670,6 +671,9 @@ export const syncAppInfo = async (
   api.setDeskSupportsBuckets(
     deskVersionSupportsBuckets(appInfo?.groupsVersion)
   );
+  api.setDeskSupportsAutomations(
+    deskVersionSupportsAutomations(appInfo?.groupsVersion)
+  );
   api.setDeskCountsAllSeats(deskVersionCountsAllSeats(appInfo?.groupsVersion));
   api.setDeskServesRosterPages(
     deskVersionServesRosterPages(appInfo?.groupsVersion)
@@ -713,6 +717,7 @@ export const syncReactionSupport = async () => {
   );
   api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
   api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
+  api.setDeskSupportsAutomations(deskVersionSupportsAutomations(groupsVersion));
   api.setDeskCountsAllSeats(deskVersionCountsAllSeats(groupsVersion));
   api.setDeskServesRosterPages(deskVersionServesRosterPages(groupsVersion));
   api.setDeskSupportsStewardPrompts(

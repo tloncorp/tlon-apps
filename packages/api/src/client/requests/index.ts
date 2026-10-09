@@ -3,6 +3,7 @@ import type { Noun } from '@urbit/nockjs';
 import {
   DeskUnsupportedError,
   getDeskServesRosterPagesState,
+  getDeskSupportsAutomationsState,
   getDeskSupportsBucketsState,
   getDeskSupportsStewardPromptsState,
   poke,
@@ -105,6 +106,7 @@ function nameOf(entry: { agent: string; path?: string }) {
 const GUARD_FNS: Record<GuardName, () => boolean | null> = {
   deskSupportsBuckets: () => getDeskSupportsBucketsState(),
   deskServesRosterPages: () => getDeskServesRosterPagesState(),
+  deskSupportsAutomations: () => getDeskSupportsAutomationsState(),
   deskSupportsStewardPrompts: () => getDeskSupportsStewardPromptsState(),
 };
 
