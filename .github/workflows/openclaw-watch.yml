@@ -1,0 +1,401 @@
+name: OpenClaw Release Watch
+# Daily: when npm's `latest` for openclaw moves, post one digest to Harness
+# Alerts saying what the release changes for the Tlon plugin, with a canary
+# run of the plugin's checks against it. Design: TLON-6250.
+#
+# State lives in the repo variable OPENCLAW_WATCH_STATE
+# ({ lastLatest, lastPostedAt, reportedUnresolved }) and moves only after the
+# relay confirms delivery of a scheduled run's post. The fine-grained PAT
+# OPENCLAW_WATCH_GH_TOKEN (Variables: write) reads and writes it; GITHUB_TOKEN
+# cannot write variables.
+#
+# A dispatch with `version` (and `baseline` as its prev) digests that release
+# and posts without touching state; `dry_run` builds everything and posts
+# nothing.
+on:
+  schedule:
+    - cron: "37 9 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: OpenClaw release to digest (e.g. 2026.9.8); posts, never moves state
+        required: false
+        type: string
+        default: ""
+      baseline:
+        description:
+          Release to compare against; required with version (e.g. the prod
+          pin, 2026.7.1)
+        required: false
+        type: string
+        default: ""
+      dry_run:
+        description: Build the digest and run the canary, post nothing, write no state
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: openclaw-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    name: Discover
+    runs-on: ubuntu-latest
+    outputs:
+      should_post: ${{ steps.decide.outputs.should_post }}
+      prev: ${{ steps.decide.outputs.prev }}
+      next: ${{ steps.decide.outputs.next }}
+      intermediates: ${{ steps.decide.outputs.intermediates }}
+      latest_published_at: ${{ steps.decide.outputs.latest_published_at }}
+      extended_stable: ${{ steps.decide.outputs.extended_stable }}
+      prod_pins: ${{ steps.decide.outputs.prod_pins }}
+      no_tag: ${{ steps.decide.outputs.no_tag }}
+      trigger: ${{ steps.decide.outputs.trigger }}
+      drift: ${{ steps.decide.outputs.drift }}
+      reported_unresolved: ${{ steps.decide.outputs.reported_unresolved }}
+    steps:
+      - name: Check the state token
+        env:
+          GH_TOKEN: ${{ secrets.OPENCLAW_WATCH_GH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::OPENCLAW_WATCH_GH_TOKEN is empty; the watch cannot read or advance its state"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: packages/openclaw
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Read npm, upstream tags and prod pins
+        run: |
+          set -euo pipefail
+          npm view openclaw dist-tags time --json > "$RUNNER_TEMP/npm.json"
+          git ls-remote --tags https://github.com/openclaw/openclaw.git > "$RUNNER_TEMP/tags.txt"
+          echo '{}' > "$RUNNER_TEMP/bundles.json"
+          for bundle in default internal memorypool; do
+            version=$(curl -fsS --max-time 30 \
+              "https://storage.googleapis.com/tlon-prod-bots/config-bundles/${bundle}.json" \
+              | jq -r '.openclaw // empty')
+            jq --arg b "$bundle" --arg v "$version" '. + {($b): $v}' \
+              "$RUNNER_TEMP/bundles.json" > "$RUNNER_TEMP/bundles.next"
+            mv "$RUNNER_TEMP/bundles.next" "$RUNNER_TEMP/bundles.json"
+          done
+          cat "$RUNNER_TEMP/bundles.json"
+
+      - name: Read state
+        env:
+          GH_TOKEN: ${{ secrets.OPENCLAW_WATCH_GH_TOKEN }}
+        run: |
+          # Absent means first run (bootstrap); any other failure is fatal so a
+          # bad token never reads as "no state".
+          if gh variable get OPENCLAW_WATCH_STATE --repo "$GITHUB_REPOSITORY" \
+            > "$RUNNER_TEMP/state.json" 2> "$RUNNER_TEMP/state.err"; then
+            cat "$RUNNER_TEMP/state.json"
+          elif grep -q 'not found' "$RUNNER_TEMP/state.err"; then
+            echo "OPENCLAW_WATCH_STATE is not set; this run bootstraps it"
+            : > "$RUNNER_TEMP/state.json"
+          else
+            cat "$RUNNER_TEMP/state.err"
+            exit 1
+          fi
+
+      - name: Decide
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          VERSION: ${{ inputs.version }}
+          BASELINE: ${{ inputs.baseline }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          node packages/openclaw/scripts/upstream-watch/discover.ts \
+            --npm "$RUNNER_TEMP/npm.json" \
+            --tags "$RUNNER_TEMP/tags.txt" \
+            --bundles "$RUNNER_TEMP/bundles.json" \
+            --state "$(cat "$RUNNER_TEMP/state.json")" \
+            --event "$EVENT" \
+            --version "$VERSION" \
+            --baseline "$BASELINE" \
+            --dry-run "${DRY_RUN:-false}"
+
+      # First run: record the current latest and post nothing.
+      - name: Bootstrap state
+        if: steps.decide.outputs.bootstrap_state != ''
+        env:
+          GH_TOKEN: ${{ secrets.OPENCLAW_WATCH_GH_TOKEN }}
+          STATE: ${{ steps.decide.outputs.bootstrap_state }}
+        run: |
+          gh variable set OPENCLAW_WATCH_STATE --repo "$GITHUB_REPOSITORY" --body "$STATE"
+
+  prepare:
+    name: Prepare digest (${{ needs.discover.outputs.next }})
+    needs: discover
+    if: needs.discover.outputs.no_tag != 'true' &&
+      (needs.discover.outputs.should_post == 'true' || inputs.dry_run)
+    runs-on: ubuntu-latest
+    env:
+      PREV: ${{ needs.discover.outputs.prev }}
+      NEXT: ${{ needs.discover.outputs.next }}
+      INTERMEDIATES: ${{ needs.discover.outputs.intermediates }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: packages/openclaw
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # Blobless and one commit per tag: the digest reads a handful of files
+      # and a scoped diff, and git fetches those blobs on demand. Discover
+      # already saw these tags with ls-remote, so a fetch failure is
+      # transient: retry, then fail the job. The post then says the digest
+      # step failed and leaves state alone, so the next run tries again.
+      - name: Fetch upstream release tags
+        run: |
+          set -euo pipefail
+          git init -q "$RUNNER_TEMP/upstream"
+          git -C "$RUNNER_TEMP/upstream" remote add origin https://github.com/openclaw/openclaw.git
+          for v in "$PREV" "$NEXT" $(jq -r '.[]' <<<"$INTERMEDIATES"); do
+            fetched=false
+            for delay in 5 15 0; do
+              if git -C "$RUNNER_TEMP/upstream" fetch -q --depth 1 --filter=blob:none --no-tags \
+                origin "refs/tags/v${v}:refs/tags/v${v}"; then
+                fetched=true
+                break
+              fi
+              if [ "$delay" -gt 0 ]; then
+                echo "::warning::fetching tag v${v} failed; retrying in ${delay}s"
+                sleep "$delay"
+              fi
+            done
+            if [ "$fetched" != true ]; then
+              echo "::error::could not fetch upstream tag v${v} after 3 attempts"
+              exit 1
+            fi
+          done
+
+      - name: Build digest
+        env:
+          PROD_PINS: ${{ needs.discover.outputs.prod_pins }}
+          EXTENDED_STABLE: ${{ needs.discover.outputs.extended_stable }}
+          PUBLISHED_AT: ${{ needs.discover.outputs.latest_published_at }}
+          DRIFT: ${{ needs.discover.outputs.drift }}
+          REPORTED_UNRESOLVED: ${{ needs.discover.outputs.reported_unresolved }}
+        run: |
+          node packages/openclaw/scripts/upstream-watch/digest.ts \
+            --prev "$PREV" \
+            --next "$NEXT" \
+            --intermediates "$(jq -r 'join(",")' <<<"$INTERMEDIATES")" \
+            --repo "$RUNNER_TEMP/upstream" \
+            --plugin packages/openclaw \
+            --out watch \
+            --prod-pins "$PROD_PINS" \
+            --extended-stable "$EXTENDED_STABLE" \
+            --published-at "$PUBLISHED_AT" \
+            --drift "$DRIFT" \
+            --reported-unresolved "$REPORTED_UNRESOLVED"
+
+      # Never fails the step: unlabeled bullets are recorded per row, and the
+      # post falls back to signals + highlights below half coverage.
+      - name: Label bullets
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          node packages/openclaw/scripts/upstream-watch/label.ts \
+            --digest watch/digest-input.json \
+            --out watch/labeled.jsonl
+
+      # A preview without canary results; the post job renders the real one.
+      - name: Render post preview
+        env:
+          TRIGGER: ${{ needs.discover.outputs.trigger }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ARTIFACT: openclaw-watch-${{ needs.discover.outputs.next }}-${{ github.run_attempt }}
+        run: |
+          node packages/openclaw/scripts/upstream-watch/render.ts \
+            --digest watch/digest-input.json \
+            --labeled watch/labeled.jsonl \
+            --trigger "$TRIGGER" \
+            --run-url "$RUN_URL" \
+            --artifact "$ARTIFACT" \
+            --out watch
+
+      - name: Upload digest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openclaw-watch-${{ needs.discover.outputs.next }}-${{ github.run_attempt }}
+          path: watch/
+          if-no-files-found: error
+          retention-days: 30
+
+  # No `secrets: inherit`: this tests whatever upstream published, unreviewed,
+  # and the canary's package shard executes that code. Without secrets the
+  # shard reports `coverage: partial`; a full-coverage canary stays a manual
+  # workflow_dispatch of openclaw-canary.yml.
+  canary:
+    name: Canary
+    needs: discover
+    if: needs.discover.outputs.no_tag != 'true' &&
+      (needs.discover.outputs.should_post == 'true' || inputs.dry_run)
+    uses: ./.github/workflows/openclaw-canary.yml
+    with:
+      openclaw_version: ${{ needs.discover.outputs.next }}
+
+  # Runs whatever prepare and canary did: a failed canary is the expected
+  # signal, and a missing canary report reads as infra-error in the header.
+  post:
+    name: Post
+    needs: [discover, prepare, canary]
+    if: always() && needs.discover.outputs.should_post == 'true'
+    runs-on: ubuntu-latest
+    env:
+      PREV: ${{ needs.discover.outputs.prev }}
+      NEXT: ${{ needs.discover.outputs.next }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: packages/openclaw
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # Every attempt's artifacts, one directory each: "re-run failed jobs"
+      # re-runs only this job, and its inputs then come from an earlier
+      # attempt. The renderer takes the highest attempt per kind. Without the
+      # digest the post says the digest step failed.
+      - name: Download digest
+        if: needs.prepare.result == 'success'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: openclaw-watch-${{ needs.discover.outputs.next }}-*
+          path: watch-artifacts
+          merge-multiple: false
+
+      - name: Download canary reports
+        if: needs.discover.outputs.no_tag != 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: canary-${{ needs.discover.outputs.next }}-*-*
+          path: canary
+          merge-multiple: false
+
+      - name: Render post
+        id: render
+        env:
+          NO_TAG: ${{ needs.discover.outputs.no_tag }}
+          TRIGGER: ${{ needs.discover.outputs.trigger }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          args=()
+          if [ "$NO_TAG" = "true" ]; then args+=(--no-tag); fi
+          node packages/openclaw/scripts/upstream-watch/render.ts \
+            --digest-dir watch-artifacts \
+            --canary-dir canary \
+            --trigger "$TRIGGER" \
+            --run-url "$RUN_URL" \
+            --prev "$PREV" \
+            --next "$NEXT" \
+            --out post \
+            "${args[@]}"
+
+      # The relay verifies the HMAC over the raw bytes it receives, so sign
+      # the file curl sends, byte for byte. Only a 200 counts as delivered: a
+      # redirect or an empty 2xx from a misconfigured URL must not move state.
+      - name: Post to Harness Alerts
+        env:
+          CI_NOTIFY_SECRET: ${{ secrets.CI_NOTIFY_SECRET }}
+          CI_NOTIFY_URL: ${{ secrets.CI_NOTIFY_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CI_NOTIFY_SECRET" ] || [ -z "$CI_NOTIFY_URL" ]; then
+            echo "::error::CI_NOTIFY_SECRET or CI_NOTIFY_URL is empty"
+            exit 1
+          fi
+          SIG=$(node -e '
+            const { createHmac } = require("node:crypto");
+            const body = require("node:fs").readFileSync("post/post.json");
+            process.stdout.write(
+              createHmac("sha256", process.env.CI_NOTIFY_SECRET).update(body).digest("hex")
+            );
+          ')
+          status=$(curl --max-time 40 -sS \
+            -o "$RUNNER_TEMP/relay-response" -w '%{http_code}' \
+            -H "content-type: application/json" \
+            -H "x-ci-signature: $SIG" \
+            --data-binary @post/post.json \
+            "$CI_NOTIFY_URL")
+          cat "$RUNNER_TEMP/relay-response"
+          echo
+          if [ "$status" != "200" ]; then
+            echo "::error::the relay answered HTTP $status, not 200; not delivered"
+            exit 1
+          fi
+
+      # Only after delivery, only for scheduled runs, and only when the post
+      # was built from a digest: a run that posted "digest failed" leaves
+      # state alone so the next run tries again. A failure here fails the
+      # job; the next run then re-posts, which is the safe direction.
+      - name: Advance state
+        if: github.event_name == 'schedule' && needs.discover.outputs.no_tag !=
+          'true' && needs.prepare.result == 'success' &&
+          steps.render.outputs.digest_loaded == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.OPENCLAW_WATCH_GH_TOKEN }}
+          DIGEST_PATH: ${{ steps.render.outputs.digest_path }}
+        run: |
+          set -euo pipefail
+          # Compare-and-set against what discover read: a re-run of an older
+          # run's post job must not overwrite state a later run already
+          # advanced. Comparing versions instead would also block a genuine
+          # npm rollback of `latest`. A read failure is fatal.
+          current=$(gh variable get OPENCLAW_WATCH_STATE --repo "$GITHUB_REPOSITORY")
+          current_latest=$(jq -er '.lastLatest' <<<"$current")
+          if [ "$current_latest" != "$PREV" ]; then
+            echo "state moved from $PREV to $current_latest after discovery; not advancing"
+            exit 0
+          fi
+          # Every absent-in-both subpath is recorded, whether reported now or
+          # in an earlier post, so each is reported once while it stays absent.
+          state=$(node -e '
+            const digest = JSON.parse(
+              require("node:fs").readFileSync(process.env.DIGEST_PATH, "utf8")
+            );
+            process.stdout.write(JSON.stringify({
+              lastLatest: process.env.NEXT,
+              lastPostedAt: new Date().toISOString(),
+              reportedUnresolved: digest.subpaths
+                .filter((s) => s.class === "absent-in-both")
+                .map((s) => s.subpath),
+            }));
+          ')
+          echo "$state"
+          gh variable set OPENCLAW_WATCH_STATE --repo "$GITHUB_REPOSITORY" --body "$state"
+
+      - name: Upload post
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openclaw-watch-post-${{ needs.discover.outputs.next }}-${{ github.run_attempt }}
+          path: post/
+          if-no-files-found: warn
+          retention-days: 30
