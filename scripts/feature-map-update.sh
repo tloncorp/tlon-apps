@@ -116,17 +116,38 @@ fi
 
 old=$(node -p "require('./$map/release.json').app")
 old_commit=$(node -p "require('./$map/release.json').commit")
+
+# A pull request may only move the map forward, to a store build. Anything
+# else, an older build or a branch, is for trying the script out with --no-pr.
+if [ "$check_remote" = 1 ]; then
+  if ! [[ "$target" =~ ^(ios|android)-production-[0-9]+$ ]]; then
+    echo "$target is not a store build tag; use --no-pr to try another target" >&2
+    go_back
+    exit 2
+  fi
+  if [ "$(git rev-parse "$target^{commit}")" = "$old_commit" ] ||
+    ! git merge-base --is-ancestor "$old_commit" "$target"; then
+    echo "$target is not newer than $old, the build the map describes" >&2
+    go_back
+    exit 2
+  fi
+fi
+
 work=$(mktemp -d)
 git switch --quiet -C "$branch"
 echo "updating the map from $old to $target on $branch"
 
 node scripts/feature-map.mjs affected --since "$old_commit" --until "$target" > "$work/worklist.md"
 
-# A fingerprint of every file under the guide's folder, tracked or not.
+# A fingerprint of the guide's folder exactly as `git add` would stage it:
+# every file's content and mode, and a link as a link.
 guide_state() {
-  find "$guide" -type f | LC_ALL=C sort | while IFS= read -r file; do
-    printf '%s %s\n' "$(git hash-object "$file")" "$file"
-  done | git hash-object --stdin
+  local index tree
+  index=$(mktemp -u)
+  GIT_INDEX_FILE="$index" git add -A -- "$guide"
+  tree=$(GIT_INDEX_FILE="$index" git write-tree)
+  rm -f "$index"
+  printf '%s\n' "$tree"
 }
 
 # Fills in a brief's placeholders and hands it to the agent. The agent's
@@ -135,10 +156,13 @@ run_agent() {
   local guide_before
   guide_before=$(guide_state)
 
-  # The agent gets no GitHub token, even a read-only one: it has no use for
-  # it, and anything in its environment can end up in what it sends or writes.
+  # The agent gets no GitHub token, even a read-only one, and none of the
+  # files a workflow step uses to pass a PATH or variables to later steps. It
+  # has no use for them, and anything it can reach can end up misused.
   sed -e "s|{{new}}|$target|g" -e "s|{{old}}|$old|g" -e "s|{{old_commit}}|$old_commit|g" \
-    "$map/agent/$1.md" | env -u GH_TOKEN -u GITHUB_TOKEN bash -c "$agent" > "$work/$1-report.md"
+    "$map/agent/$1.md" |
+    env -u GH_TOKEN -u GITHUB_TOKEN -u GITHUB_PATH -u GITHUB_ENV -u GITHUB_OUTPUT \
+      -u GITHUB_STATE -u GITHUB_STEP_SUMMARY bash -c "$agent" > "$work/$1-report.md"
 
   # The agent has write access to the checkout. Hold it to the map: no
   # commits, nothing outside the map, and nothing in the guide's folder, which
@@ -157,6 +181,15 @@ run_agent() {
   if [ "$(guide_state)" != "$guide_before" ]; then
     echo "the agent changed files under $guide; only publish may" >&2
     git status --short -- "$guide" >&2
+    exit 1
+  fi
+  # `publish` copies what the map's files contain. A link in the map would
+  # make it copy some other file on this machine into what gets pushed.
+  local links
+  links=$(find "$map" "$guide" -type l)
+  if [ -n "$links" ]; then
+    echo "the agent created symbolic links:" >&2
+    echo "$links" >&2
     exit 1
   fi
 }
