@@ -170,6 +170,33 @@ describe('renderPost', () => {
     );
   });
 
+  const prodLineOf = (prodPins: Record<string, string>) => {
+    const base = digest();
+    const { post } = renderPost({
+      digest: { ...base, drift: { ...base.drift, prodPins } },
+      rows: [],
+      canary: green,
+    });
+    return post.lines.find((line) => line.startsWith('prod: '));
+  };
+
+  it('reads prod pins as unavailable when no bundle has a version', () => {
+    expect(prodLineOf({ default: '', internal: '', memorypool: '' })).toMatch(
+      /^prod: pins unavailable( |$)/
+    );
+  });
+
+  it('omits a bundle without a version beside readable ones', () => {
+    const line = prodLineOf({
+      default: '2026.7.1',
+      internal: '',
+      memorypool: '2026.7.1',
+    });
+    expect(line).toMatch(/^prod: default\/memorypool on 2026\.7\.1 — /);
+    expect(line).not.toContain('internal');
+    expect(line).not.toMatch(/ on (,| —|$)/);
+  });
+
   it('falls back to signals and highlights below half coverage', () => {
     const rows: LabeledRow[] = [
       labeled('**Gateway:** fixed. (#2)', { gateway_runtime: 1 }, { fix: 1 }),

@@ -358,6 +358,8 @@ function prodLine(digest: DigestInput) {
     digest.drift;
   const byVersion = new Map<string, string[]>();
   for (const [bundle, version] of Object.entries(prodPins)) {
+    // The workflow writes "" for a bundle with no `.openclaw` field.
+    if (typeof version !== 'string' || !version) continue;
     byVersion.set(version, [...(byVersion.get(version) ?? []), bundle]);
   }
   const pins = [...byVersion]

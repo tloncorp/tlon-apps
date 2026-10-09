@@ -227,6 +227,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # No `secrets: inherit`: this tests whatever upstream published, unreviewed,
+  # and the canary's package shard executes that code. Without secrets the
+  # shard reports `coverage: partial`; a full-coverage canary stays a manual
+  # workflow_dispatch of openclaw-canary.yml.
   canary:
     name: Canary
     needs: discover
@@ -235,7 +239,6 @@ jobs:
     uses: ./.github/workflows/openclaw-canary.yml
     with:
       openclaw_version: ${{ needs.discover.outputs.next }}
-    secrets: inherit
 
   # Runs whatever prepare and canary did: a failed canary is the expected
   # signal, and a missing canary report reads as infra-error in the header.
