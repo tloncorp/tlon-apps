@@ -44,6 +44,17 @@
   ::  $groups-ui: depends on $group-ui
   +$  groups-ui
     (map flag group-ui)
+  ::  $seats-page: one page of a group's seats, in ship order
+  ::
+  ::  .total: seats matching the query, across every page
+  ::  .seats: this page
+  ::  .next: the ship to continue after, when more remain
+  ::
+  +$  seats-page
+    $:  total=@ud
+        seats=(list [=ship =seat])
+        next=(unit ship)
+    ==
   ::  $groups: depends on $group
   +$  groups
     (map flag group)

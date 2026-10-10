@@ -53,6 +53,7 @@
           %group-response-1
           %group-response-2
           %group-response-3
+          %group-seats-page-1
           %group-action-3
           %group-action-4
           %group-action-5
@@ -108,6 +109,8 @@
       [/x/v2/groups/$/$/channels/$/$/$/writers %ships]
       [/x/groups/$/$/seats/$ %noun]
       [/x/v2/groups/$/$/seats/ships %ships]
+      [/x/v3/groups/$/$/seats/page %group-seats-page-1]
+      [/x/v3/groups/$/$/seats/role %group-seats-page-1]
     ::
       [/x/groups/light %groups]
       [/x/v0/light/groups %groups]
@@ -1401,6 +1404,14 @@
       ?:  ?=([%v1 ~] rest.pole)
         ::  deprecated
         $(pole [%x ver %ui %groups ship name ~]:pole)
+      ?:  &(?=(%v3 ver.pole) ?=([%light ~] rest.pole))
+        ::  the group as init carries it: ours plus 14 other seats,
+        ::  for rosters too big to send whole, but counting every seat
+        ::
+        =/  [=net:g =group:g]  u.net-group
+        =/  ui=group-ui:v11:gv
+          (group-ui:group:v11:gc net (drop-seats:group:v11:gc group our.bowl))
+        ``group-ui-3+ui(member-count ~(wyt by seats.group))
       $(pole [%x ver %groups ship name rest]:pole)
     ?-    ver.pole
         %v0
@@ -4752,6 +4763,14 @@
       ::
       ::  seats queries
       ::
+        [%seats %page limit=@ rest=*]
+      ?.  ?=(%v3 ver)  [~ ~]
+      (go-seats-page ~ limit.pole rest.pole)
+    ::
+        [%seats %role role=@ %page limit=@ rest=*]
+      ?.  ?=(%v3 ver)  [~ ~]
+      (go-seats-page `(slav %tas role.pole) limit.pole rest.pole)
+    ::
         [%seats %ships ~]
       ``ships+~(key by seats.group)
     ::
@@ -4836,6 +4855,43 @@
         [%entry %tokens ~]
       ``unsafe+noun+!>(tokens.ad)
     ==
+  ::  +go-seats-page: a page of seats in ship order
+  ::
+  ::    for rosters too big to send whole. .role keeps to that role's
+  ::    holders. .rest is empty for the first page, or holds the ship
+  ::    to continue after, so seats added or removed between requests
+  ::    don't shift the pages that follow.
+  ::
+  ++  go-seats-page
+    |=  [role=(unit role-id:g) limit=@ta rest=(pole knot)]
+    ~>  %spin.['go-seats-page']
+    ^-  (unit (unit rail))
+    =/  count=@ud  (slav %ud limit)
+    ?>  (gth count 0)
+    =/  after=(unit ship)
+      ?~  rest  ~
+      ?>  ?=([after=@ ~] rest)
+      `(slav %p after.rest)
+    =/  ships=(list ship)
+      %+  sort
+        %+  murn  ~(tap by seats.group)
+        |=  [=ship =seat:g]
+        ?.  |(?=(~ role) (~(has in roles.seat) u.role))  ~
+        `ship
+      lth
+    =/  left=(list ship)
+      ?~  after  ships
+      (skim ships |=(=ship (gth ship u.after)))
+    =/  page=(list ship)  (scag count left)
+    =/  next=(unit ship)
+      ?:  (lte (lent left) count)  ~
+      `(rear page)
+    =/  =seats-page:v11:gv
+      :+  (lent ships)
+        (turn page |=(=ship [ship (~(got by seats.group) ship)]))
+      next
+    ``group-seats-page-1+seats-page
+  ::
   ++  go-can-read
     |=  [=ship =channel:g]
     ~>  %spin.['go-can-read']

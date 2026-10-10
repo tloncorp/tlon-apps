@@ -122,6 +122,24 @@
           init+b+init.group-ui
           member-count+(numb member-count.group-ui)
       ==
+    ::  +seats-page: seats as an array, keeping the page's ship order
+    ::
+    ++  seats-page
+      |=  page=seats-page:v11:gv
+      ^-  json
+      %-  pairs
+      :~  total+(numb total.page)
+          next+?~(next.page ~ (ship u.next.page))
+        ::
+          :+  %seats  %a
+          %+  turn  seats.page
+          |=  [who=@p =seat:v11:gv]
+          %-  pairs
+          :~  ship+(ship who)
+              roles+(roles roles.seat)
+              joined+(time joined.seat)
+          ==
+      ==
     ++  r-groups
       |=  =r-groups:v11:gv
       ^-  json

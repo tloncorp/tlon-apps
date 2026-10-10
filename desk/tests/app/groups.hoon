@@ -894,4 +894,92 @@
         (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)
     ==
   (pure:m ~)
+::  +big-group: +my-group with 20 more seats, the first 3 holding %admin
+::
+++  big-group
+  ^-  group:g
+  =/  =group:g  my-group
+  %=    group
+      seats
+    %-  ~(gas by seats.group)
+    %+  turn  (gulf 1 20)
+    |=  i=@
+    ^-  [ship seat:g]
+    :-  ;;(ship i)
+    :_  ~2000.1.1
+    ?:((lte i 3) (sy %admin ~) ~)
+  ==
+::
+::  +big-pages: every page after .after, following .next
+::
+++  big-pages
+  |=  [base=path after=(unit ship)]
+  =/  m  (mare ,(list seats-page:v11:gv))
+  ^-  form:m
+  ;<  =cage  bind:m
+    (got-peek ?~(after base (snoc base (scot %p u.after))))
+  =+  page=!<(seats-page:v11:gv q.cage)
+  ?~  next.page  (pure:m ~[page])
+  ;<  rest=(list seats-page:v11:gv)  bind:m  (big-pages base next.page)
+  (pure:m [page rest])
+::
+::  +test-seats-pages-walk-the-roster: following .next from the first
+::  page visits every seat once, in ship order
+::
+++  test-seats-pages-walk-the-roster
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-join-this-group big-group)
+  ;<  pages=(list seats-page:v11:gv)  bind:m
+    (big-pages /x/v3/groups/~zod/my-test-group/seats/page/8 ~)
+  =/  walked=(list [=ship =seat:g])  (zing (turn pages |=(seats-page:v11:gv seats)))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>  :-  sizes=(turn pages |=(seats-page:v11:gv (lent seats)))
+          totals=(turn pages |=(seats-page:v11:gv total))
+    !>([sizes=~[8 8 5] totals=~[21 21 21]])
+  ;<  ~  bind:m
+    %+  ex-equal  !>((turn walked head))
+    !>((sort ~(tap in ~(key by seats:big-group)) lth))
+  (ex-equal !>((malt walked)) !>(seats:big-group))
+::
+::  +test-seats-role-page: a role page holds only that role's holders
+::
+++  test-seats-role-page
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-join-this-group big-group)
+  ;<  =cage  bind:m
+    (got-peek /x/v3/groups/~zod/my-test-group/seats/role/admin/page/10)
+  =+  page=!<(seats-page:v11:gv q.cage)
+  %+  ex-equal
+    !>([total.page (turn seats.page head) next.page])
+  !>([4 ~[~zod ~nec ~bud ~wes] ~])
+::
+::  +test-light-group: the light group drops seats like init does, but
+::  counts every seat
+::
+++  test-light-group
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-join-this-group big-group)
+  ;<  light=cage  bind:m
+    (got-peek /x/v3/ui/groups/~zod/my-test-group/light)
+  ;<  full=cage  bind:m
+    (got-peek /x/v3/ui/groups/~zod/my-test-group)
+  =+  light-ui=!<(group-ui:v11:gv q.light)
+  =+  full-ui=!<(group-ui:v11:gv q.full)
+  %+  ex-equal
+    !>  :*  light-seats=~(wyt by seats.group.light-ui)
+            light-count=member-count.light-ui
+            full-seats=~(wyt by seats.group.full-ui)
+            full-count=member-count.full-ui
+        ==
+  !>([light-seats=15 light-count=21 full-seats=21 full-count=21])
 --
