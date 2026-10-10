@@ -1568,9 +1568,15 @@
 ::  unconditional (the request is informational from the host's POV);
 ::  the request-id loop just gives the FE a confirmation point.
 ::
+::  A host can't leave its own notebook (it deletes it instead): the
+::  %member-leave would go to ourselves and strip our %owner role. Crash
+::  rather than finalize %no-change, so the poke nacks and the FE's
+::  optimistic leave rolls back instead of reporting success.
+::
 ++  leave-remote-v1
   |=  [rid=request-id:v1:n =flag:n]
   ^+  cor
+  ?<  =(our.bowl ship.flag)
   ?>  (~(has by books) flag)
   ::  no-leave reports the leave to %groups and drops the local book (incl.
   ::  its group) via the gone flag.
