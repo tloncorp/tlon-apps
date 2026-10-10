@@ -15,9 +15,25 @@
       [%client-leave service=term]
   ==
 ::
+::  $push-caps: notification kinds a device's app build knows how to render
+::
+::    Declared by the client each time it registers its push token. %notify
+::    withholds a push whose kind requires a capability that any live device
+::    has not declared, because iOS cannot suppress an alert once APNs has
+::    delivered it. Kinds that predate this mechanism require nothing, so an
+::    old client declaring no capabilities keeps receiving what it does today.
+::
++$  push-caps  (set @t)
+::
 +$  client-action
   $%  [%connect-provider who=@p service=term address=@t]
-      [%connect-provider-with-binding who=@p service=term address=@t binding=@t]
+      $:  %connect-provider-with-binding
+          who=@p
+          service=term
+          address=@t
+          binding=@t
+          caps=push-caps
+      ==
       [%remove-provider who=@p service=term]
       [%send-message message=@t]
   ==
