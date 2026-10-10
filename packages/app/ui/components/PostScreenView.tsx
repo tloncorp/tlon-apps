@@ -318,10 +318,8 @@ export function PostScreenView({
   const { attachAssets, clearAttachments } = useAttachmentContext();
 
   const handleGoBack = useCallback(() => {
-    // Always clear attachments when leaving thread to prevent them from
-    // appearing in the main chat input
-    clearAttachments();
     if (isEditingParent) {
+      clearAttachments();
       setEditingPost?.(undefined);
       if (channel.type !== 'notebook') {
         goBack?.();
@@ -329,6 +327,8 @@ export function PostScreenView({
         draftCallbacks?.clearDraft();
       }
     } else {
+      // The post screen owns its attachment provider. Keep its draft intact
+      // during the back transition; unmounting releases the transient state.
       goBack?.();
     }
   }, [

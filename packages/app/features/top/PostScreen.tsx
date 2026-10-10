@@ -51,7 +51,11 @@ export default function PostScreen(props: Props) {
       initialChat={{ type: 'channel', id: channelId }}
       {...chatOptionsNavProps}
     >
-      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+      <AttachmentProvider
+        key={postId}
+        canUpload={canUpload}
+        uploadAsset={store.uploadAsset}
+      >
         {post && (
           <PostScreenContent
             post={post}
