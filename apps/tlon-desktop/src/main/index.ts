@@ -67,6 +67,32 @@ let ENCRYPTION_KEY: Buffer;
 
 let cachedShipUrl: string | null = null;
 
+// Whether a URL is the ship's own, by parsed origin rather than by prefix:
+// `https://ship.example` is also a prefix of `https://ship.example.evil.test/`,
+// and this answer decides which requests carry the reader's auth cookie.
+// The schemes a link may hand to the system: web, mail and phone links. Any
+// other scheme -- file:, smb:, an app's own -- would have the operating
+// system open whatever it names, from a link in a message or a previewed
+// file that anyone could have written.
+const EXTERNAL_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+
+function isExternalLinkUrl(url: string): boolean {
+  try {
+    return EXTERNAL_LINK_PROTOCOLS.has(new URL(url).protocol);
+  } catch {
+    return false;
+  }
+}
+
+function isShipUrl(url: string): boolean {
+  if (!cachedShipUrl) return false;
+  try {
+    return new URL(url).origin === new URL(cachedShipUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
 function encrypt(text: string): string {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
@@ -116,7 +142,7 @@ async function createWindow() {
 
   // Add auth cookie to requests
   webSession.webRequest.onBeforeSendHeaders(async (details, callback) => {
-    if (cachedShipUrl && details.url.startsWith(cachedShipUrl)) {
+    if (isShipUrl(details.url)) {
       const headers = details.requestHeaders;
       if (headers) {
         // Get the auth cookie from storage
@@ -224,13 +250,17 @@ async function createWindow() {
 
   // Handle external links - open them in the default browser instead of a new electron window
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    // Check if the URL is external (not the cachedShipUrl)
-    if (cachedShipUrl && !url.startsWith(cachedShipUrl)) {
-      // Open the URL in the user's default browser
-      shell.openExternal(url);
+    // Once signed in, every new window opens in the user's default browser,
+    // the ship's own addresses included: the app opens none of its own, and a
+    // window opened here would inherit this one's preferences, web security
+    // off among them. A link in a previewed file arrives here too, and cannot
+    // be told apart from a link in a message.
+    if (cachedShipUrl) {
+      if (isExternalLinkUrl(url)) {
+        shell.openExternal(url);
+      }
       return { action: 'deny' };
     }
-    // Allow creating new windows for internal URLs, including links to apps running on the current ship (if we provide app launching from our app later)
     return { action: 'allow' };
   });
 
@@ -239,7 +269,7 @@ async function createWindow() {
     // Only handle external URLs (not the app URL or cachedShipUrl)
     if (
       cachedShipUrl &&
-      !url.startsWith(cachedShipUrl) &&
+      !isShipUrl(url) &&
       !url.startsWith('http://localhost:3000') &&
       !url.startsWith('file://')
     ) {

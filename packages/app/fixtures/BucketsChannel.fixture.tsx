@@ -44,6 +44,41 @@ const searchRevealFiles = Array.from({ length: 48 }, (_, index) =>
   )
 );
 
+// A self-contained page, as an export or a generated report would be. Where
+// the preview runs scripts the count reads "3"; "three" means they were
+// held: on web until Enable is pressed, and always under Electron.
+const launchRecapHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Launch recap</title>
+    <style>
+      body { color: #1a1a1a; font: 16px/1.5 system-ui, sans-serif; margin: 0 auto; max-width: 36rem; padding: 2rem 1.5rem; }
+      h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+      .meta { color: #666; margin-top: 0; }
+      table { border-collapse: collapse; width: 100%; }
+      td, th { border-bottom: 1px solid #ddd; padding: 0.5rem 0; text-align: left; }
+      td:last-child, th:last-child { width: 40%; }
+      .bar { background: #e6f0ff; border-radius: 4px; height: 0.75rem; }
+      .bar span { background: #2563eb; border-radius: 4px; display: block; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <h1>Launch recap</h1>
+    <p class="meta">Exported by Scout &middot; <span id="count">three</span> channels</p>
+    <table>
+      <tr><th>Channel</th><th>Members</th><th></th></tr>
+      <tr><td>Announcements</td><td>128</td><td><div class="bar"><span style="width: 100%"></span></div></td></tr>
+      <tr><td>Beta testers</td><td>64</td><td><div class="bar"><span style="width: 50%"></span></div></td></tr>
+      <tr><td>Design</td><td>24</td><td><div class="bar"><span style="width: 19%"></span></div></td></tr>
+    </table>
+    <p>Full notes are in the <a href="https://tlon.io" target="_blank" rel="noreferrer">launch brief</a>.</p>
+    <script>
+      document.getElementById('count').textContent = document.querySelectorAll('tr').length - 1;
+    </script>
+  </body>
+</html>`;
+
 const initialFiles: Record<string, BucketItem[]> = {
   root: [],
   launch: [
@@ -56,6 +91,17 @@ const initialFiles: Record<string, BucketItem[]> = {
       'application/pdf',
       false,
       'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+    ),
+    file(
+      'launch-recap',
+      'launch-recap.html',
+      'Scout',
+      'Today',
+      '2 KB',
+      'text/html',
+      true,
+      'data:text/html,',
+      launchRecapHtml
     ),
     file(
       'homepage-final',
