@@ -61,6 +61,12 @@ export const AUTOMATIONS_MIN_GROUPS_VERSION = '12.3.1';
 // desk/desk.docket-0's version if the release number changes.
 export const FULL_MEMBER_COUNT_MIN_GROUPS_VERSION = '12.4.0';
 
+// The first %groups release that serves a big roster in parts: the light ui
+// group and the seat pages (TLON-4698). Guarded registry entries name it as
+// their `since`. Must move in lockstep with desk/desk.docket-0's version if
+// the release number changes.
+export const ROSTER_PAGES_MIN_GROUPS_VERSION = '12.3.2';
+
 // The first %groups release whose %steward has the prompts module: the
 // owner-side mirror of a bot's OpenClaw prompt files and the edit relay
 // (/steward/~/v1/prompts). Guarded registry entries name it as their `since`.

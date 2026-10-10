@@ -8,6 +8,7 @@ export * from './threadUnreads';
 export * from './bucketsSupport';
 export * from './automationsSupport';
 export * from './memberCountSupport';
+export * from './rosterPagesSupport';
 export * from './stewardPromptsSupport';
 export * from './notesActivitySupport';
 export * from './notesPublish';

@@ -5,26 +5,107 @@ import { batchEffects } from '../../db/query';
 import { getClientGeneration, getSession } from '../session';
 import { SyncCtx, syncQueue } from '../syncQueue';
 import { logger } from './logger';
+import { fitToLiveChanges, isRosterPaged, snapshotRoster } from './rosterPages';
 import { updateLastActivityTime } from './updateLastActivityTime';
 
 // Keyed by client generation too: a previous account's sync of the same group
 // is abandoned once the client changes, so it mustn't swallow the new one.
 const groupSyncsInProgress = new Set<string>();
 
+// When each big group last synced light, by the same key. A light sync never
+// marks the roster complete, so syncedAt can't gate repeats of it.
+const lightSyncedAt = new Map<string, number>();
+
 export async function syncGroup(
   id: string,
   ctx?: SyncCtx,
-  config?: { force?: boolean }
+  // wholeRoster: callers that judge membership from the stored roster (role
+  // management, bot settings) still get every seat of a big group
+  config?: { force?: boolean; wholeRoster?: boolean }
 ) {
   const generation = getClientGeneration();
   const syncKey = `${generation}:${id}`;
-  if (groupSyncsInProgress.has(syncKey)) {
+  // a whole sync in flight serves any caller, but a light one can't serve a
+  // caller that needs every seat
+  const wholeKey = `${syncKey}:whole`;
+  if (
+    groupSyncsInProgress.has(wholeKey) ||
+    (!config?.wholeRoster && groupSyncsInProgress.has(syncKey))
+  ) {
     return;
   }
-  groupSyncsInProgress.add(syncKey);
+  const inProgressKey = config?.wholeRoster ? wholeKey : syncKey;
+  groupSyncsInProgress.add(inProgressKey);
   try {
     const group = await db.getGroup({ id });
     const session = getSession();
+    if (group && isRosterPaged(group) && !config?.wholeRoster) {
+      if (
+        session &&
+        (session.startTime ?? 0) < (lightSyncedAt.get(syncKey) ?? 0) &&
+        !config?.force
+      ) {
+        return;
+      }
+      // the light group still brings metadata, channels, roles and our seat;
+      // its members load a page at a time (syncGroupMembersPage), and with
+      // no whole roster to compare against, nothing is pruned here. A whole
+      // sync or a live event can land while it is in flight, and this older
+      // response must not undo either.
+      const snapshot = await snapshotRoster(id);
+      const response = await syncQueue.add('syncGroup', ctx, () =>
+        api.getGroupLight(id)
+      );
+      if (getClientGeneration() !== generation) return;
+      const stored = await batchEffects('syncGroup', async (queryCtx) => {
+        const members = await fitToLiveChanges(
+          id,
+          snapshot,
+          response.members ?? [],
+          queryCtx
+        );
+        const countNow = await db.getStoredMemberCount(
+          { groupId: id },
+          queryCtx
+        );
+        if (getClientGeneration() !== generation) return false;
+        await db.insertGroups(
+          {
+            groups: [
+              {
+                ...response,
+                members,
+                // left out, the stored count stands
+                memberCount:
+                  countNow === snapshot.count
+                    ? response.memberCount
+                    : undefined,
+              },
+            ],
+          },
+          queryCtx
+        );
+        // insertMembers logs a failed batch rather than throwing, so only
+        // count the sync done once every member landed
+        const storedIds = new Set(
+          await db.getGroupMemberIds({ groupId: id }, queryCtx)
+        );
+        const missing = members.filter(
+          (member) => !storedIds.has(member.contactId)
+        );
+        if (missing.length) {
+          logger.trackError('light group sync stored an incomplete roster', {
+            missing: missing.length,
+          });
+          return false;
+        }
+        return true;
+      });
+      if (!stored) return;
+      lightSyncedAt.set(syncKey, Date.now());
+      updateLastActivityTime();
+      return;
+    }
     if (
       group &&
       session &&
@@ -90,6 +171,6 @@ export async function syncGroup(
     console.error(e);
     throw e;
   } finally {
-    groupSyncsInProgress.delete(syncKey);
+    groupSyncsInProgress.delete(inProgressKey);
   }
 }

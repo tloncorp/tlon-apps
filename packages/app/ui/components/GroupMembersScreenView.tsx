@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { SectionListHeader } from '@tloncorp/ui';
+import { LoadingSpinner, SectionListHeader } from '@tloncorp/ui';
 import Fuse from 'fuse.js';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
@@ -27,6 +27,9 @@ export function GroupMembersScreenView({
   onPressAcceptJoinRequest,
   onPressRejectJoinRequest,
   onPressGoToProfile,
+  onEndReached,
+  isLoadingMore,
+  searchesLoadedOnly,
 }: {
   goBack: () => void;
   members: db.ChatMember[];
@@ -39,6 +42,11 @@ export function GroupMembersScreenView({
   onPressAcceptJoinRequest: (contactId: string) => void;
   onPressRejectJoinRequest: (contactId: string) => void;
   onPressGoToProfile: (contactId: string) => void;
+  // a big group's roster loads in pages as the list nears its end
+  onEndReached?: () => void;
+  isLoadingMore?: boolean;
+  // search covers only the members loaded so far
+  searchesLoadedOnly?: boolean;
 }) {
   const { bottom } = useSafeAreaInsets();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -252,7 +260,11 @@ export function GroupMembersScreenView({
         <View paddingHorizontal="$l" paddingBottom="$s">
           <TextInput
             icon="Search"
-            placeholder="Search by name or ID"
+            placeholder={
+              searchesLoadedOnly
+                ? 'Search loaded members by name or ID'
+                : 'Search by name or ID'
+            }
             value={searchQuery}
             onChangeText={setSearchQuery}
             spellCheck={false}
@@ -281,6 +293,15 @@ export function GroupMembersScreenView({
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
           stickySectionHeadersEnabled={false}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <View paddingVertical="$xl" alignItems="center">
+                <LoadingSpinner />
+              </View>
+            ) : null
+          }
         />
       </View>
       {selectedContact !== null && !selectedIsRequest && (

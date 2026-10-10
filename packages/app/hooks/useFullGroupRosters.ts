@@ -16,13 +16,18 @@ export function useFullGroupRosters(groupIds: string[]) {
   // one cancelled here could not be started again in the same breath.
   const [fetches] = useState(() =>
     makeKeyedFetches({
-      // syncGroup skips groups already fetched this session.
+      // syncGroup skips groups already fetched this session. wholeRoster:
+      // a big group otherwise syncs only its light roster.
       fetch: (groupId, abortSignal) =>
-        store.syncGroup(groupId, {
-          priority: store.SyncPriority.Low,
-          retry: true,
-          abortSignal,
-        }),
+        store.syncGroup(
+          groupId,
+          {
+            priority: store.SyncPriority.Low,
+            retry: true,
+            abortSignal,
+          },
+          { wholeRoster: true }
+        ),
       onError: (groupId, error) =>
         console.error('group roster sync failed', groupId, error),
     })

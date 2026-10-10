@@ -881,7 +881,7 @@ export function ChannelOptionsSheetContent({
       default:
         return group
           ? isSingleChannelGroup
-            ? `Group with ${group.members?.length ?? 0} members`
+            ? `Group with ${utils.getGroupMemberCount(group)} members`
             : `Channel in ${groupTitle}`
           : '';
     }

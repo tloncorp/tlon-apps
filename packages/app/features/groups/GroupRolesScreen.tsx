@@ -14,6 +14,7 @@ import {
   ScrollView,
   View,
   YStack,
+  getGroupMemberCount,
   useIsWindowNarrow,
 } from '../../ui';
 import { Badge } from '../../ui/components/Badge';
@@ -39,8 +40,10 @@ function GroupRolesScreenView({
 
   const insets = useSafeAreaInsets();
 
-  const { groupRoles, groupMembers } = useGroupContext({
+  // role counts come from the stored roster, so load all of it
+  const { group, groupRoles, groupMembers } = useGroupContext({
     groupId,
+    wholeRoster: true,
   });
 
   const handleGoBack = useHandleGoBack(navigation, {
@@ -164,7 +167,10 @@ function GroupRolesScreenView({
               gap="$xl"
               alignItems="center"
             >
-              <ListItem.Count notified={false} count={groupMembers.length} />
+              <ListItem.Count
+                notified={false}
+                count={group ? getGroupMemberCount(group) : 0}
+              />
             </ListItem.EndContent>
           </ListItem>
         </ActionSheet.ActionGroup>

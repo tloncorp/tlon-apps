@@ -232,7 +232,7 @@ export function useBotGroupMembership(
           .syncGroup(
             groupId,
             { priority: store.SyncPriority.High },
-            { force: true }
+            { force: true, wholeRoster: true }
           )
           .catch((error) =>
             console.error('bot settings: group sync failed', groupId, error)
