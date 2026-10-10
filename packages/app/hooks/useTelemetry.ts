@@ -22,6 +22,13 @@ import { usePosthog } from './usePosthog';
 
 const logger = createDevLogger('useTelemetry', false);
 
+// Which client lifetime has already attempted the enableTelemetry back-fill.
+// Shared rather than per hook instance because many components mount the hook
+// (one BotFeedbackRow per bot message), and a failed poke rolls the setting
+// back to null, which re-fires the effect in every one of them. Keyed on the
+// generation so a re-login tries again without any logout wiring.
+let backfilledGeneration: number | null = null;
+
 export function useClearTelemetryConfig() {
   const posthog = usePosthog();
 
@@ -226,6 +233,12 @@ export function useTelemetry(): TelemetryClient {
         settings.enableTelemetry === null) &&
       ready
     ) {
+      const generation = store.getClientGeneration();
+      if (backfilledGeneration === generation) {
+        return;
+      }
+      backfilledGeneration = generation;
+
       if (settings.logActivity !== undefined && settings.logActivity !== null) {
         logger.log('Updating telemetry setting from logActivity');
         store.updateEnableTelemetry(settings.logActivity);
