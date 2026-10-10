@@ -1395,3 +1395,119 @@ describe('NativeDb cache-generation recovery', () => {
     expect(recovery.setVersion).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('NativeDb concurrent purges', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sqliteRuntime.reset();
+  });
+
+  // A coalesced purge never reaches the reset, so a gate it was given would
+  // otherwise leak into the next test.
+  afterEach(() => {
+    sharedDbSpies.resetHeadsSyncedAt
+      .mockReset()
+      .mockImplementation(async () => undefined);
+  });
+
+  // Both purges park on the sync-state reset, so neither has reached its
+  // delete when the gate opens -- the overlap two logouts produced in
+  // production.
+  function gateSyncStateReset(calls: number) {
+    let release!: () => void;
+    const gate = new Promise<undefined>((resolve) => {
+      release = () => resolve(undefined);
+    });
+    for (let i = 0; i < calls; i++) {
+      sharedDbSpies.resetHeadsSyncedAt.mockImplementationOnce(() => gate);
+    }
+    return () => release();
+  }
+
+  function purgeFailure() {
+    return findEvent(
+      (event, payload) =>
+        event === 'ErrorNativeDb' &&
+        payload.context === 'purgeDb: error purging db'
+    );
+  }
+
+  it('coalesces overlapping purges into one delete and one recreate', async () => {
+    const first = sqliteRuntime.enqueueConnection();
+    const recreated = sqliteRuntime.enqueueConnection();
+    const db = new NativeDb();
+    await db.runMigrations();
+
+    const release = gateSyncStateReset(2);
+    const purges = Promise.all([db.purgeDb(), db.purgeDb()]);
+    await vi.waitFor(() =>
+      expect(sharedDbSpies.resetHeadsSyncedAt).toHaveBeenCalled()
+    );
+    release();
+    await purges;
+
+    expect(first.delete).toHaveBeenCalledTimes(1);
+    expect(recreated.delete).not.toHaveBeenCalled();
+    expect(purgeFailure()).toBeUndefined();
+    expect(sqliteRuntime.open).toHaveBeenCalledTimes(2);
+    expect(internals(db).connection).toBe(recreated);
+  });
+
+  it('leaves overlapping resetDb calls with one migrated, usable database', async () => {
+    const first = sqliteRuntime.enqueueConnection();
+    const recreated = sqliteRuntime.enqueueConnection();
+    const db = new NativeDb();
+    await db.runMigrations();
+
+    const release = gateSyncStateReset(2);
+    const resets = Promise.all([db.resetDb(), db.resetDb()]);
+    await vi.waitFor(() =>
+      expect(sharedDbSpies.resetHeadsSyncedAt).toHaveBeenCalled()
+    );
+    release();
+    await resets;
+
+    expect(first.delete).toHaveBeenCalledTimes(1);
+    expect(recreated.delete).not.toHaveBeenCalled();
+    expect(recreated.migrateClient).toHaveBeenCalledTimes(1);
+    expect(sqliteRuntime.open).toHaveBeenCalledTimes(2);
+    expect(findEvent((event) => event === 'ErrorNativeDb')).toBeUndefined();
+
+    await db.ensureDbReady();
+    expect(internals(db).didMigrate).toBe(true);
+    expect(internals(db).connection).toBe(recreated);
+    expect(internals(db).client).not.toBeNull();
+  });
+
+  it('does not hand an abandoned purge to a purge from the replacement', async () => {
+    const connection = sqliteRuntime.makeConnection({
+      migrateClient: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('initial migrate failed'))
+        .mockResolvedValue(undefined),
+    });
+    sqliteRuntime.enqueueConnection(connection);
+    const recreated = sqliteRuntime.enqueueConnection();
+    const release = gateSyncStateReset(1);
+    const db = new NativeDb();
+
+    const abandoned = db.ensureDbReady();
+    await vi.waitFor(() =>
+      expect(sharedDbSpies.resetHeadsSyncedAt).toHaveBeenCalledTimes(1)
+    );
+    expect(db.abandonDbInit()).toBe('abandoned');
+
+    // The parked purge belongs to the abandoned attempt and will stop at its
+    // generation check. Sharing that outcome would fail a purge nobody
+    // abandoned, so this one runs on its own.
+    await db.purgeDb();
+    expect(connection.delete).toHaveBeenCalledTimes(1);
+    expect(internals(db).connection).toBe(recreated);
+
+    release();
+    await expect(abandoned).rejects.toBeInstanceOf(DbInitAbandonedError);
+
+    expect(recreated.delete).not.toHaveBeenCalled();
+    expect(purgeFailure()).toBeUndefined();
+  });
+});
