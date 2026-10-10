@@ -169,40 +169,40 @@ Notes: people see your status under your name in their contacts list and in a `S
 ## Pin groups to your profile
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/FavoriteGroupsDisplay.tsx, packages/app/ui/components/GroupSelectorSheet.tsx, packages/app/ui/components/UserProfileScreenView.tsx -->
 
-Phone: open the Settings tab, tap `Your profile`, then the pencil icon at the top right. Under `Pinned groups`, tap `Add a group`, tap the groups you want, and tap `Save` on the sheet. To take one off, tap the X beside it.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Pinned groups`, tap `Add a group`, tap the groups you want, and tap `Save` on the sheet. To take one off, tap the X beside it.
 Desktop: click your avatar in the left rail, then the pencil icon, and use the same `Pinned groups` box.
 Notes: you can pin up to 5. Only groups you are a member of can be pinned, and secret groups can't be. Changes here apply straight away, without the `Save` at the top of the screen. People who open your profile see the groups as tiles and can tap one to preview it.
 
 ## Change your ID or username
-<!-- src: packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/UserProfileScreenView.tsx -->
+<!-- src: packages/app/ui/components/UserProfileScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/shared/src/store/contactActions.ts, packages/app/ui/components/ContactBook.tsx, packages/app/ui/hooks/contactSorters.ts -->
 <!-- absent: change username -->
 
-Notes: you can't. Your ID, the name that starts with ~, belongs to your node, and the profile editor has no field for it. What you can change is your `Nickname`, which people see in place of the ID. To copy your ID, open your own profile and tap your name. The app shows `Copied!`.
+Notes: you can't. Your ID, the name that starts with ~, stays tied to your node, and the profile editor has no field for changing it. Your profile nickname is editable display information that other people normally see with your ID still available on your profile and when copied. A contact can separately set a private nickname for you without changing your profile. Contact search accepts the start of a nickname or ID; entering a valid full ID also creates a selectable result even when that person is not already in the local contact list.
 
 ## Verify your phone number
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/EditProfile/EditAttestationsDisplay.tsx, packages/app/features/profile/AttestationScreen.tsx, packages/app/ui/components/PhoneAttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx -->
 <!-- covers: route:Attestation -->
 
-Phone: open the Settings tab, tap `Your profile`, then the pencil icon at the top right. Under `Connected Accounts`, tap `Phone`. Enter your number and tap `Connect Phone Number`. Then type the 6-digit code sent to that number. It submits by itself.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected Accounts`, tap `Phone`. Enter your number and tap `Connect Phone Number`. Then type the 6-digit code sent to that number. It submits by itself.
 Desktop: click your avatar in the left rail, then the pencil icon, and use the same rows.
 Notes: your profile then shows a `Phone` tile with a check mark. The number itself is hidden from everyone else. A number can be attached to one account only. If you mistyped it, tap `Wrong phone number?` and start again. The row reads `In Progress` until the code is confirmed, then `Verified`.
 
 ## Verify your X (Twitter) account
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/EditProfile/EditAttestationsDisplay.tsx, packages/app/features/profile/AttestationScreen.tsx, packages/app/ui/components/TwtitterAttestationPane.tsx, packages/app/ui/components/AttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx -->
 
-Phone: open the Settings tab, tap `Your profile`, then the pencil icon at the top right. Under `Connected Accounts`, tap `𝕏 Account`. Type your handle in `Handle` and tap `Submit`. The app shows a post for you to copy. Post it from that X account, paste the link to the post into `Attesting Post`, and tap `Submit`.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected Accounts`, tap `𝕏 Account`. Type your handle in `Handle` and tap `Submit`. The app shows a post for you to copy. Post it from that X account, paste the link to the post into `Attesting Post`, and tap `Submit`.
 Notes: protected X accounts are not supported. The post text includes your personal invite link if you have one. `Wrong account?` starts over. Afterwards your profile shows an `𝕏 Account` tile with your handle, and anyone can tap it for `View 𝕏 Post` and `View 𝕏 Account`. A handle can be attached to one account only.
 
 ## Remove a verified phone number or X account
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/EditProfile/EditAttestationsDisplay.tsx, packages/app/ui/components/AttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/shared/src/store/lanyardActions.ts -->
 
-Phone: open the Settings tab, tap `Your profile`, then the pencil icon at the top right. Under `Connected Accounts`, tap `Phone` or `𝕏 Account`, then tap `Revoke` at the bottom.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected Accounts`, tap `Phone` or `𝕏 Account`, then tap `Revoke` at the bottom.
 Notes: you can also tap the tile on your own profile. It opens the same details with `Revoke` at the bottom. Once revoked, the tile comes off your profile, and you can verify a different number or handle the same way you did the first. `Revoke` is only shown to the owner of the account.
 
 ## Control who can find you by phone number
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/PrivacyScreen.tsx, packages/app/ui/components/PhoneAttestationPane.tsx, packages/shared/src/store/lanyardActions.ts -->
 
-Phone: open the Settings tab, tap `Privacy`, and use the `Phone number discovery` switch.
+Phone: open the Settings tab and tap `Privacy`, and use the `Phone number discovery` switch.
 Who: the switch only appears once you have a verified phone number on your profile.
 Notes: it starts switched on when you verify. While it is on, friends who already have your phone number can find you on Tlon Messenger. Switch it off and they can't find you that way. Either way, your number is never shown on your profile.
 
