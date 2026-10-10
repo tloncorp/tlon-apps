@@ -1,0 +1,13 @@
+# Words that give away a feature behind a flag, one flag per line:
+#
+#   flagName: word, another word
+#
+# An entry that uses one of these in its own words must carry that flag's
+# anchor (<!-- flag: flagName -->), so promote holds it back until the flag is
+# on in the store build. The same goes for a file's title and opening lines,
+# which are published whatever the release. A quoted label is allowed.
+#
+# Matching is by whole word and exact case. Remove a line when its flag is
+# removed from the code.
+
+buckets: Bucket, Buckets

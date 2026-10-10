@@ -1,0 +1,138 @@
+name: Feature Map Update
+
+# Brings the product guide's feature map up to date when a new store build has
+# been tagged, and opens a pull request for a person to review and merge. See
+# docs/feature-map/README.md.
+#
+# Once a day it asks whether there is a store build newer than the one the map
+# describes (docs/feature-map/release.json). Usually there is not, and it stops
+# there. When there is, scripts/feature-map-update.sh has a coding agent update
+# the entries and a second one check them. Nothing is merged automatically:
+# merging changes what bots tell people.
+
+on:
+  schedule:
+    - cron: "0 15 * * *"
+  workflow_dispatch:
+    inputs:
+      to:
+        description: "Build tag to describe (default: the newest store build, if it is newer than the map)"
+        required: false
+        type: string
+      dry_run:
+        description: "Do the update and show the result in the run summary; push nothing, open no PR"
+        type: boolean
+        default: false
+
+# One update at a time, and never cancel one partway: a cancelled run has spent
+# the agent's time for nothing.
+concurrency:
+  group: feature-map-update
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    # A small update takes about ten minutes. A build with weeks of changes
+    # behind it reads far more.
+    timeout-minutes: 180
+    env:
+      HAS_MODEL_KEY: ${{ secrets.FEATURE_MAP_OPENROUTER_API_KEY != '' }}
+      HAS_PR_TOKEN: ${{ secrets.PIER_ARCHIVE_GH_TOKEN != '' }}
+      DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+
+    steps:
+      # Skip, not fail, so a fork or a repo without the secrets stays quiet.
+      # A dry run opens no PR, so it does not need the token for one.
+      - name: Check the secrets are set
+        id: secrets
+        run: |
+          missing=()
+          [ "$HAS_MODEL_KEY" = "true" ] || missing+=(FEATURE_MAP_OPENROUTER_API_KEY)
+          [ "$HAS_PR_TOKEN" = "true" ] || [ "$DRY_RUN" = "true" ] || missing+=(PIER_ARCHIVE_GH_TOKEN)
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::notice::Skipping: missing secrets: ${missing[*]}"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Full history and tags: the update reads the app's source at two builds
+      # and the changes between them. No persisted token: the agent in the
+      # next steps gets a checkout that cannot push.
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          ref: develop
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install the agent
+        if: steps.secrets.outputs.ready == 'true'
+        run: npm install --global @openai/codex@0.160.1
+
+      # The agent reads and edits here with the model key and nothing else: the
+      # token that can push is not in this step, and the script takes the
+      # read-only GH_TOKEN below out of the agent's environment. Its sandbox
+      # lets it write to the checkout but not to .git, and gives it no network.
+      - name: Update the map
+        id: update
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          TO: ${{ inputs.to }}
+          GH_TOKEN: ${{ github.token }}
+          OPENROUTER_API_KEY: ${{ secrets.FEATURE_MAP_OPENROUTER_API_KEY }}
+          FEATURE_MAP_AGENT: >-
+            codex exec -s workspace-write
+            -c 'model_provider="openrouter"'
+            -c 'model_providers.openrouter={ name = "OpenRouter", base_url = "https://openrouter.ai/api/v1", env_key = "OPENROUTER_API_KEY", wire_api = "responses" }'
+            -c 'model_reasoning_effort="high"'
+            -m openai/gpt-6.1-sol -
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$TO" ]; then
+            scripts/feature-map-update.sh --prepare --to "$TO"
+          else
+            scripts/feature-map-update.sh --prepare
+          fi
+
+      - name: Show the result
+        if: steps.update.outputs.branch != ''
+        env:
+          BRANCH: ${{ steps.update.outputs.branch }}
+          BODY: ${{ steps.update.outputs.body }}
+        run: |
+          {
+            cat "$BODY"
+            echo
+            echo '```diff'
+            git show --stat --format= "$BRANCH"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # A PR opened with GITHUB_TOKEN gets only approval-gated CI, so it is
+      # opened with the same fine-grained PAT the pier archive refresh uses
+      # (Contents + Pull requests R/W on this repo). The PR is authored by the
+      # token's owner.
+      - name: Open the pull request
+        if: steps.update.outputs.branch != '' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.PIER_ARCHIVE_GH_TOKEN }}
+          BRANCH: ${{ steps.update.outputs.branch }}
+          TITLE: ${{ steps.update.outputs.title }}
+          BODY: ${{ steps.update.outputs.body }}
+        run: |
+          git push \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "$BRANCH:refs/heads/$BRANCH"
+          gh pr create --repo "$GITHUB_REPOSITORY" --base develop \
+            --head "$BRANCH" --title "$TITLE" --body-file "$BODY"

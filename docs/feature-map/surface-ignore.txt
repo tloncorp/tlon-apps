@@ -1,0 +1,25 @@
+# Surface items the feature map does not cover, one per line, each with a
+# reason. `feature-map.mjs check` fails on anything in the code that is neither
+# covered by an entry nor listed here.
+
+# Slash commands are explained in the product guide's SKILL.md under
+# "Slash commands". When you add or change one, update it there.
+command:allow
+command:ban
+command:banned
+command:help
+command:migrate
+command:model
+command:new
+command:owner-listen
+command:pending
+command:reject
+command:status
+command:tlon
+command:tlon-version
+command:unban
+
+action:debugJson      # development builds only
+route:AppSettings     # link path only; no screen is registered for it
+route:Empty           # declared in the types, never shown
+route:VerifierStub    # declared in the types, never shown
