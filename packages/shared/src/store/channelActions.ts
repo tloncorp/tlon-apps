@@ -16,6 +16,7 @@ import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
 import { syncNotesNotebook } from './notesActions';
+import { getClientGeneration } from './session';
 
 const logger = createDevLogger('ChannelActions', false);
 // Channel types a client may still create. 'notebook' — the %diary type — is
@@ -920,15 +921,102 @@ export async function markChannelVisited(channelId: string) {
   await db.updateChannel({ id: channelId, lastViewedAt: Date.now() });
 }
 
-export async function markChannelRead({
-  id,
-  groupId,
-  includeThreads,
-}: {
+// A failed read poke rolls the unread back, which re-arms the mark-read effect
+// in the channel screen. Without this latch a ship that keeps rejecting the
+// poke gets four pokes every ~16 s for as long as the channel is open. A
+// channel is retried once its unread changes or the connection comes back.
+// Shallow and deep reads latch separately: their snapshots differ, so one
+// mode's failure overwriting the other's would re-arm it.
+const failedChannelReads = new Map<
+  string,
+  { generation: number; snapshot: string }
+>();
+
+function failedChannelReadKey(id: string, includeThreads: boolean) {
+  return `${id}:${includeThreads ? 'deep' : 'shallow'}`;
+}
+
+// The ship accepted a read, so neither mode's latch says anything about it any
+// more. A read from an earlier login must not clear a latch the current one set.
+export function forgetFailedChannelReads(id: string, generation: number) {
+  for (const includeThreads of [false, true]) {
+    const key = failedChannelReadKey(id, includeThreads);
+    if (failedChannelReads.get(key)?.generation === generation) {
+      failedChannelReads.delete(key);
+    }
+  }
+}
+
+// Bumped by every reset, so a read that was already in flight when the
+// connection came back cannot latch the channel with its stale failure.
+let failedChannelReadsResetEpoch = 0;
+
+// The fields new activity rewrites: updatedAt moves with any new event, and
+// count/notify/firstUnreadPostId catch a change that keeps the same recency.
+// A deep read also clears thread rows, which thread sync can rewrite without
+// touching the channel row: a new reply bumps a row's updatedAt and count, and
+// a newly unread thread adds a row.
+function getChannelReadSnapshot(
+  unread: db.ChannelUnread | null | undefined,
+  threadUnreads: db.ThreadUnreadState[] | null
+) {
+  return JSON.stringify([
+    unread?.count ?? null,
+    unread?.countWithoutThreads ?? null,
+    unread?.notify ?? null,
+    unread?.updatedAt ?? null,
+    unread?.firstUnreadPostId ?? null,
+    threadUnreads
+      ? [
+          threadUnreads.length,
+          threadUnreads.reduce((sum, thread) => sum + (thread.count ?? 0), 0),
+          Math.max(0, ...threadUnreads.map((thread) => thread.updatedAt)),
+        ]
+      : null,
+  ]);
+}
+
+export function resetFailedChannelReads() {
+  failedChannelReadsResetEpoch += 1;
+  failedChannelReads.clear();
+}
+
+type MarkChannelReadParams = {
   id: string;
   groupId?: string;
   includeThreads?: boolean;
-}) {
+  // explicit user actions bypass the failure latch; the automatic screen read does not
+  force?: boolean;
+};
+
+// Each read snapshots the unread and rolls back to it on failure, so two reads
+// of one channel in flight at once restore each other's optimistic clear. A
+// later call queues rather than sharing the earlier promise: activity that
+// arrived after the first read's snapshot still needs a read of its own.
+const inFlightChannelReads = new Map<string, Promise<boolean>>();
+
+export function markChannelRead(params: MarkChannelReadParams) {
+  const { id } = params;
+  const previous = inFlightChannelReads.get(id) ?? Promise.resolve(false);
+  const run = previous
+    .catch(() => false)
+    .then(() => markChannelReadOnce(params));
+  inFlightChannelReads.set(id, run);
+  const settle = () => {
+    if (inFlightChannelReads.get(id) === run) {
+      inFlightChannelReads.delete(id);
+    }
+  };
+  run.then(settle, settle);
+  return run;
+}
+
+async function markChannelReadOnce({
+  id,
+  groupId,
+  includeThreads,
+  force,
+}: MarkChannelReadParams) {
   // per-note unreads ride thread rows, so a notes channel read is only
   // meaningful deep — otherwise the note dots (and their backend sources)
   // survive the channel badge being cleared
@@ -939,19 +1027,32 @@ export async function markChannelRead({
   if (id.startsWith('notes/') && !api.getActivitySupportsNotes()) {
     return false;
   }
+  const existingUnread = await db.getChannelUnread({ channelId: id });
+  const existingThreadUnreads = includeThreads
+    ? await db.getThreadUnreadsByChannel({ channelId: id, excludeRead: true })
+    : [];
+  const generation = getClientGeneration();
+  const resetEpoch = failedChannelReadsResetEpoch;
+  const snapshot = getChannelReadSnapshot(
+    existingUnread,
+    includeThreads ? existingThreadUnreads : null
+  );
+  const latchKey = failedChannelReadKey(id, includeThreads);
+  const previousFailure = failedChannelReads.get(latchKey);
+  if (
+    !force &&
+    previousFailure?.generation === generation &&
+    previousFailure.snapshot === snapshot
+  ) {
+    return false;
+  }
   logger.log(`marking channel as read`, id, 'includeThreads', includeThreads);
   // optimistic update
-  const existingUnread = await db.getChannelUnread({ channelId: id });
   const existingGroupUnread = groupId
     ? await db.getGroupUnread({ groupId })
     : null;
 
-  let existingThreadUnreads: db.ThreadUnreadState[] = [];
   if (includeThreads) {
-    existingThreadUnreads = await db.getThreadUnreadsByChannel({
-      channelId: id,
-      excludeRead: true,
-    });
     await db.clearChannelThreadUnreads({ channelId: id });
   }
   if (existingUnread) {
@@ -1040,9 +1141,13 @@ export async function markChannelRead({
       groupId: existingChannel.groupId,
       deep: !!includeThreads,
     });
+    forgetFailedChannelReads(id, generation);
     return true;
   } catch (e) {
     logger.error('Failed to read channel', { id, groupId }, e);
+    if (resetEpoch === failedChannelReadsResetEpoch) {
+      failedChannelReads.set(latchKey, { generation, snapshot });
+    }
     // rollback optimistic update
     if (existingUnread) {
       await db.insertChannelUnreads([existingUnread]);

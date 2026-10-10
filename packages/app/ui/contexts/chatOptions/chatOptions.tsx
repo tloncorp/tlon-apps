@@ -319,6 +319,7 @@ export const ChatOptionsProvider = ({
           id: channelId,
           groupId: groupId,
           includeThreads,
+          force: true,
         }))
       ) {
         trackEvent(AnalyticsEvent.ChatMarkedRead);
