@@ -149,7 +149,7 @@ export function WorkspaceInstructionsSheet({
     : !writable
       ? "This group's bot settings were saved by a newer version of the app. Update to edit them."
       : botsQuery.isSuccess && !bot
-        ? 'You need a bot to set instructions for this group.'
+        ? 'You need a Tlonbot to set instructions for this group.'
         : isDirty
           ? 'Unsaved changes'
           : 'Anyone in this group can read these.';
@@ -173,7 +173,7 @@ export function WorkspaceInstructionsSheet({
     <ActionSheet
       open
       onOpenChange={handleOpenChange}
-      title="Edit bot instructions"
+      title="Tlonbot instructions"
       modal
       closeButton
       dialogContentProps={{ width: 576, minWidth: 520, maxWidth: 576 }}
@@ -202,7 +202,7 @@ export function WorkspaceInstructionsSheet({
                   minWidth={0}
                   numberOfLines={1}
                 >
-                  Bot instructions
+                  Instructions
                 </Text>
                 {bot ? (
                   <Text
@@ -216,7 +216,7 @@ export function WorkspaceInstructionsSheet({
                 ) : null}
               </XStack>
               <Text size="$label/m" color="$secondaryText">
-                How your bot behaves in every channel of{' '}
+                How your Tlonbot behaves in every channel of{' '}
                 {group.title || 'this group'}.
               </Text>
             </YStack>
@@ -295,8 +295,8 @@ export function WorkspaceInstructionsSheet({
                   name="text"
                   control={control}
                   inputProps={{
-                    accessibilityLabel: 'Bot instructions',
-                    placeholder: 'How should your bot behave here?',
+                    accessibilityLabel: 'Tlonbot instructions',
+                    placeholder: 'How should your Tlonbot behave here?',
                     multiline: true,
                     minHeight: editorHeight,
                     textAlignVertical: 'top',

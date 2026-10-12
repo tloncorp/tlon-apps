@@ -190,7 +190,7 @@ describe('blob cache', () => {
     expect(fetchBlob).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps a fact that lands while a fetch is in flight', async () => {
+  it('prefers a fact that lands while a fetch is in flight', async () => {
     let resolveFetch!: (blob: string) => void;
     const { runtime, fetchBlob } = setup({
       fetchBlob: () => new Promise((resolve) => (resolveFetch = resolve)),
@@ -202,7 +202,7 @@ describe('blob cache', () => {
       'r-group': { blob: blobFor({ bot: '~bot', instructions: 'Be formal.' }) },
     });
     resolveFetch(blobFor({ bot: '~bot', instructions: 'Keep it short.' }));
-    await first;
+    expect((await first)?.prependSystemContext).toContain('Be formal.');
     const result = await runtime.handleBeforePromptBuild({ sessionKey });
     expect(result?.prependSystemContext).toContain('Be formal.');
   });

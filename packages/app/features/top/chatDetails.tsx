@@ -576,7 +576,7 @@ export function SettingsSection({
         ...(supportsInstructions
           ? [
               {
-                title: 'Bot instructions',
+                title: 'Tlonbot instructions',
                 endValue: hasWorkspaceInstructions(group) ? 'On' : 'Off',
                 testID: 'GroupInstructions',
                 disabled: !actionsEnabled,

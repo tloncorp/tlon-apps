@@ -111,11 +111,12 @@ export function createWorkspaceInstructionsRuntime(deps: {
     const task = deps
       .fetchBlob(flag)
       .then((blob) => {
-        // A `/v3/groups` fact that landed meanwhile is newer; keep it.
+        // A `/v3/groups` fact that landed meanwhile is newer; keep it and
+        // answer with it.
         if (inFlight.get(flag) === task) {
           blobs.set(flag, { at: now(), blob });
         }
-        return blob;
+        return blobs.get(flag)?.blob ?? blob;
       })
       .finally(() => inFlight.delete(flag));
     inFlight.set(flag, task);
