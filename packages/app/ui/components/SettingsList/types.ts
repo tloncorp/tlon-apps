@@ -109,6 +109,11 @@ export interface SettingsSectionModel {
 
 export interface SettingsListProps {
   sections: SettingsSectionModel[];
+  /**
+   * Web only: keeps the rows to a centered column at most this wide, rather
+   * than the whole width of a wide window.
+   */
+  maxWidth?: number;
 }
 
 /** A search over a settings list, kept in the screen's own state. */
