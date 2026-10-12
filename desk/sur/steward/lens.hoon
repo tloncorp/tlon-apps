@@ -55,11 +55,15 @@
 ::            local gateway should re-dispatch. Only emitted on the bot ship.
 ::    %recent: a batch of entries, returned by the /recent and /since scries
 ::            so HTTP clients can read them as JSON. Never facted on the sub.
+::    %page: one page of a cron job's runs, newest first, with .total, how
+::           many runs of the job are stored. returned by the /cron scries;
+::           never facted on the sub.
 ::
 +$  update
   $%  [%entry =entry]
       [%retry-requested =id requester=ship]
       [%recent entries=(list entry)]
+      [%page total=@ud entries=(list entry)]
   ==
 ++  v1  .
 --
