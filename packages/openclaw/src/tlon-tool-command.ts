@@ -496,6 +496,31 @@ function ownerWorkspaceArgs(
   };
 }
 
+const AGENT_OPTION_PROBE_ARGS = ['groups', 'create-owned', '--help'];
+const AGENT_OPTION_TOKEN = /(?<![\w-])--agent(?![\w-])/;
+
+/**
+ * Whether the installed CLI's create-owned takes --agent. A CLI without it
+ * ignores the option, so running it as the owner would invite the owner to
+ * its own group and leave the bot out; the caller keeps the bot-hosted create
+ * instead. The Hermes adapter probes the same way.
+ */
+async function cliSupportsAgentOption(
+  deps: TlonToolExecutorDeps
+): Promise<boolean> {
+  let help = '';
+  try {
+    help = await deps.runCommand(AGENT_OPTION_PROBE_ARGS);
+  } catch {
+    // A probe that did not run says nothing about support.
+  }
+  if (AGENT_OPTION_TOKEN.test(help)) return true;
+  deps.logError?.(
+    "Creating the workspace on the bot's ship: the installed tlon CLI's groups create-owned does not take --agent."
+  );
+  return false;
+}
+
 export type TlonToolExecutorDeps = {
   runCommand: (args: string[]) => Promise<string>;
   notifyDiaryMigrationDiscovery: (nest: string) => Promise<boolean>;
@@ -641,7 +666,7 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         commandArgs = [...prefixArgs, ...args];
       } else if (shouldCreateWorkspaceOnOwner(args, deps.ownerShip)) {
         const ownerArgs = ownerWorkspaceArgs(deps);
-        if (ownerArgs) {
+        if (ownerArgs && (await cliSupportsAgentOption(deps))) {
           commandArgs = [...ownerArgs.prefix, ...args, ...ownerArgs.suffix];
         }
       }

@@ -1178,7 +1178,10 @@ async def execute_tlon_tool(
         cfg = owner_cfg
     elif should_create_workspace_on_owner(args, cfg.owner_ship):
         owner_workspace = owner_workspace_config(cfg)
-        if owner_workspace is not None:
+        if (
+            owner_workspace is not None
+            and await TlonCLI(cfg, runner=runner).supports_agent_option()
+        ):
             cfg, agent = owner_workspace
             args = [*args, "--agent", agent]
 

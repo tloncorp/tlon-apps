@@ -458,6 +458,10 @@ describe('owner credential injection for groups invite-link', () => {
 describe('owner-hosted workspaces for groups create-owned', () => {
   const SKILL_DIR = '/srv/tlon-skill';
   const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+  const HELP_WITH_AGENT =
+    'Usage: tlon groups create-owned "Group Name" --owner <ship> [--agent <ship>] [--description "..."]';
+  const HELP_WITHOUT_AGENT =
+    'Usage: tlon groups create-owned "Group Name" --owner <ship> [--description "..."]';
 
   function makeExecutor(
     overrides: {
@@ -465,9 +469,13 @@ describe('owner-hosted workspaces for groups create-owned', () => {
       botShip?: string;
       env?: NodeJS.ProcessEnv;
       fileExists?: (path: string) => boolean;
+      help?: string;
     } = {}
   ) {
-    const runCommand = vi.fn(async () => 'Owned group created successfully!');
+    const { help = HELP_WITH_AGENT, ...deps } = overrides;
+    const runCommand = vi.fn(async (args: string[]) =>
+      args.includes('--help') ? help : 'Owned group created successfully!'
+    );
     const logError = vi.fn();
     const execute = createTlonToolExecutor({
       runCommand,
@@ -477,7 +485,7 @@ describe('owner-hosted workspaces for groups create-owned', () => {
       botShip: '~pinser-botter-owner',
       env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
       fileExists: (path: string) => path === OWNER_CONFIG,
-      ...overrides,
+      ...deps,
     });
     return { execute, runCommand, logError };
   }
@@ -503,6 +511,34 @@ describe('owner-hosted workspaces for groups create-owned', () => {
       '~pinser-botter-owner',
     ]);
     expect(result.details).toBeUndefined();
+  });
+
+  it('keeps the bot-hosted workspace when the CLI predates --agent', async () => {
+    // An older CLI ignores --agent, so running it as the owner would leave
+    // the bot out of the workspace.
+    const { execute, runCommand, logError } = makeExecutor({
+      help: HELP_WITHOUT_AGENT,
+    });
+
+    await execute('old-cli', {
+      command: 'groups create-owned Projects --owner ~owner',
+    });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      'groups',
+      'create-owned',
+      '--help',
+    ]);
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~owner',
+    ]);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('does not take --agent')
+    );
   });
 
   it('reads --agent only after the title, as the CLI does', async () => {

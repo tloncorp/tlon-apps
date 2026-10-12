@@ -1855,12 +1855,24 @@ class OwnerWorkspacePredicateTests(unittest.TestCase):
         )
 
 
+CREATE_OWNED_HELP_WITH_AGENT = (
+    'Usage: tlon groups create-owned "Group Name" --owner <ship> '
+    '[--agent <ship>] [--description "..."]\n'
+)
+CREATE_OWNED_HELP_WITHOUT_AGENT = (
+    'Usage: tlon groups create-owned "Group Name" --owner <ship> '
+    '[--description "..."]\n'
+)
+
+
 class OwnerWorkspaceRoutingTests(unittest.TestCase):
-    def _run(self, command, cfg, env=None):
+    def _run(self, command, cfg, env=None, help_text=CREATE_OWNED_HELP_WITH_AGENT):
         calls = []
 
         async def runner(argv, run_env, timeout, _on_deadline):
             calls.append((tuple(argv), dict(run_env)))
+            if "--help" in argv:
+                return tlon_api.TlonProcessResult(returncode=0, stdout=help_text)
             return tlon_api.TlonProcessResult(
                 returncode=0, stdout="✅ Owned group created successfully!\n"
             )
@@ -1882,7 +1894,11 @@ class OwnerWorkspaceRoutingTests(unittest.TestCase):
         )
 
         self.assertTrue(payload["success"])
-        argv, run_env = calls[0]
+        probe_argv, _probe_env = calls[0]
+        self.assertEqual(
+            probe_argv, ("tlon-test", "groups", "create-owned", "--help")
+        )
+        argv, run_env = calls[-1]
         self.assertEqual(
             argv,
             (
@@ -1912,6 +1928,28 @@ class OwnerWorkspaceRoutingTests(unittest.TestCase):
 
         self.assertTrue(payload["success"])
         argv, run_env = calls[0]
+        self.assertEqual(
+            argv,
+            ("tlon-test", "groups", "create-owned", "Projects", "--owner", "~owner"),
+        )
+        self.assertEqual(run_env["TLON_SHIP"], "~bot")
+        self.assertEqual(run_env["TLON_CODE"], BOT_CODE)
+
+    def test_keeps_the_bot_hosted_workspace_when_the_cli_lacks_agent(self):
+        # An older CLI ignores --agent, so running it as the owner would leave
+        # the bot out of the workspace.
+        cfg = _bot_config()
+
+        with self.assertLogs(tlon_api.logger, level="ERROR"):
+            payload, calls = self._run(
+                "groups create-owned Projects --owner ~owner",
+                cfg,
+                OWNER_ENV,
+                help_text=CREATE_OWNED_HELP_WITHOUT_AGENT,
+            )
+
+        self.assertTrue(payload["success"])
+        argv, run_env = calls[-1]
         self.assertEqual(
             argv,
             ("tlon-test", "groups", "create-owned", "Projects", "--owner", "~owner"),

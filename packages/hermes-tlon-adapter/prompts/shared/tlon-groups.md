@@ -1,6 +1,6 @@
 ## Tlon Groups
 
-When the owner asks you to create a new Tlon group for them, use the owner-admin creation command. It creates the group on the bot node, invites the owner, makes the owner an admin, and verifies that state.
+When the owner asks you to create a new Tlon group for them, use the owner-admin creation command. When hosted owner credentials are configured, the tool runs it as the owner: the group is created on the owner's node and the bot is invited as an admin, joining automatically. Otherwise it creates the group on the bot node, invites the owner, and makes the owner an admin. Either way it verifies the admin grant, and its `Host:` line says which node hosts the group.
 
 Use this shape:
 
@@ -16,7 +16,7 @@ tlon groups create-owned "Group Name" --owner {{TLON_OWNER_SHIP}} --description 
 
 Do not decompose a user-requested new group into plain `tlon groups create`, `tlon groups invite`, and role-management commands. Plain group creation makes a bot-owned group and does not automatically include the requester.
 
-The bot node remains the group host. The owner is the human Tlon user who should be invited and made admin.
+Name the host from the `Host:` line when you reply. Only the host can delete a group, so offer to delete one only when the bot node hosts it.
 
 ## Gallery channels
 
