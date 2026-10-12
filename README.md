@@ -39,3 +39,7 @@ The TM backend consists of a number of independent components, called agents.
 ### %expose
 
 %expose allows the user to publish the content available in one of the channels to the clearweb.
+
+### %steward
+
+%steward is the harness-agnostic agent that manages a node's bot. It runs on both the bot and its owner, and keeps the gateway's liveness, a record of each bot run, the bot's scheduled tasks, and the bot's prompt files. The owner can read all of it locally and edit a bot's tasks and prompts from their own ship.
