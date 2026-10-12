@@ -1026,7 +1026,11 @@ def should_create_workspace_on_owner(
         return False
     if command_args[1].lower() != "create-owned":
         return False
-    if any(arg == "--agent" or _is_help_arg(arg) for arg in command_args):
+    if any(_is_help_arg(arg) for arg in command_args):
+        return False
+    # Options follow the title, as the CLI parses them: a workspace may be
+    # titled "--agent".
+    if "--agent" in command_args[3:]:
         return False
     if "--owner" not in command_args[3:]:
         return False

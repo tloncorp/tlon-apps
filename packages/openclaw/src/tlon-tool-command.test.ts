@@ -505,6 +505,26 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     expect(result.details).toBeUndefined();
   });
 
+  it('reads --agent only after the title, as the CLI does', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('title', {
+      command: 'groups create-owned --agent --owner ~owner',
+    });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      '--ship',
+      '~owner',
+      'groups',
+      'create-owned',
+      '--agent',
+      '--owner',
+      '~owner',
+      '--agent',
+      '~pinser-botter-owner',
+    ]);
+  });
+
   it.each([
     ['another requester', 'groups create-owned Projects --owner ~someone'],
     ['an explicit agent', 'groups create-owned P --owner ~owner --agent ~x'],

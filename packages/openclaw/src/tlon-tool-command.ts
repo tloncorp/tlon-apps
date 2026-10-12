@@ -459,9 +459,10 @@ export function shouldCreateWorkspaceOnOwner(
   const commandArgs = args.slice(subIdx);
   if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
   if (commandArgs[1]?.toLowerCase() !== 'create-owned') return false;
-  if (commandArgs.some((arg) => arg === '--agent' || HELP_TOKENS.has(arg))) {
-    return false;
-  }
+  if (commandArgs.some((arg) => HELP_TOKENS.has(arg))) return false;
+  // Options follow the title, as the CLI parses them: a workspace may be
+  // titled "--agent".
+  if (commandArgs.slice(3).includes('--agent')) return false;
 
   const ownerIdx = commandArgs.indexOf('--owner', 3);
   const owner = ownerIdx < 0 ? undefined : commandArgs[ownerIdx + 1];
