@@ -42,4 +42,4 @@ The TM backend consists of a number of independent components, called agents.
 
 ### %steward
 
-%steward is the harness-agnostic agent that manages a node's bot. It runs on both the bot and its owner, and keeps the gateway's liveness, a record of each bot run, the bot's scheduled tasks, and the bot's prompt files. The run record is what drives Context Lens in the UI, the badge and Bot Run sheet on a bot's messages. The owner can read all of it locally and edit a bot's tasks and prompts from their own ship.
+%steward is the harness-agnostic agent that manages a node's bot. It runs on both the bot's node and its owner's node, and keeps the gateway's liveness, a durable record of each bot turn, the bot's scheduled tasks, and the bot's prompt files. The owner can read all of it locally and edit a bot's tasks and prompts from their own ship. %steward's run record is what drives Context Lens, the Tlon Messenger UI element that allows a user to inspect all of their bot's past activity.
