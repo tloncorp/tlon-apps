@@ -20,6 +20,7 @@ import {
   buildTaskCreate,
   buildTaskUpdate,
   canEditPrompt,
+  canTestTask,
   describeAutomationError,
   describeTestRunError,
   destinationForChannel,
@@ -395,6 +396,7 @@ function TaskEditor({ navigation, route }: Props) {
 
   const status = task ? taskStatus(task) : undefined;
   const held = status === 'held';
+  const testable = task ? canTestTask(task) : false;
   const runs =
     task && history.supported
       ? {
@@ -403,13 +405,15 @@ function TaskEditor({ navigation, route }: Props) {
           onPress: () => openRuns('ScheduledTaskRuns'),
           test: {
             busy: busy === 'test',
-            disabled: held || Boolean(patch) || busy !== null,
+            disabled: !testable || held || Boolean(patch) || busy !== null,
             onPress: () => void testRun(),
-            note: held
-              ? 'Testing is paused while credits are limited.'
-              : patch
-                ? 'Save your changes to test them. A test runs the saved task.'
-                : 'A test run shows you what this task produces now. It posts nothing and leaves the schedule as it is.',
+            note: !testable
+              ? "This task runs in your bot's main session, so it can't be tested on its own."
+              : held
+                ? 'Testing is paused while credits are limited.'
+                : patch
+                  ? 'Save your changes to test them. A test runs the saved task.'
+                  : 'A test run shows you what this task produces now. It posts nothing and leaves the schedule as it is.',
           },
         }
       : undefined;

@@ -73,6 +73,7 @@ export type CronTestJob = {
   id: string;
   name?: string;
   agentId?: string;
+  sessionTarget?: string;
   payload?: {
     kind?: string;
     message?: string;
@@ -91,12 +92,23 @@ function readJob(raw: unknown): CronTestJob | null {
   return typeof job.id === 'string' ? (job as CronTestJob) : null;
 }
 
-/** The prompt text a job's payload carries, whichever payload kind it is. */
+/**
+ * Whether a test can stand in for the job: an agent turn in a session of its
+ * own. A main-session job, or a system event, runs inside the bot's ongoing
+ * conversation, which a scratch session has none of, so a test would show
+ * something the schedule never produces.
+ */
+export function canTestCronJob(job: CronTestJob): boolean {
+  const target = job.sessionTarget?.trim();
+  return (
+    (!target || target === 'isolated') &&
+    (job.payload?.kind ?? 'agentTurn') === 'agentTurn'
+  );
+}
+
+/** The prompt an agent-turn job runs. */
 export function cronTestPromptText(job: CronTestJob): string | null {
-  const text =
-    job.payload?.kind === 'systemEvent'
-      ? job.payload.text
-      : (job.payload?.message ?? job.payload?.text);
+  const text = job.payload?.message ?? job.payload?.text;
   return text?.trim() ? text.trim() : null;
 }
 
@@ -249,6 +261,15 @@ export async function startCronTestRun(
       type: 'error',
       errorType: 'not-found',
       message: [`unknown cron job id: ${jobId}`],
+    };
+  }
+  if (!canTestCronJob(job)) {
+    return {
+      type: 'error',
+      errorType: 'invalid',
+      message: [
+        'only a task that runs in its own session can be tested; this one runs in the main session',
+      ],
     };
   }
   const prompt = cronTestPromptText(job);

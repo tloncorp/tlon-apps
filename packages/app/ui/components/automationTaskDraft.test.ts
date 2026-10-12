@@ -11,6 +11,7 @@ import {
   cronExpressionFor,
   describeAutomationError,
   describeTestRunError,
+  canTestTask,
   destinationForChannel,
   destinationFromDelivery,
   draftFromTask,
@@ -1090,8 +1091,30 @@ describe('describeTestRunError', () => {
         refusal('invalid', 'Invalid steward automation dispatch: action')
       )
     ).toBe('Your bot needs an update before it can test tasks.');
+    expect(
+      describeTestRunError(
+        refusal(
+          'invalid',
+          'only a task that runs in its own session can be tested; this one runs in the main session'
+        )
+      )
+    ).toBe(
+      "Only a task that runs on its own can be tested. This one runs in your bot's main session."
+    );
     expect(describeTestRunError(refusal('unknown'))).toBe(
       'Your bot needs an update before it can test tasks.'
     );
+  });
+});
+
+describe('canTestTask', () => {
+  it('offers tests only for agent turns in a session of their own', () => {
+    const turn = { payload: { kind: 'agentTurn', message: 'Go' } };
+    expect(canTestTask(turn)).toBe(true);
+    expect(canTestTask({ ...turn, sessionTarget: 'isolated' })).toBe(true);
+    expect(canTestTask({ ...turn, sessionTarget: 'main' })).toBe(false);
+    expect(
+      canTestTask({ payload: { kind: 'systemEvent', message: 'Go' } })
+    ).toBe(false);
   });
 });

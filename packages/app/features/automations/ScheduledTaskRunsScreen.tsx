@@ -8,6 +8,7 @@ import { useIsWindowNarrow } from '../../ui';
 import type { ContextLens } from '../../ui/components/Channel/ContextLens/types';
 import { TaskRunHistoryView } from '../../ui/components/TaskRunHistory';
 import {
+  canTestTask,
   describeTestRunError,
   taskStatus,
   taskTitle,
@@ -90,7 +91,7 @@ export function ScheduledTaskRunsScreen({ navigation, route }: Props) {
         task && history.supported
           ? {
               busy: testing,
-              disabled: taskStatus(task) === 'held',
+              disabled: taskStatus(task) === 'held' || !canTestTask(task),
               onPress: () => void test(),
             }
           : undefined

@@ -663,6 +663,19 @@ export function describeAutomationError(error: unknown): string {
 }
 
 /**
+ * Whether a test run can stand in for the task: an agent turn in a session
+ * of its own. A main-session task, or a system event, runs inside the bot's
+ * ongoing conversation, which a test cannot reproduce; the bot refuses those.
+ */
+export function canTestTask(task: StewardAutomationTask): boolean {
+  const target = task.sessionTarget?.trim();
+  return (
+    (!target || target === 'isolated') &&
+    (task.payload?.kind ?? 'agentTurn') === 'agentTurn'
+  );
+}
+
+/**
  * A failed test run request, for a toast. A bot whose node or plugin
  * predates test runs turns the request down as one it cannot read: an
  * `invalid` from the plugin, or an `unknown` from its node refusing the poke.
@@ -681,6 +694,9 @@ export function describeTestRunError(error: unknown): string {
     case 'not-found':
       return 'This task no longer exists.';
     case 'invalid':
+      if (detail.includes('main session')) {
+        return "Only a task that runs on its own can be tested. This one runs in your bot's main session.";
+      }
       if (detail.includes('context lens')) {
         return 'Test runs need Context Lens, which is turned off on your bot.';
       }

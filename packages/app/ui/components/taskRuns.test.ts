@@ -141,6 +141,17 @@ describe('taskRunOutcome', () => {
         })
       )
     ).toBe('failed');
+    // A delivery error is a failure even without a delivery status.
+    expect(
+      taskRunOutcome(
+        run({
+          cron: {
+            jobId: 'job-1',
+            outcome: { status: 'ok', deliveryError: 'rate limited' },
+          },
+        })
+      )
+    ).toBe('failed');
     // Posted, even with no summary to show for it.
     expect(
       taskRunOutcome(

@@ -38,9 +38,15 @@ function isSilent(outcome: CronOutcome) {
   );
 }
 
-/** Output the run produced that the host could not post. */
+/**
+ * Output the run produced that the host could not post. A delivery error
+ * says so on its own, since the host may leave the status out.
+ */
 function deliveryFailed(outcome: CronOutcome | undefined) {
-  return outcome?.deliveryStatus === 'not-delivered' && !isSilent(outcome);
+  return (
+    Boolean(outcome?.deliveryError?.trim()) ||
+    (outcome?.deliveryStatus === 'not-delivered' && !isSilent(outcome))
+  );
 }
 
 /**

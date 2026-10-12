@@ -212,6 +212,28 @@ describe('startCronTestRun', () => {
   });
 });
 
+describe('startCronTestRun on a job a test cannot stand in for', () => {
+  it('refuses main-session jobs and system events', async () => {
+    const { deps, runEmbeddedAgent } = harness('job-main', [
+      { ...digest, id: 'job-main', sessionTarget: 'main' },
+      {
+        id: 'job-event',
+        sessionTarget: 'isolated',
+        payload: { kind: 'systemEvent', text: 'Check the inbox.' },
+      },
+    ]);
+
+    for (const jobId of ['job-main', 'job-event']) {
+      const answer = await startCronTestRun(jobId, deps);
+      expect(answer).toMatchObject({ type: 'error', errorType: 'invalid' });
+      expect(answer.type === 'error' && answer.message[0]).toContain(
+        'main session'
+      );
+    }
+    expect(runEmbeddedAgent).not.toHaveBeenCalled();
+  });
+});
+
 describe('cronTestRunToolBlock', () => {
   it('blocks sending, scheduling, and Tlon writes, and allows reads', () => {
     expect(cronTestRunToolBlock('message', {})).toBe(
