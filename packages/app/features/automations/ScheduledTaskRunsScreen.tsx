@@ -75,7 +75,14 @@ export function ScheduledTaskRunsScreen({ navigation, route }: Props) {
       error={history.error}
       hasMore={history.hasMore}
       loadingMore={history.loadingMore}
-      onLoadMore={() => void history.loadMore()}
+      onLoadMore={() =>
+        void history.loadMore().catch(() =>
+          showToast({
+            message: 'Could not load older runs. Try again.',
+            duration: 4000,
+          })
+        )
+      }
       onPressRun={(lens: ContextLens) => openRun(lens.lensId)}
       onBack={navigation.goBack}
       test={

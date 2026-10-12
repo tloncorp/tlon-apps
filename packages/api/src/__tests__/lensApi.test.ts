@@ -46,6 +46,7 @@ describe('getLensCronRuns', () => {
       path: `/v1/lens/cron/${bot}/job-1/50`,
     });
     expect(page.total).toBe(3);
+    expect(page.cursor).toBe('~2026.10.12..09.00.00');
     expect(page.runs).toEqual([
       expect.objectContaining({
         botShip: bot,
@@ -55,20 +56,22 @@ describe('getLensCronRuns', () => {
     ]);
   });
 
-  test('pages back past a run, as the ship writes the time', async () => {
+  test('pages back from the cursor at its full precision', async () => {
     vi.mocked(scry).mockResolvedValue({ page: { total: 3, entries: [] } });
+    const cursor = '~2026.10.12..09.00.00..1a2b.3c4d';
 
-    await getLensCronRuns({
+    const page = await getLensCronRuns({
       botShip: bot,
       jobId: 'job-1',
       count: 50,
-      before: Date.UTC(2026, 9, 12, 9),
+      before: cursor,
     });
 
     expect(scry).toHaveBeenCalledWith({
       app: 'steward',
-      path: `/v1/lens/cron/${bot}/job-1/50/~2026.10.12..09.00.00`,
+      path: `/v1/lens/cron/${bot}/job-1/50/${cursor}`,
     });
+    expect(page.cursor).toBeUndefined();
   });
 
   test('is refused on a desk without task runs', async () => {

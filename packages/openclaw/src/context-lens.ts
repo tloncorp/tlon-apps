@@ -1081,10 +1081,30 @@ export function finishBackgroundContextLens(
 }
 
 /**
+ * A successful run that chose to say nothing: the host reports it as not
+ * delivered, with no error and a reply that is empty or NO_REPLY. The same
+ * test the plugin's cron telemetry uses for intentional silence.
+ */
+function isSilentCronOutcome(
+  outcome: NonNullable<ContextLensCron['outcome']>
+): boolean {
+  const summary = outcome.summary?.trim();
+  return (
+    outcome.status === 'ok' &&
+    outcome.deliveryStatus === 'not-delivered' &&
+    !outcome.error?.trim() &&
+    !outcome.deliveryError?.trim() &&
+    (!summary || summary.toUpperCase() === 'NO_REPLY')
+  );
+}
+
+/**
  * Record the host's verdict on a scheduled cron run and finish its lens.
  * The run is found by its session, or failing that as the job's last
- * scheduled run. Returns the finished lens to publish, or null when there
- * is no lens for the run.
+ * scheduled run, provided that run has no verdict yet: a later run that
+ * failed before it reached the agent has no lens of its own and must not
+ * overwrite the one before it. Returns the finished lens to publish, or null
+ * when there is no lens for the run.
  */
 export function recordCronRunOutcome(params: {
   sessionKey?: string | null;
@@ -1102,15 +1122,24 @@ export function recordCronRunOutcome(params: {
     return null;
   }
   const lens = getBackgroundContextLensRegistry().get(lensId);
-  if (!lens?.cron || lens.cron.jobId !== params.jobId || lens.cron.test) {
+  if (
+    !lens?.cron ||
+    lens.cron.jobId !== params.jobId ||
+    lens.cron.test ||
+    (!bound && lens.cron.outcome)
+  ) {
     return null;
+  }
+  // One verdict per run: the job's next verdict needs a lens of its own.
+  if (recentCronLensByJob.get(params.jobId) === lensId) {
+    recentCronLensByJob.delete(params.jobId);
   }
   const { status, error } = params.outcome;
   return finishBackgroundContextLens(lensId, {
     status:
       status === 'error'
         ? 'error'
-        : status === 'skipped'
+        : status === 'skipped' || isSilentCronOutcome(params.outcome)
           ? 'no_reply'
           : 'completed',
     ...(status === 'error' ? { error: error ?? lens.error } : {}),

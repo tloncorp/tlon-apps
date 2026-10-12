@@ -18,6 +18,29 @@ export const TASK_RUN_OUTCOME_COLORS: Record<TaskRunOutcome, string> = {
   'no-output': '$tertiaryText',
 };
 
+type CronOutcome = NonNullable<NonNullable<ContextLens['cron']>['outcome']>;
+
+/**
+ * A run that chose to say nothing, which the host also reports as not
+ * delivered: no error, and a reply that is empty or NO_REPLY. The plugin's
+ * cron telemetry draws the same line.
+ */
+function isSilent(outcome: CronOutcome) {
+  const summary = outcome.summary?.trim();
+  return (
+    outcome.status === 'ok' &&
+    outcome.deliveryStatus === 'not-delivered' &&
+    !outcome.error?.trim() &&
+    !outcome.deliveryError?.trim() &&
+    (!summary || summary.toUpperCase() === 'NO_REPLY')
+  );
+}
+
+/** Output the run produced that the host could not post. */
+function deliveryFailed(outcome: CronOutcome | undefined) {
+  return outcome?.deliveryStatus === 'not-delivered' && !isSilent(outcome);
+}
+
 /**
  * The host's verdict when there is one, since the lens alone cannot tell a
  * reply that was posted from one that failed to post; the lens otherwise.
@@ -29,14 +52,18 @@ export function taskRunOutcome(lens: ContextLens): TaskRunOutcome {
   const outcome = lens.cron?.outcome;
   if (
     outcome?.status === 'error' ||
-    outcome?.deliveryStatus === 'not-delivered' ||
+    deliveryFailed(outcome) ||
     lens.status === 'error' ||
     lens.status === 'timed_out' ||
     lens.status === 'aborted'
   ) {
     return 'failed';
   }
-  if (outcome?.status === 'skipped' || lens.status === 'no_reply') {
+  if (
+    outcome?.status === 'skipped' ||
+    (outcome && isSilent(outcome)) ||
+    lens.status === 'no_reply'
+  ) {
     return 'no-output';
   }
   return 'successful';
@@ -47,8 +74,8 @@ export function taskRunError(lens: ContextLens): string | null {
   const outcome = lens.cron?.outcome;
   return (
     outcome?.error?.trim() ||
-    (outcome?.deliveryStatus === 'not-delivered'
-      ? outcome.deliveryError?.trim() || 'The output could not be posted.'
+    (deliveryFailed(outcome)
+      ? outcome?.deliveryError?.trim() || 'The output could not be posted.'
       : null) ||
     lens.error?.trim() ||
     null

@@ -741,6 +741,55 @@ describe('context lens registry', () => {
     });
   });
 
+  it('gives a later run without a lens of its own nothing to overwrite', () => {
+    const sessionKey = 'session-background-cron-one-verdict';
+    ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-one-verdict' },
+    });
+    const first = recordCronRunOutcome({
+      sessionKey,
+      jobId: 'job-one-verdict',
+      outcome: { status: 'ok', summary: 'Posted', delivered: true },
+    });
+
+    // The next run failed before the agent ran, so no lens was created.
+    expect(
+      recordCronRunOutcome({
+        sessionKey: 'session-background-cron-never-started',
+        jobId: 'job-one-verdict',
+        outcome: { status: 'error', error: 'setup failed' },
+      })
+    ).toBeNull();
+    expect(first).toMatchObject({
+      status: 'completed',
+      cron: { outcome: { status: 'ok' } },
+    });
+  });
+
+  it('records a run that chose to say nothing as no reply', () => {
+    const sessionKey = 'session-background-cron-silent';
+    ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-silent' },
+    });
+
+    expect(
+      recordCronRunOutcome({
+        sessionKey,
+        jobId: 'job-silent',
+        outcome: {
+          status: 'ok',
+          summary: 'NO_REPLY',
+          delivered: false,
+          deliveryStatus: 'not-delivered',
+        },
+      })
+    ).toMatchObject({ status: 'no_reply' });
+  });
+
   it('leaves test runs to their own finish', () => {
     const sessionKey = 'agent:main:tlon-cron-test:outcome';
     const created = ensureBackgroundContextLensForSession(sessionKey, {

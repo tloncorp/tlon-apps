@@ -25,7 +25,9 @@ export function ScheduledTaskRunScreen({ navigation, route }: Props) {
   const [resolving, setResolving] = useState(true);
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Holds the pending wait's cancel rather than its id: web and native
+    // type a timer id differently.
+    let cancelWait: (() => void) | undefined;
     setResolving(true);
     // db-first, then the owner ship; caching the result re-renders the
     // query below, as do the run's later updates on the lens feed
@@ -35,8 +37,9 @@ export function ScheduledTaskRunScreen({ navigation, route }: Props) {
         const found = await store.ensureContextLensRun({ botShip, lensId });
         if (cancelled) return;
         if (found || attempt === attempts) break;
-        await new Promise((resolve) => {
-          timer = setTimeout(resolve, STARTING_INTERVAL_MS);
+        await new Promise<void>((resolve) => {
+          const id = setTimeout(resolve, STARTING_INTERVAL_MS);
+          cancelWait = () => clearTimeout(id);
         });
         if (cancelled) return;
       }
@@ -45,7 +48,7 @@ export function ScheduledTaskRunScreen({ navigation, route }: Props) {
     void look();
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      cancelWait?.();
     };
   }, [botShip, lensId, starting]);
 

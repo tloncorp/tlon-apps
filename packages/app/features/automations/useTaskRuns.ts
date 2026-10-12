@@ -51,33 +51,37 @@ export function useTaskRuns({
     [rows]
   );
 
-  // Older pages are fetched past the oldest run the store holds, whichever
-  // way it got there.
-  const [older, setOlder] = useState<{ hasMore: boolean } | null>(null);
+  // Older pages continue from the last page the ship sent, not from the
+  // oldest run the store holds: a run cached some other way, as opening a
+  // message's lens does, would make the next page skip everything between.
+  // Kept per task, since a desktop screen stays mounted across tasks.
+  const taskKey = `${botShip}/${jobId}`;
+  const [olderPages, setOlderPages] = useState<{
+    taskKey: string;
+    hasMore: boolean;
+    cursor?: string;
+  } | null>(null);
+  const older = olderPages?.taskKey === taskKey ? olderPages : null;
+  const cursor = older ? older.cursor : page.data?.cursor;
   const [loadingMore, setLoadingMore] = useState(false);
-  const oldest = useMemo(
-    () =>
-      rows?.reduce<number | undefined>(
-        (min, row) =>
-          min === undefined || row.receivedAt < min ? row.receivedAt : min,
-        undefined
-      ),
-    [rows]
-  );
   const loadMore = useCallback(async () => {
-    if (!on || oldest === undefined) return;
+    if (!on || !cursor) return;
     setLoadingMore(true);
     try {
-      const { hasMore } = await store.syncCronJobRuns({
+      const next = await store.syncCronJobRuns({
         botShip,
         jobId,
-        before: oldest,
+        before: cursor,
       });
-      setOlder({ hasMore });
+      setOlderPages({
+        taskKey,
+        hasMore: next.hasMore,
+        cursor: next.cursor ?? cursor,
+      });
     } finally {
       setLoadingMore(false);
     }
-  }, [botShip, jobId, on, oldest]);
+  }, [botShip, cursor, jobId, on, taskKey]);
 
   return {
     supported,
@@ -85,7 +89,7 @@ export function useTaskRuns({
     total: page.data?.total,
     loading: page.isLoading,
     error: page.isError,
-    hasMore: older?.hasMore ?? page.data?.hasMore ?? false,
+    hasMore: older ? older.hasMore : (page.data?.hasMore ?? false),
     loadingMore,
     loadMore,
   };

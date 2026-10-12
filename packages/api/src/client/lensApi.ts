@@ -1,4 +1,4 @@
-import { da, parse, render } from '@urbit/aura';
+import { da, parse } from '@urbit/aura';
 
 import { createDevLogger } from '../lib/logger';
 import * as ub from '../urbit';
@@ -55,9 +55,11 @@ export const getLensRunsSince = async (cutoff: string): Promise<LensRun[]> => {
 
 /**
  * One page of a scheduled task's runs on the owner ship, newest first: the
- * newest `count`, or with `before` (the oldest `receivedAt` of the previous
- * page) the newest `count` older than it. `total` is how many runs of the
- * task the ship holds.
+ * newest `count`, or with `before` (the `cursor` of the previous page) the
+ * newest `count` older than it. `total` is how many runs of the task the
+ * ship holds. `cursor` is the oldest run's `received` exactly as the ship
+ * wrote it: cut to the millisecond, as `receivedAt` is, it could skip a run
+ * received within the same millisecond.
  */
 export const getLensCronRuns = async ({
   botShip,
@@ -68,21 +70,21 @@ export const getLensCronRuns = async ({
   botShip: string;
   jobId: string;
   count: number;
-  before?: number;
-}): Promise<{ total: number; runs: LensRun[] }> => {
+  before?: string;
+}): Promise<{ total: number; runs: LensRun[]; cursor?: string }> => {
   const params = { bot: botShip, job: jobId, count };
-  // receivedAt is the ship's @da cut to the millisecond, so the run it came
-  // from is never strictly older than it and stays off the next page.
   const response = before
     ? await scryRequest(steward.lensCronPageBefore)<ub.LensCronPageScry>({
         ...params,
-        before: render('da', da.fromUnix(before)),
+        before,
       })
     : await scryRequest(steward.lensCronPage)<ub.LensCronPageScry>(params);
+  const { entries } = response.page;
 
   return {
     total: response.page.total,
-    runs: response.page.entries.map(toLensRun),
+    runs: entries.map(toLensRun),
+    cursor: entries.at(-1)?.received,
   };
 };
 

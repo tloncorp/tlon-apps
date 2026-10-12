@@ -41,9 +41,10 @@ export const CRON_JOB_RUN_PAGE_SIZE = 50;
 
 /**
  * Bring a page of one scheduled task's runs from the owner ship into the
- * local store: the newest, or with `before` (a run's receivedAt) the next
- * older page. Resolves with how many runs of the task the ship holds and
- * whether this page came back full, so a caller knows whether to offer more.
+ * local store: the newest, or with `before` (the cursor of the page before)
+ * the next older page. Resolves with how many runs of the task the ship
+ * holds, whether this page came back full, so a caller knows whether to offer
+ * more, and the cursor to ask for the page after it.
  */
 export async function syncCronJobRuns({
   botShip,
@@ -52,16 +53,16 @@ export async function syncCronJobRuns({
 }: {
   botShip: string;
   jobId: string;
-  before?: number;
-}): Promise<{ total: number; hasMore: boolean }> {
-  const { total, runs } = await api.getLensCronRuns({
+  before?: string;
+}): Promise<{ total: number; hasMore: boolean; cursor?: string }> {
+  const { total, runs, cursor } = await api.getLensCronRuns({
     botShip,
     jobId,
     count: CRON_JOB_RUN_PAGE_SIZE,
     before,
   });
   await db.insertContextLensRuns(runs);
-  return { total, hasMore: runs.length === CRON_JOB_RUN_PAGE_SIZE };
+  return { total, hasMore: runs.length === CRON_JOB_RUN_PAGE_SIZE, cursor };
 }
 
 /**

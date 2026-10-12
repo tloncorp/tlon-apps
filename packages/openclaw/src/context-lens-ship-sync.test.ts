@@ -128,10 +128,17 @@ describe('buildLensRunPayload', () => {
         jobId: 'job-1',
         test: true,
         output: 'o'.repeat(20_000),
-        outcome: { status: 'ok', summary: 's'.repeat(5_000) },
+        outcome: {
+          status: 'ok',
+          summary: 's'.repeat(5_000),
+          deliveryError: 'd'.repeat(5_000),
+        },
       },
     });
     const { cron } = buildLensRunPayload(lens).lens;
+    expect(cron?.outcome?.deliveryError).toHaveLength(
+      4_096 + '… [truncated]'.length
+    );
     expect(cron?.output).toHaveLength(16_384 + '… [truncated]'.length);
     expect(cron?.outcome?.summary).toHaveLength(4_096 + '… [truncated]'.length);
     expect(cron).toMatchObject({ jobId: 'job-1', test: true });

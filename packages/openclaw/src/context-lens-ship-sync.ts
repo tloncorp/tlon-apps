@@ -72,6 +72,7 @@ function slimCron(cron: ContextLensCron): ContextLensCron {
             ...cron.outcome,
             summary: truncateSummary(cron.outcome.summary),
             error: truncateSummary(cron.outcome.error),
+            deliveryError: truncateSummary(cron.outcome.deliveryError),
           },
         }
       : {}),

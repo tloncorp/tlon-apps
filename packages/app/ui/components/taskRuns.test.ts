@@ -76,7 +76,11 @@ describe('taskRunOutcome', () => {
         run({
           cron: {
             jobId: 'job-1',
-            outcome: { status: 'ok', deliveryStatus: 'not-delivered' },
+            outcome: {
+              status: 'ok',
+              summary: 'Digest',
+              deliveryStatus: 'not-delivered',
+            },
           },
         })
       )
@@ -84,6 +88,55 @@ describe('taskRunOutcome', () => {
     expect(taskRunOutcome(run({ status: 'no_reply' }))).toBe('no-output');
     expect(taskRunOutcome(run({ status: 'tool_running' }))).toBe('running');
     expect(taskRunOutcome(run({ status: 'timed_out' }))).toBe('failed');
+  });
+
+  test('reads a run that chose to say nothing as no output, not a failure', () => {
+    for (const summary of [undefined, 'NO_REPLY']) {
+      expect(
+        taskRunOutcome(
+          run({
+            cron: {
+              jobId: 'job-1',
+              outcome: {
+                status: 'ok',
+                summary,
+                delivered: false,
+                deliveryStatus: 'not-delivered',
+              },
+            },
+          })
+        )
+      ).toBe('no-output');
+    }
+    expect(
+      taskRunOutcome(
+        run({
+          cron: {
+            jobId: 'job-1',
+            outcome: {
+              status: 'ok',
+              deliveryStatus: 'not-delivered',
+              deliveryError: 'channel not found',
+            },
+          },
+        })
+      )
+    ).toBe('failed');
+    // Posted, even with no summary to show for it.
+    expect(
+      taskRunOutcome(
+        run({
+          cron: {
+            jobId: 'job-1',
+            outcome: {
+              status: 'ok',
+              delivered: true,
+              deliveryStatus: 'delivered',
+            },
+          },
+        })
+      )
+    ).toBe('successful');
   });
 
   test('explains a failure in the words it was reported in', () => {
@@ -100,7 +153,11 @@ describe('taskRunOutcome', () => {
         run({
           cron: {
             jobId: 'job-1',
-            outcome: { status: 'ok', deliveryStatus: 'not-delivered' },
+            outcome: {
+              status: 'ok',
+              summary: 'Digest',
+              deliveryStatus: 'not-delivered',
+            },
           },
         })
       )

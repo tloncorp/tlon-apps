@@ -57,6 +57,10 @@ export function RunInspector({
 
   const triggerMessageId = lens.triggerDetails?.messageId ?? lens.messageId;
   const triggerChannelId = lens.triggerDetails?.conversationId;
+  // Cron and internal runs start from no message: their trigger id is made
+  // up for the lens, so there is nothing to open.
+  const triggerIsMessage =
+    lens.runKind !== 'cron' && lens.chatType !== 'internal';
 
   return (
     <YStack gap="$s">
@@ -70,7 +74,10 @@ export function RunInspector({
           label="Message"
           value={triggerMessageId}
           onPress={
-            onPressMessage && triggerMessageId && triggerChannelId
+            onPressMessage &&
+            triggerIsMessage &&
+            triggerMessageId &&
+            triggerChannelId
               ? () =>
                   onPressMessage({
                     postId: triggerMessageId,
