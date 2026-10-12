@@ -92,7 +92,9 @@ Examples:
   tlon --url https://zod.tlon.network --ship ~zod --code abcd-efgh-ijkl-mnop contacts self
 
 Hosted browser login (use the Tlon tool, not a shell command):
-  {"command": "browser handoff <session_id>"}
+  ${JSON.stringify({ command: 'browser handoff <session_id> --fields \'["@e12","@e13"]\'' })}
+  Use current snapshot refs to select the controls the owner should fill.
+  Omit --fields for automatic discovery of the visible form.
   Pass the sess_ handle from browser_session_create. The plugin resolves the
   signed viewer link; never copy or construct one in a model tool call.
 `);

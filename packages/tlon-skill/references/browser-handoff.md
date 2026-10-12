@@ -47,6 +47,17 @@ Do not supply CSS selectors or field values. Select the whole logical input,
 including each month/day/year control for a date; one radio reference selects
 its choice group.
 
+For an exact name or label containing an apostrophe, encode each apostrophe as
+`\u0027` inside the single-quoted JSON array. When writing the enclosing tool
+JSON, escape that backslash as `\\u0027`:
+
+```json
+{"command":"browser handoff <session_id> --fields '[{\"label\":\"Mother\\u0027s maiden name\"}]'"}
+```
+
+This selects the exact label `Mother's maiden name`. Prefer snapshot references
+when available; do not place a literal apostrophe inside a single-quoted array.
+
 Text inputs, textareas, dropdowns, checkboxes, and radio groups are supported.
 Each fill is bound to the selected live controls and origin; values go directly
 to the browser service without passing through chat or the bot. Completing
@@ -75,6 +86,11 @@ failed delivery are errors; do not claim a card was sent or fall back to a raw
 viewer URL. Consult `hosted-browser` for recovery and session-lifetime behavior.
 An unavailable secure form is a client discovery state after card delivery,
 not proof that the delivery command failed.
+
+Selection rejections require a fresh snapshot. A service timeout or temporary
+outage calls for a short pause before trying again; a configuration or access
+failure must be reported to the owner and checked before retrying. Preparation
+gets one attempt of up to 30 seconds and is not automatically retried.
 
 Use the `tlon` tool's `help browser` command for installed syntax if this
 reference and the available command disagree.

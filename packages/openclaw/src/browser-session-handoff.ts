@@ -13,8 +13,7 @@ import {
 import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 
-export const BROWSER_SESSION_HANDOFF_HELP =
-  'Usage: browser handoff <session_id> [--fields <JSON array>] or browser share <session_id> (the sess_ handle from browser_session_create). Fields are snapshot refs such as ["@e12","@e13"], or exact {"name":"..."}/{"label":"..."} selectors. Do not supply a viewer URL or field values.';
+export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> [--fields <JSON array>] or browser share <session_id> (the sess_ handle from browser_session_create). Use --fields when the owner should fill only selected controls; omit it for automatic discovery of the visible form. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
 
 const formFieldsSchema = z
   .array(
@@ -31,6 +30,7 @@ type FormFields = z.infer<typeof formFieldsSchema>;
 const LOOKUP_DEADLINE_MS = 15_000;
 const LOOKUP_ATTEMPT_TIMEOUT_MS = 5_000;
 const LOOKUP_MAX_ATTEMPTS = 3;
+const PREPARE_TIMEOUT_MS = 30_000;
 const TRANSIENT_NETWORK_CODES = new Set([
   'EAI_AGAIN',
   'ENOTFOUND',
@@ -47,6 +47,7 @@ const TRANSIENT_NETWORK_CODES = new Set([
 ]);
 
 class TransientBrowserLookupError extends Error {}
+class BrowserSelectionRejectedError extends Error {}
 
 function isTransientLookupError(error: unknown): boolean {
   for (let depth = 0; error && depth < 5; depth++) {
@@ -206,8 +207,12 @@ async function resolveViewerUrl(
     ) {
       throw new Error('Missing configured MCP proxy credential.');
     }
-    const deadline = Date.now() + LOOKUP_DEADLINE_MS;
-    for (let attempt = 0; attempt < LOOKUP_MAX_ATTEMPTS; attempt++) {
+    // Preparation mints a capability. A timed-out request may still complete
+    // upstream, so give it one longer attempt rather than create duplicate forms.
+    const maxAttempts = fields ? 1 : LOOKUP_MAX_ATTEMPTS;
+    const deadline =
+      Date.now() + (fields ? PREPARE_TIMEOUT_MS : LOOKUP_DEADLINE_MS);
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const remainingMs = deadline - Date.now();
         if (remainingMs <= 0)
@@ -237,12 +242,17 @@ async function resolveViewerUrl(
             }),
           },
           ssrfPolicy: ssrfPolicyFromAllowPrivateNetwork(allowPrivateNetwork),
-          timeoutMs: Math.min(LOOKUP_ATTEMPT_TIMEOUT_MS, remainingMs),
+          timeoutMs: fields
+            ? remainingMs
+            : Math.min(LOOKUP_ATTEMPT_TIMEOUT_MS, remainingMs),
           maxRedirects: 0,
           auditContext: 'tlon-browser-handoff',
         });
         try {
-          if ([408, 500, 502, 503, 504].includes(request.response.status)) {
+          if (
+            [408, 500, 502, 503, 504].includes(request.response.status) ||
+            (fields && request.response.status === 429)
+          ) {
             await request.response.body?.cancel();
             throw new TransientBrowserLookupError(
               'Browser lookup unavailable.'
@@ -251,13 +261,38 @@ async function resolveViewerUrl(
           const reply = record(await readMcpReply(request.response, id));
           const result = record(reply.result);
           const metadata = record(result.structuredContent);
-          if (
-            reply.jsonrpc !== '2.0' ||
-            reply.id !== id ||
-            reply.error ||
-            result.isError ||
-            metadata.session_id !== handle
-          ) {
+          if (reply.jsonrpc !== '2.0' || reply.id !== id || reply.error) {
+            throw new Error('Browser session lookup refused.');
+          }
+          if (result.isError) {
+            const upstreamError = record(metadata.error);
+            const code = upstreamError.code;
+            const status = record(upstreamError.details).status;
+            if (
+              fields &&
+              typeof code === 'string' &&
+              ['stale_ref', 'ref_not_found', 'invalid_argument'].includes(code)
+            ) {
+              throw new BrowserSelectionRejectedError();
+            }
+            if (
+              fields &&
+              ((typeof code === 'string' &&
+                [
+                  'timeout',
+                  'rate_limited',
+                  'session_busy',
+                  'session_releasing',
+                ].includes(code)) ||
+                (code === 'steel_error' &&
+                  typeof status === 'number' &&
+                  [408, 429, 500, 502, 503, 504].includes(status)))
+            ) {
+              throw new TransientBrowserLookupError();
+            }
+            throw new Error('Browser session lookup refused.');
+          }
+          if (metadata.session_id !== handle) {
             throw new Error('Browser session lookup refused.');
           }
           return validateViewerUrl(metadata.viewer_url, !!fields);
@@ -268,7 +303,7 @@ async function resolveViewerUrl(
         const delayMs = 500 * 2 ** attempt;
         if (
           !isTransientLookupError(error) ||
-          attempt + 1 === LOOKUP_MAX_ATTEMPTS ||
+          attempt + 1 === maxAttempts ||
           Date.now() + delayMs >= deadline
         )
           throw error;
@@ -276,12 +311,22 @@ async function resolveViewerUrl(
       }
     }
     throw new Error('Browser lookup attempts exhausted.');
-  } catch {
+  } catch (error) {
     // Transport and upstream errors can contain bearer URLs or tenant headers.
+    if (!fields)
+      throw new Error('Could not resolve a live browser session for handoff.');
+    if (error instanceof BrowserSelectionRejectedError) {
+      throw new Error(
+        'Could not prepare the selected fields. Take a fresh browser snapshot, select unique visible controls, and retry the handoff.'
+      );
+    }
+    if (isTransientLookupError(error)) {
+      throw new Error(
+        'Could not prepare the selected fields because the browser service is temporarily unavailable or timed out. Try again shortly.'
+      );
+    }
     throw new Error(
-      fields
-        ? 'Could not prepare the selected fields. Take a fresh browser snapshot, select unique visible controls, and retry the handoff.'
-        : 'Could not resolve a live browser session for handoff.'
+      'Could not prepare the selected fields because the browser service is unavailable. Report the failure to the owner and check the browser service configuration.'
     );
   }
 }
