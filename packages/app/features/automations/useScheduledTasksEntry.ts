@@ -2,12 +2,15 @@ import { StackActions, useFocusEffect } from '@react-navigation/native';
 import * as api from '@tloncorp/api';
 import type { StewardAutomationTask } from '@tloncorp/api/urbit';
 import * as store from '@tloncorp/shared/store';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useNavigation } from '../../navigation/utils';
 import { useIsWindowNarrow } from '../../ui';
-import { offersScheduledTasks } from '../../ui/components/automationTaskDraft';
+import {
+  offersScheduledTasks,
+  ownerTasks,
+} from '../../ui/components/automationTaskDraft';
 import {
   refetchAutomationsOnFocus,
   tasksForShip,
@@ -35,7 +38,7 @@ export function useScheduledTasksEntry({
 } = {}): {
   botShip: string;
   visible: boolean;
-  /** The bot's tasks by id, once it has shared them. */
+  /** The bot's tasks the owner can change, by id, once it has shared them. */
   tasks?: Record<string, StewardAutomationTask>;
   count?: number;
 } {
@@ -60,7 +63,11 @@ export function useScheduledTasksEntry({
       if (on) refetchAutomationsOnFocus(refetch);
     }, [on, refetch])
   );
-  const tasks = on ? tasksForShip(query.data, botShip) : undefined;
+  const shipTasks = on ? tasksForShip(query.data, botShip) : undefined;
+  const tasks = useMemo(
+    () => (shipTasks ? ownerTasks(shipTasks) : undefined),
+    [shipTasks]
+  );
   return {
     botShip,
     visible: on && offersScheduledTasks(query, { whileLoading }),
