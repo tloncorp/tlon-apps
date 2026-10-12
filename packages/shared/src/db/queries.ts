@@ -2439,6 +2439,38 @@ export const getRecentContextLensRuns = createReadQuery(
   ['contextLensRuns']
 );
 
+/**
+ * The synced runs of one scheduled task, newest first. Matched the way the
+ * owner ship's /v1/lens/cron scry matches them (lensRunCronJobId): by the
+ * gateway's `cron.jobId`, or for runs recorded before it stamped one, by the
+ * "cron job <id>" trigger preview.
+ */
+export const getContextLensRunsForCronJob = createReadQuery(
+  'getContextLensRunsForCronJob',
+  async (
+    { botShip, jobId }: { botShip: string; jobId: string },
+    ctx: QueryCtx
+  ) => {
+    const field = (path: string) =>
+      sql`json_extract(${$contextLensRuns.payload}, ${path})`;
+    return ctx.db.query.contextLensRuns.findMany({
+      where: and(
+        eq($contextLensRuns.botShip, botShip),
+        or(
+          sql`${field('$.lens.cron.jobId')} = ${jobId}`,
+          and(
+            sql`${field('$.lens.cron')} IS NULL`,
+            sql`${field('$.lens.runKind')} = 'cron'`,
+            sql`${field('$.lens.triggerDetails.preview')} = ${`cron job ${jobId}`}`
+          )
+        )
+      ),
+      orderBy: [desc($contextLensRuns.receivedAt)],
+    });
+  },
+  ['contextLensRuns']
+);
+
 export const getContextLensBotShips = createReadQuery(
   'getContextLensBotShips',
   async (ctx: QueryCtx) => {

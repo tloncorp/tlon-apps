@@ -67,3 +67,9 @@ export const FULL_MEMBER_COUNT_MIN_GROUPS_VERSION = '12.4.0';
 // Must move in lockstep with desk/desk.docket-0's version if the release
 // number changes.
 export const STEWARD_PROMPTS_MIN_GROUPS_VERSION = '12.4.0';
+
+// The first %groups release whose %steward pages one cron job's lens runs
+// (/v1/lens/cron) and relays a test run of a task (the %test edit). Guarded
+// registry entries name it as their `since`. Must move in lockstep with
+// desk/desk.docket-0's version if the release number changes.
+export const TASK_RUNS_MIN_GROUPS_VERSION = '12.4.0';

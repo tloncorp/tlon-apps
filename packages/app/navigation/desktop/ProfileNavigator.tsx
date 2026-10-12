@@ -15,6 +15,8 @@ import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTaskRunScreen } from '../../features/automations/ScheduledTaskRunScreen';
+import { ScheduledTaskRunsScreen } from '../../features/automations/ScheduledTaskRunsScreen';
 import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import {
@@ -131,6 +133,14 @@ export const ProfileNavigator = () => {
       <ProfileDrawer.Screen
         name="ScheduledTaskEditor"
         component={ScheduledTaskEditorScreen}
+      />
+      <ProfileDrawer.Screen
+        name="ScheduledTaskRuns"
+        component={ScheduledTaskRunsScreen}
+      />
+      <ProfileDrawer.Screen
+        name="ScheduledTaskRun"
+        component={ScheduledTaskRunScreen}
       />
       <ProfileDrawer.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileDrawer.Screen name="Attestation" component={AttestationScreen} />

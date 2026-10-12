@@ -30,6 +30,8 @@ export interface SettingsRowModel {
   subtitle?: string;
   /** The setting's current value, shown the way each platform shows values. */
   value?: string;
+  /** A short count drawn as a neutral pill, such as how many entries a list holds. */
+  badge?: string;
   leading?: SettingsRowLeading;
   /** A larger row for an identity: your profile, or your bot. */
   prominent?: boolean;

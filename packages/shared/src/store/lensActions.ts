@@ -36,6 +36,34 @@ export async function ensureContextLensRun({
   }
 }
 
+/** How many of a scheduled task's runs one fetch brings in. */
+export const CRON_JOB_RUN_PAGE_SIZE = 50;
+
+/**
+ * Bring a page of one scheduled task's runs from the owner ship into the
+ * local store: the newest, or with `before` (a run's receivedAt) the next
+ * older page. Resolves with how many runs of the task the ship holds and
+ * whether this page came back full, so a caller knows whether to offer more.
+ */
+export async function syncCronJobRuns({
+  botShip,
+  jobId,
+  before,
+}: {
+  botShip: string;
+  jobId: string;
+  before?: number;
+}): Promise<{ total: number; hasMore: boolean }> {
+  const { total, runs } = await api.getLensCronRuns({
+    botShip,
+    jobId,
+    count: CRON_JOB_RUN_PAGE_SIZE,
+    before,
+  });
+  await db.insertContextLensRuns(runs);
+  return { total, hasMore: runs.length === CRON_JOB_RUN_PAGE_SIZE };
+}
+
 /**
  * Request a re-run of a failed lens run. Best-effort: the poke acks when our
  * ship accepts it; success is observable as a new run (trigger "retry")

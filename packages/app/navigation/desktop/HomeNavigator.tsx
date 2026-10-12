@@ -27,6 +27,8 @@ import { NotesSearchScreen } from '../../features/top/NotesSearchScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTaskRunScreen } from '../../features/automations/ScheduledTaskRunScreen';
+import { ScheduledTaskRunsScreen } from '../../features/automations/ScheduledTaskRunsScreen';
 import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
@@ -270,6 +272,14 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="ScheduledTaskEditor"
           component={ScheduledTaskEditorScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ScheduledTaskRuns"
+          component={ScheduledTaskRunsScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ScheduledTaskRun"
+          component={ScheduledTaskRunScreen}
         />
         <ChannelStackNavigator.Screen
           name="EditProfile"

@@ -1,0 +1,92 @@
+import { useFocusEffect } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useToast } from '@tloncorp/ui';
+import { useCallback, useRef, useState } from 'react';
+
+import type { RootStackParamList } from '../../navigation/types';
+import { useIsWindowNarrow } from '../../ui';
+import type { ContextLens } from '../../ui/components/Channel/ContextLens/types';
+import { TaskRunHistoryView } from '../../ui/components/TaskRunHistory';
+import {
+  describeTestRunError,
+  taskStatus,
+  taskTitle,
+} from '../../ui/components/automationTaskDraft';
+import { useNowOnFocus, useStartTestRun, useTaskRuns } from './useTaskRuns';
+import {
+  tasksForShip,
+  useStewardAutomationTasks,
+} from './useStewardAutomationTasks';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ScheduledTaskRuns'>;
+
+export function ScheduledTaskRunsScreen({ navigation, route }: Props) {
+  const { botShip, taskId } = route.params;
+  const isWindowNarrow = useIsWindowNarrow();
+  const showToast = useToast();
+  const { data } = useStewardAutomationTasks();
+  const task = tasksForShip(data, botShip)?.[taskId];
+  const history = useTaskRuns({ botShip, taskId });
+  const now = useNowOnFocus();
+
+  const openRun = useCallback(
+    (lensId: string, starting?: boolean) => {
+      const params = { botShip, taskId, lensId, starting };
+      if (isWindowNarrow) {
+        navigation.push('ScheduledTaskRun', params);
+        return;
+      }
+      navigation.navigate('ScheduledTaskRun', params);
+    },
+    [botShip, isWindowNarrow, navigation, taskId]
+  );
+
+  const startTestRun = useStartTestRun(botShip);
+  const [testing, setTesting] = useState(false);
+  // A test answered after the person left this screen opens nothing.
+  const focused = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      focused.current = true;
+      return () => {
+        focused.current = false;
+      };
+    }, [])
+  );
+  const test = useCallback(async () => {
+    setTesting(true);
+    try {
+      const lensId = await startTestRun(taskId);
+      if (focused.current) openRun(lensId, true);
+    } catch (error) {
+      showToast({ message: describeTestRunError(error), duration: 4000 });
+    } finally {
+      setTesting(false);
+    }
+  }, [openRun, showToast, startTestRun, taskId]);
+
+  return (
+    <TaskRunHistoryView
+      taskName={task ? taskTitle(task) : undefined}
+      runs={history.runs}
+      total={history.total}
+      now={now}
+      loading={history.loading}
+      error={history.error}
+      hasMore={history.hasMore}
+      loadingMore={history.loadingMore}
+      onLoadMore={() => void history.loadMore()}
+      onPressRun={(lens: ContextLens) => openRun(lens.lensId)}
+      onBack={navigation.goBack}
+      test={
+        task && history.supported
+          ? {
+              busy: testing,
+              disabled: taskStatus(task) === 'held',
+              onPress: () => void test(),
+            }
+          : undefined
+      }
+    />
+  );
+}

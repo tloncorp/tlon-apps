@@ -115,6 +115,14 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
             {row.value}
           </Text>
         ) : null}
+        {row.badge ? (
+          <Badge
+            text={row.badge}
+            type="neutral"
+            size="micro"
+            backgroundColor="$border"
+          />
+        ) : null}
         {row.toggle ? (
           <Switch
             value={row.toggle.value}

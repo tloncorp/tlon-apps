@@ -152,6 +152,14 @@ export type RootStackParamList = {
     /** For a new task: the channel it was started from, where it should post. */
     channelId?: string;
   };
+  ScheduledTaskRuns: { botShip: string; taskId: string };
+  ScheduledTaskRun: {
+    botShip: string;
+    taskId: string;
+    lensId: string;
+    /** A test run just asked for, whose record may not have synced yet. */
+    starting?: boolean;
+  };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -255,6 +263,8 @@ export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
     | 'UserProfile'
     | 'ScheduledTasks'
     | 'ScheduledTaskEditor'
+    | 'ScheduledTaskRuns'
+    | 'ScheduledTaskRun'
     | 'EditProfile'
     | 'Attestation'
   >;
@@ -265,6 +275,8 @@ export type ActivityDrawerParamList = Pick<
   | 'UserProfile'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
+  | 'ScheduledTaskRuns'
+  | 'ScheduledTaskRun'
   | 'EditProfile'
 > & {
   // Drawer-only placeholder shown before an activity item is selected.
@@ -292,6 +304,8 @@ export type SettingsDrawerParamList = Pick<
   | 'BotConnections'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
+  | 'ScheduledTaskRuns'
+  | 'ScheduledTaskRun'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
@@ -327,6 +341,8 @@ export type ChannelStackParamList = {
   UserProfile: RootStackParamList['UserProfile'];
   ScheduledTasks: RootStackParamList['ScheduledTasks'];
   ScheduledTaskEditor: RootStackParamList['ScheduledTaskEditor'];
+  ScheduledTaskRuns: RootStackParamList['ScheduledTaskRuns'];
+  ScheduledTaskRun: RootStackParamList['ScheduledTaskRun'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
   ChannelMeta: RootStackParamList['ChannelMeta'];
@@ -346,6 +362,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'UserProfile'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
+  | 'ScheduledTaskRuns'
+  | 'ScheduledTaskRun'
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'

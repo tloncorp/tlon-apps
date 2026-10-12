@@ -21,6 +21,7 @@ import {
   deskVersionCountsAllSeats,
   deskVersionSupportsBuckets,
   deskVersionSupportsStewardPrompts,
+  deskVersionSupportsTaskRuns,
   activityVersionSupportsReactions,
   classifyDeskVersion,
 } from '../../logic';
@@ -677,6 +678,9 @@ export const syncAppInfo = async (
   api.setDeskSupportsStewardPrompts(
     deskVersionSupportsStewardPrompts(appInfo?.groupsVersion)
   );
+  api.setDeskSupportsTaskRuns(
+    deskVersionSupportsTaskRuns(appInfo?.groupsVersion)
+  );
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -718,6 +722,7 @@ export const syncReactionSupport = async () => {
   api.setDeskSupportsStewardPrompts(
     deskVersionSupportsStewardPrompts(groupsVersion)
   );
+  api.setDeskSupportsTaskRuns(deskVersionSupportsTaskRuns(groupsVersion));
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
