@@ -11,6 +11,7 @@ vi.mock('./tlon-command-runner.js', async (original) => ({
 }));
 
 import { runBrowserSessionHandoff } from './browser-session-handoff.js';
+import { shellSplitCommand } from './tlon-tool-command.js';
 
 const handle = 'sess_MHKz9dQ1TjqLmA7vXpR2bw';
 const sessionId = '123e4567-e89b-42d3-a456-426614174000';
@@ -36,7 +37,8 @@ const config = {
 
 function viewerUrl(
   audience = 'session-viewer',
-  expiresAt = Date.now() + 7_200_000
+  expiresAt = Date.now() + 7_200_000,
+  form?: string
 ) {
   const payload = Buffer.from(
     JSON.stringify({
@@ -44,6 +46,7 @@ function viewerUrl(
       aud: audience,
       sid: sessionId,
       exp: Math.floor(expiresAt / 1000),
+      ...(form ? { form } : {}),
     })
   ).toString('base64url');
   return `https://browser-session-ovh2.tlon.network/s/${payload}.${'a'.repeat(43)}?clipboardBridge=true`;
@@ -72,6 +75,81 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('browser session handoff', () => {
+  it('prepares selected refs and names and passes the bound capability privately to delivery', async () => {
+    const url = viewerUrl(
+      'session-viewer',
+      Date.now() + 300_000,
+      '223e4567-e89b-42d3-a456-426614174000'
+    );
+    reply({ session_id: handle, viewer_url: url });
+    const fields = ['@e12', { name: 'bm' }, { label: 'Birth year' }];
+    const result = await runBrowserSessionHandoff(
+      'tlon',
+      shellSplitCommand(
+        `browser handoff ${handle} --fields '${JSON.stringify(fields)}'`
+      ),
+      config
+    );
+    expect(
+      JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments
+    ).toEqual({
+      session_id: handle,
+      action: 'prepare_form',
+      fields,
+    });
+    expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
+      'tlon',
+      ['browser', 'handoff', url],
+      config
+    );
+    expect(result).not.toContain(url);
+    expect(result).toContain('sent');
+  });
+
+  it('refuses an unscoped capability for a selected-field request', async () => {
+    reply({ session_id: handle, viewer_url: viewerUrl() });
+    await expect(
+      runBrowserSessionHandoff(
+        'tlon',
+        ['browser', 'handoff', handle, '--fields', '["@e12"]'],
+        config
+      )
+    ).rejects.toThrow('fresh browser snapshot');
+    expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    '[]',
+    '["input"]',
+    '[{"name":""}]',
+    '[{"name":"member","value":"secret"}]',
+    '[{"name":"member","label":"Member"}]',
+    'null',
+    'not-json',
+  ])(
+    'rejects invalid field selection %s before network access',
+    async (fields) => {
+      await expect(
+        runBrowserSessionHandoff(
+          'tlon',
+          ['browser', 'handoff', handle, '--fields', fields],
+          config
+        )
+      ).rejects.toThrow('Usage:');
+      expect(urbitFetch).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not accept field selectors for live sharing', async () => {
+    await expect(
+      runBrowserSessionHandoff(
+        'tlon',
+        ['browser', 'share', handle, '--fields', '["@e12"]'],
+        config
+      )
+    ).rejects.toThrow('Usage:');
+    expect(urbitFetch).not.toHaveBeenCalled();
+  });
   it('retries unavailable lookups with bounded exponential backoff and sends one card', async () => {
     vi.useFakeTimers();
     reply({ session_id: handle, viewer_url: viewerUrl() });

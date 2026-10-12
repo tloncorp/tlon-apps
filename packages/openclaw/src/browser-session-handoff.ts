@@ -4,6 +4,7 @@ import {
   MAX_BROWSER_VIEWER_URL_LENGTH,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+import { z } from 'zod';
 
 import {
   resolveBrowserHandoffAccount,
@@ -13,7 +14,19 @@ import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 
 export const BROWSER_SESSION_HANDOFF_HELP =
-  'Usage: browser handoff <session_id> or browser share <session_id> (the sess_ handle from browser_session_create). Do not supply a viewer URL.';
+  'Usage: browser handoff <session_id> [--fields <JSON array>] or browser share <session_id> (the sess_ handle from browser_session_create). Fields are snapshot refs such as ["@e12","@e13"], or exact {"name":"..."}/{"label":"..."} selectors. Do not supply a viewer URL or field values.';
+
+const formFieldsSchema = z
+  .array(
+    z.union([
+      z.string().regex(/^@e\d+$/),
+      z.object({ name: z.string().min(1).max(512) }).strict(),
+      z.object({ label: z.string().min(1).max(1024) }).strict(),
+    ])
+  )
+  .min(1)
+  .max(40);
+type FormFields = z.infer<typeof formFieldsSchema>;
 
 const LOOKUP_DEADLINE_MS = 15_000;
 const LOOKUP_ATTEMPT_TIMEOUT_MS = 5_000;
@@ -106,7 +119,7 @@ async function readMcpReply(response: Response, id: string): Promise<unknown> {
   }
 }
 
-function validateViewerUrl(value: unknown): string {
+function validateViewerUrl(value: unknown, selected = false): string {
   if (
     typeof value !== 'string' ||
     value.length > MAX_BROWSER_VIEWER_URL_LENGTH
@@ -142,7 +155,12 @@ function validateViewerUrl(value: unknown): string {
     ) ||
     typeof payload.exp !== 'number' ||
     !Number.isSafeInteger(payload.exp) ||
-    payload.exp <= Math.floor(Date.now() / 1000)
+    payload.exp <= Math.floor(Date.now() / 1000) ||
+    (selected &&
+      (typeof payload.form !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          payload.form
+        )))
   ) {
     throw new Error('Invalid browser viewer scope or deadline.');
   }
@@ -153,7 +171,8 @@ function validateViewerUrl(value: unknown): string {
 async function resolveViewerUrl(
   handle: string,
   config: OpenClawConfig,
-  allowPrivateNetwork: boolean | null
+  allowPrivateNetwork: boolean | null,
+  fields?: FormFields
 ): Promise<string> {
   try {
     const server = record(record(record(record(config).mcp).servers).mcp);
@@ -210,7 +229,10 @@ async function resolveViewerUrl(
               method: 'tools/call',
               params: {
                 name: 'browser_browser_session_live_view',
-                arguments: { session_id: handle },
+                arguments: {
+                  session_id: handle,
+                  ...(fields ? { action: 'prepare_form', fields } : {}),
+                },
               },
             }),
           },
@@ -238,7 +260,7 @@ async function resolveViewerUrl(
           ) {
             throw new Error('Browser session lookup refused.');
           }
-          return validateViewerUrl(metadata.viewer_url);
+          return validateViewerUrl(metadata.viewer_url, !!fields);
         } finally {
           await request.release();
         }
@@ -256,7 +278,11 @@ async function resolveViewerUrl(
     throw new Error('Browser lookup attempts exhausted.');
   } catch {
     // Transport and upstream errors can contain bearer URLs or tenant headers.
-    throw new Error('Could not resolve a live browser session for handoff.');
+    throw new Error(
+      fields
+        ? 'Could not prepare the selected fields. Take a fresh browser snapshot, select unique visible controls, and retry the handoff.'
+        : 'Could not resolve a live browser session for handoff.'
+    );
   }
 }
 
@@ -273,18 +299,29 @@ export async function runBrowserSessionHandoff(
     return BROWSER_SESSION_HANDOFF_HELP;
   }
   if (
-    args.length !== 3 ||
+    ![3, 5].includes(args.length) ||
     args[0] !== 'browser' ||
     !['handoff', 'share'].includes(args[1]) ||
-    !/^sess_[A-Za-z0-9_-]{22}$/.test(args[2])
+    !/^sess_[A-Za-z0-9_-]{22}$/.test(args[2]) ||
+    (args.length === 5 && (args[1] !== 'handoff' || args[3] !== '--fields'))
   ) {
     throw new Error(BROWSER_SESSION_HANDOFF_HELP);
+  }
+  let fields: FormFields | undefined;
+  if (args.length === 5) {
+    try {
+      if (args[4].length > 16_384) throw new Error('Too many fields.');
+      fields = formFieldsSchema.parse(JSON.parse(args[4]));
+    } catch {
+      throw new Error(BROWSER_SESSION_HANDOFF_HELP);
+    }
   }
   const account = resolveBrowserHandoffAccount(config);
   const viewerUrl = await resolveViewerUrl(
     args[2],
     config,
-    account.allowPrivateNetwork
+    account.allowPrivateNetwork,
+    fields
   );
   try {
     await runBrowserHandoffCommand(
