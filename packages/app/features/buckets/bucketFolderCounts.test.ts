@@ -72,14 +72,41 @@ describe('buildBucketFolderCounts', () => {
     });
   });
 
-  it('stops at a folder that loops back on itself', () => {
+  it('counts a folder listed before its parent', () => {
+    const counts = buildBucketFolderCounts([
+      file(4, 3),
+      folder(3, 2),
+      folder(2, 1),
+      folder(1),
+    ]);
+
+    expect(counts.get(1)).toEqual({ fileCount: 1, folderCount: 2 });
+    expect(counts.get(2)).toEqual({ fileCount: 1, folderCount: 1 });
+  });
+
+  it('counts a deep chain of folders without overflowing', () => {
+    const depth = 20_000;
+    const entries: BucketsEntry[] = [folder(1)];
+    for (let id = 2; id <= depth; id++) {
+      entries.push(folder(id, id - 1));
+    }
+    entries.push(file(depth + 1, depth));
+
+    const counts = buildBucketFolderCounts(entries);
+
+    expect(counts.get(1)).toEqual({ fileCount: 1, folderCount: depth - 1 });
+    expect(counts.get(depth)).toEqual({ fileCount: 1, folderCount: 0 });
+  });
+
+  it('ends on a manifest that loops back on itself', () => {
     const counts = buildBucketFolderCounts([
       folder(1, 2),
       folder(2, 1),
       file(3, 1),
     ]);
 
+    // The loop is cut where the walk first re-enters it, at 2 -> 1.
     expect(counts.get(1)).toEqual({ fileCount: 1, folderCount: 1 });
-    expect(counts.get(2)).toEqual({ fileCount: 1, folderCount: 1 });
+    expect(counts.get(2)).toEqual({ fileCount: 0, folderCount: 0 });
   });
 });
