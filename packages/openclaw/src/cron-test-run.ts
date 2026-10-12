@@ -9,10 +9,15 @@ import type {
 import {
   type ContextLens,
   type ContextLensStatus,
+  cronLensTtlMs,
   ensureBackgroundContextLensForSession,
   finishBackgroundContextLens,
 } from './context-lens.js';
-import { isCronToolName } from './cron-tool-args-guard.js';
+import { runEmbeddedAgentWithFallbacks } from './embedded-agent-fallbacks.js';
+import {
+  isMcpDescribeToolName,
+  isMcpListUpstreamsToolName,
+} from './mcp-readonly-policy.js';
 import { sharedMap } from './shared-state.js';
 import { isExplicitSilentReply } from './silent-reply.js';
 import type { StewardAutomationResponseBody } from './steward-automation-edit.js';
@@ -27,11 +32,10 @@ import { summarizeTlonCommand } from './tlon-tool-command.js';
  * delivery are untouched. The plugin runs the job's prompt itself in a
  * scratch session, framed the way the host frames a cron turn, and keeps
  * the reply on the run's lens instead of posting it. Anything that would
- * post or change something on Tlon is refused for the length of the run.
+ * might change anything is refused for the length of the run.
  */
 
 const SESSION_MARKER = ':tlon-cron-test:';
-const TEST_RUN_LENS_MARGIN_MS = 10 * 60_000;
 
 export const CRON_TEST_RUN_BLOCK_REASON =
   'This is a test run of a scheduled task. It must not change anything, so this action is blocked. Say what you would have done instead.';
@@ -41,28 +45,41 @@ export function isCronTestSessionKey(sessionKey: string | null | undefined) {
   return Boolean(sessionKey?.includes(SESSION_MARKER));
 }
 
+// The host's own list of tools that only read (SAFE_READ_ONLY_TOOLS in
+// OpenClaw's agent consult policy).
+const READ_ONLY_TOOLS = new Set([
+  'read',
+  'web_search',
+  'web_fetch',
+  'x_search',
+  'memory_search',
+  'memory_get',
+]);
+
 /**
- * The reason to refuse a tool call in a test run, or null to allow it.
- * Reading is fine; sending, posting, changing Tlon state, and touching the
- * schedule are not.
+ * The reason to refuse a tool call in a test run, or null to allow it. A
+ * test fails closed: only tools known to just read run, along with Tlon
+ * reads and an MCP server's tool catalog. Anything else, including tools
+ * this list has never heard of, is refused, and the model is told to say
+ * what it would have done.
  */
 export function cronTestRunToolBlock(
   toolName: string,
   params: Record<string, unknown>
 ): string | null {
-  if (toolName === 'message' || isCronToolName(toolName)) {
-    return CRON_TEST_RUN_BLOCK_REASON;
+  if (
+    READ_ONLY_TOOLS.has(toolName) ||
+    isMcpDescribeToolName(toolName) ||
+    isMcpListUpstreamsToolName(toolName)
+  ) {
+    return null;
   }
-  if (toolName === 'tlon') {
-    if (typeof params.command !== 'string') {
-      return CRON_TEST_RUN_BLOCK_REASON;
-    }
-    const { intent } = summarizeTlonCommand(params.command);
-    return intent === 'read' || intent === 'utility'
+  if (toolName === 'tlon' && typeof params.command === 'string') {
+    return summarizeTlonCommand(params.command).intent === 'read'
       ? null
       : CRON_TEST_RUN_BLOCK_REASON;
   }
-  return null;
+  return CRON_TEST_RUN_BLOCK_REASON;
 }
 
 /**
@@ -80,6 +97,7 @@ export type CronTestJob = {
     text?: string;
     toolsAllow?: string[];
     model?: string;
+    fallbacks?: string[];
     timeoutSeconds?: number;
   };
 };
@@ -225,6 +243,8 @@ export interface CronTestRunDeps {
   stateDir: () => string;
   publish: (phase: string, lens: ContextLens) => void;
   logger: { warn: (message: string) => void };
+  /** The monitor's teardown: a test still running then stops as aborted. */
+  signal?: AbortSignal;
   now?: () => number;
 }
 
@@ -303,7 +323,7 @@ export async function startCronTestRun(
     cron: { jobId: job.id, test: true },
     // The lens must outlive the run, however long the run may take, or its
     // finish finds nothing and the owner is left with a run that never ends.
-    ttlMs: timeoutMs + TEST_RUN_LENS_MARGIN_MS,
+    ttlMs: cronLensTtlMs(timeoutMs),
   });
   if (!created) {
     return {
@@ -338,35 +358,56 @@ export async function startCronTestRun(
     'cron-test',
     `${runId}.jsonl`
   );
+  const fallbacks = job.payload?.fallbacks;
   const run = async () => {
     await mkdir(path.dirname(sessionFile), { recursive: true });
-    const result = await deps.runtime.runEmbeddedAgent({
-      sessionId: runId,
-      sessionKey,
-      sessionFile,
-      agentId,
-      workspaceDir: deps.runtime.resolveAgentWorkspaceDir(deps.config, agentId),
-      agentDir: deps.runtime.resolveAgentDir(deps.config, agentId),
-      config: deps.config,
-      runId,
-      // The job's own trigger and id, so the host and this plugin apply the
-      // tool policy a scheduled run of this job gets.
-      trigger: 'cron',
-      jobId: job.id,
-      prompt: buildCronTestPrompt(job, prompt, deps.config, now),
-      bootstrapContextRunKind: 'cron',
-      disableMessageTool: true,
-      ...(job.payload?.toolsAllow
-        ? { toolsAllow: job.payload.toolsAllow }
-        : {}),
-      ...(job.payload?.model ? { model: job.payload.model } : {}),
-      timeoutMs,
-      ...(explicitTimeout ? { runTimeoutOverrideMs: timeoutMs } : {}),
-    });
+    const result = await runEmbeddedAgentWithFallbacks(
+      {
+        runEmbeddedAgent: (params) => deps.runtime.runEmbeddedAgent(params),
+        logger: deps.logger,
+      },
+      {
+        sessionId: runId,
+        sessionKey,
+        sessionFile,
+        agentId,
+        workspaceDir: deps.runtime.resolveAgentWorkspaceDir(
+          deps.config,
+          agentId
+        ),
+        agentDir: deps.runtime.resolveAgentDir(deps.config, agentId),
+        config: deps.config,
+        runId,
+        // The job's own trigger and id, so the host and this plugin apply the
+        // tool policy a scheduled run of this job gets.
+        trigger: 'cron',
+        jobId: job.id,
+        prompt: buildCronTestPrompt(job, prompt, deps.config, now),
+        bootstrapContextRunKind: 'cron',
+        disableMessageTool: true,
+        ...(job.payload?.toolsAllow
+          ? { toolsAllow: job.payload.toolsAllow }
+          : {}),
+        timeoutMs,
+        ...(explicitTimeout ? { runTimeoutOverrideMs: timeoutMs } : {}),
+        ...(deps.signal ? { abortSignal: deps.signal } : {}),
+      },
+      {
+        label: `Test run of cron job ${job.id}`,
+        // The job's model and fallbacks when it names them, as a scheduled
+        // run would use; the agent's configured ones otherwise.
+        ...(job.payload?.model ? { primary: job.payload.model } : {}),
+        ...(Array.isArray(fallbacks) ? { fallbacks } : {}),
+      }
+    );
     finish(cronTestRunResult(result));
   };
   void run()
     .catch((error: unknown) => {
+      if (deps.signal?.aborted) {
+        finish({ status: 'aborted', error: 'The test run was stopped.' });
+        return;
+      }
       deps.logger.warn(
         `[tlon] Test run of cron job ${job.id} failed: ${String(error)}`
       );
@@ -377,7 +418,12 @@ export async function startCronTestRun(
     })
     .finally(() => {
       runningTests.delete(jobId);
-      void rm(sessionFile, { force: true });
+      // The transcript holds the prompt and the reply; say if it is left.
+      rm(sessionFile, { force: true }).catch((error: unknown) => {
+        deps.logger.warn(
+          `[tlon] Could not remove the test run transcript ${sessionFile}: ${String(error)}`
+        );
+      });
     });
   return { type: 'started', id: jobId, lensId };
 }

@@ -104,13 +104,15 @@ describe('startCronTestRun', () => {
       disableMessageTool: true,
       toolsAllow: ['tlon', 'web_search'],
       bootstrapContextRunKind: 'cron',
-      // The gateway's configured agent timeout, as a scheduled run gets.
-      timeoutMs: 60_000,
     });
+    // The gateway's configured agent timeout, as a scheduled run gets; the
+    // runner passes what is left of it.
+    expect(params.timeoutMs).toBeGreaterThan(59_000);
+    expect(params.timeoutMs).toBeLessThanOrEqual(60_000);
     expect(params).not.toHaveProperty('runTimeoutOverrideMs');
-    // The lens lasts as long as the run may, and then some.
+    // A short run keeps the default lens lifetime.
     const created = published[0]!.lens;
-    expect(created.expiresAt - created.createdAt).toBe(60_000 + 10 * 60_000);
+    expect(created.expiresAt - created.createdAt).toBe(30 * 60_000);
     expect(isCronTestSessionKey(params.sessionKey)).toBe(true);
     expect(params.prompt).toContain(
       '[cron:job-digest Daily digest] Summarize the group.'
@@ -136,26 +138,83 @@ describe('startCronTestRun', () => {
   });
 
   it("keeps to the job's own timeout when it sets one", async () => {
-    const { deps, run, runEmbeddedAgent, started, finalLens } = harness(
-      'job-timeout',
-      [
+    const { deps, run, runEmbeddedAgent, published, started, finalLens } =
+      harness('job-timeout', [
         {
           ...digest,
           id: 'job-timeout',
-          payload: { ...digest.payload, timeoutSeconds: 90 },
+          payload: { ...digest.payload, timeoutSeconds: 3_600 },
         },
-      ]
-    );
+      ]);
 
     await startCronTestRun('job-timeout', deps);
     await started();
 
-    expect(runEmbeddedAgent.mock.calls[0]![0]).toMatchObject({
-      timeoutMs: 90_000,
-      runTimeoutOverrideMs: 90_000,
-    });
+    const params = runEmbeddedAgent.mock.calls[0]![0];
+    expect(params.runTimeoutOverrideMs).toBe(3_600_000);
+    expect(params.timeoutMs).toBeGreaterThan(3_599_000);
+    // The lens outlives the hour the run may take.
+    const created = published[0]!.lens;
+    expect(created.expiresAt - created.createdAt).toBe(3_600_000 + 10 * 60_000);
     run.resolve({ payloads: [{ text: 'Done.' }], meta: { durationMs: 1 } });
     await finalLens();
+  });
+
+  it("fails over to the job's fallback model before any tool runs", async () => {
+    const { deps, runEmbeddedAgent, finalLens } = harness('job-fallback', [
+      {
+        ...digest,
+        id: 'job-fallback',
+        payload: {
+          ...digest.payload,
+          model: 'anthropic/primary',
+          fallbacks: ['openai/backup'],
+        },
+      },
+    ]);
+    runEmbeddedAgent
+      .mockReset()
+      .mockRejectedValueOnce(
+        Object.assign(new Error('overloaded'), {
+          name: 'FailoverError',
+          reason: 'overloaded',
+        })
+      )
+      .mockResolvedValueOnce({
+        payloads: [{ text: 'From the backup.' }],
+        meta: { durationMs: 1 },
+      });
+
+    await startCronTestRun('job-fallback', deps);
+
+    expect(await finalLens()).toMatchObject({
+      status: 'completed',
+      cron: { output: 'From the backup.' },
+    });
+    expect(runEmbeddedAgent.mock.calls.map(([params]) => params.model)).toEqual(
+      ['anthropic/primary', 'openai/backup']
+    );
+  });
+
+  it('stops as aborted when its monitor goes away', async () => {
+    const abort = new AbortController();
+    const { deps, runEmbeddedAgent, started, finalLens } = harness('job-abort');
+    runEmbeddedAgent
+      .mockReset()
+      .mockImplementation(
+        ({ abortSignal }: { abortSignal: AbortSignal }) =>
+          new Promise((_, reject) =>
+            abortSignal.addEventListener('abort', () =>
+              reject(new Error('aborted'))
+            )
+          )
+      );
+
+    await startCronTestRun('job-abort', { ...deps, signal: abort.signal });
+    await started();
+    abort.abort();
+
+    expect(await finalLens()).toMatchObject({ status: 'aborted' });
   });
 
   it('answers a second ask with the run already going', async () => {
@@ -235,6 +294,24 @@ describe('startCronTestRun on a job a test cannot stand in for', () => {
 });
 
 describe('cronTestRunToolBlock', () => {
+  it('fails closed: tools not known to only read are blocked', () => {
+    for (const tool of ['exec', 'write', 'browser', 'mcp__call', 'nodes']) {
+      expect(cronTestRunToolBlock(tool, {})).toBe(CRON_TEST_RUN_BLOCK_REASON);
+    }
+    for (const tool of [
+      'read',
+      'web_fetch',
+      'memory_search',
+      'mcp__describe',
+    ]) {
+      expect(cronTestRunToolBlock(tool, {})).toBeNull();
+    }
+    // Only Tlon reads, not its catch-all utility commands.
+    expect(cronTestRunToolBlock('tlon', { command: 'help' })).toBe(
+      CRON_TEST_RUN_BLOCK_REASON
+    );
+  });
+
   it('blocks sending, scheduling, and Tlon writes, and allows reads', () => {
     expect(cronTestRunToolBlock('message', {})).toBe(
       CRON_TEST_RUN_BLOCK_REASON

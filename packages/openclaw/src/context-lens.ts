@@ -257,6 +257,16 @@ type ActiveContextLensBinding = {
 };
 
 const DEFAULT_TTL_MS = 30 * 60 * 1000;
+const CRON_LENS_MARGIN_MS = 10 * 60 * 1000;
+
+/**
+ * How long a cron run's lens must last: past the run's timeout, by a margin
+ * for its verdict, or its finish would find it pruned and the run would look
+ * unfinished forever. Never shorter than the default.
+ */
+export function cronLensTtlMs(timeoutMs: number): number {
+  return Math.max(DEFAULT_TTL_MS, timeoutMs + CRON_LENS_MARGIN_MS);
+}
 const MAX_LENSES = 200;
 const MAX_RETRY_SEED_TEXT_CHARS = 16_384;
 export const MAX_RETRY_SEED_BLOB_CHARS = 8_192;

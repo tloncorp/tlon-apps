@@ -413,7 +413,7 @@ function TaskEditor({ navigation, route }: Props) {
                 ? 'Testing is paused while credits are limited.'
                 : patch
                   ? 'Save your changes to test them. A test runs the saved task.'
-                  : 'A test run shows you what this task produces now. It posts nothing and leaves the schedule as it is.',
+                  : 'A test run shows you what this task produces now. It only reads: it posts and changes nothing, and leaves the schedule as it is.',
           },
         }
       : undefined;

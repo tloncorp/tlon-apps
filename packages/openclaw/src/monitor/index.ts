@@ -5684,6 +5684,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     publish: (phase, lens) =>
                       publishContextLensEvent(phase, lens),
                     logger: { warn: (message) => runtime.error?.(message) },
+                    ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
                   });
                 },
               }

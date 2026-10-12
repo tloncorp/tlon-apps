@@ -522,7 +522,7 @@ function TaskEditorFixture({
                     note:
                       status === 'held'
                         ? 'Testing is paused while credits are limited.'
-                        : 'A test run shows you what this task produces now. It posts nothing and leaves the schedule as it is.',
+                        : 'A test run shows you what this task produces now. It only reads: it posts and changes nothing, and leaves the schedule as it is.',
                   },
                 }
               : undefined

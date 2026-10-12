@@ -10,6 +10,7 @@ import {
   bindContextLensToSession,
   buildRetryDispatch,
   createContextLensRegistry,
+  cronLensTtlMs,
   ensureBackgroundContextLensForSession,
   finalizeBackgroundContextLensForSession,
   finishBackgroundContextLens,
@@ -737,6 +738,11 @@ describe('context lens registry', () => {
       status: 'completed',
       cron: { outcome: { status: 'ok', summary: 'All quiet' } },
     });
+  });
+
+  it('keeps a cron lens past its run timeout', () => {
+    expect(cronLensTtlMs(60_000)).toBe(30 * 60_000);
+    expect(cronLensTtlMs(2 * 60 * 60_000)).toBe(2 * 60 * 60_000 + 10 * 60_000);
   });
 
   it('gives a later run without a lens of its own nothing to overwrite', () => {

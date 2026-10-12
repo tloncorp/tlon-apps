@@ -17,6 +17,7 @@ import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
 import { initContextLensStore } from './src/context-lens-store.js';
 import { detailToolParams } from './src/context-lens-tool-params.js';
 import {
+  cronLensTtlMs,
   ensureBackgroundContextLensForSession,
   recordContextLensToolResultForSession,
   recordContextLensToolStartForSession,
@@ -29,6 +30,7 @@ import {
 } from './src/cron-observability.js';
 import {
   clearCronServiceAccessor,
+  getTlonCronService,
   handleCronChangedEvent,
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
@@ -1575,6 +1577,32 @@ export default defineBundledChannelEntry({
     // no `:cron:` marker — the agent-level hook context is the only place
     // the gateway exposes the cron trigger, so tag the run's lens here
     // before any tool fires. Idempotent across both hooks.
+    // A scheduled run's lens has to last as long as the run may: the job's
+    // own timeout when it sets one, else the configured agent timeout.
+    const cronRunLensTtlMs = (jobId: string | undefined) => {
+      try {
+        const cron = getTlonCronService() as
+          | {
+              getJob?: (
+                id: string
+              ) => { payload?: { timeoutSeconds?: unknown } } | undefined;
+            }
+          | undefined;
+        const timeoutSeconds = jobId
+          ? cron?.getJob?.(jobId)?.payload?.timeoutSeconds
+          : undefined;
+        return cronLensTtlMs(
+          api.runtime.agent.resolveAgentTimeoutMs({
+            cfg: api.runtime.config.loadConfig(),
+            ...(typeof timeoutSeconds === 'number' && timeoutSeconds > 0
+              ? { overrideSeconds: timeoutSeconds }
+              : {}),
+          })
+        );
+      } catch {
+        return undefined;
+      }
+    };
     const ensureCronContextLens = async (ctx: {
       sessionKey?: string;
       trigger?: string;
@@ -1589,6 +1617,7 @@ export default defineBundledChannelEntry({
         ctx.jobId
       );
       const background = ensureBackgroundContextLensForSession(ctx.sessionKey, {
+        ttlMs: cronRunLensTtlMs(ctx.jobId),
         ...(onboardingChannelNest
           ? {
               chatType: 'channel' as const,
