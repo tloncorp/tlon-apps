@@ -140,6 +140,11 @@ export type ContextLensCron = {
     delivered?: boolean;
     deliveryStatus?: string;
     deliveryError?: string;
+    /**
+     * The run's last reply was NO_REPLY, seen as the agent ended: the
+     * evidence of a deliberate silence when the host's summary is empty.
+     */
+    silent?: boolean;
   };
 };
 
@@ -1178,8 +1183,10 @@ export function finishBackgroundContextLens(
 
 /**
  * A successful run that chose to say nothing: the host reports it as not
- * delivered, with no error and a reply that is empty or NO_REPLY. The same
- * test the plugin's cron telemetry uses for intentional silence.
+ * delivered, with no error, and either its summary is NO_REPLY or, the host
+ * having stripped the token, it is empty and the plugin saw the silent reply
+ * itself. The same test the plugin's cron telemetry uses for intentional
+ * silence; an unexplained non-delivery is a failure.
  */
 function isSilentCronOutcome(
   outcome: NonNullable<ContextLensCron['outcome']>
@@ -1190,7 +1197,8 @@ function isSilentCronOutcome(
     outcome.deliveryStatus === 'not-delivered' &&
     !outcome.error?.trim() &&
     !outcome.deliveryError?.trim() &&
-    (!summary || summary.toUpperCase() === 'NO_REPLY')
+    (summary?.toUpperCase() === 'NO_REPLY' ||
+      (!summary && outcome.silent === true))
   );
 }
 

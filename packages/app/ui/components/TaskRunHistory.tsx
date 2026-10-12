@@ -353,7 +353,7 @@ export function TaskRunDetailView({
   lens: ContextLens | null;
   loading?: boolean;
   now: number;
-  /** Where a scheduled run posts, for saying where its output went. */
+  /** Where this run posted, as the run recorded it. */
   destinationLabel?: string;
   onPressMessage?: (target: LensMessageTarget) => void;
   onBack: () => void;
@@ -421,7 +421,7 @@ function TaskRunOutputCard({
   const error = outcome === 'failed' ? taskRunError(lens) : null;
   const note = isTestRun(lens)
     ? 'Test run. Nothing was posted and the schedule is unchanged.'
-    : lens.cron?.outcome?.delivered && destinationLabel
+    : destinationLabel
       ? `Posted to ${destinationLabel}.`
       : null;
   return (

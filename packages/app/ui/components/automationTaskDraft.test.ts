@@ -10,6 +10,7 @@ import {
   canEditPrompt,
   cronExpressionFor,
   describeAutomationError,
+  describeTestRunError,
   destinationForChannel,
   destinationFromDelivery,
   draftFromTask,
@@ -1061,6 +1062,36 @@ describe('describeAutomationError', () => {
   it('falls back to a connection message', () => {
     expect(describeAutomationError(new Error('network'))).toBe(
       'Could not reach your bot. Check your connection and try again.'
+    );
+  });
+});
+
+describe('describeTestRunError', () => {
+  const refusal = (errorType: string, detail = '') =>
+    Object.assign(
+      new Error(`%steward automation error (${errorType}): ${detail}`),
+      { errorType }
+    );
+
+  it('tells a bot with Context Lens off from one that needs an update', () => {
+    expect(
+      describeTestRunError(
+        refusal(
+          'invalid',
+          'test runs need Context Lens, which is off on this bot'
+        )
+      )
+    ).toBe('Test runs need Context Lens, which is turned off on your bot.');
+    expect(
+      describeTestRunError(refusal('invalid', 'this task has no prompt to run'))
+    ).toBe('This task has no prompt to test.');
+    expect(
+      describeTestRunError(
+        refusal('invalid', 'Invalid steward automation dispatch: action')
+      )
+    ).toBe('Your bot needs an update before it can test tasks.');
+    expect(describeTestRunError(refusal('unknown'))).toBe(
+      'Your bot needs an update before it can test tasks.'
     );
   });
 });

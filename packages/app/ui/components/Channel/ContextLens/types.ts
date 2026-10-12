@@ -95,6 +95,8 @@ export type ContextLensCron = {
     delivered?: boolean;
     deliveryStatus?: string;
     deliveryError?: string;
+    /** The plugin saw the run reply NO_REPLY, for an empty summary. */
+    silent?: boolean;
   };
 };
 

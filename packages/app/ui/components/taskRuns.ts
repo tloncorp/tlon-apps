@@ -22,8 +22,9 @@ type CronOutcome = NonNullable<NonNullable<ContextLens['cron']>['outcome']>;
 
 /**
  * A run that chose to say nothing, which the host also reports as not
- * delivered: no error, and a reply that is empty or NO_REPLY. The plugin's
- * cron telemetry draws the same line.
+ * delivered: no error, and a NO_REPLY summary, or an empty one the plugin
+ * saw was silent. The plugin's cron telemetry draws the same line; any other
+ * non-delivery is a failure.
  */
 function isSilent(outcome: CronOutcome) {
   const summary = outcome.summary?.trim();
@@ -32,7 +33,8 @@ function isSilent(outcome: CronOutcome) {
     outcome.deliveryStatus === 'not-delivered' &&
     !outcome.error?.trim() &&
     !outcome.deliveryError?.trim() &&
-    (!summary || summary.toUpperCase() === 'NO_REPLY')
+    (summary?.toUpperCase() === 'NO_REPLY' ||
+      (!summary && outcome.silent === true))
   );
 }
 

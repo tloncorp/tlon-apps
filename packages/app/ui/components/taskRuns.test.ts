@@ -91,7 +91,11 @@ describe('taskRunOutcome', () => {
   });
 
   test('reads a run that chose to say nothing as no output, not a failure', () => {
-    for (const summary of [undefined, 'NO_REPLY']) {
+    for (const outcome of [
+      { summary: 'NO_REPLY' },
+      // The host stripped the token; the plugin saw the silent reply.
+      { silent: true },
+    ]) {
       expect(
         taskRunOutcome(
           run({
@@ -99,15 +103,30 @@ describe('taskRunOutcome', () => {
               jobId: 'job-1',
               outcome: {
                 status: 'ok',
-                summary,
                 delivered: false,
                 deliveryStatus: 'not-delivered',
+                ...outcome,
               },
             },
           })
         )
       ).toBe('no-output');
     }
+    // An empty summary with no evidence of silence is unexplained.
+    expect(
+      taskRunOutcome(
+        run({
+          cron: {
+            jobId: 'job-1',
+            outcome: {
+              status: 'ok',
+              delivered: false,
+              deliveryStatus: 'not-delivered',
+            },
+          },
+        })
+      )
+    ).toBe('failed');
     expect(
       taskRunOutcome(
         run({

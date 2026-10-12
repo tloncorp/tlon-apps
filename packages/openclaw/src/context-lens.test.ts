@@ -862,6 +862,31 @@ describe('context lens registry', () => {
     }
   });
 
+  it('reads an empty, undelivered summary as silence only with evidence', () => {
+    for (const [jobId, silent, status] of [
+      ['job-empty-silent', true, 'no_reply'],
+      ['job-empty-unexplained', false, 'completed'],
+    ] as const) {
+      const sessionKey = `session-background-${jobId}`;
+      ensureBackgroundContextLensForSession(sessionKey, {
+        runKind: 'cron',
+        trigger: 'cron',
+        cron: { jobId },
+      });
+      expect(
+        recordCronRunOutcome({
+          jobId,
+          outcome: {
+            status: 'ok',
+            delivered: false,
+            deliveryStatus: 'not-delivered',
+            ...(silent ? { silent } : {}),
+          },
+        })
+      ).toMatchObject({ status });
+    }
+  });
+
   it('records a run that chose to say nothing as no reply', () => {
     const sessionKey = 'session-background-cron-silent';
     ensureBackgroundContextLensForSession(sessionKey, {

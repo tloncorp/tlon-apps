@@ -539,7 +539,12 @@ export async function applyStewardAutomationDispatch(
 
   if ('test' in action) {
     if (!runTest) {
-      return errorBody('invalid', 'test runs are not available on this bot');
+      // A test run's only output is its Context Lens record; the client
+      // tells this apart from a plugin that predates test runs by the words.
+      return errorBody(
+        'invalid',
+        'test runs need Context Lens, which is off on this bot'
+      );
     }
     try {
       return await runTest(action.test.id);

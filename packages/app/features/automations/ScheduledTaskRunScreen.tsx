@@ -6,10 +6,6 @@ import type { RootStackParamList } from '../../navigation/types';
 import { lensFromRunPayload } from '../../ui/components/Channel/ContextLens/types';
 import { TaskRunDetailView } from '../../ui/components/TaskRunHistory';
 import { useLensMessageNavigation } from '../lens/useLensMessageNavigation';
-import {
-  tasksForShip,
-  useStewardAutomationTasks,
-} from './useStewardAutomationTasks';
 import { useNowOnFocus } from './useTaskRuns';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ScheduledTaskRun'>;
@@ -20,7 +16,7 @@ const STARTING_ATTEMPTS = 15;
 const STARTING_INTERVAL_MS = 2_000;
 
 export function ScheduledTaskRunScreen({ navigation, route }: Props) {
-  const { botShip, taskId, lensId, starting } = route.params;
+  const { botShip, lensId, starting } = route.params;
 
   const [resolving, setResolving] = useState(true);
   useEffect(() => {
@@ -58,16 +54,22 @@ export function ScheduledTaskRunScreen({ navigation, route }: Props) {
     [runQuery.data]
   );
 
-  // Where a scheduled run of this task posts, to say where its output went.
-  const { data } = useStewardAutomationTasks();
-  const to = tasksForShip(data, botShip)?.[taskId]?.delivery?.to;
+  // Where this run posted, as it recorded: the task may post somewhere else
+  // now.
+  const postedTo = lens?.outputs?.[0];
   const { data: channel } = store.useChannel({
-    id: to?.includes('/') ? to : undefined,
+    id:
+      postedTo?.kind === 'channel' && postedTo.conversationId.includes('/')
+        ? postedTo.conversationId
+        : undefined,
   });
-  const destinationLabel = channel
-    ? [channel.group?.title, channel.title].filter(Boolean).join(' · ') ||
-      undefined
-    : undefined;
+  const destinationLabel =
+    postedTo?.kind === 'dm'
+      ? 'a direct message'
+      : channel
+        ? [channel.group?.title, channel.title].filter(Boolean).join(' · ') ||
+          undefined
+        : undefined;
 
   const handlePressMessage = useLensMessageNavigation(botShip);
   const now = useNowOnFocus();

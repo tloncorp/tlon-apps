@@ -464,7 +464,7 @@ describe('applyStewardAutomationDispatch', () => {
     ).toEqual({
       type: 'error',
       errorType: 'invalid',
-      message: ['test runs are not available on this bot'],
+      message: ['test runs need Context Lens, which is off on this bot'],
     });
   });
 

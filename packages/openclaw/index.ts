@@ -40,6 +40,7 @@ import {
 } from './src/cron-tool-args-guard.js';
 import {
   beginCronSilenceObservation,
+  peekCronSilenceOutput,
   recordCronSilenceOutput,
 } from './src/cron-silence.js';
 import {
@@ -1431,6 +1432,8 @@ export default defineBundledChannelEntry({
             ...(event.deliveryError
               ? { deliveryError: event.deliveryError }
               : {}),
+            // Read, not consumed: the telemetry hook below consumes it.
+            ...(peekCronSilenceOutput(event) ? { silent: true } : {}),
           },
         });
         if (finished) {

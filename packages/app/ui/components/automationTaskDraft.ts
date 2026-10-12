@@ -666,18 +666,28 @@ export function describeAutomationError(error: unknown): string {
  * A failed test run request, for a toast. A bot whose node or plugin
  * predates test runs turns the request down as one it cannot read: an
  * `invalid` from the plugin, or an `unknown` from its node refusing the poke.
+ * A current plugin says `invalid` too, for a task with no prompt or a bot
+ * with Context Lens off, and says which in its message.
  */
 export function describeTestRunError(error: unknown): string {
   const errorType =
     error && typeof error === 'object' && 'errorType' in error
       ? String(error.errorType)
       : undefined;
+  const detail = error instanceof Error ? error.message.toLowerCase() : '';
   switch (errorType) {
     case 'harness-offline':
       return 'Your bot is offline. Try again once it is back.';
     case 'not-found':
       return 'This task no longer exists.';
     case 'invalid':
+      if (detail.includes('context lens')) {
+        return 'Test runs need Context Lens, which is turned off on your bot.';
+      }
+      if (detail.includes('no prompt')) {
+        return 'This task has no prompt to test.';
+      }
+      return 'Your bot needs an update before it can test tasks.';
     case 'unknown':
       return 'Your bot needs an update before it can test tasks.';
     case 'harness-error':
