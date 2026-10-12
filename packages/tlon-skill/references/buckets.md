@@ -18,7 +18,7 @@ Use `help buckets` for search, mkdir, rename, move, delete, create, and writer r
 
 Bucket authorization uses the current ship's group membership and reader/writer roles. It requests a short-lived, single-operation storage capability; never ask for host, owner, or object-storage credentials to bypass a permission failure.
 
-Creating a Bucket requires a planet-hosted group. A moon may invoke the command as a group admin, but cannot host the Bucket itself. Do not substitute its owner planet or another group member.
+Creating a Bucket requires a group hosted by a planet or a moon; the Bucket is always hosted by the group's host. Do not substitute a moon's owner planet or another group member for the group host.
 
 Empty roles mean open access: no reader roles means every group member can read; no writer roles means every reader can write. When restricted access is requested, supply reader/writer roles at creation rather than creating it open and narrowing later.
 

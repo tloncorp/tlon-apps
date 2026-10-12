@@ -473,23 +473,47 @@ test('createChannel lets a non-host admin create a group-hosted Bucket', async (
   });
 });
 
-test('createChannel rejects a Bucket in a Moon-hosted group before poking Gall', async () => {
+test('createChannel sends a Bucket in a Moon-hosted group to the Moon', async () => {
   const moonGroupId = '~pinser-botter-sampel-palnet/files';
   await insertGroup(moonGroupId);
-  const sendBucketsAction = vi.spyOn(api, 'sendBucketsAction');
+  vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~sampel-palnet');
+  const sendBucketsAction = vi
+    .spyOn(api, 'sendBucketsAction')
+    .mockResolvedValue({ ok: null });
+  vi.spyOn(api, 'getGroup').mockResolvedValue({
+    id: moonGroupId,
+    channels: [
+      {
+        id: 'buckets/~pinser-botter-sampel-palnet/project-files',
+        title: 'Project files',
+        type: 'buckets',
+        groupId: moonGroupId,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+      },
+    ],
+  } as unknown as db.Group);
 
-  await expect(
-    createChannel({
-      customSlug: 'project-files',
-      groupId: moonGroupId,
-      title: 'Project files',
-      channelType: 'buckets',
-    })
-  ).rejects.toThrow(
-    'Buckets are currently available only in groups hosted on Tlon.'
-  );
+  const channel = await createChannel({
+    customSlug: 'project-files',
+    groupId: moonGroupId,
+    title: 'Project files',
+    channelType: 'buckets',
+  });
 
-  expect(sendBucketsAction).not.toHaveBeenCalled();
+  expect(sendBucketsAction).toHaveBeenCalledWith({
+    type: 'create',
+    group: { host: '~pinser-botter-sampel-palnet', name: 'files' },
+    name: 'project-files',
+    readers: [],
+    title: 'Project files',
+    writers: [],
+  });
+  expect(channel).toMatchObject({
+    id: 'buckets/~pinser-botter-sampel-palnet/project-files',
+    currentUserIsHost: false,
+    type: 'buckets',
+  });
 });
 
 // The broker authenticates a bucket host through that ship's hosting sidecar,
@@ -523,7 +547,8 @@ test('canGroupHostBuckets falls back to the class filter for a group hosted else
   vi.spyOn(api, 'getCurrentUserIsHosted').mockReturnValue(false);
 
   expect(canGroupHostBuckets('~sampel-palnet')).toBe(true);
-  expect(canGroupHostBuckets('~pinser-botter-sampel-palnet')).toBe(false);
+  expect(canGroupHostBuckets('~pinser-botter-sampel-palnet')).toBe(true);
+  expect(canGroupHostBuckets('~marzod')).toBe(false);
 });
 
 // Our own node is the one case that can be answered rather than guessed.

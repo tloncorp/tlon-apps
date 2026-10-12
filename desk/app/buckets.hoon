@@ -431,8 +431,8 @@
   =/  paths=(list path)  ~[/v1/requests]
   ?-  -.act
       %create
-    ?.  ?=(%duke (clan:title ship.group.act))
-      (deny rid paths %invalid-input 'only a planet may host a bucket')
+    ?.  ?=(?(%duke %earl) (clan:title ship.group.act))
+      (deny rid paths %invalid-input 'only a planet or moon may host a bucket')
     ?.  (group-is-admin-for-create group.act our.bowl)
       (deny rid paths %not-authorized 'only a group admin may create a bucket')
     ?.  =(ship.group.act our.bowl)
@@ -463,8 +463,8 @@
   ?-  -.act
       %create
     ?>  =(ship.group.act our.bowl)
-    ?.  ?=(%duke (clan:title ship.group.act))
-      (deny rid paths %invalid-input 'only a planet may host a bucket')
+    ?.  ?=(?(%duke %earl) (clan:title ship.group.act))
+      (deny rid paths %invalid-input 'only a planet or moon may host a bucket')
     ?.  (group-is-admin-for-create group.act src.bowl)
       (deny rid paths %not-authorized 'only a group admin may create a bucket')
     =.  cor
