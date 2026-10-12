@@ -2015,6 +2015,28 @@
       [%error %invalid-input 'only a planet may host a bucket']
   ==
 ::
+::  A ship pointed at a broker other than the default is exempt from the
+::  planet rule: whoever runs that broker runs the sidecar it verifies
+::  through, so ship class says nothing about whether it can host.
+::
+++  test-custom-broker-lets-a-non-planet-host
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  moon=ship  ~pinser-botter-sampel-palnet
+  =/  moon-group=flag:bu  [moon %test-group]
+  ;<  ~  b  (setup-as moon)
+  ;<  *  b  (do-poke %noun !>([%set-broker-base `'https://memex.local.example/v2/buckets']))
+  ;<  ~  b  (set-scry-gate allow-admin-create-scries)
+  ;<  *  b  (ask 0v1 [%create %project-files 'Project Files' moon-group ~ ~])
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  bs=bucket-state:bu  (state-for st [moon %project-files])
+  %+  ex-equal
+    !>([created-by.bucket.bs group.bs])
+  !>([moon moon-group])
+::
 ::  The authoritative group host accepts a live remote admin, owns the Bucket,
 ::  and records the initiating admin as its creator.
 ::

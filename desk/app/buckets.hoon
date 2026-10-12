@@ -424,6 +424,21 @@
 ::
 ::  +dispatch-local: a client on our own ship submitted an action. Apply it
 ::  if we host the bucket, otherwise forward it to the host and wait.
+::  +may-host: whether .who may own Bucket storage.
+::
+::  The production broker serves hosted planets and nothing else, so the class
+::  filter refuses here, legibly, what Memex would refuse anyway. A ship
+::  pointed at a different broker is exempt: its operator runs that broker
+::  and the sidecar it verifies hosts through, so the production constraint
+::  does not apply and ship class says nothing about it.
+::
+++  may-host
+  |=  who=ship
+  ^-  ?
+  ?|  !=(broker-base default-broker-base)
+      ?=(%duke (clan:title who))
+  ==
+::
 ::
 ++  dispatch-local
   |=  [rid=request-id:b act=a-buckets:b]
@@ -431,7 +446,7 @@
   =/  paths=(list path)  ~[/v1/requests]
   ?-  -.act
       %create
-    ?.  ?=(%duke (clan:title ship.group.act))
+    ?.  (may-host ship.group.act)
       (deny rid paths %invalid-input 'only a planet may host a bucket')
     ?.  (group-is-admin-for-create group.act our.bowl)
       (deny rid paths %not-authorized 'only a group admin may create a bucket')
@@ -463,7 +478,7 @@
   ?-  -.act
       %create
     ?>  =(ship.group.act our.bowl)
-    ?.  ?=(%duke (clan:title ship.group.act))
+    ?.  (may-host ship.group.act)
       (deny rid paths %invalid-input 'only a planet may host a bucket')
     ?.  (group-is-admin-for-create group.act src.bowl)
       (deny rid paths %not-authorized 'only a group admin may create a bucket')
@@ -2066,11 +2081,13 @@
 ::
 ::  +set-broker-base: point this ship's syncs at a different broker.
 ::
-::  Refuses anything but an https origin. The credential +sync-cards sends is
-::  a bearer header, so a base naming a plaintext or unexpected host does not
-::  fail closed -- it discloses the secret to whoever was named. One trailing
-::  slash is trimmed rather than refused, since every use appends its own path
-::  and a doubled slash would 404 against a broker that is otherwise right.
+::  Refuses anything but an https origin, or plaintext loopback for a broker
+::  on this machine. The credential +sync-cards sends is a bearer header, so
+::  a base naming a plaintext or unexpected host does not fail closed -- it
+::  discloses the secret to whoever was named. Loopback never leaves the host,
+::  so it cannot. One trailing slash is trimmed rather than refused, since
+::  every use appends its own path and a doubled slash would 404 against a
+::  broker that is otherwise right.
 ::
 ++  set-broker-base
   |=  base=(unit @t)
@@ -2088,7 +2105,7 @@
     ?:  =(~ txt)  txt
     =/  last=@ud  (dec (lent txt))
     ?.(=('/' (snag last txt)) txt (scag last txt))
-  ?.  =("https://" (scag 8 txt))
+  ?.  |(=("https://" (scag 8 txt)) =("http://127.0.0.1" (scag 16 txt)))
     =.  cor
       (note %warn ~[leaf+"buckets: refusing a broker base that is not https"] ~)
     cor

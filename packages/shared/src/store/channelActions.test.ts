@@ -537,6 +537,18 @@ test('canGroupHostBuckets answers from hosting when the group is ours', () => {
   expect(canGroupHostBuckets('~sampel-palnet')).toBe(true);
 });
 
+// A client built against a developer's own broker brings its own sidecar, so
+// neither the ship's class nor where it runs says anything about whether that
+// broker can verify it.
+test('canGroupHostBuckets skips the hosted-ship filters when the broker is overridden', () => {
+  vi.spyOn(api, 'bucketsBrokerOverridden').mockReturnValue(true);
+  vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~zod');
+  vi.spyOn(api, 'getCurrentUserIsHosted').mockReturnValue(false);
+
+  expect(canGroupHostBuckets('~zod')).toBe(true);
+  expect(canGroupHostBuckets('~pinser-botter-sampel-palnet')).toBe(true);
+});
+
 test('createChannel preserves a created Bucket when its group listing is delayed', async () => {
   vi.useFakeTimers();
   await insertGroup(bucketGroupId);

@@ -41,6 +41,25 @@ function explicitBrokerUrl(): string | undefined {
   }
 }
 
+/**
+ * Whether the client was pointed at a broker other than the production one.
+ *
+ * Either override means a developer runs their own Memex, and with it the
+ * Pioneer sidecar that broker verifies hosts through. The hosted-ship
+ * pre-filters in channelActions exist because a self-hosted ship has no
+ * sidecar for production Memex to call; against a developer's broker that
+ * premise does not hold, so they are skipped. Read on every call, like the
+ * URL itself, since neither value can change after the bundle is built.
+ */
+export function bucketsBrokerOverridden(): boolean {
+  if (explicitBrokerUrl()) return true;
+  try {
+    return Boolean(process.env.TLON_MEMEX_URL?.trim());
+  } catch {
+    return false;
+  }
+}
+
 function bucketsBrokerUrl(): string {
   const explicit = explicitBrokerUrl();
   if (explicit) return explicit.replace(/\/+$/, '');

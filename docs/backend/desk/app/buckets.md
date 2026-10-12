@@ -8,6 +8,7 @@ The channel nest is `buckets/~host/name`. The Bucket host is authoritative, whil
 
 -   `%groups` remains the authority for membership and channel visibility.
 -   The Bucket host re-checks the affiliated group's live `can-read` gate for subscriptions, for every read token it mints, and again before installing one the broker has accepted.
+-   Only a planet may host a Bucket, because the production broker serves hosted planets and nothing else; the agent refuses up front what Memex would refuse anyway. A ship whose broker base is not the default is exempt, since whoever runs that broker runs the sidecar it verifies hosts through.
 -   Mutations require either group-admin authority or a group role in the Bucket's writer set. An empty writer set means every readable group member may write. Writer roles are independent from the reader roles stored by `%groups`.
 -   Title changes, writer-role changes, and Bucket deletion require a live group-admin check.
 -   Every permission read is a `.^` scry into `%groups`, which answers no-such-path for a group it does not hold -- and an unresolvable scry crashes the event. So each one first asks `+group-exists`, and treats a missing group as no access rather than dying. A bucket is only ever hosted by its group's host, so missing means deleted, not unsynced.
@@ -165,7 +166,7 @@ The credential goes in `X-Landscape-Token`. Neither it nor a bearer read token e
 :buckets &noun [%set-broker-base `(unit @t)`~]     :: back to the default
 ```
 
-Changing it re-sends every live grant to the new broker, because a broker holds only what it has been told; grants the old one still holds are left to lapse at their own expiry rather than being revoked, which is the same guarantee a missed revoke has. Only `https://` bases are accepted: the credential rides in a header, so a base naming an unexpected or plaintext host does not fail closed, it discloses the secret. `/x/v1/broker/base` reads back what a live host is using. The client half is the `TLON_MEMEX_URL` environment variable, set either way round:
+Changing it re-sends every live grant to the new broker, because a broker holds only what it has been told; grants the old one still holds are left to lapse at their own expiry rather than being revoked, which is the same guarantee a missed revoke has. Only `https://` bases are accepted, plus plaintext loopback (`http://127.0.0.1`) for a broker on the same machine: the credential rides in a header, so a base naming an unexpected or plaintext host does not fail closed, it discloses the secret, and loopback is the one plaintext path that never leaves the host. `/x/v1/broker/base` reads back what a live host is using. The client half is the `TLON_MEMEX_URL` environment variable, set either way round:
 
 ```sh
 # shell, unprefixed — one run

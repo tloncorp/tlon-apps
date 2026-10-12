@@ -56,6 +56,9 @@ export const BUCKETS_HOSTED_SHIP_REQUIRED_MESSAGE =
  * the ship in question is our own, which is the case that can be answered.
  */
 export function canShipHostBuckets(ship: string) {
+  // A client built against a developer's own broker has a sidecar that
+  // broker can reach, whatever the ship's class or where it runs.
+  if (api.bucketsBrokerOverridden()) return true;
   try {
     return p.kind(ship) === 'planet';
   } catch {
@@ -72,6 +75,7 @@ export function canShipHostBuckets(ship: string) {
  * so the ship class is all we have and the host's own sync is the real check.
  */
 export function canGroupHostBuckets(hostUserId: string) {
+  if (api.bucketsBrokerOverridden()) return true;
   if (!canShipHostBuckets(hostUserId)) return false;
   let hostIsUs = false;
   try {
