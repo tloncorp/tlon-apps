@@ -8,7 +8,7 @@ import { getMessagesFilter } from '@tloncorp/api';
 import { referenceLookupId } from '@tloncorp/api/client/references';
 import * as ub from '@tloncorp/api/urbit';
 import { isMatch, pick } from 'lodash';
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
@@ -898,6 +898,31 @@ export const useBucket = (options: { channelId?: string }) => {
       }
       return db.getBucket({ channelId });
     },
+  });
+};
+
+/**
+ * One Bucket's file and folder counts, or null until its manifest has
+ * arrived.
+ *
+ * Every caller shares one query over all Buckets, so a channel list reads
+ * once per change rather than once per row; `select` narrows it so a caller
+ * rerenders only when its own Bucket's counts move. Nothing needs warming:
+ * the app-wide %buckets subscription keeps every held manifest current.
+ */
+export const useBucketCounts = (options: { channelId?: string | null }) => {
+  const { channelId } = options;
+  const deps = useKeyFromQueryDeps(db.getBucketCountsByChannel);
+  const select = useCallback(
+    (counts: Record<string, db.BucketCounts>) =>
+      (channelId ? counts[channelId] : null) ?? null,
+    [channelId]
+  );
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: ['bucketCountsByChannel', deps],
+    queryFn: () => db.getBucketCountsByChannel(),
+    select,
   });
 };
 
