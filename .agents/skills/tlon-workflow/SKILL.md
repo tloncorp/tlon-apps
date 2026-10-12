@@ -201,6 +201,10 @@ If the steps do not reproduce as written, vary them before concluding anything: 
 
 To capture a "before" after the fix is already committed (the second platform, or a reviewer asks for another case), swap the file, not the branch: `git checkout origin/develop -- <path>`, wait for Fast Refresh to show the old behavior (relaunch if it does not, step 5), record, then `git checkout HEAD -- <path>` and check that the fix is back on screen. A swapped native file needs `stim ios --remote eas` / `stim android --remote eas` instead of a relaunch.
 
+For mock push reception and notification-tap scenarios, use
+[tlon-push-testing](../tlon-push-testing/SKILL.md). It gathers the target simulator,
+app variant and destination IDs, and generates payloads for the known app handlers.
+
 ### 5. Fix
 
 The ticket's diagnosis is a lead, not the cause: confirm the mechanism in code before changing it, and say so in the pull request when the two differ. Then the smallest change that fixes it -- no refactor, no cleanup of what sits next to it.
