@@ -24,6 +24,9 @@ import { useForwardToChannelSheet } from './useForwardToChannelSheet';
 
 export type { IdentifiedAutomationTask } from './scheduledTaskSections';
 
+// These screens open from a profile, so a wide window keeps them to its column.
+const COLUMN_WIDTH = 600;
+
 export function ScheduledTasksScreenView({
   available,
   synced = true,
@@ -67,6 +70,7 @@ export function ScheduledTasksScreenView({
       // Reached from a profile as well as from Settings, so a wide window
       // has nothing beside it to go back to.
       showsBackOnWideWindows
+      maxWidth={COLUMN_WIDTH}
       rightActions={[
         {
           id: 'new-scheduled-task',
@@ -117,6 +121,7 @@ export function ScheduledTasksNotice({
       ]}
       onBackPressed={onBack}
       showsBackOnWideWindows
+      maxWidth={COLUMN_WIDTH}
     />
   );
 }
@@ -226,6 +231,7 @@ export function RecurringTaskEditorView({
       })}
       onBackPressed={onBack}
       showsBackOnWideWindows
+      maxWidth={COLUMN_WIDTH}
       rightActions={[
         {
           id: 'save-scheduled-task',
