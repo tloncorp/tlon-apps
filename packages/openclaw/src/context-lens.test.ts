@@ -768,6 +768,63 @@ describe('context lens registry', () => {
     });
   });
 
+  it('gives each cron run on a shared session a lens of its own', () => {
+    const sessionKey = 'agent:main:main-shared-by-cron';
+    const first = ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-shared-a' },
+      runId: 'run-1',
+    });
+    // The same run's next hook reuses its lens.
+    expect(
+      ensureBackgroundContextLensForSession(sessionKey, {
+        runKind: 'cron',
+        trigger: 'cron',
+        cron: { jobId: 'job-shared-a' },
+        runId: 'run-1',
+      })
+    ).toMatchObject({ created: false, lens: { lensId: first?.lens.lensId } });
+
+    const second = ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-shared-b' },
+      runId: 'run-2',
+    });
+    expect(second?.created).toBe(true);
+    expect(second?.lens.lensId).not.toBe(first?.lens.lensId);
+    expect(second?.superseded).toMatchObject({
+      lensId: first?.lens.lensId,
+      status: 'completed',
+    });
+
+    // Another run of the same job is a new run, too.
+    const third = ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-shared-b' },
+      runId: 'run-3',
+    });
+    expect(third?.superseded?.lensId).toBe(second?.lens.lensId);
+
+    try {
+      // The first job's late verdict still lands on its own lens.
+      expect(
+        recordCronRunOutcome({
+          sessionKey,
+          jobId: 'job-shared-a',
+          outcome: { status: 'error', error: 'late failure' },
+        })
+      ).toMatchObject({
+        lensId: first?.lens.lensId,
+        status: 'error',
+      });
+    } finally {
+      finalizeBackgroundContextLensForSession(sessionKey);
+    }
+  });
+
   it('records a run that chose to say nothing as no reply', () => {
     const sessionKey = 'session-background-cron-silent';
     ensureBackgroundContextLensForSession(sessionKey, {

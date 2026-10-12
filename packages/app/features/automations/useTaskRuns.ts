@@ -54,14 +54,21 @@ export function useTaskRuns({
   // Older pages continue from the last page the ship sent, not from the
   // oldest run the store holds: a run cached some other way, as opening a
   // message's lens does, would make the next page skip everything between.
-  // Kept per task, since a desktop screen stays mounted across tasks.
+  // Kept per task, since a desktop screen stays mounted across tasks, and
+  // per fetch of the first page: a refreshed first page may not reach the
+  // older pages already loaded, so paging starts again from it.
   const taskKey = `${botShip}/${jobId}`;
+  const firstPageAt = page.dataUpdatedAt;
   const [olderPages, setOlderPages] = useState<{
     taskKey: string;
+    firstPageAt: number;
     hasMore: boolean;
     cursor?: string;
   } | null>(null);
-  const older = olderPages?.taskKey === taskKey ? olderPages : null;
+  const older =
+    olderPages?.taskKey === taskKey && olderPages.firstPageAt === firstPageAt
+      ? olderPages
+      : null;
   const cursor = older ? older.cursor : page.data?.cursor;
   const [loadingMore, setLoadingMore] = useState(false);
   const loadMore = useCallback(async () => {
@@ -75,13 +82,14 @@ export function useTaskRuns({
       });
       setOlderPages({
         taskKey,
+        firstPageAt,
         hasMore: next.hasMore,
         cursor: next.cursor ?? cursor,
       });
     } finally {
       setLoadingMore(false);
     }
-  }, [botShip, cursor, jobId, on, taskKey]);
+  }, [botShip, cursor, firstPageAt, jobId, on, taskKey]);
 
   return {
     supported,
@@ -92,6 +100,7 @@ export function useTaskRuns({
     hasMore: older ? older.hasMore : (page.data?.hasMore ?? false),
     loadingMore,
     loadMore,
+    retry: () => void refetch(),
   };
 }
 

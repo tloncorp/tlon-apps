@@ -54,7 +54,9 @@ function harness(id: string, jobs: unknown[] = [{ ...digest, id }]) {
       runEmbeddedAgent,
       resolveAgentWorkspaceDir: () => '/workspace',
       resolveAgentDir: () => '/agent',
-      resolveAgentTimeoutMs: () => 60_000,
+      resolveAgentTimeoutMs: vi.fn(({ overrideSeconds }) =>
+        overrideSeconds ? overrideSeconds * 1_000 : 60_000
+      ),
     } as unknown as CronTestRunDeps['runtime'],
     stateDir: () => mkdtempSync(path.join(tmpdir(), 'cron-test-run-')),
     publish: (phase, lens) => published.push({ phase, lens }),
@@ -102,7 +104,10 @@ describe('startCronTestRun', () => {
       disableMessageTool: true,
       toolsAllow: ['tlon', 'web_search'],
       bootstrapContextRunKind: 'cron',
+      // The gateway's configured agent timeout, as a scheduled run gets.
+      timeoutMs: 60_000,
     });
+    expect(params).not.toHaveProperty('runTimeoutOverrideMs');
     expect(isCronTestSessionKey(params.sessionKey)).toBe(true);
     expect(params.prompt).toContain(
       '[cron:job-digest Daily digest] Summarize the group.'
@@ -125,6 +130,29 @@ describe('startCronTestRun', () => {
         output: 'Three new threads today.',
       },
     });
+  });
+
+  it("keeps to the job's own timeout when it sets one", async () => {
+    const { deps, run, runEmbeddedAgent, started, finalLens } = harness(
+      'job-timeout',
+      [
+        {
+          ...digest,
+          id: 'job-timeout',
+          payload: { ...digest.payload, timeoutSeconds: 90 },
+        },
+      ]
+    );
+
+    await startCronTestRun('job-timeout', deps);
+    await started();
+
+    expect(runEmbeddedAgent.mock.calls[0]![0]).toMatchObject({
+      timeoutMs: 90_000,
+      runTimeoutOverrideMs: 90_000,
+    });
+    run.resolve({ payloads: [{ text: 'Done.' }], meta: { durationMs: 1 } });
+    await finalLens();
   });
 
   it('answers a second ask with the run already going', async () => {

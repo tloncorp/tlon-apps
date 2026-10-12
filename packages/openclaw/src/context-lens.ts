@@ -247,6 +247,8 @@ type ActiveContextLensBinding = {
   lensId: string;
   background: boolean;
   finalizeTimer?: ReturnType<typeof setTimeout>;
+  /** The host run a cron lens records, to tell its runs on one session apart. */
+  cronRunId?: string;
 };
 
 const DEFAULT_TTL_MS = 30 * 60 * 1000;
@@ -977,14 +979,41 @@ export function ensureBackgroundContextLensForSession(
     trigger?: ContextLensTrigger;
     preview?: string;
     cron?: ContextLensCron;
+    /** The host's id for the cron run, when the hook has one. */
+    runId?: string;
   } = {}
-): { lens: ContextLens; created: boolean } | null {
+): {
+  lens: ContextLens;
+  created: boolean;
+  /** A cron lens finished because another run took over its session. */
+  superseded?: ContextLens;
+} | null {
   const key = sessionKey?.trim();
   if (!key) {
     return null;
   }
   const resolved = resolveActiveBinding(key);
-  if (resolved) {
+  // Cron jobs that share a session, as main-session jobs do, can follow one
+  // another before the first one's verdict arrives. A different job, or
+  // another run of the same one, gets a lens of its own: the one before it
+  // is finished here, and its verdict still finds it as its job's last run.
+  const boundCron = resolved
+    ? resolved.binding.registry.get(resolved.binding.lensId)?.cron
+    : undefined;
+  const anotherRun =
+    resolved &&
+    input.cron &&
+    boundCron &&
+    (boundCron.jobId !== input.cron.jobId ||
+      (input.runId !== undefined &&
+        resolved.binding.cronRunId !== undefined &&
+        input.runId !== resolved.binding.cronRunId));
+  const superseded = anotherRun
+    ? (finishBackgroundContextLens(resolved.binding.lensId, {
+        status: 'completed',
+      }) ?? undefined)
+    : undefined;
+  if (resolved && !anotherRun) {
     const existing = resolved.binding;
     if (existing.finalizeTimer) {
       clearTimeout(existing.finalizeTimer);
@@ -999,6 +1028,15 @@ export function ensureBackgroundContextLensForSession(
         : current;
     if (attributed && input.cron && !current?.cron && !input.cron.test) {
       rememberCronLens(input.cron.jobId, attributed.lensId);
+    }
+    if (input.runId && input.cron && !existing.cronRunId) {
+      const bound = activeLensesBySession.get(resolved.key);
+      if (bound) {
+        activeLensesBySession.set(resolved.key, {
+          ...bound,
+          cronRunId: input.runId,
+        });
+      }
     }
     const lens =
       attributed &&
@@ -1036,11 +1074,12 @@ export function ensureBackgroundContextLensForSession(
     registry,
     lensId: lens.lensId,
     background: true,
+    ...(input.cron && input.runId ? { cronRunId: input.runId } : {}),
   });
   if (input.cron && !input.cron.test) {
     rememberCronLens(input.cron.jobId, lens.lensId);
   }
-  return { lens, created: true };
+  return { lens, created: true, ...(superseded ? { superseded } : {}) };
 }
 
 /**

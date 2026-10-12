@@ -55,10 +55,12 @@ function Notice({
   title,
   body,
   loading = false,
+  onRetry,
 }: {
   title: string;
   body?: string;
   loading?: boolean;
+  onRetry?: () => void;
 }) {
   return (
     <YStack
@@ -81,7 +83,40 @@ function Notice({
           {body}
         </SizableText>
       ) : null}
+      {onRetry ? (
+        <Button preset="secondaryOutline" label="Try again" onPress={onRetry} />
+      ) : null}
     </YStack>
+  );
+}
+
+/** A failed refresh over runs already on screen, which may be out of date. */
+function RefreshFailed({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <XStack
+      alignItems="center"
+      justifyContent="space-between"
+      gap="$m"
+      borderWidth={1}
+      borderColor="$border"
+      borderRadius="$m"
+      backgroundColor="$secondaryBackground"
+      paddingHorizontal="$m"
+      paddingVertical="$s"
+      testID="TaskRunHistoryRefreshFailed"
+    >
+      <SizableText size="$s" color="$secondaryText" flex={1}>
+        Could not refresh runs. These may be out of date.
+      </SizableText>
+      {onRetry ? (
+        <Button
+          preset="secondaryOutline"
+          size="small"
+          label="Try again"
+          onPress={onRetry}
+        />
+      ) : null}
+    </XStack>
   );
 }
 
@@ -101,6 +136,7 @@ export function TaskRunHistoryView({
   onLoadMore,
   onPressRun,
   onBack,
+  onRetry,
   test,
 }: {
   taskName?: string;
@@ -115,6 +151,8 @@ export function TaskRunHistoryView({
   onLoadMore?: () => void;
   onPressRun: (lens: ContextLens) => void;
   onBack: () => void;
+  /** Asks the ship for the runs again after a failed load. */
+  onRetry?: () => void;
   /** A test run of the task, offered from the header. */
   test?: { busy: boolean; disabled?: boolean; onPress: () => void };
 }) {
@@ -149,6 +187,7 @@ export function TaskRunHistoryView({
           maxWidth={COLUMN_WIDTH}
           alignSelf="center"
         >
+          {error && runs.length ? <RefreshFailed onRetry={onRetry} /> : null}
           {taskName || runs.length ? (
             <YStack gap="$2xs">
               {taskName ? (
@@ -183,6 +222,7 @@ export function TaskRunHistoryView({
               <Notice
                 title="Could not load runs"
                 body="Check your connection and try again."
+                onRetry={onRetry}
               />
             ) : loading ? (
               <Notice title="Loading runs" loading />

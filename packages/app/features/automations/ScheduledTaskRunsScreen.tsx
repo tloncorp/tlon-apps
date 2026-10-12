@@ -73,6 +73,7 @@ export function ScheduledTaskRunsScreen({ navigation, route }: Props) {
       now={now}
       loading={history.loading}
       error={history.error}
+      onRetry={history.retry}
       hasMore={history.hasMore}
       loadingMore={history.loadingMore}
       onLoadMore={() =>

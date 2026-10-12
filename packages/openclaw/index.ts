@@ -1575,6 +1575,7 @@ export default defineBundledChannelEntry({
       sessionKey?: string;
       trigger?: string;
       jobId?: string;
+      runId?: string;
     }) => {
       if (!contextLensEnabled || ctx.trigger !== 'cron') {
         return;
@@ -1593,7 +1594,11 @@ export default defineBundledChannelEntry({
         trigger: 'cron',
         preview: ctx.jobId ? `cron job ${ctx.jobId}` : 'cron run',
         ...(ctx.jobId ? { cron: { jobId: ctx.jobId } } : {}),
+        ...(ctx.runId ? { runId: ctx.runId } : {}),
       });
+      if (background?.superseded) {
+        publishContextLensEvent('final', background.superseded);
+      }
       if (background?.created) {
         publishContextLensEvent('created', background.lens);
       }

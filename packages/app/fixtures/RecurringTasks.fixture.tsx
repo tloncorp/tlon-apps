@@ -534,7 +534,13 @@ function TaskEditorFixture({
   );
 }
 
-function RunHistoryFixture({ runs }: { runs: ContextLens[] }) {
+function RunHistoryFixture({
+  runs,
+  error = false,
+}: {
+  runs: ContextLens[];
+  error?: boolean;
+}) {
   return (
     <FullScreen>
       <TaskRunHistoryView
@@ -543,9 +549,11 @@ function RunHistoryFixture({ runs }: { runs: ContextLens[] }) {
         total={runs.length ? 24 : 0}
         now={runNow}
         hasMore={runs.length > 0}
+        error={error}
         onLoadMore={noop}
         onPressRun={noop}
         onBack={noop}
+        onRetry={noop}
         test={{ busy: false, onPress: noop }}
       />
     </FullScreen>
@@ -784,6 +792,9 @@ export default {
   ),
   '6 · Run history': <RunHistoryFixture runs={sampleRuns} />,
   '6b · Run history, empty': <RunHistoryFixture runs={[]} />,
+  '6c · Run history, refresh failed': (
+    <RunHistoryFixture runs={sampleRuns} error />
+  ),
   '7 · Test run, running': <RunDetailFixture lensId="test-now" />,
   '7b · Test run, finished': <RunDetailFixture lensId="test-earlier" />,
   '7c · Scheduled run, posted': <RunDetailFixture lensId="today" />,

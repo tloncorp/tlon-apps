@@ -31,7 +31,6 @@ import { summarizeTlonCommand } from './tlon-tool-command.js';
  */
 
 const SESSION_MARKER = ':tlon-cron-test:';
-export const CRON_TEST_RUN_DEFAULT_TIMEOUT_MS = 300_000;
 
 export const CRON_TEST_RUN_BLOCK_REASON =
   'This is a test run of a scheduled task. It must not change anything, so this action is blocked. Say what you would have done instead.';
@@ -303,11 +302,17 @@ export async function startCronTestRun(
     'cron-test',
     `${runId}.jsonl`
   );
+  // The job's own timeout when it sets one, else the agent timeout the
+  // gateway is configured with, as a scheduled run of the job would get.
   const timeoutSeconds = job.payload?.timeoutSeconds;
-  const timeoutMs =
+  const explicitTimeout =
     typeof timeoutSeconds === 'number' && timeoutSeconds > 0
-      ? timeoutSeconds * 1_000
-      : CRON_TEST_RUN_DEFAULT_TIMEOUT_MS;
+      ? timeoutSeconds
+      : undefined;
+  const timeoutMs = deps.runtime.resolveAgentTimeoutMs({
+    cfg: deps.config,
+    ...(explicitTimeout ? { overrideSeconds: explicitTimeout } : {}),
+  });
   const run = async () => {
     await mkdir(path.dirname(sessionFile), { recursive: true });
     const result = await deps.runtime.runEmbeddedAgent({
@@ -331,6 +336,7 @@ export async function startCronTestRun(
         : {}),
       ...(job.payload?.model ? { model: job.payload.model } : {}),
       timeoutMs,
+      ...(explicitTimeout ? { runTimeoutOverrideMs: timeoutMs } : {}),
     });
     finish(cronTestRunResult(result));
   };
