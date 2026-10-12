@@ -1415,8 +1415,9 @@ export default defineBundledChannelEntry({
     api.on('cron_changed', async (event, ctx) => {
       if (contextLensEnabled && event.action === 'finished' && event.status) {
         const finished = recordCronRunOutcome({
-          sessionKey: event.sessionKey,
           jobId: event.jobId,
+          ...(event.runId ? { runId: event.runId } : {}),
+          ...(event.sessionId ? { runSessionId: event.sessionId } : {}),
           outcome: {
             status: event.status,
             ...(event.error ? { error: event.error } : {}),
@@ -1576,6 +1577,7 @@ export default defineBundledChannelEntry({
       trigger?: string;
       jobId?: string;
       runId?: string;
+      sessionId?: string;
     }) => {
       if (!contextLensEnabled || ctx.trigger !== 'cron') {
         return;
@@ -1595,6 +1597,7 @@ export default defineBundledChannelEntry({
         preview: ctx.jobId ? `cron job ${ctx.jobId}` : 'cron run',
         ...(ctx.jobId ? { cron: { jobId: ctx.jobId } } : {}),
         ...(ctx.runId ? { runId: ctx.runId } : {}),
+        ...(ctx.sessionId ? { runSessionId: ctx.sessionId } : {}),
       });
       if (background?.superseded) {
         publishContextLensEvent('final', background.superseded);

@@ -108,6 +108,9 @@ describe('startCronTestRun', () => {
       timeoutMs: 60_000,
     });
     expect(params).not.toHaveProperty('runTimeoutOverrideMs');
+    // The lens lasts as long as the run may, and then some.
+    const created = published[0]!.lens;
+    expect(created.expiresAt - created.createdAt).toBe(60_000 + 10 * 60_000);
     expect(isCronTestSessionKey(params.sessionKey)).toBe(true);
     expect(params.prompt).toContain(
       '[cron:job-digest Daily digest] Summarize the group.'

@@ -31,6 +31,7 @@ import { summarizeTlonCommand } from './tlon-tool-command.js';
  */
 
 const SESSION_MARKER = ':tlon-cron-test:';
+const TEST_RUN_LENS_MARGIN_MS = 10 * 60_000;
 
 export const CRON_TEST_RUN_BLOCK_REASON =
   'This is a test run of a scheduled task. It must not change anything, so this action is blocked. Say what you would have done instead.';
@@ -263,11 +264,25 @@ export async function startCronTestRun(
   const agentId = job.agentId?.trim() || deps.defaultAgentId();
   const runId = randomUUID();
   const sessionKey = `agent:${agentId}${SESSION_MARKER}${runId}`;
+  // The job's own timeout when it sets one, else the agent timeout the
+  // gateway is configured with, as a scheduled run of the job would get.
+  const timeoutSeconds = job.payload?.timeoutSeconds;
+  const explicitTimeout =
+    typeof timeoutSeconds === 'number' && timeoutSeconds > 0
+      ? timeoutSeconds
+      : undefined;
+  const timeoutMs = deps.runtime.resolveAgentTimeoutMs({
+    cfg: deps.config,
+    ...(explicitTimeout ? { overrideSeconds: explicitTimeout } : {}),
+  });
   const created = ensureBackgroundContextLensForSession(sessionKey, {
     runKind: 'cron',
     trigger: 'cron',
     preview: `cron job ${job.id}`,
     cron: { jobId: job.id, test: true },
+    // The lens must outlive the run, however long the run may take, or its
+    // finish finds nothing and the owner is left with a run that never ends.
+    ttlMs: timeoutMs + TEST_RUN_LENS_MARGIN_MS,
   });
   if (!created) {
     return {
@@ -302,17 +317,6 @@ export async function startCronTestRun(
     'cron-test',
     `${runId}.jsonl`
   );
-  // The job's own timeout when it sets one, else the agent timeout the
-  // gateway is configured with, as a scheduled run of the job would get.
-  const timeoutSeconds = job.payload?.timeoutSeconds;
-  const explicitTimeout =
-    typeof timeoutSeconds === 'number' && timeoutSeconds > 0
-      ? timeoutSeconds
-      : undefined;
-  const timeoutMs = deps.runtime.resolveAgentTimeoutMs({
-    cfg: deps.config,
-    ...(explicitTimeout ? { overrideSeconds: explicitTimeout } : {}),
-  });
   const run = async () => {
     await mkdir(path.dirname(sessionFile), { recursive: true });
     const result = await deps.runtime.runEmbeddedAgent({

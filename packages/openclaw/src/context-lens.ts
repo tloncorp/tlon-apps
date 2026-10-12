@@ -950,23 +950,69 @@ function getBackgroundContextLensRegistry(): ContextLensRegistry {
   return registry;
 }
 
-// The last scheduled run's lens per cron job. The host reports a run's
-// outcome after the agent ends, by which time the idle window may already
-// have finalized the lens and unbound it from its session.
-const recentCronLensByJob = sharedMap<string, string>(
-  'contextLens.recentCronLensByJob'
+// Scheduled cron runs still waiting for the host's verdict. The verdict
+// arrives after the agent ends, when the idle window may already have
+// unbound the run's lens, and runs sharing a session can follow one another
+// before it does. A verdict finds its run by the host's run or session id,
+// else as its job's oldest run still waiting: the host never runs one job
+// twice at once, so one job's verdicts arrive in the order its runs started.
+const pendingCronLensesByJob = sharedMap<string, string[]>(
+  'contextLens.pendingCronLensesByJob'
 );
-const MAX_RECENT_CRON_LENSES = 256;
+const pendingCronLensByRun = sharedMap<string, string>(
+  'contextLens.pendingCronLensByRun'
+);
+const MAX_PENDING_CRON_JOBS = 256;
+const MAX_PENDING_CRON_RUNS_PER_JOB = 8;
+const MAX_PENDING_CRON_RUN_IDS = 1_024;
 
-function rememberCronLens(jobId: string, lensId: string) {
-  recentCronLensByJob.delete(jobId);
-  recentCronLensByJob.set(jobId, lensId);
-  while (recentCronLensByJob.size > MAX_RECENT_CRON_LENSES) {
-    const oldest = recentCronLensByJob.keys().next().value;
+function trimOldest<K, V>(map: Map<K, V>, max: number) {
+  while (map.size > max) {
+    const oldest = map.keys().next().value;
     if (oldest === undefined) {
       break;
     }
-    recentCronLensByJob.delete(oldest);
+    map.delete(oldest);
+  }
+}
+
+function rememberCronLens(
+  jobId: string,
+  lensId: string,
+  runIds: (string | undefined)[] = []
+) {
+  const queue = (pendingCronLensesByJob.get(jobId) ?? []).filter(
+    (pending) => pending !== lensId
+  );
+  queue.push(lensId);
+  pendingCronLensesByJob.delete(jobId);
+  pendingCronLensesByJob.set(
+    jobId,
+    queue.slice(-MAX_PENDING_CRON_RUNS_PER_JOB)
+  );
+  trimOldest(pendingCronLensesByJob, MAX_PENDING_CRON_JOBS);
+  for (const runId of runIds) {
+    if (runId) {
+      pendingCronLensByRun.delete(runId);
+      pendingCronLensByRun.set(runId, lensId);
+    }
+  }
+  trimOldest(pendingCronLensByRun, MAX_PENDING_CRON_RUN_IDS);
+}
+
+function forgetCronLens(jobId: string, lensId: string) {
+  const queue = pendingCronLensesByJob
+    .get(jobId)
+    ?.filter((pending) => pending !== lensId);
+  if (queue?.length) {
+    pendingCronLensesByJob.set(jobId, queue);
+  } else {
+    pendingCronLensesByJob.delete(jobId);
+  }
+  for (const [runId, pending] of pendingCronLensByRun) {
+    if (pending === lensId) {
+      pendingCronLensByRun.delete(runId);
+    }
   }
 }
 
@@ -979,8 +1025,11 @@ export function ensureBackgroundContextLensForSession(
     trigger?: ContextLensTrigger;
     preview?: string;
     cron?: ContextLensCron;
-    /** The host's id for the cron run, when the hook has one. */
+    /** The host's ids for the cron run, when the hook has them. */
     runId?: string;
+    runSessionId?: string;
+    /** How long the lens outlives its creation; the registry default if unset. */
+    ttlMs?: number;
   } = {}
 ): {
   lens: ContextLens;
@@ -1026,8 +1075,12 @@ export function ensureBackgroundContextLensForSession(
       current && input.cron && !current.cron
         ? existing.registry.update(existing.lensId, { cron: input.cron })
         : current;
-    if (attributed && input.cron && !current?.cron && !input.cron.test) {
-      rememberCronLens(input.cron.jobId, attributed.lensId);
+    if (attributed?.cron && input.cron && !input.cron.test) {
+      // Attributed now, or already: either way the run's ids may be new.
+      rememberCronLens(attributed.cron.jobId, attributed.lensId, [
+        input.runId,
+        input.runSessionId,
+      ]);
     }
     if (input.runId && input.cron && !existing.cronRunId) {
       const bound = activeLensesBySession.get(resolved.key);
@@ -1069,6 +1122,7 @@ export function ensureBackgroundContextLensForSession(
     receivedAt: Date.now(),
     preview: input.preview,
     cron: input.cron,
+    ...(input.ttlMs ? { ttlMs: input.ttlMs } : {}),
   });
   activeLensesBySession.set(key, {
     registry,
@@ -1077,7 +1131,10 @@ export function ensureBackgroundContextLensForSession(
     ...(input.cron && input.runId ? { cronRunId: input.runId } : {}),
   });
   if (input.cron && !input.cron.test) {
-    rememberCronLens(input.cron.jobId, lens.lensId);
+    rememberCronLens(input.cron.jobId, lens.lensId, [
+      input.runId,
+      input.runSessionId,
+    ]);
   }
   return { lens, created: true, ...(superseded ? { superseded } : {}) };
 }
@@ -1139,40 +1196,48 @@ function isSilentCronOutcome(
 
 /**
  * Record the host's verdict on a scheduled cron run and finish its lens.
- * The run is found by its session, or failing that as the job's last
- * scheduled run, provided that run has no verdict yet: a later run that
- * failed before it reached the agent has no lens of its own and must not
- * overwrite the one before it. Returns the finished lens to publish, or null
- * when there is no lens for the run.
+ * The run is found among its job's runs still waiting for a verdict, by the
+ * host's run or session id, else as the oldest of them. Each run takes one
+ * verdict, so a later run that failed before it reached the agent, and has
+ * no lens of its own, finds nothing to overwrite. Returns the finished lens
+ * to publish, or null when there is no lens for the run.
  */
 export function recordCronRunOutcome(params: {
-  sessionKey?: string | null;
   jobId: string;
+  runId?: string;
+  runSessionId?: string;
   outcome: NonNullable<ContextLensCron['outcome']>;
 }): ContextLens | null {
-  const binding = resolveActiveBinding(params.sessionKey)?.binding;
-  const bound =
-    binding?.background &&
-    binding.registry.get(binding.lensId)?.cron?.jobId === params.jobId
-      ? binding.lensId
-      : undefined;
-  const lensId = bound ?? recentCronLensByJob.get(params.jobId);
-  if (!lensId) {
+  const registry = getBackgroundContextLensRegistry();
+  const byRun = [params.runId, params.runSessionId]
+    .map((runId) => (runId ? pendingCronLensByRun.get(runId) : undefined))
+    .find((lensId) => lensId !== undefined);
+  const candidates = [
+    ...(byRun ? [byRun] : []),
+    ...(pendingCronLensesByJob.get(params.jobId) ?? []),
+  ];
+  let lens: ContextLens | null = null;
+  for (const lensId of candidates) {
+    const candidate = registry.get(lensId);
+    if (
+      candidate?.cron &&
+      candidate.cron.jobId === params.jobId &&
+      !candidate.cron.test &&
+      !candidate.cron.outcome
+    ) {
+      lens = candidate;
+      break;
+    }
+    // Expired, or not a run of this job waiting for a verdict.
+    if (!candidate?.cron || candidate.cron.outcome) {
+      forgetCronLens(params.jobId, lensId);
+    }
+  }
+  if (!lens) {
     return null;
   }
-  const lens = getBackgroundContextLensRegistry().get(lensId);
-  if (
-    !lens?.cron ||
-    lens.cron.jobId !== params.jobId ||
-    lens.cron.test ||
-    (!bound && lens.cron.outcome)
-  ) {
-    return null;
-  }
-  // One verdict per run: the job's next verdict needs a lens of its own.
-  if (recentCronLensByJob.get(params.jobId) === lensId) {
-    recentCronLensByJob.delete(params.jobId);
-  }
+  const { lensId } = lens;
+  forgetCronLens(params.jobId, lensId);
   const { status, error } = params.outcome;
   return finishBackgroundContextLens(lensId, {
     status:

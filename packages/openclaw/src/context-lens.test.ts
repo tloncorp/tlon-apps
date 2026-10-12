@@ -697,7 +697,6 @@ describe('context lens registry', () => {
     });
 
     const finished = recordCronRunOutcome({
-      sessionKey,
       jobId: 'job-outcome',
       outcome: { status: 'error', error: 'model timed out', delivered: false },
     });
@@ -729,7 +728,6 @@ describe('context lens registry', () => {
     const idle = finalizeBackgroundContextLensForSession(sessionKey);
 
     const finished = recordCronRunOutcome({
-      sessionKey,
       jobId: 'job-late-verdict',
       outcome: { status: 'ok', summary: 'All quiet', delivered: true },
     });
@@ -749,7 +747,6 @@ describe('context lens registry', () => {
       cron: { jobId: 'job-one-verdict' },
     });
     const first = recordCronRunOutcome({
-      sessionKey,
       jobId: 'job-one-verdict',
       outcome: { status: 'ok', summary: 'Posted', delivered: true },
     });
@@ -757,7 +754,6 @@ describe('context lens registry', () => {
     // The next run failed before the agent ran, so no lens was created.
     expect(
       recordCronRunOutcome({
-        sessionKey: 'session-background-cron-never-started',
         jobId: 'job-one-verdict',
         outcome: { status: 'error', error: 'setup failed' },
       })
@@ -812,7 +808,6 @@ describe('context lens registry', () => {
       // The first job's late verdict still lands on its own lens.
       expect(
         recordCronRunOutcome({
-          sessionKey,
           jobId: 'job-shared-a',
           outcome: { status: 'error', error: 'late failure' },
         })
@@ -820,6 +815,48 @@ describe('context lens registry', () => {
         lensId: first?.lens.lensId,
         status: 'error',
       });
+    } finally {
+      finalizeBackgroundContextLensForSession(sessionKey);
+    }
+  });
+
+  it("lands each of one job's verdicts on its own run", () => {
+    const sessionKey = 'agent:main:main-same-job';
+    const first = ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-same' },
+      runId: 'run-a',
+      runSessionId: 'session-a',
+    });
+    const second = ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-same' },
+      runId: 'run-b',
+      runSessionId: 'session-b',
+    });
+    expect(second?.lens.lensId).not.toBe(first?.lens.lensId);
+
+    try {
+      // By the host's ids, whichever lens is bound to the session now.
+      expect(
+        recordCronRunOutcome({
+          jobId: 'job-same',
+          runSessionId: 'session-a',
+          outcome: { status: 'error', error: 'first failed' },
+        })
+      ).toMatchObject({ lensId: first?.lens.lensId, status: 'error' });
+      // Without them, in the order the runs started.
+      expect(
+        recordCronRunOutcome({
+          jobId: 'job-same',
+          outcome: { status: 'ok', delivered: true },
+        })
+      ).toMatchObject({ lensId: second?.lens.lensId, status: 'completed' });
+      expect(
+        recordCronRunOutcome({ jobId: 'job-same', outcome: { status: 'ok' } })
+      ).toBeNull();
     } finally {
       finalizeBackgroundContextLensForSession(sessionKey);
     }
@@ -835,7 +872,6 @@ describe('context lens registry', () => {
 
     expect(
       recordCronRunOutcome({
-        sessionKey,
         jobId: 'job-silent',
         outcome: {
           status: 'ok',
@@ -858,7 +894,6 @@ describe('context lens registry', () => {
     try {
       expect(
         recordCronRunOutcome({
-          sessionKey,
           jobId: 'job-tested',
           outcome: { status: 'ok' },
         })
