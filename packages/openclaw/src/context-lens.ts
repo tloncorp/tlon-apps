@@ -1080,7 +1080,9 @@ export function ensureBackgroundContextLensForSession(
       current && input.cron && !current.cron
         ? existing.registry.update(existing.lensId, { cron: input.cron })
         : current;
-    if (attributed?.cron && input.cron && !input.cron.test) {
+    // A test run's lens never waits for a scheduled verdict, though later
+    // hooks of the run attribute it like any cron run.
+    if (attributed?.cron && input.cron && !attributed.cron.test) {
       // Attributed now, or already: either way the run's ids may be new.
       rememberCronLens(attributed.cron.jobId, attributed.lensId, [
         input.runId,
@@ -1192,9 +1194,12 @@ function isSilentCronOutcome(
   outcome: NonNullable<ContextLensCron['outcome']>
 ): boolean {
   const summary = outcome.summary?.trim();
+  const notDelivered =
+    outcome.deliveryStatus === 'not-delivered' ||
+    (outcome.deliveryStatus === undefined && outcome.delivered === false);
   return (
     outcome.status === 'ok' &&
-    outcome.deliveryStatus === 'not-delivered' &&
+    notDelivered &&
     !outcome.error?.trim() &&
     !outcome.deliveryError?.trim() &&
     (summary?.toUpperCase() === 'NO_REPLY' ||
@@ -1236,8 +1241,8 @@ export function recordCronRunOutcome(params: {
       lens = candidate;
       break;
     }
-    // Expired, or not a run of this job waiting for a verdict.
-    if (!candidate?.cron || candidate.cron.outcome) {
+    // Expired, a test, or a run that already has its verdict.
+    if (!candidate?.cron || candidate.cron.test || candidate.cron.outcome) {
       forgetCronLens(params.jobId, lensId);
     }
   }

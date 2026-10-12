@@ -887,6 +887,46 @@ describe('context lens registry', () => {
     }
   });
 
+  it('keeps test runs out of the runs waiting for a scheduled verdict', () => {
+    const scheduled = ensureBackgroundContextLensForSession(
+      'agent:main:cron:job-mixed:scheduled',
+      { runKind: 'cron', trigger: 'cron', cron: { jobId: 'job-mixed' } }
+    );
+    // More tests than the job's queue holds; each one's agent hooks then
+    // attribute it like any cron run.
+    const testKeys = Array.from(
+      { length: 10 },
+      (_, index) => `agent:main:tlon-cron-test:job-mixed-${index}`
+    );
+    for (const [index, key] of testKeys.entries()) {
+      ensureBackgroundContextLensForSession(key, {
+        runKind: 'cron',
+        trigger: 'cron',
+        cron: { jobId: 'job-mixed', test: true },
+      });
+      ensureBackgroundContextLensForSession(key, {
+        runKind: 'cron',
+        trigger: 'cron',
+        cron: { jobId: 'job-mixed' },
+        runId: `test-run-${index}`,
+      });
+    }
+
+    try {
+      // Still waiting, so a verdict with no ids lands on it.
+      expect(
+        recordCronRunOutcome({
+          jobId: 'job-mixed',
+          outcome: { status: 'ok', delivered: true },
+        })
+      ).toMatchObject({ lensId: scheduled?.lens.lensId });
+    } finally {
+      for (const key of testKeys) {
+        finalizeBackgroundContextLensForSession(key);
+      }
+    }
+  });
+
   it('records a run that chose to say nothing as no reply', () => {
     const sessionKey = 'session-background-cron-silent';
     ensureBackgroundContextLensForSession(sessionKey, {

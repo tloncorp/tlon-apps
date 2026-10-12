@@ -20,6 +20,23 @@ export const TASK_RUN_OUTCOME_COLORS: Record<TaskRunOutcome, string> = {
 
 type CronOutcome = NonNullable<NonNullable<ContextLens['cron']>['outcome']>;
 
+/** The token a run replies with to say nothing. */
+function isSilentReply(text: string | undefined) {
+  return text?.trim().toUpperCase() === 'NO_REPLY';
+}
+
+/**
+ * The host says the run's output went unposted: its status says so, or, when
+ * it leaves the status out, `delivered` does. "Not requested" is a task that
+ * posts nowhere, not a failure.
+ */
+function notDelivered(outcome: CronOutcome) {
+  return (
+    outcome.deliveryStatus === 'not-delivered' ||
+    (outcome.deliveryStatus === undefined && outcome.delivered === false)
+  );
+}
+
 /**
  * A run that chose to say nothing, which the host also reports as not
  * delivered: no error, and a NO_REPLY summary, or an empty one the plugin
@@ -30,11 +47,10 @@ function isSilent(outcome: CronOutcome) {
   const summary = outcome.summary?.trim();
   return (
     outcome.status === 'ok' &&
-    outcome.deliveryStatus === 'not-delivered' &&
+    notDelivered(outcome) &&
     !outcome.error?.trim() &&
     !outcome.deliveryError?.trim() &&
-    (summary?.toUpperCase() === 'NO_REPLY' ||
-      (!summary && outcome.silent === true))
+    (isSilentReply(summary) || (!summary && outcome.silent === true))
   );
 }
 
@@ -45,7 +61,7 @@ function isSilent(outcome: CronOutcome) {
 function deliveryFailed(outcome: CronOutcome | undefined) {
   return (
     Boolean(outcome?.deliveryError?.trim()) ||
-    (outcome?.deliveryStatus === 'not-delivered' && !isSilent(outcome))
+    (outcome !== undefined && notDelivered(outcome) && !isSilent(outcome))
   );
 }
 
@@ -95,14 +111,21 @@ export function taskRunError(lens: ContextLens): string | null {
  * posted, falling back to the host's summary of it.
  */
 export function taskRunOutput(lens: ContextLens): string | null {
-  if (lens.cron?.output?.trim()) {
-    return lens.cron.output.trim();
-  }
+  // NO_REPLY is how a run says nothing, never something to show.
+  const shown = (text: string | undefined) => {
+    const trimmed = text?.trim();
+    return trimmed && !isSilentReply(trimmed) ? trimmed : undefined;
+  };
   const posted = (lens.outputs ?? [])
-    .map((output) => output.preview?.trim())
+    .map((output) => shown(output.preview))
     .filter(Boolean)
     .join('\n\n');
-  return posted || lens.cron?.outcome?.summary?.trim() || null;
+  return (
+    shown(lens.cron?.output) ||
+    posted ||
+    shown(lens.cron?.outcome?.summary) ||
+    null
+  );
 }
 
 export function isTestRun(lens: ContextLens) {

@@ -141,6 +141,33 @@ describe('taskRunOutcome', () => {
         })
       )
     ).toBe('failed');
+    // Unposted by `delivered` alone, when the status is left out.
+    expect(
+      taskRunOutcome(
+        run({
+          cron: {
+            jobId: 'job-1',
+            outcome: { status: 'ok', summary: 'Digest', delivered: false },
+          },
+        })
+      )
+    ).toBe('failed');
+    // A task that posts nowhere was never meant to deliver.
+    expect(
+      taskRunOutcome(
+        run({
+          cron: {
+            jobId: 'job-1',
+            outcome: {
+              status: 'ok',
+              summary: 'Digest',
+              delivered: false,
+              deliveryStatus: 'not-requested',
+            },
+          },
+        })
+      )
+    ).toBe('successful');
     // A delivery error is a failure even without a delivery status.
     expect(
       taskRunOutcome(
@@ -225,6 +252,17 @@ describe('taskRunOutput', () => {
       )
     ).toBe('Sum');
     expect(taskRunOutput(run())).toBeNull();
+    // NO_REPLY is the run saying nothing, not output to show.
+    expect(
+      taskRunOutput(
+        run({
+          cron: {
+            jobId: 'job-1',
+            outcome: { status: 'ok', summary: 'NO_REPLY' },
+          },
+        })
+      )
+    ).toBeNull();
   });
 });
 
