@@ -102,8 +102,6 @@ reviewer has to.
 
 Don't re-propose these without new information.
 
-- Bots are identified as `[host ship, id]` on their owner's ship; virtual or
-  "pretend" bot ships were rejected.
 - The client subscribes to firehoses and filters locally; no per-entity
   subscriptions. New startup data rides in the versioned init payload.
 - Strict marks never become relaxed again; a new shape is a new mark version.
