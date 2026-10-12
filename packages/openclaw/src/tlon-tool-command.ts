@@ -1,5 +1,6 @@
 import commandCatalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
 import { locateOwnerShipConfig } from './owner-ship-config.js';
+import { normalizeShip } from './targets.js';
 import {
   ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
   checkBlockedDiaryOperation,
@@ -439,12 +440,69 @@ function ownerInviteLinkPrefixArgs(
   return ['--ship', ownerShip];
 }
 
+/**
+ * The shared owner-workspace predicate (the Hermes adapter implements the same
+ * truth table): a `groups create-owned` whose `--owner` is the configured
+ * owner, with no credential flag in either form, no `--agent`, and no help
+ * token. A moon cannot create a group on its parent, so this is how a bot's
+ * workspace for its owner ends up hosted on the owner's ship.
+ */
+export function shouldCreateWorkspaceOnOwner(
+  args: string[],
+  ownerShip: string | undefined
+): boolean {
+  if (!ownerShip) return false;
+  if (hasCredentialOverride(args)) return false;
+
+  const subIdx = findTlonSubcommandIndex(args);
+  if (subIdx < 0) return false;
+  const commandArgs = args.slice(subIdx);
+  if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
+  if (commandArgs[1]?.toLowerCase() !== 'create-owned') return false;
+  if (commandArgs.some((arg) => arg === '--agent' || HELP_TOKENS.has(arg))) {
+    return false;
+  }
+
+  const ownerIdx = commandArgs.indexOf('--owner', 3);
+  const owner = ownerIdx < 0 ? undefined : commandArgs[ownerIdx + 1];
+  return owner !== undefined && normalizeShip(owner) === ownerShip;
+}
+
+/**
+ * The prefix and suffix that run a create-owned as the owner with the bot as
+ * its agent, or null to run it as written. Unlike invite-link, a missing
+ * credential file is not an error: a bot-hosted workspace is still a working
+ * one, it is all a self-hosted bot can make, and the output names its host.
+ */
+function ownerWorkspaceArgs(
+  deps: TlonToolExecutorDeps
+): { prefix: string[]; suffix: string[] } | null {
+  const ownerShip = deps.ownerShip;
+  const botShip = deps.botShip;
+  if (!ownerShip || !botShip || botShip === ownerShip) return null;
+
+  const location = locateOwnerShipConfig(ownerShip, deps);
+  if (location.kind === 'no-config-file') {
+    deps.logError?.(
+      `Creating the workspace on the bot's ship: owner credentials are missing at ${location.configPath}.`
+    );
+  }
+  if (location.kind !== 'found') return null;
+
+  return {
+    prefix: ['--ship', ownerShip],
+    suffix: ['--agent', botShip],
+  };
+}
+
 export type TlonToolExecutorDeps = {
   runCommand: (args: string[]) => Promise<string>;
   notifyDiaryMigrationDiscovery: (nest: string) => Promise<boolean>;
   logError?: (message: string) => void;
   /** Configured owner ship, already normalized to `~ship`. */
   ownerShip?: string;
+  /** This bot's own ship, already normalized to `~ship`. */
+  botShip?: string;
   env?: NodeJS.ProcessEnv;
   fileExists?: (path: string) => boolean;
 };
@@ -580,6 +638,11 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
           };
         }
         commandArgs = [...prefixArgs, ...args];
+      } else if (shouldCreateWorkspaceOnOwner(args, deps.ownerShip)) {
+        const ownerArgs = ownerWorkspaceArgs(deps);
+        if (ownerArgs) {
+          commandArgs = [...ownerArgs.prefix, ...args, ...ownerArgs.suffix];
+        }
       }
 
       const output = await deps.runCommand(commandArgs);

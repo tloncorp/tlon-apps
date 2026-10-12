@@ -16,6 +16,8 @@ On accounts with a hosted Tlonbot, the app’s `New Workspace` action creates a 
 
 Use the actual requester's verified ship identity. This invites them and makes them an admin. Plain `groups create` creates a group under the current ship; it is not the default for a user-requested group. Do not report success until the owner invitation/admin step has succeeded.
 
+When the requester is your owner and the runtime holds the owner's hosted credentials, the tool runs this as the owner: the owner's ship hosts the workspace, and you are invited as an admin and join automatically. Otherwise your own ship hosts it. The output's `Host:` line says which; name the host when you reply. A workspace hosted by your owner appears in your `groups list` once you have joined it.
+
 Share the returned `Ref:` path in the reply so Tlon can render the group card.
 
 ## Create a channel

@@ -455,6 +455,126 @@ describe('owner credential injection for groups invite-link', () => {
   });
 });
 
+describe('owner-hosted workspaces for groups create-owned', () => {
+  const SKILL_DIR = '/srv/tlon-skill';
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+
+  function makeExecutor(
+    overrides: {
+      ownerShip?: string;
+      botShip?: string;
+      env?: NodeJS.ProcessEnv;
+      fileExists?: (path: string) => boolean;
+    } = {}
+  ) {
+    const runCommand = vi.fn(async () => 'Owned group created successfully!');
+    const logError = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      logError,
+      ownerShip: '~owner',
+      botShip: '~pinser-botter-owner',
+      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...overrides,
+    });
+    return { execute, runCommand, logError };
+  }
+
+  it('runs a create-owned for the owner as the owner, with the bot as agent', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    const result = await execute('workspace', {
+      command: 'groups create-owned Projects --owner owner --description Work',
+    });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      '--ship',
+      '~owner',
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      'owner',
+      '--description',
+      'Work',
+      '--agent',
+      '~pinser-botter-owner',
+    ]);
+    expect(result.details).toBeUndefined();
+  });
+
+  it.each([
+    ['another requester', 'groups create-owned Projects --owner ~someone'],
+    ['an explicit agent', 'groups create-owned P --owner ~owner --agent ~x'],
+    ['-h', 'groups create-owned -h'],
+    ['--help', 'groups create-owned P --owner ~owner --help'],
+    [
+      'separate-value --ship',
+      '--ship ~bot groups create-owned P --owner ~owner',
+    ],
+    [
+      '=-form --config',
+      '--config=/x.json groups create-owned P --owner ~owner',
+    ],
+    ['plain create', 'groups create P --owner ~owner'],
+  ])('leaves the command untouched for %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+  });
+
+  it('keeps the bot-hosted workspace when owner credentials are not provisioned', async () => {
+    const noSkillDir = makeExecutor({ env: {} as NodeJS.ProcessEnv });
+    await noSkillDir.execute('no-dir', {
+      command: 'groups create-owned Projects --owner ~owner',
+    });
+    expect(noSkillDir.runCommand).toHaveBeenCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~owner',
+    ]);
+    expect(noSkillDir.logError).not.toHaveBeenCalled();
+
+    const noFile = makeExecutor({ fileExists: () => false });
+    await noFile.execute('no-file', {
+      command: 'groups create-owned Projects --owner ~owner',
+    });
+    expect(noFile.runCommand).toHaveBeenCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~owner',
+    ]);
+    expect(noFile.logError).toHaveBeenCalledWith(
+      expect.stringContaining(OWNER_CONFIG)
+    );
+  });
+
+  it('keeps the bot-hosted workspace when the bot is its own owner or unknown', async () => {
+    for (const botShip of ['~owner', undefined]) {
+      const { execute, runCommand } = makeExecutor({ botShip });
+      await execute('self', {
+        command: 'groups create-owned Projects --owner ~owner',
+      });
+      expect(runCommand).toHaveBeenCalledWith([
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        '~owner',
+      ]);
+    }
+  });
+});
+
 describe('checkBlockedTlonOperation', () => {
   it('does not block channels leave or join on chat and heap nests', () => {
     expect(
