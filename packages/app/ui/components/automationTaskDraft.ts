@@ -14,6 +14,12 @@ import { notesPermissionsCompatActive } from '@tloncorp/shared/logic/notesPermis
 const BUDGET_HOLD_PREFIX = '[Paused: credit budget] ';
 const ONBOARDING_SLOT_PREFIX = 'tlon-agent-primary:';
 
+// OpenClaw's own plugins tag the jobs they keep for themselves with this in
+// the description, as memory-core does its "Memory Dreaming Promotion". The
+// plugin puts such a job back as configured on its next pass, so a change
+// from here would not last. A credit hold can put its prefix in front.
+const PLUGIN_MANAGED_MARKER = '[managed-by=';
+
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 const DAY_NAMES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
@@ -369,6 +375,17 @@ export function newTaskDraft(
     schedule: { days: [1, 2, 3, 4, 5], hour: 9, minute: 0 },
     destination,
   };
+}
+
+/** The tasks the owner can change, by task id, leaving out plugin-managed ones. */
+export function ownerTasks(
+  tasks: Record<string, StewardAutomationTask>
+): Record<string, StewardAutomationTask> {
+  return Object.fromEntries(
+    Object.entries(tasks).filter(
+      ([, task]) => !task.description?.includes(PLUGIN_MANAGED_MARKER)
+    )
+  );
 }
 
 /** The tasks that post into one of these channels, by task id. */
