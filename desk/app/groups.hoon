@@ -2189,8 +2189,13 @@
     =/  joined=?  (se-is-joined src.bowl)
     ~|  %se-c-join-access-denied
     ?>  access
-    ?:  joined  se-core
-    (se-c-seat (sy src.bowl ~) [%add ~])
+    ?.  joined
+      (se-c-seat (sy src.bowl ~) [%add ~])
+    ::  members seated at group creation already carry a joined
+    ::  time, so their join is vacuous. the invite is still used.
+    ::
+    =.  invited.ad  (~(del by invited.ad) src.bowl)
+    se-core
   ::  +se-c-ask: handle a group ask request
   ::
   ::  a ship can request to join the group. for a public group,
@@ -2736,6 +2741,11 @@
         =/  roles  (~(get by pending.ad) ship)
         =?  pending.ad  ?=(^ roles)
           (~(del by pending.ad) ship)
+        ::  a joining ship has used her invite. admin adds keep it,
+        ::  since +se-send-invite needs it to revoke the old one.
+        ::
+        =?  invited.ad  user-join
+          (~(del by invited.ad) ship)
         =+  seat=(~(got by seats.group.se-core) ship)
         =?  roles.seat  ?=(^ roles)
           (~(uni in roles.seat) u.roles)
@@ -4240,6 +4250,12 @@
         |=  [=ship =_go-core]
         (go-activity:go-core %join ship)
       ?:  go-our-host  go-core
+      ::  a joined ship has used her invite
+      ::
+      =?  invited.ad  !=(joined.seat.u-seat *@da)
+        %-  ~(rep in ships)
+        |=  [=ship =_invited.ad]
+        (~(del by invited) ship)
       ::
       =.  seats.group
         %-  ~(rep in ships)

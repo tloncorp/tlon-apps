@@ -645,6 +645,8 @@
 ::  when another invite is sent to the same ship,
 ::  the previous invite is revoked first.
 ::
+::  when the invitee joins, she is removed from the invited list.
+::
 ++  test-private-invites
   %-  eval-mare
   =/  m  (mare ,~)
@@ -722,6 +724,30 @@
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
     !>(`[now.bowl `0v125])
+  ::  the host seats ~fun on an admin's behalf, with a null joined
+  ::  time. ~fun has not joined yet and stays on the invited list.
+  ::
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %seat (sy ~fun ~) %add `seat:v7:gv`[~ *@da]]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
+    !>(`[now.bowl `0v125])
+  ::  ~fun joins. she is removed from the invited list.
+  ::
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %seat (sy ~fun ~) %add `seat:v7:gv`[~ now.bowl]]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    (ex-equal !>((~(has by invited.admissions.group) ~fun)) !>(|))
   (pure:m ~)
 ::  +test-invites-banned: test invite revocation for banned ships
 ::

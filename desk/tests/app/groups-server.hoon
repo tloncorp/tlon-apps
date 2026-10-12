@@ -602,6 +602,8 @@
 ::  if a ship is invited a second time, the previous invitation
 ::  is revoked.
 ::
+::  when an invited ship joins, it is removed from the invited list.
+::
 ++  test-private-invites
   %-  eval-mare
   =/  m  (mare ,~)
@@ -686,6 +688,23 @@
         ::  entry update
         (ex-update (add now.bowl (mul tick 2)) [%entry %pending %add (sy ~fun ~) ~])
     ==
+  ::  ~dev joins with her token. members seated at creation already
+  ::  carry a joined time, so no seat update is emitted, but the token
+  ::  is consumed and ~dev leaves the invited list. ~fun, who has not
+  ::  joined yet, stays on it.
+  ::
+  ;<  caz=(list card)  bind:m
+    ((do-as ~dev) (do-c-groups [%join my-flag `token0]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(tokens.admissions.group)
+    !>((my ~[[token2 `token-meta:g`[[%personal ~fun] (add now.bowl ~d365) ~]]]))
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invited.admissions.group)
+    !>((my ~[[~fun [now.bowl `token2]]]))
   (pure:m ~)
 ::  +test-public-invites: test public group invitations
 ::
@@ -693,6 +712,8 @@
 ::
 ::  if a ship is invited a second time, the previous invitation
 ::  is revoked.
+::
+::  when an invited ship joins, it is removed from the invited list.
 ::
 ++  test-public-invites
   %-  eval-mare
@@ -774,6 +795,26 @@
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
     !>(`[now.bowl ~])
+  ::  an admin seats ~fed, which sends her an invite. unlike members
+  ::  seated at creation, her seat has no joined time yet.
+  ::
+  ;<  *  bind:m  ((do-as ~zod) (do-c-group [%seat (sy ~fed ~) %add ~]))
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    (ex-equal !>((~(has by invited.admissions.group) ~fed)) !>(&))
+  ::  ~fed joins. her seat is updated and she leaves the invited list.
+  ::
+  ;<  caz=(list card)  bind:m  ((do-as ~fed) (do-c-groups [%join my-flag ~]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  ~  bind:m
+    (ex-u-groups caz [%seat (sy ~fed ~) %add `seat:v7:gv`[~ now.bowl]]~)
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    (ex-equal !>((~(has by invited.admissions.group) ~fed)) !>(|))
   (pure:m ~)
 ::  +test-invites-banned: test invite revocation for banned ships
 ::
