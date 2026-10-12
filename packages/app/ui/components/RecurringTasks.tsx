@@ -28,7 +28,7 @@ import { useForwardToChannelSheet } from './useForwardToChannelSheet';
 export type { IdentifiedAutomationTask } from './scheduledTaskSections';
 
 // On a wide window these screens keep to the column a profile uses.
-const COLUMN_WIDTH = 600;
+export const COLUMN_WIDTH = 600;
 
 export function ScheduledTasksScreenView({
   available,

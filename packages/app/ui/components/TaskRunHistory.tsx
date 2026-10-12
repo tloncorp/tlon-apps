@@ -8,6 +8,7 @@ import {
 } from './Channel/ContextLens/RunInspector';
 import { RunSummary } from './Channel/ContextLens/RunSummary';
 import type { ContextLens } from './Channel/ContextLens/types';
+import { COLUMN_WIDTH } from './RecurringTasks';
 import { ScreenHeader } from './ScreenHeader';
 import { ScreenScrollView } from './ScreenScrollView';
 import {
@@ -140,7 +141,14 @@ export function TaskRunHistoryView({
         }
       />
       <ScreenScrollView showsVerticalScrollIndicator={false}>
-        <YStack gap="$l" padding="$l" paddingBottom="$2xl">
+        <YStack
+          gap="$l"
+          padding="$l"
+          paddingBottom="$2xl"
+          width="100%"
+          maxWidth={COLUMN_WIDTH}
+          alignSelf="center"
+        >
           {taskName || runs.length ? (
             <YStack gap="$2xs">
               {taskName ? (
@@ -320,7 +328,14 @@ export function TaskRunDetailView({
         placement="navigation"
       />
       <ScreenScrollView showsVerticalScrollIndicator={false}>
-        <YStack gap="$m" padding="$l" paddingBottom="$2xl">
+        <YStack
+          gap="$m"
+          padding="$l"
+          paddingBottom="$2xl"
+          width="100%"
+          maxWidth={COLUMN_WIDTH}
+          alignSelf="center"
+        >
           {lens ? (
             <>
               <TaskRunOutputCard
