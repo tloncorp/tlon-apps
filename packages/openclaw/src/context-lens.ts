@@ -123,6 +123,26 @@ export type ContextLensPersistenceEvent = {
   at: number;
 };
 
+/**
+ * The cron job behind a cron run, so the owner's ship can list one task's
+ * runs. A test run is one the owner asked for outside the schedule: it
+ * delivers nowhere, so its reply is kept here as `output`.
+ */
+export type ContextLensCron = {
+  jobId: string;
+  test?: boolean;
+  output?: string;
+  /** The host's verdict on a scheduled run, from cron_changed `finished`. */
+  outcome?: {
+    status: 'ok' | 'error' | 'skipped';
+    error?: string;
+    summary?: string;
+    delivered?: boolean;
+    deliveryStatus?: string;
+    deliveryError?: string;
+  };
+};
+
 export type ContextLens = {
   lensId: string;
   messageId: string;
@@ -132,6 +152,7 @@ export type ContextLens = {
   visibility: ContextLensVisibility;
   trigger: ContextLensTrigger;
   triggerDetails: ContextLensTriggerDetails;
+  cron?: ContextLensCron;
   /** lensId of the run this one retries, when trigger is "retry". */
   retryOf?: string;
   retrySeed?: ContextLensRetrySeed;
@@ -196,6 +217,7 @@ export type CreateContextLensInput = {
   preview?: string;
   retryOf?: string;
   retrySeed?: ContextLensRetrySeed;
+  cron?: ContextLensCron;
   now?: number;
   ttlMs?: number;
 };
@@ -287,6 +309,14 @@ function cloneLens(lens: ContextLens): ContextLens {
     lifecycle: { ...lens.lifecycle },
     triggerDetails: { ...lens.triggerDetails },
     ...(lens.retrySeed ? { retrySeed: { ...lens.retrySeed } } : {}),
+    ...(lens.cron
+      ? {
+          cron: {
+            ...lens.cron,
+            ...(lens.cron.outcome ? { outcome: { ...lens.cron.outcome } } : {}),
+          },
+        }
+      : {}),
   };
 }
 
@@ -453,6 +483,7 @@ export function createContextLensRegistry(
       },
       ...(input.retryOf ? { retryOf: input.retryOf } : {}),
       ...(input.retrySeed ? { retrySeed: capRetrySeed(input.retrySeed) } : {}),
+      ...(input.cron ? { cron: { ...input.cron } } : {}),
       model: null,
       provider: null,
       context: {
@@ -917,6 +948,26 @@ function getBackgroundContextLensRegistry(): ContextLensRegistry {
   return registry;
 }
 
+// The last scheduled run's lens per cron job. The host reports a run's
+// outcome after the agent ends, by which time the idle window may already
+// have finalized the lens and unbound it from its session.
+const recentCronLensByJob = sharedMap<string, string>(
+  'contextLens.recentCronLensByJob'
+);
+const MAX_RECENT_CRON_LENSES = 256;
+
+function rememberCronLens(jobId: string, lensId: string) {
+  recentCronLensByJob.delete(jobId);
+  recentCronLensByJob.set(jobId, lensId);
+  while (recentCronLensByJob.size > MAX_RECENT_CRON_LENSES) {
+    const oldest = recentCronLensByJob.keys().next().value;
+    if (oldest === undefined) {
+      break;
+    }
+    recentCronLensByJob.delete(oldest);
+  }
+}
+
 export function ensureBackgroundContextLensForSession(
   sessionKey: string | null | undefined,
   input: {
@@ -925,6 +976,7 @@ export function ensureBackgroundContextLensForSession(
     runKind?: ContextLensRunKind;
     trigger?: ContextLensTrigger;
     preview?: string;
+    cron?: ContextLensCron;
   } = {}
 ): { lens: ContextLens; created: boolean } | null {
   const key = sessionKey?.trim();
@@ -941,11 +993,18 @@ export function ensureBackgroundContextLensForSession(
       activeLensesBySession.set(resolved.key, cleared);
     }
     const current = existing.registry.get(existing.lensId);
+    const attributed =
+      current && input.cron && !current.cron
+        ? existing.registry.update(existing.lensId, { cron: input.cron })
+        : current;
+    if (attributed && input.cron && !current?.cron && !input.cron.test) {
+      rememberCronLens(input.cron.jobId, attributed.lensId);
+    }
     const lens =
-      current &&
+      attributed &&
       input.chatType === 'channel' &&
       input.conversationId?.trim() &&
-      current.chatType === 'internal'
+      attributed.chatType === 'internal'
         ? existing.registry.update(existing.lensId, {
             chatType: 'channel',
             triggerDetails: {
@@ -953,7 +1012,7 @@ export function ensureBackgroundContextLensForSession(
               conversationKind: 'channel',
             },
           })
-        : current;
+        : attributed;
     return lens ? { lens, created: false } : null;
   }
 
@@ -971,13 +1030,92 @@ export function ensureBackgroundContextLensForSession(
     conversationId: input.conversationId?.trim() || `session:${sessionKeyHash}`,
     receivedAt: Date.now(),
     preview: input.preview,
+    cron: input.cron,
   });
   activeLensesBySession.set(key, {
     registry,
     lensId: lens.lensId,
     background: true,
   });
+  if (input.cron && !input.cron.test) {
+    rememberCronLens(input.cron.jobId, lens.lensId);
+  }
   return { lens, created: true };
+}
+
+/**
+ * Finish a background lens now rather than after the idle window: unbind it
+ * from its session, stamp its duration, and set its final status. Works on a
+ * lens the idle window already finalized, so a late verdict still lands.
+ */
+export function finishBackgroundContextLens(
+  lensId: string,
+  finish: {
+    status: ContextLensStatus;
+    error?: string | null;
+    cron?: Partial<ContextLensCron>;
+  }
+): ContextLens | null {
+  const registry = getBackgroundContextLensRegistry();
+  const lens = registry.get(lensId);
+  if (!lens) {
+    return null;
+  }
+  for (const [key, binding] of activeLensesBySession) {
+    if (binding.background && binding.lensId === lensId) {
+      if (binding.finalizeTimer) {
+        clearTimeout(binding.finalizeTimer);
+      }
+      activeLensesBySession.delete(key);
+    }
+  }
+  const completedAt = lens.lifecycle.completedAt ?? Date.now();
+  return registry.update(lensId, {
+    status: finish.status,
+    ...(finish.error === undefined ? {} : { error: finish.error }),
+    ...(lens.cron && finish.cron
+      ? { cron: { ...lens.cron, ...finish.cron } }
+      : {}),
+    lifecycle: { completedAt, durationMs: completedAt - lens.createdAt },
+  });
+}
+
+/**
+ * Record the host's verdict on a scheduled cron run and finish its lens.
+ * The run is found by its session, or failing that as the job's last
+ * scheduled run. Returns the finished lens to publish, or null when there
+ * is no lens for the run.
+ */
+export function recordCronRunOutcome(params: {
+  sessionKey?: string | null;
+  jobId: string;
+  outcome: NonNullable<ContextLensCron['outcome']>;
+}): ContextLens | null {
+  const binding = resolveActiveBinding(params.sessionKey)?.binding;
+  const bound =
+    binding?.background &&
+    binding.registry.get(binding.lensId)?.cron?.jobId === params.jobId
+      ? binding.lensId
+      : undefined;
+  const lensId = bound ?? recentCronLensByJob.get(params.jobId);
+  if (!lensId) {
+    return null;
+  }
+  const lens = getBackgroundContextLensRegistry().get(lensId);
+  if (!lens?.cron || lens.cron.jobId !== params.jobId || lens.cron.test) {
+    return null;
+  }
+  const { status, error } = params.outcome;
+  return finishBackgroundContextLens(lensId, {
+    status:
+      status === 'error'
+        ? 'error'
+        : status === 'skipped'
+          ? 'no_reply'
+          : 'completed',
+    ...(status === 'error' ? { error: error ?? lens.error } : {}),
+    cron: { outcome: params.outcome },
+  });
 }
 
 /**

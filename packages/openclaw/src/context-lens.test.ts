@@ -12,12 +12,14 @@ import {
   createContextLensRegistry,
   ensureBackgroundContextLensForSession,
   finalizeBackgroundContextLensForSession,
+  finishBackgroundContextLens,
   getActiveBackgroundContextLens,
   getActiveForegroundContextLensForConversation,
   hashSessionKey,
   recordBackgroundContextLensOutput,
   recordContextLensToolResultForSession,
   recordContextLensToolStartForSession,
+  recordCronRunOutcome,
   scheduleBackgroundContextLensFinalization,
   unbindContextLensFromSession,
 } from './context-lens.js';
@@ -661,6 +663,108 @@ describe('context lens registry', () => {
           conversationId: 'chat/~ten/group/general',
           conversationKind: 'channel',
         },
+      });
+    } finally {
+      finalizeBackgroundContextLensForSession(sessionKey);
+    }
+  });
+
+  it('records the job behind a cron run, even when it arrives late', () => {
+    const sessionKey = 'session-background-cron-job';
+    ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+    });
+    const attributed = ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-late' },
+    });
+
+    try {
+      expect(attributed?.lens.cron).toEqual({ jobId: 'job-late' });
+    } finally {
+      finalizeBackgroundContextLensForSession(sessionKey);
+    }
+  });
+
+  it('finishes a scheduled run with the host verdict', () => {
+    const sessionKey = 'session-background-cron-outcome';
+    ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-outcome' },
+    });
+
+    const finished = recordCronRunOutcome({
+      sessionKey,
+      jobId: 'job-outcome',
+      outcome: { status: 'error', error: 'model timed out', delivered: false },
+    });
+
+    expect(finished).toMatchObject({
+      status: 'error',
+      error: 'model timed out',
+      cron: {
+        jobId: 'job-outcome',
+        outcome: {
+          status: 'error',
+          error: 'model timed out',
+          delivered: false,
+        },
+      },
+    });
+    expect(finished?.lifecycle.completedAt).toEqual(expect.any(Number));
+    // Unbound: the session no longer records into it.
+    expect(recordContextLensToolStartForSession(sessionKey, 'tlon')).toBeNull();
+  });
+
+  it('lands a verdict on a run the idle window already finalized', () => {
+    const sessionKey = 'session-background-cron-late-verdict';
+    ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-late-verdict' },
+    });
+    const idle = finalizeBackgroundContextLensForSession(sessionKey);
+
+    const finished = recordCronRunOutcome({
+      sessionKey,
+      jobId: 'job-late-verdict',
+      outcome: { status: 'ok', summary: 'All quiet', delivered: true },
+    });
+
+    expect(finished?.lensId).toBe(idle?.lensId);
+    expect(finished).toMatchObject({
+      status: 'completed',
+      cron: { outcome: { status: 'ok', summary: 'All quiet' } },
+    });
+  });
+
+  it('leaves test runs to their own finish', () => {
+    const sessionKey = 'agent:main:tlon-cron-test:outcome';
+    const created = ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-tested', test: true },
+    });
+
+    try {
+      expect(
+        recordCronRunOutcome({
+          sessionKey,
+          jobId: 'job-tested',
+          outcome: { status: 'ok' },
+        })
+      ).toBeNull();
+      const finished = finishBackgroundContextLens(created!.lens.lensId, {
+        status: 'completed',
+        cron: { output: 'Here is the digest.' },
+      });
+      expect(finished?.cron).toEqual({
+        jobId: 'job-tested',
+        test: true,
+        output: 'Here is the digest.',
       });
     } finally {
       finalizeBackgroundContextLensForSession(sessionKey);

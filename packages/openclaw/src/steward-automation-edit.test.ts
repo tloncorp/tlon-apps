@@ -61,6 +61,12 @@ describe('parseStewardAutomationDispatch', () => {
         action: { delete: { id: 'job-1' } },
       }).action
     ).toEqual({ delete: { id: 'job-1' } });
+    expect(
+      parseStewardAutomationDispatch({
+        requestId,
+        action: { test: { id: 'job-1' } },
+      }).action
+    ).toEqual({ test: { id: 'job-1' } });
   });
 
   function thrownBy(run: () => unknown): unknown {
@@ -429,6 +435,52 @@ describe('applyStewardAutomationDispatch', () => {
         cron
       )
     ).toEqual({ type: 'deleted', id: 'job-9' });
+  });
+
+  it('hands a test to the test runner and never touches the job', async () => {
+    const cron = cronService();
+    const runTest = vi
+      .fn()
+      .mockResolvedValue({ type: 'started', id: 'job-1', lensId: 'lens-1' });
+    expect(
+      await applyStewardAutomationDispatch(
+        { requestId, action: { test: { id: 'job-1' } } },
+        cron,
+        runTest
+      )
+    ).toEqual({ type: 'started', id: 'job-1', lensId: 'lens-1' });
+    expect(runTest).toHaveBeenCalledWith('job-1');
+    expect(cron.add).not.toHaveBeenCalled();
+    expect(cron.update).not.toHaveBeenCalled();
+    expect(cron.remove).not.toHaveBeenCalled();
+  });
+
+  it('refuses a test where the bot cannot run one', async () => {
+    expect(
+      await applyStewardAutomationDispatch(
+        { requestId, action: { test: { id: 'job-1' } } },
+        cronService()
+      )
+    ).toEqual({
+      type: 'error',
+      errorType: 'invalid',
+      message: ['test runs are not available on this bot'],
+    });
+  });
+
+  it('answers a test runner that throws as harness-error', async () => {
+    const runTest = vi.fn().mockRejectedValue(new Error('no agent runtime'));
+    expect(
+      await applyStewardAutomationDispatch(
+        { requestId, action: { test: { id: 'job-1' } } },
+        cronService(),
+        runTest
+      )
+    ).toEqual({
+      type: 'error',
+      errorType: 'harness-error',
+      message: ['no agent runtime'],
+    });
   });
 });
 

@@ -4,7 +4,11 @@ import {
   type ContextLensEvent,
   subscribeToContextLensEvents,
 } from './context-lens-events.js';
-import type { ContextLens, ContextLensStatus } from './context-lens.js';
+import type {
+  ContextLens,
+  ContextLensCron,
+  ContextLensStatus,
+} from './context-lens.js';
 import {
   API_CLIENT_PARAMS_SLOT,
   type SharedApiClientParams,
@@ -15,6 +19,9 @@ import { resolveTlonAccount } from './types.js';
 
 const PAYLOAD_SCHEMA_VERSION = 1;
 const MAX_SUMMARY_CHARS = 4_096;
+// A test run's reply is the whole point of the run, so it keeps more room
+// than a summary does.
+const MAX_CRON_OUTPUT_CHARS = 16_384;
 const MAX_PAYLOAD_CHARS = 50 * 1_024;
 const MAX_TRACKED_RUNS = 1_000;
 
@@ -43,11 +50,32 @@ const shipSyncUnsubscribeSlot = sharedSlot<() => void>(
   'contextLens.shipSync.unsubscribe'
 );
 
-function truncateSummary(value: string | undefined): string | undefined {
-  if (value === undefined || value.length <= MAX_SUMMARY_CHARS) {
+function truncateSummary(
+  value: string | undefined,
+  max = MAX_SUMMARY_CHARS
+): string | undefined {
+  if (value === undefined || value.length <= max) {
     return value;
   }
-  return `${value.slice(0, MAX_SUMMARY_CHARS)}… [truncated]`;
+  return `${value.slice(0, max)}… [truncated]`;
+}
+
+function slimCron(cron: ContextLensCron): ContextLensCron {
+  return {
+    ...cron,
+    ...(cron.output === undefined
+      ? {}
+      : { output: truncateSummary(cron.output, MAX_CRON_OUTPUT_CHARS) }),
+    ...(cron.outcome
+      ? {
+          outcome: {
+            ...cron.outcome,
+            summary: truncateSummary(cron.outcome.summary),
+            error: truncateSummary(cron.outcome.error),
+          },
+        }
+      : {}),
+  };
 }
 
 /** The run record poked to %steward as the lens action's `payload`. */
@@ -90,6 +118,7 @@ export function buildLensRunPayload(lens: ContextLens): LensRunPayload {
         resultSummary: truncateSummary(run.resultSummary),
       })),
     },
+    ...(lens.cron ? { cron: slimCron(lens.cron) } : {}),
   };
   const payload: LensRunPayload = {
     schemaVersion: PAYLOAD_SCHEMA_VERSION,

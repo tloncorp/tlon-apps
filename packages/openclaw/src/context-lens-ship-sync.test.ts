@@ -122,6 +122,21 @@ describe('isContextLensEffectivelyEnabled', () => {
 });
 
 describe('buildLensRunPayload', () => {
+  it("caps a test run's reply and a scheduled run's summary separately", () => {
+    const lens = makeLens({
+      cron: {
+        jobId: 'job-1',
+        test: true,
+        output: 'o'.repeat(20_000),
+        outcome: { status: 'ok', summary: 's'.repeat(5_000) },
+      },
+    });
+    const { cron } = buildLensRunPayload(lens).lens;
+    expect(cron?.output).toHaveLength(16_384 + '… [truncated]'.length);
+    expect(cron?.outcome?.summary).toHaveLength(4_096 + '… [truncated]'.length);
+    expect(cron).toMatchObject({ jobId: 'job-1', test: true });
+  });
+
   it('serializes the lens with a schemaVersion', () => {
     const lens = makeLens();
     const payload = buildLensRunPayload(lens);

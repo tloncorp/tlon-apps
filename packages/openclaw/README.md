@@ -207,6 +207,12 @@ The owner can create, update, and delete the bot's cron jobs from a Tlon client.
 
 A create requests a job id derived from its request id (`steward-<requestId>`) and reports back whatever id OpenClaw actually assigned. Hosts from 2026.7.1 honor the requested id, so a command replayed after the plugin applied it and died before answering is rejected as a duplicate and answered as the create that already landed; 2026.5.28 and earlier ignore the requested id and assign a UUID, so replay is not idempotent there. Every outstanding command is replayed when the plugin (re)subscribes. Outcomes are typed: `created`/`updated`/`deleted` with the job id, or `error` with `invalid` (the dispatch failed validation before reaching the service), `not-found` (no such job), or `harness-error` (the service threw; the message rides along). The subscription is gated like the projection: exactly one runnable Tlon account. A ship whose `%steward` predates the edit loop nacks the subscribe, and owner edits then fail fast on the bot as `harness-offline` while everything else keeps working. Steward never mutates its task map on an edit; the change becomes visible through the next `%project` reconciliation.
 
+### Run history and test runs
+
+Every cron run's Context Lens record carries the job it ran (`lens.cron.jobId`), and when the host reports the run `finished` the plugin records its verdict there and finishes the lens, so the owner's ship can page one task's runs (`/x/v1/lens/cron`). Test runs need Context Lens to reach the owner, and are refused as `invalid` without it.
+
+A `test` command runs a job once without touching it: `src/cron-test-run.ts` reads the job, frames its prompt the way the host frames a cron turn, and runs it through `runtime.agent.runEmbeddedAgent` in a scratch session with the message tool off, so the job's last-run state, next run and delivery are unchanged. The command is answered `started` with the lens id as soon as the run begins; the run's reply is kept on its lens (`lens.cron.output`) rather than posted. For the length of the run the tool hook refuses `message`, the cron tool, and any `tlon` command that is not a read. Asking again while a test of the same job is running answers with that run.
+
 ## Approval System
 
 The approval system lets you control who can interact with your bot. When `ownerShip` is configured, you'll receive DM notifications for:
