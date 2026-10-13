@@ -279,7 +279,14 @@ describe('owner-listen', () => {
 
   // ── participated threads (TLON-6818) ───────────────────────────────────
 
-  describe('participated threads', () => {
+  // These scenarios wait on a container log line ("Now tracking thread for
+  // future replies") so the muted-thread negative is not vacuous. That needs
+  // TEST_COMPOSE_FILE, which test/run-dev.sh does not set, so they skip in
+  // dev mode (like 09-media without storage env). Run them via
+  // `pnpm test:integration` or the shared harness
+  // (`pnpm --dir packages/tlon-bot-e2e test:e2e:openclaw:package`).
+  const describeWithCompose = describe.skipIf(!process.env.TEST_COMPOSE_FILE);
+  describeWithCompose('participated threads', () => {
     // Owner-authored posts are located by text token; the parent is never
     // [tlon-test:]-tagged so thread history cannot misroute a later key.
     async function findOwnerPost(nest: string, token: string): Promise<string> {
