@@ -1217,4 +1217,13 @@
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))
   (ex-fail ((do-as ~fed) (do-c-groups [%join my-flag ~])))
+::  +test-c-entry-token-no-claims: a limited token needs at least one claim
+::
+++  test-c-entry-token-no-claims
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-create-group %private)
+  (ex-fail ((do-as ~zod) (do-c-group [%entry %token %add [[%limited 0] ~ ~ |]])))
 --

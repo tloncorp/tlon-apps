@@ -2543,6 +2543,8 @@
     ?-    -.c-token
         %add
       =*  c-token-add  c-token-add.c-token
+      ~|  %se-c-entry-token-no-claims
+      ?<  ?=([%limited %0] scheme.c-token-add)
       =/  =token:g
         |-
         =+  i=(end 7 (shas %entry-token eny.bowl))
