@@ -53,6 +53,21 @@ reading the campaign database.
   subject to the same spacing, activity, and quiet hours as other tips. Failures
   take precedence over successful work. Feedback counts toward the five-tip cap.
 
+An owner who has never had a task hears the ownership story from day two, in
+place of more task pitches: their node and who hosts it, starting a notebook, a
+notebook that grows, and a closing about changing models without losing
+anything. Day one is unchanged.
+
+When the bot knows something about the owner (a setup choice or anything they
+have said in the tip conversation), the same model run that rewords the tip
+first decides whether it is worth sending, given their latest message and the
+tips already sent. If it says no, the usual tip for that step is sent instead,
+reworded as before. If the run fails or gives no answer, the usual tip goes out
+as written. When the bot knows nothing about the owner there is nothing to
+check or tailor, so the ownership tip goes out as written. With two unanswered
+tips the middle ones are skipped as usual, so a silent owner hears day one, the
+ownership tip and that closing.
+
 Use the private onboarding channel while it contains only the owner and bot.
 Public groups, extra members/invitations, or an owner who left route to the owner
 DM permanently. Verify privacy before delivery; an unavailable privacy read defers.

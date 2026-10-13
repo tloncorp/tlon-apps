@@ -8,6 +8,7 @@ import {
   campaignTiming,
   eligibleEnrollment,
   evaluateCampaign,
+  hasOwnerContext,
   localMinute,
   validTimezone,
 } from './model.js';
@@ -21,6 +22,7 @@ import {
   TIP_COPY,
   type TipCopy,
   isStopTips,
+  renderOwnershipTip,
   renderTip,
   withOptOut,
 } from './templates.js';
@@ -41,7 +43,8 @@ export type CampaignDeps = {
     state: CampaignState
   ) => Promise<Partial<Pick<CampaignState, 'topic' | 'purpose'>>>;
   destination?: (state: CampaignState) => Promise<string>;
-  personalize?: (draft: TipDraft) => Promise<string | undefined>;
+  /** `null` means the model judged a gated tip not worth sending. */
+  personalize?: (draft: TipDraft) => Promise<string | null | undefined>;
   /** Tip copy overrides; production uses the defaults. */
   copy?: Partial<TipCopy>;
   busy: () => boolean;
@@ -205,12 +208,7 @@ export function createCampaign(deps: CampaignDeps) {
         if (sentAt === undefined) {
           try {
             text = withOptOut(
-              (await deps.personalize?.({
-                step: decision.step,
-                state,
-                task,
-                text,
-              })) ?? text,
+              await tailor(decision.step, state, task, text),
               state,
               copy
             );
@@ -265,6 +263,36 @@ export function createCampaign(deps: CampaignDeps) {
         return;
       }
     });
+  }
+  /**
+   * The wording to send. An owner without a task gets the ownership tip for
+   * the step when there is one: as written if the bot knows nothing about
+   * them, otherwise only once the model agrees it is worth sending and has
+   * reworded it. Anything else is the usual tip, reworded where possible.
+   */
+  async function tailor(
+    step: StepId,
+    state: CampaignState,
+    task: CampaignTask | undefined,
+    usual: string
+  ): Promise<string> {
+    const ownership = renderOwnershipTip(step, state, task, copy);
+    if (ownership) {
+      if (!hasOwnerContext(state, task)) return ownership;
+      const reworded = await deps.personalize?.({
+        step,
+        state,
+        task,
+        text: ownership,
+        gated: true,
+      });
+      if (reworded) return reworded;
+      // No verdict, so nothing vouches for it: the usual tip, as written.
+      if (reworded !== null) return usual;
+    }
+    return (
+      (await deps.personalize?.({ step, state, task, text: usual })) ?? usual
+    );
   }
   function check(): Promise<void> {
     flight ??= tick()

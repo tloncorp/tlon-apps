@@ -13,6 +13,14 @@ export type TipCopy = Record<StepId, string> & {
   taskScheduled: string;
   closingAfterFeedback: string;
   closingQuiet: string;
+  /**
+   * For an owner without a task: the ownership story, offered in place of the
+   * task pitches from day two on.
+   */
+  ownership: string;
+  startNotebook: string;
+  growingNotebook: string;
+  closingModelChoice: string;
   optOut: string;
   /** How to refer to the onboarding task, whose job name is internal. */
   unnamedTask: string;
@@ -44,8 +52,24 @@ export const TIP_COPY: TipCopy = {
     'I’ll leave you to explore after today. You can ask me to adjust your existing tasks whenever you like.',
   closingQuiet:
     'I’ll leave you to explore after today. Whenever something comes up, send it my way.',
+  ownership:
+    'Your notes and conversations in Tlon Messenger live on your own personal server, called a node. Tlon can host it for you, or you can export it and run it yourself. Want a quick explanation of how that works?',
+  startNotebook:
+    'What would you like to start a notebook about? A project, something you’re learning, or a collection of ideas?',
+  growingNotebook:
+    'You can give me a notebook that grows over time: ‘Every week, teach me one thing about gardening and save it here.’ What would you want yours to cover?',
+  closingModelChoice:
+    'You can change the AI model you use here and keep your conversations and notes. I’ll leave you to explore after today. Whenever something comes up, send it my way.',
   optOut: 'You can tell me to stop these tips anytime, or send /stop-tips.',
   unnamedTask: 'your recurring update',
+};
+
+/** The ownership tip an owner without a task can get instead of each step. */
+const OWNERSHIP_COPY: Partial<Record<StepId, keyof TipCopy>> = {
+  'recurring-help': 'ownership',
+  archive: 'startNotebook',
+  'own-material': 'growingNotebook',
+  closing: 'closingModelChoice',
 };
 
 /** How tips refer to a task: its own name, unless it is the internal one. */
@@ -100,6 +124,21 @@ export function renderTip(
     state,
     copy
   );
+}
+
+/**
+ * The ownership tip for this step, for an owner who has never had a task.
+ * Day one and anything about a task have none.
+ */
+export function renderOwnershipTip(
+  step: StepId,
+  state: CampaignState,
+  task?: CampaignTask,
+  copy: TipCopy = TIP_COPY
+): string | undefined {
+  const key = OWNERSHIP_COPY[step];
+  if (!key || task || state.status !== 'active') return;
+  return withOptOut(copy[key], state, copy);
 }
 
 export function withOptOut(

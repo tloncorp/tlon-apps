@@ -4,7 +4,12 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { getTlonRuntime } from '../../runtime.js';
-import type { CampaignState, CampaignTask, StepId } from './model.js';
+import {
+  type CampaignState,
+  type CampaignTask,
+  type StepId,
+  hasOwnerContext,
+} from './model.js';
 import { taskLabel } from './templates.js';
 
 export type TipDraft = {
@@ -12,7 +17,12 @@ export type TipDraft = {
   state: CampaignState;
   task?: CampaignTask;
   text: string;
+  /** Ask whether this tip is worth sending before rewording it. */
+  gated?: boolean;
 };
+
+/** What the model returns for a gated tip it judges not worth sending. */
+export const TIP_NOT_WORTH_SENDING = 'SKIP_TIP';
 
 export const CAMPAIGN_PROMPT_POLICY = [
   'Write one short onboarding tip for this TlonBot user. Return only the message, at most 80 words.',
@@ -22,34 +32,48 @@ export const CAMPAIGN_PROMPT_POLICY = [
   'Do not include opt-out instructions; the caller appends them when required. No preamble, headings, or explanation of this writing task.',
 ].join('\n');
 
+export const CAMPAIGN_GATE_POLICY = [
+  'First decide whether this tip is worth sending to this user now. It is not if their latest message or the earlier tips show they already know this, have turned it down, or are in the middle of something it would talk past.',
+  `If it is not worth sending, return exactly ${TIP_NOT_WORTH_SENDING} and nothing else.`,
+].join('\n');
+
 export function buildPersonalizationPrompt(
   draft: TipDraft,
   policy = CAMPAIGN_PROMPT_POLICY
 ) {
   const { state, task } = draft;
-  return `${policy}\n${JSON.stringify({
-    step: draft.step,
-    baseTip: draft.text,
-    setupTopic: state.topic?.slice(0, 1000),
-    setupPurpose: state.purpose?.slice(0, 1000),
-    latestUserMessage: state.lastOwnerText?.slice(0, 2000),
-    // The onboarding job's name is internal; describe the task instead.
-    task: task && { ...task, name: taskLabel(task) },
-  })}`;
+  return `${policy}${draft.gated ? `\n${CAMPAIGN_GATE_POLICY}` : ''}\n${JSON.stringify(
+    {
+      step: draft.step,
+      baseTip: draft.text,
+      ...(draft.gated
+        ? {
+            earlierTips: state.sent
+              .flatMap((sent) => (sent.text ? [sent.text.slice(0, 800)] : []))
+              .slice(-4),
+          }
+        : {}),
+      setupTopic: state.topic?.slice(0, 1000),
+      setupPurpose: state.purpose?.slice(0, 1000),
+      latestUserMessage: state.lastOwnerText?.slice(0, 2000),
+      // The onboarding job's name is internal; describe the task instead.
+      task: task && { ...task, name: taskLabel(task) },
+    }
+  )}`;
 }
 
+/**
+ * The reworded tip, `null` when the model judged a gated tip not worth
+ * sending, or nothing when there is no usable answer.
+ */
 export function acceptPersonalization(
   draft: TipDraft,
   text: string | undefined
-) {
-  if (
-    !draft.state.topic &&
-    !draft.state.purpose &&
-    !draft.state.lastOwnerText &&
-    !draft.task
-  )
-    return;
+): string | null | undefined {
+  if (!hasOwnerContext(draft.state, draft.task)) return;
   const candidate = text?.trim();
+  if (candidate?.replace(/[.!]$/, '').toUpperCase() === TIP_NOT_WORTH_SENDING)
+    return draft.gated ? null : undefined;
   return candidate && candidate !== 'NO_REPLY' && candidate.length <= 800
     ? candidate
     : undefined;
@@ -60,14 +84,8 @@ export async function personalizeTip(
   config: OpenClawConfig,
   accountId: string,
   signal?: AbortSignal
-): Promise<string | undefined> {
-  if (
-    !draft.state.topic &&
-    !draft.state.purpose &&
-    !draft.state.lastOwnerText &&
-    !draft.task
-  )
-    return;
+): Promise<string | null | undefined> {
+  if (!hasOwnerContext(draft.state, draft.task)) return;
   const runtime = getTlonRuntime();
   const route = runtime.channel.routing.resolveAgentRoute({
     cfg: config,

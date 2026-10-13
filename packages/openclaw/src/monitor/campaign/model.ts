@@ -97,6 +97,17 @@ export function campaignTiming(config: CampaignConfig = {}): CampaignTiming {
   };
 }
 
+/**
+ * Whether there is anything to tailor a tip to: a task, a setup choice, or
+ * something the owner has said in the tip conversation.
+ */
+export function hasOwnerContext(
+  state: Pick<CampaignState, 'topic' | 'purpose' | 'lastOwnerText'>,
+  task?: CampaignTask
+): boolean {
+  return Boolean(state.topic || state.purpose || state.lastOwnerText || task);
+}
+
 export function validTimezone(value: string | undefined): value is string {
   if (!value) return false;
   try {

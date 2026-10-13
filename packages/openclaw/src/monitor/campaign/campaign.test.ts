@@ -8,9 +8,14 @@ import {
 } from './model.js';
 import { type CampaignDeps, createCampaign } from './runner.js';
 import type { CampaignStore } from './store.js';
-import { TIP_COPY, renderTip, isStopTips } from './templates.js';
+import {
+  TIP_COPY,
+  isStopTips,
+  renderOwnershipTip,
+  renderTip,
+} from './templates.js';
 import { ONBOARDING_JOB_NAME } from '../onboarding-job.js';
-import { buildPersonalizationPrompt } from './personalize.js';
+import { type TipDraft, buildPersonalizationPrompt } from './personalize.js';
 
 const enrolledAt = Date.parse('2026-09-17T15:37:00Z');
 const facts = { enabled: true, hasTask: false, busy: false };
@@ -1005,6 +1010,138 @@ it('quotes tasks the owner or bot named later', () => {
       deliveredAt: enrolledAt + DAY,
     })
   ).toContain('How’s “Morning AI roundup” working for you?');
+});
+
+describe('ownership tips for an owner without a task', () => {
+  const afterFirstTip = {
+    sent: [{ step: 'useful-request' as const, at: enrolledAt + DAY }],
+  };
+  const known = {
+    ...afterFirstTip,
+    lastOwnerText: 'I am planning a vegetable garden.',
+    lastReplyAt: enrolledAt + DAY + MINUTE,
+  };
+
+  it('has one for each step from day two on', () => {
+    const current = state(afterFirstTip);
+    expect(renderOwnershipTip('useful-request', current)).toBeUndefined();
+    expect(renderOwnershipTip('recurring-help', current)).toBe(
+      TIP_COPY.ownership
+    );
+    expect(renderOwnershipTip('archive', current)).toBe(TIP_COPY.startNotebook);
+    expect(renderOwnershipTip('own-material', current)).toBe(
+      TIP_COPY.growingNotebook
+    );
+    expect(renderOwnershipTip('closing', current)).toBe(
+      TIP_COPY.closingModelChoice
+    );
+    // The usual tips are still there to fall back on.
+    expect(renderTip('recurring-help', current)).toBe(
+      TIP_COPY['recurring-help']
+    );
+  });
+
+  it('has none once the owner has had a task', () => {
+    const task = { id: 'job', name: 'Digest', enabled: true, deliveredAt: 1 };
+    expect(
+      renderOwnershipTip('closing', state(afterFirstTip), task)
+    ).toBeUndefined();
+    expect(
+      renderOwnershipTip(
+        'closing',
+        state({ ...afterFirstTip, status: 'feedback' })
+      )
+    ).toBeUndefined();
+  });
+
+  it('sends them as written to an owner who has chosen and said nothing', async () => {
+    // The live rewriter has nothing to work with here and returns nothing.
+    const personalize = vi.fn(async () => undefined);
+    const h = harness(state(), { personalize });
+    await h.campaign.check();
+    h.advance(DAY);
+    await h.campaign.check();
+    h.advance(4 * DAY);
+    await h.campaign.check();
+    expect(h.read().sent.map((post) => post.step)).toEqual([
+      'useful-request',
+      'recurring-help',
+      'closing',
+    ]);
+    expect(vi.mocked(h.deps.send).mock.calls.map(([text]) => text)).toEqual([
+      TIP_COPY['useful-request'],
+      TIP_COPY.ownership,
+      TIP_COPY.closingModelChoice,
+    ]);
+    // Only day one, the usual tip, is offered for rewording.
+    expect(personalize).toHaveBeenCalledTimes(1);
+    expect(personalize).toHaveBeenCalledWith(
+      expect.objectContaining({ step: 'useful-request' })
+    );
+  });
+
+  it('sends the reworded tip once the model agrees it is worth sending', async () => {
+    const personalize = vi.fn(async (draft: TipDraft) =>
+      draft.gated
+        ? 'Your garden notes live on your own node. Want the short version?'
+        : 'unused'
+    );
+    const h = harness(state(known), { personalize });
+    h.advance(DAY);
+    await h.campaign.check();
+    expect(personalize).toHaveBeenCalledTimes(1);
+    expect(personalize).toHaveBeenCalledWith(
+      expect.objectContaining({ gated: true, text: TIP_COPY.ownership })
+    );
+    expect(h.deps.send).toHaveBeenCalledWith(
+      'Your garden notes live on your own node. Want the short version?',
+      'campaign-v1-recurring-help',
+      '~ten'
+    );
+  });
+
+  it('falls back to the usual tip, reworded, when the model says it is not worth sending', async () => {
+    const personalize = vi.fn(async (draft: TipDraft) =>
+      draft.gated ? null : 'Each Sunday I could find one planting idea.'
+    );
+    const h = harness(state(known), { personalize });
+    h.advance(DAY);
+    await h.campaign.check();
+    expect(personalize).toHaveBeenCalledTimes(2);
+    expect(personalize).toHaveBeenLastCalledWith(
+      expect.objectContaining({ text: TIP_COPY['recurring-help'] })
+    );
+    expect(personalize.mock.calls[1][0].gated).toBeUndefined();
+    expect(h.deps.send).toHaveBeenCalledWith(
+      'Each Sunday I could find one planting idea.',
+      'campaign-v1-recurring-help',
+      '~ten'
+    );
+  });
+
+  it.each([
+    ['gives no answer', async () => undefined],
+    [
+      'fails',
+      async () => {
+        throw new Error('offline');
+      },
+    ],
+  ])(
+    'sends the usual tip as written when the check %s',
+    async (_name, personalize) => {
+      const spy = vi.fn(personalize);
+      const h = harness(state(known), { personalize: spy });
+      h.advance(DAY);
+      await h.campaign.check();
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(h.deps.send).toHaveBeenCalledWith(
+        TIP_COPY['recurring-help'],
+        'campaign-v1-recurring-help',
+        '~ten'
+      );
+    }
+  );
 });
 
 it('renders overridden tip copy with the same placeholders', () => {
