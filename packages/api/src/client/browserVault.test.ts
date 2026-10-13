@@ -7,11 +7,9 @@ import {
 } from './browserVault';
 
 const mocks = vi.hoisted(() => ({ scry: vi.fn(), fetch: vi.fn() }));
-vi.mock('./requests', () => ({
-  base: { genuineSecret: {} },
-  scryRequest: () => mocks.scry,
+vi.mock('./urbit', () => ({
+  getBrowserVaultOwnerAuthorization: () => mocks.scry(),
 }));
-vi.mock('./urbit', () => ({ getCurrentUserId: () => '~sampel-palnet' }));
 vi.mock('../types', () => ({
   getConstants: () => ({ API_URL: 'https://test.tlon.systems' }),
 }));
@@ -22,11 +20,15 @@ const account = {
   origin: 'https://login.example',
   updatedAt: 1,
   label: 'Personal',
+  permission: 'ask',
 };
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('fetch', mocks.fetch);
-  mocks.scry.mockResolvedValue('owner-proof-private');
+  mocks.scry.mockResolvedValue({
+    planet: 'sampel-palnet',
+    ownerToken: 'owner-proof-private',
+  });
   mocks.fetch.mockResolvedValue(
     new Response(
       JSON.stringify({ grant: 'g'.repeat(43), accounts: [account] }),

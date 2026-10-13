@@ -1,6 +1,7 @@
 import { isTrustedBrowserViewerHost } from '@tloncorp/api/client/browserSession';
 import {
   authorizeBrowserLoginHandoff,
+  browserVaultOwnerRequest,
   type BrowserLoginChoice,
 } from '@tloncorp/api/client/browserVault';
 
@@ -34,7 +35,12 @@ export type BrowserCredentialValues = {
   values?: Record<string, string>;
   submit?: boolean;
   grant?: string;
-  save?: { label?: string; update?: BrowserLoginChoice };
+  save?: {
+    label?: string;
+    update?: BrowserLoginChoice;
+    permission?: 'ask' | 'allow';
+  };
+  allowAutomatic?: boolean;
   use?: BrowserLoginChoice;
 };
 
@@ -80,6 +86,29 @@ function parseViewerUrl(viewerUrl: string): { url: URL; capability: string } {
 
 export function trustedBrowserViewerUrl(viewerUrl: string): string {
   return parseViewerUrl(viewerUrl).url.toString();
+}
+
+/** Viewer capabilities are granted to the authenticated owner, never to the bot's conversation link. */
+export async function authorizeBrowserViewer(
+  viewerUrl: string
+): Promise<string> {
+  const { url, capability } = parseViewerUrl(viewerUrl);
+  if (url.protocol === 'http:') return url.toString();
+  const result = await browserVaultOwnerRequest(
+    new URL('/viewer-authorize', url.origin).toString(),
+    { capability }
+  );
+  if (
+    !result ||
+    typeof result !== 'object' ||
+    !('viewerUrl' in result) ||
+    typeof result.viewerUrl !== 'string'
+  )
+    throw new Error('Viewer authorization is unavailable.');
+  const authorized = trustedBrowserViewerUrl(result.viewerUrl);
+  if (new URL(authorized).origin !== url.origin)
+    throw new Error('Invalid viewer authorization.');
+  return authorized;
 }
 
 export async function cancelBrowserCredentialHandoff(
@@ -314,7 +343,9 @@ export async function submitBrowserCredentials(
       submit: handoff.kind === 'login' && values.submit === true,
       ...(values.grant ? { grant: values.grant } : {}),
       ...(values.save ? { save: values.save } : {}),
-      ...(values.use ? { use: values.use } : {}),
+      ...(values.use
+        ? { use: values.use, allowAutomatic: values.allowAutomatic === true }
+        : {}),
     }),
     cache: 'no-store',
     credentials: 'omit',

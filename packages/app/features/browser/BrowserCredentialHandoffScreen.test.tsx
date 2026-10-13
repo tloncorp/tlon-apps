@@ -68,6 +68,12 @@ vi.mock('./BrowserCredentialHandoffProvider', () => ({
 }));
 vi.mock('./browserCredentialHandoff', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./browserCredentialHandoff')>()),
+  authorizeBrowserViewer: async (url: string) =>
+    (
+      await vi.importActual<typeof import('./browserCredentialHandoff')>(
+        './browserCredentialHandoff'
+      )
+    ).trustedBrowserViewerUrl(url),
   beginBrowserCredentialHandoff: mocks.beginHandoff,
   nextBrowserCredentialHandoff: mocks.nextHandoff,
   submitBrowserCredentials: mocks.submitCredentials,
@@ -147,6 +153,13 @@ describe('secure browser form screen', () => {
   });
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.openWindow.mockReturnValue({
+      opener: {},
+      document: { write: vi.fn() },
+      location: { replace: vi.fn() },
+      close: vi.fn(),
+      closed: false,
+    });
     vi.stubGlobal(
       'window',
       Object.assign(new EventTarget(), { open: mocks.openWindow })
@@ -228,7 +241,7 @@ describe('secure browser form screen', () => {
     expect(mocks.submitCredentials.mock.calls[0][1]).toMatchObject({
       values: { f0: 'private-user', f1: 'private-password' },
       grant: 'g'.repeat(43),
-      save: { label: 'private-user' },
+      save: { label: 'private-user', permission: 'ask' },
     });
     expect(mocks.complete.mock.calls[0]).toEqual(['opaque-handoff-id']);
   });
@@ -258,7 +271,49 @@ describe('secure browser form screen', () => {
       submit: true,
       grant: 'g'.repeat(43),
       use: { id: account.id, revision: 1 },
+      allowAutomatic: false,
     });
+  });
+
+  it('saves without automatic permission unless the owner explicitly enables it', async () => {
+    mocks.beginHandoff.mockResolvedValue(form([username, password], { vault }));
+    const { renderer } = await render();
+    await act(async () => {
+      enter(renderer, username.label, 'private-user');
+      enter(renderer, password.label, 'private-password');
+      renderer.root
+        .findByProps({ accessibilityRole: 'checkbox' })
+        .props.onPress();
+    });
+    expect(
+      renderer.root.findByProps({ accessibilityRole: 'switch' }).props
+        .accessibilityState.checked
+    ).toBe(false);
+    await press(renderer);
+    expect(mocks.submitCredentials.mock.calls[0][1].save.permission).toBe(
+      'ask'
+    );
+    await act(async () => renderer.unmount());
+  });
+
+  it('sends explicit automatic-use consent when saving', async () => {
+    mocks.beginHandoff.mockResolvedValue(form([username, password], { vault }));
+    const { renderer } = await render();
+    await act(async () => {
+      enter(renderer, username.label, 'private-user');
+      enter(renderer, password.label, 'private-password');
+      renderer.root
+        .findByProps({ accessibilityRole: 'checkbox' })
+        .props.onPress();
+    });
+    act(() =>
+      renderer.root.findByProps({ accessibilityRole: 'switch' }).props.onPress()
+    );
+    await press(renderer);
+    expect(mocks.submitCredentials.mock.calls[0][1].save.permission).toBe(
+      'allow'
+    );
+    await act(async () => renderer.unmount());
   });
 
   it('keeps save consent through a same-origin password step and shows persistence failure', async () => {
@@ -290,7 +345,7 @@ describe('secure browser form screen', () => {
     act(() => enter(renderer, password.label, 'private-password'));
     await press(renderer);
     expect(mocks.submitCredentials.mock.calls[1][1]).toMatchObject({
-      save: { label: 'private-user' },
+      save: { label: 'private-user', permission: 'ask' },
     });
     expect(mocks.complete).not.toHaveBeenCalled();
     expect(JSON.stringify(renderer.toJSON())).toContain('could not be saved');
@@ -579,7 +634,7 @@ describe('secure browser form screen', () => {
       const submitted = mocks.submitCredentials.mock.calls[1][1];
       expect(submitted.values).toEqual({ f1: 'private-password' });
       expect(submitted.save).toEqual(
-        keepConsent ? { label: 'private-user' } : undefined
+        keepConsent ? { label: 'private-user', permission: 'ask' } : undefined
       );
       expect(mocks.complete).toHaveBeenCalledOnce();
       await act(async () => renderer.unmount());
@@ -1133,11 +1188,7 @@ describe('secure browser form screen', () => {
     const { renderer } = await render();
     await press(renderer, 'Open live browser');
     expect(mocks.openWindow).toHaveBeenCalledOnce();
-    expect(mocks.openWindow).toHaveBeenCalledWith(
-      'https://browser-session.tlon.network/s/payload.signature',
-      '_blank',
-      'noopener,noreferrer'
-    );
+    expect(mocks.openWindow).toHaveBeenCalledWith('about:blank', '_blank');
     expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
     expect(mocks.complete).not.toHaveBeenCalled();
     expect(mocks.submitCredentials).not.toHaveBeenCalled();

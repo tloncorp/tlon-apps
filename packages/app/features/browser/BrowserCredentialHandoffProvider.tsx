@@ -10,7 +10,8 @@ import {
 import { isWeb } from 'tamagui';
 
 import { BrowserViewerModal } from './BrowserViewerModal';
-import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
+import { authorizeBrowserViewer } from './browserCredentialHandoff';
+import { openBrowserViewerWindow } from './browserViewerWindow';
 
 type Handoff = {
   viewerUrl: string;
@@ -20,7 +21,7 @@ type Handoff = {
 type RegisteredHandoff = Handoff & { completing?: boolean };
 
 type BrowserCredentialHandoffContextValue = {
-  openViewer: (viewerUrl: string) => void;
+  openViewer: (viewerUrl: string) => Promise<void>;
   register: (handoff: Handoff) => string;
   resolve: (id: string) => string | undefined;
   complete: (id: string) => Promise<void>;
@@ -34,12 +35,11 @@ export function BrowserCredentialHandoffProvider({
   children,
 }: PropsWithChildren) {
   const [viewerUrl, setViewerUrl] = useState<string>();
-  const openViewer = useCallback((url: string) => {
-    const trustedUrl = trustedBrowserViewerUrl(url);
+  const openViewer = useCallback(async (url: string) => {
     if (isWeb) {
-      window.open(trustedUrl, '_blank', 'noopener,noreferrer');
+      await openBrowserViewerWindow(url);
     } else {
-      setViewerUrl(trustedUrl);
+      setViewerUrl(await authorizeBrowserViewer(url));
     }
   }, []);
   const handoffs = useRef(new Map<string, RegisteredHandoff>());

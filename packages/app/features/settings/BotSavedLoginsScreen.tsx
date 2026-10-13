@@ -2,6 +2,7 @@ import { getTlawnMoon } from '@tloncorp/api';
 import {
   deleteBrowserLogin,
   listBrowserLogins,
+  setBrowserLoginPermission,
   type SavedBrowserLogin,
 } from '@tloncorp/api/client/browserVault';
 import { Button, ConfirmDialog, Text } from '@tloncorp/ui';
@@ -92,8 +93,9 @@ export function BotSavedLoginsScreen({
       >
         <YStack gap="$xl" maxWidth={560} width="100%" alignSelf="center">
           <Text color="$secondaryText">
-            Your bot can use these logins on their saved websites. Deleting a
-            login prevents future fills; it does not sign out an open browser.
+            Choose whether your bot can sign in automatically or needs to ask.
+            Deleting a login prevents future fills; it does not sign out an open
+            browser.
           </Text>
           {loading ? (
             <Text>Loading saved logins…</Text>
@@ -110,7 +112,37 @@ export function BotSavedLoginsScreen({
             >
               <Text fontWeight="600">{account.label}</Text>
               <Text color="$secondaryText">{account.origin}</Text>
-              {account.username ? <Text>{account.username}</Text> : null}
+              <Text>
+                {account.permission === 'allow'
+                  ? 'Automatic sign-in allowed'
+                  : 'Ask before signing in'}
+              </Text>
+              <Button
+                preset="secondary"
+                label={
+                  account.permission === 'allow'
+                    ? 'Require approval'
+                    : 'Allow automatic sign-in'
+                }
+                disabled={removing || loading}
+                onPress={() => {
+                  if (!moon || removing) return;
+                  setRemoving(true);
+                  setError(undefined);
+                  void setBrowserLoginPermission(
+                    moon,
+                    { id: account.id, revision: account.revision },
+                    account.permission === 'allow' ? 'ask' : 'allow'
+                  )
+                    .then(() => setRevision((value) => value + 1))
+                    .catch(() =>
+                      setError(
+                        'Permission could not be changed. Refresh and try again.'
+                      )
+                    )
+                    .finally(() => setRemoving(false));
+                }}
+              />
               <Button
                 preset="secondary"
                 label="Delete login"

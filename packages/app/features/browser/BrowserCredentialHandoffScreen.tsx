@@ -1,3 +1,4 @@
+import { openBrowserViewerWindow } from './browserViewerWindow';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import type {
   BrowserLoginChoice,
@@ -23,6 +24,7 @@ import {
   nextBrowserCredentialHandoff,
   submitBrowserCredentials,
   supportsSavedLogins,
+  authorizeBrowserViewer,
   trustedBrowserViewerUrl,
   validBrowserFormValues,
   authorizeBrowserLogins,
@@ -199,6 +201,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const [vaultError, setVaultError] = useState<string>();
   const [vaultRequested, setVaultRequested] = useState(false);
   const [saveLogin, setSaveLogin] = useState(false);
+  const [allowAutomatic, setAllowAutomatic] = useState(false);
   const [accountLabel, setAccountLabel] = useState('');
   const [choice, setChoice] = useState<{
     mode: 'use' | 'update';
@@ -255,6 +258,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     pendingSave.current = undefined;
     setSaveStatus((status) => (status === 'pending' ? undefined : status));
     setSaveLogin(false);
+    setAllowAutomatic(false);
     setChoice(undefined);
     setAccountLabel('');
     setVaultRequested(false);
@@ -336,7 +340,12 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           setNoSecureForm(true);
           if (!isWeb && openWhenMissing) {
             Keyboard.dismiss();
-            setLiveViewer({ url: trustedUrl, handoffId });
+            try {
+              const ownerUrl = await authorizeBrowserViewer(trustedUrl);
+              if (!signal?.aborted) setLiveViewer({ url: ownerUrl, handoffId });
+            } catch {
+              setError('The browser could not be authorized. Try again.');
+            }
           }
         } else {
           setError(errorMessage(nextError));
@@ -425,10 +434,13 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           ...(vaultAuth && (choice?.mode === 'use' || saveLogin)
             ? { grant: vaultAuth.grant }
             : {}),
-          ...(choice?.mode === 'use' ? { use: choice.record } : {}),
+          ...(choice?.mode === 'use'
+            ? { use: choice.record, allowAutomatic }
+            : {}),
           ...(saveLogin && choice?.mode !== 'use'
             ? {
                 save: {
+                  permission: allowAutomatic ? 'allow' : 'ask',
                   ...(saveLabel ? { label: saveLabel } : {}),
                   ...(choice?.mode === 'update'
                     ? { update: choice.record }
@@ -509,6 +521,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     vaultAuth,
     choice,
     saveLogin,
+    allowAutomatic,
     saveLabel,
     canSubmit,
     clearSavedLoginSelection,
@@ -552,14 +565,16 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         throw new Error(
           'Reopen the secure browser form from the conversation.'
         );
-      const url = trustedBrowserViewerUrl(viewerUrl);
       Keyboard.dismiss();
       setValues({});
       if (isWeb) {
         externalViewerHandoff.current = handoffId;
-        window.open(url, '_blank', 'noopener,noreferrer');
+        await openBrowserViewerWindow(viewerUrl);
       } else {
-        setLiveViewer({ url, handoffId });
+        setLiveViewer({
+          url: await authorizeBrowserViewer(viewerUrl),
+          handoffId,
+        });
       }
     } catch (nextError) {
       setError(errorMessage(nextError));
@@ -680,6 +695,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                               },
                             });
                             setSaveLogin(false);
+                            setAllowAutomatic(account.permission === 'allow');
                             setValues({});
                           }}
                         />
@@ -696,6 +712,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                               },
                             });
                             setSaveLogin(true);
+                            setAllowAutomatic(account.permission === 'allow');
                             setAccountLabel(account.label);
                             setValues({});
                           }}
@@ -709,6 +726,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                       onPress={() => {
                         setChoice(undefined);
                         setSaveLogin(false);
+                        setAllowAutomatic(false);
                         setAccountLabel('');
                         setValues({});
                       }}
@@ -761,9 +779,8 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                     {saveLogin ? (
                       <>
                         <Text color="$secondaryText">
-                          This bot can sign in to {handoff.origin} without
-                          asking you each time. Remove this permission by
-                          deleting the login in Bot settings.
+                          Save this login for {handoff.origin}. You control
+                          whether this bot needs to ask before using it.
                         </Text>
                         <Field
                           label={
@@ -785,6 +802,36 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                     ) : null}
                   </YStack>
                 ) : null}
+                {vaultEligible && (saveLogin || choice?.mode === 'use') ? (
+                  <Pressable
+                    accessibilityRole="switch"
+                    accessibilityLabel="Allow automatic sign-in"
+                    accessibilityState={{
+                      checked: allowAutomatic,
+                      disabled: submitting,
+                    }}
+                    disabled={submitting}
+                    onPress={() => setAllowAutomatic((allowed) => !allowed)}
+                    style={{ minHeight: 48, justifyContent: 'center' }}
+                  >
+                    <Text>
+                      {allowAutomatic ? '☑' : '☐'} Always allow this bot to sign
+                      in
+                    </Text>
+                    <Text color="$secondaryText">
+                      {allowAutomatic
+                        ? 'You can revoke this permission in Bot settings.'
+                        : 'Your bot must ask before using this saved login.'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {choice?.mode === 'use' ? (
+                  <Text>
+                    {allowAutomatic
+                      ? 'Allow sign-in and future automatic use.'
+                      : 'Continue allows this sign-in only.'}
+                  </Text>
+                ) : null}
                 {error ? (
                   <Text color="$negativeActionText">{error}</Text>
                 ) : null}
@@ -796,6 +843,14 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   disabled={submitting || !canSubmit}
                   onPress={fillAndSubmit}
                 />
+                {choice?.mode === 'use' ? (
+                  <Button
+                    preset="secondary"
+                    label="Deny"
+                    disabled={submitting}
+                    onPress={dismiss}
+                  />
+                ) : null}
               </>
             ) : (
               <>

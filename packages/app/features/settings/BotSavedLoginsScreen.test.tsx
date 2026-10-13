@@ -16,11 +16,13 @@ const mocks = vi.hoisted(() => ({
   moon: vi.fn(),
   list: vi.fn(),
   remove: vi.fn(),
+  permission: vi.fn(),
 }));
 vi.mock('@tloncorp/api', () => ({ getTlawnMoon: mocks.moon }));
 vi.mock('@tloncorp/api/client/browserVault', () => ({
   listBrowserLogins: mocks.list,
   deleteBrowserLogin: mocks.remove,
+  setBrowserLoginPermission: mocks.permission,
 }));
 vi.mock('@tloncorp/ui', () => ({
   Button: 'Button',
@@ -44,6 +46,7 @@ const account = {
   id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
   revision: 3,
   label: 'Personal',
+  permission: 'ask',
   origin: 'https://example.com',
   updatedAt: 1,
 };
@@ -74,6 +77,7 @@ describe('saved login management', () => {
     mocks.moon.mockResolvedValue('pinser-botter');
     mocks.list.mockResolvedValue([account]);
     mocks.remove.mockResolvedValue(undefined);
+    mocks.permission.mockResolvedValue(undefined);
   });
 
   it('loads the configured bot and deletes only the confirmed account revision', async () => {
@@ -105,6 +109,28 @@ describe('saved login management', () => {
       revision: 3,
     });
     expect(JSON.stringify(renderer.toJSON())).toContain('No saved logins.');
+    act(() => renderer.unmount());
+  });
+
+  it('updates automatic sign-in permission and reloads its revision', async () => {
+    const renderer = await render();
+    mocks.list.mockResolvedValue([
+      { ...account, permission: 'allow', revision: 4 },
+    ]);
+    await act(async () =>
+      renderer.root
+        .findByProps({ label: 'Allow automatic sign-in' })
+        .props.onPress()
+    );
+    expect(mocks.permission).toHaveBeenCalledWith(
+      'pinser-botter-sampel-palnet',
+      { id: account.id, revision: 3 },
+      'allow'
+    );
+    expect(mocks.list).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(renderer.toJSON())).toContain(
+      'Automatic sign-in allowed'
+    );
     act(() => renderer.unmount());
   });
 

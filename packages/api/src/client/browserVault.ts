@@ -2,8 +2,7 @@ import { z } from 'zod';
 
 import { getConstants } from '../types';
 import { isTrustedBrowserViewerHost } from './browserSession';
-import { base, scryRequest } from './requests';
-import { getCurrentUserId } from './urbit';
+import { getBrowserVaultOwnerAuthorization } from './urbit';
 
 export const savedBrowserLoginSchema = z.object({
   id: z.string().uuid(),
@@ -11,7 +10,7 @@ export const savedBrowserLoginSchema = z.object({
   revision: z.number().int().positive(),
   updatedAt: z.number(),
   label: z.string().min(1).max(256),
-  username: z.string().max(4096).optional(),
+  permission: z.enum(['ask', 'allow']),
 });
 export type SavedBrowserLogin = z.infer<typeof savedBrowserLoginSchema>;
 export type BrowserLoginChoice = Pick<SavedBrowserLogin, 'id' | 'revision'>;
@@ -55,13 +54,12 @@ export async function browserVaultOwnerRequest(
     url.password ||
     url.search ||
     url.hash ||
-    !/^\/(?:vault\/(?:list|delete)|credential-vault\/[A-Za-z0-9_-]{40,64})$/.test(
+    !/^\/(?:viewer-authorize|vault\/(?:list|delete|permission)|credential-vault\/[A-Za-z0-9_-]{40,64})$/.test(
       url.pathname
     )
   )
     throw new Error('Saved logins require a trusted browser host.');
-  const planet = getCurrentUserId().replace(/^~/, '');
-  const ownerToken = await scryRequest(base.genuineSecret)<string>({});
+  const { planet, ownerToken } = await getBrowserVaultOwnerAuthorization();
   if (signal?.aborted) throw new Error('Canceled');
   const response = await fetch(url.toString(), {
     method: 'POST',
@@ -103,6 +101,23 @@ export async function deleteBrowserLogin(
   await browserVaultOwnerRequest(
     `${browserVaultOrigin()}/vault/delete`,
     { moon: moon.replace(/^~/, ''), record },
+    signal
+  );
+}
+
+export async function setBrowserLoginPermission(
+  moon: string,
+  record: BrowserLoginChoice,
+  permission: 'ask' | 'allow',
+  signal?: AbortSignal
+): Promise<void> {
+  await browserVaultOwnerRequest(
+    `${browserVaultOrigin()}/vault/permission`,
+    {
+      moon: moon.replace(/^~/, ''),
+      record,
+      permission,
+    },
     signal
   );
 }
