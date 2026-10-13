@@ -24,6 +24,7 @@ import {
 import { ListItem } from './ListItem';
 import {
   SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsContextAction,
   type SettingsRowModel,
   type SettingsSectionModel,
   SettingsListScreenView,
@@ -53,15 +54,18 @@ export interface ChatDetailsScreenViewProps {
   onTogglePinned: () => void;
   onForward: () => void;
   onCopyGroupId: () => void;
-  onCopyDescription: (description: string) => void;
+  /** Copies a description or someone's ID, and says so. */
+  onCopyText: (text: string) => void;
   onPressPrivacy: () => void;
   onPressRoles: () => void;
   onPressChannels: () => void;
   onPressNotifications: () => void;
   onPressScheduledTasks: () => void;
   onPressChannelPermissions: () => void;
-  /** Opens someone's profile, from the row naming a channel's host. */
+  /** Opens someone's profile. */
   onPressProfile: (contactId: string) => void;
+  /** Opens a direct message with someone. */
+  onMessageContact: (contactId: string) => void;
   /** Opens a group member. Left out, member rows are not pressable. */
   onPressMember?: (contactId: string) => void;
   onPressAllMembers: () => void;
@@ -94,7 +98,7 @@ export function ChatDetailsScreenView({
   onTogglePinned,
   onForward,
   onCopyGroupId,
-  onCopyDescription,
+  onCopyText,
   onPressPrivacy,
   onPressRoles,
   onPressChannels,
@@ -102,6 +106,7 @@ export function ChatDetailsScreenView({
   onPressScheduledTasks,
   onPressChannelPermissions,
   onPressProfile,
+  onMessageContact,
   onPressMember,
   onPressAllMembers,
   onLeave,
@@ -233,7 +238,7 @@ export function ChatDetailsScreenView({
                       {
                         key: 'copy',
                         title: 'Copy',
-                        onPress: () => onCopyDescription(description),
+                        onPress: () => onCopyText(description),
                       },
                     ],
                     testID: `${idPrefix}Description`,
@@ -320,6 +325,30 @@ export function ChatDetailsScreenView({
             },
           ];
 
+    // What a long press on someone's row offers. The first is what Android
+    // and web run directly.
+    const contactActions = (contactId: string): SettingsContextAction[] => [
+      {
+        key: 'profile',
+        title: 'View profile',
+        onPress: () => onPressProfile(contactId),
+      },
+      ...(contactId === currentUserId
+        ? []
+        : [
+            {
+              key: 'message',
+              title: 'Message',
+              onPress: () => onMessageContact(contactId),
+            },
+          ]),
+      {
+        key: 'copy-id',
+        title: 'Copy ID',
+        onPress: () => onCopyText(contactId),
+      },
+    ];
+
     const hostId =
       isGroupChannel && channel
         ? findChannelHost(channel, currentUserId)
@@ -336,6 +365,7 @@ export function ChatDetailsScreenView({
                 disableNicknames
               ),
               onPress: () => onPressProfile(hostId),
+              contextActions: contactActions(hostId),
               testID: 'ChannelHost',
             },
           ],
@@ -363,6 +393,7 @@ export function ChatDetailsScreenView({
         onPress: opensMember
           ? () => onPressMember(member.contactId)
           : undefined,
+        contextActions: contactActions(member.contactId),
       }));
     if (hiddenMemberCount > 0 || canInvite) {
       memberRows.push({
@@ -451,11 +482,12 @@ export function ChatDetailsScreenView({
     hasSettings,
     hostStatus,
     isGroupChannel,
-    onCopyDescription,
     onCopyGroupId,
+    onCopyText,
     onForward,
     onLeave,
     onMarkRead,
+    onMessageContact,
     onPressAllMembers,
     onPressChannelPermissions,
     onPressChannels,

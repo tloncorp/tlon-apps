@@ -47,7 +47,7 @@ function Details(props: Partial<ComponentProps<typeof ChatDetailsScreenView>>) {
         onTogglePinned={noop}
         onForward={noop}
         onCopyGroupId={noop}
-        onCopyDescription={noop}
+        onCopyText={noop}
         onPressPrivacy={noop}
         onPressRoles={noop}
         onPressChannels={noop}
@@ -55,6 +55,7 @@ function Details(props: Partial<ComponentProps<typeof ChatDetailsScreenView>>) {
         onPressScheduledTasks={noop}
         onPressChannelPermissions={noop}
         onPressProfile={noop}
+        onMessageContact={noop}
         onPressMember={noop}
         onPressAllMembers={noop}
         onLeave={noop}
