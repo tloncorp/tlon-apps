@@ -51,7 +51,17 @@ export function formatTimeSelection({ hour, minute, period }: TimeSelection) {
 }
 
 /** Where a try at getting the bot's list has got to, while there is none. */
-export type TaskListAttempt = 'asking' | 'nothing' | 'failed';
+export type TaskListAttempt =
+  /** The owner's node has been told to watch the bot; the list is awaited. */
+  | 'asking'
+  /** The node's own copy is being read again, and nothing more. */
+  | 'checking'
+  /** The node was told, and the bot's list has still not come. */
+  | 'nothing'
+  /** The node has no list and was not told: the bot is not known to be on. */
+  | 'notAsked'
+  /** The node could not be told. */
+  | 'failed';
 
 /**
  * What to say while the owner's node has no list from the bot. That is not
@@ -69,10 +79,24 @@ export function missingTaskListNotice(attempt?: TaskListAttempt) {
         action: 'Asking your bot…',
         busy: true,
       };
+    case 'checking':
+      return {
+        title,
+        body: "Checking for your bot's list of scheduled tasks.",
+        action: 'Checking…',
+        busy: true,
+      };
     case 'nothing':
       return {
         title,
         body: `Your bot still has not sent its list. It may be offline or still starting up. ${kept}`,
+        action: 'Try again',
+        busy: false,
+      };
+    case 'notAsked':
+      return {
+        title,
+        body: 'Your bot still has not sent its list. If your bot is turned off, turn it on and try again.',
         action: 'Try again',
         busy: false,
       };

@@ -30,6 +30,11 @@ vi.mock('@tloncorp/shared', () => ({
 vi.mock('../../hooks/useCurrentUser', () => ({
   useCurrentUserId: () => '~sampel-palnet',
 }));
+// False stands for "off" and for "hosting has not answered yet" alike.
+const hosting = vi.hoisted(() => ({ botEnabled: true }));
+vi.mock('../../utils/botSettings', () => ({
+  useBotEnabled: () => hosting.botEnabled,
+}));
 vi.mock('./useStewardAutomationTasks', () => ({
   stewardAutomationQueryKey: ['stewardAutomationTasks'],
   tasksForShip: (
@@ -100,6 +105,7 @@ const wait = (ms: number) =>
 
 beforeEach(() => {
   vi.useFakeTimers();
+  hosting.botEnabled = true;
   node.trustBot.mockReset().mockResolvedValue(1);
   node.read.mockReset().mockResolvedValue(undefined);
   node.cache = noList;
@@ -231,7 +237,101 @@ describe('useTaskListRepair', () => {
       expect(node.trustBot).not.toHaveBeenCalled();
       // The refresh still read the mirror, and says what it found.
       expect(node.read).toHaveBeenCalledTimes(1);
-      expect(screen.attempt).toBe('nothing');
+      expect(screen.attempt).toBe('notAsked');
     }
   );
+
+  describe('while hosting has not said the bot is turned on', () => {
+    beforeEach(() => {
+      hosting.botEnabled = false;
+    });
+
+    it('does not tell the node by itself', async () => {
+      const openScreen = await openApp();
+      const screen = openScreen(ownBot, read(noList));
+
+      await wait(16_000);
+
+      expect(node.trustBot).not.toHaveBeenCalled();
+      expect(screen.attempt).toBeUndefined();
+    });
+
+    it('reads again on a refresh, busy, and ends without blaming a slow bot', async () => {
+      const openScreen = await openApp();
+      let finishRead = () => {};
+      node.read.mockImplementationOnce(
+        () => new Promise<void>((resolve) => (finishRead = resolve))
+      );
+      const screen = openScreen(ownBot, read(noList));
+
+      screen.refresh();
+      expect(screen.attempt).toBe('checking');
+      finishRead();
+      await wait(0);
+
+      expect(screen.attempt).toBe('notAsked');
+      expect(node.read).toHaveBeenCalledTimes(1);
+      expect(node.trustBot).not.toHaveBeenCalled();
+    });
+
+    it('shows a list that the refresh finds', async () => {
+      const openScreen = await openApp();
+      const screen = openScreen(ownBot, read(noList));
+      node.read.mockImplementationOnce(async () => {
+        node.cache = withList;
+      });
+
+      screen.refresh();
+      await wait(0);
+      screen.show(read(withList));
+
+      expect(screen.attempt).toBeUndefined();
+      expect(node.trustBot).not.toHaveBeenCalled();
+    });
+
+    it('tells the node once, when the answer comes after the screen opened', async () => {
+      const openScreen = await openApp();
+      const screen = openScreen(ownBot, read(noList));
+      await wait(5_000);
+      expect(node.trustBot).not.toHaveBeenCalled();
+
+      hosting.botEnabled = true;
+      screen.show(read(noList));
+      expect(screen.attempt).toBe('asking');
+      await wait(16_000);
+
+      expect(node.trustBot).toHaveBeenCalledTimes(1);
+      expect(node.trustBot).toHaveBeenCalledWith(ownBot);
+      expect(screen.attempt).toBe('nothing');
+    });
+
+    it('still tells the node once after an early refresh that only read', async () => {
+      const openScreen = await openApp();
+      const screen = openScreen(ownBot, read(noList));
+      screen.refresh();
+      await wait(0);
+      expect(screen.attempt).toBe('notAsked');
+
+      hosting.botEnabled = true;
+      screen.show(read(noList));
+      await wait(16_000);
+
+      expect(node.trustBot).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('stops telling the node on a refresh once the bot is turned off', async () => {
+    const openScreen = await openApp();
+    const screen = openScreen(ownBot, read(noList));
+    await wait(16_000);
+    expect(node.trustBot).toHaveBeenCalledTimes(1);
+
+    hosting.botEnabled = false;
+    screen.show(read(noList));
+    screen.refresh();
+    await wait(16_000);
+
+    expect(node.trustBot).toHaveBeenCalledTimes(1);
+    expect(screen.attempt).toBe('notAsked');
+  });
 });

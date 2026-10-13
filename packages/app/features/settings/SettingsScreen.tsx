@@ -16,7 +16,7 @@ import ProfileStatusSheet from '../../ui/components/ProfileStatusSheet';
 import { useSettingsListSurfaces } from '../../ui/components/SettingsList';
 import {
   openExternalBotSettings,
-  useHasExpectedBotDm,
+  useBotEnabled,
 } from '../../utils/botSettings';
 import {
   BotSettingsApplyBar,
@@ -32,17 +32,9 @@ export default function SettingsScreen() {
   const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
   const hasHostedAuth = useHasHostedAuth();
-  const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
   const hostingSession = useHostingSession();
-  const hasExpectedBotDm = useHasExpectedBotDm(
-    currentUserId,
-    Platform.OS === 'web' && isHostedUser
-  );
-  const botEnabled =
-    Platform.OS === 'web'
-      ? isHostedUser && hasExpectedBotDm
-      : isHostedUser && hostingBotEnabled;
+  const botEnabled = useBotEnabled();
   // Web has no inline bot settings — its row opens the hosted page instead. And
   // the bot queries retry on an interval until they succeed, so mounting them
   // without a usable hosting session would poll forever rather than surface

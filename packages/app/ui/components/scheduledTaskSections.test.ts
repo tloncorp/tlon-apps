@@ -192,6 +192,35 @@ describe('scheduledTaskListSections', () => {
       });
     });
 
+    it('is busy, and says only that it is checking, for a read alone', () => {
+      const [section] = scheduledTaskListSections({
+        ...unsynced,
+        attempt: 'checking',
+      });
+      expect(section.rows[0]).toMatchObject({
+        title: 'Checking…',
+        disabled: true,
+      });
+      expect(section.footer).toBe(
+        "Checking for your bot's list of scheduled tasks."
+      );
+    });
+
+    it('does not call the bot slow when it was never asked', () => {
+      const [section] = scheduledTaskListSections({
+        ...unsynced,
+        attempt: 'notAsked',
+      });
+      expect(section.footer).toBe(
+        'Your bot still has not sent its list. If your bot is turned off, turn it on and try again.'
+      );
+      expect(section.footer).not.toMatch(/offline|starting up/);
+      expect(section.rows[0]).toMatchObject({
+        title: 'Try again',
+        disabled: false,
+      });
+    });
+
     it('says when the bot could not be asked at all', () => {
       const [section] = scheduledTaskListSections({
         ...unsynced,
@@ -209,7 +238,14 @@ describe('scheduledTaskListSections', () => {
 });
 
 describe('missingTaskListNotice', () => {
-  const states = [undefined, 'asking', 'nothing', 'failed'] as const;
+  const states = [
+    undefined,
+    'asking',
+    'checking',
+    'nothing',
+    'notAsked',
+    'failed',
+  ] as const;
 
   it('cannot be read as a bot with no tasks', () => {
     for (const attempt of states) {
@@ -230,10 +266,10 @@ describe('missingTaskListNotice', () => {
     }
   });
 
-  it('is busy only while the bot is being asked', () => {
+  it('is busy only while a try is out', () => {
     expect(
-      states.map((attempt) => missingTaskListNotice(attempt).busy)
-    ).toEqual([false, true, false, false]);
+      states.filter((attempt) => missingTaskListNotice(attempt).busy)
+    ).toEqual(['asking', 'checking']);
   });
 });
 

@@ -94,9 +94,19 @@ describe('createMirrorRepair', () => {
   it('only reads when it may not tell the ship', async () => {
     const { repair, ask, log } = setup();
 
-    await expect(repair(bot, { tell: false })).resolves.toBe('nothing');
+    await expect(repair(bot, { tell: false })).resolves.toBe('notAsked');
     expect(ask).not.toHaveBeenCalled();
     expect(log).toEqual(['read']);
+  });
+
+  it('finds a list that a read alone shows, without telling the ship', async () => {
+    const { repair, mirror, ask, read } = setup();
+    read.mockImplementationOnce(async () => {
+      mirror.add(bot);
+    });
+
+    await expect(repair(bot, { tell: false })).resolves.toBe('arrived');
+    expect(ask).not.toHaveBeenCalled();
   });
 
   it('joins a repair already out for the same bot', async () => {
@@ -108,6 +118,26 @@ describe('createMirrorRepair', () => {
     expect(second).toBe(first);
     await first;
     expect(ask).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not hold telling the ship behind a read that is out', async () => {
+    const { repair, ask, read } = setup();
+    let finishRead = () => {};
+    read.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finishRead = resolve))
+    );
+
+    const reading = repair(bot, { tell: false });
+    const telling = repair(bot, { tell: true });
+
+    expect(telling).not.toBe(reading);
+    await expect(telling).resolves.toBe('nothing');
+    expect(ask).toHaveBeenCalledTimes(1);
+
+    // The read that was overtaken ends without changing what is shown.
+    finishRead();
+    await expect(reading).resolves.toBe('notAsked');
+    expect(repair.attempt(bot)).toBe('nothing');
   });
 
   describe('what a screen is shown', () => {
@@ -136,6 +166,16 @@ describe('createMirrorRepair', () => {
       await trying;
 
       expect(repair.attempt(bot)).toBeUndefined();
+    });
+
+    it('is checking, then that the ship was not asked, for a read alone', async () => {
+      const { repair } = setup();
+
+      const reading = repair(bot, { tell: false });
+      expect(repair.attempt(bot)).toBe('checking');
+      await reading;
+
+      expect(repair.attempt(bot)).toBe('notAsked');
     });
 
     it('is that the ship could not be told', async () => {

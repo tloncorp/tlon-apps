@@ -3,7 +3,6 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { getVariableValue, useTheme } from '@tamagui/core';
-import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
@@ -43,7 +42,7 @@ import { useScheduledTasksEntry } from '../../features/automations/useScheduledT
 import { DESKTOP_SIDEBAR_WIDTH, SettingsScreenView } from '../../ui';
 import {
   openExternalBotSettings,
-  useHasExpectedBotDm,
+  useBotEnabled,
 } from '../../utils/botSettings';
 
 const SettingsDrawer = createDrawerNavigator<SettingsDrawerParamList>();
@@ -54,16 +53,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
   const hasHostedAuth = useHasHostedAuth();
-  const hostingBotEnabled = db.hostingBotEnabled.useValue();
-  const isHostedUser = getCurrentUserIsHosted();
-  const hasExpectedBotDm = useHasExpectedBotDm(
-    currentUserId,
-    Platform.OS === 'web' && isHostedUser
-  );
-  const botEnabled =
-    Platform.OS === 'web'
-      ? isHostedUser && hasExpectedBotDm
-      : isHostedUser && hostingBotEnabled;
+  const botEnabled = useBotEnabled();
   const focusedRoute = props.state.routes[props.state.index];
   const { themeLabel, notificationsLabel } = useSettingsRowLabels();
   const scheduledTasks = useScheduledTasksEntry({

@@ -13,8 +13,10 @@ import type { TaskListAttempt } from '../../ui/components/scheduledTaskSections'
 export type MirrorRepairOutcome =
   /** The bot's list is in the mirror. */
   | 'arrived'
-  /** The bot's list has still not come. */
+  /** The ship was told, and the bot's list has still not come. */
   | 'nothing'
+  /** The ship was not told, and its mirror has no list for the bot. */
+  | 'notAsked'
   /** The ship could not be told. */
   | 'failed';
 
@@ -39,7 +41,10 @@ export function createMirrorRepair({
   checkAfterMs?: readonly number[];
 }) {
   const asked = new Set<string>();
-  const out = new Map<string, Promise<MirrorRepairOutcome>>();
+  const out = new Map<
+    string,
+    { tell: boolean; outcome: Promise<MirrorRepairOutcome> }
+  >();
   // How the latest try for each bot stands, for the screens showing it. A
   // list that arrived has nothing to say: the list itself is on show.
   const attempts = new Map<string, TaskListAttempt>();
@@ -62,7 +67,7 @@ export function createMirrorRepair({
   ): Promise<MirrorRepairOutcome> {
     if (!tell) {
       await readQuietly();
-      return arrived(bot) ? 'arrived' : 'nothing';
+      return arrived(bot) ? 'arrived' : 'notAsked';
     }
     asked.add(bot);
     try {
@@ -81,19 +86,27 @@ export function createMirrorRepair({
 
   /**
    * Looks for the bot's list again, telling the ship first when `tell` is
-   * set. A second call while one is out for the same bot joins it.
+   * set. A second call while one is out for the same bot joins it, unless
+   * this one would tell the ship and that one only reads: telling the ship
+   * is not held up, or lost, behind a read.
    */
   function repair(bot: string, { tell }: { tell: boolean }) {
     const running = out.get(bot);
-    if (running) return running;
-    setAttempt(bot, 'asking');
-    const started = look(bot, tell).then((outcome) => {
-      out.delete(bot);
-      setAttempt(bot, outcome === 'arrived' ? undefined : outcome);
-      return outcome;
-    });
+    if (running && (running.tell || !tell)) return running.outcome;
+    const started = {
+      tell,
+      outcome: look(bot, tell).then((outcome) => {
+        // A try that was overtaken leaves what is shown to the one in use.
+        if (out.get(bot) === started) {
+          out.delete(bot);
+          setAttempt(bot, outcome === 'arrived' ? undefined : outcome);
+        }
+        return outcome;
+      }),
+    };
     out.set(bot, started);
-    return started;
+    setAttempt(bot, tell ? 'asking' : 'checking');
+    return started.outcome;
   }
 
   /**

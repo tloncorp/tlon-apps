@@ -4,6 +4,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import type { TaskListAttempt } from '../../ui/components/scheduledTaskSections';
+import { useBotEnabled } from '../../utils/botSettings';
 import { createMirrorRepair, repairableBot } from './mirrorRepair';
 import {
   type StewardAutomationSnapshot,
@@ -48,8 +49,12 @@ interface MirrorQuery {
  * For a screen showing a bot's tasks: gets a list that is missing, and says
  * how that is going. The first time a missing list is seen it tries by
  * itself, once per bot while the app is open; `refresh` tries whenever it is
- * called. Only the owner's own bot is ever repaired; any other list is read
- * again and nothing more.
+ * called.
+ *
+ * Telling the node to watch a bot also makes the node trust it, and the node
+ * cannot say whether it already does. So the node is told only about the
+ * owner's own bot, and only while hosting says that bot is turned on. Any
+ * other list is read again and nothing more.
  */
 export function useTaskListRepair(
   botShip: string,
@@ -57,7 +62,11 @@ export function useTaskListRepair(
 ): { attempt?: TaskListAttempt; refresh: () => void } {
   const currentUserId = useCurrentUserId();
   const ownBot = repairableBot(botShip, api.getBotUserIdForUser(currentUserId));
-  const tell = ownBot !== undefined;
+  // One rule for the unprompted try and for a refresh. Until hosting has
+  // answered this is false, which spends nothing: the unprompted try is
+  // still there to be made once it turns true.
+  const botEnabled = useBotEnabled();
+  const tell = botEnabled && ownBot !== undefined;
 
   // A node that has the task module and no list for this bot. What is in
   // the cache when the screen opens may be old, so the list only counts as
