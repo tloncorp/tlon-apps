@@ -215,7 +215,7 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
             },
           ]
         : markdownToStory(
-            'The browser needs you to sign in before I can continue.'
+            'The browser needs information you can enter securely.'
           ),
       blob: sharing
         ? undefined
