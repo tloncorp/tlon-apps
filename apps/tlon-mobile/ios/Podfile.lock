@@ -2542,7 +2542,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNReanimated (4.5.0):
+  - RNReanimated (4.5.5):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2563,35 +2563,12 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-    - RNReanimated/apple (= 4.5.0)
-    - RNReanimated/common (= 4.5.0)
-    - RNReanimated/view (= 4.5.0)
+    - RNReanimated/apple (= 4.5.5)
+    - RNReanimated/common (= 4.5.5)
+    - RNReanimated/view (= 4.5.5)
     - RNWorklets
     - Yoga
-  - RNReanimated/apple (4.5.0):
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-hermes
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - RNWorklets
-    - Yoga
-  - RNReanimated/common (4.5.0):
+  - RNReanimated/apple (4.5.5):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2614,7 +2591,30 @@ PODS:
     - ReactNativeDependencies
     - RNWorklets
     - Yoga
-  - RNReanimated/view (4.5.0):
+  - RNReanimated/common (4.5.5):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNWorklets
+    - Yoga
+  - RNReanimated/view (4.5.5):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -3607,7 +3607,7 @@ SPEC CHECKSUMS:
   RNFBCrashlytics: 351caa361fa92d5591e81ee9f705420b52865d55
   RNFBPerf: eb8cf7425e26011c71dee9757adc9295a205aba7
   RNGestureHandler: a6fc176c2a0224a64fa635a65fac7baf2de379ed
-  RNReanimated: 708a1f3a6f51047314bb68b0d5ff2b314bf1ac40
+  RNReanimated: b820ef28b7d1c0404a3557f31085cc59d1e836a5
   RNScreens: df54f9e1092ce77fe96fc0c3a5314862d05a506e
   RNSentry: 18fc2982a2c646dfada4ddd6fc8e225e1bcad812
   RNSVG: 02c4605f1656727c3a83059ef119dc7e469df182

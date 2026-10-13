@@ -43,7 +43,7 @@ patchedDependencies:
   drizzle-orm: patches/drizzle-orm@0.39.3.patch
   react-native-country-codes-picker: patches/react-native-country-codes-picker@2.3.5.patch
   "@simform_solutions/react-native-audio-waveform": patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch
-  react-native-reanimated: patches/react-native-reanimated@4.5.0.patch
+  react-native-reanimated: patches/react-native-reanimated@4.5.5.patch
   react-native-screens@4.25.2: patches/react-native-screens@4.25.2.patch
   react-native-gesture-handler: patches/react-native-gesture-handler@2.32.0.patch
   expo-image-manipulator: patches/expo-image-manipulator@57.0.1.patch
@@ -88,7 +88,7 @@ overrides:
   react-test-renderer: 19.2.3
   react-native: 0.86.3
   "@types/react": ~19.2.0
-  react-native-reanimated: 4.5.0
+  react-native-reanimated: 4.5.5
   react-native-gesture-handler: ~2.32.0
   get-intrinsic: 1.2.4
   esbuild: 0.27.3
