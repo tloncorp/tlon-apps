@@ -7,15 +7,18 @@ import { BucketPreviewFade } from './BucketPreviewContent';
 export function BucketPreviewImage({
   uri,
   name,
+  animate = true,
 }: {
   uri: string;
   name: string;
+  animate?: boolean;
 }) {
   const [ready, setReady] = useState(false);
   return (
-    <BucketPreviewFade ready={ready}>
+    <BucketPreviewFade ready={!animate || ready} animate={animate}>
       <Image
         source={{ uri }}
+        cachePolicy="memory-disk"
         width="100%"
         height="100%"
         contentFit="contain"

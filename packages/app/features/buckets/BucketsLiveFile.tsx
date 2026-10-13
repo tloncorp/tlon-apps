@@ -26,7 +26,7 @@ export function BucketsLiveFile(props: Props) {
 
 function BucketsFileSelection({ entryId, flag, onClose }: Props) {
   const live = useLiveBucket(flag);
-  const preview = useBucketPreview(live.readGrant);
+  const preview = useBucketPreview(live.readGrant, `${flag.host}/${flag.name}`);
   const [selectedId, setSelectedId] = useState(entryId);
   const entry = live.entries.find((candidate) => candidate.id === selectedId);
   const files = getBucketPreviewFiles(live.entries, selectedId).map((entry) =>
@@ -58,16 +58,22 @@ function BucketsFileSelection({ entryId, flag, onClose }: Props) {
         !missing && (preview.loading || preview.item?.id !== String(selectedId))
       }
       navigation={{
-        items: files.map(toViewerItem),
+        items: files.map((file) =>
+          toViewerItem(preview.getCached(file) ?? file)
+        ),
         index: files.findIndex((file) => file.id === String(selectedId)),
         onSelect: (index) => {
           const file = files[index];
-          if (file) setSelectedId(Number(file.id));
+          if (file) {
+            requested.current = Number(file.id);
+            setSelectedId(Number(file.id));
+            void load(file);
+          }
         },
       }}
       onClose={onClose}
       onOpenExternally={preview.openExternally}
-      onRetry={file ? () => void load(file) : undefined}
+      onRetry={file ? () => void load(file, { refresh: true }) : undefined}
     />
   );
 }

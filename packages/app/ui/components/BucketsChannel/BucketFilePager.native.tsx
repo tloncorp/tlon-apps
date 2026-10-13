@@ -1,6 +1,6 @@
 import { useMutableRef } from '@tloncorp/shared';
 import { Carousel, CarouselRef, FilePreview, Text } from '@tloncorp/ui';
-import { ReactNode, useCallback, useEffect, useRef } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { YStack } from 'tamagui';
 
 import { BucketFileNavigation } from './BucketFileViewer.shared';
@@ -8,11 +8,41 @@ import { BucketFileNavigation } from './BucketFileViewer.shared';
 export function BucketFilePager({
   children,
   navigation,
+  retainActivePage = false,
 }: {
   children: ReactNode;
   navigation?: BucketFileNavigation;
+  retainActivePage?: boolean;
 }) {
   const carousel = useRef<CarouselRef>(null);
+  const [retained, setRetained] = useState(
+    () => new Map<string, { uri: string; node: ReactNode }>()
+  );
+  let nextRetained: typeof retained | undefined;
+  const available = new Map(
+    navigation?.items.map((item) => [item.id ?? item.name, item.uri])
+  );
+  for (const [key, page] of retained) {
+    if (available.get(key) !== page.uri) {
+      nextRetained = nextRetained ?? new Map(retained);
+      nextRetained.delete(key);
+    }
+  }
+  const activeItem = navigation?.items[navigation.index];
+  if (
+    retainActivePage &&
+    activeItem?.uri &&
+    retained.get(activeItem.id ?? activeItem.name)?.node !== children
+  ) {
+    // Preserve the mounted image and its readiness through a return swipe.
+    // Audio/video pages are never retained, so leaving them stops playback.
+    nextRetained = nextRetained ?? new Map(retained);
+    nextRetained.set(activeItem.id ?? activeItem.name, {
+      uri: activeItem.uri,
+      node: children,
+    });
+  }
+  if (nextRetained) setRetained(nextRetained);
   const navigationRef = useMutableRef(navigation);
   const visibleIndex = useRef(navigation?.index ?? 0);
   const onVisibleIndexChange = useCallback(
@@ -53,6 +83,8 @@ export function BucketFilePager({
         >
           {index === navigation.index ? (
             children
+          ) : retained.has(item.id ?? item.name) ? (
+            retained.get(item.id ?? item.name)!.node
           ) : (
             <YStack
               flex={1}

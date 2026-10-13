@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   pane: vi.fn((_props: Record<string, unknown>) => null),
   search: vi.fn((_props: Record<string, unknown>) => null),
   viewer: vi.fn((_props: Record<string, unknown>) => null),
-  readGrant: vi.fn<[], Promise<{ readUrl: string }>>(
+  readGrant: vi.fn<[], Promise<{ readUrl: string; expiresAt: string }>>(
     () => new Promise(() => {})
   ),
 }));
@@ -410,14 +410,15 @@ describe('Bucket file preview navigation', () => {
       };
       onRetry?: () => void;
       error?: string;
+      loading?: boolean;
     };
   }
   const secondFile = { ...notes, id: 3, name: 'photo.jpg' };
 
   it('moves between siblings on the same screen and ignores a late response for the previous file', async () => {
     mocks.entries = [photos, notes, secondFile];
-    let first!: (grant: { readUrl: string }) => void;
-    let second!: (grant: { readUrl: string }) => void;
+    let first!: (grant: { readUrl: string; expiresAt: string }) => void;
+    let second!: (grant: { readUrl: string; expiresAt: string }) => void;
     mocks.readGrant
       .mockImplementationOnce(
         () =>
@@ -440,13 +441,29 @@ describe('Bucket file preview navigation', () => {
     ]);
     act(() => viewer().navigation.onSelect(1));
     expect(viewer().item.name).toBe('photo.jpg');
-    await act(async () => second({ readUrl: 'https://files.test/photo.jpg' }));
-    await act(async () => first({ readUrl: 'https://files.test/notes.txt' }));
+    await act(async () =>
+      second({
+        readUrl: 'https://files.test/photo.jpg',
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+      })
+    );
+    await act(async () =>
+      first({
+        readUrl: 'https://files.test/notes.txt',
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+      })
+    );
     expect(viewer().item.uri).toBe('https://files.test/photo.jpg');
     expect(viewer().navigation.index).toBe(1);
-    act(() => viewer().navigation.onSelect(0));
+    const select = viewer().navigation.onSelect;
+    mocks.viewer.mockClear();
+    act(() => select(0));
     expect(viewer().item.name).toBe('notes.txt');
-    expect(mocks.readGrant).toHaveBeenCalledTimes(3);
+    expect(viewer().item.uri).toBe('https://files.test/notes.txt');
+    expect(mocks.readGrant).toHaveBeenCalledTimes(2);
+    expect(
+      mocks.viewer.mock.calls.every(([props]) => props.loading === false)
+    ).toBe(true);
   });
 
   it('allows moving to another file after a read grant fails', async () => {

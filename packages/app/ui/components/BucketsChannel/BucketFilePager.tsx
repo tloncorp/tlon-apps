@@ -8,6 +8,7 @@ export function BucketFilePager({
 }: {
   children: ReactNode;
   navigation?: BucketFileNavigation;
+  retainActivePage?: boolean;
 }) {
   const touch = useRef<{ x: number; y: number } | null>(null);
   const move = (direction: number) => {

@@ -14,6 +14,7 @@ export type BucketFileViewerItem = {
   sizeLabel?: string;
   uri?: string;
   textContent?: string;
+  cached?: boolean;
 };
 
 export type BucketFileNavigation = {

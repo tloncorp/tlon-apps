@@ -53,11 +53,14 @@ export function BucketFileViewer({
         subtitle={item.sizeLabel ?? 'File'}
         title={item.name}
       />
-      <BucketFilePager navigation={navigation}>
+      <BucketFilePager
+        navigation={navigation}
+        retainActivePage={!loading && !error && previewKind === 'image'}
+      >
         <BucketPreviewContent
           key={item.id ?? item.uri ?? item.name}
           loading={loading}
-          animate={previewKind !== 'image'}
+          animate={!item.cached && previewKind !== 'image'}
         >
           {loading ? (
             <LoadingPreview />
@@ -66,7 +69,11 @@ export function BucketFileViewer({
           ) : !item.uri ? (
             <FailedPreview onRetry={onRetry} />
           ) : previewKind === 'image' ? (
-            <BucketPreviewImage uri={item.uri} name={item.name} />
+            <BucketPreviewImage
+              uri={item.uri}
+              name={item.name}
+              animate={!item.cached}
+            />
           ) : previewKind === 'audio' ? (
             <BucketAudioPreview item={{ ...item, uri: item.uri }} />
           ) : previewKind === 'video' ? (

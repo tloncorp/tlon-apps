@@ -86,6 +86,10 @@ export function toItem(
     // Files are always fetched through a short-lived read grant, so there is
     // no URL to show until one is issued.
     previewUri: undefined,
+    previewCacheKey: JSON.stringify([
+      entry.file.objectKey,
+      entry.file.checksum,
+    ]),
     size: entry.file.size,
     sizeLabel: formatFileSize(entry.file.size),
     uploadSize: entry.file.status === 'pending' ? entry.file.size : undefined,
@@ -162,7 +166,7 @@ export function BucketsLiveChannel({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchOrigin, setSearchOrigin] = useState<SearchOrigin | null>(null);
   const [query, setQuery] = useState('');
-  const preview = useBucketPreview(live.readGrant);
+  const preview = useBucketPreview(live.readGrant, `${flag.host}/${flag.name}`);
   const previewItem = preview.item;
   const previewFiles = previewItem
     ? getBucketPreviewFiles(live.entries, Number(previewItem.id)).map((entry) =>
@@ -608,7 +612,9 @@ export function BucketsLiveChannel({
             item={toViewerItem(previewItem)}
             loading={preview.loading}
             navigation={{
-              items: previewFiles.map(toViewerItem),
+              items: previewFiles.map((file) =>
+                toViewerItem(preview.getCached(file) ?? file)
+              ),
               index: previewFiles.findIndex(
                 (file) => file.id === previewItem.id
               ),
@@ -622,7 +628,7 @@ export function BucketsLiveChannel({
             }}
             onClose={preview.close}
             onOpenExternally={preview.openExternally}
-            onRetry={() => void preview.load(previewItem)}
+            onRetry={() => void preview.load(previewItem, { refresh: true })}
           />
         ) : searchOpen ? (
           <BucketsSearchScreen
@@ -762,6 +768,7 @@ export function toViewerItem(item: BucketItem) {
     sizeLabel: item.sizeLabel,
     textContent: item.textContent,
     uri: item.previewUri,
+    cached: item.previewCached,
   };
 }
 

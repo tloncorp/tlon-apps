@@ -30,18 +30,22 @@ export function BucketPreviewContent({
 export function BucketPreviewFade({
   children,
   ready = true,
+  animate = true,
 }: {
   children: ReactNode;
   ready?: boolean;
+  animate?: boolean;
 }) {
-  const opacity = useSharedValue(0);
+  const opacity = useSharedValue(animate ? 0 : 1);
   useEffect(() => {
     opacity.set(
       ready
-        ? withTiming(1, { duration: 220, reduceMotion: ReduceMotion.System })
+        ? animate
+          ? withTiming(1, { duration: 220, reduceMotion: ReduceMotion.System })
+          : 1
         : 0
     );
-  }, [opacity, ready]);
+  }, [animate, opacity, ready]);
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.get() }));
   return (
     <Animated.View style={[{ flex: 1, minHeight: 0 }, animatedStyle]}>
