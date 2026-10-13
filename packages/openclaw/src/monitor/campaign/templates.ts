@@ -44,7 +44,7 @@ export const TIP_COPY: TipCopy = {
   usefulRequestWithTopic:
     'You mentioned {topic} during setup. What’s one question about it I could answer for you? I’ll put together a short answer with sources.',
   taskFailed:
-    'The last run of {task} failed. Want me to help fix that before we add anything else?',
+    'Something went wrong with the last run of {task}. Want me to help fix that before we add anything else?',
   taskDelivered:
     'How’s {task} working for you? We can make it shorter, change what it covers, or send it less often.',
   taskScheduled: '{Task} is set up. Would you like to review when it runs?',

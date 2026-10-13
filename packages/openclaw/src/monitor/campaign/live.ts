@@ -99,11 +99,12 @@ function toCampaignTask(job: PluginHookGatewayCronJob): CampaignTask {
     job.state?.lastRunAtMs === undefined
       ? undefined
       : job.state.lastRunAtMs + (job.state.lastDurationMs ?? 0);
+  // Core reports a run that chose to say nothing the same way as one whose
+  // result got lost: ok, not delivered. Only an error says which it was, so a
+  // quiet run with no error is not a failure.
   const failed =
     job.state?.lastRunStatus === 'error' ||
-    job.state?.lastDeliveryStatus === 'not-delivered' ||
-    (job.state?.lastRunAtMs !== undefined &&
-      job.state?.lastDelivered === false);
+    Boolean(job.state?.lastDeliveryError?.trim());
   const delivered =
     job.state?.lastDelivered === true ||
     job.state?.lastDeliveryStatus === 'delivered';

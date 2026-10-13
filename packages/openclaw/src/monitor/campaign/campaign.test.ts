@@ -588,7 +588,7 @@ describe('ticket conversation flow', () => {
     });
     await h.campaign.check();
     expect(h.deps.send).toHaveBeenCalledWith(
-      expect.stringContaining('failed'),
+      expect.stringContaining('Something went wrong with the last run'),
       'campaign-v1-task-feedback',
       '~ten'
     );
@@ -656,7 +656,7 @@ it('prioritizes a newly failed task at closing even after earlier feedback', () 
       enabled: true,
       failedAt: enrolledAt + 5 * DAY,
     })
-  ).toContain('failed');
+  ).toContain('Something went wrong with the last run');
 });
 
 it('accepts bounded clock skew but rejects stale or far-future intros', () => {

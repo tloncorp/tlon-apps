@@ -308,16 +308,18 @@ it('sends verified-result feedback on a regular check without presence', async (
   expect(mock.send).toHaveBeenCalledTimes(1);
 });
 
-it('reports a legacy not-delivered result after a completed run', async () => {
+it('does not call a run that chose to say nothing a failure', async () => {
+  // How core reports a task with nothing to tell the owner this time.
   mock.list.mockResolvedValue([
     {
       id: 'task',
-      name: 'Digest',
+      name: 'Landlord watch',
       enabled: true,
-      schedule: { kind: 'cron', expr: '0 8 * * *' },
+      schedule: { kind: 'cron', expr: '0 18 * * *' },
       state: {
         lastRunStatus: 'ok',
         lastDelivered: false,
+        lastDeliveryStatus: 'not-delivered',
         lastRunAtMs: now - 1000,
       },
     },
@@ -325,9 +327,41 @@ it('reports a legacy not-delivered result after a completed run', async () => {
 
   await campaign.check();
 
+  expect(mock.send).not.toHaveBeenCalled();
+});
+
+it.each([
+  [
+    'the run errored',
+    { lastRunStatus: 'error', lastError: 'model unavailable' },
+  ],
+  [
+    'its result could not be delivered',
+    {
+      lastRunStatus: 'ok',
+      lastDelivered: false,
+      lastDeliveryStatus: 'not-delivered',
+      lastDeliveryError: 'channel unavailable',
+    },
+  ],
+])('reports a problem when %s', async (_name, state) => {
+  mock.list.mockResolvedValue([
+    {
+      id: 'task',
+      name: 'Digest',
+      enabled: true,
+      schedule: { kind: 'cron', expr: '0 8 * * *' },
+      state: { ...state, lastRunAtMs: now - 1000 },
+    },
+  ]);
+
+  await campaign.check();
+
   expect(row.sent.at(-1)?.step).toBe('task-feedback');
   expect(mock.send).toHaveBeenCalledWith(
-    expect.objectContaining({ text: expect.stringContaining('failed') })
+    expect.objectContaining({
+      text: expect.stringContaining('Something went wrong with the last run'),
+    })
   );
 });
 
