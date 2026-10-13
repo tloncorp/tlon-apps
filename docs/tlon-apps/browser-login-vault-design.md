@@ -23,8 +23,9 @@ label, factor, key ID, creation time, and identity. Revision and permission are
 checked against current ship state, so policy changes do not require decryption.
 
 Each record retains the factor used to encrypt it. Changing the planet's code
-therefore does not invalidate saved passwords. Owner proofs use a distinct hash
-domain and are checked against the current code; the encryption factor grants
+therefore does not invalidate saved passwords. Owner proofs use domain-separated
+HMAC-SHA256 with a ten-minute expiry, checked against the current code and server
+time. The server allows one minute of clock skew. The encryption factor grants
 no owner authority. Raw codes stay in the app and Pioneer. Factors, owner proofs,
 and decrypted secrets never appear in model-facing account lists or login results.
 
@@ -38,6 +39,7 @@ revision checks and defaults automatic reuse to `ask`.
 
 `browser_login` with `action: "list"` returns matching account IDs, labels,
 origins, revisions, timestamps, and permissions without decrypting passwords.
+The app rejects owner requests to a different Hosting environment.
 The service verifies the moon's derived browser key through Pioneer; ship
 headers are only routing hints until verification succeeds.
 

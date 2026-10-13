@@ -66,20 +66,20 @@ vi.mock('./BrowserCredentialHandoffProvider', () => ({
     resolve: mocks.resolve,
   }),
 }));
-vi.mock('./browserCredentialHandoff', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./browserCredentialHandoff')>()),
-  authorizeBrowserViewer: async (url: string) =>
-    (
-      await vi.importActual<typeof import('./browserCredentialHandoff')>(
-        './browserCredentialHandoff'
-      )
-    ).trustedBrowserViewerUrl(url),
-  beginBrowserCredentialHandoff: mocks.beginHandoff,
-  nextBrowserCredentialHandoff: mocks.nextHandoff,
-  submitBrowserCredentials: mocks.submitCredentials,
-  authorizeBrowserLogins: mocks.authorize,
-  cancelBrowserCredentialHandoff: mocks.cancel,
-}));
+vi.mock('./browserCredentialHandoff', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./browserCredentialHandoff')>();
+  return {
+    ...actual,
+    authorizeBrowserViewer: async (url: string) =>
+      actual.trustedBrowserViewerUrl(url),
+    beginBrowserCredentialHandoff: mocks.beginHandoff,
+    nextBrowserCredentialHandoff: mocks.nextHandoff,
+    submitBrowserCredentials: mocks.submitCredentials,
+    authorizeBrowserLogins: mocks.authorize,
+    cancelBrowserCredentialHandoff: mocks.cancel,
+  };
+});
 
 const username: BrowserSecureField = {
   id: 'f0',

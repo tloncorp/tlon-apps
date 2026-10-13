@@ -94,6 +94,25 @@ describe('secure browser form transport', () => {
     ).rejects.toThrow('trusted');
     expect(request).toHaveBeenCalledOnce();
   });
+  it('retries a failed cancellation once and rejects an unacknowledged cancellation', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(response({}, 503))
+      .mockResolvedValueOnce(response({ ok: true }));
+    vi.stubGlobal('fetch', request);
+    await cancelBrowserCredentialHandoff(viewer);
+    expect(request).toHaveBeenCalledTimes(2);
+    request.mockClear().mockResolvedValue(response({}, 500));
+    await expect(cancelBrowserCredentialHandoff(viewer)).rejects.toThrow(
+      'could not be canceled'
+    );
+    expect(request).toHaveBeenCalledTimes(2);
+    request.mockClear().mockResolvedValue(response({}, 401));
+    await expect(cancelBrowserCredentialHandoff(viewer)).rejects.toThrow(
+      'could not be canceled'
+    );
+    expect(request).toHaveBeenCalledOnce();
+  });
   it('exchanges a trusted viewer capability, projects only metadata, and posts values only to its fill endpoint', async () => {
     const request = vi
       .fn()

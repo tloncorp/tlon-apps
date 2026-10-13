@@ -13,7 +13,7 @@ vi.mock('./urbit', () => ({
 vi.mock('../types', () => ({
   getConstants: () => ({ API_URL: 'https://test.tlon.systems' }),
 }));
-const endpoint = `https://browser-session.tlon.network/credential-vault/${'a'.repeat(43)}`;
+const endpoint = `https://browser-session-ovh-test-1.test.tlon.systems/credential-vault/${'a'.repeat(43)}`;
 const account = {
   id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
   revision: 1,
@@ -60,6 +60,7 @@ describe('browser vault owner requests', () => {
     'http://browser-session.tlon.network/vault/list',
     'https://evil.example/vault/list',
     'https://browser-session.tlon.network/other',
+    'https://browser-session.tlon.network/vault/list',
     `${endpoint}?token=x`,
     'https://user:pass@browser-session.tlon.network/vault/list',
   ])('rejects %s before reading owner proof', async (url) => {

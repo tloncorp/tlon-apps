@@ -31,15 +31,14 @@ const {
   navigate: vi.fn(),
   navigateToGroup: vi.fn(),
 }));
-vi.mock('./browserCredentialHandoff', async (original) => ({
-  ...(await original<typeof import('./browserCredentialHandoff')>()),
-  authorizeBrowserViewer: async (url: string) =>
-    (
-      await vi.importActual<typeof import('./browserCredentialHandoff')>(
-        './browserCredentialHandoff'
-      )
-    ).trustedBrowserViewerUrl(url),
-}));
+vi.mock('./browserCredentialHandoff', async (original) => {
+  const actual = await original<typeof import('./browserCredentialHandoff')>();
+  return {
+    ...actual,
+    authorizeBrowserViewer: async (url: string) =>
+      actual.trustedBrowserViewerUrl(url),
+  };
+});
 vi.mock('tamagui', () => ({
   get isWeb() {
     return platform.isWeb;

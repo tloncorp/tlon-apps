@@ -59,6 +59,15 @@ export async function browserVaultOwnerRequest(
     )
   )
     throw new Error('Saved logins require a trusted browser host.');
+  const isTestHost = (host: string) =>
+    host === 'test.tlon.systems' || host.endsWith('.test.tlon.systems');
+  if (
+    isTestHost(url.hostname) !==
+    isTestHost(new URL(browserVaultOrigin()).hostname)
+  )
+    throw new Error(
+      'Saved logins require a trusted browser host in this environment.'
+    );
   const { planet, ownerToken } = await getBrowserVaultOwnerAuthorization();
   if (signal?.aborted) throw new Error('Canceled');
   const response = await fetch(url.toString(), {

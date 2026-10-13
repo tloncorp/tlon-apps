@@ -118,14 +118,29 @@ export async function cancelBrowserCredentialHandoff(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5_000);
   try {
-    await fetch(new URL(`/credentials/${capability}`, url.origin), {
-      method: 'DELETE',
-      cache: 'no-store',
-      credentials: 'omit',
-      referrerPolicy: 'no-referrer',
-      redirect: 'error',
-      signal: controller.signal,
-    });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let response: Response;
+      try {
+        response = await fetch(
+          new URL(`/credentials/${capability}`, url.origin),
+          {
+            method: 'DELETE',
+            cache: 'no-store',
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+            redirect: 'error',
+            signal: controller.signal,
+          }
+        );
+      } catch (error) {
+        if (attempt === 0 && !controller.signal.aborted) continue;
+        throw error;
+      }
+      if (response.ok || response.status === 404 || response.status === 410)
+        return;
+      if (attempt === 0 && response.status >= 500) continue;
+      throw new Error('The browser form could not be canceled.');
+    }
   } finally {
     clearTimeout(timeout);
   }
