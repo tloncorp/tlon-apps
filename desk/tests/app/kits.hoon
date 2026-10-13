@@ -44,7 +44,7 @@
 ++  fix-kit  `kit:k`[fix-manifest fix-files]
 ++  group-meta  `data:meta`['Summer Club' '' '' '']
 ++  club-flag  `flag:g`[our-ship %summer-club]
-++  club-nest  `nest:g`[%chat our-ship %discussion]
+++  club-nest  `nest:g`[%chat our-ship %summer-club-discussion]
 ++  book  `flag:n`[our-ship %reading-log]
 ++  ref  '~dev/test-kit@0.1.0'
 ++  rid
@@ -61,7 +61,7 @@
   ^-  (unit @t)
   %-  need
   %+  edit:wc  ~
-  (add-kit:wc bot '# Runner' ref (my ~[[%discussion 'chat/~dev/discussion']]))
+  (add-kit:wc bot '# Runner' ref (my ~[[%discussion 'chat/~dev/summer-club-discussion']]))
 ++  fix-install
   ^-  install:k
   [%test-kit [0 1 0] our-ship bot (my ~[[%discussion club-nest]]) ~ now]
@@ -69,11 +69,21 @@
   |=  [name=@t description=@t when=cron-schedule:v1:sa message=@t]
   ^-  task:v1:sa
   :*  ~  `name  `description  `&  `when
-      `'session:agent:main:tlon:group:chat/~dev/discussion'
+      `'session:agent:main:tlon:group:chat/~dev/summer-club-discussion'
       `'now'
-      `[`'agentTurn' `message ~]
-      `[`%announce `'tlon' `'chat/~dev/discussion' ~ ~]
+      `[`'agentTurn' `(framed message) ~]
+      `[`%announce `'tlon' `'chat/~dev/summer-club-discussion' ~ ~]
       ~  ~
+  ==
+::  every routine's prompt says its reply is the post itself
+::
+++  framed
+  |=  message=@t
+  ^-  @t
+  %+  rap  3
+  :~  'Your reply to this prompt is posted as-is in the Discussion channel. '
+      'Write that message itself, not a note about having written it.\0a\0a'
+      message
   ==
 ++  weekly-task
   %:  routine-task
@@ -188,7 +198,7 @@
           [our-ship %channels]
           %channel-action-2
           !>  ^-  a-channels:c
-          [%create [%chat %discussion club-flag 'Discussion' 'Talk about it' ~ ~ ~]]
+          [%create [%chat %summer-club-discussion club-flag 'Discussion' 'Talk about it' ~ ~ ~]]
       ==
       %^  ex-task  notebook-wire  [our-ship %notes]
       [%watch (rid-path /v1/request %notebook %log)]

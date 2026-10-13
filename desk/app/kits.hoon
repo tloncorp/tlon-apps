@@ -166,7 +166,7 @@
     %+  roll  channels
     |=  [p=place:k =_cor]
     =/  =create-channel:c
-      [(channel-kind kind.p) name.p flag title.p description.p ~ ~ ~]
+      [(channel-kind kind.p) q.q:(place-nest flag p) flag title.p description.p ~ ~ ~]
     %+  pass-channels:cor  /install/place/[name]/[name.p]
     channel-action-2+!>(`a-channels:c`[%create create-channel])
   =.  cor
@@ -251,12 +251,26 @@
 ::  +routine: the steward task for one of the kit's prompts, run in its
 ::  place's channel session and posting there
 ::
+::    only the run's final reply is posted, so the prompt is framed to say
+::    that: without it a model treats the prompt as a job and posts a
+::    report on having done it
+::
 ++  routine
   |=  $:  =kit:k  =install:k  place=@tas  file=@t
           name=@t  description=@t  when=cron-schedule:v1:sa
       ==
   ^-  task:v1:sa
   =/  to=@t  (nest:enjs:j (~(got by places.install) place))
+  =/  title=@t
+    =/  p  (skim places.manifest.kit |=(p=place:k =(place name.p)))
+    ?~(p place title.i.p)
+  =/  message=@t
+    %+  rap  3
+    :~  'Your reply to this prompt is posted as-is in the '  title
+        ' channel. Write that message itself, not a note about having '
+        'written it.\0a\0a'
+        (~(got by files.kit) file)
+    ==
   :*  agent-id=~
       name=`name
       description=`description
@@ -264,7 +278,7 @@
       schedule=`when
       session-target=`(rap 3 'session:agent:main:tlon:group:' (crip (cass (trip to))) ~)
       wake-mode=`'now'
-      payload=`[`'agentTurn' `(~(got by files.kit) file) ~]
+      payload=`[`'agentTurn' `message ~]
       delivery=`[`%announce `'tlon' `to ~ ~]
       created-at=~
       updated-at=~
@@ -474,10 +488,13 @@
   %-  (slog leaf+"kits: {<wire>} failed" u.err)
   cor
 ::
+::  +place-nest: a channel place's nest. channel names are unique per
+::  host, not per group, so the name carries the group's
+::
 ++  place-nest
   |=  [=flag:g p=place:k]
   ^-  nest:g
-  [(channel-kind kind.p) flag(q name.p)]
+  [(channel-kind kind.p) flag(q (rap 3 q.flag '-' name.p ~))]
 ::  +channel-kind: the channel kind of a channel-backed place
 ::
 ++  channel-kind

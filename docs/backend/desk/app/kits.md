@@ -31,7 +31,7 @@ A kit is `{manifest, files}`: a manifest plus its files by path. Files are markd
 
 1. creates the group, with `bot` as a member
 2. writes the workspace config: `bot` (unless one is named), the kit's instructions appended, and `kits[]` gaining `{ref, places}` where `ref` is `~publisher/id@version` and `places` maps each chat and gallery place to its nest
-3. creates the chat and gallery places through %channels
+3. creates the chat and gallery places through %channels, each named `<group name>-<place name>` since channel names are unique per host, not per group
 4. asks %notes for each notebook place (`%create-group-notebook`), watching `/v1/request/<id>` for the flag it assigns
 5. asks steward for each routine (`%edit [%create task]` for `bot`), watching `/v1/automation/request/<id>` for the task id the bot's harness assigns
 6. records the install in the ledger
@@ -40,7 +40,7 @@ The blob is written before the notebooks are requested because each notebook's p
 
 `bot` must be in the trusted set %steward serves at `/v1/bots`. `tz` is the installer's time zone; the schedules run in it.
 
-A routine runs in its place's channel session (`session:agent:main:tlon:group:<nest>`), so replies to it keep the run's context, and announces to the place. Its name is `<kit name>: <schedule description>`. The setup routine runs a minute after install, which gives the bot time to accept its invite to the new group.
+A routine runs in its place's channel session (`session:agent:main:tlon:group:<nest>`), so replies to it keep the run's context, and announces its reply to the place. Only that reply is posted, so %kits puts a line ahead of the kit's prompt saying the reply is the message itself; without it a model tends to post a report on having done the job. The setup routine runs before anyone has talked in the channel, so OpenClaw has no channel session yet to record it in; later runs keep context as intended. Its name is `<kit name>: <schedule description>`. The setup routine runs a minute after install, which gives the bot time to accept its invite to the new group.
 
 ## Uninstall
 
