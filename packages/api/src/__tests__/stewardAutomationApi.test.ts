@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   DeskUnsupportedError,
   getDeskSupportsAutomationsState,
+  poke,
   requestJson,
   scry,
   subscribe,
@@ -19,6 +20,7 @@ import {
   newAutomationRequestId,
   scryAutomations,
   subscribeToAutomations,
+  trustBot,
   updateAutomation,
 } from '../client/stewardAutomationApi';
 
@@ -27,6 +29,7 @@ vi.mock('../client/urbit', async (importOriginal) => ({
     await importOriginal<typeof import('../client/urbit')>()
   ).DeskUnsupportedError,
   getDeskSupportsAutomationsState: vi.fn(),
+  poke: vi.fn(),
   requestJson: vi.fn(),
   scry: vi.fn(),
   subscribe: vi.fn().mockResolvedValue(7),
@@ -44,6 +47,7 @@ const task = {
 };
 
 beforeEach(() => {
+  vi.mocked(poke).mockReset();
   vi.mocked(requestJson).mockReset();
   vi.mocked(scry).mockReset();
   vi.mocked(subscribe).mockClear();
@@ -309,6 +313,28 @@ describe('reads', () => {
       handler,
       onRejected
     );
+  });
+});
+
+describe('trustBot', () => {
+  test('pokes the core trust-bot action for the bot', async () => {
+    vi.mocked(poke).mockResolvedValue(1);
+
+    await trustBot(bot);
+
+    expect(poke).toHaveBeenCalledTimes(1);
+    expect(poke).toHaveBeenCalledWith({
+      app: 'steward',
+      mark: 'steward-action-1',
+      json: { 'trust-bot': { ship: bot } },
+    });
+  });
+
+  test('passes on a refusal from the ship', async () => {
+    const nack = new Error('nack');
+    vi.mocked(poke).mockRejectedValue(nack);
+
+    await expect(trustBot(bot)).rejects.toBe(nack);
   });
 });
 

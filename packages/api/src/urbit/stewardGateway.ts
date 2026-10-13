@@ -13,6 +13,17 @@ export interface StewardConfigure {
   };
 }
 
+/**
+ * The core %steward-action-1 trust-bot, sent on the owner's ship: puts
+ * `ship` in the set of bots the owner trusts and opens the watches that
+ * mirror what the bot shares, where none is open.
+ */
+export interface StewardTrustBot {
+  'trust-bot': {
+    ship: string;
+  };
+}
+
 export interface StewardGatewayConfigure {
   configure: {
     'active-window': string;

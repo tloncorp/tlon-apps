@@ -52,7 +52,7 @@ export interface PokePayloads {
   };
   'run-check': string;
   'settings-event': ub.SettingsEvent['settings-event'];
-  'steward-action-1': ub.StewardConfigure;
+  'steward-action-1': ub.StewardConfigure | ub.StewardTrustBot;
   'steward-gateway-action-1': ub.StewardGatewayAction;
   'steward-lens-action-1': { retry: { bot: string; id: string } };
   'ui-action': { pins: Pins };

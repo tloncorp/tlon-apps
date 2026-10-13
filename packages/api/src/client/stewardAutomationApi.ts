@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type * as ub from '../urbit';
 import {
   httpRequest,
+  pokeRequest,
   scryRequest,
   steward,
   subscribeRequest,
@@ -297,4 +298,20 @@ export function subscribeToAutomations(
   return subscribeRequest(
     steward.automationTasksFeed
   )<ub.StewardAutomationUpdate>({}, handler, ...rest);
+}
+
+/**
+ * Has the owner's ship watch `bot`'s task feed, which is what fills the
+ * bot's entry in the mirror. The ship opens that watch only when it is told
+ * to trust the bot, and a release before 12.4.0 never asks again after a
+ * refusal, so an owner can be left with no entry for a bot that would now
+ * share its tasks. The ship opens the watch only where it has none, so
+ * asking again is safe.
+ *
+ * This is the core `trust-bot` poke: it also puts `bot` among the ships
+ * that may send the owner lens runs and be sent task edits. It is only for
+ * a bot the owner already runs.
+ */
+export function trustBot(bot: string) {
+  return pokeRequest(steward.action)({ 'trust-bot': { ship: bot } });
 }
