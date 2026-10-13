@@ -1,7 +1,8 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadSessionStore } from 'openclaw/plugin-sdk/config-runtime';
+import { getSessionEntry } from 'openclaw/plugin-sdk/config-runtime';
+import { projectSessionDeliveryFields } from 'openclaw/plugin-sdk/session-store-runtime';
 import { recordInboundSession } from 'openclaw/plugin-sdk/conversation-runtime';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import type { ResolvedAgentRoute } from 'openclaw/plugin-sdk/routing';
@@ -46,6 +47,16 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+// 9.x stores one canonical `delivery` record per entry; project the legacy
+// compatibility fields (deliveryContext/lastChannel/lastTo/lastThreadId) the
+// assertions below read.
+function readRoute(sessionKey: string) {
+  const entry = getSessionEntry({ sessionKey, storePath });
+  return entry
+    ? { entry, ...projectSessionDeliveryFields(entry.delivery) }
+    : undefined;
+}
+
 async function persist(record: ReturnType<typeof buildTlonInboundRouteRecord>) {
   const tasks: Array<Promise<unknown>> = [];
   const errors: unknown[] = [];
@@ -81,7 +92,7 @@ describe('Tlon route persistence (real SDK store)', () => {
 
     await persist(record);
 
-    const entry = loadSessionStore(storePath)[record.lastRouteSessionKey];
+    const entry = readRoute(record.lastRouteSessionKey);
     expect(entry).toBeDefined();
     expect(entry?.deliveryContext?.channel).toBe('tlon');
     expect(entry?.deliveryContext?.to).toBe('tlon:~zod');
@@ -103,7 +114,7 @@ describe('Tlon route persistence (real SDK store)', () => {
 
     await persist(record);
 
-    const entry = loadSessionStore(storePath)[record.lastRouteSessionKey];
+    const entry = readRoute(record.lastRouteSessionKey);
     expect(entry).toBeDefined();
     expect(entry?.lastChannel).toBe('tlon');
     expect(entry?.lastTo).toBe('tlon:chat/~host/general');
@@ -118,9 +129,9 @@ describe('Tlon route persistence (real SDK store)', () => {
       deliverParentId: 'thread-1',
     });
     await persist(threaded);
-    expect(
-      loadSessionStore(storePath)[threaded.lastRouteSessionKey]?.lastThreadId
-    ).toBe('thread-1');
+    expect(readRoute(threaded.lastRouteSessionKey)?.lastThreadId).toBe(
+      'thread-1'
+    );
 
     const unthreaded = buildTlonInboundRouteRecord({
       cfg,
@@ -130,7 +141,7 @@ describe('Tlon route persistence (real SDK store)', () => {
     });
     await persist(unthreaded);
     expect(
-      loadSessionStore(storePath)[unthreaded.lastRouteSessionKey]?.lastThreadId
+      readRoute(unthreaded.lastRouteSessionKey)?.lastThreadId
     ).toBeUndefined();
   });
 
@@ -163,7 +174,7 @@ describe('Tlon route persistence (real SDK store)', () => {
       isGroup: false,
       senderShip: '~zod',
       dispatch: async () => {
-        lastToAtDispatch = loadSessionStore(storePath)['tlon:main']?.lastTo;
+        lastToAtDispatch = readRoute('tlon:main')?.lastTo;
         return 'dispatched';
       },
     });
@@ -183,9 +194,7 @@ describe('Tlon route persistence (real SDK store)', () => {
       effectiveOwnerShip: '~zod',
     });
     await persist(owner);
-    expect(loadSessionStore(storePath)[owner.lastRouteSessionKey]?.lastTo).toBe(
-      'tlon:~zod'
-    );
+    expect(readRoute(owner.lastRouteSessionKey)?.lastTo).toBe('tlon:~zod');
 
     // A non-owner DM resolves to the same main session but must not clobber it.
     const intruder = buildTlonInboundRouteRecord({
@@ -225,9 +234,7 @@ describe('Tlon route persistence (real SDK store)', () => {
     });
 
     // Route unchanged, and the skip was observable rather than silent.
-    expect(
-      loadSessionStore(storePath)[intruder.lastRouteSessionKey]?.lastTo
-    ).toBe('tlon:~zod');
+    expect(readRoute(intruder.lastRouteSessionKey)?.lastTo).toBe('tlon:~zod');
     expect(skips).toEqual([
       { ownerRecipient: '~zod', senderRecipient: '~nec' },
     ]);

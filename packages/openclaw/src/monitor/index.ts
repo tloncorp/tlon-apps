@@ -1,7 +1,7 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
-import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
+import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-message';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
@@ -284,7 +284,7 @@ export type MonitorTlonOpts = {
   accountId?: string | null;
   /**
    * Channel-start config snapshot (the gateway adapter's `ctx.cfg`), used
-   * instead of an independent `core.config.loadConfig()` call so
+   * instead of an independent `core.config.current()` call so
    * gateway-status eligibility (Fix B) reads the SAME config OpenClaw used
    * to enumerate/start accounts, avoiding a transient mismatch if a second
    * config write races. Falls back to `loadConfig()` when absent (e.g. a
@@ -376,7 +376,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   const core = getTlonRuntime();
   // Prefer the channel-start config snapshot (Fix B) over an independent
   // load: see the MonitorTlonOpts.cfg doc comment.
-  const cfg = opts.cfg ?? core.config.loadConfig();
+  // The 9.x runtime hands out a DeepReadonly snapshot; this monitor only
+  // reads cfg, so widen it to the mutable type the shared helpers take.
+  const cfg = opts.cfg ?? (core.config.current() as OpenClawConfig);
   if (cfg.channels?.tlon?.enabled === false) {
     return;
   }
@@ -3062,7 +3064,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let commandAuthorized = false;
 
       if (shouldComputeAuth) {
-        const useAccessGroups = cfg.commands?.useAccessGroups !== false;
+        // 2026.9.x removed the global `commands.useAccessGroups` config
+        // toggle; access-group gating is unconditionally on.
+        const useAccessGroups = true;
         const senderIsOwner = isOwner(senderShip);
 
         commandAuthorized =

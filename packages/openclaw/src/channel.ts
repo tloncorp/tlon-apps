@@ -6,7 +6,7 @@ import {
   createChatChannelPlugin,
 } from 'openclaw/plugin-sdk/core';
 import { createLazyRuntimeModule } from 'openclaw/plugin-sdk/lazy-runtime';
-import { createRuntimeOutboundDelegates } from 'openclaw/plugin-sdk/outbound-runtime';
+import { createRuntimeOutboundDelegates } from 'openclaw/plugin-sdk/channel-outbound';
 import { createLegacyPrivateNetworkDoctorContract } from 'openclaw/plugin-sdk/ssrf-runtime';
 import {
   createComputedAccountStatusAdapter,
@@ -127,18 +127,27 @@ export const tlonPlugin = createChatChannelPlugin({
         }
         return parsed.nest;
       },
-      parseExplicitTarget: ({ raw }) => {
-        const parsed = parseTlonTarget(raw);
+      // parseExplicitTarget was removed from the SDK; explicit targets now
+      // flow through inferTargetChatType + the targetResolver fallback.
+      inferTargetChatType: ({ to }) => {
+        const parsed = parseTlonTarget(to);
         if (!parsed) {
-          return null;
+          return undefined;
         }
-        return parsed.kind === 'dm'
-          ? { to: parsed.ship, chatType: 'direct' }
-          : { to: parsed.nest, chatType: 'group' };
+        return parsed.kind === 'dm' ? 'direct' : 'group';
       },
       targetResolver: {
         looksLikeId: (target) => Boolean(parseTlonTarget(target)),
         hint: formatTargetHint(),
+        resolveTarget: async ({ input }) => {
+          const parsed = parseTlonTarget(input);
+          if (!parsed) {
+            return null;
+          }
+          return parsed.kind === 'dm'
+            ? { to: parsed.ship, kind: 'user', source: 'normalized' }
+            : { to: parsed.nest, kind: 'group', source: 'normalized' };
+        },
       },
       resolveOutboundSessionRoute: (params) =>
         resolveTlonOutboundSessionRoute(params),

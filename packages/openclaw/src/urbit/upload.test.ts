@@ -4,7 +4,7 @@ vi.mock('openclaw/plugin-sdk/ssrf-runtime', () => ({
   fetchWithSsrFGuard: vi.fn(),
 }));
 
-vi.mock('openclaw/plugin-sdk/response-limit-runtime', () => ({
+vi.mock('openclaw/plugin-sdk/media-runtime', () => ({
   readResponseWithLimit: vi.fn(),
 }));
 
@@ -139,7 +139,7 @@ describe('prepareOutboundMedia', () => {
     vi.clearAllMocks();
 
     const ssrf = await import('openclaw/plugin-sdk/ssrf-runtime');
-    const rlimit = await import('openclaw/plugin-sdk/response-limit-runtime');
+    const rlimit = await import('openclaw/plugin-sdk/media-runtime');
     const mime = await import('openclaw/plugin-sdk/media-mime');
     const api = await import('@tloncorp/api');
 
