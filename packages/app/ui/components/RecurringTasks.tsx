@@ -16,6 +16,7 @@ import type {
 } from './automationTaskDraft';
 import {
   type IdentifiedAutomationTask,
+  type TaskListAttempt,
   type TimeSelection,
   fromTimeSelection,
   scheduledTaskListSections,
@@ -34,17 +35,24 @@ export function ScheduledTasksScreenView({
   synced = true,
   error = false,
   loading = false,
+  retrying = false,
+  attempt,
   tasks,
   scope,
   onAddTask,
   onBack,
   onPressTask,
   onRetry,
+  onRefresh,
 }: {
   available: boolean;
   synced?: boolean;
   error?: boolean;
   loading?: boolean;
+  /** A read is out again after the one that failed. */
+  retrying?: boolean;
+  /** For a list that is not synced: the try at getting it, if any. */
+  attempt?: TaskListAttempt;
   tasks: IdentifiedAutomationTask[];
   /** The group the list is narrowed to, when it is. */
   scope?: string;
@@ -52,6 +60,7 @@ export function ScheduledTasksScreenView({
   onBack: () => void;
   onPressTask?: (task: IdentifiedAutomationTask) => void;
   onRetry?: () => void;
+  onRefresh?: () => void;
 }) {
   const ready = !loading && !error && available && synced;
   return (
@@ -62,11 +71,14 @@ export function ScheduledTasksScreenView({
         available,
         synced,
         error,
+        retrying,
+        attempt,
         tasks,
         scope,
         onAddTask,
         onPressTask,
         onRetry,
+        onRefresh,
       })}
       onBackPressed={onBack}
       // Reached from a profile as well as from Settings, so a wide window
@@ -96,7 +108,7 @@ export function ScheduledTasksNotice({
 }: {
   title: string;
   body: string;
-  action?: { label: string; onPress: () => void };
+  action?: { label: string; onPress: () => void; busy?: boolean };
   loading?: boolean;
   onBack: () => void;
 }) {
@@ -115,6 +127,7 @@ export function ScheduledTasksNotice({
                   key: 'action',
                   title: action.label,
                   action: true,
+                  disabled: action.busy,
                   onPress: action.onPress,
                 }
               : { key: 'notice', title },

@@ -50,26 +50,77 @@ export function formatTimeSelection({ hour, minute, period }: TimeSelection) {
   return `${hour}:${minute.toString().padStart(2, '0')} ${period}`;
 }
 
+/** Where a try at getting the bot's list has got to, while there is none. */
+export type TaskListAttempt = 'asking' | 'nothing' | 'failed';
+
+/**
+ * What to say while the owner's node has no list from the bot. That is not
+ * a bot with no tasks, which has a list with nothing in it, so the words
+ * must not read as "you have no tasks".
+ */
+export function missingTaskListNotice(attempt?: TaskListAttempt) {
+  const title = "Your bot's tasks have not loaded";
+  const kept = 'Tasks it already has are not affected.';
+  switch (attempt) {
+    case 'asking':
+      return {
+        title,
+        body: 'Asking your bot for its list of scheduled tasks.',
+        action: 'Asking your bot…',
+        busy: true,
+      };
+    case 'nothing':
+      return {
+        title,
+        body: `Your bot still has not sent its list. It may be offline or still starting up. ${kept}`,
+        action: 'Try again',
+        busy: false,
+      };
+    case 'failed':
+      return {
+        title,
+        body: 'Could not ask your bot for its list. Check your connection and try again.',
+        action: 'Try again',
+        busy: false,
+      };
+    default:
+      return {
+        title,
+        body: `Your bot has not sent its list of scheduled tasks yet. ${kept}`,
+        action: 'Refresh',
+        busy: false,
+      };
+  }
+}
+
 /** The task list, or the one row that explains why there is no list. */
 export function scheduledTaskListSections({
   available,
   synced,
   error,
+  retrying = false,
+  attempt,
   tasks,
   scope,
   onAddTask,
   onPressTask,
   onRetry,
+  onRefresh,
 }: {
   available: boolean;
   synced: boolean;
   error: boolean;
+  /** A read is out again after the one that failed. */
+  retrying?: boolean;
+  /** For a list that is not synced: the try at getting it, if any. */
+  attempt?: TaskListAttempt;
   tasks: IdentifiedAutomationTask[];
   /** The group the list is narrowed to, when it is. */
   scope?: string;
   onAddTask?: () => void;
   onPressTask?: (task: IdentifiedAutomationTask) => void;
   onRetry?: () => void;
+  onRefresh?: () => void;
 }): SettingsSectionModel[] {
   if (error) {
     return [
@@ -78,7 +129,13 @@ export function scheduledTaskListSections({
         title: 'Could not load scheduled tasks',
         footer: 'Check your connection and try again.',
         rows: [
-          { key: 'retry', title: 'Try again', action: true, onPress: onRetry },
+          {
+            key: 'retry',
+            title: retrying ? 'Trying again…' : 'Try again',
+            action: true,
+            disabled: retrying,
+            onPress: onRetry,
+          },
         ],
       },
     ];
@@ -93,14 +150,21 @@ export function scheduledTaskListSections({
     ];
   }
   if (!synced) {
+    const notice = missingTaskListNotice(attempt);
     return [
       {
         key: 'unsynced',
-        title: 'Scheduled tasks not synced',
-        footer:
-          'Your bot has not shared its tasks yet. This can take a moment after it starts.',
+        title: notice.title,
+        footer: notice.body,
         rows: [
-          { key: 'refresh', title: 'Refresh', action: true, onPress: onRetry },
+          {
+            key: 'refresh',
+            title: notice.action,
+            action: true,
+            disabled: notice.busy,
+            onPress: onRefresh,
+            testID: 'RefreshScheduledTasksRow',
+          },
         ],
       },
     ];

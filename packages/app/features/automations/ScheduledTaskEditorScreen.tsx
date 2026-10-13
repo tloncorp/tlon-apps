@@ -29,6 +29,7 @@ import {
   validateDraft,
 } from '../../ui/components/automationTaskDraft';
 import { formatAutomationSchedule } from '../../ui/components/formatAutomationSchedule';
+import { missingTaskListNotice } from '../../ui/components/scheduledTaskSections';
 import { useContact } from '../../ui/contexts/appDataContext';
 import { useBotDelivery } from './useBotDelivery';
 import {
@@ -37,6 +38,7 @@ import {
   useAutomationTaskActions,
   useStewardAutomationTasks,
 } from './useStewardAutomationTasks';
+import { useTaskListRepair } from './useTaskListRepair';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ScheduledTaskEditor'>;
 
@@ -98,6 +100,7 @@ function TaskEditor({ navigation, route }: Props) {
   const actions = useAutomationTaskActions(botShip);
   const query = useStewardAutomationTasks();
   const { refetch } = query;
+  const repair = useTaskListRepair(botShip, query);
 
   // Deleting removes the task from the mirror before the screen has gone
   // back; keep showing the copy being deleted rather than a "not found"
@@ -333,11 +336,16 @@ function TaskEditor({ navigation, route }: Props) {
   }
 
   if (tasksForShip(query.data, botShip) === undefined) {
+    const notice = missingTaskListNotice(repair.attempt);
     return (
       <ScheduledTasksNotice
-        title="Scheduled tasks not synced"
-        body="Your bot has not shared its tasks yet. This can take a moment after it starts."
-        action={{ label: 'Refresh', onPress: () => void refetch() }}
+        title={notice.title}
+        body={notice.body}
+        action={{
+          label: notice.action,
+          onPress: repair.refresh,
+          busy: notice.busy,
+        }}
         onBack={navigation.goBack}
       />
     );

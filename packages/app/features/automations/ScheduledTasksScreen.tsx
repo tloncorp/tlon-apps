@@ -18,6 +18,7 @@ import {
   tasksForShip,
   useStewardAutomationTasks,
 } from './useStewardAutomationTasks';
+import { useTaskListRepair } from './useTaskListRepair';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ScheduledTasks'>;
 
@@ -29,6 +30,7 @@ export function ScheduledTasksScreen({ navigation, route }: Props) {
   useFocusEffect(
     useCallback(() => refetchAutomationsOnFocus(refetch), [refetch])
   );
+  const repair = useTaskListRepair(botShip, query);
   // Opened from a group, the list holds only what posts into that group,
   // and opened from one of its channels, only what posts into that channel.
   const { data: group } = store.useGroup({ id: groupId });
@@ -85,6 +87,8 @@ export function ScheduledTasksScreen({ navigation, route }: Props) {
       synced={tasksForShip(query.data, botShip) !== undefined}
       error={query.isError && !query.data?.available}
       loading={query.isLoading}
+      retrying={query.isFetching}
+      attempt={repair.attempt}
       tasks={tasks}
       scope={
         channelId
@@ -95,6 +99,7 @@ export function ScheduledTasksScreen({ navigation, route }: Props) {
       }
       onBack={goBack}
       onRetry={() => void refetch()}
+      onRefresh={repair.refresh}
       onAddTask={() => openEditor()}
       onPressTask={({ id }) => openEditor(id)}
     />

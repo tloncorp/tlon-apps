@@ -31,6 +31,7 @@ import {
   taskStatus,
 } from '../ui/components/automationTaskDraft';
 import { formatAutomationSchedule } from '../ui/components/formatAutomationSchedule';
+import type { TaskListAttempt } from '../ui/components/scheduledTaskSections';
 import { ChannelProvider } from '../ui/contexts/channel';
 import { FixtureWrapper } from './FixtureWrapper';
 import { makePost, verse } from './contentHelpers';
@@ -207,14 +208,26 @@ function BotProfileFixture() {
   );
 }
 
-function TaskListFixture({ empty = false }: { empty?: boolean }) {
+function TaskListFixture({
+  empty = false,
+  unsynced = false,
+  attempt,
+}: {
+  empty?: boolean;
+  /** The bot's list has not reached the owner's node. */
+  unsynced?: boolean;
+  attempt?: TaskListAttempt;
+}) {
   return (
     <FullScreen>
       <ScheduledTasksScreenView
         available
-        tasks={empty ? [] : taskDefinitions}
+        synced={!unsynced}
+        attempt={attempt}
+        tasks={empty || unsynced ? [] : taskDefinitions}
         onAddTask={noop}
         onPressTask={noop}
+        onRefresh={noop}
         onBack={noop}
       />
     </FullScreen>
@@ -517,6 +530,13 @@ export default {
   '1 · Bot profile': <BotProfileFixture />,
   '2 · Scheduled tasks': <TaskListFixture />,
   '2b · Empty state': <TaskListFixture empty />,
+  '2c · List not loaded': <TaskListFixture unsynced />,
+  '2d · List not loaded, asking the bot': (
+    <TaskListFixture unsynced attempt="asking" />
+  ),
+  '2e · List not loaded, bot has not answered': (
+    <TaskListFixture unsynced attempt="nothing" />
+  ),
   '3 · Edit task': <TaskEditorFixture taskId="morning-news" />,
   '3b · New task': <TaskEditorFixture />,
   '3c · Schedule the editor cannot change': (

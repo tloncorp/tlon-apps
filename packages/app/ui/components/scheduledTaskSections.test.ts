@@ -4,6 +4,7 @@ import type { AutomationTaskDraft } from './automationTaskDraft';
 import {
   formatTimeSelection,
   fromTimeSelection,
+  missingTaskListNotice,
   scheduledTaskListSections,
   taskEditorSections,
   toTimeSelection,
@@ -121,13 +122,118 @@ describe('scheduledTaskListSections', () => {
     expect(onRetry).toHaveBeenCalled();
   });
 
-  it('tells an old node apart from a bot that has not synced', () => {
+  it('shows that a retry after an error is under way', () => {
+    const [section] = scheduledTaskListSections({
+      ...base,
+      error: true,
+      available: false,
+      retrying: true,
+    });
+    expect(section.rows[0]).toMatchObject({
+      title: 'Trying again…',
+      disabled: true,
+    });
+  });
+
+  it('tells an old node apart from a bot whose list has not come', () => {
     expect(
       scheduledTaskListSections({ ...base, available: false })[0].rows[0].title
     ).toBe('Scheduled tasks unavailable');
     expect(scheduledTaskListSections({ ...base, synced: false })[0].title).toBe(
-      'Scheduled tasks not synced'
+      "Your bot's tasks have not loaded"
     );
+  });
+
+  describe('for a bot whose list has not come', () => {
+    const unsynced = { ...base, synced: false, tasks: [] };
+
+    it('offers a refresh, and never a new task', () => {
+      const onRefresh = vi.fn();
+      const sections = scheduledTaskListSections({
+        ...unsynced,
+        onAddTask: vi.fn(),
+        onRefresh,
+      });
+      expect(sections).toHaveLength(1);
+      expect(sections[0].rows).toHaveLength(1);
+      expect(sections[0].rows[0]).toMatchObject({
+        title: 'Refresh',
+        disabled: false,
+      });
+      sections[0].rows[0].onPress?.();
+      expect(onRefresh).toHaveBeenCalled();
+    });
+
+    it('goes busy while the bot is being asked', () => {
+      const [section] = scheduledTaskListSections({
+        ...unsynced,
+        attempt: 'asking',
+      });
+      expect(section.rows[0]).toMatchObject({
+        title: 'Asking your bot…',
+        disabled: true,
+      });
+      expect(section.footer).toBe(
+        'Asking your bot for its list of scheduled tasks.'
+      );
+    });
+
+    it('says the bot still has not answered, and offers another try', () => {
+      const [section] = scheduledTaskListSections({
+        ...unsynced,
+        attempt: 'nothing',
+      });
+      expect(section.footer).toBe(
+        'Your bot still has not sent its list. It may be offline or still starting up. Tasks it already has are not affected.'
+      );
+      expect(section.rows[0]).toMatchObject({
+        title: 'Try again',
+        disabled: false,
+      });
+    });
+
+    it('says when the bot could not be asked at all', () => {
+      const [section] = scheduledTaskListSections({
+        ...unsynced,
+        attempt: 'failed',
+      });
+      expect(section.footer).toBe(
+        'Could not ask your bot for its list. Check your connection and try again.'
+      );
+      expect(section.rows[0]).toMatchObject({
+        title: 'Try again',
+        disabled: false,
+      });
+    });
+  });
+});
+
+describe('missingTaskListNotice', () => {
+  const states = [undefined, 'asking', 'nothing', 'failed'] as const;
+
+  it('cannot be read as a bot with no tasks', () => {
+    for (const attempt of states) {
+      const { title, body } = missingTaskListNotice(attempt);
+      const words = `${title} ${body}`.toLowerCase();
+      expect(words).not.toMatch(/no (scheduled )?tasks|nothing is scheduled/);
+      expect(words).not.toContain('not synced');
+    }
+    expect(missingTaskListNotice().body).toBe(
+      'Your bot has not sent its list of scheduled tasks yet. Tasks it already has are not affected.'
+    );
+  });
+
+  it('does not say how soon the list will come', () => {
+    for (const attempt of states) {
+      const { body } = missingTaskListNotice(attempt);
+      expect(body.toLowerCase()).not.toMatch(/moment|shortly|soon|seconds/);
+    }
+  });
+
+  it('is busy only while the bot is being asked', () => {
+    expect(
+      states.map((attempt) => missingTaskListNotice(attempt).busy)
+    ).toEqual([false, true, false, false]);
   });
 });
 
