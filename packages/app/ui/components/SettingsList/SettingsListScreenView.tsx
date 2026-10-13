@@ -29,6 +29,7 @@ export function SettingsListScreenView({
   loading = false,
   search,
   bottomBar,
+  maxWidth,
   children,
 }: {
   title: string;
@@ -44,6 +45,8 @@ export function SettingsListScreenView({
   /** Native screens search from the navigation bar; web gets a field. */
   search?: SettingsListSearch;
   bottomBar?: ReactNode;
+  /** Web only: a centered column for the rows, at most this wide. */
+  maxWidth?: number;
   /** Anything else the screen mounts, such as its dialogs. */
   children?: ReactNode;
 }) {
@@ -82,7 +85,7 @@ export function SettingsListScreenView({
             <LoadingSpinner />
           </View>
         ) : (
-          <SettingsList sections={sections} />
+          <SettingsList sections={sections} maxWidth={maxWidth} />
         )}
       </View>
       {bottomBar}

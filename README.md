@@ -39,3 +39,7 @@ The TM backend consists of a number of independent components, called agents.
 ### %expose
 
 %expose allows the user to publish the content available in one of the channels to the clearweb.
+
+### %steward
+
+%steward is the harness-agnostic agent that manages a node's bot. It runs on both the bot's node and its owner's node, and keeps the gateway's liveness, a durable record of each bot turn, the bot's scheduled tasks, and the bot's prompt files. The owner can read all of it locally and edit a bot's tasks and prompts from their own ship. %steward's run record is what drives Context Lens, the Tlon Messenger UI element that allows a user to inspect all of their bot's past activity.

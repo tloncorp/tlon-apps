@@ -1960,6 +1960,47 @@ test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', asy
   ]);
 });
 
+test('getMemberGroupRoles and the channel role queries: what decides where a member may post', async () => {
+  const moon = '~doznec-dozzod-zod';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+  const group = {
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~zod',
+  };
+  await client.insert(schema.groups).values([
+    { ...group, id: '~zod/one' },
+    { ...group, id: '~zod/two' },
+  ]);
+  await client.insert(schema.chatMemberGroupRoles).values([
+    { groupId: '~zod/one', contactId: moon, roleId: 'admin' },
+    { groupId: '~zod/one', contactId: moon, roleId: 'helper' },
+    { groupId: '~zod/two', contactId: '~bus', roleId: 'admin' },
+  ]);
+  await queries.insertChannelPerms([
+    { channelId: 'chat/~zod/announcements', writers: ['admin'], readers: [] },
+    { channelId: 'chat/~zod/general', writers: [], readers: [] },
+    { channelId: 'notes/~zod/staff', writers: [], readers: ['helper'] },
+  ]);
+
+  const byRole = (a: { roleId: string }, b: { roleId: string }) =>
+    a.roleId.localeCompare(b.roleId);
+  expect(
+    (await queries.getMemberGroupRoles({ contactId: moon })).sort(byRole)
+  ).toEqual([
+    { groupId: '~zod/one', roleId: 'admin' },
+    { groupId: '~zod/one', roleId: 'helper' },
+  ]);
+  expect(await queries.getMemberGroupRoles({ contactId: '~nec' })).toEqual([]);
+  expect(await queries.getChannelWriterRoles()).toEqual([
+    { channelId: 'chat/~zod/announcements', roleId: 'admin' },
+  ]);
+  expect(await queries.getChannelReaderRoles()).toEqual([
+    { channelId: 'notes/~zod/staff', roleId: 'helper' },
+  ]);
+});
+
 test('getJoinedGroupSeats: returns joined group seats for the given contacts', async () => {
   const user = '~zod';
   const moon = '~doznec-dozzod-zod';

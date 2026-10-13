@@ -9,7 +9,7 @@ import type { SettingsListProps } from './types';
  * A full-screen settings list. iOS and Android draw it with native list views
  * (`SettingsList.ios.tsx`, `SettingsList.android.tsx`); this is the web list.
  */
-export function SettingsList({ sections }: SettingsListProps) {
+export function SettingsList({ sections, maxWidth }: SettingsListProps) {
   // On the Settings tab the last rows must clear the bar that floats over the
   // bottom of the screen.
   const bottomContentInset = useTopLevelTabBarContentInset();
@@ -18,6 +18,9 @@ export function SettingsList({ sections }: SettingsListProps) {
     <ScreenScrollView>
       <YStack
         flex={1}
+        width="100%"
+        maxWidth={maxWidth}
+        marginHorizontal="auto"
         padding="$l"
         paddingBottom={bottomContentInset}
         gap="$2xl"

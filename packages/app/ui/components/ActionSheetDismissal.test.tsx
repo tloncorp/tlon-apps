@@ -1,29 +1,37 @@
 import React, { createContext, forwardRef } from 'react';
 import { act, create } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
 import { ActionSheet } from './ActionSheet';
 import { BottomSheetWrapper } from './BottomSheetWrapper.native';
 
-const platform = vi.hoisted(() => ({ OS: 'ios' }));
 vi.mock('@tloncorp/ui', () => ({
   ActionSheetContext: createContext({ isInsideSheet: false }),
   Icon: () => null,
   Pressable: 'Button',
-  Sheet: {},
+  Sheet: Object.assign(
+    ({ children }: { children?: React.ReactNode }) => children,
+    {
+      Overlay: () => null,
+      Frame: ({ children }: { children?: React.ReactNode }) => children,
+      Handle: () => null,
+    }
+  ),
   View: 'View',
   useCopy: () => ({}),
   useIsWindowNarrow: () => true,
 }));
+const platform = vi.hoisted(() => ({ OS: 'ios' }));
 vi.mock('react-native', () => ({
   Platform: platform,
   Keyboard: { dismiss: vi.fn() },
   useWindowDimensions: () => ({ height: 852 }),
 }));
 vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ bottom: 34 }),
+  useSafeAreaFrame: () => ({ height: 800 }),
+  useSafeAreaInsets: () => ({ bottom: 48 }),
 }));
 vi.mock('tamagui', () => {
   const Container = Object.assign(
@@ -61,6 +69,9 @@ vi.mock('@expo/ui/community/bottom-sheet', () => ({
 }));
 
 setupReactTestEnvironment();
+afterEach(() => {
+  platform.OS = 'ios';
+});
 
 describe('ordinary ActionSheet dismissal forwarding', () => {
   it('forwards the open callback after content layout, but not when closed', () => {
@@ -108,30 +119,6 @@ describe('ordinary ActionSheet dismissal forwarding', () => {
     act(() => native.props.onDismiss());
     expect(dismissed).toHaveBeenCalledTimes(1);
     act(() => tree.unmount());
-  });
-
-  it.each([
-    ['android', false],
-    ['ios', undefined],
-  ])('gives a scrolling list the vertical pans on %s', (os, contentPanning) => {
-    platform.OS = os;
-    let tree: ReturnType<typeof create>;
-    act(() => {
-      tree = create(
-        <ActionSheet open onOpenChange={vi.fn()} disableDrag={false}>
-          {null}
-        </ActionSheet>
-      );
-    });
-    const native = tree!.root.find((node) => node.props.index === 0);
-    expect(native.props.enableContentPanningGesture).toBe(
-      contentPanning ?? true
-    );
-    expect(native.props.handleComponent === null).toBe(
-      contentPanning === false
-    );
-    act(() => tree.unmount());
-    platform.OS = 'ios';
   });
 });
 
@@ -219,5 +206,68 @@ describe('native unmount-on-close lifetime', () => {
       0
     );
     act(() => tree.unmount());
+  });
+});
+
+describe('percent snap points', () => {
+  const snapPoints = (os: string, given: (number | string)[] = [90]) => {
+    platform.OS = os;
+    let tree: ReturnType<typeof create>;
+    act(() => {
+      tree = create(
+        <BottomSheetWrapper
+          open
+          onOpenChange={vi.fn()}
+          snapPointsMode="percent"
+          snapPoints={given}
+        >
+          {null}
+        </BottomSheetWrapper>
+      );
+    });
+    const points = tree!.root.find((node) => node.props.index === 0).props
+      .snapPoints;
+    act(() => tree.unmount());
+    return points;
+  };
+
+  it('leaves the detent to SwiftUI on iOS', () => {
+    expect(snapPoints('ios')).toEqual(['90%']);
+  });
+
+  it('sizes an Android sheet against the app frame, less the navigation bar', () => {
+    expect(snapPoints('android')).toEqual([0.9 * 800 - 48]);
+  });
+
+  it("reads a percentage written as a string, such as '90%'", () => {
+    expect(snapPoints('android', ['90%'])).toEqual([0.9 * 800 - 48]);
+    expect(snapPoints('ios', ['90%'])).toEqual(['90%']);
+  });
+});
+
+describe('narrow web sheet', () => {
+  it('renders the footer', () => {
+    platform.OS = 'web';
+    const globals = globalThis as { window?: unknown };
+    globals.window = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    const Footer = () => null;
+    let tree: ReturnType<typeof create>;
+    act(() => {
+      tree = create(
+        <ActionSheet
+          open
+          onOpenChange={vi.fn()}
+          footerComponent={() => <Footer />}
+        >
+          {null}
+        </ActionSheet>
+      );
+    });
+    expect(tree!.root.findAllByType(Footer)).toHaveLength(1);
+    act(() => tree.unmount());
+    delete globals.window;
   });
 });

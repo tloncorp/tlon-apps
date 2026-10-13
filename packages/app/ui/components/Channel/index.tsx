@@ -293,6 +293,7 @@ interface ChannelProps {
   goToGroupSettings: () => void;
   goToMediaViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
+  goToScheduledTasks?: () => void;
   goToContextLensRuns?: () => void;
   goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   goToUserProfile: (userId: string) => void;
@@ -337,6 +338,7 @@ export function Channel({
   pendingThinkingLabel,
   goToChatDetails,
   goToSearch,
+  goToScheduledTasks,
   goToContextLensRuns,
   goToContextLensRun,
   goToMediaViewer,
@@ -962,6 +964,9 @@ export function Channel({
                           }
                           goToSearch={
                             disableBackButton ? undefined : goToSearch
+                          }
+                          goToScheduledTasks={
+                            disableBackButton ? undefined : goToScheduledTasks
                           }
                           onToggleContextLens={
                             !disableBackButton && contextLensAvailable

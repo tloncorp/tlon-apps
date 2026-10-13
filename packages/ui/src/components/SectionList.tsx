@@ -119,6 +119,17 @@ export const BlockSectionListComponent = <
   );
 };
 
+const PlainSectionListHeaderFrame = styled(View, {
+  paddingHorizontal: '$l',
+  paddingTop: '$l',
+  paddingBottom: '$xs',
+});
+
+export const PlainSectionListHeader = withStaticProperties(
+  PlainSectionListHeaderFrame,
+  { Text: SectionListHeaderText }
+);
+
 export const BlockSectionList = withStaticProperties(
   BlockSectionListComponent,
   {

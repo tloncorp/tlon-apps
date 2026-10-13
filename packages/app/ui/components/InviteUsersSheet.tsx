@@ -1,8 +1,8 @@
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import React, { useEffect, useRef, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useSheetBottomInset } from '../hooks/useSheetBottomInset';
 import { ActionSheet } from './ActionSheet';
 import { InviteUsersWidget } from './InviteUsersWidget';
 
@@ -17,7 +17,7 @@ const InviteUsersSheetComponent = ({
   groupId?: string;
   onInviteComplete: () => void;
 }) => {
-  const { bottom } = useSafeAreaInsets();
+  const bottom = useSheetBottomInset();
   const hasOpened = useRef(open);
   const { data: group } = store.useGroup({ id: groupId });
   const [isScrolling, setIsScrolling] = useState(false);

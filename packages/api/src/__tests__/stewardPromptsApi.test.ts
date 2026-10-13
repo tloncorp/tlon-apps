@@ -1,17 +1,25 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { requestJson, subscribe } from '../client/urbit';
+import {
+  DeskUnsupportedError,
+  getDeskSupportsStewardPromptsState,
+  requestJson,
+  subscribe,
+} from '../client/urbit';
 import {
   setStewardPrompt,
   getStewardPromptRequest,
   awaitStewardPromptRequest,
   getStewardPromptFiles,
+  PromptsUnsupportedError,
   subscribeToStewardPrompts,
   StewardPromptEditError,
   StewardPromptPendingError,
 } from '../client/stewardPromptsApi';
 vi.mock('../client/urbit', () => ({
+  // The registry helpers throw it for a guard that is off.
+  DeskUnsupportedError: class DeskUnsupportedError extends Error {},
+  getDeskSupportsStewardPromptsState: vi.fn(),
   requestJson: vi.fn(),
-  scry: vi.fn(),
   subscribe: vi.fn(),
 }));
 const requestId = '0v4.jd3o0';
@@ -82,6 +90,23 @@ test('poll exhaustion remains pending', async () => {
     awaitStewardPromptRequest(requestId, { attempts: 1 })
   ).rejects.toBeInstanceOf(StewardPromptPendingError);
 });
+test('polling rides out a transient failure and still settles', async () => {
+  vi.mocked(requestJson)
+    .mockRejectedValueOnce(new Error('network blip'))
+    .mockResolvedValueOnce(updated);
+  await expect(
+    awaitStewardPromptRequest(requestId, { attempts: 3, intervalMs: 0 })
+  ).resolves.toEqual({ requestId, name: 'SOUL.md' });
+});
+test('a terminal error still surfaces instead of being polled through', async () => {
+  vi.mocked(requestJson).mockResolvedValue({
+    requestId,
+    body: { type: 'error', errorType: 'not-authorized', message: ['nope'] },
+  });
+  await expect(
+    awaitStewardPromptRequest(requestId, { attempts: 3, intervalMs: 0 })
+  ).rejects.toBeInstanceOf(StewardPromptEditError);
+});
 test('harness failures remain typed errors', async () => {
   vi.mocked(requestJson).mockResolvedValue({
     requestId,
@@ -107,9 +132,46 @@ test('reads and subscribes to projections independently of edit results', async 
   vi.mocked(requestJson).mockResolvedValue(files);
   await expect(getStewardPromptFiles()).resolves.toEqual(files);
   const handler = vi.fn();
-  subscribeToStewardPrompts(handler);
+  const onQuit = vi.fn();
+  await subscribeToStewardPrompts(handler, onQuit);
   expect(subscribe).toHaveBeenCalledWith(
     { app: 'steward', path: '/v1/prompts/files' },
-    handler
+    handler,
+    undefined,
+    { onQuit }
   );
+});
+test('an unbound prompts path reports an unsupported endpoint', async () => {
+  vi.mocked(requestJson).mockRejectedValue(
+    Object.assign(new Error('HTTP 404'), { status: 404 })
+  );
+  await expect(getStewardPromptFiles()).rejects.toBeInstanceOf(
+    PromptsUnsupportedError
+  );
+});
+test('a watch refused after it resolved reaches the caller', async () => {
+  const handler = vi.fn();
+  const onQuit = vi.fn();
+  const onRejected = vi.fn();
+  await subscribeToStewardPrompts(handler, onQuit, onRejected);
+  expect(subscribe).toHaveBeenCalledWith(
+    { app: 'steward', path: '/v1/prompts/files' },
+    handler,
+    onRejected,
+    { onQuit }
+  );
+});
+test('a desk without the prompts module is refused before anything is sent', async () => {
+  vi.mocked(getDeskSupportsStewardPromptsState).mockReturnValue(false);
+  await expect(getStewardPromptFiles()).rejects.toBeInstanceOf(
+    DeskUnsupportedError
+  );
+  await expect(
+    setStewardPrompt({ bot: '~bus', name: 'SOUL.md', text: 'new' })
+  ).rejects.toBeInstanceOf(DeskUnsupportedError);
+  // rejects rather than throwing, so a caller's .catch still hears it
+  const subscription = subscribeToStewardPrompts(vi.fn());
+  await expect(subscription).rejects.toBeInstanceOf(DeskUnsupportedError);
+  expect(requestJson).not.toHaveBeenCalled();
+  expect(subscribe).not.toHaveBeenCalled();
 });

@@ -42,27 +42,27 @@ export function SettingsSectionsView({
 function SettingsRow({ row }: { row: SettingsRowModel }) {
   if (row.textField) {
     return (
-      <XStack padding="$l">
-        <TextInput
-          flex={1}
-          value={row.textField.value}
-          placeholder={row.textField.placeholder}
-          secureTextEntry={row.textField.secure}
-          multiline={Boolean(row.textField.lines)}
-          numberOfLines={row.textField.lines}
-          maxLength={row.textField.maxLength}
-          autoCapitalize={row.textField.capitalization ?? 'none'}
-          autoCorrect={row.textField.capitalization === 'sentences'}
-          aria-label={row.title}
-          disabled={row.disabled}
-          onChangeText={row.textField.onChangeText}
-          onFocus={() => row.textField?.onFocusChange?.(true)}
-          onBlur={() => row.textField?.onFocusChange?.(false)}
-          onSubmitEditing={row.textField.onSubmit}
-          returnKeyType={row.textField.onSubmit ? 'done' : undefined}
-          testID={row.testID}
-        />
-      </XStack>
+      <TextInput
+        // The section's card is the field's border, so the field fills the
+        // row, and its text starts where the other rows' titles do.
+        frameStyle={{ borderWidth: 0, paddingLeft: '$l' }}
+        value={row.textField.value}
+        placeholder={row.textField.placeholder}
+        secureTextEntry={row.textField.secure}
+        multiline={Boolean(row.textField.lines)}
+        numberOfLines={row.textField.lines}
+        maxLength={row.textField.maxLength}
+        autoCapitalize={row.textField.capitalization ?? 'none'}
+        autoCorrect={row.textField.capitalization === 'sentences'}
+        aria-label={row.title}
+        disabled={row.disabled}
+        onChangeText={row.textField.onChangeText}
+        onFocus={() => row.textField?.onFocusChange?.(true)}
+        onBlur={() => row.textField?.onFocusChange?.(false)}
+        onSubmitEditing={row.textField.onSubmit}
+        returnKeyType={row.textField.onSubmit ? 'done' : undefined}
+        testID={row.testID}
+      />
     );
   }
 

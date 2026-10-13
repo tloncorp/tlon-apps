@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { isWeb } from 'tamagui';
 
 import { BrowserViewerModal } from './BrowserViewerModal';
 import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
@@ -34,7 +35,12 @@ export function BrowserCredentialHandoffProvider({
 }: PropsWithChildren) {
   const [viewerUrl, setViewerUrl] = useState<string>();
   const openViewer = useCallback((url: string) => {
-    setViewerUrl(trustedBrowserViewerUrl(url));
+    const trustedUrl = trustedBrowserViewerUrl(url);
+    if (isWeb) {
+      window.open(trustedUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      setViewerUrl(trustedUrl);
+    }
   }, []);
   const handoffs = useRef(new Map<string, RegisteredHandoff>());
   const sequence = useRef(0);

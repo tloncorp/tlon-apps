@@ -9,6 +9,7 @@ import type {
   SettingsSectionModel,
 } from '../../../ui/components/SettingsList';
 import { useContact } from '../../../ui/contexts/appDataContext';
+import { useScheduledTasksEntry } from '../../automations/useScheduledTasksEntry';
 import { ApplyChangesBar, BotAvatar } from './BotSettingsUI';
 import {
   BASIC_PROVIDER_ID,
@@ -43,7 +44,8 @@ export type BotSettingsNavigate = (
     | 'BotPermissionsSettings'
     | 'BotIdentitySettings'
     | 'BotModels'
-    | 'BotConnections',
+    | 'BotConnections'
+    | 'ScheduledTasks',
   params?: Record<string, unknown>
 ) => void;
 
@@ -89,7 +91,12 @@ export function useBotSettingsSectionModels(
   // and chat list render. The hosting avatar endpoint is often empty or slow
   // while the gateway starts, which left the avatar on its fallback icon.
   const currentUserId = useCurrentUserId();
-  const botContact = useContact(getBotUserIdForUser(currentUserId));
+  const botShip = getBotUserIdForUser(currentUserId);
+  const botContact = useContact(botShip);
+  // Until the first answer is in, the row stays: the card should not grow a
+  // row a moment after it appears.
+  const { visible: showsScheduledTasks, count: scheduledTaskCount } =
+    useScheduledTasksEntry({ whileLoading: true });
   const botAvatarUrl = botContact?.avatarImage ?? undefined;
   const botContactId = botContact?.id;
 
@@ -316,6 +323,20 @@ export function useBotSettingsSectionModels(
                 pending.channelRules,
               onPress: () => navigate('BotPermissionsSettings'),
             },
+            ...(showsScheduledTasks
+              ? [
+                  {
+                    key: 'scheduled-tasks',
+                    title: 'Scheduled tasks',
+                    value:
+                      scheduledTaskCount === undefined
+                        ? undefined
+                        : String(scheduledTaskCount),
+                    onPress: () => navigate('ScheduledTasks', { botShip }),
+                    testID: 'BotScheduledTasksRow',
+                  },
+                ]
+              : []),
           ],
         },
       ],
@@ -373,6 +394,7 @@ export function useBotSettingsSectionModels(
     apiKeyCount,
     applying,
     botContact?.nickname,
+    botShip,
     renderBotAvatar,
     commitDraft,
     connectedServicesCount,
@@ -391,6 +413,8 @@ export function useBotSettingsSectionModels(
     queries.llmAuthStatusQuery.data,
     queries.oauthProvidersQuery.data,
     queries.providerConfigQuery.isSuccess,
+    scheduledTaskCount,
+    showsScheduledTasks,
     settingsReady,
     subscriptionStatus,
   ]);
