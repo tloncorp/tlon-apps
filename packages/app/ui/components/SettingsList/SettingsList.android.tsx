@@ -72,55 +72,61 @@ export function SettingsList({ sections }: SettingsListProps) {
         // above the keyboard rather than behind it.
         modifiers={[background(colors.page), imePadding()]}
       >
-        {sections.map((section) => (
-          <Column
-            key={section.key}
-            verticalArrangement={{ spacedBy: 8 }}
-            modifiers={[fillMaxWidth()]}
-          >
-            {section.title ? (
-              <Text
-                color={colors.secondaryText}
-                style={{ fontSize: 14, fontWeight: '500' }}
-                modifiers={[padding(4, 0, 4, 0)]}
-              >
-                {section.title}
-              </Text>
-            ) : null}
+        {sections.map((section) =>
+          section.element ? (
+            <RNHostView key={section.key} matchContents>
+              <View>{section.element}</View>
+            </RNHostView>
+          ) : (
             <Column
-              modifiers={[
-                fillMaxWidth(),
-                clip(cardShape),
-                background(colors.row),
-              ]}
+              key={section.key}
+              verticalArrangement={{ spacedBy: 8 }}
+              modifiers={[fillMaxWidth()]}
             >
-              {section.rows.map((row, index) => (
-                <Fragment key={row.key}>
-                  {index > 0 ? (
-                    <Box
-                      modifiers={[
-                        padding(16, 0, 0, 0),
-                        fillMaxWidth(),
-                        height(1),
-                        background(colors.separator),
-                      ]}
-                    />
-                  ) : null}
-                  <SettingsRow row={row} colors={colors} />
-                </Fragment>
-              ))}
-            </Column>
-            {section.footer ? (
-              <Text
-                color={colors.secondaryText}
-                style={{ fontSize: 13 }}
-                modifiers={[padding(4, 0, 4, 0)]}
+              {section.title ? (
+                <Text
+                  color={colors.secondaryText}
+                  style={{ fontSize: 14, fontWeight: '500' }}
+                  modifiers={[padding(4, 0, 4, 0)]}
+                >
+                  {section.title}
+                </Text>
+              ) : null}
+              <Column
+                modifiers={[
+                  fillMaxWidth(),
+                  clip(cardShape),
+                  background(colors.row),
+                ]}
               >
-                {section.footer}
-              </Text>
-            ) : null}
-          </Column>
-        ))}
+                {section.rows.map((row, index) => (
+                  <Fragment key={row.key}>
+                    {index > 0 ? (
+                      <Box
+                        modifiers={[
+                          padding(16, 0, 0, 0),
+                          fillMaxWidth(),
+                          height(1),
+                          background(colors.separator),
+                        ]}
+                      />
+                    ) : null}
+                    <SettingsRow row={row} colors={colors} />
+                  </Fragment>
+                ))}
+              </Column>
+              {section.footer ? (
+                <Text
+                  color={colors.secondaryText}
+                  style={{ fontSize: 13 }}
+                  modifiers={[padding(4, 0, 4, 0)]}
+                >
+                  {section.footer}
+                </Text>
+              ) : null}
+            </Column>
+          )
+        )}
       </LazyColumn>
     </Host>
   );

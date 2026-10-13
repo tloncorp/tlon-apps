@@ -21,20 +21,24 @@ export function SettingsSectionsView({
 }) {
   return (
     <>
-      {sections.map((section) => (
-        <SettingsSection
-          key={section.key}
-          title={section.title}
-          description={section.footer}
-        >
-          {section.rows.map((row, index) => (
-            <Fragment key={row.key}>
-              {index > 0 ? <SettingsDivider /> : null}
-              <SettingsRow row={row} />
-            </Fragment>
-          ))}
-        </SettingsSection>
-      ))}
+      {sections.map((section) =>
+        section.element ? (
+          <Fragment key={section.key}>{section.element}</Fragment>
+        ) : (
+          <SettingsSection
+            key={section.key}
+            title={section.title}
+            description={section.footer}
+          >
+            {section.rows.map((row, index) => (
+              <Fragment key={row.key}>
+                {index > 0 ? <SettingsDivider /> : null}
+                <SettingsRow row={row} />
+              </Fragment>
+            ))}
+          </SettingsSection>
+        )
+      )}
     </>
   );
 }
