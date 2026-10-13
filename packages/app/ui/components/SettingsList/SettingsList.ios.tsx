@@ -33,6 +33,7 @@ import {
   listRowSeparatorTint,
   listSectionMargins,
   onSubmit as submitAction,
+  opacity,
   padding,
   scrollContentBackground,
   shapes,
@@ -160,6 +161,8 @@ function SettingsRow({
     listRowBackground(colors.row),
     listRowSeparatorTint(colors.separator),
     disabled(Boolean(row.disabled)),
+    // The rows set their own text colors, which SwiftUI won't dim for them.
+    ...(row.disabled ? [opacity(0.5)] : []),
     ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
   ];
 
