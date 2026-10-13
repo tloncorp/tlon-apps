@@ -42,8 +42,8 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-24.04
-    # A small update takes about ten minutes, one with weeks of changes behind
-    # it about half an hour.
+    # On a larger model a small update took about ten minutes and one with
+    # weeks of changes behind it about half an hour. The model below is untimed.
     timeout-minutes: 120
     outputs:
       handoff: ${{ steps.save.outputs.ready }}
@@ -90,6 +90,10 @@ jobs:
       # later steps, out of its environment. Its sandbox lets it write to the
       # checkout but not to .git, and gives it no network. A dry run may point
       # at any ref; a real one only at a store build newer than the map's.
+      #
+      # Codex's memory feature is off so the second agent starts cold: with it
+      # on, Codex would hand it a summary of the first agent's session, and it
+      # is there to check that work, not to agree with it.
       - name: Update the map
         id: update
         if: steps.secrets.outputs.ready == 'true'
@@ -102,7 +106,8 @@ jobs:
             -c 'model_provider="openrouter"'
             -c 'model_providers.openrouter={ name = "OpenRouter", base_url = "https://openrouter.ai/api/v1", env_key = "OPENROUTER_API_KEY", wire_api = "responses" }'
             -c 'model_reasoning_effort="high"'
-            -m openai/gpt-6.1-sol -
+            -c 'features.memories=false'
+            -m anthropic/claude-haiku-5.5 -
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
