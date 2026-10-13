@@ -1,5 +1,5 @@
 import { LoadingSpinner, useIsWindowNarrow } from '@tloncorp/ui';
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { View } from 'tamagui';
 
@@ -27,6 +27,7 @@ export const SETTINGS_LIST_COLUMN_WIDTH = 600;
  */
 export function SettingsListScreenView({
   title,
+  scrolledTitle,
   subtitle,
   sections,
   onBackPressed,
@@ -42,6 +43,11 @@ export function SettingsListScreenView({
   children,
 }: {
   title: string;
+  /**
+   * iOS only: the title the bar takes once the list has scrolled this far,
+   * for a screen that names itself in its own header and leaves the bar clear.
+   */
+  scrolledTitle?: { title: string; offset: number };
   /** Web only: a line under the title, such as whose settings these are. */
   subtitle?: string;
   sections: SettingsSectionModel[];
@@ -68,11 +74,20 @@ export function SettingsListScreenView({
   const { page } = useSettingsListSurfaces();
   const headerColor = useSettingsListHeaderColor();
   useNativeHeaderSearch(loading ? undefined : search);
+  const [scrolledPastMark, setScrolledPastMark] = useState(false);
+  const scrollMarkOffset = scrolledTitle?.offset;
+  const scrollMark = useMemo(
+    () =>
+      scrollMarkOffset === undefined
+        ? undefined
+        : { offset: scrollMarkOffset, onCrossed: setScrolledPastMark },
+    [scrollMarkOffset]
+  );
 
   return (
     <View flex={1} backgroundColor={page}>
       <ScreenHeader
-        title={title}
+        title={scrolledTitle && scrolledPastMark ? scrolledTitle.title : title}
         subtitle={subtitle}
         showSubtitle={Boolean(subtitle)}
         backgroundColor={headerColor}
@@ -110,7 +125,11 @@ export function SettingsListScreenView({
             <LoadingSpinner />
           </View>
         ) : (
-          <SettingsList sections={sections} maxWidth={maxWidth} />
+          <SettingsList
+            sections={sections}
+            maxWidth={maxWidth}
+            scrollMark={scrollMark}
+          />
         )}
       </View>
       {bottomBar}
