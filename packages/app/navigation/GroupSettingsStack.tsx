@@ -14,6 +14,7 @@ import { RoleFormScreen } from '../features/groups/RoleFormScreen';
 import { SelectChannelRolesScreen } from '../features/groups/SelectChannelRolesScreen';
 import { SelectRoleMembersScreen } from '../features/groups/SelectRoleMembersScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
+import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import { GroupSettingsStackParamList } from './types';
 
 const GroupSettings = createNativeStackNavigator<GroupSettingsStackParamList>();
@@ -24,7 +25,15 @@ export function GroupSettingsStack({
   navigation: NavigationProp<GroupSettingsStackParamList>;
 }) {
   return (
-    <GroupSettings.Navigator screenOptions={{ headerShown: false }}>
+    <GroupSettings.Navigator
+      // Screens drawn as settings lists install their own native header, as
+      // they do in the root stack; the rest keep the header they draw.
+      screenOptions={{
+        ...nativeHeaderPresentationOptions,
+        headerBackVisible: false,
+        headerShown: false,
+      }}
+    >
       <GroupSettings.Screen name="GroupMeta" component={GroupMetaScreen} />
       <GroupSettings.Screen name="ChannelInfo" component={ChannelInfoScreen} />
       <GroupSettings.Screen

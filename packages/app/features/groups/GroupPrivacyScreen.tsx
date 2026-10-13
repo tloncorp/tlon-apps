@@ -1,18 +1,17 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { schema } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { triggerHaptic, useIsWindowNarrow } from '../../ui';
 import {
-  Form,
-  ScreenHeader,
-  View,
-  triggerHaptic,
-  useIsWindowNarrow,
-} from '../../ui';
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 
 type GroupPrivacy = schema.GroupPrivacy;
 
@@ -62,24 +61,32 @@ export function GroupPrivacyScreen(props: Props) {
 
   const isWindowNarrow = useIsWindowNarrow();
 
+  const sections = useMemo<SettingsSectionModel[]>(
+    () => [
+      {
+        key: 'privacy',
+        rows: privacyOptions.map((option) => ({
+          key: option.value,
+          title: option.title,
+          subtitle: option.description,
+          selected: group?.privacy === option.value,
+          onPress: () => handlePrivacyChange(option.value),
+          testID: `GroupPrivacyOption-${option.value}`,
+        })),
+      },
+    ],
+    [group?.privacy, handlePrivacyChange]
+  );
+
   return (
-    <View backgroundColor={'$secondaryBackground'} flex={1}>
-      <ScreenHeader
-        title="Workspace privacy"
-        backgroundColor={'$secondaryBackground'}
-        backAction={handleGoBack}
-        useHorizontalTitleLayout={!isWindowNarrow}
-      />
-      <Form.FormFrame backgroundType="secondary">
-        {group ? (
-          <Form.RadioInput
-            options={privacyOptions}
-            value={group.privacy ?? undefined}
-            onChange={handlePrivacyChange}
-            testID="GroupPrivacyScreen-RadioInput"
-          />
-        ) : null}
-      </Form.FormFrame>
-    </View>
+    <SettingsListScreenView
+      title="Group privacy"
+      sections={sections}
+      loading={!group}
+      onBackPressed={handleGoBack}
+      showsBackOnWideWindows
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      useHorizontalTitleLayout={!isWindowNarrow}
+    />
   );
 }
