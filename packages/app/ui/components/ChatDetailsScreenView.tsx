@@ -3,7 +3,6 @@ import * as ub from '@tloncorp/api/urbit';
 import type * as db from '@tloncorp/shared/db';
 import {
   ConfirmDialog,
-  Pressable,
   Text,
   pluralize,
   useIsWindowNarrow,
@@ -11,7 +10,7 @@ import {
 import { capitalize } from 'lodash';
 import { type ReactNode, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
-import { type ColorTokens, ScrollView, View, XStack, YStack } from 'tamagui';
+import { ScrollView, XStack, YStack } from 'tamagui';
 
 import { useCalm, useContactIndex } from '../contexts/appDataContext';
 import {
@@ -33,7 +32,6 @@ import {
 import { ProfileButton } from './UserProfileScreenView';
 
 const maxMembersToDisplay = 5;
-const avatarSize = 104;
 
 export interface ChatDetailsScreenViewProps {
   chatType: 'group' | 'channel';
@@ -171,28 +169,30 @@ export function ChatDetailsScreenView({
       }
     }
 
+    const description =
+      chatType === 'group' ? group?.description : channel?.description;
     const hero: SettingsSectionModel = {
       key: 'hero',
       rows: [],
       element: (
         <ChatDetailsHero
-          avatar={
+          renderAvatar={(size, radius) =>
             group && channel?.type !== 'buckets' ? (
               <ListItem.GroupIcon
                 testID="GroupIcon"
                 model={group}
                 size="custom"
-                width={avatarSize}
-                height={avatarSize}
-                borderRadius={24}
+                width={size}
+                height={size}
+                borderRadius={radius}
               />
             ) : channel ? (
               <ListItem.ChannelIcon
                 model={channel}
                 size="custom"
-                width={avatarSize}
-                height={avatarSize}
-                borderRadius={24}
+                width={size}
+                height={size}
+                borderRadius={radius}
               />
             ) : null
           }
@@ -204,17 +204,28 @@ export function ChatDetailsScreenView({
                 ? getChannelSubtitle(channel, group, groupTitle)
                 : undefined
           }
-          hostStatus={isGroup ? getHostStatus(hostStatus) : undefined}
-          description={
-            chatType === 'group' ? group?.description : channel?.description
-          }
-          canEdit={canEdit}
-          onPressEdit={onPressEdit}
           quickActions={quickActions}
           testIDPrefix={`${idPrefix}QuickAction`}
         />
       ),
     };
+    const descriptionSection: SettingsSectionModel | null =
+      !description && !canEdit
+        ? null
+        : {
+            key: 'description',
+            title: 'Description',
+            rows: [
+              description
+                ? { key: 'description', title: description }
+                : {
+                    key: 'description',
+                    title: 'Add a description',
+                    action: true,
+                    onPress: onPressEdit,
+                  },
+            ],
+          };
 
     const notificationRows: SettingsRowModel[] =
       chatType === 'group' || channelSupportsNotifications(channel)
@@ -372,9 +383,18 @@ export function ChatDetailsScreenView({
 
     const all: (SettingsSectionModel | null)[] = [
       hero,
+      descriptionSection,
       hasSettings
         ? {
             key: 'settings',
+            // The only time the host's connection comes up: when it is why
+            // an admin's rows are switched off.
+            footer:
+              currentUserIsAdmin && !actionsEnabled
+                ? hostStatus.complete
+                  ? 'The group’s host is offline, so these settings can’t be changed right now.'
+                  : 'Checking the connection to the group’s host…'
+                : undefined,
             rows: [...adminRows, ...notificationRows, ...scheduledTaskRows],
           }
         : null,
@@ -409,7 +429,6 @@ export function ChatDetailsScreenView({
     groupTitle,
     hasSettings,
     hostStatus,
-    isGroup,
     isGroupChannel,
     onCopyGroupId,
     onForward,
@@ -484,94 +503,54 @@ interface QuickAction {
   hero?: boolean;
 }
 
-interface HostStatus {
-  label: string;
-  color: ColorTokens;
-}
-
 /**
- * The top of the info screen: the avatar, the name and what kind of chat it
- * is, its description, and the row of quick actions.
+ * The top of the info screen: the avatar with the name and what kind of chat
+ * it is beside it, over the row of quick actions.
  */
 function ChatDetailsHero({
-  avatar,
+  renderAvatar,
   title,
   subtitle,
-  hostStatus,
-  description,
-  canEdit,
-  onPressEdit,
   quickActions,
   testIDPrefix,
 }: {
-  avatar: ReactNode;
+  renderAvatar: (size: number, radius: number) => ReactNode;
   title: string;
   subtitle?: string;
-  hostStatus?: HostStatus;
-  description?: string | null;
-  canEdit: boolean;
-  onPressEdit: () => void;
   quickActions: QuickAction[];
   testIDPrefix: string;
 }) {
   return (
-    <YStack alignItems="center" paddingTop="$m">
-      {avatar}
-      <Text
-        size="$title/l"
-        trimmed={false}
-        textAlign="center"
-        marginTop="$xl"
-        paddingHorizontal="$xl"
-        numberOfLines={2}
-      >
-        {title}
-      </Text>
+    <YStack paddingTop="$l">
       <XStack
         alignItems="center"
-        justifyContent="center"
-        flexWrap="wrap"
-        columnGap="$m"
-        marginTop="$xs"
-        paddingHorizontal="$xl"
+        gap="$xl"
+        paddingHorizontal={heroLeadingInset}
       >
-        {subtitle ? (
-          <Text size="$label/m" trimmed={false} color="$secondaryText">
-            {subtitle}
+        {renderAvatar(76, 18)}
+        <YStack flex={1}>
+          <Text
+            size="$title/l"
+            trimmed={false}
+            numberOfLines={2}
+            {...(title.length > longTitleLength ? compactTitleStyle : null)}
+          >
+            {title}
           </Text>
-        ) : null}
-        {hostStatus ? (
-          <XStack alignItems="center" gap="$s">
-            <View
-              width={8}
-              height={8}
-              borderRadius={4}
-              backgroundColor={hostStatus.color}
-            />
-            <Text size="$label/m" trimmed={false} color="$secondaryText">
-              {hostStatus.label}
+          {subtitle ? (
+            // The name's line box already leaves room under it, so this sits
+            // close and the two read as one.
+            <Text
+              size="$label/m"
+              trimmed={false}
+              color="$secondaryText"
+              marginTop={-2}
+            >
+              {subtitle}
             </Text>
-          </XStack>
-        ) : null}
+          ) : null}
+        </YStack>
       </XStack>
-      {description ? (
-        <Text
-          size="$body"
-          trimmed={false}
-          textAlign="center"
-          marginTop="$m"
-          paddingHorizontal="$xl"
-          numberOfLines={4}
-        >
-          {description}
-        </Text>
-      ) : canEdit ? (
-        <Pressable onPress={onPressEdit} marginTop="$m" hitSlop={10}>
-          <Text size="$body" trimmed={false} color="$positiveActionText">
-            Add a description
-          </Text>
-        </Pressable>
-      ) : null}
       {quickActions.length > 0 ? (
         <ScrollView
           horizontal
@@ -595,6 +574,14 @@ function ChatDetailsHero({
   );
 }
 
+// Names up to this long fit beside the avatar in two lines at the full title
+// size; a longer one steps down a size instead of being cut off.
+const longTitleLength = 14;
+const compactTitleStyle = { fontSize: 26, lineHeight: 30 } as const;
+
+/** Where left-aligned header content starts, in line with the cards' text. */
+const heroLeadingInset = 20;
+
 /** The space the quick actions keep from the screen's edges. */
 const heroSideInset = 12;
 
@@ -605,15 +592,6 @@ function findChannelHost(channel: db.Channel, currentUserId: string) {
   } catch {
     return null;
   }
-}
-
-function getHostStatus(status: ConnectionStatus): HostStatus {
-  if (!status.complete) {
-    return { label: 'Checking host…', color: '$tertiaryText' };
-  }
-  return status.status === 'yes'
-    ? { label: 'Host online', color: '$green' }
-    : { label: 'Host offline', color: '$orange' };
 }
 
 function getGroupSubtitle(group: db.Group | null | undefined) {

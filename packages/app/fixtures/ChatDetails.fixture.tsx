@@ -99,6 +99,15 @@ function Details(props: Partial<ComponentProps<typeof ChatDetailsScreenView>>) {
   );
 }
 
+const longNameGroup: db.Group = {
+  ...baseGroup,
+  currentUserIsHost: true,
+  // Group names are capped at 30 characters where they are edited.
+  title: 'Riverside Allotment Society HQ',
+  description:
+    'Notes, photos and plans for the allotment. We meet on Sundays at ten by the tool shed, rain or shine. Bring gloves, and seedlings to swap if you have any spare. New members are welcome any week.',
+};
+
 export default {
   '1 · Group, as its host': (
     <Details group={{ ...baseGroup, currentUserIsHost: true }} />
@@ -109,17 +118,7 @@ export default {
       group={{ ...baseGroup, currentUserIsHost: true, description: '' }}
     />
   ),
-  '4 · Long name and description': (
-    <Details
-      group={{
-        ...baseGroup,
-        currentUserIsHost: true,
-        title: 'Friends of the Riverside Community Allotment Society',
-        description:
-          'Notes, photos and plans for the allotment. We meet on Sundays at ten by the tool shed, rain or shine. Bring gloves, and seedlings to swap if you have any spare. New members are welcome any week.',
-      }}
-    />
-  ),
+  '4 · Long name and description': <Details group={longNameGroup} />,
   '5 · Host offline': (
     <Details
       group={{ ...baseGroup, currentUserIsHost: true }}
