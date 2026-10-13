@@ -32,6 +32,8 @@ export async function authorizeBrowserLoginHandoff(
   return parsed.data;
 }
 
+// Saved-login records are planet-scoped, so settings use one management host
+// per environment rather than the cluster of a particular browser session.
 export function browserVaultOrigin(): string {
   const host = new URL(getConstants().API_URL).hostname;
   return host === 'test.tlon.systems' || host.endsWith('.test.tlon.systems')

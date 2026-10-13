@@ -1,4 +1,5 @@
 import { FlashList, FlashListRef } from '@shopify/flash-list';
+import { formatBucketContents } from '@tloncorp/shared/logic';
 import {
   Button,
   FilePreview,
@@ -16,6 +17,7 @@ import { calculateBucketUploadProgress } from '../../../utils/bucketUploadProgre
 import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { Badge } from '../Badge';
+import { useContactName } from '../ContactNameV2';
 import { TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { NotesActionMenu } from '../NotesChannel/NotesActions';
@@ -31,11 +33,14 @@ export type BucketItem = {
   id: string;
   kind: 'file' | 'folder';
   name: string;
+  /** The last editor's user id. Rows show their name as the app does. */
   author: string;
   isBot?: boolean;
   modifiedLabel: string;
   sizeLabel?: string;
-  itemCount?: number;
+  /** Folder-only: what the folder holds, through every level beneath it. */
+  fileCount?: number;
+  folderCount?: number;
   mimeType?: string;
   previewUri?: string;
   /** Bytes, from the manifest. Present for published files. */
@@ -217,6 +222,7 @@ export function BucketsPane({
   layout = 'stack',
   rootLabel = 'Project Files',
   selectedItemId,
+  showBreadcrumb = true,
   state = 'populated',
   uploadAggregateProgress,
   uploadItems,
@@ -238,6 +244,8 @@ export function BucketsPane({
   layout?: 'stack' | 'takeover';
   rootLabel?: string;
   selectedItemId?: string | null;
+  /** Off where the header above already names `currentFolder`. */
+  showBreadcrumb?: boolean;
   state?: BucketsPaneState;
   uploadAggregateProgress?: number;
   uploadItems?: BucketItem[];
@@ -273,8 +281,9 @@ export function BucketsPane({
   }, [selectedIndex]);
 
   const populated = state === 'populated' && items.length > 0;
+  const breadcrumbShown = !!currentFolder && showBreadcrumb;
   const horizontalPadding = getTokenValue('$l', 'size');
-  const topPadding = getTokenValue(currentFolder ? '$xs' : '$m', 'size');
+  const topPadding = getTokenValue(breadcrumbShown ? '$xs' : '$m', 'size');
 
   return (
     <BucketsDropTarget
@@ -285,7 +294,7 @@ export function BucketsPane({
       onFilesDropped={onFilesDropped}
     >
       <YStack flex={1} minHeight={0} backgroundColor="$background">
-        {currentFolder ? (
+        {currentFolder && breadcrumbShown ? (
           <BucketBreadcrumb
             rootLabel={rootLabel}
             folderLabel={currentFolder}
@@ -333,7 +342,7 @@ export function BucketsPane({
               maxWidth={layout === 'takeover' ? 'unset' : 760}
               marginHorizontal="auto"
               paddingHorizontal="$l"
-              paddingTop={currentFolder ? '$xs' : '$m'}
+              paddingTop={breadcrumbShown ? '$xs' : '$m'}
               paddingBottom="$2xl"
             >
               {state === 'loading' ? (
@@ -386,6 +395,7 @@ function BucketRow({
   const [isFocused, setIsFocused] = useState(false);
   const [open, setOpen] = useState(false);
   const isWindowNarrow = useIsWindowNarrow();
+  const authorName = useContactName(item.author);
   // Rename, move and preview each present another sheet, so they wait for
   // the menu to finish dismissing.
   const { dismissThenRun, onDismissed, presentationKey } =
@@ -497,7 +507,7 @@ function BucketRow({
           >
             {item.name}
           </ListItem.Title>
-          <BucketItemMetadata item={item} />
+          <BucketItemMetadata authorName={authorName} item={item} />
         </ListItem.MainContent>
         <ListItem.EndContent minWidth="$3xl">
           {uploadState === 'failed' ? (
@@ -529,7 +539,7 @@ function BucketRow({
               groups={groups}
               header={{
                 icon: item.kind === 'folder' ? 'Folder' : 'Attachment',
-                subtitle: metadataLabel(item),
+                subtitle: metadataLabel(item, authorName),
                 title: item.name,
               }}
               open={open}
@@ -554,6 +564,7 @@ function BucketSearchRow({
   result: BucketSearchResult;
   onOpenResult: (result: BucketSearchResult) => void;
 }) {
+  const authorName = useContactName(result.author);
   return (
     <Pressable
       aria-label={`Open ${result.name} in ${result.pathLabel}`}
@@ -586,9 +597,7 @@ function BucketSearchRow({
               size="$label/m"
             >
               {result.pathLabel}
-              {result.kind === 'file' && result.author
-                ? ` · ${result.author}`
-                : ''}
+              {result.kind === 'file' && authorName ? ` · ${authorName}` : ''}
             </Text>
             {result.isBot ? (
               <Badge type="neutral" size="micro" text="Bot" />
@@ -912,13 +921,15 @@ function BucketItemIcon({ item }: { item: BucketItem }) {
   );
 }
 
-function BucketItemMetadata({ item }: { item: BucketItem }) {
+function BucketItemMetadata({
+  authorName,
+  item,
+}: {
+  authorName: string;
+  item: BucketItem;
+}) {
   if (item.kind === 'folder') {
-    return (
-      <ListItem.Subtitle>
-        {item.itemCount === 1 ? '1 item' : `${item.itemCount ?? 0} items`}
-      </ListItem.Subtitle>
-    );
+    return <ListItem.Subtitle>{folderContentsLabel(item)}</ListItem.Subtitle>;
   }
 
   const uploadState = uploadStateFor(item);
@@ -945,8 +956,13 @@ function BucketItemMetadata({ item }: { item: BucketItem }) {
     return (
       <XStack alignItems="center" gap="$s" minWidth={0}>
         <XStack alignItems="center" gap="$xs" flex={1} minWidth={0}>
-          <Text color="$tertiaryText" numberOfLines={1} size="$label/m">
-            {item.author}
+          <Text
+            color="$tertiaryText"
+            flexShrink={1}
+            numberOfLines={1}
+            size="$label/m"
+          >
+            {authorName}
           </Text>
           {item.isBot ? <Badge type="neutral" size="micro" text="Bot" /> : null}
           <Text
@@ -965,8 +981,13 @@ function BucketItemMetadata({ item }: { item: BucketItem }) {
 
   return (
     <XStack alignItems="center" gap="$xs" minWidth={0}>
-      <Text color="$tertiaryText" numberOfLines={1} size="$label/m">
-        {item.author}
+      <Text
+        color="$tertiaryText"
+        flexShrink={1}
+        numberOfLines={1}
+        size="$label/m"
+      >
+        {authorName}
       </Text>
       {item.isBot ? <Badge type="neutral" size="micro" text="Bot" /> : null}
       <Text
@@ -1262,12 +1283,19 @@ function BucketsEmptyState({ canEdit }: { canEdit: boolean }) {
   );
 }
 
-function metadataLabel(item: BucketItem) {
+function folderContentsLabel(item: BucketItem) {
+  return formatBucketContents({
+    fileCount: item.fileCount ?? 0,
+    folderCount: item.folderCount ?? 0,
+  });
+}
+
+function metadataLabel(item: BucketItem, authorName: string) {
   if (item.kind === 'folder') {
-    return item.itemCount === 1 ? '1 item' : `${item.itemCount ?? 0} items`;
+    return folderContentsLabel(item);
   }
 
-  return [item.author, item.modifiedLabel, item.sizeLabel]
+  return [authorName, item.modifiedLabel, item.sizeLabel]
     .filter(Boolean)
     .join(' · ');
 }

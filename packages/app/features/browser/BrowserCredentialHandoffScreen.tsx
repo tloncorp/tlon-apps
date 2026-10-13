@@ -4,7 +4,7 @@ import type {
   SavedBrowserLogin,
 } from '@tloncorp/api/client/browserVault';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking } from 'react-native';
+import { Keyboard } from 'react-native';
 import { ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/types';
@@ -17,6 +17,7 @@ import {
 import {
   type BrowserCredentialHandoff,
   type BrowserSecureField,
+  BrowserFormError,
   beginBrowserCredentialHandoff,
   cancelBrowserCredentialHandoff,
   nextBrowserCredentialHandoff,
@@ -27,6 +28,7 @@ import {
   authorizeBrowserLogins,
 } from './browserCredentialHandoff';
 import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffProvider';
+import { BrowserViewerModal } from './BrowserViewerModal';
 
 type Props = {
   navigation: { goBack(): void; isFocused(): boolean };
@@ -183,6 +185,11 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [returning, setReturning] = useState(false);
   const [filled, setFilled] = useState(false);
+  const [noSecureForm, setNoSecureForm] = useState(false);
+  const [liveViewer, setLiveViewer] = useState<{
+    url: string;
+    handoffId: string;
+  }>();
   const [error, setError] = useState<string>();
   const [authorization, setVaultAuth] = useState<{
     fillUrl: string;
@@ -190,13 +197,23 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     accounts: SavedBrowserLogin[];
   }>();
   const [vaultError, setVaultError] = useState<string>();
+  const [vaultRequested, setVaultRequested] = useState(false);
   const [saveLogin, setSaveLogin] = useState(false);
   const [accountLabel, setAccountLabel] = useState('');
   const [choice, setChoice] = useState<{
     mode: 'use' | 'update';
     record: BrowserLoginChoice;
   }>();
-  const [saveNotice, setSaveNotice] = useState<string>();
+  const [saveStatus, setSaveStatus] = useState<
+    'saved' | 'pending' | 'failed'
+  >();
+  const saveNotice = saveStatus
+    ? saveStatus === 'saved'
+      ? 'Login saved for this bot.'
+      : saveStatus === 'pending'
+        ? 'Continue to the password step to save this login.'
+        : 'Your login was entered, but could not be saved.'
+    : undefined;
   const { resolve, complete, discard } = useBrowserCredentialHandoff();
   const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
@@ -206,6 +223,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const pendingSave = useRef<{ handoffId: string; origin: string } | undefined>(
     undefined
   );
+  const externalViewerHandoff = useRef<string | null>(null);
   const submittingRef = useRef(false);
   const requestController = useRef<AbortController | undefined>(undefined);
   const vaultEligible = !!handoff?.vault && supportsSavedLogins(handoff);
@@ -219,24 +237,33 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const saveLabel =
     accountLabel.trim() ||
     (usernameField ? values[usernameField.id]?.slice(0, 256) : '');
+  const choiceIsCurrent =
+    !choice ||
+    !!vaultAuth?.accounts.some(
+      (account) =>
+        account.id === choice.record.id &&
+        account.revision === choice.record.revision
+    );
   const canSubmit =
     !!handoff &&
+    choiceIsCurrent &&
     (choice?.mode === 'use' || validBrowserFormValues(handoff, values)) &&
     (!(choice?.mode === 'use' || saveLogin) || !!vaultAuth) &&
     (!saveLogin || choice?.mode === 'use' || !!saveLabel);
 
   const clearSavedLoginSelection = useCallback(() => {
     pendingSave.current = undefined;
+    setSaveStatus((status) => (status === 'pending' ? undefined : status));
     setSaveLogin(false);
     setChoice(undefined);
     setAccountLabel('');
-    setSaveNotice(undefined);
+    setVaultRequested(false);
   }, []);
 
   useEffect(() => {
     setVaultAuth(undefined);
+    if (!handoff || !vaultEligible || !vaultRequested) return;
     setVaultError(undefined);
-    if (!handoff || !vaultEligible) return;
     const controller = new AbortController();
     void authorizeBrowserLogins(handoff, controller.signal)
       .then((result) => {
@@ -252,10 +279,19 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         }
       });
     return () => controller.abort();
-  }, [handoff, vaultEligible, clearSavedLoginSelection]);
+  }, [handoff, vaultEligible, vaultRequested, clearSavedLoginSelection]);
+
+  useEffect(() => {
+    if (vaultAuth && choice && !choiceIsCurrent) {
+      clearSavedLoginSelection();
+      setVaultError(
+        'This saved login changed or was deleted. Enter your login or choose it again.'
+      );
+    }
+  }, [vaultAuth, choice, choiceIsCurrent, clearSavedLoginSelection]);
 
   const load = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal?: AbortSignal, openWhenMissing = true) => {
       setValues({});
       setHandoff(undefined);
       setFilled(false);
@@ -263,15 +299,23 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         pendingSave.current?.handoffId === handoffId
           ? pendingSave.current.origin
           : undefined;
-      if (!pendingOrigin) clearSavedLoginSelection();
+      if (!pendingOrigin) {
+        clearSavedLoginSelection();
+        setSaveStatus(undefined);
+      }
+      setVaultError(undefined);
+      setNoSecureForm(false);
+      setError(undefined);
       const viewerUrl = resolve(handoffId);
       if (!viewerUrl) {
         setError('Reopen the secure browser form from the conversation.');
         setLoading(false);
         return;
       }
+      let trustedUrl: string | undefined;
       try {
-        const next = await beginBrowserCredentialHandoff(viewerUrl, signal);
+        trustedUrl = trustedBrowserViewerUrl(viewerUrl);
+        const next = await beginBrowserCredentialHandoff(trustedUrl, signal);
         if (!signal?.aborted) {
           if (
             pendingOrigin &&
@@ -283,7 +327,20 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           setHandoff(next);
         }
       } catch (nextError) {
-        if (!signal?.aborted) setError(errorMessage(nextError));
+        if (signal?.aborted) return;
+        if (
+          nextError instanceof BrowserFormError &&
+          nextError.status === 404 &&
+          trustedUrl
+        ) {
+          setNoSecureForm(true);
+          if (!isWeb && openWhenMissing) {
+            Keyboard.dismiss();
+            setLiveViewer({ url: trustedUrl, handoffId });
+          }
+        } else {
+          setError(errorMessage(nextError));
+        }
       }
       if (!signal?.aborted) setLoading(false);
     },
@@ -391,14 +448,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           : undefined;
       if (result.saveStatus === 'pending' && saveLabel)
         setAccountLabel(saveLabel);
-      if (result.saveStatus)
-        setSaveNotice(
-          result.saveStatus === 'saved'
-            ? 'Login saved for this bot.'
-            : result.saveStatus === 'pending'
-              ? 'Continue to the password step to save this login.'
-              : 'Your login was entered, but could not be saved.'
-        );
+      if (result.saveStatus) setSaveStatus(result.saveStatus);
       if (handoff.kind === 'login') {
         const viewerUrl = resolve(handoffId);
         if (!viewerUrl)
@@ -464,13 +514,33 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     clearSavedLoginSelection,
   ]);
 
-  const retry = useCallback(() => {
-    const signal = requestController.current?.signal;
-    if (!signal || signal.aborted) return;
-    setLoading(true);
-    setError(undefined);
-    void load(signal);
-  }, [load]);
+  const reloadForm = useCallback(
+    (openWhenMissing: boolean) => {
+      const signal = requestController.current?.signal;
+      if (!signal || signal.aborted) return;
+      setLoading(true);
+      void load(signal, openWhenMissing);
+    },
+    [load]
+  );
+  const retry = useCallback(() => reloadForm(true), [reloadForm]);
+  useEffect(() => {
+    if (!isWeb) return;
+    const refreshAfterBrowser = () => {
+      if (externalViewerHandoff.current !== handoffId) return;
+      externalViewerHandoff.current = null;
+      retry();
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshAfterBrowser();
+    };
+    window.addEventListener('focus', refreshAfterBrowser);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.removeEventListener('focus', refreshAfterBrowser);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [handoffId, retry]);
   const dismiss = useCallback(() => {
     requestController.current?.abort();
     navigation.goBack();
@@ -482,14 +552,31 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         throw new Error(
           'Reopen the secure browser form from the conversation.'
         );
-      await Linking.openURL(trustedBrowserViewerUrl(viewerUrl));
+      const url = trustedBrowserViewerUrl(viewerUrl);
+      Keyboard.dismiss();
+      setValues({});
+      if (isWeb) {
+        externalViewerHandoff.current = handoffId;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        setLiveViewer({ url, handoffId });
+      }
     } catch (nextError) {
       setError(errorMessage(nextError));
     }
   }, [resolve, handoffId]);
 
+  const closeBrowser = useCallback(() => {
+    setLiveViewer(undefined);
+    // Refresh after human navigation without reopening a dismissed viewer.
+    reloadForm(false);
+  }, [reloadForm]);
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
+      {liveViewer?.handoffId === handoffId ? (
+        <BrowserViewerModal viewerUrl={liveViewer.url} onClose={closeBrowser} />
+      ) : null}
       <ScreenHeader
         borderBottom
         backAction={dismiss}
@@ -552,14 +639,28 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   </YStack>
                 </XStack>
                 <Text color="$secondaryText">
-                  These fields go directly to the live browser. They are never
-                  posted to chat or returned to the bot.
+                  These fields go directly to the live browser. They are not
+                  posted to chat.
                 </Text>
                 {handoff.kind === 'details' ? (
                   <Text color="$secondaryText">
                     Filling these fields does not submit a payment or place an
                     order.
                   </Text>
+                ) : null}
+                {vaultEligible && !vaultRequested ? (
+                  <Button
+                    preset="secondary"
+                    label="Use saved login"
+                    disabled={submitting}
+                    onPress={() => setVaultRequested(true)}
+                  />
+                ) : null}
+                {vaultRequested &&
+                vaultEligible &&
+                !vaultAuth &&
+                !vaultError ? (
+                  <Text color="$secondaryText">Loading saved logins…</Text>
                 ) : null}
                 {vaultAuth?.accounts.length ? (
                   <YStack gap="$s">
@@ -645,10 +746,13 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                       accessibilityRole="checkbox"
                       accessibilityState={{
                         checked: saveLogin,
-                        disabled: submitting || !vaultAuth,
+                        disabled: submitting,
                       }}
-                      disabled={submitting || !vaultAuth}
-                      onPress={() => setSaveLogin((save) => !save)}
+                      disabled={submitting}
+                      onPress={() => {
+                        setVaultRequested(true);
+                        setSaveLogin((save) => !save);
+                      }}
                     >
                       <Text>
                         {saveLogin ? '☑' : '☐'} Save login for this bot
@@ -657,8 +761,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                     {saveLogin ? (
                       <>
                         <Text color="$secondaryText">
-                          This bot can use the saved login on {handoff.origin}.
-                          Manage it in Bot settings.
+                          This bot can sign in to {handoff.origin} without
+                          asking you each time. Remove this permission by
+                          deleting the login in Bot settings.
                         </Text>
                         <Field
                           label={
@@ -694,12 +799,21 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               </>
             ) : (
               <>
-                <Text color="$negativeActionText">
-                  {error ?? 'Could not find a supported browser form.'}
+                <Text
+                  color={
+                    noSecureForm && !error
+                      ? '$secondaryText'
+                      : '$negativeActionText'
+                  }
+                >
+                  {error ??
+                    (noSecureForm
+                      ? 'Continue in the live browser.'
+                      : 'Could not find a supported browser form.')}
                 </Text>
                 <Button
                   preset="secondary"
-                  label="Try again"
+                  label={noSecureForm ? 'Check for secure form' : 'Try again'}
                   centered
                   onPress={retry}
                 />
@@ -715,8 +829,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                 onPress={openBrowser}
               />
               <Text color="$secondaryText">
-                You can complete any additional steps in the browser, then
-                return to the conversation.
+                {isWeb
+                  ? 'The browser opens in a new tab. Return here when you’re done.'
+                  : 'Complete any additional steps here, then continue the task.'}
               </Text>
               <Button
                 preset="secondary"

@@ -1,7 +1,6 @@
 import type { ComponentProps } from 'react';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import { useFixtureInput } from 'react-cosmos/client';
 
 import type {
   TlawnConfig,
@@ -250,8 +249,6 @@ function BotModelSettingsFixture({
 }
 
 function BasicZdrSettingsFixture({ zdr = false }: { zdr?: boolean }) {
-  const [paddingVertical] = useFixtureInput('ZDR row vertical padding', 32);
-  const [descriptionGap] = useFixtureInput('ZDR title/subtitle gap', 12);
   const ready = useSeededFixture({ zdr, provider: 'basic' });
 
   if (!ready) return null;
@@ -270,7 +267,6 @@ function BasicZdrSettingsFixture({ zdr = false }: { zdr?: boolean }) {
         <BotSettingsScreen
           navigation={settingsNavigation}
           route={settingsRoute}
-          zdrRowLayout={{ descriptionGap, paddingVertical }}
         />
       </FixtureWrapper>
     </ShipProvider>

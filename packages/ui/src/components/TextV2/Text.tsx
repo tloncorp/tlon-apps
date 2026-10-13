@@ -1,21 +1,34 @@
 import React, { ComponentProps, useMemo } from 'react';
 import { Platform } from 'react-native';
-import { Text as TamaguiText, TextStyle, YStack, styled } from 'tamagui';
+import { Text as TamaguiText, TextStyle, YStack, isWeb, styled } from 'tamagui';
 
+import { trimOverrides } from './trimOverrides';
 import { trimAndroid, trimIos, trimWeb } from './trimSettings';
 
-// Emoji are in general larger than text, so we need to adjust the margin Do it
-// here so we can still copy/paste above. This logic could also be moved to the
-// fixture itself.
-trimIos['$emoji/l'].marginBottom = 0;
-trimAndroid['$emoji/l'].marginBottom = -2;
+type TrimTable = typeof trimIos;
 
-export const trimSettings =
-  Platform.OS === 'web'
-    ? trimWeb
-    : Platform.OS === 'ios'
-      ? trimIos
-      : trimAndroid;
+function withOverrides(
+  table: TrimTable,
+  overrides: Partial<Record<keyof TrimTable, TextStyle>>
+): TrimTable {
+  const result = { ...table };
+  for (const [size, style] of Object.entries(overrides)) {
+    const key = size as keyof TrimTable;
+    result[key] = { ...result[key], ...style } as TrimTable[typeof key];
+  }
+  return result;
+}
+
+// The Tamagui compiler evaluates this module with react-native swapped for its
+// web build, so Platform.OS reads 'web' while it flattens text for iOS and
+// Android; isWeb stays correct there. Flattened text therefore gets the iOS
+// trims on both, and the Android build swaps them via
+// packages/ui/babel/androidTextStyles.cjs.
+export const trimSettings = isWeb
+  ? trimWeb
+  : Platform.OS === 'android'
+    ? withOverrides(trimAndroid, trimOverrides.android)
+    : withOverrides(trimIos, trimOverrides.ios);
 
 export const RawText = styled(TamaguiText, {
   name: 'RawText',

@@ -315,9 +315,10 @@ export function assertKnownChannelKind(
   }
 }
 
-// %notes owns its channel listing's metadata, so the skill can't persist a
-// description for a notes channel. Reject `--description` for `--kind notes`
-// rather than accept it and silently drop it. Local, pre-auth. Run after
+// %notes creates the channel listing itself and its creation API takes no
+// description, so a notes create can't persist one. Reject `--description` for
+// `--kind notes` rather than accept it and silently drop it; `channels update
+// --description` works once the channel exists. Local, pre-auth. Run after
 // assertKnownChannelKind (which already rejects the `--kind=` equals form).
 export function refuseNotesChannelDescription(
   args: string[],
@@ -334,7 +335,7 @@ export function refuseNotesChannelDescription(
     .some((arg) => arg === '--description' || arg.startsWith('--description='));
   if (kind && !CHANNEL_DESCRIPTION_KINDS.includes(kind) && hasDescription) {
     printUsageAndExit(
-      `Error: --description is not supported for --kind notes — %notes owns the channel listing metadata.\n${usageHelp}`
+      `Error: --description is not supported for --kind notes — %notes creates the listing without one; set it afterwards with 'tlon channels update <nest> --description "..."'.\n${usageHelp}`
     );
   }
 }
@@ -346,19 +347,6 @@ export function refuseNotesWriters(nest: string | undefined): void {
   if (isNotesNest(nest)) {
     printErrorAndExit(
       'Writer roles are not supported for %notes channels yet — %notes manages its own permissions.'
-    );
-  }
-}
-
-// %notes owns channel listing metadata. Until the %notes command family exposes
-// explicit metadata operations, refuse channel-level updates that would write
-// directly to %groups and leave the two sources of truth desynced.
-export function refuseNotesChannelMetadataUpdate(
-  nest: string | undefined
-): void {
-  if (isNotesNest(nest)) {
-    printErrorAndExit(
-      'Channel metadata updates are not supported for %notes channels yet — %notes owns the channel listing metadata.'
     );
   }
 }

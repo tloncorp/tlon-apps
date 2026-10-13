@@ -25,6 +25,7 @@ import {
   XStack,
   YStack,
   createActionGroup,
+  getGroupMemberCount,
   pluralize,
   useChatOptions,
   useChatTitle,
@@ -124,7 +125,8 @@ function ChatDetailsScreenView() {
   const insets = useSafeAreaInsets();
 
   const members = chatType === 'group' ? group?.members : channel?.members;
-  const memberCount = members?.length ?? 0;
+  const memberCount =
+    chatType === 'group' && group ? getGroupMemberCount(group) : 0;
 
   const subtitle = useMemo(() => {
     if (chatType === 'group') {
@@ -152,7 +154,7 @@ function ChatDetailsScreenView() {
       default:
         return group
           ? group.channels?.length === 1
-            ? `Group with ${group.members?.length ?? 0} members`
+            ? `Group with ${getGroupMemberCount(group)} members`
             : `Channel in ${groupTitle}`
           : '';
     }

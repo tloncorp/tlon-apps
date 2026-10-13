@@ -414,6 +414,7 @@ export function StaticChatMessage({
           allowBotMcpSettings: canUseAgentProviderControls,
           allowBrowserCredentialHandoff: allowBrowserHandoff,
           browserBotMoon: allowBrowserHandoff ? post.authorId : undefined,
+          allowBrowserSession: allowBrowserHandoff,
           onBrowserCredentialHandoffComplete:
             target.type === 'screen' &&
             target.screen === 'browserCredentialHandoff'
@@ -487,7 +488,8 @@ export function StaticChatMessage({
         if (target.type !== 'screen') return true;
         if (
           target.screen === 'browserCredentialHandoff' ||
-          target.screen === 'botSavedLogins'
+          target.screen === 'botSavedLogins' ||
+          target.screen === 'browserSession'
         ) {
           return allowBrowserHandoff;
         }
@@ -853,6 +855,7 @@ const WebChatVideoRenderer: DefaultRendererProps['video'] = {
 };
 
 const ChatContentRenderer = createContentRenderer({
+  renderBrowserSessionCards: true,
   blockRenderers: {
     a2ui: A2UIBlock,
   },

@@ -122,6 +122,7 @@ export function useA2UINavigation() {
         allowBotMcpSettings?: boolean;
         allowBrowserCredentialHandoff?: boolean;
         browserBotMoon?: string;
+        allowBrowserSession?: boolean;
         onBrowserCredentialHandoffComplete?: () => Promise<void>;
       }
     ) => {
@@ -186,9 +187,15 @@ export function useA2UINavigation() {
               }
               rootNavigation.navigateToBotMcpSettings(target.providerId);
               return;
+            case 'browserSession':
+              if (!options?.allowBrowserSession) return;
+              if (!browserHandoff)
+                throw new Error('Browser session viewer is unavailable.');
+              browserHandoff.openViewer(target.viewerUrl);
+              return;
             case 'browserCredentialHandoff':
               if (!options?.allowBrowserCredentialHandoff) {
-                logger.log('blocked untrusted browser login target', target);
+                logger.log('blocked untrusted browser target');
                 return;
               }
               if (!browserHandoff) {

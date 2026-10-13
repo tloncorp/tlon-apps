@@ -7,7 +7,7 @@ import { YStack, styled } from 'tamagui';
 
 import { useChatOptions } from '../../contexts/chatOptions';
 import { useGroup } from '../../contexts/groups';
-import { useChatTitle, useIsAdmin } from '../../utils';
+import { getGroupMemberCount, useChatTitle, useIsAdmin } from '../../utils';
 import WayfindingNotice from '../Wayfinding/Notices';
 
 export function EmptyChannelNotice({
@@ -54,7 +54,7 @@ export function EmptyChannelNotice({
     }
     return title;
   }, [channel.type, title, isSingleChannelGroup, group?.title]);
-  const memberCount = group?.members?.length ?? group?.memberCount ?? 0;
+  const memberCount = group ? getGroupMemberCount(group) : 0;
   const roleCount = group?.roles?.length ?? 0;
   const memberText = memberCount === 1 ? '1 Member' : `${memberCount} Members`;
   const roleText = roleCount === 1 ? '1 Role' : `${roleCount} Roles`;

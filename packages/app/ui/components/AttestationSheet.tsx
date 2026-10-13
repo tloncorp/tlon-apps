@@ -27,6 +27,7 @@ export function AttestationSheet(props: {
         <AttestationPane
           attestation={props.attestation}
           currentUserId={currentUserId}
+          $sm={{ paddingHorizontal: '$xl' }}
         />
       </ActionSheet.Content>
     </ActionSheet>

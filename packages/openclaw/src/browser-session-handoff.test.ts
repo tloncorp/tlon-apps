@@ -12,7 +12,7 @@ vi.mock('./tlon-command-runner.js', async (original) => ({
 
 import { runBrowserSessionHandoff } from './browser-session-handoff.js';
 
-const handle = 'eager-lilac-bear';
+const handle = 'sess_MHKz9dQ1TjqLmA7vXpR2bw';
 const sessionId = '123e4567-e89b-42d3-a456-426614174000';
 const config = {
   channels: {
@@ -188,7 +188,6 @@ describe('browser session handoff', () => {
     async ({ args }) => {
       const result = await runBrowserSessionHandoff('tlon', args, config);
       expect(result).toContain('browser handoff <session_id>');
-      expect(result).toContain('adjective-color-animal session ID');
       expect(result).not.toContain('<signed-viewer-url>');
       expect(urbitFetch).not.toHaveBeenCalled();
       expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
@@ -289,7 +288,7 @@ describe('browser session handoff', () => {
     expect(release).toHaveBeenCalledOnce();
   });
 
-  it('resolves the wordlist session ID through the configured tenant and sends the exact server-issued URL', async () => {
+  it('resolves the handle through the configured tenant and sends the exact server-issued URL', async () => {
     const url = viewerUrl();
     const release = reply({ session_id: handle, viewer_url: url });
     const result = await runBrowserSessionHandoff(
@@ -341,13 +340,7 @@ describe('browser session handoff', () => {
 
   it.each([
     { args: ['browser', 'handoff', viewerUrl('session-view')] },
-    { args: ['browser', 'handoff', 'eager-lilac'] },
-    { args: ['browser', 'handoff', 'eager-lilac-bear-extra'] },
-    { args: ['browser', 'handoff', 'eager-lilac-bear/'] },
-    { args: ['browser', 'handoff', 'eager-lilac-BEAR'] },
-    { args: ['browser', 'handoff', 'eager-lilac-bear\n'] },
-    { args: ['browser', 'handoff', `${'x'.repeat(129)}-blue-fox`] },
-    { args: ['browser', 'handoff', sessionId] },
+    { args: ['browser', 'handoff', 'sess_typo'] },
     { args: ['browser', 'handoff', handle, '--owner', '~bud'] },
     { args: ['--ship', '~bud', 'browser', 'handoff', handle] },
   ])(
@@ -377,7 +370,7 @@ describe('browser session handoff', () => {
   });
 
   it.each([
-    { session_id: 'calm-blue-fox', viewer_url: viewerUrl() },
+    { session_id: 'sess_other', viewer_url: viewerUrl() },
     { session_id: handle },
     { session_id: handle, viewer_url: viewerUrl('session-view') },
     {
@@ -432,5 +425,35 @@ describe('browser session handoff', () => {
     ).rejects.toThrow(/^Could not send the secure browser form\.$/);
     expect(runBrowserHandoffCommand).toHaveBeenCalledOnce();
     expect(urbitFetch).toHaveBeenCalledOnce();
+  });
+});
+
+describe('browser session sharing', () => {
+  it('privately resolves the handle and delivers a standalone share card', async () => {
+    const url = viewerUrl();
+    reply({ session_id: handle, viewer_url: url });
+    const result = await runBrowserSessionHandoff(
+      'tlon',
+      ['browser', 'share', handle],
+      config
+    );
+    expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
+      'tlon',
+      ['browser', 'share', url],
+      config
+    );
+    expect(result).toBe('✓ Browser session sent to ~nec');
+    expect(result).not.toContain(url);
+  });
+  it('rejects model-supplied URLs before any lookup or send', async () => {
+    await expect(
+      runBrowserSessionHandoff(
+        'tlon',
+        ['browser', 'share', viewerUrl()],
+        config
+      )
+    ).rejects.toThrow('Do not supply a viewer URL');
+    expect(urbitFetch).not.toHaveBeenCalled();
+    expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
   });
 });
