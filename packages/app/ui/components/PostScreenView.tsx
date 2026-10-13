@@ -35,7 +35,10 @@ import useAppStatus from '../../hooks/useAppStatus';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
 import { useCurrentUserId } from '../contexts/appDataContext';
-import { useAttachmentContext } from '../contexts/attachment';
+import {
+  AttachmentProvider,
+  useAttachmentContext,
+} from '../contexts/attachment';
 import { ChannelProvider } from '../contexts/channel';
 import { NavigationProvider } from '../contexts/navigation';
 import { ScrollContextProvider } from '../contexts/scroll';
@@ -388,6 +391,7 @@ export function PostScreenView({
             <FileDrop
               backgroundColor="$background"
               flex={1}
+              dropEnabled={mode === 'single' || !!isEditingParent}
               onAssetsDropped={attachAssets}
             >
               <View flex={1}>
@@ -1176,13 +1180,40 @@ export function PresentationalCarouselPostScreenContent({
   ) : null;
 }
 
-function _CarouselPost({
+function CarouselPostWithAttachments({
+  parentPost,
+  editingPost,
+  ...props
+}: { channel: db.Channel; parentPost: db.Post } & ChannelContext) {
+  const { canUpload } = useAttachmentContext();
+  return (
+    <Carousel.Item flex={1}>
+      <AttachmentProvider
+        key={parentPost.id}
+        canUpload={canUpload}
+        uploadAsset={store.uploadAsset}
+      >
+        <CarouselPostContent
+          {...props}
+          parentPost={parentPost}
+          editingPost={
+            editingPost?.parentId === parentPost.id ? editingPost : undefined
+          }
+        />
+      </AttachmentProvider>
+    </Carousel.Item>
+  );
+}
+const CarouselPost = memo(CarouselPostWithAttachments);
+
+function CarouselPostContent({
   channel,
   parentPost,
   ...channelContext
 }: { channel: db.Channel; parentPost: db.Post } & ChannelContext) {
+  const { attachAssets } = useAttachmentContext();
   return (
-    <Carousel.Item flex={1}>
+    <FileDrop flex={1} onAssetsDropped={attachAssets}>
       <ScrollContextProvider>
         <SinglePostView
           {...{
@@ -1192,7 +1223,6 @@ function _CarouselPost({
           }}
         />
       </ScrollContextProvider>
-    </Carousel.Item>
+    </FileDrop>
   );
 }
-const CarouselPost = memo(_CarouselPost);
