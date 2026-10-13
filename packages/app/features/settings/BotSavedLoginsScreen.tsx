@@ -111,6 +111,7 @@ export function BotSavedLoginsScreen({
               borderRadius="$l"
             >
               <Text fontWeight="600">{account.label}</Text>
+              {account.username ? <Text>{account.username}</Text> : null}
               <Text color="$secondaryText">{account.origin}</Text>
               <Text>
                 {account.permission === 'allow'

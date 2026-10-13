@@ -1,7 +1,7 @@
 # Saved browser credentials
 
 The owner's planet stores encrypted passwords, exact HTTPS origins, account
-labels, and per-bot reuse permission. A bot can discover matching credentials
+labels, optional usernames, and per-bot reuse permission. A bot can discover matching credentials
 and use those marked `allow`. Credentials marked `ask` require the owner's secure
 browser form. Saving defaults to `ask`; conversation messages never grant access.
 
@@ -9,17 +9,18 @@ browser form. Saving defaults to `ask`; conversation messages never grant access
 
 Pioneer stores records in the parent planet's `%settings` bucket
 `%moltbot/%browser-logins`, partitioned by bot moon and credential ID. Each record
-contains its origin, label, revision, timestamps, permission, encryption factor,
+contains its origin, label, optional username, revision, timestamps, permission, encryption factor,
 key ID, nonce, authentication tag, and ciphertext. Sibling bots do not share
 credentials. Updates, permission changes, and deletion check the expected
 revision under the planet's writer lock and wait for the ship to acknowledge
 the result. Hosting has no credential or permission database.
 
-The secret contains the username and password. The server uses AES-256-GCM and
+The encrypted payload contains the username and password. The username is also
+available as readable account metadata; the password remains encrypted. The server uses AES-256-GCM and
 HKDF-SHA256, combining a durable 32-byte server key with a domain-separated
 SHA-256 derivative of the owner planet's login code. The HKDF context binds the
 format, planet, moon, and credential ID. Authenticated metadata binds the origin,
-label, factor, key ID, creation time, and identity. Revision and permission are
+label, username when present, factor, key ID, creation time, and identity. Revision and permission are
 checked against current ship state, so policy changes do not require decryption.
 
 Each record retains the factor used to encrypt it. Changing the planet's code
@@ -37,7 +38,7 @@ revision checks and defaults automatic reuse to `ask`.
 
 ## Login and owner approval
 
-`browser_login` with `action: "list"` returns matching account IDs, labels,
+`browser_login` with `action: "list"` returns matching account IDs, labels, usernames,
 origins, revisions, timestamps, and permissions without decrypting passwords.
 The app rejects owner requests to a different Hosting environment.
 The service verifies the moon's derived browser key through Pioneer; ship
@@ -98,7 +99,7 @@ GET /v1/ships/:ship/browser-logins
 ```
 
 The response is `{ "accounts": [...] }`. Each entry has `id`, `moon`, `origin`,
-`label`, `revision`, `updatedAt`, and `permission`. Both Pioneer and Solaris use
+`label`, `revision`, `updatedAt`, and `permission`, plus `username` when saved. Both Pioneer and Solaris use
 explicit field projections; ciphertext, factors, keys, nonces, and passwords
 are excluded.
 

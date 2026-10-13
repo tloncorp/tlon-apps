@@ -10,6 +10,7 @@ export const savedBrowserLoginSchema = z.object({
   revision: z.number().int().positive(),
   updatedAt: z.number(),
   label: z.string().min(1).max(256),
+  username: z.string().min(1).max(4096).optional(),
   permission: z.enum(['ask', 'allow']),
 });
 export type SavedBrowserLogin = z.infer<typeof savedBrowserLoginSchema>;

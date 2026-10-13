@@ -682,6 +682,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                     <Text>Saved logins</Text>
                     {vaultAuth.accounts.map((account) => (
                       <YStack key={account.id} gap="$s">
+                        {account.username ? (
+                          <Text>{account.username}</Text>
+                        ) : null}
                         <Button
                           preset="secondary"
                           label={`${choice?.record.id === account.id ? 'Selected: ' : ''}${account.label}`}

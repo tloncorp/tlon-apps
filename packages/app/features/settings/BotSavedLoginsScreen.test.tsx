@@ -46,6 +46,7 @@ const account = {
   id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
   revision: 3,
   label: 'Personal',
+  username: 'me@example.com',
   permission: 'ask',
   origin: 'https://example.com',
   updatedAt: 1,
@@ -82,6 +83,7 @@ describe('saved login management', () => {
 
   it('loads the configured bot and deletes only the confirmed account revision', async () => {
     const renderer = await render();
+    expect(JSON.stringify(renderer.toJSON())).toContain(account.username);
     expect(mocks.list).toHaveBeenCalledWith(
       'pinser-botter-sampel-palnet',
       expect.any(AbortSignal)

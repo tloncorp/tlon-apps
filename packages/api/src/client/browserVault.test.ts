@@ -20,6 +20,7 @@ const account = {
   origin: 'https://login.example',
   updatedAt: 1,
   label: 'Personal',
+  username: 'me@example.com',
   permission: 'ask',
 };
 beforeEach(() => {
