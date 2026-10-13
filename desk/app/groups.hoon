@@ -455,6 +455,9 @@
         fi-abet:(fi-invite:foreign-core invite.a-foreigns)
       ::
           %revoke
+        ::  nothing to revoke for a group we hold no invites to
+        ::
+        ?.  (~(has by foreigns) flag.a-foreigns)  cor
         =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
         fi-abet:(fi-revoke:foreign-core token.a-foreigns)
       ::
@@ -3510,14 +3513,6 @@
     ?~   tea=(~(get by seats.group) ship)  |
     =*  seat  u.tea
     !=(~ (~(int in roles.seat) admins.group))
-  ::  +go-is-joined: check whether the ship has joined the group
-  ::
-  ++  go-is-joined
-    |=  =ship
-    ~>  %spin.['go-is-joined']
-    ^-  ?
-    ?~  seat=(~(get by seats.group) ship)  |
-    !=(*@da joined.u.seat)
   ::  +go-is-banned: check whether the ship is banned
   ::
   ++  go-is-banned
@@ -4080,14 +4075,6 @@
         invited.admissions  invited.admissions.group
         active-channels     active-channels.group
       ==
-    ::  ships that joined while we were not subscribed have used
-    ::  their invites
-    ::
-    =.  invited.ad
-      %+  roll  ~(tap by invited.ad)
-      |=  [[=ship *] =_invited.ad]
-      ?.  (go-is-joined ship)  invited
-      (~(del by invited) ship)
     ::  index the channels the group arrives with. +go-u-channel only
     ::  indexes channels added later, and a %channels %leave for a nest
     ::  missing from .channels-index is dropped, leaving it active here.
@@ -4229,7 +4216,6 @@
       ?~  invited  go-core
       ?.  =(`token token.u.invited)  go-core
       =.  invited.ad  (~(del by invited.ad) owner)
-      ?:  (go-is-joined owner)  go-core
       (emit (revoke-invite:go-pass owner `token))
     %+  roll  ~(tap by invited.ad)
     |=  [[=ship [at=@da tok=(unit token:g)]] =_go-core]
@@ -4237,7 +4223,6 @@
     ?.  =(u.tok token)  go-core
     =.  invited.admissions.group.go-core
       (~(del by invited.admissions.group.go-core) ship)
-    ?:  (go-is-joined:go-core ship)  go-core
     (emit:go-core (revoke-invite:go-pass:go-core ship tok))
   ::  +go-u-entry-pending: apply entry pending update
   ::

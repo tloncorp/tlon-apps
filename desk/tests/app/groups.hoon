@@ -531,6 +531,17 @@
     =+  foreign=!<(foreign:v8:gv q.peek)
     %+  ex-equal  !>(invites.foreign)
     !>(~[private])
+  ::  a revocation for a group we hold no invites to is ignored
+  ::
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~fun)
+    (do-poke group-foreign-2+!>([%revoke ~nec^%nec-other ~]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  ~  bind:m
+    ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns)
+    =+  foreigns=!<(foreigns:v8:gv q.peek)
+    %+  ex-equal  !>(~(key by foreigns))
+    !>((sy ~nec^%nec-public ~nec^%nec-private ~))
   ::  verify that the invitations can be revoked by the inviter
   ::
   ;<  *  bind:m
@@ -866,10 +877,10 @@
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
     !>(~)
   (pure:m ~)
-::  +test-invites-deleted-token-joined: a joined ship is not sent a revocation
+::  +test-invites-deleted-token-joined: a joined ship is still sent a revocation
 ::
-::  when a token is deleted, the invite record of a ship that has
-::  already joined is dropped without poking her.
+::  an invite to a ship that has already joined is revoked like any
+::  other when its token is deleted.
 ::
 ++  test-invites-deleted-token-joined
   %-  eval-mare
@@ -905,7 +916,7 @@
   ;<  ~  bind:m
     %+  ex-equal  !>(invited.admissions.group)
     !>((my ~[[~fun [now.bowl `0v123]]]))
-  ::  token is deleted. the record is dropped, but ~fun is not poked.
+  ::  token is deleted. the record is dropped and ~fun is poked.
   ::
   ;<  caz=(list card)  bind:m
     =/  =update:g
@@ -914,47 +925,12 @@
   ;<  ~  bind:m
     %+  ex-cards-r-groups  caz
     :~  |+[my-flag [%entry %token %del 0v123]]
+        &+(ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
     ==
   ;<  peek=cage  bind:m
     (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m  (ex-equal !>(invited.admissions.group) !>(~))
-  (pure:m ~)
-::  +test-invites-pruned-on-create: a snapshot prunes invites of joined ships
-::
-::  a %create snapshot, as sent on resubscription, shows which invited
-::  ships have joined meanwhile. their invite records are dropped,
-::  those of ships still absent are kept.
-::
-++  test-invites-pruned-on-create
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ;<  *  bind:m  do-groups-init
-  ;<  *  bind:m  do-join-group
-  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(src ~dev)))
-  ::  invite ~fun and ~fed to a public group
-  ::
-  ;<  *  bind:m  (do-a-groups [%invite my-flag (sy ~fun ~fed ~) ~ ~])
-  ;<  =bowl:gall  bind:m  get-bowl
-  ;<  peek=cage  bind:m
-    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
-  =+  group=!<(group:g q.peek)
-  ;<  ~  bind:m
-    %+  ex-equal  !>(invited.admissions.group)
-    !>((my ~[[~fun [now.bowl ~]] [~fed [now.bowl ~]]]))
-  ::  a snapshot arrives with ~fun seated and joined, ~fed absent
-  ::
-  =/  gr=group:g  my-group
-  ;<  *  bind:m
-    =/  =update:g
-      [now.bowl %create gr(seats (~(put by seats.gr) ~fun [~ now.bowl]))]
-    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
-  ;<  peek=cage  bind:m
-    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
-  =+  group=!<(group:g q.peek)
-  ;<  ~  bind:m
-    %+  ex-equal  !>(invited.admissions.group)
-    !>((my ~[[~fed [now.bowl ~]]]))
   (pure:m ~)
 ::  +test-join-spends-admin-token: a second admin's token is spent on join
 ::
