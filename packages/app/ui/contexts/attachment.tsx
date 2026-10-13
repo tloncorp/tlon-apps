@@ -19,6 +19,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -53,6 +54,101 @@ const defaultState: AttachmentState = {
 };
 
 const Context = createContext(defaultState);
+
+type AttachmentScopes = {
+  request: (id: string) => void;
+  get: (id: string) => AttachmentState | undefined;
+  publish: (id: string, state: AttachmentState) => void;
+  subscribe: (listener: () => void) => () => void;
+};
+const ScopesContext = createContext<AttachmentScopes | null>(null);
+
+/** Owns attachment lifetimes independently of virtualized composer views. */
+export function AttachmentDraftsProvider({
+  children,
+  canUpload,
+  uploadAsset,
+}: PropsWithChildren<{
+  canUpload: boolean;
+  uploadAsset: (
+    asset: Attachment.UploadIntent,
+    isWeb?: boolean
+  ) => Promise<void>;
+}>) {
+  const [ids, setIds] = useState<string[]>([]);
+  const [scopes] = useState<AttachmentScopes>(() => {
+    const states = new Map<string, AttachmentState>();
+    const listeners = new Set<() => void>();
+    return {
+      request: (id) =>
+        setIds((previous) =>
+          previous.includes(id) ? previous : [...previous, id]
+        ),
+      get: (id) => states.get(id),
+      publish: (id, state) => {
+        states.set(id, state);
+        listeners.forEach((listener) => listener());
+      },
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+  });
+  return (
+    <ScopesContext.Provider value={scopes}>
+      {ids.map((id) => (
+        <AttachmentProvider
+          key={id}
+          canUpload={canUpload}
+          uploadAsset={uploadAsset}
+        >
+          <PublishAttachmentScope id={id} scopes={scopes} />
+        </AttachmentProvider>
+      ))}
+      {children}
+    </ScopesContext.Provider>
+  );
+}
+
+function PublishAttachmentScope({
+  id,
+  scopes,
+}: {
+  id: string;
+  scopes: AttachmentScopes;
+}) {
+  const state = useContext(Context);
+  useEffect(() => {
+    scopes.publish(id, state);
+  }, [id, scopes, state]);
+  return null;
+}
+
+export function ScopedAttachmentProvider({
+  id,
+  children,
+}: PropsWithChildren<{ id: string }>) {
+  const scopes = useContext(ScopesContext);
+  if (!scopes)
+    throw new Error(
+      'ScopedAttachmentProvider requires AttachmentDraftsProvider'
+    );
+  useEffect(() => {
+    scopes.request(id);
+  }, [id, scopes]);
+  const getSnapshot = useCallback(() => scopes.get(id), [id, scopes]);
+  const state = useSyncExternalStore(
+    scopes.subscribe,
+    getSnapshot,
+    getSnapshot
+  );
+  return state ? (
+    <Context.Provider value={state}>{children}</Context.Provider>
+  ) : null;
+}
 
 export const useAttachmentContext = () => {
   const context = useContext(Context);

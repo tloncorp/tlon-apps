@@ -36,7 +36,8 @@ import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import {
-  AttachmentProvider,
+  AttachmentDraftsProvider,
+  ScopedAttachmentProvider,
   useAttachmentContext,
 } from '../contexts/attachment';
 import { ChannelProvider } from '../contexts/channel';
@@ -187,7 +188,22 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
   );
 });
 
-export function PostScreenView({
+export function PostScreenView(
+  props: Parameters<typeof PostScreenViewContent>[0]
+) {
+  const { canUpload } = useAttachmentContext();
+  return (
+    <AttachmentDraftsProvider
+      key={props.channel.id}
+      canUpload={canUpload}
+      uploadAsset={store.uploadAsset}
+    >
+      <PostScreenViewContent {...props} />
+    </AttachmentDraftsProvider>
+  );
+}
+
+function PostScreenViewContent({
   channel,
   group,
   parentPost,
@@ -1185,14 +1201,9 @@ function CarouselPostWithAttachments({
   editingPost,
   ...props
 }: { channel: db.Channel; parentPost: db.Post } & ChannelContext) {
-  const { canUpload } = useAttachmentContext();
   return (
     <Carousel.Item flex={1}>
-      <AttachmentProvider
-        key={parentPost.id}
-        canUpload={canUpload}
-        uploadAsset={store.uploadAsset}
-      >
+      <ScopedAttachmentProvider id={parentPost.id}>
         <CarouselPostContent
           {...props}
           parentPost={parentPost}
@@ -1200,7 +1211,7 @@ function CarouselPostWithAttachments({
             editingPost?.parentId === parentPost.id ? editingPost : undefined
           }
         />
-      </AttachmentProvider>
+      </ScopedAttachmentProvider>
     </Carousel.Item>
   );
 }

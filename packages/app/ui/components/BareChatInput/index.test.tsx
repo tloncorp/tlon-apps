@@ -319,6 +319,80 @@ function makeEditingPost(): Post {
   };
 }
 
+test.each([false, true])(
+  'leaving an edited reply does not replace the reply draft (existing draft: %s)',
+  async (hasDraft) => {
+    const storage = draftStorage();
+    if (hasDraft) {
+      await storage.storeDraft({
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Unsent reply ' }],
+          },
+        ],
+        referenceAttachments: [reference],
+      });
+    }
+    await mount(storage);
+    const saved = await storage.getDraft();
+    const props = renderer.root.findByType(BareChatInput)
+      .props as React.ComponentProps<typeof BareChatInput>;
+    mocks.hydrateEditPost.mockReturnValue({
+      story: [],
+      attachments: [],
+      isEmpty: false,
+    });
+    await act(async () =>
+      renderer.update(
+        <BareChatInput {...props} editingPost={makeEditingPost()} />
+      )
+    );
+    act(() => input().props.onChangeText('Abandoned edit'));
+    act(() => renderer.unmount());
+    mocks.attachments = [];
+    expect(await storage.getDraft()).toEqual(saved);
+    await mount(storage);
+    expect(await storage.getDraft()).toEqual(saved);
+    expect(mocks.attachments).toEqual(hasDraft ? [reference] : []);
+  }
+);
+
+test('sending invalidates an initial draft read before the clear finishes', async () => {
+  mocks.platform = 'android';
+  const storage = draftStorage();
+  let resolveRead!: (draft: JSONContent) => void;
+  let resolveClear!: () => Promise<void>;
+  const getDraft = () =>
+    new Promise<JSONContent>((done) => {
+      resolveRead = done;
+    });
+  const clearDraft = () =>
+    new Promise<void>((done) => {
+      resolveClear = async () => {
+        await storage.clearDraft();
+        done();
+      };
+    });
+  await mount({
+    ...storage,
+    getDraft,
+    clearDraft,
+    sendPostFromDraft: async () => {},
+  });
+  act(() => input().props.onChangeText('Send before hydration'));
+  await act(async () => container().props.onPressSend());
+  await act(async () => resolveRead({ referenceAttachments: [reference] }));
+  expect(mocks.attachments).toEqual([]);
+  await act(async () => resolveClear());
+  expect(mocks.attachments).toEqual([]);
+  act(() => renderer.unmount());
+  await mount(storage);
+  expect(mocks.attachments).toEqual([]);
+  expect(container().props.disableSend).toBe(true);
+});
+
 test('keeps changes made and abandoned before the initial read completes', async () => {
   let resolve!: (draft: JSONContent | null) => void;
   const storage = draftStorage();

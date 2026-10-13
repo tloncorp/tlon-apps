@@ -328,6 +328,11 @@ function BareChatInput(
     removeAttachment,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
+  const [initialReferencePaths] = useState(() =>
+    attachments.flatMap((attachment) =>
+      attachment.type === 'reference' ? [attachment.path] : []
+    )
+  );
   const textEditVersion = useRef(0);
   const [pendingComposerSends, setPendingComposerSends] = useState(0);
   const pendingComposerSendsRef = useRef(0);
@@ -359,7 +364,9 @@ function BareChatInput(
     setInitializedDraft({ getDraft, editingPostId: editingPost?.id });
   }, [getDraft, editingPost?.id]);
   const pendingDraftClears = useRef(0);
+  const draftReadGeneration = useRef(0);
   const clearComposerDraft = useCallback(() => {
+    draftReadGeneration.current += 1;
     pendingDraftClears.current += 1;
     return clearDraft().finally(() => {
       pendingDraftClears.current -= 1;
@@ -1000,7 +1007,13 @@ function BareChatInput(
   const reloadDraft = useCallback(async () => {
     try {
       const version = textEditVersion.current;
+      const generation = draftReadGeneration.current;
       const draft = await getDraft();
+      if (
+        generation !== draftReadGeneration.current ||
+        pendingDraftClears.current > 0
+      )
+        return;
       if (!editingPost) {
         setInputFromDraft(draft, version === textEditVersion.current);
       }
@@ -1024,10 +1037,16 @@ function BareChatInput(
     let cancelled = false;
     if (!hasSetInitialContent && pendingDraftClears.current === 0) {
       const version = textEditVersion.current;
+      const generation = draftReadGeneration.current;
       bareChatInputLogger.log('setting initial content');
       getDraft()
         .then((draft) => {
-          if (cancelled) return;
+          if (
+            cancelled ||
+            generation !== draftReadGeneration.current ||
+            pendingDraftClears.current > 0
+          )
+            return;
           bareChatInputLogger.log('got draft', draft);
           if (!editingPost) {
             setInputFromDraft(draft, version === textEditVersion.current);
@@ -1096,15 +1115,25 @@ function BareChatInput(
   // changes. Before hydration, only save explicit local input, not the empty
   // initial render.
   useEffect(() => {
-    if (pendingDraftClears.current > 0) return;
+    if (editingPost || pendingDraftClears.current > 0) return;
+    const referencePaths = attachments.flatMap((attachment) =>
+      attachment.type === 'reference' ? [attachment.path] : []
+    );
+    const referencesChanged =
+      referencePaths.length !== initialReferencePaths.length ||
+      referencePaths.some(
+        (path, index) => path !== initialReferencePaths[index]
+      );
     if (
       !hasSetInitialContent &&
       (initializedDraft !== null ||
-        (textEditVersion.current === 0 && attachments.length === 0))
+        (textEditVersion.current === 0 && !referencesChanged))
     )
       return;
     void storeDraft(toChatDraft(controlledText, mentions, attachments));
   }, [
+    editingPost,
+    initialReferencePaths,
     hasSetInitialContent,
     initializedDraft,
     controlledText,
