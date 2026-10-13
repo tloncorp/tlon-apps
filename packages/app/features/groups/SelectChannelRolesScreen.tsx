@@ -1,19 +1,18 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGroup } from '@tloncorp/shared';
-import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, YStack } from 'tamagui';
 
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { TextInput } from '../../ui/components/Form';
-import { ListItem } from '../../ui/components/ListItem';
 import {
   MEMBER_ROLE_OPTION,
   groupRolesToOptions,
 } from '../../ui/components/ManageChannels/channelFormUtils';
-import { ScreenHeader } from '../../ui/components/ScreenHeader';
+import {
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 
 export function SelectChannelRolesScreen() {
   const navigation =
@@ -25,7 +24,6 @@ export function SelectChannelRolesScreen() {
     >();
   const route =
     useRoute<RouteProp<GroupSettingsStackParamList, 'SelectChannelRoles'>>();
-  const insets = useSafeAreaInsets();
 
   const {
     groupId,
@@ -121,80 +119,60 @@ export function SelectChannelRolesScreen() {
     });
   }, [navigation, groupId, selectedRoleIds, route.params]);
 
-  if (!group) {
-    return null;
-  }
+  const sections = useMemo<SettingsSectionModel[]>(
+    () => [
+      {
+        key: 'roles',
+        rows:
+          filteredRoles.length > 0
+            ? filteredRoles.map((role) => ({
+                key: role.value,
+                title: role.label,
+                selected: selectedRoleIds.includes(role.value),
+                multiple: true,
+                onPress: () => handleToggleRole(role.value),
+                testID: `RoleOption-${role.label}`,
+              }))
+            : [{ key: 'empty', title: 'No roles found' }],
+      },
+      {
+        key: 'create',
+        rows: [
+          {
+            key: 'create',
+            title: 'Create new role',
+            action: true,
+            onPress: handleCreateRole,
+          },
+        ],
+      },
+    ],
+    [filteredRoles, handleCreateRole, handleToggleRole, selectedRoleIds]
+  );
 
   return (
-    <View backgroundColor="$background" flex={1}>
-      <ScreenHeader
-        title="Select roles"
-        backAction={() => navigation.goBack()}
-        rightControls={
-          <ScreenHeader.TextButton
-            onPress={handleSave}
-            color="$positiveActionText"
-            testID="RoleSelectionSaveButton"
-          >
-            Save
-          </ScreenHeader.TextButton>
-        }
-      />
-      <YStack flex={1} padding="$xl" gap="$xl">
-        <TextInput
-          icon="Search"
-          placeholder="Search roles"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          testID="RoleSearchInput"
-        />
-        <ScrollView
-          flex={1}
-          contentContainerStyle={{ paddingBottom: insets.bottom }}
-        >
-          <YStack gap="$m">
-            {filteredRoles.map((role) => {
-              const isSelected = selectedRoleIds.includes(role.value);
-              return (
-                <Pressable
-                  key={role.value}
-                  onPress={() => handleToggleRole(role.value)}
-                  borderRadius="$xl"
-                  testID={`RoleOption-${role.label}`}
-                >
-                  <ListItem
-                    backgroundColor={
-                      isSelected ? '$secondaryBackground' : 'transparent'
-                    }
-                    borderColor="$secondaryBorder"
-                    borderWidth={isSelected ? 0 : 1}
-                    borderRadius="$xl"
-                    paddingHorizontal="$2xl"
-                    paddingVertical="$xl"
-                  >
-                    <ListItem.MainContent>
-                      <ListItem.Title>{role.label}</ListItem.Title>
-                    </ListItem.MainContent>
-                    {isSelected && (
-                      <ListItem.EndContent>
-                        <Icon type="Checkmark" />
-                      </ListItem.EndContent>
-                    )}
-                  </ListItem>
-                </Pressable>
-              );
-            })}
-            {filteredRoles.length === 0 && (
-              <View paddingVertical="$2xl" alignItems="center">
-                <Text color="$tertiaryText">No roles found</Text>
-              </View>
-            )}
-          </YStack>
-        </ScrollView>
-        <YStack gap="$m" paddingBottom={insets.bottom}>
-          <Button onPress={handleCreateRole} label="Create new role" />
-        </YStack>
-      </YStack>
-    </View>
+    <SettingsListScreenView
+      title="Select roles"
+      sections={sections}
+      loading={!group}
+      onBackPressed={() => navigation.goBack()}
+      showsBackOnWideWindows
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      search={{
+        value: searchQuery,
+        onChangeText: setSearchQuery,
+        placeholder: 'Search roles',
+        testID: 'RoleSearchInput',
+      }}
+      rightActions={[
+        {
+          id: 'RoleSelectionSaveButton',
+          text: 'Save',
+          tint: '$positiveActionText',
+          onPress: handleSave,
+          testID: 'RoleSelectionSaveButton',
+        },
+      ]}
+    />
   );
 }

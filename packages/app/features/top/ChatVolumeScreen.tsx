@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import {
@@ -10,13 +10,15 @@ import {
 import { useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
-  Form,
-  ScreenHeader,
-  View,
   useChatOptions,
   useChatVolumeOptions,
   useIsWindowNarrow,
 } from '../../ui';
+import {
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 
 // Account for both root and group settings navigation stacks
 type RootStackProps = NativeStackScreenProps<RootStackParamList, 'ChatVolume'>;
@@ -79,30 +81,38 @@ function ChatVolumeScreenView({
     isWindowNarrow,
   ]);
 
+  const sections = useMemo<SettingsSectionModel[]>(
+    () => [
+      {
+        key: 'volume',
+        rows: options.map((option) => ({
+          key: option.value,
+          title: option.title,
+          subtitle: option.description,
+          selected: option.value === currentLevel,
+          onPress: () => updateVolume(option.value),
+        })),
+      },
+    ],
+    [currentLevel, options, updateVolume]
+  );
+
+  const chatTitle =
+    chatType === 'channel'
+      ? channel?.title && group?.title
+        ? `${group.title}: ${channel.title}`
+        : undefined
+      : (group?.title ?? undefined);
+
   return (
-    <View backgroundColor={'$secondaryBackground'} flex={1}>
-      <ScreenHeader
-        title="Notifications"
-        subtitle={
-          chatType === 'channel'
-            ? `${group?.title}: ${channel?.title}`
-            : group?.title
-        }
-        showSubtitle={
-          (chatType === 'channel' && !!channel?.title && !!group?.title) ||
-          (chatType === 'group' && !!group?.title)
-        }
-        backgroundColor="$secondaryBackground"
-        backAction={handleGoBack}
-        useHorizontalTitleLayout={!isWindowNarrow}
-      />
-      <Form.FormFrame backgroundType="secondary">
-        <Form.RadioInput
-          options={options}
-          value={currentLevel}
-          onChange={updateVolume}
-        />
-      </Form.FormFrame>
-    </View>
+    <SettingsListScreenView
+      title="Notifications"
+      subtitle={chatTitle}
+      sections={sections}
+      onBackPressed={handleGoBack}
+      showsBackOnWideWindows
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      useHorizontalTitleLayout={!isWindowNarrow}
+    />
   );
 }

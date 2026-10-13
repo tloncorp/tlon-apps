@@ -1201,22 +1201,7 @@ export async function setGroupPrivacy(
 
   await expect(page.getByText('Group privacy')).toBeVisible();
 
-  if (privacy === 'private') {
-    await page
-      .getByTestId('GroupPrivacyScreen-RadioInput')
-      .getByText('Private', { exact: true })
-      .click();
-  } else if (privacy === 'secret') {
-    await page
-      .getByTestId('GroupPrivacyScreen-RadioInput')
-      .getByText('Secret', { exact: true })
-      .click();
-  } else {
-    await page
-      .getByTestId('GroupPrivacyScreen-RadioInput')
-      .getByText('Public', { exact: true })
-      .click();
-  }
+  await page.getByTestId(`GroupPrivacyOption-${privacy}`).click();
 
   // Wait for the privacy change to be processed
   await page.waitForTimeout(2000);
@@ -1292,12 +1277,9 @@ export async function verifyElementCount(
   expectedCount: number
 ) {
   await page.waitForTimeout(500);
-  await expect(
-    page
-      .getByTestId(containerTestId)
-      .locator('div')
-      .filter({ hasText: expectedCount.toString() })
-  ).toBeVisible();
+  await expect(page.getByTestId(containerTestId)).toContainText(
+    expectedCount.toString()
+  );
 }
 
 /**
