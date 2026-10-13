@@ -104,65 +104,6 @@ export function getBrowserNotificationGroupTitle(
   return groupTitle || fallbackTitle;
 }
 
-type BrowserNotificationCopyInput = {
-  activityType: string;
-  channelTitle?: string | null;
-  contactName: string;
-  contentText: string;
-  groupTitle?: string | null;
-  reactValue: string;
-};
-
-export function getBrowserNotificationCopy({
-  activityType,
-  channelTitle,
-  contactName,
-  contentText,
-  groupTitle,
-  reactValue,
-}: BrowserNotificationCopyInput) {
-  const flaggedKind =
-    activityType === 'flag-post'
-      ? 'post'
-      : activityType === 'flag-reply'
-        ? 'reply'
-        : null;
-  const isReact = activityType === 'react';
-  const isDmInvite = activityType === 'dm-invite';
-  // note events carry the note title as their content text
-  const noteVerb =
-    activityType === 'note-create'
-      ? 'added'
-      : activityType === 'note-edit'
-        ? 'edited'
-        : null;
-
-  let title = flaggedKind
-    ? `Flagged ${flaggedKind}`
-    : channelTitle || contactName || 'New message';
-  let body = flaggedKind
-    ? `A ${flaggedKind} by ${contactName} was flagged in your group`
-    : isReact
-      ? `${contactName} reacted${reactValue ? ` ${reactValue}` : ''} to your post`
-      : isDmInvite
-        ? // the title already names the inviter (DM titles are the counterparty)
-          'Invited you to chat'
-        : noteVerb
-          ? `${contactName || 'Someone'} ${noteVerb} a note${contentText ? `: ${contentText}` : ''}`
-          : contentText || 'New message';
-
-  if (groupTitle) {
-    title = `${title} in ${groupTitle}`;
-    if (!isReact && !flaggedKind && !noteVerb) {
-      body = contentText
-        ? `${contactName || 'Someone'}: ${contentText}`
-        : `New message in ${groupTitle}`;
-    }
-  }
-
-  return { title, body };
-}
-
 type BrowserNotificationTargetInput = {
   parentAuthorId?: string | null;
   parentId?: string | null;

@@ -19,20 +19,24 @@ import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { HomeEmptyState } from '../../features/top/DesktopEmptyStates';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../../features/top/MediaViewerScreen';
+import { BucketFileScreen } from '../../features/top/BucketFileScreen';
+import { BucketFolderScreen } from '../../features/top/BucketFolderScreen';
 import { NotesDetailScreen } from '../../features/top/NotesDetailScreen';
 import { NotesFolderScreen } from '../../features/top/NotesFolderScreen';
 import { NotesSearchScreen } from '../../features/top/NotesSearchScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { NotebookSidebarProvider } from '../../ui/contexts/notebookSidebar';
 import { getDesktopGroupInvitePreviewProps } from '../routeHelpers';
-import { HomeDrawerParamList } from '../types';
+import { DesktopChannelStackParamList, HomeDrawerParamList } from '../types';
 import { mediaViewerScreenOptions } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
 
-const HomeDrawer = createDrawerNavigator();
+const HomeDrawer = createDrawerNavigator<HomeDrawerParamList>();
 
 export const HomeNavigator = () => {
   const theme = useTheme();
@@ -159,26 +163,43 @@ function MainStack() {
   );
 }
 
-const ChannelStackNavigator = createNativeStackNavigator();
+const ChannelStackNavigator =
+  createNativeStackNavigator<DesktopChannelStackParamList>();
+
+// The Channel/DM/GroupDM routes carry either the channel params directly or a
+// nested navigator payload; flatten to the channel params the inner stack needs.
+function channelRouteParams(
+  params: HomeDrawerParamList['Channel' | 'DM' | 'GroupDM']
+) {
+  if (params && 'channelId' in params) {
+    return params;
+  }
+  if (
+    params &&
+    'params' in params &&
+    params.params &&
+    'channelId' in params.params
+  ) {
+    return params.params;
+  }
+  return undefined;
+}
 
 function ChannelStack(
-  props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
+  props: NativeStackScreenProps<
+    HomeDrawerParamList,
+    'Channel' | 'DM' | 'GroupDM'
+  >
 ) {
+  const channelParams = channelRouteParams(props.route.params);
   const navKey = () => {
-    let channelId = 'none';
-    let selectedPostId = '';
-    const params = props.route.params;
-    if (params && 'channelId' in params) {
-      channelId = String(params.channelId ?? 'none');
-      if ('selectedPostId' in params && params.selectedPostId) {
-        selectedPostId = String(params.selectedPostId);
-      }
-    } else if (params?.params && 'channelId' in params.params) {
-      channelId = String(params.params.channelId ?? 'none');
-      if ('selectedPostId' in params.params && params.params.selectedPostId) {
-        selectedPostId = String(params.params.selectedPostId);
-      }
-    }
+    const channelId = String(channelParams?.channelId ?? 'none');
+    const selectedPostId =
+      channelParams &&
+      'selectedPostId' in channelParams &&
+      channelParams.selectedPostId
+        ? String(channelParams.selectedPostId)
+        : '';
     return selectedPostId ? `${channelId}:${selectedPostId}` : channelId;
   };
 
@@ -193,7 +214,7 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="ChannelRoot"
           component={ChannelScreen}
-          initialParams={props.route.params}
+          initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen
           name="GroupSettings"
@@ -206,22 +227,32 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="Post"
           component={PostScreen}
-          initialParams={props.route.params}
+          initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen
           name="NotesDetail"
           component={NotesDetailScreen}
-          initialParams={props.route.params}
+          initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen
           name="NotesFolder"
           component={NotesFolderScreen}
-          initialParams={props.route.params}
+          initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen
           name="NotesSearch"
           component={NotesSearchScreen}
-          initialParams={props.route.params}
+          initialParams={channelParams}
+        />
+        <ChannelStackNavigator.Screen
+          name="BucketFolder"
+          component={BucketFolderScreen}
+          initialParams={channelParams}
+        />
+        <ChannelStackNavigator.Screen
+          name="BucketFile"
+          component={BucketFileScreen}
+          initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen
           name="MediaViewer"
@@ -231,6 +262,14 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="UserProfile"
           component={UserProfileScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ScheduledTasks"
+          component={ScheduledTasksScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ScheduledTaskEditor"
+          component={ScheduledTaskEditorScreen}
         />
         <ChannelStackNavigator.Screen
           name="EditProfile"

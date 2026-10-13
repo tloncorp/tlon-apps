@@ -12,6 +12,7 @@ import {
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
   hasMainChannelUnreadActivity,
+  readAttemptStamp,
   uploadAsset,
   useLiveThreadUnreadsByChannel,
 } from '@tloncorp/shared';
@@ -27,11 +28,13 @@ import {
   View,
   XStack,
   YStack,
+  getTokens,
   getVariableValue,
   useTheme,
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
+import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -48,9 +51,11 @@ import { FileDrop } from '../FileDrop';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PostCollectionView } from '../PostCollectionView';
-import SystemNotices from '../SystemNotices';
+import SystemNotices, { hasRelevantJoinRequests } from '../SystemNotices';
+import { AgentOnboardingBackTooltip } from '../Wayfinding/Notices';
 import {
   floatingPinnedPostBannerClearance,
+  getPostCollectionTopInset,
   useConversationInsets,
 } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
@@ -59,17 +64,19 @@ import {
   DraftInputHandle,
   GalleryDraftType,
 } from '../draftInputs/shared';
-import {
-  ConnectedPostView,
-  PostCollectionHandle,
-} from '../postCollectionViews/shared';
+import { PostCollectionHandle } from '../postCollectionViews/shared';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
+import { ConversationLayout } from './ConversationLayout';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
+import {
+  findAgentOnboardingOrientationCompletePostId,
+  isAgentOnboardingFirstGroupRequestPost,
+} from './postVisibility';
 
 const THREAD_UNREAD_OVERLAY_CHANNEL_TYPES: db.ChannelType[] = [
   'chat',
@@ -271,12 +278,23 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
+  /**
+   * The channel is a top-level tab's own screen: it has nothing to go back to,
+   * and the floating tab bar would otherwise cover its message input.
+   */
+  isTopLevelTab?: boolean;
+  disableBackButton?: boolean;
+  onPressLogout?: () => void;
+  suppressEmptyState?: boolean;
+  suppressAnimatedSendScroll?: boolean;
+  pendingThinkingLabel?: string;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
   goToGroupSettings: () => void;
   goToMediaViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
+  goToScheduledTasks?: () => void;
   goToContextLensRuns?: () => void;
   goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   goToUserProfile: (userId: string) => void;
@@ -313,8 +331,15 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
+  isTopLevelTab,
+  disableBackButton,
+  onPressLogout,
+  suppressEmptyState,
+  suppressAnimatedSendScroll,
+  pendingThinkingLabel,
   goToChatDetails,
   goToSearch,
+  goToScheduledTasks,
   goToContextLensRuns,
   goToContextLensRun,
   goToMediaViewer,
@@ -356,9 +381,83 @@ export function Channel({
   const title = utils.useChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const currentUserId = useCurrentUserId();
+  const groupAgents = db.agentGroupAgents.useValue();
+  const groupId = group?.id ?? channel.groupId ?? undefined;
+  const groupAgentId = groupId ? groupAgents[groupId] : undefined;
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
+  const isNarrow = useIsWindowNarrow();
+  const tabBarClearance = useTopLevelTabBarClearance();
+  const inView = useIsFocused();
   const collectionRef = useRef<PostCollectionHandle>(null);
+  const orientationCompletePostId = useMemo(
+    () => findAgentOnboardingOrientationCompletePostId(posts, groupAgentId),
+    [groupAgentId, posts]
+  );
+  const hasFirstGroupOnboardingRequest = useMemo(
+    () =>
+      posts?.some(
+        (post) =>
+          post.authorId === currentUserId &&
+          isAgentOnboardingFirstGroupRequestPost(post)
+      ) ?? false,
+    [currentUserId, posts]
+  );
+  const [showOnboardingBackTooltip, setShowOnboardingBackTooltip] =
+    useState(false);
+  const claimedOnboardingBackTooltipRef = useRef<string | null>(null);
+  const {
+    value: shownOnboardingBackTooltips,
+    isLoading: shownOnboardingBackTooltipsLoading,
+  } = db.agentOnboardingBackTooltipShown.useStorageItem();
+
+  useEffect(() => {
+    if (
+      disableBackButton ||
+      // The hint points at the back control. A tab root has none, so the
+      // one-shot waits for a pushed conversation that does.
+      isTopLevelTab ||
+      !inView ||
+      !isNarrow ||
+      shownOnboardingBackTooltipsLoading ||
+      !hasFirstGroupOnboardingRequest ||
+      !orientationCompletePostId ||
+      claimedOnboardingBackTooltipRef.current === orientationCompletePostId ||
+      shownOnboardingBackTooltips[orientationCompletePostId]
+    ) {
+      return;
+    }
+
+    claimedOnboardingBackTooltipRef.current = orientationCompletePostId;
+    setShowOnboardingBackTooltip(true);
+  }, [
+    disableBackButton,
+    hasFirstGroupOnboardingRequest,
+    inView,
+    isNarrow,
+    isTopLevelTab,
+    orientationCompletePostId,
+    shownOnboardingBackTooltips,
+    shownOnboardingBackTooltipsLoading,
+  ]);
+
+  useEffect(() => {
+    if (!showOnboardingBackTooltip || !inView || !orientationCompletePostId) {
+      return;
+    }
+    // Persist only after a focused render has actually shown the hint. This
+    // avoids consuming the one-shot marker while another screen covers the
+    // still-mounted channel.
+    void db.agentOnboardingBackTooltipShown.setValue((current) =>
+      current[orientationCompletePostId]
+        ? current
+        : { ...current, [orientationCompletePostId]: true }
+    );
+  }, [inView, orientationCompletePostId, showOnboardingBackTooltip]);
+
+  useEffect(() => {
+    if (!inView) setShowOnboardingBackTooltip(false);
+  }, [inView]);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const isDM = isDmChannelId(channel.id);
@@ -422,7 +521,6 @@ export function Channel({
 
   const { attachAssets } = useAttachmentContext();
 
-  const inView = useIsFocused();
   const isUserActive = useIsUserActive();
   const hasLoaded = !!(posts && channel);
   const shouldCheckThreadUnreadActivity =
@@ -431,9 +529,14 @@ export function Channel({
     (channel?.unread?.notify === true &&
       channel.unread.count === 0 &&
       channel.unread.countWithoutThreads === 0);
+  // markChannelRead always reads notes channels deep, so a retry is only
+  // warranted when their note (thread) unreads change too
+  const readCoversThreads = channel?.id.startsWith('notes/') ?? false;
   const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
     useLiveThreadUnreadsByChannel(
-      shouldCheckThreadUnreadActivity ? (channel?.id ?? null) : null
+      shouldCheckThreadUnreadActivity || readCoversThreads
+        ? (channel?.id ?? null)
+        : null
     );
   const hasChildThreadUnreadActivity =
     shouldCheckThreadUnreadActivity && (threadUnreads?.length ?? 0) > 0;
@@ -444,6 +547,12 @@ export function Channel({
     childThreadUnreadActivityKnown,
     hasChildThreadUnreadActivity,
   });
+  const currentReadAttemptStamp = readAttemptStamp(
+    channel?.unread,
+    readCoversThreads ? (threadUnreads ?? []) : null
+  );
+  // stamp of the unread we last tried to mark read
+  const lastReadAttemptRef = useRef<string | null>(null);
   const shouldShowPostLoading =
     channel.type !== 'notes' && Boolean(isLoadingPosts);
 
@@ -510,12 +619,28 @@ export function Channel({
     // Only mark as read when user is actively using the app (not idle)
     // This prevents auto-marking on desktop when user is AFK
     if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
+      // a failed read rolls the unread back unchanged, which re-runs this
+      // effect; only try again once there is new activity
+      if (currentReadAttemptStamp === lastReadAttemptRef.current) {
+        return;
+      }
       // add slight delay to allow high priority tasks to hit the sync queue first
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
+        // recorded only once the read is sent, so a re-run that cancels this
+        // timer still gets to schedule its own
+        lastReadAttemptRef.current = currentReadAttemptStamp;
         markRead();
       }, 150);
+      return () => clearTimeout(timeout);
     }
-  }, [hasUnreadActivity, hasLoaded, inView, isUserActive, markRead]);
+  }, [
+    hasUnreadActivity,
+    hasLoaded,
+    inView,
+    isUserActive,
+    markRead,
+    currentReadAttemptStamp,
+  ]);
 
   const handleRefPress = useCallback(
     (refChannel: db.Channel, post: db.Post) => {
@@ -585,20 +710,40 @@ export function Channel({
 
   const draftInputRef = useRef<DraftInputHandle>(null);
 
+  // Live group refreshes can briefly clear the query result while a new post
+  // is inserted. Keep the channel's last matching group available so trusted
+  // A2UI does not flash its text fallback or disable its controls mid-message.
+  const stableGroupRef = useRef<db.Group | null>(group);
+  if (group && (!channel.groupId || group.id === channel.groupId)) {
+    stableGroupRef.current = group;
+  }
+  const stableGroup =
+    groupIsLoading && stableGroupRef.current?.id === channel.groupId
+      ? stableGroupRef.current
+      : group;
+  if (!groupIsLoading && !group) {
+    stableGroupRef.current = null;
+  }
+
+  // The onboarding lock hides the free-form composer below, but its A2UI
+  // choices still send ordinary channel posts through this draft context.
   const canStartDraft =
     canRead &&
     canWrite &&
     negotiationMatch &&
-    !(channel.groupId && !group && !groupIsLoading) &&
+    !(channel.groupId && !stableGroup && !groupIsLoading) &&
     !channel.isDmInvite &&
     !editingPost;
 
-  // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
+  // Agent setup drives its scroll from the durable post list below. Starting
+  // an animated send scroll while that list is preserving its end anchor makes
+  // the two corrections visibly fight.
   const scrollToNewMessage = useCallback(() => {
+    if (suppressAnimatedSendScroll) return;
     requestAnimationFrame(() => {
       collectionRef.current?.scrollToLatest?.({ animated: true });
     });
-  }, []);
+  }, [suppressAnimatedSendScroll]);
 
   const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
     draftInputRef.current?.startDraft?.(mode);
@@ -617,12 +762,12 @@ export function Channel({
       draftInputRef,
       editingPost,
       getDraft,
-      group,
+      group: stableGroup,
       onPresentationModeChange: setDraftInputPresentationMode,
       sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
         await finalizeAndSendPost(draft, options);
-        if (!draft.isEdit) {
+        if (!draft.isEdit && !options?.scrollHandled) {
           scrollToNewMessage();
         }
       },
@@ -639,7 +784,7 @@ export function Channel({
       clearDraft,
       editingPost,
       getDraft,
-      group,
+      stableGroup,
       handleOpenDraft,
       inputShouldBlur,
       setEditingPost,
@@ -648,6 +793,7 @@ export function Channel({
   );
 
   const handleGoBack = useCallback(() => {
+    if (disableBackButton) return;
     if (
       draftInputPresentationMode === 'fullscreen' &&
       draftInputRef.current != null
@@ -658,7 +804,13 @@ export function Channel({
     } else {
       goBack();
     }
-  }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
+  }, [
+    disableBackButton,
+    goBack,
+    draftInputPresentationMode,
+    draftInputRef,
+    setEditingPost,
+  ]);
 
   useEffect(() => {
     if (startDraft) {
@@ -702,7 +854,6 @@ export function Channel({
     didProcessShareIntent: handleProcessedShareIntent,
   });
 
-  const isNarrow = useIsWindowNarrow();
   const {
     contextLensAvailable,
     contextLensOpen,
@@ -761,9 +912,9 @@ export function Channel({
   const usesFloatingPinnedPostBanner = isChatChannel && supportsLiquidGlass();
   const shouldReservePinnedPostBannerSpace =
     usesFloatingPinnedPostBanner && shouldRenderPinnedPostBanner;
-  const { contentInsets, floatingHeaderHeight, onFloatingHeightChange } =
+  const { contentInsets, navigationHeaderHeight, floatingHeaderHeight } =
     useConversationInsets({
-      hasFloatingComposer: draftInputType === DraftInputId.chat,
+      hasFloatingComposer: false,
       hasTransparentHeader: isChatChannel,
       hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
     });
@@ -772,14 +923,20 @@ export function Channel({
     (shouldReservePinnedPostBannerSpace
       ? floatingPinnedPostBannerClearance
       : 0);
+  const shouldRenderJoinRequestNotice =
+    !!includeJoinRequestNotice && hasRelevantJoinRequests(group);
   const postCollectionInsets = useMemo(
     () => ({
       ...contentInsets,
-      // The channel container clears floating top chrome so notices and side
-      // panels share the list's visible content boundary.
-      top: Math.max(0, contentInsets.top - sharedTopInset),
+      // Keep the scroll view beneath transparent chrome so iOS can render its
+      // top edge effect. A visible fixed notice owns that clearance instead.
+      top: getPostCollectionTopInset({
+        contentTopInset: contentInsets.top,
+        fixedLeadingContentOwnsInset: shouldRenderJoinRequestNotice,
+        sharedTopInset,
+      }),
     }),
-    [contentInsets, sharedTopInset]
+    [contentInsets, sharedTopInset, shouldRenderJoinRequestNotice]
   );
 
   return (
@@ -792,14 +949,21 @@ export function Channel({
           >
             <DraftInputContextProvider value={draftInputContext}>
               <NavigationProvider
-                onPressRef={handleRefPress}
-                onPressGroupRef={onPressGroupRef}
-                onPressGoToDm={goToDm}
-                onGoToUserProfile={goToUserProfile}
-                onGoToGroupSettings={goToGroupSettings}
+                onPressRef={disableBackButton ? undefined : handleRefPress}
+                onPressGroupRef={
+                  disableBackButton ? undefined : onPressGroupRef
+                }
+                onPressGoToDm={disableBackButton ? undefined : goToDm}
+                onGoToUserProfile={
+                  disableBackButton ? undefined : goToUserProfile
+                }
+                onGoToGroupSettings={
+                  disableBackButton ? undefined : goToGroupSettings
+                }
               >
                 <View backgroundColor={backgroundColor} flex={1}>
                   <FileDrop
+                    dropEnabled={channel.type !== 'buckets'}
                     flexDirection="column"
                     justifyContent="space-between"
                     width="100%"
@@ -813,17 +977,27 @@ export function Channel({
                           group={group}
                           title={title ?? ''}
                           description={''}
+                          backDisabled={disableBackButton}
                           goBack={
-                            isNarrow ||
+                            (isNarrow && !isTopLevelTab) ||
                             draftInputPresentationMode === 'fullscreen'
                               ? handleGoBack
                               : undefined
                           }
-                          goToChatDetails={goToChatDetails}
-                          goToProfile={handleGoToProfile}
-                          goToSearch={goToSearch}
+                          goToChatDetails={
+                            disableBackButton ? undefined : goToChatDetails
+                          }
+                          goToProfile={
+                            disableBackButton ? undefined : handleGoToProfile
+                          }
+                          goToSearch={
+                            disableBackButton ? undefined : goToSearch
+                          }
+                          goToScheduledTasks={
+                            disableBackButton ? undefined : goToScheduledTasks
+                          }
                           onToggleContextLens={
-                            contextLensAvailable
+                            !disableBackButton && contextLensAvailable
                               ? isNarrow && goToContextLensRuns
                                 ? goToContextLensRuns
                                 : toggleContextLens
@@ -834,8 +1008,27 @@ export function Channel({
                           }
                           contextLensActive={contextLensActive}
                           showSpinner={showHeaderLoading}
-                          showSearchButton={isChatChannel}
+                          showSearchButton={isChatChannel && !disableBackButton}
+                          onPressLogout={onPressLogout}
                         />
+                        {showOnboardingBackTooltip &&
+                        inView &&
+                        !disableBackButton ? (
+                          <AgentOnboardingBackTooltip
+                            top={
+                              // iOS portals into full-window coordinates, so
+                              // include opaque as well as floating headers.
+                              Platform.OS === 'ios'
+                                ? navigationHeaderHeight
+                                : Platform.OS === 'web'
+                                  ? 30
+                                  : 0
+                            }
+                            onDismiss={() =>
+                              setShowOnboardingBackTooltip(false)
+                            }
+                          />
+                        ) : null}
                         {shouldRenderPinnedPostBanner && pinnedPost && (
                           <PinnedPostBanner
                             post={pinnedPost}
@@ -853,21 +1046,39 @@ export function Channel({
                           <XStack
                             alignItems="stretch"
                             flex={1}
-                            paddingTop={sharedTopInset || undefined}
+                            paddingTop={
+                              draftInputPresentationMode === 'fullscreen'
+                                ? sharedTopInset || undefined
+                                : undefined
+                            }
                             position="relative"
                           >
-                            <YStack alignItems="stretch" flex={1} minWidth={0}>
-                              {includeJoinRequestNotice && (
+                            <ConversationLayout
+                              bottomChromeClearance={
+                                isTopLevelTab ? tabBarClearance : 0
+                              }
+                              enabled={
+                                draftInputType === DraftInputId.chat &&
+                                !readOnlyNoticeType
+                              }
+                            >
+                              {shouldRenderJoinRequestNotice && (
                                 <SystemNotices.ConnectedJoinRequestNotice
                                   group={group}
                                   onViewRequests={goToGroupSettings}
-                                  marginTop="$l"
+                                  marginTop={
+                                    sharedTopInset + getTokens().space.l.val
+                                  }
                                 />
                               )}
                               <AnimatePresence>
                                 {draftInputPresentationMode !==
                                   'fullscreen' && (
-                                  <View flex={1}>
+                                  <View
+                                    flex={1}
+                                    minHeight={0}
+                                    overflow="hidden"
+                                  >
                                     <PostCollectionContext.Provider
                                       value={{
                                         contentInsets: postCollectionInsets,
@@ -912,11 +1123,13 @@ export function Channel({
                                         onLoadNewerPosts,
                                         onLoadOlderPosts,
                                         posts: posts ?? undefined,
+                                        pendingThinkingLabel,
+                                        suppressEmptyState,
                                         scrollToBottom: onPressScrollToBottom,
                                         selectedPostId,
                                         setEditingPost,
                                         LegacyPostView: PostView,
-                                        PostView: ConnectedPostView,
+                                        PostView,
                                       }}
                                     >
                                       <PostCollectionView
@@ -934,8 +1147,8 @@ export function Channel({
                                 <DraftInputView
                                   draftInputContext={draftInputContext}
                                   type={draftInputType}
-                                  onFloatingHeightChange={
-                                    onFloatingHeightChange
+                                  bottomChromeClearance={
+                                    isTopLevelTab ? tabBarClearance : 0
                                   }
                                 />
                               ) : null}
@@ -946,7 +1159,7 @@ export function Channel({
                                   goBack={goBack}
                                 />
                               )}
-                            </YStack>
+                            </ConversationLayout>
                             {contextLensAvailable &&
                               contextLensOpen &&
                               !isNarrow && (
@@ -958,6 +1171,7 @@ export function Channel({
                                     clearSelectedContextLensMessage
                                   }
                                   channelId={channel.id}
+                                  topInset={sharedTopInset}
                                 />
                               )}
                           </XStack>

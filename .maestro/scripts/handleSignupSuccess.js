@@ -1,9 +1,12 @@
 const endpoint = `${MAESTRO_SERVERLESS_INFRA_API}/sendAlertBotMessage`;
 
 if (output.didComplete) {
-  const duration = Number(output.operationEnd) - Number(output.operationStart);
-  const durationSeconds = (duration / 1000).toFixed(0);
-  const accountURL = `${MAESTRO_HOSTING_DASH}/users?users-email=${output.signupEmail}`;
+  const nodeReadyDuration =
+    Number(output.initialRailVisibleAt) - Number(output.nodeReadyStartedAt);
+  const starterSetupDuration =
+    Number(output.starterReadyAt) - Number(output.initialRailVisibleAt);
+  const nodeReadySeconds = (nodeReadyDuration / 1000).toFixed(0);
+  const starterSetupSeconds = (starterSetupDuration / 1000).toFixed(0);
   const workflowsURL = `${MAESTRO_EXPO_PROJECT}/workflows`;
 
   http.post(endpoint, {
@@ -15,14 +18,7 @@ if (output.didComplete) {
       content: [
         {
           inline: [
-            '✅ E2E Signup Success: ',
-            {
-              link: {
-                href: accountURL,
-                content: 'automated user',
-              },
-            },
-            ` completed signup in ${durationSeconds} seconds (`,
+            '✅ E2E Signup Success (',
             {
               link: {
                 href: workflowsURL,
@@ -31,6 +27,12 @@ if (output.didComplete) {
             },
             `)`,
           ],
+        },
+        {
+          inline: [`Node ready wait: ${nodeReadySeconds} seconds`],
+        },
+        {
+          inline: [`Bot dialogue duration: ${starterSetupSeconds} seconds`],
         },
       ],
     }),

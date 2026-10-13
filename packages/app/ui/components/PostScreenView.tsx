@@ -1,8 +1,10 @@
+import { useIsFocused } from '@react-navigation/native';
 import { ChannelContentConfiguration } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
 import {
   DraftInputId,
+  configurationFromChannel,
   isChatChannel as getIsChatChannel,
   hasUnreadActivity,
   makePrettyDayAndTime,
@@ -13,6 +15,8 @@ import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import {
+  Dispatch,
+  SetStateAction,
   createContext,
   memo,
   useCallback,
@@ -23,14 +27,19 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack } from 'tamagui';
 
+import useAppStatus from '../../hooks/useAppStatus';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
 import { useCurrentUserId } from '../contexts/appDataContext';
-import { useAttachmentContext } from '../contexts/attachment';
+import {
+  AttachmentDraftsProvider,
+  ScopedAttachmentProvider,
+  useAttachmentContext,
+} from '../contexts/attachment';
 import { ChannelProvider } from '../contexts/channel';
 import { NavigationProvider } from '../contexts/navigation';
 import { ScrollContextProvider } from '../contexts/scroll';
@@ -49,6 +58,7 @@ import {
   ConversationComposerPlacement,
   DraftInputView,
 } from './Channel/DraftInputView';
+import { ConversationLayout } from './Channel/ConversationLayout';
 import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
@@ -58,11 +68,14 @@ import { DraftInputContext } from './draftInputs';
 import {
   DraftInputContextProvider,
   DraftInputHandle,
+  type DraftSendOptions,
+  GalleryDraftType,
 } from './draftInputs/shared';
 
 const noop = async () => {};
 
 const HIGHLIGHT_DURATION_MS = 5000;
+const isAppForeground = () => AppState.currentState === 'active';
 
 interface ChatThreadHandle {
   posts: db.Post[];
@@ -102,13 +115,16 @@ interface ChannelContext {
 interface GalleryDraftInputProps {
   channel: db.Channel;
   editingPost?: db.Post;
-  getDraft: (draftType?: string) => Promise<JSONContent | null>;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   group: db.Group | null;
-  clearDraft: (draftType?: string) => Promise<void>;
+  clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
-  setShouldBlur: (shouldBlur: boolean) => void;
+  setShouldBlur: Dispatch<SetStateAction<boolean>>;
   shouldBlur: boolean;
-  storeDraft: (content: JSONContent, draftType?: string) => Promise<void>;
+  storeDraft: (
+    content: JSONContent,
+    draftType?: GalleryDraftType
+  ) => Promise<void>;
 }
 
 const GalleryDraftInput = memo(function GalleryDraftInput({
@@ -172,7 +188,22 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
   );
 });
 
-export function PostScreenView({
+export function PostScreenView(
+  props: Parameters<typeof PostScreenViewContent>[0]
+) {
+  const { canUpload } = useAttachmentContext();
+  return (
+    <AttachmentDraftsProvider
+      key={props.channel.id}
+      canUpload={canUpload}
+      uploadAsset={store.uploadAsset}
+    >
+      <PostScreenViewContent {...props} />
+    </AttachmentDraftsProvider>
+  );
+}
+
+function PostScreenViewContent({
   channel,
   group,
   parentPost,
@@ -288,12 +319,6 @@ export function PostScreenView({
     [onGroupAction]
   );
 
-  const draftCallbacks = store.usePostDraftCallbacks(
-    focusedPost == null
-      ? null
-      : { draftKey: store.draftKeyFor.thread({ parentPostId: focusedPost.id }) }
-  );
-
   // Separate draft callbacks for editing the parent post (gallery/notebook).
   // This uses a different key to prevent edit drafts from leaking to
   // BareChatInput, which uses the thread key for reply drafts.
@@ -306,17 +331,17 @@ export function PostScreenView({
   const { attachAssets, clearAttachments } = useAttachmentContext();
 
   const handleGoBack = useCallback(() => {
-    // Always clear attachments when leaving thread to prevent them from
-    // appearing in the main chat input
-    clearAttachments();
     if (isEditingParent) {
+      clearAttachments();
       setEditingPost?.(undefined);
       if (channel.type !== 'notebook') {
         goBack?.();
       } else {
-        draftCallbacks?.clearDraft();
+        parentEditDraftCallbacks?.clearDraft();
       }
     } else {
+      // The post screen owns its attachment provider. Keep its draft intact
+      // during the back transition; unmounting releases the transient state.
       goBack?.();
     }
   }, [
@@ -324,7 +349,7 @@ export function PostScreenView({
     goBack,
     isEditingParent,
     setEditingPost,
-    draftCallbacks,
+    parentEditDraftCallbacks,
     clearAttachments,
   ]);
 
@@ -376,12 +401,14 @@ export function PostScreenView({
             <FileDrop
               backgroundColor="$background"
               flex={1}
+              dropEnabled={!!isEditingParent && channel.type === 'gallery'}
               onAssetsDropped={attachAssets}
             >
               <View flex={1}>
                 <YStack flex={1} backgroundColor={'$background'}>
                   <ConnectedHeader
                     channel={channel}
+                    group={group}
                     goBack={handleGoBack}
                     showEditButton={showEdit}
                     goToEdit={handleEditPress}
@@ -426,37 +453,35 @@ export function PostScreenView({
                             />
                           </YStack>
                         ) : mode === 'single' ? (
-                          <ScrollContextProvider>
-                            <SinglePostView
-                              {...{
-                                channel,
-                                chatThreadHandleRef,
-                                editingPost,
-                                goBack,
-                                group,
-                                handleGoToImage,
-                                inspectContextLensPost:
-                                  contextLensAvailable && contextLensOpen
-                                    ? inspectContextLensPost
-                                    : undefined,
-                                openContextLensForPost:
-                                  contextLensAvailable && !isWindowNarrow
-                                    ? openContextLensForPost
-                                    : undefined,
-                                onGoToBotRun:
-                                  contextLensAvailable && isWindowNarrow
-                                    ? goToContextLensRun
-                                    : undefined,
-                                negotiationMatch,
-                                onPressDelete,
-                                onPressRetry,
-                                parentEditDraftCallbacks,
-                                parentPost,
-                                selectedPostId,
-                                setEditingPost,
-                              }}
-                            />
-                          </ScrollContextProvider>
+                          <PostWithAttachments
+                            {...{
+                              channel,
+                              chatThreadHandleRef,
+                              editingPost,
+                              goBack,
+                              group,
+                              handleGoToImage,
+                              inspectContextLensPost:
+                                contextLensAvailable && contextLensOpen
+                                  ? inspectContextLensPost
+                                  : undefined,
+                              openContextLensForPost:
+                                contextLensAvailable && !isWindowNarrow
+                                  ? openContextLensForPost
+                                  : undefined,
+                              onGoToBotRun:
+                                contextLensAvailable && isWindowNarrow
+                                  ? goToContextLensRun
+                                  : undefined,
+                              negotiationMatch,
+                              onPressDelete,
+                              onPressRetry,
+                              parentEditDraftCallbacks,
+                              parentPost,
+                              selectedPostId,
+                              setEditingPost,
+                            }}
+                          />
                         ) : (
                           <CarouselPostScreenContent
                             flex={1}
@@ -507,15 +532,18 @@ export function PostScreenView({
 
 function ConnectedHeader({
   channel,
+  group,
   ...passedProps
 }: ForwardingProps<
   typeof ChannelHeader,
   {
     channel: db.Channel;
+    group: db.Group | null;
   },
   'channel' | 'group' | 'title' | 'description' | 'showSearchButton' | 'post'
 >) {
   const isChatChannel = getIsChatChannel(channel);
+  const chatTitle = utils.useChatTitle(channel, group);
 
   const { focusedPost: parentPost } = useContext(FocusedPostContext);
 
@@ -523,7 +551,7 @@ function ConnectedHeader({
     ? makePrettyDayAndTime(new Date(parentPost.receivedAt)).asString
     : '';
   const headerTitle = isChatChannel
-    ? `Thread: ${channel?.title || prettyTime}`
+    ? `Thread: ${chatTitle || prettyTime}`
     : parentPost?.title && parentPost.title !== ''
       ? parentPost.title
       : 'Post';
@@ -531,8 +559,9 @@ function ConnectedHeader({
   return (
     <ChannelHeader
       channel={channel}
-      group={channel.group}
+      group={group}
       title={headerTitle}
+      preferProvidedTitle={isChatChannel}
       description={''}
       showSearchButton={false}
       post={parentPost ?? undefined}
@@ -663,16 +692,64 @@ function SinglePostView({
   );
   const hasThreadUnreadActivity = hasUnreadActivity(liveThreadUnread);
 
-  const { data: threadPosts, isLoading: isLoadingThreadPosts } =
-    store.useThreadPosts({
-      postId: parentPost.id,
-      authorId: parentPost.authorId,
-      channelId: channel.id,
-    });
+  const threadQuery = store.useThreadPosts({
+    postId: parentPost.id,
+    authorId: parentPost.authorId,
+    channelId: channel.id,
+  });
+  const { data: threadPosts, isLoading: isLoadingThreadPosts } = threadQuery;
+
+  const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
+  const includeDeletedPosts =
+    configurationFromChannel(channel).includeDeletedPosts && showDeleteMarkers;
+  const visibleThreadPosts = useMemo(
+    () =>
+      includeDeletedPosts
+        ? threadPosts
+        : threadPosts?.filter((post) => !post.isDeleted),
+    [includeDeletedPosts, threadPosts]
+  );
+  const selectedReplyIsHidden = Boolean(
+    !includeDeletedPosts &&
+    selectedPostId &&
+    threadPosts?.some((post) => post.id === selectedPostId && post.isDeleted)
+  );
 
   const posts = useMemo(() => {
-    return parentPost ? [...(threadPosts ?? []), parentPost] : null;
-  }, [parentPost, threadPosts]);
+    return parentPost ? [...(visibleThreadPosts ?? []), parentPost] : null;
+  }, [parentPost, visibleThreadPosts]);
+
+  const screenIsFocused = useIsFocused();
+  const appStatus = useAppStatus();
+  const threadTelemetryView = useMemo(
+    () => ({
+      queryReplies: threadPosts,
+      listReplies: visibleThreadPosts ?? [],
+      includeDeleted: includeDeletedPosts,
+      queryStatus: threadQuery.status,
+      fetchStatus: threadQuery.fetchStatus,
+      dataUpdatedAt: threadQuery.dataUpdatedAt,
+      errorUpdatedAt: threadQuery.errorUpdatedAt,
+      parentReplyCount: parentPost.replyCount,
+    }),
+    [
+      threadPosts,
+      visibleThreadPosts,
+      includeDeletedPosts,
+      threadQuery.status,
+      threadQuery.fetchStatus,
+      threadQuery.dataUpdatedAt,
+      threadQuery.errorUpdatedAt,
+      parentPost.replyCount,
+    ]
+  );
+  store.useThreadCatchupTelemetry({
+    postId: parentPost.id,
+    channelId: channel.id,
+    active: screenIsFocused && isFocusedPost && appStatus === 'active',
+    isForeground: isAppForeground,
+    view: threadTelemetryView,
+  });
 
   const currentUserId = useCurrentUserId();
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
@@ -742,19 +819,19 @@ function SinglePostView({
   // This wires into Scroller's anchor initialization, giving us retry/recovery
   // for unmeasured items instead of a one-shot imperative scroll.
   const threadAnchor: ScrollAnchor | null = useMemo(() => {
-    if (isChatChannel && selectedPostId) {
+    if (isChatChannel && selectedPostId && !selectedReplyIsHidden) {
       return { type: 'selected', postId: selectedPostId };
     }
     return null;
-  }, [isChatChannel, selectedPostId]);
+  }, [isChatChannel, selectedPostId, selectedReplyIsHidden]);
 
   // Trigger the 5s temporary highlight when selectedPostId changes.
   // Scrolling is handled by the anchor via useAnchorScrollLock.
   useEffect(() => {
-    if (isChatChannel && selectedPostId) {
+    if (isChatChannel && selectedPostId && !selectedReplyIsHidden) {
       highlightPost(selectedPostId);
     }
-  }, [isChatChannel, selectedPostId, highlightPost]);
+  }, [isChatChannel, selectedPostId, selectedReplyIsHidden, highlightPost]);
 
   const containingProperties: Partial<
     React.ComponentPropsWithoutRef<typeof View>
@@ -788,7 +865,7 @@ function SinglePostView({
   );
 
   const sendFromThreadComposer = useCallback(
-    async (draft: domain.PostDataDraft, options?: store.PostSendOptions) => {
+    async (draft: domain.PostDataDraft, options?: DraftSendOptions) => {
       setEditingPost?.(undefined);
       if (draft.isEdit) {
         await store.finalizeAndSendPost(draft, options);
@@ -797,7 +874,9 @@ function SinglePostView({
 
       draft.replyToPostId = parentPost.id;
       await store.finalizeAndSendPost(draft, options);
-      scrollToNewReply();
+      if (!options?.scrollHandled) {
+        scrollToNewReply();
+      }
     },
     [parentPost, scrollToNewReply, setEditingPost]
   );
@@ -813,15 +892,16 @@ function SinglePostView({
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery')
     );
+  const hasDockedReplyInput = canRenderReplyInput && isChatChannel;
   const { bottom } = useSafeAreaInsets();
-  const { contentInsets, onFloatingHeightChange } = useConversationInsets({
-    hasFloatingComposer: canRenderReplyInput,
+  const { contentInsets } = useConversationInsets({
+    hasFloatingComposer: false,
     hasTransparentHeader: isChatChannel,
   });
-  // Native floating composers include the home-indicator inset. Web composers
+  // Native docked composers include the home-indicator inset. Web composers
   // stay inline, so the screen still owns its bottom safe-area clearance.
   const screenBottomInset =
-    canRenderReplyInput && Platform.OS !== 'web' ? undefined : bottom;
+    hasDockedReplyInput && Platform.OS !== 'web' ? undefined : bottom;
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
@@ -875,7 +955,10 @@ function SinglePostView({
   ) : null;
 
   return (
-    <YStack flex={1} paddingBottom={screenBottomInset}>
+    <ConversationLayout
+      enabled={!!hasDockedReplyInput}
+      bottomInset={screenBottomInset}
+    >
       {/* Thread composer context sends new drafts as replies; edits preserve their original target. */}
       <DraftInputContextProvider value={threadComposerContext}>
         {parentPost ? (
@@ -905,10 +988,10 @@ function SinglePostView({
 
         {replyInput && (
           <ConversationComposerPlacement
-            enabled
+            enabled={hasDockedReplyInput}
+            avoidKeyboard={!hasDockedReplyInput}
             contentProps={containingProperties}
             inlineID="reply-container"
-            onFloatingHeightChange={onFloatingHeightChange}
           >
             {replyInput}
           </ConversationComposerPlacement>
@@ -965,7 +1048,7 @@ function SinglePostView({
           />
         </View>
       ) : null}
-    </YStack>
+    </ConversationLayout>
   );
 }
 
@@ -1105,23 +1188,43 @@ export function PresentationalCarouselPostScreenContent({
   ) : null;
 }
 
-function _CarouselPost({
-  channel,
+function CarouselPostWithAttachments({
   parentPost,
-  ...channelContext
+  editingPost,
+  ...props
 }: { channel: db.Channel; parentPost: db.Post } & ChannelContext) {
   return (
     <Carousel.Item flex={1}>
-      <ScrollContextProvider>
-        <SinglePostView
-          {...{
-            channel,
-            ...channelContext,
-            parentPost,
-          }}
-        />
-      </ScrollContextProvider>
+      <PostWithAttachments
+        {...props}
+        parentPost={parentPost}
+        editingPost={
+          editingPost?.parentId === parentPost.id ? editingPost : undefined
+        }
+      />
     </Carousel.Item>
   );
 }
-const CarouselPost = memo(_CarouselPost);
+const CarouselPost = memo(CarouselPostWithAttachments);
+
+function PostWithAttachments(props: Parameters<typeof SinglePostView>[0]) {
+  const content = <PostContent {...props} />;
+  return props.channel.type === 'gallery' ? (
+    <ScopedAttachmentProvider id={props.parentPost.id}>
+      {content}
+    </ScopedAttachmentProvider>
+  ) : (
+    content
+  );
+}
+
+function PostContent(props: Parameters<typeof SinglePostView>[0]) {
+  const { attachAssets } = useAttachmentContext();
+  return (
+    <FileDrop flex={1} onAssetsDropped={attachAssets}>
+      <ScrollContextProvider>
+        <SinglePostView {...props} />
+      </ScrollContextProvider>
+    </FileDrop>
+  );
+}

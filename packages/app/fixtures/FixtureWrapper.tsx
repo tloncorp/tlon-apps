@@ -1,13 +1,17 @@
 // tamagui-ignore
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import {
   NavigationContainer,
   NavigationIndependentTree,
 } from '@react-navigation/native';
-import { internalConfigureClient } from '@tloncorp/api';
+import {
+  configureClient,
+  internalConfigureClient,
+  internalRemoveClient,
+} from '@tloncorp/api';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { type PropsWithChildren, useEffect, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
+import { Text as NativeText } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,6 +26,13 @@ import {
   View,
 } from '../ui';
 import { initialContacts } from './fakeData';
+import { createFixtureUrbitFetch } from './fixtureUrbitFetch';
+
+export type FixtureUrbitClient = {
+  shipName: string;
+  shipUrl: string;
+  accessCode: string;
+};
 
 type FixtureWrapperProps = PropsWithChildren<{
   fillWidth?: boolean;
@@ -31,17 +42,56 @@ type FixtureWrapperProps = PropsWithChildren<{
   backgroundColor?: ColorProp;
   innerBackgroundColor?: ColorProp;
   safeArea?: boolean;
+  currentUserId?: string;
+  urbitClient?: FixtureUrbitClient;
 }>;
 
-function MockedUrbitClientProvider({ children }: PropsWithChildren<object>) {
+function FixtureUrbitClientProvider({
+  children,
+  urbitClient,
+}: PropsWithChildren<{ urbitClient?: FixtureUrbitClient }>) {
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    internalConfigureClient({
-      shipName: 'zod',
-      shipUrl: 'whitehouse.com',
-    });
-    setReady(true);
-  }, []);
+    let active = true;
+    internalRemoveClient();
+    setReady(false);
+    setError(null);
+
+    const setup = async () => {
+      try {
+        if (urbitClient) {
+          await configureClient({
+            fetchFn: createFixtureUrbitFetch(urbitClient.shipUrl),
+            shipName: urbitClient.shipName,
+            shipUrl: urbitClient.shipUrl,
+            getCode: async () => urbitClient.accessCode,
+          });
+        } else {
+          internalConfigureClient({
+            shipName: 'zod',
+            shipUrl: 'whitehouse.com',
+          });
+        }
+        if (active) setReady(true);
+      } catch (cause) {
+        if (active) {
+          setError(cause instanceof Error ? cause.message : String(cause));
+        }
+      }
+    };
+
+    void setup();
+    return () => {
+      active = false;
+      internalRemoveClient();
+    };
+  }, [urbitClient]);
+
+  if (error) {
+    return <NativeText>Could not connect to the ship: {error}</NativeText>;
+  }
 
   return <>{ready ? children : null}</>;
 }
@@ -51,9 +101,9 @@ export const FixtureWrapper = (props: FixtureWrapperProps) => {
     <ToastProvider>
       <NavigationIndependentTree>
         <NavigationContainer navigationInChildEnabled>
-          <MockedUrbitClientProvider>
+          <FixtureUrbitClientProvider urbitClient={props.urbitClient}>
             <InnerWrapper {...props} />
-          </MockedUrbitClientProvider>
+          </FixtureUrbitClientProvider>
         </NavigationContainer>
       </NavigationIndependentTree>
     </ToastProvider>
@@ -70,6 +120,7 @@ const InnerWrapper = ({
   backgroundColor,
   innerBackgroundColor,
   safeArea,
+  currentUserId = '~zod',
   children,
 }: FixtureWrapperProps) => {
   const insets = useSafeAreaInsets();
@@ -81,63 +132,59 @@ const InnerWrapper = ({
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <BottomSheetModalProvider>
-          <AppDataContextProvider
-            currentUserId="~zod"
-            contacts={[...initialContacts]}
-            branchDomain="test"
-            branchKey="test"
-            calmSettings={{
-              disableRemoteContent: false,
-              disableAvatars: false,
-              disableNicknames: false,
-            }}
-          >
-            <NavigationProvider>
-              <ChatOptionsProvider {...useChatSettingsNavigation()}>
-                <Theme name={theme}>
+        <AppDataContextProvider
+          currentUserId={currentUserId}
+          contacts={[...initialContacts]}
+          branchDomain="test"
+          branchKey="test"
+          calmSettings={{
+            disableRemoteContent: false,
+            disableAvatars: false,
+            disableNicknames: false,
+          }}
+        >
+          <NavigationProvider>
+            <ChatOptionsProvider {...useChatSettingsNavigation()}>
+              <Theme name={theme}>
+                <View
+                  flex={1}
+                  paddingBottom={safeArea ? insets.bottom : 0}
+                  paddingTop={safeArea ? insets.top : 0}
+                >
                   <View
+                    backgroundColor={backgroundColor ?? '$secondaryBackground'}
                     flex={1}
-                    paddingBottom={safeArea ? insets.bottom : 0}
-                    paddingTop={safeArea ? insets.top : 0}
+                    flexDirection="column"
+                    width={fillWidth ? '100%' : 'unset'}
+                    height={fillHeight ? '100%' : 'unset'}
+                    justifyContent={
+                      verticalAlign === 'top'
+                        ? 'flex-start'
+                        : verticalAlign === 'bottom'
+                          ? 'flex-end'
+                          : 'center'
+                    }
+                    alignItems={
+                      horizontalAlign === 'left'
+                        ? 'flex-start'
+                        : horizontalAlign === 'right'
+                          ? 'flex-end'
+                          : 'center'
+                    }
                   >
                     <View
-                      backgroundColor={
-                        backgroundColor ?? '$secondaryBackground'
-                      }
-                      flex={1}
-                      flexDirection="column"
+                      backgroundColor={innerBackgroundColor ?? '$background'}
                       width={fillWidth ? '100%' : 'unset'}
                       height={fillHeight ? '100%' : 'unset'}
-                      justifyContent={
-                        verticalAlign === 'top'
-                          ? 'flex-start'
-                          : verticalAlign === 'bottom'
-                            ? 'flex-end'
-                            : 'center'
-                      }
-                      alignItems={
-                        horizontalAlign === 'left'
-                          ? 'flex-start'
-                          : horizontalAlign === 'right'
-                            ? 'flex-end'
-                            : 'center'
-                      }
                     >
-                      <View
-                        backgroundColor={innerBackgroundColor ?? '$background'}
-                        width={fillWidth ? '100%' : 'unset'}
-                        height={fillHeight ? '100%' : 'unset'}
-                      >
-                        {children}
-                      </View>
+                      {children}
                     </View>
                   </View>
-                </Theme>
-              </ChatOptionsProvider>
-            </NavigationProvider>
-          </AppDataContextProvider>
-        </BottomSheetModalProvider>
+                </View>
+              </Theme>
+            </ChatOptionsProvider>
+          </NavigationProvider>
+        </AppDataContextProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );

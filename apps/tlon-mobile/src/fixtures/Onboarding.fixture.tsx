@@ -1,4 +1,3 @@
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
@@ -30,17 +29,7 @@ import { SignupScreen } from '../screens/Onboarding/SignupScreen';
 import { TlonLoginScreen } from '../screens/Onboarding/TlonLogin';
 import { TlonLoginLegacy } from '../screens/Onboarding/TlonLoginLegacy';
 import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
-import { OnboardingStackParamList, User } from '../types';
-
-const sampleUser = {
-  id: '1',
-  nickname: 'test',
-  email: 'dan@tlon.io',
-  ships: [],
-  admin: false,
-  verified: false,
-  requirePhoneNumberVerification: false,
-};
+import { OnboardingStackParamList } from '../types';
 
 function OnboardingFixture({
   hasGroupInvite,
@@ -73,6 +62,7 @@ function OnboardingFixture({
           value={{
             initRecaptcha: () => Promise.resolve('abc'),
             execRecaptchaLogin: () => Promise.resolve('abc'),
+            execRecaptchaRequestOtp: () => Promise.resolve('abc'),
             getLandscapeAuthCookie: () => Promise.resolve('abc'),
             checkPhoneVerify: async () => undefined,
             requestPhoneVerify: async () => undefined,
@@ -80,26 +70,8 @@ function OnboardingFixture({
             logInHostedUser: async () => HostingAccountIssue.NoAssignedShip,
             //@ts-expect-error partial implementation
             hostingApi: {
-              signUpHostingUser: async () => Promise.resolve(sampleUser),
-              logInHostingUser: () => Promise.resolve(sampleUser),
               getHostingAvailability: async () =>
                 Promise.resolve({ enabled: true, validEmail: true }),
-              getHostingUser: async () => Promise.resolve(sampleUser as User),
-              getReservableShips: async () =>
-                Promise.resolve([
-                  { id: '~solfer-magfed', readyForDistribution: true },
-                ]),
-              getShipAccessCode: async () => Promise.resolve({ code: 'xyz' }),
-              allocateReservedShip: async () => Promise.resolve({}),
-              reserveShip: async () =>
-                Promise.resolve({
-                  id: '~solfer-magfed',
-                  reservedBy: '1',
-                }),
-              checkPhoneVerify: async () => Promise.resolve({ verified: true }),
-              verifyEmailDigits: async () =>
-                Promise.resolve({ verified: true }),
-              requestPhoneVerify: async () => Promise.resolve({}),
             },
           }}
         >
@@ -114,11 +86,9 @@ function OnboardingFixture({
             }}
           >
             <GestureHandlerRootView style={{ flex: 1 }}>
-              <BottomSheetModalProvider>
-                <NavigationContainer navigationInChildEnabled>
-                  {children ?? <OnboardingStack />}
-                </NavigationContainer>
-              </BottomSheetModalProvider>
+              <NavigationContainer navigationInChildEnabled>
+                {children ?? <OnboardingStack />}
+              </NavigationContainer>
             </GestureHandlerRootView>
           </BranchContext.Provider>
         </OnboardingProvider>

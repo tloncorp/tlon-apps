@@ -8,22 +8,33 @@ import create from 'zustand';
 export const featureMeta = {
   instrumentationEnabled: {
     default: false,
-    label: 'Enable collecting and reporting performance data',
-    onlyTlon: false,
-  },
-  contactsTab: {
-    default: false,
-    label: 'Enable contacts tab',
+    label: 'Performance reporting',
+    description: 'Collect and report performance data.',
     onlyTlon: false,
   },
   markdownNotebooks: {
     default: false,
-    label: 'Enable Markdown mode for notebook posts',
+    label: 'Markdown notebooks',
+    description: 'Use Markdown mode for notebook posts.',
     onlyTlon: true,
+  },
+  buckets: {
+    default: false,
+    label: 'Buckets channels',
+    description:
+      'Offer Buckets, shared files for members and agents, as a channel type.',
+    onlyTlon: false,
   },
 } satisfies Record<
   string,
-  { default: boolean; label: string; onlyTlon: boolean }
+  {
+    default: boolean;
+    /** A short name, shown as the toggle's title. */
+    label: string;
+    /** What turning it on does, shown under the name. */
+    description: string;
+    onlyTlon: boolean;
+  }
 >;
 
 export type FeatureName = keyof typeof featureMeta;

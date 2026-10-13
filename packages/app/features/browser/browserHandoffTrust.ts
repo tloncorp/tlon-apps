@@ -1,0 +1,20 @@
+import { isMoonOfUser } from '@tloncorp/api';
+import { isDmChannelId } from '@tloncorp/api/client';
+
+export function canUseBrowserHandoff({
+  authorId,
+  channelId,
+  currentUserId,
+  canUseAgentProviderControls,
+}: {
+  authorId: string;
+  channelId: string;
+  currentUserId: string;
+  canUseAgentProviderControls: boolean;
+}): boolean {
+  return (
+    isDmChannelId(channelId) &&
+    authorId === channelId &&
+    (canUseAgentProviderControls || isMoonOfUser(authorId, currentUserId))
+  );
+}

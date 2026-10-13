@@ -87,6 +87,14 @@
       :~  'key'^s+'service.namespace'
           'value'^(frond 'stringValue' s+'urbit')
       ==
+    ::  ship as a resource attribute, so collectors can promote it to a
+    ::  label without relying on k8s pod-label lookup. it stays a log
+    ::  attribute below for backwards compatibility.
+    ::
+      %-  pairs
+      :~  'key'^s+'ship'
+          'value'^(frond 'stringValue' ship-id)
+      ==
       ::TODO per-agent criticality setting
       :: %-  pairs
       :: :~  'key'^'service.criticality'

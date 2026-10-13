@@ -3,6 +3,7 @@ node_modules
 .DS_Store
 /packages/hermes-tlon-adapter/.env
 /packages/tlon-bot-e2e/.env
+packages/tlon-bot-e2e/diagnostics/
 __pycache__/
 *.py[cod]
 # onboarding sandbox: editable copies of private tlonbot prompts/intro — never commit
@@ -28,6 +29,7 @@ packages/tlon-skill/bin/tlon
 *.xst
 zod*
 bud
+/backend/.cookie-*
 vere-*
 *.pill
 /rube/zod/
@@ -40,6 +42,9 @@ tsconfig.tsbuildinfo
 launch.json
 expo-env.d.ts
 .expo
+# EAS Simulator session credentials, written by eas-cli. Here rather than in
+# apps/tlon-mobile/.gitignore, which is a native fingerprint input.
+.env.eas-simulator
 # Playwright MCP development logs
 apps/tlon-web/playwright-dev.log
 apps/tlon-web/.playwright-dev.pid
@@ -53,5 +58,11 @@ clurd
 .obsidian
 .pi
 
+tmuxp.yaml
+
 # Local Superpowers planning artifacts
 /docs/superpowers/
+
+# Worktrees created by the tlon-workflow skill, at any depth.
+.worktrees/
+.evidence/

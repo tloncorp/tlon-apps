@@ -3,7 +3,7 @@ appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/tlon-login.yaml
-- assertVisible: 'Home'
+- assertVisible: 'Workspaces'
 # Tap on the "+" button
 - tapOn:
     id: 'CreateGroupButton'
@@ -19,12 +19,12 @@ appId: io.tlon.groups
       visible: 'Untitled group'
     commands:
       - assertVisible: 'Welcome to your group!'
-# Navigate back to Home and assert that the group is created
+# Navigate back to the Workspaces list and assert that the group is created
 - tapOn:
     id: 'HeaderBackButton'
 - runFlow:
     when:
-      visible: 'Home'
+      visible: 'Workspaces'
     commands:
       - assertVisible: 'Untitled group'
       - tapOn: 'Untitled group'
@@ -35,7 +35,7 @@ appId: io.tlon.groups
 - assertVisible: 'Secret group with 1 member'
 - tapOn: 'Group info & settings'
 - assertVisible: 'Group info'
-# Pin and unpin the group, checking on the Home screen for position
+# Pin and unpin the group, checking the Workspaces list for position
 - tapOn: 'Pin'
 - assertVisible: 'Unpin'
 - tapOn:
@@ -45,7 +45,7 @@ appId: io.tlon.groups
     id: 'HeaderBackButton'
 - runFlow:
     when:
-      visible: 'Home'
+      visible: 'Workspaces'
     commands:
       - assertVisible:
           text: 'Untitled group'
@@ -64,7 +64,7 @@ appId: io.tlon.groups
     id: 'HeaderBackButton'
 - runFlow:
     when:
-      visible: 'Home'
+      visible: 'Workspaces'
     commands:
       - assertVisible:
           text: 'Untitled group'
@@ -195,13 +195,13 @@ appId: io.tlon.groups
 - assertVisible:
     text: 'All activity'
     rightOf: 'Notifications'
-# Navigate back out to the Home screen and verify that, in a multi-channel group, the user is navigated into a list of channels
+# Navigate back out to the Workspaces list and verify that, in a multi-channel group, the user is navigated into a list of channels
 - tapOn:
     id: 'HeaderBackButton'
 - assertVisible: 'General'
 - tapOn:
     id: 'HeaderBackButton'
-- assertVisible: 'Home'
+- assertVisible: 'Workspaces'
 - tapOn: 'Untitled group'
 - assertVisible: 'Untitled group'
 - assertVisible: 'General'
@@ -239,9 +239,9 @@ appId: io.tlon.groups
       - tapOn: 'Delete group'
 - runFlow:
     when:
-      visible: 'Home'
+      visible: 'Workspaces'
     commands:
-      - assertVisible: 'Home'
+      - assertVisible: 'Workspaces'
       - assertNotVisible: 'Untitled group'
 # Log out
 - tapOn:

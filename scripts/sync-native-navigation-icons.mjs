@@ -21,12 +21,14 @@ const iosHeaderAssetDirectory = path.join(
 );
 const checkOnly = process.argv.includes('--check');
 
+// No tab draws a filled variant: two of these glyphs do not have one, so the
+// bar marks the selected tab by tint alone and every tab uses a single asset
+// in both states.
 const tabIcons = [
-  ['Home.svg', 'tab-home'],
-  ['HomeFilled.svg', 'tab-home-filled'],
-  ['Notifications.svg', 'tab-notifications'],
-  ['NotificationsFilled.svg', 'tab-notifications-filled'],
-  ['Profile.svg', 'tab-profile'],
+  ['SmushStar.svg', 'tab-bot'],
+  ['Channel.svg', 'tab-workspaces'],
+  ['Notifications.svg', 'tab-activity'],
+  ['Settings.svg', 'tab-settings'],
 ];
 
 const screenHeaderIcons = JSON.parse(

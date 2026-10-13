@@ -1,5 +1,9 @@
-import { getCurrentUserId, toContentReference } from '@tloncorp/api';
-import { JSONContent, Story, pathToCite } from '@tloncorp/api/urbit';
+import {
+  getBotUserIdForUser,
+  getCurrentUserId,
+  toContentReference,
+} from '@tloncorp/api';
+import { Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
   JSONToInlines,
@@ -26,11 +30,17 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { Keyboard, TextInput } from 'react-native';
+import {
+  Keyboard,
+  Platform,
+  TextInput,
+  type TextLayoutEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -44,6 +54,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import { useConversationComposerHeight } from '../../contexts/scroll';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
@@ -56,9 +67,11 @@ import {
 import { hydrateEditPost } from '../MessageInput/helpers';
 import { type SlashCommandController } from '../SlashCommandPopup';
 import type { DraftInputHandle } from '../draftInputs/shared';
+import { AnimatedInputHeight } from './AnimatedInputHeight';
 import { PasteableTextInput } from './PasteableTextInput';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { PastedFile, attachPastedImageFiles } from './pastedImage';
+import { type ChatDraft, toChatDraft } from './draft';
 import {
   MentionOption,
   createMentionRoleOptions,
@@ -71,6 +84,10 @@ import {
 } from './useSlashCommands';
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
+const MESSAGE_INPUT_CONTAINER_HEIGHT = 48;
+const MAX_NATIVE_INPUT_LINES = 5;
+
+const AUTOCORRECT_FLUSH_TIMEOUT_MS = 20;
 
 function normalizePreviewUrl(url: string) {
   try {
@@ -90,6 +107,7 @@ function useMaxInputHeight(maxInputHeightBasic: number) {
 }
 
 function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
+  const { runAttachmentTask } = useAttachmentContext();
   // For now, we only check to make sure we're on web,
   // we don't check if the input is focused. This allows users to paste
   // images before they select the input. We may want to change this behavior
@@ -111,46 +129,55 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
       const file = media.getAsFile();
       if (!file) return;
 
-      if (media.type.includes('image')) {
-        const uri = URL.createObjectURL(file);
-        const img = new Image();
+      await runAttachmentTask(async () => {
+        if (media.type.includes('image')) {
+          const uri = URL.createObjectURL(file);
+          const img = new Image();
 
-        img.onload = () => {
-          addAttachment({
-            type: 'image',
-            file: {
-              uri,
-              height: img.height,
-              width: img.width,
-              mimeType: file.type || undefined,
-              fileSize: file.size,
-            },
+          await new Promise<void>((resolve) => {
+            img.onload = () => {
+              addAttachment({
+                type: 'image',
+                file: {
+                  uri,
+                  height: img.height,
+                  width: img.width,
+                  mimeType: file.type || undefined,
+                  fileSize: file.size,
+                },
+              });
+              resolve();
+            };
+            img.onerror = () => {
+              URL.revokeObjectURL(uri);
+              resolve();
+            };
+
+            img.src = uri;
           });
-        };
+          return;
+        }
 
-        img.src = uri;
-        return;
-      }
-
-      if (media.type.includes('video')) {
-        const previewData = await getVideoPreviewData({ file });
-        addAttachment({
-          type: 'video',
-          localFile: file,
-          size: file.size,
-          mimeType: file.type,
-          name: file.name,
-          width: previewData.width,
-          height: previewData.height,
-          duration: previewData.duration,
-          posterUri: previewData.posterUri,
-        });
-      }
+        if (media.type.includes('video')) {
+          const previewData = await getVideoPreviewData({ file });
+          addAttachment({
+            type: 'video',
+            localFile: file,
+            size: file.size,
+            mimeType: file.type,
+            name: file.name,
+            width: previewData.width,
+            height: previewData.height,
+            duration: previewData.duration,
+            posterUri: previewData.posterUri,
+          });
+        }
+      });
     };
 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [addAttachment]);
+  }, [addAttachment, runAttachmentTask]);
 }
 
 interface Decoration {
@@ -299,7 +326,7 @@ function BareChatInput(
   ref: ForwardedRef<DraftInputHandle>
 ) {
   const { bottom, top } = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  const { height, fontScale } = useWindowDimensions();
   const maxInputHeightBasic = useMemo(
     () => height - HEADER_HEIGHT - bottom - top,
     [height, bottom, top]
@@ -310,11 +337,56 @@ function BareChatInput(
     clearAttachments,
     resetAttachments,
     removeAttachment,
+    runAttachmentTask,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
+  const [initialReferencePaths] = useState(() =>
+    attachments.flatMap((attachment) =>
+      attachment.type === 'reference' ? [attachment.path] : []
+    )
+  );
+  const textEditVersion = useRef(0);
+  const [pendingComposerSends, setPendingComposerSends] = useState(0);
+  const pendingComposerSendsRef = useRef(0);
+  const awaitingComposerSettlement = useRef(false);
+  const {
+    beginSend: beginComposerSend,
+    finishSend: finishComposerSend,
+    isSendCoordinated,
+  } = useConversationComposerHeight();
+  const handleComposerHeightSettled = useCallback(() => {
+    if (
+      awaitingComposerSettlement.current &&
+      pendingComposerSendsRef.current === 0
+    ) {
+      awaitingComposerSettlement.current = false;
+      finishComposerSend();
+    }
+  }, [finishComposerSend]);
   const [inputHeight, setInputHeight] = useState(initialHeight);
   const [sendError, setSendError] = useState(false);
-  const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
+  const [initializedDraft, setInitializedDraft] = useState<{
+    getDraft: MessageInputProps['getDraft'];
+    editingPostId: string | undefined;
+  } | null>(null);
+  const hasSetInitialContent =
+    initializedDraft?.getDraft === getDraft &&
+    initializedDraft.editingPostId === editingPost?.id;
+  const markInitialContentReady = useCallback(() => {
+    setInitializedDraft({ getDraft, editingPostId: editingPost?.id });
+  }, [getDraft, editingPost?.id]);
+  const pendingDraftClears = useRef(0);
+  const draftReadGeneration = useRef(0);
+  const clearComposerDraft = useCallback(() => {
+    draftReadGeneration.current += 1;
+    pendingDraftClears.current += 1;
+    return clearDraft().finally(() => {
+      pendingDraftClears.current -= 1;
+      // Sending/cancelling already clears the composer. Re-reading here can
+      // restore the old draft before storage finishes clearing it.
+      setInitializedDraft({ getDraft, editingPostId: undefined });
+    });
+  }, [clearDraft, getDraft]);
   const [editorIsEmpty, setEditorIsEmpty] = useState(attachments.length === 0);
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
   const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
@@ -347,7 +419,55 @@ function BareChatInput(
     resetSlashCommandMode,
   } = useSlashCommands({ manifest: slashCommandManifest });
   const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
+  const inputLineHeight = Math.ceil(getFontSize('$m') * 1.2);
+  const inputPadding = getTokenValue('$l', 'space');
+  const [lineMeasurement, setLineMeasurement] = useState<{
+    fontScale: number;
+    height: number;
+  }>();
+  const scaledLineHeight =
+    lineMeasurement?.fontScale === fontScale
+      ? lineMeasurement.height
+      : inputLineHeight * fontScale;
+  const measureLineHeight = useCallback(
+    ({ nativeEvent: { lines } }: TextLayoutEvent) => {
+      if (lines.length < 2) return;
+      const height = lines[1].y - lines[0].y;
+      if (height <= 0) return;
+      setLineMeasurement((previous) =>
+        previous?.fontScale === fontScale && previous.height === height
+          ? previous
+          : { fontScale, height }
+      );
+    },
+    [fontScale]
+  );
+  // Android's material input pill is 48dp tall and bottom-anchors its content
+  // so multiline composers grow upward. Fill that pill at the single-line
+  // height; otherwise the 44dp text input sits 4dp low inside it.
+  const minimumInputHeight = Math.max(
+    Platform.OS === 'android'
+      ? Math.max(initialHeight, MESSAGE_INPUT_CONTAINER_HEIGHT)
+      : initialHeight,
+    isWeb ? 0 : scaledLineHeight + inputPadding * 2
+  );
+  // Cap the native text viewport, leaving attachment previews their own space.
+  // Extra text scrolls inside the input instead of consuming the conversation.
+  const maximumTextInputHeight = isWeb
+    ? maxInputHeight - getTokenValue('$s', 'space')
+    : Math.max(
+        minimumInputHeight,
+        Math.min(
+          maxInputHeight - getTokenValue('$s', 'space'),
+          MAX_NATIVE_INPUT_LINES * scaledLineHeight + inputPadding * 2
+        )
+      );
   const inputRef = useRef<TextInput>(null);
+  const runSendMessageRef = useRef<((isEdit: boolean) => void) | null>(null);
+  const pendingAutocorrectSendRef = useRef<{ isEdit: boolean } | null>(null);
+  const [queuedSend, setQueuedSend] = useState<{ isEdit: boolean } | null>(
+    null
+  );
 
   usePasteHandler(addAttachment);
 
@@ -360,6 +480,23 @@ function BareChatInput(
   const debouncedText = useDebouncedValue(controlledText, 500);
   const attachmentsRef = useRef(attachments);
   attachmentsRef.current = attachments;
+  const referenceEdits = useRef({
+    paths: initialReferencePaths,
+    version: 0,
+    removals: new Map<string, number>(),
+  });
+  useLayoutEffect(() => {
+    const current = referenceEdits.current;
+    const paths = attachments.flatMap((attachment) =>
+      attachment.type === 'reference' ? [attachment.path] : []
+    );
+    for (const path of current.paths) {
+      if (!paths.includes(path)) {
+        current.removals.set(path, ++current.version);
+      }
+    }
+    current.paths = paths;
+  }, [attachments]);
   const prevUrlsRef = useRef<string[]>([]);
 
   const processReferences = useCallback(
@@ -410,13 +547,19 @@ function BareChatInput(
 
   const handlePasteFiles = useCallback(
     (files: PastedFile[]) => {
-      void attachPastedImageFiles(files, addAttachment);
+      void runAttachmentTask(() =>
+        attachPastedImageFiles(files, addAttachment)
+      );
     },
-    [addAttachment]
+    [addAttachment, runAttachmentTask]
   );
 
   const handleTextChange = useCallback(
     (newText: string) => {
+      textEditVersion.current += 1;
+      const pendingSend = pendingAutocorrectSendRef.current;
+      pendingAutocorrectSendRef.current = null;
+
       const oldText = controlledText;
 
       bareChatInputLogger.log('text change', newText);
@@ -438,10 +581,6 @@ function BareChatInput(
         handleMention(oldText, textWithoutRefs, adjustedCursorPos);
         handleSlashCommandInput(textWithoutRefs, adjustedCursorPos);
 
-        const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
-        bareChatInputLogger.log('setting draft', jsonContent);
-        storeDraft(jsonContent);
-
         // Clear the native input's text after processing references.
         // We defer with setTimeout because .clear() uses mostRecentEventCount
         // internally, which isn't updated until after onChangeText returns.
@@ -457,10 +596,10 @@ function BareChatInput(
         setControlledText(newText);
         handleMention(oldText, newText, cursorPos);
         handleSlashCommandInput(newText, cursorPos);
+      }
 
-        const jsonContent = textAndMentionsToContent(newText, mentions);
-        bareChatInputLogger.log('setting draft', jsonContent);
-        storeDraft(jsonContent);
+      if (pendingSend) {
+        setQueuedSend(pendingSend);
       }
     },
     [
@@ -469,8 +608,6 @@ function BareChatInput(
       getWebSelectionStart,
       handleMention,
       handleSlashCommandInput,
-      mentions,
-      storeDraft,
     ]
   );
 
@@ -482,23 +619,20 @@ function BareChatInput(
         return;
       }
 
+      textEditVersion.current += 1;
       setControlledText(selectionResult.text);
 
       // Force focus back to input after mention selection.
       inputRef.current?.focus();
 
       if (!isWeb) {
-        // Only set the selection here — the input's text on native is driven
-        // by the TextWithMentions children. Setting `text` via setNativeProps
-        // would be *prepended* to the child text by RCTBaseTextInputShadowView,
-        // duplicating the message.
+        // The children own the native text. Move only the caret after they
+        // render the replacement, leaving it after the trailing space.
         requestAnimationFrame(() => {
-          inputRef.current?.setNativeProps({
-            selection: {
-              start: selectionResult.cursorPosition,
-              end: selectionResult.cursorPosition,
-            },
-          });
+          inputRef.current?.setSelection(
+            selectionResult.cursorPosition,
+            selectionResult.cursorPosition
+          );
         });
       }
     },
@@ -508,6 +642,7 @@ function BareChatInput(
   const onSlashCommandSelect = useCallback(
     (option: SlashCommandOption) => {
       const selection = handleSelectSlashCommand(option, controlledText);
+      textEditVersion.current += 1;
       const newText = selection.text;
 
       // The command token sits at index 0 and contains no whitespace, so every
@@ -532,10 +667,6 @@ function BareChatInput(
       setControlledText(newText);
       setMentions(updatedMentions);
 
-      const jsonContent = textAndMentionsToContent(newText, updatedMentions);
-      bareChatInputLogger.log('setting draft', jsonContent);
-      storeDraft(jsonContent);
-
       // Force focus back to input after slash command selection.
       inputRef.current?.focus();
 
@@ -544,22 +675,14 @@ function BareChatInput(
         // children. Move only the selection after React has rendered the
         // replacement text so the next character lands after the command.
         requestAnimationFrame(() => {
-          inputRef.current?.setNativeProps({
-            selection: {
-              start: selection.cursorPosition,
-              end: selection.cursorPosition,
-            },
-          });
+          inputRef.current?.setSelection(
+            selection.cursorPosition,
+            selection.cursorPosition
+          );
         });
       }
     },
-    [
-      handleSelectSlashCommand,
-      controlledText,
-      mentions,
-      setMentions,
-      storeDraft,
-    ]
+    [handleSelectSlashCommand, controlledText, mentions, setMentions]
   );
 
   const sendMessage = useCallback(
@@ -593,7 +716,26 @@ function BareChatInput(
       inputSessionRef.current += 1;
       setLinkMetaLoading(false);
 
+      // Keep the occupied composer space until the optimistic message exists,
+      // so clearing a tall draft cannot pull history down before its arrival.
+      let holdingComposerHeight = !isWeb && !isEdit;
+      if (holdingComposerHeight) {
+        beginComposerSend();
+        awaitingComposerSettlement.current = true;
+        pendingComposerSendsRef.current += 1;
+        setPendingComposerSends((count) => count + 1);
+      }
+      const releaseComposerHeight = () => {
+        if (holdingComposerHeight) {
+          holdingComposerHeight = false;
+          pendingComposerSendsRef.current -= 1;
+          setPendingComposerSends((count) => count - 1);
+        }
+      };
+
+      const draftClear = clearComposerDraft();
       setControlledText('');
+      setMentions([]);
       bareChatInputLogger.log('clearing attachments');
       clearAttachments();
       bareChatInputLogger.log('resetting input height');
@@ -604,19 +746,20 @@ function BareChatInput(
 
       try {
         bareChatInputLogger.log('sending message');
-        const sendOperation = sendPostFromDraft(draft);
+        const sendOperation = sendPostFromDraft(draft, {
+          onEnqueued: releaseComposerHeight,
+          scrollHandled: isSendCoordinated(),
+        });
         bareChatInputLogger.log('clearing draft');
-        await clearDraft();
+        await draftClear;
         await sendOperation;
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
       } finally {
+        releaseComposerHeight();
         onSend?.();
         bareChatInputLogger.log('sent message');
-        setMentions([]);
-        bareChatInputLogger.log('setting initial content');
-        setHasSetInitialContent(false);
       }
     },
     [
@@ -627,7 +770,7 @@ function BareChatInput(
       controlledText,
       editingPost,
       clearAttachments,
-      clearDraft,
+      clearComposerDraft,
       setEditingPost,
       image,
       channelType,
@@ -636,6 +779,8 @@ function BareChatInput(
       initialHeight,
       resetMentionMode,
       resetSlashCommandMode,
+      beginComposerSend,
+      isSendCoordinated,
     ]
   );
 
@@ -657,17 +802,51 @@ function BareChatInput(
     [sendMessage]
   );
 
+  runSendMessageRef.current = runSendMessage;
+
+  const submit = useCallback(
+    (isEdit: boolean) => {
+      if (Platform.OS !== 'ios') {
+        runSendMessage(isEdit);
+        return;
+      }
+
+      // iOS applies a pending autocorrection when the send button is tapped,
+      // and delivers the corrected text through onChangeText after this handler
+      // has already run.
+      pendingAutocorrectSendRef.current = { isEdit };
+      setTimeout(() => {
+        if (pendingAutocorrectSendRef.current) {
+          pendingAutocorrectSendRef.current = null;
+          runSendMessageRef.current?.(isEdit);
+        }
+      }, AUTOCORRECT_FLUSH_TIMEOUT_MS);
+    },
+    [runSendMessage]
+  );
+
+  // React batches setQueuedSend with the state updates in handleTextChange, so
+  // this effect runs after the commit that carries the corrected text and the
+  // mention offsets it shifted.
+  useEffect(() => {
+    if (!queuedSend) {
+      return;
+    }
+    setQueuedSend(null);
+    runSendMessage(queuedSend.isEdit);
+  }, [queuedSend, runSendMessage]);
+
   const handleSend = useCallback(async () => {
-    runSendMessage(false);
-  }, [runSendMessage]);
+    submit(false);
+  }, [submit]);
 
   const handleEdit = useCallback(async () => {
     Keyboard.dismiss();
     if (!editingPost) {
       return;
     }
-    runSendMessage(true);
-  }, [runSendMessage, editingPost]);
+    submit(true);
+  }, [submit, editingPost]);
 
   // Handle autofocus
   useEffect(() => {
@@ -832,23 +1011,56 @@ function BareChatInput(
   }, [initialHeight]);
 
   const setInputFromDraft = useCallback(
-    (draft: JSONContent | null) => {
-      if (!draft?.content?.length) return;
-
-      const { text, mentions } = contentToTextAndMentions(draft);
-      setControlledText(text);
-      setMentions(mentions);
-      setEditorIsEmpty(false);
-      setHasSetInitialContent(true);
+    (
+      draft: ChatDraft | null,
+      restoreText: boolean,
+      referenceVersion: number
+    ) => {
+      const { text, mentions } = contentToTextAndMentions(draft ?? {});
+      if (restoreText) {
+        setControlledText(text);
+        setMentions(mentions);
+      }
+      // References live outside the text input, so restore them separately.
+      // Keep attachments supplied by actions such as Quote or Forward.
+      // Ignore references removed since this read began, while still merging
+      // unrelated saved references with newly added ones.
+      for (const attachment of draft?.referenceAttachments ?? []) {
+        if (
+          (referenceEdits.current.removals.get(attachment.path) ?? 0) <=
+            referenceVersion &&
+          !attachmentsRef.current.some(
+            (current) =>
+              current.type === 'reference' && current.path === attachment.path
+          )
+        ) {
+          addAttachment(attachment);
+        }
+      }
+      markInitialContentReady();
       setNeedsHeightAdjustmentAfterLoad(true);
     },
-    [setMentions]
+    [setMentions, addAttachment, markInitialContentReady]
   );
 
   const reloadDraft = useCallback(async () => {
     try {
+      const version = textEditVersion.current;
+      const referenceVersion = referenceEdits.current.version;
+      const generation = draftReadGeneration.current;
       const draft = await getDraft();
-      if (!editingPost) setInputFromDraft(draft);
+      if (
+        generation !== draftReadGeneration.current ||
+        pendingDraftClears.current > 0
+      )
+        return;
+      if (!editingPost) {
+        setInputFromDraft(
+          draft,
+          version === textEditVersion.current,
+          referenceVersion
+        );
+      }
       inputRef.current?.focus();
     } catch (e) {
       bareChatInputLogger.error('Error loading draft', e);
@@ -866,13 +1078,27 @@ function BareChatInput(
 
   // Set initial content from draft or post that is being edited
   useEffect(() => {
-    if (!hasSetInitialContent) {
+    let cancelled = false;
+    if (!hasSetInitialContent && pendingDraftClears.current === 0) {
+      const version = textEditVersion.current;
+      const referenceVersion = referenceEdits.current.version;
+      const generation = draftReadGeneration.current;
       bareChatInputLogger.log('setting initial content');
       getDraft()
         .then((draft) => {
+          if (
+            cancelled ||
+            generation !== draftReadGeneration.current ||
+            pendingDraftClears.current > 0
+          )
+            return;
           bareChatInputLogger.log('got draft', draft);
           if (!editingPost) {
-            setInputFromDraft(draft);
+            setInputFromDraft(
+              draft,
+              version === textEditVersion.current,
+              referenceVersion
+            );
           }
 
           if (editingPost && editingPost.content) {
@@ -882,7 +1108,7 @@ function BareChatInput(
             );
 
             if (isEmpty) {
-              setHasSetInitialContent(true);
+              markInitialContentReady();
               return;
             }
 
@@ -899,7 +1125,7 @@ function BareChatInput(
             setControlledText(text);
             setMentions(mentions);
             setEditorIsEmpty(false);
-            setHasSetInitialContent(true);
+            markInitialContentReady();
             setNeedsHeightAdjustmentAfterLoad(true);
           }
 
@@ -920,6 +1146,9 @@ function BareChatInput(
           bareChatInputLogger.error('Error setting initial content', e);
         });
     }
+    return () => {
+      cancelled = true;
+    };
   }, [
     getDraft,
     hasSetInitialContent,
@@ -928,6 +1157,38 @@ function BareChatInput(
     addAttachment,
     setInputFromDraft,
     setMentions,
+    markInitialContentReady,
+  ]);
+
+  // Persist text and reference previews together, including reference-only
+  // changes. Before hydration, only save explicit local input, not the empty
+  // initial render.
+  useEffect(() => {
+    if (editingPost || pendingDraftClears.current > 0) return;
+    const referencePaths = attachments.flatMap((attachment) =>
+      attachment.type === 'reference' ? [attachment.path] : []
+    );
+    const referencesChanged =
+      referencePaths.length !== initialReferencePaths.length ||
+      referencePaths.some(
+        (path, index) => path !== initialReferencePaths[index]
+      );
+    if (
+      !hasSetInitialContent &&
+      (initializedDraft !== null ||
+        (textEditVersion.current === 0 && !referencesChanged))
+    )
+      return;
+    void storeDraft(toChatDraft(controlledText, mentions, attachments));
+  }, [
+    editingPost,
+    initialReferencePaths,
+    hasSetInitialContent,
+    initializedDraft,
+    controlledText,
+    mentions,
+    attachments,
+    storeDraft,
   ]);
 
   useEffect(() => {
@@ -942,10 +1203,9 @@ function BareChatInput(
     inputSessionRef.current += 1;
     setLinkMetaLoading(false);
 
+    void clearComposerDraft();
     setEditingPost?.(undefined);
-    setHasSetInitialContent(false);
     setControlledText('');
-    clearDraft();
     clearAttachments();
     setInputHeight(initialHeight);
     resetMentionMode();
@@ -953,7 +1213,7 @@ function BareChatInput(
     setMentions([]);
   }, [
     setEditingPost,
-    clearDraft,
+    clearComposerDraft,
     clearAttachments,
     initialHeight,
     resetMentionMode,
@@ -1004,7 +1264,10 @@ function BareChatInput(
         tappedChatInput: true,
       }));
     }
-    if (logic.isBotHomeGroupChatChannel(getCurrentUserId(), channelId)) {
+    // The user's own bot DM only, matching `useShowBotMentionWayfinding`:
+    // focusing another user's Tlonbot must not dismiss a coach mark that has
+    // not been seen.
+    if (channelId === getBotUserIdForUser(getCurrentUserId())) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
         tappedHomeGroupHint: true,
@@ -1085,7 +1348,7 @@ function BareChatInput(
     <MessageInputContainer
       onPressSend={handleSend}
       setShouldBlur={setShouldBlur}
-      containerHeight={48}
+      containerHeight={MESSAGE_INPUT_CONTAINER_HEIGHT}
       disableSend={disableSend}
       sendError={sendError}
       showWayfindingTooltip={showWayfindingTooltip}
@@ -1114,9 +1377,29 @@ function BareChatInput(
         maxHeight={maxInputHeight}
         justifyContent="center"
       >
+        {!isWeb && (
+          // Android scales large text nonlinearly. Measure native line spacing
+          // instead of assuming fontScale is a multiplier for the height cap.
+          <RawText
+            accessible={false}
+            pointerEvents="none"
+            position="absolute"
+            opacity={0}
+            fontSize={getFontSize('$m')}
+            lineHeight={inputLineHeight}
+            includeFontPadding={false}
+            onTextLayout={measureLineHeight}
+          >
+            {'M\nM'}
+          </RawText>
+        )}
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
-        <View position="relative">
+        <AnimatedInputHeight
+          minimumHeight={minimumInputHeight}
+          holdHeight={pendingComposerSends > 0}
+          onHeightSettled={handleComposerHeightSettled}
+        >
           <PasteableTextInput
             testID="MessageInput"
             ref={inputRef}
@@ -1129,11 +1412,12 @@ function BareChatInput(
             onKeyPress={handleKeyPress}
             onPasteFiles={isWeb ? undefined : handlePasteFiles}
             multiline
+            scrollEnabled={isWeb ? undefined : true}
             placeholder={placeholder}
             {...(!isWeb ? placeholderTextColor : {})}
             style={{
               backgroundColor: 'transparent',
-              minHeight: initialHeight,
+              minHeight: minimumInputHeight,
               // Let the native input auto-size while it has content; force the
               // initial height when empty. The uncontrolled native input keeps a
               // stale (expanded) measurement after the text is cleared on send,
@@ -1141,13 +1425,17 @@ function BareChatInput(
               height: isWeb
                 ? inputHeight
                 : controlledText === ''
-                  ? initialHeight
+                  ? minimumInputHeight
                   : undefined,
-              maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
-              paddingHorizontal: getTokenValue('$l', 'space'),
-              paddingTop: getTokenValue('$l', 'space'),
-              paddingBottom: getTokenValue('$l', 'space'),
+              maxHeight: maximumTextInputHeight,
+              paddingHorizontal: inputPadding,
+              paddingTop: inputPadding,
+              paddingBottom: inputPadding,
               fontSize: getFontSize('$m'),
+              // Match the decoration overlay even when emoji change font metrics.
+              fontFamily: isWeb ? 'inherit' : undefined,
+              lineHeight: isWeb ? getFontSize('$m') * 1.2 : inputLineHeight,
+              includeFontPadding: isWeb ? undefined : false,
               verticalAlign: 'middle',
               letterSpacing: -0.032,
               color: inputTextColor,
@@ -1179,7 +1467,7 @@ function BareChatInput(
               >
                 <RawText
                   paddingHorizontal="$l"
-                  paddingTop={getTokenValue('$m', 'space') + 3}
+                  paddingTop="$l"
                   fontSize="$m"
                   lineHeight={getFontSize('$m') * 1.2}
                   letterSpacing={-0.032}
@@ -1194,7 +1482,7 @@ function BareChatInput(
                 </RawText>
               </View>
             )}
-        </View>
+        </AnimatedInputHeight>
       </YStack>
     </MessageInputContainer>
   );

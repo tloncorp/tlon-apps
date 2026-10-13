@@ -1,5 +1,5 @@
 /-  l=logs
-/+  *test-agent
+/+  *test-agent, logs
 /=  agent  /app/logs
 |%
 ++  dap  %logs
@@ -15,8 +15,13 @@
     (do-poke log-action-1+!>(`a-log:l`[%log fail ~]))
   =/  =log-item:l
     [now.bowl fail]
+  =/  fpr  (need (fingerprint:logs /gall/test fail))
   =/  =log-data:l
-    ~['commit'^s+'development']
+    :~  'fingerprint'^s+fp.fpr
+        'fingerprint_exact'^s+exact.fpr
+        'signature'^s+sig.fpr
+        'commit'^s+'development'
+    ==
   =/  fard=(fyrd:khan cage)
     [q.byk.bowl %posthog noun+!>(`[`path`/gall/test log-item log-data])]
   ::  expect log submission -posthog

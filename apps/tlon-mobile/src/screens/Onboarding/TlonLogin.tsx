@@ -8,7 +8,7 @@ import {
 } from '@tloncorp/app/constants';
 import {
   Field,
-  KeyboardAvoidingView,
+  OnboardingKeyboardScrollView,
   OnboardingTextBlock,
   Pressable,
   ScreenHeader,
@@ -188,7 +188,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
         backgroundColor="$secondaryBackground"
         backAction={goBack}
       />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
+      <OnboardingKeyboardScrollView>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
           <OnboardingTextBlock>
             <TlonText.Text size="$body" color="$primaryText">
@@ -322,7 +322,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
             )}
           </View>
         </YStack>
-      </KeyboardAvoidingView>
+      </OnboardingKeyboardScrollView>
     </View>
   );
 };

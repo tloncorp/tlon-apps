@@ -28,7 +28,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { TouchableOpacity } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
@@ -181,8 +182,20 @@ export function BigInput({
   const [imageUri, setImageUri] = useState<string | null>(
     editingPost?.image || null
   );
-  const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
-  const [showInlineImageSheet, setShowInlineImageSheet] = useState(false);
+  const [showAttachmentSheet, updateShowAttachmentSheet] = useState(false);
+  const [showInlineImageSheet, updateShowInlineImageSheet] = useState(false);
+  const [hasOpenedAttachmentSheet, setHasOpenedAttachmentSheet] =
+    useState(false);
+  const [hasOpenedInlineImageSheet, setHasOpenedInlineImageSheet] =
+    useState(false);
+  const setShowAttachmentSheet = useCallback((open: boolean) => {
+    if (open) setHasOpenedAttachmentSheet(true);
+    updateShowAttachmentSheet(open);
+  }, []);
+  const setShowInlineImageSheet = useCallback((open: boolean) => {
+    if (open) setHasOpenedInlineImageSheet(true);
+    updateShowInlineImageSheet(open);
+  }, []);
   const [hasContentChanges, setHasContentChanges] = useState(false);
   const [hasTitleChanges, setHasTitleChanges] = useState(false);
   const [hasImageChanges, setHasImageChanges] = useState(false);
@@ -568,12 +581,12 @@ export function BigInput({
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
+      automaticOffset
       style={{
         flex: 1,
         width: '100%',
       }}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <View flex={1} flexDirection="column">
         {channelType === 'notebook' && (
@@ -585,6 +598,7 @@ export function BigInput({
                 width="100%"
                 borderColor="transparent"
                 placeholder="New Title"
+                testID="NotebookTitleInput"
                 placeholderTextColor={'$tertiaryText'}
                 onChangeText={setTitle}
                 value={title}
@@ -696,6 +710,9 @@ export function BigInput({
               frameless={true}
               bigInput={true}
               shouldAutoFocus={true}
+              testID={
+                channelType === 'notebook' ? 'NotebookBodyInput' : undefined
+              }
               showInlineAttachments={channelType === 'gallery'}
               onEditorContentChange={handleEditorContentChanged}
               onEditorStateChange={handleEditorStateChange}
@@ -786,7 +803,8 @@ export function BigInput({
         </>
       )}
 
-      {channelType === 'notebook' && showAttachmentSheet && (
+      {/* Mount lazily, then retain through native dismissal and picker handoff. */}
+      {channelType === 'notebook' && hasOpenedAttachmentSheet && (
         <AttachmentSheet
           isOpen={showAttachmentSheet}
           onOpenChange={setShowAttachmentSheet}
@@ -798,7 +816,7 @@ export function BigInput({
         />
       )}
 
-      {channelType === 'notebook' && showInlineImageSheet && (
+      {channelType === 'notebook' && hasOpenedInlineImageSheet && (
         <AttachmentSheet
           isOpen={showInlineImageSheet}
           onOpenChange={setShowInlineImageSheet}

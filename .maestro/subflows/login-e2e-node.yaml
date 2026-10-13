@@ -42,6 +42,19 @@ appId: io.tlon.groups
       visible: 'Not now'
     commands:
       - tapOn: 'Not now'
+# The sheet can arrive a moment *after* the credentials are accepted, so the
+# one-shot check above can run before it exists and leave it to swallow the
+# first tap that follows. Give it a window of its own. Case-insensitive: the
+# button is "Not Now" on iOS and the older check here spelled it "Not now".
+- extendedWaitUntil:
+    visible: '(?i)^Save Password\?$'
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      visible: '(?i)^Save Password\?$'
+    commands:
+      - tapOn: '(?i)^Not Now$'
 # Wait if we encounter the ship-restarting screen
 - runFlow:
     when:

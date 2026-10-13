@@ -1,34 +1,32 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  Button,
-  Icon,
-  LoadingSpinner,
-  Pressable,
-  Text,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
 import {
-  BotSettingsDivider,
-  BotSettingsErrorText,
-  BotSettingsSection,
-  EmptyRowText,
-  SelectableRow,
-} from './bot/BotSettingsUI';
+  type SettingsRowModel,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 import {
-  BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
   MAX_VISIBLE_MODELS,
   PROVIDER_OPTIONS,
 } from './bot/constants';
 import { getErrorMessage, getModelDisplayName } from './bot/helpers';
 import {
+  type ModelPickerProvider,
+  blendedPricePerMillion,
+  buildDefaultModelSections,
+  hiddenModelsNote,
+} from './bot/modelPicker';
+import {
   useAllProviderModels,
   useBotSettingsQueries,
+  useOpenRouterModelMetadata,
 } from './bot/useBotSettingsData';
 import {
   useBotSettingsDraft,
@@ -42,7 +40,7 @@ const fallbackKey = (selection: { provider: string; model: string }) =>
 
 export function BotModelSettingsScreen(props: Props) {
   const { mode } = props.route.params;
-  const isWindowNarrow = useIsWindowNarrow();
+  const insets = useSafeAreaInsets();
   const queries = useBotSettingsQueries();
   // Sync the draft from the server before editing so reaching this leaf
   // directly (cold launch / deep link) doesn't start from an empty draft and
@@ -56,18 +54,32 @@ export function BotModelSettingsScreen(props: Props) {
     queries.providerConfig,
     queries.llmAuthStatusQuery.data
   );
+  const openRouterMetadata = useOpenRouterModelMetadata(
+    allProviderModels.providers.includes('openrouter')
+  );
   const [search, setSearch] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [expandedProviders, setExpandedProviders] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  // The list's ZDR filter follows the bot's setting until it is switched here.
+  const [zdrOverride, setZdrOverride] = useState<boolean | null>(null);
+
+  const resetPicker = useCallback(() => {
+    setSearch('');
+    setExpandedProviders(new Set());
+    setZdrOverride(null);
+  }, []);
+
+  useFocusEffect(resetPicker);
 
   // The desktop settings drawer keeps this screen mounted across mode
-  // switches (default vs fallbacks); clear the search and validation state
-  // when the mode param changes so they don't leak between the two forms.
-  useEffect(() => {
-    setSearch('');
-    setValidationError(null);
-  }, [mode]);
+  // switches (default vs fallbacks); clear the picker's state when the mode
+  // param changes so it doesn't leak between the two forms.
+  useEffect(resetPicker, [mode, resetPicker]);
 
   const modelValues = draft.draft.model;
+  const zdrOnly =
+    zdrOverride ?? (modelValues.provider === 'openrouter' && modelValues.zdr);
 
   const availableProviders = useMemo(
     () =>
@@ -78,31 +90,48 @@ export function BotModelSettingsScreen(props: Props) {
   );
 
   const handleBack = useCallback(() => {
-    // Don't enforce model selection while the draft is still loading (its
-    // values are the empty store defaults), or Back gets stuck on the spinner.
-    if (
-      ready &&
-      mode === 'default' &&
-      modelValues.provider !== BASIC_PROVIDER_ID &&
-      !modelValues.model
-    ) {
-      setValidationError('Select a model before continuing.');
-      return;
-    }
     props.navigation.goBack();
-  }, [ready, mode, modelValues, props.navigation]);
+  }, [props.navigation]);
 
-  const setModel = useCallback(
+  // Picking a model is the whole job here, so it also leaves the screen; the
+  // Apply bar on the screen behind is where the change gets confirmed.
+  const selectModel = useCallback(
     (provider: string, model: string) => {
       if (!ready) return;
-      setValidationError(null);
+      // Tlon picks the model behind its own option, so a bot already on it
+      // has nothing to change; writing our listed id would swap its model.
+      if (
+        provider === BASIC_PROVIDER_ID &&
+        modelValues.provider === BASIC_PROVIDER_ID
+      ) {
+        props.navigation.goBack();
+        return;
+      }
+      const zdr =
+        provider === 'openrouter'
+          ? zdrOnly
+          : provider === BASIC_PROVIDER_ID &&
+            modelValues.provider === BASIC_PROVIDER_ID &&
+            modelValues.zdr;
       draft.commitDraft((current) => ({
         ...current,
-        model: { ...current.model, provider, model },
+        model: { ...current.model, provider, model, zdr },
       }));
+      props.navigation.goBack();
     },
-    [draft, ready]
+    [
+      draft,
+      modelValues.provider,
+      modelValues.zdr,
+      props.navigation,
+      ready,
+      zdrOnly,
+    ]
   );
+
+  const expandProvider = useCallback((provider: string) => {
+    setExpandedProviders((current) => new Set(current).add(provider));
+  }, []);
 
   const toggleFallback = useCallback(
     (selection: { provider: string; model: string }) => {
@@ -141,29 +170,58 @@ export function BotModelSettingsScreen(props: Props) {
     [draft]
   );
 
-  const providerModelsLoading = Boolean(
-    allProviderModels.loading[modelValues.provider]
+  const recommendedModelRank = useMemo(
+    () =>
+      new Map(
+        openRouterMetadata.recommendedModelIds.map((modelId, index) => [
+          modelId,
+          index,
+        ])
+      ),
+    [openRouterMetadata.recommendedModelIds]
   );
-  const providerModelsError = allProviderModels.errors[modelValues.provider];
+  const zdrModelIds = useMemo(
+    () =>
+      new Set(
+        openRouterMetadata.zdrEndpoints.map((endpoint) => endpoint.modelId)
+      ),
+    [openRouterMetadata.zdrEndpoints]
+  );
+  const zdrPrices = useMemo(() => {
+    const prices = new Map<string, number>();
+    openRouterMetadata.zdrEndpoints.forEach((endpoint) => {
+      const price = blendedPricePerMillion(
+        endpoint.promptPrice,
+        endpoint.completionPrice
+      );
+      if (price === null) return;
+      const current = prices.get(endpoint.modelId);
+      if (current === undefined || price < current) {
+        prices.set(endpoint.modelId, price);
+      }
+    });
+    return prices;
+  }, [openRouterMetadata.zdrEndpoints]);
+  const toggleZdr = useCallback(
+    (enabled: boolean) => {
+      setZdrOverride(enabled);
+      // The bot's own setting follows only while its model stays valid: a
+      // model with no ZDR endpoint is left alone until another is picked.
+      if (
+        modelValues.provider !== 'openrouter' ||
+        (enabled && !zdrModelIds.has(modelValues.model))
+      ) {
+        return;
+      }
+      draft.commitDraft((current) => ({
+        ...current,
+        model: { ...current.model, zdr: enabled },
+      }));
+    },
+    [draft, modelValues.model, modelValues.provider, zdrModelIds]
+  );
 
   const normalizedSearch = search.trim().toLowerCase();
-  const { visible: filteredProviderModels, hidden: hiddenProviderModelCount } =
-    useMemo(() => {
-      const providerModels =
-        allProviderModels.models[modelValues.provider] ?? [];
-      const matches = normalizedSearch
-        ? providerModels.filter((model) =>
-            [getModelDisplayName(model), model.id].some((value) =>
-              value.toLowerCase().includes(normalizedSearch)
-            )
-          )
-        : providerModels;
-      return {
-        visible: matches.slice(0, MAX_VISIBLE_MODELS),
-        hidden: Math.max(0, matches.length - MAX_VISIBLE_MODELS),
-      };
-    }, [allProviderModels.models, modelValues.provider, normalizedSearch]);
-
   // For fallback mode we search across every provider with a credential.
   const allSelectableModels = useMemo(
     () =>
@@ -209,212 +267,154 @@ export function BotModelSettingsScreen(props: Props) {
     [allSelectableModels]
   );
 
+  const pickerProviders = useMemo<ModelPickerProvider[]>(
+    () =>
+      availableProviders.map((provider) => {
+        const error = allProviderModels.errors[provider.id];
+        return {
+          id: provider.id,
+          label: provider.label,
+          models: allProviderModels.models[provider.id] ?? [],
+          loading: Boolean(allProviderModels.loading[provider.id]),
+          error: error
+            ? (getErrorMessage(error) ?? 'Unable to load models.')
+            : null,
+        };
+      }),
+    [allProviderModels, availableProviders]
+  );
+
+  const sections = useMemo<SettingsSectionModel[]>(() => {
+    const noteRow = (key: string, title: string): SettingsRowModel => ({
+      key,
+      title,
+    });
+
+    if (mode === 'default') {
+      return buildDefaultModelSections({
+        providers: pickerProviders,
+        selection: modelValues,
+        search,
+        expandedProviders,
+        recommendedRank: recommendedModelRank,
+        zdr: {
+          enabled: zdrOnly,
+          loading: openRouterMetadata.loading,
+          // A refresh that fails keeps the endpoints it had, which still serve.
+          error:
+            openRouterMetadata.error && zdrModelIds.size === 0
+              ? (getErrorMessage(openRouterMetadata.error) ??
+                'Unable to load models.')
+              : null,
+          modelIds: zdrModelIds,
+          prices: zdrPrices,
+        },
+        onSelect: selectModel,
+        onExpand: expandProvider,
+        onToggleZdr: toggleZdr,
+      });
+    }
+
+    return [
+      {
+        key: 'chain',
+        title: 'Fallback chain',
+        footer:
+          'If the default model fails, Tlonbot tries each of these in order.',
+        rows:
+          modelValues.fallbacks.length === 0
+            ? [noteRow('empty', 'No fallback models set.')]
+            : modelValues.fallbacks.map((fallback, index) => ({
+                key: `${fallbackKey(fallback)}:${index}`,
+                title:
+                  fallbackLabelByKey.get(fallbackKey(fallback)) ??
+                  `${fallback.provider}: ${fallback.model}`,
+                leading: {
+                  kind: 'element',
+                  render: ({ size }) => (
+                    <FallbackPosition position={index + 1} size={size} />
+                  ),
+                },
+                value: 'Remove',
+                accessory: 'none',
+                onPress: () => removeFallbackAt(index),
+              })),
+      },
+      {
+        key: 'available',
+        title: 'Available models',
+        footer: hiddenModelsNote(hiddenSelectableModelCount),
+        rows:
+          filteredSelectableModels.length === 0
+            ? [
+                noteRow(
+                  'empty',
+                  availableProviders.length === 0
+                    ? 'No providers configured.'
+                    : 'No models found.'
+                ),
+              ]
+            : filteredSelectableModels.map((model) => ({
+                key: model.key,
+                title: model.modelLabel,
+                subtitle: model.providerLabel,
+                selected: selectedFallbackKeys.has(model.key),
+                multiple: true,
+                onPress: () =>
+                  toggleFallback({
+                    provider: model.providerId,
+                    model: model.modelId,
+                  }),
+              })),
+      },
+    ];
+  }, [
+    availableProviders,
+    expandProvider,
+    expandedProviders,
+    fallbackLabelByKey,
+    filteredSelectableModels,
+    hiddenSelectableModelCount,
+    mode,
+    modelValues,
+    openRouterMetadata.error,
+    openRouterMetadata.loading,
+    pickerProviders,
+    recommendedModelRank,
+    removeFallbackAt,
+    search,
+    selectModel,
+    selectedFallbackKeys,
+    toggleFallback,
+    toggleZdr,
+    zdrModelIds,
+    zdrOnly,
+    zdrPrices,
+  ]);
+
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
-        title={mode === 'default' ? 'Default model' : 'Fallback models'}
-        placement="navigation"
-      />
-      {!ready ? (
-        <View flex={1} alignItems="center" justifyContent="center">
-          <LoadingSpinner />
-        </View>
-      ) : (
-        <SettingsContentScrollView
-          paddingHorizontal="$l"
-          paddingTop="$l"
-          safeAreaBottomOffset={24}
-        >
-          <YStack gap="$2xl" paddingBottom="$2xl">
-            {mode === 'default' ? (
-              <>
-                <BotSettingsSection title="Provider">
-                  {availableProviders.map((option, index) => (
-                    <YStack key={option.id}>
-                      <SelectableRow
-                        label={option.label}
-                        selected={modelValues.provider === option.id}
-                        onPress={() => {
-                          // Re-tapping the current provider must not wipe the
-                          // selected model and force a reselect.
-                          if (option.id === modelValues.provider) return;
-                          setModel(
-                            option.id,
-                            option.id === BASIC_PROVIDER_ID
-                              ? BASIC_DEFAULT_MODEL
-                              : ''
-                          );
-                        }}
-                      />
-                      {index < availableProviders.length - 1 ? (
-                        <BotSettingsDivider />
-                      ) : null}
-                    </YStack>
-                  ))}
-                </BotSettingsSection>
-                {modelValues.provider === BASIC_PROVIDER_ID ? (
-                  <Text
-                    size="$label/s"
-                    color="$secondaryText"
-                    paddingHorizontal="$s"
-                  >
-                    Basic uses GPT-5.6 Luna.
-                  </Text>
-                ) : (
-                  <BotSettingsSection title="Model">
-                    <View padding="$l">
-                      <TextInput
-                        value={search}
-                        placeholder="Search models"
-                        onChangeText={setSearch}
-                      />
-                    </View>
-                    <BotSettingsDivider />
-                    {providerModelsLoading ? (
-                      <EmptyRowText>Loading models…</EmptyRowText>
-                    ) : providerModelsError ? (
-                      <EmptyRowText>
-                        {getErrorMessage(providerModelsError) ??
-                          'Unable to load models.'}
-                      </EmptyRowText>
-                    ) : filteredProviderModels.length === 0 ? (
-                      <EmptyRowText>No models found.</EmptyRowText>
-                    ) : (
-                      <>
-                        {filteredProviderModels.map((model, index) => (
-                          <YStack key={model.id}>
-                            <SelectableRow
-                              label={getModelDisplayName(model)}
-                              description={model.id}
-                              selected={modelValues.model === model.id}
-                              onPress={() =>
-                                setModel(modelValues.provider, model.id)
-                              }
-                            />
-                            {index < filteredProviderModels.length - 1 ? (
-                              <BotSettingsDivider />
-                            ) : null}
-                          </YStack>
-                        ))}
-                        {hiddenProviderModelCount > 0 ? (
-                          <EmptyRowText>
-                            {hiddenProviderModelCount} more — refine your search
-                            to see them.
-                          </EmptyRowText>
-                        ) : null}
-                      </>
-                    )}
-                  </BotSettingsSection>
-                )}
-                <BotSettingsErrorText>{validationError}</BotSettingsErrorText>
-              </>
-            ) : (
-              <>
-                <Text
-                  size="$label/m"
-                  color="$secondaryText"
-                  paddingHorizontal="$s"
-                >
-                  If the default model fails, Tlonbot tries each of these in
-                  order.
-                </Text>
-                <BotSettingsSection title="Fallback chain">
-                  {modelValues.fallbacks.length === 0 ? (
-                    <EmptyRowText>No fallback models set.</EmptyRowText>
-                  ) : (
-                    modelValues.fallbacks.map((fallback, index) => (
-                      <YStack key={`${fallbackKey(fallback)}:${index}`}>
-                        <XStack
-                          minHeight={56}
-                          alignItems="center"
-                          gap="$l"
-                          paddingHorizontal="$l"
-                          paddingVertical="$m"
-                        >
-                          <View
-                            width="$2xl"
-                            height="$2xl"
-                            alignItems="center"
-                            justifyContent="center"
-                            borderRadius="$m"
-                            backgroundColor="$secondaryBackground"
-                          >
-                            <Text size="$label/m" color="$secondaryText">
-                              {index + 1}
-                            </Text>
-                          </View>
-                          <Text
-                            flex={1}
-                            size="$label/l"
-                            color="$primaryText"
-                            numberOfLines={1}
-                          >
-                            {fallbackLabelByKey.get(fallbackKey(fallback)) ??
-                              `${fallback.provider}: ${fallback.model}`}
-                          </Text>
-                          <Pressable onPress={() => removeFallbackAt(index)}>
-                            <Icon
-                              type="Close"
-                              size="$m"
-                              color="$secondaryText"
-                            />
-                          </Pressable>
-                        </XStack>
-                        {index < modelValues.fallbacks.length - 1 ? (
-                          <BotSettingsDivider />
-                        ) : null}
-                      </YStack>
-                    ))
-                  )}
-                </BotSettingsSection>
-                <BotSettingsSection title="Available models">
-                  <View padding="$l">
-                    <TextInput
-                      value={search}
-                      placeholder="Search models"
-                      onChangeText={setSearch}
-                    />
-                  </View>
-                  <BotSettingsDivider />
-                  {filteredSelectableModels.length === 0 ? (
-                    <EmptyRowText>
-                      {availableProviders.length === 0
-                        ? 'No providers configured.'
-                        : 'No models found.'}
-                    </EmptyRowText>
-                  ) : (
-                    <>
-                      {filteredSelectableModels.map((model, index) => (
-                        <YStack key={model.key}>
-                          <SelectableRow
-                            label={model.modelLabel}
-                            description={model.providerLabel}
-                            selected={selectedFallbackKeys.has(model.key)}
-                            onPress={() =>
-                              toggleFallback({
-                                provider: model.providerId,
-                                model: model.modelId,
-                              })
-                            }
-                          />
-                          {index < filteredSelectableModels.length - 1 ? (
-                            <BotSettingsDivider />
-                          ) : null}
-                        </YStack>
-                      ))}
-                      {hiddenSelectableModelCount > 0 ? (
-                        <EmptyRowText>
-                          {hiddenSelectableModelCount} more — refine your search
-                          to see them.
-                        </EmptyRowText>
-                      ) : null}
-                    </>
-                  )}
-                </BotSettingsSection>
-              </>
-            )}
+    <SettingsListScreenView
+      title={mode === 'fallbacks' ? 'Fallback models' : 'Default model'}
+      sections={sections}
+      onBackPressed={handleBack}
+      // Picking a model is the only other way out of the default picker.
+      showsBackOnWideWindows={mode === 'default'}
+      loading={!ready}
+      search={{
+        value: search,
+        onChangeText: setSearch,
+        placeholder: 'Search models',
+      }}
+      bottomBar={
+        ready && mode === 'fallbacks' ? (
+          <YStack
+            borderTopWidth={1}
+            borderColor="$border"
+            backgroundColor="$background"
+            paddingHorizontal="$l"
+            paddingTop="$m"
+            paddingBottom={Math.max(insets.bottom, 12)}
+          >
             <Button
               preset="primary"
               label="Done"
@@ -422,8 +422,32 @@ export function BotModelSettingsScreen(props: Props) {
               centered
             />
           </YStack>
-        </SettingsContentScrollView>
-      )}
+        ) : null
+      }
+    />
+  );
+}
+
+/** A fallback's place in the chain, in the row's leading slot. */
+function FallbackPosition({
+  position,
+  size,
+}: {
+  position: number;
+  size: number;
+}) {
+  return (
+    <View
+      width={size}
+      height={size}
+      alignItems="center"
+      justifyContent="center"
+      borderRadius="$m"
+      backgroundColor="$secondaryBackground"
+    >
+      <Text size="$label/m" color="$secondaryText">
+        {position}
+      </Text>
     </View>
   );
 }

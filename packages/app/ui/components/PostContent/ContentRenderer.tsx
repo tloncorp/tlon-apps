@@ -2,8 +2,11 @@ import { Post } from '@tloncorp/shared/db';
 import { PostContent, convertContent } from '@tloncorp/shared/logic';
 import { ComponentProps, useMemo } from 'react';
 import React from 'react';
-import { YStack, styled } from 'tamagui';
+import { YStack, isWeb, styled } from 'tamagui';
 
+import { browserSessionLinkCard } from '../../../features/browser/browserSessionLinkCard';
+
+import { useOptionalChannelContext } from '../../contexts/channel';
 import {
   BlockRenderer,
   BlockRendererConfig,
@@ -31,6 +34,7 @@ type PostContentRendererProps = ContentRendererProps & {
 
 export function PostContentRenderer({
   post,
+  groupId,
   ...props
 }: PostContentRendererProps) {
   const content = useMemo(() => {
@@ -45,7 +49,11 @@ export function PostContentRenderer({
   return (
     <BlockRendererProvider>
       <InlineRendererProvider value={undefined}>
-        <ContentRenderer content={content} {...props} />
+        <ContentRenderer
+          content={content}
+          {...props}
+          groupId={groupId ?? post.groupId}
+        />
       </InlineRendererProvider>
     </BlockRendererProvider>
   );
@@ -53,30 +61,63 @@ export function PostContentRenderer({
 
 function ContentRenderer({
   content,
+  groupId,
   onPressImage,
   getImageViewerId,
   onLongPress,
   onA2UIAction,
   isA2UIActionAvailable,
+  isA2UIActionConsumed,
+  canSendA2UIResponse,
+  areA2UISelectionsPending,
+  a2uiSourcePostId,
+  canUseAgentProviderControls,
+  getConfiguredAgentProviderIds,
+  provisionedAgentTopics,
+  consumedA2UIMessageText,
+  getConsumedA2UISelection,
   isNotice,
   searchQuery,
+  renderBrowserSessionCards = false,
   ...rest
 }: ContentRendererProps & {
   content: PostContent;
+  renderBrowserSessionCards?: boolean;
 }) {
+  const channel = useOptionalChannelContext();
+
   return (
     <ContentContext.Provider
+      groupId={groupId ?? channel?.groupId}
       onPressImage={onPressImage}
       getImageViewerId={getImageViewerId}
       onLongPress={onLongPress}
       onA2UIAction={onA2UIAction}
       isA2UIActionAvailable={isA2UIActionAvailable}
+      isA2UIActionConsumed={isA2UIActionConsumed}
+      canSendA2UIResponse={canSendA2UIResponse}
+      areA2UISelectionsPending={areA2UISelectionsPending}
+      a2uiSourcePostId={a2uiSourcePostId}
+      canUseAgentProviderControls={canUseAgentProviderControls}
+      getConfiguredAgentProviderIds={getConfiguredAgentProviderIds}
+      provisionedAgentTopics={provisionedAgentTopics}
+      consumedA2UIMessageText={consumedA2UIMessageText}
+      getConsumedA2UISelection={getConsumedA2UISelection}
       isNotice={isNotice}
       searchQuery={searchQuery}
     >
       <ContentRendererFrame {...rest}>
         {content.map((block, k) => {
-          return <BlockRenderer key={k} block={block} />;
+          return (
+            <BlockRenderer
+              key={k}
+              block={
+                isWeb || !renderBrowserSessionCards
+                  ? block
+                  : browserSessionLinkCard(block, `browser-link-${k}`)
+              }
+            />
+          );
         })}
       </ContentRendererFrame>
     </ContentContext.Provider>
@@ -87,10 +128,12 @@ export function createContentRenderer({
   blockRenderers,
   blockSettings,
   inlineRenderers,
+  renderBrowserSessionCards = false,
 }: {
   blockRenderers?: Partial<BlockRendererConfig>;
   blockSettings?: Partial<DefaultRendererProps>;
   inlineRenderers?: Partial<InlineRendererConfig>;
+  renderBrowserSessionCards?: boolean;
 }) {
   return React.memo(function ContentRendererWrapper({
     ...props
@@ -103,7 +146,10 @@ export function createContentRenderer({
         settings={blockSettings}
       >
         <InlineRendererProvider value={inlineRenderers}>
-          <ContentRenderer {...props} />
+          <ContentRenderer
+            {...props}
+            renderBrowserSessionCards={renderBrowserSessionCards}
+          />
         </InlineRendererProvider>
       </BlockRendererProvider>
     );

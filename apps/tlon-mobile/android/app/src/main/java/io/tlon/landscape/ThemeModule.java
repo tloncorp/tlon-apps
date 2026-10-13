@@ -2,11 +2,13 @@ package io.tlon.landscape;
 
 import android.app.Activity;
 import android.content.res.Configuration;
+import android.graphics.drawable.ColorDrawable;
 import androidx.annotation.NonNull;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.UiThreadUtil;
 
 /**
  * Native module to query Android's current UI mode directly.
@@ -22,6 +24,21 @@ public class ThemeModule extends ReactContextBaseJavaModule {
     @NonNull
     public String getName() {
         return "TlonTheme";
+    }
+
+    /**
+     * Paint the window behind transparent system bars using the app's resolved
+     * theme. StatusBar.setBackgroundColor no longer applies with edge-to-edge.
+     */
+    @ReactMethod
+    public void setWindowBackgroundColor(double color) {
+        final int backgroundColor = (int) color;
+        UiThreadUtil.runOnUiThread(() -> {
+            Activity activity = getCurrentActivity();
+            if (activity != null) {
+                activity.getWindow().setBackgroundDrawable(new ColorDrawable(backgroundColor));
+            }
+        });
     }
 
     /**

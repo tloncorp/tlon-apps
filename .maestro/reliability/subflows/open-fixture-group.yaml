@@ -1,0 +1,7 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow: workspaces-tab.yaml
+- tapOn: '^Search$'
+- inputText: ${output.reliability.groupQuery}
+- hideKeyboard
+- tapOn: ${output.reliability.groupPattern}

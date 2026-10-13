@@ -12,6 +12,7 @@ import com.facebook.react.common.ReleaseLevel
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ExpoReactHostFactory
+import io.tlon.landscape.images.GlideGifDecoders
 import io.tlon.landscape.notifications.TalkNotificationManager
 import io.tlon.landscape.storage.SecureStorage
 import io.branch.rnbranch.RNBranchModule
@@ -26,7 +27,7 @@ class MainApplication : Application(), ReactApplication {
       packageList = PackageList(this).packages.apply {
         add(TalkPackage())
       },
-      jsMainModulePath = "index"
+      jsMainModulePath = ".expo/.virtual-metro-entry"
     )
   }
 
@@ -47,6 +48,10 @@ class MainApplication : Application(), ReactApplication {
     }
 
     TalkNotificationManager.createNotificationChannel(this)
+
+    // Must run before the first image load, so that Glide hasn't cached a load
+    // path that skips these decoders.
+    GlideGifDecoders.install(this)
 
     // Branch logging for debugging
     if (BuildConfig.DEBUG) {

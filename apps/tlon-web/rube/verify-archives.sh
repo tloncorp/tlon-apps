@@ -3,12 +3,26 @@ set -euo pipefail
 
 # Verify that uploaded pier archives work correctly
 # This script downloads and tests the archives to ensure they boot properly
+#
+# Usage: verify-archives.sh [ship=PATH_OR_URL ...]
+# With no arguments it verifies the archives the committed manifest points at.
+# Explicit ship=source pairs verify those candidates instead (a local .tgz or a
+# URL) -- archive-piers.sh uses this, because until it repins, the manifest
+# still names the previous generation.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 MANIFEST_FILE="$PROJECT_ROOT/apps/tlon-web/e2e/shipManifest.json"
 TEMP_DIR=$(mktemp -d)
-URBIT_BINARY="$SCRIPT_DIR/dist/urbit_extracted/urbit"
+# Candidate paths are resolved against the directory the script was started
+# in: extraction below cd's into TEMP_DIR, so a relative path given for the
+# second ship would otherwise be looked up in the wrong place.
+START_DIR="$(pwd)"
+URBIT_BINARY="${URBIT_BINARY:-$SCRIPT_DIR/dist/urbit_extracted/urbit}"
+case "$URBIT_BINARY" in
+    /*) ;;
+    *) URBIT_BINARY="$(pwd)/$URBIT_BINARY" ;;
+esac
 
 # Colors for output
 RED='\033[0;31m'
@@ -20,8 +34,23 @@ NC='\033[0m' # No Color
 # Ships to verify
 SHIPS_TO_VERIFY=${SHIPS_TO_VERIFY:-"zod ten mug"}
 
+# Explicit candidates, as ship=source pairs; they replace SHIPS_TO_VERIFY.
+CANDIDATES=("$@")
+if [ ${#CANDIDATES[@]} -gt 0 ]; then
+    SHIPS_TO_VERIFY=""
+    for candidate in "${CANDIDATES[@]}"; do
+        case "$candidate" in
+            ?*=?*) SHIPS_TO_VERIFY="$SHIPS_TO_VERIFY ${candidate%%=*}" ;;
+            *)
+                echo "Invalid argument: $candidate (expected ship=PATH_OR_URL)" >&2
+                exit 1
+                ;;
+        esac
+    done
+fi
+
 # Valid ships for input validation
-VALID_SHIPS=("zod" "ten" "mug" "bus")
+VALID_SHIPS=("zod" "ten" "mug" "bus" "bud")
 
 # Function to print colored output
 print_status() {
@@ -65,8 +94,7 @@ check_prerequisites() {
         print_info "Downloading urbit binary..."
         
         # Use the same logic from rube to download urbit
-        cd "$SCRIPT_DIR"
-        pnpm rube --help >/dev/null 2>&1 || true
+        (cd "$SCRIPT_DIR" && pnpm rube --help >/dev/null 2>&1) || true
         
         if [ ! -f "$URBIT_BINARY" ]; then
             print_error "Failed to download urbit binary"
@@ -77,26 +105,59 @@ check_prerequisites() {
     print_status "Prerequisites check passed"
 }
 
+# Where a ship's archive comes from: its explicit candidate if one was given,
+# otherwise the committed manifest's downloadUrl.
+archive_source() {
+    local ship=$1
+    local candidate
+    if [ ${#CANDIDATES[@]} -gt 0 ]; then
+        for candidate in "${CANDIDATES[@]}"; do
+            if [ "${candidate%%=*}" = "$ship" ]; then
+                local source="${candidate#*=}"
+                case "$source" in
+                    http://*|https://*|/*) ;;
+                    *) source="$START_DIR/$source" ;;
+                esac
+                echo "$source"
+                return 0
+            fi
+        done
+    fi
+    jq -r ".\"~$ship\".downloadUrl" "$MANIFEST_FILE"
+}
+
 # Download and extract archive
 download_archive() {
     local ship=$1
-    local url=$(jq -r ".\"~$ship\".downloadUrl" "$MANIFEST_FILE")
+    local url=$(archive_source "$ship")
     local archive_name=$(basename "$url")
     local archive_path="$TEMP_DIR/$archive_name"
     
-    print_info "Downloading $archive_name..."
-    
-    if ! curl -L -o "$archive_path" "$url"; then
-        print_error "Failed to download $url"
-        return 1
-    fi
-    
-    print_status "Downloaded $archive_name"
+    case "$url" in
+        http://*|https://*)
+            print_info "Downloading $archive_name..."
+            # -f: an HTTP error must fail here, not save an error page that
+            # only fails later as a corrupt tarball.
+            if ! curl -fL -o "$archive_path" "$url"; then
+                print_error "Failed to download $url"
+                return 1
+            fi
+            print_status "Downloaded $archive_name"
+            ;;
+        *)
+            if ! cp "$url" "$archive_path"; then
+                print_error "Failed to copy local archive $url"
+                return 1
+            fi
+            print_status "Using local archive $url"
+            ;;
+    esac
     
     # Extract archive
     print_info "Extracting $archive_name..."
-    cd "$TEMP_DIR"
-    if ! tar -xzf "$archive_name"; then
+    # -C instead of cd: the script never changes directory, so relative
+    # candidate paths and a relative URBIT_BINARY keep resolving correctly.
+    if ! tar -xzf "$archive_path" -C "$TEMP_DIR"; then
         print_error "Failed to extract $archive_name"
         return 1
     fi

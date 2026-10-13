@@ -1735,7 +1735,171 @@ export const commonScenarios: readonly SharedScenario[] = [
       }
     }
   ),
+  // ── Outbound media (TLON-6318) ────────────────────────────────────────
+  //
+  // Hermes has no in-process outbound media path: the model's two `tlon`
+  // commands ARE the pipeline, so these lock the CLI contract as the model
+  // actually experiences it.
+  testScenario(
+    'outbound-media-fail-loud',
+    { drivers: ['hermes'] },
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      const key = scenarioKey('media-fail-loud');
+      // The marker rides the attempted caption: `channelPostsByBot` drops
+      // textless posts and the actor's post mapping drops the API's `images`
+      // field, so a caption-less image-only post could otherwise slip past
+      // the usual helpers unnoticed. The key is already scenario-prefixed and
+      // unique; keeping the marker short matters because the fake model
+      // records tool-result text capped at 300 chars, and the result's
+      // command echo (which includes the marker) precedes the stderr this
+      // scenario asserts on.
+      const marker = key;
+      const recovery = `Could not attach the image ${key}`;
+      const baseline = await rawBotChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+
+      const script = driver.model.readOrAdmin(
+        `posts send ${fixture.channelId} ${JSON.stringify(marker)} --image /pier/generated.png`,
+        recovery
+      );
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+
+      const result = await actors.owner.prompt(
+        `${tag} Post the scripted image to the channel, then reply with the scripted result.`,
+        { timeoutMs: 120_000 }
+      );
+
+      expectPromptSuccess(result, recovery);
+      const calls = await expectModelExpectations(ctx.fakeModel, key, script);
+      // The CLI's fixed error has to reach the model, which is what stops it
+      // from reporting a delivery that never happened. Assert a prefix of the
+      // fixed message: the recorded tool-result text is summary-capped at 300
+      // chars and the command echo before the stderr grows with unrelated
+      // features (a develop-side `--bot` flag once pushed the full phrase
+      // past the cap), so the assertion must not sit at the cap boundary.
+      expect(toolResultText(calls)).toContain(
+        'Local file paths are not supported'
+      );
+      await expectNoMediaPost(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        marker,
+        baseline
+      );
+    }
+  ),
 ];
+
+// ── Outbound media helpers ────────────────────────────────────────────────
+
+/** Image block sources carried by a post's raw story content. */
+function postImageSources(post: ChannelPost): string[] {
+  // getChannelPosts serializes story content to a JSON string; accept the
+  // already-parsed array too so the helper cannot go vacuously green if that
+  // representation ever changes.
+  let content: unknown = post.content;
+  if (typeof content === 'string') {
+    try {
+      content = JSON.parse(content);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(content)) {
+    return [];
+  }
+  const sources: string[] = [];
+  for (const verse of content) {
+    const src = (verse as { block?: { image?: { src?: unknown } } })?.block
+      ?.image?.src;
+    if (typeof src === 'string') {
+      sources.push(src);
+    }
+  }
+  return sources;
+}
+
+/**
+ * Every post by the bot, including textless ones. `channelPostsByBot` filters
+ * those out, which would hide exactly the image-only post a media assertion
+ * needs to see.
+ */
+async function rawBotChannelPosts(
+  actor: ScenarioActor,
+  channelId: string,
+  botShip: string
+): Promise<ChannelPost[]> {
+  const normalized = normalizeShip(botShip);
+  const posts = await actor.state.channelPosts(channelId, 40);
+  return posts.filter((post) => post.authorId === normalized);
+}
+
+async function rawBotChannelBaseline(
+  actor: ScenarioActor,
+  channelId: string,
+  botShip: string
+): Promise<ChannelBaseline> {
+  const posts = await rawBotChannelPosts(actor, channelId, botShip);
+  return {
+    sequence: posts
+      .map((post) =>
+        typeof post.sequenceNum === 'number' ? post.sequenceNum : -1
+      )
+      .reduce((max, sequence) => Math.max(max, sequence), -1),
+    sentAt: posts
+      .map((post) => (typeof post.sentAt === 'number' ? post.sentAt : 0))
+      .reduce((max, sentAt) => Math.max(max, sentAt), 0),
+  };
+}
+
+/**
+ * Assert the bot posted neither the attempted caption nor any image block.
+ * Media-aware on purpose: a caption-less image post carries no text at all, so
+ * a text-only negative assertion would pass while a broken image block sat in
+ * the channel.
+ */
+async function expectNoMediaPost(
+  actor: ScenarioActor,
+  channelId: string,
+  botShip: string,
+  marker: string,
+  baseline: ChannelBaseline,
+  settleMs = NEGATIVE_SETTLE_MS
+): Promise<void> {
+  const started = Date.now();
+  while (Date.now() - started < settleMs) {
+    await sleep(500);
+    const posts = (await rawBotChannelPosts(actor, channelId, botShip)).filter(
+      (post) => postAfterBaseline(post, baseline)
+    );
+    const withMarker = posts.find((post) => post.text.includes(marker));
+    if (withMarker) {
+      throw new Error(
+        `Expected no post carrying ${JSON.stringify(marker)}, found: ${withMarker.text.slice(0, 200)}`
+      );
+    }
+    const withImage = posts.find((post) => postImageSources(post).length > 0);
+    if (withImage) {
+      throw new Error(
+        `Expected no image block, found src ${postImageSources(withImage).join(', ')}`
+      );
+    }
+  }
+}
+
+/** Text of the tool-result message the runtime fed back to the model. */
+function toolResultText(calls: ReceivedCall[]): string {
+  return calls
+    .flatMap((call) => call.messages ?? [])
+    .filter((message) => message.role === 'tool' || message.role === 'function')
+    .map((message) => message.content?.text ?? '')
+    .join('\n');
+}
 
 interface ExpectedBotInfoClaim {
   harness: DriverName;

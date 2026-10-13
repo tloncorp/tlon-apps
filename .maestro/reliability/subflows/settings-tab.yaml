@@ -1,0 +1,38 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow: to-tab-root.yaml
+# Settings is a bottom tab now, not a row on the old Contacts tab. See
+# workspaces-tab.yaml for why iOS taps a point rather than a selector, and for
+# where these percentages come from.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '78%,37%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # As in workspaces-tab.yaml, no neighbouring-tab anchor: it does not
+      # survive the Bot tab. The notice that carried the other "Settings" is
+      # dismissed in to-tab-root.yaml above.
+      - tapOn: '^Settings$'
+# Settings draws its title into the native navigation bar rather than a
+# ScreenHeaderTitle, so verify the destination by a row only it has. The row is
+# not necessarily on screen: an account whose agent has inline bot settings
+# renders those above the App section this row starts, and the tab can come
+# back scrolled where it was left. Same budgets as settings-row.yaml, for the
+# same reason -- see the note there.
+- scrollUntilVisible:
+    element:
+      id: SettingsProfileRow
+    direction: UP
+    timeout: 25000
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: SettingsProfileRow
+    direction: DOWN
+    timeout: 30000

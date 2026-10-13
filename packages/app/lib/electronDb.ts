@@ -1,3 +1,4 @@
+import { AnalyticsEvent, AnalyticsSeverity } from '@tloncorp/shared';
 import { schema, setClient } from '@tloncorp/shared/db';
 import { handleChange } from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
@@ -10,6 +11,7 @@ import {
   resetDbSyncState,
   useMigrations as useMigrationsBase,
 } from './baseDb';
+import { formatElectronMigrations } from './electronMigrations';
 
 declare global {
   interface Window {
@@ -109,7 +111,12 @@ export class ElectronDb extends BaseDb {
 
       logger.log('Electron SQLite database initialized');
     } catch (e) {
-      logger.error('Failed to setup Electron SQLite db', e);
+      logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
+        context: 'electronDb.setupDb: failed to set up SQLite db',
+        errorMessage: e.message,
+        errorStack: e.stack,
+        severity: AnalyticsSeverity.Critical,
+      });
       throw e;
     }
   }
@@ -147,24 +154,16 @@ export class ElectronDb extends BaseDb {
     }
 
     if (!this.client) {
-      logger.warn('runMigrations called before setupDb, ignoring');
+      // See webDb.runMigrations: the app carries on without a database, so this
+      // is the only signal that it happened.
+      logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
+        context: 'electronDb.runMigrations: called without a database',
+        severity: AnalyticsSeverity.Critical,
+      });
       return;
     }
 
-    const formattedMigrations = [];
-
-    if (migrations.journal && migrations.journal.entries) {
-      for (const entry of migrations.journal.entries) {
-        const migrationHash = `m${entry.tag.split('_')[0]}`;
-        const sqlStatements = migrations.migrations[migrationHash];
-
-        if (sqlStatements) {
-          formattedMigrations.push({
-            sql: [sqlStatements], // Wrap in array if it's a single string
-          });
-        }
-      }
-    }
+    const formattedMigrations = formatElectronMigrations(migrations);
 
     try {
       logger.log('Running migrations in Electron SQLite');

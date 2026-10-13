@@ -192,3 +192,9 @@ export function formatTlonVersionIdentity(options?: {
     row('Source', source),
   ].join('\n');
 }
+
+/** Descriptive UA for outbound media fetches (Wikimedia robot-policy format). */
+export function tlonMediaUserAgent(): string {
+  const { pluginVersion } = getTlonVersionIdentity();
+  return `TlonBot/${pluginVersion} (https://tlon.io; support@tlon.io) openclaw-tlon/${pluginVersion}`;
+}

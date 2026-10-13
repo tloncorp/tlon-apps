@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Dimensions, Platform } from 'react-native';
@@ -26,6 +27,20 @@ export type ConversationScrollToBottomControl = {
   visible: boolean;
 };
 
+type ConversationComposerSendHandler = {
+  begin: () => void;
+  finish: () => void;
+  isActive: () => boolean;
+};
+type ConversationComposerHeightHandler = (
+  height: number,
+  /**
+   * Part of `height` that stops occupying the list once the keyboard covers it
+   * — bottom chrome the composer clears only while the keyboard is down.
+   */
+  collapsibleInset: number
+) => void;
+
 // @ts-expect-error - No other props than value are needed
 const INITIAL_VALUE: ScrollContextTuple = [{ value: 0 }, () => {}];
 
@@ -36,6 +51,15 @@ const defaultConversationScrollViewNativeID =
 const ConversationScrollViewNativeIDContext = createContext(
   defaultConversationScrollViewNativeID
 );
+export type ConversationScrollEndAnchorHandler = {
+  capture: () => void;
+  restore: () => void;
+};
+const ConversationScrollEndAnchorContext = createContext<{
+  capture: () => void;
+  register: (handler: ConversationScrollEndAnchorHandler) => () => void;
+  restore: () => void;
+} | null>(null);
 // Scroller owns the scroll-position state, while the composer renders the
 // control so all iOS actions can share one native GlassContainer. This small
 // cross-tree channel keeps that presentation detail out of both components.
@@ -45,23 +69,48 @@ const ConversationScrollToBottomContext = createContext<{
     React.SetStateAction<ConversationScrollToBottomControl | null>
   >;
 }>({ control: null, setControl: () => {} });
+const ConversationComposerHeightContext = createContext<{
+  register: (handler: ConversationComposerHeightHandler) => () => void;
+  report: (height: number, collapsibleInset?: number) => void;
+  registerSend: (handler: ConversationComposerSendHandler) => () => void;
+  beginSend: () => void;
+  finishSend: () => void;
+  isSendCoordinated: () => boolean;
+}>({
+  register: () => () => {},
+  report: () => {},
+  registerSend: () => () => {},
+  beginSend: () => {},
+  finishSend: () => {},
+  isSendCoordinated: () => false,
+});
 
 export const useScrollContext = () => useContext(ScrollContext);
 export const useConversationScrollViewNativeID = () =>
   useContext(ConversationScrollViewNativeIDContext);
+export const useConversationScrollEndAnchor = () =>
+  useContext(ConversationScrollEndAnchorContext);
 export const useConversationScrollToBottomControl = () =>
   useContext(ConversationScrollToBottomContext).control;
 export const useSetConversationScrollToBottomControl = () =>
   useContext(ConversationScrollToBottomContext).setControl;
+export const useConversationComposerHeight = () =>
+  useContext(ConversationComposerHeightContext);
 
 export const useScrollDirectionTracker = ({
   setIsAtBottom: setIsAtBottomProp,
   atBottomThreshold = 1, // multiple of screen/viewport height
   bottomAtEnd = false,
+  onScrollPositionChange,
 }: {
   setIsAtBottom?: (isAtBottom: boolean) => void;
   atBottomThreshold?: number;
   bottomAtEnd?: boolean;
+  onScrollPositionChange?: (position: {
+    offset: number;
+    contentHeight: number;
+    viewportHeight: number;
+  }) => void;
 } = {}) => {
   const [scrollValue] = useScrollContext();
   const previousScrollValue = useSharedValue(0);
@@ -80,6 +129,15 @@ export const useScrollDirectionTracker = ({
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
     const { y } = event.contentOffset;
+    if (onScrollPositionChange) {
+      runOnJS(onScrollPositionChange)({
+        offset: y,
+        // The iOS keyboard extends the scroll range through contentInset.
+        contentHeight:
+          event.contentSize.height + (event.contentInset?.bottom ?? 0),
+        viewportHeight: event.layoutMeasurement.height,
+      });
+    }
     const maxOffset = Math.max(
       0,
       event.contentSize.height -
@@ -141,6 +199,15 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
   children,
 }) => {
   const scrollValue = useSharedValue(0);
+  const conversationScrollEndAnchor =
+    useRef<ConversationScrollEndAnchorHandler | null>(null);
+  const conversationComposerHeightHandler =
+    useRef<ConversationComposerHeightHandler | null>(null);
+  const lastConversationComposerHeight = useRef<number | null>(null);
+  const composerSendHandler = useRef<ConversationComposerSendHandler | null>(
+    null
+  );
+  const lastConversationComposerCollapsibleInset = useRef(0);
   const scrollViewNativeID = `${defaultConversationScrollViewNativeID}-${useId()}`;
   const [scrollToBottomControl, setScrollToBottomControl] =
     useState<ConversationScrollToBottomControl | null>(null);
@@ -163,18 +230,76 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
     }),
     [scrollToBottomControl]
   );
+  const scrollEndAnchorContextValue = useMemo(
+    () => ({
+      capture: () => conversationScrollEndAnchor.current?.capture(),
+      register: (handler: ConversationScrollEndAnchorHandler) => {
+        conversationScrollEndAnchor.current = handler;
+        return () => {
+          if (conversationScrollEndAnchor.current === handler) {
+            conversationScrollEndAnchor.current = null;
+          }
+        };
+      },
+      restore: () => conversationScrollEndAnchor.current?.restore(),
+    }),
+    []
+  );
+  const composerHeightContextValue = useMemo(
+    () => ({
+      register: (handler: ConversationComposerHeightHandler) => {
+        conversationComposerHeightHandler.current = handler;
+        if (lastConversationComposerHeight.current !== null) {
+          handler(
+            lastConversationComposerHeight.current,
+            lastConversationComposerCollapsibleInset.current
+          );
+        }
+        return () => {
+          if (conversationComposerHeightHandler.current === handler) {
+            conversationComposerHeightHandler.current = null;
+          }
+        };
+      },
+      report: (height: number, collapsibleInset = 0) => {
+        lastConversationComposerHeight.current = height;
+        lastConversationComposerCollapsibleInset.current = collapsibleInset;
+        conversationComposerHeightHandler.current?.(height, collapsibleInset);
+      },
+      registerSend: (handler: ConversationComposerSendHandler) => {
+        composerSendHandler.current = handler;
+        return () => {
+          if (composerSendHandler.current === handler) {
+            composerSendHandler.current = null;
+          }
+        };
+      },
+      beginSend: () => composerSendHandler.current?.begin(),
+      finishSend: () => composerSendHandler.current?.finish(),
+      isSendCoordinated: () => composerSendHandler.current?.isActive() ?? false,
+    }),
+    []
+  );
 
   return (
-    <ConversationScrollToBottomContext.Provider
-      value={scrollToBottomContextValue}
+    <ConversationScrollEndAnchorContext.Provider
+      value={scrollEndAnchorContextValue}
     >
-      <ConversationScrollViewNativeIDContext.Provider
-        value={scrollViewNativeID}
+      <ConversationScrollToBottomContext.Provider
+        value={scrollToBottomContextValue}
       >
-        <ScrollContext.Provider value={contextValue}>
-          {children}
-        </ScrollContext.Provider>
-      </ConversationScrollViewNativeIDContext.Provider>
-    </ConversationScrollToBottomContext.Provider>
+        <ConversationComposerHeightContext.Provider
+          value={composerHeightContextValue}
+        >
+          <ConversationScrollViewNativeIDContext.Provider
+            value={scrollViewNativeID}
+          >
+            <ScrollContext.Provider value={contextValue}>
+              {children}
+            </ScrollContext.Provider>
+          </ConversationScrollViewNativeIDContext.Provider>
+        </ConversationComposerHeightContext.Provider>
+      </ConversationScrollToBottomContext.Provider>
+    </ConversationScrollEndAnchorContext.Provider>
   );
 };

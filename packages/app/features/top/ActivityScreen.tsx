@@ -8,9 +8,10 @@ import { useTheme } from 'tamagui';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
-import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
+import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 import { useRootNavigation } from '../../navigation/utils';
 import { ActivityScreenView, View } from '../../ui';
+import { useScreenScrollProps } from '../../ui/components/useScreenScrollProps';
 
 export function ActivityScreen() {
   const theme = useTheme();
@@ -20,6 +21,12 @@ export function ActivityScreen() {
   const { navigation, navigateToChannel, navigateToPost } = useRootNavigation();
   const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
     useSyncStatus();
+  // Shares the root stack's native header with the other tabs, so it installs
+  // the header's scroll-edge options itself. The bucket tabs sit above the
+  // list and must not fall under the floating header, so the clearance is
+  // layout on this column rather than a scroll inset on the list.
+  useScreenScrollProps();
+  const headerClearance = useFloatingHeaderHeight();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -86,8 +93,7 @@ export function ActivityScreen() {
   );
 
   const handleNavigateToContacts = useCallback(() => {
-    const route = getTopLevelTabRoute('Contacts');
-    navigation.navigate(route.name, route.params, { pop: true });
+    navigation.navigate('Contacts', undefined, { pop: true });
   }, [navigation]);
 
   const handleInviteFriends = useCallback(() => {
@@ -95,7 +101,11 @@ export function ActivityScreen() {
   }, [navigation]);
 
   return (
-    <View backgroundColor={theme.background?.val} flex={1}>
+    <View
+      backgroundColor={theme.background?.val}
+      flex={1}
+      paddingTop={headerClearance}
+    >
       <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
         <ActivityScreenView
           bucketFetchers={bucketedActivity}

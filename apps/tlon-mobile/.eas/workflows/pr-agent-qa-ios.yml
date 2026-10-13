@@ -1,0 +1,130 @@
+name: Hosted PR review
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        type: string
+        required: true
+      pr:
+        type: string
+        required: true
+      assessment:
+        type: string
+      build_id:
+        type: string
+      build_sha:
+        type: string
+      ship_url:
+        type: string
+      backend_sha:
+        type: string
+
+defaults:
+  tools:
+    node: "22.22.0"
+jobs:
+  assess:
+    if: ${{ inputs.phase == 'assess' }}
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_PR_JSON: ${{ inputs.pr }}
+      QA_WORKFLOW_URL: ${{ workflow.url }}
+    outputs:
+      assessment: ${{ steps.plan.outputs.assessment }}
+    steps:
+      - uses: eas/checkout
+      - run: bash ../../scripts/agent-qa/install.sh
+      - id: plan
+        run: |
+          node ../../scripts/agent-qa/assess.mjs
+          set-output assessment "$(cat ../../artifacts/agent-qa/assessment.json)"
+      - name: Publish skipped or blocked assessment
+        run: |
+          node --input-type=module -e 'import {out,json,save} from "../../scripts/agent-qa/common.mjs"; const a=json(out+"/assessment.json"); if(a.decision!=="test")save(out+"/result.json",{status:a.decision==="skip"?"skipped":"incomplete",summary:a.summary,pr:JSON.parse(process.env.QA_PR_JSON),runUrl:process.env.QA_WORKFLOW_URL})'
+          if [ -f ../../artifacts/agent-qa/result.json ]; then node ../../scripts/agent-qa/publish.mjs; fi
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: qa-assessment
+          path: artifacts/agent-qa
+  fingerprint:
+    if: ${{ inputs.phase == 'build' }}
+    type: fingerprint
+    environment: preview
+    env:
+      AUTOMATED_TEST: "true"
+      EXPO_USE_PRECOMPILED_MODULES: "0"
+      EAS_BUILD_PROFILE: e2e
+    params:
+      unstable_skip_cng_check: true
+  compatible:
+    needs: [fingerprint]
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_NATIVE_FINGERPRINT: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+    outputs:
+      build_id: ${{ steps.match.outputs.build_id }}
+    steps:
+      - uses: eas/checkout
+      - id: match
+        run: |
+          node ../../scripts/agent-qa/native-compatibility.mjs
+          set-output build_id "$(cat /tmp/qa-compatible-build)"
+  repack_ios:
+    needs: [compatible]
+    if: ${{ needs.compatible.outputs.build_id }}
+    type: repack
+    environment: preview
+    params:
+      build_id: ${{ needs.compatible.outputs.build_id }}
+      profile: e2e
+      embed_bundle_assets: true
+      js_bundle_only: false
+    hooks:
+      after_install_node_modules:
+        - run: pnpm -w run build:packages
+  build_ios:
+    after: [fingerprint, compatible, repack_ios]
+    if: ${{ always() && inputs.phase == 'build' && after.repack_ios.status != 'success' }}
+    type: build
+    environment: preview
+    params:
+      platform: ios
+      profile: e2e
+  qa:
+    if: ${{ inputs.phase == 'review' }}
+    environment: preview
+    runs_on: macos-medium
+    image: macos-tahoe-26.4-xcode-26.4
+    env:
+      QA_PR_JSON: ${{ inputs.pr }}
+      QA_ASSESSMENT_JSON: ${{ inputs.assessment }}
+      QA_BUILD_ID: ${{ inputs.build_id }}
+      QA_BUILD_SHA: ${{ inputs.build_sha }}
+      QA_SHIP_URL: ${{ inputs.ship_url }}
+      QA_BACKEND_SHA: ${{ inputs.backend_sha }}
+      QA_WORKFLOW_URL: ${{ workflow.url }}
+    steps:
+      - uses: eas/checkout
+      - run: bash ../../scripts/agent-qa/install.sh review
+      - uses: eas/download_build
+        id: download
+        with:
+          build_id: ${{ inputs.build_id }}
+          extensions: [app]
+      - name: Explore and record
+        run: node ../../scripts/agent-qa/run.mjs "${{ steps.download.outputs.artifact_path }}"
+      - name: Independently review recording
+        run: node ../../scripts/agent-qa/review.mjs
+      - name: Publish one comment with finding clips
+        if: ${{ always() }}
+        run: node ../../scripts/agent-qa/publish.mjs
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: qa-evidence
+          path: artifacts/agent-qa

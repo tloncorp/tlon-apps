@@ -6,7 +6,15 @@ import type * as db from '../types/models';
 import * as ub from '../urbit';
 import { parseAttestationId } from './lanyardApi';
 import * as NounParsers from './nounParsers';
-import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import {
+  contacts,
+  groupsUi,
+  pokeRequest,
+  scryRequest,
+  steward,
+  subscribeRequest,
+} from './requests';
+import { getCurrentUserId } from './urbit';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('contactsApi', false);
@@ -14,21 +22,18 @@ const logger = createDevLogger('contactsApi', false);
 export const getContacts = async () => {
   // this is all peers and ship contacts we know about, with unmerged
   // profile data
-  const directoryResponse = await scry<ub.ContactsDirectoryScryResult1>({
-    app: 'contacts',
-    path: '/v1/directory',
-  });
+  const directoryResponse = await scryRequest(
+    contacts.directory
+  )<ub.ContactsDirectoryScryResult1>({});
 
   // this is all of your contacts, with unmerged profile data + user overrides
-  const contactsResponse = await scry<ub.ContactBookScryResult1>({
-    app: 'contacts',
-    path: '/v1/book',
-  });
+  const contactsResponse = await scryRequest(
+    contacts.book
+  )<ub.ContactBookScryResult1>({});
 
-  const suggestionsResponse = await scry<string[]>({
-    app: 'groups-ui',
-    path: '/suggested-contacts',
-  });
+  const suggestionsResponse = await scryRequest(groupsUi.suggestedContacts)<
+    string[]
+  >({});
 
   return toContactsData({
     directoryResponse: directoryResponse,
@@ -96,10 +101,9 @@ export const isRegisteredBot = async (ship: string): Promise<boolean> => {
   // takes the vouched path, so a failed read must fail the send loudly
   // rather than silently demote a bot DM to peer-to-peer (which would queue
   // forever against a never-booted moon).
-  const directory = await scry<ub.ContactsDirectoryScryResult1>({
-    app: 'contacts',
-    path: '/v1/directory',
-  });
+  const directory = await scryRequest(
+    contacts.directory
+  )<ub.ContactsDirectoryScryResult1>({});
   const entry = directory?.[host];
   if (!entry) {
     return false;
@@ -151,10 +155,8 @@ export const registerBotProfile = async (
     }
     edits[key] = value === '' ? null : value;
   }
-  return poke({
-    app: 'steward',
-    mark: 'steward-roster-action-1',
-    json: { profile: { ship: normalizeMoonId(moon), edits } },
+  return pokeRequest(steward.rosterAction)({
+    profile: { ship: normalizeMoonId(moon), edits },
   });
 };
 
@@ -205,19 +207,11 @@ export const directoryToClientProfiles = (
 };
 
 export const removeContactSuggestion = async (contactId: string) => {
-  return poke({
-    app: 'groups-ui',
-    mark: 'ui-hide-contact',
-    json: contactId,
-  });
+  return pokeRequest(groupsUi.hideContact)(contactId);
 };
 
 export const addContactSuggestions = async (contactIds: string[]) => {
-  return poke({
-    app: 'groups-ui',
-    mark: 'ui-add-contact-suggestions',
-    json: contactIds,
-  });
+  return pokeRequest(groupsUi.addContactSuggestions)(contactIds);
 };
 
 // Pure builder for a self-profile field poke: `%self` is a merge, so other
@@ -232,17 +226,13 @@ export const contactSelfFieldPoke = (
     undefined
   > | null
 ): { app: string; mark: string; json: unknown } => ({
-  app: 'contacts',
-  mark: 'contact-action-1',
+  app: contacts.action1.agent,
+  mark: contacts.action1.mark,
   json: { self: { [key]: value } },
 });
 
 export const syncUserProfiles = async (userIds: string[]) => {
-  return poke({
-    app: 'contacts',
-    mark: 'contact-action-1',
-    json: { meet: userIds },
-  });
+  return pokeRequest(contacts.action1)({ meet: userIds });
 };
 
 export const updateContactMetadata = async (
@@ -262,21 +252,15 @@ export const updateContactMetadata = async (
       : null;
   }
 
-  return poke({
-    app: 'contacts',
-    mark: 'contact-action-1',
-    json: { edit: { kip: contactId, contact: contactUpdate } },
+  return pokeRequest(contacts.action1)({
+    edit: { kip: contactId, contact: contactUpdate },
   });
 };
 
 export const addContact = async (contactId: string) => {
   removeContactSuggestion(contactId);
-  return poke({
-    app: 'contacts',
-    mark: 'contact-action-1',
-    json: {
-      page: { kip: contactId, contact: {} },
-    },
+  return pokeRequest(contacts.action1)({
+    page: { kip: contactId, contact: {} },
   });
 };
 
@@ -289,11 +273,7 @@ export const addUserContacts = async (contactIds: string[]) => {
 };
 
 export const removeContact = async (contactId: string) => {
-  return poke({
-    app: 'contacts',
-    mark: 'contact-action-1',
-    json: { wipe: [contactId] },
-  });
+  return pokeRequest(contacts.action1)({ wipe: [contactId] });
 };
 
 export interface ProfileUpdate {
@@ -329,11 +309,7 @@ export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
     edit: editedFields,
   };
 
-  return poke({
-    app: 'contacts',
-    mark: 'contact-action',
-    json: action,
-  });
+  return pokeRequest(contacts.action0)(action);
 };
 
 export const updateSigilColor = async (color: string | null) => {
@@ -356,29 +332,17 @@ export const updateSigilColor = async (color: string | null) => {
     };
   }
 
-  return poke({
-    app: 'contacts',
-    mark: 'contact-action-1',
-    json: { self: contactUpdate },
-  });
+  return pokeRequest(contacts.action1)({ self: contactUpdate });
 };
 
 export const addPinnedGroup = async (groupId: string) => {
   const update: ub.ContactEdit = { edit: [{ 'add-group': groupId }] };
-  return poke({
-    app: 'contacts',
-    mark: 'contact-action',
-    json: update,
-  });
+  return pokeRequest(contacts.action0)(update);
 };
 
 export const removePinnedGroup = async (groupId: string) => {
   const update: ub.ContactEdit = { edit: [{ 'del-group': groupId }] };
-  return poke({
-    app: 'contacts',
-    mark: 'contact-action',
-    json: update,
-  });
+  return pokeRequest(contacts.action0)(update);
 };
 
 export const setPinnedGroups = async (groupIds: string[]) => {
@@ -388,11 +352,7 @@ export const setPinnedGroups = async (groupIds: string[]) => {
     value: groupIds.map((groupId) => ({ type: 'flag', value: groupId })),
   };
 
-  return poke({
-    app: 'contacts',
-    mark: 'contact-action-1',
-    json: { self: contactUpdate },
-  });
+  return pokeRequest(contacts.action1)({ self: contactUpdate });
 };
 
 export type ContactsUpdate =
@@ -402,39 +362,31 @@ export type ContactsUpdate =
 export const subscribeToContactUpdates = (
   handler: (update: ContactsUpdate) => void
 ) => {
-  subscribe(
-    {
-      app: 'contacts',
-      path: '/v1/news',
-    },
-    (event: ub.ContactsNewsResponse1) => {
-      // received when someone is marked as a contact or when a contact's profile is updated
-      if (ub.isPageResponse(event) && event.page.kip.startsWith('~')) {
-        const { kip, contact, mod } = event.page;
-        const contactBookEntry = [contact, mod] as ub.ContactBookEntry;
-        handler({
-          type: 'upsertContact',
-          contact: contactToClientProfile(kip, contactBookEntry),
-        });
-        return;
-      }
-
-      if (ub.isWipeResponse(event) && event.wipe.kip.startsWith('~')) {
-        return handler({ type: 'removeContact', contactId: event.wipe.kip });
-      }
-
-      // received when we get initial or updated profile info for a non-contact. Note: we also get
-      // a dupe event here if a contact updates their own profile (get a page fact and peer fact)
-      if (ub.isPeerResponse(event) && event.peer.who.startsWith('~')) {
-        const { who, contact } = event.peer;
-        handler({
-          type: 'upsertContact',
-          contact: v1PeerToClientProfile(who, contact),
-        });
-        return;
-      }
+  subscribeRequest(contacts.news)({}, (event: ub.ContactsNewsResponse1) => {
+    // received when someone is marked as a contact or when a contact's profile is updated
+    if (ub.isPageResponse(event) && event.page.kip.startsWith('~')) {
+      const { kip, contact, mod } = event.page;
+      const contactBookEntry = [contact, mod] as ub.ContactBookEntry;
+      return handler({
+        type: 'upsertContact',
+        contact: contactToClientProfile(kip, contactBookEntry),
+      });
     }
-  );
+
+    if (ub.isWipeResponse(event) && event.wipe.kip.startsWith('~')) {
+      return handler({ type: 'removeContact', contactId: event.wipe.kip });
+    }
+
+    // received when we get initial or updated profile info for a non-contact. Note: we also get
+    // a dupe event here if a contact updates their own profile (get a page fact and peer fact)
+    if (ub.isPeerResponse(event) && event.peer.who.startsWith('~')) {
+      const { who, contact } = event.peer;
+      return handler({
+        type: 'upsertContact',
+        contact: v1PeerToClientProfile(who, contact),
+      });
+    }
+  });
 };
 
 function parseContactAttestations(
@@ -575,13 +527,13 @@ function parseContactAttestations(
 }
 
 /**
- * The `bot-info` contact field is self-published by bot ships and its TS
- * declaration proves nothing at runtime — an arbitrary profile can publish it
- * as %set/%numb/%look or any JSON shape. Accept only a %text field carrying a
- * string; everything else maps to null so one bad peer profile cannot break a
- * contacts sync batch.
+ * Bot-published %text claim keys (`bot-info`, `bot-liveness`) are
+ * self-published by bot ships and their TS declarations prove nothing at
+ * runtime — an arbitrary profile can publish them as %set/%numb/%look or any
+ * JSON shape. Accept only a %text field carrying a string; everything else
+ * maps to null so one bad peer profile cannot break a contacts sync batch.
  */
-export const extractBotInfoValue = (field: unknown): string | null => {
+export const extractTextClaimValue = (field: unknown): string | null => {
   if (!field || typeof field !== 'object' || Array.isArray(field)) {
     return null;
   }
@@ -628,7 +580,8 @@ export const v1PeerToClientProfile = (
         contactId: id,
       })) ?? [],
     attestations: parseContactAttestations(id, contact),
-    botInfo: extractBotInfoValue(contact['bot-info']),
+    botInfo: extractTextClaimValue(contact['bot-info']),
+    botLiveness: extractTextClaimValue(contact['bot-liveness']),
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
@@ -663,23 +616,24 @@ export const contactToClientProfile = (
 
   return {
     id: userId,
-    peerNickname: base.nickname?.value ?? null,
+    peerNickname: base?.nickname?.value ?? null,
     customNickname: overrides?.nickname?.value,
-    peerAvatarImage: base.avatar?.value ?? null,
+    peerAvatarImage: base?.avatar?.value ?? null,
     customAvatarImage: overrides?.avatar?.value,
-    status: base.status?.value ?? null,
-    bio: base.bio?.value ?? null,
-    coverImage: base.cover?.value ?? null,
-    color: base.color ? normalizeUrbitColor(base.color.value) : null,
+    status: base?.status?.value ?? null,
+    bio: base?.bio?.value ?? null,
+    coverImage: base?.cover?.value ?? null,
+    color: base?.color ? normalizeUrbitColor(base.color.value) : null,
     pinnedGroups:
-      base.groups?.value.map((group) => ({
+      base?.groups?.value.map((group) => ({
         groupId: group.value,
         contactId: userId,
       })) ?? [],
     attestations: parseContactAttestations(userId, base),
     // The claim is the bot's own published property: read it from the
     // peer-published base contact only, never the user's `mod` overlay.
-    botInfo: extractBotInfoValue(base['bot-info']),
+    botInfo: extractTextClaimValue(base?.['bot-info']),
+    botLiveness: extractTextClaimValue(base?.['bot-liveness']),
     isContact: !!overrides,
     isContactSuggestion: false,
   };

@@ -17,10 +17,39 @@ export type AnySqliteTransaction = Parameters<
   Parameters<AnySqliteDatabase['transaction']>[0]
 >[0];
 
+/**
+ * Thrown when a query runs before the platform db layer has called
+ * `setClient` — i.e. database setup never completed.
+ */
+export class DatabaseNotSetError extends Error {
+  constructor() {
+    super('Database not set.');
+    this.name = 'DatabaseNotSetError';
+  }
+}
+
 let clientInstance: AnySqliteDatabase | null = null;
+let didReportMissingClient = false;
+
+/**
+ * A missing client is a single startup failure, but every query in the app
+ * trips over it. Reporting each one buries the actual setup error under
+ * thousands of identical events, so only the first is worth sending.
+ */
+export function shouldReportQueryError(error: unknown) {
+  if (!(error instanceof DatabaseNotSetError)) {
+    return true;
+  }
+  if (didReportMissingClient) {
+    return false;
+  }
+  didReportMissingClient = true;
+  return true;
+}
 
 export function setClient<T extends AnySqliteDatabase>(client: T) {
   clientInstance = client;
+  didReportMissingClient = false;
 
   if (__DEV__) {
     const exec = (strings: TemplateStringsArray, ...values: any[]) =>
@@ -44,7 +73,7 @@ export const client = new Proxy(
   {
     get: function (target, prop, receiver) {
       if (!clientInstance) {
-        throw new Error('Database not set.');
+        throw new DatabaseNotSetError();
       }
       return Reflect.get(clientInstance, prop, receiver);
     },

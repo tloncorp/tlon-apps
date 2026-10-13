@@ -240,6 +240,7 @@
 ::    .id: a message identifier
 ::    .action: an update to the dm
 ::    .rsvp: a response to a dm invitation
+::    .status: the dm's net state, or ~ once it is gone
 ::
 ++  dm
   |^  dm
@@ -259,6 +260,7 @@
   ::  moon being spoken as/to; otherwise these carry a normal dm action/diff.
   +$  vouched-action  [as=ship =action]
   +$  vouched-diff    [as=ship =diff]
+  +$  status    [=ship net=(unit net)]
   --
 ::
 ::  $whom: a polymorphic identifier for chats

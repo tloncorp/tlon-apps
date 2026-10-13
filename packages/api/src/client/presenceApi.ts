@@ -11,12 +11,12 @@ import {
   parseGroupId,
 } from './apiUtils';
 import {
-  BadResponseError,
-  getCurrentUserId,
-  poke,
-  scry,
-  subscribe,
-} from './urbit';
+  pokeRequest,
+  presence,
+  scryRequest,
+  subscribeRequest,
+} from './requests';
+import { BadResponseError, getCurrentUserId } from './urbit';
 
 const logger = createDevLogger('presenceApi', false);
 
@@ -118,10 +118,7 @@ export const getPresenceContextIdFromKey = (key: ub.PresenceKey) => {
 };
 
 export const getPresence = async () => {
-  const response = await scry<ub.PresenceResponse>({
-    app: 'presence',
-    path: '/v1/init',
-  });
+  const response = await scryRequest(presence.init)<ub.PresenceResponse>({});
 
   if (!('init' in response)) {
     throw new Error('Unexpected presence init response');
@@ -153,21 +150,17 @@ export const setPresence = async ({
   // host relays it to the human on the moon's behalf. See +presence agent.
   as?: string | null;
 }) => {
-  return poke({
-    app: 'presence',
-    mark: 'presence-action-1',
-    json: {
-      set: {
-        disclose,
-        key: {
-          ...presenceKeyIdentity(context, as),
-          topic,
-        },
-        timeout,
-        display: toWireDisplay(display),
+  return pokeRequest(presence.action)({
+    set: {
+      disclose,
+      key: {
+        ...presenceKeyIdentity(context, as),
+        topic,
       },
-    } satisfies ub.PresenceAction,
-  });
+      timeout,
+      display: toWireDisplay(display),
+    },
+  } satisfies ub.PresenceAction);
 };
 
 export const setConversationPresence = async ({
@@ -196,16 +189,12 @@ export const clearPresence = async ({
   topic: ub.PresenceTopic;
   as?: string | null;
 }) => {
-  return poke({
-    app: 'presence',
-    mark: 'presence-action-1',
-    json: {
-      clear: {
-        ...presenceKeyIdentity(context, as),
-        topic,
-      },
-    } satisfies ub.PresenceAction,
-  });
+  return pokeRequest(presence.action)({
+    clear: {
+      ...presenceKeyIdentity(context, as),
+      topic,
+    },
+  } satisfies ub.PresenceAction);
 };
 
 export const clearConversationPresence = async ({
@@ -225,23 +214,16 @@ export const clearConversationPresence = async ({
 };
 
 export const clearPresenceContext = async (context: string) => {
-  return poke({
-    app: 'presence',
-    mark: 'presence-action-1',
-    json: {
-      nuke: context,
-    } satisfies ub.PresenceAction,
-  });
+  return pokeRequest(presence.action)({
+    nuke: context,
+  } satisfies ub.PresenceAction);
 };
 
 export const subscribeToPresenceUpdates = async (
   handler: (event: PresenceEvent) => void
 ) => {
   try {
-    await scry<ub.PresenceResponse>({
-      app: 'presence',
-      path: '/v1/init',
-    });
+    await scryRequest(presence.init)<ub.PresenceResponse>({});
   } catch (error) {
     if (error instanceof BadResponseError && error.status === 404) {
       logger.trackEvent('%presence agent missing');
@@ -252,11 +234,8 @@ export const subscribeToPresenceUpdates = async (
     throw error;
   }
 
-  return subscribe<ub.PresenceResponse>(
-    {
-      app: 'presence',
-      path: '/v1',
-    },
+  return subscribeRequest(presence.updates)<ub.PresenceResponse>(
+    {},
     (event) => {
       logger.log('raw presence event', event);
       handler(toPresenceEvent(event));

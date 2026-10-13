@@ -4,6 +4,7 @@ import { migrations } from '@tloncorp/shared/db/migrations';
 import type { Database } from 'better-sqlite3';
 import type { DrizzleConfig } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { rmSync } from 'node:fs';
 
 import type { SQLiteConnection } from './sqliteConnection';
 
@@ -42,8 +43,16 @@ export class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
   }
 
   delete(): void {
-    console.warn('BetterSqlite3$SQLiteConnection::delete() is not implemented');
-    return;
+    const path = this.connection.name;
+    this.connection.close();
+    if (this.connection.memory) {
+      return;
+    }
+    // Drop the WAL sidecars too, so a fresh connection can't recover pages
+    // from the database we just removed.
+    for (const suffix of ['', '-wal', '-shm']) {
+      rmSync(path + suffix, { force: true });
+    }
   }
 
   async migrateClient(_client: AnySqliteDatabase): Promise<void> {

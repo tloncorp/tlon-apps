@@ -9,6 +9,7 @@
     "./api": "./src/api/index.ts",
     "./client": "./src/client/index.ts",
     "./debug": "./src/debug.ts",
+    "./errorReporting": "./src/errorReporting.ts",
     "./domain": "./src/domain/index.ts",
     "./domain/*": "./src/domain/*.ts",
     "./db": "./src/db/index.ts",

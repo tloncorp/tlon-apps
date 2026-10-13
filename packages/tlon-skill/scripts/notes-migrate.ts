@@ -135,31 +135,6 @@ export interface MigrationDeps {
   log: (message: string) => void;
 }
 
-export function canonicalizeNest(nest: string): string {
-  const { kind, host, name } = parseNest(nest);
-  return `${kind}/${host}/${name}`;
-}
-
-export function parseNest(nest: string): {
-  kind: string;
-  host: string;
-  name: string;
-} {
-  const parts = nest.split('/');
-  if (
-    parts.length !== 3 ||
-    parts.some((part) => part.length === 0) ||
-    /\s/.test(nest)
-  ) {
-    throw new Error(`Invalid nest format: ${nest}. Expected: kind/~host/name`);
-  }
-  return {
-    kind: parts[0],
-    host: parts[1].startsWith('~') ? parts[1] : `~${parts[1]}`,
-    name: parts[2],
-  };
-}
-
 export function normalizeShip(ship: string): string {
   return ship.startsWith('~') ? ship : `~${ship}`;
 }

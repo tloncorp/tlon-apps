@@ -1,3 +1,4 @@
+export * as actorApi from '@tloncorp/api';
 import {
   Urbit,
   addReaction,
@@ -46,16 +47,21 @@ export interface PromptResult {
 export type StoryInput = Story | string;
 
 /** Channel kinds a scenario can seed. The value is the Urbit nest prefix. */
-export type ChannelKind = 'chat' | 'diary';
+export type ChannelKind = 'chat' | 'diary' | 'heap';
 
-const CHANNEL_KIND_DB_TYPES: Record<ChannelKind, 'chat' | 'notebook'> = {
+const CHANNEL_KIND_DB_TYPES: Record<
+  ChannelKind,
+  'chat' | 'notebook' | 'gallery'
+> = {
   chat: 'chat',
   diary: 'notebook',
+  heap: 'gallery',
 };
 
 const CHANNEL_KIND_DESCRIPTIONS: Record<ChannelKind, string> = {
   chat: 'General chat',
   diary: 'General notebook',
+  heap: 'General gallery',
 };
 
 export interface BotProfileInput {
@@ -64,6 +70,7 @@ export interface BotProfileInput {
 }
 
 export interface ChannelPost {
+  isDeleted?: boolean;
   id?: string;
   authorId?: string;
   parentId?: string | null;
@@ -439,7 +446,8 @@ export class TlonActorClient {
     this.connected = true;
   }
 
-  private async withClient<T>(fn: () => Promise<T>): Promise<T> {
+  // Serialize API calls so each operation uses this actor's ship context.
+  async withClient<T>(fn: () => Promise<T>): Promise<T> {
     return runExclusive(async () => {
       await this.ensureConnected();
       configureClient({
@@ -736,6 +744,7 @@ export function storyInputText(input: StoryInput): string {
 
 function postFromApi(post: unknown): ChannelPost {
   const raw = post as {
+    isDeleted?: boolean;
     id?: string;
     authorId?: string;
     parentId?: string | null;
@@ -746,6 +755,7 @@ function postFromApi(post: unknown): ChannelPost {
   };
   return {
     id: raw.id,
+    ...(raw.isDeleted ? { isDeleted: true } : {}),
     authorId: raw.authorId,
     sentAt: raw.sentAt,
     sequenceNum: raw.sequenceNum,

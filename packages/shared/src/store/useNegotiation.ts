@@ -1,6 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import {
+  channels,
+  chat,
+  groups,
+  pokeRequest,
+  scryRequest,
+  subscribeRequest,
+} from '@tloncorp/api/client/requests';
+import {
   MatchingEvent,
   MatchingResponse,
 } from '@tloncorp/api/urbit/negotiation';
@@ -11,6 +19,34 @@ import { queryClient } from '../db';
 import { createDevLogger } from '../debug';
 
 const logger = createDevLogger('useNegotiation', false);
+
+// The agents whose protocol version the client negotiates.
+export type NegotiatedApp = 'groups' | 'chat' | 'channels';
+
+function watchNegotiation(
+  app: NegotiatedApp,
+  handler: (event: MatchingEvent) => void
+) {
+  switch (app) {
+    case 'groups':
+      return subscribeRequest(groups.negotiateNotify)({}, handler);
+    case 'chat':
+      return subscribeRequest(chat.negotiateNotify)({}, handler);
+    case 'channels':
+      return subscribeRequest(channels.negotiateNotify)({}, handler);
+  }
+}
+
+function scryNegotiation(app: NegotiatedApp) {
+  switch (app) {
+    case 'groups':
+      return scryRequest(groups.negotiateStatus)<MatchingResponse>({});
+    case 'chat':
+      return scryRequest(chat.negotiateStatus)<MatchingResponse>({});
+    case 'channels':
+      return scryRequest(channels.negotiateStatus)<MatchingResponse>({});
+  }
+}
 
 function negotiationUpdater(
   event: MatchingEvent | null,
@@ -47,7 +83,7 @@ function negotiationUpdater(
 }
 
 export function useNegotiation(
-  app: string,
+  app: NegotiatedApp,
   agent: string,
   { enabled = true }: { enabled?: boolean } = {}
 ) {
@@ -68,12 +104,8 @@ export function useNegotiation(
 
   useEffect(() => {
     if (!enabled) return;
-    api.subscribe(
-      {
-        app,
-        path: `/~/negotiate/notify/json`,
-      },
-      (event: MatchingEvent) => negotiationUpdater(event, queryKey, invalidate)
+    watchNegotiation(app, (event: MatchingEvent) =>
+      negotiationUpdater(event, queryKey, invalidate)
     );
   }, [agent, app, enabled, queryKey]);
 
@@ -81,15 +113,11 @@ export function useNegotiation(
     queryKey,
     enabled,
     staleTime: 5000,
-    queryFn: () =>
-      api.scry({
-        app,
-        path: '/~/negotiate/status/json',
-      }),
+    queryFn: () => scryNegotiation(app),
   });
 }
 
-export function useNegotiate(ship: string, app: string, agent: string) {
+export function useNegotiate(ship: string, app: NegotiatedApp, agent: string) {
   const { data, ...rest } = useNegotiation(app, agent);
 
   if (rest.isLoading || rest.isError || data === undefined) {
@@ -119,7 +147,11 @@ export function useNegotiate(ship: string, app: string, agent: string) {
   return { ...rest, status: 'await', matchedOrPending: true };
 }
 
-export function useNegotiateMulti(ships: string[], app: string, agent: string) {
+export function useNegotiateMulti(
+  ships: string[],
+  app: NegotiatedApp,
+  agent: string
+) {
   const { data, ...rest } = useNegotiation(app, agent);
 
   if (rest.isLoading || rest.isError || data === undefined) {
@@ -156,7 +188,8 @@ export function useGroupsNegotiationClashes({
   }, [data]);
 }
 
-export function useForceNegotiationUpdate(ships: string[], app: string) {
+// Only %chat accepts the chat-negotiate mark.
+export function useForceNegotiationUpdate(ships: string[], app: 'chat') {
   const { data } = useNegotiation(app, app);
   const unknownShips = useMemo(
     () =>
@@ -168,22 +201,13 @@ export function useForceNegotiationUpdate(ships: string[], app: string) {
       ),
     [ships, app, data]
   );
-  const negotiateUnknownShips = useCallback(
-    async (shipsToCheck: string[]) => {
-      const responses: Promise<number | undefined>[] = [];
-      shipsToCheck.forEach((ship) => {
-        responses.push(
-          api.poke({
-            app,
-            mark: 'chat-negotiate',
-            json: ship,
-          })
-        );
-      });
-      await Promise.all(responses);
-    },
-    [app]
-  );
+  const negotiateUnknownShips = useCallback(async (shipsToCheck: string[]) => {
+    const responses: Promise<number | undefined>[] = [];
+    shipsToCheck.forEach((ship) => {
+      responses.push(pokeRequest(chat.negotiate)(ship));
+    });
+    await Promise.all(responses);
+  }, []);
 
   useEffect(() => {
     if (unknownShips.length > 0) {

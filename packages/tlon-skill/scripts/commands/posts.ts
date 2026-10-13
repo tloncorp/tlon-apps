@@ -7,9 +7,11 @@ import {
 import {
   DIARY_REMOVED,
   NOTES_CHANNEL_CONTENT_UNSUPPORTED,
+  formatPostId,
   isDiaryNest,
   isNotesNest,
 } from '../cli-utils';
+import { imageFlagIndex, validatedImageFlag } from '../image-attach';
 import { type Story, type StoryVerse, markdownToStory } from '../markdown';
 import { defaultReplyParentAuthor } from '../post-targets';
 import {
@@ -229,24 +231,6 @@ type ParsedPostsArgs =
   | { kind: 'delete'; channelId: string; postId: string }
   | { kind: 'edit'; channelId: string; postId: string; message: string };
 
-function extractNumericId(id: string): string {
-  const slash = id.indexOf('/');
-  return slash >= 0 ? id.slice(slash + 1) : id;
-}
-
-function formatUd(id: string): string {
-  const clean = id.replace(/\./g, '');
-  const parts: string[] = [];
-  for (let i = clean.length; i > 0; i -= 3) {
-    parts.unshift(clean.slice(Math.max(0, i - 3), i));
-  }
-  return parts.join('.');
-}
-
-function formatPostId(postId: string): string {
-  return formatUd(extractNumericId(postId));
-}
-
 function optionalReactionParent(
   args: string[],
   help: string
@@ -285,45 +269,6 @@ function getPostsHelp(command: string | undefined): string {
   return command && POSTS_COMMAND_HELP[command]
     ? POSTS_COMMAND_HELP[command]
     : POSTS_HELP;
-}
-
-// Index of an optional `--image <url>` or `--image=<url>` flag.
-function imageFlagIndex(args: string[]): number {
-  return args.findIndex(
-    (arg) => arg === '--image' || arg.startsWith('--image=')
-  );
-}
-
-// Value of an optional `--image <url>` / `--image=<url>` flag. Throws a usage
-// error when the flag is present but its value is missing.
-function imageFlagValue(args: string[], usage: string): string | undefined {
-  const idx = imageFlagIndex(args);
-  if (idx === -1) {
-    return undefined;
-  }
-  const arg = args[idx];
-  const url = arg.startsWith('--image=')
-    ? arg.slice('--image='.length)
-    : args[idx + 1];
-  if (!url) {
-    throw usageError(usage);
-  }
-  return url;
-}
-
-// Validate an optional image flag: returns the URL when present and http(s),
-// undefined when absent; throws on a malformed flag/value.
-function validatedImageFlag(args: string[], usage: string): string | undefined {
-  const url = imageFlagValue(args, usage);
-  if (!url) {
-    return undefined;
-  }
-  if (!/^https?:\/\//.test(url)) {
-    throw commandError(
-      '--image must be an http(s) image URL — upload first with `tlon upload`'
-    );
-  }
-  return url;
 }
 
 function validatedBlobFlag(

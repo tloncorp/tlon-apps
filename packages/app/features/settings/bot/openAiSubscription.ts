@@ -1,5 +1,6 @@
 import type {
   TlawnLLMAuthFlow,
+  TlawnLLMAuthProvider,
   TlawnLLMAuthProviderStatus,
   TlawnLLMAuthStatus,
   TlawnProviderModel,
@@ -9,7 +10,7 @@ import type {
 export type OpenAIAuthState =
   | { phase: 'idle' }
   | { phase: 'starting' }
-  | { phase: 'active'; flow: TlawnLLMAuthFlow }
+  | { phase: 'active'; flow: TlawnLLMAuthFlow; error?: string }
   | { phase: 'complete'; flow: TlawnLLMAuthFlow }
   | {
       phase: 'error';
@@ -21,6 +22,7 @@ export type OpenAIAuthState =
 export type OpenAIAuthEvent =
   | { type: 'start' }
   | { type: 'flow'; flow: TlawnLLMAuthFlow; now: number }
+  | { type: 'tokenFailure'; message: string }
   | { type: 'failure'; message: string; notFound?: boolean }
   | { type: 'expired'; now: number }
   | { type: 'reset' };
@@ -82,6 +84,10 @@ export function reduceOpenAIAuthState(
         restartable: true,
         flow: currentFlow(state),
       };
+    case 'tokenFailure':
+      return state.phase === 'active'
+        ? { ...state, error: event.message }
+        : state;
     case 'expired': {
       const flow = currentFlow(state);
       if (!flow || flow.expiresAt > event.now) return state;
@@ -113,7 +119,16 @@ export function reduceOpenAIAuthState(
           flow,
         };
       }
-      return { phase: 'active', flow };
+      const preservesTokenError =
+        state.phase === 'active' &&
+        state.error !== undefined &&
+        state.flow.id === flow.id &&
+        state.flow.provider === flow.provider &&
+        flow.provider === 'anthropic' &&
+        flow.status === 'awaiting_token';
+      return preservesTokenError
+        ? { phase: 'active', flow, error: state.error }
+        : { phase: 'active', flow };
     }
   }
 }
@@ -147,13 +162,27 @@ export function getLLMAuthStatusRefetchInterval(
 export function getOpenAIAuthStatus(
   status?: TlawnLLMAuthStatus
 ): TlawnLLMAuthProviderStatus | undefined {
-  return status?.providers.find((provider) => provider.provider === 'openai');
+  return getLLMAuthProviderStatus(status, 'openai');
+}
+
+export function getLLMAuthProviderStatus(
+  status: TlawnLLMAuthStatus | undefined,
+  providerId: TlawnLLMAuthProvider
+): TlawnLLMAuthProviderStatus | undefined {
+  return status?.providers.find((provider) => provider.provider === providerId);
 }
 
 export function getOpenAISubscriptionModels(
   status?: TlawnLLMAuthStatus
 ): TlawnSubscriptionModel[] {
-  return status?.subscriptionModels?.openai ?? [];
+  return getLLMAuthSubscriptionModels(status, 'openai');
+}
+
+export function getLLMAuthSubscriptionModels(
+  status: TlawnLLMAuthStatus | undefined,
+  providerId: TlawnLLMAuthProvider
+): TlawnSubscriptionModel[] {
+  return status?.subscriptionModels?.[providerId] ?? [];
 }
 
 export function getOpenAIVerificationUrl(value?: string): string | null {
@@ -164,6 +193,8 @@ export function getOpenAIVerificationUrl(value?: string): string | null {
     return null;
   }
 }
+
+export const getLLMAuthVerificationUrl = getOpenAIVerificationUrl;
 
 export type OpenAICredentialMode = 'api-key' | 'subscription';
 
@@ -184,10 +215,18 @@ export function getOpenAIDisconnectQueryKeys(
   ship: string,
   hostingUserId: string
 ): string[][] {
+  return getLLMAuthDisconnectQueryKeys(ship, hostingUserId, 'openai');
+}
+
+export function getLLMAuthDisconnectQueryKeys(
+  ship: string,
+  hostingUserId: string,
+  providerId: TlawnLLMAuthProvider
+): string[][] {
   return [
     ['tlonbot', 'llm-auth-status', ship],
     ['tlonbot', 'provider-config', hostingUserId],
-    ['tlonbot', 'provider-models', hostingUserId, 'openai'],
+    ['tlonbot', 'provider-models', hostingUserId, providerId],
   ];
 }
 

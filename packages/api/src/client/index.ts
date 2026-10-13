@@ -1,7 +1,10 @@
 export { udToDate } from './apiUtils';
+export * from './agentProtocol';
 export * from './a2ui';
 export * from './channelContentConfig';
 export * from './channelsApi';
+export * from './bucketsApi';
+export * from './bucketsBroker';
 export * from './chatApi';
 export * from './contactsApi';
 export * from './groupsApi';
@@ -41,6 +44,7 @@ export {
   inviteShipWithLure,
   logInHostingUser,
   requestLoginOtp,
+  requestLoginOtpForUser,
   requestPasswordReset,
   requestPhoneVerify,
   requestSignupOtp,
@@ -51,6 +55,7 @@ export {
   setUserTlonbotEnabled,
   signUpHostingUser,
   verifyEmailDigits,
+  verifyLoginOtpForUser,
   markUserTlonbotEnabled,
   checkNodeIsTlonbotReady,
   // Tlawn (bot) endpoints
@@ -59,12 +64,15 @@ export {
   deleteTlawnProviderKey,
   setTlawnPrimaryModel,
   getTlawnProviderModels,
+  getTlawnOpenRouterRecommendedModels,
+  getTlawnOpenRouterZdrEndpoints,
   getTlawnBotInfo,
   getTlawnOAuthProviders,
   getTlawnOAuthStatus,
   getTlawnLLMAuthStatus,
   startTlawnLLMAuth,
   getTlawnLLMAuthFlow,
+  completeTlawnLLMAuth,
   disconnectTlawnLLMAuth,
   startTlawnOAuth,
   deleteTlawnOAuthGrant,
@@ -85,6 +93,10 @@ export {
   awaitBotRunning,
 } from './hostingApi';
 export type {
+  HostingLoginOtpInfo,
+  HostingRecaptchaPlatform,
+} from './hostingApi';
+export type {
   HostingHeartBeatCode,
   TlawnProviderConfigInfo,
   TlawnModelEntry,
@@ -98,6 +110,7 @@ export type {
   TlawnChatConfigUpdate,
   TlawnConfig,
   TlawnProviderModel,
+  TlawnOpenRouterZdrEndpoint,
   TlawnOAuthGrant,
   TlawnOAuthProvider,
   TlawnOAuthProviderKind,
@@ -119,4 +132,6 @@ export * from './changesApi';
 export * from './computingStatus';
 export * from './presenceApi';
 export * from './stewardGatewayApi';
+export * from './stewardAutomationApi';
 export * from './lensApi';
+export * from './stewardPromptsApi';

@@ -1,0 +1,37 @@
+appId: ${MAESTRO_APP_ID}
+name: Mark an unread channel as read
+env:
+  JOURNEY: channel-mark-read
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- tapOn: '^All$'
+- scrollUntilVisible:
+    element: ${'UnreadChannels-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- assertVisible: ${output.reliability.unreadTopicPreviewPattern}
+- tapOn: ${'UnreadChannels-' + MAESTRO_RUN_TAG}
+- assertVisible:
+    id: ChannelListItem-General
+- assertVisible:
+    id: ChannelListItem-Unread topic
+- assertVisible: ${output.reliability.unreadTopicPreviewPattern}
+- longPressOn:
+    id: ChannelListItem-Unread topic
+- assertVisible: '^Channel notifications$'
+- assertVisible: '^Mark as read$'
+- tapOn: '^Mark as read$'
+- assertVisible:
+    id: ChannelListItem-Unread topic
+- longPressOn:
+    id: ChannelListItem-Unread topic
+- assertVisible: '^Channel notifications$'
+- assertNotVisible: '^Mark as read$'
+- swipe:
+    direction: DOWN
+- tapOn:
+    point: '10%,8%'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Workspaces$'

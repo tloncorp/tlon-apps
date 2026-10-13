@@ -1,10 +1,18 @@
+import { getBotUserIdForUser } from '@tloncorp/api';
 import type { TalkSidebarFilter } from '@tloncorp/api/urbit';
 import { useMessagesFilter } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
 import { useCalm } from '../ui/contexts/appDataContext';
+import {
+  CHAT_LIST_FILTER_LABELS,
+  type ChatListFilter,
+  filterChatsByListFilter,
+  getVisibleChatListFilters,
+} from './chatListFilters';
 import { useChatSearch } from './useChatSearch';
+import { useCurrentUserId } from './useCurrentUser';
 
 export type TabName =
   | 'all'
@@ -34,20 +42,33 @@ function getAllSectionHeader(
   return 'All';
 }
 
+/** The ids the segment filters compare a group's members against. */
+function useChatListFilterIds() {
+  const currentUserId = useCurrentUserId();
+  return useMemo(
+    () => ({ currentUserId, botUserId: getBotUserIdForUser(currentUserId) }),
+    [currentUserId]
+  );
+}
+
 export function useFilteredChats({
   pinned,
   unpinned,
   pending,
   searchQuery,
   activeTab,
+  listFilter = 'all',
 }: {
   pinned: db.Chat[];
   unpinned: db.Chat[];
   pending: db.Chat[];
   searchQuery: string;
   activeTab: TabName;
+  /** Narrows an already-tab-filtered list to one segment of the chat list. */
+  listFilter?: ChatListFilter;
 }): SectionedChatData {
   const { disableNicknames } = useCalm();
+  const filterIds = useChatListFilterIds();
   const { data } = useMessagesFilter();
   const talkFilter = useMemo(
     () =>
@@ -59,8 +80,13 @@ export function useFilteredChats({
     [pinned, unpinned, pending]
   );
   const searchableChats = useMemo(
-    () => filterChats(chats, activeTab, talkFilter),
-    [activeTab, chats, talkFilter]
+    () =>
+      filterChatsByListFilter(
+        filterChats(chats, activeTab, talkFilter),
+        listFilter,
+        filterIds
+      ),
+    [activeTab, chats, filterIds, listFilter, talkFilter]
   );
   const { results: searchResults } = useChatSearch({
     chats: searchableChats,
@@ -69,12 +95,22 @@ export function useFilteredChats({
     disableNicknames,
   });
   const pinnedChats = useMemo(
-    () => filterChats(pinned, activeTab, talkFilter),
-    [activeTab, pinned, talkFilter]
+    () =>
+      filterChatsByListFilter(
+        filterChats(pinned, activeTab, talkFilter),
+        listFilter,
+        filterIds
+      ),
+    [activeTab, filterIds, listFilter, pinned, talkFilter]
   );
   const allChats = useMemo(
-    () => filterChats([...pending, ...unpinned], activeTab, talkFilter),
-    [activeTab, pending, talkFilter, unpinned]
+    () =>
+      filterChatsByListFilter(
+        filterChats([...pending, ...unpinned], activeTab, talkFilter),
+        listFilter,
+        filterIds
+      ),
+    [activeTab, filterIds, listFilter, pending, talkFilter, unpinned]
   );
 
   return useMemo(() => {
@@ -85,7 +121,12 @@ export function useFilteredChats({
         data: pinnedChats,
       };
       const allSection = {
-        title: getAllSectionHeader(activeTab, talkFilter),
+        // A segment names itself; only the unsegmented list keeps the
+        // tab-derived heading.
+        title:
+          listFilter === 'all'
+            ? getAllSectionHeader(activeTab, talkFilter)
+            : CHAT_LIST_FILTER_LABELS[listFilter],
         data: allChats,
       };
       return pinnedSection.data.length
@@ -102,11 +143,33 @@ export function useFilteredChats({
   }, [
     activeTab,
     allChats,
+    listFilter,
     pinnedChats,
     searchQuery,
     searchResults,
     talkFilter,
   ]);
+}
+
+/** Which filter chips the Workspaces list offers for these chats. */
+export function useVisibleChatListFilters({
+  pinned,
+  unpinned,
+  pending,
+}: {
+  pinned: db.Chat[];
+  unpinned: db.Chat[];
+  pending: db.Chat[];
+}): ChatListFilter[] {
+  const filterIds = useChatListFilterIds();
+  return useMemo(
+    () =>
+      getVisibleChatListFilters(
+        [...pinned, ...unpinned, ...pending],
+        filterIds
+      ),
+    [filterIds, pending, pinned, unpinned]
+  );
 }
 
 function filterChats(

@@ -1,7 +1,6 @@
 import {
   ActionSheetContext,
   Icon,
-  IconButton,
   IconType,
   Pressable,
   Sheet,
@@ -15,13 +14,13 @@ import {
   PropsWithChildren,
   ReactElement,
   ReactNode,
+  createContext,
   forwardRef,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,11 +39,13 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
+import { useSheetBottomInset } from '../hooks/useSheetBottomInset';
 import {
   BottomSheetScrollView,
   BottomSheetWrapper,
 } from './BottomSheetWrapper';
 import { BottomSheetWrapperProps } from './BottomSheetWrapper.types';
+import { ExpoUISheet } from './ExpoUISheet';
 import { ListItem } from './ListItem';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
@@ -120,8 +121,18 @@ type ActionSheetProps = {
   trigger?: ReactNode;
   mode?: AdaptiveMode;
   dialogContentProps?: ComponentProps<typeof Dialog.Content>;
+  /**
+   * Dialog mode scrolls its whole body by default. Set to false for content
+   * that fills the dialog and scrolls internally, so a footer below the list
+   * stays pinned to the bottom of the dialog.
+   */
+  dialogScrollEnabled?: boolean;
   closeButton?: boolean;
   footerComponent?: React.FC<any>;
+  /** Render this sheet's content with Expo UI's native platform components. */
+  nativeExpoUI?: boolean;
+  /** Fires after the native Expo UI dismissal animation completes. */
+  onNativeDismissed?: () => void;
 };
 
 const useAdaptiveMode = (mode?: AdaptiveMode) => {
@@ -161,6 +172,20 @@ export const desktopFlyoutContentProps = {
   overflow: 'hidden',
 } as const;
 
+// The iOS sheet draws its close button in the top-trailing corner and keeps
+// content below the button's 52pt area (8pt inset plus a 44pt frame, see
+// patches/@expo__ui). A header at the top of the sheet moves up into that
+// area and lines up with the chat options header: title about 35pt from the
+// top of the sheet, first group about 111pt. Content in a scroll view stays
+// below the button, since the scroll view would clip anything moved above it.
+const CloseButtonRowContext = createContext(false);
+// True inside an Android sheet that shows the native drag handle.
+const HandleStripContext = createContext(false);
+const closeButtonClearance = 52;
+const closeButtonRowTop = 34;
+const closeButtonRowTrailingInset = 44;
+const closeButtonRowBottomGap = 5;
+
 // Main component
 
 const ActionSheetComponent = ({
@@ -171,25 +196,30 @@ const ActionSheetComponent = ({
   mode: forcedMode,
   children,
   dialogContentProps,
+  dialogScrollEnabled = true,
   closeButton,
   footerComponent,
+  nativeExpoUI = false,
+  onNativeDismissed,
+  onDidOpen,
   unmountOnClose,
-  stackBehavior,
   ...props
 }: PropsWithChildren<
   ActionSheetProps &
     SheetProps &
     Pick<
       BottomSheetWrapperProps,
-      | 'enableContentPanningGesture'
-      | 'hasScrollableContent'
-      | 'keyboardBehavior'
-      | 'unmountOnClose'
-      | 'stackBehavior'
+      'enableContentPanningGesture' | 'unmountOnClose' | 'onDidOpen'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
   const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
+  const nativePresentation =
+    Platform.OS !== 'web' &&
+    mode === 'sheet' &&
+    nativeExpoUI &&
+    !isInsideSheet &&
+    !footerComponent;
   const hasOpened = useRef(open);
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -204,8 +234,12 @@ const ActionSheetComponent = ({
   );
 
   const actionSheetContextValue = useMemo(
-    () => ({ isInsideSheet: true, mode }),
-    [mode]
+    () => ({
+      isInsideSheet: true,
+      mode,
+      nativePresentation,
+    }),
+    [mode, nativePresentation]
   );
 
   // listen for escape key to close the sheet
@@ -227,47 +261,6 @@ const ActionSheetComponent = ({
       };
     }
   }, [onOpenChange, open]);
-
-  // Detect if children contain scrollable content (must be before any early returns)
-  // Uses depth-limited recursion to find nested scrollable content
-  const detectedHasScrollableContent = useMemo(() => {
-    let hasScrollable = false;
-    const MAX_DEPTH = 3; // Limit recursion depth for performance
-
-    const checkChild = (child: ReactNode, depth: number): void => {
-      if (!child || depth > MAX_DEPTH) return;
-
-      if (typeof child === 'object' && 'type' in child) {
-        // Check if it's ActionSheet.ScrollableContent
-        if (child.type === ActionSheetScrollableContent) {
-          hasScrollable = true;
-          return;
-        }
-
-        const childProps = child.props as any;
-        // Check if it has renderScrollComponent prop (FlatList/FlashList pattern)
-        if (childProps?.renderScrollComponent) {
-          hasScrollable = true;
-          return;
-        }
-
-        // Recursively check children with depth limit
-        if (childProps?.children && !hasScrollable) {
-          Children.forEach(childProps.children, (c) =>
-            checkChild(c, depth + 1)
-          );
-        }
-      }
-    };
-
-    Children.forEach(children, (child) => checkChild(child, 0));
-    return hasScrollable;
-  }, [children]);
-
-  // Allow explicit prop to override auto-detection (useful for BottomSheetFlatList
-  // which isn't detected by the above logic)
-  const hasScrollableContent =
-    props.hasScrollableContent ?? detectedHasScrollableContent;
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
@@ -348,11 +341,19 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            <ScrollView flex={1} showsVerticalScrollIndicator={true}>
-              <ActionSheetContext.Provider value={actionSheetContextValue}>
-                {children}
-              </ActionSheetContext.Provider>
-            </ScrollView>
+            {dialogScrollEnabled ? (
+              <ScrollView flex={1} showsVerticalScrollIndicator={true}>
+                <ActionSheetContext.Provider value={actionSheetContextValue}>
+                  {children}
+                </ActionSheetContext.Provider>
+              </ScrollView>
+            ) : (
+              <YStack flex={1}>
+                <ActionSheetContext.Provider value={actionSheetContextValue}>
+                  {children}
+                </ActionSheetContext.Provider>
+              </YStack>
+            )}
             {footerComponent && footerComponent({})}
           </Dialog.Content>
         </Dialog.Portal>
@@ -363,35 +364,48 @@ const ActionSheetComponent = ({
   // Use BottomSheetWrapper for native platforms, Sheet for web
   const useBottomSheet = Platform.OS !== 'web';
 
-  const sheetContent = useBottomSheet ? (
+  const sheetContent = nativePresentation ? (
+    <ExpoUISheet
+      open={open}
+      onOpenChange={onOpenChange}
+      onDismiss={onNativeDismissed}
+    >
+      <ActionSheetContext.Provider value={actionSheetContextValue}>
+        {children}
+      </ActionSheetContext.Provider>
+    </ExpoUISheet>
+  ) : useBottomSheet ? (
     <BottomSheetWrapper
       open={open}
       onOpenChange={onOpenChange}
+      onDidOpen={onDidOpen}
+      onDismiss={onNativeDismissed}
       dismissOnSnapToBottom={true}
-      transition="quick"
-      handleDisableScroll={true}
-      modal={props.modal}
       snapPoints={props.snapPoints}
       snapPointsMode={props.snapPointsMode as any}
       showHandle={true}
-      showOverlay={true}
       enablePanDownToClose={true}
       enableContentPanningGesture={props.enableContentPanningGesture}
-      keyboardBehavior={props.keyboardBehavior}
       footerComponent={footerComponent}
-      hasScrollableContent={hasScrollableContent}
       unmountOnClose={unmountOnClose}
-      stackBehavior={stackBehavior}
-      frameStyle={{}}
     >
       <ActionSheetContext.Provider value={actionSheetContextValue}>
-        {forcedMode === 'popover' ? (
-          <ActionSheet.ScrollableContent>
-            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-          </ActionSheet.ScrollableContent>
-        ) : (
-          children
-        )}
+        <CloseButtonRowContext.Provider value={Platform.OS === 'ios'}>
+          <HandleStripContext.Provider
+            value={
+              Platform.OS === 'android' &&
+              props.enableContentPanningGesture !== false
+            }
+          >
+            {forcedMode === 'popover' ? (
+              <ActionSheet.ScrollableContent>
+                <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+              </ActionSheet.ScrollableContent>
+            ) : (
+              children
+            )}
+          </HandleStripContext.Provider>
+        </CloseButtonRowContext.Provider>
       </ActionSheetContext.Provider>
     </BottomSheetWrapper>
   ) : (
@@ -417,6 +431,7 @@ const ActionSheetComponent = ({
             children
           )}
         </ActionSheetContext.Provider>
+        {footerComponent && footerComponent({})}
       </Sheet.Frame>
     </Sheet>
   );
@@ -436,15 +451,48 @@ const ActionSheetHeaderFrame = styled(View, {
   paddingHorizontal: '$xl',
 });
 
-const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
-  ({ children, ...props }, ref) => {
-    return (
-      <ActionSheetHeaderFrame {...props} ref={ref}>
-        <ListItem paddingHorizontal="$2xl">{children}</ListItem>
-      </ActionSheetHeaderFrame>
-    );
-  }
-);
+const ActionSheetHeader = ActionSheetHeaderFrame.styleable<{
+  /** Inset both sides to clear the close button, for content centered on the sheet. */
+  centered?: boolean;
+  /**
+   * The header starts where an icon or avatar starts rather than where text
+   * does. A row is a box 16 from the sheet edge; text starts 24 inside it and
+   * an icon 12, which puts the icon at 28 and the text beside it at 88.
+   */
+  leadingIcon?: boolean;
+}>(({ children, centered, leadingIcon, ...props }, ref) => {
+  // Moves the row from below the close button up into its row.
+  const closeButtonOffset = useContext(CloseButtonRowContext)
+    ? closeButtonRowTop - closeButtonClearance
+    : 0;
+  const underHandleStrip = useContext(HandleStripContext);
+  return (
+    <ActionSheetHeaderFrame
+      {...(closeButtonOffset
+        ? {
+            // The row sits inside ListItem's padding.
+            marginTop: closeButtonOffset - getTokenValue('$l', 'space'),
+            marginBottom: closeButtonRowBottomGap,
+            paddingRight: closeButtonRowTrailingInset,
+            ...(centered ? { paddingLeft: closeButtonRowTrailingInset } : null),
+          }
+        : underHandleStrip
+          ? // Android's handle strip is 48 tall and already leaves room under
+            // the handle, so the row gives up its own padding above.
+            { marginTop: -getTokenValue('$l', 'space') }
+          : null)}
+      {...props}
+      ref={ref}
+    >
+      <ListItem
+        paddingHorizontal="$2xl"
+        {...(leadingIcon ? { paddingLeft: '$l' } : null)}
+      >
+        {children}
+      </ListItem>
+    </ActionSheetHeaderFrame>
+  );
+});
 
 // Content wrappers
 
@@ -473,6 +521,7 @@ const ActionSheetScrollableContent = forwardRef<
 
   // Use BottomSheetScrollView for native platforms
   if (useBottomSheet) {
+    const { children, ...scrollProps } = props;
     return (
       <BottomSheetScrollView
         ref={ref as any}
@@ -484,8 +533,12 @@ const ActionSheetScrollableContent = forwardRef<
           top: 0,
           bottom: contentStyle.paddingBottom as number,
         }}
-        {...(props as any)}
-      />
+        {...(scrollProps as any)}
+      >
+        <CloseButtonRowContext.Provider value={false}>
+          {children}
+        </CloseButtonRowContext.Provider>
+      </BottomSheetScrollView>
     );
   }
 
@@ -509,11 +562,11 @@ const ActionSheetScrollableContent = forwardRef<
 ActionSheetScrollableContent.displayName = 'ActionSheetScrollableContent';
 
 const useContentStyle = () => {
-  const insets = useSafeAreaInsets();
+  const sheetBottomInset = useSheetBottomInset();
   const isWindowNarrow = useIsWindowNarrow();
   return {
     paddingBottom: isWindowNarrow
-      ? insets.bottom + getTokenValue('$2xl', 'size')
+      ? sheetBottomInset + getTokenValue('$2xl', 'size')
       : getTokenValue('$xl', 'size'),
   };
 };
@@ -820,14 +873,20 @@ export const SimpleActionSheetHeader = ({
   title,
   subtitle,
   icon,
+  alignWithAvatars = false,
 }: {
   title?: string | null;
   subtitle?: string;
   icon?: ReactElement;
+  /**
+   * Starts a title that has no icon where an icon would start, for a sheet
+   * whose rows lead with avatars. The title then shares their left edge.
+   */
+  alignWithAvatars?: boolean;
 }) => {
   const isWindowNarrow = useIsWindowNarrow();
   return (
-    <ActionSheet.Header>
+    <ActionSheet.Header leadingIcon={!!icon || alignWithAvatars}>
       {icon ? icon : null}
       <ListItem.MainContent
         alignItems={isWindowNarrow ? 'flex-start' : 'center'}
@@ -914,7 +973,12 @@ function ActionSheetCopyAction({
       description: action.description,
       action: doCopy,
       startIcon: action.startIcon,
-      endIcon: didCopy ? 'Checkmark' : 'Copy',
+      // A row that already leads with a copy icon only shows the checkmark.
+      endIcon: didCopy
+        ? 'Checkmark'
+        : action.startIcon === 'Copy'
+          ? undefined
+          : 'Copy',
     }),
     [action.title, action.description, action.startIcon, doCopy, didCopy]
   );

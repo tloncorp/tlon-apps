@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   initializeOpenAISubscriptionModels,
+  initializeSubscriptionModels,
   resolveInitialProviderModel,
 } from './providerModelDefaults';
 
@@ -32,6 +33,26 @@ describe('resolveInitialProviderModel', () => {
     ).toBe('');
   });
 
+  it('selects Grok 4.3 for xAI when available', () => {
+    expect(
+      resolveInitialProviderModel(
+        'xai',
+        [{ id: 'grok-4.3' }, { id: 'grok-4.2' }],
+        ''
+      )
+    ).toBe('grok-4.3');
+  });
+
+  it('selects Claude Sonnet 5 for Anthropic when available', () => {
+    expect(
+      resolveInitialProviderModel(
+        'anthropic',
+        [{ id: 'claude-sonnet-5' }, { id: 'claude-opus-4-6' }],
+        ''
+      )
+    ).toBe('claude-sonnet-5');
+  });
+
   it('leaves OpenAI unselected when Luna is unavailable', () => {
     expect(resolveInitialProviderModel('openai', [{ id: 'gpt-5.5' }], '')).toBe(
       ''
@@ -59,5 +80,42 @@ describe('initializeOpenAISubscriptionModels', () => {
     expect(
       initializeOpenAISubscriptionModels([{ id: 'gpt-5.5' }], '').primaryModel
     ).toBe('');
+  });
+});
+
+describe('initializeSubscriptionModels', () => {
+  it('initializes Anthropic subscription models with Claude Sonnet 5 selected', () => {
+    expect(
+      initializeSubscriptionModels(
+        'anthropic',
+        [
+          { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' },
+          { id: 'claude-opus-4-6' },
+        ],
+        ''
+      )
+    ).toEqual({
+      providerModels: [
+        { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' },
+        { id: 'claude-opus-4-6' },
+      ],
+      primaryModel: 'claude-sonnet-5',
+    });
+  });
+
+  it('initializes xAI subscription models with Grok 4.3 selected', () => {
+    expect(
+      initializeSubscriptionModels(
+        'xai',
+        [{ id: 'grok-4.3', name: 'Grok 4.3' }, { id: 'grok-4.2' }],
+        ''
+      )
+    ).toEqual({
+      providerModels: [
+        { id: 'grok-4.3', name: 'Grok 4.3' },
+        { id: 'grok-4.2' },
+      ],
+      primaryModel: 'grok-4.3',
+    });
   });
 });

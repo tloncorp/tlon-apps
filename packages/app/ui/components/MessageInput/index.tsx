@@ -135,6 +135,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       onEditorContentChange,
       onInitialContentSet,
       frameless = false,
+      testID,
     },
     ref
   ) => {
@@ -589,13 +590,19 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             : (JSON.parse(data) as MessageEditorMessage);
 
         if (type === 'editor-ready') {
-          if (reloadContentRef.current) {
-            setHasSetInitialContent(false);
-          }
+          // Android can discard a backgrounded WebView's web content and reload
+          // the page without the app asking for it, which leaves the editor
+          // blank. Put back what the editor last held; on the first load there
+          // is nothing yet, so initial content setup runs as usual.
+          reloadContentRef.current ??= editorContent as JSONContent | undefined;
+          setHasSetInitialContent(false);
           webviewRef.current?.injectJavaScript(
             `
               function updateContentHeight() {
                 const editorElement = document.querySelector('#root div .ProseMirror');
+                // The ready message can arrive before React mounts the editor.
+                // The observer below will measure it once it exists.
+                if (!editorElement) return;
                 editorElement.style.height = 'auto';
                 editorElement.style.overflow = 'auto';
                 const newHeight = editorElement.scrollHeight;
@@ -670,6 +677,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       },
       [
         editor,
+        editorContent,
         handlePaste,
         setHeight,
         webviewRef,
@@ -815,6 +823,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             style={{ width: '100%' }}
           >
             <RichText
+              testID={editorState.isReady ? testID : undefined}
               style={{
                 maxHeight: bigInput ? bigInputHeight : maxInputHeight,
                 width: '100%',
@@ -865,20 +874,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               window.addEventListener('unhandledrejection', function(e) {
                 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'content-error', payload: e.message }));
                 return true;
-              });
-
-              window.addEventListener('keydown', (e) => {
-
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  window.ReactNativeWebView.postMessage('enter');
-                  return;
-                }
-
-                if (e.key === 'Enter' && e.shiftKey) {
-                  window.ReactNativeWebView.postMessage('shift-enter');
-                  return;
-                }
-
               });
 
               window.addEventListener('message', (event) => {

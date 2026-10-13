@@ -345,6 +345,86 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertIn("--parent <post-id>", platform_hint)
         self.assertIn("posts delete heap/~host/name <post-id>", platform_hint)
 
+    def test_media_guidance_carries_the_delivery_claim_and_fallback_rules(self):
+        # TLON_TOOL_DESCRIPTION is the authoritative rule set; the platform
+        # hint only has to carry the two rules a wrong answer is costly on —
+        # never claiming an undelivered image, and the storage-less fallback.
+        description = tlon_tool.TLON_TOOL_DESCRIPTION
+        self.assertIn("public https", description)
+        self.assertIn(
+            "never claim an image was delivered unless the upload", description
+        )
+        self.assertIn("cannot store uploads", description)
+        self.assertIn("posts without uploading", description)
+
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        context = RecordingContext()
+        adapter_mod.register(context)
+        platform_hint = context.platform["platform_hint"]
+        self.assertIn("never claim an image was posted unless", platform_hint)
+        self.assertIn("cannot store uploads", platform_hint)
+
+    def test_platform_hint_advertises_product_guide_only_when_registered(self):
+        # The guide ships in the OpenClaw plugin tree, which a Hermes install
+        # may not have. Pointing the model at a skill_view that can't resolve
+        # would turn every product question into a failed tool call, so the
+        # hint fragment has to track the registration.
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+                self.skills: list[str] = []
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, name, *_args, **_kwargs):
+                self.skills.append(name)
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        marker = 'skill_view("tlon-platform:tlon-product-guide")'
+
+        found = RecordingContext()
+        with patch.object(
+            adapter_mod,
+            "resolve_tlon_product_guide_path",
+            return_value=Path("/plugin/skills/tlon-product-guide/SKILL.md"),
+        ):
+            adapter_mod.register(found)
+        self.assertIn("tlon-product-guide", found.skills)
+        self.assertIn(marker, found.platform["platform_hint"])
+
+        missing = RecordingContext()
+        with patch.object(
+            adapter_mod, "resolve_tlon_product_guide_path", return_value=None
+        ):
+            adapter_mod.register(missing)
+        self.assertNotIn("tlon-product-guide", missing.skills)
+        self.assertNotIn(marker, missing.platform["platform_hint"])
+        # The rest of the hint is unaffected by the guide's absence.
+        self.assertIn(
+            'skill_view("tlon-platform:tlon")', missing.platform["platform_hint"]
+        )
+
     def test_tool_description_includes_latex_guidance(self):
         description = tlon_tool.TLON_TOOL_DESCRIPTION
 
@@ -1488,6 +1568,243 @@ class TlonToolExecutionTests(unittest.TestCase):
         self.assertIn("Could not parse", payload["error"])
 
 
+OWNER_SHIP = "~owner"
+OWNER_URL = "https://owner.tlon.network"
+OWNER_CODE = "lapseg-nolmel-riswen-hopryc"
+BOT_CODE = "sampel-ticlyt-migfun-falmel"
+BOT_COOKIE = "urbauth-~bot=0v-bot-session"
+OWNER_ENV = {
+    "TLON_OWNER_SHIP": OWNER_SHIP,
+    "TLON_OWNER_URL": OWNER_URL,
+    "TLON_PLANET_CODE": OWNER_CODE,
+}
+
+
+def _bot_config(**overrides):
+    env = {
+        "TLON_NODE_URL": "https://bot.tlon.network",
+        "TLON_NODE_ID": "~bot",
+        "TLON_ACCESS_CODE": BOT_CODE,
+        "TLON_OWNER_SHIP": OWNER_SHIP,
+        "TLON_CLI": "tlon-test",
+    }
+    env.update(overrides)
+    return tlon_api.TlonConfig.from_env(env=env)
+
+
+class OwnerInviteLinkPredicateTests(unittest.TestCase):
+    """The normative injection truth table, shared with the OpenClaw plugin."""
+
+    def _args(self, command):
+        args, error = tlon_tool.split_tlon_command(command)
+        self.assertIsNone(error)
+        return tlon_tool.normalize_global_command_args(args)
+
+    def test_injects_for_a_bare_invite_link(self):
+        for command in (
+            "groups invite-link ~host/book-club",
+            "groups INVITE-LINK ~host/book-club",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(
+                    tlon_tool.should_inject_owner_credentials(self._args(command))
+                )
+
+    def test_skips_self_help_and_credential_flags_in_both_value_forms(self):
+        commands = [
+            "groups invite-link ~host/book-club --self",
+            "groups invite-link --self",
+            "groups invite-link -h",
+            "groups invite-link --help",
+            "groups invite-link ~host/book-club --help",
+            "--config /tmp/owner.json groups invite-link ~host/book-club",
+            "--config=/tmp/owner.json groups invite-link ~host/book-club",
+            "--ship ~other groups invite-link ~host/book-club",
+            "--ship=~other groups invite-link ~host/book-club",
+            "--url https://other groups invite-link ~host/book-club",
+            "--url=https://other groups invite-link ~host/book-club",
+            f"--code {BOT_CODE} groups invite-link ~host/book-club",
+            f"--code={BOT_CODE} groups invite-link ~host/book-club",
+            f"--cookie {BOT_COOKIE} groups invite-link ~host/book-club",
+            f"--cookie={BOT_COOKIE} groups invite-link ~host/book-club",
+        ]
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertFalse(
+                    tlon_tool.should_inject_owner_credentials(self._args(command))
+                )
+
+    def test_skips_other_subcommands(self):
+        commands = [
+            "groups info ~host/book-club",
+            "groups list",
+            "groups invite ~host/book-club ~mug",
+            "contacts self",
+            "notes list",
+            "--help",
+        ]
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertFalse(
+                    tlon_tool.should_inject_owner_credentials(self._args(command))
+                )
+
+
+class OwnerInviteLinkInjectionTests(unittest.TestCase):
+    def _run(self, command, cfg, env=None):
+        calls = []
+
+        async def runner(argv, run_env, timeout, _on_deadline):
+            calls.append((tuple(argv), dict(run_env)))
+            return tlon_api.TlonProcessResult(
+                returncode=0, stdout="https://invite.tlon.io/0vabc\n"
+            )
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": command}, config=cfg, runner=runner
+            )
+
+        with patch.dict(os.environ, env or {}, clear=False):
+            payload = json.loads(asyncio.run(run()))
+        return payload, calls
+
+    def test_replaces_bot_credentials_with_the_owner_triple_in_the_subprocess_env(self):
+        # A replacement, never an overlay: an inherited bot cookie would
+        # otherwise win over the owner triple in the CLI's resolver.
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+        self.assertEqual(cfg.cookie, BOT_COOKIE)
+
+        payload, calls = self._run(
+            "groups invite-link ~host/book-club", cfg, OWNER_ENV
+        )
+
+        self.assertTrue(payload["success"])
+        argv, run_env = calls[0]
+        self.assertEqual(
+            argv, ("tlon-test", "groups", "invite-link", "~host/book-club")
+        )
+        for key in ("TLON_URL", "URBIT_URL", "TLON_NODE_URL", "TLON_SHIP_URL"):
+            self.assertEqual(run_env[key], OWNER_URL)
+        for key in ("TLON_SHIP", "URBIT_SHIP", "TLON_NODE_ID", "TLON_SHIP_NAME"):
+            self.assertEqual(run_env[key], OWNER_SHIP)
+        for key in ("TLON_CODE", "URBIT_CODE", "TLON_ACCESS_CODE", "TLON_SHIP_CODE"):
+            self.assertEqual(run_env[key], OWNER_CODE)
+        self.assertNotIn("TLON_COOKIE", run_env)
+        self.assertNotIn("URBIT_COOKIE", run_env)
+        self.assertNotIn("TLON_CONFIG_FILE", run_env)
+        self.assertNotIn(BOT_COOKIE, run_env.values())
+        self.assertNotIn(BOT_CODE, run_env.values())
+
+    def test_leaves_the_adapter_config_untouched(self):
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+
+        self._run("groups invite-link ~host/book-club", cfg, OWNER_ENV)
+
+        self.assertEqual(cfg.ship_name, "~bot")
+        self.assertEqual(cfg.ship_url, "https://bot.tlon.network")
+        self.assertEqual(cfg.ship_code, BOT_CODE)
+        self.assertEqual(cfg.cookie, BOT_COOKIE)
+
+    def test_keeps_credentials_out_of_the_tool_output(self):
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+
+        success, _ = self._run(
+            "groups invite-link ~host/book-club", cfg, OWNER_ENV
+        )
+
+        self.assertNotIn(OWNER_CODE, json.dumps(success))
+        self.assertNotIn(BOT_CODE, json.dumps(success))
+        self.assertNotIn(BOT_COOKIE, json.dumps(success))
+        self.assertEqual(
+            success["command"],
+            "tlon-test groups invite-link '~host/book-club'",
+        )
+
+        async def failing_runner(argv, run_env, timeout, _on_deadline):
+            return tlon_api.TlonProcessResult(
+                returncode=1, stdout="", stderr="~owner is not a member\n"
+            )
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": "groups invite-link ~host/book-club"},
+                config=cfg,
+                runner=failing_runner,
+            )
+
+        with patch.dict(os.environ, OWNER_ENV, clear=False):
+            failure = json.loads(asyncio.run(run()))
+
+        self.assertFalse(failure["success"])
+        self.assertNotIn(OWNER_CODE, json.dumps(failure))
+        self.assertNotIn(BOT_CODE, json.dumps(failure))
+        self.assertNotIn(BOT_COOKIE, json.dumps(failure))
+
+    def test_fails_closed_on_a_missing_or_partial_owner_triple(self):
+        cfg = _bot_config()
+        partials = [
+            {},
+            {"TLON_OWNER_URL": OWNER_URL},
+            {"TLON_OWNER_SHIP": OWNER_SHIP, "TLON_PLANET_CODE": OWNER_CODE},
+            {"TLON_OWNER_URL": OWNER_URL, "TLON_OWNER_SHIP": OWNER_SHIP},
+        ]
+        for partial in partials:
+            with self.subTest(env=sorted(partial)):
+                env = {key: "" for key in OWNER_ENV}
+                env.update(partial)
+                payload, calls = self._run(
+                    "groups invite-link ~host/book-club", cfg, env
+                )
+
+                self.assertEqual(calls, [])
+                self.assertIn("TLON_OWNER_URL", payload["error"])
+                self.assertIn("--self", payload["error"])
+                self.assertNotIn("invite.tlon.io", json.dumps(payload))
+
+    def test_fails_closed_when_a_valid_bot_cookie_meets_a_mismatched_owner_triple(self):
+        # The regression an overlay would hide: usable bot credentials plus an
+        # owner triple naming a different ship must error, not quietly mint a
+        # bot-attributed link.
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+        env = dict(OWNER_ENV, TLON_OWNER_SHIP="~stale-owner")
+
+        payload, calls = self._run(
+            "groups invite-link ~host/book-club", cfg, env
+        )
+
+        self.assertEqual(calls, [])
+        self.assertIn(OWNER_SHIP, payload["error"])
+        self.assertIn("--self", payload["error"])
+        self.assertNotIn("invite.tlon.io", json.dumps(payload))
+
+    def test_fails_closed_without_a_configured_owner_ship(self):
+        cfg = _bot_config(TLON_OWNER_SHIP="")
+
+        payload, calls = self._run(
+            "groups invite-link ~host/book-club", cfg, OWNER_ENV
+        )
+
+        self.assertEqual(calls, [])
+        self.assertIn("owner ship", payload["error"])
+        self.assertIn("--self", payload["error"])
+
+    def test_leaves_self_and_other_subcommands_on_bot_credentials(self):
+        cfg = _bot_config()
+
+        for command in (
+            "groups invite-link ~host/book-club --self",
+            "groups info ~host/book-club",
+        ):
+            with self.subTest(command=command):
+                payload, calls = self._run(command, cfg, OWNER_ENV)
+
+                self.assertTrue(payload["success"])
+                _argv, run_env = calls[0]
+                self.assertEqual(run_env["TLON_SHIP"], "~bot")
+                self.assertEqual(run_env["TLON_CODE"], BOT_CODE)
+
+
 class TlonSkillPathTests(unittest.TestCase):
     def test_resolve_tlon_skill_path_uses_explicit_file(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1510,6 +1827,61 @@ class TlonSkillPathTests(unittest.TestCase):
                 tlon_tool.resolve_tlon_skill_path({"TLON_SKILL_DIR": str(skill_dir)}),
                 skill,
             )
+
+    def test_resolve_tlon_product_guide_path_uses_explicit_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            guide = Path(tmp) / "SKILL.md"
+            guide.write_text("# Tlon Messenger\n", encoding="utf-8")
+
+            self.assertEqual(
+                tlon_tool.resolve_tlon_product_guide_path(
+                    {"TLON_PRODUCT_GUIDE_PATH": str(guide)}
+                ),
+                guide,
+            )
+
+    def test_resolve_tlon_product_guide_path_uses_plugin_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = Path(tmp) / "openclaw"
+            guide = plugin_dir / "skills" / "tlon-product-guide" / "SKILL.md"
+            guide.parent.mkdir(parents=True)
+            guide.write_text("# Tlon Messenger\n", encoding="utf-8")
+
+            self.assertEqual(
+                tlon_tool.resolve_tlon_product_guide_path(
+                    {"TLON_PLUGIN_DIR": str(plugin_dir)}
+                ),
+                guide,
+            )
+
+    def test_resolve_tlon_product_guide_path_falls_back_to_sibling_package(self):
+        # No env pointing anywhere: the monorepo layout (this adapter and the
+        # OpenClaw plugin as sibling packages) has to resolve on its own. This
+        # is the assertion that breaks if the skill directory is ever moved or
+        # renamed inside the plugin.
+        resolved = tlon_tool.resolve_tlon_product_guide_path({})
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertTrue(resolved.is_file())
+        self.assertEqual(resolved.parent.name, "tlon-product-guide")
+
+    def test_resolve_tlon_product_guide_path_absent_without_plugin_tree(self):
+        # A Hermes deployment that installs the adapter without the OpenClaw
+        # plugin registers no product-guide skill rather than failing to boot.
+        # The sibling fallback resolves inside this monorepo, so point the
+        # search at a tree that has neither.
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter_dir = Path(tmp) / "packages" / "hermes-tlon-adapter"
+            adapter_dir.mkdir(parents=True)
+            with patch.object(
+                tlon_tool, "__file__", str(adapter_dir / "tlon_tool.py")
+            ):
+                self.assertIsNone(
+                    tlon_tool.resolve_tlon_product_guide_path(
+                        {"TLON_PLUGIN_DIR": str(Path(tmp) / "nonexistent")}
+                    )
+                )
 
 
 class TlonSessionGateTests(unittest.TestCase):
@@ -1639,6 +2011,79 @@ class ReactionToolGateTests(unittest.TestCase):
                 TLON_REACTION_LEVEL="off",
             )
         )
+
+
+
+class MediaCommandTimeoutTests(unittest.TestCase):
+    def test_upload_and_image_sends_get_budgets_above_the_cli_fetch_deadlines(self):
+        timeout = tlon_tool.media_command_timeout
+        self.assertEqual(
+            timeout(["upload", "https://x.example/a.png"]),
+            tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS,
+        )
+        self.assertEqual(
+            timeout(["--config", "/tmp/c.json", "upload", "https://x.example/a.png"]),
+            tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS,
+        )
+        for args in (
+            ["posts", "send", "chat/~pen/general", "hi", "--image", "https://x/y.png"],
+            ["posts", "send", "chat/~pen/general", "--image=https://x/y.png"],
+            ["dms", "send", "0v5.abcde", "hi", "--image", "https://x/y.png"],
+        ):
+            self.assertEqual(
+                timeout(args), tlon_tool.IMAGE_SEND_CLI_TIMEOUT_SECONDS, args
+            )
+
+        # The override must clear the CLI's own inner budgets, or the model
+        # sees "tlon CLI timed out" instead of the contract error.
+        self.assertGreater(tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS, 120.0)
+        self.assertGreater(tlon_tool.IMAGE_SEND_CLI_TIMEOUT_SECONDS, 30.0)
+
+    def test_non_media_commands_keep_the_default_timeout(self):
+        timeout = tlon_tool.media_command_timeout
+        for args in (
+            ["posts", "send", "chat/~pen/general", "hi"],
+            ["dms", "send", "0v5.abcde", "hi"],
+            ["posts", "react", "chat/~pen/general", "170.141", "\u2764\ufe0f"],
+            ["activity", "mentions"],
+            ["contacts", "self"],
+            [],
+        ):
+            self.assertIsNone(timeout(args), args)
+
+    def test_execute_passes_the_override_to_the_cli(self):
+        recorded = {}
+
+        class RecordingCLI:
+            def __init__(self, *_args, **_kwargs):
+                pass
+
+            async def run_command(self, args, *, timeout=None, on_deadline=None):
+                recorded[tuple(args)] = timeout
+                return tlon_api.TlonSendResult(success=True, command=tuple(args))
+
+        config = tlon_api.TlonConfig(
+            ship_url="https://pen.tlon.network",
+            ship_name="~pen",
+            ship_code="code",
+        )
+        with patch.object(tlon_tool, "TlonCLI", RecordingCLI):
+            asyncio.run(
+                tlon_tool.execute_tlon_tool(
+                    {"command": "upload https://x.example/a.png"}, config=config
+                )
+            )
+            asyncio.run(
+                tlon_tool.execute_tlon_tool(
+                    {"command": "activity mentions"}, config=config
+                )
+            )
+
+        self.assertEqual(
+            recorded[("upload", "https://x.example/a.png")],
+            tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS,
+        )
+        self.assertIsNone(recorded[("activity", "mentions")])
 
 
 if __name__ == "__main__":

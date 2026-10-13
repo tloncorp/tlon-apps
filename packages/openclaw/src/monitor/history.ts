@@ -6,6 +6,7 @@ import {
 } from '@tloncorp/api';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
+import { isDmNest } from '../targets.js';
 import { formatBlobForHistory, parseBlobData } from './media.js';
 import { extractMessageText } from './utils.js';
 
@@ -16,6 +17,10 @@ export type TlonHistoryEntry = {
   id?: string;
   blob?: string | null;
   parsedBlobData?: ClientPostBlobData | null;
+};
+
+export type HistoryScryApi = {
+  scry: (path: string, options?: { signal?: AbortSignal }) => Promise<unknown>;
 };
 
 export const MAX_THREAD_CONTEXT_MESSAGES = 20;
@@ -260,52 +265,86 @@ function cacheReactionTarget(
 }
 
 export async function fetchChannelHistory(
-  api: { scry: (path: string) => Promise<unknown> },
+  api: HistoryScryApi,
   channelNest: string,
   count = 50,
-  runtime?: RuntimeEnv
+  runtime?: RuntimeEnv,
+  signal?: AbortSignal
 ): Promise<TlonHistoryEntry[]> {
   try {
-    const scryPath = `/channels/v4/${channelNest}/posts/newest/${count}/outline.json`;
-    runtime?.log?.(`[tlon] Fetching history: ${scryPath}`);
-
-    const data: any = await api.scry(scryPath);
-    if (!data) {
-      return [];
-    }
-
-    let posts: any[] = [];
-    if (Array.isArray(data)) {
-      posts = data;
-    } else if (data.posts && typeof data.posts === 'object') {
-      posts = Object.values(data.posts);
-    } else if (typeof data === 'object') {
-      posts = Object.values(data);
-    }
-
-    const messages = posts
-      .map((item) => {
-        const essay = item.essay || item['r-post']?.set?.essay;
-        const seal = item.seal || item['r-post']?.set?.seal;
-
-        return {
-          author: essay?.author || 'unknown',
-          content: extractMessageText(essay?.content || []),
-          timestamp: essay?.sent || Date.now(),
-          id: seal?.id,
-          blob: essay?.blob ?? null,
-        } as TlonHistoryEntry;
-      })
-      .filter((msg) => msg.content || msg.blob);
-
-    runtime?.log?.(`[tlon] Extracted ${messages.length} messages from history`);
-    return messages;
+    return await fetchChannelHistoryOrThrow(
+      api,
+      channelNest,
+      count,
+      runtime,
+      signal
+    );
   } catch (error: any) {
     runtime?.log?.(
       `[tlon] Error fetching channel history: ${error?.message ?? String(error)}`
     );
     return [];
   }
+}
+
+/**
+ * History for control-plane reconciliation. Unlike ordinary conversation
+ * context, an empty result and a failed scry are not interchangeable here:
+ * callers must be able to retry a transient failure instead of treating the
+ * channel as durably empty.
+ */
+export async function fetchChannelHistoryOrThrow(
+  api: HistoryScryApi,
+  channelNest: string,
+  count = 50,
+  runtime?: RuntimeEnv,
+  signal?: AbortSignal
+): Promise<TlonHistoryEntry[]> {
+  // A DM is not a channel: its writs live in %chat and are addressed by the
+  // partner's ship, so %channels cannot serve them at all.
+  const scryPath = isDmNest(channelNest)
+    ? `/chat/v4/dm/${channelNest}/writs/newest/${count}/light.json`
+    : `/channels/v4/${channelNest}/posts/newest/${count}/outline.json`;
+  runtime?.log?.(`[tlon] Fetching history: ${scryPath}`);
+
+  const data: any = await api.scry(scryPath, { signal });
+  if (!data) {
+    return [];
+  }
+
+  let posts: any[] = [];
+  if (Array.isArray(data)) {
+    posts = data;
+  } else if (data.posts && typeof data.posts === 'object') {
+    posts = Object.values(data.posts);
+  } else if (data.writs && typeof data.writs === 'object') {
+    // Paged writs wrap the map alongside cursor fields; taking Object.values
+    // of the envelope would yield those cursors as if they were messages.
+    posts = Object.values(data.writs);
+  } else if (typeof data === 'object') {
+    posts = Object.values(data);
+  }
+
+  const messages = posts
+    .map((item) => {
+      const essay = item.essay || item['r-post']?.set?.essay;
+      const seal = item.seal || item['r-post']?.set?.seal;
+
+      return {
+        // v8 channel history returns bot authors as profile objects while
+        // ordinary ships (and older test piers) return strings. Everything
+        // downstream keys identity by ship, so normalize both shapes here.
+        author: parsePostAuthor(essay?.author) ?? 'unknown',
+        content: extractMessageText(essay?.content || []),
+        timestamp: essay?.sent || Date.now(),
+        id: seal?.id,
+        blob: essay?.blob ?? null,
+      } as TlonHistoryEntry;
+    })
+    .filter((msg) => msg.content || msg.blob);
+
+  runtime?.log?.(`[tlon] Extracted ${messages.length} messages from history`);
+  return messages;
 }
 
 export async function getChannelHistory(

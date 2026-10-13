@@ -1,5 +1,6 @@
 import type { Action } from '../ActionSheet';
-import { ScreenHeader } from '../ScreenHeader';
+import type { ScreenHeaderAction } from '../ScreenHeader';
+import { ScreenHeaderItemElements } from '../ScreenHeader/primitives';
 
 type NotesCreateActionOptions = Pick<Action, 'action' | 'disabled' | 'testID'>;
 
@@ -15,44 +16,40 @@ export function createNotesNewFolderAction(
   return { ...options, title: 'New folder', startIcon: 'Folder' };
 }
 
-export function NotesHeaderActions({
-  canEdit,
-  onNew,
-  onSearch,
-  primaryActionVariant = 'text',
-}: {
+interface NotesHeaderActionOptions {
   canEdit: boolean;
   onNew: () => void;
   onSearch?: () => void;
   primaryActionVariant?: 'icon' | 'text';
-}) {
-  return (
-    <>
-      {onSearch ? (
-        <ScreenHeader.IconButton
-          aria-label="Search notes"
-          color="$primaryText"
-          onPress={onSearch}
-          testID="NotesSearchHeaderAction"
-          type="Search"
-        />
-      ) : null}
-      {canEdit && primaryActionVariant === 'icon' ? (
-        <ScreenHeader.IconButton
-          aria-label="New"
-          color="$primaryText"
-          onPress={onNew}
-          testID="NotesRootNewHeaderAction"
-          type="Add"
-        />
-      ) : canEdit ? (
-        <ScreenHeader.TextButton
-          onPress={onNew}
-          testID="NotesRootNewHeaderAction"
-        >
-          New
-        </ScreenHeader.TextButton>
-      ) : null}
-    </>
-  );
+}
+
+export function createNotesHeaderActions({
+  canEdit,
+  onNew,
+  onSearch,
+  primaryActionVariant = 'text',
+}: NotesHeaderActionOptions): ScreenHeaderAction[] {
+  return [
+    {
+      id: 'NotesSearchHeaderAction',
+      icon: 'Search',
+      label: 'Search notes',
+      onPress: onSearch,
+      visible: !!onSearch,
+      testID: 'NotesSearchHeaderAction',
+    },
+    {
+      id: 'NotesRootNewHeaderAction',
+      ...(primaryActionVariant === 'icon'
+        ? { icon: 'Add' as const, label: 'New' }
+        : { text: 'New' }),
+      onPress: onNew,
+      visible: canEdit,
+      testID: 'NotesRootNewHeaderAction',
+    },
+  ];
+}
+
+export function NotesHeaderActions(props: NotesHeaderActionOptions) {
+  return <ScreenHeaderItemElements actions={createNotesHeaderActions(props)} />;
 }

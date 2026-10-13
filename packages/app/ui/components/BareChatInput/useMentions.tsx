@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { valid } from '@urbit/aura';
 import { useMemo, useState } from 'react';
 
@@ -85,16 +85,15 @@ export const useMentions = ({
     number | null
   >(null);
 
-  const { data: mentionCandidates = [] } = useQuery({
-    queryKey: ['mentionCandidates', chatId, mentionSearchText],
-    queryFn: () =>
-      db.getMentionCandidates({ chatId, query: mentionSearchText }),
-    placeholderData: (previousData) => {
-      return previousData || [];
-    },
+  const { data: mentionCandidateRows } = store.useMentionCandidates({
+    chatId,
+    query: mentionSearchText,
     enabled: isMentionModeActive && mentionSearchText.trim().length > 0,
-    select: (data) => {
-      return data.map((candidate) => ({
+  });
+
+  const mentionCandidates = useMemo(
+    () =>
+      (mentionCandidateRows ?? []).map((candidate) => ({
         id: candidate.id,
         title: candidate.nickname || candidate.id,
         subtitle: formatUserId(candidate.id, true)?.display,
@@ -108,9 +107,9 @@ export const useMentions = ({
           status: candidate.status,
           color: candidate.color,
         } as db.Contact,
-      }));
-    },
-  });
+      })),
+    [mentionCandidateRows]
+  );
 
   // Combine role options and mention candidates
   const validOptions = useMemo(() => {

@@ -1,12 +1,13 @@
 import { describe, expect, test } from 'vitest';
 
 import { toInitData } from '../client/initApi';
+import { setDeskCountsAllSeats } from '../client/urbit';
 import type * as ub from '../urbit';
 import rawGroupsInit6 from './fixtures/groupsInit5.json';
 
-const groupsInit6 = rawGroupsInit6 as unknown as ub.GroupsInit6;
+const groupsInit6 = rawGroupsInit6 as unknown as ub.GroupsInit10;
 const currentUserId = '~solfer-magfed';
-const toTestInitData = (response: ub.GroupsInit7) =>
+const toTestInitData = (response: ub.GroupsInit10) =>
   toInitData(response, { currentUserId });
 
 describe('toInitData', () => {
@@ -108,6 +109,36 @@ describe('toInitData', () => {
       const foreignGroup = result.unjoinedGroups[0];
       // Should have invite because valid=true in fixture
       expect(foreignGroup.haveInvite).toBe(true);
+    });
+  });
+
+  describe('member counts', () => {
+    // Through desk 12.3.1, init counts the 15 seats it keeps, not the group.
+    const groupWithCount = (count: number) => {
+      const response = structuredClone(groupsInit6);
+      response.groups['~test-ship/test-group']['member-count'] = count;
+      return toTestInitData(response).groups[0];
+    };
+
+    test('keeps a count below the truncation cap', () => {
+      expect(groupWithCount(9).memberCount).toBe(9);
+    });
+
+    test('drops a count that may be the cap', () => {
+      expect(groupWithCount(15).memberCount).toBeUndefined();
+    });
+
+    test('keeps a count above the cap, which only a fixed desk sends', () => {
+      expect(groupWithCount(40).memberCount).toBe(40);
+    });
+
+    test('trusts 15 from a desk that counts every seat', () => {
+      setDeskCountsAllSeats(true);
+      try {
+        expect(groupWithCount(15).memberCount).toBe(15);
+      } finally {
+        setDeskCountsAllSeats(false);
+      }
     });
   });
 });

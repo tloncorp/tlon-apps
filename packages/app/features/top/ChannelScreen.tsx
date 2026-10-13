@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { Story } from '@tloncorp/api/urbit';
 import {
@@ -22,9 +23,18 @@ import React, {
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
-import type { RootStackParamList } from '../../navigation/types';
+import { useResetDb } from '../../hooks/useResetDb';
+import type {
+  ChannelScreenParamList,
+  RootStackParamList,
+} from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
+import {
+  useOpenScheduledTasks,
+  useScheduledTasksEntry,
+} from '../automations/useScheduledTasksEntry';
 import {
   AttachmentProvider,
   Channel,
@@ -32,14 +42,26 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
+import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
+import { shouldAutoLoadOlderPosts } from './channelPagination';
+import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
+import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
+import { useRecoverCursorJump } from './useRecoverCursorJump';
 
 const logger = createDevLogger('ChannelScreen', false);
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
+type Props = {
+  route: RouteProp<
+    ChannelScreenParamList,
+    'Channel' | 'DM' | 'GroupDM' | 'ChannelRoot' | 'BotChat'
+  >;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Channel'>;
+};
 
 export default function ChannelScreen(props: Props) {
   const {
     channelId,
+    disableTransition,
     selectedPostId,
     startDraft,
     groupId: routeGroupId,
@@ -49,6 +71,18 @@ export default function ChannelScreen(props: Props) {
     startDraft: false,
     groupId: undefined,
   };
+
+  useEffect(() => {
+    if (!disableTransition) return;
+
+    const frame = requestAnimationFrame(() => {
+      props.navigation.setParams({ disableTransition: undefined });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [disableTransition, props.navigation]);
+  // The bot tab renders this screen directly, where there is nothing to go
+  // back to and no stack of its own to push onto.
+  const isTabRoot = props.route.name === 'BotChat';
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -71,6 +105,22 @@ export default function ChannelScreen(props: Props) {
   });
 
   const groupId = channel?.groupId ?? group?.id;
+  // The bot DM belongs to no group; onboarding's group rides on the route.
+  const onboardingGroupId = routeGroupId ?? groupId;
+  const {
+    agentOnboarding,
+    agentShipId,
+    navigationLocked: agentOnboardingNavigationLocked,
+  } = useAgentOnboardingChannel({
+    navigation: props.navigation,
+    channelId,
+    currentChannelId,
+    groupId,
+    routeGroupId,
+  });
+  const currentUserId = api.getCurrentUserId();
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -115,8 +165,14 @@ export default function ChannelScreen(props: Props) {
   const notesActivityCapabilitiesEpoch =
     channel?.type === 'notes' ? activityCapabilitiesEpoch : 0;
 
+  // Buckets keep no unread state: nothing posts to them and nothing marks
+  // them read, so each piece of unread work below is inapplicable rather
+  // than merely unnecessary. Asked once, since it was three spellings of
+  // the same question and one of them was missed on the first pass.
+  const channelTracksUnreads = channel?.type !== 'buckets';
+
   useEffect(() => {
-    if (channelIsPending) {
+    if (channelIsPending || !channelTracksUnreads) {
       return;
     }
 
@@ -133,7 +189,12 @@ export default function ChannelScreen(props: Props) {
       });
 
     return () => abortController.abort();
-  }, [channelIsPending, channelId, notesActivityCapabilitiesEpoch]);
+  }, [
+    channelTracksUnreads,
+    channelIsPending,
+    channelId,
+    notesActivityCapabilitiesEpoch,
+  ]);
 
   // Snapshot unread state once per focused entry so the divider does not move
   // as the channel is marked read.
@@ -205,6 +266,15 @@ export default function ChannelScreen(props: Props) {
     navigateToContextLensRun,
   } = useChannelNavigation({ channelId: currentChannelId });
   const { navigation } = useRootNavigation();
+  // The owner's own conversation with their bot gets a way into its tasks.
+  const scheduledTasks = useScheduledTasksEntry({
+    forShip: channel?.type === 'dm' ? channel.id : null,
+  });
+  const openScheduledTasks = useOpenScheduledTasks();
+  const handleGoToScheduledTasks = useCallback(
+    () => openScheduledTasks({ botShip: scheduledTasks.botShip }),
+    [openScheduledTasks, scheduledTasks.botShip]
+  );
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
@@ -217,14 +287,6 @@ export default function ChannelScreen(props: Props) {
     (initialChannelUnread.countWithoutThreads ?? 0) > 0
       ? initialChannelUnread.firstUnreadPostId
       : undefined;
-  const cursor = selectedPostId || unreadCursor;
-
-  useEffect(() => {
-    if (channel?.id) {
-      logger.sensitiveCrumb(`channelId: ${channel?.id}`, `cursor: ${cursor}`);
-    }
-  }, [channel?.id, cursor]);
-
   // Channel navigation establishes a new cursor scope.
   useEffect(() => {
     setClearedCursor(false);
@@ -249,6 +311,32 @@ export default function ChannelScreen(props: Props) {
     () => configurationFromChannel(channel),
     [channel]
   );
+  const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
+  const includeDeletedPosts =
+    channelConfiguration?.includeDeletedPosts && showDeleteMarkers;
+  const requestedCursor = selectedPostId || unreadCursor;
+  const { data: cursorPost } = store.usePostWithRelations(
+    requestedCursor ? { id: requestedCursor } : null
+  );
+  const cursorPostIsHidden = Boolean(
+    requestedCursor && !includeDeletedPosts && cursorPost?.isDeleted
+  );
+  const cursor = cursorPostIsHidden ? undefined : requestedCursor;
+
+  useEffect(() => {
+    if (cursorPostIsHidden) {
+      setClearedCursor(true);
+      if (selectedPostId) {
+        props.navigation.setParams({ selectedPostId: undefined });
+      }
+    }
+  }, [cursorPostIsHidden, props.navigation, selectedPostId]);
+
+  useEffect(() => {
+    if (channel?.id) {
+      logger.sensitiveCrumb(`channelId: ${channel?.id}`, `cursor: ${cursor}`);
+    }
+  }, [channel?.id, cursor]);
 
   const {
     posts,
@@ -257,12 +345,14 @@ export default function ChannelScreen(props: Props) {
     loadOlder,
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
-    // Capture the unread cursor before loading posts or mounting Channel,
-    // which can mark the channel read as soon as cached posts are available.
-    enabled: unreadDidInitialize && !!channel && !channel?.isPendingChannel,
+    enabled:
+      unreadDidInitialize &&
+      !!channel &&
+      !channel.isPendingChannel &&
+      channelTracksUnreads,
     channelId: currentChannelId,
     count: 30,
-    filterDeleted: !channelConfiguration?.includeDeletedPosts,
+    filterDeleted: !includeDeletedPosts,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
@@ -274,6 +364,24 @@ export default function ChannelScreen(props: Props) {
           firstPageCount: 50,
         }),
   });
+
+  useRecoverCursorJump({
+    channelId: currentChannelId,
+    selectedPostId,
+    clearedCursor,
+    isFocused,
+    isLoading: isLoadingPosts,
+    isFetching: postsQuery.isFetching,
+    error: postsQuery.error,
+    onRecover: handleScrollToBottom,
+  });
+
+  const oldestPage = postsQuery.data?.pages.at(-1);
+  const oldestPageHasOnlyDeletedPosts = Boolean(
+    !includeDeletedPosts &&
+    oldestPage?.posts.length &&
+    oldestPage.posts.every((post) => post.isDeleted)
+  );
 
   useEffect(() => {
     // This recovers a failed around-cursor query by issuing a newest query.
@@ -303,24 +411,54 @@ export default function ChannelScreen(props: Props) {
   useEffect(() => {
     // Make sure the initial page can fill the screen; otherwise the visual
     // start boundary may never move far enough to request another older page.
+    // Likewise, keep going when a page contains only hidden delete markers,
+    // since adding no visible rows will not retrigger the boundary callback.
     const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
     if (
-      !postsQuery.isFetching &&
-      postsQuery.hasNextPage &&
-      unreadDidInitialize &&
-      (!posts || posts.length < ENOUGH_POSTS_TO_FILL_SCREEN)
+      shouldAutoLoadOlderPosts({
+        isFetching: postsQuery.isFetching,
+        isError: postsQuery.isError,
+        hasNextPage: postsQuery.hasNextPage,
+        unreadDidInitialize,
+        postCount: posts?.length,
+        minimumPostCount: ENOUGH_POSTS_TO_FILL_SCREEN,
+        oldestPageHasOnlyDeletedPosts,
+      })
     ) {
       loadOlder();
     }
-  }, [postsQuery, posts, loadOlder, unreadDidInitialize]);
+  }, [
+    loadOlder,
+    oldestPageHasOnlyDeletedPosts,
+    posts,
+    postsQuery,
+    unreadDidInitialize,
+  ]);
 
   const filteredPosts = useMemo(
-    () =>
-      channelConfiguration?.includeDeletedPosts
-        ? posts
-        : posts?.filter((p) => !p.isDeleted),
-    [posts, channelConfiguration?.includeDeletedPosts]
+    () => (includeDeletedPosts ? posts : posts?.filter((p) => !p.isDeleted)),
+    [posts, includeDeletedPosts]
   );
+  const agentGroupSetupActive = useMemo(() => {
+    return isAgentGroupSetupActive(
+      filteredPosts,
+      currentUserId,
+      agentShipId,
+      Boolean(agentOnboarding.marker)
+    );
+  }, [agentOnboarding.marker, agentShipId, currentUserId, filteredPosts]);
+
+  const pendingThinkingLabel = useAgentOnboardingFirstEntry({
+    agentShipId,
+    awaitingFirstEntry: agentOnboarding.awaitingFirstEntry,
+    channelId: currentChannelId,
+    groupId: onboardingGroupId,
+    isFocused,
+    posts: filteredPosts,
+    provisionId: agentOnboarding.marker?.provision?.provisionId,
+    provisionAcknowledgedAt: agentOnboarding.marker?.provisionAcknowledgedAt,
+  });
+
   usePushNotifTapTelemetry({
     channelId: currentChannelId,
     posts: filteredPosts,
@@ -413,13 +551,22 @@ export default function ChannelScreen(props: Props) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
+      if (isTabRoot) {
+        navigation.navigate('DM', { channelId: dmChannel.id });
+        return;
+      }
       navigationRef.current.push('DM', { channelId: dmChannel.id });
     },
-    [navigationRef]
+    [isTabRoot, navigation, navigationRef]
   );
 
   const handleMarkRead = useCallback(async () => {
-    if (unreadDidInitialize && channel && !channel.isPendingChannel) {
+    if (
+      unreadDidInitialize &&
+      channel &&
+      !channel.isPendingChannel &&
+      channelTracksUnreads
+    ) {
       store.markChannelRead({
         id: channel.id,
         groupId: channel.groupId ?? undefined,
@@ -471,9 +618,19 @@ export default function ChannelScreen(props: Props) {
       ({
         type: 'channel',
         id: currentChannelId,
-        groupId: routeGroupId ?? channel?.groupId ?? undefined,
+        // `routeGroupId` is the fallback for a channel whose row has not
+        // caught up yet, right after its group is created. The bot DM is the
+        // one route that carries a group it does not belong to -- onboarding
+        // puts the workspace there so the lock can find it -- so the fallback
+        // has to skip it. Otherwise ChatOptionsProvider loads that group and
+        // gives the DM channel and group settings, and keeps them after
+        // onboarding ends, because the tab route holds on to its params.
+        groupId:
+          (isTabRoot ? undefined : routeGroupId) ??
+          channel?.groupId ??
+          undefined,
       }) as const,
-    [currentChannelId, routeGroupId, channel?.groupId]
+    [currentChannelId, isTabRoot, routeGroupId, channel?.groupId]
   );
 
   if (
@@ -489,12 +646,18 @@ export default function ChannelScreen(props: Props) {
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
-      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+      <AttachmentProvider
+        key={currentChannelId}
+        canUpload={canUpload}
+        uploadAsset={store.uploadAsset}
+      >
         <Channel
           key={currentChannelId}
           channel={channel}
           initialChannelUnread={
-            clearedCursor ? undefined : initialChannelUnread
+            clearedCursor || cursorPostIsHidden
+              ? undefined
+              : initialChannelUnread
           }
           isLoadingPosts={isLoadingPosts}
           loadPostsError={postsQuery.error}
@@ -503,12 +666,23 @@ export default function ChannelScreen(props: Props) {
           group={group}
           groupIsLoading={groupIsLoading}
           posts={filteredPosts ?? null}
-          selectedPostId={clearedCursor ? undefined : selectedPostId}
+          selectedPostId={
+            clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
+          }
           goBack={navigationRef.current.goBack}
+          isTopLevelTab={isTabRoot}
+          disableBackButton={agentOnboardingNavigationLocked}
+          onPressLogout={agentOnboarding.locked ? handleLogout : undefined}
+          suppressEmptyState={agentGroupSetupActive}
+          suppressAnimatedSendScroll={agentGroupSetupActive}
+          pendingThinkingLabel={pendingThinkingLabel}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
+          goToScheduledTasks={
+            scheduledTasks.visible ? handleGoToScheduledTasks : undefined
+          }
           goToContextLensRuns={navigateToContextLensRuns}
           goToContextLensRun={navigateToContextLensRun}
           goToDm={handleGoToDm}

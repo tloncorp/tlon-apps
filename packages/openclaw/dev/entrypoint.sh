@@ -51,10 +51,17 @@ verifyDepsBeforeRun: false
 confirmModulesPurge: false
 PNPM_EOF
 pnpm install
-# Link the local (mounted) @tloncorp/api and tlon-skill builds BEFORE building
-# the plugin, so its tsc resolves branch-only exports (sendVouchedDm,
-# registerBotProfile, presence `as`, …) instead of the published versions.
-# verifyDepsBeforeRun:false keeps `pnpm build` from reinstalling over the links.
+# Local package overrides below are symlinks into the mounted checkout. Keep
+# Node resolving through those links, so their dependencies come from this
+# container-local, Linux-compatible install rather than the host checkout.
+case " ${NODE_OPTIONS:-} " in
+  *" --preserve-symlinks "*) ;;
+  *) export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--preserve-symlinks" ;;
+esac
+# Override registry deps with local builds BEFORE compiling: the plugin may
+# use @tloncorp/api exports that exist only in the local checkout, so tsc
+# must see the overridden package. Both overrides need only the installed
+# node_modules, not the plugin build.
 ./dev/build-local-api-override.sh
 ./dev/build-local-skill-override.sh
 pnpm build

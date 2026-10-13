@@ -1,7 +1,13 @@
 import * as store from '@tloncorp/shared';
 import React, { useEffect } from 'react';
-import { Appearance, Platform } from 'react-native';
-import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
+import {
+  AppState,
+  Appearance,
+  NativeModules,
+  Platform,
+  processColor,
+} from 'react-native';
+import { TamaguiProvider, TamaguiProviderProps, useTheme } from 'tamagui';
 
 import { useIsDarkMode, useIsSystemDarkMode } from '../hooks/useDarkMode';
 import { SplashScreenTask, splashScreenProgress } from '../lib/splashscreen';
@@ -11,21 +17,29 @@ import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
 
 export function Provider({
   children,
+  migrationsSucceeded = true,
   ...rest
-}: Omit<TamaguiProviderProps, 'config'>) {
+}: Omit<TamaguiProviderProps, 'config'> & { migrationsSucceeded?: boolean }) {
   return (
-    <ThemeProviderContent tamaguiProps={rest}>{children}</ThemeProviderContent>
+    <ThemeProviderContent
+      tamaguiProps={rest}
+      migrationsSucceeded={migrationsSucceeded}
+    >
+      {children}
+    </ThemeProviderContent>
   );
 }
 
 function ThemeProviderContent({
   children,
   tamaguiProps,
+  migrationsSucceeded,
 }: {
   children: React.ReactNode;
   tamaguiProps: Omit<TamaguiProviderProps, 'config'>;
+  migrationsSucceeded: boolean;
 }) {
-  const { activeTheme, appTheme } = useResolvedAppTheme();
+  const { activeTheme, appTheme } = useResolvedAppTheme(migrationsSucceeded);
 
   return (
     <TamaguiProvider
@@ -41,6 +55,32 @@ function ThemeProviderContent({
 
 function NativeAppearanceSync({ appTheme }: { appTheme: AppTheme | null }) {
   const isDarkTheme = useIsDarkMode();
+  const backgroundColor = useTheme().background.val;
+
+  useEffect(() => {
+    const setWindowBackgroundColor =
+      NativeModules.TlonTheme?.setWindowBackgroundColor;
+    if (
+      Platform.OS !== 'android' ||
+      appTheme == null ||
+      !setWindowBackgroundColor
+    ) {
+      return;
+    }
+
+    const syncBackground = () => {
+      const color = processColor(backgroundColor);
+      if (typeof color === 'number') {
+        setWindowBackgroundColor(color);
+      }
+    };
+
+    syncBackground();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') syncBackground();
+    });
+    return () => subscription.remove();
+  }, [appTheme, backgroundColor]);
 
   useEffect(() => {
     if (Platform.OS !== 'ios' || appTheme == null) {
@@ -55,10 +95,15 @@ function NativeAppearanceSync({ appTheme }: { appTheme: AppTheme | null }) {
   return null;
 }
 
-function useResolvedAppTheme() {
+function useResolvedAppTheme(migrationsSucceeded: boolean) {
   const isSystemDarkMode = useIsSystemDarkMode();
-  const { data: storedThemeRaw, isLoading } = store.useThemeSettings();
-  const appTheme: AppTheme | null = isLoading
+  // The settings table only exists once migrations have run, so keep the read
+  // disabled until then. While disabled, react-query reports `isLoading: false`
+  // but leaves `isPending` true, so `isPending` is what means "no theme yet".
+  const { data: storedThemeRaw, isPending } = store.useThemeSettings({
+    enabled: migrationsSucceeded,
+  });
+  const appTheme: AppTheme | null = isPending
     ? null
     : storedThemeRaw == null
       ? 'auto'

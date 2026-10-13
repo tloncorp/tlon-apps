@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest';
 
-import { getThirdPartyChannelAgent, isThirdPartyChannel } from '../urbit/utils';
+import {
+  getChannelKindFromType,
+  getChannelType,
+  getThirdPartyChannelAgent,
+  isThirdPartyChannel,
+} from '../urbit/utils';
 
 describe('third party channels', () => {
   test('%channels-backed kinds have no third-party agent', () => {
@@ -13,6 +18,13 @@ describe('third party channels', () => {
   test('non-%channels kinds report their backing agent', () => {
     expect(getThirdPartyChannelAgent('notes/~zod/book')).toBe('notes');
     expect(isThirdPartyChannel('notes/~zod/book')).toBe(true);
+    expect(getThirdPartyChannelAgent('buckets/~zod/files')).toBe('buckets');
+    expect(isThirdPartyChannel('buckets/~zod/files')).toBe(true);
+  });
+
+  test('Bucket nests map to the first-class client channel type', () => {
+    expect(getChannelType('buckets/~zod/files')).toBe('buckets');
+    expect(getChannelKindFromType('buckets')).toBe('buckets');
   });
 
   test('non-nest ids (DMs, clubs) are not third-party channels', () => {

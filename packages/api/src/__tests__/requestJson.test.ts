@@ -34,9 +34,56 @@ describe('Urbit.requestJson', () => {
 
     await expect(urbit.requestJson('/missing', 'GET')).rejects.toBe(response);
   });
+
+  test('passes an abort signal through to fetch', async () => {
+    const fetch = vi.fn(async () => new Response('{"ok":true}'));
+    const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
+    const controller = new AbortController();
+
+    await urbit.requestJson('/api/items', 'GET', undefined, {
+      signal: controller.signal,
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://example.test/api/items',
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
 });
 
 describe('client requestJson wrapper', () => {
+  test('passes aborts through without wrapping or reauthenticating', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const abort = controller.signal.reason;
+    const client = {
+      requestJson: vi.fn().mockRejectedValue(abort),
+      delete: vi.fn(),
+      on: vi.fn(),
+    };
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      client: client as any,
+    });
+
+    try {
+      await expect(
+        requestJson('/notes', 'GET', undefined, {
+          signal: controller.signal,
+        })
+      ).rejects.toBe(abort);
+      expect(client.requestJson).toHaveBeenCalledWith(
+        '/notes',
+        'GET',
+        undefined,
+        { signal: controller.signal }
+      );
+    } finally {
+      internalRemoveClient();
+    }
+  });
+
   test.each([401, 403])(
     'can opt into one %i reauth and replay a POST body',
     async (status) => {

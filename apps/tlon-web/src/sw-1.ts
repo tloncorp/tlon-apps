@@ -3,7 +3,13 @@
 /* global workbox */
 
 /* eslint no-underscore-dangle: off */
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
+import {
+  addPlugins,
+  cleanupOutdatedCaches,
+  precacheAndRoute,
+} from 'workbox-precaching';
+
+import { isCacheablePrecacheResponse } from './swWasmGuard';
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -13,5 +19,11 @@ self.addEventListener('message', (event) => {
   }
 });
 
+addPlugins([
+  {
+    cacheWillUpdate: async ({ request, response }) =>
+      (await isCacheablePrecacheResponse(request, response)) ? response : null,
+  },
+]);
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);

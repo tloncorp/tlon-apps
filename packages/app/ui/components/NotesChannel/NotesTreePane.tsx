@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
-import { ScrollView, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 
 import { ScreenScrollView } from '../ScreenScrollView';
 import { FolderTreeRow, NoteRow } from './NotesTreeRows';
@@ -11,6 +11,7 @@ export function NotesTreePane({
   canEdit,
   folderUnreadCounts,
   getPublishedNoteUrl,
+  hasPublishedUpdate,
   isDeletingFolder,
   isNotePublished,
   layout,
@@ -35,6 +36,7 @@ export function NotesTreePane({
   canEdit: boolean;
   folderUnreadCounts?: Map<number, number>;
   getPublishedNoteUrl?: (note: db.NotesNote) => string | null;
+  hasPublishedUpdate: (noteId: number) => boolean;
   isDeletingFolder: boolean;
   isNotePublished: (noteId: number) => boolean;
   layout: 'stack' | 'takeover';
@@ -93,6 +95,7 @@ export function NotesTreePane({
           <NoteRow
             key={row.note.id}
             canEdit={canEdit}
+            hasPublishedUpdate={hasPublishedUpdate(row.note.noteId)}
             isPublished={isNotePublished(row.note.noteId)}
             note={row.note}
             publishDisabled={publishDisabled}
@@ -133,7 +136,7 @@ export function NotesTreePane({
   }
 
   return (
-    <ScrollView flex={1}>
+    <ScreenScrollView flex={1}>
       <YStack
         width="100%"
         maxWidth={760}
@@ -145,7 +148,7 @@ export function NotesTreePane({
       >
         {treeList}
       </YStack>
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 

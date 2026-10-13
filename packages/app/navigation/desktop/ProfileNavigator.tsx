@@ -14,6 +14,8 @@ import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
 import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import {
   ContactsScreenView,
@@ -24,7 +26,7 @@ import {
 } from '../../ui';
 import { ProfileDrawerParamList } from '../types';
 
-const ProfileDrawer = createDrawerNavigator();
+const ProfileDrawer = createDrawerNavigator<ProfileDrawerParamList>();
 
 function DrawerContent(props: DrawerContentComponentProps) {
   const state = props.state as NavigationState<ProfileDrawerParamList>;
@@ -88,7 +90,11 @@ function DrawerContent(props: DrawerContentComponentProps) {
       <ContactsScreenView
         contacts={userContacts ?? []}
         suggestions={suggestions ?? []}
-        focusedContactId={focusedRoute.params?.userId}
+        focusedContactId={
+          focusedRoute.params && 'userId' in focusedRoute.params
+            ? focusedRoute.params.userId
+            : undefined
+        }
         onContactPress={onContactPress}
         onAddContact={onAddContact}
         onContactLongPress={onContactLongPress}
@@ -118,6 +124,14 @@ export const ProfileNavigator = () => {
     >
       <ProfileDrawer.Screen name="AddContacts" component={AddContactsScreen} />
       <ProfileDrawer.Screen name="UserProfile" component={UserProfileScreen} />
+      <ProfileDrawer.Screen
+        name="ScheduledTasks"
+        component={ScheduledTasksScreen}
+      />
+      <ProfileDrawer.Screen
+        name="ScheduledTaskEditor"
+        component={ScheduledTaskEditorScreen}
+      />
       <ProfileDrawer.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileDrawer.Screen name="Attestation" component={AttestationScreen} />
     </ProfileDrawer.Navigator>

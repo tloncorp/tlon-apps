@@ -1,0 +1,438 @@
+#!/usr/bin/env node
+// Checks what the tlon-workflow skill depends on. --fix installs what it can.
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const FIX = process.argv.includes('--fix');
+const HERE = dirname(fileURLToPath(import.meta.url));
+// The source checkout, whichever copy of this script runs: a linked worktree
+// has no .env.local or node_modules of its own until `stim worktree warm`.
+const REPO = dirname(
+  spawnSync(
+    'git',
+    ['-C', HERE, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8' }
+  ).stdout?.trim() || join(resolve(HERE, '..', '..', '..'), '.git')
+);
+const APP = join(REPO, 'apps', 'tlon-mobile');
+const WEB = join(REPO, 'apps', 'tlon-web');
+
+// dotenv semantics: an unquoted value ends at ` #`, a quoted one keeps it.
+function envHas(dir, key) {
+  const file = join(dir, '.env.local');
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const line = text.match(new RegExp(`^${key}=(.*)$`, 'm'));
+  if (!line) return false;
+  const raw = line[1].trim();
+  const quoted = raw.match(/^(["'])(.*)\1/);
+  const value = quoted ? quoted[2] : raw.replace(/\s+#.*$/, '');
+  return value.trim() !== '';
+}
+// The EAS Simulator loop's floors (see the stim remote check).
+const REMOTE_STIM = '1.9.0';
+const REMOTE_AGENT_DEVICE = '0.21.13';
+const SKILL_DIRS = [
+  join(homedir(), '.agents', 'skills'),
+  join(REPO, '.agents', 'skills'),
+];
+
+function run(cmd, args, opts = {}) {
+  const r = spawnSync(cmd, args, { encoding: 'utf8', ...opts });
+  return { ok: r.status === 0, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
+}
+
+function which(cmd) {
+  const r = run('sh', ['-c', `command -v ${cmd}`]);
+  return r.ok ? r.stdout.trim() : null;
+}
+
+function version(cmd, args = ['--version']) {
+  return (
+    run(cmd, args).stdout.match(/(\d+)\.(\d+)\.(\d+)(-[\w.]+)?/)?.[0] ?? null
+  );
+}
+
+function atLeast(v, min) {
+  if (!v) return false;
+  const a = v.split('-')[0].split('.').map(Number);
+  const b = min.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i];
+  return !v.includes('-');
+}
+
+function hasSkill(name) {
+  return SKILL_DIRS.some((d) => existsSync(join(d, name, 'SKILL.md')));
+}
+
+// The registry's latest, or null when it cannot be reached; being offline is
+// not a finding.
+function latest(pkg) {
+  const r = run('npm', ['view', pkg, 'version']);
+  return r.ok ? r.stdout.trim() : null;
+}
+
+function upToDate(pkg, v, path) {
+  const newest = latest(pkg);
+  if (newest && atLeast(newest, v) && newest !== v)
+    return {
+      note: `${pkg} ${v} at ${path}; ${newest} is on npm: npm install -g ${pkg}@latest`,
+    };
+  return { ok: `${pkg} ${v} at ${path}` };
+}
+
+const checks = [
+  {
+    name: 'gh',
+    test() {
+      if (!which('gh'))
+        return { fix: 'gh is not installed', how: 'brew install gh' };
+      const v = version('gh');
+      if (!atLeast(v, '2.99.0'))
+        return {
+          fix: `gh ${v} predates --attach (needs 2.99.0)`,
+          how: 'brew upgrade gh',
+        };
+      // Unscoped, `gh auth status` exits 1 for a stale account on any host.
+      if (
+        !run('gh', ['auth', 'status', '--active', '--hostname', 'github.com'])
+          .ok
+      )
+        return { fix: 'gh is not authenticated', how: 'gh auth login' };
+      return { ok: `gh ${v}, authenticated` };
+    },
+  },
+  {
+    name: 'node',
+    test() {
+      // stim and eas run on the node that resolves on PATH, which need not be
+      // the one running this script. Off the pinned major, the failure lands
+      // far from its cause: Node 26's stripTypeScriptTypes rejects the
+      // `transform` mode @expo/require-utils loads app.config.ts with, so
+      // `expo config` exits 1 and eas prints no JSON.
+      const pin = readFileSync(join(REPO, '.nvmrc'), 'utf8').trim();
+      const major = (v) => v?.match(/^v?(\d+)/)?.[1];
+      const how = `nvm use && nvm alias default ${pin}`;
+      const path = which('node');
+      if (!path) return { fix: 'node is not on PATH', how };
+      const onPath = version('node');
+      if (major(onPath) !== major(pin))
+        return {
+          fix: `node ${onPath} at ${path}, which stim and eas run on; .nvmrc pins ${pin}`,
+          how,
+        };
+      if (major(process.version) !== major(pin))
+        return {
+          fix: `this script runs on node ${process.version.slice(1)}; .nvmrc pins ${pin} (PATH has ${onPath})`,
+          how,
+        };
+      return { ok: `node ${onPath} at ${path}` };
+    },
+  },
+  {
+    name: 'stim',
+    test() {
+      const path = which('stim');
+      const how = 'npm uninstall -g stim-cli; npm install -g stim';
+      if (!path)
+        return {
+          fix: 'stim is not installed',
+          how,
+          cmd: ['npm', ['install', '-g', 'stim']],
+        };
+      const real = realpathSync(path);
+      const v = version('stim');
+      if (real.includes('/stim-cli/')) {
+        return {
+          fix: `stim resolves to the old stim-cli package (${v}) at ${real}`,
+          how,
+          cmd: ['sh', ['-c', 'npm uninstall -g stim-cli; npm install -g stim']],
+        };
+      }
+      if (!atLeast(v, '1.1.0'))
+        return {
+          fix: `stim ${v} is older than 1.1.0, which \`stim worktree warm --refresh\` needs`,
+          how: 'npm install -g stim@latest',
+          cmd: ['npm', ['install', '-g', 'stim@latest']],
+        };
+      return upToDate('stim', v, path);
+    },
+  },
+  {
+    name: 'stim ports',
+    test() {
+      if (!which('stim')) return { note: 'skipped; stim is not installed' };
+      // A capability probe rather than a version floor: the loop's web and
+      // Cosmos steps take their ports from `stim ports get`, and the release
+      // that carries the command is not pinned here. Probed bare, not with
+      // --help: `stim <anything> --help` prints the top-level usage and exits
+      // 0, so only the bare form reports an unknown command.
+      const r = run('stim', ['ports'], { cwd: APP });
+      if (!/unknown command/.test(r.stderr)) return { ok: 'available' };
+      return {
+        fix: `stim ${version('stim')} has no \`ports\` command; the loop's web and Cosmos steps take their ports from it`,
+        how: 'npm install -g stim@latest',
+        cmd: ['npm', ['install', '-g', 'stim@latest']],
+      };
+    },
+  },
+  {
+    name: 'stim remote',
+    test() {
+      if (!which('stim')) return { note: 'skipped; stim is not installed' };
+      // A capability probe like `stim ports`: the loop's devices are EAS
+      // Simulator sessions, which `stim ios --remote eas` creates.
+      const r = run('stim', ['ios', '--help'], { cwd: APP });
+      const v = version('stim');
+      if (!/--remote\b/.test(r.stdout))
+        return {
+          fix: `stim ${v} has no \`ios --remote\`; the loop runs its devices on EAS Simulator through it`,
+          how: 'npm install -g stim@latest',
+          cmd: ['npm', ['install', '-g', 'stim@latest']],
+        };
+      // Before 1.9.0 every worktree's EAS session had the same agent-device
+      // name, so a second worktree took the first one's connection. On 1.4.0
+      // with agent-device 0.21.6, Fast Refresh never reached the device and a
+      // --remote-config call broke the session's lease.
+      if (!atLeast(v, REMOTE_STIM))
+        return {
+          fix: `stim ${v} predates ${REMOTE_STIM}, which gives each worktree's EAS session its own name`,
+          how: 'npm install -g stim@latest',
+          cmd: ['npm', ['install', '-g', 'stim@latest']],
+        };
+      return { ok: 'available' };
+    },
+  },
+  {
+    name: 'eas',
+    test() {
+      const path = which('eas');
+      if (!path)
+        return {
+          fix: 'eas-cli is not installed',
+          how: 'npm install -g eas-cli',
+          cmd: ['npm', ['install', '-g', 'eas-cli']],
+        };
+      const v = version('eas');
+      const who = run('eas', ['whoami'], { cwd: APP });
+      if (!who.ok)
+        return { fix: `eas-cli ${v} is not logged in`, how: 'eas login' };
+      // The gate is per account: an account without it gets a waitlist link.
+      const gate = run(
+        'eas',
+        ['simulator:availability', '--json', '--non-interactive'],
+        { cwd: APP }
+      );
+      let available;
+      try {
+        available = JSON.parse(gate.stdout).available;
+      } catch {
+        const err = gate.stderr
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .join('\n      ');
+        // eas evaluates app.config.ts through `expo config`, and says only
+        // that it exited; eas-cli itself is not what failed. Rerun it in APP,
+        // where eas ran: a cold worktree has no expo for npx to find.
+        if (/ config --json exited/.test(gate.stderr))
+          return {
+            fix: `eas simulator:availability could not read the Expo config:\n      ${err}`,
+            how: `cd ${APP} && npx expo config --json`,
+          };
+        return {
+          fix: `eas simulator:availability did not return JSON (eas-cli ${v} may predate it)${err ? `:\n      ${err}` : ''}`,
+          how: 'npm install -g eas-cli@latest',
+          cmd: ['npm', ['install', '-g', 'eas-cli@latest']],
+        };
+      }
+      if (!available)
+        return {
+          fix: 'EAS Simulator is not enabled for this project account',
+          how: `cd apps/tlon-mobile && eas simulator:availability`,
+        };
+      return {
+        ok: `eas-cli ${v}, ${who.stdout.split('\n')[0].trim()}, EAS Simulator available`,
+      };
+    },
+  },
+  {
+    name: 'stim skill',
+    test() {
+      if (hasSkill('stim'))
+        return {
+          ok: 'installed',
+          refresh: ['npx', ['--yes', 'skills', 'update', 'stim', '-g', '-y']],
+        };
+      return {
+        fix: 'the stim skill is not installed',
+        how: 'npx skills add appandflow/stim -g -y',
+        cmd: ['npx', ['--yes', 'skills', 'add', 'appandflow/stim', '-g', '-y']],
+      };
+    },
+  },
+  {
+    name: 'agent-device',
+    test() {
+      const path = which('agent-device');
+      if (!path)
+        return {
+          fix: 'agent-device is not installed',
+          how: 'npm install -g agent-device',
+          cmd: ['npm', ['install', '-g', 'agent-device']],
+        };
+      const v = version('agent-device');
+      if (!v)
+        return {
+          fix: `agent-device at ${path} does not report a version, so it cannot run`,
+          how: 'npm install -g agent-device',
+          cmd: ['npm', ['install', '-g', 'agent-device']],
+        };
+      if (!atLeast(v, REMOTE_AGENT_DEVICE))
+        return {
+          fix: `agent-device ${v} predates ${REMOTE_AGENT_DEVICE}, the release the EAS loop was verified on`,
+          how: 'npm install -g agent-device@latest',
+          cmd: ['npm', ['install', '-g', 'agent-device@latest']],
+        };
+      return upToDate('agent-device', v, path);
+    },
+  },
+  {
+    name: 'agent-device skill',
+    test() {
+      if (hasSkill('agent-device'))
+        return {
+          ok: 'installed',
+          refresh: [
+            'npx',
+            ['--yes', 'skills', 'update', 'agent-device', '-g', '-y'],
+          ],
+        };
+      return {
+        fix: 'the agent-device skill is not installed',
+        how: 'npx skills add callstack/agent-device -g -y',
+        cmd: [
+          'npx',
+          ['--yes', 'skills', 'add', 'callstack/agent-device', '-g', '-y'],
+        ],
+      };
+    },
+  },
+  {
+    name: 'ffmpeg',
+    test() {
+      if (which('ffmpeg') && which('ffprobe'))
+        return { ok: `ffmpeg ${version('ffmpeg', ['-version'])}` };
+      return {
+        fix: 'ffmpeg is not installed (trimming and checking recordings)',
+        how: 'brew install ffmpeg',
+        cmd: ['brew', ['install', 'ffmpeg']],
+      };
+    },
+  },
+  {
+    name: 'ship login',
+    test() {
+      const has = (k) => envHas(APP, k);
+      const self = ['DEFAULT_SHIP_LOGIN_URL', 'DEFAULT_SHIP_LOGIN_ACCESS_CODE'];
+      const hosted = [
+        'DEFAULT_TLON_LOGIN_EMAIL',
+        'DEFAULT_TLON_LOGIN_PASSWORD',
+      ];
+      if (self.every(has)) return { ok: 'dev ship login configured' };
+      if (hosted.every(has)) return { ok: 'hosted login configured' };
+      return {
+        note: `neither ${self.join(' + ')} nor ${hosted.join(' + ')} set in apps/tlon-mobile/.env.local; sign-in will need a person`,
+      };
+    },
+  },
+  {
+    name: 'web ship url',
+    test() {
+      if (envHas(WEB, 'VITE_SHIP_URL')) return { ok: 'configured' };
+      // The dev server proxies to this ship; without it web comes up against
+      // localhost:8080 and the sign-in below has nothing to sign in to.
+      return {
+        note: 'VITE_SHIP_URL is not set in apps/tlon-web/.env.local; the web dev server will proxy to localhost:8080',
+      };
+    },
+  },
+  {
+    name: 'stim doctor',
+    test() {
+      if (!which('stim')) return { note: 'skipped; stim is not installed' };
+      const r = run('stim', ['doctor', '--json'], { cwd: APP });
+      let findings;
+      try {
+        findings = JSON.parse(r.stdout).findings ?? [];
+      } catch {
+        return {
+          fix: 'stim doctor did not return JSON',
+          how: `cd apps/tlon-mobile && stim doctor`,
+        };
+      }
+      // stim doctor has two levels, cost and note; neither blocks a build,
+      // so neither is a fix here.
+      const costly = findings.filter((f) => f.level === 'cost');
+      if (costly.length === 0)
+        return {
+          ok: `no finding costs time (${findings.length} note${findings.length === 1 ? '' : 's'})`,
+        };
+      // Never run `stim doctor --fix` from here. It writes the agent's own
+      // permission file and can delete generated Android .cxx directories, so
+      // it is a decision for whoever is running this, not a repair to apply.
+      return {
+        note: costly
+          .map(
+            (f) => `costs build time: ${f.title}${f.fix ? ` -> ${f.fix}` : ''}`
+          )
+          .join('\n      '),
+      };
+    },
+  },
+];
+
+function report(results) {
+  for (const { name, r } of results) {
+    const tag = r.ok ? 'ok  ' : r.note ? 'note' : 'fix ';
+    const text = r.ok ?? r.note ?? r.fix;
+    console.log(`${tag}  ${name.padEnd(19)} ${text}`);
+    if (r.fix && r.how) console.log(`${' '.repeat(26)}-> ${r.how}`);
+  }
+}
+
+let results = checks.map((c) => ({ name: c.name, r: c.test(), c }));
+
+if (FIX) {
+  // `fix` is broken and `cmd` repairs it. `refresh` is fine but may be behind:
+  // `skills list` shows no versions and `skills update` has no dry run, so the
+  // only way to bring a skill current is to run the update, which is idempotent.
+  const actions = results.flatMap(({ name, r }) => [
+    ...(r.fix && r.cmd
+      ? [{ name, verb: 'fixing', cmd: r.cmd, how: r.how }]
+      : []),
+    ...(r.refresh
+      ? [
+          {
+            name,
+            verb: 'refreshing',
+            cmd: r.refresh,
+            how: r.refresh.flat().join(' '),
+          },
+        ]
+      : []),
+  ]);
+  for (const { name, verb, cmd: c, how } of actions) {
+    const [cmd, args = [], opts = {}] = c;
+    console.error(`${verb} ${name}: ${how}`);
+    const out = spawnSync(cmd, args, { stdio: 'inherit', ...opts });
+    if (out.status !== 0) console.error(`${name}: exited ${out.status}`);
+  }
+  if (actions.length) console.error('');
+  results = checks.map((c) => ({ name: c.name, r: c.test(), c }));
+}
+
+report(results);
+process.exitCode = results.some(({ r }) => r.fix) ? 1 : 0;

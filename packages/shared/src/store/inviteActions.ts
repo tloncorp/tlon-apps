@@ -26,31 +26,20 @@ const logger = createDevLogger('inviteActions', false);
 
 export async function initializeCachedHostedInviteLinks({
   personalLureToken,
-  homeGroupLureToken,
   nodeId,
   source,
 }: {
   personalLureToken?: HostedShipInfo['personalLureToken'] | null;
-  homeGroupLureToken?: HostedShipInfo['homeGroupLureToken'] | null;
   nodeId?: string | null;
   source: string;
 }) {
-  await Promise.all([
-    initializeCachedHostedInviteLink({
-      token: personalLureToken,
-      storageItem: db.personalInviteLink,
-      label: 'personal',
-      nodeId,
-      source,
-    }),
-    initializeCachedHostedInviteLink({
-      token: homeGroupLureToken,
-      storageItem: db.homeGroupInviteLink,
-      label: 'homeGroup',
-      nodeId,
-      source,
-    }),
-  ]);
+  await initializeCachedHostedInviteLink({
+    token: personalLureToken,
+    storageItem: db.personalInviteLink,
+    label: 'personal',
+    nodeId,
+    source,
+  });
 }
 
 async function initializeCachedHostedInviteLink({
@@ -62,7 +51,7 @@ async function initializeCachedHostedInviteLink({
 }: {
   token?: string | null;
   storageItem: typeof db.personalInviteLink;
-  label: 'personal' | 'homeGroup';
+  label: 'personal';
   nodeId?: string | null;
   source: string;
 }) {
@@ -113,6 +102,9 @@ async function initializeCachedHostedInviteLink({
 
 export async function verifyUserInviteLink() {
   try {
+    // An attempt is under way: whatever the last one left behind, the link is
+    // loading again until this one settles.
+    await db.personalInviteLinkUnavailable.setValue(false);
     const cachedInviteLink = await db.personalInviteLink.getValue();
     if (cachedInviteLink) {
       logger.log('have cached invite link', cachedInviteLink);
@@ -154,6 +146,11 @@ export async function verifyUserInviteLink() {
     }
   } catch (e) {
     logger.trackError('Failed to verify personal invite link', e);
+    // Nothing retries from here, so record the failure: a screen waiting on
+    // the link would otherwise read its absence as loading indefinitely.
+    await db.personalInviteLinkUnavailable
+      .setValue(true)
+      .catch(() => undefined);
   }
 }
 

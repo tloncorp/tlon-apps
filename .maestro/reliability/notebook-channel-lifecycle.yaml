@@ -1,0 +1,503 @@
+appId: ${MAESTRO_APP_ID}
+name: Native public Notebook channel lifecycle
+tags: [regression]
+env:
+  JOURNEY: notebookchannel
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Edit channels$'
+- assertVisible: '^Channels$'
+- assertNotVisible: ${output.reliability.channel}
+- tapOn: '^New$'
+- tapOn: '^New channel$'
+- assertVisible: '^Create a new channel$'
+- assertVisible: '^Collaborative markdown notebooks$'
+- assertVisible: '^Bulletin$'
+- tapOn: '^Collaborative markdown notebooks$'
+- tapOn:
+    id: ChannelTitleInput
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.channel}
+- assertVisible:
+    id: ChannelTitleInput
+    text: ${output.reliability.channel}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+      - scroll
+- tapOn: '^Create channel$'
+- extendedWaitUntil:
+    visible: ${output.reliability.channel}
+    timeout: 15000
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- assertVisible: ${output.reliability.channel}
+- tapOn: ${output.reliability.channel}
+- extendedWaitUntil:
+    visible: '^No notes or folders$'
+    timeout: 15000
+- assertVisible:
+    id: NotesRootNewHeaderAction
+- assertNotVisible: '^Write something …\n?$'
+
+# Create a parent at the root, then exercise both nested-folder entry points.
+- tapOn:
+    id: NotesRootNewHeaderAction
+- assertVisible: '^New$'
+- tapOn:
+    id: NotesNewFolderAction
+- assertVisible: '^Add folder$'
+- assertVisible: '^Create in Root[.]$'
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderParent}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderParentRowId}
+    timeout: 15000
+
+# Create a valid root destination before entering the source subtree.
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewFolderAction
+- assertVisible: '^Create in Root[.]$'
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderArchiveRowId}
+    timeout: 15000
+
+# The row action must target the selected parent even before navigating into it.
+- longPressOn:
+    id: ${output.reliability.folderParentRowId}
+- assertVisible:
+    id: NotesCreateFolderInFolderAction
+- tapOn:
+    id: NotesCreateFolderInFolderAction
+- assertVisible: ${output.reliability.folderParentTargetPattern}
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderChild}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- tapOn:
+    id: ${output.reliability.folderParentRowId}
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderChildRowId}
+    timeout: 15000
+
+# Give the moving folder a descendant so relocation proves the subtree follows.
+- longPressOn:
+    id: ${output.reliability.folderChildRowId}
+- tapOn:
+    id: NotesCreateFolderInFolderAction
+- assertVisible: ${output.reliability.folderChildTargetPattern}
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderLeaf}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- tapOn:
+    id: ${output.reliability.folderChildRowId}
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderLeafRowId}
+    timeout: 15000
+- tapOn: '^Back$'
+- assertVisible:
+    id: ${output.reliability.folderChildRowId}
+
+# Creating while viewing the parent must state and preserve that same target.
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewFolderAction
+- assertVisible: ${output.reliability.folderParentTargetPattern}
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderDelete}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderDeleteRowId}
+    timeout: 15000
+- assertVisible:
+    id: ${output.reliability.folderChildRowId}
+
+# Cancel once, then confirm deletion of only the empty control folder.
+- longPressOn:
+    id: ${output.reliability.folderDeleteRowId}
+- tapOn:
+    id: NotesDeleteFolderAction
+- assertVisible: '^Delete folder[?]$'
+- assertVisible: ${output.reliability.folderDeleteMessagePattern}
+- tapOn: '^Cancel$'
+- assertVisible:
+    id: ${output.reliability.folderDeleteRowId}
+- longPressOn:
+    id: ${output.reliability.folderDeleteRowId}
+- tapOn:
+    id: NotesDeleteFolderAction
+- assertVisible: ${output.reliability.folderDeleteMessagePattern}
+- tapOn: '^Delete$'
+- extendedWaitUntil:
+    notVisible:
+      id: ${output.reliability.folderDeleteRowId}
+    timeout: 15000
+- assertVisible:
+    id: ${output.reliability.folderChildRowId}
+
+# Create three exact notes in the source folder. One moves, one is deleted, and
+# the third is a control proving destructive actions do not remove a sibling.
+- runFlow:
+    file: subflows/create-notes-note.yaml
+    env:
+      NOTE_TITLE: ${output.reliability.noteMove}
+      NOTE_BODY: ${output.reliability.noteMoveBody}
+- runFlow:
+    file: subflows/create-notes-note.yaml
+    env:
+      NOTE_TITLE: ${output.reliability.noteDelete}
+      NOTE_BODY: ${output.reliability.noteDeleteBody}
+- runFlow:
+    file: subflows/create-notes-note.yaml
+    env:
+      NOTE_TITLE: ${output.reliability.noteKeeper}
+      NOTE_BODY: ${output.reliability.noteKeeperBody}
+
+# Move one note to the searched root destination and prove it leaves the source.
+- longPressOn: ${output.reliability.noteMove}
+- tapOn: '^Move to folder$'
+- assertVisible: '^Move note$'
+- assertVisible: ${'Choose a new folder for ' + output.reliability.noteMove + '.'}
+- tapOn: '^Search folders$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderArchiveQuery}
+- assertVisible: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: ${output.reliability.folderArchive}
+      - tapOn: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: ${output.reliability.folderArchive}
+- assertVisible: ${output.reliability.noteMoveActionPattern}
+- tapOn: ${output.reliability.noteMoveActionPattern}
+- extendedWaitUntil:
+    visible: ${output.reliability.noteMoveToastPattern}
+    timeout: 5000
+- assertNotVisible: ${output.reliability.noteMove}
+- assertVisible: ${output.reliability.noteDelete}
+- assertVisible: ${output.reliability.noteKeeper}
+
+# Cancel then confirm deletion of exactly one note, preserving the sibling.
+- longPressOn: ${output.reliability.noteDelete}
+- tapOn: '^Delete note$'
+- assertVisible: '^Delete note$'
+- assertVisible: ${output.reliability.noteDeleteMessagePattern}
+- tapOn: '^Cancel$'
+- assertVisible: ${output.reliability.noteDelete}
+- assertVisible: ${output.reliability.noteKeeper}
+- longPressOn: ${output.reliability.noteDelete}
+- tapOn: '^Delete note$'
+- assertVisible: ${output.reliability.noteDeleteMessagePattern}
+- tapOn: '^Delete$'
+- extendedWaitUntil:
+    notVisible: ${output.reliability.noteDelete}
+    timeout: 15000
+- assertVisible: ${output.reliability.noteKeeper}
+
+# Open the destination and prove the moved note retained its body exactly once.
+- tapOn: '^Back$'
+- tapOn:
+    id: ${output.reliability.folderArchiveRowId}
+- extendedWaitUntil:
+    visible: ${output.reliability.noteMove}
+    timeout: 15000
+- tapOn: ${output.reliability.noteMove}
+- assertVisible: ${output.reliability.noteMoveBody}
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.noteMove}
+- tapOn: '^Back$'
+- tapOn:
+    id: ${output.reliability.folderParentRowId}
+
+# The move picker must exclude the current parent, the folder itself, and its
+# descendant. Search gives the native picker a stable, local empty-state oracle.
+- longPressOn:
+    id: ${output.reliability.folderChildRowId}
+- tapOn:
+    id: NotesMoveFolderAction
+- assertVisible: '^Move folder$'
+- assertVisible: '^Search folders$'
+- assertVisible: '^Root$'
+- assertVisible: '^Top level$'
+- assertVisible: ${output.reliability.folderArchive}
+- tapOn: '^Search folders$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderParentQuery}
+- assertVisible: '^No folders found$'
+- tapOn: '^Clear$'
+- assertNotVisible: '^No folders found$'
+- tapOn: '^Search folders$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderChildQuery}
+- assertVisible: '^No folders found$'
+- tapOn: '^Clear$'
+- assertNotVisible: '^No folders found$'
+- tapOn: '^Search folders$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderLeafQuery}
+- assertVisible: '^No folders found$'
+- tapOn: '^Clear$'
+- assertNotVisible: '^No folders found$'
+
+# Search for the valid destination, select it, and move the whole subtree. On
+# iOS the first result tap dismisses the search keyboard; the second selects it.
+- tapOn: '^Search folders$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderArchiveQuery}
+- assertVisible: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: ${output.reliability.folderArchive}
+      - tapOn: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: ${output.reliability.folderArchive}
+- assertVisible: ${output.reliability.folderMoveActionPattern}
+- tapOn: ${output.reliability.folderMoveActionPattern}
+- extendedWaitUntil:
+    visible: ${output.reliability.folderMoveToastPattern}
+    timeout: 5000
+- extendedWaitUntil:
+    notVisible:
+      id: ${output.reliability.folderChildRowId}
+    timeout: 15000
+
+# The source parent no longer contains the moving folder. The destination has
+# exactly that folder and its descendant, proving the subtree moved intact.
+- tapOn: '^Back$'
+- assertVisible:
+    id: ${output.reliability.folderParentRowId}
+- assertVisible:
+    id: ${output.reliability.folderArchiveRowId}
+- assertNotVisible:
+    id: ${output.reliability.folderChildRowId}
+- tapOn:
+    id: ${output.reliability.folderParentRowId}
+- assertNotVisible:
+    id: ${output.reliability.folderChildRowId}
+- tapOn: '^Back$'
+- tapOn:
+    id: ${output.reliability.folderArchiveRowId}
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderChildRowId}
+    timeout: 15000
+- tapOn:
+    id: ${output.reliability.folderChildRowId}
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderLeafRowId}
+    timeout: 15000
+
+# The destination now owns one moved note and the two-folder subtree. Relaunch
+# and re-enter the exact Notebook so the destructive root-folder action does
+# not depend on a fragile count of nested Back actions. Cancel preserves every
+# item; confirmation removes the subtree and leaves the source control note.
+- stopApp
+- launchApp
+- runFlow: subflows/open-fixture-group.yaml
+- tapOn: ${output.reliability.channel}
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderArchiveRowId}
+    timeout: 15000
+- assertVisible:
+    id: ${output.reliability.folderParentRowId}
+- assertVisible:
+    id: ${output.reliability.folderArchiveRowId}
+- longPressOn:
+    id: ${output.reliability.folderArchiveRowId}
+- tapOn:
+    id: NotesDeleteFolderAction
+- assertVisible: '^Delete folder and contents[?]$'
+- assertVisible: ${output.reliability.folderTreeDeleteMessagePattern}
+- tapOn: '^Cancel$'
+- assertVisible:
+    id: ${output.reliability.folderArchiveRowId}
+- tapOn:
+    id: ${output.reliability.folderArchiveRowId}
+- assertVisible: ${output.reliability.noteMove}
+- assertVisible:
+    id: ${output.reliability.folderChildRowId}
+- tapOn: '^Back$'
+- longPressOn:
+    id: ${output.reliability.folderArchiveRowId}
+- tapOn:
+    id: NotesDeleteFolderAction
+- assertVisible: ${output.reliability.folderTreeDeleteMessagePattern}
+- tapOn: '^Delete$'
+- extendedWaitUntil:
+    notVisible:
+      id: ${output.reliability.folderArchiveRowId}
+    timeout: 15000
+- assertVisible:
+    id: ${output.reliability.folderParentRowId}
+- tapOn:
+    id: ${output.reliability.folderParentRowId}
+- assertVisible: ${output.reliability.noteKeeper}
+- assertNotVisible: ${output.reliability.noteDelete}
+- assertNotVisible:
+    id: ${output.reliability.folderChildRowId}
+
+# Relaunch after the move to retain the existing channel-deletion persistence
+# check and reset navigation before cleanup.
+- stopApp
+- launchApp
+- runFlow: subflows/open-fixture-group.yaml
+- tapOn: ${output.reliability.channel}
+- extendedWaitUntil:
+    visible:
+      id: NotesRootNewHeaderAction
+    timeout: 15000
+
+# Exercise both branches of the destructive confirmation.
+- tapOn: ${output.reliability.channel}
+- scrollUntilVisible:
+    element:
+      id: ChannelLeaveAction-Delete channel
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: ChannelLeaveAction-Delete channel
+- assertVisible: "^Delete ${output.reliability.channel}[?]$"
+- tapOn: '(?i)^Cancel$'
+- assertVisible: ${output.reliability.channel}
+- tapOn:
+    id: ChannelLeaveAction-Delete channel
+- assertVisible: "^Delete ${output.reliability.channel}[?]$"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Delete channel$'
+          above: '^Cancel$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '(?i)^Delete channel$'
+- extendedWaitUntil:
+    notVisible: ${output.reliability.channel}
+    timeout: 15000
+
+# Prove the deleted Notebook does not return from the local cache on relaunch.
+- stopApp
+- launchApp
+- runFlow: subflows/open-fixture-group.yaml
+- assertNotVisible: ${output.reliability.channel}
+- assertVisible: '^Chat$'
+- assertVisible: '^Gallery$'
+- assertVisible: '^Notebook$'
+
+# Delete only this run's fixture group.
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml

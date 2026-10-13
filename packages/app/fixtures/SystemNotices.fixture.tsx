@@ -3,7 +3,6 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { ShipProvider } from '../contexts/ship';
 import { ChatList } from '../features/chat-list/ChatList';
-import { ChatListTabs } from '../features/chat-list/ChatListTabs';
 import {
   ContactsScreenView,
   GroupChannelsScreenView,
@@ -100,7 +99,7 @@ function HomeNotificationsFixture() {
       <View flex={1}>
         <View flex={1}>
           <ScreenHeader
-            title="Home"
+            title="Workspaces"
             placement="navigation"
             rightActions={[
               { id: 'search', icon: 'Search', label: 'Search', onPress: noop },
@@ -112,7 +111,6 @@ function HomeNotificationsFixture() {
               },
             ]}
           />
-          <ChatListTabs activeTab="home" onPressTab={noop} />
           <ChatList
             data={[{ title: 'All', data: homeChats }]}
             allPinnedChats={[]}

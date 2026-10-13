@@ -17,8 +17,11 @@ import com.posthog.android.PostHogAndroidConfig
 import io.tlon.landscape.storage.SecureStorage
 import org.json.JSONObject
 import expo.modules.constants.ConstantsService
+import io.tlon.landscape.notifications.DismissSourceMissing
+import io.tlon.landscape.notifications.FallbackNotificationDisplayFailed
 import io.tlon.landscape.notifications.NotificationException
 import io.tlon.landscape.notifications.NotificationLogger
+import io.tlon.landscape.notifications.NotificationPermissionMissing
 import io.tlon.landscape.notifications.TalkNotificationManager
 import io.tlon.landscape.notifications.NotificationMessagesCache
 import io.tlon.landscape.notifications.buildMessagingTappable
@@ -130,7 +133,7 @@ class TalkMessagingService : FirebaseMessagingService() {
                         }
                     } catch (e: Error) {
                         data["uid"]?.let { uid ->
-                            NotificationLogger.logError(NotificationException("Dismiss source missing", uid, null, e))
+                            NotificationLogger.logError(DismissSourceMissing(uid, e))
                         }
                     }
                 }
@@ -169,9 +172,7 @@ class TalkMessagingService : FirebaseMessagingService() {
                 Manifest.permission.POST_NOTIFICATIONS
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            NotificationLogger.logError(
-                NotificationException(uid, "Lacking notification permissions")
-            )
+            NotificationLogger.logError(NotificationPermissionMissing(uid))
             Log.w(TALK_MESSAGING_SERVICE, "Cannot show notification - no permission")
             return
         }
@@ -202,9 +203,9 @@ class TalkMessagingService : FirebaseMessagingService() {
             ))
             Log.i(TALK_MESSAGING_SERVICE, "Showed fallback notification for uid: $uid, reason: ${exception.message}")
         } catch (e: Exception) {
-            val message = "Failed to display fallback notification"
-            NotificationLogger.logError(NotificationException(uid, message, null, e))
-            Log.e(TALK_MESSAGING_SERVICE, message, e)
+            val failure = FallbackNotificationDisplayFailed(uid, e)
+            NotificationLogger.logError(failure)
+            Log.e(TALK_MESSAGING_SERVICE, failure.message, e)
         }
     }
 }

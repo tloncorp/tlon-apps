@@ -1,8 +1,11 @@
+# Note: this flow is not in config.yaml and is not run by CI. It has been
+# broken since before the navigation change -- it drives `AvatarNavIcon`,
+# which exists only in the web e2e helpers, not in the mobile app.
 appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/tlon-login.yaml
-- assertVisible: 'Home'
+- assertVisible: 'Workspaces'
 - tapOn:
     id: 'AvatarNavIcon'
 - assertVisible: 'Contacts'

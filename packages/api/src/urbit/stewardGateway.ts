@@ -1,6 +1,6 @@
 /**
  * Wire types for the %steward agent's gateway module (harness liveness +
- * offline auto-reply). See desk/sur/steward/gateway.hoon and docs/steward.md.
+ * offline auto-reply). See desk/sur/steward/gateway.hoon and docs/backend/desk/app/steward.md.
  */
 
 /**

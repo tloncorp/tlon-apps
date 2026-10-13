@@ -13,12 +13,19 @@ import {
 export function FloatingActionButton({
   onPress,
   icon,
+  accessibilityLabel,
+  testID,
 }: {
   onPress: () => void;
   icon?: React.ReactNode;
+  accessibilityLabel?: string;
+  testID?: string;
 }) {
   return (
     <Button
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      testID={testID}
       paddingHorizontal="$m"
       paddingVertical="$m"
       alignItems="center"

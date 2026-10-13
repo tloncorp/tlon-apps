@@ -4,3 +4,4 @@ export const Platform = { OS: 'web' };
 export const StyleSheet = { create: (s: any) => s };
 export const Linking = {};
 export const NativeModules = {};
+export const useWindowDimensions = () => ({ width: 402, height: 874 });

@@ -1,0 +1,42 @@
+appId: ${MAESTRO_APP_ID}
+---
+- assertVisible:
+    id: MessageInput
+    text: '^Message$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # The icon-only attachment button is absent from iOS accessibility.
+      # Portrait layout, empty composer and closed keyboard are required.
+      - tapOn:
+          point: '9%,92%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # The plus icon is also absent from Android accessibility.
+      - tapOn:
+          point: '9%,93%'
+- tapOn: '^Media Library$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+          index: 0
+      - tapOn: '^Add.*$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: PXGGridLayout-Info
+          timeout: 5000
+      - tapOn:
+          id: PXGGridLayout-Info
+          index: 0
+      - tapOn:
+          id: Add

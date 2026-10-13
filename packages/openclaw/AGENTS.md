@@ -77,7 +77,7 @@ src/
 
 -   `@tloncorp/api` — Tlon API library (use this first!)
 -   `openclaw/plugin-sdk` — Plugin interfaces and utilities
--   `@urbit/http-api` / `@urbit/aura` — Urbit primitives
+-   `@urbit/aura` / `@urbit/nockjs` — Urbit primitives
 
 ### Dev Environment Setup
 

@@ -4,6 +4,7 @@ import {
   buildNoteSnippet,
   buildNoteTitleSegments,
   noteSearchListState,
+  noteTimestampMs,
 } from '@tloncorp/shared/logic';
 import { LoadingSpinner, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -12,7 +13,6 @@ import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import { ListItem } from '../ListItem';
 import { HighlightedText } from '../PostContent/InlineRenderer';
-import { noteTimestampMs } from './notesTree';
 
 /**
  * A search hit as the endpoint returns it, not a synced SQLite row: detail

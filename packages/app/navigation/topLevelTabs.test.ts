@@ -2,7 +2,12 @@ import { getStateFromPath } from '@react-navigation/core';
 import { describe, expect, test, vi } from 'vitest';
 
 import { getMobileLinkingConfig } from './linking';
-import { getTopLevelTabRoute } from './topLevelTabs';
+import {
+  getTopLevelTabRoute,
+  isAtColdStartPosition,
+  isAwaitingRestoredBotTab,
+  isTabPressBlockedByOnboardingLock,
+} from './topLevelTabs';
 
 vi.mock('@tloncorp/shared', () => ({
   AnalyticsEvent: { NavigationTabSelected: 'Navigation Tab Selected' },
@@ -11,9 +16,9 @@ vi.mock('@tloncorp/shared', () => ({
 
 describe('getTopLevelTabRoute', () => {
   test('targets a tab through the shared MainTabs route', () => {
-    expect(getTopLevelTabRoute('Activity')).toEqual({
+    expect(getTopLevelTabRoute('Settings')).toEqual({
       name: 'MainTabs',
-      params: { screen: 'Activity' },
+      params: { screen: 'Settings' },
     });
   });
 
@@ -38,9 +43,10 @@ describe('getTopLevelTabRoute', () => {
 
 describe('mobile top-level tab links', () => {
   test.each([
+    ['/apps/groups/bot', 'BotChat'],
     ['/apps/groups/ChatList', 'ChatList'],
     ['/apps/groups/activity', 'Activity'],
-    ['/apps/groups/contacts', 'Contacts'],
+    ['/apps/groups/settings', 'Settings'],
   ])('nests %s under MainTabs', (path, screen) => {
     const state = getStateFromPath(path, getMobileLinkingConfig('').config!);
 
@@ -57,5 +63,207 @@ describe('mobile top-level tab links', () => {
         ],
       },
     });
+  });
+
+  // Contacts left the tab bar; it is a root stack screen. A cold link seats
+  // MainTabs beneath it so back and the tab bar work.
+  test('routes /apps/groups/contacts to the root stack over MainTabs', () => {
+    const state = getStateFromPath(
+      '/apps/groups/contacts',
+      getMobileLinkingConfig('').config!
+    );
+
+    expect(state?.routes[0]).toMatchObject({
+      name: 'Root',
+      state: {
+        index: 1,
+        routes: [{ name: 'MainTabs' }, { name: 'Contacts' }],
+      },
+    });
+  });
+});
+
+describe('isTabPressBlockedByOnboardingLock', () => {
+  test('refuses every tab but Bot while onboarding is locked', () => {
+    expect(isTabPressBlockedByOnboardingLock(true, 'ChatList')).toBe(true);
+    expect(isTabPressBlockedByOnboardingLock(true, 'Activity')).toBe(true);
+    expect(isTabPressBlockedByOnboardingLock(true, 'Settings')).toBe(true);
+    expect(isTabPressBlockedByOnboardingLock(true, 'BotChat')).toBe(false);
+  });
+
+  test('lets every tab through once the lock lifts', () => {
+    expect(isTabPressBlockedByOnboardingLock(false, 'ChatList')).toBe(false);
+    expect(isTabPressBlockedByOnboardingLock(false, 'Activity')).toBe(false);
+    expect(isTabPressBlockedByOnboardingLock(false, 'Settings')).toBe(false);
+  });
+});
+
+describe('isAtColdStartPosition', () => {
+  const tabs = (name: string, params?: object) => ({
+    index: 0,
+    routes: [{ name, params }],
+  });
+
+  test('holds on MainTabs before the tabs render, and on a bare Workspaces tab', () => {
+    expect(
+      isAtColdStartPosition({ index: 0, routes: [{ name: 'MainTabs' }] })
+    ).toBe(true);
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('ChatList') }],
+      })
+    ).toBe(true);
+  });
+
+  test('is over once another root screen or tab is showing', () => {
+    expect(
+      isAtColdStartPosition({
+        index: 1,
+        routes: [{ name: 'MainTabs' }, { name: 'Contacts' }],
+      })
+    ).toBe(false);
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('Activity') }],
+      })
+    ).toBe(false);
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('Settings') }],
+      })
+    ).toBe(false);
+    expect(isAtColdStartPosition(undefined)).toBe(false);
+  });
+
+  test('yields to a destination Workspaces was sent to', () => {
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            state: tabs('ChatList', { previewGroupId: '~zod/garden' }),
+          },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            params: {
+              screen: 'ChatList',
+              params: { previewGroupId: '~zod/garden' },
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [{ name: 'MainTabs', params: { screen: 'ChatList' } }],
+      })
+    ).toBe(false);
+  });
+});
+
+describe('isAwaitingRestoredBotTab', () => {
+  const tabs = (name: string) => ({ index: 0, routes: [{ name }] });
+
+  test('holds when the restore landed on Workspaces instead of the bot tab', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('ChatList') }],
+      })
+    ).toBe(true);
+  });
+
+  test('holds before the tabs render', () => {
+    expect(
+      isAwaitingRestoredBotTab({ index: 0, routes: [{ name: 'MainTabs' }] })
+    ).toBe(true);
+  });
+
+  test('releases once the bot tab is the focused one', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('BotChat') }],
+      })
+    ).toBe(false);
+  });
+
+  test('releases when the user has moved above MainTabs', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 1,
+        routes: [
+          { name: 'MainTabs', state: tabs('ChatList') },
+          { name: 'ChannelRoot' },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  test('holds when the position itself named the bot tab', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            params: { screen: 'BotChat' },
+            state: tabs('ChatList'),
+          },
+        ],
+      })
+    ).toBe(true);
+  });
+
+  test('releases to a deep link that landed after the restore', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            state: {
+              index: 0,
+              routes: [
+                { name: 'ChatList', params: { previewGroupId: '~zod/garden' } },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            params: { screen: 'ChatList' },
+            state: tabs('ChatList'),
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  test('releases on a tab that is neither the bot tab nor the fallback', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('Settings') }],
+      })
+    ).toBe(false);
   });
 });

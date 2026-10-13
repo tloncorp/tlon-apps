@@ -20,6 +20,21 @@ import { ContactName } from '../ContactNameV2';
 import { ListItem, type ListItemProps } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 
+// Its own component so only notes rows — and only when this is the
+// subtitle that wins — subscribe to the shared notes counts query. Read
+// from a hook in `ChannelListItem` itself, every chat and DM row would
+// rerender whenever any notebook's counts changed.
+function NotesChannelSubtitle({ channel }: { channel: db.Channel }) {
+  const subtitle = utils.useNotesChannelSubtitle(channel);
+  return subtitle ? <ListItem.Subtitle>{subtitle}</ListItem.Subtitle> : null;
+}
+
+// Separate for the same reason: only Buckets rows read the counts query.
+function BucketsChannelSubtitle({ channel }: { channel: db.Channel }) {
+  const subtitle = utils.useBucketsChannelSubtitle(channel);
+  return subtitle ? <ListItem.Subtitle>{subtitle}</ListItem.Subtitle> : null;
+}
+
 export function ChannelListItem({
   model,
   StartIcon,
@@ -32,11 +47,14 @@ export function ChannelListItem({
   disableOptions = false,
   disableFocusedStyle = false,
   showGroupTitle = false,
+  showActivity = true,
   onLayout,
   hoverStyle,
   ...props
 }: {
   showGroupTitle?: boolean;
+  /** The latest post preview, its time and the unread count. */
+  showActivity?: boolean;
   useTypeIcon?: boolean;
   customSubtitle?: string;
   dimmed?: boolean;
@@ -177,6 +195,10 @@ export function ChannelListItem({
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : showGroupTitle && model.group ? (
               <ListItem.Subtitle>{groupTitle}</ListItem.Subtitle>
+            ) : model.type === 'notes' ? (
+              <NotesChannelSubtitle channel={model} />
+            ) : model.type === 'buckets' ? (
+              <BucketsChannelSubtitle channel={model} />
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
               utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>
@@ -198,7 +220,7 @@ export function ChannelListItem({
                 {memberCount > 3 && ` and ${memberCount - 1} others`}
               </ListItem.SubtitleWithIcon>
             ) : null}
-            {model.lastPost && !model.isDmInvite && (
+            {showActivity && model.lastPost && !model.isDmInvite && (
               <ListItem.PostPreview
                 post={model.lastPost}
                 showAuthor={model.type !== 'dm'}
@@ -206,25 +228,29 @@ export function ChannelListItem({
             )}
           </ListItem.MainContent>
 
-          {EndContent ?? (
-            <ListItem.EndContent>
-              {model.lastPost?.receivedAt ? (
-                <ListItem.Time time={model.lastPost.receivedAt} />
-              ) : null}
+          {EndContent ??
+            (showActivity ? (
+              <ListItem.EndContent>
+                {model.lastPost?.receivedAt ? (
+                  <ListItem.Time time={model.lastPost.receivedAt} />
+                ) : null}
 
-              {model.isDmInvite ? (
-                <Badge text="Invite" />
-              ) : (
-                <ListItem.Count
-                  opacity={isHovered ? 0 : 1}
-                  notified={notified}
-                  count={unreadCount}
-                  muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
-                  marginTop={isWeb ? 3 : 'unset'}
-                />
-              )}
-            </ListItem.EndContent>
-          )}
+                {model.isDmInvite ? (
+                  <Badge text="Invite" />
+                ) : (
+                  <ListItem.Count
+                    opacity={isHovered ? 0 : 1}
+                    notified={notified}
+                    count={unreadCount}
+                    muted={logic.isMuted(
+                      model.volumeSettings?.level,
+                      'channel'
+                    )}
+                    marginTop={isWeb ? 3 : 'unset'}
+                  />
+                )}
+              </ListItem.EndContent>
+            ) : null)}
         </ListItem>
         {isWeb && !disableOptions && (isHovered || open) && (
           <View position="absolute" right={10} top="$3xl">

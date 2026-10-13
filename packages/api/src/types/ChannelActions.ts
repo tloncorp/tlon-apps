@@ -8,6 +8,7 @@ export type Id =
   | 'muteThread'
   | 'viewReactions'
   | 'copyRef'
+  | 'copyFileUrl'
   | 'copyText'
   | 'edit'
   | 'report'
@@ -44,6 +45,7 @@ export function channelActionIdsFor({
         'startThread',
         'muteThread',
         'copyRef',
+        'copyFileUrl',
         'forward',
         'edit',
         'report',
@@ -75,6 +77,7 @@ export function channelActionIdsFor({
         'muteThread',
         'viewReactions',
         'copyText',
+        'copyFileUrl',
         'visibility',
         'delete',
       ];
@@ -86,6 +89,7 @@ export function channelActionIdsFor({
         'muteThread',
         'viewReactions',
         'copyRef',
+        'copyFileUrl',
         'forward',
         'copyText',
         'edit',
@@ -120,6 +124,7 @@ export function staticSpecForId(id: Id): StaticSpec {
 
 const STATIC_SPECS = {
   copyRef: { isNetworkDependent: false },
+  copyFileUrl: { isNetworkDependent: false },
   copyText: { isNetworkDependent: false },
   delete: { isNetworkDependent: true, actionType: 'destructive' },
   edit: { isNetworkDependent: true },

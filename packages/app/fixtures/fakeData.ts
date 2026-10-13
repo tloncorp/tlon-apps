@@ -219,6 +219,12 @@ export const claimBotContact: db.Contact = {
   botInfo: JSON.stringify({ v: 1, harness: 'openclaw', version: '1.2.3' }),
 };
 
+// Same bot as claimBotContact, reporting its gateway offline.
+export const offlineBotContact: db.Contact = {
+  ...claimBotContact,
+  botLiveness: JSON.stringify({ v: 1, state: 'offline' }),
+};
+
 // Mock system contacts for fixtures
 export const emptySystemContact: db.SystemContact = {
   id: '',
@@ -351,6 +357,12 @@ export const initialContacts: db.Contact[] = [
   markContact,
   edContact,
 ];
+
+// ContactBook only lists saved contacts.
+export const savedContacts: db.Contact[] = initialContacts.map((contact) => ({
+  ...contact,
+  isContact: true,
+}));
 
 export const roles: db.GroupRole[] = [
   {

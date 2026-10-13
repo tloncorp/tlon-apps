@@ -3,7 +3,7 @@ appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/tlon-login.yaml
-- assertVisible: 'Home'
+- assertVisible: 'Workspaces'
 # Tap on the "+" button
 - tapOn:
     id: 'CreateGroupButton'
@@ -19,12 +19,12 @@ appId: io.tlon.groups
       visible: 'Untitled group'
     commands:
       - assertVisible: 'Welcome to your group!'
-# Navigate back to Home and assert that the group is created
+# Navigate back to the Workspaces list and assert that the group is created
 - tapOn:
     id: 'HeaderBackButton'
 - runFlow:
     when:
-      visible: 'Home'
+      visible: 'Workspaces'
     commands:
       - assertVisible: 'Untitled group'
       - tapOn: 'Untitled group'
@@ -32,7 +32,7 @@ appId: io.tlon.groups
 # Open the Customize group screen from the empty "General" channel
 - tapOn: 'Customize'
 - assertVisible: 'Edit group info'
-# Change the group name and confirm on the Home screen
+# Change the group name and confirm on the Workspaces list
 - tapOn: 'Group name'
 - inputText: 'My Group'
 - 'hideKeyboard'
@@ -41,7 +41,7 @@ appId: io.tlon.groups
     id: 'HeaderBackButton'
 - runFlow:
     when:
-      visible: 'Home'
+      visible: 'Workspaces'
     commands:
       - assertVisible: 'My Group'
       - tapOn: 'My Group'
@@ -76,9 +76,9 @@ appId: io.tlon.groups
       - tapOn: 'Delete group'
 - runFlow:
     when:
-      visible: 'Home'
+      visible: 'Workspaces'
     commands:
-      - assertVisible: 'Home'
+      - assertVisible: 'Workspaces'
       - assertNotVisible: 'My Group'
 # Log out
 - tapOn:

@@ -29,7 +29,7 @@ test('should edit a notebook post', async ({ zodSetup, tenSetup }) => {
     timeout: 10000,
   });
   await zodPage.getByTestId('GroupChannels').click();
-  await helpers.createChannel(zodPage, 'Test Notebook', 'notebook');
+  await helpers.createDiaryChannel(zodPage, 'Test Notebook');
 
   // Wait for channel to be created and navigate to it
   await expect(

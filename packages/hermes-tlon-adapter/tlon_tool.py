@@ -8,9 +8,18 @@ import logging
 import os
 import shlex
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Collection, Mapping, Optional, Sequence
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Collection,
+    Iterable,
+    Mapping,
+    Optional,
+    Sequence,
+)
 
 from .approval import build_migrate_card
 from .owner_listen import canonicalize_nest, canonicalize_notes_nest
@@ -119,7 +128,18 @@ TLON_TOOL_DESCRIPTION = (
     "posts with posts delete heap/~host/name <post-id>. "
     "To send an IMAGE anywhere (including the current conversation): first "
     "'upload <direct-image-url>', then 'posts send <target> [caption] --image "
-    "<uploaded-url>' (group DMs: dms send <club-id> ... --image <url>)."
+    "<uploaded-url>' (group DMs: dms send <club-id> ... --image <url>). "
+    "--image takes only a public https URL — local paths, http, and URLs "
+    "with embedded credentials are refused there. upload itself accepts a "
+    "local file path or an http(s) source URL (embedded credentials refused) "
+    "and prints the https URL to pass to --image. Both commands fail loudly "
+    "and post nothing on failure: never claim an image was delivered unless "
+    "the upload (when used) and the send both returned success. If upload "
+    "reports that the ship cannot store uploads (self-hosted moons have no "
+    "storage), do not retry it — pass the direct https image URL to --image, "
+    "which posts without uploading. If upload or --image fails with HTTP 429 "
+    "(rate limited), the source host is throttling fetches: pick an image "
+    "from a different host instead of retrying the same URL."
 )
 
 TLON_TOOL_SCHEMA = {
@@ -139,9 +159,12 @@ TLON_TOOL_SCHEMA = {
                     "'contacts update-profile --avatar \"https://storage...\"', "
                     "'messages dm ~ship --limit 20', 'contacts --help'. "
                     "For broader command guidance, load skill_view(\"tlon-platform:tlon\"). "
-                    "For avatar/cover updates, do not set the source image URL "
-                    "directly; use image_search when available, upload the "
-                    "chosen image_url, and use the URL returned by tlon upload. "
+                    "For avatar/cover updates, prefer uploading: use "
+                    "image_search when available, upload the chosen image_url, "
+                    "and use the URL returned by tlon upload — except when "
+                    "upload reports the ship cannot store uploads, in which "
+                    "case set the direct https image_url (never a source/page "
+                    "URL) on the profile field. "
                     "In Tlon chat sessions, 'groups create' is blocked; use "
                     "'groups create-owned' so the requester is invited and made admin. "
                     "To post to a different channel or one-to-one DM, use "
@@ -759,6 +782,39 @@ def _profile_update_block(
     return None
 
 
+UPLOAD_CLI_TIMEOUT_SECONDS = 300.0
+IMAGE_SEND_CLI_TIMEOUT_SECONDS = 75.0
+
+
+def media_command_timeout(args: Sequence[str]) -> Optional[float]:
+    """Outer CLI timeout for the media commands, or None for the default.
+
+    The default per-call timeout is shorter than the CLI's own fetch budgets,
+    so without an override the model would see ``tlon CLI timed out`` instead
+    of the fail-loud contract error the CLI is about to print. Derived from the
+    phases each command actually runs: ``upload`` is spawn/auth/storage scries
+    (~10s) plus a 120s guarded download plus the storage PUT, which has no
+    inner deadline of its own; an ``--image`` send is spawn/auth plus a 30s
+    guarded fetch plus a %channels poke.
+    """
+    idx = find_subcommand_index(args)
+    if idx < 0:
+        return None
+    command_args = [str(arg) for arg in args[idx:]]
+    if not command_args:
+        return None
+    if command_args[0] == "upload":
+        return UPLOAD_CLI_TIMEOUT_SECONDS
+    if (
+        command_args[0] in ("posts", "dms")
+        and len(command_args) > 1
+        and command_args[1] == "send"
+        and _has_image_flag(command_args)
+    ):
+        return IMAGE_SEND_CLI_TIMEOUT_SECONDS
+    return None
+
+
 def _has_image_flag(args: Sequence[str]) -> bool:
     """Image sends are exempt from the current-conversation block.
 
@@ -911,6 +967,75 @@ def check_tlon_tool_command(
     return None
 
 
+OWNER_INVITE_LINK_SELF_HINT = (
+    "Add --self to retrieve this bot's own invite link instead."
+)
+
+
+def should_inject_owner_credentials(args: Sequence[str]) -> bool:
+    """The shared owner-injection predicate — the OpenClaw plugin implements the
+    same truth table. Inject iff the parsed subcommand is ``groups invite-link``
+    with no credential flag in either form, no ``--self``, and no help token."""
+    for raw in args:
+        arg = str(raw)
+        flag = arg.split("=", 1)[0] if "=" in arg else arg
+        if flag in CREDENTIAL_FLAGS_WITH_VALUE:
+            return False
+
+    sub_idx = find_subcommand_index(args)
+    if sub_idx < 0:
+        return False
+    command_args = [str(arg) for arg in args[sub_idx:]]
+    if len(command_args) < 2:
+        return False
+    if command_args[0].lower() != "groups":
+        return False
+    if command_args[1].lower() != "invite-link":
+        return False
+    return not any(
+        arg == "--self" or _is_help_arg(arg) for arg in command_args
+    )
+
+
+def owner_invite_link_config(
+    cfg: TlonConfig, env: Mapping[str, str] | None = None
+) -> tuple[Optional[TlonConfig], Optional[str]]:
+    """Per-call credential config for an owner-attributed invite link.
+
+    A *replacement*, never an overlay. ``cli_env`` reinjects whatever cookie the
+    configured bot holds, the CLI's resolver prefers cookie-form over code-form,
+    and cookie resolution never compares the cookie's ship to the claimed env
+    ship — so an overlay would let an inherited bot cookie silently win over the
+    owner triple, exactly under the provisioning drift this guards against.
+
+    Credentials travel in the subprocess env only: the tool result echoes argv
+    back to the model, and executed argv is visible OS-wide. There is no
+    redaction fallback — missing or mismatched owner credentials fail closed.
+    """
+    owner = normalize_ship(cfg.owner_ship)
+    if not owner:
+        return None, (
+            "Retrieving the owner's invite link requires a configured owner ship. "
+            + OWNER_INVITE_LINK_SELF_HINT
+        )
+
+    source = os.environ if env is None else env
+    url = str(source.get("TLON_OWNER_URL") or "").strip()
+    env_owner = normalize_ship(str(source.get("TLON_OWNER_SHIP") or ""))
+    code = str(source.get("TLON_PLANET_CODE") or "").strip()
+    if not url or env_owner != owner or not code:
+        return None, (
+            f"Retrieving the invite link as {owner} requires hosted owner "
+            "credentials TLON_OWNER_URL, TLON_OWNER_SHIP, and TLON_PLANET_CODE. "
+            + OWNER_INVITE_LINK_SELF_HINT
+        )
+
+    return (
+        replace(cfg, ship_url=url, ship_name=owner, ship_code=code, cookie=""),
+        None,
+    )
+
+
 def _command_for_display(command: Sequence[str]) -> str:
     return " ".join(shlex.quote(str(part)) for part in command)
 
@@ -972,6 +1097,12 @@ async def execute_tlon_tool(
             }
         )
 
+    if should_inject_owner_credentials(args):
+        owner_cfg, owner_error = owner_invite_link_config(cfg)
+        if owner_error:
+            return _json({"error": owner_error})
+        cfg = owner_cfg
+
     # Lazy import keeps this module importable standalone (no cycle at load).
     from .telemetry import cli_context, get_active_telemetry
 
@@ -986,7 +1117,9 @@ async def execute_tlon_tool(
         "model_tool",
         conversation=_get_session_env("HERMES_SESSION_CHAT_ID", ""),
     ):
-        return _tool_result(await cli.run_command(args))
+        return _tool_result(
+            await cli.run_command(args, timeout=media_command_timeout(args))
+        )
 
 
 async def handle_tlon_tool(params: Mapping[str, Any], **_kwargs: Any) -> str:
@@ -1011,6 +1144,13 @@ def run_tlon_tool_sync(params: Mapping[str, Any], **kwargs: Any) -> str:
     return asyncio.run(handle_tlon_tool(params, **kwargs))
 
 
+def _first_existing(candidates: Iterable[Path]) -> Optional[Path]:
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def resolve_tlon_skill_path(env: Mapping[str, str | None] | None = None) -> Optional[Path]:
     env = os.environ if env is None else env
     here = Path(__file__).resolve().parent
@@ -1026,7 +1166,35 @@ def resolve_tlon_skill_path(env: Mapping[str, str | None] | None = None) -> Opti
 
     candidates.append(here.parent / "tlon-skill" / "SKILL.md")
 
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return None
+    return _first_existing(candidates)
+
+
+def resolve_tlon_product_guide_path(
+    env: Mapping[str, str | None] | None = None,
+) -> Optional[Path]:
+    """Locate the product-guide skill that ships inside the OpenClaw plugin.
+
+    Separate from ``resolve_tlon_skill_path`` because the two answer different
+    questions: that one finds the CLI command reference (an npm package, hence
+    ``TLON_SKILL_DIR``), this one finds a documentation skill that lives in the
+    plugin tree. Deployments that install the plugin somewhere non-standard set
+    ``TLON_PRODUCT_GUIDE_PATH``; ``TLON_PLUGIN_DIR`` covers the common case of
+    knowing the plugin root but not the skill layout inside it.
+    """
+    env = os.environ if env is None else env
+    here = Path(__file__).resolve().parent
+    relative = Path("skills") / "tlon-product-guide" / "SKILL.md"
+    candidates: list[Path] = []
+
+    explicit = str(env.get("TLON_PRODUCT_GUIDE_PATH") or "").strip()
+    if explicit:
+        candidates.append(Path(explicit))
+
+    plugin_dir = str(env.get("TLON_PLUGIN_DIR") or "").strip()
+    if plugin_dir:
+        candidates.append(Path(plugin_dir) / relative)
+
+    # Monorepo layout: this adapter and the plugin are sibling packages.
+    candidates.append(here.parent / "openclaw" / relative)
+
+    return _first_existing(candidates)

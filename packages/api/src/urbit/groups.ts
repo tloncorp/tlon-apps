@@ -339,21 +339,22 @@ export interface GroupUpdate {
   diff: GroupDiff;
 }
 
-// v9 Group Response (r-groups)
-export interface V1GroupResponse {
+// r-groups
+export interface GroupResponse {
   flag: string;
   ['r-group']: GroupResponseData;
 }
 
 export type GroupResponseData =
-  | { create: GroupV7 }
+  | { create: GroupV11 }
   | { meta: GroupMeta }
+  | { blob: string | null }
   | { entry: GroupResponseEntry }
   | { seat: { ships: string[]; 'r-seat': GroupResponseSeat } }
   | { role: { roles: string[]; 'r-role': GroupResponseRole } }
   | { channel: { nest: string; 'r-channel': GroupResponseChannel } }
   | { section: { 'section-id': string; 'r-section': GroupResponseSection } }
-  | { 'section-order': { order: string[] } }
+  | { 'section-order': { 'section-order': string[] } }
   | { 'active-channel': { nest: string; joined: boolean } }
   | {
       'flag-content': {
@@ -401,8 +402,8 @@ export type GroupResponseAsk =
 export type GroupResponseSeat =
   | { add: Seat }
   | { del: null }
-  | { 'add-roles': string[] }
-  | { 'del-roles': string[] };
+  | { 'add-roles': { roles: string[] } }
+  | { 'del-roles': { roles: string[] } };
 
 export type GroupResponseRole =
   | { add: GroupMeta }
@@ -468,8 +469,8 @@ export interface Groups {
   [flag: string]: Group;
 }
 
-export interface GroupsV7 {
-  [flag: string]: GroupV7;
+export interface GroupsV11 {
+  [flag: string]: GroupV11;
 }
 
 export interface GroupPreview {
@@ -517,8 +518,9 @@ export interface AdmissionRequest {
   requestedAt?: number;
 }
 
-export interface GroupV7 {
+export interface GroupV11 {
   meta: GroupMeta;
+  blob?: string | null;
   admissions: Admissions;
   seats: Record<string, Seat>; // fleet in v6 is now seats in v7, uses 'roles' not 'sects'
   roles: Record<string, GroupMeta>; // v7 roles ARE the metadata, not Cabals with nested meta
@@ -528,7 +530,10 @@ export interface GroupV7 {
   sections: SectionsV7;
   'section-order': string[];
   'flagged-content': FlaggedContent;
-  'member-count': number;
+  // Only group-ui payloads (init, changes, the ui group scry, the create
+  // thread) carry it; a bare group (`/v3/groups`, a %create response) doesn't.
+  // Init and changes cap it at 15 through desk 12.3.1.
+  'member-count'?: number;
   init: boolean;
 }
 
@@ -613,7 +618,7 @@ export interface NewChannelFormSchema extends ChannelFormSchema {
 export interface ChannelPreview {
   nest: string;
   meta: GroupMeta;
-  group: GroupPreview;
+  group: GroupPreviewV7;
 }
 
 export function isGroup(obj: any): obj is Group {
@@ -625,8 +630,8 @@ export interface GroupInviteAction {
   note: Story | null;
 }
 
-// v8/v9 Group Actions (a-groups)
-export type GroupActionV4 =
+// a-groups:v11
+export type GroupActionV5 =
   | {
       group: {
         flag: string;
@@ -642,19 +647,15 @@ export type GroupActionV4 =
 
 export type GroupAction =
   | { meta: GroupMeta }
+  | { blob: string | null }
   | { entry: GroupEntryAction }
   | { seat: { ships: string[]; 'a-seat': GroupSeatAction } }
   | { role: { roles: string[]; 'a-role': GroupRoleAction } }
   | { channel: { nest: string; 'a-channel': GroupChannelAction } }
   | { section: { 'section-id': string; 'a-section': GroupSectionAction } }
   | { navigation: GroupNavigationAction }
-  | {
-      'flag-content': {
-        nest: string;
-        plan: [number, number | null]; // [post-time, reply-time?]
-        src: string; // ship
-      };
-    }
+  // The desk's dejs reads post-key here, not plan (groups-json ++flag-content).
+  | FlagContentDiff
   | { delete: null };
 
 export type GroupEntryAction =
@@ -746,7 +747,7 @@ export type ForeignGroupAction =
   | { cancel: null }
   | { decline: { token: string | null } };
 
-// Types for batch navigation updates (group-action-4)
+// Types for batch navigation updates (group-action-5)
 export interface GroupNavigationSectionData {
   meta: GroupMeta;
   order: string[];

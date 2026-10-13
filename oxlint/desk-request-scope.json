@@ -1,0 +1,23 @@
+{
+  "appRoots": [
+    "packages/api/src",
+    "packages/shared/src",
+    "packages/app",
+    "apps/tlon-web/src",
+    "apps/tlon-mobile/src"
+  ],
+  "consumedPackages": [
+    "packages/ui",
+    "packages/editor"
+  ],
+  "excludedModules": [],
+  "excludedHttpPrefixes": [
+    "/steward/~/v1/automation/finalize"
+  ],
+  "excludedAgentPaths": [
+    {
+      "agent": "steward",
+      "prefix": "/v1/automation/harness"
+    }
+  ]
+}

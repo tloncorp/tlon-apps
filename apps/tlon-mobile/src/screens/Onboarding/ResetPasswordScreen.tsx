@@ -3,7 +3,7 @@ import { requestPasswordReset } from '@tloncorp/api';
 import { EMAIL_REGEX } from '@tloncorp/app/constants';
 import {
   Field,
-  KeyboardAvoidingView,
+  OnboardingKeyboardScrollView,
   ScreenHeader,
   SizableText,
   TextInput,
@@ -79,7 +79,7 @@ export const ResetPasswordScreen = ({
           )
         }
       />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+      <OnboardingKeyboardScrollView>
         <YStack gap="$2xl" padding="$2xl">
           <SizableText size="$l">
             Enter the email associated with your Tlon account. We&rsquo;ll send
@@ -116,7 +116,7 @@ export const ResetPasswordScreen = ({
             )}
           />
         </YStack>
-      </KeyboardAvoidingView>
+      </OnboardingKeyboardScrollView>
     </View>
   );
 };

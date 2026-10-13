@@ -13,6 +13,11 @@ import {
 
 export type GalleryDraftType = 'caption' | 'link' | 'text';
 
+export type DraftSendOptions = PostSendOptions & {
+  /** The composer owns scrolling for this send, including after delivery. */
+  scrollHandled?: boolean;
+};
+
 export type GalleryRoute =
   | 'gallery'
   | 'add-post'
@@ -64,7 +69,7 @@ export interface DraftInputContext {
   ) => void;
   sendPostFromDraft: (
     draft: domain.PostDataDraft,
-    options?: PostSendOptions
+    options?: DraftSendOptions
   ) => Promise<void>;
   setEditingPost?: (update: db.Post | undefined) => void;
   setShouldBlur: Dispatch<SetStateAction<boolean>>;

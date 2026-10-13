@@ -6,6 +6,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useAnyAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import type { RootStackParamList } from '../../navigation/types';
@@ -40,9 +41,12 @@ export function GroupChannelsScreenContent({
     group?.id ?? ''
   );
   const { navigateToChannel, navigation } = useRootNavigation();
+  const { locked: onboardingLocked, isLoading: onboardingLockLoading } =
+    useAnyAgentGroupOnboardingLock();
+  const navigationDisabled = onboardingLocked || onboardingLockLoading;
 
   const handleGoToGroupMembers = useCallback(() => {
-    if (group) {
+    if (group && !navigationDisabled) {
       navigation.navigate('GroupSettings', {
         state: {
           routes: [{ name: 'GroupMembers', params: { groupId: group.id } }],
@@ -50,20 +54,22 @@ export function GroupChannelsScreenContent({
         },
       });
     }
-  }, [group, navigation]);
+  }, [group, navigation, navigationDisabled]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
+      if (navigationDisabled) return;
       logger.trackEvent(
         AnalyticsEvent.ActionGroupChannelSelected,
         logic.getModelAnalytics({ channel })
       );
       navigateToChannel(channel);
     },
-    [navigateToChannel]
+    [navigateToChannel, navigationDisabled]
   );
 
   const handleGoBackPressed = useCallback(() => {
+    if (navigationDisabled) return;
     if (isWindowNarrow) {
       const route = getTopLevelTabRoute('ChatList');
       navigation.navigate(route.name, route.params, { pop: true });
@@ -74,10 +80,20 @@ export function GroupChannelsScreenContent({
         routes: [{ name: 'Home' }],
       });
     }
-  }, [navigation, isWindowNarrow]);
+  }, [navigation, isWindowNarrow, navigationDisabled]);
 
   const handleJoinChannel = useCallback(
     async (channel: db.Channel) => {
+      if (navigationDisabled) return;
+      // A Bucket's membership comes from %buckets, not %channels, so there is
+      // nothing to join here: one listed as unjoined is one %buckets has not
+      // reported, which on a ship without it is every Bucket. A %channels join
+      // for it fails and rolls back, so the tap did nothing. Open it instead
+      // and let its renderer say whether this ship can use it.
+      if (channel.type === 'buckets') {
+        handleChannelSelected(channel);
+        return;
+      }
       try {
         await store.joinGroupChannel({
           channelId: channel.id,
@@ -87,11 +103,12 @@ export function GroupChannelsScreenContent({
         console.error('Failed to join channel:', error);
       }
     },
-    [id]
+    [handleChannelSelected, id, navigationDisabled]
   );
 
   const handlePressInvite = useCallback(
     (groupId: string) => {
+      if (navigationDisabled) return;
       if (isWindowNarrow) {
         // Mobile: Use navigation to screen
         navigation.navigate('InviteUsers', { groupId });
@@ -100,7 +117,7 @@ export function GroupChannelsScreenContent({
         setInviteSheetGroup(groupId);
       }
     },
-    [isWindowNarrow, navigation]
+    [isWindowNarrow, navigation, navigationDisabled]
   );
 
   const chatSettingsNav = useChatSettingsNavigation();
@@ -127,6 +144,7 @@ export function GroupChannelsScreenContent({
           group={group}
           focusedChannelId={focusedChannelId}
           unjoinedChannels={unjoinedChannels}
+          disabled={navigationDisabled}
         />
       </NavigationProvider>
       {!isWindowNarrow && (

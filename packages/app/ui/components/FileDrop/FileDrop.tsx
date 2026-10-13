@@ -3,51 +3,56 @@ import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { View } from 'tamagui';
 
+import { useAttachmentContext } from '../../contexts/attachment';
 import { isLikelyVideoSource } from '../../contexts/attachmentRules';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { FileDropComponent } from './types';
 
 export const FileDrop: FileDropComponent = ({
+  dropEnabled = true,
   onAssetsDropped,
   children,
   ...props
 }) => {
+  const { runAttachmentTask } = useAttachmentContext();
   const handleDrop = useCallback(
-    async (files: File[]) => {
-      onAssetsDropped(
-        await Promise.all(
-          files.map(async (file) => {
-            if (file.type.startsWith('image/')) {
-              const asset = await getImageAsset(file);
-              return {
-                type: 'image',
-                asset: {
+    (files: File[]) =>
+      runAttachmentTask(async () => {
+        onAssetsDropped(
+          await Promise.all(
+            files.map(async (file) => {
+              if (file.type.startsWith('image/')) {
+                const asset = await getImageAsset(file);
+                return {
+                  type: 'image',
+                  asset: {
+                    mimeType: file.type,
+                    fileSize: file.size,
+                    ...asset,
+                  },
+                };
+              }
+              if (
+                isLikelyVideoSource({
                   mimeType: file.type,
-                  fileSize: file.size,
-                  ...asset,
-                },
-              };
-            }
-            if (
-              isLikelyVideoSource({
-                mimeType: file.type,
-                name: file.name,
-              })
-            ) {
-              const video = await getVideoPreviewData({ file });
-              return Attachment.UploadIntent.fromFile(file, { video });
-            }
-            return Attachment.UploadIntent.fromFile(file);
-          })
-        )
-      );
-    },
-    [onAssetsDropped]
+                  name: file.name,
+                })
+              ) {
+                const video = await getVideoPreviewData({ file });
+                return Attachment.UploadIntent.fromFile(file, { video });
+              }
+              return Attachment.UploadIntent.fromFile(file);
+            })
+          )
+        );
+      }),
+    [onAssetsDropped, runAttachmentTask]
   );
 
   const { getInputProps, getRootProps } = useDropzone({
     onDrop: handleDrop,
     noClick: true,
+    noDrag: !dropEnabled,
   });
 
   return (

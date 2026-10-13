@@ -1,0 +1,64 @@
+appId: ${MAESTRO_APP_ID}
+name: Two-ship delivery, edits, deletion and threads
+env:
+  JOURNEY: cloud
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- scrollUntilVisible:
+    element: ${'Cloud-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${'Cloud-' + MAESTRO_RUN_TAG}
+# Depending on retained navigation state, a one-channel group can open either
+# the conversation or its channel list. First allow the direct conversation to
+# finish navigating; if it never appears, enter General from the channel list.
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+    timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: MessageInput
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: ChannelListItem-General
+          timeout: 15000
+      - tapOn:
+          id: ChannelListItem-General
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+    timeout: 15000
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' from ten'}
+    timeout: 15000
+- tapOn:
+    id: MessageInput
+- runFlow:
+    file: ../reliability/subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' from mobile'}
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+      text: '^Message$'
+    timeout: 5000
+- hideKeyboard
+# Receipt is proved by a new peer reply, without reloading the conversation.
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' reply received'}
+    timeout: 15000
+- assertNotVisible: '^Send failed, tap to retry$'
+- runFlow: message-actions.yaml
+- runFlow: thread.yaml
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Workspaces$'

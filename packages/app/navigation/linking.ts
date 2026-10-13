@@ -3,7 +3,7 @@ import type { LinkingOptions } from '@react-navigation/native';
 import {
   DesktopBasePathStackParamList,
   MobileBasePathStackParamList,
-} from './BasePathNavigator';
+} from './types';
 
 export const getMobileLinkingConfig = (
   mode: string
@@ -13,14 +13,20 @@ export const getMobileLinkingConfig = (
     screens: {
       Root: {
         path: basePathForMode(mode),
+        // Contacts and the rest are root-stack screens above the tabs. A cold
+        // link straight to one would otherwise build a stack with nothing
+        // beneath it: back does nothing and there is no tab bar.
+        initialRouteName: 'MainTabs',
         screens: {
           MainTabs: {
             screens: {
+              BotChat: 'bot',
               ChatList: 'ChatList',
               Activity: 'activity',
-              Contacts: 'contacts',
+              Settings: 'settings',
             },
           },
+          Contacts: 'contacts',
           DM: {
             path: 'dm/:channelId/:selectedPostId?',
             parse: parsePathParams('channelId', 'selectedPostId'),
@@ -45,6 +51,20 @@ export const getMobileLinkingConfig = (
             parse: {
               ...parsePathParams('channelId', 'groupId'),
               folderId: Number,
+            },
+          },
+          BucketFolder: {
+            path: 'group/:groupId/channel/:channelId/bucket/folder/:folderId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              folderId: Number,
+            },
+          },
+          BucketFile: {
+            path: 'group/:groupId/channel/:channelId/bucket/file/:entryId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              entryId: Number,
             },
           },
           ChannelSearch: { path: 'channel/:channelId/search' },
@@ -102,7 +122,6 @@ export const getMobileLinkingConfig = (
           WompWomp: 'report-bug',
           AppInfo: 'app-info',
           PushNotificationSettings: 'push-notification-settings',
-          Settings: 'settings',
         },
       },
     },
@@ -181,6 +200,14 @@ export const getDesktopLinkingConfig = (
                   NotesFolder: {
                     path: 'folder/:folderId',
                     parse: { folderId: Number },
+                  },
+                  BucketFolder: {
+                    path: 'bucket/folder/:folderId',
+                    parse: { folderId: Number },
+                  },
+                  BucketFile: {
+                    path: 'bucket/file/:entryId',
+                    parse: { entryId: Number },
                   },
                   Post: postScreenConfig(mode),
                   MediaViewer: {},

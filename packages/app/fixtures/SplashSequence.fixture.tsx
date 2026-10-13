@@ -213,7 +213,7 @@ function InvitePaneFixture() {
       if (discoveryFails) {
         throw new Error('fixture: discovery failed');
       }
-      return { didDiscover: true, newMatches };
+      return { didSucceed: true, didDiscover: true, newMatches };
     };
   }, [matchCount, latencyMs, discoveryFails]);
 

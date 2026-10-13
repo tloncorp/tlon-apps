@@ -36,8 +36,10 @@ Commands:
   allow-dm <ship>                  Add ship to DM allowlist
   remove-dm <ship>                 Remove ship from DM allowlist
 
-  allow-channel <nest>             Add channel to watched list
-  remove-channel <nest>            Remove channel from watched list
+  allow-channel <nest>             Add an entry to the persisted groupChannels list
+  remove-channel <nest>            Remove an entry from that list (on openclaw this
+                                   only un-watches settings-managed channels; traffic
+                                   re-adds member channels)
 
   open-channel <nest>              Set channel to open mode (anyone can interact)
   restrict-channel <nest> [ships]  Set channel to restricted mode

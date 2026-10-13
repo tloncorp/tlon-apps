@@ -9,14 +9,17 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
+import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { ActivityEmptyState } from '../../features/top/DesktopEmptyStates';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { ActivityScreenView, DESKTOP_SIDEBAR_WIDTH } from '../../ui';
 import { useRootNavigation } from '../utils';
+import { ActivityDrawerParamList } from '../types';
 
-const ActivityDrawer = createDrawerNavigator();
+const ActivityDrawer = createDrawerNavigator<ActivityDrawerParamList>();
 
 function DrawerContent(props: DrawerContentComponentProps) {
   const isFocused = useIsFocused();
@@ -119,6 +122,14 @@ export const ActivityNavigator = () => {
         component={GroupSettingsStack}
       />
       <ActivityDrawer.Screen name="UserProfile" component={UserProfileScreen} />
+      <ActivityDrawer.Screen
+        name="ScheduledTasks"
+        component={ScheduledTasksScreen}
+      />
+      <ActivityDrawer.Screen
+        name="ScheduledTaskEditor"
+        component={ScheduledTaskEditorScreen}
+      />
       <ActivityDrawer.Screen name="EditProfile" component={EditProfileScreen} />
     </ActivityDrawer.Navigator>
   );

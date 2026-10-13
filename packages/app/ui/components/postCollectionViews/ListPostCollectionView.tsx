@@ -55,18 +55,40 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
           : (ctx.posts ?? null),
       [anchorToEnd, ctx.posts]
     );
+    const latestPost = anchorToEnd
+      ? renderOrderedPosts?.[renderOrderedPosts.length - 1]
+      : renderOrderedPosts?.[0];
+    const latestPostId = latestPost?.id;
     const listBottomComponent = useMemo(
       () =>
         shouldShowThinkingState ? (
           <ThinkingState
             conversationId={ctx.channel.id}
             channelType={ctx.channel.type}
+            latestPostId={latestPostId}
+            latestPostAuthorId={latestPost?.authorId}
+            forcedLabel={ctx.pendingThinkingLabel}
           />
         ) : undefined,
-      [shouldShowThinkingState, ctx.channel.id, ctx.channel.type]
+      [
+        shouldShowThinkingState,
+        ctx.channel.id,
+        ctx.channel.type,
+        ctx.pendingThinkingLabel,
+        latestPostId,
+        latestPost?.authorId,
+      ]
     );
 
     const renderEmptyComponent = useCallback(() => {
+      if (
+        ctx.suppressEmptyState &&
+        !ctx.isLoadingPosts &&
+        !ctx.loadPostsError
+      ) {
+        return <></>;
+      }
+
       return (
         <EmptyChannelNotice
           channel={ctx.channel}
@@ -82,6 +104,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
       ctx.loadPostsError,
       ctx.isLoadingPosts,
       ctx.onPressRetryLoad,
+      ctx.suppressEmptyState,
     ]);
 
     const canDrillIntoPost = useMemo(

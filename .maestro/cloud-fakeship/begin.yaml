@@ -1,0 +1,20 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    when:
+      true: ${output.reliability.session === 'fresh'}
+    file: ../reliability/subflows/begin.yaml
+# Refresh the retained login and subscriptions between batch cases. The app
+# keeps the same verified ship and local state while avoiding stale navigation
+# state from the previous case.
+- runFlow:
+    when:
+      true: ${output.reliability.session === 'warm'}
+    commands:
+      - launchApp:
+          clearState: false
+- extendedWaitUntil:
+    visible:
+      id: ScreenHeaderTitle
+      text: '^Workspaces$'
+    timeout: 15000

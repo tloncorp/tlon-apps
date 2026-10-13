@@ -50,6 +50,7 @@ export const PostView: RenderItemType = (props) => {
         return GalleryPost;
 
       case 'notes':
+      case 'buckets':
         // Notes channels are rendered entirely by the collection WebView; no
         // per-post content is shown, but we still need something to return.
         return ChatMessage;
@@ -65,7 +66,6 @@ export const PostView: RenderItemType = (props) => {
     ).configuration;
   }, [channel.contentConfiguration]);
 
-  // this code is duplicated in packages/ui/components/postCollectionViews/shared.tsx
   const standardConfig = useMemo(() => {
     if (channel.contentConfiguration == null) {
       return null;

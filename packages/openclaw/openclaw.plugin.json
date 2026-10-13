@@ -9,7 +9,8 @@
     ]
   },
   "skills": [
-    "node_modules/@tloncorp/tlon-skill"
+    "node_modules/@tloncorp/tlon-skill",
+    "skills/tlon-product-guide"
   ],
   "configSchema": {
     "type": "object",
@@ -439,6 +440,15 @@
             "additionalProperties": false
           },
           "reengagement": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "restartCatchup": {
             "type": "object",
             "properties": {
               "enabled": {

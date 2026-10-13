@@ -68,6 +68,52 @@ Video upload metadata.
 | `duration`  | `number` (optional) |
 | `posterUri` | `string` (optional) |
 
+### `metadata` v1
+
+Optional, non-rendering context for selective enhancement by clients or other
+consumers. The container does not contribute message text, attachment blocks,
+or an upgrade notice.
+
+| field     | type                      |
+| --------- | ------------------------- |
+| `type`    | `'metadata'`              |
+| `version` | `1`                       |
+| `data`    | `Record<string, unknown>` |
+
+`data` maps namespaced keys to opaque JSON payloads. For example, a future
+producer could advertise its client identity as follows:
+
+```json
+{
+  "type": "metadata",
+  "version": 1,
+  "data": {
+    "tlon.client": {
+      "version": 1,
+      "platform": "ios",
+      "appVersion": "<release>"
+    }
+  }
+}
+```
+
+This is an illustrative payload, not a client-identity contract or an active
+producer. This release adds reader support only; clients do not emit metadata.
+Wait for broad deployment of this reader baseline before introducing producers:
+clients predating it will still render an upgrade notice for `metadata` entries.
+
+The shared parser validates the container and preserves its namespace payloads
+without interpreting them. Consumers must validate the namespace and payload
+version they understand and ignore unknown, unsupported, or malformed payloads.
+Keep the outer container stable and version each namespace's payload as needed.
+An unsupported outer version or malformed metadata container is skipped on read,
+without affecting sibling blob entries. Invalid JSON or a non-array blob still
+uses the ordinary unknown-content fallback because entries cannot be recovered.
+
+Metadata is untrusted optional context, not authorization or agent instructions.
+Consumers must not render or execute arbitrary payloads. Required user-visible
+content belongs in Story or a content blob entry, not in this container.
+
 ### `tlon-context-lens` v1
 
 Pointer to a bot run record ("context lens"). Written by the OpenClaw Tlon gateway when it stamps a bot reply; the client uses it to look up the full run record (trigger, tool calls, timings, output). The blob carries only the public-safe pointer — run data itself stays on the gateway (and later the owner's ship) with owner-only visibility.
@@ -98,13 +144,142 @@ The current renderer expects one `createSurface` message and one `updateComponen
 
 The supported v1 client subset is intentionally small:
 
-- components: `Card`, `Column`, `Row`, `Text`, `Divider`, and `Button`
+- components: `Card`, `Column`, `Row`, `Text`, `Divider`, `Button`, `Choice`,
+  `SmallChoice`, and `McpConnect`
 - button actions:
   - `tlon.sendMessage`, which sends explicit action text in the current DM
-  - `tlon.navigate`, which can navigate to a message, channel, group, profile, chat details, or chat volume screen
+  - `tlon.navigate`, which can navigate to a message, channel, group, profile, chat details, chat volume, MCP settings, or a browser credential handoff screen
     - message reply targets should include `parentAuthorId` when `parentId` is not already prefixed as `~author/id`
 - rendering policy: A2UI blocks render only in direct messages for now
 - validation limits: component count, tree depth, text length, and expanded render size
+
+`McpConnect` is a client-populated menu rather than bot-authored provider data.
+The blob supplies only bounded presentation labels and three validated actions:
+
+- `action`: navigate to the MCP settings screen, optionally focused on a provider
+- `configureAction`: send the selected connected provider ids to the onboarding coordinator
+- `completionAction`: optional send-message action that advances the conversation
+
+The client obtains the provider catalog and current grants from Hosting. It does
+not trust provider names, URLs, grant state, or availability from the post. A
+provider row either opens the normal authorization flow or toggles an already
+connected provider for the group; configuration is applied only when the owner
+submits it. The completion action is one-shot and remains disabled when a live
+`tlon-a2ui-selection` receipt exists for that surface and component.
+
+### Browser credential handoff
+
+A trusted bot can offer a standard A2UI card that opens a native Tlon
+credential form for an existing hosted-browser session. Keep the hierarchy
+quiet: one clear title, a short explanation, two short privacy lines, and two
+explicit actions. The card carries the session's signed viewer URL, not
+credentials. Bots should create this card with
+`tlon browser handoff <signed-viewer-url>` instead of constructing the blob:
+
+```json
+[
+  { "id": "root", "component": "Card", "child": "body" },
+  {
+    "id": "body",
+    "component": "Column",
+    "children": [
+      "title",
+      "title-divider",
+      "explanation",
+      "privacy-direct",
+      "privacy-context",
+      "action-divider",
+      "actions"
+    ]
+  },
+  {
+    "id": "title",
+    "component": "Text",
+    "variant": "h3",
+    "text": "Sign in to continue"
+  },
+  { "id": "title-divider", "component": "Divider" },
+  {
+    "id": "explanation",
+    "component": "Text",
+    "text": "The browser reached a login screen that needs your input."
+  },
+  {
+    "id": "privacy-direct",
+    "component": "Text",
+    "variant": "caption",
+    "text": "Your credentials go directly to the live browser."
+  },
+  {
+    "id": "privacy-context",
+    "component": "Text",
+    "variant": "caption",
+    "text": "They are never posted to chat or returned to the bot."
+  },
+  { "id": "action-divider", "component": "Divider" },
+  {
+    "id": "actions",
+    "component": "Row",
+    "children": ["open-login", "continue"],
+    "align": "center"
+  },
+  {
+    "id": "open-login",
+    "component": "Button",
+    "weight": 1,
+    "variant": "primary",
+    "child": "open-login-label",
+    "action": {
+      "event": {
+        "name": "tlon.navigate",
+        "context": {
+          "target": {
+            "type": "screen",
+            "screen": "browserCredentialHandoff",
+            "viewerUrl": "https://browser-session-ovh1.tlon.network/s/<signed-capability>"
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "open-login-label",
+    "component": "Text",
+    "text": "Open secure login"
+  },
+  {
+    "id": "continue",
+    "component": "Button",
+    "weight": 1,
+    "variant": "secondary",
+    "child": "continue-label",
+    "action": {
+      "event": {
+        "name": "tlon.sendMessage",
+        "context": { "text": "I signed in; continue the browser task." }
+      }
+    }
+  },
+  {
+    "id": "continue-label",
+    "component": "Text",
+    "text": "I’m signed in"
+  }
+]
+```
+
+The screen accepts signed viewer URLs from
+`browser-session-*.tlon.network` and
+`browser-session-*.test.tlon.systems`. It exchanges that capability directly
+with the viewer gateway for a one-use, short-lived fill handle, displays the
+origin of the login form discovered in the live browser, and posts the user's
+values directly to the gateway. Passwords and usernames are never written to
+the post blob, chat, bot context, or fill response.
+
+The bot should keep the browser session live while the card is usable. It may
+also put a separate `tlon.sendMessage` button in the card with fixed text such
+as “I signed in; continue” so the person can explicitly resume the run without
+sending any credential value through chat.
 
 ## Read/write behavior
 
@@ -123,7 +298,7 @@ The supported v1 client subset is intentionally small:
 3. The top-level blob value is always an array so a post can carry multiple blob entries.
 4. Blob is for data the backend schema cannot represent directly. Content the backend already knows how to encode, such as images, references, and links, should stay in Story content.
 5. Current frontend policy is to treat blob as immutable in edit flows. The backend transport can carry a blob on edit, but the frontend preserves the original blob until explicit blob-edit support exists.
-6. Unknown or malformed entries degrade to `{ type: 'unknown' }` so older clients fail gracefully instead of crashing.
+6. Unknown or malformed content entries degrade to `{ type: 'unknown' }` so older clients fail gracefully instead of crashing. Entries identified as `metadata` are the exception: malformed or unsupported containers are skipped without an upgrade notice.
 
 ## Adding a new entry type
 

@@ -1,6 +1,6 @@
 ::  groups subscriber unit tests
 ::
-/-  g=groups, gv=groups-ver, meta, s=story
+/-  g=groups, gv=groups-ver, cv=channels-ver, meta, s=story
 /+  *test, *test-negotiate-agent
 /+  gc=groups-conv
 /=  groups-agent  /app/groups
@@ -13,6 +13,8 @@
 ++  my-group
   ^-  group:g
   :*  meta=[title='My Test Group' description='A testing group' image='' cover='']
+    ::
+      blob=~
     ::
       ^=  admissions
       :*  privacy=%public
@@ -108,7 +110,7 @@
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
-  (do-poke group-action-4+!>(`a-groups:v8:gv`a-groups))
+  (do-poke group-action-5+!>(`a-groups:v11:gv`a-groups))
 ::
 ++  do-a-group
   |=  =a-group:g
@@ -116,7 +118,7 @@
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
   =/  =a-groups:g  [%group my-flag a-group]
-  (do-poke group-action-4+!>(`a-groups:v8:gv`a-groups))
+  (do-poke group-action-5+!>(`a-groups:v11:gv`a-groups))
 ::
 ++  do-a-foreigns
   |=  =a-foreigns:g
@@ -134,51 +136,64 @@
   (do-poke group-foreign-2+!>(`a-foreigns:v9:gv`a-foreigns))
 ::
 ++  ex-r-groups
-  |=  [caz=(list card) rs-groups=(list r-groups:v9:gv)]
+  |=  [caz=(list card) rs-groups=(list r-groups:g)]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  =bowl:gall  bind:m  get-bowl
-  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
+  %+  ex-cards  caz
+  %-  zing
+  %+  turn  rs-groups
+  |=  =r-groups:g
+  ^-  (list $-(card tang))
+  =/  r-group-10=(unit r-group:v10:gv)
+    (v10:r-group:v11:gc r-group.r-groups)
+  =/  r-group-9=(unit r-group:v9:gv)
+    (v9:r-group:v11:gc r-group.r-groups)
   =/  actions-2=(list action:v2:gv)
-    %-  zing
-    %+  turn  rs-groups
-    |=  =r-groups:v9:gv
+    ?~  r-group-9  ~
     %+  turn
-      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v9:gc u.r-group-9 [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
-  %+  ex-cards  caz
-  %+  welp
-    %-  zing
-    %+  turn  rs-groups
-    |=  =r-groups:v9:gv
-    :~  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-        group-response-1+!>(r-groups)
-        %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
-        group-response-2+!>(`r-groups:v10:gv`r-groups)
-    ==
-  %+  turn  actions-2
-  |=  =action:v2:gv
-  (ex-fact ~[/groups/ui] group-action-3+!>(action))
+  ;:  welp
+    :_  ~
+    %+  ex-fact  ~[/v3/groups /v3/groups/~zod/my-test-group]
+    group-response-3+!>(`r-groups:v11:gv`r-groups)
+  ::
+    ?~  r-group-10  ~
+    :_  ~
+    %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
+    group-response-2+!>(`r-groups:v10:gv`[flag.r-groups u.r-group-10])
+  ::
+    ?~  r-group-9  ~
+    :_  ~
+    %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
+    group-response-1+!>(`r-groups:v9:gv`[flag.r-groups u.r-group-9])
+  ::
+    %+  turn  actions-2
+    |=  =action:v2:gv
+    (ex-fact ~[/groups/ui] group-action-3+!>(action))
+  ==
 ::
 ++  ex-cards-r-groups
   |=  $:  caz=(list card)
-          exes=(list (each $-(card tang) r-groups:v9:gv))
+          exes=(list (each $-(card tang) r-groups:g))
       ==
   =/  m  (mare ,~)
   ^-  form:m
   ::  extract group - it is needed for facts down-conversion
   ::
   ;<  =bowl:gall  bind:m  get-bowl
-  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ::  assemble expected
   ::
   %+  ex-cards  caz
   %-  flop
   %+  roll  exes
-  |=  [exe=(each $-(card tang) r-groups:v9:gv) out=(list $-(card tang))]
+  |=  [exe=(each $-(card tang) r-groups:g) out=(list $-(card tang))]
   ?:  ?=(%& -.exe)
     ::  expected card
     ::
@@ -186,20 +201,35 @@
   ::  expected r-groups
   ::
   =*  r-groups  p.exe
+  =/  r-group-10=(unit r-group:v10:gv)
+    (v10:r-group:v11:gc r-group.r-groups)
+  =/  r-group-9=(unit r-group:v9:gv)
+    (v9:r-group:v11:gc r-group.r-groups)
   =/  actions-2=(list action:v2:gv)
+    ?~  r-group-9  ~
     %+  turn
-      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v9:gc u.r-group-9 [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
-  %+  welp
+  ;:  welp
     %+  turn  actions-2
     |=  =action:v2:gv
     (ex-fact ~[/groups/ui] group-action-3+!>(action))
-  :-  %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
-      group-response-2+!>(`r-groups:v10:gv`r-groups)
-  :-  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-      group-response-1+!>(r-groups)
-  out
+  ::
+    ?~  r-group-9  ~
+    :_  ~
+    %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
+    group-response-1+!>(`r-groups:v9:gv`[flag.r-groups u.r-group-9])
+  ::
+    ?~  r-group-10  ~
+    :_  ~
+    %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
+    group-response-2+!>(`r-groups:v10:gv`[flag.r-groups u.r-group-10])
+  ::
+    :_  out
+    %+  ex-fact  ~[/v3/groups /v3/groups/~zod/my-test-group]
+    group-response-3+!>(`r-groups:v11:gv`r-groups)
+  ==
 ::
 ++  get-invite
   |=  tok=(unit token:g)
@@ -219,7 +249,10 @@
     ==
   (pure:m invite)
 ::
-++  do-join-group
+++  do-join-group  (do-join-this-group my-group)
+::
+++  do-join-this-group
+  |=  =group:g
   =/  m  (mare (list card))
   ^-  form:m
   ;<  caz=(list card)  bind:m  (do-a-foreigns [%foreign my-flag %join ~])
@@ -252,13 +285,41 @@
   =/  init-log=log:g
     %+  gas:log-on:g  *log:g
     ^-  (list [@da u-group:g])
-    :~  now.bowl^[%create my-group]
+    :~  now.bowl^[%create group]
     ==
   ;<  caz=(list card)  bind:m
     %^  do-agent  (weld go-area /updates)
       [~zod my-agent]
     [%fact group-log+!>(init-log)]
   (pure:m caz)
+::
+::  +test-can-write-resolves-for-a-non-member: a ship holding no seat must
+::  make this scry resolve to ~, not to no-such-path.
+::
+::  Both readers of it use .^ and then ?~ on a unit -- lib/channel-utils
+::  +can-write, and %buckets +group-can-write. A scry that resolves to nothing
+::  does not hand them ~, it crashes the event. So answering [~ ~] here meant
+::  a stranger or an ex-member writing to any channel took the event down
+::  instead of being denied.
+::
+++  test-can-write-resolves-for-a-non-member
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-join-group
+  ::  the group's only seat is ~zod, so ~fun holds none
+  ;<  stranger=cage  bind:m
+    (got-peek /x/v2/groups/~zod/my-test-group/channels/chat/~zod/general/can-write/~fun)
+  ;<  seated=cage  bind:m
+    (got-peek /x/v2/groups/~zod/my-test-group/channels/chat/~zod/general/can-write/~zod)
+  =/  perms
+    |=  caz=cage
+    ^-  (unit [admin=? roles=(set role-id:v7:gv)])
+    !<((unit [admin=? roles=(set role-id:v7:gv)]) q.caz)
+  =/  absent  (perms stranger)
+  =/  present  (perms seated)
+  (ex-equal !>([absent ?~(present | admin.u.present)]) !>([~ &]))
 ::
 ++  test-join-group
   %-  eval-mare
@@ -271,6 +332,144 @@
     :~  [my-flag %create my-group]
     ==
   (pure:m ~)
+::  +test-light-scries-count-every-seat: the init and changes scries
+::  truncate a big group's seats, but still report its full member count
+::
+::  +drop-seats keeps ours and 14 others. The changes scries built their
+::  group-ui from that light group, and the init scries' recount read the
+::  light group too (the group-ui's own .group face shadowed the full one),
+::  so a group of 20 reported 15.
+::
+++  test-light-scries-count-every-seat
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  =group:g  my-group
+  =.  seats.group
+    %-  ~(gas by seats.group)
+    %+  turn  (gulf 1 19)
+    |=(i=@ [`ship`i [~ ~2000.1.1]])
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-join-this-group group)
+  =/  since=@ta  (scot %da *@da)
+  ;<  in-2=cage  bind:m  (got-peek /x/v2/init)
+  ;<  in-3=cage  bind:m  (got-peek /x/v3/init)
+  ;<  in-4=cage  bind:m  (got-peek /x/v4/init)
+  ;<  ch-1=cage  bind:m  (got-peek /x/v1/changes/[since])
+  ;<  ch-2=cage  bind:m  (got-peek /x/v2/changes/[since])
+  ;<  ch-3=cage  bind:m  (got-peek /x/v3/changes/[since])
+  =/  init-2
+    %.  my-flag
+    %~  got  by
+    -:!<([(map flag:v7:gv group-ui:v7:gv) foreigns:v8:gv] q.in-2)
+  =/  init-3
+    %.  my-flag
+    %~  got  by
+    -:!<([(map flag:v9:gv group-ui:v9:gv) foreigns:v8:gv] q.in-3)
+  =/  init-4
+    %.  my-flag
+    %~  got  by
+    -:!<([(map flag:v11:gv group-ui:v11:gv) foreigns:v8:gv] q.in-4)
+  =/  ui-1  (~(got by !<((map flag:v5:gv group-ui:v5:gv) q.ch-1)) my-flag)
+  =/  ui-2  (~(got by !<((map flag:v9:gv group-ui:v9:gv) q.ch-2)) my-flag)
+  =/  ui-3  (~(got by !<((map flag:v11:gv group-ui:v11:gv) q.ch-3)) my-flag)
+  ::  the seats are still dropped; only the count covers them all
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>([~(wyt by seats.group.init-4) ~(wyt by seats.group.ui-3)])
+    !>([15 15])
+  %+  ex-equal
+    !>  :*  init-2=member-count.init-2
+            init-3=member-count.init-3
+            init-4=member-count.init-4
+            changes-1=count.ui-1
+            changes-2=member-count.ui-2
+            changes-3=member-count.ui-3
+        ==
+  !>([init-2=20 init-3=20 init-4=20 changes-1=20 changes-2=20 changes-3=20])
+::  +initial-nest: a channel the test group arrives with
+::
+++  initial-nest  ^-(nest:g [%chat ~zod %general])
+::
+++  set-channels-joined
+  |=  joined=?
+  %-  set-scry-gate
+  |=  =path
+  ?:  ?=([%gu @ %channels @ *] path)  `!>(joined)
+  (my-scry-gate path)
+::
+++  do-channels-response
+  |=  =r-channel:v7:cv
+  %^  do-agent  /channels
+    [~dev %channels]
+  =/  =r-channels:v7:cv  [[%chat ~zod %general] r-channel]
+  [%fact channel-response-2+!>(r-channels)]
+::  +do-join-initial-channel: join a group that arrives with
+::  +initial-nest, which %channels then joins
+::
+++  do-join-initial-channel
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  =channel:g
+    :*  meta=[title='General' description='' image='' cover='']
+        added=~2000.1.1
+        section=%default
+        readers=~
+        join=&
+    ==
+  =/  =group:g  my-group
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (set-channels-joined |)
+  ;<  *  bind:m
+    (do-join-this-group group(channels (my initial-nest^channel ~)))
+  ;<  *  bind:m  (do-channels-response %join my-flag)
+  (set-channels-joined &)
+::
+++  ex-left-initial-channel
+  |=  caz=(list card)
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~[/v2/groups]
+      group-response-2+!>(`r-groups:v10:gv`[my-flag %active-channel initial-nest |])
+    ::
+      %+  ex-fact  ~[/v3/groups]
+      group-response-3+!>(`r-groups:v11:gv`[my-flag %active-channel initial-nest |])
+  ==
+::  +test-leave-initial-channel: leaving a channel the group arrived with
+::  takes it out of .active-channels and tells subscribers so.
+::
+::  Such a channel was only ever indexed when added after the join, so
+::  %channels' %leave for it was dropped: %groups kept it active, and a
+::  client's next init marked the channel joined again.
+::
+++  test-leave-initial-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  do-join-initial-channel
+  ;<  caz=(list card)  bind:m  (do-channels-response %leave ~)
+  (ex-left-initial-channel caz)
+::  +test-leave-initial-channel-after-reload: a group joined before its
+::  initial channels were indexed has them indexed on reload.
+::
+++  test-leave-initial-channel-after-reload
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  do-join-initial-channel
+  ::  drop the index, as a ship that joined before the fix has it
+  ::
+  ;<  save=vase  bind:m  get-save
+  =.  save
+    ;:  slop
+      (slot 2 save)  ::  lib discipline
+      (slot 6 save)  ::  lib negotiate
+      (slap (slot 7 save) (ream '.(channels-index ~)'))
+    ==
+  ;<  *  bind:m  (do-load groups-agent `save)
+  ;<  *  bind:m  (do-arvo /load/active-channels %behn %wake ~)
+  ;<  caz=(list card)  bind:m  (do-channels-response %leave ~)
+  (ex-left-initial-channel caz)
 ::  +test-a-foreigns-revoke: test invite revocation
 ::
 ++  test-a-foreigns-revoke
@@ -396,7 +595,7 @@
   ::  verify the invitee is recorded on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -431,7 +630,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
@@ -485,7 +684,7 @@
   ::  verify the invitee is recorded on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -518,7 +717,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
@@ -577,7 +776,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
@@ -635,7 +834,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
@@ -688,8 +887,9 @@
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
-        (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-fact-paths ~[/v3/groups /v3/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/v2/groups /v2/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/groups/ui])
         (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)
     ==

@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { getAndroidRoundedBackgroundKey } from '../../utils';
-import { ContactAvatar } from '../Avatar';
+import { ContactAvatar, ImageAvatar, SigilAvatar } from '../Avatar';
 
 // Match platform touch-target guidelines (iOS HIG 44pt, Android Material
 // 48dp); the tab's tappable area spans its full flex share of the bar.
@@ -18,11 +18,13 @@ export function AvatarNavIcon({
   focused,
   onPress,
   onLongPress,
+  disabled = false,
 }: {
   id: string;
   focused: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
+  disabled?: boolean;
 }) {
   const props: Omit<ComponentProps<typeof Pressable>, 'children'> = isWeb
     ? {
@@ -42,8 +44,10 @@ export function AvatarNavIcon({
   return (
     <Pressable
       testID="AvatarNavIcon"
-      onPress={onPress}
-      onLongPress={onLongPress}
+      onPress={disabled ? undefined : onPress}
+      onLongPress={disabled ? undefined : onLongPress}
+      disabled={disabled}
+      accessibilityState={{ disabled }}
       alignItems="center"
       borderRadius="$s"
       {...props}
@@ -63,20 +67,28 @@ export default function NavIcon({
   testID,
   type,
   activeType,
+  imageUrl,
+  sigilContactId,
   isActive,
   hasUnreads = false,
   onPress,
   backgroundColor,
   shouldShowUnreads = true,
+  disabled = false,
 }: {
   testID?: string;
   type: IconType;
   activeType?: IconType;
+  /** Shown in place of the glyph, which remains the fallback. */
+  imageUrl?: string;
+  /** Shown in place of a missing `imageUrl`, before the glyph. */
+  sigilContactId?: string;
   isActive: boolean;
   hasUnreads?: boolean;
   onPress?: () => void;
   backgroundColor?: ColorTokens;
   shouldShowUnreads?: boolean;
+  disabled?: boolean;
 }) {
   const resolvedType = isActive && activeType ? activeType : type;
   const unreadDotBackgroundColor = hasUnreads ? '$blue' : 'transparent';
@@ -95,15 +107,42 @@ export default function NavIcon({
     <Pressable
       testID={testID}
       alignItems="center"
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
+      accessibilityState={{ disabled }}
       borderRadius="$s"
       backgroundColor={backgroundColor}
       {...props}
     >
-      <View>
-        <Icon
-          type={resolvedType}
-          color={isActive ? '$primaryText' : '$tertiaryText'}
+      {/* The glyph's frame (Icon at $l), with an avatar centred in it at the
+          glyph's own size, so the bar and the unread dot stay put. */}
+      <View
+        width="$3xl"
+        height="$3xl"
+        alignItems="center"
+        justifyContent="center"
+      >
+        <ImageAvatar
+          imageUrl={imageUrl}
+          size="$2xl"
+          borderRadius="$xs"
+          opacity={isActive ? 1 : 0.6}
+          fallback={
+            sigilContactId ? (
+              <SigilAvatar
+                contactId={sigilContactId}
+                size="$2xl"
+                borderRadius="$xs"
+                opacity={isActive ? 1 : 0.6}
+              />
+            ) : (
+              <Icon
+                size="$l"
+                type={resolvedType}
+                color={isActive ? '$primaryText' : '$tertiaryText'}
+              />
+            )
+          }
         />
         {shouldShowUnreads ? (
           <View

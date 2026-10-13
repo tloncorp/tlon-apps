@@ -1,5 +1,6 @@
 import type { Post } from '@tloncorp/api';
 
+import { canonicalizeNest, parseNest } from './cli-utils';
 import { commandError } from './commands/command';
 import { assertActingShipIsHost } from './migrate-helpers';
 import {
@@ -10,7 +11,6 @@ import {
   type MigrationPlan,
   type SourcePost,
   archiveTitle,
-  canonicalizeNest,
   chunkNotes,
   computeWriteWidening,
   convertPost,
@@ -18,7 +18,6 @@ import {
   deriveTargetTitle,
   filterEligiblePosts,
   normalizeShip,
-  parseNest,
   sortPostsBySequence,
 } from './notes-migrate';
 

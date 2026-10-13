@@ -4,40 +4,60 @@ import type * as db from '../types/models';
 import * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
-import { toClientGroupsV7 } from './groupsApi';
+import { toClientGroups, withoutTruncatedMemberCount } from './groupsApi';
 import { toPostsData } from './postsApi';
-import {
-  checkIsNodeBusyWithHints,
-  getActivitySupportsNotes,
-  scry,
-} from './urbit';
+import { groupsUi, scryRequest } from './requests';
+import { type SpinErrorClass, startSpinHintCheck } from './urbit';
+
+export const SPIN_HINT_GRACE_MS = 500;
 
 export async function fetchChangesSince(timestamp: number): Promise<
   db.ChangesResult & {
     nodeBusyStatus: 'available' | 'busy' | 'unknown';
     hints?: string;
+    spinOutcome: 'hint' | 'grace_expired' | 'failed' | 'unavailable';
+    spinDurationMs: number;
+    spinErrorClass?: SpinErrorClass;
   }
 > {
-  const busyResult = await checkIsNodeBusyWithHints();
-  const encodedTimestamp = render('da', da.fromUnix(timestamp));
-  // /v10/changes embeds v10-native activity (notebook/note sources); /v8
-  // embeds the v4 conversion, which drops them. Only request what the
-  // backend is known to support.
-  const changesVersion = getActivitySupportsNotes() ? 'v10' : 'v8';
-  const response = await scry<ub.ChangesV8>({
-    app: 'groups-ui',
-    path: `/${changesVersion}/changes/${encodedTimestamp}`,
-  });
+  const spin = startSpinHintCheck();
+  try {
+    const response = await scryChangesSince(timestamp);
+    const spinResult = await spin.settleWithin(SPIN_HINT_GRACE_MS);
 
-  const nodeBusyStatus = await Promise.race([busyResult, timedOutDefault(500)]);
-
-  const changes = parseChanges(response);
-
-  return { ...changes, ...nodeBusyStatus };
+    return {
+      ...parseChanges(response),
+      nodeBusyStatus: spinResult.nodeBusyStatus,
+      ...(spinResult.outcome === 'hint' && spinResult.hints
+        ? { hints: spinResult.hints }
+        : {}),
+      spinOutcome: spinResult.outcome,
+      spinDurationMs: spinResult.durationMs,
+      ...(spinResult.outcome === 'failed'
+        ? { spinErrorClass: spinResult.errorClass }
+        : {}),
+    };
+  } finally {
+    spin.cancel();
+  }
 }
 
-export function parseChanges(input: ub.ChangesV8): db.ChangesResult {
-  const groups = toClientGroupsV7(input.groups, true);
+/**
+ * The raw `/changes` package: channel posts, DM/club writs, groups, contacts and
+ * activity summaries changed on the ship after `timestamp`, from one scry.
+ */
+export function scryChangesSince(timestamp: number): Promise<ub.ChangesV11> {
+  // /v11/changes is /v10 plus the group blob: v10-native activity (notebook/
+  // note sources, which the v4 conversion drops) over v11 groups.
+  return scryRequest(groupsUi.changes)<ub.ChangesV11>({
+    since: render('da', da.fromUnix(timestamp)),
+  });
+}
+
+export function parseChanges(input: ub.ChangesV11): db.ChangesResult {
+  const groups = toClientGroups(input.groups, true).map(
+    withoutTruncatedMemberCount
+  );
 
   const channelPosts = Object.entries(input.channels).flatMap(
     ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])
@@ -69,14 +89,4 @@ export function parseChanges(input: ub.ChangesV8): db.ChangesResult {
   const unreads = toClientUnreads(input.activity);
 
   return { groups, posts, contacts, unreads, deletedChannelIds };
-}
-
-// We want to avoid the UX of waiting too long for the busy check to return. It's served by the runtime,
-// so should in theory always be quicker. But adding a timeout race to be safe.
-async function timedOutDefault(
-  ms: number
-): Promise<{ nodeBusyStatus: 'unknown' }> {
-  return new Promise((resolve) =>
-    setTimeout(() => resolve({ nodeBusyStatus: 'unknown' }), ms)
-  );
 }

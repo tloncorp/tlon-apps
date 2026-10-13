@@ -25,21 +25,38 @@ export async function getBytes(
   responseTimeout?: number
 ) {
   const reader = stream.getReader();
-  let result: ReadableStreamReadResult<Uint8Array> = {
+  // Derived from the reader itself so this also checks under runtimes that
+  // type `read()` differently (bun returns a union of result shapes).
+  type ReadResult = Awaited<ReturnType<typeof reader.read>>;
+  let result: ReadResult = {
     done: false,
     value: new Uint8Array(),
   };
 
   while (result && !result.done) {
-    result = await Promise.race([
-      reader.read(),
-      new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
-        setTimeout(
-          () => reject(new Error('getBytes timed out')),
-          responseTimeout
-        );
-      }),
-    ]);
+    const readPromise = reader.read();
+    if (responseTimeout === undefined) {
+      result = await readPromise;
+    } else {
+      let readTimeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        result = await Promise.race([
+          readPromise,
+          new Promise<ReadResult>((_, reject) => {
+            readTimeout = setTimeout(
+              () => reject(new Error('getBytes timed out')),
+              responseTimeout
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(readTimeout);
+      }
+    }
+
+    if (result.done) {
+      break;
+    }
 
     if (!result.value) {
       // empty chunk, skip it
@@ -180,8 +197,8 @@ export function getMessages(
           message.event = value;
           break;
         case 'id':
-          message = newMessage();
-          onId?.((message.id = value));
+          message.id = value;
+          onId?.(value);
           break;
         case 'retry':
           // eslint-disable-next-line no-case-declarations

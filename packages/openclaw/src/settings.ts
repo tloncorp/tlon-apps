@@ -33,8 +33,11 @@ export type PendingApproval = {
     blob?: string;
   };
   timestamp: number;
-  /** Normalized message ID of the owner notification DM (for reaction-based approval) */
+  /** Normalized message ID of the owner notification DM (reaction-based
+   * approval, and proof of delivery for group re-notify suppression) */
   notificationMessageId?: string;
+  /** Epoch ms of the last owner-notification attempt (group-invite retry cooldown) */
+  notifyAttemptAt?: number;
 };
 
 export type TlonSettingsStore = {
@@ -44,7 +47,7 @@ export type TlonSettingsStore = {
   showModelSig?: boolean;
   autoAcceptDmInvites?: boolean;
   autoDiscoverChannels?: boolean;
-  /** No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat */
+  /** No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement. */
   autoAcceptGroupInvites?: boolean;
   /** Ships allowed to invite us to groups (allowlist membership is sufficient for auto-accept) */
   groupInviteAllowlist?: string[];
@@ -429,6 +432,59 @@ function isChannelRulesObject(
   return true;
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+/**
+ * Validate and sanitize one raw pendingApprovals entry; undefined drops it.
+ *
+ * Two tiers. The operational locators are load-bearing, not decoration:
+ * approval execution gates on a truthy `groupFlag`/`channelNest` and then
+ * removes the record either way, so a record that lost its locator would
+ * report success to the owner while doing nothing — drop the whole record.
+ * Cosmetic and delivery fields are shed individually instead (dropping the bad
+ * part beats throwing away good state — see parseBlockedShips). Unknown fields
+ * are carried through: hermes stamps its own delivery fields onto the shared
+ * record and they must round-trip.
+ */
+function sanitizePendingApproval(
+  obj: Record<string, unknown>
+): PendingApproval | undefined {
+  if (
+    typeof obj.id !== 'string' ||
+    (obj.type !== 'dm' && obj.type !== 'channel' && obj.type !== 'group') ||
+    typeof obj.requestingShip !== 'string' ||
+    typeof obj.timestamp !== 'number'
+  ) {
+    return undefined;
+  }
+  if (obj.type === 'group' && !isNonEmptyString(obj.groupFlag)) {
+    return undefined;
+  }
+  if (obj.type === 'channel' && !isNonEmptyString(obj.channelNest)) {
+    return undefined;
+  }
+
+  const sanitized: Record<string, unknown> = { ...obj };
+  for (const field of [
+    'groupTitle',
+    'messagePreview',
+    'notificationMessageId',
+  ]) {
+    if (field in sanitized && typeof sanitized[field] !== 'string') {
+      delete sanitized[field];
+    }
+  }
+  if (
+    'notifyAttemptAt' in sanitized &&
+    typeof sanitized.notifyAttemptAt !== 'number'
+  ) {
+    delete sanitized.notifyAttemptAt;
+  }
+  return sanitized as unknown as PendingApproval;
+}
+
 /**
  * Parse pendingApprovals - handles both JSON string and array formats.
  * Settings-store stores complex objects as JSON strings.
@@ -454,23 +510,19 @@ function parsePendingApprovals(value: unknown): PendingApproval[] | undefined {
   }
 
   // Filter to valid, unexpired PendingApproval objects.
-  return parsed.filter((item): item is PendingApproval => {
+  return parsed.flatMap((item) => {
     if (!item || typeof item !== 'object') {
-      return false;
+      return [];
     }
-    const obj = item as Record<string, unknown>;
-    const valid =
-      typeof obj.id === 'string' &&
-      (obj.type === 'dm' || obj.type === 'channel' || obj.type === 'group') &&
-      typeof obj.requestingShip === 'string' &&
-      typeof obj.timestamp === 'number';
-
-    const approval = obj as PendingApproval;
-    return (
-      valid &&
-      hasUsableOriginalMessage(approval) &&
-      !isPendingApprovalExpired(approval)
-    );
+    const approval = sanitizePendingApproval(item as Record<string, unknown>);
+    if (
+      !approval ||
+      !hasUsableOriginalMessage(approval) ||
+      isPendingApprovalExpired(approval)
+    ) {
+      return [];
+    }
+    return [approval];
   });
 }
 
@@ -619,6 +671,14 @@ export type SettingsLogger = {
 export type SettingsLoadOptions = {
   /** Emit the compact snapshot summary. Intended for the initial startup load. */
   logSnapshot?: boolean;
+  /**
+   * Adjust a fresh scry result before it is installed as the snapshot. Runs
+   * synchronously, so a value the caller knows to be newer than the scry is
+   * never exposed as the baseline, not even to a subscription event in the
+   * same tick. Facts that overtook the scry need no hook: the manager
+   * replays them itself.
+   */
+  reconcile?: (settings: TlonSettingsStore) => TlonSettingsStore;
 };
 
 /**
@@ -638,12 +698,32 @@ export function createSettingsManager(
     loaded: false,
   };
 
-  const listeners = new Set<(settings: TlonSettingsStore) => void>();
+  const listeners = new Set<
+    (settings: TlonSettingsStore, changedKey: string) => void
+  >();
 
-  const notify = () => {
+  // A scry can resolve after facts its result predates. Each load replays
+  // the facts applied since it was issued; the sequence keeps an overlapping
+  // load from replaying facts older than its own scry.
+  let factSeq = 0;
+  let loadsInFlight = 0;
+  let inFlightFacts: { seq: number; key: string; value: unknown }[] = [];
+  // A load that resolves after a later-issued one installed holds an older
+  // snapshot, and its replay would regress keys the newer scry already saw.
+  let loadSeq = 0;
+  let lastInstalledLoad = 0;
+
+  const applyLocal = (key: string, value: unknown): TlonSettingsStore => {
+    factSeq += 1;
+    if (loadsInFlight > 0) inFlightFacts.push({ seq: factSeq, key, value });
+    state.current = applySettingsUpdate(state.current, key, value);
+    return state.current;
+  };
+
+  const notify = (changedKey: string) => {
     for (const listener of listeners) {
       try {
-        listener(state.current);
+        listener(state.current, changedKey);
       } catch (err) {
         logger?.error?.(`[settings] Listener error: ${String(err)}`);
       }
@@ -671,14 +751,28 @@ export function createSettingsManager(
     async load(
       options: SettingsLoadOptions = {}
     ): Promise<{ settings: TlonSettingsStore; fresh: boolean }> {
+      const since = factSeq;
+      const loadId = ++loadSeq;
+      loadsInFlight += 1;
       try {
         const raw = await api.scry('/settings/all.json');
+        if (loadId < lastInstalledLoad) {
+          return { settings: state.current, fresh: false };
+        }
         // Response shape: { all: { [desk]: { [bucket]: { [key]: value } } } }
         const allData = raw as {
           all?: Record<string, Record<string, unknown>>;
         };
         const deskData = allData?.all?.[SETTINGS_DESK];
-        state.current = parseSettingsResponse(deskData ?? {});
+        const parsed = parseSettingsResponse(deskData ?? {});
+        let next = options.reconcile ? options.reconcile(parsed) : parsed;
+        for (const fact of inFlightFacts) {
+          if (fact.seq > since) {
+            next = applySettingsUpdate(next, fact.key, fact.value);
+          }
+        }
+        state.current = next;
+        lastInstalledLoad = loadId;
         state.loaded = true;
         if (options.logSnapshot !== false) {
           logger?.log?.(
@@ -694,13 +788,31 @@ export function createSettingsManager(
         );
         state.loaded = true;
         return { settings: state.current, fresh: false };
+      } finally {
+        loadsInFlight -= 1;
+        if (loadsInFlight === 0) inFlightFacts = [];
       }
     },
 
     /**
-     * Subscribe to settings changes.
+     * Fold a write this process made directly (a migration poke) into the
+     * snapshot without notifying listeners. The settings subscription starts
+     * after the migration and does not replay it, so without this the next
+     * unrelated fact would present the pre-write value as a key change.
      */
-    async startSubscription(): Promise<void> {
+    applyLocal,
+
+    /**
+     * Subscribe to settings changes. `onGap` fires when the subscription
+     * errors or ends: echoes may have been missed, so any state derived from
+     * them is stale until the next fresh load. The kind tells a `quit`, after
+     * which no fact arrives until the client resubscribes, from an `err`,
+     * which the client also fans out for stream-level failures, in one path
+     * only after it has already reconnected.
+     */
+    async startSubscription(
+      options: { onGap?: (kind: 'err' | 'quit') => void } = {}
+    ): Promise<void> {
       await api.subscribe({
         app: 'settings',
         path: '/desk/' + SETTINGS_DESK,
@@ -716,27 +828,29 @@ export function createSettingsManager(
               update.value
             )}`
           );
-          state.current = applySettingsUpdate(
-            state.current,
-            update.key,
-            update.value
-          );
-          notify();
+          applyLocal(update.key, update.value);
+          notify(update.key);
         },
         err: (error) => {
           logger?.error?.(`[settings] Subscription error: ${String(error)}`);
+          options.onGap?.('err');
         },
         quit: () => {
           logger?.log?.('[settings] Subscription ended');
+          options.onGap?.('quit');
         },
       });
       logger?.log?.('[settings] Subscribed to settings updates');
     },
 
     /**
-     * Register a listener for settings changes.
+     * Register a listener for settings changes. The listener receives the
+     * whole snapshot and the key the event changed, so a consumer can tell a
+     * fact about its own key from an unrelated one without inspecting values.
      */
-    onChange(listener: (settings: TlonSettingsStore) => void): () => void {
+    onChange(
+      listener: (settings: TlonSettingsStore, changedKey: string) => void
+    ): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },

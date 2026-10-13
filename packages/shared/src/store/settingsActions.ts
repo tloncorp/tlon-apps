@@ -20,7 +20,9 @@ export async function changeMessageFilter(filter: TalkSidebarFilter) {
     return true;
   } catch (e) {
     console.error('Failed to change message filter', e);
-    await db.insertSettings({ messagesFilter: oldFilter });
+    // ?? null so the rollback clears the optimistic write even when no
+    // settings row existed yet (insertSettings skips undefined fields).
+    await db.insertSettings({ messagesFilter: oldFilter ?? null });
     return false;
   }
 }
@@ -49,12 +51,14 @@ export async function updateCalmSetting(
       severity: AnalyticsSeverity.Medium,
     });
     // rollback optimistic update
-    await db.insertSettings({ [calmKey]: oldValue });
+    await db.insertSettings({ [calmKey]: oldValue ?? null });
     throw new Error('Failed to update calm setting');
   }
 }
 
-export async function completeWayfindingSplash() {
+export async function completeWayfindingSplash({
+  showBotMentionHint = true,
+}: { showBotMentionHint?: boolean } = {}) {
   await db.wayfindingProgress.setValue((prev) => ({
     ...prev,
     viewedPersonalGroup: false,
@@ -65,7 +69,7 @@ export async function completeWayfindingSplash() {
     tappedAddNote: false,
     tappedAddCollection: false,
     tappedChatInput: false,
-    tappedHomeGroupHint: false,
+    tappedHomeGroupHint: !showBotMentionHint,
   }));
 
   // optimistic update
@@ -195,7 +199,7 @@ export async function updateTheme(theme: AppTheme) {
       theme,
       severity: AnalyticsSeverity.Medium,
     });
-    await db.insertSettings({ theme: oldTheme });
+    await db.insertSettings({ theme: oldTheme ?? null });
     throw new Error('Failed to update theme setting');
   }
 }
@@ -214,7 +218,7 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
       disabled,
       severity: AnalyticsSeverity.Medium,
     });
-    await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
+    await db.insertSettings({ disableTlonInfraEnhancement: oldValue ?? null });
     throw e;
   }
 }
@@ -234,11 +238,13 @@ export async function updateEnableTelemetry(value: boolean) {
       value,
       severity: AnalyticsSeverity.Medium,
     });
-    await db.insertSettings({ enableTelemetry: oldValue });
+    await db.insertSettings({ enableTelemetry: oldValue ?? null });
     return false;
   }
 }
 
+// Legacy setting retained for compatibility with older clients. Current
+// clients no longer use it as an availability gate.
 export async function updateContextLensEnabled(value: boolean) {
   const existing = await db.getSettings();
   const oldValue = existing?.contextLensEnabled;
@@ -257,6 +263,25 @@ export async function updateContextLensEnabled(value: boolean) {
     // ?? null so the rollback restores "never set" even when no settings row
     // existed yet (insertSettings skips undefined fields).
     await db.insertSettings({ contextLensEnabled: oldValue ?? null });
+    return false;
+  }
+}
+
+export async function updateShowDeleteMarkers(value: boolean) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.showDeleteMarkers;
+
+  try {
+    await db.insertSettings({ showDeleteMarkers: value });
+    await api.setSetting('showDeleteMarkers', value);
+    return true;
+  } catch (e) {
+    logger.trackError('Error updating show delete markers setting', {
+      error: e,
+      value,
+      severity: AnalyticsSeverity.Medium,
+    });
+    await db.insertSettings({ showDeleteMarkers: oldValue ?? null });
     return false;
   }
 }

@@ -4,7 +4,7 @@ import {
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
+import { useContact } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Fragment,
@@ -13,13 +13,22 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
+import { View } from 'tamagui';
 
 import { useShipConnectionStatus } from '../../../features/top/useShipConnectionStatus';
 import { useCurrentUserId } from '../../contexts/appDataContext';
-import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
+import {
+  getChannelHost,
+  getChannelTypeLabel,
+  getGroupMemberCount,
+  useBucketsChannelSubtitle,
+  useChatDescription,
+  useChatTitle,
+} from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import ConnectionStatus from '../ConnectionStatus';
 import { GroupAvatar } from '../GroupAvatar';
@@ -35,6 +44,8 @@ type ChannelHeaderItem = ReactElement | ScreenHeaderAction[];
 
 interface ChannelHeaderItemsContextValue {
   registerItem: (item: ChannelHeaderItem) => () => void;
+  registerHeaderHider: () => () => void;
+  headerHidden: boolean;
   setLoadingSubtitle: (subtitle: string | null) => void;
   items: readonly ChannelHeaderItem[];
   loadingSubtitle: string | null;
@@ -59,6 +70,7 @@ export function ChannelHeaderItemsProvider({
   children: ReactElement;
 }) {
   const [items, setItems] = useState<ChannelHeaderItem[]>([]);
+  const [headerHiderCount, setHeaderHiderCount] = useState(0);
   const [loadingSubtitle, setLoadingSubtitle] = useState<string | null>(null);
   const registerItem = useCallback((item: ChannelHeaderItem) => {
     setItems((prev) => [...prev, item]);
@@ -66,10 +78,21 @@ export function ChannelHeaderItemsProvider({
       setItems((prev) => prev.filter((registered) => registered !== item));
     };
   }, []);
+  const registerHeaderHider = useCallback(() => {
+    let removed = false;
+    setHeaderHiderCount((count) => count + 1);
+    return () => {
+      if (removed) return;
+      removed = true;
+      setHeaderHiderCount((count) => Math.max(0, count - 1));
+    };
+  }, []);
   return (
     <ChannelHeaderItemsContext.Provider
       value={{
+        registerHeaderHider,
         registerItem,
+        headerHidden: headerHiderCount > 0,
         setLoadingSubtitle,
         items,
         loadingSubtitle,
@@ -78,6 +101,17 @@ export function ChannelHeaderItemsProvider({
       {children}
     </ChannelHeaderItemsContext.Provider>
   );
+}
+
+export function useHideChannelHeader(hidden: boolean) {
+  const registerHeaderHider = useContext(
+    ChannelHeaderItemsContext
+  )?.registerHeaderHider;
+
+  useLayoutEffect(() => {
+    if (!hidden || !registerHeaderHider) return;
+    return registerHeaderHider();
+  }, [hidden, registerHeaderHider]);
 }
 
 export function useRegisterChannelHeaderItem(
@@ -110,6 +144,12 @@ export function useRegisterChannelHeaderLoadingSubtitle(
   }, [loadingSubtitle, setLoadingSubtitle]);
 }
 
+function getChannelTypeName(channelType: db.Channel['type']) {
+  return channelType === 'dm' || channelType === 'groupDm'
+    ? 'Channel'
+    : `${getChannelTypeLabel(channelType)} channel`;
+}
+
 export function ChannelHeader({
   title,
   titleIcon,
@@ -121,14 +161,17 @@ export function ChannelHeader({
   goToEdit,
   goToChatDetails,
   goToProfile,
+  goToScheduledTasks,
   onToggleContextLens,
   contextLensOpen = false,
   contextLensActive = false,
   showSpinner,
   loadingSubtitle = 'Loading messages…',
   hideIdentity = false,
+  backDisabled = false,
   showSearchButton = false,
   showEditButton = false,
+  onPressLogout,
   preferProvidedTitle = false,
   post,
 }: {
@@ -142,45 +185,30 @@ export function ChannelHeader({
   goToEdit?: () => void;
   goToChatDetails?: () => void;
   goToProfile?: () => void;
+  /** Present in the owner's conversation with their bot. */
+  goToScheduledTasks?: () => void;
   onToggleContextLens?: () => void;
   contextLensOpen?: boolean;
   contextLensActive?: boolean;
   showSpinner?: boolean;
   loadingSubtitle?: string | null;
   hideIdentity?: boolean;
+  backDisabled?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
+  onPressLogout?: () => void;
   preferProvidedTitle?: boolean;
   post?: db.Post;
 }) {
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
   const chatDescription = useChatDescription(channel, group);
+  const bucketsSubtitle = useBucketsChannelSubtitle(channel);
   const currentUserId = useCurrentUserId();
 
   // Get contact info for 1:1 DMs - only fetch when we have a valid contact ID
   const dmContactId = channel.type === 'dm' ? channel.contactId : null;
   const { data: dmContact } = useContact({ id: dmContactId || '' });
-  const { data: notesAvailable = false } = useNotesDeskAvailable();
-
-  const getChannelTypeName = useCallback(
-    (channelType: db.Channel['type']) => {
-      switch (channelType) {
-        case 'chat':
-          return 'Chat channel';
-        case 'notebook':
-          return notesAvailable ? 'Bulletin channel' : 'Notebook channel';
-        case 'notes':
-          return 'Notebook channel';
-        case 'gallery':
-          return 'Gallery channel';
-        default:
-          return 'Channel';
-      }
-    },
-    [notesAvailable]
-  );
-
   const context = useContext(ChannelHeaderItemsContext);
   const registeredItems = context?.items ?? [];
   const contextItems = registeredItems.filter(
@@ -251,7 +279,7 @@ export function ChannelHeader({
           return group.description;
         }
         // If it's a single-channel group without explicit title/description, show member count
-        const memberCount = group.members?.length ?? 0;
+        const memberCount = getGroupMemberCount(group);
         const result = `Chat with ${memberCount} members`;
         return result;
       }
@@ -268,6 +296,12 @@ export function ChannelHeader({
       return channelType;
     }
 
+    // A Bucket summarizes its files, as its row in the channel list does.
+    // Null until the manifest arrives, which falls through to the rest.
+    if (bucketsSubtitle) {
+      return bucketsSubtitle;
+    }
+
     // For other channel types (notebook, gallery, etc.)
     if (chatDescription && chatDescription.trim()) {
       return chatDescription;
@@ -281,7 +315,8 @@ export function ChannelHeader({
       channel.type === 'chat' ||
       channel.type === 'notebook' ||
       channel.type === 'notes' ||
-      channel.type === 'gallery'
+      channel.type === 'gallery' ||
+      channel.type === 'buckets'
     ) {
       const channelType = getChannelTypeName(channel.type);
       return channelType;
@@ -292,12 +327,12 @@ export function ChannelHeader({
     channelConnectionStatusText,
     channel,
     group,
+    bucketsSubtitle,
     chatDescription,
     chatTitle,
     description,
     dmContactId,
     dmContact?.status,
-    getChannelTypeName,
     post,
   ]);
 
@@ -371,7 +406,8 @@ export function ChannelHeader({
         channel.type === 'chat' ||
         channel.type === 'notebook' ||
         channel.type === 'notes' ||
-        channel.type === 'gallery') &&
+        channel.type === 'gallery' ||
+        channel.type === 'buckets') &&
       goToChatDetails
     ) {
       return goToChatDetails;
@@ -407,6 +443,14 @@ export function ChannelHeader({
       onPress: goToSearch,
       visible: showSearchButton,
     },
+    {
+      id: 'scheduled-tasks',
+      icon: 'Clock',
+      label: 'Scheduled tasks',
+      onPress: goToScheduledTasks,
+      testID: 'ChannelHeaderScheduledTasksButton',
+      visible: !!goToScheduledTasks,
+    },
     ...contextActions,
     {
       id: 'channel-edit',
@@ -425,23 +469,44 @@ export function ChannelHeader({
       backgroundTint: contextLensOpen ? '$secondaryBackground' : undefined,
       visible: !!onToggleContextLens,
     },
+    {
+      id: 'agent-onboarding-options',
+      icon: 'Overflow',
+      label: 'More options',
+      testID: 'AgentOnboardingOverflowButton',
+      visible: !!onPressLogout,
+      items: [
+        {
+          id: 'agent-onboarding-logout',
+          label: 'Log out',
+          destructive: true,
+          onPress: onPressLogout ?? (() => {}),
+        },
+      ],
+    },
   ];
-  const usesNavigationHeader = isChatChannel(channel);
+  const usesNavigationHeader =
+    isChatChannel(channel) || channel.type === 'notes';
   // The conversation list owns its scroll props, but this call installs the
   // matching native scroll-edge options on the navigator.
   useScreenScrollProps({
-    enabled: usesNavigationHeader,
+    enabled: isChatChannel(channel),
     bottomEdgeEffect: 'soft',
   });
 
+  if (context?.headerHidden) {
+    return null;
+  }
+
   if (usesNavigationHeader) {
     // Native navigation headers accept declarative actions only. Element-style
-    // registrations are reserved for inline notebook and gallery headers.
+    // registrations are reserved for inline bulletin and gallery headers.
     return (
       <ScreenHeader
         {...headerProps}
         placement="navigation"
         backAction={goBack}
+        backDisabled={backDisabled}
         rightActions={rightActions}
       />
     );
@@ -451,6 +516,7 @@ export function ChannelHeader({
     <ScreenHeader
       {...headerProps}
       backAction={goBack}
+      backDisabled={backDisabled}
       rightActions={rightActions}
       rightControls={
         contextItems.length ? (

@@ -23,13 +23,7 @@ import type {
 } from './commands/posts';
 import { fetchImageVerse } from './image-attach';
 import { botMoon } from './moon';
-
-function createProcessCommandDeps() {
-  return {
-    stdout: (text: string) => process.stdout.write(text),
-    stderr: (text: string) => process.stderr.write(text),
-  };
-}
+import { createProcessCommandDeps } from './runtime-deps';
 
 // Identity-attributed channel writes would be authored as the HOST when the
 // skill runs as a bot moon; the harness's message tool is the path that posts

@@ -1,4 +1,4 @@
-import { type Poke, ThreadResponseBodyError } from '../http-api';
+import { ThreadResponseBodyError } from '../http-api';
 import { createDevLogger } from '../lib/logger';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import type * as db from '../types/models';
@@ -15,49 +15,45 @@ import {
 import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
 import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
+  groups,
+  groupsUi,
+  pokeRequest,
+  scryRequest,
+  subscribeOnceRequest,
+  subscribeRequest,
+  threadRequest,
+  trackedPokeRequest,
+} from './requests';
+import {
   BadResponseError,
   getCurrentUserId,
-  poke,
-  scry,
-  subscribe,
-  subscribeOnce,
-  thread,
-  trackedPoke,
+  getDeskCountsAllSeats,
 } from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
 
-function groupAction4(action: ub.GroupActionV4) {
-  return {
-    app: 'groups',
-    mark: 'group-action-4',
-    json: action,
-  };
+function groupAction(action: ub.GroupActionV5) {
+  return action;
 }
 
 function groupNavigationBatchUpdate(
   flag: string,
   navigation: ub.GroupNavigationUpdate
-): Poke<ub.GroupNavigationBatchUpdate> {
+): ub.GroupNavigationBatchUpdate {
   return {
-    app: 'groups',
-    mark: 'group-action-4',
-    json: {
-      group: {
-        flag,
-        'a-group': {
-          navigation,
-        },
+    group: {
+      flag,
+      'a-group': {
+        navigation,
       },
     },
   };
 }
 
 export const getPinnedItems = async () => {
-  const pinnedItems = await scry<ub.PinnedGroupsResponse>({
-    app: 'groups-ui',
-    path: '/pins',
-  });
+  const pinnedItems = await scryRequest(groupsUi.pins)<ub.PinnedGroupsResponse>(
+    {}
+  );
   return toClientPinnedItems(pinnedItems);
 };
 
@@ -82,8 +78,8 @@ export function acceptGroupJoin({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction4({
+  return pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -106,8 +102,8 @@ export function rejectGroupJoin({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction4({
+  return pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -124,11 +120,7 @@ export function rejectGroupJoin({
 }
 
 export function cancelGroupJoin(groupId: string) {
-  return poke({
-    app: 'groups',
-    mark: 'group-cancel',
-    json: groupId,
-  });
+  return pokeRequest(groups.cancel)(groupId);
 }
 
 export function inviteGroupMembers({
@@ -138,8 +130,8 @@ export function inviteGroupMembers({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction4({
+  return pokeRequest(groups.action)(
+    groupAction({
       invite: {
         flag: groupId,
         ships: contactIds,
@@ -159,8 +151,8 @@ export function revokeGroupMemberInvites({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction4({
+  return pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -180,11 +172,7 @@ export function revokeGroupMemberInvites({
 
 export function rescindGroupInvitationRequest(groupId: string) {
   logger.log('api rescinding', groupId);
-  return poke({
-    app: 'groups',
-    mark: 'group-rescind',
-    json: groupId,
-  });
+  return pokeRequest(groups.rescind)(groupId);
 }
 
 export async function kickUsersFromGroup({
@@ -194,8 +182,8 @@ export async function kickUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction4({
+  return pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -218,8 +206,8 @@ export async function banUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction4({
+  return pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -241,8 +229,8 @@ export async function unbanUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction4({
+  return pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -258,20 +246,12 @@ export async function unbanUsersFromGroup({
 }
 
 export async function leaveGroup(groupId: string) {
-  return poke({
-    app: 'groups',
-    mark: 'group-leave',
-    json: groupId,
-  });
+  return pokeRequest(groups.leave)(groupId);
 }
 
 export function requestGroupInvitation(groupId: string) {
   logger.log('api knocking', groupId);
-  return poke({
-    app: 'groups',
-    mark: 'group-knock',
-    json: groupId,
-  });
+  return pokeRequest(groups.knock)(groupId);
 }
 
 export async function updateGroupPrivacy(params: {
@@ -280,8 +260,8 @@ export async function updateGroupPrivacy(params: {
   newPrivacy: GroupPrivacy;
 }) {
   // In v8/v9, privacy is a single unified setting that includes secret/private/public
-  return poke(
-    groupAction4({
+  return pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: params.groupId,
         'a-group': {
@@ -309,37 +289,25 @@ export const getPinnedItemType = (rawItem: string) => {
 };
 
 export const unpinItem = async (itemId: string) => {
-  return await poke({
-    app: 'groups-ui',
-    mark: 'ui-action',
-    json: {
-      pins: {
-        del: itemId,
-      },
+  return await pokeRequest(groupsUi.action)({
+    pins: {
+      del: itemId,
     },
   });
 };
 
 export const pinItem = async (itemId: string) => {
-  return await poke({
-    app: 'groups-ui',
-    mark: 'ui-action',
-    json: {
-      pins: {
-        add: itemId,
-      },
+  return await pokeRequest(groupsUi.action)({
+    pins: {
+      add: itemId,
     },
   });
 };
 
 export const setPinnedItemOrder = async (itemIds: string[]) => {
-  return await poke({
-    app: 'groups-ui',
-    mark: 'ui-action',
-    json: {
-      pins: {
-        'set-order': itemIds,
-      },
+  return await pokeRequest(groupsUi.action)({
+    pins: {
+      'set-order': itemIds,
     },
   });
 };
@@ -347,15 +315,12 @@ export const setPinnedItemOrder = async (itemIds: string[]) => {
 export const getChannelPreview = async (
   channelId: string
 ): Promise<db.Channel | null> => {
-  const channelPreview = await subscribeOnce<ub.ChannelPreview>(
-    {
-      app: 'groups',
-      path: `/chan/${channelId}`,
-    },
-    undefined,
-    undefined,
-    { tag: 'getChannelPreview' }
-  );
+  const { kind, host, name } = parseGroupChannelId(channelId);
+  const channelPreview = await subscribeOnceRequest(
+    groups.channelPreview
+  )<ub.ChannelPreview>({ app: kind, ship: host, name }, undefined, undefined, {
+    tag: 'getChannelPreview',
+  });
 
   if (!channelPreview) {
     return null;
@@ -369,25 +334,18 @@ export const getChannelPreview = async (
 };
 
 export const getGroupPreview = async (groupId: string) => {
-  const result = await subscribeOnce<ub.GroupPreview>(
-    {
-      app: 'groups',
-      path: `/gangs/${groupId}/preview`,
-    },
-    undefined,
-    undefined,
-    { tag: 'getGroupPreview' }
-  );
+  const result = await subscribeOnceRequest(
+    groups.gangPreview
+  )<ub.GroupPreview>({ groupId }, undefined, undefined, {
+    tag: 'getGroupPreview',
+  });
 
   return toClientGroupFromPreview(groupId, result);
 };
 
 export const findGroupsHostedBy = async (userId: string) => {
-  const result = await subscribeOnce<ub.GroupIndex>(
-    {
-      app: 'groups',
-      path: `/gangs/index/${userId}`,
-    },
+  const result = await subscribeOnceRequest(groups.gangIndex)<ub.GroupIndex>(
+    { ship: userId },
     30_000,
     undefined,
     { tag: 'findGroupsHostedBy' }
@@ -432,18 +390,15 @@ export const createGroup = async ({
   };
 
   try {
-    const result = await thread<ub.GroupCreateThreadInput, ub.GroupV7>({
-      desk: 'groups',
-      inputMark: 'group-create-thread',
-      threadName: 'group-create-1',
-      outputMark: 'group-ui-2',
-      body: payload,
-    });
+    const result = await threadRequest(groups.create)<
+      ub.GroupCreateThreadInput,
+      ub.GroupV11
+    >(payload);
     logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
       context: 'group-create-thread request succeeded',
     });
 
-    return toClientGroupV7(group.id, result, true);
+    return toClientGroup(group.id, result, true);
   } catch (err) {
     // Only a stalled body after the response headers arrived is safe to
     // recover from: the create thread has finished, but its response was lost
@@ -466,14 +421,15 @@ export const createGroup = async ({
       logger.trackEvent('Create Group Error', {
         severity: AnalyticsSeverity.Critical,
         status: err.status,
-        error: err.toString(),
+        error: err,
+        errorMessage: err.message,
         context: 'group-create-thread request failed',
       });
     } else {
       logger.trackEvent('Create Group Error', {
         severity: AnalyticsSeverity.Critical,
+        error: err,
         errorMessage: err.message,
-        errorStack: err.stack,
         context: 'group-create-thread unexpected error',
       });
     }
@@ -482,19 +438,15 @@ export const createGroup = async ({
 };
 
 export const getGroup = async (groupId: string) => {
-  const path = `/v2/ui/groups/${groupId}`;
-
-  const groupData = await scry<ub.GroupV7>({ app: 'groups', path });
-  return toClientGroupV7(groupId, groupData, true);
+  const groupData = await scryRequest(groups.uiGroup)<ub.GroupV11>({
+    groupId,
+  });
+  return toClientGroup(groupId, groupData, true);
 };
 
 export const getGroups = async () => {
-  // v2 scry path returns v9 format (with admissions/seats)
-  const groupData = await scry<ub.GroupsV7>({
-    app: 'groups',
-    path: '/v2/groups',
-  });
-  return toClientGroupsV7(groupData, true);
+  const groupData = await scryRequest(groups.groups)<ub.GroupsV11>({});
+  return toClientGroups(groupData, true);
 };
 
 export const updateGroupMeta = async ({
@@ -504,8 +456,11 @@ export const updateGroupMeta = async ({
   groupId: string;
   meta: ub.GroupMeta;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
-    groupAction4({
+  return await trackedPokeRequest(
+    groups.action,
+    groups.updates
+  )<ub.GroupResponse>(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -513,7 +468,7 @@ export const updateGroupMeta = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v2/groups' },
+    {},
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -526,9 +481,44 @@ export const updateGroupMeta = async ({
   );
 };
 
+export const updateGroupBlob = async ({
+  groupId,
+  blob,
+}: {
+  groupId: string;
+  blob: string | null;
+}) => {
+  return await trackedPokeRequest(
+    groups.action,
+    groups.updates
+  )<ub.GroupResponse>(
+    groupAction({
+      group: {
+        flag: groupId,
+        'a-group': {
+          blob,
+        },
+      },
+    }),
+    {},
+    (event) => {
+      if (!('r-group' in event)) {
+        return false;
+      }
+
+      const rGroup = event['r-group'];
+      return 'blob' in rGroup && event.flag === groupId;
+    },
+    { tag: 'updateGroupBlob' }
+  );
+};
+
 export const deleteGroup = async (groupId: string) => {
-  return await trackedPoke<ub.V1GroupResponse>(
-    groupAction4({
+  return await trackedPokeRequest(
+    groups.action,
+    groups.updates
+  )<ub.GroupResponse>(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -536,7 +526,7 @@ export const deleteGroup = async (groupId: string) => {
         },
       },
     }),
-    { app: 'groups', path: '/v2/groups' },
+    {},
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -555,8 +545,11 @@ export const addNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
-    groupAction4({
+  return await trackedPokeRequest(
+    groups.action,
+    groups.updates
+  )<ub.GroupResponse>(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -575,7 +568,7 @@ export const addNavSection = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v2/groups' },
+    {},
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -595,8 +588,8 @@ export const deleteNavSection = async ({
   sectionId: string;
   groupId: string;
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -619,8 +612,8 @@ export const updateNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -652,8 +645,11 @@ export const addChannelToNavSection = async ({
   channelId: string;
 }) => {
   logger.log('addChannelToNavSection', { groupId, navSectionId, channelId });
-  return await trackedPoke<ub.V1GroupResponse>(
-    groupAction4({
+  return await trackedPokeRequest(
+    groups.action,
+    groups.updates
+  )<ub.GroupResponse>(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -666,7 +662,7 @@ export const addChannelToNavSection = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v2/groups' },
+    {},
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -701,8 +697,8 @@ export const addChannelListingToGroup = async ({
   readers?: string[];
   join?: boolean;
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -733,8 +729,11 @@ export const addChannelToGroup = async ({
   groupId: string;
   sectionId: string;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
-    groupAction4({
+  return await trackedPokeRequest(
+    groups.action,
+    groups.updates
+  )<ub.GroupResponse>(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -747,7 +746,7 @@ export const addChannelToGroup = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v2/groups' },
+    {},
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -773,8 +772,8 @@ export const updateChannel = async ({
   channelId: string;
   channel: GroupChannelV7;
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -797,8 +796,8 @@ export const deleteChannel = async ({
   groupId: string;
   channelId: string;
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -845,7 +844,9 @@ export const updateGroupNavigation = async ({
       .map((s) => s.sectionId),
   };
 
-  return await poke(groupNavigationBatchUpdate(groupId, navigation));
+  return await pokeRequest(groups.action)(
+    groupNavigationBatchUpdate(groupId, navigation)
+  );
 };
 
 export const addGroupRole = async ({
@@ -857,8 +858,8 @@ export const addGroupRole = async ({
   roleId: string;
   meta: db.ClientMeta;
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -886,8 +887,8 @@ export const deleteGroupRole = async ({
   groupId: string;
   roleId: string;
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -912,8 +913,8 @@ export const updateGroupRole = async ({
   roleId: string;
   meta: db.ClientMeta;
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -943,8 +944,8 @@ export const addMembersToRole = async ({
   roleId: string;
   ships: string[];
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -969,8 +970,8 @@ export const removeMembersFromRole = async ({
   roleId: string;
   ships: string[];
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -995,8 +996,8 @@ export const removeAllRolesFromMembers = async ({
   contactIds: string[];
   roleIds: string[];
 }) => {
-  return await poke(
-    groupAction4({
+  return await pokeRequest(groups.action)(
+    groupAction({
       group: {
         flag: groupId,
         'a-group': {
@@ -1026,6 +1027,12 @@ export type GroupEdit = {
   type: 'editGroup';
   groupId: string;
   meta: db.ClientMeta;
+};
+
+export type GroupBlobEdit = {
+  type: 'editGroupBlob';
+  groupId: string;
+  blob: string | null;
 };
 
 export type GroupChannelAdd = {
@@ -1238,6 +1245,7 @@ export type GroupUpdate =
   | GroupAdd
   | GroupDelete
   | GroupEdit
+  | GroupBlobEdit
   | GroupChannelAdd
   | GroupChannelUpdate
   | GroupChannelDelete
@@ -1277,59 +1285,63 @@ export const subscribeGroups = async (
   eventHandler: (update: GroupUpdate) => void
 ) => {
   const handleRawGroupsEvent = (
-    rawEvent: ub.V1GroupResponse,
+    rawEvent: ub.GroupResponse,
     shouldHandleUpdate = (_update: GroupUpdate) => true
   ) => {
-    const update = toV1GroupsUpdate(rawEvent);
+    const update = toGroupsUpdate(rawEvent);
     if (update && shouldHandleUpdate(update)) {
       eventHandler(update);
     }
   };
 
-  // v1/groups is the baseline stream for group updates. Older backends do not
-  // expose /v2/groups, so keep normal r-group updates on v1.
-  void subscribe<ub.V1GroupResponse>(
-    { app: 'groups', path: '/v1/groups' },
-    (rawEvent) => {
-      handleRawGroupsEvent(rawEvent);
-    }
-  );
-
-  // v2/groups adds active-channel membership deltas for third-party channel
-  // hosts like %notes. It can bad-watch-path on older backends; in that case
-  // v1 still carries normal group updates and init/group sync cover membership.
-  void subscribe<ub.V1GroupResponse>(
-    { app: 'groups', path: '/v2/groups' },
-    (rawEvent) => {
-      if ('r-group' in rawEvent && 'active-channel' in rawEvent['r-group']) {
-        handleRawGroupsEvent(rawEvent);
-      }
-    }
-  ).catch((err) => {
-    logger.log('v2 groups subscription unavailable', err);
+  // r-group:v11 is a superset of v9 and v10, so one lane carries every update
+  // and nothing is handled twice. The desk ships ahead of the app, so there
+  // is no older backend to fall back to.
+  void subscribeRequest(groups.updates)<ub.GroupResponse>({}, (rawEvent) => {
+    handleRawGroupsEvent(rawEvent);
   });
 
   // Subscribe to v1/foreigns for foreign group updates
-  void subscribe(
-    { app: 'groups', path: '/v1/foreigns' },
-    (rawEvent: ub.Foreigns) => {
-      logger.log('foreignsUpdateEvent', rawEvent);
-      eventHandler(toForeignsGroupsUpdate(rawEvent));
-    }
-  );
+  void subscribeRequest(groups.foreigns)({}, (rawEvent: ub.Foreigns) => {
+    logger.log('foreignsUpdateEvent', rawEvent);
+    eventHandler(toForeignsGroupsUpdate(rawEvent));
+  });
 };
 
-export const toV1GroupsUpdate = (
-  rawEvent: ub.V1GroupResponse
+const readRoleIds = (
+  payload: { roles: string[] },
+  field: string
+): string[] | null => {
+  if (Array.isArray(payload?.roles)) {
+    return payload.roles;
+  }
+  // shape only: no ids, no ship names
+  logger.trackError('unexpected role list in group update', {
+    field,
+    payloadType: typeof payload,
+    rolesType: typeof payload?.roles,
+  });
+  return null;
+};
+
+export const toGroupsUpdate = (
+  rawEvent: ub.GroupResponse
 ): GroupUpdate | null => {
   const groupId = rawEvent.flag;
   const event = rawEvent['r-group'];
 
   // Handle group creation
   if ('create' in event) {
+    const group = toClientGroup(groupId, event.create, true);
     return {
       type: 'addGroup',
-      group: toClientGroupV7(groupId, event.create, true),
+      group: {
+        ...group,
+        // A %create sends the bare group: no member-count, but every seat,
+        // unlike the truncated rosters of init and changes.
+        memberCount:
+          group.memberCount ?? Object.keys(event.create.seats ?? {}).length,
+      },
     };
   }
 
@@ -1350,6 +1362,15 @@ export const toV1GroupsUpdate = (
     };
   }
 
+  // Handle custom payload updates
+  if ('blob' in event) {
+    return {
+      type: 'editGroupBlob',
+      blob: event.blob,
+      groupId,
+    };
+  }
+
   // Handle role operations
   if ('role' in event) {
     const roleData = event.role;
@@ -1364,7 +1385,7 @@ export const toV1GroupsUpdate = (
       return {
         type: 'addRole',
         roleId,
-        meta: rRole.add,
+        meta: toClientMeta(rRole.add),
         groupId,
       };
     }
@@ -1381,7 +1402,7 @@ export const toV1GroupsUpdate = (
       return {
         type: 'editRole',
         roleId,
-        meta: rRole.edit,
+        meta: toClientMeta(rRole.edit),
         groupId,
       };
     }
@@ -1410,19 +1431,27 @@ export const toV1GroupsUpdate = (
     }
 
     if ('add-roles' in rSeat) {
+      const roles = readRoleIds(rSeat['add-roles'], 'r-seat.add-roles');
+      if (!roles) {
+        return null;
+      }
       return {
         type: 'addGroupMembersToRole',
         ships,
-        roles: rSeat['add-roles'],
+        roles,
         groupId,
       };
     }
 
     if ('del-roles' in rSeat) {
+      const roles = readRoleIds(rSeat['del-roles'], 'r-seat.del-roles');
+      if (!roles) {
+        return null;
+      }
       return {
         type: 'removeGroupMembersFromRole',
         ships,
-        roles: rSeat['del-roles'],
+        roles,
         groupId,
       };
     }
@@ -1649,7 +1678,7 @@ export const toV1GroupsUpdate = (
     return {
       type: 'updateSectionOrder',
       groupId,
-      sectionIds: event['section-order'].order,
+      sectionIds: event['section-order']['section-order'],
     };
   }
 
@@ -1696,8 +1725,8 @@ const extractFlaggedPosts = (
   return flaggedPosts;
 };
 
-export function toClientGroupsV7(
-  groups: Record<string, ub.GroupV7>,
+export function toClientGroups(
+  groups: Record<string, ub.GroupV11>,
   isJoined: boolean,
   currentUserId = getCurrentUserId()
 ) {
@@ -1705,13 +1734,13 @@ export function toClientGroupsV7(
     return [];
   }
   return Object.entries(groups).map(([id, group]) => {
-    return toClientGroupV7(id, group, isJoined, currentUserId);
+    return toClientGroup(id, group, isJoined, currentUserId);
   });
 }
 
-export function toClientGroupV7(
+export function toClientGroup(
   id: string,
-  group: ub.GroupV7,
+  group: ub.GroupV11,
   isJoined: boolean,
   currentUserId = getCurrentUserId()
 ): db.Group {
@@ -1810,6 +1839,12 @@ export function toClientGroupV7(
     roles,
     privacy: group.admissions.privacy,
     ...toClientGroupMeta(group.meta),
+    // undefined and null differ downstream: omitting blob leaves a stored
+    // value alone, an explicit null clears it.
+    blob: group.blob,
+    // init and changes truncate seats to ours plus 14 others, so this, not
+    // members.length, is the group's size.
+    ...toClientMemberCount(group['member-count']),
     haveInvite: isJoined ? false : undefined,
     haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,
@@ -1908,6 +1943,7 @@ export function toClientGroupFromForeign(
     haveRequestedInvite: foreign.progress === 'ask',
     joinStatus,
     ...(foreign.preview ? toClientGroupMeta(foreign.preview.meta) : {}),
+    ...toClientMemberCount(foreign.preview?.['member-count']),
   };
 }
 
@@ -1936,6 +1972,29 @@ function getJoinStatusFromForeign(foreign: ub.Foreign): db.Group['joinStatus'] {
     default:
       return undefined;
   }
+}
+
+// Omitted rather than nulled when the payload has no count, so writing a group
+// from such a payload leaves a stored count alone.
+function toClientMemberCount(count: number | undefined) {
+  return count === undefined ? {} : { memberCount: count };
+}
+
+// Init and changes truncate seats to ours plus 14 others, and through desk
+// 12.3.1 they counted the truncated seats, so every group of 15 or more
+// reported exactly this.
+const TRUNCATED_SEAT_COUNT = 15;
+
+/**
+ * Drops an init or changes member count that may be the truncated seat count,
+ * leaving the stored count alone. A count below it is exact, and only a desk
+ * that counts every seat sends one above it. Such a desk is trusted at 15 too,
+ * since a group can shrink to exactly that.
+ */
+export function withoutTruncatedMemberCount(group: db.Group): db.Group {
+  return !getDeskCountsAllSeats() && group.memberCount === TRUNCATED_SEAT_COUNT
+    ? { ...group, memberCount: undefined }
+    : group;
 }
 
 function toClientGroupMeta(meta: ub.GroupMeta) {
@@ -2078,21 +2137,13 @@ function omitEmpty(val: string) {
 }
 
 export const joinGroup = async (id: string) =>
-  poke({
-    app: 'groups',
-    mark: 'group-join',
-    json: {
-      flag: id,
-      'join-all': true,
-    },
+  pokeRequest(groups.join)({
+    flag: id,
+    'join-all': true,
   });
 
 export const rejectGroupInvitation = async (id: string) =>
-  poke({
-    app: 'groups',
-    mark: 'invite-decline',
-    json: id,
-  });
+  pokeRequest(groups.inviteDecline)(id);
 
 export type GroupsUpdate =
   | { type: 'unknown' }

@@ -55,7 +55,9 @@ function baseInput(
 function cacheFile(
   ship: string,
   url = `https://${ship}.tlon.network`,
-  cookie = `urbauth-~${ship}=0v-cache`
+  // The cookie names the ship it authenticates as, sigless — cache reads
+  // validate it against the entry's ship.
+  cookie = `urbauth-~${ship.replace(/^~/, '')}=0v-cache`
 ) {
   return json({ url, ship, cookie, cachedAt: 1 });
 }
@@ -162,6 +164,39 @@ describe('credential resolver', () => {
         cli: { kind: 'ship', ship: '~zod' },
       })
     ).toThrow('Invalid config');
+  });
+
+  it('rejects a forced ship when the config file ship does not match it', () => {
+    const files = {
+      [path.join(SKILL_DIR, 'ships', 'zod.json')]: json({
+        url: 'https://zod.tlon.network',
+        ship: '~bus',
+        code: 'code',
+      }),
+    };
+
+    expect(() =>
+      resolveCredentials({
+        ...baseInput(files, { TLON_SKILL_DIR: SKILL_DIR }),
+        cli: { kind: 'ship', ship: '~zod' },
+      })
+    ).toThrow('ship ~bus does not match requested ship ~zod');
+  });
+
+  it('rejects a forced ship when the cookie authenticates a different ship', () => {
+    const files = {
+      [path.join(SKILL_DIR, 'ships', 'zod.json')]: json({
+        url: 'https://zod.tlon.network',
+        cookie: 'urbauth-~bus=0v-cookie',
+      }),
+    };
+
+    expect(() =>
+      resolveCredentials({
+        ...baseInput(files, { TLON_SKILL_DIR: SKILL_DIR }),
+        cli: { kind: 'ship', ship: '~zod' },
+      })
+    ).toThrow('ship ~bus does not match requested ship ~zod');
   });
 
   it('preserves URBIT_* alias precedence while allowing mixed aliases for cookie auth', () => {
@@ -567,6 +602,47 @@ describe('credential resolver', () => {
         'https://new.tlon.network'
       )
     ).toThrow('stored URL');
+  });
+
+  // The read-side counterpart to the post-auth identity check: without this a
+  // cache file could serve one ship's cookie under another ship's name, which
+  // a later `--ship <that name>` would load and act on.
+  it('fails targeted cache lookup when the cookie names a different ship', () => {
+    expect(() =>
+      readCachedEntryForShip(
+        CACHE_DIR,
+        '~zod',
+        memoryFs({
+          [getCachePath(CACHE_DIR, 'zod')]: cacheFile(
+            'zod',
+            'https://zod.tlon.network',
+            'urbauth-~bus=0v-other'
+          ),
+        })
+      )
+    ).toThrow('cookie ship ~bus does not match stored ship ~zod');
+
+    expect(() =>
+      readCachedEntryForShip(
+        CACHE_DIR,
+        '~zod',
+        memoryFs({
+          [getCachePath(CACHE_DIR, 'zod')]: cacheFile(
+            'zod',
+            'https://zod.tlon.network',
+            'not-a-cookie'
+          ),
+        })
+      )
+    ).toThrow('cookie ship ~unknown does not match stored ship ~zod');
+
+    expect(
+      readCachedEntryForShip(
+        CACHE_DIR,
+        '~zod',
+        memoryFs({ [getCachePath(CACHE_DIR, 'zod')]: cacheFile('zod') })
+      )?.ship
+    ).toBe('zod');
   });
 
   it('auto-selects exactly one cached ship and errors on multiple or duplicate cached ships', () => {

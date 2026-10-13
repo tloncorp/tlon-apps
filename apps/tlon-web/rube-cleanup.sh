@@ -95,9 +95,9 @@ echo ""
 
 # Kill processes on known e2e ports
 # Web server ports
-WEB_PORTS="3000 3001 3002 3003"
+WEB_PORTS="3000 3001 3002 3003 3004"
 # Urbit HTTP ports
-URBIT_PORTS="35453 36963 38473 39983"
+URBIT_PORTS="35453 36963 38473 39983 41493"
 # Urbit loopback ports (from shipManifest)
 LOOPBACK_PORTS="34543 36053 37563 39073"
 
@@ -178,7 +178,7 @@ echo "🔍 Step 6: Final verification..."
 echo ""
 
 # Check if any processes are still running on e2e ports
-REMAINING=$(lsof -ti:3000,3001,3002,35453,36963,38473 2>/dev/null || true)
+REMAINING=$(lsof -ti:3000,3001,3002,3003,3004,35453,36963,38473,39983,41493 2>/dev/null || true)
 if [ -n "$REMAINING" ]; then
     echo -e "${RED}⚠️  Warning: Some processes may still be running:${NC}"
     echo "$REMAINING"

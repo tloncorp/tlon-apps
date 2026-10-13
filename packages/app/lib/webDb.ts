@@ -1,3 +1,4 @@
+import { AnalyticsEvent, AnalyticsSeverity } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/db';
 import { schema, setClient, sqliteContent } from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
@@ -21,10 +22,102 @@ const ENABLE_DB_FILE_LOAD = IS_SECURE_CONTEXT;
 const ENABLE_DB_FILE_SAVE = IS_SECURE_CONTEXT;
 const MIN_FREE_BYTES_BEFORE_VACUUM = 4 * 1024 * 1024;
 const MIN_FREE_RATIO_BEFORE_VACUUM = 0.25;
+const SQLITE_WASM_BASENAME = /^sqlite3-[A-Za-z0-9_-]+\.wasm$/;
+
+/** Stage of `setupDb` in progress, reported when setup fails. */
+type SetupPhase =
+  | 'connect'
+  | 'load-persisted'
+  | 'reset-sync-state'
+  | 'configure'
+  | 'register-client'
+  | 'read-db-info';
 
 type WebDbOptions = {
   enableStoragePersistence?: boolean;
 };
+
+type WasmResourceDiagnostics = {
+  file: string;
+  responseStatus: number | undefined;
+  transferSize: number;
+  encodedBodySize: number;
+  duration: number;
+  startedAfterSetupMs: number;
+};
+
+function readNow(): number | null {
+  try {
+    return typeof performance === 'undefined' ? null : performance.now();
+  } catch {
+    return null;
+  }
+}
+
+// The sqlite WASM fetch fails inside SQLocal, out of reach of our catch, so its
+// resource timing is the only trace of it we can attach to the setup failure.
+// Only a validated basename is reported, never a URL.
+function findWasmResource(
+  setupStartedAt: number | null
+): WasmResourceDiagnostics | null {
+  if (setupStartedAt == null) {
+    return null;
+  }
+  try {
+    if (typeof performance === 'undefined' || typeof location === 'undefined') {
+      return null;
+    }
+    let match: { entry: PerformanceResourceTiming; file: string } | null = null;
+    for (const entry of performance.getEntriesByType(
+      'resource'
+    ) as PerformanceResourceTiming[]) {
+      if (entry.startTime < setupStartedAt) {
+        continue;
+      }
+      if (match && entry.startTime < match.entry.startTime) {
+        continue;
+      }
+      const url = new URL(entry.name);
+      const file = url.pathname.split('/').pop() ?? '';
+      if (url.origin === location.origin && SQLITE_WASM_BASENAME.test(file)) {
+        match = { entry, file };
+      }
+    }
+    if (!match) {
+      return null;
+    }
+    const { entry, file } = match;
+    return {
+      file,
+      responseStatus: entry.responseStatus,
+      transferSize: entry.transferSize,
+      encodedBodySize: entry.encodedBodySize,
+      duration: entry.duration,
+      startedAfterSetupMs: entry.startTime - setupStartedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readSwControlled(): boolean | undefined {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.serviceWorker) {
+      return undefined;
+    }
+    return Boolean(navigator.serviceWorker.controller);
+  } catch {
+    return undefined;
+  }
+}
+
+function readOnline(): boolean | undefined {
+  try {
+    return typeof navigator === 'undefined' ? undefined : navigator.onLine;
+  } catch {
+    return undefined;
+  }
+}
 
 // crypto.randomUUID() is only available in secure contexts. Polyfill it
 // for plain HTTP so that SQLocal (which uses it internally) can function.
@@ -52,22 +145,40 @@ export class WebDb extends BaseDb {
       logger.warn('setupDb called multiple times, ignoring');
       return;
     }
+    // Setup spans a worker handshake, an OPFS read and a batch of pragmas, and
+    // the resulting error rarely says which one gave out. Tracking the phase is
+    // what makes the reported failure diagnosable.
+    let phase: SetupPhase = 'connect';
+    const setupStartedAt = readNow();
+    // Whether the shared client ever got registered decides whether the rest of
+    // the session has a database at all, so report it outright.
+    let clientRegistered = false;
     try {
       // Await the onConnect callback to ensure the WASM driver is fully
       // initialized before sending any queries. In non-worker mode (used for
       // :memory: databases), SQLocal's processor.postMessage is async and
       // queries can race ahead of initialization without this.
       const sqlocal = await new Promise<SQLocalDrizzle>((resolve, reject) => {
+        let abandoned = false;
         const instance = new SQLocalDrizzle({
           databasePath: ':memory:',
           verbose: false,
           onConnect: () => {
+            if (abandoned) {
+              // Connected after we gave up; the retry owns the database now.
+              // Once connected, destroy() settles and touches only this instance.
+              instance.destroy().catch(() => undefined);
+              return;
+            }
             clearTimeout(timeout);
             resolve(instance);
           },
         });
         const timeout = setTimeout(() => {
-          instance.destroy();
+          // No destroy() here: on an instance that never connected it never
+          // settles and holds SQLocal's origin-wide mutation lock, which wedges
+          // the retry's overwriteDatabaseFile and every later query.
+          abandoned = true;
           reject(new Error('SQLocal init timed out'));
         }, 15000);
       });
@@ -75,6 +186,7 @@ export class WebDb extends BaseDb {
 
       const { driver } = sqlocal;
       this.client = drizzle(driver, { schema });
+      phase = 'load-persisted';
 
       // Immediately try to load DB from persisted file.
       // If successful, this will `overwriteDatabaseFile` which will reset the
@@ -115,6 +227,7 @@ export class WebDb extends BaseDb {
       // tracked in localStorage about "what has been synced" is meaningless.
       // Reset the sync markers so the initial sync hydrates the new DB.
       if (!loadedFromFile && this.enableStoragePersistence) {
+        phase = 'reset-sync-state';
         await resetDbSyncState();
       }
 
@@ -154,6 +267,7 @@ export class WebDb extends BaseDb {
 
       // Experimental SQLite settings. May cause crashes. More here:
       // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
+      phase = 'configure';
       await this.sqlocal.sql('PRAGMA mmap_size=268435456');
       // await this.sqlocal.sql('PRAGMA journal_mode=MEMORY');
       await this.sqlocal.sql('PRAGMA synchronous=OFF');
@@ -163,12 +277,37 @@ export class WebDb extends BaseDb {
         this.enqueueProcessChanges();
       });
 
+      phase = 'register-client';
       setClient(this.client);
+      clientRegistered = true;
 
+      phase = 'read-db-info';
       const dbInfo = await this.sqlocal.getDatabaseInfo();
       logger.log('SQLite database opened:', dbInfo);
     } catch (e) {
-      logger.error('Failed to setup SQLite db', e);
+      // `logger.error` only records a breadcrumb, so this failure never reached
+      // Sentry — the only visible trace was thousands of downstream
+      // `Database not set.` reports with no sign of what actually broke.
+      logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
+        context: 'setupDb: failed to set up SQLite db',
+        phase,
+        clientRegistered,
+        storagePersistenceEnabled: this.enableStoragePersistence,
+        secureContext: IS_SECURE_CONTEXT,
+        error: e,
+        errorMessage: e.message,
+        wasmResource: findWasmResource(setupStartedAt),
+        swControlled: readSwControlled(),
+        online: readOnline(),
+        severity: AnalyticsSeverity.Critical,
+      });
+      // An instance without a registered client is useless, and leaving it set
+      // would make runMigrations' retry hit the re-entry guard above.
+      if (!clientRegistered) {
+        await this.sqlocal?.destroy().catch(() => undefined);
+        this.sqlocal = null;
+        this.client = null;
+      }
     }
   }
 
@@ -314,8 +453,20 @@ export class WebDb extends BaseDb {
 
   async runMigrations() {
     if (!this.client || !this.sqlocal) {
-      logger.warn('runMigrations called before setupDb, ignoring');
-      return;
+      // A failed setup leaves both unset, so setupDb's re-entry guard lets this
+      // retry through.
+      await this.setupDb();
+    }
+    if (!this.client || !this.sqlocal) {
+      logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
+        context: 'runMigrations: called without a database',
+        hasClient: this.client != null,
+        hasSqlocal: this.sqlocal != null,
+        severity: AnalyticsSeverity.Critical,
+      });
+      // Throwing fails MigrationCheck into the root error boundary; returning
+      // would let sync and subscriptions start against a missing database.
+      throw new Error('runMigrations: no database after retrying setupDb');
     }
 
     try {

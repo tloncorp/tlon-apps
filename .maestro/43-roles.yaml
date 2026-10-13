@@ -3,7 +3,7 @@ appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/tlon-login.yaml
-- assertVisible: 'Home'
+- assertVisible: 'Workspaces'
 # Tap on the "+" button
 - tapOn:
     id: 'CreateGroupButton'
@@ -19,12 +19,12 @@ appId: io.tlon.groups
       visible: 'Untitled group'
     commands:
       - assertVisible: 'Welcome to your group!'
-# Navigate back to Home and assert that the group is created
+# Navigate back to the Workspaces list and assert that the group is created
 - tapOn:
     id: 'HeaderBackButton'
 - runFlow:
     when:
-      visible: 'Home'
+      visible: 'Workspaces'
     commands:
       - assertVisible: 'Untitled group'
       - tapOn: 'Untitled group'
@@ -193,9 +193,9 @@ appId: io.tlon.groups
       - tapOn: 'Delete group'
 - runFlow:
     when:
-      visible: 'Home'
+      visible: 'Workspaces'
     commands:
-      - assertVisible: 'Home'
+      - assertVisible: 'Workspaces'
       - assertNotVisible: 'Untitled group'
 # Log out
 - tapOn:

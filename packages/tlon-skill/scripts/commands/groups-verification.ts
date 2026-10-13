@@ -9,12 +9,13 @@
 
 /**
  * Narrow view of the `/v2/ui/groups/{id}` scry response — only the fields the
- * admin-verification flows read. A subset of `@tloncorp/api`'s `GroupV7`.
+ * admin-verification flows read. A subset of `@tloncorp/api`'s `GroupV11`.
  */
 export type RawGroupForAdminVerification = {
   admins?: string[];
   seats?: Record<string, { roles?: string[] }>;
   admissions?: {
+    privacy?: string;
     banned?: { ships?: string[] };
     pending?: Record<string, string[]>;
     invited?: Record<string, unknown>;

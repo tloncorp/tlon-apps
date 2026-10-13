@@ -239,12 +239,12 @@ export function resolveTlonAccount(
   const url = (account?.url ?? base.url ?? null) as string | null;
   const code = (account?.code ?? base.code ?? null) as string | null;
   const moon = (account?.moon ?? base.moon ?? null) as string | null;
-  const moonNickname = (account?.moonNickname ??
-    base.moonNickname ??
-    null) as string | null;
-  const moonAvatar = (account?.moonAvatar ??
-    base.moonAvatar ??
-    null) as string | null;
+  const moonNickname = (account?.moonNickname ?? base.moonNickname ?? null) as
+    | string
+    | null;
+  const moonAvatar = (account?.moonAvatar ?? base.moonAvatar ?? null) as
+    | string
+    | null;
   const accountNetwork = (
     account as { network?: { dangerouslyAllowPrivateNetwork?: boolean } }
   )?.network;

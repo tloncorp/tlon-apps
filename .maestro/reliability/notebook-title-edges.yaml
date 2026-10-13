@@ -1,0 +1,149 @@
+appId: ${MAESTRO_APP_ID}
+name: Native Notebook title edge cases
+tags: [regression]
+env:
+  JOURNEY: notebooktitles
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Edit channels$'
+- assertVisible: '^Channels$'
+- tapOn: '^New$'
+- tapOn: '^New channel$'
+- assertVisible: '^Create a new channel$'
+- tapOn: '^Collaborative markdown notebooks$'
+- tapOn:
+    id: ChannelTitleInput
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.channel}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+      - scroll
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- tapOn: '^Create channel$'
+- extendedWaitUntil:
+    visible: ${output.reliability.channel}
+    timeout: 15000
+- tapOn: '^Back$'
+- tapOn: ${output.reliability.channel}
+- extendedWaitUntil:
+    visible: '^No notes or folders$'
+    timeout: 15000
+
+# A blank note title has a stable fallback without losing body content.
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewNoteAction
+- extendedWaitUntil:
+    visible:
+      id: NotesTitleInput
+    timeout: 15000
+- tapOn:
+    id: NotesBodyInput
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.noteTitleEdgeBody}
+- tapOn:
+    id: NotesPreviewToggle
+- extendedWaitUntil:
+    visible: '^Synced$'
+    timeout: 15000
+- assertVisible:
+    id: NotesTitleDisplay
+    text: '^Untitled$'
+- assertVisible: ${output.reliability.noteTitleEdgeBody}
+
+# Surrounding whitespace is trimmed in storage while the exact body survives.
+- tapOn:
+    id: NotesPreviewToggle
+- tapOn:
+    id: NotesTitleInput
+- setClipboard: ${output.reliability.noteSpacedTitle}
+- pasteText
+- tapOn:
+    id: NotesPreviewToggle
+- extendedWaitUntil:
+    visible: '^Synced$'
+    timeout: 15000
+- stopApp
+- launchApp
+- runFlow: subflows/workspaces-tab.yaml
+- tapOn: ${output.reliability.groupPattern}
+- tapOn: ${output.reliability.channel}
+- extendedWaitUntil:
+    visible: ${output.reliability.noteTrimmedTitle}
+    timeout: 15000
+- tapOn: ${output.reliability.noteTrimmedTitle}
+- assertVisible:
+    id: NotesTitleDisplay
+    text: ${output.reliability.noteTrimmedTitle}
+- assertVisible: ${output.reliability.noteTitleEdgeBody}
+- tapOn:
+    id: NotesPreviewToggle
+- extendedWaitUntil:
+    visible:
+      id: NotesTitleInput
+    timeout: 15000
+- copyTextFrom:
+    id: NotesTitleInput
+- assertTrue: ${maestro.copiedText === output.reliability.noteTrimmedTitle}
+- copyTextFrom:
+    id: NotesBodyInput
+- assertTrue: ${maestro.copiedText === output.reliability.noteTitleEdgeBody}
+
+# A long title remains usable in the editor, Notebook row, and action sheet.
+- tapOn:
+    id: NotesTitleInput
+- eraseText: 1000
+- setClipboard: ${output.reliability.noteLongTitle}
+- pasteText
+- tapOn:
+    id: NotesPreviewToggle
+- extendedWaitUntil:
+    visible: '^Synced$'
+    timeout: 15000
+- assertVisible:
+    id: NotesTitleDisplay
+    text: ${output.reliability.noteLongTitlePattern}
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.noteLongTitlePattern}
+- longPressOn: ${output.reliability.noteLongTitlePattern}
+- assertVisible: ${output.reliability.noteLongTitlePattern}
+- tapOn: '^Rename note$'
+- copyTextFrom:
+    id: NotesTitleInput
+- assertTrue: ${maestro.copiedText === output.reliability.noteLongTitle}
+
+# Relaunch once more to prove the long title and original body are durable.
+- stopApp
+- launchApp
+- runFlow: subflows/workspaces-tab.yaml
+- tapOn: ${output.reliability.groupPattern}
+- tapOn: ${output.reliability.channel}
+- extendedWaitUntil:
+    visible: ${output.reliability.noteLongTitlePattern}
+    timeout: 15000
+- tapOn: ${output.reliability.noteLongTitlePattern}
+- assertVisible:
+    id: NotesTitleDisplay
+    text: ${output.reliability.noteLongTitlePattern}
+- assertVisible: ${output.reliability.noteTitleEdgeBody}
+
+# Delete only this run's fixture group.
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml

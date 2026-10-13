@@ -107,8 +107,7 @@ function isValidImageSource(source: any) {
   } catch (e) {
     logger.trackError('Failed to validate image source', {
       source,
-      errorMessage: e.message,
-      errorStack: e.stack,
+      error: e,
     });
   }
   return false;

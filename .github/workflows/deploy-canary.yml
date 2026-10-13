@@ -1,5 +1,9 @@
 name: Deploy Groups (canary)
 on:
+  # Called by staging.yml once the N-1 desk E2E passes. The caller's push
+  # event carries no inputs, so `tag` falls back to `staging` and the
+  # frontend is built, as on the old push trigger.
+  workflow_call:
   workflow_dispatch:
     inputs:
       backend-only:
@@ -12,9 +16,6 @@ on:
         required: false
         description: Enter the tag to deploy
         default: staging
-  push:
-    branches:
-      - "staging"
 env:
   tag: ${{ github.event.inputs.tag || 'staging' }}
 jobs:
@@ -53,6 +54,7 @@ jobs:
       VITE_POST_HOG_API_KEY: ${{ secrets.VITE_POST_HOG_API_KEY}}
       VITE_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY}}
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      VITE_SENTRY_ENVIRONMENT: canary
       VITE_GIT_HASH: ${{ github.sha }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}

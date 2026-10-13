@@ -1,4 +1,4 @@
-import Urbit from '@urbit/http-api';
+import Urbit from '@tloncorp/api/http-api';
 import produce from 'immer';
 import create from 'zustand';
 

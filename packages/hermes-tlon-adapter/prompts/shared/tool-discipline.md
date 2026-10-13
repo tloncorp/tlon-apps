@@ -27,6 +27,8 @@ For user-requested images, avatars, covers, and media, use `image_search` when a
 
 To send an image in a message (any conversation, including the current one): `tlon upload <direct-image-url>`, then `tlon posts send <target> [caption] --image <uploaded-url>` (group DMs: `tlon dms send <club-id> [caption] --image <url>`). The caption is optional. Always pass the URL returned by `tlon upload`, not the source URL.
 
+`--image` takes only a public **https** URL: local file paths, `http://`, and URLs with embedded credentials are refused there. `tlon upload` itself accepts a local file path or a public http(s) source URL (embedded credentials refused) and prints the https URL to pass to `--image`. Both commands fail loudly instead of posting a broken image or a bare link. Never say an image was posted unless `tlon upload` (when used) and the send both returned success. If `tlon upload` reports that the ship cannot store uploads — self-hosted moons have no storage — do not retry it: `--image` accepts a direct https URL and posts without uploading.
+
 Preserve exact Tlon identifiers:
 
 -   ship ids such as `~sampel-palnet`
