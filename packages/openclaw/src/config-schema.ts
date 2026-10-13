@@ -129,10 +129,16 @@ export const TlonAccountSchema = z.object({
   contextLens: TlonContextLensSchema.optional(),
   // Owner-listen: in channels hosted by the owner or the bot itself, engage
   // on owner messages without requiring an @-mention. Default: enabled.
+  // Off makes the owner mention-only in every watched channel (threads and
+  // attachments included); bare owner slash commands still work in chat/
+  // channels, and /owner-listen in any owner- or bot-hosted channel.
   ownerListenEnabled: z.boolean().optional(),
   // Channels (chat/heap/diary nests) opted out of owner-listen even when the
   // global toggle is on. Owner messages in these channels still require an
-  // @-mention to engage the bot.
+  // @-mention to engage the bot — including replies in threads the bot has
+  // already joined and posts carrying an attachment; the owner's bare slash
+  // commands still work in chat/ channels, and /owner-listen in owner- or
+  // bot-hosted ones.
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
 });
 
@@ -176,10 +182,16 @@ export const TlonConfigSchema = z.object({
   nudgeActiveHours: TlonNudgeActiveHoursSchema.optional(),
   // Owner-listen: in channels hosted by the owner or the bot itself, engage
   // on owner messages without requiring an @-mention. Default: enabled.
+  // Off makes the owner mention-only in every watched channel (threads and
+  // attachments included); bare owner slash commands still work in chat/
+  // channels, and /owner-listen in any owner- or bot-hosted channel.
   ownerListenEnabled: z.boolean().optional(),
   // Channels (chat/heap/diary nests) opted out of owner-listen even when the
   // global toggle is on. Owner messages in these channels still require an
-  // @-mention to engage the bot.
+  // @-mention to engage the bot — including replies in threads the bot has
+  // already joined and posts carrying an attachment; the owner's bare slash
+  // commands still work in chat/ channels, and /owner-listen in owner- or
+  // bot-hosted ones.
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
 });
 

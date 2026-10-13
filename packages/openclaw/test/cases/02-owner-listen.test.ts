@@ -2,7 +2,7 @@ import type { Story } from '@tloncorp/api';
 
 /**
  * Owner-listen — plugin's toggle that decides whether the bot responds to
- * the owner's plain (non-mention, non-thread) channel messages.
+ * the owner's plain (non-mention) channel messages.
  *
  * Logic lives in src/monitor/utils.ts (shouldEngageInGroup) and is gated
  * by two settings persisted on the bot ship under moltbot/tlon/:
@@ -20,10 +20,14 @@ import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 
 import {
   type TestFixtures,
+  getContainerLogsSince,
   getFixtures,
+  getGatewayRestartPreflight,
+  registerEngagingTurn,
   requireFixtureGroup,
   waitFor,
 } from '../lib/index.js';
+import { extractPostText } from '../lib/post-baseline.js';
 import { fakeModel } from '../support/fake-model/client.js';
 
 function sleep(ms: number): Promise<void> {
@@ -271,6 +275,199 @@ describe('owner-listen', () => {
       const calls = await fakeModel.received(key);
       expect(calls.length).toBeGreaterThan(0);
     });
+  });
+
+  // ── participated threads (TLON-6818) ───────────────────────────────────
+
+  describe('participated threads', () => {
+    // Owner-authored posts are located by text token; the parent is never
+    // [tlon-test:]-tagged so thread history cannot misroute a later key.
+    async function findOwnerPost(nest: string, token: string): Promise<string> {
+      return waitFor(async () => {
+        const posts = (await fixtures.botState.channelPosts(
+          nest,
+          30
+        )) as Array<{ id?: string; authorId?: string; content?: unknown }>;
+        const match = posts.find(
+          (p) =>
+            p.authorId === fixtures.userShip &&
+            extractPostText(p).includes(token)
+        );
+        return match?.id ? String(match.id) : undefined;
+      }, 15_000);
+    }
+
+    function requireComposeFile(): string {
+      const composeFile = process.env.TEST_COMPOSE_FILE ?? '';
+      if (!composeFile) {
+        throw new Error('TEST_COMPOSE_FILE is required for container logs');
+      }
+      return composeFile;
+    }
+
+    // The plugin adds a thread to participatedThreads only after the bot's
+    // reply is sent, then logs this line (once per delivery to that thread).
+    // Waiting on it (rather than on the reply being visible) guarantees the
+    // negative step below is not vacuous.
+    function countThreadTracked(parentId: string, sinceIso: string): number {
+      // The API hands back dotted @ud ids; the plugin logs them undotted.
+      const marker = `[tlon] Now tracking thread for future replies: ${parentId.replace(/\./g, '')}`;
+      const logs = getContainerLogsSince(requireComposeFile(), sinceIso);
+      return logs.split(marker).length - 1;
+    }
+
+    async function waitForThreadTracked(
+      parentId: string,
+      sinceIso: string,
+      moreThan: number
+    ): Promise<void> {
+      await waitFor(async () => {
+        return countThreadTracked(parentId, sinceIso) > moreThan
+          ? true
+          : undefined;
+      }, 60_000);
+    }
+
+    // Same idle wait as 07-blobs: an engaging turn's trailing model call can
+    // still be running when its assertion returns, and resetting the fake
+    // model under it (next beforeEach) recreates the 400 error path.
+    async function waitForRuntimeIdle(): Promise<void> {
+      const composeFile = process.env.TEST_COMPOSE_FILE ?? '';
+      if (composeFile) {
+        const deadline = Date.now() + 15_000;
+        let preflight = getGatewayRestartPreflight(composeFile, 10_000);
+        while (preflight.counts.totalActive > 0 && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          preflight = getGatewayRestartPreflight(composeFile, 10_000);
+        }
+        if (preflight.counts.totalActive > 0) {
+          throw new Error(
+            `Runtime not idle: ${JSON.stringify(preflight.counts)} ` +
+              `(${preflight.summary})`
+          );
+        }
+      }
+    }
+
+    async function expectNoModelCall(key: string): Promise<void> {
+      await sleep(NEGATIVE_SETTLE_MS);
+      expect(await fakeModel.received(key)).toHaveLength(0);
+    }
+
+    async function expectModelCall(key: string): Promise<void> {
+      await waitFor(async () => {
+        const calls = await fakeModel.received(key);
+        return calls.length > 0 ? true : undefined;
+      }, 30_000);
+    }
+
+    async function runScenario(opts: {
+      mode: string;
+      mute: (chat: string) => Promise<void>;
+      reenableCommand: string;
+    }): Promise<void> {
+      requireFixtureGroup(fixtures);
+      const chat = fixtures.group.chatChannel;
+      const run = `${opts.mode}-${Date.now().toString(36)}`;
+      const sinceIso = new Date(Date.now() - 5_000).toISOString();
+      const reply = (content: Story, parentId: string) =>
+        fixtures.userState.sendReply({
+          channelId: chat,
+          parentId,
+          parentAuthor: fixtures.userShip,
+          content,
+        });
+
+      // 1. Mute first so the parent post does not engage.
+      await opts.mute(chat);
+
+      // 2. Plain top-level parent.
+      const parentToken = `ol-thread-parent-${run}`;
+      await fixtures.userState.sendPost({
+        channelId: chat,
+        content: story(`thread parent ${parentToken}`),
+      });
+      const parentId = await findOwnerPost(chat, parentToken);
+
+      // 3. Mentioned thread reply: mention beats mute, the bot replies in the
+      //    thread and joins it.
+      const joinTag = await registerEngagingTurn(`ol-thread-join-${run}`);
+      await reply(
+        storyWithMention(fixtures.botShip, `${joinTag} join this thread`),
+        parentId
+      );
+      await waitForThreadTracked(parentId, sinceIso, 0);
+
+      // 4. Regression: unmentioned owner reply in the joined thread is muted.
+      const threadKey = `ol-thread-muted-${run}`;
+      await reply(
+        story(`[tlon-test:${threadKey}] unmentioned reply`),
+        parentId
+      );
+      await expectNoModelCall(threadKey);
+
+      // 5. Unmentioned top-level post is muted.
+      const topKey = `ol-thread-top-${run}`;
+      await fixtures.userState.sendPost({
+        channelId: chat,
+        content: story(`[tlon-test:${topKey}] unmentioned top-level post`),
+      });
+      await expectNoModelCall(topKey);
+
+      // 6. Mention escape hatch inside the thread; wait for delivery so no
+      //    run is in flight during later steps. The join turn's allowed extra
+      //    model call can deliver a second reply to this thread, so snapshot
+      //    the tracking count once the runtime is idle and wait past it.
+      await waitForRuntimeIdle();
+      const trackedBefore = countThreadTracked(parentId, sinceIso);
+      const mentionKey = `ol-thread-mention-${run}`;
+      const mentionTag = await registerEngagingTurn(mentionKey);
+      await reply(
+        storyWithMention(fixtures.botShip, `${mentionTag} mentioned reply`),
+        parentId
+      );
+      await expectModelCall(mentionKey);
+      await waitForThreadTracked(parentId, sinceIso, trackedBefore);
+
+      // 7. Command escape hatch from the muted channel.
+      await fixtures.userState.sendPost({
+        channelId: chat,
+        content: story(opts.reenableCommand),
+      });
+      await waitFor(async () => {
+        const state = await getOwnerListenState();
+        return state.enabled === true && state.disabled.length === 0
+          ? true
+          : undefined;
+      }, 15_000);
+      await sleep(PLUGIN_INGEST_HEADROOM_MS);
+
+      // 8. Listening restored: the unmentioned thread reply engages again.
+      const afterKey = `ol-thread-after-${run}`;
+      const afterTag = await registerEngagingTurn(afterKey);
+      await reply(
+        story(`${afterTag} unmentioned reply after re-enable`),
+        parentId
+      );
+      await expectModelCall(afterKey);
+      await waitForRuntimeIdle();
+    }
+
+    test('per-channel mute silences owner replies in a joined thread', async () => {
+      await runScenario({
+        mode: 'channel',
+        mute: (chat) => setOwnerListenDisabledChannels([chat]),
+        reenableCommand: '/owner-listen on',
+      });
+    }, 180_000);
+
+    test('global owner-listen off silences owner replies in a joined thread', async () => {
+      await runScenario({
+        mode: 'global',
+        mute: () => setOwnerListenEnabled(false),
+        reenableCommand: '/owner-listen all on',
+      });
+    }, 180_000);
   });
 
   // ── slash command (handled inline by plugin, no model call) ────────────

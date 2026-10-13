@@ -278,7 +278,8 @@ Two things to be clear about when someone asks. Blocking is not the same as remo
 Bot behavior:
 
 - `/owner-listen all on|off` — the global switch for whether it responds to you without a direct mention. This is the form to use in a DM.  
-- `/owner-listen on|off <channel-nest>` — same thing for one owned channel. Without a channel, these do nothing but print usage.  
+- `/owner-listen on|off <channel-nest>` — same thing for one owned channel. Sent inside a channel without a nest, they apply to that channel; from a DM without a channel, they only print usage.  
+- Muting makes the bot mention-only for you in that channel, including threads it has already joined; an `@mention` still gets through, as do bare slash commands in chat channels and `/owner-listen` in any channel you or the bot host. Global off does the same everywhere.  
 - `/owner-listen list` — show the global setting and every muted channel. Safe from a DM.  
 - `/owner-listen status <channel-nest>` — the setting for one channel. Like on/off, it needs a channel; bare `status` in a DM only prints usage. `/owner-listen all` on its own gives the global answer.  
 - Some bots go further here — any channel they watch rather than only ones you host, a whole group at once, or `/owner-listen default all` to make listening the default everywhere. Worth suggesting if someone wants broader coverage than the forms above give them.  
