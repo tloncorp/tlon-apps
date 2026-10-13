@@ -26,6 +26,7 @@ import * as fixture19 from './../../packages/app/fixtures/Channel.fixture';
 import * as fixture21 from './../../packages/app/fixtures/ChannelDivider.fixture';
 import * as fixture22 from './../../packages/app/fixtures/ChannelHeader.fixture';
 import * as fixture23 from './../../packages/app/fixtures/ChannelListItem.fixture';
+import * as fixture81 from './../../packages/app/fixtures/ChatDetails.fixture';
 import * as fixture24 from './../../packages/app/fixtures/ChatMessage.fixture';
 import * as fixture25 from './../../packages/app/fixtures/ChatOptionsSheet.fixture';
 import * as fixture26 from './../../packages/app/fixtures/ConfirmDialog.fixture';
@@ -148,6 +149,7 @@ const fixtures = {
   '../../packages/app/fixtures/ChannelListItem.fixture.tsx': {
     module: fixture23,
   },
+  '../../packages/app/fixtures/ChatDetails.fixture.tsx': { module: fixture81 },
   '../../packages/app/fixtures/ChatMessage.fixture.tsx': { module: fixture24 },
   '../../packages/app/fixtures/ChatOptionsSheet.fixture.tsx': {
     module: fixture25,
