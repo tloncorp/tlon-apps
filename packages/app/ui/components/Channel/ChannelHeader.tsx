@@ -25,6 +25,7 @@ import {
   getChannelHost,
   getChannelTypeLabel,
   getGroupMemberCount,
+  useBucketsChannelSubtitle,
   useChatDescription,
   useChatTitle,
 } from '../../utils';
@@ -202,6 +203,7 @@ export function ChannelHeader({
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
   const chatDescription = useChatDescription(channel, group);
+  const bucketsSubtitle = useBucketsChannelSubtitle(channel);
   const currentUserId = useCurrentUserId();
 
   // Get contact info for 1:1 DMs - only fetch when we have a valid contact ID
@@ -294,6 +296,12 @@ export function ChannelHeader({
       return channelType;
     }
 
+    // A Bucket summarizes its files, as its row in the channel list does.
+    // Null until the manifest arrives, which falls through to the rest.
+    if (bucketsSubtitle) {
+      return bucketsSubtitle;
+    }
+
     // For other channel types (notebook, gallery, etc.)
     if (chatDescription && chatDescription.trim()) {
       return chatDescription;
@@ -319,6 +327,7 @@ export function ChannelHeader({
     channelConnectionStatusText,
     channel,
     group,
+    bucketsSubtitle,
     chatDescription,
     chatTitle,
     description,
