@@ -67,7 +67,7 @@ export function ChatDetailsView({
     onLeaveGroup,
     onLeaveChannel,
   } = useChatSettingsNavigation();
-  const { navigation } = useRootNavigation();
+  const { navigation, resetToDm } = useRootNavigation();
   const forwardGroupSheet = useForwardGroupSheet();
   const toast = useToast();
 
@@ -192,7 +192,7 @@ export function ChatDetailsView({
       onTogglePinned={togglePinned}
       onForward={handleForward}
       onCopyGroupId={handleCopyGroupId}
-      onCopyDescription={copyText}
+      onCopyText={copyText}
       onPressPrivacy={() => group && onPressGroupPrivacy(group.id, true)}
       onPressRoles={() => group && onPressRoles(group.id, true)}
       onPressChannels={() => group && onPressManageChannels(group.id, true)}
@@ -202,6 +202,7 @@ export function ChatDetailsView({
         channel?.groupId && onEditChannelPrivacy(channel.id, channel.groupId)
       }
       onPressProfile={handlePressProfile}
+      onMessageContact={resetToDm}
       onPressMember={setSelectedContact}
       onPressAllMembers={
         chatType === 'group' ? onPressGroupMembers : onPressChannelMembers
