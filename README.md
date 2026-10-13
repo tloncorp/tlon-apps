@@ -43,3 +43,15 @@ The TM backend consists of a number of independent components, called agents.
 ### %steward
 
 %steward is the harness-agnostic agent that manages a node's bot. It runs on both the bot's node and its owner's node, and keeps the gateway's liveness, a durable record of each bot turn, the bot's scheduled tasks, and the bot's prompt files. The owner can read all of it locally and edit a bot's tasks and prompts from their own ship. %steward's run record is what drives Context Lens, the Tlon Messenger UI element that allows a user to inspect all of their bot's past activity.
+
+### %notes
+
+%notes provides shared notebooks for groups. The group host stores the notebook, while subscribed members can create, organize, and collaborate on Markdown notes.
+
+### %buckets
+
+%buckets provides shared file storage for groups. It manages file metadata, permissions, and uploads, while file contents are stored directly in object storage owned by the group host.
+
+### %presence
+
+%presence provides short-lived activity indicators across direct messages, groups, and channels, including when someone is typing or a bot is working on a response.
