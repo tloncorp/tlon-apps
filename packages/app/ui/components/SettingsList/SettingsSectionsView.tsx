@@ -139,10 +139,10 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
 
   return (
     <Pressable
-      accessibilityRole={
-        isChoice ? (row.multiple ? 'checkbox' : 'radio') : undefined
-      }
-      accessibilityState={isChoice ? { checked: row.selected } : undefined}
+      // Web attributes: the React Native accessibility props never reach the
+      // DOM through Tamagui.
+      role={isChoice ? (row.multiple ? 'checkbox' : 'radio') : undefined}
+      aria-checked={isChoice ? Boolean(row.selected) : undefined}
       disabled={row.disabled}
       onPress={row.disabled ? undefined : row.onPress}
       onLongPress={row.contextActions?.[0]?.onPress}
