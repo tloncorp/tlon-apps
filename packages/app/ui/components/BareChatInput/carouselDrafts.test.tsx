@@ -40,7 +40,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tloncorp/api', () => ({}));
-vi.mock('@tloncorp/api/urbit', () => ({}));
+vi.mock('@tloncorp/api/urbit', () => ({ getChannelType: () => 'notebook' }));
 vi.mock('@tloncorp/shared', async () => ({
   Attachment: (await import('@tloncorp/api/types/attachment')).Attachment,
   configurationFromChannel: () => ({}),
@@ -220,7 +220,7 @@ vi.mock('../../contexts/channel', () => ({
 vi.mock('../../contexts/navigation', () => ({
   NavigationProvider: ({ children }: React.PropsWithChildren) => children,
 }));
-vi.mock('../BigInput', () => ({}));
+vi.mock('../BigInput', () => ({ BigInput: 'BigInput' }));
 vi.mock('../Channel/ChannelHeader', () => ({
   ChannelHeader: 'ChannelHeader',
   ChannelHeaderItemsProvider: ({ children }: React.PropsWithChildren) =>
@@ -514,6 +514,66 @@ function postScreen() {
     </AttachmentProvider>
   );
 }
+
+test('cancelling a notebook parent edit clears only the edit draft', async () => {
+  const replyDraft = {
+    type: 'doc',
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Unsent reply ' }] },
+    ],
+    referenceAttachments: [reference],
+  };
+  mocks.drafts.set('first', replyDraft);
+  mocks.drafts.set('edit-first', {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'Abandoned edit' }],
+      },
+    ],
+  });
+  function NotebookScreen() {
+    const [editingPost, setEditingPost] = React.useState<Post | undefined>(
+      posts[0]
+    );
+    return (
+      <AttachmentProvider canUpload uploadAsset={uploadAsset}>
+        <PostScreenView
+          channel={{ ...channel, type: 'notebook' }}
+          parentPost={posts[0]}
+          group={null}
+          negotiationMatch
+          editingPost={editingPost}
+          setEditingPost={setEditingPost}
+          onPressDelete={mocks.noop}
+          handleGoToUserProfile={mocks.noop}
+          onGroupAction={mocks.noop}
+          goToDm={mocks.noop}
+        />
+      </AttachmentProvider>
+    );
+  }
+  await act(async () => {
+    renderer = create(<NotebookScreen />, {
+      createNodeMock: () => mocks.input,
+    });
+  });
+  expect(
+    renderer.root.findAllByType('BigInput' as React.ElementType)
+  ).toHaveLength(1);
+  await act(async () => {
+    renderer.root
+      .findByType('ChannelHeader' as React.ElementType)
+      .props.goBack();
+  });
+  expect(mocks.drafts.has('edit-first')).toBe(false);
+  expect(mocks.drafts.get('first')).toEqual(replyDraft);
+  expect(attachmentState(0).attachments).toEqual([reference]);
+  expect(
+    renderer.root.findAllByType('BigInput' as React.ElementType)
+  ).toHaveLength(0);
+});
 
 test.each(mediaAttachments)(
   '$type stays attached across carousel/single layout changes and is sent',

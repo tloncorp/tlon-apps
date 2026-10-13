@@ -319,12 +319,6 @@ function PostScreenViewContent({
     [onGroupAction]
   );
 
-  const draftCallbacks = store.usePostDraftCallbacks(
-    focusedPost == null
-      ? null
-      : { draftKey: store.draftKeyFor.thread({ parentPostId: focusedPost.id }) }
-  );
-
   // Separate draft callbacks for editing the parent post (gallery/notebook).
   // This uses a different key to prevent edit drafts from leaking to
   // BareChatInput, which uses the thread key for reply drafts.
@@ -343,7 +337,7 @@ function PostScreenViewContent({
       if (channel.type !== 'notebook') {
         goBack?.();
       } else {
-        draftCallbacks?.clearDraft();
+        parentEditDraftCallbacks?.clearDraft();
       }
     } else {
       // The post screen owns its attachment provider. Keep its draft intact
@@ -355,7 +349,7 @@ function PostScreenViewContent({
     goBack,
     isEditingParent,
     setEditingPost,
-    draftCallbacks,
+    parentEditDraftCallbacks,
     clearAttachments,
   ]);
 
