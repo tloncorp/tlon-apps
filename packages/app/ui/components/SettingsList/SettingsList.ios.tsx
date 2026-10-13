@@ -42,7 +42,7 @@ import {
   useScrollGeometryChange,
 } from '@expo/ui/swift-ui/modifiers';
 
-import { type ReactElement, useCallback, useRef } from 'react';
+import { type ReactElement, useCallback, useEffect, useRef } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 
 import { useFloatingHeaderHeight } from '../../../navigation/useFloatingHeaderHeight';
@@ -137,7 +137,9 @@ export function SettingsList({ sections, scrollMark }: SettingsListProps) {
  */
 function useScrollMark(mark?: SettingsListScrollMark) {
   const latest = useRef(mark);
-  latest.current = mark;
+  useEffect(() => {
+    latest.current = mark;
+  }, [mark]);
   const restOffset = -useFloatingHeaderHeight();
   const hasRested = useRef(false);
   const isPast = useRef(false);
@@ -149,9 +151,11 @@ function useScrollMark(mark?: SettingsListScrollMark) {
       }
       // The list reports an offset of zero before the bar's inset is applied,
       // which would read as already scrolled.
-      hasRested.current ||= contentOffsetY <= restOffset + 1;
       if (!hasRested.current) {
-        return;
+        if (contentOffsetY > restOffset + 1) {
+          return;
+        }
+        hasRested.current = true;
       }
       const past = contentOffsetY - restOffset > current.offset;
       if (past !== isPast.current) {
