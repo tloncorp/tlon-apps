@@ -92,6 +92,7 @@ function MetaEditorForm({
                 width={chatHeroAvatar.size}
                 height={chatHeroAvatar.size}
                 borderRadius={chatHeroAvatar.radius}
+                membersBackgroundColor="$background"
               />
             ) : channel ? (
               <ListItem.ChannelIcon

@@ -188,6 +188,7 @@ export function ChatDetailsScreenView({
                 width={size}
                 height={size}
                 borderRadius={radius}
+                membersBackgroundColor="$background"
               />
             ) : channel ? (
               <ListItem.ChannelIcon
