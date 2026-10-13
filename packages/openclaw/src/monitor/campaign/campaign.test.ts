@@ -1100,6 +1100,39 @@ describe('ownership tips for an owner without a task', () => {
     );
   });
 
+  it('keeps the opt-out line out of what the model sees and adds it to what is sent', async () => {
+    const personalize = vi.fn(async (draft: TipDraft) =>
+      draft.gated ? 'A reworded ownership tip.' : 'A reworded usual tip.'
+    );
+    // They wrote during setup, so day one was skipped and this is their first tip.
+    const first = harness(
+      state({
+        lastOwnerText: 'I am planning a vegetable garden.',
+        lastReplyAt: enrolledAt + MINUTE,
+        skipped: [{ step: 'useful-request', reason: 'context-changed' }],
+      }),
+      { personalize }
+    );
+    first.advance(DAY);
+    await first.campaign.check();
+    expect(personalize.mock.calls[0][0].text).toBe(TIP_COPY.ownership);
+    expect(first.deps.send).toHaveBeenCalledWith(
+      `A reworded ownership tip.\n\n${TIP_COPY.optOut}`,
+      'campaign-v1-recurring-help',
+      '~ten'
+    );
+
+    // The usual tips get the same treatment.
+    const usual = harness(state({ topic: 'architecture' }), { personalize });
+    await usual.campaign.check();
+    expect(personalize.mock.calls[1][0].text).not.toContain(TIP_COPY.optOut);
+    expect(usual.deps.send).toHaveBeenCalledWith(
+      `A reworded usual tip.\n\n${TIP_COPY.optOut}`,
+      'campaign-v1-useful-request',
+      '~ten'
+    );
+  });
+
   it('falls back to the usual tip, reworded, when the model says it is not worth sending', async () => {
     const personalize = vi.fn(async (draft: TipDraft) =>
       draft.gated ? null : 'Each Sunday I could find one planting idea.'

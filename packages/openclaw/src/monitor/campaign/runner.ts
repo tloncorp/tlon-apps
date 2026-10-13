@@ -276,6 +276,9 @@ export function createCampaign(deps: CampaignDeps) {
     task: CampaignTask | undefined,
     usual: string
   ): Promise<string> {
+    // The opt-out line is added to whatever is sent; the model is told to
+    // leave it out, so it should not see it in the tip either.
+    const text = usual.replace(`\n\n${copy.optOut}`, '');
     const ownership = renderOwnershipTip(step, state, task, copy);
     if (ownership) {
       if (!hasOwnerContext(state, task)) return ownership;
@@ -290,9 +293,7 @@ export function createCampaign(deps: CampaignDeps) {
       // No verdict, so nothing vouches for it: the usual tip, as written.
       if (reworded !== null) return usual;
     }
-    return (
-      (await deps.personalize?.({ step, state, task, text: usual })) ?? usual
-    );
+    return (await deps.personalize?.({ step, state, task, text })) ?? usual;
   }
   function check(): Promise<void> {
     flight ??= tick()

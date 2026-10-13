@@ -35,6 +35,7 @@ export const CAMPAIGN_PROMPT_POLICY = [
 export const CAMPAIGN_GATE_POLICY = [
   'First decide whether this tip is worth sending to this user now. It is not if their latest message or the earlier tips show they already know this, have turned it down, or are in the middle of something it would talk past.',
   `If it is not worth sending, return exactly ${TIP_NOT_WORTH_SENDING} and nothing else.`,
+  'If it is, write it as a new message sent a day or more after their latest one: do not answer that message or open with a reply to it. Make no claim about privacy, security, or what carries over between models beyond what the base tip says.',
 ].join('\n');
 
 export function buildPersonalizationPrompt(

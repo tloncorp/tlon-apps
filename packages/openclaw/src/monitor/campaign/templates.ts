@@ -138,7 +138,7 @@ export function renderOwnershipTip(
 ): string | undefined {
   const key = OWNERSHIP_COPY[step];
   if (!key || task || state.status !== 'active') return;
-  return withOptOut(copy[key], state, copy);
+  return copy[key];
 }
 
 export function withOptOut(
