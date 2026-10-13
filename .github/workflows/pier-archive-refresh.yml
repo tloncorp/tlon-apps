@@ -40,10 +40,12 @@ jobs:
       should_run: ${{ steps.gate.outputs.should_run }}
       sha: ${{ steps.gate.outputs.sha }}
     steps:
+      # A manual dispatch tests the branch it was dispatched from; the
+      # schedule always cuts from develop.
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || 'develop' }}
 
       - name: Decide whether to refresh
         id: gate
@@ -52,15 +54,26 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
           HAS_GCS_KEY: ${{ secrets.PIER_ARCHIVE_GCS_KEY != '' }}
           HAS_GH_TOKEN: ${{ secrets.PIER_ARCHIVE_GH_TOKEN != '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_REF: ${{ github.ref }}
         run: |
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           skip=""
 
-          missing=()
-          [ "$HAS_GCS_KEY" = "true" ] || missing+=(PIER_ARCHIVE_GCS_KEY)
-          [ "$HAS_GH_TOKEN" = "true" ] || missing+=(PIER_ARCHIVE_GH_TOKEN)
-          if [ "${#missing[@]}" -gt 0 ]; then
-            skip="missing secrets: ${missing[*]}"
+          # A real run uploads archives and opens a PR against develop, so
+          # piers cut from any other branch must never get that far.
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$DRY_RUN" != "true" ] &&
+            [ "$DISPATCH_REF" != "refs/heads/develop" ]; then
+            skip="non-dry manual runs cut from develop only; dispatched from $DISPATCH_REF"
+          fi
+
+          if [ -z "$skip" ]; then
+            missing=()
+            [ "$HAS_GCS_KEY" = "true" ] || missing+=(PIER_ARCHIVE_GCS_KEY)
+            [ "$HAS_GH_TOKEN" = "true" ] || missing+=(PIER_ARCHIVE_GH_TOKEN)
+            if [ "${#missing[@]}" -gt 0 ]; then
+              skip="missing secrets: ${missing[*]}"
+            fi
           fi
 
           if [ -z "$skip" ]; then
