@@ -39,17 +39,23 @@ import {
   shapes,
   submitLabel,
   textInputAutocapitalization,
+  useScrollGeometryChange,
 } from '@expo/ui/swift-ui/modifiers';
 
-import type { ReactElement } from 'react';
+import { type ReactElement, useCallback, useRef } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 
+import { useFloatingHeaderHeight } from '../../../navigation/useFloatingHeaderHeight';
 import { useScreenScrollProps } from '../useScreenScrollProps';
 import {
   HostedSettingsRowLeading,
   getSettingsRowLeadingSize,
 } from './SettingsRowLeading';
-import type { SettingsListProps, SettingsRowModel } from './types';
+import type {
+  SettingsListProps,
+  SettingsListScrollMark,
+  SettingsRowModel,
+} from './types';
 import { useSyncedFieldText } from './useSyncedFieldText';
 import {
   type SettingsListColors,
@@ -68,8 +74,9 @@ const flushFirstSectionModifiers = [
 ];
 
 /** Settings drawn as a SwiftUI inset-grouped form, in Tlon's theme colors. */
-export function SettingsList({ sections }: SettingsListProps) {
+export function SettingsList({ sections, scrollMark }: SettingsListProps) {
   const colors = useSettingsListColors();
+  const scrollMarkModifier = useScrollMark(scrollMark);
   // Keeps the transparent header the tab's other scroll views install on iOS
   // 26; the form scrolls beneath it, and iOS gives it the soft edge on its own.
   useScreenScrollProps();
@@ -80,7 +87,11 @@ export function SettingsList({ sections }: SettingsListProps) {
         // SwiftUI keeps a row's separator tint from when it was first drawn, so
         // a theme change would leave the old color; rebuild the form instead.
         key={colors.separator}
-        modifiers={[scrollContentBackground('hidden'), background(colors.page)]}
+        modifiers={[
+          ...(scrollMarkModifier ? [scrollMarkModifier] : []),
+          scrollContentBackground('hidden'),
+          background(colors.page),
+        ]}
       >
         {sections.map((section, index) => (
           <Section
@@ -117,6 +128,40 @@ export function SettingsList({ sections }: SettingsListProps) {
       </Form>
     </Host>
   );
+}
+
+/**
+ * Tells a screen when the list crosses its scroll mark, in either direction.
+ * Under a floating bar the list rests at minus the bar's height, so distance
+ * is counted from there.
+ */
+function useScrollMark(mark?: SettingsListScrollMark) {
+  const latest = useRef(mark);
+  latest.current = mark;
+  const restOffset = -useFloatingHeaderHeight();
+  const hasRested = useRef(false);
+  const isPast = useRef(false);
+  const onGeometry = useCallback(
+    ({ contentOffsetY }: { contentOffsetY: number }) => {
+      const current = latest.current;
+      if (!current) {
+        return;
+      }
+      // The list reports an offset of zero before the bar's inset is applied,
+      // which would read as already scrolled.
+      hasRested.current ||= contentOffsetY <= restOffset + 1;
+      if (!hasRested.current) {
+        return;
+      }
+      const past = contentOffsetY - restOffset > current.offset;
+      if (past !== isPast.current) {
+        isPast.current = past;
+        current.onCrossed(past);
+      }
+    },
+    [restOffset]
+  );
+  return useScrollGeometryChange(mark ? onGeometry : undefined);
 }
 
 /** The margin an inset-grouped form keeps on each side of its rows. */

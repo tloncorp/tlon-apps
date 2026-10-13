@@ -512,6 +512,7 @@ export function ChatDetailsScreenView({
     <SettingsListScreenView
       // The name leads the screen itself on a phone, so the bar stays clear.
       title={Platform.OS === 'web' ? screenTitle : ''}
+      scrolledTitle={{ title, offset: chatHeroNameHeight }}
       headerTestID="ChatDetailsHeader"
       sections={sections}
       loading={chatType === 'group' ? !group : !channel}
@@ -653,6 +654,9 @@ function mayBeCutOff(description: string) {
  */
 export const chatHeroLeadingInset = 20;
 export const chatHeroAvatar = { size: 76, radius: 18 } as const;
+
+/** How far the screen scrolls before the name in its header is out of view. */
+const chatHeroNameHeight = 60;
 
 /** The space the quick actions keep from the screen's edges. */
 const heroSideInset = 12;

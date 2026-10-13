@@ -123,6 +123,17 @@ export interface SettingsListProps {
    * than the whole width of a wide window.
    */
   maxWidth?: number;
+  /**
+   * iOS only: hears when the list has scrolled this far from its top, and when
+   * it comes back, so a screen can name itself in its bar once its own header
+   * has gone under it.
+   */
+  scrollMark?: SettingsListScrollMark;
+}
+
+export interface SettingsListScrollMark {
+  offset: number;
+  onCrossed: (past: boolean) => void;
 }
 
 /** A search over a settings list, kept in the screen's own state. */
