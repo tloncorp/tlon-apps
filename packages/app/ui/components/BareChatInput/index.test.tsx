@@ -285,6 +285,73 @@ test('keeps text typed while the initial draft read is pending', async () => {
   });
 });
 
+test.each(['initial', 'reload'] as const)(
+  'keeps a reference removed during a pending %s draft read removed',
+  async (readKind) => {
+    const storage = draftStorage();
+    const draft = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Saved text ' }] },
+      ],
+      referenceAttachments: [reference],
+    };
+    await storage.storeDraft(draft);
+    mocks.attachments = [reference];
+    let finishRead!: (draft: JSONContent) => void;
+    const delayedRead = () =>
+      new Promise<JSONContent>((done) => {
+        finishRead = done;
+      });
+    const getDraft = vi.fn(
+      readKind === 'initial' ? delayedRead : storage.getDraft
+    );
+    const ref = React.createRef<React.ComponentRef<typeof BareChatInput>>();
+    await mount({ ...storage, getDraft, ref });
+    if (readKind === 'reload') {
+      getDraft.mockImplementation(delayedRead);
+      act(() => ref.current?.startDraft?.());
+    }
+    act(() => setAttachments([]));
+    await act(async () => finishRead(draft));
+    expect(mocks.attachments).toEqual([]);
+    expect(await storage.getDraft()).toMatchObject({
+      content: [{ content: [{ text: 'Saved text ' }] }],
+      referenceAttachments: [],
+    });
+    act(() => renderer.unmount());
+    await mount(storage);
+    expect(mocks.attachments).toEqual([]);
+  }
+);
+
+test.each([false, true])(
+  'merges unrelated saved references when a new reference is added during hydration (then removed: %s)',
+  async (removeNewReference) => {
+    let finishRead!: (draft: JSONContent) => void;
+    const storage = draftStorage();
+    const getDraft = () =>
+      new Promise<JSONContent>((done) => {
+        finishRead = done;
+      });
+    await mount({ ...storage, getDraft });
+    const added: Attachment = {
+      ...reference,
+      path: '/1/chan/chat/~zod/test/456',
+    };
+    act(() => {
+      mocks.addAttachment(added);
+    });
+    if (removeNewReference) act(() => setAttachments([]));
+    await act(async () =>
+      finishRead({ referenceAttachments: [reference, added] })
+    );
+    expect(mocks.attachments).toEqual(
+      removeNewReference ? [reference] : [added, reference]
+    );
+  }
+);
+
 test('loads an edited message after opening an empty conversation', async () => {
   const storage = draftStorage();
   await mount(storage);

@@ -407,7 +407,7 @@ function PostScreenViewContent({
             <FileDrop
               backgroundColor="$background"
               flex={1}
-              dropEnabled={mode === 'single' || !!isEditingParent}
+              dropEnabled={!!isEditingParent && channel.type === 'gallery'}
               onAssetsDropped={attachAssets}
             >
               <View flex={1}>
@@ -459,37 +459,35 @@ function PostScreenViewContent({
                             />
                           </YStack>
                         ) : mode === 'single' ? (
-                          <ScrollContextProvider>
-                            <SinglePostView
-                              {...{
-                                channel,
-                                chatThreadHandleRef,
-                                editingPost,
-                                goBack,
-                                group,
-                                handleGoToImage,
-                                inspectContextLensPost:
-                                  contextLensAvailable && contextLensOpen
-                                    ? inspectContextLensPost
-                                    : undefined,
-                                openContextLensForPost:
-                                  contextLensAvailable && !isWindowNarrow
-                                    ? openContextLensForPost
-                                    : undefined,
-                                onGoToBotRun:
-                                  contextLensAvailable && isWindowNarrow
-                                    ? goToContextLensRun
-                                    : undefined,
-                                negotiationMatch,
-                                onPressDelete,
-                                onPressRetry,
-                                parentEditDraftCallbacks,
-                                parentPost,
-                                selectedPostId,
-                                setEditingPost,
-                              }}
-                            />
-                          </ScrollContextProvider>
+                          <PostWithAttachments
+                            {...{
+                              channel,
+                              chatThreadHandleRef,
+                              editingPost,
+                              goBack,
+                              group,
+                              handleGoToImage,
+                              inspectContextLensPost:
+                                contextLensAvailable && contextLensOpen
+                                  ? inspectContextLensPost
+                                  : undefined,
+                              openContextLensForPost:
+                                contextLensAvailable && !isWindowNarrow
+                                  ? openContextLensForPost
+                                  : undefined,
+                              onGoToBotRun:
+                                contextLensAvailable && isWindowNarrow
+                                  ? goToContextLensRun
+                                  : undefined,
+                              negotiationMatch,
+                              onPressDelete,
+                              onPressRetry,
+                              parentEditDraftCallbacks,
+                              parentPost,
+                              selectedPostId,
+                              setEditingPost,
+                            }}
+                          />
                         ) : (
                           <CarouselPostScreenContent
                             flex={1}
@@ -1203,36 +1201,35 @@ function CarouselPostWithAttachments({
 }: { channel: db.Channel; parentPost: db.Post } & ChannelContext) {
   return (
     <Carousel.Item flex={1}>
-      <ScopedAttachmentProvider id={parentPost.id}>
-        <CarouselPostContent
-          {...props}
-          parentPost={parentPost}
-          editingPost={
-            editingPost?.parentId === parentPost.id ? editingPost : undefined
-          }
-        />
-      </ScopedAttachmentProvider>
+      <PostWithAttachments
+        {...props}
+        parentPost={parentPost}
+        editingPost={
+          editingPost?.parentId === parentPost.id ? editingPost : undefined
+        }
+      />
     </Carousel.Item>
   );
 }
 const CarouselPost = memo(CarouselPostWithAttachments);
 
-function CarouselPostContent({
-  channel,
-  parentPost,
-  ...channelContext
-}: { channel: db.Channel; parentPost: db.Post } & ChannelContext) {
+function PostWithAttachments(props: Parameters<typeof SinglePostView>[0]) {
+  const content = <PostContent {...props} />;
+  return props.channel.type === 'gallery' ? (
+    <ScopedAttachmentProvider id={props.parentPost.id}>
+      {content}
+    </ScopedAttachmentProvider>
+  ) : (
+    content
+  );
+}
+
+function PostContent(props: Parameters<typeof SinglePostView>[0]) {
   const { attachAssets } = useAttachmentContext();
   return (
     <FileDrop flex={1} onAssetsDropped={attachAssets}>
       <ScrollContextProvider>
-        <SinglePostView
-          {...{
-            channel,
-            ...channelContext,
-            parentPost,
-          }}
-        />
+        <SinglePostView {...props} />
       </ScrollContextProvider>
     </FileDrop>
   );

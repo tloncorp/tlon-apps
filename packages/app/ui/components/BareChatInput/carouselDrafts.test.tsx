@@ -6,7 +6,10 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import BareChatInput from './index';
-import { PresentationalCarouselPostScreenContent } from '../PostScreenView';
+import {
+  PostScreenView,
+  PresentationalCarouselPostScreenContent,
+} from '../PostScreenView';
 import {
   AttachmentProvider,
   AttachmentDraftsProvider,
@@ -15,6 +18,10 @@ import {
 
 const mocks = vi.hoisted(() => ({
   platform: 'ios',
+  isWeb: false,
+  realFileDrop: false,
+  isWindowNarrow: true,
+  uploadSubscriptions: 0,
   input: {
     focus: vi.fn(),
     setSelection: vi.fn(),
@@ -28,6 +35,7 @@ const mocks = vi.hoisted(() => ({
   finalizeAndSendPost: vi.fn(async () => {}),
   hydrateEditPost: vi.fn(),
   transcribe: vi.fn(async () => null as string | null),
+  imageSize: vi.fn(async () => [10, 10]),
   noop: vi.fn(),
 }));
 
@@ -38,6 +46,7 @@ vi.mock('@tloncorp/shared', async () => ({
   configurationFromChannel: () => ({}),
   isChatChannel: () => false,
   hasUnreadActivity: () => false,
+  makePrettyDayAndTime: () => ({ asString: '' }),
   ALL_MENTION_ID: 'all',
   REF_REGEX: /NEVER_A_REFERENCE/,
   createDevLogger: () => ({ log: mocks.noop, error: mocks.noop }),
@@ -80,12 +89,26 @@ vi.mock('@tloncorp/shared/store', () => ({
     ),
   draftKeyFor: {
     thread: ({ parentPostId }: { parentPostId: string }) => parentPostId,
+    postEdit: ({ postId }: { postId: string }) => `edit-${postId}`,
   },
+  useChannelPosts: () => ({
+    posts,
+    query: { fetchNextPage: mocks.noop, fetchPreviousPage: mocks.noop },
+  }),
+  useChannel: () => ({ data: channel }),
   useThreadPosts: () => ({ data: [], isLoading: false }),
   useLiveThreadUnreadByParentId: () => ({ data: null }),
   useShowDeleteMarkers: () => ({ data: false }),
   useThreadCatchupTelemetry: () => {},
-  useUploadStates: () => mocks.uploadStates,
+  useUploadStates: () => {
+    React.useEffect(() => {
+      mocks.uploadSubscriptions += 1;
+      return () => {
+        mocks.uploadSubscriptions -= 1;
+      };
+    }, []);
+    return mocks.uploadStates;
+  },
   uploadAsset: vi.fn(async () => {}),
   waitForUploads: async () => ({}),
   finalizeAndSendPost: mocks.finalizeAndSendPost,
@@ -131,7 +154,9 @@ vi.mock('tamagui', () => ({
   YStack: 'YStack',
   XStack: 'XStack',
   Text: 'Text',
-  isWeb: false,
+  get isWeb() {
+    return mocks.isWeb;
+  },
   getFontSize: () => 16,
   getTokenValue: () => 8,
   getVariableValue: (value: unknown) => value,
@@ -152,6 +177,9 @@ vi.mock('../../hooks/useKeyboardHeight', () => ({
 vi.mock('../../utils', () => ({
   formatUserId: mocks.noop,
   useCanWrite: () => true,
+  useIsWindowNarrow: () => mocks.isWindowNarrow,
+  useIsAdmin: () => false,
+  useChatTitle: () => '',
 }));
 vi.mock('../../utils/videoPreviewData', () => ({}));
 vi.mock('../MentionPopup', () => ({}));
@@ -168,7 +196,7 @@ vi.mock('../MessageInput/helpers', () => ({
 vi.mock('./PasteableTextInput', () => ({
   PasteableTextInput: 'PasteableTextInput',
 }));
-vi.mock('./pastedImage', () => ({}));
+vi.mock('../../../utils/images', () => ({ imageSize: mocks.imageSize }));
 vi.mock('./helpers', async () => {
   const { textAndMentionsToContent, contentToTextAndMentions } =
     await import('@tloncorp/api/client/content-helpers');
@@ -180,15 +208,27 @@ vi.mock('../../../hooks/useAppStatus', () => ({ default: () => 'active' }));
 vi.mock('../../../hooks/useUserActivity', () => ({
   useIsUserActive: () => true,
 }));
-vi.mock('../../../hooks/useChannelNavigation', () => ({}));
+vi.mock('../../../hooks/useChannelNavigation', () => ({
+  useChannelNavigation: () => ({ navigateToRef: mocks.noop }),
+}));
 vi.mock('../../contexts/appDataContext', () => ({
   useCurrentUserId: () => '~zod',
 }));
-vi.mock('../../contexts/channel', () => ({}));
-vi.mock('../../contexts/navigation', () => ({}));
+vi.mock('../../contexts/channel', () => ({
+  ChannelProvider: ({ children }: React.PropsWithChildren) => children,
+}));
+vi.mock('../../contexts/navigation', () => ({
+  NavigationProvider: ({ children }: React.PropsWithChildren) => children,
+}));
 vi.mock('../BigInput', () => ({}));
-vi.mock('../Channel/ChannelHeader', () => ({}));
-vi.mock('../Channel/ContextLens', () => ({}));
+vi.mock('../Channel/ChannelHeader', () => ({
+  ChannelHeader: 'ChannelHeader',
+  ChannelHeaderItemsProvider: ({ children }: React.PropsWithChildren) =>
+    children,
+}));
+vi.mock('../Channel/ContextLens', () => ({
+  useContextLensController: () => ({ contextLensAvailable: false }),
+}));
 vi.mock('../Channel/DraftInputView', () => ({
   ConversationComposerPlacement: 'ComposerPlacement',
 }));
@@ -196,8 +236,28 @@ vi.mock('../Channel/ConversationLayout', () => ({
   ConversationLayout: 'ConversationLayout',
 }));
 vi.mock('../Channel/Scroller', () => ({}));
-vi.mock('../FileDrop', () => ({ FileDrop: 'FileDrop' }));
-vi.mock('../GroupPreviewSheet', () => ({}));
+vi.mock('react-dropzone', () => ({
+  useDropzone: ({
+    onDrop,
+    noDrag,
+  }: {
+    onDrop: (files: File[]) => void;
+    noDrag: boolean;
+  }) => ({
+    getRootProps: () => ({ onDropFiles: onDrop, dropDisabled: noDrag }),
+    getInputProps: () => ({}),
+  }),
+}));
+vi.mock('../FileDrop', async () => {
+  const { FileDrop } = await import('../FileDrop/FileDrop');
+  return {
+    FileDrop: (props: React.ComponentProps<typeof FileDrop>) =>
+      React.createElement(mocks.realFileDrop ? FileDrop : 'FileDrop', props),
+  };
+});
+vi.mock('../GroupPreviewSheet', () => ({
+  GroupPreviewSheet: 'GroupPreviewSheet',
+}));
 vi.mock('../conversationScrollChrome', () => ({
   useConversationInsets: () => ({}),
 }));
@@ -246,9 +306,13 @@ beforeEach(() => {
   vi.useFakeTimers();
   mocks.drafts.clear();
   mocks.visiblePostIds = null;
+  mocks.isWeb = false;
+  mocks.realFileDrop = false;
+  mocks.isWindowNarrow = true;
   mocks.deferredRead = null;
   uploadAsset.mockImplementation(async () => {});
   mocks.transcribe.mockImplementation(async () => null);
+  mocks.imageSize.mockImplementation(async () => [10, 10]);
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('requestAnimationFrame', mocks.noop);
 });
@@ -257,6 +321,7 @@ afterEach(() => {
   vi.clearAllTimers();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 async function mountCarousel(editingPost?: Post) {
@@ -432,6 +497,271 @@ const mediaAttachments: Attachment[] = [
   },
   { type: 'voicememo', localUri: 'file:///draft.m4a', size: 123, duration: 2 },
 ];
+
+function postScreen() {
+  return (
+    <AttachmentProvider canUpload uploadAsset={uploadAsset}>
+      <PostScreenView
+        channel={channel}
+        parentPost={posts[0]}
+        group={null}
+        negotiationMatch
+        onPressDelete={mocks.noop}
+        handleGoToUserProfile={mocks.noop}
+        onGroupAction={mocks.noop}
+        goToDm={mocks.noop}
+      />
+    </AttachmentProvider>
+  );
+}
+
+test.each(mediaAttachments)(
+  '$type stays attached across carousel/single layout changes and is sent',
+  async (attachment) => {
+    await act(async () => {
+      renderer = create(postScreen(), { createNodeMock: () => mocks.input });
+    });
+    await act(async () => {
+      attachmentState(0).addAttachment(attachment);
+    });
+    const saved = attachmentState(0).attachments;
+    await act(async () => {
+      mocks.isWindowNarrow = false;
+      renderer.update(postScreen());
+    });
+    expect(renderer.root.findAllByType(BareChatInput)).toHaveLength(1);
+    expect(attachmentState(0).attachments).toEqual(saved);
+    await act(async () => {
+      mocks.isWindowNarrow = true;
+      renderer.update(postScreen());
+    });
+    expect(attachmentState(0).attachments).toEqual(saved);
+    expect(attachmentState(1).attachments).toEqual([]);
+    await act(async () => {
+      mocks.isWindowNarrow = false;
+      renderer.update(postScreen());
+    });
+    await act(async () => {
+      composer(0).props.onPressSend();
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    expect(mocks.finalizeAndSendPost).toHaveBeenCalledWith(
+      expect.objectContaining({ replyToPostId: 'first', attachments: saved }),
+      expect.anything()
+    );
+  }
+);
+
+test('a file dropped in the wide layout is retained in the carousel', async () => {
+  mocks.isWindowNarrow = false;
+  await act(async () => {
+    renderer = create(postScreen(), { createNodeMock: () => mocks.input });
+  });
+  const drops = renderer.root
+    .findAllByType('FileDrop' as React.ElementType)
+    .filter((drop) => drop.props.dropEnabled !== false);
+  expect(drops).toHaveLength(1);
+  await act(async () => {
+    drops[0].props.onAssetsDropped([
+      {
+        type: 'image',
+        asset: { uri: 'file:///dropped.png', width: 10, height: 10 },
+      },
+    ]);
+  });
+  const saved = attachmentState(0).attachments;
+  expect(saved).toHaveLength(1);
+  await act(async () => {
+    mocks.isWindowNarrow = true;
+    renderer.update(postScreen());
+  });
+  expect(attachmentState(0).attachments).toEqual(saved);
+  expect(attachmentState(1).attachments).toEqual([]);
+});
+
+test('empty offscreen drafts release their upload subscriptions and can reopen', async () => {
+  mocks.visiblePostIds = ['first'];
+  await mountCarousel();
+  const initialSubscriptions = mocks.uploadSubscriptions;
+  for (const id of ['second', 'first', 'second']) {
+    await act(async () => {
+      mocks.visiblePostIds = [id];
+      renderer.update(carouselScreen());
+    });
+    expect(mocks.uploadSubscriptions).toBe(initialSubscriptions);
+    expect(attachmentState(0).attachments).toEqual([]);
+  }
+  await act(async () => renderer.update(carouselScreen(undefined, false)));
+  expect(mocks.uploadSubscriptions).toBe(1); // The outer screen provider only.
+});
+
+test('an offscreen draft is released after its last attachment is cleared', async () => {
+  mocks.visiblePostIds = ['first'];
+  await mountCarousel();
+  act(() => {
+    attachmentState(0).addAttachment(reference);
+  });
+  const first = attachmentState(0);
+  await act(async () => {
+    mocks.visiblePostIds = ['second'];
+    renderer.update(carouselScreen());
+  });
+  expect(mocks.uploadSubscriptions).toBe(3);
+  await act(async () => first.clearAttachments());
+  expect(mocks.uploadSubscriptions).toBe(2);
+});
+
+test('a failed upload releases its empty offscreen draft', async () => {
+  let failUpload!: (reason: Error) => void;
+  uploadAsset.mockImplementation(
+    () =>
+      new Promise<void>((_, reject) => {
+        failUpload = reject;
+      })
+  );
+  mocks.visiblePostIds = ['first'];
+  await mountCarousel();
+  let upload!: Promise<unknown>;
+  await act(async () => {
+    upload = attachmentState(0)
+      .uploadAssets([
+        {
+          type: 'image',
+          asset: { uri: 'file:///failed.png', width: 10, height: 10 },
+        },
+      ])
+      .catch(() => {});
+    mocks.visiblePostIds = ['second'];
+    renderer.update(carouselScreen());
+  });
+  expect(mocks.uploadSubscriptions).toBe(3);
+  await act(async () => {
+    failUpload(new Error('Upload failed'));
+    await upload;
+  });
+  expect(mocks.uploadSubscriptions).toBe(2);
+});
+
+test.each([false, true])(
+  'pasted image preparation survives unmount (StrictMode: %s)',
+  async (strict) => {
+    let finishSize!: (size: number[]) => void;
+    mocks.imageSize.mockImplementation(
+      () =>
+        new Promise<number[]>((resolve) => {
+          finishSize = resolve;
+        })
+    );
+    const screen = () =>
+      strict ? (
+        <React.StrictMode>{carouselScreen()}</React.StrictMode>
+      ) : (
+        carouselScreen()
+      );
+    mocks.visiblePostIds = ['first'];
+    await act(async () => {
+      renderer = create(screen(), { createNodeMock: () => mocks.input });
+    });
+    const nativeInput = renderer.root.findByType(
+      'PasteableTextInput' as React.ElementType
+    );
+    await act(async () => {
+      nativeInput.props.onPasteFiles([
+        {
+          fileName: 'pasted.png',
+          fileSize: 123,
+          type: 'image/png',
+          uri: 'file:///pasted.png',
+        },
+      ]);
+      mocks.visiblePostIds = ['second'];
+      renderer.update(screen());
+    });
+    expect(mocks.uploadSubscriptions).toBe(3);
+    await act(async () => finishSize([640, 480]));
+    await act(async () => {
+      mocks.visiblePostIds = ['first'];
+      renderer.update(screen());
+    });
+    expect(attachmentState(0).attachments).toEqual([
+      expect.objectContaining({
+        type: 'image',
+        file: expect.objectContaining({
+          uri: 'file:///pasted.png',
+          width: 640,
+          height: 480,
+        }),
+      }),
+    ]);
+    expect(mocks.uploadSubscriptions).toBe(2);
+  }
+);
+
+test.each(['paste', 'drop', 'paste error', 'drop error'])(
+  'web %s preparation keeps an empty scope alive until it settles',
+  async (kind) => {
+    const images: { onload: () => void; onerror: (error: Error) => void }[] =
+      [];
+    vi.stubGlobal(
+      'Image',
+      class {
+        width = 640;
+        height = 480;
+        onload = () => {};
+        onerror = (_error: Error) => {};
+        constructor() {
+          images.push(this);
+        }
+      }
+    );
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pasted-image');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    let paste!: (event: unknown) => Promise<void>;
+    vi.stubGlobal('document', {
+      addEventListener: (event: string, listener: typeof paste) => {
+        if (event === 'paste') paste = listener;
+      },
+      removeEventListener: () => {},
+    });
+    mocks.isWeb = true;
+    mocks.realFileDrop = true;
+    mocks.visiblePostIds = ['first'];
+    await mountCarousel();
+    const file = new File(['image'], 'pasted.png', { type: 'image/png' });
+    let preparation!: Promise<unknown>;
+    await act(async () => {
+      if (kind.startsWith('paste')) {
+        preparation = paste({
+          clipboardData: {
+            items: [{ type: file.type, getAsFile: () => file }],
+          },
+        });
+      } else {
+        const drop = renderer.root
+          .findAllByType('View' as React.ElementType)
+          .find((view) => view.props.onDropFiles && !view.props.dropDisabled)!;
+        preparation = drop.props.onDropFiles([file]);
+      }
+      preparation = preparation.catch(() => {});
+      mocks.visiblePostIds = ['second'];
+      renderer.update(carouselScreen());
+    });
+    expect(mocks.uploadSubscriptions).toBe(3);
+    await act(async () => {
+      if (kind.endsWith('error')) images[0].onerror(new Error('Invalid image'));
+      else images[0].onload();
+      await preparation;
+    });
+    expect(mocks.uploadSubscriptions).toBe(kind.endsWith('error') ? 2 : 3);
+    await act(async () => {
+      mocks.visiblePostIds = ['first'];
+      renderer.update(carouselScreen());
+    });
+    expect(attachmentState(0).attachments).toHaveLength(
+      kind.endsWith('error') ? 0 : 1
+    );
+  }
+);
 
 test.each(mediaAttachments)(
   '$type survives virtualized cell unmount and parent-edit transitions',

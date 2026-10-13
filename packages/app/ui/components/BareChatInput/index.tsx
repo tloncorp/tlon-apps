@@ -30,6 +30,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -106,6 +107,7 @@ function useMaxInputHeight(maxInputHeightBasic: number) {
 }
 
 function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
+  const { runAttachmentTask } = useAttachmentContext();
   // For now, we only check to make sure we're on web,
   // we don't check if the input is focused. This allows users to paste
   // images before they select the input. We may want to change this behavior
@@ -127,46 +129,55 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
       const file = media.getAsFile();
       if (!file) return;
 
-      if (media.type.includes('image')) {
-        const uri = URL.createObjectURL(file);
-        const img = new Image();
+      await runAttachmentTask(async () => {
+        if (media.type.includes('image')) {
+          const uri = URL.createObjectURL(file);
+          const img = new Image();
 
-        img.onload = () => {
-          addAttachment({
-            type: 'image',
-            file: {
-              uri,
-              height: img.height,
-              width: img.width,
-              mimeType: file.type || undefined,
-              fileSize: file.size,
-            },
+          await new Promise<void>((resolve) => {
+            img.onload = () => {
+              addAttachment({
+                type: 'image',
+                file: {
+                  uri,
+                  height: img.height,
+                  width: img.width,
+                  mimeType: file.type || undefined,
+                  fileSize: file.size,
+                },
+              });
+              resolve();
+            };
+            img.onerror = () => {
+              URL.revokeObjectURL(uri);
+              resolve();
+            };
+
+            img.src = uri;
           });
-        };
+          return;
+        }
 
-        img.src = uri;
-        return;
-      }
-
-      if (media.type.includes('video')) {
-        const previewData = await getVideoPreviewData({ file });
-        addAttachment({
-          type: 'video',
-          localFile: file,
-          size: file.size,
-          mimeType: file.type,
-          name: file.name,
-          width: previewData.width,
-          height: previewData.height,
-          duration: previewData.duration,
-          posterUri: previewData.posterUri,
-        });
-      }
+        if (media.type.includes('video')) {
+          const previewData = await getVideoPreviewData({ file });
+          addAttachment({
+            type: 'video',
+            localFile: file,
+            size: file.size,
+            mimeType: file.type,
+            name: file.name,
+            width: previewData.width,
+            height: previewData.height,
+            duration: previewData.duration,
+            posterUri: previewData.posterUri,
+          });
+        }
+      });
     };
 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [addAttachment]);
+  }, [addAttachment, runAttachmentTask]);
 }
 
 interface Decoration {
@@ -326,6 +337,7 @@ function BareChatInput(
     clearAttachments,
     resetAttachments,
     removeAttachment,
+    runAttachmentTask,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
   const [initialReferencePaths] = useState(() =>
@@ -468,6 +480,23 @@ function BareChatInput(
   const debouncedText = useDebouncedValue(controlledText, 500);
   const attachmentsRef = useRef(attachments);
   attachmentsRef.current = attachments;
+  const referenceEdits = useRef({
+    paths: initialReferencePaths,
+    version: 0,
+    removals: new Map<string, number>(),
+  });
+  useLayoutEffect(() => {
+    const current = referenceEdits.current;
+    const paths = attachments.flatMap((attachment) =>
+      attachment.type === 'reference' ? [attachment.path] : []
+    );
+    for (const path of current.paths) {
+      if (!paths.includes(path)) {
+        current.removals.set(path, ++current.version);
+      }
+    }
+    current.paths = paths;
+  }, [attachments]);
   const prevUrlsRef = useRef<string[]>([]);
 
   const processReferences = useCallback(
@@ -518,9 +547,11 @@ function BareChatInput(
 
   const handlePasteFiles = useCallback(
     (files: PastedFile[]) => {
-      void attachPastedImageFiles(files, addAttachment);
+      void runAttachmentTask(() =>
+        attachPastedImageFiles(files, addAttachment)
+      );
     },
-    [addAttachment]
+    [addAttachment, runAttachmentTask]
   );
 
   const handleTextChange = useCallback(
@@ -980,7 +1011,11 @@ function BareChatInput(
   }, [initialHeight]);
 
   const setInputFromDraft = useCallback(
-    (draft: ChatDraft | null, restoreText = true) => {
+    (
+      draft: ChatDraft | null,
+      restoreText: boolean,
+      referenceVersion: number
+    ) => {
       const { text, mentions } = contentToTextAndMentions(draft ?? {});
       if (restoreText) {
         setControlledText(text);
@@ -988,8 +1023,12 @@ function BareChatInput(
       }
       // References live outside the text input, so restore them separately.
       // Keep attachments supplied by actions such as Quote or Forward.
+      // Ignore references removed since this read began, while still merging
+      // unrelated saved references with newly added ones.
       for (const attachment of draft?.referenceAttachments ?? []) {
         if (
+          (referenceEdits.current.removals.get(attachment.path) ?? 0) <=
+            referenceVersion &&
           !attachmentsRef.current.some(
             (current) =>
               current.type === 'reference' && current.path === attachment.path
@@ -1007,6 +1046,7 @@ function BareChatInput(
   const reloadDraft = useCallback(async () => {
     try {
       const version = textEditVersion.current;
+      const referenceVersion = referenceEdits.current.version;
       const generation = draftReadGeneration.current;
       const draft = await getDraft();
       if (
@@ -1015,7 +1055,11 @@ function BareChatInput(
       )
         return;
       if (!editingPost) {
-        setInputFromDraft(draft, version === textEditVersion.current);
+        setInputFromDraft(
+          draft,
+          version === textEditVersion.current,
+          referenceVersion
+        );
       }
       inputRef.current?.focus();
     } catch (e) {
@@ -1037,6 +1081,7 @@ function BareChatInput(
     let cancelled = false;
     if (!hasSetInitialContent && pendingDraftClears.current === 0) {
       const version = textEditVersion.current;
+      const referenceVersion = referenceEdits.current.version;
       const generation = draftReadGeneration.current;
       bareChatInputLogger.log('setting initial content');
       getDraft()
@@ -1049,7 +1094,11 @@ function BareChatInput(
             return;
           bareChatInputLogger.log('got draft', draft);
           if (!editingPost) {
-            setInputFromDraft(draft, version === textEditVersion.current);
+            setInputFromDraft(
+              draft,
+              version === textEditVersion.current,
+              referenceVersion
+            );
           }
 
           if (editingPost && editingPost.content) {
