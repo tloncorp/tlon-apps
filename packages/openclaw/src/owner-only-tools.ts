@@ -8,11 +8,14 @@
  * `event.error`, the owner "silent failure" notice) keep only its first line,
  * capped at 400 / 200 chars — keep it one line and within the cap below.
  */
+import { CRON_TOOL_NAMES } from './cron-tool-args-guard.js';
 import type { SenderRole } from './session-roles.js';
 
 export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'tlon',
-  'cron',
+  // The scheduler under every name core gives it, so a rename cannot open it
+  // to non-owners.
+  ...CRON_TOOL_NAMES,
   'read',
   'tlon_agent_choice',
   'tlon_agent_task_plan',

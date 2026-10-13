@@ -344,6 +344,24 @@ describe('before_tool_call cron args guard', () => {
     expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
   });
 
+  it.each([
+    ['a dirty', DIRTY_AUTOMATIONS_ADD],
+    ['a clean', { ...CLEAN_ADD, toolName: 'automations' }],
+  ])(
+    'blocks %s non-owner call under the automations name',
+    async (_name, call) => {
+      const { handler, logs } = registerEntry();
+      await expect(
+        handler(call, { sessionKey: USER_SESSION })
+      ).resolves.toEqual({
+        block: true,
+        blockReason: formatOwnerOnlyToolBlockReason('automations'),
+      });
+      expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
+      expect(allowedLogs(logs)).toHaveLength(0);
+    }
+  );
+
   it('traces a non-owner cron call with the owner-only reason, not the guard reason', async () => {
     vi.stubEnv('TEST_LIVE_TOOL_TRACE_CONTENTS', '1');
     const { handler, logs } = registerEntry();
