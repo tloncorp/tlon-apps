@@ -57,6 +57,16 @@ describe('post blob diagnostics', () => {
     vi.clearAllMocks();
   });
 
+  test('silently ignores unsupported metadata without logging opaque payloads', () => {
+    const entries = [
+      { type: 'metadata', version: 999, data: { private: viewerUrl } },
+      { type: 'metadata', version: 1, data: viewerUrl },
+    ];
+    expect(parsePostBlob(JSON.stringify(entries))).toEqual([]);
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.trackError).not.toHaveBeenCalled();
+  });
+
   test('warns on unsupported entries and redacts nested capabilities without changing other fields', () => {
     const entry = {
       ...handoffEntry(),

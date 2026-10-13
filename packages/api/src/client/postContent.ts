@@ -518,6 +518,7 @@ export function convertContent(
           break;
         }
 
+        case 'metadata':
         case 'tlon-context-lens': {
           break;
         }
