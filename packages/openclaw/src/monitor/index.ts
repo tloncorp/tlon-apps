@@ -125,6 +125,7 @@ import {
   captureTlonApiScope,
   runWithTlonApiScope,
   setScopedTlonApiWithPoke,
+  sseScryFn,
 } from '../urbit/api-client.js';
 import {
   authenticate,
@@ -209,6 +210,7 @@ import {
 import { createComputingPresenceTracker } from './computing-presence.js';
 import { resolveDeliverParentId } from './deliver-parent.js';
 import { fetchAllChannels, fetchInitData } from './discovery.js';
+import { createJoinedChannels } from './joined-channels.js';
 import {
   createCompactionTimeoutObserver,
   isAgentTimeoutEvent,
@@ -829,7 +831,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     api.poke.bind(api),
     botShipName,
     account.url,
-    ({ app, path }) => api.scry(`/~/scry/${app}${path}.json`),
+    sseScryFn((path) => api.scry(path)),
     (path, method, body, options) =>
       api.requestJson(path, method, body, options)
   );
@@ -1010,6 +1012,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Config-sourced nests are immune to settings-key removal; see the
     // ownership rule in group-channels.ts.
     const discoveredNests = new Set<string>();
+    const joinedChannels = createJoinedChannels();
     // Where onboarding stands in each DM: the group its last request named,
     // or that it has finished (or holds no request) and replies are just talk.
     const onboardingDmState = new OnboardingDmState();
@@ -1680,10 +1683,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // snapshot is the only way to know which groups those are, so
     // no config gates the fetch.
     try {
+      const joinedSync = joinedChannels.beginSync();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
         botShip: botShipName,
       });
+      joinedChannels.applySync(joinedSync, initData.joinedChannels);
       if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
         groupChannels = initData.channels;
         for (const channelNest of initData.channels) {
@@ -3937,10 +3942,32 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const watchedChannels = new Set<string>(groupChannels);
     const _watchedDMs = new Set<string>();
 
-    const mergeDiscoveredChannels = async () => {
+    // Nests the firehose leave branch unwatched. Nothing else re-watches a
+    // configured channel with discovery off, so a rejoin must.
+    const unwatchedByLeave = new Set<string>();
+    const rewatchAfterRejoin = (nest: string) => {
+      if (!unwatchedByLeave.delete(nest)) return;
+      watchedChannels.add(nest);
+      runtime.log?.(`[tlon] Re-watching channel ${nest} after rejoin`);
+    };
+
+    const syncJoinedChannels = async () => {
+      const token = joinedChannels.beginSync();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
       });
+      // A rejoin whose join fact was missed shows up only here.
+      for (const nest of joinedChannels.applySync(
+        token,
+        initData.joinedChannels
+      )) {
+        rewatchAfterRejoin(nest);
+      }
+      return initData;
+    };
+
+    const mergeDiscoveredChannels = async () => {
+      const initData = await syncJoinedChannels();
       for (const [nest, groupFlag] of initData.channelToGroup) {
         channelToGroup.set(nest, groupFlag);
       }
@@ -4062,6 +4089,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // may still be pending; those must not query, or post into, a channel
       // the owner took away. The bot DM is never in the watched set.
       if (!nestIsDm && !watchedChannels.has(nest)) return;
+      // A left or never-joined channel has no history to read; retrying its
+      // failing scry would never end.
+      if (!nestIsDm && joinedChannels.isKnownNotJoined(nest)) {
+        clearAgentOnboardingRetry(nest);
+        return;
+      }
       let groupId = channelToGroup.get(nest);
       if (!groupId && nestIsDm) {
         // A DM names no group. The app's intro request, posted into this DM,
@@ -4152,14 +4185,34 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     const onboardingDiscoveryFlights = new Set<Promise<boolean | undefined>>();
     let drainingOnboardingDiscovery = false;
-    const scanDiscoveredAgentOnboardingNest = async (nest: string) => {
+    const runOnboardingDiscoveryFlight = async (
+      scan: () => Promise<boolean | undefined>
+    ) => {
       if (drainingOnboardingDiscovery || opts.abortSignal?.aborted) return;
-      const flight = onboardingCatchUp.reconcile(nest);
+      const flight = scan();
       onboardingDiscoveryFlights.add(flight);
       try {
         await flight;
       } finally {
         onboardingDiscoveryFlights.delete(flight);
+      }
+    };
+    const scanDiscoveredAgentOnboardingNest = (nest: string) =>
+      runOnboardingDiscoveryFlight(() => onboardingCatchUp.reconcile(nest));
+
+    // A nest watched before its join had its scan skipped, and the
+    // became-joined reconcile can miss the intro request: the host may not
+    // have backfilled it within the catch-up window, or the join fact was
+    // dropped and only a later snapshot shows it. Each poll tick in the
+    // window repeats this, so one history read per tick suffices; opening a
+    // catch-up window here would multiply the reads.
+    const rescanRecentlyJoinedChannels = async () => {
+      for (const nest of joinedChannels.recentlyJoined(10 * 60_000)) {
+        if (nest.startsWith('chat/') && watchedChannels.has(nest)) {
+          await runOnboardingDiscoveryFlight(() =>
+            scanAgentOnboardingNest(nest)
+          );
+        }
       }
     };
 
@@ -4177,6 +4230,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const nest = event?.nest;
 
         if (!nest) {
+          return;
+        }
+
+        // Only a leave may stop handling a channel: auto-watch below must
+        // still admit a nest the joined set wrongly lacks.
+        const joinChange = joinedChannels.observe(event);
+        if (joinChange === 'left') {
+          if (watchedChannels.delete(nest)) unwatchedByLeave.add(nest);
+          clearAgentOnboardingRetry(nest);
+          runtime.log?.(`[tlon] Left channel ${nest}; no longer watching`);
+          return;
+        }
+        if (joinChange === 'became-joined') rewatchAfterRejoin(nest);
+        // A nest watched before its join fact had its onboarding scan skipped.
+        if (joinChange === 'became-joined' && watchedChannels.has(nest)) {
+          await onboardingCatchUp.reconcile(nest);
+          // A join fact carries no message work, and a leave handled during
+          // the await must not be undone by the auto-watch below.
           return;
         }
 
@@ -5919,31 +5990,26 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           const gapBefore = groupChannelJournal?.gapSeq;
           const unconfirmedBefore = groupChannelJournal?.unconfirmedSnapshot();
           const feedDownBefore = settingsFeedDown;
-          let superseded = false;
           try {
             const refreshResult = await settingsManager.load({
               logSnapshot: false,
-              // An echo or gap can invalidate this scry. Preserve the last
-              // observation before the manager installs it, or an unrelated
-              // settings fact could re-trust the journal from a pre-gap value.
-              reconcile: (parsed) => {
-                if (
-                  !groupChannelJournal ||
-                  (groupChannelJournal.observationSeq === seqBefore &&
-                    groupChannelJournal.gapSeq === gapBefore)
-                ) {
-                  return parsed;
-                }
-                superseded = true;
-                // Hand back the observed value in place of the stale one.
-                return {
-                  ...parsed,
-                  groupChannels: groupChannelJournal.lastObserved as
-                    | string[]
-                    | undefined,
-                };
-              },
+              // The manager replays echoes that overtook this scry, but a gap
+              // is not a fact. Keep the last observation over a pre-gap value,
+              // or an unrelated settings fact could re-trust the journal from it.
+              reconcile: (parsed) =>
+                !groupChannelJournal || groupChannelJournal.gapSeq === gapBefore
+                  ? parsed
+                  : {
+                      ...parsed,
+                      groupChannels: groupChannelJournal.lastObserved as
+                        | string[]
+                        | undefined,
+                    },
             });
+            const superseded =
+              groupChannelJournal !== undefined &&
+              (groupChannelJournal.observationSeq !== seqBefore ||
+                groupChannelJournal.gapSeq !== gapBefore);
             // A gap (subscription error/quit, stream reconnect) reported while
             // the scry was in flight, or a settings feed already down when it
             // began, means this result may predate edits whose echoes were or
@@ -6288,58 +6354,62 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         opts.onReady?.({
           isConnected: () => api.isConnected,
           readSettings: (signal) => api.scry('/settings/all.json', { signal }),
-          replayMissedMessages: async (signal) => {
-            // Changes are keyed by the ship's receipt time; the window is
-            // generous enough that clock skew against this host doesn't matter.
-            // One scry, so posts and their unread summaries agree. Retried:
-            // until it succeeds every source's read stays gated.
-            const since = Date.now() - RESTART_REPLAY_WINDOW_MS;
-            let changes: Awaited<ReturnType<typeof scryChangesSince>>;
-            for (let attempt = 1; ; attempt += 1) {
-              try {
-                changes = await inApiScope(() => scryChangesSince(since));
-                break;
-              } catch (error) {
-                if (attempt >= 3 || signal.aborted) throw error;
-                await new Promise((resolve) =>
-                  setTimeout(resolve, 2_000 * attempt)
-                );
-                signal.throwIfAborted();
+          // Replay runs from the restart-catchup lifecycle hook, outside the
+          // monitor's async context, so the replayed turns (presence, sending
+          // replies) need the monitor's API scope as much as the scry does.
+          replayMissedMessages: (signal) =>
+            inApiScope(async () => {
+              // Changes are keyed by the ship's receipt time; the window is
+              // generous enough that clock skew against this host doesn't matter.
+              // One scry, so posts and their unread summaries agree. Retried:
+              // until it succeeds every source's read stays gated.
+              const since = Date.now() - RESTART_REPLAY_WINDOW_MS;
+              let changes: Awaited<ReturnType<typeof scryChangesSince>>;
+              for (let attempt = 1; ; attempt += 1) {
+                try {
+                  changes = await scryChangesSince(since);
+                  break;
+                } catch (error) {
+                  if (attempt >= 3 || signal.aborted) throw error;
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, 2_000 * attempt)
+                  );
+                  signal.throwIfAborted();
+                }
               }
-            }
-            signal.throwIfAborted();
-            const missed = collectMissedMessages(
-              changes,
-              toClientUnreads(changes.activity)
-            );
-            // Sources without backlog have nothing to protect; each backlog
-            // source opens once its last replayed message is done.
-            const remaining = new Map<string, number>();
-            for (const item of missed) {
-              remaining.set(item.key, (remaining.get(item.key) ?? 0) + 1);
-            }
-            activityReads.releaseExcept(remaining.keys());
-            runtime.log?.(
-              `[tlon] Restart replay: ${missed.length} unread message(s) from the last ${RESTART_REPLAY_WINDOW_MS / 60_000} minutes`
-            );
-            // One at a time, oldest first, through the live handlers, which
-            // apply dedup, gating and read marking exactly as they do live.
-            for (const item of missed) {
               signal.throwIfAborted();
-              if (item.kind === 'channel') {
-                await handleChannelsFirehose(
-                  item.event as unknown as ChannelFirehoseEvent
-                );
-              } else {
-                await handleChatFirehose(
-                  item.event as unknown as ChatFirehoseEvent
-                );
+              const missed = collectMissedMessages(
+                changes,
+                toClientUnreads(changes.activity)
+              );
+              // Sources without backlog have nothing to protect; each backlog
+              // source opens once its last replayed message is done.
+              const remaining = new Map<string, number>();
+              for (const item of missed) {
+                remaining.set(item.key, (remaining.get(item.key) ?? 0) + 1);
               }
-              const left = (remaining.get(item.key) ?? 1) - 1;
-              remaining.set(item.key, left);
-              if (left === 0) activityReads.release(item.key);
-            }
-          },
+              activityReads.releaseExcept(remaining.keys());
+              runtime.log?.(
+                `[tlon] Restart replay: ${missed.length} unread message(s) from the last ${RESTART_REPLAY_WINDOW_MS / 60_000} minutes`
+              );
+              // One at a time, oldest first, through the live handlers, which
+              // apply dedup, gating and read marking exactly as they do live.
+              for (const item of missed) {
+                signal.throwIfAborted();
+                if (item.kind === 'channel') {
+                  await handleChannelsFirehose(
+                    item.event as unknown as ChannelFirehoseEvent
+                  );
+                } else {
+                  await handleChatFirehose(
+                    item.event as unknown as ChatFirehoseEvent
+                  );
+                }
+                const left = (remaining.get(item.key) ?? 1) - 1;
+                remaining.set(item.key, left);
+                if (left === 0) activityReads.release(item.key);
+              }
+            }),
           establishActivityReadBaseline: async (signal) => {
             signal.throwIfAborted();
             await inApiScope(() => readAll());
@@ -6369,6 +6439,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // The foreigns subscription gets no snapshot on watch; catch up now
       // that the channel is live so the boot gap cannot lose an invite.
       await groupInviteRunner.catchUp();
+      // The firehose is live now, so no join or leave can fall between this
+      // snapshot and the facts that follow it.
+      await syncJoinedChannels();
       // watchedChannels holds group channels only; the bot DM is never added
       // to it, and the firehose auto-watch admits only kind/host/slug nests.
       // Without seeding it here an intro request posted while the bot was
@@ -6458,7 +6531,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     await scanDiscoveredAgentOnboardingNest(channelNest);
                   }
                 }
+              } else {
+                // Discovery's own fetch syncs the joined set; repair any
+                // drift from a dropped subscription either way.
+                await syncJoinedChannels();
               }
+              await rescanRecentlyJoinedChannels();
             } catch (error: any) {
               runtime.error?.(
                 `[tlon] Channel refresh error: ${error?.message ?? String(error)}`

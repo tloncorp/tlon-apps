@@ -69,6 +69,30 @@ describe('useSheetDismissalAction', () => {
     vi.useRealTimers();
   });
 
+  it('finishes a dismissal that the native host reports before open turns false', () => {
+    const hook = renderHook();
+    // Android reports a back or scrim dismissal in the same call that asks to
+    // close, so it arrives while the sheet still counts as open.
+    act(() => hook.controller.onDismissed());
+    expect(hook.controller.shouldRender).toBe(true);
+    hook.setOpen(false);
+    expect(hook.controller.shouldRender).toBe(false);
+    hook.unmount();
+  });
+
+  it('applies an early dismissal report to that presentation only', () => {
+    const hook = renderHook();
+    act(() => hook.controller.onDismissed());
+    hook.setOpen(false);
+    // The next presentation has to wait for a report of its own.
+    hook.setOpen(true);
+    hook.setOpen(false);
+    expect(hook.controller.shouldRender).toBe(true);
+    act(() => hook.controller.onDismissed());
+    expect(hook.controller.shouldRender).toBe(false);
+    hook.unmount();
+  });
+
   it('ignores an old presentation completion even after the reopened sheet closes', () => {
     const hook = renderHook();
     hook.setOpen(false);

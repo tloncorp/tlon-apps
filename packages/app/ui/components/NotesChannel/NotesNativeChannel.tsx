@@ -37,7 +37,10 @@ import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import { ActionSheet } from '../ActionSheet';
-import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
+import {
+  useRegisterChannelHeaderItem,
+  useRegisterChannelHeaderLoadingSubtitle,
+} from '../Channel/ChannelHeader';
 import type { ScreenHeaderAction } from '../ScreenHeader';
 import { useFloatingHeaderHeight } from '../conversationScrollChrome';
 import { NotesActionGroupList } from './NotesActions';
@@ -1192,6 +1195,11 @@ export function NotesNativeChannel({
   }, [canEdit, gate, notebookFlag]);
 
   useRegisterChannelHeaderItem(useDesktopSplit ? null : headerActions);
+  useRegisterChannelHeaderLoadingSubtitle(
+    Platform.OS !== 'web' && isFocused && gate === 'loading'
+      ? 'Loading notebook…'
+      : null
+  );
 
   const notesTreePane = (
     <NotesTreePane

@@ -2250,6 +2250,7 @@ export const insertGroups = createWriteQuery(
       'chatMembers',
       'chatMemberGroupRoles',
       'channels',
+      'channelReaders',
       'pins',
     ];
     if (groups.some((group) => group.channels?.length)) {
@@ -2769,6 +2770,58 @@ export const getBucket = createReadQuery(
   ['buckets', 'bucketEntries']
 );
 
+export interface BucketCounts {
+  fileCount: number;
+  folderCount: number;
+}
+
+// Counts every held Bucket at once, as getNotesCountsByNotebook does for
+// notebooks: the channel list needs a count per Buckets channel. Only files
+// that have finished uploading count -- a pending or failed entry is not a
+// file anyone can open. Every Bucket we hold a manifest for gets an entry,
+// zeroes included, so callers can tell an empty Bucket from one that hasn't
+// arrived yet. One statement, so a snapshot's delete-then-reinsert in
+// replaceBucketEntries can't land between two separate counts.
+export const getBucketCountsByChannel = createReadQuery(
+  'getBucketCountsByChannel',
+  async (ctx: QueryCtx): Promise<Record<string, BucketCounts>> => {
+    const rows = await ctx.db
+      .select({
+        channelId: $buckets.channelId,
+        fileCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($bucketEntries)
+          .where(
+            and(
+              eq($bucketEntries.channelId, $buckets.channelId),
+              eq($bucketEntries.kind, 'file'),
+              eq($bucketEntries.status, 'ready')
+            )
+          )}`,
+        folderCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($bucketEntries)
+          .where(
+            and(
+              eq($bucketEntries.channelId, $buckets.channelId),
+              eq($bucketEntries.kind, 'folder')
+            )
+          )}`,
+      })
+      .from($buckets);
+
+    const counts: Record<string, BucketCounts> = {};
+    for (const row of rows) {
+      counts[row.channelId] = {
+        fileCount: row.fileCount,
+        folderCount: row.folderCount,
+      };
+    }
+    return counts;
+  },
+  ['buckets', 'bucketEntries']
+);
+
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
   async (channelsInit: Omit<ChannelInit, 'order'>[], ctx: QueryCtx) => {
@@ -2975,6 +3028,52 @@ export const getJoinedGroupSeats = createReadQuery(
       );
   },
   ['chatMembers', 'groups']
+);
+
+// A member's roles in every group, and below, every channel's writer and
+// reader roles. Together they answer where that member may post (see
+// useCanWrite, and notesPermissionsCompat for notebooks) for a whole list of
+// channels at once, without loading each one's relations.
+export const getMemberGroupRoles = createReadQuery(
+  'getMemberGroupRoles',
+  async ({ contactId }: { contactId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        groupId: $chatMemberGroupRoles.groupId,
+        roleId: $chatMemberGroupRoles.roleId,
+      })
+      .from($chatMemberGroupRoles)
+      .where(eq($chatMemberGroupRoles.contactId, contactId));
+  },
+  ['chatMemberGroupRoles']
+);
+
+// Only channels that restrict writing have rows here.
+export const getChannelWriterRoles = createReadQuery(
+  'getChannelWriterRoles',
+  async (ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        channelId: $channelWriters.channelId,
+        roleId: $channelWriters.roleId,
+      })
+      .from($channelWriters);
+  },
+  ['channelWriters']
+);
+
+// Only channels that restrict reading have rows here.
+export const getChannelReaderRoles = createReadQuery(
+  'getChannelReaderRoles',
+  async (ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        channelId: $channelReaders.channelId,
+        roleId: $channelReaders.roleId,
+      })
+      .from($channelReaders);
+  },
+  ['channelReaders']
 );
 
 export const addChatMembers = createWriteQuery(

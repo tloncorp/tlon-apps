@@ -24,6 +24,7 @@ export { default as ChevronLeft } from './ChevronLeft.svg';
 export { default as ChevronRight } from './ChevronRight.svg';
 export { default as ChevronUp } from './ChevronUp.svg';
 export { default as Clock } from './Clock.svg';
+export { default as Clipboard } from './Clipboard.svg';
 export { default as Close } from './Close.svg';
 export { default as Code } from './Code.svg';
 export { default as CodeBlock } from './CodeBlock.svg';

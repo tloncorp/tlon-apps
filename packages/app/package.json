@@ -29,6 +29,7 @@
   },
   "peerDependencies": {
     "@expo/ui": "*",
+    "@react-native-picker/picker": "*",
     "expo-audio": "*",
     "expo-document-picker": "*",
     "expo-file-system": "*",

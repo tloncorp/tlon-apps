@@ -10,7 +10,7 @@ describe('deskVersionCountsAllSeats', () => {
     expect(
       deskVersionCountsAllSeats(FULL_MEMBER_COUNT_MIN_GROUPS_VERSION)
     ).toBe(true);
-    expect(deskVersionCountsAllSeats('12.4.0')).toBe(true);
+    expect(deskVersionCountsAllSeats('12.4.1')).toBe(true);
     expect(deskVersionCountsAllSeats('13.0.0')).toBe(true);
   });
 
@@ -21,7 +21,7 @@ describe('deskVersionCountsAllSeats', () => {
   });
 
   test('distrusts a version it cannot fully parse rather than guessing', () => {
-    expect(deskVersionCountsAllSeats('12.3.2 dirty')).toBe(false);
+    expect(deskVersionCountsAllSeats('12.4.0 dirty')).toBe(false);
     expect(deskVersionCountsAllSeats('')).toBe(false);
     expect(deskVersionCountsAllSeats(null)).toBe(false);
     expect(deskVersionCountsAllSeats(undefined)).toBe(false);

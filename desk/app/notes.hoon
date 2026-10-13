@@ -1,6 +1,6 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
-/-  n=notes, mcp-proxy, av=activity-ver
+/-  n=notes, mcp-proxy, av=activity-ver, gv=groups-ver
 /+  default-agent, dbug, verb, server, logs, notes-json, eyre-reply
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
@@ -816,10 +816,9 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+  pole  ~|(bad-agent-wire+pole !!)
-      ::  %groups revocation watch. We avoid a groups-sur dependency by
-      ::  extracting just the changed group's flag from the r-groups fact
-      ::  ([flag r-group] — flag is the head) and rechecking only the
-      ::  subscribers of notebooks bound to that group.
+      ::  %groups watch: each r-groups fact rechecks the subscribers of
+      ::  notebooks bound to the changed group (revocation), then syncs
+      ::  a channel listing title edit.
       [%logs ~]
     cor
   ::
@@ -829,11 +828,9 @@
         %kick
       (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
         %fact
-      ::  r-groups fact is [flag r-group]; decode just the flag head
-      ::  here; +sync-listing-title soft-decodes the channel %edit case.
-      =+  !<([=flag:n *] q.cage.sign)
-      =.  cor  (recheck-group-access flag)
-      (sync-listing-title q.q.cage.sign)
+      =+  !<(=r-groups:v9:gv q.cage.sign)
+      =.  cor  (recheck-group-access flag.r-groups)
+      (sync-listing-title r-groups)
     ==
   ::
       [%notes %sub ship=@ name=@ ~]
@@ -1214,22 +1211,21 @@
 ::  +sync-listing-title: the %groups channel listing is the user-visible
 ::  name of a group notebook, and group admins rename it there. When a
 ::  listing %edit for a group notebook we host carries a new title, apply
-::  it to the %notes title. Soft-decoded and guarded before se-abed's
-::  asserts, so an unrelated or malformed fact is a no-op.
+::  it to the %notes title. Narrowed to the channel %edit case and
+::  guarded before se-abed's asserts, so any other fact is a no-op.
 ::
 ++  sync-listing-title
-  |=  fact=*
+  |=  =r-groups:v9:gv
   ^+  cor
-  =/  ed  ((soft ,[grp=flag:n %channel =nest:n %edit chan=group-channel:n]) fact)
-  ?~  ed  cor
-  =*  nest  nest.u.ed
-  ?.  &(=(%notes kind.nest) =(our.bowl host.nest))  cor
-  =/  nf=flag:n  [host.nest name.nest]
+  =/  rg  r-group.r-groups
+  ?.  ?=([%channel * %edit *] rg)  cor
+  ?.  &(=(%notes p.nest.rg) =(our.bowl p.q.nest.rg))  cor
+  =/  nf=flag:n  q.nest.rg
   ?~  entry=(~(get by books) nf)  cor
   ?.  ?=(%pub -.net.u.entry)  cor
   =*  ns  notebook-state.u.entry
-  ?.  =(`grp.u.ed group.ns)  cor
-  =/  new=@t  title.meta.chan.u.ed
+  ?.  =(`flag.r-groups group.ns)  cor
+  =/  new=@t  title.meta.channel.r-channel.rg
   ?:  =(new title.notebook.ns)  cor
   ?.  =(`%owner (~(get by members.ns) our.bowl))  cor
   se-abet:(se-rename-notebook:(se-abed:se-core nf) new)

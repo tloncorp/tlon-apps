@@ -999,7 +999,9 @@ export function postHasBrowserHandoff(blob: string): boolean {
   function containsHandoff(value: unknown): boolean {
     if (!value || typeof value !== 'object') return false;
     return (
-      ('screen' in value && value.screen === 'browserCredentialHandoff') ||
+      ('screen' in value &&
+        (value.screen === 'browserCredentialHandoff' ||
+          value.screen === 'browserSession')) ||
       Object.values(value).some(containsHandoff)
     );
   }

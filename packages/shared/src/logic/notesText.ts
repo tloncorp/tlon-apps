@@ -1,3 +1,5 @@
+import { formatChannelContentsSummary } from './channelContentsText';
+
 /**
  * Flatten a note's markdown body into one line of readable prose: drop code
  * fences and images, keep link and inline-code text, and strip block and
@@ -38,14 +40,11 @@ export function formatNotesChannelSubtitle({
   noteCount: number;
   folderCount: number;
 }): string {
-  const notes = noteCount === 0 ? 'No notes' : countOf(noteCount, 'note');
-  return folderCount === 0
-    ? notes
-    : `${notes} in ${countOf(folderCount, 'folder')}`;
-}
-
-function countOf(count: number, noun: string) {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+  return formatChannelContentsSummary({
+    count: noteCount,
+    noun: 'note',
+    folderCount,
+  });
 }
 
 /** Format the status line for notebook activity shown on a group row. */

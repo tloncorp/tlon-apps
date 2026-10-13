@@ -546,7 +546,8 @@ function SmallChoiceControl({
                     >
                       <XStack
                         minHeight={48}
-                        paddingHorizontal="$m"
+                        // Matches the input's text inset below.
+                        paddingHorizontal="$xl"
                         alignItems="center"
                         gap="$m"
                         borderBottomWidth={
