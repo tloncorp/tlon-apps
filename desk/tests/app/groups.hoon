@@ -866,6 +866,172 @@
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
     !>(~)
   (pure:m ~)
+::  +test-invites-deleted-token-joined: a joined ship is not sent a revocation
+::
+::  when a token is deleted, the invite record of a ship that has
+::  already joined is dropped without poking her.
+::
+++  test-invites-deleted-token-joined
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-groups-init
+  ::  ~fun has joined the group before we did. nb: ~2000.1.1 is the
+  ::  bunt of @da, which marks a seat that has not joined yet.
+  ::
+  =/  gr=group:g  my-group
+  ;<  *  bind:m
+    (do-join-this-group gr(seats (~(put by seats.gr) ~fun [~ ~2020.1.1])))
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(src ~dev)))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %entry %privacy %private]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ::  invite ~fun to a private group
+  ::
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %entry %token %add 0v123 [personal+~fun (add now.bowl ~d365) ~]]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  *  bind:m
+    (do-agent (weld go-area /invite/~fun/token) [~zod my-agent] %fact group-token+!>(`0v123))
+  ;<  *  bind:m
+    (do-agent (weld go-area /invite/~fun/token) [~zod my-agent] %kick ~)
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invited.admissions.group)
+    !>((my ~[[~fun [now.bowl `0v123]]]))
+  ::  token is deleted. the record is dropped, but ~fun is not poked.
+  ::
+  ;<  caz=(list card)  bind:m
+    =/  =update:g
+      [now.bowl %entry %token %del 0v123]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  ~  bind:m
+    %+  ex-cards-r-groups  caz
+    :~  |+[my-flag [%entry %token %del 0v123]]
+    ==
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m  (ex-equal !>(invited.admissions.group) !>(~))
+  (pure:m ~)
+::  +test-invites-pruned-on-create: a snapshot prunes invites of joined ships
+::
+::  a %create snapshot, as sent on resubscription, shows which invited
+::  ships have joined meanwhile. their invite records are dropped,
+::  those of ships still absent are kept.
+::
+++  test-invites-pruned-on-create
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-join-group
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(src ~dev)))
+  ::  invite ~fun and ~fed to a public group
+  ::
+  ;<  *  bind:m  (do-a-groups [%invite my-flag (sy ~fun ~fed ~) ~ ~])
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invited.admissions.group)
+    !>((my ~[[~fun [now.bowl ~]] [~fed [now.bowl ~]]]))
+  ::  a snapshot arrives with ~fun seated and joined, ~fed absent
+  ::
+  =/  gr=group:g  my-group
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %create gr(seats (~(put by seats.gr) ~fun [~ now.bowl]))]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invited.admissions.group)
+    !>((my ~[[~fed [now.bowl ~]]]))
+  (pure:m ~)
+::  +test-join-spends-admin-token: a second admin's token is spent on join
+::
+::  the host and we both invite ~fun. when she joins, the host seats
+::  her and then deletes both personal tokens. the seat update drops
+::  our invite record, both tokens are removed, and nothing is revoked.
+::
+++  test-join-spends-admin-token
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-join-group
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(src ~dev)))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %entry %privacy %private]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ::  the host invites ~fun. we only learn of her token.
+  ::
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %entry %token %add 0v456 [personal+~fun (add now.bowl ~d365) ~]]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ::  we invite ~fun as well
+  ::
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %entry %token %add 0v123 [personal+~fun (add now.bowl ~d365) ~]]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  *  bind:m
+    (do-agent (weld go-area /invite/~fun/token) [~zod my-agent] %fact group-token+!>(`0v123))
+  ;<  *  bind:m
+    (do-agent (weld go-area /invite/~fun/token) [~zod my-agent] %kick ~)
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invited.admissions.group)
+    !>((my ~[[~fun [now.bowl `0v123]]]))
+  ;<  ~  bind:m
+    (ex-equal !>(~(key by tokens.admissions.group)) !>((sy 0v123 0v456 ~)))
+  ::  ~fun joins. her seat update drops our invite record.
+  ::
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %seat (sy ~fun ~) %add `seat:v7:gv`[~ now.bowl]]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m  (ex-equal !>(invited.admissions.group) !>(~))
+  ::  both tokens are deleted. neither deletion revokes anything.
+  ::
+  ;<  caz=(list card)  bind:m
+    =/  =update:g
+      [(add now.bowl tick) %entry %token %del 0v456]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  ~  bind:m
+    %+  ex-cards-r-groups  caz
+    :~  |+[my-flag [%entry %token %del 0v456]]
+    ==
+  ;<  caz=(list card)  bind:m
+    =/  =update:g
+      [(add now.bowl (mul tick 2)) %entry %token %del 0v123]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  ~  bind:m
+    %+  ex-cards-r-groups  caz
+    :~  |+[my-flag [%entry %token %del 0v123]]
+    ==
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))
+  (pure:m ~)
 ::  +test-invites-group-deleted: test that invites are revoked when a group is deleted
 ::
 ++  test-invites-group-deleted

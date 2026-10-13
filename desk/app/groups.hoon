@@ -2185,17 +2185,44 @@
     ^+  se-core
     =^  access=?  ad
       (se-admit src.bowl tok)
-    =/  has-token=?  ?=(^ tok)
     =/  joined=?  (se-is-joined src.bowl)
     ~|  %se-c-join-access-denied
     ?>  access
-    ?.  joined
-      (se-c-seat (sy src.bowl ~) [%add ~])
-    ::  members seated at group creation already carry a joined
-    ::  time, so their join is vacuous. the invite is still used.
-    ::
     =.  invited.ad  (~(del by invited.ad) src.bowl)
-    se-core
+    ::  members seated at group creation already carry a joined
+    ::  time: their join is vacuous.
+    ::
+    =?  se-core  !joined
+      (se-c-seat (sy src.bowl ~) [%add ~])
+    ::  the seat update must precede the token deletions, so that
+    ::  admins prune their invited lists before revoking invites.
+    ::
+    (se-spend-tokens src.bowl tok)
+  ::  +se-spend-tokens: delete the tokens spent by a joining .ship
+  ::
+  ::  every personal token issued to the ship is spent, whoever
+  ::  issued it. a limited token is spent by its last claim.
+  ::
+  ++  se-spend-tokens
+    |=  [=ship tok=(unit token:g)]
+    ~>  %spin.['se-spend-tokens']
+    ^+  se-core
+    =.  se-core
+      %+  roll  ~(tap by tokens.ad)
+      |=  [[=token:g meta=token-meta:g] =_se-core]
+      ?.  ?&  ?=(%personal -.scheme.meta)
+              =(ship ship.scheme.meta)
+          ==
+        se-core
+      +:(se-c-entry-token:se-core %del token)
+    ?~  tok  se-core
+    =+  meta=(~(get by tokens.ad) u.tok)
+    ?~  meta  se-core
+    ?.  ?&  ?=(%limited -.scheme.u.meta)
+            =(0 count.scheme.u.meta)
+        ==
+      se-core
+    +:(se-c-entry-token %del u.tok)
   ::  +se-c-ask: handle a group ask request
   ::
   ::  a ship can request to join the group. for a public group,
@@ -2298,10 +2325,7 @@
     ::
         %personal
       ?.  =(ship ship.scheme.u.meta)  deny
-      :-  &
-      %_  ad  tokens
-        (~(del by tokens.ad) u.tok)
-      ==
+      [& ad]
     ==
   ::  +se-c-group: execute the group command
   ::
@@ -2741,11 +2765,6 @@
         =/  roles  (~(get by pending.ad) ship)
         =?  pending.ad  ?=(^ roles)
           (~(del by pending.ad) ship)
-        ::  a joining ship has used her invite. admin adds keep it,
-        ::  since +se-send-invite needs it to revoke the old one.
-        ::
-        =?  invited.ad  user-join
-          (~(del by invited.ad) ship)
         =+  seat=(~(got by seats.group.se-core) ship)
         =?  roles.seat  ?=(^ roles)
           (~(uni in roles.seat) u.roles)
@@ -3478,6 +3497,14 @@
     ?~   tea=(~(get by seats.group) ship)  |
     =*  seat  u.tea
     !=(~ (~(int in roles.seat) admins.group))
+  ::  +go-is-joined: check whether the ship has joined the group
+  ::
+  ++  go-is-joined
+    |=  =ship
+    ~>  %spin.['go-is-joined']
+    ^-  ?
+    ?~  seat=(~(get by seats.group) ship)  |
+    !=(*@da joined.u.seat)
   ::  +go-is-banned: check whether the ship is banned
   ::
   ++  go-is-banned
@@ -4040,6 +4067,14 @@
         invited.admissions  invited.admissions.group
         active-channels     active-channels.group
       ==
+    ::  ships that joined while we were not subscribed have used
+    ::  their invites
+    ::
+    =.  invited.ad
+      %+  roll  ~(tap by invited.ad)
+      |=  [[=ship *] =_invited.ad]
+      ?.  (go-is-joined ship)  invited
+      (~(del by invited) ship)
     ::  index the channels the group arrives with. +go-u-channel only
     ::  indexes channels added later, and a %channels %leave for a nest
     ::  missing from .channels-index is dropped, leaving it active here.
@@ -4177,6 +4212,7 @@
     ?.  =(u.tok token)  go-core
     =.  invited.admissions.group.go-core
       (~(del by invited.admissions.group.go-core) ship)
+    ?:  (go-is-joined:go-core ship)  go-core
     (emit:go-core (revoke-invite:go-pass:go-core ship tok))
   ::  +go-u-entry-pending: apply entry pending update
   ::
@@ -4250,8 +4286,6 @@
         |=  [=ship =_go-core]
         (go-activity:go-core %join ship)
       ?:  go-our-host  go-core
-      ::  a joined ship has used her invite
-      ::
       =?  invited.ad  !=(joined.seat.u-seat *@da)
         %-  ~(rep in ships)
         |=  [=ship =_invited.ad]
