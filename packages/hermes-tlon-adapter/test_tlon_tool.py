@@ -1819,6 +1819,8 @@ class OwnerWorkspacePredicateTests(unittest.TestCase):
             "groups CREATE-OWNED Projects --owner owner --description Work",
             # Options follow the title, so a workspace may be titled --agent.
             "groups create-owned --agent --owner ~owner",
+            # Each option takes the next token, so --agent may be a description.
+            "groups create-owned Projects --owner ~owner --description --agent",
         ):
             with self.subTest(command=command):
                 self.assertTrue(

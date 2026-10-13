@@ -1003,6 +1003,21 @@ def should_inject_owner_credentials(args: Sequence[str]) -> bool:
     )
 
 
+CREATE_OWNED_VALUE_OPTIONS = frozenset({"--owner", "--description"})
+
+
+def _has_create_owned_agent_option(command_args: Sequence[str]) -> bool:
+    """Whether ``--agent`` is one of create-owned's options, read as the CLI
+    reads them: options follow the title, and each takes the next token as its
+    value. A workspace titled "--agent", or described as "--agent", has none."""
+    i = 3
+    while i < len(command_args):
+        if command_args[i] == "--agent":
+            return True
+        i += 2 if command_args[i] in CREATE_OWNED_VALUE_OPTIONS else 1
+    return False
+
+
 def should_create_workspace_on_owner(
     args: Sequence[str], owner_ship: str
 ) -> bool:
@@ -1028,9 +1043,7 @@ def should_create_workspace_on_owner(
         return False
     if any(_is_help_arg(arg) for arg in command_args):
         return False
-    # Options follow the title, as the CLI parses them: a workspace may be
-    # titled "--agent".
-    if "--agent" in command_args[3:]:
+    if _has_create_owned_agent_option(command_args):
         return False
     if "--owner" not in command_args[3:]:
         return False

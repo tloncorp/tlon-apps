@@ -440,6 +440,21 @@ function ownerInviteLinkPrefixArgs(
   return ['--ship', ownerShip];
 }
 
+const CREATE_OWNED_VALUE_OPTIONS = new Set(['--owner', '--description']);
+
+/**
+ * Whether `--agent` is one of create-owned's options, read as the CLI reads
+ * them: options follow the title, and each takes the next token as its value.
+ * A workspace titled "--agent", or described as "--agent", has none.
+ */
+function hasCreateOwnedAgentOption(commandArgs: string[]): boolean {
+  for (let i = 3; i < commandArgs.length; i += 1) {
+    if (commandArgs[i] === '--agent') return true;
+    if (CREATE_OWNED_VALUE_OPTIONS.has(commandArgs[i])) i += 1;
+  }
+  return false;
+}
+
 /**
  * The shared owner-workspace predicate (the Hermes adapter implements the same
  * truth table): a `groups create-owned` whose `--owner` is the configured
@@ -460,9 +475,7 @@ export function shouldCreateWorkspaceOnOwner(
   if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
   if (commandArgs[1]?.toLowerCase() !== 'create-owned') return false;
   if (commandArgs.some((arg) => HELP_TOKENS.has(arg))) return false;
-  // Options follow the title, as the CLI parses them: a workspace may be
-  // titled "--agent".
-  if (commandArgs.slice(3).includes('--agent')) return false;
+  if (hasCreateOwnedAgentOption(commandArgs)) return false;
 
   const ownerIdx = commandArgs.indexOf('--owner', 3);
   const owner = ownerIdx < 0 ? undefined : commandArgs[ownerIdx + 1];

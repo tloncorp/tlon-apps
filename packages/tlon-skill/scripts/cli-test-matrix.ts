@@ -831,6 +831,18 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '--agent',
     '~pinser-botter-sampel-palnet',
   ]),
+  authRequiredCase(
+    'groups create-owned --agent as a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~sampel-palnet',
+      '--description',
+      '--agent',
+    ]
+  ),
   usageErrorCase(
     'groups create-owned rejects a bare --agent',
     ['groups', 'create-owned', 'Projects', '--owner', '~zod', '--agent'],

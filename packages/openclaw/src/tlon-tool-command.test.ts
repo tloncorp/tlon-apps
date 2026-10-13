@@ -541,6 +541,29 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     );
   });
 
+  it('reads --agent only in an option position, as the CLI does', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('description', {
+      command:
+        'groups create-owned Projects --owner ~owner --description --agent',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      '--ship',
+      '~owner',
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~owner',
+      '--description',
+      '--agent',
+      '--agent',
+      '~pinser-botter-owner',
+    ]);
+  });
+
   it('reads --agent only after the title, as the CLI does', async () => {
     const { execute, runCommand } = makeExecutor();
 

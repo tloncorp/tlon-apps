@@ -114,11 +114,25 @@ function generateGroupSlug(): string {
   return slug;
 }
 
+const CREATE_OWNED_VALUE_OPTIONS = new Set(['--owner', '--description']);
+
+/**
+ * `--agent` as create-owned reads it: options follow the title, and each takes
+ * the next token as its value, so `--description --agent` is a description
+ * and not a bare --agent. The tlon tool adapters look for it the same way.
+ */
+function findAgentOption(args: string[]): { present: boolean; value?: string } {
+  for (let i = 2; i < args.length; i += 1) {
+    if (args[i] === '--agent') return { present: true, value: args[i + 1] };
+    if (CREATE_OWNED_VALUE_OPTIONS.has(args[i])) i += 1;
+  }
+  return { present: false };
+}
+
 // `--agent` is optional for create-owned, but a bare flag is a usage error.
 function hasValidAgentOption(args: string[]): boolean {
-  if (!args.includes('--agent', 2)) return true;
-  const agent = getOption(args, 'agent', 2);
-  return agent !== undefined && !agent.startsWith('--');
+  const { present, value } = findAgentOption(args);
+  return !present || (value !== undefined && !value.startsWith('--'));
 }
 
 const GROUPS_HELP = `Usage: tlon groups <command>
@@ -1539,7 +1553,7 @@ async function main() {
         process.exit(1);
       }
       const description = getOption(args, 'description', 2) || '';
-      const agent = getOption(args, 'agent', 2);
+      const agent = findAgentOption(args).value;
       await createOwnedGroup(title, owner, description, agent);
       break;
     }
