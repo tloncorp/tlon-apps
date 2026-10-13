@@ -197,6 +197,9 @@ function SettingsRow({
             fontSize: row.prominent ? 18 : 16,
             fontWeight: row.prominent ? '600' : undefined,
           }}
+          // Labels run as long as they need to; only prose is ever cut off.
+          maxLines={row.expanded === false ? 3 : undefined}
+          overflow="ellipsis"
         >
           {row.title}
         </Text>

@@ -53,6 +53,7 @@ export interface ChatDetailsScreenViewProps {
   onTogglePinned: () => void;
   onForward: () => void;
   onCopyGroupId: () => void;
+  onCopyDescription: (description: string) => void;
   onPressPrivacy: () => void;
   onPressRoles: () => void;
   onPressChannels: () => void;
@@ -93,6 +94,7 @@ export function ChatDetailsScreenView({
   onTogglePinned,
   onForward,
   onCopyGroupId,
+  onCopyDescription,
   onPressPrivacy,
   onPressRoles,
   onPressChannels,
@@ -112,6 +114,7 @@ export function ChatDetailsScreenView({
   const groupTitle = useGroupTitle(group) ?? 'group';
   const chatTitle = useChatTitle(channel, group);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   // A channel outside a group is a DM, which has members and nothing else.
   const isGroup = chatType === 'group' && !!group;
@@ -217,7 +220,23 @@ export function ChatDetailsScreenView({
             title: 'Description',
             rows: [
               description
-                ? { key: 'description', title: description }
+                ? {
+                    key: 'description',
+                    title: description,
+                    expanded: descriptionExpanded,
+                    accessory: 'none',
+                    onPress: mayBeCutOff(description)
+                      ? () => setDescriptionExpanded((expanded) => !expanded)
+                      : undefined,
+                    contextActions: [
+                      {
+                        key: 'copy',
+                        title: 'Copy',
+                        onPress: () => onCopyDescription(description),
+                      },
+                    ],
+                    testID: `${idPrefix}Description`,
+                  }
                 : {
                     key: 'description',
                     title: 'Add a description',
@@ -424,12 +443,14 @@ export function ChatDetailsScreenView({
     contactIndex,
     currentUserId,
     currentUserIsAdmin,
+    descriptionExpanded,
     disableNicknames,
     group,
     groupTitle,
     hasSettings,
     hostStatus,
     isGroupChannel,
+    onCopyDescription,
     onCopyGroupId,
     onForward,
     onLeave,
@@ -582,6 +603,16 @@ const compactTitleStyle = { fontSize: 26, lineHeight: 30 } as const;
 // sits below the first, so a wrapped name and its caption are evenly spaced.
 // The two name sizes leave different room under their last line.
 const subtitleOffset = { full: -2, compact: 0 } as const;
+
+/**
+ * Whether a description is long enough that its collapsed row may be cutting
+ * it off, and so should open on a press. Three lines hold a little over a
+ * hundred characters on a phone; guessing low only makes a row that fits
+ * pressable to no effect, where guessing high would leave text unreachable.
+ */
+function mayBeCutOff(description: string) {
+  return description.length > 90 || description.includes('\n');
+}
 
 /** Where left-aligned header content starts, in line with the cards' text. */
 const heroLeadingInset = 20;

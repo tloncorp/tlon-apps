@@ -82,6 +82,7 @@ function Details(props: Partial<ComponentProps<typeof ChatDetailsScreenView>>) {
         onTogglePinned={noop}
         onForward={noop}
         onCopyGroupId={noop}
+        onCopyDescription={noop}
         onPressPrivacy={noop}
         onPressRoles={noop}
         onPressChannels={noop}

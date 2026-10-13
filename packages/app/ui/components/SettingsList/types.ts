@@ -58,6 +58,12 @@ export interface SettingsRowModel {
    * such as a confirmation. Defaults to a chevron.
    */
   accessory?: 'chevron' | 'external' | 'none';
+  /**
+   * For a title that is prose, such as a description: true shows all of it,
+   * false cuts it off after a few lines. Left out, each list does what it does
+   * for a label.
+   */
+  expanded?: boolean;
   onPress?: () => void;
   /**
    * Long-press actions. iOS lists them in a context menu; Android and web run
