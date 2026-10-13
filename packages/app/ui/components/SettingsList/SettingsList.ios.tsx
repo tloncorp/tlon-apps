@@ -29,6 +29,8 @@ import {
   frame,
   lineLimit,
   listRowBackground,
+  listRowInsets,
+  listRowSeparator,
   listRowSeparatorTint,
   listSectionMargins,
   onSubmit as submitAction,
@@ -38,6 +40,9 @@ import {
   submitLabel,
   textInputAutocapitalization,
 } from '@expo/ui/swift-ui/modifiers';
+
+import type { ReactElement } from 'react';
+import { View, useWindowDimensions } from 'react-native';
 
 import { useScreenScrollProps } from '../useScreenScrollProps';
 import {
@@ -55,6 +60,11 @@ import {
 // which reads as a gap under the navigation bar's small inline title.
 const firstSectionModifiers = [
   listSectionMargins({ edges: 'top', length: 24 }),
+];
+
+// A screen's own content at the top sits right under the navigation bar.
+const flushFirstSectionModifiers = [
+  listSectionMargins({ edges: 'top', length: 0 }),
 ];
 
 /** Settings drawn as a SwiftUI inset-grouped form, in Tlon's theme colors. */
@@ -75,7 +85,13 @@ export function SettingsList({ sections }: SettingsListProps) {
         {sections.map((section, index) => (
           <Section
             key={section.key}
-            modifiers={index === 0 ? firstSectionModifiers : undefined}
+            modifiers={
+              index !== 0
+                ? undefined
+                : section.element
+                  ? flushFirstSectionModifiers
+                  : firstSectionModifiers
+            }
             header={
               section.title ? (
                 <Text modifiers={[foregroundStyle(colors.secondaryText)]}>
@@ -91,6 +107,12 @@ export function SettingsList({ sections }: SettingsListProps) {
               ) : undefined
             }
           >
+            {section.element ? (
+              <HostedSectionElement
+                element={section.element}
+                page={colors.page}
+              />
+            ) : null}
             {section.rows.map((row) => (
               <SettingsRow key={row.key} row={row} colors={colors} />
             ))}
@@ -98,6 +120,43 @@ export function SettingsList({ sections }: SettingsListProps) {
         ))}
       </Form>
     </Host>
+  );
+}
+
+/** The margin an inset-grouped form keeps on each side of its rows. */
+const formSideMargin = 16;
+
+// Negative side insets carry the row out to the screen's edges, so the
+// content decides its own margins and can scroll sideways edge to edge.
+const hostedElementModifiers = [
+  listRowInsets({
+    top: 0,
+    leading: -formSideMargin,
+    bottom: 0,
+    trailing: -formSideMargin,
+  }),
+  listRowSeparator('hidden'),
+];
+
+/**
+ * A section's own React Native content, as a row with no card behind it. The
+ * hosted view is given the screen's width, since SwiftUI takes its size from
+ * it.
+ */
+function HostedSectionElement({
+  element,
+  page,
+}: {
+  element: ReactElement;
+  page: string;
+}) {
+  const { width } = useWindowDimensions();
+  return (
+    <VStack modifiers={[listRowBackground(page), ...hostedElementModifiers]}>
+      <RNHostView matchContents>
+        <View style={{ width }}>{element}</View>
+      </RNHostView>
+    </VStack>
   );
 }
 

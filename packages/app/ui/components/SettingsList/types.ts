@@ -103,6 +103,11 @@ export interface SettingsSectionModel {
   title?: string;
   footer?: string;
   rows: SettingsRowModel[];
+  /**
+   * React Native content in place of rows, drawn straight on the page with no
+   * card, such as a screen's hero. It scrolls with the list.
+   */
+  element?: ReactElement;
 }
 
 export interface SettingsListProps {
