@@ -1040,6 +1040,36 @@ def should_create_workspace_on_owner(
     return normalize_ship(command_args[owner_idx + 1]).lower() == owner
 
 
+CHANNEL_CREATE_COMMANDS = frozenset(
+    {("channels", "create"), ("groups", "add-channel")}
+)
+
+
+def should_create_channel_on_owner(args: Sequence[str], owner_ship: str) -> bool:
+    """The shared owner-channel predicate — the OpenClaw plugin implements the
+    same truth table. True iff the parsed subcommand creates a channel in a
+    group the configured owner hosts, with no credential flag in either form
+    and no help token. A channel is hosted by the ship that creates it, so run
+    as the bot — a non-host admin there — it would land on the bot node."""
+    owner = normalize_ship(owner_ship).lower()
+    if not owner or _has_credential_flag(args):
+        return False
+
+    sub_idx = find_subcommand_index(args)
+    if sub_idx < 0:
+        return False
+    command_args = [str(arg) for arg in args[sub_idx:]]
+    if len(command_args) < 3:
+        return False
+    operation = (command_args[0].lower(), command_args[1].lower())
+    if operation not in CHANNEL_CREATE_COMMANDS:
+        return False
+    if any(_is_help_arg(arg) for arg in command_args):
+        return False
+    group_host = command_args[2].split("/", 1)[0]
+    return bool(group_host) and normalize_ship(group_host).lower() == owner
+
+
 def _hosted_owner_config(
     cfg: TlonConfig, env: Mapping[str, str] | None = None
 ) -> Optional[TlonConfig]:
@@ -1091,6 +1121,20 @@ def owner_invite_link_config(
         )
 
     return owner_cfg, None
+
+
+def owner_channel_config(
+    cfg: TlonConfig, env: Mapping[str, str] | None = None
+) -> Optional[TlonConfig]:
+    """The owner config that creates a channel in the owner's group on the
+    owner node, or None to run it as written: a bot that is its own owner
+    already hosts it there, and without the owner triple a bot-hosted channel
+    still works."""
+    bot = normalize_ship(cfg.ship_name)
+    owner = normalize_ship(cfg.owner_ship)
+    if bot and bot.lower() == owner.lower():
+        return None
+    return _hosted_owner_config(cfg, env)
 
 
 def owner_workspace_config(
@@ -1184,6 +1228,10 @@ async def execute_tlon_tool(
         ):
             cfg, agent = owner_workspace
             args = [*args, "--agent", agent]
+    elif should_create_channel_on_owner(args, cfg.owner_ship):
+        owner_channel = owner_channel_config(cfg)
+        if owner_channel is not None:
+            cfg = owner_channel
 
     # Lazy import keeps this module importable standalone (no cycle at load).
     from .telemetry import cli_context, get_active_telemetry

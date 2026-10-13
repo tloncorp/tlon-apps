@@ -18,6 +18,8 @@ Do not decompose a user-requested new group into plain `tlon groups create`, `tl
 
 Name the host from the `Host:` line when you reply. Only the host can delete a group, so offer to delete one only when the bot node hosts it.
 
+A channel is hosted by the node that creates it. When you create a channel in a group the owner hosts and hosted owner credentials are configured, the tool creates it as the owner, so it lives on the owner's node and you join it automatically. Use the nest it returns.
+
 ## Gallery channels
 
 Galleries use `heap/~host/name` and collect images, links, and other media.

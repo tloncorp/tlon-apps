@@ -250,7 +250,7 @@ Add your bot to any group. In channels, mention it (@nickname) to trigger a resp
 
 Other members can use it too, but not by default. A new channel starts restricted: when someone who isn't you mentions the bot, it stays quiet and sends you an approval request instead. Approve them, or open the channel to everyone, and from then on they can ask it questions, have it settle debates, run trivia. Worth saying up front — silence from an unapproved member looks like the bot is broken.
 
-Your bot can also do group admin work from a DM: create groups, set up channels, create roles, customize permissions, invite members with specific roles, and remove members.
+Your bot can also do group admin work from a DM: create groups, set up channels, create roles, customize permissions, invite members with specific roles, and remove members. On a hosted account, channels it sets up in a group on your node live on your node too.
 
 That works in the groups the bot made for you: on a hosted account they live on your node with the bot as an admin, and a self-hosted bot hosts them itself. In someone else's group, adding the bot as a member isn't enough: administration is reserved for the host and for members with an admin role, so the group's owner has to give the bot one first. Without it the requests come back as errors.
 

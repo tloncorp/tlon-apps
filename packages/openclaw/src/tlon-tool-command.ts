@@ -478,22 +478,67 @@ export function shouldCreateWorkspaceOnOwner(
 function ownerWorkspaceArgs(
   deps: TlonToolExecutorDeps
 ): { prefix: string[]; suffix: string[] } | null {
-  const ownerShip = deps.ownerShip;
   const botShip = deps.botShip;
-  if (!ownerShip || !botShip || botShip === ownerShip) return null;
+  if (!botShip) return null;
+  const prefix = ownerCredentialArgs(deps, 'the workspace');
+  return prefix ? { prefix, suffix: ['--agent', botShip] } : null;
+}
+
+/**
+ * `--ship <owner>` when the owner's hosted credentials are provisioned and the
+ * bot is not its own owner, or null to run the command as written. A missing
+ * file is logged rather than an error: what the bot makes on its own ship
+ * still works, and it is all a self-hosted bot can make.
+ */
+function ownerCredentialArgs(
+  deps: TlonToolExecutorDeps,
+  what: string
+): string[] | null {
+  const ownerShip = deps.ownerShip;
+  if (!ownerShip || deps.botShip === ownerShip) return null;
 
   const location = locateOwnerShipConfig(ownerShip, deps);
   if (location.kind === 'no-config-file') {
     deps.logError?.(
-      `Creating the workspace on the bot's ship: owner credentials are missing at ${location.configPath}.`
+      `Creating ${what} on the bot's ship: owner credentials are missing at ${location.configPath}.`
     );
   }
-  if (location.kind !== 'found') return null;
+  return location.kind === 'found' ? ['--ship', ownerShip] : null;
+}
 
-  return {
-    prefix: ['--ship', ownerShip],
-    suffix: ['--agent', botShip],
-  };
+const CHANNEL_CREATE_COMMANDS: ReadonlyArray<readonly [string, string]> = [
+  ['channels', 'create'],
+  ['groups', 'add-channel'],
+];
+
+/**
+ * The shared owner-channel predicate (the Hermes adapter implements the same
+ * truth table): a channel create in a group the configured owner hosts, with
+ * no credential flag in either form and no help token. A channel is hosted by
+ * the ship that creates it, so run as the bot — a non-host admin there — it
+ * would land on the bot's ship instead of the owner's.
+ */
+export function shouldCreateChannelOnOwner(
+  args: string[],
+  ownerShip: string | undefined
+): boolean {
+  if (!ownerShip) return false;
+  if (hasCredentialOverride(args)) return false;
+
+  const subIdx = findTlonSubcommandIndex(args);
+  if (subIdx < 0) return false;
+  const commandArgs = args.slice(subIdx);
+  const command = commandArgs[0]?.toLowerCase();
+  const operation = commandArgs[1]?.toLowerCase();
+  if (
+    !CHANNEL_CREATE_COMMANDS.some(([c, o]) => c === command && o === operation)
+  ) {
+    return false;
+  }
+  if (commandArgs.some((arg) => HELP_TOKENS.has(arg))) return false;
+
+  const groupHost = commandArgs[2]?.split('/')[0];
+  return !!groupHost && normalizeShip(groupHost) === ownerShip;
 }
 
 const AGENT_OPTION_PROBE_ARGS = ['groups', 'create-owned', '--help'];
@@ -669,6 +714,9 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         if (ownerArgs && (await cliSupportsAgentOption(deps))) {
           commandArgs = [...ownerArgs.prefix, ...args, ...ownerArgs.suffix];
         }
+      } else if (shouldCreateChannelOnOwner(args, deps.ownerShip)) {
+        const prefix = ownerCredentialArgs(deps, 'the channel');
+        if (prefix) commandArgs = [...prefix, ...args];
       }
 
       const output = await deps.runCommand(commandArgs);

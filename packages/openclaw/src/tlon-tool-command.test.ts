@@ -631,6 +631,118 @@ describe('owner-hosted workspaces for groups create-owned', () => {
   });
 });
 
+describe("owner-hosted channels in the owner's groups", () => {
+  const SKILL_DIR = '/srv/tlon-skill';
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+
+  function makeExecutor(
+    overrides: {
+      ownerShip?: string;
+      botShip?: string;
+      env?: NodeJS.ProcessEnv;
+      fileExists?: (path: string) => boolean;
+    } = {}
+  ) {
+    const runCommand = vi.fn(async () => 'Channel created!');
+    const logError = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      logError,
+      ownerShip: '~owner',
+      botShip: '~pinser-botter-owner',
+      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...overrides,
+    });
+    return { execute, runCommand, logError };
+  }
+
+  it.each([
+    ['channels create', 'channels create ~owner/team Discussion --kind chat'],
+    [
+      'groups add-channel',
+      'groups add-channel owner/team Research --kind notes',
+    ],
+  ])(
+    'runs %s in an owner-hosted group as the owner',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      await execute('channel', { command });
+
+      expect(runCommand).toHaveBeenCalledWith([
+        '--ship',
+        '~owner',
+        ...command.split(' '),
+      ]);
+    }
+  );
+
+  it.each([
+    ['another host', 'channels create ~someone/team Discussion'],
+    [
+      "the bot's own group",
+      'channels create ~pinser-botter-owner/team Discussion',
+    ],
+    ['--help', 'channels create ~owner/team Discussion --help'],
+    [
+      'separate-value --ship',
+      '--ship ~bot channels create ~owner/team Discussion',
+    ],
+    [
+      '=-form --config',
+      '--config=/x.json channels create ~owner/team Discussion',
+    ],
+    [
+      'another channels operation',
+      'channels update chat/~owner/abc --title New',
+    ],
+  ])('leaves the command untouched for %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+  });
+
+  it("creates the channel on the bot's ship when owner credentials are not provisioned", async () => {
+    const { execute, runCommand, logError } = makeExecutor({
+      fileExists: () => false,
+    });
+
+    await execute('no-file', {
+      command: 'channels create ~owner/team Discussion',
+    });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      'channels',
+      'create',
+      '~owner/team',
+      'Discussion',
+    ]);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining("Creating the channel on the bot's ship")
+    );
+  });
+
+  it('runs as written when the bot is its own owner', async () => {
+    const { execute, runCommand } = makeExecutor({ botShip: '~owner' });
+
+    await execute('self', {
+      command: 'channels create ~owner/team Discussion',
+    });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      'channels',
+      'create',
+      '~owner/team',
+      'Discussion',
+    ]);
+  });
+});
+
 describe('checkBlockedTlonOperation', () => {
   it('does not block channels leave or join on chat and heap nests', () => {
     expect(

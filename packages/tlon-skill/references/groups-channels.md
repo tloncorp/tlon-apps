@@ -29,6 +29,8 @@ Share the returned `Ref:` path in the reply so Tlon can render the group card.
 
 Description is supported for chat/heap, not notes. For notebooks, continue with [notes.md](notes.md); for shared files, use [buckets.md](buckets.md). Inspect `help channels create` for kind-specific flags.
 
+A channel is hosted by the ship that creates it. In a group your owner hosts, when the runtime holds the owner's hosted credentials, the tool creates the channel as the owner, so it lives on the owner's node and you join it automatically. Use the nest it returns, whose host part names the owner.
+
 To leave a single channel, use `channels leave <nest>`; `groups leave` leaves the whole workspace and all its channels. `channels join` does not check read access: it can report "Joined" while messages remain unavailable to an account without access.
 
 ## Membership and permissions
