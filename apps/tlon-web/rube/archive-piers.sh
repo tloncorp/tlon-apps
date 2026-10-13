@@ -876,21 +876,27 @@ sync_ship_snapshots() {
         # save the snapshot and exit.
         kill -TERM "$sync_pid" 2>/dev/null || true
         local stop_waited=0
+        local forced=false
         while kill -0 "$sync_pid" 2>/dev/null && [ $stop_waited -lt 30 ]; do
             sleep 1
             stop_waited=$((stop_waited + 1))
         done
         if kill -0 "$sync_pid" 2>/dev/null; then
-            print_warning "~$ship did not exit within 30s of SIGTERM; killing it"
+            # A SIGKILL skips the final save, so going live proves nothing.
+            forced=true
             kill -9 "$sync_pid" 2>/dev/null || true
         fi
         wait "$sync_pid" 2>/dev/null || true
         forget_spawned_pid "$sync_pid"
 
-        if [ "$live" = "true" ]; then
+        if [ "$live" = "true" ] && [ "$forced" = "false" ]; then
             print_status "Synced ~$ship"
         else
-            print_error "~$ship did not reach live state (waited ${waited}s of ${sync_live_timeout}s); its snapshot is behind its event log"
+            if [ "$live" = "true" ]; then
+                print_error "~$ship had to be killed after going live (no exit within 30s of SIGTERM); its snapshot may be behind its event log"
+            else
+                print_error "~$ship did not reach live state (waited ${waited}s of ${sync_live_timeout}s); its snapshot is behind its event log"
+            fi
             print_info "Last 20 lines of $sync_log:"
             tail -n 20 "$sync_log" 2>/dev/null || true
             exit 1
