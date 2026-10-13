@@ -2181,7 +2181,8 @@
   ::
   ::  a banned ship can not enter the group.
   ::
-  ::  re-joining the group with valid credentials is vacuous.
+  ::  re-joining the group creates no seat, but still spends
+  ::  the ship's tokens.
   ::
   ++  se-c-join
     |=  tok=(unit token:g)
@@ -3760,6 +3761,16 @@
       ::
       =.  go-core  (emit:go-core (request-token:go-pass:go-core ship))
       go-core
+    ::  a personal token is only sent to its owner
+    ::
+    =/  meta=(unit token-meta:g)
+      ?~  token.a-invite  ~
+      (~(get by tokens.ad) u.token.a-invite)
+    ~|  %go-a-invite-not-token-owner
+    ?<  ?&  ?=(^ meta)
+            ?=(%personal -.scheme.u.meta)
+            !=(ship ship.scheme.u.meta)
+        ==
     =/  =invite:v8:gv
       :*  flag
           now.bowl

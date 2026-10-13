@@ -1008,6 +1008,38 @@
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))
   (pure:m ~)
+::  +test-invite-personal-token-owner: a personal token goes to its owner only
+::
+++  test-invite-personal-token-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-join-group
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(src ~dev)))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %entry %privacy %private]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %entry %token %add 0v123 [personal+~fun (add now.bowl ~d365) ~]]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ::  ~fun's token can not be used to invite ~fed
+  ::
+  ;<  ~  bind:m
+    (ex-fail ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fed ~) `0v123 ~])))
+  ::  but it can be used to invite ~fun
+  ::
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) `0v123 ~]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invited.admissions.group)
+    !>((my ~[[~fun [now.bowl `0v123]]]))
+  (pure:m ~)
 ::  +test-invites-group-deleted: test that invites are revoked when a group is deleted
 ::
 ++  test-invites-group-deleted
