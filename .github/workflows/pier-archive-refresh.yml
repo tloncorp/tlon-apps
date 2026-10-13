@@ -187,6 +187,10 @@ jobs:
             tee "$logs/archive-piers.log"
           status=${PIPESTATUS[0]}
           kill "$tail_pid" 2> /dev/null
+          # The per-ship urbit logs live in /tmp, outside the artifact path.
+          # A green run has already deleted pack/meld/roll/chop logs.
+          cp /tmp/sync-*.log /tmp/pack-*.log /tmp/meld-*.log /tmp/roll-*.log \
+            /tmp/chop-*.log "$logs"/ 2> /dev/null || true
           exit "$status"
 
       # A PR opened with GITHUB_TOKEN gets only approval-gated CI, and this
