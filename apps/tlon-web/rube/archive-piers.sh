@@ -499,6 +499,29 @@ cleanup() {
         for pid in "${SPAWNED_PIDS[@]}"; do
             kill -TERM "$pid" 2>/dev/null || true
         done
+        # A ship that ignores TERM would outlive this script and keep its
+        # pier locked; a --skip-prepare run has no port sweep to catch it.
+        local waited=0 alive
+        while [ "$waited" -lt 10 ]; do
+            alive=false
+            for pid in "${SPAWNED_PIDS[@]}"; do
+                if kill -0 "$pid" 2>/dev/null; then
+                    alive=true
+                    break
+                fi
+            done
+            if [ "$alive" = "false" ]; then
+                break
+            fi
+            sleep 1
+            waited=$((waited + 1))
+        done
+        for pid in "${SPAWNED_PIDS[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+            wait "$pid" 2>/dev/null || true
+        done
     fi
 
     # The rest only applies when this run started the fleet. A --skip-prepare
