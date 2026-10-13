@@ -242,7 +242,7 @@ Authorization failures return `{result: "denied"}` and expired tokens return `{r
 -   Readiness answering a constant, and listing Buckets leaving their entries behind
 -   Rejection of a remote write when the live `%groups` gate denies access, and acceptance with a writer role
 -   Group-hosted creation by an authorized remote admin; rejection for a non-admin; idempotent retries
--   A Moon that hosts the group owning its Bucket storage, and a star being refused it
+-   A Moon being refused Bucket storage even when it hosts the group
 -   State round-tripping through `+on-load`, and a kick resubscribing rather than dropping the replica
 
 `desk/tests/app/groups.hoon` additionally covers the `can-write` peek resolving to `~` for a ship holding no seat, which both this agent and `lib/channel-utils` read with `.^`.

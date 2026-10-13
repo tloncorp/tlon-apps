@@ -231,31 +231,17 @@ describe('buckets command', () => {
     ]);
   });
 
-  it('creates a Bucket in a Moon-hosted group on the Moon', async () => {
+  it('rejects Bucket creation for a Moon-hosted group before authenticating', async () => {
     const context = makeDeps();
     expect(
       await run(
         ['create', '~pinser-botter-sampel-palnet/team', 'Shared Files'],
         context.deps
       )
-    ).toBe(0);
-    expect(context.calls.create).toEqual([
-      expect.objectContaining({
-        group: { host: '~pinser-botter-sampel-palnet', name: 'team' },
-      }),
-    ]);
-  });
-
-  it('rejects Bucket creation for a star-hosted group before authenticating', async () => {
-    const context = makeDeps();
-    expect(
-      await run(['create', '~marzod/team', 'Shared Files'], context.deps)
     ).toBe(1);
+    expect(context.stderr()).toContain('only in groups hosted by a planet');
     expect(context.stderr()).toContain(
-      'only in groups hosted by a planet or a moon'
-    );
-    expect(context.stderr()).toContain(
-      'Do not substitute another member ship for the group host'
+      'Do not substitute a Moon owner or another member ship'
     );
     expect(context.calls.authenticate).toBe(0);
     expect(context.calls.create).toEqual([]);

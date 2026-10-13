@@ -215,9 +215,9 @@ function parseGroup(group: string, usage: string): BucketsFlag {
   } catch {
     throw usageError(`Invalid group host: ${rawHost}.`, usage);
   }
-  if (hostKind !== 'planet' && hostKind !== 'moon') {
+  if (hostKind !== 'planet') {
     throw usageError(
-      'Buckets are currently available only in groups hosted by a planet or a moon. Do not substitute another member ship for the group host.',
+      'Buckets are currently available only in groups hosted by a planet. Do not substitute a Moon owner or another member ship.',
       usage
     );
   }

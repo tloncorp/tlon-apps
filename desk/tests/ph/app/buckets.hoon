@@ -26,8 +26,9 @@
 |%
 ::  The bucket host is a planet, not a galaxy.
 ::
-::  %buckets refuses a create whose group host is neither a %duke nor an
-::  %earl, so the aqua convention of numbering galaxies cannot be used here.
+::  %buckets refuses a create whose group host is not a %duke -- the same gate
+::  that refuses moons -- so the aqua convention of numbering galaxies cannot
+::  be used here.
 ::
 ::  It has to be a planet CI already boots. backend/run-tests.sh fixes the
 ::  fleet at ~[~zod ~nec ~bud ~wes ~dem ~fen ~loshut-lonreg ~rivfur-livmet],

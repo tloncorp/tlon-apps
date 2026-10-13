@@ -45,18 +45,19 @@ export const BUCKETS_HOSTED_SHIP_REQUIRED_MESSAGE =
  * Whether `ship` could hold buckets at all.
  *
  * The storage broker authenticates a bucket host through that ship's hosting
- * sidecar -- a moon through its parent's -- so a self-hosted ship cannot hold
- * one however willing it is: its token push has nothing to verify against and
- * is refused. Ship class is only a proxy for that, and a poor one: a
- * self-hosted planet, or a moon of one, passes here and still cannot host.
+ * sidecar, so a self-hosted ship cannot hold one however willing it is -- its
+ * token push has nothing to verify against and is refused. Ship class is only
+ * a proxy for that, and a poor one: a self-hosted planet passes here and
+ * still cannot host. It is also stricter than the broker, which supports a
+ * moon of a hosted ship via its parent's sidecar -- left excluded because
+ * that is a product decision, not an accident.
  *
- * So this stays a coarse pre-filter. Use `canGroupHostBuckets`, which can
- * answer outright when the ship in question is our own.
+ * So this stays a coarse pre-filter. Use `canCurrentUserHostBuckets` wherever
+ * the ship in question is our own, which is the case that can be answered.
  */
 export function canShipHostBuckets(ship: string) {
   try {
-    const kind = p.kind(ship);
-    return kind === 'planet' || kind === 'moon';
+    return p.kind(ship) === 'planet';
   } catch {
     return false;
   }

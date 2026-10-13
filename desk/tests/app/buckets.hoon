@@ -1996,9 +1996,10 @@
       (grant-fact 0v1 [%pending ~])
   ==
 ::
-::  A Moon that hosts the group owns its Bucket storage, as a planet does.
+::  A Moon cannot own Bucket storage, even when it hosts the group and the
+::  caller is an admin.
 ::
-++  test-moon-host-creates
+++  test-moon-host-cannot-create
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -2007,31 +2008,11 @@
   =/  moon-group=flag:bu  [moon %test-group]
   ;<  ~  b  (setup-as moon)
   ;<  ~  b  (set-scry-gate allow-admin-create-scries)
-  ;<  *  b
-    (ask 0v1 [%create %project-files 'Project Files' moon-group ~ ~])
-  ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
-  =/  bs=bucket-state:bu  (state-for st [moon %project-files])
-  %+  ex-equal
-  !>([created-by.bucket.bs group.bs])
-  !>([moon moon-group])
-::
-::  A star or galaxy cannot own Bucket storage, even when it hosts the group
-::  and the caller is an admin.
-::
-++  test-star-host-cannot-create
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  =/  star-group=flag:bu  [~marzod %test-group]
-  ;<  ~  b  (setup-as ~marzod)
-  ;<  ~  b  (set-scry-gate allow-admin-create-scries)
   ;<  caz=(list card)  b
-    (ask 0v1 [%create %project-files 'Project Files' star-group ~ ~])
+    (ask 0v1 [%create %project-files 'Project Files' moon-group ~ ~])
   %+  ex-cards  caz
   :~  %+  grant-fact  0v1
-      [%error %invalid-input 'only a planet or moon may host a bucket']
+      [%error %invalid-input 'only a planet may host a bucket']
   ==
 ::
 ::  The authoritative group host accepts a live remote admin, owns the Bucket,
@@ -2229,14 +2210,14 @@
   =*  b  bind:m
   ^-  form:m
   =/  body=@t
-    '{"requestId":"0v5","action":{"type":"create","name":"smoke","title":"Smoke","group":{"host":"~marzod","name":"demo"},"readers":[],"writers":[]}}'
+    '{"requestId":"0v5","action":{"type":"create","name":"smoke","title":"Smoke","group":{"host":"~pinser-botter-sampel-palnet","name":"demo"},"readers":[],"writers":[]}}'
   ;<  ~  b  setup
   ;<  caz=(list card)  b  (http-post & body)
   ::  the answer goes to the local subscription first, then closes out the
   ::  held request — same body, two deliveries.
   %+  ex-cards  caz
   :~  %+  grant-fact  0v5
-      [%error %invalid-input 'only a planet or moon may host a bucket']
+      [%error %invalid-input 'only a planet may host a bucket']
       (http-header 200 'application/json')
       (ex-fact-paths [/http-response/eyre-0]~)
       (ex-card [%give %kick [/http-response/eyre-0]~ ~])
