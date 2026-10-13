@@ -2173,7 +2173,8 @@
   ::  a ship can join the group if she has a valid token.
   ::  for a public group no token is required for entry.
   ::  a private or secret group requires a valid token issued by
-  ::  the group host.
+  ::  the group host. a ship already holding a seat, given to her by
+  ::  an admin, needs no token.
   ::
   ::  a banned ship can not enter the group.
   ::
@@ -2294,6 +2295,7 @@
     =*  deny   [| ad]
     ?:  =(p.flag ship)  [& ad]
     ?:  (se-is-banned ship)  deny
+    ?:  (se-is-member ship)  [& ad]
     ?:  &(=(~ tok) ?=(%public privacy.ad))
       [& ad]
     ::XX  this is a special case to enable robust v6 -> v7 migration

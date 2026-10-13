@@ -214,10 +214,13 @@
     :~  (ex-update now.bowl [%seat (sy ~dev ~) %add seat])
         (ex-update (add now.bowl tick) [%entry %token %del token0])
     ==
-  ::  the spent token can not be reused, even by its owner
+  ::  the token is spent, so reusing it fails
   ::
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
+  ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))
   ;<  caz=(list card)  bind:m
-    (ex-fail ((do-as ~dev) (do-c-groups [%join my-flag `token0])))
+    (ex-fail ((do-as ~fed) (do-c-groups [%join my-flag `token0])))
   ::  as does using a non-existent token
   ::
   ;<  caz=(list card)  bind:m
@@ -1193,4 +1196,25 @@
   ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))
   ;<  ~  bind:m  (ex-equal !>(invited.admissions.group) !>(~))
   (pure:m ~)
+::  +test-c-groups-join-seated: a seated ship joins without a token
+::
+::  a ship seated by an admin, here at group creation, is admitted
+::  without a token. her personal token is spent all the same.
+::  a ship without a seat is still denied.
+::
+++  test-c-groups-join-seated
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny eny)))
+  ;<  *  bind:m  (do-create-group-with-members %private ~[~dev])
+  ;<  caz=(list card)  bind:m  ((do-as ~dev) (do-c-groups [%join my-flag ~]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-update now.bowl [%entry %token %del token0])])
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
+  ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))
+  (ex-fail ((do-as ~fed) (do-c-groups [%join my-flag ~])))
 --
