@@ -15,6 +15,7 @@ export type BucketFileViewerItem = {
   uri?: string;
   textContent?: string;
   cached?: boolean;
+  imageLoaded?: boolean;
 };
 
 export type BucketFileNavigation = {

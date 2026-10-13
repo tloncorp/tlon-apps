@@ -18,8 +18,8 @@ export function BucketPreviewContent({
 }) {
   return (
     <View flex={1} minHeight={0} backgroundColor="$secondaryBackground">
-      {!loading && animate ? (
-        <BucketPreviewFade>{children}</BucketPreviewFade>
+      {!loading ? (
+        <BucketPreviewFade animate={animate}>{children}</BucketPreviewFade>
       ) : (
         children
       )}

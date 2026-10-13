@@ -185,6 +185,37 @@ describe('useBucketPreview session cache', () => {
     expect(hook.readGrant).toHaveBeenCalledTimes(2);
   });
 
+  it('tracks image readiness separately from a completed grant', async () => {
+    const pending = deferred<ReturnType<typeof grant>>();
+    const hook = render(vi.fn((_id: number) => pending.promise));
+    let request!: Promise<void>;
+    act(() => {
+      request = hook.current.load(photo);
+    });
+    act(() => {
+      void hook.current.load({ ...photo, id: '3' });
+    });
+    await act(async () => {
+      pending.resolve(grant());
+      await request;
+    });
+    await act(async () => hook.current.load(photo));
+    expect(hook.current.item?.previewCached).toBe(true);
+    expect(hook.current.item?.previewImageLoaded).toBe(false);
+    act(() => hook.current.markImageLoaded(hook.current.item!));
+    expect(hook.current.getCached(photo)?.previewImageLoaded).toBe(true);
+  });
+
+  it('evicts a failed image so returning retries the read', async () => {
+    const hook = render();
+    await act(async () => hook.current.load(photo));
+    act(() => hook.current.invalidate(hook.current.item!));
+    expect(hook.current.getCached(photo)).toBeUndefined();
+    await act(async () => hook.current.load(photo));
+    expect(hook.readGrant).toHaveBeenCalledTimes(2);
+    expect(hook.current.item?.previewImageLoaded).toBe(false);
+  });
+
   it('bounds retained previews and keeps the most recently selected files', async () => {
     const hook = render();
     for (let id = 1; id <= 20; id++) {

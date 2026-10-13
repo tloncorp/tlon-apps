@@ -627,6 +627,8 @@ export function BucketsLiveChannel({
               },
             }}
             onClose={preview.close}
+            onImageLoad={() => preview.markImageLoaded(previewItem)}
+            onPreviewError={() => preview.invalidate(previewItem)}
             onOpenExternally={preview.openExternally}
             onRetry={() => void preview.load(previewItem, { refresh: true })}
           />
@@ -769,6 +771,7 @@ export function toViewerItem(item: BucketItem) {
     textContent: item.textContent,
     uri: item.previewUri,
     cached: item.previewCached,
+    imageLoaded: item.previewImageLoaded,
   };
 }
 

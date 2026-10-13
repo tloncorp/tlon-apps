@@ -36,7 +36,20 @@ export function useBucketPreview(readGrant: ReadGrant, bucketKey: string) {
       previewUri: cached.item.previewUri,
       textContent: cached.item.textContent,
       previewCached: true,
+      previewImageLoaded: cached.item.previewImageLoaded,
     };
+  };
+
+  const invalidate = (target: BucketItem) => {
+    const key = keyFor(target);
+    const cached = cache.current.get(key);
+    if (cached && cached.item.previewUri === target.previewUri)
+      cache.current.delete(key);
+  };
+  const markImageLoaded = (target: BucketItem) => {
+    const cached = cache.current.get(keyFor(target));
+    if (cached && cached.item.previewUri === target.previewUri)
+      cached.item.previewImageLoaded = true;
   };
 
   const load = async (target: BucketItem, { refresh = false } = {}) => {
@@ -68,6 +81,7 @@ export function useBucketPreview(readGrant: ReadGrant, bucketKey: string) {
             ...target,
             previewUri,
             previewCached: false,
+            previewImageLoaded: false,
             textContent: refresh ? undefined : target.textContent,
           };
           // Check the manifest size before reading the entire object into memory.
@@ -109,6 +123,7 @@ export function useBucketPreview(readGrant: ReadGrant, bucketKey: string) {
         previewUri: result.item.previewUri,
         textContent: result.item.textContent,
         previewCached: false,
+        previewImageLoaded: result.item.previewImageLoaded,
       });
       setLoading(false);
     } catch (cause) {
@@ -141,5 +156,15 @@ export function useBucketPreview(readGrant: ReadGrant, bucketKey: string) {
         }
       : undefined;
 
-  return { close, error, getCached, item, load, loading, openExternally };
+  return {
+    close,
+    error,
+    getCached,
+    invalidate,
+    item,
+    load,
+    loading,
+    markImageLoaded,
+    openExternally,
+  };
 }

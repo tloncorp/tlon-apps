@@ -708,19 +708,31 @@ function PreviewFilesFixture({
   );
 }
 
-const cachedPreviewFiles: BucketItem[] = previewFiles.map((item, index) => ({
-  ...item,
-  id: String(index),
-  kind: 'file',
-  author: '~zod',
-  modifiedLabel: 'Just now',
-}));
+const cacheFixtureFiles = [
+  ...previewFiles,
+  {
+    id: 'pdf',
+    name: 'Preview.pdf',
+    mimeType: 'application/pdf',
+    uri: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+  },
+];
+
+const cachedPreviewFiles: BucketItem[] = cacheFixtureFiles.map(
+  (item, index) => ({
+    ...item,
+    id: String(index),
+    kind: 'file',
+    author: '~zod',
+    modifiedLabel: 'Just now',
+  })
+);
 
 function CachedPreviewFilesFixture() {
   const preview = useBucketPreview(async (id) => {
     await new Promise((resolve) => setTimeout(resolve, 600));
     return {
-      readUrl: previewFiles[id].uri!,
+      readUrl: cacheFixtureFiles[id].uri!,
       expiresAt: new Date(Date.now() + 300_000).toISOString(),
     };
   }, 'fixture/cached-previews');
@@ -750,6 +762,11 @@ function CachedPreviewFilesFixture() {
             },
           }}
           onClose={preview.close}
+          onImageLoad={() => preview.markImageLoaded(item)}
+          onPreviewError={() => preview.invalidate(item)}
+          onRetry={() => {
+            void preview.load(item, { refresh: true });
+          }}
           onOpenExternally={preview.openExternally}
         />
       </YStack>

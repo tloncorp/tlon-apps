@@ -1,15 +1,22 @@
 import { ReactNode, useRef } from 'react';
 
+import { useRetainedBucketPages } from './useRetainedBucketPages';
 import { BucketFileNavigation } from './BucketFileViewer.shared';
 
 export function BucketFilePager({
   children,
   navigation,
+  retainActivePage = false,
 }: {
   children: ReactNode;
   navigation?: BucketFileNavigation;
   retainActivePage?: boolean;
 }) {
+  const retained = useRetainedBucketPages(
+    children,
+    navigation,
+    retainActivePage
+  );
   const touch = useRef<{ x: number; y: number } | null>(null);
   const move = (direction: number) => {
     if (!navigation) return;
@@ -63,7 +70,23 @@ export function BucketFilePager({
           move(dx < 0 ? 1 : -1);
       }}
     >
-      {children}
+      {navigation && navigation.index >= 0
+        ? navigation.items.map((item, index) => (
+            <div
+              key={item.id ?? item.name}
+              style={{
+                display: index === navigation.index ? 'flex' : 'none',
+                flex: 1,
+                minHeight: 0,
+              }}
+              aria-hidden={index !== navigation.index}
+            >
+              {index === navigation.index
+                ? children
+                : retained.get(item.id ?? item.name)?.node}
+            </div>
+          ))
+        : children}
     </div>
   );
 }

@@ -41,6 +41,7 @@ export type BucketItem = {
   /** Object identity used to invalidate session-local previews after replacement. */
   previewCacheKey?: string;
   previewCached?: boolean;
+  previewImageLoaded?: boolean;
   /** Bytes, from the manifest. Present for published files. */
   size?: number;
   textContent?: string;

@@ -20,6 +20,8 @@ export function BucketFileViewer({
   loading = false,
   navigation,
   onClose,
+  onImageLoad,
+  onPreviewError,
   onOpenExternally,
   onRetry,
 }: {
@@ -28,6 +30,8 @@ export function BucketFileViewer({
   loading?: boolean;
   navigation?: BucketFileNavigation;
   onClose: () => void;
+  onImageLoad?: () => void;
+  onPreviewError?: () => void;
   onOpenExternally?: () => void;
   onRetry?: () => void;
 }) {
@@ -49,7 +53,16 @@ export function BucketFileViewer({
         title={item.name}
         useHorizontalTitleLayout
       />
-      <BucketFilePager navigation={navigation}>
+      <BucketFilePager
+        navigation={navigation}
+        retainActivePage={
+          !loading &&
+          !error &&
+          (previewKind === 'image' ||
+            previewKind === 'pdf' ||
+            previewKind === 'text')
+        }
+      >
         <BucketPreviewContent
           key={item.id ?? item.uri ?? item.name}
           loading={loading}
@@ -65,7 +78,10 @@ export function BucketFileViewer({
             <BucketPreviewImage
               uri={item.uri}
               name={item.name}
-              animate={!item.cached}
+              animate={!item.imageLoaded}
+              onLoad={onImageLoad}
+              onError={onPreviewError}
+              onRetry={onRetry}
             />
           ) : previewKind === 'audio' ? (
             <BucketAudioPreview item={{ ...item, uri: item.uri }} />

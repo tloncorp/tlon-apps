@@ -72,6 +72,8 @@ function BucketsFileSelection({ entryId, flag, onClose }: Props) {
         },
       }}
       onClose={onClose}
+      onImageLoad={shown ? () => preview.markImageLoaded(shown) : undefined}
+      onPreviewError={shown ? () => preview.invalidate(shown) : undefined}
       onOpenExternally={preview.openExternally}
       onRetry={file ? () => void load(file, { refresh: true }) : undefined}
     />

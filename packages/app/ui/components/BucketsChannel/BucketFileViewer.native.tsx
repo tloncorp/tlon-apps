@@ -1,5 +1,6 @@
 import { FilePreview, Pressable, Text } from '@tloncorp/ui';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import { useState } from 'react';
 import { Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
@@ -24,6 +25,8 @@ export function BucketFileViewer({
   loading = false,
   navigation,
   onClose,
+  onImageLoad,
+  onPreviewError,
   onOpenExternally,
   onRetry,
 }: {
@@ -32,11 +35,12 @@ export function BucketFileViewer({
   loading?: boolean;
   navigation?: BucketFileNavigation;
   onClose: () => void;
+  onImageLoad?: () => void;
+  onPreviewError?: () => void;
   onOpenExternally?: () => void;
   onRetry?: () => void;
 }) {
   const previewKind = getBucketPreviewKind(item);
-  const webview = useWebView();
 
   return (
     <YStack flex={1} minHeight={0} backgroundColor="$background">
@@ -55,7 +59,13 @@ export function BucketFileViewer({
       />
       <BucketFilePager
         navigation={navigation}
-        retainActivePage={!loading && !error && previewKind === 'image'}
+        retainActivePage={
+          !loading &&
+          !error &&
+          (previewKind === 'image' ||
+            previewKind === 'pdf' ||
+            previewKind === 'text')
+        }
       >
         <BucketPreviewContent
           key={item.id ?? item.uri ?? item.name}
@@ -72,14 +82,21 @@ export function BucketFileViewer({
             <BucketPreviewImage
               uri={item.uri}
               name={item.name}
-              animate={!item.cached}
+              animate={!item.imageLoaded}
+              onLoad={onImageLoad}
+              onError={onPreviewError}
+              onRetry={onRetry}
             />
           ) : previewKind === 'audio' ? (
             <BucketAudioPreview item={{ ...item, uri: item.uri }} />
           ) : previewKind === 'video' ? (
             <NativeVideoPreview uri={item.uri} />
-          ) : previewKind === 'pdf' && Platform.OS === 'ios' && webview ? (
-            <WebView webview={webview} source={{ uri: item.uri }} />
+          ) : previewKind === 'pdf' && Platform.OS === 'ios' ? (
+            <NativePdfPreview
+              uri={item.uri}
+              onError={onPreviewError}
+              onRetry={onRetry}
+            />
           ) : previewKind === 'text' && item.textContent !== undefined ? (
             <ScrollView flex={1}>
               <Text
@@ -149,6 +166,28 @@ function FailedPreview({ onRetry }: { onRetry?: () => void }) {
         </Pressable>
       ) : null}
     </YStack>
+  );
+}
+
+function NativePdfPreview({
+  uri,
+  onError,
+  onRetry,
+}: {
+  uri: string;
+  onError?: () => void;
+  onRetry?: () => void;
+}) {
+  const webview = useWebView();
+  const [failed, setFailed] = useState(false);
+  const fail = () => {
+    setFailed(true);
+    onError?.();
+  };
+  return failed || !webview ? (
+    <FailedPreview onRetry={onRetry} />
+  ) : (
+    <WebView {...webview} source={{ uri }} onError={fail} onHttpError={fail} />
   );
 }
 
