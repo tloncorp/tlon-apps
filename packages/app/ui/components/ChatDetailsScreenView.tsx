@@ -520,6 +520,7 @@ function ChatDetailsHero({
   quickActions: QuickAction[];
   testIDPrefix: string;
 }) {
+  const titleSize = title.length > longTitleLength ? 'compact' : 'full';
   return (
     <YStack paddingTop="$l">
       <XStack
@@ -533,18 +534,16 @@ function ChatDetailsHero({
             size="$title/l"
             trimmed={false}
             numberOfLines={2}
-            {...(title.length > longTitleLength ? compactTitleStyle : null)}
+            {...(titleSize === 'compact' ? compactTitleStyle : null)}
           >
             {title}
           </Text>
           {subtitle ? (
-            // The name's line box already leaves room under it, so this sits
-            // close and the two read as one.
             <Text
               size="$label/m"
               trimmed={false}
               color="$secondaryText"
-              marginTop={-2}
+              marginTop={subtitleOffset[titleSize]}
             >
               {subtitle}
             </Text>
@@ -578,6 +577,11 @@ function ChatDetailsHero({
 // size; a longer one steps down a size instead of being cut off.
 const longTitleLength = 14;
 const compactTitleStyle = { fontSize: 26, lineHeight: 30 } as const;
+
+// Puts the line under the name as far below it as a second line of the name
+// sits below the first, so a wrapped name and its caption are evenly spaced.
+// The two name sizes leave different room under their last line.
+const subtitleOffset = { full: -2, compact: 0 } as const;
 
 /** Where left-aligned header content starts, in line with the cards' text. */
 const heroLeadingInset = 20;
