@@ -30,7 +30,6 @@ import {
   lineLimit,
   listRowBackground,
   listRowInsets,
-  listRowSeparator,
   listRowSeparatorTint,
   listSectionMargins,
   onSubmit as submitAction,
@@ -93,7 +92,9 @@ export function SettingsList({ sections }: SettingsListProps) {
                   : firstSectionModifiers
             }
             header={
-              section.title ? (
+              section.element ? (
+                <HostedSectionElement element={section.element} />
+              ) : section.title ? (
                 <Text modifiers={[foregroundStyle(colors.secondaryText)]}>
                   {section.title}
                 </Text>
@@ -107,12 +108,6 @@ export function SettingsList({ sections }: SettingsListProps) {
               ) : undefined
             }
           >
-            {section.element ? (
-              <HostedSectionElement
-                element={section.element}
-                page={colors.page}
-              />
-            ) : null}
             {section.rows.map((row) => (
               <SettingsRow key={row.key} row={row} colors={colors} />
             ))}
@@ -126,8 +121,9 @@ export function SettingsList({ sections }: SettingsListProps) {
 /** The margin an inset-grouped form keeps on each side of its rows. */
 const formSideMargin = 16;
 
-// Negative side insets carry the row out to the screen's edges, so the
-// content decides its own margins and can scroll sideways edge to edge.
+// A section's header is the one part of the form that isn't clipped to a
+// card, so negative side insets carry it out to the screen's edges. The
+// content then decides its own margins and can scroll sideways edge to edge.
 const hostedElementModifiers = [
   listRowInsets({
     top: 0,
@@ -135,24 +131,17 @@ const hostedElementModifiers = [
     bottom: 0,
     trailing: -formSideMargin,
   }),
-  listRowSeparator('hidden'),
 ];
 
 /**
- * A section's own React Native content, as a row with no card behind it. The
+ * A section's own React Native content, hosted as the section's header. The
  * hosted view is given the screen's width, since SwiftUI takes its size from
  * it.
  */
-function HostedSectionElement({
-  element,
-  page,
-}: {
-  element: ReactElement;
-  page: string;
-}) {
+function HostedSectionElement({ element }: { element: ReactElement }) {
   const { width } = useWindowDimensions();
   return (
-    <VStack modifiers={[listRowBackground(page), ...hostedElementModifiers]}>
+    <VStack modifiers={hostedElementModifiers}>
       <RNHostView matchContents>
         <View style={{ width }}>{element}</View>
       </RNHostView>
