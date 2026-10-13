@@ -183,10 +183,7 @@ import { recordSentTlonReply } from './output.js';
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
-import {
-  type RosterFact,
-  rosterChangeRequiresRestart,
-} from './roster-watch.js';
+import { type RosterFact, createFleetReconciler } from './fleet-reconcile.js';
 import {
   type TlonInboundRouteRecord,
   isRouteDebugEnabled,
@@ -4577,50 +4574,29 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       });
       runtime.log?.('[tlon] Subscribed to contacts updates (/v1/news)');
 
-      // Roster watch: the bot fleet (accounts/agents/bindings) is generated
-      // from the steward roster at boot, so a %minted/%retired fact only
-      // takes effect via a gateway restart (the compose restart policy
-      // brings it right back). Only the default account's monitor watches —
-      // fleet monitors would duplicate it. Best-effort: a ship without
-      // %steward just nacks the watch.
+      // Roster watch: the fleet (accounts/agents/bindings/workspaces) is a
+      // projection of the steward roster. Every fact feeds the reconciler,
+      // which rewrites the fleet slice of the config; the gateway's hot
+      // reload applies it live (no restart). Only the default account's
+      // monitor watches — it always exists (the host creds), so one writer,
+      // no election. Best-effort: a ship without %steward just nacks the
+      // watch.
       if ((opts.accountId ?? 'default') === 'default') {
-        const configuredMoons: ReadonlySet<string> = new Set(
-          [
-            account.moon,
-            ...Object.values(
-              (
-                cfg.channels?.tlon as {
-                  accounts?: Record<string, { moon?: unknown }>;
-                }
-              )?.accounts ?? {}
-            ).map((entry) => entry?.moon),
-          ]
-            .filter((m): m is string => typeof m === 'string' && m.length > 0)
-            .map(normalizeShip)
-        );
-        let rosterRestartScheduled = false;
+        const fleet = createFleetReconciler({
+          core,
+          defaultMoon: account.moon ? normalizeShip(account.moon) : null,
+          normalize: normalizeShip,
+          log: (msg) => runtime.log?.(msg),
+          error: (msg) => runtime.error?.(msg),
+        });
         try {
           await api.subscribe({
             app: 'steward',
             path: '/v1/roster',
-            event: (data) => {
-              const reason = rosterChangeRequiresRestart(
-                data as RosterFact,
-                configuredMoons,
-                normalizeShip
-              );
-              if (!reason || rosterRestartScheduled) {
-                return;
-              }
-              rosterRestartScheduled = true;
-              runtime.log?.(
-                `[tlon] Bot roster changed (${reason}); restarting gateway in 5s to apply the fleet config...`
-              );
-              setTimeout(() => process.exit(0), 5000);
-            },
+            event: (data) => fleet.onFact(data as RosterFact),
             err: (error) => {
               runtime.log?.(
-                `[tlon] Roster subscription error (fleet auto-restart off): ${String(error)}`
+                `[tlon] Roster subscription error (fleet reconcile paused): ${String(error)}`
               );
             },
             quit: () => {
