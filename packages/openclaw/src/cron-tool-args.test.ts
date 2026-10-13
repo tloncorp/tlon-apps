@@ -154,6 +154,27 @@ describe('cleanCronToolArgs', () => {
     });
   });
 
+  it('leaves spellings it does not recognise as they were sent', () => {
+    // Core also accepts these; rewriting them would drop the whole job.
+    expect(
+      cleanCronToolArgs({
+        action: 'add',
+        name: 'daily',
+        schedule: { kind: 'cron', expr: '0 8 * * *' },
+        payload: { kind: 'agentTurn', message: 'summarize' },
+      })
+    ).toBeUndefined();
+    expect(
+      cleanCronToolArgs({
+        action: 'add',
+        data: { job: { name: 'daily' } },
+      })
+    ).toBeUndefined();
+    expect(
+      cleanCronToolArgs({ action: 'update', jobId: '6b8e3aa0', enabled: false })
+    ).toBeUndefined();
+  });
+
   it('leaves reads alone', () => {
     expect(cleanCronToolArgs({ action: 'list', job: placeholderJob })).toBe(
       undefined

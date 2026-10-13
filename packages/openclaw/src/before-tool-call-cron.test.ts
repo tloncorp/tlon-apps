@@ -7,6 +7,11 @@ import {
   scheduleBackgroundContextLensFinalization,
 } from './context-lens.js';
 import { CRON_ARGS_BLOCK_REASON } from './cron-tool-args-guard.js';
+import { isAgentOnboardingCronJob } from './monitor/agent-onboarding.js';
+import {
+  _testing as boundaryTesting,
+  setTlonSessionSurface,
+} from './onboarding-tool-boundary.js';
 import { formatOwnerOnlyToolBlockReason } from './owner-only-tools.js';
 import { _testing, setSessionRole } from './session-roles.js';
 
@@ -29,6 +34,12 @@ vi.mock('./context-lens-events.js', async (importOriginal) => {
     ...actual,
     publishContextLensEvent: vi.fn(),
   };
+});
+
+vi.mock('./monitor/agent-onboarding.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./monitor/agent-onboarding.js')>();
+  return { ...actual, isAgentOnboardingCronJob: vi.fn(async () => false) };
 });
 
 type BeforeToolCallResult =
@@ -297,6 +308,23 @@ describe('before_tool_call cron args guard', () => {
     );
   });
 
+  it('cleans an allowed add under the automations name too', async () => {
+    const { handler } = registerEntry();
+    await expect(
+      handler(
+        {
+          toolName: 'automations',
+          params: {
+            action: 'add',
+            agentId: '',
+            job: { ...CLEAN_ADD.params.job, sessionTarget: '' },
+          },
+        },
+        { sessionKey: OWNER_SESSION }
+      )
+    ).resolves.toEqual({ params: CLEAN_ADD.params });
+  });
+
   it('allows an owner cron add without the forbidden arguments', async () => {
     const { handler, logs } = registerEntry();
     await expect(
@@ -343,5 +371,74 @@ describe('before_tool_call cron args guard', () => {
       handler(DIRTY_ADD, { sessionKey: OWNER_SESSION })
     ).resolves.toEqual({ params: { action: 'add', job: { name: 'daily' } } });
     expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
+  });
+});
+
+describe('before_tool_call cron during first-run setup', () => {
+  const ctx = { sessionKey: OWNER_SESSION };
+  const reschedule = {
+    action: 'update',
+    jobId: 'reminder-1',
+    patch: { schedule: { kind: 'cron', expr: '0 8 * * *' } },
+  };
+
+  beforeEach(() => {
+    _testing.clearAll();
+    boundaryTesting.clearAll();
+    setSessionRole(OWNER_SESSION, 'owner');
+    setTlonSessionSurface(OWNER_SESSION, {
+      kind: 'direct',
+      channelNest: '~sampel-palnet',
+      requestedOnboardingGroupId: '~sampel-palnet/home',
+      bootstrapComplete: false,
+    });
+    vi.mocked(isAgentOnboardingCronJob).mockClear();
+  });
+
+  afterEach(() => {
+    _testing.clearAll();
+    boundaryTesting.clearAll();
+  });
+
+  it('lets the owner change or remove a reminder they just made', async () => {
+    const { handler } = registerEntry();
+    await expect(
+      handler({ toolName: 'cron', params: reschedule }, ctx)
+    ).resolves.toEqual({ params: reschedule });
+    await expect(
+      handler(
+        { toolName: 'cron', params: { action: 'remove', jobId: 'reminder-1' } },
+        ctx
+      )
+    ).resolves.toBeUndefined();
+    expect(isAgentOnboardingCronJob).toHaveBeenCalledWith('reminder-1');
+  });
+
+  it('still keeps the onboarding task closed', async () => {
+    vi.mocked(isAgentOnboardingCronJob).mockResolvedValue(true);
+    const { handler } = registerEntry();
+    await expect(
+      handler(
+        {
+          toolName: 'cron',
+          params: { action: 'remove', jobId: 'onboarding-1' },
+        },
+        ctx
+      )
+    ).resolves.toMatchObject({
+      block: true,
+      blockReason: expect.stringContaining('typed task-plan coordinator'),
+    });
+    vi.mocked(isAgentOnboardingCronJob).mockResolvedValue(false);
+  });
+
+  it('stays closed when the job cannot be looked up', async () => {
+    vi.mocked(isAgentOnboardingCronJob).mockRejectedValueOnce(
+      new Error('cron unavailable')
+    );
+    const { handler } = registerEntry();
+    await expect(
+      handler({ toolName: 'cron', params: reschedule }, ctx)
+    ).resolves.toMatchObject({ block: true });
   });
 });

@@ -5,19 +5,20 @@ import {
   assertTlonChoiceCallCurrent,
   assertTlonServiceSetupCallCurrent,
   assertTlonTaskPlanCallCurrent,
+  bindTlonInterviewStartToCurrentOwnerTurn,
   bindTlonServiceSetupCall,
   claimTlonChoiceCall,
   claimTlonTaskPlanCall,
   finishTlonChoiceCall,
   finishTlonTaskPlanCall,
-  getTlonSessionSurface,
   getTlonSessionRunSurface,
+  getTlonSessionSurface,
   getTlonTaskPlanEvidence,
+  managedCronJobIdOf,
   onboardingToolBlockReason,
   rememberTlonSessionRunSurface,
-  bindTlonInterviewStartToCurrentOwnerTurn,
-  resolveTlonSessionThreadParentId,
   resolveTlonSessionOwnerMessageId,
+  resolveTlonSessionThreadParentId,
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
 import { SupersededTurnError } from './superseded-turn.js';
@@ -268,7 +269,101 @@ describe('onboarding tool boundary', () => {
         { action: 'update', id: 'job-1', patch: { enabled: false } },
         surface
       )
-    ).toContain('only list jobs or add one that delivers to a DM');
+    ).toContain('any job other than the onboarding task');
+  });
+
+  it('lets an ordinary job be changed, run or removed during onboarding, but never the onboarding task', () => {
+    const surface = {
+      kind: 'direct' as const,
+      requestedOnboardingGroupId: '~ten/workspace',
+      channelNest: '~ten',
+      bootstrapComplete: false,
+      timestamp: Date.now(),
+    };
+    const manage = (
+      params: Record<string, unknown>,
+      job?: { onboardingJob: boolean }
+    ) => onboardingToolBlockReason('cron', params, surface, undefined, job);
+    const ordinary = { onboardingJob: false };
+
+    expect(
+      manage(
+        { action: 'update', jobId: 'r1', patch: { enabled: false } },
+        ordinary
+      )
+    ).toBeUndefined();
+    expect(manage({ action: 'remove', jobId: 'r1' }, ordinary)).toBeUndefined();
+    expect(manage({ action: 'run', id: 'r1' }, ordinary)).toBeUndefined();
+    expect(
+      manage(
+        {
+          action: 'update',
+          jobId: 'r1',
+          patch: { delivery: { to: 'chat/~ten/friends' } },
+        },
+        ordinary
+      )
+    ).toBeUndefined();
+
+    // The onboarding task, or a job nobody has looked up, stays closed.
+    expect(
+      manage({ action: 'remove', jobId: 'r1' }, { onboardingJob: true })
+    ).toContain('typed task-plan coordinator');
+    expect(manage({ action: 'remove', jobId: 'r1' })).toContain(
+      'typed task-plan coordinator'
+    );
+    // Nor can a change turn an ordinary job into the onboarding task.
+    expect(
+      manage(
+        {
+          action: 'update',
+          jobId: 'r1',
+          patch: { name: 'Tlonbot scheduled update' },
+        },
+        ordinary
+      )
+    ).toContain('typed task-plan coordinator');
+    expect(
+      manage(
+        {
+          action: 'update',
+          jobId: 'r1',
+          patch: { delivery: { to: 'diary/~ten/updates' } },
+        },
+        ordinary
+      )
+    ).toContain('typed task-plan coordinator');
+  });
+
+  it('names the job a cron call manages', () => {
+    expect(managedCronJobIdOf({ action: 'update', jobId: 'a', id: 'b' })).toBe(
+      'a'
+    );
+    expect(managedCronJobIdOf({ action: 'remove', jobId: '', id: 'b' })).toBe(
+      'b'
+    );
+    expect(managedCronJobIdOf({ action: 'run', id: 'b' })).toBe('b');
+    expect(managedCronJobIdOf({ action: 'update' })).toBeUndefined();
+    expect(managedCronJobIdOf({ action: 'add', jobId: 'a' })).toBeUndefined();
+    expect(managedCronJobIdOf({ action: 'list', id: 'a' })).toBeUndefined();
+  });
+
+  it('applies the same rules when the scheduler tool is called automations', () => {
+    const surface = {
+      kind: 'direct' as const,
+      requestedOnboardingGroupId: '~ten/workspace',
+      channelNest: '~ten',
+      bootstrapComplete: false,
+      timestamp: Date.now(),
+    };
+    const add = (to: string) =>
+      onboardingToolBlockReason(
+        'automations',
+        { action: 'add', job: { name: 'Morning news', delivery: { to } } },
+        surface
+      );
+    expect(add('~ten')).toBeUndefined();
+    expect(add('diary/~ten/updates')).toContain('typed task-plan coordinator');
   });
 
   it('shares the surface with thread session keys', () => {

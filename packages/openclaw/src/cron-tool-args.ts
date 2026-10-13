@@ -97,6 +97,15 @@ export function cleanCronToolArgs(params: unknown): Json | undefined {
   const { action } = params;
   if (action !== 'add' && action !== 'update') return undefined;
 
+  // Core also takes flat and wrapped spellings of a job. Only the nested form
+  // the tool's schema advertises is cleaned; anything else goes through as
+  // sent, rather than losing the fields this doesn't recognise.
+  const described =
+    action === 'add'
+      ? isObject(params.job)
+      : isObject(params.patch) || isObject(params.job);
+  if (!described) return undefined;
+
   const cleaned: Json = {};
   for (const [key, value] of Object.entries(params)) {
     if (!CRON_ACTION_FIELDS.has(key)) continue;

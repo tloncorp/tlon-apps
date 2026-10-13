@@ -65,6 +65,7 @@ import {
   clearTlonSessionRunSurface,
   getTlonSessionRunSurface,
   getTlonSessionSurface,
+  managedCronJobIdOf,
   onboardingToolBlockReason,
 } from './src/onboarding-tool-boundary.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
@@ -1115,8 +1116,9 @@ export default defineBundledChannelEntry({
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
       // What the model meant, without the schema placeholders it fills in.
-      const cronParams =
-        event.toolName === 'cron' ? cleanCronToolArgs(event.params) : undefined;
+      const cronParams = isCronToolName(event.toolName)
+        ? cleanCronToolArgs(event.params)
+        : undefined;
       const allowed = () => (cronParams ? { params: cronParams } : undefined);
       const runSurface = getTlonSessionRunSurface(ctx.runId);
       const role =
@@ -1158,11 +1160,26 @@ export default defineBundledChannelEntry({
             configuredTlonShipHosts(api.runtime.config.loadConfig())
           )
         : { blocked: false };
+      const sessionSurface = getTlonSessionSurface(ctx.sessionKey);
+      // Changing or removing a job during first-run setup is fine unless it
+      // is the onboarding task; only the job list can say which it is.
+      const managedCronJobId =
+        sessionSurface?.bootstrapComplete === false &&
+        isCronToolName(event.toolName)
+          ? managedCronJobIdOf(cronParams ?? event.params)
+          : undefined;
       const onboardingBoundaryReason = onboardingToolBlockReason(
         event.toolName,
         cronParams ?? event.params,
-        getTlonSessionSurface(ctx.sessionKey),
-        runSurface
+        sessionSurface,
+        runSurface,
+        managedCronJobId
+          ? {
+              onboardingJob: await isAgentOnboardingCronJob(
+                managedCronJobId
+              ).catch(() => true),
+            }
+          : undefined
       );
       const choiceClaimReason =
         !blocksNonOwner &&

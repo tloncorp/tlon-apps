@@ -1,3 +1,4 @@
+import { isCronToolName } from './cron-tool-args-guard.js';
 import { ONBOARDING_JOB_NAME } from './monitor/onboarding-job.js';
 import { sharedMap } from './shared-state.js';
 import { SupersededTurnError } from './superseded-turn.js';
@@ -405,7 +406,9 @@ export function onboardingToolBlockReason(
   toolName: string,
   params: unknown,
   surface: TlonSessionSurface | undefined,
-  runSurface?: TlonSessionRunSurface
+  runSurface?: TlonSessionRunSurface,
+  /** For a call that changes, runs or removes a job: whether it is the onboarding task. */
+  managedCronJob?: { onboardingJob: boolean }
 ): string | undefined {
   const isTypedOnboardingTool =
     toolName === 'tlon_agent_choice' ||
@@ -439,34 +442,68 @@ export function onboardingToolBlockReason(
   }
 
   if (
-    toolName === 'cron' &&
+    isCronToolName(toolName) &&
     surface?.bootstrapComplete === false &&
-    !cronOpenDuringOnboarding(params)
+    !cronOpenDuringOnboarding(params, managedCronJob)
   ) {
     return surface.kind === 'direct' && !surface.requestedOnboardingGroupId
       ? 'First-run recurring-task provisioning is owned by the group coordinator. Tell the owner to choose +, then New Tlonbot group, and stop.'
       : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan to activate the agreed task, and do not call cron directly. ' +
-          "Until the task's first entry has posted, cron can only list jobs or add one that delivers to a DM or a group chat.";
+          "Until the task's first entry has posted, cron can list jobs, add one that delivers to a DM or a group chat, and change, run or remove any job other than the onboarding task.";
   }
 
   return undefined;
 }
 
+const CRON_MANAGE_ACTIONS = ['update', 'remove', 'run'];
+
+/** The job a cron call changes, runs or removes, if it is that kind of call. */
+export function managedCronJobIdOf(params: unknown): string | undefined {
+  const { action, jobId, id } = (params ?? {}) as Record<string, unknown>;
+  if (!CRON_MANAGE_ACTIONS.includes(String(action))) return undefined;
+  const target = [jobId, id].find(
+    (value): value is string => typeof value === 'string' && value !== ''
+  );
+  return target;
+}
+
+type CronJobShape = { name?: unknown; delivery?: { to?: unknown } };
+
+/** Somewhere the onboarding task never delivers: a DM, or a group chat. */
+const ordinaryDelivery = (to: unknown) =>
+  typeof to === 'string' && (isDmNest(to) || to.startsWith('chat/'));
+
 /**
  * During first-run onboarding the typed task plan owns the onboarding task, so
  * cron stays closed to it. Reads stay open, and so does adding an ordinary job
  * that delivers somewhere the onboarding task never does: a reminder in a DM,
- * or posts in a group chat.
+ * or posts in a group chat. A job like that can also be changed, run or
+ * removed, as long as the change doesn't turn it into the onboarding task.
  */
-function cronOpenDuringOnboarding(params: unknown) {
-  const { action, job } = (params ?? {}) as {
+function cronOpenDuringOnboarding(
+  params: unknown,
+  managedCronJob?: { onboardingJob: boolean }
+) {
+  const { action, job, patch } = (params ?? {}) as {
     action?: unknown;
-    job?: { name?: unknown; delivery?: { to?: unknown } };
+    job?: CronJobShape;
+    patch?: CronJobShape;
   };
   if (['status', 'list', 'get', 'runs'].includes(String(action))) return true;
-  if (action !== 'add' || job?.name === ONBOARDING_JOB_NAME) return false;
-  const to = job?.delivery?.to;
-  return typeof to === 'string' && (isDmNest(to) || to.startsWith('chat/'));
+  if (action === 'add') {
+    return (
+      job?.name !== ONBOARDING_JOB_NAME && ordinaryDelivery(job?.delivery?.to)
+    );
+  }
+  if (!CRON_MANAGE_ACTIONS.includes(String(action))) return false;
+  // Not told which job this is, or it is the onboarding task: stay closed.
+  if (managedCronJob?.onboardingJob !== false) return false;
+  const change = patch ?? job;
+  const to = change?.delivery?.to;
+  return (
+    change?.name !== ONBOARDING_JOB_NAME &&
+    (to === undefined || ordinaryDelivery(to))
+  );
 }
 
 export const _testing = {
