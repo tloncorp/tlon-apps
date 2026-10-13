@@ -225,14 +225,14 @@ type SearchOrigin = {
   selectedItemId: string | null;
 };
 
-function folder(id: string, name: string, itemCount: number): BucketItem {
+function folder(id: string, name: string, fileCount: number): BucketItem {
   return {
     id,
     kind: 'folder',
     name,
     author: '',
     modifiedLabel: '',
-    itemCount,
+    fileCount,
   };
 }
 

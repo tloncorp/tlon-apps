@@ -128,7 +128,6 @@ export const DetailView = ({
 
   return (
     <View
-      paddingHorizontal={isChat ? '$m' : undefined}
       flex={1}
       overflow={isChat ? undefined : 'hidden'}
       {...containingProperties}

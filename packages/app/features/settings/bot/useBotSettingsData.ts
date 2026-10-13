@@ -9,9 +9,10 @@ import * as api from '@tloncorp/api';
 import { desig, preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { useFullGroupRosters } from '../../../hooks/useFullGroupRosters';
 import { mcpProviderQueryKeys } from '../../../lib/mcpProviders';
 import {
   BASIC_PROVIDER_ID,
@@ -205,27 +206,7 @@ export function useBotGroupMembership(
   const moonChannels = queries.moonChannelsQuery.data;
   const refetchMoonChannels = queries.moonChannelsQuery.refetch;
 
-  const verifyKey = verifyGroupIds.join('\n');
-  useEffect(() => {
-    if (!verifyKey || sessionStartTime === undefined) return;
-    // Cancel queued fetches when the groups, session, or account change.
-    const controller = new AbortController();
-    verifyKey.split('\n').forEach((groupId) => {
-      // syncGroup skips groups already fetched this session.
-      store
-        .syncGroup(groupId, {
-          priority: store.SyncPriority.Low,
-          retry: true,
-          abortSignal: controller.signal,
-        })
-        .catch((error) => {
-          if (!controller.signal.aborted) {
-            console.error('bot settings: group sync failed', groupId, error);
-          }
-        });
-    });
-    return () => controller.abort();
-  }, [verifyKey, sessionStartTime]);
+  useFullGroupRosters(verifyGroupIds);
 
   const getMembership = useMemo(
     () =>

@@ -24,11 +24,13 @@ export const BROWSER_HELP = `${BROWSER_HANDOFF_HELP}
 Use browser share to send a rich link card that opens the live session in the browser.
 Never send raw or labeled browser-session links in ordinary messages.
 
-Send the owner a secure form for the login, address, or card fields visible in
-a hosted browser session. The form sends input directly to the browser service,
-without passing it through chat or the bot. Login steps continue inside the
-handoff; address and card entry fills fields without submitting a transaction. The recipient is always the owner configured for the active bot
-account and cannot be overridden.
+Use browser handoff to send a native secure-entry card for login identifiers,
+passwords, verification codes, and card fields. Values go directly to the browser
+service without passing through chat or the bot. Completing entry generates a
+task continuation; sharing alone does not. Neither command grants purchase approval.
+Read the hosted-browser skill for checkout, login, sharing, and recovery workflows.
+The recipient is always the owner configured for the active bot account and
+cannot be overridden.
 
 Tlon tool call:
   {"command": "browser handoff <session_id>"}`;

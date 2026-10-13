@@ -29,18 +29,21 @@ export function ShipPickerSheet({
   const [scrolling, setScrolling] = useState(false);
 
   const body = (
-    <YStack flex={1} gap="$l" $sm={{ paddingHorizontal: '$xl' }}>
+    <YStack flex={1} gap="$l">
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
-      <ContactBook
-        searchable
-        autoFocus={!isWindowNarrow}
-        searchPlaceholder="Filter by nickname or @p"
-        onSelect={onSelect}
-        onScrollChange={setScrolling}
-        disabledIds={disabledIds}
-        disabledReason={disabledReason}
-        maxHeight={isWindowNarrow ? undefined : 500}
-      />
+      <YStack flex={1} $sm={{ paddingHorizontal: '$xl' }}>
+        <ContactBook
+          searchable
+          appearance={isWindowNarrow ? 'plain' : 'block'}
+          autoFocus={!isWindowNarrow}
+          searchPlaceholder="Filter by nickname or @p"
+          onSelect={onSelect}
+          onScrollChange={setScrolling}
+          disabledIds={disabledIds}
+          disabledReason={disabledReason}
+          maxHeight={isWindowNarrow ? undefined : 500}
+        />
+      </YStack>
     </YStack>
   );
 
@@ -53,6 +56,9 @@ export function ShipPickerSheet({
         snapPoints={[90]}
         snapPointsMode="percent"
         disableDrag={scrolling}
+        // The nested ContactBook owns vertical pans on Android, the only
+        // platform this acts on. Back and the scrim still dismiss.
+        enableContentPanningGesture={false}
       >
         {body}
       </ActionSheet>
@@ -65,7 +71,8 @@ export function ShipPickerSheet({
       onOpenChange={onOpenChange}
       mode="dialog"
       closeButton
-      dialogContentProps={{ height: 'auto', maxHeight: 1200, width: 600 }}
+      dialogScrollEnabled={false}
+      dialogContentProps={{ width: 600 }}
     >
       <View flex={1} padding="$m">
         {body}

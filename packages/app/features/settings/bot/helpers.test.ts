@@ -9,8 +9,10 @@ import {
   buildMergedChannelModelEntries,
   formatShipList,
   getAvailableProviderIds,
+  getConnectionsSummaryState,
   getGroupChannelRuleKeys,
   getModelFormValues,
+  getSubscriptionStatusState,
   groupChannelEntries,
   hasGroupMembership,
   hasProviderCredential,
@@ -1010,5 +1012,81 @@ describe('provider key validation', () => {
     expect(validateProviderKey('openai', 'sk-abc')).toBeNull();
     expect(validateProviderKey('openrouter', 'sk-abc')).toBeTruthy();
     expect(validateProviderKey('openrouter', 'sk-or-abc')).toBeNull();
+  });
+});
+
+describe('getConnectionsSummaryState', () => {
+  const answered = { data: {}, isError: false };
+  const waiting = { data: undefined, isError: false };
+  const failed = { data: undefined, isError: true };
+
+  it('is settled only once every request has returned data', () => {
+    expect(
+      getConnectionsSummaryState({
+        botReady: true,
+        queries: [answered, answered, answered],
+      })
+    ).toBe('settled');
+  });
+
+  it('keeps checking while the subscription request waits on the bot', () => {
+    // Disabled until the bot is ready: not loading, but not answered either.
+    expect(
+      getConnectionsSummaryState({
+        botReady: false,
+        queries: [answered, answered, waiting],
+      })
+    ).toBe('checking');
+  });
+
+  it('keeps checking through failures while the bot is starting', () => {
+    expect(
+      getConnectionsSummaryState({
+        botReady: false,
+        queries: [answered, failed, waiting],
+      })
+    ).toBe('checking');
+  });
+
+  it('is unavailable when a request fails once the bot is up', () => {
+    expect(
+      getConnectionsSummaryState({
+        botReady: true,
+        queries: [answered, answered, failed],
+      })
+    ).toBe('unavailable');
+  });
+
+  it('trusts data kept from an earlier success over a later failure', () => {
+    expect(
+      getConnectionsSummaryState({
+        botReady: true,
+        queries: [answered, answered, { data: {}, isError: true }],
+      })
+    ).toBe('settled');
+  });
+});
+
+describe('getSubscriptionStatusState', () => {
+  it('knows the status once the request has returned data', () => {
+    expect(getSubscriptionStatusState({ data: {}, isError: false })).toBe(
+      'known'
+    );
+    // Data kept from an earlier success outlives a later failed refresh.
+    expect(getSubscriptionStatusState({ data: {}, isError: true })).toBe(
+      'known'
+    );
+  });
+
+  it('is still checking while the request waits on the bot or is in flight', () => {
+    expect(
+      getSubscriptionStatusState({ data: undefined, isError: false })
+    ).toBe('checking');
+  });
+
+  it('is unavailable when the request failed with nothing to show', () => {
+    expect(getSubscriptionStatusState({ data: undefined, isError: true })).toBe(
+      'unavailable'
+    );
   });
 });

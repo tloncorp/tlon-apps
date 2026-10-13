@@ -8,9 +8,14 @@ import {
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
+import {
+  useSettingsListHeaderColor,
+  useSettingsListSurfaces,
+} from '../../ui/components/SettingsList';
 import {
   Field,
   ScreenHeader,
@@ -41,6 +46,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'BotApiKeySettings'>;
 
 export function BotApiKeySettingsScreen(props: Props) {
+  const { page: settingsPage } = useSettingsListSurfaces();
+  const settingsHeaderColor = useSettingsListHeaderColor();
   const { provider: providerId } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
@@ -189,10 +196,13 @@ export function BotApiKeySettingsScreen(props: Props) {
       : null);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor={settingsPage}>
       <ScreenHeader
+        backgroundColor={settingsHeaderColor}
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={
+          Platform.OS !== 'web' || isWindowNarrow ? handleBack : undefined
+        }
         title={`${provider.label} API key`}
         placement="navigation"
       />
