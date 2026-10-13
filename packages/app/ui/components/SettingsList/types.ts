@@ -119,4 +119,6 @@ export interface SettingsListSearch {
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
+  /** Web only: identifies the search field. */
+  testID?: string;
 }

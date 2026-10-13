@@ -14,6 +14,12 @@ import type { SettingsListSearch, SettingsSectionModel } from './types';
 import { useNativeHeaderSearch } from './useNativeHeaderSearch';
 
 /**
+ * On a wide web window, a settings screen that fills the main pane keeps to
+ * the column a profile uses.
+ */
+export const SETTINGS_LIST_COLUMN_WIDTH = 600;
+
+/**
  * A pushed settings screen: its header over a settings list, with an optional
  * bar pinned below. A wide web window shows the screen beside the list that
  * opened it, so it gets no back button; native screens are always pushed, at
@@ -21,9 +27,12 @@ import { useNativeHeaderSearch } from './useNativeHeaderSearch';
  */
 export function SettingsListScreenView({
   title,
+  subtitle,
   sections,
   onBackPressed,
   showsBackOnWideWindows = false,
+  useHorizontalTitleLayout = false,
+  headerTestID,
   rightActions,
   loadingSubtitle,
   loading = false,
@@ -33,10 +42,15 @@ export function SettingsListScreenView({
   children,
 }: {
   title: string;
+  /** Web only: a line under the title, such as whose settings these are. */
+  subtitle?: string;
   sections: SettingsSectionModel[];
   onBackPressed: () => void;
   /** For a screen that wide web windows can only leave by going back. */
   showsBackOnWideWindows?: boolean;
+  /** Web only: sets the title beside the back button, as channel headers do. */
+  useHorizontalTitleLayout?: boolean;
+  headerTestID?: string;
   rightActions?: ScreenHeaderAction[];
   /** A note under the title while the list refreshes. */
   loadingSubtitle?: string | null;
@@ -59,6 +73,8 @@ export function SettingsListScreenView({
     <View flex={1} backgroundColor={page}>
       <ScreenHeader
         title={title}
+        subtitle={subtitle}
+        showSubtitle={Boolean(subtitle)}
         backgroundColor={headerColor}
         backAction={
           Platform.OS !== 'web' || isWindowNarrow || showsBackOnWideWindows
@@ -67,15 +83,24 @@ export function SettingsListScreenView({
         }
         rightActions={rightActions}
         loadingSubtitle={loadingSubtitle}
+        useHorizontalTitleLayout={useHorizontalTitleLayout}
+        testID={headerTestID}
         borderBottom
         placement="navigation"
       />
       {search && !loading && Platform.OS === 'web' ? (
-        <View paddingHorizontal="$l" paddingTop="$l">
+        <View
+          width="100%"
+          maxWidth={maxWidth}
+          marginHorizontal="auto"
+          paddingHorizontal="$l"
+          paddingTop="$l"
+        >
           <TextInput
             value={search.value}
             placeholder={search.placeholder}
             onChangeText={search.onChangeText}
+            testID={search.testID}
           />
         </View>
       ) : null}
