@@ -163,7 +163,7 @@ export function isStopTips(text: string): boolean {
   const value = text.trim();
   return (
     /^\/stop-tips[.!\s]*$/i.test(value) ||
-    /^(?:please\s+)?(?:stop|pause|disable|unsubscribe(?:\s+me\s+from)?)(?:\s+sending(?:\s+me)?)?\s+(?:(?:these|the|your|onboarding|campaign|more)\s+)*(?:tips|onboarding messages)(?:\s+please)?[.!\s]*$/i.test(
+    /^(?:please\s+)?(?:stop|pause|disable|unsubscribe(?:\s+(?:me\s+)?from)?)(?:\s+sending(?:\s+me)?)?\s+(?:(?:these|the|your|onboarding|campaign|more)\s+)*(?:tips|onboarding messages)(?:\s+please)?[.!\s]*$/i.test(
       value
     ) ||
     /^(?:please\s+)?(?:don['’]t|do not)\s+send\s+(?:me\s+)?(?:any\s+more\s+|more\s+|these\s+)?(?:tips|onboarding messages)[.!\s]*$/i.test(

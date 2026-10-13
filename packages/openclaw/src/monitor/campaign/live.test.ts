@@ -133,6 +133,18 @@ it('couples the accelerated campaign only to the onboarding QA deployment config
   });
 });
 
+it('is on with production timing unless a config switches it off', () => {
+  const unconfigured = structuredClone(cfg) as OpenClawConfig;
+  delete (
+    unconfigured.channels!.tlon as {
+      onboardingCampaign?: unknown;
+    }
+  ).onboardingCampaign;
+  expect(resolveCampaignConfig(unconfigured, 'production')).toEqual({
+    enabled: true,
+  });
+});
+
 it('sends a marked DM to the owner through the captured account scope', async () => {
   await campaign.check();
   expect(mock.posts).toHaveBeenCalledWith({

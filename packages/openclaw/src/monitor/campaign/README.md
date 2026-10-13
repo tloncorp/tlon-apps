@@ -7,33 +7,36 @@ supplied clock; `runner.ts` saves progress; `live.ts` connects messages and cron
 
 ## Rollout
 
-Default off. Review the single set of templates before enabling a cohort under
-`channels.tlon`:
+On by default, with nothing to configure. It reaches only new accounts: an
+owner is enrolled when a new-account signup posts its first intro from a client
+that marks it (`campaignVersion: 1`, sent with the timezone), and the gateway
+sees that intro within five minutes of it being posted. Returning accounts and
+later groups omit the version, and an intro already in history when the plugin
+starts is too old to count, so there is no old-user backfill. The first server
+observation starts the week once per owner. The first tip always includes
+opt-out instructions.
+
+One runnable Tlon account per gateway is required because cron state is shared.
+
+Two optional settings under `channels.tlon`:
 
 ```json
 {
   "onboardingCampaign": {
-    "enabled": true,
+    "enabled": false,
     "enrollAfter": "2026-10-01T00:00:00Z"
   }
 }
 ```
 
-Use the actual rollout boundary. The first tip always includes opt-out
-instructions.
-
-One runnable Tlon account per gateway is required because cron state is shared.
-The first signup intro carries timezone and `campaignVersion: 1`; returning
-accounts and later groups omit the version. Only authenticated owner intros
-newer than the cutoff and within five minutes of the gateway clock can enroll.
-The first server observation starts the week once per owner. No old-user backfill.
+`enabled: false` switches the campaign off. `enrollAfter` adds a cutoff: only
+intros newer than it can enroll.
 
 The Onboarding QA deployment is temporarily coupled through
 `TLON_CONFIG=onboarding-qa-stack`: it enables the campaign for fresh version-1
 enrollments and replaces the day windows with consecutive one-hour windows.
 It also ignores the local-time delivery window so a test can finish in one
-session. All other deployments retain the explicit config above and production
-timing. The gateway logs the resolved deployment name, enabled state, and
+session. All other deployments get production timing. The gateway logs the resolved deployment name, enabled state, and
 interval at campaign startup so operators can verify the coupling without
 reading the campaign database.
 

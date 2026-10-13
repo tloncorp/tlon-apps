@@ -56,8 +56,10 @@ export function resolveCampaignConfig(
       : configured;
   return {
     ...campaign,
+    // On unless switched off. Only a new-account signup, seen as it happens,
+    // can be enrolled, so leaving it off protects nobody who already exists.
     enabled:
-      campaign.enabled === true &&
+      campaign.enabled !== false &&
       listRunnableTlonAccountIds(config).length === 1,
   };
 }

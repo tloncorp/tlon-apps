@@ -265,9 +265,28 @@ describe('enrollment eligibility', () => {
       )
     ).toBe(false);
     expect(eligibleEnrollment(request, config, enrolledAt + DAY)).toBe(false);
+    // A cutoff is optional; an unreadable one enrolls nobody.
     expect(eligibleEnrollment(request, { enabled: true }, enrolledAt)).toBe(
-      false
+      true
     );
+    expect(
+      eligibleEnrollment(
+        request,
+        { enabled: true, enrollAfter: 'not a date' },
+        enrolledAt
+      )
+    ).toBe(false);
+    // Without a cutoff the other limits still hold.
+    expect(
+      eligibleEnrollment(
+        { ...request, campaignVersion: undefined },
+        { enabled: true },
+        enrolledAt
+      )
+    ).toBe(false);
+    expect(
+      eligibleEnrollment(request, { enabled: true }, enrolledAt + DAY)
+    ).toBe(false);
     expect(
       eligibleEnrollment(request, { ...config, enabled: false }, enrolledAt)
     ).toBe(false);
@@ -517,6 +536,9 @@ it.each([
   'Don’t send me more tips.',
   'please stop sending me these tips',
   'please stop tips',
+  'unsubscribe from tips',
+  'unsubscribe me from these tips',
+  'Unsubscribe from the onboarding messages.',
 ])('recognizes opt-out: %s', (text) => expect(isStopTips(text)).toBe(true));
 it.each([
   'stop',

@@ -208,10 +208,15 @@ export function eligibleEnrollment(
   config: CampaignConfig,
   now: number
 ): boolean {
-  const cutoff = Date.parse(config.enrollAfter ?? '');
+  // An optional extra bound. The checks after it already limit enrollment to
+  // a new-account signup from a client that marks it, seen within minutes.
+  const cutoff =
+    config.enrollAfter === undefined
+      ? Number.NEGATIVE_INFINITY
+      : Date.parse(config.enrollAfter);
   return (
     config.enabled === true &&
-    Number.isFinite(cutoff) &&
+    !Number.isNaN(cutoff) &&
     input.isFirstGroup === true &&
     input.campaignVersion === VERSION &&
     input.introPostedAt >= cutoff &&
