@@ -96,12 +96,19 @@ export function ChatDetailsView({
     }
   }, [forwardGroupSheet, group]);
 
-  const handleCopyGroupId = useCallback(async () => {
-    if (group) {
-      await Clipboard.setStringAsync(group.id);
+  const copyText = useCallback(
+    async (text: string) => {
+      await Clipboard.setStringAsync(text);
       toast({ message: 'Copied!', duration: 1500 });
+    },
+    [toast]
+  );
+
+  const handleCopyGroupId = useCallback(() => {
+    if (group) {
+      copyText(group.id);
     }
-  }, [group, toast]);
+  }, [copyText, group]);
 
   const handlePressNotifications = useCallback(() => {
     if (chatType === 'group' && group) {
@@ -184,6 +191,7 @@ export function ChatDetailsView({
       onTogglePinned={togglePinned}
       onForward={handleForward}
       onCopyGroupId={handleCopyGroupId}
+      onCopyDescription={copyText}
       onPressPrivacy={() => group && onPressGroupPrivacy(group.id, true)}
       onPressRoles={() => group && onPressRoles(group.id, true)}
       onPressChannels={() => group && onPressManageChannels(group.id, true)}

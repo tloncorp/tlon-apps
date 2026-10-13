@@ -265,18 +265,16 @@ function SettingsRow({
     </HStack>
   );
 
-  if (!row.onPress) {
-    return content;
-  }
-
-  const button = (
+  const body = row.onPress ? (
     <Button onPress={row.onPress} modifiers={labelledRowModifiers}>
       {content}
     </Button>
+  ) : (
+    content
   );
 
   if (!row.contextActions?.length) {
-    return button;
+    return body;
   }
 
   return (
@@ -290,7 +288,7 @@ function SettingsRow({
           />
         ))}
       </ContextMenu.Items>
-      <ContextMenu.Trigger>{button}</ContextMenu.Trigger>
+      <ContextMenu.Trigger>{body}</ContextMenu.Trigger>
     </ContextMenu>
   );
 }
@@ -354,7 +352,7 @@ function RowLabel({
           modifiers={[
             foregroundStyle(colors.primaryText),
             ...(row.prominent ? [font({ size: 19, weight: 'semibold' })] : []),
-            lineLimit(labelLineLimit(row)),
+            labelLineLimit(row),
           ]}
         >
           {row.title}
@@ -364,7 +362,7 @@ function RowLabel({
             modifiers={[
               font({ size: 13 }),
               foregroundStyle(colors.secondaryText),
-              lineLimit(labelLineLimit(row)),
+              labelLineLimit(row),
             ]}
           >
             {row.subtitle}
@@ -401,12 +399,12 @@ function RowLeading({ row }: { row: SettingsRowModel }) {
 }
 
 /**
- * Long text wraps so it can be read in full, such as a feature flag's
- * description or the explanation under a notification level. Beside a value it
- * keeps to one line so the value keeps its room.
+ * Long text wraps over a few lines, such as a feature flag's description or
+ * the explanation under a notification level, and an expanded row shows all
+ * of it. Beside a value it keeps to one line so the value keeps its room.
  */
 function labelLineLimit(row: SettingsRowModel) {
-  return row.value ? 1 : 3;
+  return row.expanded ? lineLimit() : lineLimit(row.value ? 1 : 3);
 }
 
 function Pill({
