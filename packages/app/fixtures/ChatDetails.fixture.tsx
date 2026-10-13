@@ -1,25 +1,15 @@
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type * as db from '@tloncorp/shared/db';
-import type { ComponentProps, ReactNode } from 'react';
+import type { ComponentProps } from 'react';
 import { Image, Platform } from 'react-native';
 
-import { nativeHeaderPresentationOptions } from '../navigation/nativeHeaderOptions';
-import { AppDataContextProvider } from '../ui';
 import { ChatDetailsScreenView } from '../ui/components/ChatDetailsScreenView';
-import { FixtureWrapper } from './FixtureWrapper';
-import {
-  danContact,
-  group,
-  groupWithImage,
-  initialContacts,
-  tlonLocalIntros,
-} from './fakeData';
+import { NativeScreenFixture } from './NativeScreenFixture';
+import { danContact, group, groupWithImage, tlonLocalIntros } from './fakeData';
 
 const noop = () => {};
-const FixtureStack = createNativeStackNavigator<{ Surface: undefined }>();
 
 // The app's groups come from the database with each member's standing set.
-const baseGroup: db.Group = {
+export const gardenClub: db.Group = {
   ...group,
   title: 'Garden Club',
   description: 'Notes, photos and plans for the allotment. We meet on Sundays.',
@@ -39,37 +29,12 @@ const baseGroup: db.Group = {
 
 const online = { complete: true, status: 'yes' } as const;
 
-function FullScreen({ children }: { children: ReactNode }) {
-  return (
-    <FixtureWrapper fillHeight fillWidth verticalAlign="top">
-      <FixtureStack.Navigator
-        screenOptions={{
-          ...nativeHeaderPresentationOptions,
-          headerShown: true,
-          headerBackVisible: false,
-        }}
-      >
-        <FixtureStack.Screen name="Surface">
-          {() => (
-            <AppDataContextProvider
-              currentUserId={danContact.id}
-              contacts={initialContacts}
-            >
-              {children}
-            </AppDataContextProvider>
-          )}
-        </FixtureStack.Screen>
-      </FixtureStack.Navigator>
-    </FixtureWrapper>
-  );
-}
-
 function Details(props: Partial<ComponentProps<typeof ChatDetailsScreenView>>) {
   return (
-    <FullScreen>
+    <NativeScreenFixture>
       <ChatDetailsScreenView
         chatType="group"
-        group={baseGroup}
+        group={gardenClub}
         currentUserId={danContact.id}
         currentUserIsAdmin
         hostStatus={online}
@@ -96,12 +61,12 @@ function Details(props: Partial<ComponentProps<typeof ChatDetailsScreenView>>) {
         onDelete={noop}
         {...props}
       />
-    </FullScreen>
+    </NativeScreenFixture>
   );
 }
 
 const longNameGroup: db.Group = {
-  ...baseGroup,
+  ...gardenClub,
   currentUserIsHost: true,
   // Group names are capped at 30 characters where they are edited.
   title: 'Riverside Allotment Society HQ',
@@ -111,29 +76,29 @@ const longNameGroup: db.Group = {
 
 export default {
   '1 · Group, as its host': (
-    <Details group={{ ...baseGroup, currentUserIsHost: true }} />
+    <Details group={{ ...gardenClub, currentUserIsHost: true }} />
   ),
   '2 · Group, as a member': <Details currentUserIsAdmin={false} />,
   '3 · No description yet': (
     <Details
-      group={{ ...baseGroup, currentUserIsHost: true, description: '' }}
+      group={{ ...gardenClub, currentUserIsHost: true, description: '' }}
     />
   ),
   '4 · Long name and description': <Details group={longNameGroup} />,
   '5 · Host offline': (
     <Details
-      group={{ ...baseGroup, currentUserIsHost: true }}
+      group={{ ...gardenClub, currentUserIsHost: true }}
       hostStatus={{ complete: true, status: 'no-our-planet' }}
     />
   ),
   '6 · No icon image': (
     <Details
-      group={{ ...baseGroup, currentUserIsHost: true, iconImage: null }}
+      group={{ ...gardenClub, currentUserIsHost: true, iconImage: null }}
     />
   ),
   '7 · With scheduled tasks': (
     <Details
-      group={{ ...baseGroup, currentUserIsHost: true }}
+      group={{ ...gardenClub, currentUserIsHost: true }}
       scheduledTaskCount={2}
     />
   ),
@@ -142,7 +107,7 @@ export default {
       chatType="channel"
       channel={{
         ...tlonLocalIntros,
-        groupId: baseGroup.id,
+        groupId: gardenClub.id,
         description: 'Say hello and tell us what you grow.',
       }}
     />
