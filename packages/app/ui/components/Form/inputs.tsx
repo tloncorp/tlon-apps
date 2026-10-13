@@ -204,22 +204,23 @@ const InnerButton = ({
   );
 };
 
-export const ImageInput = XStack.styleable<{
-  buttonLabel?: string;
+/**
+ * The state behind an image field: the picked image, its upload, and the
+ * sheet that picks or clears it. The image is a local file while it uploads
+ * and its remote URL once it has; `onChange` hears each.
+ */
+export function useImageInput({
+  value,
+  onChange,
+}: {
   value?: string;
-  placeholderUri?: string;
   onChange?: (value?: string) => void;
-  showClear?: boolean;
-}>(function ImageInput(
-  { buttonLabel, value, showClear = true, placeholderUri, onChange },
-  ref
-) {
+}) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [assetUri, setAssetUri] = useState<string | undefined>(
     value ?? undefined
   );
   const { canUpload } = useAttachmentContext();
-  const isWindowNarrow = useIsWindowNarrow();
   const showToast = useToast();
 
   useEffect(() => {
@@ -274,6 +275,41 @@ export const ImageInput = XStack.styleable<{
     setAssetUri(undefined);
   }, []);
 
+  return {
+    assetUri,
+    canUpload,
+    isUploading: attachment?.uploadState?.status === 'uploading',
+    toggleSheet: handleSheetToggled,
+    clear: handleImageRemoved,
+    sheetProps: {
+      isOpen: sheetOpen,
+      onOpenChange: setSheetOpen,
+      onAttach: handleImageSelected,
+      onClearAttachments: handleImageRemoved,
+      mediaType: 'image' as const,
+    },
+  };
+}
+
+export const ImageInput = XStack.styleable<{
+  buttonLabel?: string;
+  value?: string;
+  placeholderUri?: string;
+  onChange?: (value?: string) => void;
+  showClear?: boolean;
+}>(function ImageInput(
+  { buttonLabel, value, showClear = true, placeholderUri, onChange },
+  ref
+) {
+  const {
+    assetUri,
+    canUpload,
+    isUploading,
+    toggleSheet: handleSheetToggled,
+    sheetProps,
+  } = useImageInput({ value, onChange });
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <>
       <XStack gap="$m" ref={ref}>
@@ -307,21 +343,14 @@ export const ImageInput = XStack.styleable<{
               fallback={null}
             />
           ) : null}
-          {attachment?.uploadState?.status === 'uploading' ? (
+          {isUploading ? (
             <ImageInputPreviewLoadingFrame>
               <Spinner size="small" />
             </ImageInputPreviewLoadingFrame>
           ) : null}
         </ImageInputPreviewFrame>
       </XStack>
-      <AttachmentSheet
-        isOpen={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onAttach={handleImageSelected}
-        showClearOption={showClear && !!value}
-        onClearAttachments={handleImageRemoved}
-        mediaType="image"
-      />
+      <AttachmentSheet {...sheetProps} showClearOption={showClear && !!value} />
     </>
   );
 });

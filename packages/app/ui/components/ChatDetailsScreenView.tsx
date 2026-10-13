@@ -547,9 +547,9 @@ function ChatDetailsHero({
       <XStack
         alignItems="center"
         gap="$xl"
-        paddingHorizontal={heroLeadingInset}
+        paddingHorizontal={chatHeroLeadingInset}
       >
-        {renderAvatar(76, 18)}
+        {renderAvatar(chatHeroAvatar.size, chatHeroAvatar.radius)}
         <YStack flex={1}>
           <Text
             size="$title/l"
@@ -614,8 +614,12 @@ function mayBeCutOff(description: string) {
   return description.length > 90 || description.includes('\n');
 }
 
-/** Where left-aligned header content starts, in line with the cards' text. */
-const heroLeadingInset = 20;
+/**
+ * Where left-aligned header content starts, in line with the cards' text.
+ * Shared with the screen that edits what this header shows.
+ */
+export const chatHeroLeadingInset = 20;
+export const chatHeroAvatar = { size: 76, radius: 18 } as const;
 
 /** The space the quick actions keep from the screen's edges. */
 const heroSideInset = 12;
