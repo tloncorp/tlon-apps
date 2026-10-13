@@ -2569,10 +2569,10 @@
       (se-update [%entry %token %add token token-meta])
     ::
         %del
-      ?>  (~(has by tokens.ad) token.c-token)
+      =/  meta=token-meta:g  (~(got by tokens.ad) token.c-token)
       =.  tokens.ad
         (~(del by tokens.ad) token.c-token)
-      =.  se-core  (se-revoke-token-invites token.c-token)
+      =.  se-core  (se-revoke-token-invites token.c-token meta)
       :-  ~
       (se-update [%entry %token %del token.c-token])
     ==
@@ -2587,9 +2587,18 @@
   ::  +se-revoke-token-invites: revoke any invites associated with a token
   ::
   ++  se-revoke-token-invites
-    |=  =token:g
+    |=  [=token:g meta=token-meta:g]
     ~>  %spin.['se-revoke-token-invites']
     ^+  se-core
+    ::  a personal token can only be carried by its owner's invite
+    ::
+    ?:  ?=(%personal -.scheme.meta)
+      =/  owner  ship.scheme.meta
+      =/  invited  (~(get by invited.ad) owner)
+      ?~  invited  se-core
+      ?.  =(`token token.u.invited)  se-core
+      =.  invited.ad  (~(del by invited.ad) owner)
+      (emit (revoke-invite:se-pass owner `token))
     %+  roll  ~(tap by invited.ad)
     |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
     ?~  tok  se-core
@@ -4200,16 +4209,28 @@
       go-core
     ::
         %del
-      ?.  (~(has by tokens.ad) token.u-token)
+      =/  meta  (~(get by tokens.ad) token.u-token)
+      ?~  meta
         (go-restart-updates `'missing deleted token')
       =.  tokens.ad  (~(del by tokens.ad) token.u-token)
-      (go-revoke-token-invites token.u-token)
+      (go-revoke-token-invites token.u-token u.meta)
     ==
   ::  +go-revoke-token-invites: revoke all invites associated with a token
   ::
   ++  go-revoke-token-invites
-    |=  =token:g
+    |=  [=token:g meta=token-meta:g]
     ~>  %spin.['go-revoke-token-invites']
+    ^+  go-core
+    ::  a personal token can only be carried by its owner's invite
+    ::
+    ?:  ?=(%personal -.scheme.meta)
+      =/  owner  ship.scheme.meta
+      =/  invited  (~(get by invited.ad) owner)
+      ?~  invited  go-core
+      ?.  =(`token token.u.invited)  go-core
+      =.  invited.ad  (~(del by invited.ad) owner)
+      ?:  (go-is-joined owner)  go-core
+      (emit (revoke-invite:go-pass owner `token))
     %+  roll  ~(tap by invited.ad)
     |=  [[=ship [at=@da tok=(unit token:g)]] =_go-core]
     ?~  tok  go-core
