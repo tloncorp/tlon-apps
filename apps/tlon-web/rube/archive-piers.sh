@@ -104,6 +104,7 @@ while [ "$#" -gt 0 ]; do
             echo "  SKIP_PREPARE=true     Skip ship prep/re-extraction (same as --skip-prepare)"
             echo "  ARCHIVE_TAG=-tag      Name archives rube-{ship}{tag}.tgz instead of bumping the number"
             echo "  URBIT_BINARY=PATH     Urbit binary to use for sync/roll/chop (must run on this host)"
+            echo "  SYNC_LIVE_TIMEOUT=N   Seconds to wait for each snapshot-sync boot to go live (default 120)"
             echo ""
             exit 0
             ;;
@@ -177,6 +178,19 @@ print_error() {
 
 print_info() {
     echo -e "${BLUE}ℹ${NC} $1"
+}
+
+# Drop a reaped child from SPAWNED_PIDS so the EXIT cleanup never signals a
+# recycled PID.
+forget_spawned_pid() {
+    local kept=()
+    local p
+    for p in ${SPAWNED_PIDS[@]+"${SPAWNED_PIDS[@]}"}; do
+        if [ "$p" != "$1" ]; then
+            kept+=("$p")
+        fi
+    done
+    SPAWNED_PIDS=(${kept[@]+"${kept[@]}"})
 }
 
 # Resolve a ship's pier dir (the one containing .urb), supporting both rube's
@@ -477,14 +491,36 @@ cleanup() {
         fi
     fi
 
-    # The background children this script started. (sync_ship_snapshots and
-    # roll_and_chop_piers also boot a ship, but in the FOREGROUND and bounded by
-    # `timeout`, so they are gone before this runs -- and a Ctrl-C reaches them
-    # through the process group. Only a signal sent to this script alone could
-    # outlive one.)
+    # The background children this script started, including a snapshot-sync
+    # boot still in flight when the script is interrupted or exits on error.
+    # (roll_and_chop_piers runs pack/meld/roll/chop in the FOREGROUND, so a
+    # Ctrl-C reaches them through the process group.)
     if [ "${#SPAWNED_PIDS[@]}" -gt 0 ]; then
         for pid in "${SPAWNED_PIDS[@]}"; do
             kill -TERM "$pid" 2>/dev/null || true
+        done
+        # A ship that ignores TERM would outlive this script and keep its
+        # pier locked; a --skip-prepare run has no port sweep to catch it.
+        local waited=0 alive
+        while [ "$waited" -lt 10 ]; do
+            alive=false
+            for pid in "${SPAWNED_PIDS[@]}"; do
+                if kill -0 "$pid" 2>/dev/null; then
+                    alive=true
+                    break
+                fi
+            done
+            if [ "$alive" = "false" ]; then
+                break
+            fi
+            sleep 1
+            waited=$((waited + 1))
+        done
+        for pid in "${SPAWNED_PIDS[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+            wait "$pid" 2>/dev/null || true
         done
     fi
 
@@ -525,10 +561,9 @@ check_prerequisites() {
     # Check for required tools
     local missing_tools=()
 
-    # timeout bounds every local ship boot (snapshot sync, version probe,
-    # verification); lsof finds the ships to stop; git hashes the sidecar's
-    # sources; curl serves verification downloads. macOS: `brew install
-    # coreutils` for timeout.
+    # timeout bounds the version probe and verification boots; lsof finds the
+    # ships to stop; git hashes the sidecar's sources; curl serves
+    # verification downloads. macOS: `brew install coreutils` for timeout.
     local tool
     for tool in jq timeout lsof git curl; do
         if ! command -v "$tool" &> /dev/null; then
@@ -684,13 +719,6 @@ prepare_ships() {
                 print_status "SHIP_SETUP_COMPLETE signal detected - ships are fully ready!"
                 ships_ready=true
                 success=true
-
-                # Kill the playwright-dev process now that ships are ready
-                # We don't need the web servers to start
-                print_info "Stopping playwright-dev (ships are ready, don't need web servers)..."
-                kill -TERM $playwright_pid 2>/dev/null || true
-                sleep 2
-                kill -9 $playwright_pid 2>/dev/null || true
                 break
             fi
 
@@ -705,6 +733,18 @@ prepare_ships() {
                 echo -n "."
             fi
         done
+
+        # The ships go down before playwright-dev does: its cleanup SIGKILLs
+        # every king and serf, which would skip their final snapshot save.
+        if [ "$ships_ready" = "true" ]; then
+            stop_prepared_ships
+
+            # Then playwright-dev itself, for rube and the web servers it
+            # started; neither is needed any more.
+            print_info "Stopping playwright-dev (ships are stopped, don't need web servers)..."
+            kill -TERM $playwright_pid 2>/dev/null || true
+            sleep 2
+        fi
 
         # Make sure playwright-dev is stopped
         if kill -0 $playwright_pid 2>/dev/null; then
@@ -726,25 +766,52 @@ prepare_ships() {
         exit 1
     fi
 
-    # Stop all ships gracefully
-    print_info "Stopping all ships..."
-    for port in 35453 36963 38473 39983; do
-        pids=$(lsof -ti:$port 2>/dev/null || true)
-        if [ -n "$pids" ]; then
-            echo "$pids" | xargs kill -TERM 2>/dev/null || true
-        fi
-    done
+    print_status "Ships prepared and stopped"
+}
 
-    # Wait up to 60 seconds for graceful shutdown
+# Stop the ships prepare_ships booted, gracefully, while playwright-dev is
+# still up. rube boots them with -d, so a SIGTERM to the king exits through
+# u3_king_exit and the serf writes a final snapshot; without it the pier's
+# snapshot is only the last periodic save, and roll later refuses a snapshot
+# that is behind the log.
+#
+# Only the process LISTENING on each ship's HTTP port is signalled: rube and
+# playwright-dev may hold client connections to the same port, and a TERM to
+# rube would SIGKILL every ship from its own cleanup.
+stop_prepared_ships() {
+    print_info "Stopping all ships..."
+
+    local ship port pid
+    local king_pids=()
+    local king_ships=()
+    local king_ports=()
+    while read -r ship port; do
+        local listeners
+        listeners=$(lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+        if [ -z "$listeners" ]; then
+            print_warning "~$ship was not listening on $port; its snapshot may be behind its event log"
+            continue
+        fi
+        for pid in $listeners; do
+            kill -TERM "$pid" 2>/dev/null || true
+            king_pids+=("$pid")
+            king_ships+=("$ship")
+            king_ports+=("$port")
+        done
+    done < <(jq -r 'to_entries[] | select(.value.n1 != true) | "\(.key | ltrimstr("~")) \(.value.httpPort)"' "$MANIFEST_FILE")
+
+    if [ "${#king_pids[@]}" -eq 0 ]; then
+        return 0
+    fi
+
     print_info "Waiting for ships to shut down gracefully (up to 60 seconds)..."
     local max_wait=60
     local elapsed=0
-    local all_stopped=false
-
-    while [ $elapsed -lt $max_wait ]; do
-        local any_running=false
-        for port in 35453 36963 38473 39983; do
-            if lsof -ti:$port >/dev/null 2>&1; then
+    local i any_running
+    while :; do
+        any_running=false
+        for i in "${!king_pids[@]}"; do
+            if kill -0 "${king_pids[$i]}" 2>/dev/null; then
                 any_running=true
                 break
             fi
@@ -752,7 +819,10 @@ prepare_ships() {
 
         if [ "$any_running" = "false" ]; then
             print_status "All ships shut down cleanly after ${elapsed}s"
-            all_stopped=true
+            return 0
+        fi
+
+        if [ $elapsed -ge $max_wait ]; then
             break
         fi
 
@@ -765,18 +835,16 @@ prepare_ships() {
         elapsed=$((elapsed + 1))
     done
 
-    # Force kill any remaining processes if they didn't stop cleanly
-    if [ "$all_stopped" = "false" ]; then
-        print_warning "Ships did not stop cleanly within ${max_wait}s, forcing shutdown..."
-        for port in 35453 36963 38473 39983; do
-            pids=$(lsof -ti:$port 2>/dev/null || true)
+    for i in "${!king_pids[@]}"; do
+        if kill -0 "${king_pids[$i]}" 2>/dev/null; then
+            print_warning "~${king_ships[$i]} did not stop within ${max_wait}s, forcing shutdown; its snapshot may be behind its event log"
+            local pids
+            pids=$(lsof -ti:"${king_ports[$i]}" 2>/dev/null || true)
             if [ -n "$pids" ]; then
                 echo "$pids" | xargs kill -9 2>/dev/null || true
             fi
-        done
-    fi
-
-    print_status "Ships prepared and stopped"
+        fi
+    done
 }
 
 # Re-boot ships briefly to sync snapshots after prepare_ships
@@ -784,6 +852,7 @@ sync_ship_snapshots() {
     print_info "Re-booting ships briefly to sync snapshots..."
 
     local urbit_binary="$URBIT_BINARY"
+    local sync_live_timeout="${SYNC_LIVE_TIMEOUT:-120}"
 
     if [ ! -f "$urbit_binary" ]; then
         print_error "Urbit binary not found at $urbit_binary"
@@ -802,19 +871,58 @@ sync_ship_snapshots() {
 
         print_info "Syncing snapshot for ~$ship..."
 
-        # Boot ship briefly with unique port to sync snapshot
+        # Boot ship briefly with unique port to sync snapshot. It runs in the
+        # background so it can be stopped by PID alone: `timeout` signals the
+        # whole process group, and a serf still replaying when that TERM lands
+        # saves a partial snapshot, which roll then refuses.
         local temp_port=$((40000 + RANDOM % 1000))
-        timeout 20 "$urbit_binary" -t -p "$temp_port" "$pier_path" > /tmp/sync-$ship.log 2>&1 || true
+        local sync_log="/tmp/sync-$ship.log"
+        "$urbit_binary" -t -p "$temp_port" "$pier_path" > "$sync_log" 2>&1 &
+        local sync_pid=$!
+        SPAWNED_PIDS+=("$sync_pid")
 
-        # Give it a moment to finish writing
-        sleep 2
+        local waited=0
+        local live=false
+        while :; do
+            if grep -q "pier.*live" "$sync_log" 2>/dev/null; then
+                live=true
+                break
+            fi
+            if [ $waited -ge "$sync_live_timeout" ] || ! kill -0 "$sync_pid" 2>/dev/null; then
+                break
+            fi
+            sleep 2
+            waited=$((waited + 2))
+        done
 
-        # Verify the ship actually booted and reached live state
-        if grep -q "pier.*live" /tmp/sync-$ship.log 2>/dev/null; then
+        # Once live, the serf is idle, so a TERM to the king alone makes it
+        # save the snapshot and exit.
+        kill -TERM "$sync_pid" 2>/dev/null || true
+        local stop_waited=0
+        local forced=false
+        while kill -0 "$sync_pid" 2>/dev/null && [ $stop_waited -lt 30 ]; do
+            sleep 1
+            stop_waited=$((stop_waited + 1))
+        done
+        if kill -0 "$sync_pid" 2>/dev/null; then
+            # A SIGKILL skips the final save, so going live proves nothing.
+            forced=true
+            kill -9 "$sync_pid" 2>/dev/null || true
+        fi
+        wait "$sync_pid" 2>/dev/null || true
+        forget_spawned_pid "$sync_pid"
+
+        if [ "$live" = "true" ] && [ "$forced" = "false" ]; then
             print_status "Synced ~$ship"
         else
-            print_warning "Failed to sync ~$ship - ship may not have reached live state"
-            print_info "Check /tmp/sync-$ship.log for details"
+            if [ "$live" = "true" ]; then
+                print_error "~$ship had to be killed after going live (no exit within 30s of SIGTERM); its snapshot may be behind its event log"
+            else
+                print_error "~$ship did not reach live state (waited ${waited}s of ${sync_live_timeout}s); its snapshot is behind its event log"
+            fi
+            print_info "Last 20 lines of $sync_log:"
+            tail -n 20 "$sync_log" 2>/dev/null || true
+            exit 1
         fi
     done
 
@@ -856,7 +964,7 @@ roll_and_chop_piers() {
 
         # Pack: Update snapshot to match event log (fixes "out of date" errors)
         print_info "  Packing ~$ship (updating snapshot)..."
-        if "$urbit_binary" pack "$pier_path" 2>&1 | tee /tmp/pack-$ship.log | grep -qE "pier: packed|snapshot: updated"; then
+        if "$urbit_binary" pack "$pier_path" 2>&1 | tee /tmp/pack-$ship.log | grep -qE "pier: packed|snapshot: updated|urbit: pack: gained"; then
             print_status "  Packed ~$ship successfully"
         else
             # Pack might say "already up to date"
