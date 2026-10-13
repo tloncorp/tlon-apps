@@ -1,21 +1,24 @@
 ::  steward: harness-agnostic umbrella agent
 ::
 ::    an agent that manages our harnesses. it currently tracks the state of the
-::    harness gateway and execution runs, and emits message-delivery telemetry.
+::    harness gateway and execution runs, emits message-delivery telemetry,
+::    and keeps the roster of bot moons we've minted.
 ::
 ::    the bot itself runs steward as well as the bot's owner, so that things
 ::    like lens data can be scried locally by the owner.
 ::
 ::    modules keep their own sur
-::    (sur/steward/{lens,gateway,automation,prompts}.hoon) and mark families;
-::    %steward-action-1 carries only cross-cutting config (the shared owner).
+::    (sur/steward/{lens,gateway,automation,prompts,roster}.hoon) and mark
+::    families; %steward-action-1 carries only cross-cutting config (the
+::    shared owner).
 ::
 /-  s=steward, a=activity, av=activity-ver, c=chat, ch=channels, co=contacts
 /-  cv=chat-ver, chv=channels-ver, st=story
 /-  sl=steward-lens, sg=steward-gateway, sa=steward-automation, sp=steward-prompts
+/-  sr=steward-roster, v=vouch
 /-  lg=logs
 /+  default-agent, verb, dbug, server, logs, utils=channel-utils
-/+  aj=steward-automation-json, pj=steward-prompts-json
+/+  aj=steward-automation-json, pj=steward-prompts-json, cl=contacts
 |%
 +$  card  card:agent:gall
 ::  state is versioned; +on-load migrates older shapes forward.
@@ -24,6 +27,19 @@
 ::    .bots:  owner-side trusted bots — ships allowed to send lens %entry
 ::            pokes cross-ship. explicit and ship-class-agnostic; an empty
 ::            set means only local pokes are accepted.
+::
++$  state-6
+  $:  %6
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=state:v1:sg
+      automation=state:v1:sa
+      prompts=state:v1:sp
+      roster=state:v2:sr
+  ==
++$  versioned-state
+  $%(state-0 state-1 state-2 state-3 state-4 state-5 state-6)
 ::
 +$  state-5
   $:  %5
@@ -34,7 +50,6 @@
       automation=state:v1:sa
       prompts=state:v1:sp
   ==
-+$  versioned-state  $%(state-0 state-1 state-2 state-3 state-4 state-5)
 ::  Persisted shapes used only by +on-load migrations. state-4 is the shape
 ::  before the prompt-file projection; gateway-1 has the notification latch
 ::  and interaction timestamp, and gateway-0 omits them.
@@ -109,7 +124,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-5
+=|  state-6
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -201,7 +216,8 @@
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
-  ?>  ?=(%5 -.old)
+  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  ?>  ?=(%6 -.old)
   =.  state  old
   reconcile
 ::  +reconcile: restore what state cannot carry, on init and on every
@@ -265,6 +281,14 @@
   ^-  state-5
   =,  automation.old
   [%5 owner.old bots.old lens.old gateway.old [tasks requests pending *@da] *state:v1:sp]
+::  %5 → %6: the roster module arrives with an empty slice (nothing
+::  minted yet under the old state)
+++  state-5-to-6
+  |=  old=state-5
+  ^-  state-6
+  :*  %6  owner.old  bots.old  lens.old  gateway.old
+      automation.old  prompts.old  *state:v2:sr
+  ==
 ::  a %0 bot's gateway registered before the liveness claim existed, and
 ::  heartbeats only advertise on an up transition: seed the claim from the
 ::  migrated status, or an already-up gateway stays unknown until its next
@@ -341,6 +365,12 @@
       %steward-prompts-command-1
     (po-poke-command:po-core !<(c-prompts:v1:sp vase))
   ::
+  ::  roster: mint/configure/retire bot moons. local only (enforced in
+  ::  ro-poke-action).
+  ::
+      %steward-roster-action-1
+    (ro-poke-action:ro-core !<(action:v2:sr vase))
+  ::
   ::  the HTTP surface for both modules. this is also the auth check:
   ::  eyre pokes as our ship only for a session logged in as us. a guest
   ::  session pokes as its own made-up ship and crashes here (eyre answers
@@ -376,6 +406,10 @@
       [%v1 %gateway *]
     ?>  =(src.bowl our.bowl)
     (ga-watch:ga-core [%v1 t.t.path])
+  ::
+      [%v1 %roster *]
+    ?>  =(src.bowl our.bowl)
+    (ro-watch:ro-core [%v1 t.t.path])
   ::
       [%v1 %automation %tasks ~]
     ?>  |(=(src.bowl our.bowl) =(`src.bowl owner.state))
@@ -433,6 +467,7 @@
     [%x %v1 %gateway *]     (ga-peek:ga-core [%v1 t.t.t.path])
     [%x %v1 %automation *]  (au-peek:au-core [%v1 t.t.t.path])
     [%x %v1 %prompts *]     (po-peek:po-core [%v1 t.t.t.path])
+    [%x %v1 %roster *]      (ro-peek:ro-core [%v1 t.t.t.path])
   ==
 ::
 ++  agent
@@ -451,6 +486,27 @@
         %poke-ack
       ?~  p.sign  cor
       (log-fail %error 'Lens Retry Nacked' ~['lens retry relay nacked'] u.p.sign ~)
+    ==
+  ::
+      [%roster %vouch *]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog 'steward: roster vouch classify nacked' u.p.sign) cor)
+    ==
+  ::
+      [%roster %profile *]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog 'steward: roster profile publish nacked' u.p.sign) cor)
+    ==
+  ::
+      [%roster %claim *]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog 'steward: roster bots-claim nacked' u.p.sign) cor)
     ==
   ::
       [%activity ~]
@@ -565,6 +621,29 @@
       [%gateway %lease-check ~]
     ?.  ?=([%behn %wake *] sign)  cor
     ga-lease-check:ga-core
+  ::
+      [%roster %mint @ ~]
+    ?.  ?=([%jael %done *] sign)  cor
+    ?~  error.sign  cor
+    =/  mon  (slav %p i.t.t.wire)
+    %-  (slog leaf+"steward: roster mint failed for {(scow %p mon)}" tang.u.error.sign)
+    ::  unwind what the mint published: roster entry, claim projection,
+    ::  and the seeded contact profile (nulled field-by-field -- the mint
+    ::  only ever writes nickname/avatar). the vouch %bot record
+    ::  deliberately stays: there is no %vouch-forget, and a permanently
+    ::  burned @p costs nothing (2^32 of them per host).
+    ::
+    =.  bots.roster.state  (~(del by bots.roster.state) mon)
+    =.  claimed.roster.state  (~(del in claimed.roster.state) mon)
+    =.  cor  ro-project-claim:ro-core
+    =/  wipe=contact:co
+      (malt `(list (pair @tas value:co))`~[[%nickname ~] [%avatar ~]])
+    =.  cor
+      %-  emit
+      :*  %pass  /roster/profile/(scot %p mon)  %agent  [our.bowl %contacts]
+          %poke  %contact-bot-0  !>(`[who=ship con=contact:co]`[mon wipe])
+      ==
+    (give %fact ~[/v1/roster] %steward-roster-update-1 !>(`update:v2:sr`[%retired mon]))
   ::
       [%eyre %steward ~]
     cor
@@ -2960,5 +3039,290 @@
     ^+  cor
     %^  give-http  eyre-id  200
     ['application/json' (en:json:html (response:enjs:pj response))]
+  --
+::  |ro-core: roster module
+::
+::  mints bot moons: spawns+reserves a moon under us via jael, classifies it
+::  %bot in vouch, publishes its profile via contacts, and records its
+::  runner config. every action is local only (an owner mints its own
+::  bots) -- enforced once in ro-poke-action, not per-variant, since every
+::  roster shape expects the same src.
+::
+++  ro-core
+  |%
+  ::  only a ship that can sponsor a moon (galaxy/star/planet) may mint one;
+  ::  a moon or comet has no room under it to spawn a bot into.
+  ::
+  ++  ro-can-host
+    ^-  ?
+    ?=(?(%czar %king %duke) (clan:title our.bowl))
+  ::
+  ++  ro-poke-action
+    |=  =action:v2:sr
+    ^+  cor
+    ?>  =(src.bowl our.bowl)
+    ?-  -.action
+        %mint
+      %+  ro-handle-mint  nickname.action
+      [avatar.action model.action harness.action persona.action]
+    ::
+        %configure
+      %+  ro-handle-configure  ship.action
+      [model.action harness.action persona.action]
+    ::
+        %profile
+      (ro-handle-profile ship.action edits.action)
+    ::
+        %retire
+      (ro-handle-retire ship.action)
+    ==
+  ::
+  ++  ro-watch
+    |=  =path
+    ^+  cor
+    ?+  path  ~|(bad-roster-watch-path+path !!)
+        [%v1 ~]
+      ::  paths ~: the %init fact goes only to the subscription being
+      ::  opened, not to every existing /v1/roster subscriber.
+      %+  give  %fact
+      :*  ~
+          %steward-roster-update-1
+          !>(`update:v2:sr`[%init ro-init])
+      ==
+    ==
+  ::
+  ++  ro-peek
+    |=  =path
+    ^-  (unit (unit cage))
+    ?+  path  [~ ~]
+      ::  marked cage (an %init update) rather than bare noun so the roster
+      ::  is scryable as JSON over HTTP: /~/scry/steward/v1/roster.json --
+      ::  the runner reads it at boot to stand up an agent per bot.
+      ::
+        [%v1 ~]
+      ``steward-roster-update-1+!>(`update:v2:sr`[%init ro-init])
+    ::
+        [%v1 @ *]
+      =/  who  (slav %p i.t.path)
+      ?~  got=(~(get by bots.roster.state) who)  [~ ~]
+      ``noun+!>((ro-bot-info who u.got))
+    ==
+  ::
+  ::  +ro-init: the full roster, each rig joined with the identity fields
+  ::  from the moon's contact profile.
+  ::
+  ++  ro-init
+    ^-  (map ship bot:v2:sr)
+    %-  ~(urn by bots.roster.state)
+    |=  [who=ship =rig:v2:sr]
+    (ro-bot-info who rig)
+  ::
+  ::  +ro-contact: a bot moon's current published contact profile, or
+  ::  empty when contacts has no entry for it (only possible transiently:
+  ::  mint publishes the profile in the same event that records the rig).
+  ::
+  ++  ro-contact
+    |=  who=ship
+    ^-  contact:co
+    =/  base
+      /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/contact/(scot %p who)
+    ?.  .^(? %gu base)
+      *contact:co
+    .^(contact:co %gx (weld base /noun))
+  ::
+  ::  +ro-bot-info: the runner-facing view of a bot -- its stored rig
+  ::  joined with its current contact profile.
+  ::
+  ++  ro-bot-info
+    |=  [who=ship =rig:v2:sr]
+    ^-  bot:v2:sr
+    (ro-info-from (ro-contact who) rig)
+  ::
+  ::  +ro-info-from: compose the $bot view from an explicit contact --
+  ::  used when the profile write is still in flight in this same event,
+  ::  so a scry can't see it yet.
+  ::
+  ++  ro-info-from
+    |=  [con=contact:co =rig:v2:sr]
+    ^-  bot:v2:sr
+    =/  nickname=@t
+      =/  val  (~(get by con) %nickname)
+      ?:(?=([~ %text *] val) p.u.val '')
+    =/  avatar=(unit @t)
+      =/  val  (~(get by con) %avatar)
+      ?:(?=([~ %look *] val) [~ `@t`p.u.val] ~)
+    [nickname avatar model.rig harness.rig persona.rig created.rig]
+  ::
+  ::  pick a fresh moon under us: a random 32-bit suffix over our @p (the
+  ::  same shape |moon uses), retried up to 16 times against a collision on
+  ::  either side:
+  ::    - jael's own %ryft scry: a non-~ result means keys are already set
+  ::      for that ship, whether from a real (booted) point or a previous
+  ::      %moon registration.
+  ::    - our own roster: covers the (unlikely) case where a prior mint's
+  ::      jael registration succeeded but we haven't processed its %done
+  ::      ack yet.
+  ::
+  ++  ro-pick-moon
+    |=  tries=@ud
+    ^-  ship
+    ?:  (gte tries 16)
+      ~|  %roster-moon-picks-exhausted
+      !!
+    =/  cand=ship
+      (add our.bowl (lsh 5 (end 5 (shaz (mix eny.bowl tries)))))
+    =/  ryf=(unit rift)
+      .^((unit rift) %j /(scot %p our.bowl)/ryft/(scot %da now.bowl)/(scot %p cand))
+    ?:  |(?=(^ ryf) (~(has by bots.roster.state) cand))
+      $(tries +(tries))
+    cand
+  ::
+  ++  ro-build-contact
+    |=  [nickname=@t avatar=(unit @t)]
+    ^-  contact:co
+    %-  malt
+    ^-  (list (pair @tas value:co))
+    =/  base  [%nickname [%text nickname]]~
+    ?~  avatar  base
+    [[%avatar [%look u.avatar]] base]
+  ::
+  ::  +ro-project-claim: write our own profile's %bots field (a native
+  ::  contact %set of %ship values) as a pure projection of .claimed:
+  ::  minting IS the owner claiming, and clients recognize our bots from
+  ::  the claim without consulting %vouch. the whole set is written from
+  ::  state we own -- no read of contacts, so there is no read-modify-write
+  ::  to race, and any corruption of the field heals on the next roster
+  ::  change. steward is the field's only writer (by API shape only:
+  ::  contacts cannot distinguish local pokers).
+  ::
+  ++  ro-project-claim
+    ^+  cor
+    =/  claim=value:co
+      :-  %set
+      %-  ~(run in claimed.roster.state)
+      |=(who=ship `value:co`[%ship who])
+    %-  emit
+    :*  %pass  /roster/claim  %agent  [our.bowl %contacts]
+        %poke  %contact-action-1
+        !>(`action:co`[%self (malt ~[[%bots claim]])])
+    ==
+  ::
+  ++  ro-handle-mint
+    |=  [nickname=@t avatar=(unit @t) model=@t harness=@t persona=@t]
+    ^+  cor
+    ?>  ro-can-host
+    =/  mon=ship  (ro-pick-moon 0)
+    ::  derive the moon's keypair locally and register only the PUBLIC
+    ::  half with jael (life 1, crypto suite %b/crub). the private seed is
+    ::  never slogged, stored, or emitted -- it's discarded the instant
+    ::  we're done deriving .pass, right here. this is deliberate: a bot
+    ::  moon is unbootable by design, so nobody -- not even us -- can ever
+    ::  assume its identity. if the owner ever wants a real, bootable moon
+    ::  instead, |moon-cycle-keys replaces these keys with ones it
+    ::  actually keeps.
+    ::
+    =/  cic  (pit:nu:cric:crypto 512 (shaz (jam mon 1 eny.bowl)) %b ~)
+    =/  =pass  pub:ex:cic
+    ::  classify %bot BEFORE registering keys: %vouch's status peek treats
+    ::  keys-without-a-%bot-record as proof of a real (|moon-made) moon, so
+    ::  this ordering is what makes that inference airtight. cards from one
+    ::  event are processed in order, so no query can observe the keys
+    ::  before the classification.
+    ::
+    =.  cor
+      %-  emit
+      :*  %pass  /roster/vouch/(scot %p mon)  %agent  [our.bowl %vouch]
+          %poke  %vouch-learn  !>(`learn:v`[mon %bot])
+      ==
+    =.  cor
+      %-  emit
+      [%pass /roster/mint/(scot %p mon) %arvo %j %moon mon *id:block:jael %keys [1 1 pass] %.n]
+    ::  validate the seed profile up front so the contact-bot-0 poke can't
+    ::  nack after the roster entry is already committed -- "the profile
+    ::  exists whenever the rig does" holds by construction.
+    ::
+    =/  con=contact:co  (ro-build-contact nickname avatar)
+    ?>  (sane-contact:cl ~ con)
+    =.  cor
+      %-  emit
+      :*  %pass  /roster/profile/(scot %p mon)  %agent  [our.bowl %contacts]
+          %poke  %contact-bot-0  !>(`[who=ship con=contact:co]`[mon con])
+      ==
+    =.  claimed.roster.state  (~(put in claimed.roster.state) mon)
+    =.  cor  ro-project-claim
+    =/  =rig:v2:sr  [model harness persona now.bowl]
+    =.  bots.roster.state  (~(put by bots.roster.state) mon rig)
+    %^  give  %fact  ~[/v1/roster]
+    steward-roster-update-1+!>(`update:v2:sr`[%minted mon (ro-info-from con rig)])
+  ::
+  ::  +ro-handle-configure: update a bot's stored runner config. ~ fields
+  ::  keep their current value; identity (contact) edits are %profile's job.
+  ::
+  ::  NB: the sample face is .who, not .ship -- a bare =ship sample would
+  ::  shadow the ship mold for the rest of this arm's body (see mar door
+  ::  convention in CLAUDE.md).
+  ::
+  ++  ro-handle-configure
+    |=  [who=ship model=(unit @t) harness=(unit @t) persona=(unit @t)]
+    ^+  cor
+    ?~  got=(~(get by bots.roster.state) who)
+      ~|  %roster-configure-unknown-bot  !!
+    =/  =rig:v2:sr
+      :^    (fall model model.u.got)
+          (fall harness harness.u.got)
+        (fall persona persona.u.got)
+      created.u.got
+    =.  bots.roster.state  (~(put by bots.roster.state) who rig)
+    %^  give  %fact  ~[/v1/roster]
+    steward-roster-update-1+!>(`update:v2:sr`[%configured who (ro-bot-info who rig)])
+  ::
+  ::  +ro-handle-profile: edit a bot's contact profile. steward is the
+  ::  arbiter of bot data in contacts: it validates the field names, types
+  ::  the values, and forwards to %contacts as a merge (contact-bot-0
+  ::  applies +do-edit: ~ deletes a field, absent fields are untouched).
+  ::  the merged result is composed here too -- +do-edit is deterministic,
+  ::  so this both validates the write up front (a crash nacks the poke
+  ::  before anything commits) and puts the resulting identity on the
+  ::  %configured fact without waiting to observe contacts.
+  ::
+  ++  ro-handle-profile
+    |=  [who=ship edits=(map @tas (unit @t))]
+    ^+  cor
+    =/  got=(unit rig:v2:sr)  (~(get by bots.roster.state) who)
+    ?~  got
+      ~|  %roster-profile-unknown-bot  !!
+    =/  mod=contact:co
+      %-  ~(urn by edits)
+      |=  [key=@tas val=(unit @t)]
+      ^-  value:co
+      ?.  ?=(?(%nickname %bio %status %avatar %cover) key)
+        ~|(roster-profile-unknown-field+key !!)
+      ?~  val  ~
+      ?:  ?=(?(%avatar %cover) key)  [%look u.val]
+      [%text u.val]
+    =/  new=contact:co  (do-edit:cl (ro-contact who) mod)
+    ?>  (sane-contact:cl ~ new)
+    =.  cor
+      %-  emit
+      :*  %pass  /roster/profile/(scot %p who)  %agent  [our.bowl %contacts]
+          %poke  %contact-bot-0  !>(`[who=ship con=contact:co]`[who mod])
+      ==
+    %^  give  %fact  ~[/v1/roster]
+    steward-roster-update-1+!>(`update:v2:sr`[%configured who (ro-info-from new u.got)])
+  ::
+  ++  ro-handle-retire
+    |=  who=ship
+    ^+  cor
+    ?.  (~(has by bots.roster.state) who)
+      ~|  %roster-retire-unknown-bot  !!
+    ::  vouch and .claimed are deliberately left untouched: the moon stays
+    ::  classified %bot and claimed even after retirement, so history
+    ::  involving it stays routable/attributable and peers keep routing
+    ::  DMs to it through us rather than peer-to-peer into a never-booted
+    ::  void. retiring only drops it from the roster the runner actively
+    ::  manages.
+    ::
+    =.  bots.roster.state  (~(del by bots.roster.state) who)
+    (give %fact ~[/v1/roster] %steward-roster-update-1 !>(`update:v2:sr`[%retired who]))
   --
 --

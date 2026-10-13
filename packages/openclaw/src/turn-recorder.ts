@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type {
   PluginHookAgentContext,
   PluginHookAgentEndEvent,
-} from 'openclaw/plugin-sdk/types';
+} from './agent-hook-types.js';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
 import {
@@ -56,6 +56,7 @@ export type TlonAgentTurnSkipReason =
   | 'empty'
   | 'silent'
   | 'heartbeat'
+  | 'channel_transform'
   | 'empty_payload_text'
   | 'block_directive_only'
   | 'media_only_payload_not_sent'

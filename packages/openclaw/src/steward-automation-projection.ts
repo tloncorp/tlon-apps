@@ -1,4 +1,4 @@
-import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
+import type { PluginHookGatewayCronJob } from './cron-telemetry.js';
 import { z } from 'zod';
 
 const EXPECTED_NUMBER = 'expected a number';

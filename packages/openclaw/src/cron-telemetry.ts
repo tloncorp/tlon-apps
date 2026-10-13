@@ -17,13 +17,6 @@
  * (`summary`). None are forwarded — only schedule metadata, status, error
  * text (truncated), and a derived intentional-silence flag leave the process.
  */
-import type {
-  PluginHookCronChangedEvent,
-  PluginHookGatewayContext,
-  PluginHookGatewayCronJob,
-  PluginHookGatewayCronService,
-} from 'openclaw/plugin-sdk/types';
-
 import {
   type TlonCronOtelObserver,
   type TlonCronRunFinished,
@@ -50,6 +43,88 @@ import {
 const CRON_ERROR_MAX_CHARS = 500;
 const SNAPSHOT_RETRY_DELAY_MS = 20_000;
 
+// The SDK no longer exports its gateway hook types from a public subpath
+// (`openclaw/plugin-sdk/types` ships untyped JS as of 2026.9.x), so these
+// mirror the fields this module reads from the `cron_changed` hook payloads.
+// The `api.on('cron_changed', ...)` registration in index.ts is contextually
+// typed against the real SDK map, so a mismatch fails to compile there.
+export type PluginHookGatewayCronJob = {
+  id: string;
+  agentId?: string;
+  name?: string;
+  description?: string;
+  enabled?: boolean;
+  schedule?:
+    | { kind: 'cron'; expr?: string; tz?: string; staggerMs?: number }
+    | { kind: 'at'; at?: string }
+    | { kind: 'every'; everyMs?: number; anchorMs?: number }
+    | { kind: 'on-exit'; command?: string; cwd?: string }
+    | {
+        kind: 'stream';
+        command?: string[];
+        cwd?: string;
+        mode?: 'line' | 'match';
+        match?: string;
+        batchMs?: number;
+        maxBatchBytes?: number;
+      };
+  sessionTarget?: string;
+  wakeMode?: string;
+  payload?: { kind?: string; text?: string };
+  state?: {
+    nextRunAtMs?: number;
+    runningAtMs?: number;
+    lastRunAtMs?: number;
+    lastError?: string;
+    lastDurationMs?: number;
+  };
+  createdAtMs?: number;
+  updatedAtMs?: number;
+};
+
+export type PluginHookGatewayCronService = {
+  list: (opts?: {
+    includeDisabled?: boolean;
+  }) => Promise<PluginHookGatewayCronJob[]>;
+  add(input: object): Promise<unknown>;
+  update(id: string, patch: object): Promise<unknown>;
+  remove(id: string): Promise<unknown>;
+};
+
+export type PluginHookCronChangedEvent = {
+  action:
+    | 'added'
+    | 'updated'
+    | 'removed'
+    | 'started'
+    | 'finished'
+    | 'scheduled';
+  jobId: string;
+  job?: PluginHookGatewayCronJob;
+  sessionTarget?: string;
+  agentId?: string;
+  runAtMs?: number;
+  durationMs?: number;
+  status?: 'ok' | 'error' | 'skipped';
+  completionStatus?: 'succeeded' | 'failed' | 'unknown';
+  error?: string;
+  summary?: string;
+  delivered?: boolean;
+  deliveryStatus?: 'not-requested' | 'delivered' | 'not-delivered' | 'unknown';
+  deliveryError?: string;
+  deliverySuppressionReason?: string;
+  sessionId?: string;
+  sessionKey?: string;
+  runId?: string;
+  nextRunAtMs?: number;
+  model?: string;
+  provider?: string;
+};
+
+export type PluginHookGatewayContext = {
+  getCron?: () => PluginHookGatewayCronService | undefined;
+};
+
 type CronServiceAccessor = () => PluginHookGatewayCronService | undefined;
 
 export type TlonCronService = PluginHookGatewayCronService & {
@@ -59,20 +134,6 @@ export type TlonCronService = PluginHookGatewayCronService & {
 type CronObservabilityOptions = {
   observer?: TlonCronOtelObserver;
 };
-
-// The plugin's peer range starts at 2026.5.7, which predates event-driven
-// `on-exit` schedules; newer hosts expose them. Keep the projection here
-// forward-compatible with both.
-// The command and cwd are intentionally never included in telemetry.
-type ForwardCompatibleCronSchedule =
-  | NonNullable<PluginHookGatewayCronJob['schedule']>
-  | { kind: 'on-exit'; command?: string; cwd?: string };
-
-function forwardCompatibleCronSchedule(
-  job: PluginHookGatewayCronJob | undefined
-): ForwardCompatibleCronSchedule | undefined {
-  return job?.schedule as ForwardCompatibleCronSchedule | undefined;
-}
 
 /**
  * The cron service is only reachable through gateway hook contexts
@@ -153,7 +214,7 @@ export function cronScheduleFields(
     scheduleEveryMs: null,
     scheduleAt: null,
   };
-  const schedule = forwardCompatibleCronSchedule(job);
+  const schedule = job?.schedule;
   if (!schedule) {
     return empty;
   }
@@ -205,7 +266,7 @@ export function summarizeCronJobs(jobs: PluginHookGatewayCronJob[]): {
     if (job.enabled !== false) {
       active += 1;
     }
-    switch (forwardCompatibleCronSchedule(job)?.kind) {
+    switch (job?.schedule?.kind) {
       case 'cron':
         cronKind += 1;
         break;

@@ -67,3 +67,10 @@ export const FULL_MEMBER_COUNT_MIN_GROUPS_VERSION = '12.4.0';
 // Must move in lockstep with desk/desk.docket-0's version if the release
 // number changes.
 export const STEWARD_PROMPTS_MIN_GROUPS_VERSION = '12.4.0';
+
+// The first %groups release with virtual bots: %steward's roster module
+// (mint/configure/retire bot moons) and %chat's vouched-DM relay
+// (chat-dm-vouched-action-2). Guarded registry entries name it as their
+// `since`. Must move in lockstep with desk/desk.docket-0's version if the
+// release number changes.
+export const VOUCHED_BOTS_MIN_GROUPS_VERSION = '12.5.0';

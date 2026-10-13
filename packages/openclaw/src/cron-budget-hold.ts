@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
+import type { PluginHookGatewayCronJob } from './cron-telemetry.js';
 
 export const BUDGET_SIGNAL_ENV = 'TLON_CRON_BUDGET_FILE';
 export const BUDGET_STARTUP_ENV = 'TLON_CRON_BUDGET_STARTUP';

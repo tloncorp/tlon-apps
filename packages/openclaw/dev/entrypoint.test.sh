@@ -16,7 +16,7 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
-requested_core_version="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.9.4}"
 installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
 if [ "$installed_core_version" != "$requested_core_version" ]; then
   echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"
@@ -98,6 +98,14 @@ overrides:
 PNPM_EOF
 fi
 pnpm install
+
+# When the monorepo is mounted (docker-compose.test.yml), link its local
+# @tloncorp/api build over the registry version so branch features (e.g.
+# vouched DMs) are available in the container.
+if [ -d /workspace/tlon-apps/packages/api ]; then
+  bash /workspace/tlon/dev/build-local-api-override.sh
+fi
+
 # A reused node_modules volume may contain a previous test's skill snapshot,
 # even when pnpm considers the file dependency current. Restore the exact packed
 # files instead of allowing an installed binary and stale guidance to diverge.
@@ -282,6 +290,45 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
 }
 EOF
 
+# Real model: when OPENROUTER_API_KEY is set, register an OpenRouter provider
+# (OpenAI-completions compatible) and route the agent to MODEL, replacing the
+# scripted fake-model. MODEL like "openrouter/minimax/minimax-m2.5"; the model
+# id passed to OpenRouter is MODEL with the leading "openrouter/" stripped.
+if [ -n "${OPENROUTER_API_KEY:-}" ] && [ "${MODEL:-}" != "custom-proxy/tlon-test-scripted" ]; then
+  OR_MODEL_ID="${MODEL#openrouter/}"
+  echo "==> Patching config: OpenRouter provider (real model $MODEL)..."
+  jq --arg key "$OPENROUTER_API_KEY" --arg model "$MODEL" --arg mid "$OR_MODEL_ID" '
+    .models.providers.openrouter = {
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKey": $key,
+      "api": "openai-completions",
+      "models": [ {
+        "id": $mid,
+        "name": $mid,
+        "api": "openai-completions",
+        "reasoning": false,
+        "input": ["text"],
+        "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+        "contextWindow": 128000,
+        "maxTokens": 4096
+      } ]
+    }
+    | .agents.defaults.model.primary = $model
+  ' "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
+    && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
+fi
+
+# Virtual identity: when TLON_MOON is set, the bot runs on the host ship but
+# acts as this moon (see channels.tlon.moon in the plugin config schema).
+if [ -n "${TLON_MOON:-}" ]; then
+  echo "==> Patching config: acting as moon $TLON_MOON..."
+  jq --arg moon "$TLON_MOON" --arg nick "${TLON_MOON_NICKNAME:-}" \
+    '.channels.tlon.moon = $moon
+     | if $nick != "" then .channels.tlon.moonNickname = $nick else . end' \
+    "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
+    && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
+fi
+
 # Patch in image-search plugin if tlonbot is mounted
 if [ -d "/workspace/tlonbot/image-search" ]; then
   echo "==> Patching config: adding image-search plugin..."
@@ -315,7 +362,7 @@ if [ ! -d "/workspace/tlonbot/image-search" ] && [ -n "$BRAVE_API_KEY" ] && [ -n
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi
 
-# Patch in Brave API key for web search if available. openclaw 2026.5.28
+# Patch in Brave API key for web search if available. openclaw 2026.9.4
 # only accepts provider "brave" when the brave plugin (installed at image
 # build time, see Dockerfile.test) is allowed and enabled; the config was
 # rewritten from scratch above, so re-assert both here (mirrors production).

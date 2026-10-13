@@ -1,8 +1,8 @@
 import type {
   PluginHookAgentContext,
   PluginHookAgentEndEvent,
-  PluginHookCronChangedEvent,
-} from 'openclaw/plugin-sdk/types';
+} from './agent-hook-types.js';
+import type { PluginHookCronChangedEvent } from './cron-telemetry.js';
 
 import { sharedMap } from './shared-state.js';
 import { isSuccessfulSilentAgentOutput } from './silent-reply.js';

@@ -1,4 +1,4 @@
-import type { PluginHookAgentEndEvent } from 'openclaw/plugin-sdk/types';
+import type { PluginHookAgentEndEvent } from './agent-hook-types.js';
 
 export function isExplicitSilentReply(text: string | undefined): boolean {
   return text?.trim().toUpperCase() === 'NO_REPLY';

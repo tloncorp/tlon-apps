@@ -2,6 +2,7 @@
 ::
 /-  s=steward, a=activity, av=activity-ver
 /-  l=steward-lens, g=steward-gateway, au=steward-automation, pr=steward-prompts
+/-  r=steward-roster, v=vouch
 /-  cv=chat-ver, st=story, c=contacts
 /-  chv=channels-ver, gv=groups-ver
 /-  lg=logs
@@ -9,9 +10,19 @@
 /=  agent  /app/steward
 |%
 ++  dap  %steward
-::  state-5 mirrors the current agent state. Persisted shapes below support
+::  state-6 mirrors the current agent state. Persisted shapes below support
 ::  the on-load migration tests. `bots` is the owner-side trusted set.
 ::
++$  state-6
+  $:  %6
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:l
+      gateway=state:v1:g
+      automation=state:v1:au
+      prompts=state:v1:pr
+      roster=state:v2:r
+  ==
 +$  state-5
   $:  %5
       owner=(unit ship)
@@ -399,6 +410,15 @@
   ^-  (unit vase)
   ?+  path  ~
     [%gu @ %activity @ %$ ~]  `!>(&)
+    ::  the roster module's moon-pick checks jael's %ryft scry for a
+    ::  collision; ~ (outer unit backtick, inner (unit rift) null) means
+    ::  "unregistered, free to use" for every candidate ship in tests
+    [%j @ %ryft @ @ ~]        `!>(`(unit rift)`~)
+    ::  roster facts/peeks join each bot's identity from its contact
+    ::  profile; serve the default mint seed for any moon
+    [%gu @ %contacts @ %v1 %contact @ ~]  `!>(&)
+    [%gx @ %contacts @ %v1 %contact @ %noun ~]
+      `!>(`contact:c`(roster-contact 'Bot' ~))
   ==
 ::
 ++  setup
@@ -450,16 +470,16 @@
 ++  moon-tasks-wire  ^-  wire  /automation/tasks/(scot %p moon)
 ::
 ++  got-state
-  =/  m  (mare ,state-5)
+  =/  m  (mare ,state-6)
   ^-  form:m
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  (pure:m !<(state-5 !<(vase q.res)))
+  (pure:m !<(state-6 !<(vase q.res)))
 ::
 ::  the local projection: the local ship's entry, read as empty while
 ::  the harness has never projected
 ::
 ++  local-automation-tasks
-  |=  st=state-5
+  |=  st=state-6
   ^-  tasks:v1:au
   (~(gut by tasks.automation.st) ~dev *tasks:v1:au)
 ::
@@ -610,12 +630,12 @@
 ::  the released %1 shape of the current state: everything but automation
 ::
 ++  as-released-state
-  |=  current=state-5
+  |=  current=state-6
   ^-  state-1
   [%1 owner.current bots.current lens.current +.gateway.current]
 ::
 ++  assert-migrated-state
-  |=  [old=state-1 current=state-5]
+  |=  [old=state-1 current=state-6]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (ex-equal !>(owner.current) !>(owner.old))
@@ -635,7 +655,7 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  populate-released-slices
   ;<  before-res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  before=state-5  !<(state-5 !<(vase q.before-res))
+  =/  before=state-6  !<(state-6 !<(vase q.before-res))
   =/  old=state-1  (as-released-state before)
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
   ::  +moon is already subscribed from the populate step, so the migration
@@ -648,7 +668,7 @@
         (ex-prompts-cleanup-timer ~2024.1.1)
     ==
   ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  after=state-5  !<(state-5 !<(vase q.after-res))
+  =/  after=state-6  !<(state-6 !<(vase q.after-res))
   (assert-migrated-state old after)
 ::
 ++  test-migration-persists-through-current-save-load
@@ -659,11 +679,11 @@
   ;<  ~  bind:m  populate-released-slices
   ;<  before-res=cage  bind:m  (got-peek /x/dbug/state)
   =/  old=state-1
-    (as-released-state !<(state-5 !<(vase q.before-res)))
+    (as-released-state !<(state-6 !<(vase q.before-res)))
   ;<  *  bind:m  (do-load agent `!>(old))
   ;<  *  bind:m  (do-load agent ~)
   ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  after=state-5  !<(state-5 !<(vase q.after-res))
+  =/  after=state-6  !<(state-6 !<(vase q.after-res))
   (assert-migrated-state old after)
 ::
 ::  reloading a current state rebinds eyre and nothing else: the sweep
@@ -684,10 +704,10 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  populate-released-slices
   ;<  before-res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  before=state-5  !<(state-5 !<(vase q.before-res))
+  =/  before=state-6  !<(state-6 !<(vase q.before-res))
   ;<  ~  bind:m  (ex-fail (do-load agent `!>([%0 'malformed'])))
   ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  after=state-5  !<(state-5 !<(vase q.after-res))
+  =/  after=state-6  !<(state-6 !<(vase q.after-res))
   (ex-equal !>(after) !>(before))
 ::
 ::  ==========================================================
@@ -702,13 +722,13 @@
   =/  task-b=task:v1:au  (automation-task 'Task B')
   ;<  ~  bind:m  setup
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m
     (ex-equal !>(tasks.automation.st) !>(*(map ship tasks:v1:au)))
   ;<  ~  bind:m
     (project-automation ~[['task-a' task-a] ['task-b' task-b]])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     %-  ~(gas by *(map @t task:v1:au))
     ~[['task-a' task-a] ['task-b' task-b]]
@@ -726,20 +746,20 @@
   ;<  ~  bind:m  (project-automation both)
   ;<  ~  bind:m  (project-automation both)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     %-  ~(gas by *(map @t task:v1:au))
     both
   ;<  ~  bind:m  (ex-equal !>((local-automation-tasks st)) !>(expected))
   ;<  ~  bind:m  (project-automation ~[['task-b' task-b]])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     (~(put by *(map @t task:v1:au)) 'task-b' task-b)
   ;<  ~  bind:m  (ex-equal !>((local-automation-tasks st)) !>(expected))
   ;<  ~  bind:m  (project-automation ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ::  a projected-empty entry still exists; +got proves its presence
   (ex-equal !>((~(got by tasks.automation.st) ~dev)) !>(*tasks:v1:au))
 ::
@@ -755,7 +775,7 @@
   ;<  ~  bind:m
     (ex-fail (project-automation ~[['duplicate' task-a] ['duplicate' task-b]]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     (~(put by *(map @t task:v1:au)) 'task-a' task-a)
   (ex-equal !>((local-automation-tasks st)) !>(expected))
@@ -773,7 +793,7 @@
     %-  (do-as ~zod)
     (project-automation-json trace-project-json)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     (~(put by *(map @t task:v1:au)) 'task-a' task-a)
   (ex-equal !>((local-automation-tasks st)) !>(expected))
@@ -903,7 +923,7 @@
   ;<  caz=(list card)  bind:m
     (do-project ~[['task-a' task-a2] ['task-c' task-c]])
   ;<  ~  bind:m  (ex-cards caz (ex-delta-facts ~dev old new))
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((local-automation-tasks st)) !>(new))
 ::
 ::  an equal %project emits no facts and leaves state identical
@@ -915,10 +935,10 @@
   =/  task-a=task:v1:au  (automation-task 'Task A')
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
-  ;<  before=state-5  bind:m  got-state
+  ;<  before=state-6  bind:m  got-state
   ;<  caz=(list card)  bind:m  (do-project ~[['task-a' task-a]])
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  after=state-5  bind:m  got-state
+  ;<  after=state-6  bind:m  got-state
   (ex-equal !>(after) !>(before))
 ::
 ::  the first accepted %project creates the local entry, which is
@@ -946,7 +966,7 @@
   ;<  caz=(list card)  bind:m  (do-project ~)
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-tasks-fact %tasks (ship-tasks-of ~[[~dev *tasks:v1:au]]))])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(got by tasks.automation.st) ~dev)) !>(*tasks:v1:au))
 ::
 ::  watch auth: the configured owner is admitted cross-ship and gets the
@@ -1049,7 +1069,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
   ;<  ~  bind:m
     (ex-cards caz ~[ex-moon-automation-watch ex-moon-prompts-watch])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  re-poking %trust-bot while the subscription is live in wex does not
@@ -1094,7 +1114,7 @@
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot ~dev]))
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   ;<  ~  bind:m
     (ex-equal !>((local-automation-tasks st)) !>((task-map-of ~[['task-a' task-a]])))
   ;<  b=bowl  bind:m  get-bowl
@@ -1122,7 +1142,7 @@
         (ex-tasks-fact %gone moon)
         ex-moon-prompts-leave
     ==
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  untrust before the first snapshot: leave, but no entry was ever
@@ -1138,7 +1158,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
   ;<  ~  bind:m
     (ex-cards caz ~[ex-moon-automation-leave ex-moon-prompts-leave])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  untrusting the local ship is an automation no-op: no leave, no
@@ -1154,7 +1174,7 @@
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot ~dev]))
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((local-automation-tasks st)) !>((task-map-of ~[['task-a' task-a]])))
 ::
 ::  a snapshot fact creates the entry (announced to subscribers as a
@@ -1177,13 +1197,13 @@
     (give-moon-update %tasks (ship-tasks-of ~[[moon initial]]))
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-tasks-fact %tasks (ship-tasks-of ~[[moon initial]]))])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   ;<  ~  bind:m
     (ex-equal !>((~(got by tasks.automation.st) moon)) !>(initial))
   ;<  caz=(list card)  bind:m
     (give-moon-update %tasks (ship-tasks-of ~[[moon replaced]]))
   ;<  ~  bind:m  (ex-cards caz (ex-delta-facts moon initial replaced))
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(got by tasks.automation.st) moon)) !>(replaced))
 ::
 ::  an unchanged snapshot produces no client facts
@@ -1222,7 +1242,7 @@
     (ex-cards caz ~[(ex-tasks-fact %set moon 'task-a' task-a2)])
   ;<  caz=(list card)  bind:m  (give-moon-update %del moon 'task-a')
   ;<  ~  bind:m  (ex-cards caz ~[(ex-tasks-fact %del moon 'task-a')])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   %+  ex-equal
     !>((~(got by tasks.automation.st) moon))
   !>((task-map-of ~[['task-b' task-b]]))
@@ -1240,7 +1260,7 @@
   ;<  *  bind:m  (give-moon-update %tasks (ship-tasks-of ~[[moon tasks]]))
   ;<  caz=(list card)  bind:m  (give-moon-update %del moon 'missing')
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(got by tasks.automation.st) moon)) !>(tasks))
 ::
 ::  a delta for a bot with no mirror entry (no snapshot yet) is ignored
@@ -1266,7 +1286,7 @@
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  caz=(list card)  bind:m  (give-moon-update %del moon 'task-a')
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  a kick while the bot is still trusted resubscribes, and the fresh
@@ -1286,7 +1306,7 @@
   ;<  caz=(list card)  bind:m  (do-moon-tasks-sign %kick ~)
   ;<  ~  bind:m  (ex-cards caz ~[ex-moon-automation-watch])
   ;<  *  bind:m  (give-moon-update %tasks (ship-tasks-of ~[[moon repaired]]))
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(got by tasks.automation.st) moon)) !>(repaired))
 ::
 ::  a kick for a no-longer-trusted bot does not resubscribe. the leave
@@ -1327,7 +1347,7 @@
   ;<  caz=(list card)  bind:m
     (do-moon-tasks-sign %watch-ack `~[leaf+"denied"])
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(got by tasks.automation.st) moon)) !>(tasks))
 ::
 ::  a snapshot lacking the bot's entry deletes it — the wiped-bot
@@ -1345,7 +1365,7 @@
   ;<  caz=(list card)  bind:m
     (give-moon-update %tasks *(map ship tasks:v1:au))
   ;<  ~  bind:m  (ex-cards caz ~[(ex-tasks-fact %gone moon)])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  a %gone fact naming the wire bot deletes its entry and re-emits
@@ -1361,7 +1381,7 @@
   ;<  *  bind:m  (give-moon-update %tasks (ship-tasks-of ~[[moon tasks]]))
   ;<  caz=(list card)  bind:m  (give-moon-update %gone moon)
   ;<  ~  bind:m  (ex-cards caz ~[(ex-tasks-fact %gone moon)])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  content attributed to any ship other than the wire bot is ignored:
@@ -1383,7 +1403,7 @@
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  caz=(list card)  bind:m  (give-moon-update %gone ~zod)
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   ;<  ~  bind:m
     (ex-equal !>((~(got by tasks.automation.st) moon)) !>(tasks))
   (ex-equal !>((~(has by tasks.automation.st) ~zod)) !>(|))
@@ -1405,7 +1425,7 @@
     (give-moon-update %tasks (ship-tasks-of ~[[moon moon-tasks] [~zod zod-tasks]]))
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-tasks-fact %tasks (ship-tasks-of ~[[moon moon-tasks]]))])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   ;<  ~  bind:m
     (ex-equal !>((~(got by tasks.automation.st) moon)) !>(moon-tasks))
   (ex-equal !>((~(has by tasks.automation.st) ~zod)) !>(|))
@@ -1551,7 +1571,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
 ::
 ::  a completely foreign ship (not ourselves) must crash the local-only
@@ -1814,7 +1834,7 @@
   ;<  *  bind:m
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%configure 1]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
 ::
 ::  /x/v1/lens/since/[da] returns entries with received >= cutoff, newest
@@ -1959,7 +1979,7 @@
         (ex-prompts-cleanup-timer ~2000.1.1)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(-.st) !>(%5))
   ;<  ~  bind:m
     (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
@@ -2005,7 +2025,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup-gateway
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(active-window.gateway.st) !>(~m5))
   (ex-equal !>(reply-cooldown.gateway.st) !>(~m5))
 ::
@@ -2066,7 +2086,7 @@
   ;<  *  bind:m  (status-messages |)
   ;<  caz=(list card)  bind:m  (do-agent (make-dm-fact ~bus ~2024.1.1))
   ;<  ~  bind:m  (ex-cards caz ~[(ex-fact-paths ~[/v1/gateway])])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   ;<  ~  bind:m  (ex-equal !>(last-owner-msg.gateway.st) !>(~2024.1.1))
   ;<  ~  bind:m  (ex-equal !>(last-auto-reply.gateway.st) !>(~))
   ;<  ~  bind:m  (ex-equal !>(last-auto-reply-to.gateway.st) !>(~))
@@ -2093,7 +2113,7 @@
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'model-change']))
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-arvo /gateway/lease-check %b %rest lease) (liveness-poke |) (ex-fact-paths ~[/v1/gateway])])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   ;<  ~  bind:m  (ex-equal !>(notify-on-start.gateway.st) !>(|))
   ;<  caz=(list card)  bind:m
@@ -2104,7 +2124,7 @@
   ;<  caz=(list card)  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   ;<  ~  bind:m
     (ex-cards caz ~[(liveness-poke |) (ex-fact-paths ~[/v1/gateway])])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>(status.gateway.st) !>(%down))
 ::
 ++  test-gw-disabling-clears-owner-notice-latch
@@ -2130,7 +2150,7 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  populate-released-slices
   ;<  ~  bind:m  (project-automation ~[['task' (automation-task 'Saved task')]])
-  ;<  before=state-5  bind:m  got-state
+  ;<  before=state-6  bind:m  got-state
   =/  old=state-2
     :*  %2
       owner.before
@@ -2150,7 +2170,7 @@
         (ex-cleanup-timer ~2024.1.1)
         (ex-prompts-cleanup-timer ~2024.1.1)
     ==
-  ;<  after=state-5  bind:m  got-state
+  ;<  after=state-6  bind:m  got-state
   (ex-equal !>(after) !>(before))
 ::
 ::  %4 is what develop runs: every populated slice crosses into %5
@@ -2163,7 +2183,7 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  populate-released-slices
   ;<  ~  bind:m  (project-automation ~[['task' (automation-task 'Saved task')]])
-  ;<  before=state-5  bind:m  got-state
+  ;<  before=state-6  bind:m  got-state
   =/  old=state-4
     :*  %4
         owner.before
@@ -2179,7 +2199,7 @@
         (ex-cleanup-timer ~2024.1.1)
         (ex-prompts-cleanup-timer ~2024.1.1)
     ==
-  ;<  after=state-5  bind:m  got-state
+  ;<  after=state-6  bind:m  got-state
   (ex-equal !>(after) !>(before))
 ::
 ::  %3 → %4 widens every stored task: the new fields start empty and the
@@ -2192,7 +2212,7 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  populate-released-slices
   ;<  ~  bind:m  (project-automation ~[['task' (automation-task 'Saved task')]])
-  ;<  before=state-5  bind:m  got-state
+  ;<  before=state-6  bind:m  got-state
   =/  old=state-3
     :*  %3
         owner.before
@@ -2211,7 +2231,7 @@
         (ex-cleanup-timer ~2024.1.1)
         (ex-prompts-cleanup-timer ~2024.1.1)
     ==
-  ;<  after=state-5  bind:m  got-state
+  ;<  after=state-6  bind:m  got-state
   ;<  ~  bind:m  (ex-equal !>(after) !>(before))
   =/  widened  (~(got by (~(got by tasks.automation.after) ~dev)) 'task')
   ;<  ~  bind:m  (ex-equal !>(delivery.widened) !>(*(unit delivery:v1:au)))
@@ -2232,7 +2252,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(lease-until.gateway.st) !>(`lease-time))
 ::
@@ -2250,7 +2270,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(|))
   (ex-equal !>(lease-until.gateway.st) !>(`new-lease))
@@ -2266,7 +2286,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -2285,7 +2305,7 @@
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-old' 'model-change']))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(`'boot-1'))
   ;<  ~  bind:m  (ex-equal !>(notify-on-start.gateway.st) !>(|))
@@ -2305,7 +2325,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(~))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
@@ -2321,7 +2341,7 @@
   ;<  ~  bind:m  (wait ~s91)
   ;<  *  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -2374,7 +2394,7 @@
   ;<  caz=(list card)  bind:m  (do-agent (make-dm-fact ~dev ~2024.1.1))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(last-owner-msg.gateway.st) !>(*@da))
   (ex-equal !>(last-interaction.gateway.st) !>(*@da))
 ::
@@ -2426,13 +2446,13 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(&))
   =/  lease-time-2  (add ~2024.1.1 ~m4)
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-2' lease-time-2]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
 ::
@@ -2494,7 +2514,7 @@
 ++  do-cleanup-wake
   =/  m  (mare ,(list card))
   ^-  form:m
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   %+  do-arvo  /automation/cleanup/(scot %da sweep.automation.st)
   [%behn %wake ~]
 ++  response-fact
@@ -2540,17 +2560,17 @@
 ++  got-request
   =/  m  (mare ,incoming-request:v1:au)
   ^-  form:m
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (pure:m (~(got by requests.automation.st) rid))
 ++  got-requests
   =/  m  (mare ,requests:v1:au)
   ^-  form:m
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (pure:m requests.automation.st)
 ++  got-pending
   =/  m  (mare ,pending:v1:au)
   ^-  form:m
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (pure:m pending.automation.st)
 ++  advance-clock
   |=  by=@dr
@@ -3104,7 +3124,7 @@
     %-  (do-as ~bus)
     (do-command edit-create)
   ;<  *  bind:m  (do-finalize created)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((local-automation-tasks st)) !>((task-map-of ~[['task-a' task-a]])))
 ::
 ::  a self-owned bot: the owner still pokes the bot (itself); gall would
@@ -3331,7 +3351,7 @@
   =/  task-a=task:v1:au  (automation-task 'Task A')
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-1' (http-request & %'GET' tasks-url ~))
   %+  ex-cards  caz
@@ -3477,7 +3497,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(notify-on-start.gateway.st) !>(&))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -3501,7 +3521,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   (ex-equal !>(notify-on-start.gateway.st) !>(|))
 ::
 ::  the start after an owner-initiated stop sends ✅ without owner activity
@@ -3531,7 +3551,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(notify-on-start.gateway.st) !>(|))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
 ::
@@ -3560,7 +3580,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   (ex-equal !>(notify-on-start.gateway.st) !>(|))
 ::
 ::  regression guard for today's generic notices: a recently active owner
@@ -3725,7 +3745,7 @@
         ex-moon-prompts-watch
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
   ;<  ~  bind:m  (ex-equal !>((~(has in bots.st) moon)) !>(&))
   ;<  ~  bind:m  (ex-equal !>(notify-on-start.gateway.st) !>(|))
@@ -3838,7 +3858,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-5 !<(vase q.res))
+  =/  st  !<(state-6 !<(vase q.res))
   (ex-equal !>(last-interaction.gateway.st) !>(*@da))
 ::
 ::  a reply in one of the bot's own threads counts even without a mention
@@ -3962,4 +3982,317 @@
       (liveness-poke |)
       (ex-fact-paths ~[/v1/gateway])
   ==
+::  ==========================================================
+::  ROSTER MODULE TESTS
+::  ==========================================================
+::
+::  roster tests use their own host ship, ~sampel-palnet -- a planet, unlike
+::  the galaxy ~dev the lens/gateway tests use above -- since minting a bot
+::  moon needs a ship class that can actually sponsor one (galaxy/star/
+::  planet all qualify; a moon or comet cannot).
+::
+::  the minted moon's @p (and its keypair) are fully deterministic from
+::  .eny.bowl, which the test harness bunts to 0 and never mutates. so the
+::  expected mon/pass here use the exact same formulas as
+::  ro-pick-moon/ro-handle-mint in the app, seeded with eny=0 and the
+::  first-try (tries=0) candidate.
+::
+++  roster-mon  ^-  ship  (add ~sampel-palnet (lsh 5 (end 5 (shaz 0))))
+++  roster-pass
+  ^-  pass
+  pub:ex:(pit:nu:cric:crypto 512 (shaz (jam roster-mon 1 0)) %b ~)
+::
+++  roster-contact
+  |=  [nickname=@t avatar=(unit @t)]
+  ^-  contact:c
+  %-  malt
+  ^-  (list (pair @tas value:c))
+  =/  base  [%nickname [%text nickname]]~
+  ?~  avatar  base
+  [[%avatar [%look u.avatar]] base]
+::
+++  minted-rig
+  ^-  rig:v2:r
+  ['gpt' 'openclaw' 'default' ~2024.1.1]
+::
+::  the runner-facing view: .minted-rig joined with the identity served by
+::  the +scries contact mock ('Bot', no avatar)
+::
+++  minted-bot
+  ^-  bot:v2:r
+  ['Bot' ~ 'gpt' 'openclaw' 'default' ~2024.1.1]
+::
+++  setup-roster
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~sampel-palnet, src ~sampel-palnet)))
+  ;<  *  bind:m  (do-init dap agent)
+  ::  do-init resets the bowl, so set the clock after it
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1)))
+  (pure:m ~)
+::
+++  mint-default
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  %+  do-poke  %steward-roster-action-1
+  !>(`action:v2:r`[%mint 'Bot' ~ 'gpt' 'openclaw' 'default'])
+::
+++  test-roster-mint
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  ;<  caz=(list card)  bind:m  mint-default
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  ::  %bot is recorded before the jael registration so %vouch's
+        ::  keys-imply-real inference can never observe keys first
+        %-  ex-poke
+        :*  /roster/vouch/(scot %p roster-mon)
+            [~sampel-palnet %vouch]
+            %vouch-learn
+            !>(`learn:v`[roster-mon %bot])
+        ==
+      ::
+        %-  ex-arvo
+        :-  /roster/mint/(scot %p roster-mon)
+        [%j %moon roster-mon *id:block:jael %keys [1 1 roster-pass] %.n]
+      ::
+        %-  ex-poke
+        :*  /roster/profile/(scot %p roster-mon)
+            [~sampel-palnet %contacts]
+            %contact-bot-0
+            !>(`[who=ship con=contact:c]`[roster-mon (roster-contact 'Bot' ~)])
+        ==
+      ::
+        ::  the mint also claims the moon in our own profile's %bots field:
+        ::  the whole set, projected from steward's own .claimed state
+        ::  (never read-modify-written from contacts)
+        %-  ex-poke
+        :*  /roster/claim
+            [~sampel-palnet %contacts]
+            %contact-action-1
+            =/  bots-val=value:c  [%set (silt ~[`value:c`[%ship roster-mon]])]
+            !>(`action:c`[%self (malt ~[[%bots bots-val]])])
+        ==
+      ::
+        %-  ex-fact
+        :*  ~[/v1/roster]
+            %steward-roster-update-1
+            !>(`update:v2:r`[%minted roster-mon minted-bot])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/roster/(scot %p roster-mon))
+  =+  !<(=bot:v2:r q.res)
+  (ex-equal !>(bot) !>(minted-bot))
+::
+++  test-roster-mint-foreign-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  %-  ex-fail
+  %-  (do-as ~bus)
+  (do-poke %steward-roster-action-1 !>(`action:v2:r`[%mint 'Bot' ~ 'gpt' 'openclaw' 'default']))
+::
+::  a ship that cannot sponsor a moon (here, a moon of ~sampel-palnet) must
+::  not be able to mint one, even when poking itself locally
+::
+++  test-roster-mint-from-moon-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  host-moon  (add ~sampel-palnet (bex 32))
+  ;<  ~  bind:m  (set-scry-gate scries)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our host-moon, src host-moon)))
+  ;<  *  bind:m  (do-init dap agent)
+  %-  ex-fail
+  (do-poke %steward-roster-action-1 !>(`action:v2:r`[%mint 'Bot' ~ 'gpt' 'openclaw' 'default']))
+::
+::  %configure only touches the stored rig (units, ~ = keep); identity
+::  edits are %profile's job. no contacts pokes are emitted, and the
+::  %configured fact's identity fields come from the contact profile
+::  (here, the +scries mock: 'Bot', no avatar).
+::
+++  test-roster-configure-and-retire
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  ;<  *  bind:m  mint-default
+  =/  reconfigured=bot:v2:r
+    ['Bot' ~ 'gpt2' 'openclaw' 'p2' ~2024.1.1]
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %steward-roster-action-1
+    !>  ^-  action:v2:r
+    [%configure roster-mon `'gpt2' ~ `'p2']
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/roster]
+            %steward-roster-update-1
+            !>(`update:v2:r`[%configured roster-mon reconfigured])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/roster/(scot %p roster-mon))
+  =+  !<(=bot:v2:r q.res)
+  ;<  ~  bind:m  (ex-equal !>(bot) !>(reconfigured))
+  ;<  caz2=(list card)  bind:m
+    (do-poke %steward-roster-action-1 !>(`action:v2:r`[%retire roster-mon]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz2
+    :~  %-  ex-fact
+        :*  ~[/v1/roster]
+            %steward-roster-update-1
+            !>(`update:v2:r`[%retired roster-mon])
+        ==
+    ==
+  ;<  gone=(unit (unit cage))  bind:m  (get-peek /x/v1/roster/(scot %p roster-mon))
+  ;<  ~  bind:m  (ex-equal !>(?=([~ ~] gone)) !>(&))
+  ::  retiring does NOT disclaim: the %bots projection still carries the
+  ::  moon (grow-only .claimed), so peers keep routing its DMs through us
+  ;<  res2=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-6 !<(vase q.res2))
+  (ex-equal !>(claimed.roster.st) !>((silt ~[roster-mon])))
+::
+::  %profile forwards typed merge-edits to contacts and puts the post-edit
+::  identity on the %configured fact (composed with the same +do-edit
+::  contacts will apply, over the current profile from the +scries mock)
+::
+++  test-roster-profile
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  ;<  *  bind:m  mint-default
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %steward-roster-action-1
+    !>  ^-  action:v2:r
+    :+  %profile  roster-mon
+    %-  malt
+    ^-  (list (pair @tas (unit @t)))
+    ~[[%nickname `'Neo'] [%bio `'The One'] [%avatar ~]]
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /roster/profile/(scot %p roster-mon)
+          [~sampel-palnet %contacts]
+          %contact-bot-0
+          =/  mod=contact:c
+            %-  malt
+            ^-  (list (pair @tas value:c))
+            ~[[%nickname text/'Neo'] [%bio text/'The One'] [%avatar ~]]
+          !>(`[who=ship con=contact:c]`[roster-mon mod])
+      ==
+    ::
+      %-  ex-fact
+      :*  ~[/v1/roster]
+          %steward-roster-update-1
+          !>  ^-  update:v2:r
+          [%configured roster-mon ['Neo' ~ 'gpt' 'openclaw' 'default' ~2024.1.1]]
+      ==
+  ==
+::
+::  %profile rejects fields outside the known contact-profile set --
+::  steward is the validation choke point for bot profile writes
+::
+++  test-roster-profile-unknown-field-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  ;<  *  bind:m  mint-default
+  %-  ex-fail
+  %+  do-poke  %steward-roster-action-1
+  !>  ^-  action:v2:r
+  [%profile roster-mon (malt `(list (pair @tas (unit @t)))`~[[%bots `'evil']])]
+::
+++  test-roster-profile-unknown-bot-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  %-  ex-fail
+  %+  do-poke  %steward-roster-action-1
+  !>  ^-  action:v2:r
+  [%profile roster-mon (malt `(list (pair @tas (unit @t)))`~[[%bio `'hi']])]
+::
+++  test-roster-watch-init
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  ;<  *  bind:m  mint-default
+  ;<  caz=(list card)  bind:m  (do-watch /v1/roster)
+  %+  ex-cards  caz
+  :~  %-  ex-fact
+      :*  ~
+          %steward-roster-update-1
+          !>  ^-  update:v2:r
+          [%init (~(put by *(map ship bot:v2:r)) roster-mon minted-bot)]
+      ==
+  ==
+::
+::  a failed jael registration unwinds everything the mint published:
+::  the roster entry, the claim projection (back to the empty set), and
+::  the seeded profile fields. the vouch %bot record deliberately stays.
+::
+++  test-roster-mint-rollback
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  ;<  *  bind:m  mint-default
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo  /roster/mint/(scot %p roster-mon)
+    [%jael %done `[%mint-failed ~]]
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  /roster/claim
+            [~sampel-palnet %contacts]
+            %contact-action-1
+            !>(`action:c`[%self (malt ~[[%bots `value:c`[%set ~]]])])
+        ==
+      ::
+        %-  ex-poke
+        :*  /roster/profile/(scot %p roster-mon)
+            [~sampel-palnet %contacts]
+            %contact-bot-0
+            =/  wipe=contact:c
+              (malt `(list (pair @tas value:c))`~[[%nickname ~] [%avatar ~]])
+            !>(`[who=ship con=contact:c]`[roster-mon wipe])
+        ==
+      ::
+        %-  ex-fact
+        :*  ~[/v1/roster]
+            %steward-roster-update-1
+            !>(`update:v2:r`[%retired roster-mon])
+        ==
+    ==
+  ;<  gone=(unit (unit cage))  bind:m  (get-peek /x/v1/roster/(scot %p roster-mon))
+  ;<  ~  bind:m  (ex-equal !>(?=([~ ~] gone)) !>(&))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-6 !<(vase q.res))
+  (ex-equal !>(claimed.roster.st) !>(*(set ship)))
+::
+::  state-5 -> state-6 migration: an old (pre-roster) save loads cleanly,
+::  preserving .owner/.bots and seeding an empty .roster
+::
+++  test-roster-migrate-state-5-to-6
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (set-scry-gate scries)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
+  =/  s5=state-5
+    :*  %5  `~bus  (sy ~[moon])
+        *state:v1:l  *state:v1:g  *state:v1:au  *state:v1:pr
+    ==
+  ;<  *  bind:m  (do-load agent `!>(s5))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-6 !<(vase q.res))
+  ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
+  ;<  ~  bind:m  (ex-equal !>(bots.st) !>((sy ~[moon])))
+  (ex-equal !>(roster.st) !>(*state:v2:r))
 --

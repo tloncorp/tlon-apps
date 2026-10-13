@@ -1,4 +1,4 @@
-import type { PluginHookGatewayCronService } from 'openclaw/plugin-sdk/types';
+import type { PluginHookGatewayCronService } from './cron-telemetry.js';
 import { z } from 'zod';
 
 import { reportTelemetryError } from './telemetry.js';

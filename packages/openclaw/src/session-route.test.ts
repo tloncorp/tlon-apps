@@ -78,23 +78,56 @@ describe('tlonPlugin messaging surface (explicit-target wiring)', () => {
     expect(messaging?.targetPrefixes).toContain('tlon');
   });
 
-  it('parseExplicitTarget returns a canonical DM target', () => {
-    expect(messaging?.parseExplicitTarget?.({ raw: 'tlon:~ship' })).toEqual({
-      to: '~ship',
-      chatType: 'direct',
+  it('inferTargetChatType classifies a DM target', () => {
+    expect(messaging?.inferTargetChatType?.({ to: 'tlon:~ship' })).toBe(
+      'direct'
+    );
+  });
+
+  it('inferTargetChatType classifies a group target', () => {
+    expect(
+      messaging?.inferTargetChatType?.({ to: 'tlon:chat/~host/general' })
+    ).toBe('group');
+  });
+
+  it('inferTargetChatType passes on a non-Tlon target', () => {
+    expect(
+      messaging?.inferTargetChatType?.({ to: 'not a target!!' })
+    ).toBeUndefined();
+  });
+
+  it('targetResolver.resolveTarget resolves a canonical DM target', async () => {
+    await expect(
+      messaging?.targetResolver?.resolveTarget?.({
+        cfg: {} as never,
+        input: 'tlon:~ship',
+        normalized: '~ship',
+      })
+    ).resolves.toEqual({ to: '~ship', kind: 'user', source: 'normalized' });
+  });
+
+  it('targetResolver.resolveTarget resolves a canonical group target', async () => {
+    await expect(
+      messaging?.targetResolver?.resolveTarget?.({
+        cfg: {} as never,
+        input: 'tlon:chat/~host/general',
+        normalized: 'chat/~host/general',
+      })
+    ).resolves.toEqual({
+      to: 'chat/~host/general',
+      kind: 'group',
+      source: 'normalized',
     });
   });
 
-  it('parseExplicitTarget returns a canonical group target', () => {
-    expect(
-      messaging?.parseExplicitTarget?.({ raw: 'tlon:chat/~host/general' })
-    ).toEqual({ to: 'chat/~host/general', chatType: 'group' });
-  });
-
-  it('parseExplicitTarget returns null for a non-Tlon target', () => {
-    expect(
-      messaging?.parseExplicitTarget?.({ raw: 'not a target!!' })
-    ).toBeNull();
+  it('targetResolver.resolveTarget returns null for a non-Tlon target', async () => {
+    await expect(
+      messaging?.targetResolver?.resolveTarget?.({
+        cfg: {} as never,
+        input: 'not a target!!',
+        normalized: 'not a target!!',
+      })
+    ).resolves.toBeNull();
   });
 
   it('wires resolveOutboundSessionRoute', () => {

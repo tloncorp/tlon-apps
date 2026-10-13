@@ -5,6 +5,7 @@ import {
   getDeskSupportsAutomationsState,
   getDeskSupportsBucketsState,
   getDeskSupportsStewardPromptsState,
+  getDeskSupportsVouchedBotsState,
   poke,
   pokeNoun,
   request,
@@ -106,6 +107,7 @@ const GUARD_FNS: Record<GuardName, () => boolean | null> = {
   deskSupportsBuckets: () => getDeskSupportsBucketsState(),
   deskSupportsAutomations: () => getDeskSupportsAutomationsState(),
   deskSupportsStewardPrompts: () => getDeskSupportsStewardPromptsState(),
+  deskSupportsVouchedBots: () => getDeskSupportsVouchedBotsState(),
 };
 
 // Refuses a guarded request before anything is sent once its capability is

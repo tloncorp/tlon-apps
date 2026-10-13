@@ -82,6 +82,14 @@ export const steward = {
     mark: 'steward-action-1',
     since: '12.2.0',
   },
+  // Host-side only: the gateway registers/edits its bot moons' profiles.
+  rosterAction: {
+    kind: 'poke',
+    agent: 'steward',
+    mark: 'steward-roster-action-1',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsVouchedBots',
+  },
   gatewayAction: {
     kind: 'poke',
     agent: 'steward',

@@ -10,10 +10,8 @@ import {
   notes,
   parsePostBlob,
 } from '@tloncorp/api';
-import type {
-  PluginHookCronChangedEvent,
-  PluginHookMessageSentEvent,
-} from 'openclaw/plugin-sdk/types';
+import type { PluginHookCronChangedEvent } from '../cron-telemetry.js';
+import type { PluginHookMessageSentEvent } from '../agent-hook-types.js';
 
 import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
 import { MCP_READ_TOOL_NAMES } from '../mcp-readonly-policy.js';

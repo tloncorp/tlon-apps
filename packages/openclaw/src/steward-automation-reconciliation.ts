@@ -2,7 +2,7 @@ import type {
   OpenClawConfig,
   OpenClawPluginApi,
 } from 'openclaw/plugin-sdk/core';
-import type { PluginHookGatewayCronService } from 'openclaw/plugin-sdk/types';
+import type { PluginHookGatewayCronService } from './cron-telemetry.js';
 
 import { sharedSlot } from './shared-state.js';
 import { submitStewardAutomationProjection } from './steward-automation-adapter.js';

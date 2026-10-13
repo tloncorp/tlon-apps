@@ -3,7 +3,10 @@ import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineBundledChannelEntry } from 'openclaw/plugin-sdk/channel-entry-contract';
-import { type OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
+import {
+  type OpenClawConfig,
+  type OpenClawPluginApi,
+} from 'openclaw/plugin-sdk/core';
 import {
   emitDiagnosticEvent,
   onDiagnosticEvent,
@@ -1118,7 +1121,9 @@ export default defineBundledChannelEntry({
       const tlonAppBrowser = isMcpCall
         ? resolveTlonAppBrowserBlock(
             event.params,
-            configuredTlonShipHosts(api.runtime.config.loadConfig())
+            configuredTlonShipHosts(
+              api.runtime.config.current() as OpenClawConfig
+            )
           )
         : { blocked: false };
       const blocksPolicy =
@@ -1430,7 +1435,7 @@ export default defineBundledChannelEntry({
 
     registerStewardAutomationReconciliationHooks(api, {
       logger: { warn: (message) => api.logger.warn(message) },
-      getConfig: () => api.runtime.config.loadConfig(),
+      getConfig: () => api.runtime.config.current() as OpenClawConfig,
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {

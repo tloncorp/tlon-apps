@@ -456,7 +456,13 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
     const result = await recordTlonRouteAndDispatch({
       session: { recordInboundSession, resolveStorePath },
       cfg: cfgWithDmScope('main'),
-      route: makeRoute(),
+      // With no store path, the 9.x kernel resolves the session scope from
+      // the agent-scoped key — which is what the SDK's route resolution
+      // always produces in production.
+      route: makeRoute({
+        sessionKey: 'agent:default:main',
+        mainSessionKey: 'agent:default:main',
+      }),
       ctxPayload: {} as never,
       ctxSessionKey: 'tlon:main',
       isGroup: false,
@@ -548,7 +554,10 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
     const result = await recordTlonRouteAndDispatch({
       session: { recordInboundSession, resolveStorePath },
       cfg: cfgWithDmScope('main'),
-      route: makeRoute(),
+      route: makeRoute({
+        sessionKey: 'agent:default:main',
+        mainSessionKey: 'agent:default:main',
+      }),
       ctxPayload: {} as never,
       ctxSessionKey: 'tlon:main',
       isGroup: false,

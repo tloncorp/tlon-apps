@@ -18,7 +18,9 @@ import {
 const paths = budgetHoldPaths();
 if (paths) {
   const state = await readBudgetHoldState(paths.state);
-  const storePath = resolveCronStorePath(loadConfig().cron?.store);
+  const storePath = resolveCronStorePath(
+    (loadConfig().cron as { store?: string } | undefined)?.store
+  );
   const store = await loadCronStore(storePath);
   await reconcileBudgetHolds({
     budget: await readBudgetSignal(paths.signal),
