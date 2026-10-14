@@ -25,7 +25,6 @@ import {
   View,
   XStack,
   YStack,
-  getTokenValue,
   styled,
   withStaticProperties,
 } from 'tamagui';
@@ -903,7 +902,8 @@ export const CheckboxControl = (
   props: Omit<ComponentProps<typeof Control>, 'type'>
 ) => <Control {...props} type="checkbox" />;
 
-const presets = [
+/** The colors a profile's default avatar can take, by name. */
+export const avatarColorPresets = [
   ['red', '$red'],
   ['orange', '$orange'],
   ['yellow', '$yellow'],
@@ -914,79 +914,3 @@ const presets = [
   ['gray', '$gray500'],
   ['light gray', '$gray100'],
 ] as const;
-
-const ColorSwatchFrame = styled(Pressable, {
-  width: 56,
-  height: 56,
-  borderRadius: '$l',
-  alignItems: 'center',
-  justifyContent: 'center',
-  borderWidth: '$2xs',
-  borderColor: 'transparent',
-  variants: {
-    selected: {
-      true: {
-        borderColor: '$primaryText',
-      },
-    },
-  } as const,
-});
-
-const ColorSwatchInner = styled(View, {
-  width: '$4xl',
-  height: '$4xl',
-  borderRadius: '$m',
-  borderWidth: 1,
-  borderColor: '$shadow',
-});
-
-export const ColorInput = ({
-  value,
-  onChange,
-}: {
-  value?: string | null;
-  onChange?: (value: string | null) => void;
-}) => {
-  const handleSelect = useCallback(
-    (color: string) => {
-      if (value === color) {
-        onChange?.(null);
-      } else {
-        onChange?.(color);
-      }
-    },
-    [onChange, value]
-  );
-
-  const handleClear = useCallback(() => {
-    onChange?.(null);
-  }, [onChange]);
-
-  return (
-    <ScrollView
-      contentContainerStyle={{
-        alignItems: 'center',
-      }}
-      horizontal
-    >
-      {presets.map(([name, color]) => {
-        const colorValue = getTokenValue(color, 'color');
-        const selected = value === colorValue;
-        return (
-          <ColorSwatchFrame
-            key={colorValue}
-            testID={`ProfileColorSwatch-${colorValue.slice(1)}`}
-            accessibilityLabel={`Profile avatar color ${name}${selected ? ', selected' : ''}`}
-            selected={selected}
-            onPress={() => handleSelect(colorValue)}
-          >
-            <ColorSwatchInner backgroundColor={colorValue} />
-          </ColorSwatchFrame>
-        );
-      })}
-      {value && (
-        <Button size="small" iconOnly icon={'Close'} onPress={handleClear} />
-      )}
-    </ScrollView>
-  );
-};

@@ -2509,9 +2509,7 @@ export async function cleanupOwnProfile(page: Page) {
     }
 
     // Clear status
-    const statusInput = page.getByRole('textbox', {
-      name: 'Hanging out...',
-    });
+    const statusInput = page.getByTestId('ProfileStatusInput');
     if (await statusInput.isVisible({ timeout: 1000 }).catch(() => false)) {
       await statusInput.click();
       await statusInput.clear();
@@ -2519,7 +2517,7 @@ export async function cleanupOwnProfile(page: Page) {
     }
 
     // Clear bio
-    const bioInput = page.getByRole('textbox', { name: 'About yourself' });
+    const bioInput = page.getByTestId('ProfileBioInput');
     if (await bioInput.isVisible({ timeout: 1000 }).catch(() => false)) {
       await bioInput.click();
       await bioInput.clear();
