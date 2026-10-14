@@ -284,14 +284,22 @@ describe('startCronTestRun', () => {
   });
 
   it('starts a new run once the job has changed', async () => {
-    const job = { ...digest, id: 'job-changed', updatedAtMs: 1 };
+    const job = {
+      ...digest,
+      id: 'job-changed',
+      updatedAtMs: 1,
+      payload: { ...digest.payload },
+    };
     const { deps, run, runEmbeddedAgent, published } = harness('job-changed', [
       job,
     ]);
 
     const first = await startCronTestRun('job-changed', deps);
-    // Saved again while the first test runs.
+    // A scheduled run finishing moves updatedAtMs and changes nothing.
     job.updatedAtMs = 2;
+    expect(await startCronTestRun('job-changed', deps)).toEqual(first);
+    // Saved with a new prompt while the first test runs.
+    job.payload.message = 'Summarize the group, briefly.';
     const second = await startCronTestRun('job-changed', deps);
     const third = await startCronTestRun('job-changed', deps);
 

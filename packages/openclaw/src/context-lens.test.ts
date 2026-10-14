@@ -19,6 +19,7 @@ import {
   hashSessionKey,
   recordBackgroundContextLensOutput,
   recordContextLensToolResultForSession,
+  recordContextLensModelForSession,
   recordContextLensToolStartForSession,
   recordCronRunOutcome,
   scheduleBackgroundContextLensFinalization,
@@ -738,6 +739,38 @@ describe('context lens registry', () => {
       status: 'completed',
       cron: { outcome: { status: 'ok', summary: 'All quiet' } },
     });
+  });
+
+  it("stamps a background run with its latest model call's model", () => {
+    const sessionKey = 'session-background-cron-model';
+    ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-model' },
+    });
+    try {
+      expect(
+        recordContextLensModelForSession(sessionKey, {
+          provider: 'anthropic',
+          model: 'claude-sonnet-5-5',
+        })
+      ).toMatchObject({ provider: 'anthropic', model: 'claude-sonnet-5-5' });
+      // After a failover, the model that answered.
+      expect(
+        recordContextLensModelForSession(sessionKey, {
+          provider: 'openai',
+          model: 'backup',
+        })
+      ).toMatchObject({ provider: 'openai', model: 'backup' });
+      expect(
+        recordContextLensModelForSession('session-without-a-lens', {
+          provider: 'anthropic',
+          model: 'claude-sonnet-5-5',
+        })
+      ).toBeNull();
+    } finally {
+      finalizeBackgroundContextLensForSession(sessionKey);
+    }
   });
 
   it('keeps a cron lens past its run timeout', () => {

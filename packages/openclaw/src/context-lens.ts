@@ -1385,6 +1385,29 @@ export function recordContextLensToolStartForSession(
   return binding.registry.setStatus(binding.lensId, 'tool_running');
 }
 
+/**
+ * Stamp a background run's lens with the model its latest call went to, the
+ * one that answered after any failover. Only the host's model-call hook
+ * knows it for runs no conversation dispatched, as cron and test runs are.
+ */
+export function recordContextLensModelForSession(
+  sessionKey: string | null | undefined,
+  call: { provider: string; model: string }
+): ContextLens | null {
+  const binding = resolveActiveBinding(sessionKey)?.binding;
+  if (!binding?.background) {
+    return null;
+  }
+  const lens = binding.registry.get(binding.lensId);
+  if (!lens || (lens.provider === call.provider && lens.model === call.model)) {
+    return lens;
+  }
+  return binding.registry.update(binding.lensId, {
+    provider: call.provider,
+    model: call.model,
+  });
+}
+
 export function recordContextLensToolResultForSession(
   sessionKey: string | null | undefined,
   toolName: string,

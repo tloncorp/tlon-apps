@@ -92,7 +92,6 @@ export type CronTestJob = {
   name?: string;
   description?: string;
   enabled?: boolean;
-  updatedAtMs?: number;
   agentId?: string;
   sessionTarget?: string;
   payload?: {
@@ -273,13 +272,18 @@ const STOPPED = {
   error: 'The test run was stopped.',
 } as const;
 
-// The test run under way for each job, and the version of the job it runs.
-// Asking again while one runs answers with the run already going rather
-// than starting a second, unless the job has changed since.
-const runningTests = sharedMap<
-  string,
-  { lensId: string; updatedAtMs: number | undefined }
->('cronTestRun.running');
+// The test run under way for each job, and the definition it runs. Asking
+// again while one runs answers with the run already going rather than
+// starting a second, unless the job has been changed since.
+const runningTests = sharedMap<string, { lensId: string; definition: string }>(
+  'cronTestRun.running'
+);
+
+// What decides how a job runs. Not updatedAtMs: the host moves that when a
+// scheduled run finishes, with nothing about the job changed.
+function jobDefinition(job: CronTestJob): string {
+  return JSON.stringify([job.agentId, job.sessionTarget, job.payload]);
+}
 
 /**
  * Start a test run of job `jobId` and answer as soon as it is under way,
@@ -308,8 +312,9 @@ export async function startCronTestRun(
       message: [`unknown cron job id: ${jobId}`],
     };
   }
+  const definition = jobDefinition(job);
   const running = runningTests.get(jobId);
-  if (running && running.updatedAtMs === job.updatedAtMs) {
+  if (running && running.definition === definition) {
     return { type: 'started', id: jobId, lensId: running.lensId };
   }
   if (!canTestCronJob(job)) {
@@ -373,7 +378,7 @@ export async function startCronTestRun(
     };
   }
   const { lensId } = created.lens;
-  runningTests.set(jobId, { lensId, updatedAtMs: job.updatedAtMs });
+  runningTests.set(jobId, { lensId, definition });
   deps.publish('created', created.lens);
 
   const finish = (end: {

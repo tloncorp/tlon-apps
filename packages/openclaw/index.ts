@@ -26,6 +26,7 @@ import { detailToolParams } from './src/context-lens-tool-params.js';
 import {
   cronLensTtlMs,
   ensureBackgroundContextLensForSession,
+  recordContextLensModelForSession,
   recordContextLensToolResultForSession,
   recordContextLensToolStartForSession,
   recordCronRunOutcome,
@@ -1808,10 +1809,13 @@ export default defineBundledChannelEntry({
       }
       await onCronAgentHook(ctx);
     });
-    api.on('model_call_started', async (_event, ctx) => {
+    api.on('model_call_started', async (event, ctx) => {
       beginCronSilenceObservation(ctx);
       beginTlonTurnSilenceObservation(ctx);
       await onCronAgentHook(ctx);
+      if (contextLensEnabled) {
+        recordContextLensModelForSession(ctx.sessionKey, event);
+      }
     });
 
     // Background lenses normally finalize on tool-result idle; agent_end

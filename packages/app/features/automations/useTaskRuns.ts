@@ -90,7 +90,9 @@ export function useTaskRuns({
       setOlderPages({
         taskKey,
         firstPageAt,
-        pages: (older?.pages ?? 0) + 1,
+        // A full last page leaves one more ask, which comes back empty and
+        // must not let older rows the store still holds in under it.
+        pages: (older?.pages ?? 0) + (next.cursor ? 1 : 0),
         hasMore: next.hasMore,
         cursor: next.cursor ?? cursor,
       });
