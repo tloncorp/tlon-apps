@@ -89,7 +89,7 @@ appId: io.tlon.groups
     rightOf: 'Privacy'
 # Edit a role and check that the sheet pops with content
 - tapOn: 'Roles'
-- assertVisible: 'Group Roles'
+- assertVisible: 'Group roles'
 - assertVisible: 'Admin'
 - tapOn: 'Admin'
 - assertVisible: '.*Admins can add and remove channels.*'

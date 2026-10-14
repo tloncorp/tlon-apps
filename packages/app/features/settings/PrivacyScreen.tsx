@@ -237,7 +237,7 @@ export function PrivacySettingsScreen(props: Props) {
 
   return (
     <SettingsListScreenView
-      title="Privacy Settings"
+      title="Privacy settings"
       sections={sections}
       onBackPressed={() => props.navigation.goBack()}
     />

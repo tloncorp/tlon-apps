@@ -99,7 +99,7 @@ function EditProfileForm({
     bio !== initial.bio ||
     sigilColor !== initial.sigilColor ||
     avatarImage !== initial.avatarImage;
-  const canSave = !nicknameError && avatarReady;
+  const canSave = !nicknameError && avatarReady && isDirty;
 
   const handleSave = useCallback(() => {
     if (!canSave) {
@@ -190,10 +190,15 @@ function EditProfileForm({
         </IconEditor>
       ),
     },
+    // Short fields share a card and are labelled by their placeholders, as in
+    // Contacts; the long bio gets its own.
     {
-      key: 'nickname',
-      title: 'Nickname',
-      footer: nicknameError ?? undefined,
+      key: 'about',
+      footer:
+        nicknameError ??
+        (isCurrUser
+          ? `Shown in place of ${userId}.`
+          : `Only you see this. Shown in place of ${userContact?.peerNickname || userId}.`),
       rows: [
         {
           key: 'nickname',
@@ -201,39 +206,34 @@ function EditProfileForm({
           textField: {
             value: nickname,
             onChangeText: setNickname,
-            placeholder: isCurrUser
-              ? userId
-              : (userContact?.peerNickname ?? userId),
+            placeholder: 'Nickname',
             maxLength: maxNicknameLength,
             capitalization: 'words',
           },
           testID: 'ProfileNicknameInput',
         },
-      ],
-    },
-    ...(isCurrUser
-      ? ([
-          {
-            key: 'status',
-            title: 'Status',
-            rows: [
+        ...(isCurrUser
+          ? [
               {
                 key: 'status',
                 title: 'Status',
                 textField: {
                   value: status,
                   onChangeText: setStatus,
-                  placeholder: 'Hanging out...',
+                  placeholder: 'Status',
                   maxLength: maxStatusLength,
-                  capitalization: 'sentences',
+                  capitalization: 'sentences' as const,
                 },
                 testID: 'ProfileStatusInput',
               },
-            ],
-          },
+            ]
+          : []),
+      ],
+    },
+    ...(isCurrUser
+      ? ([
           {
             key: 'bio',
-            title: 'Bio',
             rows: [
               {
                 key: 'bio',
@@ -241,7 +241,7 @@ function EditProfileForm({
                 textField: {
                   value: bio,
                   onChangeText: setBio,
-                  placeholder: 'About yourself',
+                  placeholder: 'Bio',
                   lines: 5,
                   maxLength: maxBioLength,
                   capitalization: 'sentences',
@@ -314,7 +314,7 @@ function EditProfileForm({
 
   return (
     <SettingsListScreenView
-      title="Edit Profile"
+      title="Edit profile"
       sections={sections}
       onBackPressed={handleBack}
       showsBackOnWideWindows

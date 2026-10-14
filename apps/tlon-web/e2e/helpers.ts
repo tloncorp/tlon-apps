@@ -2507,8 +2507,11 @@ export async function cleanupOwnProfile(page: Page) {
       await bioInput.fill('');
     }
 
-    // Save changes
-    await page.getByText('Save').click();
+    // Save stays unavailable when the profile was already empty.
+    const saveButton = page.getByText('Save');
+    if (await saveButton.isEnabled()) {
+      await saveButton.click();
+    }
     await page.waitForTimeout(1000);
   }
   // Navigate back to home
@@ -2697,8 +2700,11 @@ export async function clearContactNickname(
     await page.getByTestId('ProfileNicknameInput').click();
     await page.getByTestId('ProfileNicknameInput').fill('');
 
-    // Save changes
-    await page.getByText('Save').click();
+    // Save stays unavailable when there was no nickname to clear.
+    const saveButton = page.getByText('Save');
+    if (await saveButton.isEnabled()) {
+      await saveButton.click();
+    }
     await page.waitForTimeout(1000);
 
     // Navigate back home

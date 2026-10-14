@@ -300,8 +300,8 @@ function RoleForm({
         })),
       },
       {
-        key: 'title',
-        title: 'Title',
+        // Name and description share a card; their placeholders label them.
+        key: 'about',
         footer:
           titleWasEdited && !isValid ? 'Role title is required' : undefined,
         rows: [
@@ -315,17 +315,11 @@ function RoleForm({
                 setTitle(text);
                 setTitleWasEdited(true);
               },
-              placeholder: 'Role title',
+              placeholder: 'Role name',
               capitalization: 'words',
             },
             testID: 'RoleTitleInput',
           },
-        ],
-      },
-      {
-        key: 'description',
-        title: 'Description',
-        rows: [
           {
             key: 'description',
             title: 'Description',
@@ -333,7 +327,7 @@ function RoleForm({
             textField: {
               value: description,
               onChangeText: setDescription,
-              placeholder: 'Role description',
+              placeholder: 'Description',
               capitalization: 'sentences',
             },
             testID: 'RoleDescriptionInput',
@@ -398,7 +392,9 @@ function RoleForm({
           id: 'RoleSaveButton',
           text: 'Save',
           tint: '$positiveActionText',
-          disabled: !isValid,
+          // A new role can be saved as soon as it has a title; an existing one
+          // once something about it has changed.
+          disabled: !isValid || (isEditMode && !hasUnsavedChanges),
           onPress: handleSave,
         },
       ]}

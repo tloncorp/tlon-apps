@@ -37,6 +37,9 @@ function ChannelMetaForm({
   const [title, setTitle] = useState(channel?.title || '');
   const [description, setDescription] = useState(channel?.description || '');
   const isValid = title.length > 0;
+  const isDirty =
+    title !== (channel?.title || '') ||
+    description !== (channel?.description || '');
 
   const handleSave = useCallback(() => {
     if (isValid) {
@@ -45,9 +48,9 @@ function ChannelMetaForm({
   }, [description, isValid, onSubmit, title]);
 
   const sections: SettingsSectionModel[] = [
+    // The placeholders say what each field is, as in Contacts.
     {
       key: 'title',
-      title: 'Name',
       rows: [
         {
           key: 'title',
@@ -65,7 +68,6 @@ function ChannelMetaForm({
     },
     {
       key: 'description',
-      title: 'Description',
       rows: [
         {
           key: 'description',
@@ -104,7 +106,7 @@ function ChannelMetaForm({
           id: 'ChannelSettingsSaveButton',
           text: 'Save',
           tint: '$positiveActionText',
-          disabled: !isValid,
+          disabled: !isValid || !isDirty,
           onPress: handleSave,
           testID: 'ChannelSettingsSaveButton',
         },

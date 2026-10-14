@@ -151,7 +151,7 @@ export function SettingsList({
             }
             footer={
               section.footer ? (
-                <Text modifiers={[foregroundStyle(colors.secondaryText)]}>
+                <Text modifiers={footerModifiers(colors)}>
                   {section.footer}
                 </Text>
               ) : undefined
@@ -216,6 +216,15 @@ function useScrollMark(mark?: SettingsListScrollMark) {
     [restOffset]
   );
   return useScrollGeometryChange(mark ? onGeometry : undefined);
+}
+
+/**
+ * A footer otherwise sits closer to the next section's heading than to its
+ * own card, so it reads as that heading's caption. The extra space below it
+ * matches the gap a section without a footer leaves.
+ */
+function footerModifiers(colors: SettingsListColors) {
+  return [foregroundStyle(colors.secondaryText), padding({ bottom: 10 })];
 }
 
 /** The margin an inset-grouped form keeps on each side of its rows. */
@@ -383,13 +392,7 @@ function SettingsRow({
   return (
     <ContextMenu>
       <ContextMenu.Items>
-        {row.contextActions.map((action) => (
-          <Button
-            key={action.key}
-            label={action.title}
-            onPress={action.onPress}
-          />
-        ))}
+        <MenuItems items={row.contextActions} />
       </ContextMenu.Items>
       <ContextMenu.Trigger>{body}</ContextMenu.Trigger>
     </ContextMenu>
