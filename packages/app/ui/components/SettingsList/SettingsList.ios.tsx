@@ -488,6 +488,9 @@ function RowLabel({
             {row.subtitle}
           </Text>
         ) : null}
+        {row.expanded === false ? (
+          <Text modifiers={[foregroundStyle(colors.accent)]}>More</Text>
+        ) : null}
       </VStack>
       {/* Other rows show it beside their value; a toggle has no value slot. */}
       {row.toggle && row.pending ? (

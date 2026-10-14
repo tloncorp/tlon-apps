@@ -37,8 +37,8 @@ test.describe('Secret Workspace Reference Display', () => {
     // setGroupPrivacy already navigates back to group settings
 
     // Step 4: Forward group reference to DM with ~ten
-    await zodPage.getByText('Forward reference').click();
-    await expect(zodPage.getByText('Forward workspace')).toBeVisible({
+    await zodPage.getByTestId('GroupQuickAction-Forward reference').click();
+    await expect(zodPage.getByText('Forward group')).toBeVisible({
       timeout: 5000,
     });
     await zodPage.getByPlaceholder('Search channels').fill('~ten');

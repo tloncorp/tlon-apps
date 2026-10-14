@@ -222,6 +222,11 @@ function PlainRow({
             {supporting}
           </Text>
         ) : null}
+        {row.expanded === false ? (
+          <Text color={colors.accent} style={{ fontSize: 16 }}>
+            More
+          </Text>
+        ) : null}
       </Column>
       {row.pending ? (
         <Pill

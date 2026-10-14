@@ -104,6 +104,11 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
         {row.subtitle ? (
           <ListItem.Subtitle>{row.subtitle}</ListItem.Subtitle>
         ) : null}
+        {row.expanded === false ? (
+          <ListItem.Subtitle color="$positiveActionText">
+            More
+          </ListItem.Subtitle>
+        ) : null}
       </ListItem.MainContent>
       <XStack alignItems="center" gap="$s" flexShrink={0}>
         {row.pending ? (

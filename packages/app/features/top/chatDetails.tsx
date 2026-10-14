@@ -79,7 +79,6 @@ export function ChatDetailsView({
   const { groupRoles, deleteGroup } = useGroupContext({
     groupId: group?.id ?? '',
   });
-  const baseVolumeLevel = store.useBaseVolumeLevel();
   const groupTitle = useGroupTitle(group) ?? 'group';
   const scheduledTasks = useScheduledTasksHere({ chatType, channel, group });
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -183,7 +182,6 @@ export function ChatDetailsView({
       currentUserIsAdmin={currentUserIsAdmin}
       hostStatus={hostStatus}
       roleCount={(groupRoles?.length ?? 0) + 1}
-      baseVolumeLevel={baseVolumeLevel}
       scheduledTaskCount={scheduledTasks.count}
       onGoBack={onGoBack}
       onPressEdit={onPressEdit}
