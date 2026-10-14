@@ -11,7 +11,6 @@ import { GroupPrivacyScreen } from '../features/groups/GroupPrivacyScreen';
 import { GroupRolesScreen } from '../features/groups/GroupRolesScreen';
 import { ManageChannelsScreen } from '../features/groups/ManageChannelsScreen';
 import { RoleFormScreen } from '../features/groups/RoleFormScreen';
-import { SelectChannelRolesScreen } from '../features/groups/SelectChannelRolesScreen';
 import { SelectRoleMembersScreen } from '../features/groups/SelectRoleMembersScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
@@ -64,10 +63,6 @@ export function GroupSettingsStack({
       <GroupSettings.Screen
         name="CreateChannelPermissions"
         component={CreateChannelPermissionsScreen}
-      />
-      <GroupSettings.Screen
-        name="SelectChannelRoles"
-        component={SelectChannelRolesScreen}
       />
       <GroupSettings.Screen name="ChatVolume" component={ChatVolumeScreen} />
     </GroupSettings.Navigator>
