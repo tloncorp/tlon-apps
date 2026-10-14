@@ -479,7 +479,7 @@ function RowLabel({
             modifiers={[
               font({ size: 13 }),
               foregroundStyle(colors.secondaryText),
-              labelLineLimit(row),
+              subtitleLineLimit(row),
             ]}
           >
             {row.subtitle}
@@ -522,6 +522,11 @@ function RowLeading({ row }: { row: SettingsRowModel }) {
  */
 function labelLineLimit(row: SettingsRowModel) {
   return row.expanded ? lineLimit() : lineLimit(row.value ? 1 : 3);
+}
+
+/** A subtitle beside a value gets a second line, so a short explanation isn't cut off mid-word. */
+function subtitleLineLimit(row: SettingsRowModel) {
+  return row.expanded ? lineLimit() : lineLimit(row.value ? 2 : 3);
 }
 
 function Pill({
