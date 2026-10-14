@@ -118,9 +118,7 @@ function seedFixtureData({
   provider?: 'basic' | 'openrouter';
 }) {
   const selectedModel =
-    provider === 'basic'
-      ? 'openai/gpt-5.6-luna'
-      : 'anthropic/claude-sonnet-4.5';
+    provider === 'basic' ? 'openai/gpt-6-luna' : 'anthropic/claude-sonnet-4.5';
   const providerConfig: TlawnProviderConfigInfo = {
     keys:
       provider === 'openrouter' ? { openrouter: 'fixture-key-never-sent' } : {},

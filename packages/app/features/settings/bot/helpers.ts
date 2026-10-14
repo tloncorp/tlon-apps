@@ -19,7 +19,10 @@ import {
   isLLMAuthProviderConnected,
 } from './openAiSubscription';
 
-const LEGACY_BASIC_DEFAULT_MODELS = new Set(['minimax/minimax-m3']);
+const LEGACY_BASIC_DEFAULT_MODELS = new Set([
+  'minimax/minimax-m3',
+  'openai/gpt-5.6-luna',
+]);
 
 export type ChannelRuleDraft = {
   mode: 'open' | 'allowlist';
@@ -386,7 +389,8 @@ export const getModelFormValues = (
       model: hasProviderCredential(config, BASIC_PROVIDER_ID)
         ? BASIC_DEFAULT_MODEL
         : '',
-      zdr: false,
+      // Hosting provisions Basic with zero data retention on (ylem#3298).
+      zdr: true,
       fallbacks: [],
     };
   }
@@ -509,11 +513,36 @@ export const toChatFormValues = (
     : {},
 });
 
+type PrimaryModel = Pick<ModelFormValues, 'provider' | 'model' | 'zdr'>;
+
+// What picking a default model writes into the draft. Coming back to Tlon's
+// option restores what the bot has saved for it; otherwise it starts with zero
+// data retention on, as hosting provisions it (ylem#3298). OpenRouter follows
+// the picker's ZDR filter, and no other provider has one.
+export const pickPrimaryModel = ({
+  provider,
+  model,
+  saved,
+  zdrOnly,
+}: {
+  provider: string;
+  model: string;
+  saved: PrimaryModel;
+  zdrOnly: boolean;
+}): PrimaryModel => {
+  if (provider === BASIC_PROVIDER_ID) {
+    return saved.provider === BASIC_PROVIDER_ID
+      ? { provider, model: saved.model || model, zdr: saved.zdr }
+      : { provider, model, zdr: true };
+  }
+  return { provider, model, zdr: provider === 'openrouter' && zdrOnly };
+};
+
 // Normalize a picked (provider, model) pair for persistence. "basic" is a real
 // backend provider — Solaris provisions the shared hosted default key when a
 // config selects it (tloncorp/ylem#3180) — so it is written as-is, not remapped
-// to openrouter. It has no model picker, so pin its model to the fixed default
-// (matching the backend's `basicDefaultModel`). Persisting `basic` explicitly
+// to openrouter. It has no model picker, so pin its model to the fixed default;
+// the backend stores Basic as "default" either way. Persisting `basic` explicitly
 // keeps it distinct from openrouter even when the user also has their own
 // openrouter key; toDisplayProviderId still reads the previous OpenRouter-backed
 // Basic model as Basic for backward compatibility.

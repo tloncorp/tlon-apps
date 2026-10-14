@@ -286,7 +286,7 @@ function BotProviderPaneFixture() {
         providers={[
           {
             id: 'basic:included',
-            label: 'GPT-5.6 Luna',
+            label: 'Basic',
             provider: 'basic',
             credentialMode: 'included',
             requiresKey: false,

@@ -3,9 +3,13 @@ import type {
   TlawnProviderModel,
 } from '@tloncorp/api';
 
-export const BASIC_PROVIDER_LABEL = 'Basic (GPT-5.6 Luna)';
+// Hosting picks the model behind Basic and changes it without an app release,
+// so the label names no model. Hosting stores the option as "default" whatever
+// id is sent and reports the model it runs; this id is only what the app shows
+// until it hears back, and tracks hosting's `tlonDefaultModels` in ylem.
+export const BASIC_PROVIDER_LABEL = 'Basic';
 export const BASIC_PROVIDER_ID = 'basic';
-export const BASIC_DEFAULT_MODEL = 'openai/gpt-5.6-luna';
+export const BASIC_DEFAULT_MODEL = 'openai/gpt-6-luna';
 export const BASIC_PROVIDER_MODEL: TlawnProviderModel = {
   id: BASIC_DEFAULT_MODEL,
   name: BASIC_PROVIDER_LABEL,

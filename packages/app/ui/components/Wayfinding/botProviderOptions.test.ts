@@ -155,6 +155,6 @@ describe('bot credential choices', () => {
       'anthropic:api-key',
       'openrouter:api-key',
     ]);
-    expect(options[0]?.label).toBe('GPT-5.6 Luna');
+    expect(options[0]?.label).toBe('Basic');
   });
 });

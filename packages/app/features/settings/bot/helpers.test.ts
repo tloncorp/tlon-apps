@@ -25,6 +25,7 @@ import {
   normalizeShipList,
   normalizeTlonbotConfig,
   parseChannelRuleKey,
+  pickPrimaryModel,
   resolveGroupFull,
   runApplySteps,
   safeKeySummary,
@@ -177,10 +178,13 @@ describe('provider config', () => {
       defaultKeys: { basic: { key: 'x' } },
     });
     // The current shared default model on openrouter maps to Basic.
+    expect(toDisplayProviderId(config, 'openrouter', 'openai/gpt-6-luna')).toBe(
+      'basic'
+    );
+    // Keep recognizing previous shared defaults for stored legacy configs.
     expect(
       toDisplayProviderId(config, 'openrouter', 'openai/gpt-5.6-luna')
     ).toBe('basic');
-    // Keep recognizing the previous shared default for stored legacy configs.
     expect(
       toDisplayProviderId(config, 'openrouter', 'minimax/minimax-m3')
     ).toBe('basic');
@@ -223,6 +227,8 @@ describe('provider config', () => {
     const empty = getModelFormValues(undefined);
     expect(empty.provider).toBe('basic');
     expect(empty.model).toBe('');
+    // Hosting provisions Basic with zero data retention on.
+    expect(empty.zdr).toBe(true);
 
     const values = getModelFormValues({
       keys: { anthropic: 'sk-ant-xxx' },
@@ -267,7 +273,7 @@ describe('provider config', () => {
       models: [
         {
           provider: 'basic',
-          model: 'openai/gpt-5.6-luna',
+          model: 'openai/gpt-6-luna',
           primary: true,
           zdr: true,
         },
@@ -515,7 +521,7 @@ describe('channel model overrides', () => {
     expect(entries).toEqual([
       {
         provider: 'basic',
-        model: 'openai/gpt-5.6-luna',
+        model: 'openai/gpt-6-luna',
         channels: ['chat/~zod/general'],
       },
     ]);
@@ -533,7 +539,7 @@ describe('channel model overrides', () => {
     expect(entries).toEqual([
       {
         provider: 'basic',
-        model: 'openai/gpt-5.6-luna',
+        model: 'openai/gpt-6-luna',
         channels: ['chat/~zod/general'],
       },
     ]);
@@ -552,16 +558,70 @@ describe('channel model overrides', () => {
   });
 });
 
+describe('pickPrimaryModel', () => {
+  const onOpenAI = { provider: 'openai', model: 'gpt-x', zdr: false };
+
+  it('turns zero data retention on when moving to Basic', () => {
+    expect(
+      pickPrimaryModel({
+        provider: 'basic',
+        model: 'openai/gpt-6-luna',
+        saved: onOpenAI,
+        zdrOnly: false,
+      })
+    ).toEqual({ provider: 'basic', model: 'openai/gpt-6-luna', zdr: true });
+  });
+
+  it("restores the bot's saved Basic choice when coming back to it", () => {
+    expect(
+      pickPrimaryModel({
+        provider: 'basic',
+        model: 'openai/gpt-6-luna',
+        saved: { provider: 'basic', model: 'openai/gpt-7-luna', zdr: false },
+        zdrOnly: false,
+      })
+    ).toEqual({ provider: 'basic', model: 'openai/gpt-7-luna', zdr: false });
+  });
+
+  it('follows the ZDR filter for OpenRouter and leaves it off elsewhere', () => {
+    const saved = { provider: 'basic', model: 'openai/gpt-6-luna', zdr: true };
+    expect(
+      pickPrimaryModel({
+        provider: 'openrouter',
+        model: 'x-ai/grok-4.6',
+        saved,
+        zdrOnly: true,
+      }).zdr
+    ).toBe(true);
+    expect(
+      pickPrimaryModel({
+        provider: 'openrouter',
+        model: 'x-ai/grok-4.6',
+        saved,
+        zdrOnly: false,
+      }).zdr
+    ).toBe(false);
+    expect(
+      pickPrimaryModel({
+        provider: 'anthropic',
+        model: 'claude-1',
+        saved,
+        zdrOnly: true,
+      }).zdr
+    ).toBe(false);
+  });
+});
+
 describe('toBackendModel', () => {
   it('persists basic as its own provider and pins the model to the default', () => {
     expect(toBackendModel('basic', '')).toEqual({
       provider: 'basic',
-      model: 'openai/gpt-5.6-luna',
+      model: 'openai/gpt-6-luna',
     });
     // a stale/leftover model on a Basic pick is ignored
     expect(toBackendModel('basic', 'anthropic/claude-1')).toEqual({
       provider: 'basic',
-      model: 'openai/gpt-5.6-luna',
+      model: 'openai/gpt-6-luna',
     });
   });
 
