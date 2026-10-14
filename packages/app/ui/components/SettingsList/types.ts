@@ -19,6 +19,12 @@ export type SettingsContextAction = {
   onPress: () => void;
 };
 
+/** A command in an iOS menu, with an optional SF Symbol beside it. */
+export type SettingsMenuItem = SettingsContextAction & {
+  systemImage?: string;
+  destructive?: boolean;
+};
+
 /**
  * One settings row, described as data so each platform can draw it with its
  * own list: a SwiftUI form on iOS, a Compose list on Android, Tamagui on web.
@@ -114,6 +120,14 @@ export interface SettingsSectionModel {
    * card, such as a screen's hero. It scrolls with the list.
    */
   element?: ReactElement;
+  /** iOS only: a menu opened from beside the section's title. */
+  titleMenu?: SettingsMenuItem[];
+  /**
+   * iOS only: lets the section's rows be dragged into a new order while the
+   * list is editing. Hears the rows' old positions and where they went, in
+   * the terms of the list before the move.
+   */
+  onMove?: (from: number[], to: number) => void;
 }
 
 export interface SettingsListProps {
@@ -123,6 +137,8 @@ export interface SettingsListProps {
    * than the whole width of a wide window.
    */
   maxWidth?: number;
+  /** iOS only: shows the drag handles of sections that can be reordered. */
+  editing?: boolean;
   /**
    * iOS only: hears when the list has scrolled this far from its top, and when
    * it comes back, so a screen can name itself in its bar once its own header

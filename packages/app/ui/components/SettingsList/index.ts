@@ -10,6 +10,7 @@ export {
 } from './settingsListSurfaces';
 export type {
   SettingsContextAction,
+  SettingsMenuItem,
   SettingsListProps,
   SettingsListSearch,
   SettingsRowLeading,
