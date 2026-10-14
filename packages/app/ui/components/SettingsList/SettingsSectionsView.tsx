@@ -135,6 +135,28 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
         {row.selected ? (
           <Icon type="Checkmark" size="$m" color="$positiveActionText" />
         ) : null}
+        {/* iOS swipes for these; here the first sits at the row's end. */}
+        {row.swipeActions?.[0] ? (
+          <Pressable
+            onPress={row.swipeActions[0].onPress}
+            testID={
+              row.testID
+                ? `${row.testID}-${row.swipeActions[0].key}`
+                : undefined
+            }
+          >
+            <Text
+              size="$label/m"
+              color={
+                row.swipeActions[0].destructive
+                  ? '$negativeActionText'
+                  : '$positiveActionText'
+              }
+            >
+              {row.swipeActions[0].title}
+            </Text>
+          </Pressable>
+        ) : null}
         {showsChevron ? (
           <Icon type="ChevronRight" size="$m" color="$tertiaryText" />
         ) : null}
