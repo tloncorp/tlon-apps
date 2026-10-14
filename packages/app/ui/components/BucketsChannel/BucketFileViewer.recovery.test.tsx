@@ -80,9 +80,6 @@ vi.mock('./BucketPreviewContent', () => ({
   BucketPreviewContent: ({ children }: { children: React.ReactNode }) =>
     children,
 }));
-vi.mock('./BucketFilePager', () => ({
-  BucketFilePager: ({ children }: { children: React.ReactNode }) => children,
-}));
 
 setupReactTestEnvironment();
 beforeEach(() => {
@@ -212,5 +209,74 @@ it('handles a native source already in error and resets failure when its URI cha
   );
   expect(mocks.players.at(-1)!.uri).toBe('https://files.test/fresh.mp4');
   expect(onError).toHaveBeenCalledOnce();
+  act(() => tree.unmount());
+});
+
+it('reloads a retained PDF with a fresh grant and discards the previous iframe', async () => {
+  const pdf = { ...video, name: 'guide.pdf', mimeType: 'application/pdf' };
+  const files = [pdf, otherFile];
+  const expiresAt = new Date(Date.now() + 300000).toISOString();
+  let renewed!: (grant: { readUrl: string; expiresAt: string }) => void;
+  let pdfRequests = 0;
+  const readGrant = vi.fn(async (id: number) => {
+    if (id === 1 && ++pdfRequests === 2) {
+      return new Promise<{ readUrl: string; expiresAt: string }>((resolve) => {
+        renewed = resolve;
+      });
+    }
+    return { readUrl: `https://files.test/${id}/original`, expiresAt };
+  });
+  let preview!: ReturnType<typeof useBucketPreview>;
+  function Harness() {
+    const current = useBucketPreview(readGrant, '~zod/files');
+    useLayoutEffect(() => {
+      preview = current;
+    });
+    const item = current.item;
+    return item ? (
+      <WebViewer
+        item={{ ...item, uri: item.previewUri }}
+        loading={current.loading}
+        onClose={current.close}
+        onRetry={() => void current.load(item, { refresh: true })}
+        navigation={{
+          items: files.map((file) => ({
+            ...file,
+            uri: current.getCached(file)?.previewUri,
+          })),
+          index: files.findIndex((file) => file.id === item.id),
+          onSelect: (index) => void current.load(files[index]),
+        }}
+      />
+    ) : null;
+  }
+  let tree!: ReturnType<typeof create>;
+  act(() => {
+    tree = create(<Harness />);
+  });
+  await act(async () => preview.load(pdf));
+  const previousFrame = tree.root.findByType('iframe');
+  await act(async () => preview.load(otherFile));
+  await act(async () => preview.load(pdf));
+  expect(tree.root.findByType('iframe')).toBe(previousFrame);
+  expect(pdfRequests).toBe(1);
+  await act(async () =>
+    tree.root
+      .findByProps({ accessibilityLabel: 'Reload preview' })
+      .props.onPress()
+  );
+  expect(pdfRequests).toBe(2);
+  expect(preview.getCached(pdf)).toBeUndefined();
+  expect(tree.root.findAllByType('iframe')).toHaveLength(0);
+  await act(async () =>
+    renewed({ readUrl: 'https://files.test/1/fresh.pdf', expiresAt })
+  );
+  expect(tree.root.findByType('iframe')).not.toBe(previousFrame);
+  expect(tree.root.findByType('iframe').props.src).toBe(
+    'https://files.test/1/fresh.pdf'
+  );
+  expect(preview.getCached(pdf)?.previewUri).toBe(
+    'https://files.test/1/fresh.pdf'
+  );
   act(() => tree.unmount());
 });

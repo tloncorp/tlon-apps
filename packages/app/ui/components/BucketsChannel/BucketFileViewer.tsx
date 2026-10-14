@@ -99,11 +99,29 @@ export function BucketFileViewer({
               onRetry={onRetry}
             />
           ) : previewKind === 'pdf' ? (
-            <iframe
-              src={item.uri}
-              title={item.name}
-              style={{ border: 0, height: '100%', width: '100%' }}
-            />
+            <YStack flex={1} minHeight={0}>
+              <iframe
+                src={item.uri}
+                title={item.name}
+                style={{ border: 0, flex: 1, minHeight: 0, width: '100%' }}
+              />
+              {/* Cross-origin iframe failures do not reliably emit an error.
+                  Keep recovery available even when the embed reports a load. */}
+              {onRetry ? (
+                <Pressable
+                  accessibilityLabel="Reload preview"
+                  aria-label="Reload preview"
+                  role="button"
+                  alignSelf="flex-end"
+                  onPress={onRetry}
+                  padding="$m"
+                >
+                  <Text color="$secondaryText" size="$label/m">
+                    Reload preview
+                  </Text>
+                </Pressable>
+              ) : null}
+            </YStack>
           ) : previewKind === 'text' && item.textContent !== undefined ? (
             <ScrollView flex={1}>
               <Text
