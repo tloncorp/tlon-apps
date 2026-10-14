@@ -464,7 +464,7 @@ export function ChatDetailsScreenView({
       members.length > 0
         ? {
             key: 'members',
-            title: `${memberCount} ${pluralize(memberCount, 'Member')}`,
+            title: `${memberCount} ${pluralize(memberCount, 'member')}`,
             rows: memberRows,
           }
         : null,
