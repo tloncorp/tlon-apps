@@ -152,6 +152,8 @@ describe('cleanCronToolArgs', () => {
       '',
       'return {fire:true}',
       'return { fire: true };',
+      'json({ fire: true })',
+      'return json({ fire: false });',
     ]) {
       const cleaned = cleanCronToolArgs({
         action: 'add',
@@ -178,6 +180,22 @@ describe('cleanCronToolArgs', () => {
         delivery: { mode: 'announce', channel: 'tlon', to: '~ten' },
       });
     }
+  });
+
+  it('clears the trigger when an update makes it always fire', () => {
+    // Left out of the patch, the job's old trigger would stay.
+    const cleaned = cleanCronToolArgs({
+      action: 'update',
+      jobId: 'job-1',
+      patch: {
+        schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/New_York' },
+        trigger: { script: 'json({ fire: true })', once: false },
+      },
+    });
+    expect(cleaned?.patch).toEqual({
+      schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/New_York' },
+      trigger: null,
+    });
   });
 
   it('keeps an always-true trigger that ends the job after one run', () => {

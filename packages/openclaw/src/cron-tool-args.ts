@@ -10,13 +10,14 @@
 type Json = Record<string, unknown>;
 
 const MIN_EVERY_MS = 60_000;
-// A trigger script gates a run by returning `{ fire: true }`. The model's
-// filler is a script that always answers the same (`return { fire: false };`,
-// `return {fire:true}`) or a stray word ("x", "unused") that can't fire at
-// all. One that always fires is the same as no trigger, unless it's there to
-// stop the job after its first run.
-const NEVER_FIRES = /^\s*return\s*\{\s*fire\s*:\s*false\s*\}\s*;?\s*$/;
-const ALWAYS_FIRES = /^\s*return\s*\{\s*fire\s*:\s*true\s*\}\s*;?\s*$/;
+// A trigger script gates a run by returning `{ fire: true }`, which
+// OpenClaw's docs write `json({ fire: true })`. The model's filler is a script
+// that always answers the same (`return { fire: false };`, `return {fire:true}`)
+// or a stray word ("x", "unused") that can't fire at all. One that always fires
+// is the same as no trigger, unless it's there to stop the job after its first
+// run.
+const CONSTANT_FIRE =
+  /^\s*(?:return\b\s*)?(?:json\s*\(\s*)?\{\s*fire\s*:\s*(true|false)\s*\}\s*\)?\s*;?\s*$/;
 const MENTIONS_FIRE = /\bfire\b/;
 // Fields an update has no business changing on its own initiative; the model
 // only ever sets them to the schema's first enum value.
@@ -56,12 +57,13 @@ function cleanJob(raw: unknown, isPatch: boolean): Json | undefined {
   delete job.owner;
   if (isObject(job.trigger)) {
     const script = String(job.trigger.script ?? '');
-    const gatesNothing = ALWAYS_FIRES.test(script) && job.trigger.once !== true;
-    if (
-      !MENTIONS_FIRE.test(script) ||
-      NEVER_FIRES.test(script) ||
-      gatesNothing
-    ) {
+    const constant = CONSTANT_FIRE.exec(script)?.[1];
+    if (constant === 'true' && job.trigger.once !== true) {
+      // Leaving it out of an update would keep whatever trigger the job has;
+      // always firing means clearing it.
+      if (isPatch) job.trigger = null;
+      else delete job.trigger;
+    } else if (constant === 'false' || !MENTIONS_FIRE.test(script)) {
       delete job.trigger;
     }
   }
