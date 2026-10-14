@@ -12,6 +12,7 @@ import {
 
 import { cleanCronToolArgs } from './src/cron-tool-args.js';
 import { modelPrivacyNote } from './src/model-privacy-context.js';
+import { PERSONAL_CLAIMS_CONTEXT } from './src/personal-claims-context.js';
 import { registerTlonCommands } from './src/commands-registry.js';
 import { notifyCampaignCronChanged } from './src/monitor/campaign/live.js';
 import {
@@ -1447,7 +1448,11 @@ export default defineBundledChannelEntry({
         ctx.modelProviderId,
         ctx.modelId
       );
-      return note ? { appendSystemContext: note } : undefined;
+      return {
+        appendSystemContext: note
+          ? `${PERSONAL_CLAIMS_CONTEXT}\n\n${note}`
+          : PERSONAL_CLAIMS_CONTEXT,
+      };
     });
 
     api.on('session_start', (event, ctx) => {
