@@ -202,6 +202,19 @@ describe('cleanCronToolArgs', () => {
     expect(cleaned?.job).not.toHaveProperty('trigger');
   });
 
+  it('clears a run-once trigger on an update that leaves the schedule out', () => {
+    // The stored job may be a one-shot `at` reminder, which refuses it.
+    const cleaned = cleanCronToolArgs({
+      action: 'update',
+      jobId: 'job-1',
+      patch: {
+        payload: { kind: 'agentTurn', message: 'Remind ~ten to call.' },
+        trigger: { script: 'return { fire: true };', once: true },
+      },
+    });
+    expect(cleaned?.patch).toMatchObject({ trigger: null });
+  });
+
   it('keeps a real trigger in the documented form', () => {
     const cleaned = cleanCronToolArgs({
       action: 'add',

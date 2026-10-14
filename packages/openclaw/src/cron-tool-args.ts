@@ -58,11 +58,13 @@ function cleanJob(raw: unknown, isPatch: boolean): Json | undefined {
   if (isObject(job.trigger)) {
     const script = String(job.trigger.script ?? '');
     const constant = CONSTANT_FIRE.exec(script)?.[1];
-    // Core only lets a trigger gate an every or cron schedule, so `once` means
-    // nothing on a one-shot `at` reminder.
+    // Core only lets a trigger gate an every or cron schedule, so `once`
+    // counts only when this call sets one. An update that leaves the schedule
+    // out may be changing a one-shot `at` job, which would refuse it.
+    const scheduleKind = isObject(job.schedule) ? job.schedule.kind : undefined;
     const stopsAfterFirstRun =
       job.trigger.once === true &&
-      !(isObject(job.schedule) && job.schedule.kind === 'at');
+      (scheduleKind === 'every' || scheduleKind === 'cron');
     if (constant === 'true' && !stopsAfterFirstRun) {
       // Leaving it out of an update would keep whatever trigger the job has;
       // always firing means clearing it.
