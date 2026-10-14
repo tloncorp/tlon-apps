@@ -12,6 +12,7 @@ import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
+  getIncludedModelId,
   isSubscriptionProvider,
 } from './constants';
 import {
@@ -312,6 +313,7 @@ export const normalizeProviderConfig = (
   keys: raw?.keys ?? {},
   models: raw?.models ?? [],
   defaultKeys: raw?.defaultKeys ?? raw?.default ?? {},
+  defaultModels: raw?.defaultModels,
 });
 
 export const hasProviderCredential = (
@@ -387,7 +389,7 @@ export const getModelFormValues = (
     return {
       provider: BASIC_PROVIDER_ID,
       model: hasProviderCredential(config, BASIC_PROVIDER_ID)
-        ? BASIC_DEFAULT_MODEL
+        ? getIncludedModelId(config)
         : '',
       // Hosting provisions Basic with zero data retention on (ylem#3298).
       zdr: true,

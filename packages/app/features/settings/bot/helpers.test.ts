@@ -2,6 +2,11 @@ import type { TlawnChannelGroups } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  getBasicModelLabel,
+  getIncludedModelId,
+  getModelName,
+} from './constants';
+import {
   buildBotGroupMembershipResolver,
   buildChannelModelEntries,
   buildChannelRuleDrafts,
@@ -555,6 +560,42 @@ describe('channel model overrides', () => {
       },
     });
     expect(entries).toEqual([]);
+  });
+});
+
+describe('included model name', () => {
+  it('names OpenAI models the way OpenRouter does', () => {
+    expect(getModelName('openai/gpt-6-luna')).toBe('GPT-6 Luna');
+    expect(getModelName('openai/gpt-5.6-luna')).toBe('GPT-5.6 Luna');
+    expect(getModelName('openai/gpt-6-luna-pro')).toBe('GPT-6 Luna Pro');
+    expect(getModelName('openai/gpt-6-luna:nitro')).toBe('GPT-6 Luna');
+  });
+
+  it('shows any other id as sent rather than guess a name', () => {
+    expect(getModelName('z-ai/glm-5.3-flash')).toBe('glm-5.3-flash');
+    expect(getModelName('minimax/minimax-m3')).toBe('minimax-m3');
+  });
+
+  it('follows the model hosting reports', () => {
+    const reported = normalizeProviderConfig({
+      defaultKeys: { basic: { key: 'shared' } },
+      defaultModels: {
+        primaryModel: 'openai/gpt-7-luna',
+        fallbackModels: ['z-ai/glm-5.3-flash:nitro'],
+      },
+    });
+    expect(getIncludedModelId(reported)).toBe('openai/gpt-7-luna');
+    expect(getBasicModelLabel(reported)).toBe('Basic (GPT-7 Luna)');
+
+    // Older hosting omits defaultModels but reports its model on Basic entries.
+    expect(
+      getIncludedModelId({
+        keys: {},
+        defaultKeys: {},
+        models: [{ provider: 'basic', model: 'openai/gpt-7-luna' }],
+      })
+    ).toBe('openai/gpt-7-luna');
+    expect(getBasicModelLabel(undefined)).toBe('Basic (GPT-6 Luna)');
   });
 });
 

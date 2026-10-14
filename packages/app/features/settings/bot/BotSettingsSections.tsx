@@ -15,6 +15,7 @@ import {
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
   SUBSCRIPTION_PROVIDERS,
+  getBasicModelLabel,
   providerLabel,
 } from './constants';
 import {
@@ -231,9 +232,11 @@ export function useBotSettingsSectionModels(
       {
         key: 'default-model',
         title: 'Default model',
-        subtitle: draft.model.provider
-          ? providerLabel(draft.model.provider)
-          : 'Not set',
+        subtitle: !draft.model.provider
+          ? 'Not set'
+          : onBasicModel
+            ? getBasicModelLabel(queries.providerConfig)
+            : providerLabel(draft.model.provider),
         value: draft.model.model || undefined,
         pending: pending.modelProvider || pending.model,
         disabled: controlsReadOnly,
@@ -412,6 +415,7 @@ export function useBotSettingsSectionModels(
     queries.botReady,
     queries.llmAuthStatusQuery.data,
     queries.oauthProvidersQuery.data,
+    queries.providerConfig,
     queries.providerConfigQuery.isSuccess,
     scheduledTaskCount,
     showsScheduledTasks,

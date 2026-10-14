@@ -4,7 +4,7 @@ import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
   BASIC_PROVIDER_LABEL,
-  BASIC_PROVIDER_MODEL,
+  getBasicProviderModel,
 } from './constants';
 import {
   COLLAPSED_MODEL_COUNT,
@@ -32,7 +32,7 @@ const provider = (
 const basic: ModelPickerProvider = {
   id: BASIC_PROVIDER_ID,
   label: BASIC_PROVIDER_LABEL,
-  models: [BASIC_PROVIDER_MODEL],
+  models: [getBasicProviderModel()],
   loading: false,
   error: null,
 };
@@ -174,11 +174,10 @@ describe('buildDefaultModelSections', () => {
         .sections.filter((section) => section.title === 'Included with Tlon')
         .flatMap((section) => titles(section.rows));
 
-    expect(tlonTitles('luna')).toEqual([BASIC_PROVIDER_LABEL]);
-    expect(tlonTitles(BASIC_DEFAULT_MODEL)).toEqual([BASIC_PROVIDER_LABEL]);
-    expect(tlonTitles('newer-id', 'openai/some-newer-id')).toEqual([
-      BASIC_PROVIDER_LABEL,
-    ]);
+    const label = 'Basic (GPT-6 Luna)';
+    expect(tlonTitles('luna')).toEqual([label]);
+    expect(tlonTitles(BASIC_DEFAULT_MODEL)).toEqual([label]);
+    expect(tlonTitles('newer-id', 'openai/some-newer-id')).toEqual([label]);
     expect(tlonTitles('zzz')).toEqual([]);
   });
 
