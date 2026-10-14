@@ -553,9 +553,11 @@ export function BotChannelRuleSettingsScreen(props: Props) {
 
   return (
     <SettingsListScreenView
-      title={channelLabel || 'Channel'}
-      // The channel's name alone doesn't say whose rule this is.
-      subtitle="Tlonbot channel rule"
+      // The channel's name alone doesn't say whose rule this is, and phones
+      // don't show a header subtitle.
+      title={
+        channelLabel ? `Tlonbot in ${channelLabel}` : 'Tlonbot channel rule'
+      }
       sections={sections}
       onBackPressed={handleBack}
       loading={!ready}
