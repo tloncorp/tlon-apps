@@ -34,17 +34,14 @@ export function channelPermissionSections({
   onChange: (permissions: Permissions) => void;
   onCreateRole?: () => void;
 }): SettingsSectionModel[] {
-  const roles = [
-    { id: 'admin', title: 'Admin', subtitle: undefined },
-    ...groupRoles
-      .filter((role) => role.id && role.id !== 'admin')
-      .map((role) => ({
-        id: role.id!,
-        title: role.title ?? 'Unknown role',
-        subtitle: undefined,
-      })),
+  // The widest choice first. Each greyed-out row says why it can't change.
+  const roles: { id: string; title: string; subtitle?: string }[] = [
     // Kept as "Members" so it reads the same as the old table's row.
     { id: MEMBERS_MARKER, title: 'Members', subtitle: 'Everyone in the group' },
+    { id: 'admin', title: 'Admin', subtitle: 'Always' },
+    ...groupRoles
+      .filter((role) => role.id && role.id !== 'admin')
+      .map((role) => ({ id: role.id!, title: role.title ?? 'Unknown role' })),
   ];
   const without = (ids: string[], id: string) => ids.filter((x) => x !== id);
   // Members are everyone in the group, so while they can see the channel
@@ -109,10 +106,11 @@ export function channelPermissionSections({
         ...roles.map((role) => {
           const isMembers = role.id === MEMBERS_MARKER;
           const canRead = readers.includes(role.id);
+          const implied = everyoneReads && !isMembers && role.id !== 'admin';
           return {
             key: role.id,
             title: role.title,
-            subtitle: role.subtitle,
+            subtitle: implied ? 'Included in Members' : role.subtitle,
             selected: reads(role.id),
             multiple: true,
             // A role's own tick means nothing while members can all see it.

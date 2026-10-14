@@ -45,12 +45,15 @@ export function GroupRolesScreen({ navigation, route }: Props) {
               }),
             testID: `GroupRole-${role.title}`,
           })),
-          // Everyone holds this one, so there is nothing to open.
+          // Everyone holds this one, so it opens the group's members; that
+          // also keeps its count in line with the others above it.
           {
             key: 'members',
             title: 'Members',
             subtitle: 'All group members',
             value: String(groupMembers.length),
+            onPress: () =>
+              navigation.navigate('GroupMembers', { groupId, fromChatDetails }),
             testID: 'GroupRole-Members',
           },
         ],
