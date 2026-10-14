@@ -187,20 +187,24 @@ describe('cleanCronToolArgs', () => {
   });
 
   it('drops an always-true trigger from a one-shot reminder', () => {
-    // Core refuses a trigger on an `at` schedule, `once` or not.
-    const cleaned = cleanCronToolArgs({
-      action: 'add',
-      job: {
-        name: 'Call the dentist',
-        schedule: { kind: 'at', at: '2026-10-20T13:00:00Z' },
-        trigger: { script: 'return { fire: true };', once: true },
-        sessionTarget: 'isolated',
-        payload: {
-          kind: 'agentTurn',
-          message: 'Remind ~ten to call the dentist.',
+    // Core refuses a trigger on an `at` schedule, `once` or not, even with
+    // triggers on.
+    const cleaned = cleanCronToolArgs(
+      {
+        action: 'add',
+        job: {
+          name: 'Call the dentist',
+          schedule: { kind: 'at', at: '2026-10-20T13:00:00Z' },
+          trigger: { script: 'return { fire: true };', once: true },
+          sessionTarget: 'isolated',
+          payload: {
+            kind: 'agentTurn',
+            message: 'Remind ~ten to call the dentist.',
+          },
         },
       },
-    });
+      TRIGGERS_ON
+    );
     expect(cleaned?.job).not.toHaveProperty('trigger');
   });
 
