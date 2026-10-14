@@ -46,7 +46,6 @@ export function BucketAudioPreview({
           </Text>
           {onRetry ? (
             <Pressable
-              tag="button"
               aria-label="Retry audio"
               accessibilityLabel="Retry audio"
               role="button"
