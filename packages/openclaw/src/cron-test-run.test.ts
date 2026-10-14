@@ -298,8 +298,8 @@ describe('startCronTestRun', () => {
     // A scheduled run finishing moves updatedAtMs and changes nothing.
     job.updatedAtMs = 2;
     expect(await startCronTestRun('job-changed', deps)).toEqual(first);
-    // Saved with a new prompt while the first test runs.
-    job.payload.message = 'Summarize the group, briefly.';
+    // Renamed while the first test runs: the prompt names the job.
+    job.name = 'Morning digest';
     const second = await startCronTestRun('job-changed', deps);
     const third = await startCronTestRun('job-changed', deps);
 

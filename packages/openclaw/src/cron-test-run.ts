@@ -279,10 +279,16 @@ const runningTests = sharedMap<string, { lensId: string; definition: string }>(
   'cronTestRun.running'
 );
 
-// What decides how a job runs. Not updatedAtMs: the host moves that when a
-// scheduled run finishes, with nothing about the job changed.
+// What decides how a job runs, its name included, since the prompt names
+// the job. Not updatedAtMs: the host moves that when a scheduled run
+// finishes, with nothing about the job changed.
 function jobDefinition(job: CronTestJob): string {
-  return JSON.stringify([job.agentId, job.sessionTarget, job.payload]);
+  return JSON.stringify([
+    job.name,
+    job.agentId,
+    job.sessionTarget,
+    job.payload,
+  ]);
 }
 
 /**
