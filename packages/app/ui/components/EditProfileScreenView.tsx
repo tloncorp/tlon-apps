@@ -185,7 +185,7 @@ function EditProfileForm({
         <IconEditor
           avatar={preview}
           isUploading={avatar.isUploading}
-          menuItems={imageMenuItems(avatar, 'Remove Photo')}
+          menuItems={imageMenuItems(avatar, 'Remove photo')}
           onPressFallback={avatar.toggleSheet}
           accessibilityLabel="Change avatar image"
         >

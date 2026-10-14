@@ -106,7 +106,7 @@ function MetaEditorForm({
         <IconEditor
           avatar={avatar}
           isUploading={icon.isUploading}
-          menuItems={imageMenuItems(icon, 'Remove Icon')}
+          menuItems={imageMenuItems(icon, 'Remove icon')}
           onPressFallback={icon.toggleSheet}
           accessibilityLabel="Change icon"
           notice={
