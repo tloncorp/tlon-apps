@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 
 import type { RootStackParamList } from '../../navigation/types';
@@ -113,28 +114,66 @@ export function InviteSystemContactsScreen(props: Props) {
       ];
     }
     // The native lists draw every row they are given, so a long address book
-    // is shown a page at a time.
+    // is shown a page at a time. A short one is a single card; letter
+    // headings would leave one person to a card.
+    const rowsFor = (contacts: db.SystemContact[]) =>
+      contacts.map((contact) =>
+        contactRow(contact, selectedRecipients, handleItemPress)
+      );
     let budget = limit;
     const shown: SettingsSectionModel[] = [];
-    for (const section of alphabeticalContactSections) {
-      if (budget <= 0) break;
-      const contacts = section.data.slice(0, budget);
-      budget -= contacts.length;
+    if (displayContacts.length <= letterHeadingsFrom) {
       shown.push({
-        key: section.label,
-        title: section.label,
-        rows: contacts.map((contact) =>
-          contactRow(contact, selectedRecipients, handleItemPress)
+        key: 'contacts',
+        rows: rowsFor(
+          alphabeticalContactSections.flatMap((section) => section.data)
         ),
       });
+    } else {
+      for (const section of alphabeticalContactSections) {
+        if (budget <= 0) break;
+        const contacts = section.data.slice(0, budget);
+        budget -= contacts.length;
+        shown.push({
+          key: section.label,
+          title: section.label,
+          rows: rowsFor(contacts),
+        });
+      }
     }
     const hidden = displayContacts.length - limit;
+    const chosenKind = selectedRecipients[0]
+      ? selectedRecipients[0].phoneNumber
+        ? 'text'
+        : 'email'
+      : null;
     return [
+      ...(chosenKind
+        ? [
+            {
+              key: 'kind',
+              rows: [],
+              // Says why the other kind of contact is greyed out, where it is
+              // seen rather than at the end of the list.
+              element: (
+                <Text
+                  size="$label/m"
+                  color="$secondaryText"
+                  paddingHorizontal="$xl"
+                  paddingTop="$l"
+                >
+                  {chosenKind === 'text'
+                    ? 'Inviting by text, so contacts with only an email are unavailable. Send email invites separately.'
+                    : 'Inviting by email, so contacts with only a phone number are unavailable. Send text invites separately.'}
+                </Text>
+              ),
+            },
+          ]
+        : []),
       ...shown,
       {
         key: 'more',
-        footer:
-          'Choose up to 10 people. One invite goes by text or by email, not both.',
+        footer: 'Choose up to 10 people.',
         rows:
           hidden > 0
             ? [
@@ -187,6 +226,8 @@ export function InviteSystemContactsScreen(props: Props) {
 }
 
 const pageSize = 100;
+// Past this many people, letter headings help find someone.
+const letterHeadingsFrom = 30;
 // Someone sent a personal invite in the last two weeks isn't offered again.
 const reinviteAfter = 1000 * 60 * 60 * 24 * 14;
 
