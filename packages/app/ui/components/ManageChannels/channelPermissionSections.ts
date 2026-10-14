@@ -70,13 +70,15 @@ export function channelPermissionSections({
         rows: [
           ...roles.map((role) => {
             const has = readers.includes(role.id);
+            const isMembers = role.id === MEMBERS_MARKER;
+            const implied = everyoneReads && !isMembers && role.id !== 'admin';
             return {
               key: role.id,
               title: role.title,
-              subtitle: role.subtitle,
-              selected: role.id === 'admin' || has,
+              subtitle: implied ? 'Included in Members' : role.subtitle,
+              selected: reads(role.id),
               multiple: true,
-              disabled: role.id === 'admin',
+              disabled: role.id === 'admin' || implied,
               onPress: () =>
                 onChange(
                   has
