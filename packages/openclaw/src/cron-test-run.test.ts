@@ -247,6 +247,28 @@ describe('startCronTestRun', () => {
     expect(await finalLens()).toMatchObject({ status: 'aborted' });
   });
 
+  it('times out, rather than stops, when its own limit ends it', async () => {
+    const limit = harness('job-limit');
+    await startCronTestRun('job-limit', limit.deps);
+    limit.run.resolve({ meta: { durationMs: 60_000, aborted: true } });
+    expect(await limit.finalLens()).toMatchObject({
+      status: 'timed_out',
+      error: 'The test run ran out of time.',
+    });
+
+    // An aborted result after the monitor went away is the monitor's stop.
+    const abort = new AbortController();
+    const stopped = harness('job-stopped');
+    await startCronTestRun('job-stopped', {
+      ...stopped.deps,
+      signal: abort.signal,
+    });
+    await stopped.started();
+    abort.abort();
+    stopped.run.resolve({ meta: { durationMs: 1, aborted: true } });
+    expect(await stopped.finalLens()).toMatchObject({ status: 'aborted' });
+  });
+
   it('answers a second ask with the run already going', async () => {
     const { deps, run, runEmbeddedAgent, started, finalLens } =
       harness('job-twice');

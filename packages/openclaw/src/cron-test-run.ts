@@ -194,8 +194,10 @@ export function cronTestRunResult(result: EmbeddedResult): {
   if (result.meta.error) {
     return { status: 'error', error: result.meta.error.message };
   }
+  // A scratch session has nothing else to abort it: the monitor's teardown
+  // is caught before this, so what is left is the run's own time limit.
   if (result.meta.aborted) {
-    return { status: 'aborted', error: 'The test run was stopped.' };
+    return { status: 'timed_out', error: 'The test run ran out of time.' };
   }
   const replies = (result.payloads ?? []).filter(
     (payload) =>
@@ -265,6 +267,11 @@ export interface CronTestRunDeps {
   signal?: AbortSignal;
   now?: () => number;
 }
+
+const STOPPED = {
+  status: 'aborted',
+  error: 'The test run was stopped.',
+} as const;
 
 // The test run under way for each job, and the version of the job it runs.
 // Asking again while one runs answers with the run already going rather
@@ -445,12 +452,12 @@ export async function startCronTestRun(
         ...(Array.isArray(fallbacks) ? { fallbacks } : {}),
       }
     );
-    finish(cronTestRunResult(result));
+    finish(deps.signal?.aborted ? STOPPED : cronTestRunResult(result));
   };
   void run()
     .catch((error: unknown) => {
       if (deps.signal?.aborted) {
-        finish({ status: 'aborted', error: 'The test run was stopped.' });
+        finish(STOPPED);
         return;
       }
       deps.logger.warn(

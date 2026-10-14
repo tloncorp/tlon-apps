@@ -107,8 +107,9 @@ export function taskRunError(lens: ContextLens): string | null {
 }
 
 /**
- * What the run produced: a test run's kept reply, or what a scheduled run
- * posted, falling back to the host's summary of it.
+ * What the run produced: a test run's kept reply, or the host's summary of
+ * a scheduled run, its final text up to 2,000 characters. What it posted is
+ * the fallback: each post is kept only as a short preview.
  */
 export function taskRunOutput(lens: ContextLens): string | null {
   // NO_REPLY is how a run says nothing, never something to show.
@@ -122,8 +123,8 @@ export function taskRunOutput(lens: ContextLens): string | null {
     .join('\n\n');
   return (
     shown(lens.cron?.output) ||
-    posted ||
     shown(lens.cron?.outcome?.summary) ||
+    posted ||
     null
   );
 }

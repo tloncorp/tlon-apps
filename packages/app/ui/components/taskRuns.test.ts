@@ -224,7 +224,7 @@ describe('taskRunOutcome', () => {
 });
 
 describe('taskRunOutput', () => {
-  test("prefers a test run's reply, then what was posted, then the summary", () => {
+  test("prefers a test run's reply, then the summary, then what was posted", () => {
     expect(
       taskRunOutput(run({ cron: { jobId: 'job-1', test: true, output: 'Hi' } }))
     ).toBe('Hi');
@@ -243,14 +243,28 @@ describe('taskRunOutput', () => {
           cron: { jobId: 'job-1', outcome: { status: 'ok', summary: 'Sum' } },
         })
       )
-    ).toBe('Posted digest');
+    ).toBe('Sum');
+    // A post is only a short preview, so it stands in for a summary that
+    // is missing or silent.
     expect(
       taskRunOutput(
         run({
-          cron: { jobId: 'job-1', outcome: { status: 'ok', summary: 'Sum' } },
+          outputs: [
+            {
+              messageId: 'm1',
+              conversationId: 'chat/~zod/a',
+              kind: 'channel',
+              sentAt: now,
+              preview: 'Posted digest',
+            },
+          ],
+          cron: {
+            jobId: 'job-1',
+            outcome: { status: 'ok', summary: 'NO_REPLY' },
+          },
         })
       )
-    ).toBe('Sum');
+    ).toBe('Posted digest');
     expect(taskRunOutput(run())).toBeNull();
     // NO_REPLY is the run saying nothing, not output to show.
     expect(
