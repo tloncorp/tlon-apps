@@ -199,10 +199,9 @@ function EditProfileForm({
         </IconEditor>
       ),
     },
-    // Short fields share a card and are labelled by their placeholders, as in
-    // Contacts; the long bio gets its own.
     {
-      key: 'about',
+      key: 'nickname',
+      title: 'Nickname',
       footer:
         nicknameError ??
         (isCurrUser
@@ -215,34 +214,39 @@ function EditProfileForm({
           textField: {
             value: nickname,
             onChangeText: setNickname,
-            placeholder: 'Nickname',
+            placeholder: isCurrUser
+              ? userId
+              : (userContact?.peerNickname ?? userId),
             maxLength: maxNicknameLength,
             capitalization: 'words',
           },
           testID: 'ProfileNicknameInput',
         },
-        ...(isCurrUser
-          ? [
+      ],
+    },
+    ...(isCurrUser
+      ? ([
+          {
+            key: 'status',
+            title: 'Status',
+            rows: [
               {
                 key: 'status',
                 title: 'Status',
                 textField: {
                   value: status,
                   onChangeText: setStatus,
-                  placeholder: 'Status',
+                  placeholder: 'Hanging out...',
                   maxLength: maxStatusLength,
-                  capitalization: 'sentences' as const,
+                  capitalization: 'sentences',
                 },
                 testID: 'ProfileStatusInput',
               },
-            ]
-          : []),
-      ],
-    },
-    ...(isCurrUser
-      ? ([
+            ],
+          },
           {
             key: 'bio',
+            title: 'Bio',
             rows: [
               {
                 key: 'bio',
@@ -250,7 +254,7 @@ function EditProfileForm({
                 textField: {
                   value: bio,
                   onChangeText: setBio,
-                  placeholder: 'Bio',
+                  placeholder: 'About yourself',
                   lines: 5,
                   maxLength: maxBioLength,
                   capitalization: 'sentences',
@@ -267,16 +271,13 @@ function EditProfileForm({
               ...pinned.groups.map(
                 (group): SettingsRowModel => ({
                   ...groupRow(group),
-                  swipeActions: [
-                    {
-                      key: 'remove',
-                      title: 'Remove',
-                      systemImage: 'minus.circle',
-                      destructive: true,
-                      onPress: () => pinned.toggle(group),
-                    },
-                  ],
-                  testID: 'ProfilePinnedGroup',
+                  trailingAction: {
+                    key: 'remove',
+                    title: 'Remove',
+                    destructive: true,
+                    onPress: () => pinned.toggle(group),
+                    testID: 'ProfilePinnedGroupRemove',
+                  },
                 })
               ),
               {
