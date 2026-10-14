@@ -22,6 +22,23 @@ export function deskVersionServesRosterPages(
 }
 
 /**
+ * Whether a group's stored roster is whole: a whole-roster sync landed this
+ * session (`syncedAt` after its start), and live events have kept it current
+ * since. A light sync never sets `syncedAt`, and a sync from an earlier
+ * session may have missed changes.
+ */
+export function isRosterWhole(
+  syncedAt: number | null | undefined,
+  sessionStartTime: number | undefined
+): boolean {
+  return (
+    sessionStartTime !== undefined &&
+    syncedAt != null &&
+    syncedAt > sessionStartTime
+  );
+}
+
+/**
  * Orders ships the way the desk pages them, by @p value. Anything that isn't
  * a ship sorts last.
  */

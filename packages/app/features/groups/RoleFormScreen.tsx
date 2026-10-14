@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
-import { generateSafeId } from '@tloncorp/shared/logic';
+import { generateSafeId, isRosterWhole } from '@tloncorp/shared/logic';
 import { ConfirmDialog, useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -297,8 +297,7 @@ export function RoleFormScreen({ navigation, route }: Props) {
   // syncedAt outlives the session, but holders can change while we're away,
   // so the roster is only whole once a sync this session has landed
   const sessionStartTime = store.useCurrentSession()?.startTime;
-  const rosterIsWhole =
-    sessionStartTime !== undefined && (group?.syncedAt ?? 0) > sessionStartTime;
+  const rosterIsWhole = isRosterWhole(group?.syncedAt, sessionStartTime);
 
   const disableDelete = useMemo(() => {
     if (!isEditMode || !role?.id) return true;

@@ -4,14 +4,9 @@ import {
   onDeskServesRosterPagesChange,
 } from '@tloncorp/api';
 import type * as db from '@tloncorp/shared/db';
+import { isRosterWhole } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 
 // At most this many pages of holders per role section. A role held by most
 // of a big group would otherwise pull the whole roster in.
@@ -35,8 +30,7 @@ export function useGroupRosterPages(group: db.Group | null) {
   const sessionStartTime = store.useCurrentSession()?.startTime;
   // a whole roster synced this session is complete, and live events keep it
   // so: there's nothing to page
-  const rosterIsWhole =
-    sessionStartTime !== undefined && (group?.syncedAt ?? 0) > sessionStartTime;
+  const rosterIsWhole = isRosterWhole(group?.syncedAt, sessionStartTime);
   const pagedNow = !!group && store.isRosterPaged(group);
   // once this screen pages a group, it keeps paging: a count dipping under
   // the threshold mid-load would otherwise switch it to the partial roster
@@ -49,21 +43,6 @@ export function useGroupRosterPages(group: db.Group | null) {
   const paged =
     !rosterIsWhole &&
     (pagedNow || (!!group && pagedGroupId === groupId && servesPages));
-  // a desk that stops serving them leaves only part of the roster stored,
-  // so load the rest whole
-  const pagesWithdrawn = !!groupId && pagedGroupId === groupId && !servesPages;
-  useEffect(() => {
-    if (!pagesWithdrawn) return;
-    // wholeRoster, so a light sync still in flight can't stand in for it.
-    // syncGroup reports its own failures.
-    store
-      .syncGroup(
-        groupId,
-        { priority: store.SyncPriority.High },
-        { wholeRoster: true }
-      )
-      .catch(() => {});
-  }, [pagesWithdrawn, groupId]);
   const roleIds = useMemo(
     () => (group?.roles ?? []).map((role) => role.id).sort(),
     [group?.roles]

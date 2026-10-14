@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   ROSTER_PAGES_MIN_GROUPS_VERSION,
   deskVersionServesRosterPages,
+  isRosterWhole,
 } from './rosterPagesSupport';
 
 describe('deskVersionServesRosterPages', () => {
@@ -24,5 +25,14 @@ describe('deskVersionServesRosterPages', () => {
     expect(deskVersionServesRosterPages('12.4.1 dirty')).toBe(false);
     expect(deskVersionServesRosterPages(null)).toBe(false);
     expect(deskVersionServesRosterPages(undefined)).toBe(false);
+  });
+});
+
+describe('isRosterWhole', () => {
+  test('only once a whole sync landed in this session', () => {
+    expect(isRosterWhole(200, 100)).toBe(true);
+    expect(isRosterWhole(50, 100)).toBe(false);
+    expect(isRosterWhole(null, 100)).toBe(false);
+    expect(isRosterWhole(200, undefined)).toBe(false);
   });
 });
