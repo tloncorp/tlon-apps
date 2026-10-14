@@ -56,6 +56,9 @@ export function useGroupRosterPages(group: db.Group | null) {
       )
       .catch(() => {});
   }, [pagesWithdrawn, groupId]);
+  // a new session follows a dropped connection, which may have missed seat
+  // events, so the pages start over with it
+  const sessionStartTime = store.useCurrentSession()?.startTime;
   const roleIds = useMemo(
     () => (group?.roles ?? []).map((role) => role.id).sort(),
     [group?.roles]
@@ -65,7 +68,7 @@ export function useGroupRosterPages(group: db.Group | null) {
   // with more holders than the cap isn't checked past the pages it loaded,
   // so it isn't reported whole and its holders wait for the main pages.
   const roleHolders = useQuery({
-    queryKey: ['groupRosterRoles', groupId, roleIds],
+    queryKey: ['groupRosterRoles', groupId, roleIds, sessionStartTime],
     enabled: paged && roleIds.length > 0,
     // fresh on every visit: the cache never goes stale on its own, and a
     // group left and rejoined would otherwise keep its old pages
@@ -94,7 +97,7 @@ export function useGroupRosterPages(group: db.Group | null) {
   );
 
   const pages = useInfiniteQuery({
-    queryKey: ['groupRosterPages', groupId],
+    queryKey: ['groupRosterPages', groupId, sessionStartTime],
     enabled: paged,
     gcTime: 0,
     initialPageParam: null as string | null,
@@ -108,12 +111,22 @@ export function useGroupRosterPages(group: db.Group | null) {
     getNextPageParam: (page) => page.next ?? undefined,
   });
 
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = pages;
+  const { hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = pages;
+  // a first page that failed leaves no cursor to go on from
+  const firstPageFailed = pages.isError && !pages.data;
   const loadMore = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
+    if (firstPageFailed) {
+      refetch();
+    } else if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [
+    firstPageFailed,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
 
   const lastPage = pages.data?.pages.at(-1);
   return {
@@ -121,8 +134,10 @@ export function useGroupRosterPages(group: db.Group | null) {
     // members past this ship haven't been checked against the desk yet;
     // null once every page has loaded, or when the group isn't paged
     loadedThrough: paged && lastPage?.next ? lastPage.next : null,
-    // until the first page lands, nothing past the light roster is known
-    awaitingFirstPage: paged && !pages.data,
+    // until the first page lands, nothing past the light roster is known.
+    // If it failed, the light roster is all there is to show until loadMore
+    // retries it.
+    awaitingFirstPage: paged && !pages.data && !firstPageFailed,
     // roles whose holders have all been checked against the desk
     wholeRoles,
     hasMore: paged && (!pages.data || !!hasNextPage),
