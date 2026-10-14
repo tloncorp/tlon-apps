@@ -2,6 +2,8 @@ import {
   BasicTextField,
   Box,
   Column,
+  DropdownMenu,
+  DropdownMenuItem,
   Host,
   LazyColumn,
   RNHostView,
@@ -142,16 +144,28 @@ function SettingsRow({
   if (row.textField) {
     return <TextFieldRow row={row} colors={colors} />;
   }
+  return <PlainRow row={row} colors={colors} />;
+}
 
+function PlainRow({
+  row,
+  colors,
+}: {
+  row: SettingsRowModel;
+  colors: SettingsListColors;
+}) {
+  // Long-press actions open a menu anchored to the row.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const actions = row.contextActions ?? [];
   const onClick = row.toggle
     ? () => row.toggle?.onValueChange(!row.toggle.value)
     : row.onPress;
-  const onLongClick = row.contextActions?.[0]?.onPress;
+  const onLongClick = actions.length ? () => setMenuOpen(true) : undefined;
   // Material shows a setting's value as the line under its title.
   const supporting = [row.subtitle, row.value].filter(Boolean).join(' · ');
   const isChoice = row.selected !== undefined;
 
-  return (
+  const content = (
     <Row
       verticalAlignment="center"
       horizontalArrangement={{ spacedBy: 16 }}
@@ -237,6 +251,34 @@ function SettingsRow({
         </RNHostView>
       ) : null}
     </Row>
+  );
+
+  if (!actions.length) {
+    return content;
+  }
+
+  return (
+    <DropdownMenu
+      expanded={menuOpen}
+      onDismissRequest={() => setMenuOpen(false)}
+    >
+      <DropdownMenu.Trigger>{content}</DropdownMenu.Trigger>
+      <DropdownMenu.Items>
+        {actions.map((action) => (
+          <DropdownMenuItem
+            key={action.key}
+            onClick={() => {
+              setMenuOpen(false);
+              action.onPress();
+            }}
+          >
+            <DropdownMenuItem.Text>
+              <Text>{action.title}</Text>
+            </DropdownMenuItem.Text>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenu.Items>
+    </DropdownMenu>
   );
 }
 

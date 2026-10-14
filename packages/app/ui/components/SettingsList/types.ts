@@ -72,8 +72,8 @@ export interface SettingsRowModel {
   expanded?: boolean;
   onPress?: () => void;
   /**
-   * Long-press actions. iOS lists them in a context menu; Android and web run
-   * the first one directly.
+   * Long-press actions. iOS lists them in a context menu and Android in a
+   * dropdown menu; web runs the first one directly.
    */
   contextActions?: SettingsContextAction[];
   toggle?: { value: boolean; onValueChange: (value: boolean) => void };
