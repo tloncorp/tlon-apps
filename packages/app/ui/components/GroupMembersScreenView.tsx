@@ -148,6 +148,7 @@ export function GroupMembersScreenView({
             {
               key: 'profile',
               title: 'View profile',
+              systemImage: 'person.crop.circle',
               onPress: () => onPressGoToProfile(contactId),
             },
           ],

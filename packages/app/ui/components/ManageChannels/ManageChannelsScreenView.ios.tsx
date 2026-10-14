@@ -153,7 +153,12 @@ export function ManageChannelsScreenView({
 
       return {
         key: navSection.sectionId,
-        title: navSection.title ?? undefined,
+        // The default bucket only needs naming beside real sections.
+        title: isDefault
+          ? groupNavSectionsWithChannels.length > 1
+            ? 'No section'
+            : undefined
+          : (navSection.title ?? undefined),
         titleMenu,
         onMove: (from, to) => moveWithin(sectionIndex, from, to),
         rows:
@@ -186,6 +191,7 @@ export function ManageChannelsScreenView({
                   {
                     key: 'settings',
                     title: 'Channel settings',
+                    systemImage: 'gearshape',
                     onPress: () => goToChannelDetails(channel.id),
                   },
                   ...(channelIndex > 0
@@ -193,6 +199,7 @@ export function ManageChannelsScreenView({
                         {
                           key: 'up',
                           title: 'Move up',
+                          systemImage: 'arrow.up',
                           onPress: () =>
                             moveWithin(
                               sectionIndex,
@@ -207,6 +214,7 @@ export function ManageChannelsScreenView({
                         {
                           key: 'down',
                           title: 'Move down',
+                          systemImage: 'arrow.down',
                           onPress: () =>
                             moveWithin(
                               sectionIndex,
@@ -222,7 +230,11 @@ export function ManageChannelsScreenView({
                     )
                     .map((target) => ({
                       key: `move-${target.sectionId}`,
-                      title: `Move to ${target.title || 'Sectionless'}`,
+                      title:
+                        target.sectionId === 'default'
+                          ? 'Move out of section'
+                          : `Move to ${target.title || 'Untitled section'}`,
+                      systemImage: 'folder',
                       onPress: () =>
                         save(
                           order.map((section) =>
@@ -272,15 +284,16 @@ export function ManageChannelsScreenView({
       rightActions={[
         {
           id: 'ManageChannelsSort',
-          text: isEditMode ? 'Done' : 'Sort',
+          // iOS calls its reorder mode Edit.
+          text: isEditMode ? 'Done' : 'Edit',
           tint: '$positiveActionText',
           onPress: () => setIsEditMode(!isEditMode),
           testID: 'ManageChannelsSort',
         },
         {
           id: 'ManageChannelsNew',
-          text: 'New',
-          tint: '$positiveActionText',
+          icon: 'Add',
+          label: 'New channel or section',
           visible: !isEditMode,
           onPress: () => state.setShowNewMenu(true),
           testID: 'ManageChannelsNew',

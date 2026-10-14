@@ -238,6 +238,7 @@ export function ChatDetailsScreenView({
                       {
                         key: 'copy',
                         title: 'Copy',
+                        systemImage: 'doc.on.doc',
                         onPress: () => onCopyText(description),
                       },
                     ],
@@ -331,6 +332,7 @@ export function ChatDetailsScreenView({
       {
         key: 'profile',
         title: 'View profile',
+        systemImage: 'person.crop.circle',
         onPress: () => onPressProfile(contactId),
       },
       ...(contactId === currentUserId
@@ -339,12 +341,14 @@ export function ChatDetailsScreenView({
             {
               key: 'message',
               title: 'Message',
+              systemImage: 'message',
               onPress: () => onMessageContact(contactId),
             },
           ]),
       {
         key: 'copy-id',
         title: 'Copy ID',
+        systemImage: 'doc.on.doc',
         onPress: () => onCopyText(contactId),
       },
     ];

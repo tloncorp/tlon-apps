@@ -60,7 +60,11 @@ function MetaEditorForm({
     !hostStatus || (hostStatus.complete && hostStatus.status === 'yes');
   // A picked image is a local file until its upload finishes.
   const iconReady = !/^(file|data)/.test(iconImage);
-  const canSave = hostReachable && iconReady;
+  const isDirty =
+    title !== initial.title ||
+    description !== initial.description ||
+    iconImage !== initial.iconImage;
+  const canSave = hostReachable && iconReady && isDirty;
 
   const handleSave = useCallback(() => {
     if (canSave) {
@@ -113,9 +117,9 @@ function MetaEditorForm({
         />
       ),
     },
+    // The placeholders say what each field is, as in Contacts.
     {
       key: 'title',
-      title: 'Name',
       rows: [
         {
           key: 'title',
@@ -133,7 +137,6 @@ function MetaEditorForm({
     },
     {
       key: 'description',
-      title: 'Description',
       footer: hostReachable
         ? undefined
         : hostStatus?.complete

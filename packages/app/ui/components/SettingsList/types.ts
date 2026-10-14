@@ -16,12 +16,13 @@ export type SettingsRowLeading =
 export type SettingsContextAction = {
   key: string;
   title: string;
+  /** The SF Symbol iOS draws beside it, as the system's own menus do. */
+  systemImage?: string;
   onPress: () => void;
 };
 
-/** A command in an iOS menu, with an optional SF Symbol beside it. */
+/** A command in an iOS menu. */
 export type SettingsMenuItem = SettingsContextAction & {
-  systemImage?: string;
   destructive?: boolean;
 };
 

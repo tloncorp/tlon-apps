@@ -61,7 +61,7 @@ export function GroupRolesScreen({ navigation, route }: Props) {
 
   return (
     <SettingsListScreenView
-      title="Group Roles"
+      title="Group roles"
       sections={sections}
       onBackPressed={handleGoBack}
       showsBackOnWideWindows

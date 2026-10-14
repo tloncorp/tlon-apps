@@ -9,7 +9,7 @@ env:
 - runFlow: subflows/create-group.yaml
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: '^Roles$'
-- assertVisible: '^Workspace Roles$'
+- assertVisible: '^Group roles$'
 - assertVisible: '^Members$'
 - tapOn: '^Admin$'
 - assertNotVisible: '^Delete role$'
@@ -17,7 +17,7 @@ env:
     id: RoleTitleInput
     text: '^Admin$'
 - tapOn: '^Back$'
-- assertVisible: '^Workspace Roles$'
+- assertVisible: '^Group roles$'
 - tapOn: '^New$'
 - assertVisible: '^Add role$'
 - tapOn:
@@ -71,7 +71,7 @@ env:
     text: ${MAESTRO_RUN_TAG + ' role'}
 - hideKeyboard
 - tapOn: '^Save$'
-- assertVisible: '^Workspace Roles$'
+- assertVisible: '^Group roles$'
 - assertVisible:
     id: ${'GroupRole-' + MAESTRO_RUN_TAG + ' role'}
 - tapOn:
@@ -89,7 +89,7 @@ env:
       INPUT_TEXT: ${MAESTRO_RUN_TAG + ' renamed role'}
 - hideKeyboard
 - tapOn: '^Save$'
-- assertVisible: '^Workspace Roles$'
+- assertVisible: '^Group roles$'
 - assertVisible:
     id: ${'GroupRole-' + MAESTRO_RUN_TAG + ' renamed role'}
 - assertNotVisible:
@@ -121,14 +121,14 @@ env:
     text: '^discarded-description$'
 - tapOn: '^Back$'
 - tapOn: '^Discard$'
-- assertVisible: '^Workspace Roles$'
+- assertVisible: '^Group roles$'
 - tapOn:
     id: ${'GroupRole-' + MAESTRO_RUN_TAG + ' renamed role'}
 - assertVisible:
     id: RoleDescriptionInput
     text: ${MAESTRO_RUN_TAG + ' role description'}
 - tapOn: '^Delete role$'
-- assertVisible: '^Workspace Roles$'
+- assertVisible: '^Group roles$'
 - assertNotVisible:
     id: ${'GroupRole-' + MAESTRO_RUN_TAG + ' renamed role'}
 - assertVisible: '^Admin$'
