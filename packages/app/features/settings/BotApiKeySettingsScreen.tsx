@@ -185,7 +185,6 @@ export function BotApiKeySettingsScreen(props: Props) {
   const sections: SettingsSectionModel[] = [
     {
       key: 'key',
-      title: 'API key',
       footer:
         errorMessage ??
         (isConfigured
