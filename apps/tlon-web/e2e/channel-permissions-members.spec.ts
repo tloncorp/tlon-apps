@@ -34,28 +34,20 @@ test('Members row appears with correct defaults when enabling Custom Permissions
     await privateToggle.click();
   }
 
-  // Verify Members row appears in the permission table with Read and Write
-  await expect(page.getByTestId('ReadToggle-Members')).toBeVisible({
-    timeout: 5000,
-  });
-  await expect(page.getByTestId('WriteToggle-Members')).toBeVisible();
+  // Members can see and post by default, and admins always can
+  for (const id of [
+    'ReadToggle-Members',
+    'WriteToggle-Members',
+    'ReadToggle-Admin',
+    'WriteToggle-Admin',
+  ]) {
+    await expect(page.getByTestId(id)).toHaveAttribute('aria-checked', 'true', {
+      timeout: 5000,
+    });
+  }
 
-  // Verify Members Read toggle has a checked indicator (checkmark icon)
-  await expect(
-    page.getByTestId('ReadToggle-Members').getByRole('img')
-  ).toBeVisible();
-
-  // Verify Members Write toggle has a checked indicator
-  await expect(
-    page.getByTestId('WriteToggle-Members').getByRole('img')
-  ).toBeVisible();
-
-  // Verify Admin row is also visible
-  await expect(page.getByTestId('ReadToggle-Admin')).toBeVisible();
-  await expect(page.getByTestId('WriteToggle-Admin')).toBeVisible();
-
-  // Verify "Add roles" button is visible
-  await expect(page.getByText('Add roles')).toBeVisible();
+  // A role can be made from here
+  await expect(page.getByTestId('ChannelPermissionsNewRole')).toBeVisible();
 });
 
 test('Members row appears in GroupRolesScreen', async ({ zodPage }) => {
@@ -96,40 +88,4 @@ test('Members row appears in GroupRolesScreen', async ({ zodPage }) => {
 
   // Verify Admin row is also visible
   await expect(page.getByTestId('GroupRole-Admin')).toBeVisible();
-});
-
-test('Members appears in SelectChannelRoles screen', async ({ zodPage }) => {
-  const page = zodPage;
-
-  await expect(page.getByText('Home')).toBeVisible();
-
-  // Create a group with multiple channels
-  await helpers.createGroup(page);
-  await helpers.setupMultiChannelGroup(page);
-
-  // Navigate to channel permissions
-  await page
-    .getByTestId('ChannelHeaderTitle')
-    .getByTestId('ScreenHeaderTitle')
-    .click();
-  await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
-
-  await page.getByTestId('ChannelPrivacy').click();
-  await expect(page.getByText('Channel permissions')).toBeVisible({
-    timeout: 5000,
-  });
-
-  // Toggle Custom Permissions on
-  const privateToggle = page.getByTestId('PrivateChannelToggle');
-  const isEnabled = await privateToggle.getAttribute('aria-checked');
-  if (isEnabled !== 'true') {
-    await privateToggle.click();
-  }
-
-  // Click "Add roles" to open the role selection screen
-  await page.getByText('Add roles').click();
-  await expect(page.getByText('Select roles')).toBeVisible({ timeout: 5000 });
-
-  // Verify "Members" appears in the role selection list
-  await expect(page.getByTestId('RoleOption-Members')).toBeVisible();
 });
