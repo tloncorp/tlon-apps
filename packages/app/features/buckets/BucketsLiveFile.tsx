@@ -56,8 +56,11 @@ function BucketsFileSelection({
 
   // Only once the manifest is known: a link opened cold reads an empty
   // Bucket before the first snapshot arrives.
-  const missing = !live.loading && live.manifestKnown && !file && !preview.item;
-  const shown = preview.item?.id === String(selectedId) ? preview.item : file;
+  const selectedPreview =
+    preview.item?.id === String(selectedId) ? preview.item : null;
+  const missing =
+    !live.loading && live.manifestKnown && !file && !selectedPreview;
+  const shown = selectedPreview ?? file;
 
   return (
     <BucketFileViewer

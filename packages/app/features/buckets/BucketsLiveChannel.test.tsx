@@ -508,7 +508,7 @@ describe('Bucket file route synchronization', () => {
       const [entryId, setEntryId] = React.useState(2);
       React.useLayoutEffect(() => {
         changeRoute = setEntryId;
-      });
+      }, []);
       return (
         <BucketsLiveFile
           entryId={entryId}
@@ -525,6 +525,7 @@ describe('Bucket file route synchronization', () => {
       mocks.viewer.mock.calls.at(-1)![0] as {
         item: { id: string; uri?: string };
         loading: boolean;
+        error?: string;
         navigation: { onSelect: (index: number) => void };
       };
     let tree!: ReturnType<typeof create>;
@@ -542,6 +543,15 @@ describe('Bucket file route synchronization', () => {
     await act(async () => changeRoute(3));
     expect(viewer().item.id).toBe('3');
     expect(viewer().loading).toBe(false);
+    expect(mocks.readGrant).toHaveBeenCalledTimes(2);
+    await act(async () => changeRoute(999));
+    expect(viewer().loading).toBe(false);
+    expect(viewer().error).toBe('This file is no longer in the Bucket');
+    expect(viewer().item.id).toBeUndefined();
+    await act(async () => changeRoute(2));
+    expect(viewer().item.id).toBe('2');
+    expect(viewer().loading).toBe(false);
+    expect(viewer().error).toBeNull();
     expect(mocks.readGrant).toHaveBeenCalledTimes(2);
     act(() => tree.unmount());
   });
