@@ -73,8 +73,8 @@ export function GroupRolesScreen({ navigation, route }: Props) {
       rightActions={[
         {
           id: 'GroupRolesNewButton',
-          text: 'New',
-          tint: '$positiveActionText',
+          icon: 'Add',
+          label: 'New role',
           onPress: () =>
             navigation.navigate('AddRole', { groupId, fromChatDetails }),
         },

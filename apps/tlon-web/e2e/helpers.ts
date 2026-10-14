@@ -690,7 +690,7 @@ export async function createRole(
   // Ensure session is stable before creating role
   await waitForSessionStability(page);
 
-  await page.getByText('New', { exact: true }).click();
+  await page.getByTestId('GroupRolesNewButton').click();
   await expect(page.getByText('Add role')).toBeVisible();
 
   await fillFormField(page, 'RoleTitleInput', title);
