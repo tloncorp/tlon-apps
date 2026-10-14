@@ -55,7 +55,7 @@
     "toolGuidance": "Use workspace files; owner-confirmed migration writes are unavailable."
   },
   "posts": {
-    "summary": "Post reactions, edits, and deletes",
+    "summary": "Post reactions, edits, deletes, and pins",
     "reference": "references/reading.md",
     "toolGuidance": "Send/reply through message; do not manage deprecated diary posts."
   },

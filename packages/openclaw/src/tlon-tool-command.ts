@@ -227,7 +227,19 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'notebook-delete',
     ]),
   ],
-  ['posts', new Set(['send', 'reply', 'react', 'unreact', 'edit', 'delete'])],
+  [
+    'posts',
+    new Set([
+      'send',
+      'reply',
+      'react',
+      'unreact',
+      'edit',
+      'delete',
+      'pin',
+      'unpin',
+    ]),
+  ],
   [
     'settings',
     new Set([
@@ -1285,6 +1297,9 @@ function summarizePostsOperation(
         hasImage: hasFlag(args, '--image'),
         hasContent: hasFlag(args, '--content'),
       });
+    case 'pin':
+    case 'unpin':
+      return build('admin', { channelKind });
     default:
       return build('write', { channelKind });
   }

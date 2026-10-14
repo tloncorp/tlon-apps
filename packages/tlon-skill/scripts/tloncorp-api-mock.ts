@@ -22,14 +22,18 @@
  * posts, invites), the notes runtimes (notesV1 et al.), and
  * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
  * enableGroup, BadResponseError), `activity-runtime.ts`
- * (getInitialActivity, getGroupAndChannelUnreads, getTextContent), and
- * `group-sections-runtime.ts` (poke).
+ * (getInitialActivity, getGroupAndChannelUnreads, getTextContent),
+ * `group-sections-runtime.ts` (poke), and `posts-runtime.ts` (editPost,
+ * getPostWithReplies, deleteReply, setOrder, toPostContent).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 // The real broker client, by subpath, which the root mock below does not
 // intercept. It has no dependencies but fetch, so tests keep exercising the
 // real request and error mapping against a stubbed fetch.
 import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
+// The real content projection, by subpath: the posts runtime's read-back
+// comparison must be tested against what the api actually produces.
+import { toPostContent as realToPostContent } from '@tloncorp/api/client/postsApi';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -107,6 +111,22 @@ export const mockedGetChannelPosts = {
     older: null,
     totalPosts: 0,
   }),
+};
+
+export const mockedGetPostWithReplies = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedEditPost = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedDeleteReply = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedSetOrder = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
 export const mockedScry = {
@@ -224,6 +244,13 @@ mock.module('@tloncorp/api', () => ({
   sendReply: async () => undefined,
   batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
   getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
+  // posts-runtime.ts value imports
+  editPost: (...args: unknown[]) => mockedEditPost.impl(...args),
+  getPostWithReplies: (...args: unknown[]) =>
+    mockedGetPostWithReplies.impl(...args),
+  deleteReply: (...args: unknown[]) => mockedDeleteReply.impl(...args),
+  setOrder: (...args: unknown[]) => mockedSetOrder.impl(...args),
+  toPostContent: realToPostContent,
   toUrbitStory: (content: unknown) => content ?? [],
   updateChannel: async () => undefined,
   // notes runtime value imports

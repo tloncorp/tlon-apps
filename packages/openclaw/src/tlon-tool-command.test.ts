@@ -865,7 +865,16 @@ const documentedActionOperations = {
     'migrate-apply',
     'notebook-delete',
   ],
-  posts: ['send', 'reply', 'react', 'unreact', 'edit', 'delete'],
+  posts: [
+    'send',
+    'reply',
+    'react',
+    'unreact',
+    'edit',
+    'delete',
+    'pin',
+    'unpin',
+  ],
   settings: [
     'get',
     'set',
@@ -1184,6 +1193,24 @@ describe('tlon tool telemetry summarizer', () => {
     });
 
     expect(JSON.stringify(summary)).not.toContain('Project Notes');
+  });
+
+  it('classifies post pins as channel admin operations', () => {
+    for (const operation of ['pin', 'unpin']) {
+      const summary = summarizeTlonCommand(
+        `posts ${operation} chat/~zod/quiet-launch 170.141`
+      );
+
+      expect(summary).toMatchObject({
+        summaryKey: `posts.${operation}`,
+        operation,
+        intent: 'admin',
+        channelKind: 'chat',
+        isKnownSubcommand: true,
+      });
+      expect(JSON.stringify(summary)).not.toContain('quiet-launch');
+      expect(JSON.stringify(summary)).not.toContain('170.141');
+    }
   });
 
   it('classifies section commands as group admin operations', () => {

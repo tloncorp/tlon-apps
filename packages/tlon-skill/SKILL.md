@@ -29,7 +29,7 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 
 | Task | Reference |
 | --- | --- |
-| Read activity, search history, manage reactions or existing posts | [Reading](references/reading.md) |
+| Read activity, search history, manage reactions, pins, or existing posts | [Reading](references/reading.md) |
 | Workspaces (groups), membership, permissions, channels, channel sections, public exposure | [Groups and channels](references/groups-channels.md) |
 | Find notebooks and create/edit Markdown notes | [Notes](references/notes.md) |
 | Shared group files and folders | [Buckets](references/buckets.md) |

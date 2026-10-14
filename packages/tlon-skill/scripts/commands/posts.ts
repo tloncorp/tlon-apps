@@ -7,9 +7,11 @@ import {
 import {
   DIARY_REMOVED,
   NOTES_CHANNEL_CONTENT_UNSUPPORTED,
+  canonicalizeNest,
   formatPostId,
   isDiaryNest,
   isNotesNest,
+  parseNest,
 } from '../cli-utils';
 import { imageFlagIndex, validatedImageFlag } from '../image-attach';
 import { type Story, type StoryVerse, markdownToStory } from '../markdown';
@@ -32,8 +34,10 @@ Commands:
   reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship] [--blob <json>] [--bot]
   react <channel> <post-id> <emoji>     React to a post with an emoji [--parent <post-id>]
   unreact <channel> <post-id>           Remove your reaction from a post [--parent <post-id>]
-  edit <channel> <post-id> <message>    Edit a post's message text
-  delete <channel> <post-id>            Delete a post
+  edit <channel> <post-id> <message>    Edit a post's message text [--parent <post-id>]
+  delete <channel> <post-id>            Delete a post [--parent <post-id>]
+  pin <channel> <post-id>               Pin a post to the top of a channel (admin)
+  unpin <channel> <post-id>             Unpin the channel's pinned post (admin)
 
 Send options:
   --blob <json>        Attach a post-blob JSON array (e.g. an a2ui entry)
@@ -45,12 +49,26 @@ Send options:
   --bot                Author the message as a bot (renders the "Bot" tag).
                        Applies to send and reply.
 
+Pins and thread replies:
+  pin and unpin need group admin and work in group chat/ and heap/ channels.
+  Pinning keeps the previous pin queued behind the new one, so unpinning the
+  current pin can bring that earlier pin back; the output names it.
+  With --parent, edit and delete act on a thread reply: <post-id> is the reply
+  id and --parent is the thread's top-level post. Find reply ids with
+  'tlon messages post <channel> <post-id>'. Only a reply's author can edit
+  it; deleting another member's reply needs group admin. A separately
+  supplied --parent token selects the reply path, so quote a message that
+  contains those words as one argument. A reply edit that leaves the
+  content unchanged is reported as confirmed without proving anything changed.
+
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
   tlon posts send chat/~host/channel "Look at this" --image https://storage.../tree.png
   tlon posts send heap/~host/gallery "A link or caption" --title "Gallery item"
   tlon posts reply chat/~host/channel 170.141... "Thread reply"
   tlon posts edit chat/~host/channel 170.141... "Updated message"
+  tlon posts pin chat/~host/channel 170.141...
+  tlon posts delete chat/~host/channel 170.142... --parent 170.141...
 
 Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
@@ -62,8 +80,10 @@ export const POSTS_COMMAND_HELP: Record<string, string> = {
   react:
     'Usage: tlon posts react <channel> <post-id> <emoji> [--parent <post-id>]',
   unreact: 'Usage: tlon posts unreact <channel> <post-id> [--parent <post-id>]',
-  edit: 'Usage: tlon posts edit <channel> <post-id> <message>',
-  delete: 'Usage: tlon posts delete <channel> <post-id>',
+  edit: 'Usage: tlon posts edit <channel> <post-id> <message> [--parent <post-id>]',
+  delete: 'Usage: tlon posts delete <channel> <post-id> [--parent <post-id>]',
+  pin: 'Usage: tlon posts pin <channel> <post-id>',
+  unpin: 'Usage: tlon posts unpin <channel> <post-id>',
 };
 
 // Retained for back-compat with existing imports; the canonical source is the
@@ -125,10 +145,14 @@ export interface PostEditMetadata {
 export interface PostEditInput {
   channelId: string;
   postId: string;
+  // Set for a thread reply: the top-level post the reply belongs to.
+  parentId?: string;
   authorId: string;
   sentAt: number;
   content: Story;
-  metadata: PostEditMetadata;
+  // Replies carry no metadata.
+  metadata?: PostEditMetadata;
+  blob?: string;
   botProfile?: BotAuthorProfile;
 }
 
@@ -163,16 +187,55 @@ export interface PostLookupQuery {
 
 export interface ExistingPost {
   id: string;
+  sentAt: number;
   title?: string | null;
   image?: string | null;
   description?: string | null;
   cover?: string | null;
   isBot?: boolean | null;
+  blob?: string | null;
 }
 
 export interface PostLookupResult {
   posts: ExistingPost[];
 }
+
+export interface PostThreadQuery {
+  channelId: string;
+  postId: string;
+}
+
+export interface ExistingReply {
+  id: string;
+  authorId: string;
+  sentAt: number;
+  // Order-insensitive projection of the reply's content, comparable with
+  // `PostsDeps.contentKeyOf` of the story that was sent.
+  contentKey: string;
+  isBot?: boolean | null;
+  isDeleted?: boolean | null;
+  blob?: string | null;
+}
+
+export interface ExistingThread {
+  id: string;
+  authorId: string;
+  isDeleted?: boolean | null;
+  replies: ExistingReply[];
+}
+
+export interface ReplyDeleteInput {
+  channelId: string;
+  parentId: string;
+  parentAuthorId: string;
+  postId: string;
+  authorId: string;
+}
+
+// Discriminated so a joined channel always carries its group.
+export type ChannelState =
+  | { joined: false }
+  | { joined: true; groupId: string; order: string[] };
 
 export interface PostsApi {
   addReaction: (input: PostReactionInput) => Promise<void>;
@@ -182,6 +245,11 @@ export interface PostsApi {
   sendPost: (input: PostSendInput) => Promise<void>;
   sendReply: (input: PostReplyInput) => Promise<void>;
   getChannelPosts: (query: PostLookupQuery) => Promise<PostLookupResult>;
+  // A top-level post with all its replies, tombstones included.
+  getPostWithReplies: (query: PostThreadQuery) => Promise<ExistingThread>;
+  deleteReply: (input: ReplyDeleteInput) => Promise<void>;
+  // Replaces the channel's whole arranged-post order; order[0] is the pin.
+  setOrder: (channelId: string, order: string[]) => Promise<void>;
 }
 
 // Subset of the api-client's subscription apps that posts targets can need.
@@ -196,6 +264,12 @@ export interface PostsDeps extends CommandDeps {
   // Fetch an image URL and build its story image verse (network IO).
   buildImageVerse: (url: string) => Promise<StoryVerse>;
   postsApi: PostsApi;
+  // The acting ship's local view of a channel: its group and arranged order.
+  getChannelState: (nest: string) => Promise<ChannelState>;
+  // Throws when the acting ship is neither the group's host nor an admin.
+  assertCanAdminister: (groupId: string, action: string) => Promise<void>;
+  // The projection the runtime applies to a read-back reply's content.
+  contentKeyOf: (story: Story) => string;
 }
 
 type ParsedPostsArgs =
@@ -228,8 +302,15 @@ type ParsedPostsArgs =
       parentId?: string;
     }
   | { kind: 'unreact'; channelId: string; postId: string; parentId?: string }
-  | { kind: 'delete'; channelId: string; postId: string }
-  | { kind: 'edit'; channelId: string; postId: string; message: string };
+  | { kind: 'delete'; channelId: string; postId: string; parentId?: string }
+  | {
+      kind: 'edit';
+      channelId: string;
+      postId: string;
+      message: string;
+      parentId?: string;
+    }
+  | { kind: 'pin' | 'unpin'; channelId: string; postId: string };
 
 function optionalReactionParent(
   args: string[],
@@ -347,10 +428,18 @@ function firstPostReplyFlagIndex(args: string[]): number {
   );
 }
 
-// Edit has no option flags any more (the notebook-only ones are removed), so the
-// message is everything after the post id.
+// Edit's only option is `--parent <post-id>` (the notebook-only flags are
+// removed), so the message is everything after the post id except that pair,
+// which may come before or after the text.
 function getPostEditMessage(args: string[]): string {
-  return args.slice(3).join(' ');
+  const parentIdx = args.indexOf('--parent');
+  return args
+    .slice(3)
+    .filter(
+      (_, i) =>
+        parentIdx === -1 || (i + 3 !== parentIdx && i + 3 !== parentIdx + 1)
+    )
+    .join(' ');
 }
 
 // True when `posts edit` carries a removed notebook-only flag. Detected as a
@@ -410,6 +499,49 @@ function postTargetApps(
       : ['channels'];
   }
   return ['channels'];
+}
+
+function isDmTarget(target: string): boolean {
+  return target.startsWith('~') || target.startsWith('0v');
+}
+
+function isGroupChannelNest(target: string): boolean {
+  try {
+    return ['chat', 'heap'].includes(parseNest(target).kind);
+  } catch {
+    return false;
+  }
+}
+
+// Pins and thread-reply edits/deletes only exist in group chat/heap channels.
+// Refused locally, before auth, and the nest is canonicalized (`chat/host/x`
+// and `chat/~host/x` must hit the same scry key).
+function pinTarget(target: string): string {
+  if (isDmTarget(target)) {
+    throw commandError(
+      `Pins are for group channels (chat/ or heap/); ${target} is a DM.`
+    );
+  }
+  if (!isGroupChannelNest(target)) {
+    throw commandError(
+      `Pins are for group chat/ and heap/ channels; ${target} is not one.`
+    );
+  }
+  return canonicalizeNest(target);
+}
+
+function threadReplyTarget(target: string): string {
+  if (isDmTarget(target)) {
+    throw commandError(
+      `Editing or deleting a thread reply is supported in group channels only; ${target} is a DM.`
+    );
+  }
+  if (!isGroupChannelNest(target)) {
+    throw commandError(
+      `Thread replies can be edited or deleted only in group chat/ and heap/ channels; ${target} is not one.`
+    );
+  }
+  return canonicalizeNest(target);
 }
 
 function parseArgs(args: string[]): ParsedPostsArgs {
@@ -543,7 +675,19 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (!channelId || !postId) {
         throw usageError(POSTS_COMMAND_HELP.delete);
       }
-      return { kind: 'delete', channelId, postId };
+      if (channelId.startsWith('--') || postId.startsWith('--')) {
+        throw usageError(POSTS_COMMAND_HELP.delete);
+      }
+      const parentId = optionalReactionParent(args, POSTS_COMMAND_HELP.delete);
+      if (parentId === undefined) {
+        return { kind: 'delete', channelId, postId };
+      }
+      return {
+        kind: 'delete',
+        channelId: threadReplyTarget(channelId),
+        postId,
+        parentId,
+      };
     }
     case 'edit': {
       const channelId = args[1];
@@ -554,11 +698,42 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (editHasRemovedFlag(args)) {
         throw commandError(POSTS_EDIT_REMOVED_FLAGS_MESSAGE);
       }
+      if (channelId.startsWith('--') || postId.startsWith('--')) {
+        throw usageError(POSTS_COMMAND_HELP.edit);
+      }
+      const parentId = optionalReactionParent(args, POSTS_COMMAND_HELP.edit);
       const message = getPostEditMessage(args);
       if (!message) {
         throw usageError(POSTS_COMMAND_HELP.edit);
       }
-      return { kind: 'edit', channelId, postId, message };
+      if (parentId === undefined) {
+        return { kind: 'edit', channelId, postId, message };
+      }
+      return {
+        kind: 'edit',
+        channelId: threadReplyTarget(channelId),
+        postId,
+        message,
+        parentId,
+      };
+    }
+    case 'pin':
+    case 'unpin': {
+      const help = POSTS_COMMAND_HELP[command];
+      const [, channelId, postId, extra] = args;
+      if (
+        !channelId ||
+        !postId ||
+        channelId.startsWith('--') ||
+        postId.startsWith('--')
+      ) {
+        throw usageError(help);
+      }
+      // Replies cannot be pinned, so `--parent` is as unexpected as any token.
+      if (extra !== undefined) {
+        throw usageError(`Unexpected argument: ${extra}`, help);
+      }
+      return { kind: command, channelId: pinTarget(channelId), postId };
     }
   }
 
@@ -688,8 +863,49 @@ async function sendReply(
 // records the add in `pending.channel` and proxies it to the host, while this
 // scry reads `posts.channel`, which is only populated once the host update
 // returns. One delayed retry covers that window; a remotely hosted channel
-// needs at least a host round trip.
+// needs at least a host round trip. Replies have the same window
+// (`pending.replies`).
 export const EDIT_LOOKUP_RETRY_DELAY_MS = 1_500;
+
+// Read-back budgets for pin/unpin and reply edit/delete. They mirror the
+// group-admin verification (5 reads, 500 ms apart).
+export const PIN_CONFIRM_ATTEMPTS = 5;
+export const PIN_CONFIRM_DELAY_MS = 500;
+export const REPLY_CONFIRM_ATTEMPTS = 5;
+export const REPLY_CONFIRM_DELAY_MS = 500;
+
+function sleepFor(deps: PostsDeps): (ms: number) => Promise<void> {
+  return (
+    deps.sleep ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
+  );
+}
+
+function normalizeShip(ship: string): string {
+  const normalized = ship.trim().toLowerCase();
+  return normalized.startsWith('~') ? normalized : `~${normalized}`;
+}
+
+// One look, then one delayed retry. A thrown lookup counts as a miss: both mean
+// the state to preserve or act on is unknown.
+async function lookWithRetry<T>(
+  lookOnce: () => Promise<T | null>,
+  deps: PostsDeps
+): Promise<T | null> {
+  const look = async (): Promise<T | null> => {
+    try {
+      return await lookOnce();
+    } catch {
+      return null;
+    }
+  };
+  const first = await look();
+  if (first !== null) {
+    return first;
+  }
+  await sleepFor(deps)(EDIT_LOOKUP_RETRY_DELAY_MS);
+  return look();
+}
 
 // Fetch the existing post so an edit can preserve what it must not re-derive.
 // Returns null when the post is genuinely unreadable — the caller refuses to
@@ -701,34 +917,40 @@ async function fetchExistingPost(
   deps: PostsDeps
 ): Promise<ExistingPost | null> {
   const formattedId = formatPostId(postId);
-  const lookOnce = async (): Promise<ExistingPost | null> => {
-    try {
-      const data = await deps.postsApi.getChannelPosts({
-        channelId,
-        cursor: formattedId,
-        mode: 'around',
-        count: 1,
-        includeReplies: false,
-      });
-      return (
-        data.posts.find(
-          (candidate) => formatPostId(candidate.id) === formattedId
-        ) ?? null
-      );
-    } catch {
-      return null;
-    }
-  };
+  return lookWithRetry(async () => {
+    const data = await deps.postsApi.getChannelPosts({
+      channelId,
+      cursor: formattedId,
+      mode: 'around',
+      count: 1,
+      includeReplies: false,
+    });
+    return (
+      data.posts.find(
+        (candidate) => formatPostId(candidate.id) === formattedId
+      ) ?? null
+    );
+  }, deps);
+}
 
-  const first = await lookOnce();
-  if (first) {
-    return first;
-  }
-  const sleep =
-    deps.sleep ??
-    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-  await sleep(EDIT_LOOKUP_RETRY_DELAY_MS);
-  return lookOnce();
+// The reply lookup is a scry of the acting ship's local %channels: the parent
+// with all its replies, tombstones included. A missing reply is a miss.
+async function fetchExistingReply(
+  channelId: string,
+  parentId: string,
+  replyId: string,
+  deps: PostsDeps
+): Promise<{ thread: ExistingThread; reply: ExistingReply } | null> {
+  return lookWithRetry(async () => {
+    const thread = await deps.postsApi.getPostWithReplies({
+      channelId,
+      postId: parentId,
+    });
+    const reply = thread.replies.find(
+      (candidate) => formatPostId(candidate.id) === replyId
+    );
+    return reply ? { thread, reply } : null;
+  }, deps);
 }
 
 async function editPost(
@@ -766,13 +988,353 @@ async function editPost(
     channelId: parsed.channelId,
     postId: formatPostId(parsed.postId),
     authorId: deps.getCurrentUserId(),
-    sentAt: deps.now(),
+    // %edit stores the essay wholesale, so the sent time and blob are handed
+    // back as they are (as the app does); blob edits are unsupported.
+    sentAt: existing.sentAt,
     content: markdownToStory(parsed.message),
     metadata,
+    ...(existing.blob ? { blob: existing.blob } : {}),
     // Authorship shape comes from the existing post rather than being
     // re-derived: a bot post stays bot-authored, a human post stays bare.
     ...(existing.isBot ? { botProfile: { nickname: null, avatar: null } } : {}),
   });
+}
+
+type ReplyCheck = (observed: ExistingReply | undefined) => string | null;
+
+// Poll the parent's replies until `check` passes (returns null). One raw read
+// per attempt; a thrown read is "not yet" and its message is kept, so a read
+// error can never be mistaken for the requested state.
+async function confirmReply(
+  channelId: string,
+  parentId: string,
+  replyId: string,
+  check: ReplyCheck,
+  deps: PostsDeps
+): Promise<{ confirmed: true } | { confirmed: false; reason: string }> {
+  let reason = 'the reply could not be read back';
+  for (let attempt = 1; attempt <= REPLY_CONFIRM_ATTEMPTS; attempt += 1) {
+    try {
+      const thread = await deps.postsApi.getPostWithReplies({
+        channelId,
+        postId: parentId,
+      });
+      const observed = thread.replies.find(
+        (candidate) => formatPostId(candidate.id) === replyId
+      );
+      const failure = check(observed);
+      if (failure === null) {
+        return { confirmed: true };
+      }
+      reason = failure;
+    } catch (error) {
+      reason = `the thread could not be read back (${errorMessage(error)})`;
+    }
+    if (attempt < REPLY_CONFIRM_ATTEMPTS) {
+      await sleepFor(deps)(REPLY_CONFIRM_DELAY_MS);
+    }
+  }
+  return { confirmed: false, reason };
+}
+
+async function editReply(
+  parsed: {
+    channelId: string;
+    postId: string;
+    parentId: string;
+    message: string;
+  },
+  deps: PostsDeps
+): Promise<void> {
+  const nest = parsed.channelId;
+  const pid = formatPostId(parsed.parentId);
+  const rid = formatPostId(parsed.postId);
+
+  const found = await fetchExistingReply(nest, pid, rid, deps);
+  if (!found) {
+    throw commandError(
+      `Could not read reply ${rid} under ${pid} in ${nest} to preserve its authorship; it may not be readable yet. Retry the edit.`
+    );
+  }
+  const original = found.reply;
+  if (original.isDeleted) {
+    throw commandError(`Reply ${rid} in ${nest} is deleted; nothing to edit.`);
+  }
+
+  // The host accepts a reply %edit only from its author.
+  const our = normalizeShip(deps.getCurrentUserId());
+  const author = normalizeShip(original.authorId);
+  if (author !== our) {
+    throw commandError(
+      `Can't edit reply ${rid} in ${nest}: it was written by ${author}, not this ship (${our}). Only a reply's author can edit it.`
+    );
+  }
+
+  const content = markdownToStory(parsed.message);
+  await deps.postsApi.editPost({
+    channelId: nest,
+    postId: rid,
+    parentId: pid,
+    authorId: our,
+    sentAt: original.sentAt,
+    content,
+    ...(original.blob ? { blob: original.blob } : {}),
+    ...(original.isBot ? { botProfile: { nickname: null, avatar: null } } : {}),
+  });
+
+  const expectedContentKey = deps.contentKeyOf(content);
+  const result = await confirmReply(
+    nest,
+    pid,
+    rid,
+    (observed) => {
+      if (!observed) return 'the reply is no longer in the thread';
+      if (observed.isDeleted) return 'the reply is now deleted';
+      if (observed.contentKey !== expectedContentKey) {
+        return 'the reply does not show the new content';
+      }
+      if (observed.sentAt !== original.sentAt) {
+        return "the reply's sent time changed";
+      }
+      if ((observed.blob ?? null) !== (original.blob ?? null)) {
+        return "the reply's attachment data changed";
+      }
+      if (!!observed.isBot !== !!original.isBot) {
+        return "the reply's Bot authorship changed";
+      }
+      return null;
+    },
+    deps
+  );
+  if (!result.confirmed) {
+    throw commandError(
+      `Edit of reply ${rid} in ${nest} was sent but is not confirmed: ${result.reason}. The channel host may have refused it (for example, this ship may no longer be allowed to write in the channel), or a channel hook may have accepted it but transformed the content.`
+    );
+  }
+}
+
+async function deleteReply(
+  parsed: { channelId: string; postId: string; parentId: string },
+  deps: PostsDeps
+): Promise<'deleted' | 'already-deleted'> {
+  const nest = parsed.channelId;
+  const pid = formatPostId(parsed.parentId);
+  const rid = formatPostId(parsed.postId);
+
+  const found = await fetchExistingReply(nest, pid, rid, deps);
+  if (!found) {
+    throw commandError(
+      `Could not read reply ${rid} under ${pid} in ${nest}; nothing was deleted.`
+    );
+  }
+  const { thread, reply } = found;
+  if (reply.isDeleted) {
+    return 'already-deleted';
+  }
+
+  // The host accepts a reply %del from its author or a group admin.
+  if (
+    normalizeShip(reply.authorId) !== normalizeShip(deps.getCurrentUserId())
+  ) {
+    const state = await readChannelState(nest, deps);
+    if (!state.joined) {
+      throw commandError(notJoinedMessage(nest));
+    }
+    await deps.assertCanAdminister(
+      state.groupId,
+      "delete other members' replies"
+    );
+  }
+
+  await deps.postsApi.deleteReply({
+    channelId: nest,
+    parentId: pid,
+    parentAuthorId: thread.authorId,
+    postId: rid,
+    authorId: reply.authorId,
+  });
+
+  // Deletion leaves a tombstone. Absence or a read error proves nothing.
+  const result = await confirmReply(
+    nest,
+    pid,
+    rid,
+    (observed) => {
+      if (!observed) return 'the reply is no longer listed in the thread';
+      if (!observed.isDeleted) return 'the reply is still live';
+      return null;
+    },
+    deps
+  );
+  if (!result.confirmed) {
+    throw commandError(
+      `Delete of reply ${rid} in ${nest} was sent but is not confirmed: ${result.reason}. The channel host may have refused it.`
+    );
+  }
+  return 'deleted';
+}
+
+function notJoinedMessage(nest: string): string {
+  return `${nest} is not a channel this ship has joined; join it first.`;
+}
+
+async function readChannelState(
+  nest: string,
+  deps: PostsDeps
+): Promise<ChannelState> {
+  try {
+    return await deps.getChannelState(nest);
+  } catch (error) {
+    throw commandError(
+      `Could not read channel state for ${nest}: ${errorMessage(error)}`
+    );
+  }
+}
+
+// The admin check and target read can take seconds; the order is re-read right
+// before deciding so the write composes on current state. The group must not
+// have changed in between.
+async function freshChannelState(
+  nest: string,
+  checkedGroupId: string,
+  deps: PostsDeps
+): Promise<{ groupId: string; order: string[] }> {
+  const fresh = await readChannelState(nest, deps);
+  if (!fresh.joined || fresh.groupId !== checkedGroupId) {
+    throw commandError(
+      `Channel state for ${nest} changed while checking; nothing changed. Retry.`
+    );
+  }
+  return fresh;
+}
+
+function formatOrder(order: string[]): string {
+  return `[${order.join(', ')}]`;
+}
+
+// The local order changes only when the host's update arrives, so an exact
+// match in the expected group is host confirmation. Anything else — a read
+// error, an unjoined channel, another group, any other order — is not.
+async function confirmOrder(
+  verb: 'Pin' | 'Unpin',
+  nest: string,
+  postId: string,
+  expectedGroupId: string,
+  expectedOrder: string[],
+  deps: PostsDeps
+): Promise<void> {
+  let observedDescription = 'unreadable';
+  let lastReadError: string | null = null;
+  for (let attempt = 1; attempt <= PIN_CONFIRM_ATTEMPTS; attempt += 1) {
+    try {
+      const observed = await deps.getChannelState(nest);
+      lastReadError = null;
+      if (observed.joined) {
+        const observedOrder = observed.order.map(formatPostId);
+        if (
+          observed.groupId === expectedGroupId &&
+          observedOrder.length === expectedOrder.length &&
+          observedOrder.every((id, i) => id === expectedOrder[i])
+        ) {
+          return;
+        }
+        observedDescription =
+          observed.groupId === expectedGroupId
+            ? formatOrder(observedOrder)
+            : `${formatOrder(observedOrder)} under group ${observed.groupId}`;
+      } else {
+        observedDescription = 'unreadable (the channel is not joined)';
+      }
+    } catch (error) {
+      observedDescription = 'unreadable';
+      lastReadError = errorMessage(error);
+    }
+    if (attempt < PIN_CONFIRM_ATTEMPTS) {
+      await sleepFor(deps)(PIN_CONFIRM_DELAY_MS);
+    }
+  }
+  const errorSuffix = lastReadError
+    ? ` (last read error: ${lastReadError})`
+    : '';
+  throw commandError(
+    `${verb} of ${postId} in ${nest} was sent but is not confirmed: the channel order is now ${observedDescription}, expected ${formatOrder(expectedOrder)}. The channel host may have refused it, or another change landed at the same time.${errorSuffix}`
+  );
+}
+
+async function pinPost(
+  parsed: { channelId: string; postId: string },
+  deps: PostsDeps
+): Promise<'pinned' | 'already-pinned'> {
+  const nest = parsed.channelId;
+  const id = formatPostId(parsed.postId);
+
+  const checked = await readChannelState(nest, deps);
+  if (!checked.joined) {
+    throw commandError(notJoinedMessage(nest));
+  }
+  await deps.assertCanAdminister(checked.groupId, 'pin posts');
+
+  // The host stores any id it is given, so this read is what keeps a reply,
+  // deleted or mistyped id from becoming a phantom pin.
+  const target = await lookWithRetry(
+    () => deps.postsApi.getPostWithReplies({ channelId: nest, postId: id }),
+    deps
+  );
+  if (!target || target.isDeleted) {
+    throw commandError(
+      `Could not read post ${id} in ${nest}; only an existing top-level post can be pinned.`
+    );
+  }
+
+  const current = await freshChannelState(nest, checked.groupId, deps);
+  const pinned = current.order[0];
+  if (pinned !== undefined && formatPostId(pinned) === id) {
+    return 'already-pinned';
+  }
+
+  // As the app does: the new pin first, the rest (old pin included) after it.
+  // Scry ids are undotted; %order parses dotted @ud.
+  const next = [
+    id,
+    ...current.order.map(formatPostId).filter((other) => other !== id),
+  ];
+  await deps.postsApi.setOrder(nest, next);
+  await confirmOrder('Pin', nest, id, current.groupId, next, deps);
+  return 'pinned';
+}
+
+async function unpinPost(
+  parsed: { channelId: string; postId: string },
+  deps: PostsDeps
+): Promise<{ nowPinned: string | null }> {
+  const nest = parsed.channelId;
+  const id = formatPostId(parsed.postId);
+
+  const checked = await readChannelState(nest, deps);
+  if (!checked.joined) {
+    throw commandError(notJoinedMessage(nest));
+  }
+  await deps.assertCanAdminister(checked.groupId, 'unpin posts');
+
+  const current = await freshChannelState(nest, checked.groupId, deps);
+  const pinned = current.order[0];
+  if (pinned === undefined) {
+    throw commandError(
+      `Post ${id} is not pinned in ${nest}: nothing is pinned. Nothing changed.`
+    );
+  }
+  if (formatPostId(pinned) !== id) {
+    throw commandError(
+      `Post ${id} is not pinned in ${nest}: ${formatPostId(pinned)} is. Nothing changed.`
+    );
+  }
+
+  // As the app does: drop the pin from the order, so an earlier pin queued
+  // behind it becomes order[0] again.
+  const next = current.order.map(formatPostId).filter((other) => other !== id);
+  await deps.postsApi.setOrder(nest, next);
+  await confirmOrder('Unpin', nest, id, current.groupId, next, deps);
+  return { nowPinned: next[0] ?? null };
 }
 
 export async function run(args: string[], deps: PostsDeps): Promise<number> {
@@ -803,13 +1365,49 @@ export async function run(args: string[], deps: PostsDeps): Promise<number> {
         writeLine(deps.stdout, '✓ Reaction removed');
         return 0;
       case 'delete':
+        if (parsed.parentId !== undefined) {
+          const outcome = await deleteReply(
+            { ...parsed, parentId: parsed.parentId },
+            deps
+          );
+          writeLine(
+            deps.stdout,
+            outcome === 'already-deleted'
+              ? '✓ Reply already deleted'
+              : '✓ Reply deleted'
+          );
+          return 0;
+        }
         await deletePost(parsed, deps);
         writeLine(deps.stdout, '✓ Post deleted');
         return 0;
       case 'edit':
+        if (parsed.parentId !== undefined) {
+          await editReply({ ...parsed, parentId: parsed.parentId }, deps);
+          writeLine(deps.stdout, '✓ Reply edited');
+          return 0;
+        }
         await editPost(parsed, deps);
         writeLine(deps.stdout, '✓ Post edited');
         return 0;
+      case 'pin': {
+        const outcome = await pinPost(parsed, deps);
+        writeLine(
+          deps.stdout,
+          outcome === 'already-pinned'
+            ? '✓ Post already pinned'
+            : '✓ Post pinned'
+        );
+        return 0;
+      }
+      case 'unpin': {
+        const { nowPinned } = await unpinPost(parsed, deps);
+        writeLine(deps.stdout, '✓ Post unpinned');
+        if (nowPinned) {
+          writeLine(deps.stdout, `  Now pinned: ${nowPinned}`);
+        }
+        return 0;
+      }
     }
   } catch (error) {
     const handled = handleExpectedCommandError(error, deps);
