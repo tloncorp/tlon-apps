@@ -87,18 +87,18 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
     [groupRoles]
   );
 
-  const toggleMember = useCallback((contactId: string) => {
-    setSelectedMembers((selected) =>
-      selected.includes(contactId)
-        ? selected.filter((id) => id !== contactId)
-        : [...selected, contactId]
-    );
-  }, []);
-
-  const handleSave = useCallback(() => {
-    onSave(selectedMembers);
-    navigation.goBack();
-  }, [selectedMembers, onSave, navigation]);
+  // Picks go straight back to the role form, which saves them with the rest
+  // of the role, so there's nothing to confirm here.
+  const toggleMember = useCallback(
+    (contactId: string) => {
+      const next = selectedMembers.includes(contactId)
+        ? selectedMembers.filter((id) => id !== contactId)
+        : [...selectedMembers, contactId];
+      setSelectedMembers(next);
+      onSave(next);
+    },
+    [selectedMembers, onSave]
+  );
 
   const sections = useMemo((): SettingsSectionModel[] => {
     if (filteredMembers.length === 0) {
@@ -169,15 +169,6 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
         onChangeText: setSearchQuery,
         placeholder: 'Search by name or ID',
       }}
-      rightActions={[
-        {
-          id: 'RoleMembersSaveButton',
-          text: 'Done',
-          tint: '$positiveActionText',
-          onPress: handleSave,
-          testID: 'RoleMembersSaveButton',
-        },
-      ]}
     />
   );
 }

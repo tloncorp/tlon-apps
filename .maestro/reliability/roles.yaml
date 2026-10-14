@@ -18,7 +18,8 @@ env:
     text: '^Admin$'
 - tapOn: '^Back$'
 - assertVisible: '^Group roles$'
-- tapOn: '^New$'
+- tapOn:
+    id: GroupRolesNewButton
 - assertVisible: '^Add role$'
 - tapOn:
     id: RoleTitleInput
