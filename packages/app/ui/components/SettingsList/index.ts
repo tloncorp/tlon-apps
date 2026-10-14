@@ -11,6 +11,7 @@ export {
 export { useSettingsListColors } from './useSettingsListColors';
 export type {
   SettingsContextAction,
+  SettingsMenuItem,
   SettingsListProps,
   SettingsListSearch,
   SettingsRowLeading,

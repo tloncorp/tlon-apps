@@ -40,6 +40,7 @@ export function SettingsListScreenView({
   search,
   bottomBar,
   maxWidth,
+  editing,
   children,
 }: {
   title: string;
@@ -67,6 +68,8 @@ export function SettingsListScreenView({
   bottomBar?: ReactNode;
   /** Web only: a centered column for the rows, at most this wide. */
   maxWidth?: number;
+  /** iOS only: shows the drag handles of sections that can be reordered. */
+  editing?: boolean;
   /** Anything else the screen mounts, such as its dialogs. */
   children?: ReactNode;
 }) {
@@ -129,6 +132,7 @@ export function SettingsListScreenView({
             sections={sections}
             maxWidth={maxWidth}
             scrollMark={scrollMark}
+            editing={editing}
           />
         )}
       </View>

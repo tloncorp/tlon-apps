@@ -5,6 +5,8 @@ import {
   HStack,
   Host,
   Image,
+  List,
+  Menu,
   RNHostView,
   SecureField,
   Section,
@@ -23,7 +25,9 @@ import {
   accessibilityValue,
   autocorrectionDisabled,
   background,
+  deleteDisabled,
   disabled,
+  environment,
   font,
   foregroundStyle,
   frame,
@@ -42,7 +46,13 @@ import {
   useScrollGeometryChange,
 } from '@expo/ui/swift-ui/modifiers';
 
-import { type ReactElement, useCallback, useEffect, useRef } from 'react';
+import {
+  type ComponentProps,
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react';
 import { View, useWindowDimensions } from 'react-native';
 
 import { useFloatingHeaderHeight } from '../../../navigation/useFloatingHeaderHeight';
@@ -54,6 +64,7 @@ import {
 import type {
   SettingsListProps,
   SettingsListScrollMark,
+  SettingsMenuItem,
   SettingsRowModel,
 } from './types';
 import { useSyncedFieldText } from './useSyncedFieldText';
@@ -74,7 +85,11 @@ const flushFirstSectionModifiers = [
 ];
 
 /** Settings drawn as a SwiftUI inset-grouped form, in Tlon's theme colors. */
-export function SettingsList({ sections, scrollMark }: SettingsListProps) {
+export function SettingsList({
+  sections,
+  scrollMark,
+  editing,
+}: SettingsListProps) {
   const colors = useSettingsListColors();
   const scrollMarkModifier = useScrollMark(scrollMark);
   // Keeps the transparent header the tab's other scroll views install on iOS
@@ -89,6 +104,9 @@ export function SettingsList({ sections, scrollMark }: SettingsListProps) {
         key={colors.separator}
         modifiers={[
           ...(scrollMarkModifier ? [scrollMarkModifier] : []),
+          ...(editing === undefined
+            ? []
+            : [environment('editMode', editing ? 'active' : 'inactive')]),
           scrollContentBackground('hidden'),
           background(colors.page),
         ]}
@@ -106,6 +124,25 @@ export function SettingsList({ sections, scrollMark }: SettingsListProps) {
             header={
               section.element ? (
                 <HostedSectionElement element={section.element} />
+              ) : section.title && section.titleMenu?.length ? (
+                <HStack>
+                  <Text modifiers={[foregroundStyle(colors.secondaryText)]}>
+                    {section.title}
+                  </Text>
+                  <Spacer />
+                  <Menu
+                    label={
+                      <Image
+                        systemName="ellipsis.circle"
+                        size={17}
+                        color={colors.accent}
+                      />
+                    }
+                    modifiers={[accessibilityLabel(`${section.title} options`)]}
+                  >
+                    <MenuItems items={section.titleMenu} />
+                  </Menu>
+                </HStack>
               ) : section.title ? (
                 <Text modifiers={[foregroundStyle(colors.secondaryText)]}>
                   {section.title}
@@ -120,9 +157,22 @@ export function SettingsList({ sections, scrollMark }: SettingsListProps) {
               ) : undefined
             }
           >
-            {section.rows.map((row) => (
-              <SettingsRow key={row.key} row={row} colors={colors} />
-            ))}
+            {section.onMove ? (
+              <List.ForEach onMove={section.onMove}>
+                {section.rows.map((row) => (
+                  <SettingsRow
+                    key={row.key}
+                    row={row}
+                    colors={colors}
+                    reorderable
+                  />
+                ))}
+              </List.ForEach>
+            ) : (
+              section.rows.map((row) => (
+                <SettingsRow key={row.key} row={row} colors={colors} />
+              ))
+            )}
           </Section>
         ))}
       </Form>
@@ -202,11 +252,15 @@ function HostedSectionElement({ element }: { element: ReactElement }) {
 function SettingsRow({
   row,
   colors,
+  reorderable = false,
 }: {
   row: SettingsRowModel;
   colors: SettingsListColors;
+  /** In a section whose rows can be dragged, which can't be deleted. */
+  reorderable?: boolean;
 }) {
   const rowModifiers = [
+    ...(reorderable ? [deleteDisabled(true)] : []),
     listRowBackground(colors.row),
     listRowSeparatorTint(colors.separator),
     disabled(Boolean(row.disabled)),
@@ -340,6 +394,20 @@ function SettingsRow({
       <ContextMenu.Trigger>{body}</ContextMenu.Trigger>
     </ContextMenu>
   );
+}
+
+function MenuItems({ items }: { items: SettingsMenuItem[] }) {
+  return items.map((item) => (
+    <Button
+      key={item.key}
+      label={item.title}
+      systemImage={
+        item.systemImage as ComponentProps<typeof Button>['systemImage']
+      }
+      role={item.destructive ? 'destructive' : undefined}
+      onPress={item.onPress}
+    />
+  ));
 }
 
 /** A row that is its own editable field, kept in step with the screen's value. */
