@@ -17,7 +17,7 @@ import {
 } from './browser-session-handoff.js';
 import { shellSplitCommand } from './tlon-tool-command.js';
 
-const handle = 'sess_MHKz9dQ1TjqLmA7vXpR2bw';
+const handle = 'calm-blue-fox';
 const sessionId = '123e4567-e89b-42d3-a456-426614174000';
 const selectedArgs = ['browser', 'handoff', handle, '--fields', '["@e12"]'];
 const config = {
@@ -43,7 +43,7 @@ const config = {
 function viewerUrl(
   audience = 'session-viewer',
   expiresAt = Date.now() + 7_200_000,
-  form?: string
+  form: string | null = sessionId
 ) {
   const payload = Buffer.from(
     JSON.stringify({
@@ -112,7 +112,10 @@ describe('browser session handoff', () => {
   });
 
   it('refuses an unscoped capability for a selected-field request', async () => {
-    reply({ session_id: handle, viewer_url: viewerUrl() });
+    reply({
+      session_id: handle,
+      viewer_url: viewerUrl('session-viewer', Date.now() + 300_000, null),
+    });
     await expect(
       runBrowserSessionHandoff(
         'tlon',
@@ -120,6 +123,32 @@ describe('browser session handoff', () => {
         config
       )
     ).rejects.toThrow('browser service is unavailable');
+    expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+  });
+
+  it('requires a form-bound capability for automatic discovery', async () => {
+    reply({
+      session_id: handle,
+      viewer_url: viewerUrl('session-viewer', Date.now() + 300_000, null),
+    });
+    await expect(
+      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+    ).rejects.toThrow('Could not resolve');
+    expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+  });
+
+  it('does not repeat automatic discovery after an ambiguous timeout', async () => {
+    urbitFetch.mockRejectedValue(
+      Object.assign(new Error('private upstream details'), {
+        name: 'TimeoutError',
+      })
+    );
+    await expect(
+      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+    ).rejects.toThrow('Could not resolve');
+    expect(urbitFetch).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ timeoutMs: 30_000 })
+    );
     expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
   });
 
@@ -374,7 +403,7 @@ describe('browser session handoff', () => {
     }
     const pending = runBrowserSessionHandoff(
       'tlon',
-      ['browser', 'handoff', handle],
+      ['browser', 'share', handle],
       config
     );
     await vi.advanceTimersByTimeAsync(499);
@@ -403,7 +432,7 @@ describe('browser session handoff', () => {
     urbitFetch.mockRejectedValueOnce(cause);
     const pending = runBrowserSessionHandoff(
       'tlon',
-      ['browser', 'handoff', handle],
+      ['browser', 'share', handle],
       config
     );
     await vi.runAllTimersAsync();
@@ -420,7 +449,7 @@ describe('browser session handoff', () => {
       release,
     }));
     const pending = expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+      runBrowserSessionHandoff('tlon', ['browser', 'share', handle], config)
     ).rejects.toThrow(
       /^Could not resolve a live browser session for handoff\.$/
     );
@@ -443,7 +472,7 @@ describe('browser session handoff', () => {
     });
     const start = Date.now();
     const pending = expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+      runBrowserSessionHandoff('tlon', ['browser', 'share', handle], config)
     ).rejects.toThrow('Could not resolve');
     await vi.runAllTimersAsync();
     await pending;
@@ -461,7 +490,7 @@ describe('browser session handoff', () => {
         release,
       }));
       await expect(
-        runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+        runBrowserSessionHandoff('tlon', ['browser', 'share', handle], config)
       ).rejects.toThrow('Could not resolve');
       expect(urbitFetch).toHaveBeenCalledOnce();
       expect(release).toHaveBeenCalledOnce();
@@ -604,7 +633,7 @@ describe('browser session handoff', () => {
       method: 'tools/call',
       params: {
         name: 'browser_browser_session_live_view',
-        arguments: { session_id: handle },
+        arguments: { session_id: handle, action: 'prepare_form' },
       },
     });
     expect(request.maxRedirects).toBe(0);
@@ -638,7 +667,10 @@ describe('browser session handoff', () => {
 
   it.each([
     { args: ['browser', 'handoff', viewerUrl('session-view')] },
-    { args: ['browser', 'handoff', 'sess_typo'] },
+    { args: ['browser', 'handoff', 'contains spaces'] },
+    { args: ['browser', 'handoff', 'x'.repeat(129)] },
+    { args: ['browser', 'handoff', '../session'] },
+    { args: ['browser', 'handoff', '--helpful'] },
     { args: ['browser', 'handoff', handle, '--owner', '~bud'] },
     { args: ['--ship', '~bud', 'browser', 'handoff', handle] },
   ])(
@@ -668,7 +700,7 @@ describe('browser session handoff', () => {
   });
 
   it.each([
-    { session_id: 'sess_other', viewer_url: viewerUrl() },
+    { session_id: 'brave-red-owl', viewer_url: viewerUrl() },
     { session_id: handle },
     { session_id: handle, viewer_url: viewerUrl('session-view') },
     {

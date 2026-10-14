@@ -10,8 +10,7 @@ than inventing a workflow or collecting secrets in chat.
 ## Invocation and delivery
 
 Call the model-facing `tlon` tool with an argument string. Do not include the
-`tlon` executable name or invoke a shell. Both commands accept the `session_id`
-(`sess_` handle) returned by `browser_session_create` for the live session.
+`tlon` executable name or invoke a shell. Both commands accept the `session_id` returned by `browser_session_create` for the live session.
 
 The plugin resolves a fresh signed viewer URL through the authenticated
 browser service and passes it privately to its delivery transport. Do not

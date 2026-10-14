@@ -47,7 +47,7 @@ describe('browser handoff', () => {
       expect(help).toContain('--fields <JSON array>');
       expect(help).toContain('Omit --fields for automatic discovery');
       expect(help).toContain(String.raw`Owner\u0027s email address`);
-      expect(help).toContain('sess_ handle from browser_session_create');
+      expect(help).toContain('session ID from browser_session_create');
       expect(help).not.toContain('<signed-viewer-url>');
       expect(help).not.toContain('https://');
       expect(context.sent).toEqual([]);
@@ -73,9 +73,7 @@ describe('browser handoff', () => {
     context.deps.authenticate = async () => {
       authenticated = true;
     };
-    expect(
-      await run(['handoff', 'sess_MHKz9dQ1TjqLmA7vXpR2bw'], context.deps)
-    ).toBe(1);
+    expect(await run(['handoff', 'calm-blue-fox'], context.deps)).toBe(1);
     expect(context.stderr.join('')).toContain(
       'Tlon tool: browser handoff <session_id>'
     );
@@ -252,7 +250,7 @@ describe('browser share', () => {
   });
   it.each([
     { args: ['share', 'https://attacker.example/s/payload.signature'] },
-    { args: ['share', 'sess_MHKz9dQ1TjqLmA7vXpR2bw'] },
+    { args: ['share', 'calm-blue-fox'] },
     {
       args: [
         'share',

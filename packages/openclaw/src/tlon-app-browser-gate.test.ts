@@ -15,7 +15,7 @@ const SHIP_HOSTS = tlonShipOrigins([
   { url: 'http://localhost:8080', ship: '~sampel-palnet', ownerShip: '~zod' },
 ]);
 const APP_URL = `${SHIP}/apps/groups`;
-const SESSION_ID = 'sess_abc';
+const SESSION_ID = 'calm-blue-fox';
 
 describe('isTlonWebAppUrl', () => {
   it.each([
