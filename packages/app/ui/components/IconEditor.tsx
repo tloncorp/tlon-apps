@@ -1,4 +1,4 @@
-import { Icon } from '@tloncorp/ui';
+import { Icon, Text } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
 import { Spinner, View, XStack, YStack } from 'tamagui';
 
@@ -42,9 +42,10 @@ export function imageMenuItems(
 }
 
 /**
- * A picture centered on its own row, with a camera in its corner. Pressing it
- * opens what can be done to it: a native menu on iOS and Android, the picker
- * sheet on web.
+ * A picture centered on its own row, with a camera in its corner and an Edit
+ * button under it, as in Contacts. Either opens what can be done to it: a
+ * native menu on iOS and Android, the picker sheet on web. iOS 26 grows the
+ * menu over whatever opened it, so Edit keeps the picture in view.
  */
 export function IconEditor({
   avatar,
@@ -106,6 +107,20 @@ export function IconEditor({
             >
               <Icon type="Camera" size="$s" color="$background" />
             </View>
+          </View>
+        </IconMenu>
+      </XStack>
+      <XStack justifyContent="center" marginTop="$-s">
+        <IconMenu
+          items={menuItems}
+          onPress={onPressFallback}
+          accessibilityLabel={accessibilityLabel}
+          testID="ImageInputEdit"
+        >
+          <View paddingHorizontal="$m" paddingVertical="$xs">
+            <Text size="$label/l" color="$positiveActionText">
+              Edit
+            </Text>
           </View>
         </IconMenu>
       </XStack>
