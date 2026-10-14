@@ -1,5 +1,9 @@
 import { openBrowserViewerWindow } from './browserViewerWindow';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
+import type {
+  BrowserLoginChoice,
+  SavedBrowserLogin,
+} from '@tloncorp/api/client/browserVault';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
@@ -19,9 +23,11 @@ import {
   cancelBrowserCredentialHandoff,
   nextBrowserCredentialHandoff,
   submitBrowserCredentials,
+  supportsSavedLogins,
   authorizeBrowserViewer,
   trustedBrowserViewerUrl,
   validBrowserFormValues,
+  authorizeBrowserLogins,
 } from './browserCredentialHandoff';
 import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffProvider';
 import { BrowserViewerModal } from './BrowserViewerModal';
@@ -187,20 +193,121 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     handoffId: string;
   }>();
   const [error, setError] = useState<string>();
+  const [authorization, setVaultAuth] = useState<{
+    fillUrl: string;
+    grant: string;
+    accounts: SavedBrowserLogin[];
+  }>();
+  const [vaultError, setVaultError] = useState<string>();
+  const [vaultRequested, setVaultRequested] = useState(false);
+  const [saveLogin, setSaveLogin] = useState(false);
+  const [allowAutomatic, setAllowAutomatic] = useState(false);
+  const [accountLabel, setAccountLabel] = useState('');
+  const [choice, setChoice] = useState<{
+    mode: 'use' | 'update';
+    record: BrowserLoginChoice;
+  }>();
+  const [saveStatus, setSaveStatus] = useState<
+    'saved' | 'pending' | 'failed'
+  >();
+  const saveNotice = saveStatus
+    ? saveStatus === 'saved'
+      ? 'Login saved for this bot.'
+      : saveStatus === 'pending'
+        ? 'Continue to the password step to save this login.'
+        : 'Your login was entered, but could not be saved.'
+    : undefined;
   const { resolve, complete, discard } = useBrowserCredentialHandoff();
   const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
   const outcomes = useRef(
     new Map<string, 'completing' | 'completed' | 'canceled'>()
   );
+  const pendingSave = useRef<{ handoffId: string; origin: string } | undefined>(
+    undefined
+  );
   const externalViewerHandoff = useRef<string | null>(null);
   const submittingRef = useRef(false);
   const requestController = useRef<AbortController | undefined>(undefined);
+  const vaultEligible = !!handoff?.vault && supportsSavedLogins(handoff);
+  const vaultAuth =
+    vaultEligible && authorization?.fillUrl === handoff?.fillUrl
+      ? authorization
+      : undefined;
+  const usernameField = handoff?.fields.find(
+    (field) => field.purpose === 'username'
+  );
+  const saveLabel =
+    accountLabel.trim() ||
+    (usernameField ? values[usernameField.id]?.slice(0, 256) : '');
+  const choiceIsCurrent =
+    !choice ||
+    !!vaultAuth?.accounts.some(
+      (account) =>
+        account.id === choice.record.id &&
+        account.revision === choice.record.revision
+    );
+  const canSubmit =
+    !!handoff &&
+    choiceIsCurrent &&
+    (choice?.mode === 'use' || validBrowserFormValues(handoff, values)) &&
+    (!(choice?.mode === 'use' || saveLogin) || !!vaultAuth) &&
+    (!saveLogin || choice?.mode === 'use' || !!saveLabel);
+
+  const clearSavedLoginSelection = useCallback(() => {
+    pendingSave.current = undefined;
+    setSaveStatus((status) => (status === 'pending' ? undefined : status));
+    setSaveLogin(false);
+    setAllowAutomatic(false);
+    setChoice(undefined);
+    setAccountLabel('');
+    setVaultRequested(false);
+  }, []);
+
+  useEffect(() => {
+    setVaultAuth(undefined);
+    if (!handoff || !vaultEligible || !vaultRequested) return;
+    setVaultError(undefined);
+    const controller = new AbortController();
+    void authorizeBrowserLogins(handoff, controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted)
+          setVaultAuth({ ...result, fillUrl: handoff.fillUrl });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          clearSavedLoginSelection();
+          setVaultError(
+            'Saved logins are unavailable. You can still enter your login.'
+          );
+        }
+      });
+    return () => controller.abort();
+  }, [handoff, vaultEligible, vaultRequested, clearSavedLoginSelection]);
+
+  useEffect(() => {
+    if (vaultAuth && choice && !choiceIsCurrent) {
+      clearSavedLoginSelection();
+      setVaultError(
+        'This saved login changed or was deleted. Enter your login or choose it again.'
+      );
+    }
+  }, [vaultAuth, choice, choiceIsCurrent, clearSavedLoginSelection]);
+
   const load = useCallback(
     async (signal?: AbortSignal, openWhenMissing = true) => {
       setValues({});
       setHandoff(undefined);
       setFilled(false);
+      const pendingOrigin =
+        pendingSave.current?.handoffId === handoffId
+          ? pendingSave.current.origin
+          : undefined;
+      if (!pendingOrigin) {
+        clearSavedLoginSelection();
+        setSaveStatus(undefined);
+      }
+      setVaultError(undefined);
       setNoSecureForm(false);
       setError(undefined);
       const viewerUrl = resolve(handoffId);
@@ -213,7 +320,16 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       try {
         trustedUrl = trustedBrowserViewerUrl(viewerUrl);
         const next = await beginBrowserCredentialHandoff(trustedUrl, signal);
-        if (!signal?.aborted) setHandoff(next);
+        if (!signal?.aborted) {
+          if (
+            pendingOrigin &&
+            (next.origin !== pendingOrigin ||
+              !next.vault ||
+              !supportsSavedLogins(next))
+          )
+            clearSavedLoginSelection();
+          setHandoff(next);
+        }
       } catch (nextError) {
         if (signal?.aborted) return;
         if (
@@ -237,7 +353,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       }
       if (!signal?.aborted) setLoading(false);
     },
-    [handoffId, resolve]
+    [handoffId, resolve, clearSavedLoginSelection]
   );
 
   const cancelHandoff = useCallback((id: string, viewerUrl?: string) => {
@@ -303,7 +419,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       submittingRef.current ||
       !signal ||
       signal.aborted ||
-      !validBrowserFormValues(handoff, values)
+      !canSubmit
     )
       return;
     submittingRef.current = true;
@@ -312,12 +428,39 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     try {
       const result = await submitBrowserCredentials(
         handoff,
-        { values, submit: handoff.kind === 'login' },
+        {
+          values: choice?.mode === 'use' ? undefined : values,
+          submit: handoff.kind === 'login',
+          ...(vaultAuth && (choice?.mode === 'use' || saveLogin)
+            ? { grant: vaultAuth.grant }
+            : {}),
+          ...(choice?.mode === 'use'
+            ? { use: choice.record, allowAutomatic }
+            : {}),
+          ...(saveLogin && choice?.mode !== 'use'
+            ? {
+                save: {
+                  permission: allowAutomatic ? 'allow' : 'ask',
+                  ...(saveLabel ? { label: saveLabel } : {}),
+                  ...(choice?.mode === 'update'
+                    ? { update: choice.record }
+                    : {}),
+                },
+              }
+            : {}),
+        },
         signal
       );
       if (signal.aborted) return;
       setValues({});
       setHandoff(undefined);
+      pendingSave.current =
+        result.saveStatus === 'pending'
+          ? { handoffId, origin: handoff.origin }
+          : undefined;
+      if (result.saveStatus === 'pending' && saveLabel)
+        setAccountLabel(saveLabel);
+      if (result.saveStatus) setSaveStatus(result.saveStatus);
       if (handoff.kind === 'login') {
         const viewerUrl = resolve(handoffId);
         if (!viewerUrl)
@@ -335,6 +478,14 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         // A filled form with no safe submit control continues through the bot's
         // browser-owned receipt instead of asking the user to enter it again.
         if (next && (next.formId !== handoff.formId || result.submitted)) {
+          if (
+            next.origin !== handoff.origin ||
+            !next.vault ||
+            !supportsSavedLogins(next) ||
+            (result.saveStatus !== 'pending' && choice?.mode !== 'use')
+          ) {
+            clearSavedLoginSelection();
+          }
           setHandoff(next);
           if (next.formId === handoff.formId)
             setError(
@@ -343,10 +494,14 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           return;
         }
       }
+      if (result.saveStatus === 'pending') {
+        setError('The next step is not ready. Try again or open the browser.');
+        return;
+      }
       setFilled(true);
       // The agent checks the resulting page; filling does not prove sign-in
       // or authorize a payment, order, or other consequential action.
-      await returnToConversation();
+      if (result.saveStatus !== 'failed') await returnToConversation();
     } catch (nextError) {
       if (signal.aborted) return;
       setValues({});
@@ -357,7 +512,20 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       submittingRef.current = false;
       if (!signal.aborted) setSubmitting(false);
     }
-  }, [handoff, values, resolve, handoffId, returnToConversation]);
+  }, [
+    handoff,
+    values,
+    resolve,
+    handoffId,
+    returnToConversation,
+    vaultAuth,
+    choice,
+    saveLogin,
+    allowAutomatic,
+    saveLabel,
+    canSubmit,
+    clearSavedLoginSelection,
+  ]);
 
   const reloadForm = useCallback(
     (openWhenMissing: boolean) => {
@@ -443,6 +611,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
             padding="$xl"
             gap="$xl"
           >
+            {saveNotice ? (
+              <Text color="$secondaryText">{saveNotice}</Text>
+            ) : null}
             {loading ? (
               <Text color="$secondaryText">
                 {submitting ? 'Checking the next step…' : 'Finding the form…'}
@@ -492,21 +663,179 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                     order.
                   </Text>
                 ) : null}
-                {handoff.fields.map((field) => (
-                  <SecureField
-                    key={`${handoff.formId}:${field.id}`}
-                    field={field}
-                    value={values[field.id] ?? ''}
+                {vaultEligible && !vaultRequested ? (
+                  <Button
+                    preset="secondary"
+                    label="Use saved login"
                     disabled={submitting}
-                    onChange={(value) =>
-                      setValues((current) => ({
-                        ...current,
-                        [field.id]: value,
-                      }))
-                    }
-                    onSubmit={() => void fillAndSubmit()}
+                    onPress={() => setVaultRequested(true)}
                   />
-                ))}
+                ) : null}
+                {vaultRequested &&
+                vaultEligible &&
+                !vaultAuth &&
+                !vaultError ? (
+                  <Text color="$secondaryText">Loading saved logins…</Text>
+                ) : null}
+                {vaultAuth?.accounts.length ? (
+                  <YStack gap="$s">
+                    <Text>Saved logins</Text>
+                    {vaultAuth.accounts.map((account) => (
+                      <YStack key={account.id} gap="$s">
+                        {account.username ? (
+                          <Text>{account.username}</Text>
+                        ) : null}
+                        <Button
+                          preset="secondary"
+                          label={`${choice?.record.id === account.id ? 'Selected: ' : ''}${account.label}`}
+                          disabled={submitting}
+                          onPress={() => {
+                            setChoice({
+                              mode: 'use',
+                              record: {
+                                id: account.id,
+                                revision: account.revision,
+                              },
+                            });
+                            setSaveLogin(false);
+                            setAllowAutomatic(account.permission === 'allow');
+                            setValues({});
+                          }}
+                        />
+                        <Button
+                          preset="secondary"
+                          label={`Update ${account.label}`}
+                          disabled={submitting}
+                          onPress={() => {
+                            setChoice({
+                              mode: 'update',
+                              record: {
+                                id: account.id,
+                                revision: account.revision,
+                              },
+                            });
+                            setSaveLogin(true);
+                            setAllowAutomatic(account.permission === 'allow');
+                            setAccountLabel(account.label);
+                            setValues({});
+                          }}
+                        />
+                      </YStack>
+                    ))}
+                    <Button
+                      preset="secondary"
+                      label="Enter a new login"
+                      disabled={submitting}
+                      onPress={() => {
+                        setChoice(undefined);
+                        setSaveLogin(false);
+                        setAllowAutomatic(false);
+                        setAccountLabel('');
+                        setValues({});
+                      }}
+                    />
+                  </YStack>
+                ) : null}
+                {vaultError ? (
+                  <Text color="$secondaryText">{vaultError}</Text>
+                ) : null}
+                {choice?.mode !== 'use'
+                  ? handoff.fields.map((field) => (
+                      <SecureField
+                        key={`${handoff.formId}:${field.id}`}
+                        field={field}
+                        value={values[field.id] ?? ''}
+                        disabled={submitting}
+                        onChange={(value) =>
+                          setValues((current) => ({
+                            ...current,
+                            [field.id]: value,
+                          }))
+                        }
+                        onSubmit={() => void fillAndSubmit()}
+                      />
+                    ))
+                  : null}
+                {vaultEligible && choice?.mode !== 'use' ? (
+                  <YStack gap="$m">
+                    <Pressable
+                      style={{
+                        minHeight: 48,
+                        justifyContent: 'center',
+                        paddingVertical: 12,
+                      }}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel="Save login for this bot"
+                      accessibilityState={{
+                        checked: saveLogin,
+                        disabled: submitting,
+                      }}
+                      disabled={submitting}
+                      onPress={() => {
+                        setVaultRequested(true);
+                        setSaveLogin((save) => !save);
+                      }}
+                    >
+                      <Text>
+                        {saveLogin ? '☑' : '☐'} Save login for this bot
+                      </Text>
+                    </Pressable>
+                    {saveLogin ? (
+                      <>
+                        <Text color="$secondaryText">
+                          Save this login for {handoff.origin}. You control
+                          whether this bot needs to ask before using it.
+                        </Text>
+                        <Field
+                          label={
+                            usernameField
+                              ? 'Account label (optional)'
+                              : 'Account label'
+                          }
+                        >
+                          <TextInput
+                            value={accountLabel}
+                            onChangeText={setAccountLabel}
+                            maxLength={256}
+                            editable={!submitting}
+                            placeholder="Personal or work"
+                            autoComplete="off"
+                          />
+                        </Field>
+                      </>
+                    ) : null}
+                  </YStack>
+                ) : null}
+                {vaultEligible && (saveLogin || choice?.mode === 'use') ? (
+                  <Pressable
+                    accessibilityRole="switch"
+                    accessibilityLabel="Allow automatic sign-in"
+                    accessibilityState={{
+                      checked: allowAutomatic,
+                      disabled: submitting,
+                    }}
+                    disabled={submitting}
+                    onPress={() => setAllowAutomatic((allowed) => !allowed)}
+                    style={{ minHeight: 48, justifyContent: 'center' }}
+                  >
+                    <Text>
+                      {allowAutomatic ? '☑' : '☐'} Always allow this bot to sign
+                      in
+                    </Text>
+                    <Text color="$secondaryText">
+                      {allowAutomatic
+                        ? 'Your bot can use this login without asking.'
+                        : 'Your bot must ask before using this saved login.'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {choice?.mode === 'use' ? (
+                  <Text>
+                    {allowAutomatic
+                      ? 'Allow sign-in and future automatic use.'
+                      : 'Continue allows this sign-in only.'}
+                  </Text>
+                ) : null}
                 {error ? (
                   <Text color="$negativeActionText">{error}</Text>
                 ) : null}
@@ -515,11 +844,17 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   label={handoff.kind === 'login' ? 'Continue' : 'Fill fields'}
                   centered
                   loading={submitting}
-                  disabled={
-                    submitting || !validBrowserFormValues(handoff, values)
-                  }
+                  disabled={submitting || !canSubmit}
                   onPress={fillAndSubmit}
                 />
+                {choice?.mode === 'use' ? (
+                  <Button
+                    preset="secondary"
+                    label="Deny"
+                    disabled={submitting}
+                    onPress={dismiss}
+                  />
+                ) : null}
               </>
             ) : (
               <>

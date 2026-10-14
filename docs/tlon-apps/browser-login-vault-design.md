@@ -5,9 +5,10 @@ labels, optional usernames, and per-bot reuse permission. A bot can discover mat
 and use those marked `allow`. Credentials marked `ask` require owner authorization.
 Saving defaults to `ask`; conversation messages never grant access.
 
-The integration exposes service endpoints and typed client request helpers.
-Saved-login management, selection, saving, and permission controls are a separate
-UI integration. The existing secure form supports manual credential entry.
+The secure handoff supports manual entry, saving a login, selecting a saved
+login, and choosing whether the bot can sign in automatically. Saving is opt-in
+and defaults to asking before reuse. Saved-password management screens are a
+separate UI integration backed by service endpoints and typed client helpers.
 
 ## Storage and encryption
 

@@ -425,8 +425,12 @@ export async function nextBrowserCredentialHandoff(
       next = await beginBrowserCredentialHandoff(viewerUrl, signal);
       if (next.formId !== formId) return next;
     } catch (error) {
-      if (!(error instanceof BrowserFormError) || error.status !== 404)
+      if (
+        !(error instanceof BrowserFormError) ||
+        (error.status !== 404 && error.status !== 409)
+      )
         throw error;
+      // A bound form can disappear or change when the submitted page navigates.
       next = null;
     }
   } while (Date.now() < deadline);

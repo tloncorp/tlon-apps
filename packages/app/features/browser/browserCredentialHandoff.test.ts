@@ -317,7 +317,7 @@ describe('next secure step', () => {
       true
     );
   });
-  it.each(['same', 'missing'])(
+  it.each(['same', 'missing', 'changed'])(
     'waits for settling and returns %s without assuming authentication',
     async (state) => {
       vi.useFakeTimers();
@@ -326,7 +326,9 @@ describe('next secure step', () => {
         vi
           .fn()
           .mockImplementation(async () =>
-            state === 'same' ? response(body()) : response({}, 404)
+            state === 'same'
+              ? response(body())
+              : response({}, state === 'changed' ? 409 : 404)
           )
       );
       const pending = nextBrowserCredentialHandoff(
