@@ -632,21 +632,6 @@ function definePostBlobDataEntrySchema<
   });
 }
 
-function safeParseArrayWithFallback<
-  ItemSchema extends z.ZodTypeAny,
-  InputElement,
-  Fallback,
->(
-  itemSchema: ItemSchema,
-  fallback: (failed: InputElement) => Fallback,
-  data: InputElement[]
-): Array<z.infer<ItemSchema> | Fallback> {
-  return data.map((entry) => {
-    const parsed = itemSchema.safeParse(entry);
-    return parsed.success ? parsed.data : fallback(entry);
-  });
-}
-
 const postBlobSizeSchema = z
   .number()
   .finite()
@@ -712,6 +697,17 @@ export type PostBlobDataEntryVideo = z.infer<
   typeof PostBlobDataEntryVideoSchema
 >;
 
+/** Optional namespaced context. Consumers validate only payloads they understand. */
+export const PostBlobDataEntryMetadataSchema = definePostBlobDataEntrySchema(
+  'metadata',
+  1,
+  { data: z.record(z.unknown()) }
+);
+
+export type PostBlobDataEntryMetadata = z.infer<
+  typeof PostBlobDataEntryMetadataSchema
+>;
+
 export const PostBlobDataEntryContextLensSchema = definePostBlobDataEntrySchema(
   'tlon-context-lens',
   1,
@@ -730,6 +726,16 @@ export const PostBlobDataEntryAgentIntroRequestSchema =
   definePostBlobDataEntrySchema('tlon-agent-intro-request', 1, {
     groupId: z.string().min(1).max(512),
     isFirstGroup: z.boolean().optional(),
+    /** Hidden device context for local-time planning; never rendered as copy. */
+    clientTimezone: agentProtocolString(
+      AGENT_PROTOCOL_LIMITS.timezoneLength
+    ).optional(),
+    clientLocale: agentProtocolString(
+      AGENT_PROTOCOL_LIMITS.localeLength
+    ).optional(),
+    timezone: z.string().min(1).max(128).optional(),
+    /** Present only on new clients' initial onboarding requests. */
+    campaignVersion: z.number().int().min(1).max(65_535).optional(),
   });
 
 export type PostBlobDataEntryAgentIntroRequest = z.infer<
@@ -775,6 +781,7 @@ export type PostBlobDataEntryAgentProvisionAck = z.infer<
 export const PostBlobDataEntryAgentPostMarkerSchema =
   definePostBlobDataEntrySchema('tlon-agent-post-marker', 1, {
     key: z.string().min(1).max(256),
+    interviewStartMessageId: z.string().min(1).max(512).optional(),
   });
 
 export type PostBlobDataEntryAgentPostMarker = z.infer<
@@ -795,6 +802,10 @@ export const PostBlobDataEntryA2UISelectionSchema =
     sourcePostId: agentProtocolString(512).optional(),
     /** For a Choice, the id of the tapped option, so restore can mark it. */
     optionId: agentProtocolString(512).optional(),
+    /** Timezone of the device that submitted this owner answer. */
+    clientTimezone: agentProtocolString(
+      AGENT_PROTOCOL_LIMITS.timezoneLength
+    ).optional(),
     // Entries are bounded by the A2UI send-message limit, not topicLength: a
     // one-shot Button records the full message text it posted.
     values: z
@@ -811,6 +822,7 @@ const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
+  PostBlobDataEntryMetadataSchema,
   PostBlobDataEntryContextLensSchema,
   PostBlobDataEntryAgentIntroRequestSchema,
   PostBlobDataEntryAgentProvisionSchema,
@@ -959,17 +971,27 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
     return [{ type: 'unknown' }];
   }
 
-  return safeParseArrayWithFallback(
-    PostBlobDataEntrySchema,
-    (entry) => {
-      // Unknown types and versions are expected when clients support different schemas.
-      logger.warn('Failed to parse PostBlobDataEntry', {
-        entry: redactPostBlobForLogging(entry),
-      });
-      return { type: 'unknown' } as const;
-    },
-    arr
-  );
+  return arr.flatMap((entry): ClientPostBlobData => {
+    const parsed = PostBlobDataEntrySchema.safeParse(entry);
+    if (parsed.success) {
+      return [parsed.data];
+    }
+    // Metadata is optional context, never missing display content. This also
+    // applies to malformed entries and container versions we do not understand.
+    if (
+      entry !== null &&
+      typeof entry === 'object' &&
+      'type' in entry &&
+      entry.type === 'metadata'
+    ) {
+      return [];
+    }
+    // Unknown content still needs the renderer's upgrade notice.
+    logger.warn('Failed to parse PostBlobDataEntry', {
+      entry: redactPostBlobForLogging(entry),
+    });
+    return [{ type: 'unknown' }];
+  });
 }
 
 /** Find the first validated entry of a given type in a post blob. */

@@ -29,6 +29,12 @@ function NotesChannelSubtitle({ channel }: { channel: db.Channel }) {
   return subtitle ? <ListItem.Subtitle>{subtitle}</ListItem.Subtitle> : null;
 }
 
+// Separate for the same reason: only Buckets rows read the counts query.
+function BucketsChannelSubtitle({ channel }: { channel: db.Channel }) {
+  const subtitle = utils.useBucketsChannelSubtitle(channel);
+  return subtitle ? <ListItem.Subtitle>{subtitle}</ListItem.Subtitle> : null;
+}
+
 export function ChannelListItem({
   model,
   StartIcon,
@@ -191,6 +197,8 @@ export function ChannelListItem({
               <ListItem.Subtitle>{groupTitle}</ListItem.Subtitle>
             ) : model.type === 'notes' ? (
               <NotesChannelSubtitle channel={model} />
+            ) : model.type === 'buckets' ? (
+              <BucketsChannelSubtitle channel={model} />
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
               utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>

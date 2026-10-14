@@ -876,20 +876,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 return true;
               });
 
-              window.addEventListener('keydown', (e) => {
-
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  window.ReactNativeWebView.postMessage('enter');
-                  return;
-                }
-
-                if (e.key === 'Enter' && e.shiftKey) {
-                  window.ReactNativeWebView.postMessage('shift-enter');
-                  return;
-                }
-
-              });
-
               window.addEventListener('message', (event) => {
                 const message = event.data;
                 if (message === 'ready') {
