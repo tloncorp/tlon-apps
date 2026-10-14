@@ -48,9 +48,9 @@ function ChannelMetaForm({
   }, [description, isValid, onSubmit, title]);
 
   const sections: SettingsSectionModel[] = [
-    // The placeholders say what each field is, as in Contacts.
     {
       key: 'title',
+      title: 'Name',
       rows: [
         {
           key: 'title',
@@ -68,6 +68,7 @@ function ChannelMetaForm({
     },
     {
       key: 'description',
+      title: 'Description',
       rows: [
         {
           key: 'description',

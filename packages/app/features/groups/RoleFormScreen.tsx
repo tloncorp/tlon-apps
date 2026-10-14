@@ -300,14 +300,14 @@ function RoleForm({
         })),
       },
       {
-        // Name and description share a card; their placeholders label them.
-        key: 'about',
+        key: 'title',
+        title: 'Name',
         footer:
           titleWasEdited && !isValid ? 'Role title is required' : undefined,
         rows: [
           {
             key: 'title',
-            title: 'Title',
+            title: 'Name',
             disabled: isAdminRole,
             textField: {
               value: title,
@@ -320,6 +320,12 @@ function RoleForm({
             },
             testID: 'RoleTitleInput',
           },
+        ],
+      },
+      {
+        key: 'description',
+        title: 'Description',
+        rows: [
           {
             key: 'description',
             title: 'Description',
@@ -327,7 +333,8 @@ function RoleForm({
             textField: {
               value: description,
               onChangeText: setDescription,
-              placeholder: 'Description',
+              placeholder: 'What this role is for',
+              lines: 5,
               capitalization: 'sentences',
             },
             testID: 'RoleDescriptionInput',
