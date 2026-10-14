@@ -34,6 +34,7 @@ import {
   resolveGroupFull,
   runApplySteps,
   safeKeySummary,
+  startsZdrOnly,
   toBackendModel,
   toDisplayProviderId,
   validateProviderKey,
@@ -649,6 +650,48 @@ describe('pickPrimaryModel', () => {
         saved,
         zdrOnly: true,
       }).zdr
+    ).toBe(false);
+  });
+});
+
+describe('startsZdrOnly', () => {
+  it('starts the filter on by default', () => {
+    expect(
+      startsZdrOnly({
+        provider: 'basic',
+        model: 'openai/gpt-6-luna',
+        zdr: true,
+      })
+    ).toBe(true);
+    expect(
+      startsZdrOnly({
+        provider: 'openrouter',
+        model: 'x-ai/grok-4.6',
+        zdr: true,
+      })
+    ).toBe(true);
+    // ZDR never applied to a direct key or subscription, so nothing was
+    // turned off: the default holds.
+    expect(
+      startsZdrOnly({ provider: 'anthropic', model: 'claude-1', zdr: false })
+    ).toBe(true);
+    expect(startsZdrOnly({ provider: '', model: '', zdr: false })).toBe(true);
+  });
+
+  it("keeps an owner's choice to run without it", () => {
+    expect(
+      startsZdrOnly({
+        provider: 'basic',
+        model: 'openai/gpt-6-luna',
+        zdr: false,
+      })
+    ).toBe(false);
+    expect(
+      startsZdrOnly({
+        provider: 'openrouter',
+        model: 'x-ai/grok-4.6',
+        zdr: false,
+      })
     ).toBe(false);
   });
 });

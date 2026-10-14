@@ -540,6 +540,14 @@ export const pickPrimaryModel = ({
   return { provider, model, zdr: provider === 'openrouter' && zdrOnly };
 };
 
+// Where the picker's OpenRouter ZDR filter starts. Zero data retention is the
+// default, so the filter starts on unless the owner has turned it off for the
+// model the bot runs now. Turning it off shows models with no ZDR route, which
+// is how an owner picks one of those on purpose.
+export const startsZdrOnly = (current: PrimaryModel): boolean =>
+  current.zdr ||
+  (current.provider !== BASIC_PROVIDER_ID && current.provider !== 'openrouter');
+
 // Normalize a picked (provider, model) pair for persistence. "basic" is a real
 // backend provider — Solaris provisions the shared hosted default key when a
 // config selects it (tloncorp/ylem#3180) — so it is written as-is, not remapped

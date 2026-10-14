@@ -20,6 +20,7 @@ import {
   getErrorMessage,
   getModelDisplayName,
   pickPrimaryModel,
+  startsZdrOnly,
 } from './bot/helpers';
 import {
   type ModelPickerProvider,
@@ -82,8 +83,7 @@ export function BotModelSettingsScreen(props: Props) {
   useEffect(resetPicker, [mode, resetPicker]);
 
   const modelValues = draft.draft.model;
-  const zdrOnly =
-    zdrOverride ?? (modelValues.provider === 'openrouter' && modelValues.zdr);
+  const zdrOnly = zdrOverride ?? startsZdrOnly(modelValues);
 
   const availableProviders = useMemo(
     () =>
