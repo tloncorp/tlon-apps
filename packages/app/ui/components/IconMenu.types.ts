@@ -13,7 +13,7 @@ export interface IconMenuProps {
   /** What is pressed to open the menu. */
   children: ReactNode;
   items: IconMenuItem[];
-  /** Android and web have no menu here; pressing runs this instead. */
+  /** Web has no menu here; pressing runs this instead. */
   onPress: () => void;
   accessibilityLabel: string;
   testID?: string;

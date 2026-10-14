@@ -203,7 +203,7 @@ function MetaEditorForm({
         },
       ]}
     >
-      {/* Android and web pick from this sheet; removing is in the menu. */}
+      {/* Web picks from this sheet; removing is in the menu. */}
       <AttachmentSheet {...icon.sheetProps} showClearOption={false} />
     </SettingsListScreenView>
   );
@@ -213,8 +213,8 @@ const editorAvatar = { size: 96, radius: 22 } as const;
 
 /**
  * The icon centered on its own row, with a camera in its corner. Pressing it
- * opens what can be done to it: a native menu on iOS, the picker sheet
- * elsewhere.
+ * opens what can be done to it: a native menu on iOS and Android, the picker
+ * sheet on web.
  */
 function IconEditor({
   avatar,

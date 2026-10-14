@@ -2,7 +2,7 @@ import { Pressable } from '@tloncorp/ui';
 
 import type { IconMenuProps } from './IconMenu.types';
 
-/** Android and web open their own picker sheet rather than a menu. */
+/** Web opens its own picker sheet rather than a menu. */
 export function IconMenu({
   children,
   onPress,
