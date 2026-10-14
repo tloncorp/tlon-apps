@@ -7,8 +7,6 @@ import { useBucketPreview } from './useBucketPreview';
 import { useLiveBucket } from './useLiveBucket';
 import { getBucketPreviewFiles } from './bucketPreviewFiles';
 
-const noChildCounts: ReadonlyMap<number, number> = new Map();
-
 type Props = {
   entryId: number;
   flag: BucketsFlag;
@@ -30,9 +28,9 @@ function BucketsFileSelection({ entryId, flag, onClose }: Props) {
   const [selectedId, setSelectedId] = useState(entryId);
   const entry = live.entries.find((candidate) => candidate.id === selectedId);
   const files = getBucketPreviewFiles(live.entries, selectedId).map((entry) =>
-    toItem(entry, noChildCounts)
+    toItem(entry)
   );
-  const file = entry?.kind === 'file' ? toItem(entry, noChildCounts) : null;
+  const file = entry?.kind === 'file' ? toItem(entry) : null;
 
   // Load each selected file once its entry appears: the grant is read off the
   // manifest, so asking before it arrives fails. A later rename or delete
@@ -42,7 +40,7 @@ function BucketsFileSelection({ entryId, flag, onClose }: Props) {
   useEffect(() => {
     if (requested.current === selectedId || entry?.kind !== 'file') return;
     requested.current = selectedId;
-    void load(toItem(entry, noChildCounts));
+    void load(toItem(entry));
   }, [entry, load, selectedId]);
 
   // Only once the manifest is known: a link opened cold reads an empty

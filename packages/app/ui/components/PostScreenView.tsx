@@ -35,7 +35,11 @@ import useAppStatus from '../../hooks/useAppStatus';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
 import { useCurrentUserId } from '../contexts/appDataContext';
-import { useAttachmentContext } from '../contexts/attachment';
+import {
+  AttachmentDraftsProvider,
+  ScopedAttachmentProvider,
+  useAttachmentContext,
+} from '../contexts/attachment';
 import { ChannelProvider } from '../contexts/channel';
 import { NavigationProvider } from '../contexts/navigation';
 import { ScrollContextProvider } from '../contexts/scroll';
@@ -184,7 +188,22 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
   );
 });
 
-export function PostScreenView({
+export function PostScreenView(
+  props: Parameters<typeof PostScreenViewContent>[0]
+) {
+  const { canUpload } = useAttachmentContext();
+  return (
+    <AttachmentDraftsProvider
+      key={props.channel.id}
+      canUpload={canUpload}
+      uploadAsset={store.uploadAsset}
+    >
+      <PostScreenViewContent {...props} />
+    </AttachmentDraftsProvider>
+  );
+}
+
+function PostScreenViewContent({
   channel,
   group,
   parentPost,
@@ -300,12 +319,6 @@ export function PostScreenView({
     [onGroupAction]
   );
 
-  const draftCallbacks = store.usePostDraftCallbacks(
-    focusedPost == null
-      ? null
-      : { draftKey: store.draftKeyFor.thread({ parentPostId: focusedPost.id }) }
-  );
-
   // Separate draft callbacks for editing the parent post (gallery/notebook).
   // This uses a different key to prevent edit drafts from leaking to
   // BareChatInput, which uses the thread key for reply drafts.
@@ -318,17 +331,17 @@ export function PostScreenView({
   const { attachAssets, clearAttachments } = useAttachmentContext();
 
   const handleGoBack = useCallback(() => {
-    // Always clear attachments when leaving thread to prevent them from
-    // appearing in the main chat input
-    clearAttachments();
     if (isEditingParent) {
+      clearAttachments();
       setEditingPost?.(undefined);
       if (channel.type !== 'notebook') {
         goBack?.();
       } else {
-        draftCallbacks?.clearDraft();
+        parentEditDraftCallbacks?.clearDraft();
       }
     } else {
+      // The post screen owns its attachment provider. Keep its draft intact
+      // during the back transition; unmounting releases the transient state.
       goBack?.();
     }
   }, [
@@ -336,7 +349,7 @@ export function PostScreenView({
     goBack,
     isEditingParent,
     setEditingPost,
-    draftCallbacks,
+    parentEditDraftCallbacks,
     clearAttachments,
   ]);
 
@@ -388,6 +401,7 @@ export function PostScreenView({
             <FileDrop
               backgroundColor="$background"
               flex={1}
+              dropEnabled={!!isEditingParent && channel.type === 'gallery'}
               onAssetsDropped={attachAssets}
             >
               <View flex={1}>
@@ -439,37 +453,35 @@ export function PostScreenView({
                             />
                           </YStack>
                         ) : mode === 'single' ? (
-                          <ScrollContextProvider>
-                            <SinglePostView
-                              {...{
-                                channel,
-                                chatThreadHandleRef,
-                                editingPost,
-                                goBack,
-                                group,
-                                handleGoToImage,
-                                inspectContextLensPost:
-                                  contextLensAvailable && contextLensOpen
-                                    ? inspectContextLensPost
-                                    : undefined,
-                                openContextLensForPost:
-                                  contextLensAvailable && !isWindowNarrow
-                                    ? openContextLensForPost
-                                    : undefined,
-                                onGoToBotRun:
-                                  contextLensAvailable && isWindowNarrow
-                                    ? goToContextLensRun
-                                    : undefined,
-                                negotiationMatch,
-                                onPressDelete,
-                                onPressRetry,
-                                parentEditDraftCallbacks,
-                                parentPost,
-                                selectedPostId,
-                                setEditingPost,
-                              }}
-                            />
-                          </ScrollContextProvider>
+                          <PostWithAttachments
+                            {...{
+                              channel,
+                              chatThreadHandleRef,
+                              editingPost,
+                              goBack,
+                              group,
+                              handleGoToImage,
+                              inspectContextLensPost:
+                                contextLensAvailable && contextLensOpen
+                                  ? inspectContextLensPost
+                                  : undefined,
+                              openContextLensForPost:
+                                contextLensAvailable && !isWindowNarrow
+                                  ? openContextLensForPost
+                                  : undefined,
+                              onGoToBotRun:
+                                contextLensAvailable && isWindowNarrow
+                                  ? goToContextLensRun
+                                  : undefined,
+                              negotiationMatch,
+                              onPressDelete,
+                              onPressRetry,
+                              parentEditDraftCallbacks,
+                              parentPost,
+                              selectedPostId,
+                              setEditingPost,
+                            }}
+                          />
                         ) : (
                           <CarouselPostScreenContent
                             flex={1}
@@ -1176,23 +1188,43 @@ export function PresentationalCarouselPostScreenContent({
   ) : null;
 }
 
-function _CarouselPost({
-  channel,
+function CarouselPostWithAttachments({
   parentPost,
-  ...channelContext
+  editingPost,
+  ...props
 }: { channel: db.Channel; parentPost: db.Post } & ChannelContext) {
   return (
     <Carousel.Item flex={1}>
-      <ScrollContextProvider>
-        <SinglePostView
-          {...{
-            channel,
-            ...channelContext,
-            parentPost,
-          }}
-        />
-      </ScrollContextProvider>
+      <PostWithAttachments
+        {...props}
+        parentPost={parentPost}
+        editingPost={
+          editingPost?.parentId === parentPost.id ? editingPost : undefined
+        }
+      />
     </Carousel.Item>
   );
 }
-const CarouselPost = memo(_CarouselPost);
+const CarouselPost = memo(CarouselPostWithAttachments);
+
+function PostWithAttachments(props: Parameters<typeof SinglePostView>[0]) {
+  const content = <PostContent {...props} />;
+  return props.channel.type === 'gallery' ? (
+    <ScopedAttachmentProvider id={props.parentPost.id}>
+      {content}
+    </ScopedAttachmentProvider>
+  ) : (
+    content
+  );
+}
+
+function PostContent(props: Parameters<typeof SinglePostView>[0]) {
+  const { attachAssets } = useAttachmentContext();
+  return (
+    <FileDrop flex={1} onAssetsDropped={attachAssets}>
+      <ScrollContextProvider>
+        <SinglePostView {...props} />
+      </ScrollContextProvider>
+    </FileDrop>
+  );
+}

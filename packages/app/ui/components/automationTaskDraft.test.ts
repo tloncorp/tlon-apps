@@ -18,6 +18,7 @@ import {
   isTaskFromCreate,
   newTaskDraft,
   offersScheduledTasks,
+  ownerTasks,
   parseEditableSchedule,
   snapshotAfterCreate,
   snapshotAfterRead,
@@ -727,6 +728,57 @@ describe('botDeliveryFrom', () => {
       ).toEqual({ kind: 'dm', ship: '~ten' });
     }
   );
+});
+
+describe('ownerTasks', () => {
+  // As OpenClaw's memory-core plugin writes it.
+  const dreaming: StewardAutomationTask = {
+    name: 'Memory Dreaming Promotion',
+    description:
+      '[managed-by=memory-core.short-term-promotion] Promote weighted short-term recalls into MEMORY.md (limit=10).',
+    enabled: true,
+    schedule: { kind: 'cron', expr: '0 3 * * *', tz: 'America/New_York' },
+    payload: {
+      kind: 'agentTurn',
+      message: '__openclaw_memory_core_short_term_promotion_dream__',
+    },
+    delivery: { mode: 'none' },
+  };
+
+  it('leaves out the jobs a plugin manages for itself', () => {
+    const tasks = {
+      news: task,
+      dreaming,
+      light: { description: '[managed-by=memory-core.dreaming.light]' },
+    };
+    expect(ownerTasks(tasks)).toEqual({ news: task });
+  });
+
+  it('still finds the marker behind a credit hold', () => {
+    expect(
+      ownerTasks({
+        dreaming: {
+          ...dreaming,
+          enabled: false,
+          description: `[Paused: credit budget] ${dreaming.description}`,
+        },
+      })
+    ).toEqual({});
+  });
+
+  it("keeps the owner's tasks, held or untitled ones included", () => {
+    const tasks = {
+      news: task,
+      held: {
+        ...task,
+        enabled: false,
+        description: '[Paused: credit budget] Daily digest',
+      },
+      slot: { description: 'tlon-agent-primary:~zod/home' },
+      bare: {},
+    };
+    expect(ownerTasks(tasks)).toEqual(tasks);
+  });
 });
 
 describe('tasksPostingTo', () => {

@@ -952,12 +952,7 @@ export const readChannel = async ({
   });
   logger.log(`reading channel ${channelId}`, action);
 
-  // simple retry logic to avoid failed read leading to lingering unread state
-  return backOff(() => send(), {
-    delayFirstAttempt: false,
-    startingDelay: 2000,
-    numOfAttempts: 4,
-  });
+  return send();
 };
 
 export const readThread = async ({

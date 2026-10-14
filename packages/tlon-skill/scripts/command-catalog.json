@@ -7,7 +7,7 @@
   "browser": {
     "summary": "Hosted-browser sharing and secure form handoff",
     "reference": "references/browser-handoff.md",
-    "toolGuidance": "Use a session_id from browser_session_create, never a viewer URL; no credential or recipient overrides."
+    "toolGuidance": "Use a session_id from browser_session_create, never a viewer URL; handoff --fields accepts a JSON array of snapshot refs or exact name/label selectors, never field values. No credential or recipient overrides."
   },
   "buckets": {
     "summary": "Shared group files and folders",

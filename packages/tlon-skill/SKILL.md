@@ -1,6 +1,6 @@
 ---
 name: tlon
-description: Read Tlon activity and message history; manage workspaces (Tlon groups), channels, Markdown notes, shared Bucket files, contacts, profiles, settings, and channel hooks; expose content publicly; share hosted-browser sessions and arrange secure form handoffs. Use for operating Tlon, not general product explanations or ordinary outbound messaging.
+description: Read Tlon activity and message history; manage workspaces (Tlon groups), channels, Markdown notes, shared Bucket files, contacts, profiles, settings, and channel hooks; expose content publicly; send hosted-browser sharing and secure-entry cards. Use for operating Tlon, not general product explanations or ordinary outbound messaging.
 ---
 
 # Operate Tlon
@@ -35,7 +35,7 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 | Shared group files and folders | [Buckets](references/buckets.md) |
 | Upload media for messages or profiles | [Media](references/media.md) |
 | Contacts, profile changes, bot settings | [Contacts and settings](references/contacts-settings.md) |
-| Share a hosted browser or have the owner enter credentials or card details | [Browser sharing and handoff](references/browser-handoff.md) |
+| Browser card command arguments, delivery, and errors; browser workflow lives in `hosted-browser` | [Browser card commands](references/browser-handoff.md) |
 | Channel hooks and advanced automation | [Hooks](references/hooks-workflow.md) |
 
 ## Identity, delivery, and completion
