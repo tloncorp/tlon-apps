@@ -5,9 +5,14 @@ import {
   validateNickname,
 } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { ConfirmDialog, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
-import { View, XStack, getTokenValue } from 'tamagui';
+import {
+  ConfirmDialog,
+  Pressable,
+  Text,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
+import { View, XStack, YStack, getTokenValue } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { useGroups } from '../contexts/groups';
@@ -185,7 +190,11 @@ function EditProfileForm({
           accessibilityLabel="Change avatar image"
         >
           {isCurrUser ? (
-            <AvatarColorDots value={sigilColor} onChange={setSigilColor} />
+            <AvatarColorDots
+              value={sigilColor}
+              onChange={setSigilColor}
+              hasPhoto={!!avatar.assetUri}
+            />
           ) : null}
         </IconEditor>
       ),
@@ -469,39 +478,70 @@ function attestationRow(
   };
 }
 
-const dotSize = 26;
+const dotSize = 24;
+const dotFrame = dotSize + 6;
 
-/** The default avatar's color, as a row of dots under the avatar. */
+/**
+ * The default avatar's color, as a row of dots under the avatar. It only shows
+ * where there is no photo, so with one the dots dim and say so.
+ */
 function AvatarColorDots({
   value,
   onChange,
+  hasPhoto,
 }: {
   value: string;
   onChange: (color: string) => void;
+  hasPhoto: boolean;
 }) {
   return (
-    <XStack justifyContent="center" gap="$s" flexWrap="wrap">
-      {avatarColorPresets.map(([name, token]) => {
-        const color = getTokenValue(token, 'color');
-        const selected = value === color;
-        return (
-          <Pressable
-            key={color}
-            // Choosing the chosen color goes back to the default.
-            onPress={() => onChange(selected ? '' : color)}
-            testID={`ProfileColorSwatch-${color.slice(1)}`}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: selected }}
-            accessibilityLabel={`Profile avatar color ${name}`}
+    <YStack alignItems="center" gap="$s">
+      <Text size="$label/s" color="$secondaryText">
+        {hasPhoto
+          ? 'Avatar color, shown when you have no photo'
+          : 'Avatar color'}
+      </Text>
+      <XStack
+        justifyContent="center"
+        gap={6}
+        flexWrap="wrap"
+        opacity={hasPhoto ? 0.4 : 1}
+      >
+        <ColorDot
+          name="default"
+          selected={!value}
+          onPress={() => onChange('')}
+          testID="ProfileColorSwatch-default"
+        >
+          {/* No color of its own: a struck-through ring. */}
+          <View
+            width={dotSize}
+            height={dotSize}
+            borderRadius={dotSize / 2}
+            borderWidth={1}
+            borderColor="$tertiaryText"
+            alignItems="center"
+            justifyContent="center"
           >
             <View
-              width={dotSize + 6}
-              height={dotSize + 6}
-              borderRadius={(dotSize + 6) / 2}
-              borderWidth={2}
-              borderColor={selected ? '$primaryText' : 'transparent'}
-              alignItems="center"
-              justifyContent="center"
+              width={dotSize}
+              height={1}
+              backgroundColor="$tertiaryText"
+              rotate="-45deg"
+            />
+          </View>
+        </ColorDot>
+        {avatarColorPresets.map(([name, token]) => {
+          const color = getTokenValue(token, 'color');
+          const selected = value === color;
+          return (
+            <ColorDot
+              key={color}
+              name={name}
+              selected={selected}
+              // Choosing the chosen color goes back to the default.
+              onPress={() => onChange(selected ? '' : color)}
+              testID={`ProfileColorSwatch-${color.slice(1)}`}
             >
               <View
                 width={dotSize}
@@ -509,12 +549,49 @@ function AvatarColorDots({
                 borderRadius={dotSize / 2}
                 backgroundColor={color}
                 borderWidth={1}
-                borderColor="$shadow"
+                // Keeps the lightest dots visible on the grey page.
+                borderColor="$border"
               />
-            </View>
-          </Pressable>
-        );
-      })}
-    </XStack>
+            </ColorDot>
+          );
+        })}
+      </XStack>
+    </YStack>
+  );
+}
+
+function ColorDot({
+  name,
+  selected,
+  onPress,
+  testID,
+  children,
+}: {
+  name: string;
+  selected: boolean;
+  onPress: () => void;
+  testID: string;
+  children: ReactNode;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      testID={testID}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={`Profile avatar color ${name}`}
+    >
+      <View
+        width={dotFrame}
+        height={dotFrame}
+        borderRadius={dotFrame / 2}
+        borderWidth={2}
+        borderColor={selected ? '$primaryText' : 'transparent'}
+        alignItems="center"
+        justifyContent="center"
+      >
+        {children}
+      </View>
+    </Pressable>
   );
 }
