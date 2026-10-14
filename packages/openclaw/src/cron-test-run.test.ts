@@ -110,6 +110,7 @@ describe('startCronTestRun', () => {
     expect(params.timeoutMs).toBeGreaterThan(59_000);
     expect(params.timeoutMs).toBeLessThanOrEqual(60_000);
     expect(params).not.toHaveProperty('runTimeoutOverrideMs');
+    expect(params).not.toHaveProperty('bootstrapContextMode');
     // A short run keeps the default lens lifetime.
     const created = published[0]!.lens;
     expect(created.expiresAt - created.createdAt).toBe(30 * 60_000);
@@ -135,6 +136,29 @@ describe('startCronTestRun', () => {
         output: 'Three new threads today.',
       },
     });
+  });
+
+  it('loads the light context a job asks for', async () => {
+    const { deps, run, runEmbeddedAgent, started, finalLens } = harness(
+      'job-light',
+      [
+        {
+          ...digest,
+          id: 'job-light',
+          payload: { ...digest.payload, lightContext: true },
+        },
+      ]
+    );
+
+    await startCronTestRun('job-light', deps);
+    await started();
+
+    expect(runEmbeddedAgent.mock.calls[0]![0]).toMatchObject({
+      bootstrapContextMode: 'lightweight',
+      bootstrapContextRunKind: 'cron',
+    });
+    run.resolve({ payloads: [{ text: 'Done.' }], meta: { durationMs: 1 } });
+    await finalLens();
   });
 
   it("keeps to the job's own timeout when it sets one", async () => {

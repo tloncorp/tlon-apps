@@ -99,6 +99,7 @@ export type CronTestJob = {
     model?: string;
     fallbacks?: string[];
     timeoutSeconds?: number;
+    lightContext?: boolean;
   };
 };
 
@@ -384,6 +385,11 @@ export async function startCronTestRun(
         jobId: job.id,
         prompt: buildCronTestPrompt(job, prompt, deps.config, now),
         bootstrapContextRunKind: 'cron',
+        // A job that asks for a light context gets the one its scheduled run
+        // loads, so the test answers from the same context.
+        ...(job.payload?.lightContext === true
+          ? { bootstrapContextMode: 'lightweight' as const }
+          : {}),
         disableMessageTool: true,
         ...(job.payload?.toolsAllow
           ? { toolsAllow: job.payload.toolsAllow }
