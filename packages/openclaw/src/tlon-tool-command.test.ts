@@ -444,7 +444,7 @@ describe('tlon tool execution', () => {
   });
 });
 
-describe('owner credential injection for groups invite-link', () => {
+describe('owner credential injection for invite-link and note publishing', () => {
   const SKILL_DIR = '/srv/tlon-skill';
   const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
 
@@ -547,6 +547,177 @@ describe('owner credential injection for groups invite-link', () => {
     expect(missingOwner.content[0]?.text).toContain('--self');
     expect(noOwner.runCommand).not.toHaveBeenCalled();
   });
+
+  it('keeps the invite-link provisioning errors word-for-word', async () => {
+    const command = 'groups invite-link ~host/book-club';
+    const texts = await Promise.all(
+      [
+        makeExecutor({ ownerShip: undefined }),
+        makeExecutor({ env: {} as NodeJS.ProcessEnv }),
+        makeExecutor({ fileExists: () => false }),
+      ].map(async ({ execute }) => {
+        const result = await execute('wording', { command });
+        return result.content[0]?.text;
+      })
+    );
+
+    expect(texts).toEqual([
+      "Retrieving the owner's invite link requires a configured owner ship. Add --self to retrieve this bot's own invite link instead.",
+      "Retrieving the invite link as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to retrieve this bot's own invite link instead.",
+      `Retrieving the invite link as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to retrieve this bot's own invite link instead.`,
+    ]);
+  });
+
+  const NOTE_OPERATIONS = ['note-publish', 'note-unpublish'] as const;
+
+  it.each(NOTE_OPERATIONS)(
+    'runs a bare notes %s as the owner via --ship',
+    async (operation) => {
+      const { execute, runCommand } = makeExecutor();
+
+      const result = await execute('inject', {
+        command: `notes ${operation} notes/~h/b 12`,
+      });
+
+      expect(runCommand).toHaveBeenCalledWith([
+        '--ship',
+        '~owner',
+        'notes',
+        operation,
+        'notes/~h/b',
+        '12',
+      ]);
+      expect(result.details).toBeUndefined();
+    }
+  );
+
+  const NOTE_OPT_OUTS: Array<[string, (operation: string) => string]> = [
+    ['--self after', (op) => `notes ${op} notes/~h/b 12 --self`],
+    ['--self before', (op) => `notes ${op} --self notes/~h/b 12`],
+    ['-h', (op) => `notes ${op} -h`],
+    ['--help', (op) => `notes ${op} --help`],
+    ...['--config', '--ship', '--url', '--code', '--cookie'].flatMap(
+      (flag): Array<[string, (operation: string) => string]> => [
+        [
+          `separate-value ${flag}`,
+          (op) => `${flag} x notes ${op} notes/~h/b 12`,
+        ],
+        [`=-form ${flag}`, (op) => `${flag}=x notes ${op} notes/~h/b 12`],
+      ]
+    ),
+  ];
+
+  it.each(
+    NOTE_OPERATIONS.flatMap((operation) =>
+      NOTE_OPT_OUTS.map(
+        ([label, build]) => [operation, label, build(operation)] as const
+      )
+    )
+  )(
+    'leaves notes %s untouched with %s',
+    async (_operation, _label, command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      await execute('skip', { command });
+
+      const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+      expect(args).toEqual(command.split(' '));
+    }
+  );
+
+  it('leaves other notes subcommands untouched', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('other', { command: 'notes note notes/~h/b 12' });
+    await execute('other', { command: 'notes note-delete notes/~h/b 12' });
+    await execute('other', { command: 'notes list' });
+
+    expect(runCommand).toHaveBeenCalledTimes(3);
+    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+      expect(args).not.toContain('--ship');
+    }
+  });
+
+  const NOTE_PROVISIONING_FAILURES: Array<
+    [
+      string,
+      Parameters<typeof makeExecutor>[0],
+      Record<(typeof NOTE_OPERATIONS)[number], string>,
+    ]
+  > = [
+    [
+      'no owner',
+      { ownerShip: undefined },
+      {
+        'note-publish':
+          "Publishing a note as the owner requires a configured owner ship. Add --self to publish from this bot's own ship instead.",
+        'note-unpublish':
+          "Unpublishing a note as the owner requires a configured owner ship. Add --self to unpublish from this bot's own ship instead.",
+      },
+    ],
+    [
+      'no skill dir',
+      { env: {} as NodeJS.ProcessEnv },
+      {
+        'note-publish':
+          "Publishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to publish from this bot's own ship instead.",
+        'note-unpublish':
+          "Unpublishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to unpublish from this bot's own ship instead.",
+      },
+    ],
+    [
+      'no config file',
+      { fileExists: () => false },
+      {
+        'note-publish': `Publishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to publish from this bot's own ship instead.`,
+        'note-unpublish': `Unpublishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to unpublish from this bot's own ship instead.`,
+      },
+    ],
+  ];
+
+  it.each(
+    NOTE_OPERATIONS.flatMap((operation) =>
+      NOTE_PROVISIONING_FAILURES.map(
+        ([label, overrides, texts]) =>
+          [operation, label, overrides, texts[operation]] as const
+      )
+    )
+  )(
+    'errors on notes %s with %s instead of silently using bot credentials',
+    async (operation, _label, overrides, text) => {
+      const { execute, runCommand } = makeExecutor(overrides);
+
+      const result = await execute('missing', {
+        command: `notes ${operation} notes/~h/b 12`,
+      });
+
+      expect(result.content[0]?.text).toBe(text);
+      expect(result.details).toEqual({ error: true });
+      expect(runCommand).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(
+    NOTE_OPERATIONS.flatMap((operation) =>
+      NOTE_OPT_OUTS.flatMap(([optOut, build]) =>
+        NOTE_PROVISIONING_FAILURES.map(
+          ([failure, overrides]) =>
+            [operation, optOut, failure, overrides, build(operation)] as const
+        )
+      )
+    )
+  )(
+    'honors the notes %s opt-out %s despite %s',
+    async (_operation, _optOut, _failure, overrides, command) => {
+      const { execute, runCommand } = makeExecutor(overrides);
+
+      const result = await execute('opt-out', { command });
+
+      expect(result.details).toBeUndefined();
+      const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+      expect(args).toEqual(command.split(' '));
+    }
+  );
 });
 
 describe('checkBlockedTlonOperation', () => {
@@ -851,6 +1022,8 @@ const documentedActionOperations = {
     'note-rename',
     'note-move',
     'note-delete',
+    'note-publish',
+    'note-unpublish',
     'history',
     'folders',
     'folder',
@@ -1240,6 +1413,22 @@ describe('tlon tool telemetry summarizer', () => {
 
     expect(JSON.stringify(summary)).not.toContain('General');
   });
+
+  it.each(['note-publish', 'note-unpublish'])(
+    'classifies notes %s as admin without leaking the nest',
+    (operation) => {
+      const summary = summarizeTlonCommand(
+        `notes ${operation} notes/~zod/secret-launch 12 --self`
+      );
+
+      expect(summary).toMatchObject({
+        summaryKey: `notes.${operation}`,
+        intent: 'admin',
+        operation,
+      });
+      expect(JSON.stringify(summary)).not.toContain('secret-launch');
+    }
+  );
 
   it('captures notes channel kinds from channel creation', () => {
     const summary = summarizeTlonCommand(
