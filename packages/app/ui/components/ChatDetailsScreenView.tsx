@@ -375,6 +375,8 @@ export function ChatDetailsScreenView({
                 contactIndex?.[hostId],
                 disableNicknames
               ),
+              // Opens their profile, like a member row; nothing to edit here.
+              accessory: 'none',
               onPress: () => onPressProfile(hostId),
               contextActions: contactActions(hostId),
               testID: 'ChannelHost',
