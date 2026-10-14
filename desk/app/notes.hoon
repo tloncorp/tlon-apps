@@ -2085,6 +2085,10 @@
   ::
   ++  se-member-join
     ^+  se-core
+    ::  A host can't join its own notebook: recording src.bowl as %editor
+    ::  below would overwrite our %owner row and lock us out of owner actions.
+    ::
+    ?<  =(our.bowl src.bowl)
     ::  Access check — one of three cases:
     ::    non-group private: src must already be in the members map
     ::    non-group public:  anyone is welcome — no check needed
