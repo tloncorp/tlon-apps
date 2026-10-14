@@ -1,21 +1,21 @@
 import type { ConnectionStatus } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Pressable, useIsWindowNarrow } from '@tloncorp/ui';
+import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
 import { type ReactNode, useCallback, useState } from 'react';
 import { Spinner, View, XStack, YStack } from 'tamagui';
 
 import { capitalize } from '../utils';
 import AttachmentSheet from './AttachmentSheet';
-import { chatHeroAvatar, chatHeroLeadingInset } from './ChatDetailsScreenView';
 import { useImageInput } from './Form';
+import { IconMenu } from './IconMenu';
+import type { IconMenuItem } from './IconMenu.types';
 import { ListItem } from './ListItem';
 import {
   SETTINGS_LIST_COLUMN_WIDTH,
   type SettingsSectionModel,
   SettingsListScreenView,
 } from './SettingsList';
-import { ProfileButton } from './UserProfileScreenView';
 import WayfindingNotice from './Wayfinding/Notices';
 
 interface MetaEditorScreenViewProps {
@@ -78,42 +78,64 @@ function MetaEditorForm({
   // The icon as it will look once saved: the picked image, or the fallback
   // drawn from the name as it is typed.
   const preview = { title, iconImage: icon.assetUri ?? null };
+  const avatar = group ? (
+    <ListItem.GroupIcon
+      model={{ ...group, ...preview }}
+      size="custom"
+      width={editorAvatar.size}
+      height={editorAvatar.size}
+      borderRadius={editorAvatar.radius}
+      membersBackgroundColor="$background"
+    />
+  ) : channel ? (
+    <ListItem.ChannelIcon
+      model={{ ...channel, ...preview }}
+      size="custom"
+      width={editorAvatar.size}
+      height={editorAvatar.size}
+      borderRadius={editorAvatar.radius}
+    />
+  ) : null;
+  const iconMenuItems: IconMenuItem[] = [
+    {
+      key: 'library',
+      title: 'Choose Photo',
+      systemImage: 'photo.on.rectangle',
+      onPress: icon.pickFromLibrary,
+    },
+    {
+      key: 'camera',
+      title: 'Take Photo',
+      systemImage: 'camera',
+      onPress: icon.takePhoto,
+    },
+    ...(icon.assetUri
+      ? [
+          {
+            key: 'remove',
+            title: 'Remove Icon',
+            systemImage: 'trash',
+            destructive: true,
+            onPress: icon.clear,
+          },
+        ]
+      : []),
+  ];
   const sections: SettingsSectionModel[] = [
     {
       key: 'icon',
       rows: [],
       element: (
         <IconEditor
-          avatar={
-            group ? (
-              <ListItem.GroupIcon
-                model={{ ...group, ...preview }}
-                size="custom"
-                width={chatHeroAvatar.size}
-                height={chatHeroAvatar.size}
-                borderRadius={chatHeroAvatar.radius}
-                membersBackgroundColor="$background"
-              />
-            ) : channel ? (
-              <ListItem.ChannelIcon
-                model={{ ...channel, ...preview }}
-                size="custom"
-                width={chatHeroAvatar.size}
-                height={chatHeroAvatar.size}
-                borderRadius={chatHeroAvatar.radius}
-              />
-            ) : null
-          }
+          avatar={avatar}
+          isUploading={icon.isUploading}
+          menuItems={iconMenuItems}
+          onPressFallback={icon.toggleSheet}
           notice={
             group && logic.isPersonalGroup(group, currentUserId) ? (
               <WayfindingNotice.CustomizeGroup />
             ) : null
           }
-          canUpload={icon.canUpload}
-          isUploading={icon.isUploading}
-          hasImage={!!icon.assetUri}
-          onPressChange={icon.toggleSheet}
-          onPressRemove={icon.clear}
         />
       ),
     },
@@ -181,76 +203,78 @@ function MetaEditorForm({
         },
       ]}
     >
-      {/* Removing has its own button, so the sheet only picks. */}
+      {/* Android and web pick from this sheet; removing is in the menu. */}
       <AttachmentSheet {...icon.sheetProps} showClearOption={false} />
     </SettingsListScreenView>
   );
 }
 
+const editorAvatar = { size: 96, radius: 22 } as const;
+
 /**
- * The icon where the info screen shows it, with what can be done to it
- * beside it in place of the name.
+ * The icon centered on its own row, with a camera in its corner. Pressing it
+ * opens what can be done to it: a native menu on iOS, the picker sheet
+ * elsewhere.
  */
 function IconEditor({
   avatar,
-  notice,
-  canUpload,
   isUploading,
-  hasImage,
-  onPressChange,
-  onPressRemove,
+  menuItems,
+  onPressFallback,
+  notice,
 }: {
   avatar: ReactNode;
-  notice: ReactNode;
-  canUpload: boolean;
   isUploading: boolean;
-  hasImage: boolean;
-  onPressChange: () => void;
-  onPressRemove: () => void;
+  menuItems: IconMenuItem[];
+  onPressFallback: () => void;
+  notice: ReactNode;
 }) {
   return (
     <YStack paddingTop="$l" gap="$l">
       {notice}
-      <XStack
-        alignItems="center"
-        gap="$l"
-        paddingHorizontal={chatHeroLeadingInset}
-      >
-        <Pressable onPress={onPressChange} testID="ImageInputPreview">
-          <View opacity={isUploading ? 0.4 : 1}>{avatar}</View>
-          {isUploading ? (
+      <XStack justifyContent="center">
+        <IconMenu
+          items={menuItems}
+          onPress={onPressFallback}
+          accessibilityLabel="Change icon"
+          testID="ImageInputPreview"
+        >
+          <View>
+            <View opacity={isUploading ? 0.4 : 1}>{avatar}</View>
+            {isUploading ? (
+              <View
+                position="absolute"
+                top={0}
+                right={0}
+                bottom={0}
+                left={0}
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Spinner size="small" />
+              </View>
+            ) : null}
+            {/* Inside the corner: the menu's hosted label clips anything
+                hanging outside it. */}
             <View
               position="absolute"
-              top={0}
-              right={0}
-              bottom={0}
-              left={0}
+              right={5}
+              bottom={5}
+              width={26}
+              height={26}
+              borderRadius={13}
+              backgroundColor="$background"
               alignItems="center"
               justifyContent="center"
+              shadowColor="#000000"
+              shadowOpacity={0.15}
+              shadowRadius={3}
+              shadowOffset={{ width: 0, height: 1 }}
             >
-              <Spinner size="small" />
+              <Icon type="Camera" size="$s" color="$secondaryText" />
             </View>
-          ) : null}
-        </Pressable>
-        {/* The buttons keep their own width, as the info screen's do. */}
-        <XStack flex={1}>
-          <ProfileButton
-            // Without storage set up it is dimmed, and pressing it says why.
-            title="Change icon"
-            opacity={canUpload ? 1 : 0.5}
-            onPress={onPressChange}
-            flex={0}
-            testID="ChangeIconButton"
-          />
-          {hasImage ? (
-            <ProfileButton
-              title="Remove"
-              onPress={onPressRemove}
-              flex={0}
-              testID="RemoveIconButton"
-            />
-          ) : null}
-        </XStack>
+          </View>
+        </IconMenu>
       </XStack>
     </YStack>
   );

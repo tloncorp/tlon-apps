@@ -648,12 +648,9 @@ function mayBeCutOff(description: string) {
   return description.length > 90 || description.includes('\n');
 }
 
-/**
- * Where left-aligned header content starts, in line with the cards' text.
- * Shared with the screen that edits what this header shows.
- */
-export const chatHeroLeadingInset = 20;
-export const chatHeroAvatar = { size: 76, radius: 18 } as const;
+/** Where left-aligned header content starts, in line with the cards' text. */
+const chatHeroLeadingInset = 20;
+const chatHeroAvatar = { size: 76, radius: 18 } as const;
 
 /** How far the screen scrolls before the name in its header is out of view. */
 const chatHeroNameHeight = 60;
