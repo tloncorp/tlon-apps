@@ -200,6 +200,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   }>();
   const [vaultError, setVaultError] = useState<string>();
   const [vaultRequested, setVaultRequested] = useState(false);
+  const [showSavedLogins, setShowSavedLogins] = useState(false);
   const [saveLogin, setSaveLogin] = useState(false);
   const [allowAutomatic, setAllowAutomatic] = useState(false);
   const [accountLabel, setAccountLabel] = useState('');
@@ -262,6 +263,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     setChoice(undefined);
     setAccountLabel('');
     setVaultRequested(false);
+    setShowSavedLogins(false);
   }, []);
 
   useEffect(() => {
@@ -663,21 +665,24 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                     order.
                   </Text>
                 ) : null}
-                {vaultEligible && !vaultRequested ? (
+                {vaultEligible && !showSavedLogins ? (
                   <Button
                     preset="secondary"
                     label="Use saved login"
                     disabled={submitting}
-                    onPress={() => setVaultRequested(true)}
+                    onPress={() => {
+                      setShowSavedLogins(true);
+                      setVaultRequested(true);
+                    }}
                   />
                 ) : null}
-                {vaultRequested &&
+                {showSavedLogins &&
                 vaultEligible &&
                 !vaultAuth &&
                 !vaultError ? (
                   <Text color="$secondaryText">Loading saved logins…</Text>
                 ) : null}
-                {vaultAuth?.accounts.length ? (
+                {showSavedLogins && vaultAuth?.accounts.length ? (
                   <YStack gap="$s">
                     <Text>Saved logins</Text>
                     {vaultAuth.accounts.map((account) => (
@@ -727,6 +732,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                       label="Enter a new login"
                       disabled={submitting}
                       onPress={() => {
+                        setShowSavedLogins(false);
                         setChoice(undefined);
                         setSaveLogin(false);
                         setAllowAutomatic(false);

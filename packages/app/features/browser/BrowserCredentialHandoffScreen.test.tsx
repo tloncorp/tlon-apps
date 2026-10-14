@@ -222,6 +222,20 @@ describe('secure browser form screen', () => {
 
   it('starts with saving unchecked and only grants save consent after owner action', async () => {
     mocks.beginHandoff.mockResolvedValue(form(undefined, { vault }));
+    mocks.authorize.mockResolvedValue({
+      grant: 'g'.repeat(43),
+      accounts: [
+        {
+          id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
+          revision: 1,
+          label: 'Another account',
+          username: 'previously-saved-user',
+          origin: 'https://example.com',
+          updatedAt: 1,
+          permission: 'ask',
+        },
+      ],
+    });
     const { renderer } = await render();
     const checkbox = renderer.root.findByProps({
       accessibilityRole: 'checkbox',
@@ -233,6 +247,10 @@ describe('secure browser form screen', () => {
       enter(renderer, password.label, 'private-password');
       checkbox.props.onPress();
     });
+    expect(JSON.stringify(renderer.toJSON())).not.toContain(
+      'previously-saved-user'
+    );
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Another account');
     mocks.submitCredentials.mockResolvedValue({
       submitted: true,
       saveStatus: 'saved',
