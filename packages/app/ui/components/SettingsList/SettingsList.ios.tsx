@@ -275,7 +275,9 @@ function SettingsRow({
     listRowSeparatorTint(colors.separator),
     disabled(Boolean(row.disabled)),
     // The rows set their own text colors, which SwiftUI won't dim for them.
-    ...(row.disabled ? [opacity(0.5)] : []),
+    // Always present, so enabling a row doesn't rebuild it and drop the
+    // React Native view hosted in its leading slot.
+    opacity(row.disabled ? 0.5 : 1),
     ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
   ];
 
