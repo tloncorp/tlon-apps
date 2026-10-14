@@ -13,10 +13,12 @@ const MIN_EVERY_MS = 60_000;
 // A trigger script gates a run by returning `{ fire: true }`, which
 // OpenClaw's docs write `json({ fire: true })`. The model's filler is a script
 // that always answers the same (`return { fire: false };`, `return {fire:true}`)
-// or words that never set `fire` ("x", "unused", "do not fire").
+// or words that never set `fire` ("x", "unused", "do not fire"). A real script
+// sets it as a key (`fire:`, `"fire":`), by assignment, or in shorthand
+// (`{ fire }`).
 const CONSTANT_FIRE =
   /^\s*(?:return\b\s*)?(?:json\s*\(\s*)?\{\s*["']?fire["']?\s*:\s*(true|false)\s*\}\s*\)?\s*;?\s*$/;
-const SETS_FIRE = /\bfire["']?\]?\s*[:=]/;
+const SETS_FIRE = /\bfire["']?\]?\s*[:=]|[{,]\s*fire\s*(?=[,}])/;
 // Fields an update has no business changing on its own initiative; the model
 // only ever sets them to the schema's first enum value.
 const UPDATE_PLACEHOLDER_FIELDS = ['sessionTarget', 'wakeMode'];

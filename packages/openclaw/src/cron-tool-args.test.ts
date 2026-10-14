@@ -237,11 +237,12 @@ describe('cleanCronToolArgs', () => {
     });
   });
 
-  it('keeps a real trigger with a quoted fire key', () => {
+  it('keeps a real trigger however it sets fire', () => {
     for (const script of [
       'json({ "fire": price < 10 })',
       "return { 'fire': price < 10 };",
       'const out = {}; out["fire"] = price < 10; return out;',
+      'const { fire } = observation; json({ fire })',
     ]) {
       const cleaned = cleanCronToolArgs({
         action: 'add',
