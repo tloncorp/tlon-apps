@@ -8,6 +8,7 @@ import {
   resolveOnboardingDmGroupId,
   resolveTaskPlanGroupId,
 } from './agent-task-plan-tool.js';
+import { SupersededTurnError } from './superseded-turn.js';
 
 const validPlan: AgentTaskPlanToolParams = {
   target: 'chat/~zod/home-group-chat',
@@ -136,6 +137,39 @@ describe('agent task plan tool', () => {
     );
   });
 
+  it('builds day-of-week schedules and rejects invalid days', async () => {
+    const postPlan = vi.fn(async () => '{}');
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    });
+    const contextOf = (call: number) =>
+      JSON.parse(
+        postPlan.mock.calls[call]![0].blob
+      )[0].messages[1]?.updateComponents?.components.find(
+        (component: { id: string }) => component.id === 'auto-provision'
+      ).action.event.context;
+
+    await execute('weekdays', { ...validPlan, scheduleDays: [5, 1, 2, 3, 4] });
+    expect(contextOf(0).scheduleExpression).toBe('30 8 * * 1,2,3,4,5');
+
+    await execute('sundays', { ...validPlan, scheduleDays: [0] });
+    expect(contextOf(1).scheduleExpression).toBe('30 8 * * 0');
+
+    await execute('every-day', {
+      ...validPlan,
+      scheduleDays: [0, 1, 2, 3, 4, 5, 6],
+    });
+    expect(contextOf(2).scheduleExpression).toBe('30 8 * * *');
+
+    const invalid = await execute('bad-days', {
+      ...validPlan,
+      scheduleDays: [7],
+    });
+    expect(invalid.details).toEqual({ error: true });
+    expect(postPlan).toHaveBeenCalledTimes(3);
+  });
+
   it('accepts model-authored prose without a hardcoded phrase classifier', async () => {
     const execute = createAgentTaskPlanToolExecutor({
       postPlan: vi.fn(async () => '{}'),
@@ -240,7 +274,7 @@ describe('agent task plan tool', () => {
     const postPlan = vi.fn(async () => '{"ok":true}');
     const boundary = executionBoundary();
     boundary.assertCurrent.mockImplementation(() => {
-      throw new Error('newer owner message');
+      throw new SupersededTurnError();
     });
     const execute = createAgentTaskPlanToolExecutor({
       postPlan,
@@ -250,7 +284,8 @@ describe('agent task plan tool', () => {
 
     const result = await execute('call-stale', validPlan);
 
-    expect(result.details).toEqual({ error: true });
+    expect(result.details).toEqual({ superseded: true });
+    expect(result).toEqual(expect.objectContaining({ terminate: true }));
     expect(postPlan).not.toHaveBeenCalled();
     expect(boundary.finish).toHaveBeenCalledWith('call-stale', false);
   });

@@ -3,21 +3,25 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   _testing,
   assertTlonChoiceCallCurrent,
+  assertTlonServiceSetupCallCurrent,
   assertTlonTaskPlanCallCurrent,
+  bindTlonInterviewStartToCurrentOwnerTurn,
+  bindTlonServiceSetupCall,
   claimTlonChoiceCall,
   claimTlonTaskPlanCall,
   finishTlonChoiceCall,
   finishTlonTaskPlanCall,
-  getTlonSessionSurface,
   getTlonSessionRunSurface,
+  getTlonSessionSurface,
   getTlonTaskPlanEvidence,
+  managedCronJobIdOf,
   onboardingToolBlockReason,
   rememberTlonSessionRunSurface,
-  bindTlonInterviewStartToCurrentOwnerTurn,
-  resolveTlonSessionThreadParentId,
   resolveTlonSessionOwnerMessageId,
+  resolveTlonSessionThreadParentId,
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
+import { SupersededTurnError } from './superseded-turn.js';
 
 const groupSessionKey = 'agent:dev:tlon:group:chat/~zod/home';
 const groupTarget = 'chat/~zod/home';
@@ -232,6 +236,136 @@ describe('onboarding tool boundary', () => {
     ).toBeUndefined();
   });
 
+  it('lets reminders and group posts through cron during onboarding, but not the onboarding task', () => {
+    const surface = {
+      kind: 'direct' as const,
+      requestedOnboardingGroupId: '~ten/workspace',
+      channelNest: '~ten',
+      bootstrapComplete: false,
+      timestamp: Date.now(),
+    };
+    const add = (name: string, to: string) =>
+      onboardingToolBlockReason(
+        'cron',
+        { action: 'add', job: { name, delivery: { mode: 'announce', to } } },
+        surface
+      );
+    expect(add('Friday timesheet', '~ten')).toBeUndefined();
+    expect(
+      add('Morning news', 'chat/~ten/tech-friends-general')
+    ).toBeUndefined();
+    expect(add('Morning news', 'diary/~ten/updates')).toContain(
+      'typed task-plan coordinator'
+    );
+    expect(add('Tlonbot scheduled update', '~ten')).toContain(
+      'typed task-plan coordinator'
+    );
+    expect(
+      onboardingToolBlockReason('cron', { action: 'list' }, surface)
+    ).toBeUndefined();
+    expect(
+      onboardingToolBlockReason(
+        'cron',
+        { action: 'update', id: 'job-1', patch: { enabled: false } },
+        surface
+      )
+    ).toContain('any job other than the onboarding task');
+  });
+
+  it('lets an ordinary job be changed, run or removed during onboarding, but never the onboarding task', () => {
+    const surface = {
+      kind: 'direct' as const,
+      requestedOnboardingGroupId: '~ten/workspace',
+      channelNest: '~ten',
+      bootstrapComplete: false,
+      timestamp: Date.now(),
+    };
+    const manage = (
+      params: Record<string, unknown>,
+      job?: { onboardingJob: boolean }
+    ) => onboardingToolBlockReason('cron', params, surface, undefined, job);
+    const ordinary = { onboardingJob: false };
+
+    expect(
+      manage(
+        { action: 'update', jobId: 'r1', patch: { enabled: false } },
+        ordinary
+      )
+    ).toBeUndefined();
+    expect(manage({ action: 'remove', jobId: 'r1' }, ordinary)).toBeUndefined();
+    expect(manage({ action: 'run', id: 'r1' }, ordinary)).toBeUndefined();
+    expect(
+      manage(
+        {
+          action: 'update',
+          jobId: 'r1',
+          patch: { delivery: { to: 'chat/~ten/friends' } },
+        },
+        ordinary
+      )
+    ).toBeUndefined();
+
+    // The onboarding task, or a job nobody has looked up, stays closed.
+    expect(
+      manage({ action: 'remove', jobId: 'r1' }, { onboardingJob: true })
+    ).toContain('typed task-plan coordinator');
+    expect(manage({ action: 'remove', jobId: 'r1' })).toContain(
+      'typed task-plan coordinator'
+    );
+    // Nor can a change turn an ordinary job into the onboarding task.
+    expect(
+      manage(
+        {
+          action: 'update',
+          jobId: 'r1',
+          patch: { name: 'Tlonbot scheduled update' },
+        },
+        ordinary
+      )
+    ).toContain('typed task-plan coordinator');
+    expect(
+      manage(
+        {
+          action: 'update',
+          jobId: 'r1',
+          patch: { delivery: { to: 'diary/~ten/updates' } },
+        },
+        ordinary
+      )
+    ).toContain('typed task-plan coordinator');
+  });
+
+  it('names the job a cron call manages', () => {
+    expect(managedCronJobIdOf({ action: 'update', jobId: 'a', id: 'b' })).toBe(
+      'a'
+    );
+    expect(managedCronJobIdOf({ action: 'remove', jobId: '', id: 'b' })).toBe(
+      'b'
+    );
+    expect(managedCronJobIdOf({ action: 'run', id: 'b' })).toBe('b');
+    expect(managedCronJobIdOf({ action: 'update' })).toBeUndefined();
+    expect(managedCronJobIdOf({ action: 'add', jobId: 'a' })).toBeUndefined();
+    expect(managedCronJobIdOf({ action: 'list', id: 'a' })).toBeUndefined();
+  });
+
+  it('applies the same rules when the scheduler tool is called automations', () => {
+    const surface = {
+      kind: 'direct' as const,
+      requestedOnboardingGroupId: '~ten/workspace',
+      channelNest: '~ten',
+      bootstrapComplete: false,
+      timestamp: Date.now(),
+    };
+    const add = (to: string) =>
+      onboardingToolBlockReason(
+        'automations',
+        { action: 'add', job: { name: 'Morning news', delivery: { to } } },
+        surface
+      );
+    expect(add('~ten')).toBeUndefined();
+    expect(add('diary/~ten/updates')).toContain('typed task-plan coordinator');
+  });
+
   it('shares the surface with thread session keys', () => {
     setTlonSessionSurface('agent:dev:tlon:group:chat/~zod/home', {
       kind: 'group',
@@ -307,37 +441,28 @@ describe('onboarding tool boundary', () => {
     expect(getTlonSessionSurface(sessionKey)?.senderRole).toBe('user');
   });
 
-  it('blocks a typed card from a run superseded by newer owner input', () => {
+  it('leaves stale onboarding cards to their own recheck', () => {
     rememberGroupRun('run-old', '~owner/100');
     setGroupTurn('~owner/101');
 
     const current = getTlonSessionSurface(groupSessionKey);
     const oldRun = getTlonSessionRunSurface('run-old');
-    expect(
-      onboardingToolBlockReason(
-        'tlon_agent_task_plan',
-        { target: 'chat/~zod/home' },
-        current,
-        oldRun
-      )
-    ).toContain('newer owner message');
-    expect(
-      onboardingToolBlockReason(
-        'tlon_agent_choice',
-        { target: 'chat/~zod/home' },
-        current,
-        oldRun
-      )
-    ).toContain('newer owner message');
-    expect(
-      onboardingToolBlockReason(
-        'tlon_agent_service_setup',
-        { target: 'chat/~zod/home' },
-        current,
-        oldRun
-      )
-    ).toContain('newer owner message');
-
+    // Each card rechecks right before posting and ends a stale turn with a
+    // normal result; a block here could not end the turn.
+    for (const tool of [
+      'tlon_agent_task_plan',
+      'tlon_agent_choice',
+      'tlon_agent_service_setup',
+    ]) {
+      expect(
+        onboardingToolBlockReason(
+          tool,
+          { target: 'chat/~zod/home' },
+          current,
+          oldRun
+        )
+      ).toBeUndefined();
+    }
     rememberTlonSessionRunSurface('run-current', groupSessionKey);
     expect(
       onboardingToolBlockReason(
@@ -395,7 +520,7 @@ describe('onboarding tool boundary', () => {
 
     rememberGroupRun('run-2', '~owner/200');
     expect(() => assertTlonChoiceCallCurrent('choice-1')).toThrow(
-      'The stale choice was not posted'
+      SupersededTurnError
     );
     expect(claimChoice('choice-2', 'run-2')).toBeUndefined();
     expect(() => assertTlonChoiceCallCurrent('choice-2')).not.toThrow();
@@ -444,6 +569,28 @@ describe('onboarding tool boundary', () => {
     });
   });
 
+  it('rechecks a setup card against the owner turn that posted it', () => {
+    rememberGroupRun('run-1', '~owner/100');
+    bindTlonServiceSetupCall({
+      toolCallId: 'setup-1',
+      runId: 'run-1',
+      sessionKey: groupSessionKey,
+    });
+    bindTlonServiceSetupCall({
+      toolCallId: 'setup-2',
+      runId: 'run-1',
+      sessionKey: groupSessionKey,
+    });
+    expect(() => assertTlonServiceSetupCallCurrent('setup-1')).not.toThrow();
+
+    setGroupTurn('~owner/101');
+    expect(() => assertTlonServiceSetupCallCurrent('setup-2')).toThrow(
+      SupersededTurnError
+    );
+    // Unbound calls keep posting as before.
+    expect(() => assertTlonServiceSetupCallCurrent('setup-3')).not.toThrow();
+  });
+
   it('rechecks owner intent immediately before task-plan publication', () => {
     rememberGroupRun('run-1', '~owner/100');
     bindTlonInterviewStartToCurrentOwnerTurn('run-1', groupSessionKey);
@@ -451,7 +598,7 @@ describe('onboarding tool boundary', () => {
 
     setGroupTurn('~owner/101');
     expect(() => assertTlonTaskPlanCallCurrent('call-1')).toThrow(
-      'newer owner message'
+      SupersededTurnError
     );
   });
 });

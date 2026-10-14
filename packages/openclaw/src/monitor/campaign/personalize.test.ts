@@ -1,7 +1,12 @@
 import { access } from 'node:fs/promises';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
-import { personalizeTip, type TipDraft } from './personalize.js';
+import {
+  CAMPAIGN_GATE_POLICY,
+  TIP_NOT_WORTH_SENDING,
+  type TipDraft,
+  personalizeTip,
+} from './personalize.js';
 
 const run = vi.hoisted(() => vi.fn());
 vi.mock('../../runtime.js', () => ({
@@ -84,6 +89,36 @@ it.each([
   run.mockResolvedValue(result);
   expect(await personalizeTip(draft, {}, 'default')).toBeUndefined();
 });
+it('asks whether a gated tip is worth sending, with the tips already sent', async () => {
+  const gated: TipDraft = {
+    ...draft,
+    gated: true,
+    state: {
+      ...draft.state,
+      sent: [{ step: 'useful-request', at: 1, text: 'An earlier tip.' }],
+    },
+  };
+  await personalizeTip(gated, {}, 'default');
+  expect(run.mock.calls[0][0].prompt).toContain(CAMPAIGN_GATE_POLICY);
+  expect(run.mock.calls[0][0].prompt).toContain(
+    '"earlierTips":["An earlier tip."]'
+  );
+
+  await personalizeTip(draft, {}, 'default');
+  expect(run.mock.calls[1][0].prompt).not.toContain(TIP_NOT_WORTH_SENDING);
+  expect(run.mock.calls[1][0].prompt).not.toContain('earlierTips');
+});
+it.each([TIP_NOT_WORTH_SENDING, ` ${TIP_NOT_WORTH_SENDING}.\n`, 'skip_tip'])(
+  'reports a gated tip the model turned down: %j',
+  async (text) => {
+    run.mockResolvedValue({ meta: {}, payloads: [{ text }] });
+    expect(
+      await personalizeTip({ ...draft, gated: true }, {}, 'default')
+    ).toBeNull();
+    // Without a gate there is nothing to turn down, so it is just unusable.
+    expect(await personalizeTip(draft, {}, 'default')).toBeUndefined();
+  }
+);
 it('cleans up after a rejected model request', async () => {
   run.mockRejectedValue(new Error('offline'));
   await expect(personalizeTip(draft, {}, 'default')).rejects.toThrow('offline');

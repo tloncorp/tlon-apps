@@ -1,4 +1,8 @@
+import { isCronToolName } from './cron-tool-args-guard.js';
+import { ONBOARDING_JOB_NAME } from './monitor/onboarding-job.js';
 import { sharedMap } from './shared-state.js';
+import { SupersededTurnError } from './superseded-turn.js';
+import { isDmNest } from './targets.js';
 
 type TlonSessionSurface = {
   kind: 'direct' | 'group';
@@ -36,6 +40,12 @@ type TlonChoiceCall = {
   timestamp: number;
 };
 
+type TlonServiceSetupCall = {
+  sessionKey: string;
+  ownerMessageId: string;
+  timestamp: number;
+};
+
 const sessionSurfaces = sharedMap<string, TlonSessionSurface>(
   'onboarding-session-surfaces'
 );
@@ -56,6 +66,9 @@ const interviewStarts = sharedMap<string, TlonInterviewStart>(
 );
 const choiceCalls = sharedMap<string, TlonChoiceCall>(
   'onboarding-choice-calls'
+);
+const serviceSetupCalls = sharedMap<string, TlonServiceSetupCall>(
+  'onboarding-service-setup-calls'
 );
 const SURFACE_TTL_MS = 60 * 60 * 1000;
 
@@ -110,6 +123,11 @@ function pruneExpiredSurfaces(now = Date.now()): void {
       if (choiceRunClaims.get(entry.runId) === key) {
         choiceRunClaims.delete(entry.runId);
       }
+    }
+  }
+  for (const [key, entry] of serviceSetupCalls) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      serviceSetupCalls.delete(key);
     }
   }
 }
@@ -238,9 +256,7 @@ export function assertTlonChoiceCallCurrent(toolCallId: string): void {
   if (
     getTlonSessionSurface(call.sessionKey)?.messageId !== call.ownerMessageId
   ) {
-    throw new Error(
-      'A newer owner message arrived during this response. The stale choice was not posted.'
-    );
+    throw new SupersededTurnError();
   }
 }
 
@@ -253,6 +269,34 @@ export function finishTlonChoiceCall(
   choiceCalls.delete(toolCallId);
   if (choiceRunClaims.get(call.runId) === toolCallId) {
     choiceRunClaims.delete(call.runId);
+  }
+}
+
+/** Tie a setup card to the owner message whose turn is posting it. */
+export function bindTlonServiceSetupCall(input: {
+  toolCallId?: string;
+  runId?: string;
+  sessionKey?: string;
+}): void {
+  const toolCallId = input.toolCallId?.trim();
+  const sessionKey = input.sessionKey?.trim();
+  const runSurface = getTlonSessionRunSurface(input.runId);
+  if (!toolCallId || !sessionKey || !runSurface?.messageId) return;
+  pruneExpiredSurfaces();
+  serviceSetupCalls.set(toolCallId, {
+    sessionKey,
+    ownerMessageId: runSurface.messageId,
+    timestamp: Date.now(),
+  });
+}
+
+export function assertTlonServiceSetupCallCurrent(toolCallId: string): void {
+  const call = serviceSetupCalls.get(toolCallId);
+  serviceSetupCalls.delete(toolCallId);
+  if (!call) return;
+  const current = getTlonSessionSurface(call.sessionKey);
+  if (current?.messageId && current.messageId !== call.ownerMessageId) {
+    throw new SupersededTurnError();
   }
 }
 
@@ -338,9 +382,7 @@ export function assertTlonTaskPlanCallCurrent(toolCallId: string): void {
   }
   const current = getTlonSessionSurface(call.sessionKey);
   if (current?.messageId !== call.interviewMessageId) {
-    throw new Error(
-      'A newer owner message arrived during this response. The stale task plan was not posted.'
-    );
+    throw new SupersededTurnError();
   }
 }
 
@@ -364,7 +406,9 @@ export function onboardingToolBlockReason(
   toolName: string,
   params: unknown,
   surface: TlonSessionSurface | undefined,
-  runSurface?: TlonSessionRunSurface
+  runSurface?: TlonSessionRunSurface,
+  /** For a call that changes, runs or removes a job: whether it is the onboarding task. */
+  managedCronJob?: { onboardingJob: boolean }
 ): string | undefined {
   const isTypedOnboardingTool =
     toolName === 'tlon_agent_choice' ||
@@ -395,25 +439,71 @@ export function onboardingToolBlockReason(
     if (target !== surface.channelNest) {
       return 'The onboarding tool target must match the active conversation.';
     }
-    if (
-      surface.messageId &&
-      runSurface?.messageId &&
-      surface.messageId !== runSurface.messageId
-    ) {
-      return (
-        'A newer owner message arrived during this response. Do not post this ' +
-        'onboarding action; stop and let the newer owner turn handle the latest intent.'
-      );
-    }
   }
 
-  if (toolName === 'cron' && surface?.bootstrapComplete === false) {
+  if (
+    isCronToolName(toolName) &&
+    surface?.bootstrapComplete === false &&
+    !cronOpenDuringOnboarding(params, managedCronJob)
+  ) {
     return surface.kind === 'direct' && !surface.requestedOnboardingGroupId
       ? 'First-run recurring-task provisioning is owned by the group coordinator. Tell the owner to choose +, then New Tlonbot group, and stop.'
-      : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan to activate the agreed task, and do not call cron directly.';
+      : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan to activate the agreed task, and do not call cron directly. ' +
+          "Until the task's first entry has posted, cron can list jobs, add one that delivers to a DM or a group chat, and change, run or remove any job other than the onboarding task.";
   }
 
   return undefined;
+}
+
+const CRON_MANAGE_ACTIONS = ['update', 'remove', 'run'];
+
+/** The job a cron call changes, runs or removes, if it is that kind of call. */
+export function managedCronJobIdOf(params: unknown): string | undefined {
+  const { action, jobId, id } = (params ?? {}) as Record<string, unknown>;
+  if (!CRON_MANAGE_ACTIONS.includes(String(action))) return undefined;
+  const target = [jobId, id].find(
+    (value): value is string => typeof value === 'string' && value !== ''
+  );
+  return target;
+}
+
+type CronJobShape = { name?: unknown; delivery?: { to?: unknown } };
+
+/** Somewhere the onboarding task never delivers: a DM, or a group chat. */
+const ordinaryDelivery = (to: unknown) =>
+  typeof to === 'string' && (isDmNest(to) || to.startsWith('chat/'));
+
+/**
+ * During first-run onboarding the typed task plan owns the onboarding task, so
+ * cron stays closed to it. Reads stay open, and so does adding an ordinary job
+ * that delivers somewhere the onboarding task never does: a reminder in a DM,
+ * or posts in a group chat. A job like that can also be changed, run or
+ * removed, as long as the change doesn't turn it into the onboarding task.
+ */
+function cronOpenDuringOnboarding(
+  params: unknown,
+  managedCronJob?: { onboardingJob: boolean }
+) {
+  const { action, job, patch } = (params ?? {}) as {
+    action?: unknown;
+    job?: CronJobShape;
+    patch?: CronJobShape;
+  };
+  if (['status', 'list', 'get', 'runs'].includes(String(action))) return true;
+  if (action === 'add') {
+    return (
+      job?.name !== ONBOARDING_JOB_NAME && ordinaryDelivery(job?.delivery?.to)
+    );
+  }
+  if (!CRON_MANAGE_ACTIONS.includes(String(action))) return false;
+  // Not told which job this is, or it is the onboarding task: stay closed.
+  if (managedCronJob?.onboardingJob !== false) return false;
+  const change = patch ?? job;
+  const to = change?.delivery?.to;
+  return (
+    change?.name !== ONBOARDING_JOB_NAME &&
+    (to === undefined || ordinaryDelivery(to))
+  );
 }
 
 export const _testing = {
@@ -425,5 +515,6 @@ export const _testing = {
     taskPlanCalls.clear();
     interviewStarts.clear();
     choiceCalls.clear();
+    serviceSetupCalls.clear();
   },
 };

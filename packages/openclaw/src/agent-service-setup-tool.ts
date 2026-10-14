@@ -1,5 +1,10 @@
 import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
 
+import {
+  SupersededTurnError,
+  supersededToolResult,
+} from './superseded-turn.js';
+
 const MAX_PROVIDER_ID_LENGTH = 500;
 
 export type AgentServiceSetupToolParams = {
@@ -9,6 +14,18 @@ export type AgentServiceSetupToolParams = {
 
 type ResolvedAgentServiceSetupToolParams = AgentServiceSetupToolParams & {
   surfaceId: string;
+};
+
+export const agentServiceSetupToolMetadata = {
+  name: 'tlon_agent_service_setup',
+  label: 'Tlon Agent Service Setup',
+  description:
+    'Post an actionable Connected Services recovery card when the owner explicitly chooses to connect a private source required before a first-run task can be created. The client opens its existing service-management flow, preserving hosted OAuth and the native unavailable state.',
+  promptSnippet:
+    '`tlon_agent_service_setup`: open Connected Services for an owner-chosen private source that is required before planning',
+  promptGuidelines: [
+    'When first-run onboarding cannot proceed because an explicitly chosen private source is not connected and the owner chooses to connect it, call `tlon_agent_service_setup` instead of ending with prose; after it posts successfully, return NO_REPLY and wait for the owner to return and tap Continue setup or send a message. On that turn, check whether the source is connected before continuing. Do not call it when the owner chose an immediately executable fallback.',
+  ],
 };
 
 export const agentServiceSetupToolParameters = {
@@ -114,7 +131,7 @@ function buildAgentServiceSetupBlob(
                   event: {
                     name: 'tlon.sendMessage',
                     context: {
-                      text: 'Continue my daily task setup. Check whether the source I chose is connected; if not, help me choose an available source.',
+                      text: 'Continue my task setup. Check whether the source I chose is connected; if not, help me choose an available source.',
                     },
                   },
                 },
@@ -138,6 +155,7 @@ export function createAgentServiceSetupToolExecutor(deps: {
     fallbackMessage: string;
     blob: string;
   }) => Promise<string>;
+  assertCurrent: (toolCallId: string) => void;
 }) {
   return async function execute(
     id: string,
@@ -148,6 +166,7 @@ export function createAgentServiceSetupToolExecutor(deps: {
         ...params,
         surfaceId: `agent-service-setup-${id}`,
       });
+      deps.assertCurrent(id);
       const output = await deps.postSetup({
         target: params.target,
         fallbackMessage: recoveryCopy(),
@@ -158,6 +177,9 @@ export function createAgentServiceSetupToolExecutor(deps: {
         details: undefined,
       };
     } catch (error) {
+      if (error instanceof SupersededTurnError) {
+        return supersededToolResult();
+      }
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],

@@ -7,33 +7,36 @@ supplied clock; `runner.ts` saves progress; `live.ts` connects messages and cron
 
 ## Rollout
 
-Default off. Review the single set of templates before enabling a cohort under
-`channels.tlon`:
+On by default, with nothing to configure. It reaches only new accounts: an
+owner is enrolled when a new-account signup posts its first intro from a client
+that marks it (`campaignVersion: 1`, sent with the timezone), and the gateway
+sees that intro within five minutes of it being posted. Returning accounts and
+later groups omit the version, and an intro already in history when the plugin
+starts is too old to count, so there is no old-user backfill. The first server
+observation starts the week once per owner. The first tip always includes
+opt-out instructions.
+
+One runnable Tlon account per gateway is required because cron state is shared.
+
+Two optional settings under `channels.tlon`:
 
 ```json
 {
   "onboardingCampaign": {
-    "enabled": true,
+    "enabled": false,
     "enrollAfter": "2026-10-01T00:00:00Z"
   }
 }
 ```
 
-Use the actual rollout boundary. The first tip always includes opt-out
-instructions.
-
-One runnable Tlon account per gateway is required because cron state is shared.
-The first signup intro carries timezone and `campaignVersion: 1`; returning
-accounts and later groups omit the version. Only authenticated owner intros
-newer than the cutoff and within five minutes of the gateway clock can enroll.
-The first server observation starts the week once per owner. No old-user backfill.
+`enabled: false` switches the campaign off. `enrollAfter` adds a cutoff: only
+intros newer than it can enroll.
 
 The Onboarding QA deployment is temporarily coupled through
 `TLON_CONFIG=onboarding-qa-stack`: it enables the campaign for fresh version-1
 enrollments and replaces the day windows with consecutive one-hour windows.
 It also ignores the local-time delivery window so a test can finish in one
-session. All other deployments retain the explicit config above and production
-timing. The gateway logs the resolved deployment name, enabled state, and
+session. All other deployments get production timing. The gateway logs the resolved deployment name, enabled state, and
 interval at campaign startup so operators can verify the coupling without
 reading the campaign database.
 
@@ -45,14 +48,28 @@ reading the campaign database.
   Reply context uses task facts cached by the campaign check, not another cron read.
 - Normal replies follow the owner's latest request and the onboarding skill;
   the campaign does not append a generic recurring-task pitch to useful answers.
-- Existing bot tools create tasks only after agreement and resolving work,
-  cadence, clock time, timezone, and destination. Campaign code creates no tasks.
+- Task creation follows the onboarding skill. Campaign code creates no tasks.
 - Any user recurring task, including a disabled task or one created outside
   onboarding, stops acquisition prompts. Removing it does not restart them.
   One-shot and internal heartbeat jobs do not count.
 - A verified task result makes one feedback tip eligible on a regular check,
   subject to the same spacing, activity, and quiet hours as other tips. Failures
   take precedence over successful work. Feedback counts toward the five-tip cap.
+
+An owner who has never had a task hears the ownership story from day two, in
+place of more task pitches: their node and who hosts it, starting a notebook, a
+notebook that grows, and a closing about changing models without losing
+anything. Day one is unchanged.
+
+When the bot knows something about the owner (a setup choice or anything they
+have said in the tip conversation), the same model run that rewords the tip
+first decides whether it is worth sending, given their latest message and the
+tips already sent. If it says no, the usual tip for that step is sent instead,
+reworded as before. If the run fails or gives no answer, the usual tip goes out
+as written. When the bot knows nothing about the owner there is nothing to
+check or tailor, so the ownership tip goes out as written. With two unanswered
+tips the middle ones are skipped as usual, so a silent owner hears day one, the
+ownership tip and that closing.
 
 Use the private onboarding channel while it contains only the owner and bot.
 Public groups, extra members/invitations, or an owner who left route to the owner

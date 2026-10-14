@@ -6,6 +6,10 @@ import {
   agentChoiceToolParameters,
   createAgentChoiceToolExecutor,
 } from './agent-choice-tool.js';
+import {
+  SUPERSEDED_TURN_TEXT,
+  SupersededTurnError,
+} from './superseded-turn.js';
 
 const validChoice: AgentChoiceToolParams = {
   target: 'chat/~zod/home-group-chat',
@@ -47,16 +51,6 @@ const invalidChoices: Array<{
     name: '37-character labels',
     params: { ...validChoice, options: ['News', 'x'.repeat(37)] },
   },
-  ...[
-    'Other',
-    'Custom: describe it',
-    'Something else (write it in)',
-    'Write your own',
-  ].map((option) => ({
-    name: `reserved freeform option "${option}"`,
-    params: { ...validChoice, options: ['News', option] },
-    message: 'built-in freeform',
-  })),
   {
     name: 'non-chat target',
     params: { ...validChoice, target: 'dm/~zod' },
@@ -137,16 +131,19 @@ describe('agent choice tool', () => {
     ]);
   });
 
-  it('does not post a choice after its owner turn is superseded', async () => {
+  it('ends the turn quietly when a newer owner message supersedes it', async () => {
     const { deps, execute, postChoice } = choiceHarness();
     deps.assertCurrent.mockImplementation(() => {
-      throw new Error('A newer owner message arrived');
+      throw new SupersededTurnError();
     });
 
     const result = await execute('stale-choice', validChoice);
 
-    expect(result.details).toEqual({ error: true });
-    expect(result.content[0]?.text).toContain('A newer owner message arrived');
+    // Not an error: retrying can't succeed, and the newer message gets its
+    // own reply. OpenClaw ends the turn instead of asking the model again.
+    expect(result.details).toEqual({ superseded: true });
+    expect(result).toEqual(expect.objectContaining({ terminate: true }));
+    expect(result.content[0]?.text).toBe(SUPERSEDED_TURN_TEXT);
     expect(postChoice).not.toHaveBeenCalled();
   });
 

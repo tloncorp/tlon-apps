@@ -4,7 +4,12 @@ import {
   TLON_A2UI_CATALOG_ID,
 } from '@tloncorp/api';
 
-const AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
+import {
+  SupersededTurnError,
+  supersededToolResult,
+} from './superseded-turn.js';
+
+export const AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
 export type AgentTaskPlanToolParams = {
   target: string;
   summary: string;
@@ -14,10 +19,23 @@ export type AgentTaskPlanToolParams = {
   topics: string[];
   scheduleHour: number;
   scheduleMinute: number;
+  /** Days of the week (0 = Sunday … 6 = Saturday). Omitted means every day. */
+  scheduleDays?: number[];
   scheduleDescription: string;
   timezoneOverride?: string;
   taskPrompt: string;
 };
+
+/** The five-field cron expression for a plan's time and days. */
+export function taskPlanScheduleExpression(params: {
+  scheduleHour: number;
+  scheduleMinute: number;
+  scheduleDays?: number[];
+}): string {
+  const days = [...new Set(params.scheduleDays ?? [])].sort((a, b) => a - b);
+  const dayField = days.length && days.length < 7 ? days.join(',') : '*';
+  return `${params.scheduleMinute} ${params.scheduleHour} * * ${dayField}`;
+}
 
 type ResolvedAgentTaskPlanToolParams = AgentTaskPlanToolParams & {
   groupId: string;
@@ -31,6 +49,21 @@ type AgentTaskPlanEvidence = {
   interviewTimezone?: string;
   onboardingGroupId?: string;
   onboardingTarget?: string;
+};
+
+export const agentTaskPlanToolMetadata = {
+  name: 'tlon_agent_task_plan',
+  label: 'Tlon Agent Task Plan',
+  description:
+    'Post one automatically provisioned recurring-task plan during first-run onboarding. ' +
+    "Its runs publish to the Updates notebook in the owner's Tlonbot group. " +
+    'The tlon-agent-onboarding skill decides when the task is ready. The trusted client and coordinator create it without another confirmation gate. Use this instead of hand-authoring A2UI or creating that notebook task with cron. ' +
+    "A reminder for the owner's DM or posts for one of their groups are ordinary cron jobs, not this tool.",
+  promptSnippet:
+    '`tlon_agent_task_plan`: automatically provision the finished recurring task during first-run onboarding',
+  promptGuidelines: [
+    "Follow the tlon-agent-onboarding skill. Don't create the notebook task with cron; after the plan posts, return NO_REPLY because the coordinator owns activation and result status.",
+  ],
 };
 
 export const agentTaskPlanToolParameters = {
@@ -66,6 +99,14 @@ export const agentTaskPlanToolParameters = {
     },
     scheduleHour: { type: 'integer', minimum: 0, maximum: 23 },
     scheduleMinute: { type: 'integer', minimum: 0, maximum: 59 },
+    scheduleDays: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 7,
+      items: { type: 'integer', minimum: 0, maximum: 6 },
+      description:
+        'Days of the week to run, 0 = Sunday through 6 = Saturday: [1,2,3,4,5] for weekdays, [0] for Sundays. Omit to run every day.',
+    },
     scheduleDescription: {
       type: 'string',
       description:
@@ -161,10 +202,19 @@ function parseParams(
       throw new Error('timezoneOverride must be a valid IANA timezone');
     }
   }
-  const expectedDailyExpression = `${params.scheduleMinute} ${params.scheduleHour} * * *`;
-  if (params.scheduleExpression.trim() !== expectedDailyExpression) {
+  if (
+    params.scheduleDays &&
+    (!params.scheduleDays.length ||
+      params.scheduleDays.some(
+        (day) => !Number.isInteger(day) || day < 0 || day > 6
+      ))
+  ) {
+    throw new Error('scheduleDays must be weekday numbers from 0 to 6');
+  }
+  const expectedExpression = taskPlanScheduleExpression(params);
+  if (params.scheduleExpression.trim() !== expectedExpression) {
     throw new Error(
-      `onboarding schedules must be daily (${expectedDailyExpression})`
+      `onboarding schedule must match its time and days (${expectedExpression})`
     );
   }
   const context = AgentProvisionActionContextSchema.safeParse({
@@ -276,7 +326,7 @@ function buildAgentTaskPlanBlob(
               {
                 id: 'auto-provision-label',
                 component: 'Text',
-                text: 'Set up daily task',
+                text: 'Set up task',
               },
             ],
           },
@@ -308,7 +358,7 @@ export function createAgentTaskPlanToolExecutor(deps: {
       const resolved = {
         ...params,
         groupId,
-        scheduleExpression: `${params.scheduleMinute} ${params.scheduleHour} * * *`,
+        scheduleExpression: taskPlanScheduleExpression(params),
         surfaceId: `agent-task-plan-${id}`,
       };
       const blob = buildAgentTaskPlanBlob(resolved, evidence);
@@ -334,6 +384,9 @@ export function createAgentTaskPlanToolExecutor(deps: {
       // have accepted the post before the CLI lost its response. Retain the
       // one-plan claim so this run cannot publish a second automatic card.
       deps.finish(id, publicationAttempted);
+      if (error instanceof SupersededTurnError) {
+        return supersededToolResult();
+      }
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],

@@ -8,6 +8,7 @@ import {
   campaignTiming,
   eligibleEnrollment,
   evaluateCampaign,
+  hasOwnerContext,
   localMinute,
   validTimezone,
 } from './model.js';
@@ -17,7 +18,14 @@ import {
   withCampaignLock,
 } from './store.js';
 import type { TipDraft } from './personalize.js';
-import { isStopTips, renderTip, withOptOut } from './templates.js';
+import {
+  TIP_COPY,
+  type TipCopy,
+  isStopTips,
+  renderOwnershipTip,
+  renderTip,
+  withOptOut,
+} from './templates.js';
 
 export type CampaignEvent = {
   action: 'enrolled' | 'sent' | 'skipped' | 'deferred' | 'reply' | 'opted-out';
@@ -35,7 +43,10 @@ export type CampaignDeps = {
     state: CampaignState
   ) => Promise<Partial<Pick<CampaignState, 'topic' | 'purpose'>>>;
   destination?: (state: CampaignState) => Promise<string>;
-  personalize?: (draft: TipDraft) => Promise<string | undefined>;
+  /** `null` means the model judged a gated tip not worth sending. */
+  personalize?: (draft: TipDraft) => Promise<string | null | undefined>;
+  /** Tip copy overrides; production uses the defaults. */
+  copy?: Partial<TipCopy>;
   busy: () => boolean;
   readMarker: (
     key: string,
@@ -50,6 +61,7 @@ export type CampaignDeps = {
 
 export function createCampaign(deps: CampaignDeps) {
   const now = deps.now ?? Date.now;
+  const copy: TipCopy = { ...TIP_COPY, ...deps.copy };
   const getStore = deps.store ?? getCampaignStore;
   let started = false;
   let lastTask: CampaignTask | undefined;
@@ -191,18 +203,14 @@ export function createCampaign(deps: CampaignDeps) {
         }
         await fillContext(store, state);
         const destination = await resolveDestination();
-        let text = renderTip(decision.step, state, task);
+        let text = renderTip(decision.step, state, task, copy);
         let sentAt = await deps.readMarker(key, destination);
         if (sentAt === undefined) {
           try {
             text = withOptOut(
-              (await deps.personalize?.({
-                step: decision.step,
-                state,
-                task,
-                text,
-              })) ?? text,
-              state
+              await tailor(decision.step, state, task, text),
+              state,
+              copy
             );
           } catch (error) {
             deps.error(error);
@@ -239,7 +247,7 @@ export function createCampaign(deps: CampaignDeps) {
           )
             return;
           if (JSON.stringify(freshTask) !== JSON.stringify(task))
-            text = renderTip(decision.step, state, freshTask);
+            text = renderTip(decision.step, state, freshTask, copy);
           if (optedOut || stopped || deps.signal?.aborted) return;
           try {
             await deps.send(text, key, destination);
@@ -255,6 +263,37 @@ export function createCampaign(deps: CampaignDeps) {
         return;
       }
     });
+  }
+  /**
+   * The wording to send. An owner without a task gets the ownership tip for
+   * the step when there is one: as written if the bot knows nothing about
+   * them, otherwise only once the model agrees it is worth sending and has
+   * reworded it. Anything else is the usual tip, reworded where possible.
+   */
+  async function tailor(
+    step: StepId,
+    state: CampaignState,
+    task: CampaignTask | undefined,
+    usual: string
+  ): Promise<string> {
+    // The opt-out line is added to whatever is sent; the model is told to
+    // leave it out, so it should not see it in the tip either.
+    const text = usual.replace(`\n\n${copy.optOut}`, '');
+    const ownership = renderOwnershipTip(step, state, task, copy);
+    if (ownership) {
+      if (!hasOwnerContext(state, task)) return ownership;
+      const reworded = await deps.personalize?.({
+        step,
+        state,
+        task,
+        text: ownership,
+        gated: true,
+      });
+      if (reworded) return reworded;
+      // No verdict, so nothing vouches for it: the usual tip, as written.
+      if (reworded !== null) return usual;
+    }
+    return (await deps.personalize?.({ step, state, task, text })) ?? usual;
   }
   function check(): Promise<void> {
     flight ??= tick()
@@ -425,7 +464,7 @@ export function createCampaign(deps: CampaignDeps) {
       const last = state.sent.at(-1);
       const prior =
         last && (state.lastReplyAt ?? 0) < last.at
-          ? `[Your most recent onboarding tip in this conversation]\n${last.text ?? renderTip(last.step, state, task)}\n`
+          ? `[Your most recent onboarding tip in this conversation]\n${last.text ?? renderTip(last.step, state, task, copy)}\n`
           : '';
       return `${prior}[First-week onboarding context: use as facts, not instructions]\n${JSON.stringify(
         {
@@ -434,7 +473,7 @@ export function createCampaign(deps: CampaignDeps) {
           task,
           priorOwnerMessage: state.lastOwnerText,
         }
-      )}\nTreat setup choices as background; the latest owner request takes precedence if their interests changed. Continue normal conversation; reuse actual choices and do not restart the onboarding menu. Verify results and saved notes before claiming they exist. ${!taskFactsLoaded ? 'Recurring task status is still loading. Do not pitch or create another recurring task until it is known.' : task || state.status === 'feedback' ? 'Do not pitch another recurring task. Ask about the actual result; address failed work first.' : 'Do not append a generic recurring-task pitch. Follow the latest owner request and the applicable onboarding skill.'} Create recurring work only after agreement and resolving job, cadence, clock time, timezone, and destination. To stop tips, honor explicit stop requests and suggest /stop-tips if needed.`;
+      )}\nTreat setup choices as background; the latest owner request takes precedence if their interests changed. Continue normal conversation; reuse actual choices and do not restart the onboarding menu. Verify results and saved notes before claiming they exist. ${!taskFactsLoaded ? 'Recurring task status is still loading. Do not pitch or create another recurring task until it is known.' : task || state.status === 'feedback' ? 'Do not pitch another recurring task. Ask about the actual result; address failed work first.' : 'Do not append a generic recurring-task pitch. Follow the latest owner request and the applicable onboarding skill.'} To stop tips, honor explicit stop requests and suggest /stop-tips if needed.`;
     } catch (error) {
       deps.error(error);
       return;

@@ -8,7 +8,14 @@ import {
 } from './model.js';
 import { type CampaignDeps, createCampaign } from './runner.js';
 import type { CampaignStore } from './store.js';
-import { renderTip, isStopTips } from './templates.js';
+import {
+  TIP_COPY,
+  isStopTips,
+  renderOwnershipTip,
+  renderTip,
+} from './templates.js';
+import { ONBOARDING_JOB_NAME } from '../onboarding-job.js';
+import { type TipDraft, buildPersonalizationPrompt } from './personalize.js';
 
 const enrolledAt = Date.parse('2026-09-17T15:37:00Z');
 const facts = { enabled: true, hasTask: false, busy: false };
@@ -258,9 +265,28 @@ describe('enrollment eligibility', () => {
       )
     ).toBe(false);
     expect(eligibleEnrollment(request, config, enrolledAt + DAY)).toBe(false);
+    // A cutoff is optional; an unreadable one enrolls nobody.
     expect(eligibleEnrollment(request, { enabled: true }, enrolledAt)).toBe(
-      false
+      true
     );
+    expect(
+      eligibleEnrollment(
+        request,
+        { enabled: true, enrollAfter: 'not a date' },
+        enrolledAt
+      )
+    ).toBe(false);
+    // Without a cutoff the other limits still hold.
+    expect(
+      eligibleEnrollment(
+        { ...request, campaignVersion: undefined },
+        { enabled: true },
+        enrolledAt
+      )
+    ).toBe(false);
+    expect(
+      eligibleEnrollment(request, { enabled: true }, enrolledAt + DAY)
+    ).toBe(false);
     expect(
       eligibleEnrollment(request, { ...config, enabled: false }, enrolledAt)
     ).toBe(false);
@@ -510,6 +536,9 @@ it.each([
   'Don’t send me more tips.',
   'please stop sending me these tips',
   'please stop tips',
+  'unsubscribe from tips',
+  'unsubscribe me from these tips',
+  'Unsubscribe from the onboarding messages.',
 ])('recognizes opt-out: %s', (text) => expect(isStopTips(text)).toBe(true));
 it.each([
   'stop',
@@ -581,7 +610,7 @@ describe('ticket conversation flow', () => {
     });
     await h.campaign.check();
     expect(h.deps.send).toHaveBeenCalledWith(
-      expect.stringContaining('failed'),
+      expect.stringContaining('Something went wrong with the last run'),
       'campaign-v1-task-feedback',
       '~ten'
     );
@@ -649,7 +678,7 @@ it('prioritizes a newly failed task at closing even after earlier feedback', () 
       enabled: true,
       failedAt: enrolledAt + 5 * DAY,
     })
-  ).toContain('failed');
+  ).toContain('Something went wrong with the last run');
 });
 
 it('accepts bounded clock skew but rejects stale or far-future intros', () => {
@@ -967,4 +996,230 @@ it('abandons task feedback when the selected task disappears during inference', 
 
   expect(h.deps.send).not.toHaveBeenCalled();
   expect(h.read().sent).toEqual([]);
+});
+
+it('describes the onboarding task instead of quoting its internal job name', () => {
+  const onboardingTask = {
+    id: 'job',
+    name: ONBOARDING_JOB_NAME,
+    enabled: true,
+  };
+  const tips = [
+    renderTip('task-feedback', state(), {
+      ...onboardingTask,
+      deliveredAt: enrolledAt + DAY,
+    }),
+    renderTip('task-feedback', state(), {
+      ...onboardingTask,
+      failedAt: enrolledAt + DAY,
+    }),
+    renderTip('task-feedback', state(), onboardingTask),
+    renderTip('closing', state(), { ...onboardingTask, failedAt: enrolledAt }),
+  ];
+  for (const tip of tips) {
+    expect(tip).not.toContain(ONBOARDING_JOB_NAME);
+    expect(tip.toLowerCase()).toContain('your recurring update');
+  }
+  expect(tips[2]).toMatch(/^Your recurring update is set up/);
+});
+
+it('quotes tasks the owner or bot named later', () => {
+  expect(
+    renderTip('task-feedback', state(), {
+      id: 'job',
+      name: 'Morning AI roundup',
+      enabled: true,
+      deliveredAt: enrolledAt + DAY,
+    })
+  ).toContain('How’s “Morning AI roundup” working for you?');
+});
+
+describe('ownership tips for an owner without a task', () => {
+  const afterFirstTip = {
+    sent: [{ step: 'useful-request' as const, at: enrolledAt + DAY }],
+  };
+  const known = {
+    ...afterFirstTip,
+    lastOwnerText: 'I am planning a vegetable garden.',
+    lastReplyAt: enrolledAt + DAY + MINUTE,
+  };
+
+  it('has one for each step from day two on', () => {
+    const current = state(afterFirstTip);
+    expect(renderOwnershipTip('useful-request', current)).toBeUndefined();
+    expect(renderOwnershipTip('recurring-help', current)).toBe(
+      TIP_COPY.ownership
+    );
+    expect(renderOwnershipTip('archive', current)).toBe(TIP_COPY.startNotebook);
+    expect(renderOwnershipTip('own-material', current)).toBe(
+      TIP_COPY.growingNotebook
+    );
+    expect(renderOwnershipTip('closing', current)).toBe(
+      TIP_COPY.closingModelChoice
+    );
+    // The usual tips are still there to fall back on.
+    expect(renderTip('recurring-help', current)).toBe(
+      TIP_COPY['recurring-help']
+    );
+  });
+
+  it('has none once the owner has had a task', () => {
+    const task = { id: 'job', name: 'Digest', enabled: true, deliveredAt: 1 };
+    expect(
+      renderOwnershipTip('closing', state(afterFirstTip), task)
+    ).toBeUndefined();
+    expect(
+      renderOwnershipTip(
+        'closing',
+        state({ ...afterFirstTip, status: 'feedback' })
+      )
+    ).toBeUndefined();
+  });
+
+  it('sends them as written to an owner who has chosen and said nothing', async () => {
+    // The live rewriter has nothing to work with here and returns nothing.
+    const personalize = vi.fn(async () => undefined);
+    const h = harness(state(), { personalize });
+    await h.campaign.check();
+    h.advance(DAY);
+    await h.campaign.check();
+    h.advance(4 * DAY);
+    await h.campaign.check();
+    expect(h.read().sent.map((post) => post.step)).toEqual([
+      'useful-request',
+      'recurring-help',
+      'closing',
+    ]);
+    expect(vi.mocked(h.deps.send).mock.calls.map(([text]) => text)).toEqual([
+      TIP_COPY['useful-request'],
+      TIP_COPY.ownership,
+      TIP_COPY.closingModelChoice,
+    ]);
+    // Only day one, the usual tip, is offered for rewording.
+    expect(personalize).toHaveBeenCalledTimes(1);
+    expect(personalize).toHaveBeenCalledWith(
+      expect.objectContaining({ step: 'useful-request' })
+    );
+  });
+
+  it('sends the reworded tip once the model agrees it is worth sending', async () => {
+    const personalize = vi.fn(async (draft: TipDraft) =>
+      draft.gated
+        ? 'Your garden notes live on your own node. Want the short version?'
+        : 'unused'
+    );
+    const h = harness(state(known), { personalize });
+    h.advance(DAY);
+    await h.campaign.check();
+    expect(personalize).toHaveBeenCalledTimes(1);
+    expect(personalize).toHaveBeenCalledWith(
+      expect.objectContaining({ gated: true, text: TIP_COPY.ownership })
+    );
+    expect(h.deps.send).toHaveBeenCalledWith(
+      'Your garden notes live on your own node. Want the short version?',
+      'campaign-v1-recurring-help',
+      '~ten'
+    );
+  });
+
+  it('keeps the opt-out line out of what the model sees and adds it to what is sent', async () => {
+    const personalize = vi.fn(async (draft: TipDraft) =>
+      draft.gated ? 'A reworded ownership tip.' : 'A reworded usual tip.'
+    );
+    // They wrote during setup, so day one was skipped and this is their first tip.
+    const first = harness(
+      state({
+        lastOwnerText: 'I am planning a vegetable garden.',
+        lastReplyAt: enrolledAt + MINUTE,
+        skipped: [{ step: 'useful-request', reason: 'context-changed' }],
+      }),
+      { personalize }
+    );
+    first.advance(DAY);
+    await first.campaign.check();
+    expect(personalize.mock.calls[0][0].text).toBe(TIP_COPY.ownership);
+    expect(first.deps.send).toHaveBeenCalledWith(
+      `A reworded ownership tip.\n\n${TIP_COPY.optOut}`,
+      'campaign-v1-recurring-help',
+      '~ten'
+    );
+
+    // The usual tips get the same treatment.
+    const usual = harness(state({ topic: 'architecture' }), { personalize });
+    await usual.campaign.check();
+    expect(personalize.mock.calls[1][0].text).not.toContain(TIP_COPY.optOut);
+    expect(usual.deps.send).toHaveBeenCalledWith(
+      `A reworded usual tip.\n\n${TIP_COPY.optOut}`,
+      'campaign-v1-useful-request',
+      '~ten'
+    );
+  });
+
+  it('falls back to the usual tip, reworded, when the model says it is not worth sending', async () => {
+    const personalize = vi.fn(async (draft: TipDraft) =>
+      draft.gated ? null : 'Each Sunday I could find one planting idea.'
+    );
+    const h = harness(state(known), { personalize });
+    h.advance(DAY);
+    await h.campaign.check();
+    expect(personalize).toHaveBeenCalledTimes(2);
+    expect(personalize).toHaveBeenLastCalledWith(
+      expect.objectContaining({ text: TIP_COPY['recurring-help'] })
+    );
+    expect(personalize.mock.calls[1][0].gated).toBeUndefined();
+    expect(h.deps.send).toHaveBeenCalledWith(
+      'Each Sunday I could find one planting idea.',
+      'campaign-v1-recurring-help',
+      '~ten'
+    );
+  });
+
+  it.each([
+    ['gives no answer', async () => undefined],
+    [
+      'fails',
+      async () => {
+        throw new Error('offline');
+      },
+    ],
+  ])(
+    'sends the usual tip as written when the check %s',
+    async (_name, personalize) => {
+      const spy = vi.fn(personalize);
+      const h = harness(state(known), { personalize: spy });
+      h.advance(DAY);
+      await h.campaign.check();
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(h.deps.send).toHaveBeenCalledWith(
+        TIP_COPY['recurring-help'],
+        'campaign-v1-recurring-help',
+        '~ten'
+      );
+    }
+  );
+});
+
+it('renders overridden tip copy with the same placeholders', () => {
+  expect(
+    renderTip(
+      'task-feedback',
+      state({ sent: [{ step: 'useful-request', at: enrolledAt }] }),
+      { id: 'job', name: ONBOARDING_JOB_NAME, enabled: true, deliveredAt: 1 },
+      {
+        ...TIP_COPY,
+        taskDelivered: 'Is {task} earning its place?',
+      }
+    )
+  ).toBe('Is your recurring update earning its place?');
+});
+
+it('never shows the tip rewriter the internal job name', () => {
+  const prompt = buildPersonalizationPrompt({
+    step: 'task-feedback',
+    state: state({ topic: 'NBA' }),
+    task: { id: 'job', name: ONBOARDING_JOB_NAME, enabled: true },
+    text: 'How’s your recurring update working for you?',
+  });
+  expect(prompt).not.toContain(ONBOARDING_JOB_NAME);
+  expect(prompt).toContain('your recurring update');
 });
