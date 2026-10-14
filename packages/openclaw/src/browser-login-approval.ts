@@ -18,13 +18,14 @@ export function createBrowserLoginApprovalHandler(
     choice?: { id: string; revision: number }
   ) => Promise<unknown>
 ) {
-  // Browser sessions have a maximum lifetime of 24 hours. Keep successful
-  // delivery for that lifetime so sequential retries cannot reopen the modal.
-  const delivered = new Map<
-    string,
-    { promise: Promise<unknown>; expiresAt: number }
-  >();
-  return async (event: BrowserLoginToolResult): Promise<void> => {
+  type RunContext = { sessionKey?: string; runId?: string };
+  const runKey = (ctx: RunContext) =>
+    JSON.stringify([ctx.sessionKey, ctx.runId]);
+  const deliveries = new Map<string, Map<string, Promise<unknown>>>();
+  const handle = async (
+    event: BrowserLoginToolResult,
+    ctx: RunContext = {}
+  ): Promise<void> => {
     if (
       event.error ||
       event.toolName !== 'mcp__call' ||
@@ -50,13 +51,13 @@ export function createBrowserLoginApprovalHandler(
     )
       return;
 
-    const now = Date.now();
-    for (const [id, entry] of delivered) {
-      if (entry.expiresAt <= now) delivered.delete(id);
-    }
+    const key = runKey(ctx);
+    const delivered =
+      deliveries.get(key) ?? new Map<string, Promise<unknown>>();
+    deliveries.set(key, delivered);
     const existing = delivered.get(sessionId);
     if (existing) {
-      await existing.promise;
+      await existing;
       return;
     }
     const requested = record(args.record);
@@ -70,15 +71,18 @@ export function createBrowserLoginApprovalHandler(
     const promise = Promise.resolve().then(() =>
       sendHandoff(sessionId, choice)
     );
-    delivered.set(sessionId, {
-      promise,
-      expiresAt: now + 24 * 60 * 60_000,
-    });
+    delivered.set(sessionId, promise);
     try {
       await promise;
     } catch (error) {
       delivered.delete(sessionId);
       throw error;
     }
+  };
+  return {
+    handle,
+    endRun: (ctx: RunContext) => {
+      deliveries.delete(runKey(ctx));
+    },
   };
 }

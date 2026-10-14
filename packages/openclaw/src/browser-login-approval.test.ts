@@ -22,7 +22,7 @@ function event() {
 describe('saved login approval delivery', () => {
   it('sends a secure card for the requested session without passing credentials or record metadata', async () => {
     const send = vi.fn().mockResolvedValue(undefined);
-    await createBrowserLoginApprovalHandler(send)(event());
+    await createBrowserLoginApprovalHandler(send).handle(event());
     expect(send).toHaveBeenCalledExactlyOnceWith(
       'fresh-ivory-finch',
       undefined
@@ -33,7 +33,7 @@ describe('saved login approval delivery', () => {
     const send = vi.fn().mockResolvedValue(undefined);
     const request = event();
     const choice = { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 3 };
-    await createBrowserLoginApprovalHandler(send)({
+    await createBrowserLoginApprovalHandler(send).handle({
       ...request,
       params: {
         ...request.params,
@@ -85,7 +85,7 @@ describe('saved login approval delivery', () => {
     'ignores unrelated, failed, mismatched, or prose-only results (%j)',
     async (override) => {
       const send = vi.fn();
-      await createBrowserLoginApprovalHandler(send)({
+      await createBrowserLoginApprovalHandler(send).handle({
         ...event(),
         ...override,
       });
@@ -93,7 +93,7 @@ describe('saved login approval delivery', () => {
     }
   );
 
-  it('sends only one card across concurrent requests and later retries', async () => {
+  it('sends only one card across concurrent requests and retries within a turn', async () => {
     let finish!: () => void;
     const send = vi.fn().mockImplementationOnce(
       () =>
@@ -101,7 +101,7 @@ describe('saved login approval delivery', () => {
           finish = resolve;
         })
     );
-    const handle = createBrowserLoginApprovalHandler(send);
+    const { handle } = createBrowserLoginApprovalHandler(send);
     const first = handle(event());
     const second = handle(event());
     await Promise.resolve();
@@ -112,12 +112,46 @@ describe('saved login approval delivery', () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  it('sends a fresh card when the owner retries the same browser in a new turn', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const { handle } = createBrowserLoginApprovalHandler(send);
+    await handle(event(), { sessionKey: 'owner', runId: 'first-turn' });
+    await handle(event(), { sessionKey: 'owner', runId: 'first-turn' });
+    expect(send).toHaveBeenCalledTimes(1);
+    await handle(event(), { sessionKey: 'owner', runId: 'retry-turn' });
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears delivery state when a turn ends, including turns without a run id', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const { handle, endRun } = createBrowserLoginApprovalHandler(send);
+    const ctx = { sessionKey: 'owner' };
+    await handle(event(), ctx);
+    await handle(event(), ctx);
+    expect(send).toHaveBeenCalledTimes(1);
+    endRun(ctx);
+    await handle(event(), ctx);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not clear another active turn when one turn ends', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const { handle, endRun } = createBrowserLoginApprovalHandler(send);
+    const first = { sessionKey: 'owner', runId: 'first-turn' };
+    const second = { sessionKey: 'owner', runId: 'second-turn' };
+    await handle(event(), first);
+    await handle(event(), second);
+    endRun(first);
+    await handle(event(), second);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
   it('reports delivery failure and allows a subsequent attempt', async () => {
     const send = vi
       .fn()
       .mockRejectedValueOnce(new Error('delivery failed'))
       .mockResolvedValueOnce(undefined);
-    const handle = createBrowserLoginApprovalHandler(send);
+    const { handle } = createBrowserLoginApprovalHandler(send);
     await expect(handle(event())).rejects.toThrow('delivery failed');
     await handle(event());
     expect(send).toHaveBeenCalledTimes(2);

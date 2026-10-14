@@ -363,6 +363,45 @@ describe('before_tool_call cron args guard', () => {
 });
 
 describe('saved login approval hook', () => {
+  it('delivers again on a new turn and clears delivery state at agent end', async () => {
+    vi.mocked(runBrowserSessionHandoff).mockClear();
+    const { hooks } = registerEntry();
+    type Context = { sessionKey: string; runId?: string };
+    const after = hooks.get('after_tool_call') as (
+      event: unknown,
+      ctx: Context
+    ) => Promise<void>;
+    const end = hooks.get('agent_end') as (
+      event: unknown,
+      ctx: Context
+    ) => void;
+    const event = {
+      toolName: 'mcp__call',
+      params: {
+        name: 'browser_browser_login',
+        arguments: { session_id: 'same-browser', action: 'use' },
+      },
+      result: {
+        details: {
+          structuredContent: {
+            session_id: 'same-browser',
+            login: { status: 'approval_required' },
+          },
+        },
+      },
+    };
+    const first = { sessionKey: OWNER_SESSION, runId: 'first' };
+    const second = { sessionKey: OWNER_SESSION, runId: 'second' };
+    await after(event, first);
+    await after(event, first);
+    expect(runBrowserSessionHandoff).toHaveBeenCalledTimes(1);
+    await after(event, second);
+    expect(runBrowserSessionHandoff).toHaveBeenCalledTimes(2);
+    end({ messages: [], success: true, durationMs: 1 }, second);
+    await after(event, second);
+    expect(runBrowserSessionHandoff).toHaveBeenCalledTimes(3);
+  });
+
   it('sends the owner a secure card when the browser requires approval', async () => {
     vi.mocked(runBrowserSessionHandoff).mockClear();
     const config = {};

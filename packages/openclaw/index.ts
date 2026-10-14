@@ -1237,7 +1237,7 @@ export default defineBundledChannelEntry({
       return undefined;
     });
 
-    const deliverBrowserLoginApproval = createBrowserLoginApprovalHandler(
+    const browserLoginApprovals = createBrowserLoginApprovalHandler(
       (sessionId, record) =>
         runBrowserSessionHandoff(
           tlonBinary,
@@ -1253,7 +1253,7 @@ export default defineBundledChannelEntry({
 
     api.on('after_tool_call', async (event, ctx) => {
       try {
-        await deliverBrowserLoginApproval(event);
+        await browserLoginApprovals.handle(event, ctx);
       } catch {
         api.logger.warn('[tlon] Could not send the saved login approval card.');
         if (ctx.sessionKey)
@@ -1650,6 +1650,7 @@ export default defineBundledChannelEntry({
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (event, ctx) => {
+      browserLoginApprovals.endRun(ctx);
       recordCronSilenceOutput(event, ctx);
       recordTlonTurnSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
