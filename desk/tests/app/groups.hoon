@@ -1106,6 +1106,41 @@
   ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns)
   =+  foreigns=!<(foreigns:v8:gv q.peek)
   (ex-equal !>((~(has by foreigns) my-flag)) !>(|))
+::  +test-invites-pruned-on-create: a %create snapshot drops invites
+::  of ships it seats as joined
+::
+++  test-invites-pruned-on-create
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-join-group
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(src ~dev)))
+  ;<  *  bind:m
+    (do-a-groups [%invite my-flag (sy ~fun ~fed ~nec ~) ~ ~])
+  ;<  =bowl:gall  bind:m  get-bowl
+  =/  at=@da  now.bowl
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invited.admissions.group)
+    !>((my ~[[~fun [at ~]] [~fed [at ~]] [~nec [at ~]]]))
+  ::  ~fun joined, ~fed is a placeholder seat, ~nec has no seat
+  ::
+  ;<  *  bind:m
+    =/  gr=group:g  my-group
+    =.  seats.gr
+      %-  ~(gas by seats.gr)
+      :~  [~fun `seat:v7:gv`[~ now.bowl]]
+          [~fed `seat:v7:gv`[~ *@da]]
+      ==
+    =/  =update:g  [now.bowl %create gr]
+    (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  %+  ex-equal  !>(invited.admissions.group)
+  !>((my ~[[~fed [at ~]] [~nec [at ~]]]))
 ::  +test-invites-group-deleted: test that invites are revoked when a group is deleted
 ::
 ++  test-invites-group-deleted

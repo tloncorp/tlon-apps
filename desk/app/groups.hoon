@@ -4094,6 +4094,15 @@
         invited.admissions  invited.admissions.group
         active-channels     active-channels.group
       ==
+    ::  a snapshot after a subscription restart carries no seat or
+    ::  token events, so drop invites of ships that joined in the gap.
+    ::
+    =.  invited.ad
+      %+  roll  ~(tap by invited.ad)
+      |=  [[=ship *] =_invited.ad]
+      ?~  seat=(~(get by seats.group) ship)  invited
+      ?:  =(*@da joined.u.seat)  invited
+      (~(del by invited) ship)
     ::  index the channels the group arrives with. +go-u-channel only
     ::  indexes channels added later, and a %channels %leave for a nest
     ::  missing from .channels-index is dropped, leaving it active here.
