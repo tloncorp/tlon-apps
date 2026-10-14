@@ -649,7 +649,8 @@ function mayBeCutOff(description: string) {
 }
 
 /** Where left-aligned header content starts, in line with the cards' text. */
-const chatHeroLeadingInset = 20;
+// The inset-grouped form keeps its cards 16pt from the screen edge.
+const chatHeroLeadingInset = 16;
 const chatHeroAvatar = { size: 76, radius: 18 } as const;
 
 /** How far the screen scrolls before the name in its header is out of view. */
