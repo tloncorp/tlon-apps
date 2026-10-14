@@ -205,17 +205,12 @@ function RoleForm({
 
         if ('returnScreen' in route.params && route.params.returnScreen) {
           const { returnScreen, returnParams } = route.params;
-          // Navigate back with the created role ID (only SelectChannelRoles uses this pattern)
-          if (returnScreen === 'SelectChannelRoles') {
-            navigation.navigate(
-              returnScreen,
-              {
-                ...returnParams,
-                createdRoleId: newRoleId,
-              } as GroupSettingsStackParamList['SelectChannelRoles'],
-              { pop: true }
-            );
-          }
+          // Back to the screen that asked for a role, which picks it.
+          navigation.navigate(
+            returnScreen,
+            { ...returnParams, createdRoleId: newRoleId } as never,
+            { pop: true }
+          );
           return;
         }
       }
