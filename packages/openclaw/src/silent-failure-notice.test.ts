@@ -34,6 +34,7 @@ function makeSummary(
     sourceReplyCount: 0,
     toolCallCount: 7,
     toolErrorCount: 2,
+    superseded: false,
     trigger: 'mention',
     ...overrides,
   };
@@ -169,6 +170,24 @@ describe('resolveSilentFailureNotice', () => {
         conversation: 'our DM with ~sipnup-litnux',
       })
     ).not.toBeNull();
+  });
+
+  it('stays silent when a newer owner message superseded the turn', () => {
+    expect(
+      resolveSilentFailureNotice({
+        summary: makeSummary({
+          trigger: 'dm',
+          destinationKind: 'dm',
+          result: 'intentional_silence',
+          toolErrorCount: 0,
+          lastToolError: null,
+          superseded: true,
+        }),
+        deliveredCount: 0,
+        requester: '~sipnup-litnux',
+        conversation: 'our DM with ~sipnup-litnux',
+      })
+    ).toBeNull();
   });
 
   it('stays silent for empty or intentionally silent group turns', () => {
