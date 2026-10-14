@@ -648,8 +648,7 @@ function mayBeCutOff(description: string) {
   return description.length > 90 || description.includes('\n');
 }
 
-/** Where left-aligned header content starts, in line with the cards' text. */
-// The inset-grouped form keeps its cards 16pt from the screen edge.
+/** Where left-aligned header content starts: the cards' own 16pt margin. */
 const chatHeroLeadingInset = 16;
 const chatHeroAvatar = { size: 76, radius: 18 } as const;
 
