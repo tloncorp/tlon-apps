@@ -97,6 +97,7 @@ import {
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
+import { createBrowserLoginApprovalHandler } from './src/browser-login-approval.js';
 import { runTlonCommand } from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
@@ -1232,7 +1233,22 @@ export default defineBundledChannelEntry({
       return undefined;
     });
 
+    const deliverBrowserLoginApproval = createBrowserLoginApprovalHandler(
+      (sessionId) =>
+        runBrowserSessionHandoff(
+          tlonBinary,
+          ['browser', 'handoff', sessionId],
+          api.config
+        )
+    );
+
     api.on('after_tool_call', async (event, ctx) => {
+      try {
+        await deliverBrowserLoginApproval(event);
+      } catch {
+        api.logger.warn('[tlon] Could not send the saved login approval card.');
+      }
+
       const toolCallId = readToolCallId(event);
       const tlonCommandContext =
         event.toolName === 'tlon' && typeof event.params.command === 'string'

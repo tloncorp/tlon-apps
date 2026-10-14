@@ -259,7 +259,9 @@ export async function beginBrowserCredentialHandoff(
   const body = await responseJson(response);
   if (!response.ok)
     throw new BrowserFormError(
-      'Could not find a live secure form. Open the browser or try again.',
+      response.status === 404
+        ? 'This form is no longer available. Ask your bot for a new secure form.'
+        : 'Could not find a live secure form. Open the browser or try again.',
       response.status
     );
   if (

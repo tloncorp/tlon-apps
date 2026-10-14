@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import entry from '../index.js';
+import { runBrowserSessionHandoff } from './browser-session-handoff.js';
+
 import { publishContextLensEvent } from './context-lens-events.js';
 import {
   recordContextLensToolResultForSession,
@@ -9,6 +11,10 @@ import {
 import { CRON_ARGS_BLOCK_REASON } from './cron-tool-args-guard.js';
 import { formatOwnerOnlyToolBlockReason } from './owner-only-tools.js';
 import { _testing, setSessionRole } from './session-roles.js';
+
+vi.mock('./browser-session-handoff.js', () => ({
+  runBrowserSessionHandoff: vi.fn().mockResolvedValue('Card sent'),
+}));
 
 vi.mock('./context-lens.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./context-lens.js')>();
@@ -339,5 +345,40 @@ describe('before_tool_call cron args guard', () => {
       handler(DIRTY_ADD, { sessionKey: OWNER_SESSION })
     ).resolves.toBeUndefined();
     expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
+  });
+});
+
+describe('saved login approval hook', () => {
+  it('sends the owner a secure card when the browser requires approval', async () => {
+    vi.mocked(runBrowserSessionHandoff).mockClear();
+    const config = {};
+    const { hooks } = registerEntry(config);
+    const handler = hooks.get('after_tool_call') as (
+      event: unknown,
+      ctx: { sessionKey: string }
+    ) => Promise<void>;
+    await handler(
+      {
+        toolName: 'mcp__call',
+        params: {
+          name: 'browser_browser_login',
+          arguments: { session_id: 'fresh-ivory-finch', action: 'use' },
+        },
+        result: {
+          details: {
+            structuredContent: {
+              session_id: 'fresh-ivory-finch',
+              login: { status: 'approval_required' },
+            },
+          },
+        },
+      },
+      { sessionKey: OWNER_SESSION }
+    );
+    expect(runBrowserSessionHandoff).toHaveBeenCalledExactlyOnceWith(
+      expect.any(String),
+      ['browser', 'handoff', 'fresh-ivory-finch'],
+      config
+    );
   });
 });
