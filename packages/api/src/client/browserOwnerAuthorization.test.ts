@@ -11,9 +11,9 @@ import {
 const code = '~sampel-palnet';
 function session(fetcher: typeof fetch, getCode = vi.fn()) {
   const client = new Urbit('', undefined, 'groups', (input, init) =>
-    init?.method === 'DELETE'
-      ? Promise.resolve(new Response('', { status: 200 }))
-      : fetcher(input, init)
+    String(input).startsWith('/spider/')
+      ? fetcher(input, init)
+      : Promise.resolve(new Response('', { status: 200 }))
   );
   internalConfigureClient({
     shipName: '~tantec-lidler',
