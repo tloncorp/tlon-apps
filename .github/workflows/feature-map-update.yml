@@ -11,7 +11,7 @@ name: Feature Map Update
 # merging changes what bots tell people.
 #
 # Two jobs, on two machines, on purpose. The agent reads the app's source and
-# has a shell, so whatever it runs on is not trusted afterwards. The token that
+# runs commands, so whatever it runs on is not trusted afterwards. The token that
 # can push is only ever on a second, fresh machine, which takes the agent's
 # work as a patch file, checks it again, and opens the pull request.
 
@@ -43,7 +43,7 @@ jobs:
   update:
     runs-on: ubuntu-24.04
     # On a larger model a small update took about ten minutes and one with
-    # weeks of changes behind it about half an hour. The model below is untimed.
+    # weeks of changes behind it about half an hour.
     timeout-minutes: 120
     outputs:
       handoff: ${{ steps.save.outputs.ready }}
@@ -83,31 +83,27 @@ jobs:
 
       - name: Install the agent
         if: steps.secrets.outputs.ready == 'true'
-        run: npm install --global @openai/codex@0.160.1
+        run: npm install --global @anthropic-ai/claude-code@2.1.294
 
-      # The agent has the model key and nothing else. The script takes the
-      # read-only GH_TOKEN below, and the files a step uses to pass things to
-      # later steps, out of its environment. Its sandbox lets it write to the
-      # checkout but not to .git, and gives it no network. A dry run may point
+      # The agent is Claude Code on Haiku, billed through OpenRouter. It has the
+      # model key and nothing else: the script takes the read-only GH_TOKEN
+      # below, and the files a step uses to pass things to later steps, out of
+      # its environment. The script also sets what it may do (read the
+      # checkout, edit the map, a few read-only commands; no network) and
+      # stops if the key turns up in its report or edits. A dry run may point
       # at any ref; a real one only at a store build newer than the map's.
-      #
-      # Codex's memory feature is off so the second agent starts cold: with it
-      # on, Codex would hand it a summary of the first agent's session, and it
-      # is there to check that work, not to agree with it.
       - name: Update the map
         id: update
         if: steps.secrets.outputs.ready == 'true'
         env:
           TO: ${{ inputs.to }}
           GH_TOKEN: ${{ github.token }}
-          OPENROUTER_API_KEY: ${{ secrets.FEATURE_MAP_OPENROUTER_API_KEY }}
-          FEATURE_MAP_AGENT: >-
-            codex exec -s workspace-write
-            -c 'model_provider="openrouter"'
-            -c 'model_providers.openrouter={ name = "OpenRouter", base_url = "https://openrouter.ai/api/v1", env_key = "OPENROUTER_API_KEY", wire_api = "responses" }'
-            -c 'model_reasoning_effort="high"'
-            -c 'features.memories=false'
-            -m anthropic/claude-haiku-5.5 -
+          ANTHROPIC_BASE_URL: https://openrouter.ai/api
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.FEATURE_MAP_OPENROUTER_API_KEY }}
+          ANTHROPIC_API_KEY: ""
+          FEATURE_MAP_MODEL: claude-haiku-5-5
+          FEATURE_MAP_PROVIDER_MODEL: anthropic/claude-haiku-5.5
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
