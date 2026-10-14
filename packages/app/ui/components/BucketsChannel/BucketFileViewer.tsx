@@ -84,7 +84,12 @@ export function BucketFileViewer({
               onRetry={onRetry}
             />
           ) : previewKind === 'audio' ? (
-            <BucketAudioPreview item={{ ...item, uri: item.uri }} />
+            <BucketAudioPreview
+              key={item.uri}
+              item={{ ...item, uri: item.uri }}
+              onError={onPreviewError}
+              onRetry={onRetry}
+            />
           ) : previewKind === 'video' ? (
             <View
               flex={1}

@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
     duration: 30,
     currentTime: 0,
     didJustFinish: false,
-    error: null,
+    error: null as string | null,
   },
   appState: vi.fn(),
   navigationEvents: new Map<string, () => void>(),
@@ -86,6 +86,7 @@ beforeEach(() => {
   mocks.status.currentTime = 0;
   mocks.status.didJustFinish = false;
   mocks.status.playing = false;
+  mocks.status.error = null;
 });
 function render() {
   let tree!: ReturnType<typeof create>;
@@ -302,5 +303,84 @@ it('cancels pending playback across a background/foreground round trip', async (
     tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
   );
   expect(mocks.player.play).toHaveBeenCalledTimes(1);
+  act(() => tree.unmount());
+});
+
+it.each(['blur', 'background', 'unmount'])(
+  'releases its audio session on %s after playback starts',
+  async (event) => {
+    const tree = render();
+    await act(async () =>
+      tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
+    );
+    expect(mocks.activate).toHaveBeenCalledWith(true);
+    mocks.activate.mockClear();
+    await act(async () => {
+      if (event === 'unmount') tree.unmount();
+      else if (event === 'blur') mocks.navigationEvents.get('blur')?.();
+      else mocks.appState('background');
+    });
+    expect(mocks.activate).toHaveBeenCalledTimes(1);
+    expect(mocks.activate).toHaveBeenCalledWith(false);
+    if (event !== 'unmount') act(() => tree.unmount());
+  }
+);
+
+it('does not deactivate another player when leaving an audio preview that never played', () => {
+  const tree = render();
+  act(() => mocks.navigationEvents.get('blur')?.());
+  act(() => tree.unmount());
+  expect(mocks.activate).not.toHaveBeenCalled();
+});
+
+it('releases audio focus when playback finishes', async () => {
+  const tree = render();
+  await act(async () =>
+    tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
+  );
+  mocks.activate.mockClear();
+  mocks.status.didJustFinish = true;
+  await act(async () =>
+    tree.update(
+      <BucketAudioPreview
+        item={{ id: '1', name: 'test.mp3', uri: 'https://files.test/test.mp3' }}
+      />
+    )
+  );
+  expect(mocks.activate).toHaveBeenCalledTimes(1);
+  expect(mocks.activate).toHaveBeenCalledWith(false);
+  act(() => tree.unmount());
+});
+
+it('invalidates a failed native audio source and exposes retry', () => {
+  mocks.status.error = 'HTTP 403';
+  const onError = vi.fn();
+  const onRetry = vi.fn();
+  let tree!: ReturnType<typeof create>;
+  act(() => {
+    tree = create(
+      <BucketAudioPreview
+        item={{ name: 'memo.mp3', uri: 'https://files.test/memo.mp3' }}
+        onError={onError}
+        onRetry={onRetry}
+      />
+    );
+  });
+  expect(onError).toHaveBeenCalledOnce();
+  mocks.status.error = null;
+  act(() =>
+    tree.update(
+      <BucketAudioPreview
+        item={{ name: 'memo.mp3', uri: 'https://files.test/memo.mp3' }}
+        onError={onError}
+        onRetry={onRetry}
+      />
+    )
+  );
+  expect(onError).toHaveBeenCalledOnce();
+  act(() =>
+    tree.root.findByProps({ accessibilityLabel: 'Retry audio' }).props.onPress()
+  );
+  expect(onRetry).toHaveBeenCalledOnce();
   act(() => tree.unmount());
 });

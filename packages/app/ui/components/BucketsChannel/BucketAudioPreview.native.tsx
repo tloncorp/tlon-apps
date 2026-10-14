@@ -7,7 +7,7 @@ import {
   useAudioPlayer,
   useAudioPlayerStatus,
 } from 'expo-audio';
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { Spinner, View, XStack, YStack } from 'tamagui';
 
@@ -16,8 +16,12 @@ import { BucketFileViewerItem } from './BucketFileViewer.shared';
 
 export function BucketAudioPreview({
   item,
+  onError,
+  onRetry,
 }: {
   item: BucketFileViewerItem & { uri: string };
+  onError?: () => void;
+  onRetry?: () => void;
 }) {
   // The viewer keys this component by file: useAudioPlayer releases the player
   // on unmount, including when a swipe replaces a file still buffering.
@@ -30,13 +34,25 @@ export function BucketAudioPreview({
   const nowPlaying = useOptionalNowPlaying();
   const active = useRef(true);
   const playbackRequest = useRef(0);
+  const ownsAudioSession = useRef(false);
+  const sourceFailureReported = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [sourceFailed, setSourceFailed] = useState(false);
+  // Expo may clear status.error on its next progress event. Keep the failed
+  // source retryable until the viewer replaces it with a fresh URI.
+  if (status.error && !sourceFailed) setSourceFailed(true);
+  const releaseAudioSession = useCallback(async () => {
+    if (!ownsAudioSession.current) return;
+    ownsAudioSession.current = false;
+    await setIsAudioActiveAsync(false);
+  }, []);
   useEffect(() => {
     active.current = true;
     const pause = () => {
       active.current = false;
       playbackRequest.current += 1;
       player.pause();
+      void releaseAudioSession().catch(() => undefined);
     };
     const blur = navigation?.addListener('blur', pause);
     const focus = navigation?.addListener('focus', () => {
@@ -49,11 +65,23 @@ export function BucketAudioPreview({
     return () => {
       active.current = false;
       playbackRequest.current += 1;
+      // useAudioPlayer releases the native player itself on unmount.
+      void releaseAudioSession().catch(() => undefined);
       blur?.();
       focus?.();
       appState.remove();
     };
-  }, [navigation, player]);
+  }, [navigation, player, releaseAudioSession]);
+  useEffect(() => {
+    if (status.didJustFinish || sourceFailed)
+      void releaseAudioSession().catch(() => undefined);
+  }, [releaseAudioSession, status.didJustFinish, sourceFailed]);
+  useEffect(() => {
+    if (sourceFailed && !sourceFailureReported.current) {
+      sourceFailureReported.current = true;
+      onError?.();
+    }
+  }, [onError, sourceFailed]);
 
   const toggle = async () => {
     const request = ++playbackRequest.current;
@@ -63,6 +91,7 @@ export function BucketAudioPreview({
     try {
       if (status.playing) {
         player.pause();
+        ownsAudioSession.current = false;
         await setIsAudioActiveAsync(false);
         return;
       }
@@ -80,6 +109,7 @@ export function BucketAudioPreview({
       });
       if (!isCurrent()) return;
       // NowPlayingProvider deactivates the shared audio subsystem on background.
+      ownsAudioSession.current = true;
       await setIsAudioActiveAsync(true);
       if (!isCurrent()) return;
       if (
@@ -90,6 +120,7 @@ export function BucketAudioPreview({
       }
       if (isCurrent()) player.play();
     } catch {
+      if (isCurrent()) void releaseAudioSession().catch(() => undefined);
       if (isCurrent())
         setError('Couldn’t play this audio. Try opening it in another app.');
     }
@@ -106,7 +137,7 @@ export function BucketAudioPreview({
   };
   const playbackError =
     error ??
-    (status.error
+    (sourceFailed
       ? 'Couldn’t play this audio. Try opening it in another app.'
       : null);
   return (
@@ -138,6 +169,15 @@ export function BucketAudioPreview({
         <Text color="$negativeActionText" textAlign="center">
           {playbackError}
         </Text>
+      ) : null}
+      {sourceFailed && onRetry ? (
+        <Pressable
+          accessibilityLabel="Retry audio"
+          onPress={onRetry}
+          padding="$m"
+        >
+          <Text color="$primaryText">Try again</Text>
+        </Pressable>
       ) : null}
       {!playbackError && (!status.isLoaded || status.isBuffering) ? (
         <Spinner size="large" accessibilityLabel="Loading audio" />
