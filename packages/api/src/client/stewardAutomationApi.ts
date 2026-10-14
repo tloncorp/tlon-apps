@@ -140,9 +140,10 @@ export interface StewardAutomationEditResult {
 /**
  * POST one edit and resolve its terminal envelope. Throws
  * StewardAutomationEditError on `error`, StewardAutomationPendingError on
- * `pending`.
+ * `pending`. Private: each action goes through its own helper below, and a
+ * test's helper is the only thing guarding it.
  */
-export async function editAutomation(
+async function editAutomation(
   request: ub.StewardAutomationEditRequest
 ): Promise<StewardAutomationEditResult> {
   const raw = await httpRequest(steward.automationEdit)<unknown>(
@@ -243,7 +244,8 @@ export function testAutomation(params: {
   id: string;
   requestId?: string;
 }): Promise<StewardAutomationEditResult & { lensId: string }> {
-  // The route predates test runs, so its registry entry cannot guard them.
+  // The route predates test runs, and the registry holds one entry per
+  // route, so its entry cannot guard them; this helper does.
   if (getDeskSupportsTaskRunsState() === false) {
     throw new DeskUnsupportedError(
       'steward.automationEdit (test)',
