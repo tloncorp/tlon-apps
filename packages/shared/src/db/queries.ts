@@ -2404,6 +2404,13 @@ export const insertContextLensRuns = createWriteQuery(
       .onConflictDoUpdate({
         target: [$contextLensRuns.botShip, $contextLensRuns.lensId],
         set: conflictUpdateSetAll($contextLensRuns, ['botShip', 'lensId']),
+        // A run only moves toward finished. A snapshot fetched before it
+        // finished can land after the feed's final record, and must not
+        // undo it.
+        setWhere: or(
+          eq($contextLensRuns.complete, false),
+          sql`excluded.complete = 1`
+        ),
       });
   },
   ['contextLensRuns']
@@ -2448,7 +2455,11 @@ export const getRecentContextLensRuns = createReadQuery(
 export const getContextLensRunsForCronJob = createReadQuery(
   'getContextLensRunsForCronJob',
   async (
-    { botShip, jobId }: { botShip: string; jobId: string },
+    {
+      botShip,
+      jobId,
+      limit,
+    }: { botShip: string; jobId: string; limit?: number },
     ctx: QueryCtx
   ) => {
     const field = (path: string) =>
@@ -2466,6 +2477,7 @@ export const getContextLensRunsForCronJob = createReadQuery(
         )
       ),
       orderBy: [desc($contextLensRuns.receivedAt)],
+      ...(limit === undefined ? {} : { limit }),
     });
   },
   ['contextLensRuns']

@@ -138,14 +138,17 @@ export const useContextLensRun = ({
 export const useCronJobRuns = ({
   botShip,
   jobId,
+  limit,
 }: {
   botShip: string;
   jobId: string;
+  /** The newest this many; all of them when unset. */
+  limit?: number;
 }) => {
   const deps = useKeyFromQueryDeps(db.getContextLensRunsForCronJob);
   return useQuery({
-    queryKey: ['cronJobRuns', deps, botShip, jobId],
-    queryFn: () => db.getContextLensRunsForCronJob({ botShip, jobId }),
+    queryKey: ['cronJobRuns', deps, botShip, jobId, limit],
+    queryFn: () => db.getContextLensRunsForCronJob({ botShip, jobId, limit }),
   });
 };
 

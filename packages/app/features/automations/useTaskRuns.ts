@@ -27,7 +27,6 @@ export function useTaskRuns({
   const supported = store.useDeskSupportsTaskRuns() === true;
   const jobId = taskId ?? '';
   const on = enabled && supported && Boolean(taskId);
-  const { data: rows } = store.useCronJobRuns({ botShip, jobId });
   const page = useQuery({
     queryKey: ['cronJobRunsPage', botShip, jobId],
     queryFn: () => store.syncCronJobRuns({ botShip, jobId }),
@@ -38,17 +37,6 @@ export function useTaskRuns({
     useCallback(() => {
       if (on) void refetch({ cancelRefetch: false });
     }, [on, refetch])
-  );
-
-  const runs = useMemo<ContextLens[]>(
-    () =>
-      (rows ?? [])
-        .flatMap((row) => {
-          const lens = lensFromRunPayload(row.payload);
-          return lens ? [lens] : [];
-        })
-        .sort((a, b) => b.createdAt - a.createdAt),
-    [rows]
   );
 
   // Older pages continue from the last page the ship sent, not from the
@@ -62,6 +50,7 @@ export function useTaskRuns({
   const [olderPages, setOlderPages] = useState<{
     taskKey: string;
     firstPageAt: number;
+    pages: number;
     hasMore: boolean;
     cursor?: string;
   } | null>(null);
@@ -69,6 +58,24 @@ export function useTaskRuns({
     olderPages?.taskKey === taskKey && olderPages.firstPageAt === firstPageAt
       ? olderPages
       : null;
+  // The local store keeps every run of the task it has seen; show only as
+  // many as the pages loaded so far.
+  const { data: rows } = store.useCronJobRuns({
+    botShip,
+    jobId,
+    limit: (1 + (older?.pages ?? 0)) * store.CRON_JOB_RUN_PAGE_SIZE,
+  });
+  const runs = useMemo<ContextLens[]>(
+    () =>
+      (rows ?? [])
+        .flatMap((row) => {
+          const lens = lensFromRunPayload(row.payload);
+          return lens ? [lens] : [];
+        })
+        .sort((a, b) => b.createdAt - a.createdAt),
+    [rows]
+  );
+
   const cursor = older ? older.cursor : page.data?.cursor;
   const [loadingMore, setLoadingMore] = useState(false);
   const loadMore = useCallback(async () => {
@@ -83,13 +90,14 @@ export function useTaskRuns({
       setOlderPages({
         taskKey,
         firstPageAt,
+        pages: (older?.pages ?? 0) + 1,
         hasMore: next.hasMore,
         cursor: next.cursor ?? cursor,
       });
     } finally {
       setLoadingMore(false);
     }
-  }, [botShip, cursor, firstPageAt, jobId, on, taskKey]);
+  }, [botShip, cursor, firstPageAt, jobId, older, on, taskKey]);
 
   return {
     supported,

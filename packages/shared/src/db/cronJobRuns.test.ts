@@ -61,3 +61,41 @@ test('getContextLensRunsForCronJob finds one task, stamped or legacy', async () 
     expect(lensRunCronJobId(row.payload)).toBe('job-1');
   }
 });
+
+test('getContextLensRunsForCronJob keeps to the newest runs it is asked for', async () => {
+  await db.insertContextLensRuns([
+    run('oldest', 1, { runKind: 'cron', cron: { jobId: 'job-1' } }),
+    run('middle', 2, { runKind: 'cron', cron: { jobId: 'job-1' } }),
+    run('newest', 3, { runKind: 'cron', cron: { jobId: 'job-1' } }),
+  ]);
+
+  const runs = await db.getContextLensRunsForCronJob({
+    botShip: bot,
+    jobId: 'job-1',
+    limit: 2,
+  });
+
+  expect(runs.map((row) => row.lensId)).toEqual(['newest', 'middle']);
+});
+
+test('insertContextLensRuns never undoes a finished run', async () => {
+  const running = {
+    ...run('run', 1, { runKind: 'cron', status: 'running' }),
+    complete: false,
+  };
+  const finished = run('run', 1, { runKind: 'cron', status: 'completed' });
+
+  // The feed's final record lands first, then an older snapshot of the run.
+  await db.insertContextLensRuns([finished]);
+  await db.insertContextLensRuns([running]);
+  expect(await db.getContextLensRun({ botShip: bot, lensId: 'run' })).toEqual(
+    finished
+  );
+
+  // A later finished record still replaces it.
+  const revised = run('run', 1, { runKind: 'cron', status: 'error' });
+  await db.insertContextLensRuns([revised]);
+  expect(await db.getContextLensRun({ botShip: bot, lensId: 'run' })).toEqual(
+    revised
+  );
+});
