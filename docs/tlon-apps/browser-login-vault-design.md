@@ -114,8 +114,10 @@ DELETE /v1/ships/:ship/browser-logins/:moon/:credential?revision=3
 
 Deletion returns HTTP 204 after ship acknowledgement. An outdated revision
 cannot delete a replacement credential. The endpoint uses Solaris's existing
-ship-owner authorization and the authenticated private Pioneer connection; it
-does not ask for the planet code or decrypt a password.
+ship-owner authorization and a dedicated Solaris-to-Pioneer management credential;
+it does not ask for the planet code or decrypt a password. Steel uses a separate
+scoped vault credential and receives neither the management credential nor the
+general Pioneer sidecar token. A stale deletion revision returns HTTP 409.
 
 ## Validation and rollout
 
