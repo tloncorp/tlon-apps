@@ -2107,6 +2107,10 @@
   ::
   ++  se-member-leave
     ^+  se-core
+    ::  A host can't leave its own notebook: deleting src.bowl below would
+    ::  remove our %owner row and lock us out of owner actions.
+    ::
+    ?<  =(our.bowl src.bowl)
     =.  members.notebook-state
       (~(del by members.notebook-state) src.bowl)
     (se-update [%member-left src.bowl])
