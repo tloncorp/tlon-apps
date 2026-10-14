@@ -747,14 +747,15 @@ type ParsedElement = DefaultTreeAdapterMap['element'];
 // deep; at this cap a crafted 2 MB file parses in about a second.
 const MAX_PARSE_DEPTH = 128;
 
-// How many elements the parser may build for one document before its file is
-// declined. The tree is kept while the preview is open, beside the browser's
-// own DOM: a 2 MB file of bare <p>s built 700,000 elements in 1.8 s and kept
-// 250 MB in parse5. A dense 2 MB data table builds about 150,000.
+// How many elements the parser may build for a file, the documents of its
+// inline frames included, before it is declined. The tree is kept while the
+// preview is open, beside the browser's own DOM: a 2 MB file of bare <p>s
+// built 700,000 elements in 1.8 s and kept 250 MB in parse5. A dense 2 MB
+// data table builds about 150,000.
 const MAX_PARSE_ELEMENTS = 200_000;
 
-// How many attributes one tag, and one document in all, may carry before its
-// file is declined. parse5 checks each attribute against every one before it
+// How many attributes one tag, and one file in all, may carry before it is
+// declined. parse5 checks each attribute against every one before it
 // on the same tag, so a tag's time grows with the square of its count: it
 // took 19 s on one tag of 100,000 (0.55 MB), which Chromium and WebKit read
 // in 0.1 s. Real tags carry a few dozen.
@@ -861,33 +862,51 @@ const depthCappedTreeAdapter: typeof defaultTreeAdapter = {
   },
 };
 
-/** A file's tree, and how far its source offsets lie from the file's. */
+/** How many more elements and attributes the parser may build for a file. */
+interface ParseBudget {
+  elements: number;
+  attributes: number;
+}
+
+/** A file's tree, how far its source offsets lie from the file's, and the budget it left. */
 interface ParsedHtml {
   document: ParsedDocument;
   offset: number;
+  left: ParseBudget;
 }
 
 /**
  * `html` as a browser's parser builds it, with scripting on or off, which
  * decides whether a `<noscript>` holds text or markup (PreviewParser); null
- * when it nests past MAX_PARSE_DEPTH, builds more than MAX_PARSE_ELEMENTS or
- * carries more attributes than MAX_TAG_ATTRIBUTES or MAX_PARSE_ATTRIBUTES. A leading
- * byte order mark is skipped, as Chromium and WebKit skip one in a srcdoc
- * document, so the tree's source offsets lie one short of `html`'s. Only a
- * tree read as a frame without scripts has source offsets: they are read to
- * rewrite its markup (withLinksAimedAtBlank), and they double a tree's size.
+ * when it nests past MAX_PARSE_DEPTH, carries more attributes on a tag than
+ * MAX_TAG_ATTRIBUTES, or builds more elements or attributes than `budget`
+ * has left, which it spends: a file's inline frames' documents draw on the
+ * file's. A leading byte order mark is skipped, as Chromium and WebKit skip
+ * one in a srcdoc document, so the tree's source offsets lie one short of
+ * `html`'s. A tree has source offsets only with `locations`, by default one
+ * read as a frame without scripts: they are read to rewrite its markup
+ * (rewrittenMarkup), and they double a tree's size.
  */
-function parseHtml(html: string, scripting: boolean): ParsedHtml | null {
+function parseHtml(
+  html: string,
+  scripting: boolean,
+  {
+    locations = !scripting,
+    budget = { elements: MAX_PARSE_ELEMENTS, attributes: MAX_PARSE_ATTRIBUTES },
+  }: { locations?: boolean; budget?: ParseBudget } = {}
+): ParsedHtml | null {
   const offset = html.charCodeAt(0) === 0xfeff ? 1 : 0;
-  elementsLeft = MAX_PARSE_ELEMENTS;
-  attributesLeft = MAX_PARSE_ATTRIBUTES;
+  elementsLeft = budget.elements;
+  attributesLeft = budget.attributes;
   try {
     const document = PreviewParser.parse(offset ? html.slice(1) : html, {
       scriptingEnabled: scripting,
-      sourceCodeLocationInfo: !scripting,
+      sourceCodeLocationInfo: locations,
       treeAdapter: depthCappedTreeAdapter,
     });
-    return { document, offset };
+    budget.elements = elementsLeft;
+    budget.attributes = attributesLeft;
+    return { document, offset, left: budget };
   } catch (error) {
     if (error instanceof ParseLimit) return null;
     throw error;
@@ -963,8 +982,8 @@ function attributeOf(
 /**
  * Whether the preview can read an HTML file: false when it, or the document
  * of an inline frame in it, nests elements deeper than MAX_PARSE_DEPTH, which
- * no real page does, or holds more than MAX_PARSE_ELEMENTS, which only the
- * densest 2 MB pages near, or when it holds more than MAX_INLINE_FRAMES
+ * no real page does, or when they hold more than MAX_PARSE_ELEMENTS between
+ * them, which only the densest 2 MB pages near, or more than MAX_INLINE_FRAMES
  * inline frames, or nests one `srcdoc` in another deeper than
  * MAX_NESTED_DOCUMENTS, which are not read; the viewer offers Open instead.
  * The file is read as a frame that runs scripts, or one that does not
@@ -976,7 +995,8 @@ export function htmlPreviewReadable(
 ): boolean {
   const read = lastParsedOf(html, scripting);
   read.readable ??=
-    read.parsed !== null && framesReadable(read.parsed.document, scripting);
+    read.parsed !== null &&
+    framesReadable(read.parsed.document, scripting, { ...read.parsed.left });
   return read.readable;
 }
 
@@ -1001,13 +1021,16 @@ function frameRunsScripts(iframe: ParsedElement): boolean {
  * -- Chromium and WebKit each took over a minute on a megabyte of nested
  * divs, on web on the app's own thread. An inline frame in an ordinary
  * template never loads; every other frame counts against MAX_INLINE_FRAMES
- * (`frames`, shared by the whole walk). Each document is read as its frame
- * reads it, which runs scripts only where the frame around it does and its
- * own sandbox allows them (frameRunsScripts).
+ * (`frames`, shared by the whole walk), and each document draws on what the
+ * file's parse left of its budget (`budget`, also shared). Each document is
+ * read as its frame reads it, which runs scripts only where the frame around
+ * it does and its own sandbox allows them (frameRunsScripts). A `<frame>`'s
+ * srcdoc is never read: both engines give the frame an empty document.
  */
 function framesReadable(
   document: ParsedDocument,
   scripting: boolean,
+  budget: ParseBudget,
   depth = 0,
   frames = { left: MAX_INLINE_FRAMES }
 ): boolean {
@@ -1027,10 +1050,16 @@ function framesReadable(
     if (srcdoc === undefined) continue;
     if (depth >= MAX_NESTED_DOCUMENTS) return false;
     const frameScripting = scripting && frameRunsScripts(element);
-    const nested = parseHtml(srcdoc, frameScripting);
+    const nested = parseHtml(srcdoc, frameScripting, { budget });
     if (
       !nested ||
-      !framesReadable(nested.document, frameScripting, depth + 1, frames)
+      !framesReadable(
+        nested.document,
+        frameScripting,
+        budget,
+        depth + 1,
+        frames
+      )
     ) {
       return false;
     }
@@ -2574,15 +2603,40 @@ function settledLink(
 // so a link that asked to would be left doing nothing.
 const LINK_ATTRIBUTES = new Set(['download', 'href', 'target', 'xlink:href']);
 const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
+const REL_ATTRIBUTE = new Set(['rel']);
+
+// What a `<link>` naming one of these does is not a load, so no source list
+// governs it: WebKit connects to a preconnect's host under the preview's
+// policy, scripts held or not (measured), and a dns-prefetch looks its host
+// up -- either one tells the host the file was opened.
+const RESOURCE_HINTS = new Set(['dns-prefetch', 'preconnect']);
+
+// Markup that may hold a hint: a `<link>` start tag, or a srcdoc whose
+// document may hold one. A tag's name is never escaped, nor an attribute's.
+const MAY_HOLD_HINTS = /<link[\t\n\f\r />]|srcdoc/i;
+
+/** The tokens of a `<link>`'s rel that are not resource hints (RESOURCE_HINTS); undefined when it names none. */
+function relWithoutHints(rel: string | undefined): string[] | undefined {
+  const tokens = (rel ?? '').split(/[\t\n\f\r ]+/).filter(Boolean);
+  return tokens.some((token) => RESOURCE_HINTS.has(asciiLowercase(token)))
+    ? tokens.filter((token) => !RESOURCE_HINTS.has(asciiLowercase(token)))
+    : undefined;
+}
 
 /**
- * The file's markup with every link -- an HTML or SVG `<a>`, an HTML
- * `<area>`, and any MathML element with an `href`, which WebKit follows --
- * made safe to follow with no script running, as under Electron. A link
- * Electron's parser reads otherwise than parse5 still opens only through the
- * desktop shell's window-open handler, which hands the system browser web,
- * mail and phone addresses alone, and there a relative address resolves
- * against the app's `file:` one.
+ * The file's markup with every resource hint (RESOURCE_HINTS) dropped from
+ * its `<link>`s, the documents of its inline frames included, each read as
+ * its frame reads it (`scripting`): a `<link>` a running frame's parser
+ * leaves inside a `<noscript>` is text, and one inside an ordinary template
+ * never loads. Markup that cannot hold one (MAY_HOLD_HINTS) is left unread.
+ *
+ * With `settle` (under Electron, where no script runs), every link as well
+ * -- an HTML or SVG `<a>`, an HTML `<area>`, and any MathML element with an
+ * `href`, which WebKit follows -- made safe to follow with no script
+ * running. A link Electron's parser reads otherwise than parse5 still opens
+ * only through the desktop shell's window-open handler, which hands the
+ * system browser web, mail and phone addresses alone, and there a relative
+ * address resolves against the app's `file:` one.
  *
  * Its own frame opens a link as a popup that escapes the sandbox, with no
  * script of ours to check where it goes, so each link is settled here
@@ -2610,28 +2664,32 @@ const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
  * With no script to change it, the markup is the document, so rewriting it
  * covers every link. An ordinary template's content never renders without a
  * script, so its links and frames are left as they are (a declarative shadow
- * root's are rewritten). Each document is parsed as a frame without scripts
- * parses it, and each link's start tag rewritten where it stands in the
- * source, so text that only looks like a link is left as it is, and so is a
- * link the parser drops (inside a select). Null when the file cannot be read
+ * root's are rewritten). Each document is parsed as its frame parses it,
+ * and each link's start tag rewritten where it stands in the source, so text
+ * that only looks like a link is left as it is, and so is a link the parser
+ * drops (inside a select). Null when the file cannot be read
  * (htmlPreviewReadable); a nested document that cannot be is dropped.
  */
-function withLinksAimedAtBlank(
+function rewrittenMarkup(
   html: string,
+  { settle, scripting }: { settle: boolean; scripting: boolean },
   depth = 0,
   inherited?: string,
   inheritedPolicies: AuthoredPolicy[] = []
 ): string | null {
-  const parsed = depth === 0 ? parsedHtml(html, false) : parseHtml(html, false);
+  if (!settle && !MAY_HOLD_HINTS.test(html)) return html;
+  // The file's tree read as a running frame reads it has no source offsets,
+  // which the rewrite needs.
+  const parsed =
+    depth === 0 && !scripting
+      ? parsedHtml(html, false)
+      : parseHtml(html, scripting, { locations: true });
   if (!parsed) return null;
   // Electron's Chromium judges the file's base-uri, so its 'self' too.
-  const baseFor = baseResolver(
-    parsed.document,
-    inherited,
-    inheritedPolicies,
-    false
-  );
-  const base = baseFor(undefined);
+  const baseFor = settle
+    ? baseResolver(parsed.document, inherited, inheritedPolicies, false)
+    : undefined;
+  const base = baseFor?.(undefined);
   const policies = [...inheritedPolicies];
   const edits: { start: number; end: number; text: string }[] = [];
   const rewritten = new Set<number>();
@@ -2640,10 +2698,15 @@ function withLinksAimedAtBlank(
     if (policy) policies.push(policy);
     const tag = element.sourceCodeLocation?.startTag;
     const link =
-      element.namespaceURI === NS.MATHML
+      settle &&
+      (element.namespaceURI === NS.MATHML
         ? attributeOf(element, 'href') !== undefined
         : element.nodeName === 'a' ||
-          (element.nodeName === 'area' && element.namespaceURI === NS.HTML);
+          (element.nodeName === 'area' && element.namespaceURI === NS.HTML));
+    const rel =
+      element.nodeName === 'link' && element.namespaceURI === NS.HTML
+        ? relWithoutHints(attributeOf(element, 'rel'))
+        : undefined;
     const srcdoc =
       element.nodeName === 'iframe' && element.namespaceURI === NS.HTML
         ? attributeOf(element, 'srcdoc')
@@ -2652,7 +2715,7 @@ function withLinksAimedAtBlank(
     // tag) shares its start tag with the first.
     if (
       !tag ||
-      (!link && srcdoc === undefined) ||
+      (!link && rel === undefined && srcdoc === undefined) ||
       rewritten.has(tag.startOffset)
     ) {
       continue;
@@ -2682,13 +2745,24 @@ function withLinksAimedAtBlank(
         ` target="${aimed}"` +
         (address === undefined ? '' : ` href="${escapeAttribute(address)}"`) +
         withoutAttributes(attributes, LINK_ATTRIBUTES);
+    } else if (rel !== undefined) {
+      text =
+        (rel.length === 0 ? '' : ` rel="${escapeAttribute(rel.join(' '))}"`) +
+        withoutAttributes(attributes, REL_ATTRIBUTE);
     } else {
       // The frame's document inherits the base set by the time the parser
       // reached the frame, and the policies in force then.
       const nested =
         depth < MAX_NESTED_DOCUMENTS && srcdoc !== undefined
-          ? withLinksAimedAtBlank(srcdoc, depth + 1, baseFor(element), policies)
+          ? rewrittenMarkup(
+              srcdoc,
+              { settle, scripting: scripting && frameRunsScripts(element) },
+              depth + 1,
+              baseFor?.(element),
+              policies
+            )
           : null;
+      if (nested === srcdoc) continue;
       text =
         (nested === null ? '' : ` srcdoc="${escapeAttribute(nested)}"`) +
         withoutAttributes(attributes, SRCDOC_ATTRIBUTE);
@@ -2724,9 +2798,10 @@ function withLinksAimedAtBlank(
  * script handles its links by what the browser made of them, as when its
  * scripts run. In a frame that runs no scripts (`scripts: 'none'`, under
  * Electron) our script would be inert, so it is left out, and every link in
- * the markup is settled instead (withLinksAimedAtBlank): a link the reader
- * clicks becomes a popup, which the desktop shell opens in the system
- * browser, and only for a web, mail or phone address.
+ * the markup is settled instead (rewrittenMarkup): a link the reader clicks
+ * becomes a popup, which the desktop shell opens in the system browser, and
+ * only for a web, mail or phone address. In every mode the markup's resource
+ * hints are dropped (rewrittenMarkup), which no policy stops.
  */
 export function htmlPreviewDocument(
   html: string,
@@ -2739,7 +2814,7 @@ export function htmlPreviewDocument(
     // A file the preview cannot read is not previewed (htmlPreviewReadable);
     // rendered anyway, it would render empty rather than unsettled.
     return withDocumentHead(
-      withLinksAimedAtBlank(html) ?? '',
+      rewrittenMarkup(html, { settle: true, scripting: false }) ?? '',
       `${policyMeta(HTML_PREVIEW_POLICY)}<base target="_blank">`
     );
   }
@@ -2747,7 +2822,7 @@ export function htmlPreviewDocument(
   const policy =
     nonce === undefined ? HTML_PREVIEW_POLICY : htmlPreviewHeldPolicy(nonce);
   return withDocumentHead(
-    html,
+    rewrittenMarkup(html, { settle: false, scripting: true }) ?? '',
     `${policyMeta(policy)}<base target="_blank">${linkScript(key, nonce)}`
   );
 }

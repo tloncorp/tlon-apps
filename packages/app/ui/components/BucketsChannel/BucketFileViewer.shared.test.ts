@@ -879,6 +879,41 @@ describe('htmlPreviewDocument', () => {
     );
   });
 
+  // A resource hint reaches its host in WebKit whatever the policy, so it is
+  // dropped in every mode, from the documents of inline frames too; a
+  // <link>'s other uses stay.
+  it('drops resource hints', () => {
+    const file =
+      '<head><link rel="preconnect" href="//a.example"><link rel="STYLESHEET dns-prefetch" href="https://cdn.jsdelivr.net/x.css"></head>' +
+      '<p>x</p><link rel=preconnect href=//b.example>' +
+      '<iframe srcdoc="<link rel=dns-prefetch href=//c.example>"></iframe>' +
+      '<iframe sandbox srcdoc="<noscript><link rel=preconnect href=//d.example></noscript>"></iframe>';
+    for (const options of [
+      {},
+      { scripts: 'ours', nonce: TOKEN },
+      { scripts: 'none' },
+    ] as const) {
+      const out = htmlPreviewDocument(file, KEY, options);
+      expect(out).not.toMatch(/preconnect|dns-prefetch/i);
+      expect(out).toContain('rel="STYLESHEET"');
+    }
+    // Markup that only mentions one is left as it is, and so is a running
+    // frame's noscript, which holds text.
+    for (const page of [
+      '<p>&lt;link rel=preconnect&gt;</p><!-- <link rel=preconnect href=//a.example> -->',
+      '<noscript><link rel=preconnect href=//a.example></noscript>',
+    ]) {
+      expect(htmlPreviewDocument(page, KEY).endsWith(page)).toBe(true);
+    }
+    expect(
+      htmlPreviewDocument(
+        '<noscript><link rel=preconnect href=//a.example></noscript>',
+        KEY,
+        { scripts: 'none' }
+      )
+    ).not.toContain('preconnect');
+  });
+
   // They are written in as text, where a slip in an escape would break every
   // preview silently.
   it('carries scripts that parse', () => {
@@ -1109,6 +1144,31 @@ describe('hostile markup', () => {
     expect(htmlPreviewReadable(`<template>${nested(deep, 1)}</template>`)).toBe(
       true
     );
+    // Neither engine reads a <frame>'s srcdoc: the frame's document is empty.
+    expect(
+      htmlPreviewReadable(`<frameset><frame srcdoc="${deep}"></frameset>`)
+    ).toBe(true);
+  });
+
+  // A file's documents share one budget, so inline frames cannot multiply
+  // the tree the browser keeps.
+  it("caps the elements and attributes of a file's documents together", () => {
+    const brs = (count: number) => '<br>'.repeat(count);
+    expect(
+      htmlPreviewReadable(
+        `${brs(90_000)}<iframe srcdoc="${brs(90_000)}"></iframe>`
+      )
+    ).toBe(true);
+    expect(
+      htmlPreviewReadable(
+        `${brs(110_000)}<iframe srcdoc="${brs(110_000)}"></iframe>`
+      )
+    ).toBe(false);
+    const tags = `<i ${attributes(8)}></i>`.repeat(30_000);
+    expect(htmlPreviewReadable(tags)).toBe(true);
+    expect(
+      htmlPreviewReadable(`${tags}<iframe srcdoc="${tags}"></iframe>`)
+    ).toBe(false);
   });
 });
 
