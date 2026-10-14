@@ -1,4 +1,5 @@
 import { Attachment } from '@tloncorp/shared/domain';
+import * as ImagePicker from 'expo-image-picker';
 import { VariantsFromValues, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
@@ -29,6 +30,11 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
+import {
+  imagePickerAssetToUploadIntent,
+  normalizeUploadIntents,
+} from '../../../utils/filepicker';
+import { normalizeImagePickerAssetForUpload } from '../../../utils/imagePickerAsset';
 import {
   useAttachmentContext,
   useMappedImageAttachments,
@@ -220,7 +226,7 @@ export function useImageInput({
   const [assetUri, setAssetUri] = useState<string | undefined>(
     value ?? undefined
   );
-  const { canUpload } = useAttachmentContext();
+  const { canUpload, attachAssets } = useAttachmentContext();
   const showToast = useToast();
 
   useEffect(() => {
@@ -251,6 +257,64 @@ export function useImageInput({
     setSheetOpen((open) => !open);
   }, [canUpload, showToast]);
 
+  // Straight to the photo library or camera, cropping to a square, for a
+  // caller with its own menu in place of the sheet.
+  const pick = useCallback(
+    async (source: 'library' | 'camera') => {
+      if (!canUpload) {
+        showToast({
+          message: 'Please configure storage settings to upload images',
+          duration: 3000,
+        });
+        return;
+      }
+      try {
+        const permission =
+          source === 'camera'
+            ? await ImagePicker.requestCameraPermissionsAsync()
+            : await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          return;
+        }
+        const options: ImagePicker.ImagePickerOptions = {
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.5,
+          exif: false,
+        };
+        const result =
+          source === 'camera'
+            ? await ImagePicker.launchCameraAsync(options)
+            : await ImagePicker.launchImageLibraryAsync(options);
+        if (result.canceled) {
+          return;
+        }
+        const { uploadIntents, errorMessage } = await normalizeUploadIntents([
+          imagePickerAssetToUploadIntent(
+            normalizeImagePickerAssetForUpload(result.assets[0])
+          ),
+        ]);
+        if (errorMessage) {
+          showToast({ message: errorMessage, duration: 4000 });
+        }
+        if (uploadIntents.length > 0) {
+          attachAssets(uploadIntents);
+          handleImageSelected(uploadIntents);
+        }
+      } catch {
+        showToast({
+          message:
+            source === 'camera'
+              ? 'Couldn’t open the camera'
+              : 'Couldn’t open your photos',
+          duration: 3000,
+        });
+      }
+    },
+    [attachAssets, canUpload, handleImageSelected, showToast]
+  );
+
   const { attachment } = useMappedImageAttachments(
     assetUri ? { attachment: assetUri } : {}
   );
@@ -280,6 +344,8 @@ export function useImageInput({
     canUpload,
     isUploading: attachment?.uploadState?.status === 'uploading',
     toggleSheet: handleSheetToggled,
+    pickFromLibrary: () => pick('library'),
+    takePhoto: () => pick('camera'),
     clear: handleImageRemoved,
     sheetProps: {
       isOpen: sheetOpen,
