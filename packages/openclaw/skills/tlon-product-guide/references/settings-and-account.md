@@ -4,18 +4,18 @@ What every row on the Settings tab does (appearance, privacy, app info, bug repo
 
 ## What's on the Settings screen
 
-Phone: tap the gear in the tab bar. Under `App` the rows are, in order: `Your profile`, `Contacts`, `Notifications`, `Appearance`, `Manage Tlon account`, `Privacy`, `Blocked users`, `App info`, `Tlon Messenger on the Web`, `Report a bug`, `Experimental features` and `Log out`.
+Phone: tap the gear in the tab bar. The rows, in order, are `Your profile`, then with a hosted Tlonbot your bot's card, then `Contacts`, `Manage Tlon account`, `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug`, `Experimental features` and `Tlon Messenger on the Web`. `Log out` sits on its own at the bottom.
 Desktop: click the gear at the bottom of the left rail. The list is shorter: `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug` and `Experimental features`. Each opens in the pane beside the list.
 Notes: `Notifications` and `Appearance` show their current choice under the name. `Your profile` opens your profile, `Contacts` your contact list, `Notifications` your notification level, and `Blocked users` the people you've blocked. `Manage Tlon account` and `Tlon Messenger on the Web` only show on hosted accounts.
 
 ## Why is a Settings row missing for me
 
 Who: `Manage Tlon account` and `Tlon Messenger on the Web` are for accounts Tlon hosts, and neither shows in the desktop layout. A self-hosted node gets neither.
-Notes: with a hosted Tlonbot, the phone puts the bot's own settings (`Models`, `Connections` and more) above `App`. If the app can't use your hosted login just then, for example because it has expired, you get a single `Bot Settings` row instead. On desktop a hosted bot always gets the single `Bot Settings` row, which opens the bot's settings in a new browser tab. No hosted bot means no bot rows at all. Desktop also leaves out `Your profile`, `Contacts` and `Log out`. A browser window under 768 pixels wide gets the phone layout instead, which still has no `Log out`.
+Notes: with a hosted Tlonbot, the phone puts the bot's own settings (`Models`, `Connections` and more) above the other rows. If the app can't use your hosted login just then, for example because it has expired, you get a single `Bot Settings` row instead. On desktop a hosted bot always gets the single `Bot Settings` row, which opens the bot's settings in a new browser tab. No hosted bot means no bot rows at all. Desktop also leaves out `Your profile`, `Contacts` and `Log out`. A browser window under 768 pixels wide gets the phone layout instead, which still has no `Log out`.
 
 ## Set my status from the Settings tab
 
-Phone: on the Settings tab, press and hold `Your profile`. A sheet opens with an `Update your status` box. Type up to 50 characters and tap the arrow button to save.
+Phone: on the Settings tab, press and hold `Your profile`. On iPhone, tap `Set status` in the menu that opens; on Android the sheet opens straight away. It has an `Update your status` box. Type up to 50 characters and tap the arrow button to save.
 Notes: this is a phone shortcut. Desktop's Settings has no `Your profile` row.
 
 ## Change the theme or turn on dark mode
@@ -32,7 +32,7 @@ Notes: when it's on, a deleted message leaves a marker where it used to be (`Sho
 
 ## Find the app version or my node's software version
 
-Phone: Settings tab, then `App info`. It lists `Build version`, `Notify provider`, `Notify service`, `Desk version`, `Desk source`, `Desk hash` and `Permitted Scheduler ID`. Tap a row to copy its value; the copy icon turns into a checkmark.
+Phone: Settings tab, then `App info`. It lists `Build version`, `Notify provider`, `Notify service`, `Desk version`, `Desk source`, `Desk hash` and `Permitted Scheduler ID`. Tap a row to copy its value; a long press offers `Copy` as well.
 Desktop: the gear in the left rail, then `App info`.
 Notes: `Build version` is the app's build on this phone. The three `Desk` rows describe the Tlon Messenger software installed on your node: its version, where it gets updates from, and its hash. If they can't be read you see `Cannot load app info settings`. Your node's name is not on this screen, and there is no clear-cache or reset button.
 
@@ -55,7 +55,7 @@ Notes: the screen describes sharing as helping Tlon improve the app (`By sharing
 
 ## Stop people finding me by my phone number
 
-Phone: Settings tab, then `Privacy`, then switch off `Phone number discovery`.
+Phone: Settings tab, then `Privacy`, then switch off `Phone number discovery`. The switch only shows once your profile has a verified phone number.
 Desktop: the gear in the left rail, then `Privacy`.
 Who: the switch only appears once you have a verified phone number on your account.
 Notes: while it's on, friends who already have your number can find you on Tlon Messenger. Switching it off hides you from that lookup. It does not remove the number from your account.
@@ -87,7 +87,7 @@ Notes: logging out is not deleting. `Log out` only clears the app on that phone.
 
 ## Report a bug
 
-Phone: Settings tab, then `Report a bug`. If you like, type what happened in `Additional notes` (the box says `What went wrong?`, 300 characters at most), then tap `Send Report`. You'll see `Bug report sent`.
+Phone: Settings tab, then `Report a bug`. If you like, type what happened in `Additional notes` (the box says `What went wrong?`, 300 characters at most), then tap `Send` at the top right. You'll see `Bug report sent`.
 Desktop: the gear in the left rail, then `Report a bug`.
 Notes: the screen says diagnostic information is attached automatically. What you type is kept on the phone and is not part of the report, so the team learns that something went wrong, not what. To explain it, email support@tlon.io. A report is one-way: nothing more happens in the app, so use it to flag a problem, not to ask a question.
 
@@ -103,14 +103,14 @@ Notes: if the phone has no mail app, the links show `No mail app found` with the
 
 ## Turn on an experimental feature
 
-Phone: Settings tab, then `Experimental features`. Flip the switch beside the one you want: `Enable collecting and reporting performance data` or `Enable Buckets channels`. Below the switches are two text boxes, `Context lens gateway URL` and `Context lens gateway token`.
+Phone: Settings tab, then `Experimental features`. Flip the switch beside the one you want: `Performance reporting` or `Buckets channels`. Below the switches are two text boxes, `Context lens gateway URL` and `Context lens gateway token`.
 Desktop: the gear in the left rail, then `Experimental features`.
-Who: everyone can open the screen. `Enable Markdown mode for notebook posts` is only listed for Tlon staff.
+Who: everyone can open the screen. `Markdown notebooks` is only listed for Tlon staff.
 Notes: every switch starts off. They are saved on the device you set them on, not to your node, so set them again on each device.
 
 ## Turn performance data reporting on or off
 
-Phone: Settings tab, then `Experimental features`, then the switch `Enable collecting and reporting performance data`.
+Phone: Settings tab, then `Experimental features`, then the switch `Performance reporting`.
 Notes: it starts off. While it's on, the phone app measures how long things take and reports those measurements. It is separate from `Share Usage Statistics` on the Privacy screen. The switch is also listed on desktop, but only the phone app collects this data.
 
 ## Log out

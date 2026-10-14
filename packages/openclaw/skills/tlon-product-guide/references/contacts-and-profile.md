@@ -4,7 +4,7 @@ Finding, adding, inviting and blocking people, looking at someone's profile, and
 
 ## Find your contacts list
 
-Phone: open the Settings tab and tap `Contacts`. It says `People you know and invite` underneath. There is no Contacts tab in the tab bar.
+Phone: open the Settings tab and tap `Contacts`. There is no Contacts tab in the tab bar.
 Desktop: click your own avatar in the left rail. Your contacts are listed in the sidebar, and a profile opens beside them.
 Notes: you are always first in the list, marked `You`, followed by your contacts. Below them there can be a `Suggested from %pals and DMs` section and, on the phone, a `From your address book` section. Tap a contact or a suggestion to open their profile. When the Activity tab is empty, the phone also shows a `View Contacts` button there.
 
@@ -98,7 +98,7 @@ Notes: a tile only appears once verification has finished. Other people never se
 ## Block someone
 
 Phone: open the person's profile and tap `Block` in the row of buttons under their name. In a group's member list, you can instead tap the member and then `Block` at the bottom of the sheet. When someone new sends you a DM, the request screen offers `Accept`, `Deny` and `Block`. That `Block` turns the request down and blocks the sender.
-Notes: there is no confirmation. It happens on the tap. You can't block yourself, and the DM request `Block` is only offered for one-to-one DMs.
+Notes: there is no confirmation. It happens on the tap. You can't block yourself, and your own bot's profile has no `Block` button. The DM request `Block` is only offered for one-to-one DMs.
 
 ## What happens when you block someone
 
@@ -106,13 +106,13 @@ Notes: in chats you both belong to, their messages are replaced with `Message fr
 
 ## Unblock someone or see who you've blocked
 
-Phone: open the Settings tab and tap `Blocked users`. Everyone you have blocked is listed with an `Unblock` badge. Tap a person, then confirm with `Unblock`.
+Phone: open the Settings tab and tap `Blocked users`. Everyone you have blocked is listed, each with `Unblock` beside it. Tap a person, then confirm with `Unblock`.
 Desktop: open Settings from the left rail and click `Blocked users`. The browser asks you to confirm.
 Notes: an empty list reads `No blocked users`. You can also unblock from the person's profile, where the `Block` button reads `Unblock` once they are blocked. This screen only unblocks. To block someone, use their profile.
 
 ## Find your own profile
 
-Phone: open the Settings tab and tap `Your profile`. It is the first row under `App`.
+Phone: open the Settings tab and tap `Your profile`. It is the first row on the Settings tab.
 Desktop: click your avatar in the left rail. Your own profile is what opens. In the Contacts sidebar you are the first row, marked `You`.
 Notes: desktop's Settings sidebar has no profile row. On the phone you can also reach your profile by tapping the `You` row at the top of your contacts list.
 
@@ -130,7 +130,7 @@ Notes: `Default avatar color` sets the colour of the avatar you get when you hav
 
 ## Set your status quickly
 
-Phone: on the Settings tab, press and hold `Your profile`. A sheet opens with a box labelled `Update your status`. Type up to 50 characters and tap the arrow button.
+Phone: on the Settings tab, press and hold `Your profile`. On iPhone, tap `Set status` in the menu that opens; on Android the sheet opens straight away. It has a box labelled `Update your status`. Type up to 50 characters and tap the arrow button.
 Desktop: there is no shortcut. Edit your profile and change `Status` there.
 Notes: people see your status under your name in their contacts list and in a `Status` block on your profile. To clear it, save an empty status.
 

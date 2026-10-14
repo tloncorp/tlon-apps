@@ -78,7 +78,7 @@ Notes: in a group with several channels, the name at the top of an open channel 
 
 ## What's on the Group info & settings screen
 
-Phone: every member sees, from the top: the group's icon and name with a line like "Secret group with 4 members"; a row of buttons (`Invite` if you're allowed to invite, `Mark read` when something is unread, `Pin` or `Unpin`, `Forward reference`, `Copy group ID`); the `Description` if one is set; the connection to the group's host; `Notifications`; the first five members; and `Leave group`.
+Phone: every member sees, from the top: the group's icon and name with a line like "Secret group with 4 members"; a row of buttons (`Invite` if you're allowed to invite, `Mark read` when something is unread, `Pin` or `Unpin`, `Forward reference`, `Copy group ID`); the `Description` if one is set; the connection to the group's host; `Notifications`; `Scheduled tasks` with a count, when your node supports scheduled tasks and your bot is in the group or has tasks posting to it; the first five members; and `Leave group`.
 Who: admins also get `Rename` at the top right, the rows `Privacy`, `Roles` and `Channels`, and `Manage members` under the member list. The group's host gets `Delete group` in place of `Leave group`.
 Notes: `Privacy`, `Roles` and `Channels` each show their current value or count and open their own screen.
 

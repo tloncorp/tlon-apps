@@ -51,7 +51,7 @@ Notes: all of these open `Channel info`. In a group with a single channel, the m
 
 ## What the Channel info screen shows
 
-Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Host`, the node that runs the channel, which you can tap to open its profile; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen.
+Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Scheduled tasks` with a count, when your bot has tasks here or could post here; `Host`, the node that runs the channel, which you can tap to open its profile; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen.
 
 ## Rename a channel or change its description
 

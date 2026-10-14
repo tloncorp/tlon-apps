@@ -65,7 +65,7 @@ Notes: all of these open `Channel info`. In a group with a single channel, the m
 ## What the Channel info screen shows
 <!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/utils/channelUtils.tsx -->
 
-Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Host`, the node that runs the channel, which you can tap to open its profile; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen.
+Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Scheduled tasks` with a count, when your bot has tasks here or could post here; `Host`, the node that runs the channel, which you can tap to open its profile; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen.
 
 ## Rename a channel or change its description
 <!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/ui/components/ManageChannels/EditChannelMetaScreenView.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx -->
@@ -146,7 +146,7 @@ Notes: this makes an empty channel of the same type and copies over the add-ons 
 <!-- src: packages/app/ui/components/ManageChannels/CreateChannelSheet.tsx, packages/app/lib/featureFlags.ts, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/utils/channelUtils.tsx, packages/app/ui/components/SystemNotices.tsx -->
 <!-- flag: buckets -->
 
-Phone: on the Settings tab, open `Experimental features` and switch on `Enable Buckets channels`. Then start a new channel the usual way: `Buckets` now appears under `Channel type`, described as `Shared files for members and agents`.
+Phone: on the Settings tab, open `Experimental features` and switch on `Buckets channels`. Then start a new channel the usual way: `Buckets` now appears under `Channel type`, described as `Shared files for members and agents`.
 Who: group admins, in groups the app can tell are hosted on Tlon. In other groups the sheet says `Buckets are currently available only in groups hosted on Tlon.` and leaves the type out. Your node also needs a version that supports Buckets.
 Notes: the switch is off by default and is set per device. A Bucket always lives on the group host's node and uses its storage. It can't be left, and it can't be deleted from its info screen.
 
