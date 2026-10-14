@@ -591,6 +591,7 @@
     - "it does not cover a connected subscription or a direct API key"
   must_not:
     - "says the owner has to turn it on first"
+    - "says every model the bot can use keeps nothing"
 
 - id: take-bot-memory
   ask: "if i stop using tlon's hosting can i take my bot's memory with me?"

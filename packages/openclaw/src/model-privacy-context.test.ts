@@ -36,6 +36,12 @@ describe('modelPrivacyNote', () => {
     );
   });
 
+  it('treats running without it as a choice, not a fault to fix', () => {
+    const note = modelPrivacyNote({}, 'openrouter', 'x-ai/grok-4.6');
+    expect(note).toContain("can be the owner's choice");
+    expect(note).not.toContain('turn it on');
+  });
+
   it('says a direct provider runs under its own policy', () => {
     const note = modelPrivacyNote({}, 'anthropic', 'claude-sonnet-5');
     expect(note).toContain("under that provider's own data policy");

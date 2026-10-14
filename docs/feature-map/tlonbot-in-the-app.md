@@ -97,7 +97,7 @@ Notes: if the default model fails, the bot tries these in order. The order is th
 Phone: on the Settings tab, under `Privacy`, use the `Zero data retention` switch, then apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot. The `Privacy` section only shows while the default model is the included Basic model.
-Notes: it is on by default. The app describes it as `Avoid model providers that retain data. May use your included credits faster.` Requests still reach a model provider, just one that keeps nothing. Leaving Basic and coming back turns it off. With OpenRouter the same switch sits at the top of the model list, where it narrows the list to models tagged `ZDR`. Subscriptions and other providers' keys aren't covered.
+Notes: it is on by default, but the owner may run without it. The app describes it as `Avoid model providers that retain data. May use your included credits faster.` Requests still reach a model provider, just one that keeps nothing. Leaving Basic and coming back turns it off. With OpenRouter, a switch atop the model list shows only models tagged `ZDR`; switch it off to see the rest. It doesn't cover subscriptions, other providers' keys or a per-channel model.
 
 ## Add an API key for a model provider
 <!-- src: packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/BotApiKeySettingsScreen.tsx, packages/app/features/settings/bot/constants.ts, packages/app/features/settings/bot/helpers.ts, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
