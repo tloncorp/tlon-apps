@@ -17,6 +17,14 @@ export function BucketFilePager({
     navigation,
     retainActivePage
   );
+  const activeItem = navigation?.items[navigation.index];
+  const activeKey = activeItem ? (activeItem.id ?? activeItem.name) : undefined;
+  // Keep both DOM size and reconciliation bounded. Stable order also avoids
+  // moving retained iframes in the DOM when the cache's LRU order changes.
+  const pageKeys =
+    activeKey === undefined
+      ? []
+      : [...new Set([...retained.keys(), activeKey])].sort();
   const touch = useRef<{ x: number; y: number } | null>(null);
   const move = (direction: number) => {
     if (!navigation) return;
@@ -70,20 +78,18 @@ export function BucketFilePager({
           move(dx < 0 ? 1 : -1);
       }}
     >
-      {navigation && navigation.index >= 0
-        ? navigation.items.map((item, index) => (
+      {activeKey !== undefined
+        ? pageKeys.map((key) => (
             <div
-              key={item.id ?? item.name}
+              key={key}
               style={{
-                display: index === navigation.index ? 'flex' : 'none',
+                display: key === activeKey ? 'flex' : 'none',
                 flex: 1,
                 minHeight: 0,
               }}
-              aria-hidden={index !== navigation.index}
+              aria-hidden={key !== activeKey}
             >
-              {index === navigation.index
-                ? children
-                : retained.get(item.id ?? item.name)?.node}
+              {key === activeKey ? children : retained.get(key)?.node}
             </div>
           ))
         : children}

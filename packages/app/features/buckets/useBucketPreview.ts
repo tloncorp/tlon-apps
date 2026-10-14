@@ -151,11 +151,15 @@ export function useBucketPreview(readGrant: ReadGrant, bucketKey: string) {
   const openExternally =
     item && item.previewUri
       ? () => {
+          const openedRequestId = requestId.current;
           void readGrant(Number(item.id))
             .then((grant) => Linking.openURL(grant.readUrl))
-            .catch((cause) =>
-              setError(cause instanceof Error ? cause.message : String(cause))
-            );
+            .catch((cause) => {
+              if (requestId.current === openedRequestId)
+                setError(
+                  cause instanceof Error ? cause.message : String(cause)
+                );
+            });
         }
       : undefined;
 

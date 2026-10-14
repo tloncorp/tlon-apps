@@ -493,3 +493,56 @@ describe('Bucket file preview navigation', () => {
     expect(viewer().item.name).toBe('photo.jpg');
   });
 });
+
+describe('Bucket file route synchronization', () => {
+  it('updates selection in the route without clearing previews, and accepts external route changes', async () => {
+    const secondFile = { ...notes, id: 3, name: 'photo.jpg' };
+    mocks.entries = [photos, notes, secondFile];
+    mocks.readGrant.mockResolvedValue({
+      readUrl: 'https://files.test/file',
+      expiresAt: new Date(Date.now() + 300000).toISOString(),
+    });
+    let changeRoute!: (entryId: number) => void;
+    const routeChanged = vi.fn();
+    function Route() {
+      const [entryId, setEntryId] = React.useState(2);
+      React.useLayoutEffect(() => {
+        changeRoute = setEntryId;
+      });
+      return (
+        <BucketsLiveFile
+          entryId={entryId}
+          flag={flag}
+          onClose={vi.fn()}
+          onSelectEntry={(id) => {
+            routeChanged(id);
+            setEntryId(id);
+          }}
+        />
+      );
+    }
+    const viewer = () =>
+      mocks.viewer.mock.calls.at(-1)![0] as {
+        item: { id: string; uri?: string };
+        loading: boolean;
+        navigation: { onSelect: (index: number) => void };
+      };
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<Route />);
+    });
+    await act(async () => viewer().navigation.onSelect(1));
+    expect(routeChanged).toHaveBeenLastCalledWith(3);
+    expect(viewer().item.id).toBe('3');
+    await act(async () => viewer().navigation.onSelect(0));
+    expect(routeChanged).toHaveBeenLastCalledWith(2);
+    expect(viewer().item.id).toBe('2');
+    expect(viewer().loading).toBe(false);
+    expect(mocks.readGrant).toHaveBeenCalledTimes(2);
+    await act(async () => changeRoute(3));
+    expect(viewer().item.id).toBe('3');
+    expect(viewer().loading).toBe(false);
+    expect(mocks.readGrant).toHaveBeenCalledTimes(2);
+    act(() => tree.unmount());
+  });
+});

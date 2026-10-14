@@ -11,6 +11,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { Spinner, View, XStack, YStack } from 'tamagui';
 
+import { useOptionalNowPlaying } from '../../contexts/nowPlaying';
 import { BucketFileViewerItem } from './BucketFileViewer.shared';
 
 export function BucketAudioPreview({
@@ -26,12 +27,15 @@ export function BucketAudioPreview({
   });
   const status = useAudioPlayerStatus(player);
   const navigation = useContext(NavigationContext);
+  const nowPlaying = useOptionalNowPlaying();
   const active = useRef(true);
+  const playbackRequest = useRef(0);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     active.current = true;
     const pause = () => {
       active.current = false;
+      playbackRequest.current += 1;
       player.pause();
     };
     const blur = navigation?.addListener('blur', pause);
@@ -44,6 +48,7 @@ export function BucketAudioPreview({
     });
     return () => {
       active.current = false;
+      playbackRequest.current += 1;
       blur?.();
       focus?.();
       appState.remove();
@@ -51,33 +56,45 @@ export function BucketAudioPreview({
   }, [navigation, player]);
 
   const toggle = async () => {
+    const request = ++playbackRequest.current;
+    const isCurrent = () =>
+      active.current && playbackRequest.current === request;
     setError(null);
     try {
       if (status.playing) {
         player.pause();
         return;
       }
+      // Stop voice memos and cancel a source still loading before this player
+      // takes over. Pause deactivates global audio, so await it before activation.
+      if (nowPlaying) {
+        await nowPlaying.pause();
+        if (!isCurrent()) return;
+        await nowPlaying.replace(null);
+        if (!isCurrent()) return;
+      }
       await setAudioModeAsync({
         playsInSilentMode: true,
         interruptionMode: 'doNotMix',
       });
-      if (!active.current) return;
+      if (!isCurrent()) return;
       // NowPlayingProvider deactivates the shared audio subsystem on background.
       await setIsAudioActiveAsync(true);
-      if (!active.current) return;
+      if (!isCurrent()) return;
       if (
         status.didJustFinish ||
         (status.duration > 0 && status.currentTime >= status.duration)
       ) {
         await player.seekTo(0);
       }
-      if (active.current) player.play();
+      if (isCurrent()) player.play();
     } catch {
-      if (active.current)
+      if (isCurrent())
         setError('Couldn’t play this audio. Try opening it in another app.');
     }
   };
   const seek = (seconds: number) => {
+    setError(null);
     void player
       .seekTo(
         Math.max(0, Math.min(status.duration, status.currentTime + seconds))
@@ -120,9 +137,11 @@ export function BucketAudioPreview({
         <Text color="$negativeActionText" textAlign="center">
           {playbackError}
         </Text>
-      ) : !status.isLoaded || status.isBuffering ? (
+      ) : null}
+      {!playbackError && (!status.isLoaded || status.isBuffering) ? (
         <Spinner size="large" accessibilityLabel="Loading audio" />
-      ) : (
+      ) : null}
+      {status.isLoaded || status.playing ? (
         <YStack width="100%" maxWidth={360} gap="$l">
           <XStack alignItems="center" justifyContent="center" gap="$2xl">
             <Pressable
@@ -169,7 +188,7 @@ export function BucketAudioPreview({
             </Text>
           </XStack>
         </YStack>
-      )}
+      ) : null}
     </YStack>
   );
 }

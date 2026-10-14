@@ -5,6 +5,11 @@ import { setupReactTestEnvironment } from '../../../test/sheetTestUtils';
 import { BucketAudioPreview } from './BucketAudioPreview.native';
 
 const mocks = vi.hoisted(() => ({
+  sharedPlayback: {
+    pause: vi.fn(() => Promise.resolve()),
+    replace: vi.fn((_source: null) => Promise.resolve()),
+  },
+  hasProvider: true,
   mode: vi.fn(() => Promise.resolve()),
   activate: vi.fn((_active: boolean) => Promise.resolve()),
   player: {
@@ -64,12 +69,20 @@ vi.mock('expo-audio', () => ({
   setAudioModeAsync: mocks.mode,
   setIsAudioActiveAsync: mocks.activate,
 }));
+vi.mock('../../contexts/nowPlaying', () => ({
+  useOptionalNowPlaying: () =>
+    mocks.hasProvider ? mocks.sharedPlayback : null,
+}));
 
 setupReactTestEnvironment();
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.mode.mockResolvedValue(undefined);
   mocks.activate.mockResolvedValue(undefined);
+  mocks.sharedPlayback.pause.mockResolvedValue(undefined);
+  mocks.sharedPlayback.replace.mockResolvedValue(undefined);
+  mocks.player.seekTo.mockResolvedValue(undefined);
+  mocks.hasProvider = true;
   mocks.status.currentTime = 0;
   mocks.status.didJustFinish = false;
   mocks.status.playing = false;
@@ -147,7 +160,7 @@ describe('Bucket audio playback lifecycle', () => {
         })
     );
     const tree = render();
-    act(() =>
+    await act(async () =>
       tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
     );
     act(() => tree.unmount());
@@ -176,4 +189,114 @@ describe('Bucket audio playback lifecycle', () => {
     expect(mocks.player.play).toHaveBeenCalledTimes(1);
     act(() => tree.unmount());
   });
+});
+
+describe('Bucket audio coordination and recovery', () => {
+  it('waits for shared playback to stop before reactivating audio and playing', async () => {
+    let paused!: () => void;
+    mocks.sharedPlayback.pause.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          paused = resolve;
+        })
+    );
+    const tree = render();
+    await act(async () =>
+      tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
+    );
+    expect(mocks.sharedPlayback.pause).toHaveBeenCalledTimes(1);
+    expect(mocks.activate).not.toHaveBeenCalled();
+    expect(mocks.player.play).not.toHaveBeenCalled();
+    await act(async () => paused());
+    expect(mocks.sharedPlayback.replace).toHaveBeenCalledWith(null);
+    expect(
+      mocks.sharedPlayback.replace.mock.invocationCallOrder[0]
+    ).toBeLessThan(mocks.activate.mock.invocationCallOrder[0]);
+    expect(mocks.activate.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.player.play.mock.invocationCallOrder[0]
+    );
+    act(() => tree.unmount());
+  });
+
+  it('does not activate or play after leaving while shared playback is stopping', async () => {
+    let paused!: () => void;
+    mocks.sharedPlayback.pause.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          paused = resolve;
+        })
+    );
+    const tree = render();
+    await act(async () =>
+      tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
+    );
+    act(() => tree.unmount());
+    await act(async () => paused());
+    expect(mocks.activate).not.toHaveBeenCalled();
+    expect(mocks.player.play).not.toHaveBeenCalled();
+  });
+
+  it('supports standalone previews without the shared playback provider', async () => {
+    mocks.hasProvider = false;
+    const tree = render();
+    await act(async () =>
+      tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
+    );
+    expect(mocks.player.play).toHaveBeenCalledTimes(1);
+    act(() => tree.unmount());
+  });
+
+  it('keeps Pause and seek retry available after a failed seek during playback', async () => {
+    mocks.status.playing = true;
+    mocks.player.seekTo.mockRejectedValueOnce(new Error('Seek failed'));
+    const tree = render();
+    await act(async () =>
+      tree.root
+        .findByProps({ accessibilityLabel: 'Forward 15 seconds' })
+        .props.onPress()
+    );
+    expect(JSON.stringify(tree.toJSON())).toContain(
+      'Couldn’t seek in this audio. Try again.'
+    );
+    expect(
+      tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props
+        .accessibilityLabel
+    ).toBe('Pause audio');
+    await act(async () =>
+      tree.root
+        .findByProps({ accessibilityLabel: 'Forward 15 seconds' })
+        .props.onPress()
+    );
+    expect(mocks.player.seekTo).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(tree.toJSON())).not.toContain('Couldn’t seek');
+    await act(async () =>
+      tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
+    );
+    expect(mocks.player.pause).toHaveBeenCalledTimes(1);
+    expect(mocks.sharedPlayback.pause).not.toHaveBeenCalled();
+    act(() => tree.unmount());
+  });
+});
+
+it('cancels pending playback across a background/foreground round trip', async () => {
+  let activated!: () => void;
+  mocks.activate.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        activated = resolve;
+      })
+  );
+  const tree = render();
+  await act(async () =>
+    tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
+  );
+  act(() => mocks.appState('background'));
+  act(() => mocks.appState('active'));
+  await act(async () => activated());
+  expect(mocks.player.play).not.toHaveBeenCalled();
+  await act(async () =>
+    tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
+  );
+  expect(mocks.player.play).toHaveBeenCalledTimes(1);
+  act(() => tree.unmount());
 });

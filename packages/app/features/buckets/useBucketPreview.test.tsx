@@ -1,4 +1,5 @@
 import React, { useLayoutEffect } from 'react';
+import { Linking } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,6 +18,7 @@ setupReactTestEnvironment();
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  vi.mocked(Linking.openURL).mockReset();
 });
 
 const photo: BucketItem = {
@@ -274,5 +276,49 @@ describe('useBucketPreview session cache', () => {
     await act(async () => hook.current.load({ ...photo, id: '21' }));
     expect(hook.current.getCached(photo)).toBeDefined();
     expect(hook.current.getCached({ ...photo, id: '2' })).toBeUndefined();
+  });
+});
+
+describe('external-open error ownership', () => {
+  it.each(['grant', 'launch'])(
+    'ignores a stale %s error after paging to another file',
+    async (stage) => {
+      const hook = render();
+      const other = { ...photo, id: '3', name: 'other.jpg' };
+      await act(async () => hook.current.load(photo));
+      const rejected = deferred<ReturnType<typeof grant>>();
+      if (stage === 'grant')
+        hook.readGrant.mockImplementationOnce(() => rejected.promise);
+      else
+        vi.mocked(Linking.openURL).mockImplementationOnce(
+          () => rejected.promise
+        );
+      await act(async () => hook.current.openExternally?.());
+      await act(async () => hook.current.load(other));
+      await act(async () => rejected.reject(new Error('Previous file failed')));
+      expect(hook.current.item?.id).toBe('3');
+      expect(hook.current.error).toBeNull();
+      expect(hook.current.loading).toBe(false);
+    }
+  );
+
+  it('does not restore an external-open error after closing the preview', async () => {
+    const hook = render();
+    await act(async () => hook.current.load(photo));
+    const rejected = deferred<ReturnType<typeof grant>>();
+    hook.readGrant.mockImplementationOnce(() => rejected.promise);
+    act(() => hook.current.openExternally?.());
+    act(() => hook.current.close());
+    await act(async () => rejected.reject(new Error('Closed file failed')));
+    expect(hook.current.item).toBeNull();
+    expect(hook.current.error).toBeNull();
+  });
+
+  it('reports an external-open failure while the initiating file is still selected', async () => {
+    const hook = render();
+    await act(async () => hook.current.load(photo));
+    hook.readGrant.mockRejectedValueOnce(new Error('Open failed'));
+    await act(async () => hook.current.openExternally?.());
+    expect(hook.current.error).toBe('Open failed');
   });
 });

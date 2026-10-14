@@ -5,6 +5,7 @@ import { expect, it, vi } from 'vitest';
 import { setupReactTestEnvironment } from '../../../test/sheetTestUtils';
 import { BucketFilePager } from './BucketFilePager.native';
 
+const scrollToIndex = vi.hoisted(() => vi.fn());
 vi.mock('@tloncorp/shared', async () => {
   const { useRef } = await import('react');
   return {
@@ -15,13 +16,21 @@ vi.mock('@tloncorp/shared', async () => {
     },
   };
 });
-vi.mock('@tloncorp/ui', () => {
+vi.mock('@tloncorp/ui', async () => {
+  const { forwardRef, useImperativeHandle } = await import('react');
   const Container = ({ children }: { children?: React.ReactNode }) => children;
+  const Carousel = forwardRef(function TestCarousel(
+    { children }: { children?: React.ReactNode },
+    ref
+  ) {
+    useImperativeHandle(ref, () => ({ scrollToIndex }));
+    return children;
+  });
   const FilePreview = Object.assign(() => null, {
     fileExtensionFrom: () => 'MP3',
   });
   return {
-    Carousel: Object.assign(Container, { Item: Container }),
+    Carousel: Object.assign(Carousel, { Item: Container }),
     FilePreview,
     Text: () => null,
   };
@@ -80,3 +89,49 @@ it.each(['image', 'pdf', 'text'])(
     expect(unmounted).toHaveBeenCalledWith('photo');
   }
 );
+
+it('preserves the active player as siblings are added, reordered, removed, and reduced to one', () => {
+  const mounted = vi.fn();
+  const unmounted = vi.fn();
+  scrollToIndex.mockClear();
+  function Player() {
+    useEffect(() => {
+      mounted();
+      return () => {
+        unmounted();
+      };
+    }, []);
+    return null;
+  }
+  const active = { id: 'audio', name: 'audio.mp3' };
+  const before = { id: 'before', name: 'before.jpg' };
+  const after = { id: 'after', name: 'after.pdf' };
+  const element = (items: (typeof active)[]) => (
+    <BucketFilePager
+      navigation={{ items, index: items.indexOf(active), onSelect: vi.fn() }}
+    >
+      <Player />
+    </BucketFilePager>
+  );
+  let tree!: ReturnType<typeof create>;
+  act(() => {
+    tree = create(element([active]));
+  });
+  for (const items of [
+    [before, active],
+    [after, before, active],
+    [active, after, before],
+    [active, after],
+    [active],
+  ]) {
+    act(() => tree.update(element(items)));
+    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(unmounted).not.toHaveBeenCalled();
+  }
+  expect(scrollToIndex.mock.calls).toEqual([
+    [1, false],
+    [2, false],
+    [0, false],
+  ]);
+  act(() => tree.unmount());
+});

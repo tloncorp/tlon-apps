@@ -267,11 +267,16 @@ export function NowPlayingProvider({
 }
 
 export function useNowPlaying() {
-  const value = useContext(ctx);
+  const value = useOptionalNowPlaying();
   if (!value) {
     throw new Error('Must call `useNowPlaying` within a `NowPlayingProvider`');
   }
   return value;
+}
+
+/** Standalone media fixtures can render without the app's playback provider. */
+export function useOptionalNowPlaying() {
+  return useContext(ctx);
 }
 
 /** Provides a controller for loading + controlling playback of the given

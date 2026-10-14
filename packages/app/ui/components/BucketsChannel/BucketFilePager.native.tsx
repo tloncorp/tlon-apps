@@ -39,11 +39,10 @@ export function BucketFilePager({
     carousel.current?.scrollToIndex(navigation.index, false);
   }, [navigation]);
 
-  if (!navigation || navigation.items.length < 2 || navigation.index < 0)
+  if (!navigation || navigation.items.length === 0 || navigation.index < 0)
     return children;
   return (
     <Carousel
-      key={navigation.items.map((item) => item.id ?? item.name).join('|')}
       ref={carousel}
       width="100%"
       flex={1}

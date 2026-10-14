@@ -11,21 +11,32 @@ type Props = {
   entryId: number;
   flag: BucketsFlag;
   onClose: () => void;
+  onSelectEntry?: (entryId: number) => void;
 };
 
 export function BucketsLiveFile(props: Props) {
   return (
     <BucketsFileSelection
-      key={`${props.flag.host}/${props.flag.name}/${props.entryId}`}
+      key={`${props.flag.host}/${props.flag.name}`}
       {...props}
     />
   );
 }
 
-function BucketsFileSelection({ entryId, flag, onClose }: Props) {
+function BucketsFileSelection({
+  entryId,
+  flag,
+  onClose,
+  onSelectEntry,
+}: Props) {
   const live = useLiveBucket(flag);
   const preview = useBucketPreview(live.readGrant, `${flag.host}/${flag.name}`);
-  const [selectedId, setSelectedId] = useState(entryId);
+  const [selection, setSelection] = useState({ entryId, selectedId: entryId });
+  // Route updates can confirm a swipe or select a new deep-linked file. Keep
+  // the preview session mounted so neither case discards already-loaded files.
+  if (selection.entryId !== entryId)
+    setSelection({ entryId, selectedId: entryId });
+  const { selectedId } = selection;
   const entry = live.entries.find((candidate) => candidate.id === selectedId);
   const files = getBucketPreviewFiles(live.entries, selectedId).map((entry) =>
     toItem(entry)
@@ -64,8 +75,9 @@ function BucketsFileSelection({ entryId, flag, onClose }: Props) {
           const file = files[index];
           if (file) {
             requested.current = Number(file.id);
-            setSelectedId(Number(file.id));
+            setSelection({ entryId, selectedId: Number(file.id) });
             void load(file);
+            onSelectEntry?.(Number(file.id));
           }
         },
       }}
