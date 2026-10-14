@@ -14,7 +14,7 @@ export const BROWSER_HANDOFF_HELP = String.raw`Usage: tlon browser --help
 Tlon tool: browser handoff <session_id> [--fields <JSON array>]
 Tlon tool: browser share <session_id>
 
-Use the sess_ handle from browser_session_create in the tool's command argument.
+Use the session ID from browser_session_create in the tool's command argument.
 Use --fields when the owner should fill only selected controls. Prefer current
 snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'.
 Exact {"name":"..."} or {"label":"..."} selectors must match uniquely.
@@ -185,7 +185,7 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 
-    if (args[1].startsWith('sess_')) {
+    if (/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(args[1])) {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 

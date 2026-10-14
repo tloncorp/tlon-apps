@@ -1,30 +1,4 @@
-const DEFAULT_MEMEX_BASE_URL = 'https://memex.tlon.network';
-
-/**
- * Where the storage broker lives, for clients.
- *
- * The broker is one service seen from two directions: the bucket host pushes
- * read grants to it, and clients upload and read through it. Pointing one at a
- * test deployment and not the other is broken in both, so this is the client
- * half of the %buckets `%set-broker-base` poke — set TLON_MEMEX_URL and poke
- * the host to match.
- *
- * `process.env.TLON_MEMEX_URL` is written out in full, and not behind optional
- * chaining, because Vite's `define` substitutes the literal expression: written
- * as `process.env?.TLON_MEMEX_URL` it does not match and the browser silently
- * keeps the production default. The try/catch is what makes a bare `process`
- * reference safe in a runtime where nothing substituted it.
- *
- * Not storageApi's memexBaseUrl(): that one reads `process.env?.TLON_MEMEX_URL`,
- * the optional-chained form the define does not match.
- */
-function memexBaseUrl(): string {
-  try {
-    return process.env.TLON_MEMEX_URL?.trim() || DEFAULT_MEMEX_BASE_URL;
-  } catch {
-    return DEFAULT_MEMEX_BASE_URL;
-  }
-}
+import { getMemexBaseUrl } from './memex';
 
 /**
  * An explicit override of the whole broker path, for the CLI and its tests.
@@ -44,7 +18,7 @@ function explicitBrokerUrl(): string | undefined {
 function bucketsBrokerUrl(): string {
   const explicit = explicitBrokerUrl();
   if (explicit) return explicit.replace(/\/+$/, '');
-  return `${memexBaseUrl().replace(/\/+$/, '')}/v2/buckets`;
+  return `${getMemexBaseUrl()}/v2/buckets`;
 }
 
 type BrokerErrorBody = {

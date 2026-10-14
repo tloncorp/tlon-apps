@@ -180,7 +180,7 @@ export function useA2UINavigation() {
               if (!options?.allowBrowserSession) return;
               if (!browserHandoff)
                 throw new Error('Browser session viewer is unavailable.');
-              browserHandoff.openViewer(target.viewerUrl);
+              await browserHandoff.openViewer(target.viewerUrl);
               return;
             case 'browserCredentialHandoff':
               if (!options?.allowBrowserCredentialHandoff) {

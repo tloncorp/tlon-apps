@@ -1,4 +1,9 @@
 import { isTrustedBrowserViewerHost } from '@tloncorp/api/client/browserSession';
+import {
+  authorizeBrowserLoginHandoff,
+  browserVaultOwnerRequest,
+  type BrowserLoginChoice,
+} from '@tloncorp/api/client/browserVault';
 
 export type BrowserSecureField = {
   id: string;
@@ -24,11 +29,35 @@ export type BrowserCredentialHandoff = {
   expiresAt: number;
   kind: 'login' | 'details';
   fields: BrowserSecureField[];
+  vault?: { authorizeUrl: string; planet: string; moon: string };
 };
 export type BrowserCredentialValues = {
-  values: Record<string, string>;
+  values?: Record<string, string>;
   submit?: boolean;
+  grant?: string;
+  save?: {
+    label?: string;
+    update?: BrowserLoginChoice;
+    permission?: 'ask' | 'allow';
+  };
+  allowAutomatic?: boolean;
+  use?: BrowserLoginChoice;
 };
+
+export function supportsSavedLogins(
+  handoff: Pick<BrowserCredentialHandoff, 'kind' | 'fields'>
+): boolean {
+  const purposes = handoff.fields.map((field) => field.purpose);
+  return (
+    handoff.kind === 'login' &&
+    purposes.length > 0 &&
+    purposes.length <= 2 &&
+    new Set(purposes).size === purposes.length &&
+    purposes.every((purpose) =>
+      ['username', 'current-password'].includes(purpose)
+    )
+  );
+}
 
 function parseViewerUrl(viewerUrl: string): { url: URL; capability: string } {
   const url = new URL(viewerUrl);
@@ -57,6 +86,64 @@ function parseViewerUrl(viewerUrl: string): { url: URL; capability: string } {
 
 export function trustedBrowserViewerUrl(viewerUrl: string): string {
   return parseViewerUrl(viewerUrl).url.toString();
+}
+
+/** Viewer capabilities are granted to the authenticated owner, never to the bot's conversation link. */
+export async function authorizeBrowserViewer(
+  viewerUrl: string
+): Promise<string> {
+  const { url, capability } = parseViewerUrl(viewerUrl);
+  if (url.protocol === 'http:') return url.toString();
+  const result = await browserVaultOwnerRequest(
+    new URL('/viewer-authorize', url.origin).toString(),
+    { capability }
+  );
+  if (
+    !result ||
+    typeof result !== 'object' ||
+    !('viewerUrl' in result) ||
+    typeof result.viewerUrl !== 'string'
+  )
+    throw new Error('Viewer authorization is unavailable.');
+  const authorized = trustedBrowserViewerUrl(result.viewerUrl);
+  if (new URL(authorized).origin !== url.origin)
+    throw new Error('Invalid viewer authorization.');
+  return authorized;
+}
+
+export async function cancelBrowserCredentialHandoff(
+  viewerUrl: string
+): Promise<void> {
+  const { url, capability } = parseViewerUrl(viewerUrl);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let response: Response;
+      try {
+        response = await fetch(
+          new URL(`/credentials/${capability}`, url.origin),
+          {
+            method: 'DELETE',
+            cache: 'no-store',
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+            redirect: 'error',
+            signal: controller.signal,
+          }
+        );
+      } catch (error) {
+        if (attempt === 0 && !controller.signal.aborted) continue;
+        throw error;
+      }
+      if (response.ok || response.status === 404 || response.status === 410)
+        return;
+      if (attempt === 0 && response.status >= 500) continue;
+      throw new Error('The browser form could not be canceled.');
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export class BrowserFormError extends Error {
@@ -194,6 +281,7 @@ export async function beginBrowserCredentialHandoff(
     throw new Error('Secure entry requires an HTTPS website.');
   if (targetOrigin.origin !== body.origin)
     throw new Error('The browser returned an invalid form origin.');
+  const fields = parseFields(body.fields);
   return {
     fillUrl: new URL(
       `/credential-fills/${body.handoffId}`,
@@ -203,7 +291,27 @@ export async function beginBrowserCredentialHandoff(
     origin: body.origin,
     kind: body.kind,
     expiresAt: body.expiresAt,
-    fields: parseFields(body.fields),
+    fields,
+    ...(supportsSavedLogins({ kind: body.kind, fields }) &&
+    body.vault &&
+    typeof body.vault === 'object' &&
+    'available' in body.vault &&
+    body.vault.available === true &&
+    'planet' in body.vault &&
+    typeof body.vault.planet === 'string' &&
+    'moon' in body.vault &&
+    typeof body.vault.moon === 'string'
+      ? {
+          vault: {
+            authorizeUrl: new URL(
+              `/credential-vault/${body.handoffId}`,
+              url.origin
+            ).toString(),
+            planet: body.vault.planet,
+            moon: body.vault.moon,
+          },
+        }
+      : {}),
   };
 }
 
@@ -234,10 +342,13 @@ export async function submitBrowserCredentials(
   handoff: BrowserCredentialHandoff,
   values: BrowserCredentialValues,
   signal?: AbortSignal
-): Promise<{ submitted: boolean }> {
+): Promise<{
+  submitted: boolean;
+  saveStatus?: 'saved' | 'pending' | 'failed';
+}> {
   if (Date.now() >= handoff.expiresAt)
     throw new Error('This secure form has expired.');
-  if (!validBrowserFormValues(handoff, values.values))
+  if (!values.use && !validBrowserFormValues(handoff, values.values ?? {}))
     throw new Error('Complete the requested form fields.');
   const response = await fetch(handoff.fillUrl, {
     method: 'POST',
@@ -245,10 +356,16 @@ export async function submitBrowserCredentials(
     body: JSON.stringify({
       values: values.values,
       submit: handoff.kind === 'login' && values.submit === true,
+      ...(values.grant ? { grant: values.grant } : {}),
+      ...(values.save ? { save: values.save } : {}),
+      ...(values.use
+        ? { use: values.use, allowAutomatic: values.allowAutomatic === true }
+        : {}),
     }),
     cache: 'no-store',
     credentials: 'omit',
     referrerPolicy: 'no-referrer',
+    redirect: 'error',
     signal,
   });
   const body = await responseJson(response);
@@ -259,7 +376,21 @@ export async function submitBrowserCredentials(
     );
   if (body.ok !== true)
     throw new Error('The browser did not confirm that the fields were filled.');
-  return { submitted: body.submitted === true };
+  return {
+    submitted: body.submitted === true,
+    ...(['saved', 'pending', 'failed'].includes(String(body.saveStatus))
+      ? { saveStatus: body.saveStatus as 'saved' | 'pending' | 'failed' }
+      : {}),
+  };
+}
+
+export async function authorizeBrowserLogins(
+  handoff: BrowserCredentialHandoff,
+  signal?: AbortSignal
+) {
+  if (!handoff.vault)
+    throw new Error('Saved logins are unavailable for this form.');
+  return authorizeBrowserLoginHandoff(handoff.vault.authorizeUrl, signal);
 }
 
 function pause(ms: number, signal: AbortSignal): Promise<void> {
@@ -294,8 +425,12 @@ export async function nextBrowserCredentialHandoff(
       next = await beginBrowserCredentialHandoff(viewerUrl, signal);
       if (next.formId !== formId) return next;
     } catch (error) {
-      if (!(error instanceof BrowserFormError) || error.status !== 404)
+      if (
+        !(error instanceof BrowserFormError) ||
+        (error.status !== 404 && error.status !== 409)
+      )
         throw error;
+      // A bound form can disappear or change when the submitted page navigates.
       next = null;
     }
   } while (Date.now() < deadline);

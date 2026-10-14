@@ -24,6 +24,14 @@ const { navigate, navigateToGroup, platform, openWindow } = vi.hoisted(() => ({
   navigate: vi.fn(),
   navigateToGroup: vi.fn(),
 }));
+vi.mock('./browserCredentialHandoff', async (original) => {
+  const actual = await original<typeof import('./browserCredentialHandoff')>();
+  return {
+    ...actual,
+    authorizeBrowserViewer: async (url: string) =>
+      actual.trustedBrowserViewerUrl(url),
+  };
+});
 vi.mock('tamagui', () => ({
   get isWeb() {
     return platform.isWeb;
@@ -47,6 +55,13 @@ describe('browser handoff registry', () => {
   beforeEach(() => {
     platform.isWeb = false;
     openWindow.mockClear();
+    openWindow.mockReturnValue({
+      opener: {},
+      document: { write: vi.fn() },
+      location: { replace: vi.fn() },
+      close: vi.fn(),
+      closed: false,
+    });
     vi.stubGlobal('window', { open: openWindow });
   });
   afterEach(() => {
@@ -73,18 +88,14 @@ describe('browser handoff registry', () => {
       );
     });
     const url = 'https://browser-session.tlon.network/s/payload.signature';
-    act(() => registry.openViewer(url));
+    await act(async () => registry.openViewer(url));
     expect(openWindow).toHaveBeenCalledOnce();
-    expect(openWindow).toHaveBeenCalledWith(
-      url,
-      '_blank',
-      'noopener,noreferrer'
-    );
+    expect(openWindow).toHaveBeenCalledWith('about:blank', '_blank');
     expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
     openWindow.mockClear();
-    expect(() =>
+    await expect(
       registry.openViewer('https://evil.example/s/payload.signature')
-    ).toThrow('trusted');
+    ).rejects.toThrow('trusted');
     expect(openWindow).not.toHaveBeenCalled();
     act(() => renderer.unmount());
   });

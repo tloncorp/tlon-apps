@@ -13,7 +13,7 @@ import {
 import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 
-export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> [--fields <JSON array>] or browser share <session_id> (the sess_ handle from browser_session_create). Use --fields when the owner should fill only selected controls; omit it for automatic discovery of the visible form. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
+export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> [--fields <JSON array>] or browser share <session_id> (the session ID from browser_session_create). Use --fields when the owner should fill only selected controls; omit it for automatic discovery of the visible form. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
 
 const formFieldsSchema = z
   .array(
@@ -173,6 +173,7 @@ async function resolveViewerUrl(
   handle: string,
   config: OpenClawConfig,
   allowPrivateNetwork: boolean | null,
+  prepareForm: boolean,
   fields?: FormFields
 ): Promise<string> {
   try {
@@ -209,9 +210,9 @@ async function resolveViewerUrl(
     }
     // Preparation mints a capability. A timed-out request may still complete
     // upstream, so give it one longer attempt rather than create duplicate forms.
-    const maxAttempts = fields ? 1 : LOOKUP_MAX_ATTEMPTS;
+    const maxAttempts = prepareForm ? 1 : LOOKUP_MAX_ATTEMPTS;
     const deadline =
-      Date.now() + (fields ? PREPARE_TIMEOUT_MS : LOOKUP_DEADLINE_MS);
+      Date.now() + (prepareForm ? PREPARE_TIMEOUT_MS : LOOKUP_DEADLINE_MS);
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const remainingMs = deadline - Date.now();
@@ -236,13 +237,15 @@ async function resolveViewerUrl(
                 name: 'browser_browser_session_live_view',
                 arguments: {
                   session_id: handle,
-                  ...(fields ? { action: 'prepare_form', fields } : {}),
+                  ...(prepareForm
+                    ? { action: 'prepare_form', ...(fields ? { fields } : {}) }
+                    : {}),
                 },
               },
             }),
           },
           ssrfPolicy: ssrfPolicyFromAllowPrivateNetwork(allowPrivateNetwork),
-          timeoutMs: fields
+          timeoutMs: prepareForm
             ? remainingMs
             : Math.min(LOOKUP_ATTEMPT_TIMEOUT_MS, remainingMs),
           maxRedirects: 0,
@@ -295,7 +298,7 @@ async function resolveViewerUrl(
           if (metadata.session_id !== handle) {
             throw new Error('Browser session lookup refused.');
           }
-          return validateViewerUrl(metadata.viewer_url, !!fields);
+          return validateViewerUrl(metadata.viewer_url, prepareForm);
         } finally {
           await request.release();
         }
@@ -347,7 +350,8 @@ export async function runBrowserSessionHandoff(
     ![3, 5].includes(args.length) ||
     args[0] !== 'browser' ||
     !['handoff', 'share'].includes(args[1]) ||
-    !/^sess_[A-Za-z0-9_-]{22}$/.test(args[2]) ||
+    // Session IDs are opaque; the authenticated lookup establishes ownership.
+    !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(args[2]) ||
     (args.length === 5 && (args[1] !== 'handoff' || args[3] !== '--fields'))
   ) {
     throw new Error(BROWSER_SESSION_HANDOFF_HELP);
@@ -366,6 +370,7 @@ export async function runBrowserSessionHandoff(
     args[2],
     config,
     account.allowPrivateNetwork,
+    args[1] === 'handoff',
     fields
   );
   try {

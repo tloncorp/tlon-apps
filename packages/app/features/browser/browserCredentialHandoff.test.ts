@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type BrowserCredentialHandoff,
   beginBrowserCredentialHandoff,
+  cancelBrowserCredentialHandoff,
   nextBrowserCredentialHandoff,
   submitBrowserCredentials,
   trustedBrowserViewerUrl,
@@ -52,6 +53,66 @@ afterEach(() => {
 });
 
 describe('secure browser form transport', () => {
+  it.each(['one-time-code', 'new-password', 'cc-number'])(
+    'ignores advertised saved logins for %s fields',
+    async (purpose) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          response(
+            body({
+              fields: [{ ...field, purpose }],
+              vault: {
+                available: true,
+                planet: 'sampel-palnet',
+                moon: 'pinser-botter-sampel-palnet',
+              },
+            })
+          )
+        )
+      );
+      const result = await beginBrowserCredentialHandoff(viewer);
+      expect(result.vault).toBeUndefined();
+      expect(result.fields[0].purpose).toBe(purpose);
+    }
+  );
+  it('cancels only the signed viewer session without sending values or owner proof', async () => {
+    const request = vi.fn().mockResolvedValue(response({ ok: true }));
+    vi.stubGlobal('fetch', request);
+    await cancelBrowserCredentialHandoff(viewer);
+    expect(String(request.mock.calls[0][0])).toBe(
+      'https://browser-session-ovh1.tlon.network/credentials/payload.signature'
+    );
+    expect(request.mock.calls[0][1]).toMatchObject({
+      method: 'DELETE',
+      credentials: 'omit',
+      redirect: 'error',
+    });
+    expect(request.mock.calls[0][1].body).toBeUndefined();
+    await expect(
+      cancelBrowserCredentialHandoff('https://evil.example/s/payload.signature')
+    ).rejects.toThrow('trusted');
+    expect(request).toHaveBeenCalledOnce();
+  });
+  it('retries a failed cancellation once and rejects an unacknowledged cancellation', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(response({}, 503))
+      .mockResolvedValueOnce(response({ ok: true }));
+    vi.stubGlobal('fetch', request);
+    await cancelBrowserCredentialHandoff(viewer);
+    expect(request).toHaveBeenCalledTimes(2);
+    request.mockClear().mockResolvedValue(response({}, 500));
+    await expect(cancelBrowserCredentialHandoff(viewer)).rejects.toThrow(
+      'could not be canceled'
+    );
+    expect(request).toHaveBeenCalledTimes(2);
+    request.mockClear().mockResolvedValue(response({}, 401));
+    await expect(cancelBrowserCredentialHandoff(viewer)).rejects.toThrow(
+      'could not be canceled'
+    );
+    expect(request).toHaveBeenCalledOnce();
+  });
   it('exchanges a trusted viewer capability, projects only metadata, and posts values only to its fill endpoint', async () => {
     const request = vi
       .fn()
@@ -91,6 +152,7 @@ describe('secure browser form transport', () => {
       signal: controller.signal,
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
+      redirect: 'error',
     });
   });
 
@@ -255,7 +317,7 @@ describe('next secure step', () => {
       true
     );
   });
-  it.each(['same', 'missing'])(
+  it.each(['same', 'missing', 'changed'])(
     'waits for settling and returns %s without assuming authentication',
     async (state) => {
       vi.useFakeTimers();
@@ -264,7 +326,9 @@ describe('next secure step', () => {
         vi
           .fn()
           .mockImplementation(async () =>
-            state === 'same' ? response(body()) : response({}, 404)
+            state === 'same'
+              ? response(body())
+              : response({}, state === 'changed' ? 409 : 404)
           )
       );
       const pending = nextBrowserCredentialHandoff(
