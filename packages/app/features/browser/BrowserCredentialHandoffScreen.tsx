@@ -183,7 +183,6 @@ function SecureField({
 export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const loginApproval = route.params.loginApproval;
   const [approved, setApproved] = useState(false);
-  const approvingSavedLogin = !!loginApproval && !approved;
   const [handoff, setHandoff] = useState<BrowserCredentialHandoff>();
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -234,6 +233,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const submittingRef = useRef(false);
   const requestController = useRef<AbortController | undefined>(undefined);
   const vaultEligible = !!handoff?.vault && supportsSavedLogins(handoff);
+  const approvingSavedLogin = !!loginApproval && (!approved || vaultEligible);
   const vaultAuth =
     vaultEligible && authorization?.fillUrl === handoff?.fillUrl
       ? authorization
@@ -373,7 +373,8 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         if (signal?.aborted) return;
         if (
           nextError instanceof BrowserFormError &&
-          nextError.status === 404 &&
+          (nextError.status === 404 ||
+            (!openWhenMissing && nextError.status === 409)) &&
           trustedUrl
         ) {
           setNoSecureForm(true);
@@ -583,7 +584,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     const refreshAfterBrowser = () => {
       if (externalViewerHandoff.current !== handoffId) return;
       externalViewerHandoff.current = null;
-      retry();
+      reloadForm(false);
     };
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') refreshAfterBrowser();
@@ -594,7 +595,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       window.removeEventListener('focus', refreshAfterBrowser);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, [handoffId, retry]);
+  }, [handoffId, reloadForm]);
   const dismiss = useCallback(() => {
     requestController.current?.abort();
     navigation.goBack();
@@ -1007,7 +1008,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           !submitting &&
           !returning &&
           !filled &&
-          !approvingSavedLogin ? (
+          (!approvingSavedLogin || approved) ? (
             <YStack gap="$m">
               <Button
                 preset="secondary"

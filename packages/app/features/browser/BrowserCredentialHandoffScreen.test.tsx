@@ -314,6 +314,99 @@ describe('secure browser form screen', () => {
     expect(mocks.complete).toHaveBeenCalledOnce();
   });
 
+  it('keeps saved-login approval usable when the site still shows the login form', async () => {
+    const account = { id: 'account', revision: 1, label: 'Personal' };
+    mocks.beginHandoff.mockResolvedValue(form(undefined, { vault }));
+    mocks.authorize
+      .mockResolvedValueOnce({ grant: 'first-grant', accounts: [account] })
+      .mockResolvedValue({ grant: 'fresh-grant', accounts: [account] });
+    mocks.submitCredentials.mockResolvedValue({ submitted: true });
+    mocks.nextHandoff.mockResolvedValue(
+      form(undefined, {
+        vault,
+        fillUrl: 'https://browser-session.tlon.network/credential-fills/fresh',
+      })
+    );
+    const { renderer } = await render(undefined, { record: account });
+    await press(renderer, 'Approve sign-in');
+    expect(mocks.complete).not.toHaveBeenCalled();
+    expect(mocks.authorize).toHaveBeenCalledTimes(2);
+    expect(
+      renderer.root.findByProps({ label: 'Approve sign-in' }).props.disabled
+    ).toBe(false);
+    expect(renderer.root.findAllByProps({ label: 'Continue' })).toHaveLength(0);
+    expect(
+      renderer.root.findAllByProps({ accessibilityLabel: password.label })
+    ).toHaveLength(0);
+    expect(JSON.stringify(renderer.toJSON())).toContain('Personal');
+    expect(JSON.stringify(renderer.toJSON())).toContain(
+      'The site still shows this form'
+    );
+    expect(
+      renderer.root.findByProps({ label: 'Open live browser' })
+    ).toBeDefined();
+    expect(mocks.submitCredentials).toHaveBeenCalledOnce();
+    mocks.nextHandoff.mockResolvedValue(null);
+    await press(renderer, 'Approve sign-in');
+    expect(mocks.submitCredentials.mock.calls[1][1]).toMatchObject({
+      grant: 'fresh-grant',
+      use: { id: 'account', revision: 1 },
+      allowAutomatic: false,
+    });
+    expect(mocks.complete).toHaveBeenCalledOnce();
+    act(() => renderer.unmount());
+  });
+
+  it('shows a verification field after approving a saved login', async () => {
+    mocks.beginHandoff.mockResolvedValue(form(undefined, { vault }));
+    mocks.authorize.mockResolvedValue({
+      grant: 'grant',
+      accounts: [{ id: 'account', revision: 1, label: 'Personal' }],
+    });
+    mocks.submitCredentials.mockResolvedValue({ submitted: true });
+    mocks.nextHandoff.mockResolvedValue(
+      form([code], { formId: 'verification' })
+    );
+    const { renderer } = await render(undefined, {});
+    await press(renderer, 'Approve sign-in');
+    expect(
+      renderer.root.findByProps({ accessibilityLabel: code.label })
+    ).toBeDefined();
+    expect(
+      renderer.root.findAllByProps({ label: 'Approve sign-in' })
+    ).toHaveLength(0);
+    expect(mocks.complete).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+  });
+
+  it.each([false, true])(
+    'allows continuing after manual browser navigation invalidates the form (web=%s)',
+    async (web) => {
+      mocks.isWeb = web;
+      const { renderer } = await render();
+      await press(renderer, 'Open live browser');
+      mocks.beginHandoff.mockRejectedValue(
+        new BrowserFormError('The form changed', 409)
+      );
+      await act(async () => {
+        if (web) window.dispatchEvent(new Event('focus'));
+        else renderer.root.findByType(BrowserViewerModal).props.onClose();
+      });
+      expect(JSON.stringify(renderer.toJSON())).not.toContain(
+        'The form changed'
+      );
+      expect(renderer.root.findAllByProps({ label: 'Continue' })).toHaveLength(
+        0
+      );
+      expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+      expect(mocks.complete).not.toHaveBeenCalled();
+      await press(renderer, 'Return to conversation');
+      expect(mocks.complete).toHaveBeenCalledOnce();
+      expect(mocks.submitCredentials).not.toHaveBeenCalled();
+      act(() => renderer.unmount());
+    }
+  );
+
   it('cancels saved-login approval without filling or resuming the task', async () => {
     mocks.beginHandoff.mockResolvedValue(form(undefined, { vault }));
     mocks.authorize.mockResolvedValue({
