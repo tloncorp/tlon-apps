@@ -154,6 +154,8 @@ describe('cleanCronToolArgs', () => {
       'return { fire: true };',
       'json({ fire: true })',
       'return json({ fire: false });',
+      'do not fire',
+      'fire disabled',
     ]) {
       const cleaned = cleanCronToolArgs({
         action: 'add',
@@ -180,6 +182,39 @@ describe('cleanCronToolArgs', () => {
         delivery: { mode: 'announce', channel: 'tlon', to: '~ten' },
       });
     }
+  });
+
+  it('drops an always-true trigger from a one-shot reminder', () => {
+    // Core refuses a trigger on an `at` schedule, `once` or not.
+    const cleaned = cleanCronToolArgs({
+      action: 'add',
+      job: {
+        name: 'Call the dentist',
+        schedule: { kind: 'at', at: '2026-10-20T13:00:00Z' },
+        trigger: { script: 'return { fire: true };', once: true },
+        sessionTarget: 'isolated',
+        payload: {
+          kind: 'agentTurn',
+          message: 'Remind ~ten to call the dentist.',
+        },
+      },
+    });
+    expect(cleaned?.job).not.toHaveProperty('trigger');
+  });
+
+  it('keeps a real trigger in the documented form', () => {
+    const cleaned = cleanCronToolArgs({
+      action: 'add',
+      job: {
+        name: 'Price watch',
+        schedule: { kind: 'every', everyMs: 3_600_000 },
+        trigger: { script: 'json({ fire: price < 10 })' },
+        payload: { kind: 'agentTurn', message: 'Check the price.' },
+      },
+    });
+    expect(cleaned?.job).toMatchObject({
+      trigger: { script: 'json({ fire: price < 10 })' },
+    });
   });
 
   it('clears the trigger when an update makes it always fire', () => {
