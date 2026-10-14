@@ -2,8 +2,12 @@
 
 The owner's planet stores encrypted passwords, exact HTTPS origins, account
 labels, optional usernames, and per-bot reuse permission. A bot can discover matching credentials
-and use those marked `allow`. Credentials marked `ask` require the owner's secure
-browser form. Saving defaults to `ask`; conversation messages never grant access.
+and use those marked `allow`. Credentials marked `ask` require owner authorization.
+Saving defaults to `ask`; conversation messages never grant access.
+
+The integration exposes service endpoints and typed client request helpers.
+Saved-login management, selection, saving, and permission controls are a separate
+UI integration. The existing secure form supports manual credential entry.
 
 ## Storage and encryption
 
@@ -46,13 +50,12 @@ headers are only routing hints until verification succeeds.
 
 A login request checks the current page, exact HTTPS origin, credential revision,
 and stored permission. With `allow`, the service decrypts and fills the private
-browser API. With `ask`, it returns `approval_required`; the bot opens the
-existing secure browser handoff through A2UI.
+browser API. With `ask`, it returns `approval_required`. Owner-authorized use
+requires a client to obtain a grant and submit the selected credential revision.
 
-The app fetches verified handoff metadata and authenticates the owner directly
-with the service. The owner can continue once, enable automatic sign-in for this
-bot, or deny the request. An unchecked automatic-sign-in switch leaves or sets
-permission to `ask`. The one-use grant binds the live session and prepared form,
+The handoff authorization endpoint returns account metadata and a one-use grant.
+The fill endpoint accepts a credential selection, optional save parameters, and
+explicit automatic-use permission. The one-use grant binds the live session and prepared form,
 expires after five minutes, and is consumed before filling. A replayed chat
 message, form submission, or completion callback cannot authorize another fill.
 
@@ -65,8 +68,8 @@ Durable `allow` permission survives browser redeployment. In-flight approvals an
 redaction context are transient; unrecovered browser handles require a new
 session. A process failure never recreates a consumed one-time approval.
 
-Bot settings lists metadata, changes automatic-sign-in permission, and deletes
-credentials. Deleting a credential or revoking permission does not clear website
+Owner-authenticated endpoints list metadata, change automatic-sign-in permission,
+and delete credentials. Deleting a credential or revoking permission does not clear website
 cookies or terminate an already authenticated browser.
 
 ## Browser access boundary
@@ -125,7 +128,7 @@ redaction, and refuses inspection after its protection context is lost.
 
 The services remain disabled until operators provision the durable key and
 private-service configuration. Deploy Pioneer, then matching browser/MCP/viewer
-images and the app, before enabling the feature. Validate with synthetic
+images and a client with saved-login controls before enabling the feature. Validate with synthetic
 accounts on multiple bot moons and test browser redeployment before production.
 
 Tracked in [TLON-6771](https://linear.app/tlon/issue/TLON-6771), with changes in

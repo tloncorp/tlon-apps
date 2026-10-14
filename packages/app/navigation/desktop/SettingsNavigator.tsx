@@ -27,7 +27,6 @@ import { BotOpenAISubscriptionScreen } from '../../features/settings/BotOpenAISu
 import { BotPermissionsSettingsScreen } from '../../features/settings/BotPermissionsSettingsScreen';
 import { BotProviderListSettingsScreen } from '../../features/settings/BotProviderListSettingsScreen';
 import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
-import { BotSavedLoginsScreen } from '../../features/settings/BotSavedLoginsScreen';
 import { BotShipListSettingsScreen } from '../../features/settings/BotShipListSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
@@ -180,10 +179,6 @@ export const SettingsNavigator = () => {
         component={ManageAccountScreen}
       />
       <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
-      <SettingsDrawer.Screen
-        name="BotSavedLogins"
-        component={BotSavedLoginsScreen}
-      />
       <SettingsDrawer.Screen
         name="BotMcpSettings"
         component={BotMcpSettingsScreen}

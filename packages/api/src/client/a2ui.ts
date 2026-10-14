@@ -66,7 +66,6 @@ const buttonVariantSchema = z.enum([
 ]);
 const screenNameSchema = z.enum([
   'botMcpSettings',
-  'botSavedLogins',
   'browserCredentialHandoff',
   'browserSession',
 ]);
@@ -138,7 +137,6 @@ const browserSessionNavigationTargetSchema = z.object({
   viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
 });
 const screenNavigationTargetSchema = z.union([
-  z.object({ type: z.literal('screen'), screen: z.literal('botSavedLogins') }),
   browserSessionNavigationTargetSchema,
   botMcpSettingsNavigationTargetSchema,
   browserCredentialHandoffNavigationTargetSchema,

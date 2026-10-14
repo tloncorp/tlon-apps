@@ -413,7 +413,6 @@ export function StaticChatMessage({
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
           allowBrowserCredentialHandoff: allowBrowserHandoff,
-          browserBotMoon: allowBrowserHandoff ? post.authorId : undefined,
           allowBrowserSession: allowBrowserHandoff,
           onBrowserCredentialHandoffComplete:
             target.type === 'screen' &&
@@ -488,7 +487,6 @@ export function StaticChatMessage({
         if (target.type !== 'screen') return true;
         if (
           target.screen === 'browserCredentialHandoff' ||
-          target.screen === 'botSavedLogins' ||
           target.screen === 'browserSession'
         ) {
           return allowBrowserHandoff;

@@ -31,7 +31,6 @@ import { BotIdentitySettingsScreen } from '../features/settings/BotIdentitySetti
 import { BotPermissionsSettingsScreen } from '../features/settings/BotPermissionsSettingsScreen';
 import { BotProviderListSettingsScreen } from '../features/settings/BotProviderListSettingsScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
-import { BotSavedLoginsScreen } from '../features/settings/BotSavedLoginsScreen';
 import { BotShipListSettingsScreen } from '../features/settings/BotShipListSettingsScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
@@ -200,7 +199,6 @@ function RootStackContent() {
         component={ManageAccountScreen}
         options={{ gestureEnabled: false }}
       />
-      <Root.Screen name="BotSavedLogins" component={BotSavedLoginsScreen} />
       <Root.Screen
         name="BotSettings"
         component={BotSettingsScreen}

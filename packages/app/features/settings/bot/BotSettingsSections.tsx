@@ -41,7 +41,6 @@ export type BotSettingsNavigate = (
     | 'BotModelSettings'
     | 'BotProviderListSettings'
     | 'BotMcpSettings'
-    | 'BotSavedLogins'
     | 'BotPermissionsSettings'
     | 'BotIdentitySettings'
     | 'BotModels'
@@ -386,12 +385,6 @@ export function useBotSettingsSectionModels(
                   ? 'Unavailable'
                   : `${connectedServicesCount} connected`,
               onPress: () => navigate('BotMcpSettings'),
-            },
-            {
-              key: 'saved-logins',
-              title: 'Saved logins',
-              subtitle: 'Website logins your bot can use',
-              onPress: () => navigate('BotSavedLogins'),
             },
           ],
         },
