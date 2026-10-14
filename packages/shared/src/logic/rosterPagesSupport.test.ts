@@ -10,16 +10,18 @@ describe('deskVersionServesRosterPages', () => {
     expect(deskVersionServesRosterPages(ROSTER_PAGES_MIN_GROUPS_VERSION)).toBe(
       true
     );
-    expect(deskVersionServesRosterPages('12.4.0')).toBe(true);
+    expect(deskVersionServesRosterPages('12.5.0')).toBe(true);
   });
 
   test('keeps the whole roster below it', () => {
+    // 12.4.0 ships without the paging scries
+    expect(deskVersionServesRosterPages('12.4.0')).toBe(false);
     expect(deskVersionServesRosterPages('12.3.1')).toBe(false);
     expect(deskVersionServesRosterPages('12.2.0')).toBe(false);
   });
 
   test('keeps the whole roster for a version it cannot fully parse', () => {
-    expect(deskVersionServesRosterPages('12.3.2 dirty')).toBe(false);
+    expect(deskVersionServesRosterPages('12.4.1 dirty')).toBe(false);
     expect(deskVersionServesRosterPages(null)).toBe(false);
     expect(deskVersionServesRosterPages(undefined)).toBe(false);
   });
