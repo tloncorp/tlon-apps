@@ -1,31 +1,29 @@
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import {
   getNicknameErrorMessage,
   validateNickname,
 } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { DEFAULT_BOTTOM_PADDING, useIsWindowNarrow } from '@tloncorp/ui';
-import { ConfirmDialog } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, useTheme } from 'tamagui';
+import { ConfirmDialog, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
+import { useCallback, useMemo, useState } from 'react';
+import { View, XStack, getTokenValue } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts/appDataContext';
-import { SigilAvatar } from './Avatar';
-import { EditAttestationsDisplay } from './EditProfile/EditAttestationsDisplay';
-import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
+import { useGroups } from '../contexts/groups';
+import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
+import AttachmentSheet from './AttachmentSheet';
+import { ContactAvatar } from './Avatar';
+import { avatarColorPresets, useImageInput } from './Form';
+import { GroupSelectorSheet } from './GroupSelectorSheet';
+import { IconEditor, editorAvatar, imageMenuItems } from './IconEditor';
+import { ListItem } from './ListItem';
 import {
-  ControlledColorField,
-  ControlledImageField,
-  ControlledTextField,
-  ControlledTextareaField,
-  Field,
-  FormFrame,
-} from './Form';
-import { ScreenHeader } from './ScreenHeader';
-import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsRowModel,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from './SettingsList';
 
 interface Props {
   userId: string;
@@ -33,340 +31,327 @@ interface Props {
   onGoToAttestation?: (type: 'twitter' | 'phone') => void;
 }
 
+const maxNicknameLength = 30;
+const maxStatusLength = 50;
+const maxBioLength = 300;
+const maxPinnedGroups = 5;
+
+/**
+ * Edits your own profile, or the nickname and avatar you give someone else.
+ */
 export function EditProfileScreenView(props: Props) {
-  const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const userContact = useContact(props.userId);
+  // The fields start from the contact, so they start again once it loads.
+  return (
+    <EditProfileForm
+      key={`${props.userId}-${userContact ? 'loaded' : 'empty'}`}
+      {...props}
+      userContact={userContact}
+    />
+  );
+}
+
+function EditProfileForm({
+  userId,
+  userContact,
+  onGoBack,
+  onGoToAttestation,
+}: Props & { userContact: db.Contact | null | undefined }) {
+  const isWindowNarrow = useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
+  const isCurrUser = userId === currentUserId;
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
-  const userContact = useContact(props.userId);
-  const [pinnedGroups, setPinnedGroups] = useState<db.Group[]>(
-    (userContact?.pinnedGroups
-      ?.map((pin) => pin.group)
-      .filter(Boolean) as db.Group[]) ?? []
-  );
-
-  const attestations = useMemo(() => {
-    return (userContact?.attestations
-      ?.map((a) => a.attestation)
-      .filter(Boolean) ?? []) as db.Attestation[];
-  }, [userContact]);
-
-  const isCurrUser = useMemo(
-    () => props.userId === currentUserId,
-    [props.userId, currentUserId]
-  );
-
-  const currentNickname = useMemo(() => {
-    return isCurrUser
-      ? userContact?.nickname
-      : (userContact?.customNickname ?? '');
-  }, [isCurrUser, userContact?.nickname, userContact?.customNickname]);
-
-  const nicknamePlaceholder = useMemo(() => {
-    return isCurrUser
-      ? userContact?.id
-      : (userContact?.peerNickname ?? userContact?.id);
-  }, [isCurrUser, userContact]);
-
-  const currentAvatarImage = useMemo(() => {
-    return isCurrUser
-      ? userContact?.avatarImage
-      : (userContact?.customAvatarImage ?? '');
-  }, [isCurrUser, userContact]);
-
-  const avatarPlaceholder = useMemo(() => {
-    return isCurrUser ? undefined : (userContact?.peerAvatarImage ?? undefined);
-  }, [isCurrUser, userContact]);
-
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { isDirty, isValid },
-  } = useForm({
-    mode: 'onChange',
-    defaultValues: {
-      nickname: currentNickname ?? '',
-      status: userContact?.status ?? '',
-      bio: userContact?.bio ?? '',
-      avatarImage: currentAvatarImage ?? '',
-      sigilColor: userContact?.color ?? '',
-    },
+  // Someone else's nickname and avatar here are the ones you give them.
+  const [initial] = useState(() => ({
+    nickname:
+      (isCurrUser ? userContact?.nickname : userContact?.customNickname) ?? '',
+    avatarImage:
+      (isCurrUser
+        ? userContact?.avatarImage
+        : userContact?.customAvatarImage) ?? '',
+    status: userContact?.status ?? '',
+    bio: userContact?.bio ?? '',
+    sigilColor: userContact?.color ?? '',
+  }));
+  const [nickname, setNickname] = useState(initial.nickname);
+  const [status, setStatus] = useState(initial.status);
+  const [bio, setBio] = useState(initial.bio);
+  const [sigilColor, setSigilColor] = useState(initial.sigilColor);
+  const [avatarImage, setAvatarImage] = useState(initial.avatarImage);
+  const avatar = useImageInput({
+    value: avatarImage || undefined,
+    onChange: (uri) => setAvatarImage(uri ?? ''),
   });
 
-  const currentSigilColor = useWatch({ control, name: 'sigilColor' });
-
-  useEffect(() => {
-    reset({
-      nickname: currentNickname ?? '',
-      status: userContact?.status ?? '',
-      bio: userContact?.bio ?? '',
-      avatarImage: currentAvatarImage ?? '',
-      sigilColor: userContact?.color ?? '',
-    });
-  }, [
-    props.userId,
-    currentNickname,
-    userContact?.status,
-    userContact?.bio,
-    userContact?.color,
-    currentAvatarImage,
-    reset,
-  ]);
-
-  const handlePressDone = useCallback(() => {
-    if (isDirty) {
-      handleSubmit((formData) => {
-        const nicknameStartVal = isCurrUser
-          ? userContact?.nickname
-          : userContact?.customNickname;
-        const avatarStartVal = isCurrUser
-          ? userContact?.avatarImage
-          : userContact?.customAvatarImage;
-        const colorStartVal = userContact?.color ?? '';
-
-        const update = {
-          status: formData.status,
-          bio: formData.bio,
-          nickname: formData.nickname
-            ? formData.nickname
-            : nicknameStartVal
-              ? null // clear existing
-              : undefined,
-          avatarImage: formData.avatarImage
-            ? formData.avatarImage
-            : avatarStartVal
-              ? null // clear existing
-              : undefined,
-        };
-
-        if (isCurrUser) {
-          store.updateCurrentUserProfile(update);
-          const colorChanged = formData.sigilColor !== colorStartVal;
-          if (colorChanged) {
-            store.updateSigilColor(formData.sigilColor || null);
-          }
-        } else {
-          store.updateContactMetadata(props.userId, {
-            nickname: update.nickname,
-            avatarImage: update.avatarImage,
-          });
-        }
-      })();
+  const nicknameError = useMemo(() => {
+    if (!isCurrUser) {
+      return null;
     }
-    props.onGoBack();
+    const result = validateNickname(nickname, currentUserId);
+    return result.isValid ? null : getNicknameErrorMessage(result.errorType);
+  }, [currentUserId, isCurrUser, nickname]);
+  // A picked image is a local file until its upload finishes.
+  const avatarReady = !/^(file|data)/.test(avatarImage);
+  const isDirty =
+    nickname !== initial.nickname ||
+    status !== initial.status ||
+    bio !== initial.bio ||
+    sigilColor !== initial.sigilColor ||
+    avatarImage !== initial.avatarImage;
+  const canSave = !nicknameError && avatarReady;
+
+  const handleSave = useCallback(() => {
+    if (!canSave) {
+      return;
+    }
+    if (isDirty) {
+      // An emptied field clears what was set; one never set stays unset.
+      const nicknameUpdate = nickname || (initial.nickname ? null : undefined);
+      const avatarUpdate =
+        avatarImage || (initial.avatarImage ? null : undefined);
+      if (isCurrUser) {
+        store.updateCurrentUserProfile({
+          status,
+          bio,
+          nickname: nicknameUpdate,
+          avatarImage: avatarUpdate,
+        });
+        if (sigilColor !== initial.sigilColor) {
+          store.updateSigilColor(sigilColor || null);
+        }
+      } else {
+        store.updateContactMetadata(userId, {
+          nickname: nicknameUpdate,
+          avatarImage: avatarUpdate,
+        });
+      }
+    }
+    onGoBack();
   }, [
-    handleSubmit,
+    avatarImage,
+    bio,
+    canSave,
+    initial,
     isCurrUser,
     isDirty,
-    props,
-    userContact?.avatarImage,
-    userContact?.color,
-    userContact?.customAvatarImage,
-    userContact?.customNickname,
-    userContact?.nickname,
+    nickname,
+    onGoBack,
+    sigilColor,
+    status,
+    userId,
   ]);
 
-  const handlePressCancel = () => {
+  const handleBack = useCallback(() => {
     if (isDirty) {
       setDiscardDialogOpen(true);
     } else {
-      props.onGoBack();
+      onGoBack();
     }
-  };
+  }, [isDirty, onGoBack]);
 
-  const handleDiscardConfirm = () => {
-    setDiscardDialogOpen(false);
-    reset();
-    props.onGoBack();
-  };
+  const pinned = usePinnedGroups(userContact);
 
-  const handleUpdatePinnedGroups = useCallback((groups: db.Group[]) => {
-    setPinnedGroups(groups);
-    store.updateProfilePinnedGroups(groups);
-  }, []);
+  const preview = (
+    <ContactAvatar
+      contactId={userId}
+      contactOverride={{
+        ...(userContact ?? { id: userId }),
+        id: userId,
+        // Someone without a picture of yours shows the one they chose.
+        avatarImage:
+          avatar.assetUri ??
+          (isCurrUser ? null : (userContact?.peerAvatarImage ?? null)),
+        color: (isCurrUser ? sigilColor : userContact?.color) || null,
+      }}
+      size="custom"
+      width={editorAvatar.size}
+      height={editorAvatar.size}
+      borderRadius={editorAvatar.radius}
+      ignoreCalm
+    />
+  );
 
-  const isWindowNarrow = useIsWindowNarrow();
+  const sections: SettingsSectionModel[] = [
+    {
+      key: 'avatar',
+      rows: [],
+      element: (
+        <IconEditor
+          avatar={preview}
+          isUploading={avatar.isUploading}
+          menuItems={imageMenuItems(avatar, 'Remove Photo')}
+          onPressFallback={avatar.toggleSheet}
+          accessibilityLabel="Change avatar image"
+        >
+          {isCurrUser ? (
+            <AvatarColorDots value={sigilColor} onChange={setSigilColor} />
+          ) : null}
+        </IconEditor>
+      ),
+    },
+    {
+      key: 'nickname',
+      title: 'Nickname',
+      footer: nicknameError ?? undefined,
+      rows: [
+        {
+          key: 'nickname',
+          title: 'Nickname',
+          textField: {
+            value: nickname,
+            onChangeText: setNickname,
+            placeholder: isCurrUser
+              ? userId
+              : (userContact?.peerNickname ?? userId),
+            maxLength: maxNicknameLength,
+            capitalization: 'words',
+          },
+          testID: 'ProfileNicknameInput',
+        },
+      ],
+    },
+    ...(isCurrUser
+      ? ([
+          {
+            key: 'status',
+            title: 'Status',
+            rows: [
+              {
+                key: 'status',
+                title: 'Status',
+                textField: {
+                  value: status,
+                  onChangeText: setStatus,
+                  placeholder: 'Hanging out...',
+                  maxLength: maxStatusLength,
+                  capitalization: 'sentences',
+                },
+                testID: 'ProfileStatusInput',
+              },
+            ],
+          },
+          {
+            key: 'bio',
+            title: 'Bio',
+            rows: [
+              {
+                key: 'bio',
+                title: 'Bio',
+                textField: {
+                  value: bio,
+                  onChangeText: setBio,
+                  placeholder: 'About yourself',
+                  lines: 5,
+                  maxLength: maxBioLength,
+                  capitalization: 'sentences',
+                },
+                testID: 'ProfileBioInput',
+              },
+            ],
+          },
+          {
+            key: 'pinned',
+            title: 'Pinned groups',
+            footer: pinned.groups.length
+              ? 'Shown on your profile. Long-press a group to take it off.'
+              : `Shown on your profile, up to ${maxPinnedGroups}.`,
+            rows: [
+              ...pinned.groups.map(
+                (group): SettingsRowModel => ({
+                  ...groupRow(group),
+                  contextActions: [
+                    {
+                      key: 'remove',
+                      title: 'Remove from profile',
+                      onPress: () => pinned.toggle(group),
+                    },
+                  ],
+                })
+              ),
+              {
+                key: 'add',
+                title:
+                  pinned.groups.length > 0 ? 'Choose groups' : 'Add a group',
+                action: true,
+                onPress: pinned.openSelector,
+                testID: 'ProfilePinnedGroupsAdd',
+              },
+            ],
+          },
+          {
+            key: 'attestations',
+            title: 'Connected accounts',
+            rows: [
+              attestationRow(
+                'twitter',
+                '𝕏 Account',
+                userContact,
+                onGoToAttestation
+              ),
+              attestationRow('phone', 'Phone', userContact, onGoToAttestation),
+            ],
+          },
+        ] satisfies SettingsSectionModel[])
+      : ([
+          ...(userContact?.bio
+            ? [
+                {
+                  key: 'bio',
+                  title: 'Bio',
+                  rows: [
+                    { key: 'bio', title: userContact.bio, expanded: true },
+                  ],
+                },
+              ]
+            : []),
+          ...(pinned.groups.length
+            ? [
+                {
+                  key: 'pinned',
+                  title: 'Pinned groups',
+                  rows: pinned.groups.map(groupRow),
+                },
+              ]
+            : []),
+        ] satisfies SettingsSectionModel[])),
+  ];
 
   return (
-    <View flex={1} backgroundColor={theme.background.val}>
-      <ScreenHeader
-        title="Edit Profile"
-        backAction={handlePressCancel}
-        borderBottom
-        useHorizontalTitleLayout={!isWindowNarrow}
-        rightControls={
-          <ScreenHeader.TextButton
-            onPress={handlePressDone}
-            color="$positiveActionText"
-            disabled={!isValid}
-          >
-            Save
-          </ScreenHeader.TextButton>
+    <SettingsListScreenView
+      title="Edit Profile"
+      sections={sections}
+      onBackPressed={handleBack}
+      showsBackOnWideWindows
+      useHorizontalTitleLayout={!isWindowNarrow}
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      rightActions={[
+        {
+          id: 'ProfileSaveButton',
+          text: 'Save',
+          tint: '$positiveActionText',
+          disabled: !canSave,
+          onPress: handleSave,
+          testID: 'ProfileSaveButton',
+        },
+      ]}
+    >
+      {/* Web picks from this sheet; removing is in the menu. */}
+      <AttachmentSheet {...avatar.sheetProps} showClearOption={false} />
+      <GroupSelectorSheet
+        open={pinned.selectorOpen}
+        onOpenChange={pinned.setSelectorOpen}
+        alphaSegmentedGroups={pinned.choices}
+        selected={pinned.groups.map((g) => g.id)}
+        onSelect={pinned.toggle}
+        onClose={() => pinned.setSelectorOpen(false)}
+        title="Pinned groups"
+        subtitle={
+          pinned.groups.length >= maxPinnedGroups
+            ? `No more groups can be selected (max ${maxPinnedGroups})`
+            : `Choose up to ${maxPinnedGroups - pinned.groups.length} more groups`
         }
       />
-
-      <KeyboardAwareScrollView
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        bottomOffset={24}
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          width: '100%',
-          maxWidth: 600,
-          marginHorizontal: 'auto',
-          paddingBottom: insets.bottom + DEFAULT_BOTTOM_PADDING,
-        }}
-      >
-        <FormFrame>
-          <XStack alignItems="flex-end" gap="$m">
-            <View flex={1}>
-              <ControlledTextField
-                name="nickname"
-                label="Nickname"
-                control={control}
-                renderInputContainer={
-                  isCurrUser
-                    ? ({ children }) => {
-                        return (
-                          <XStack gap="$m">
-                            <View flex={1}>{children}</View>
-                            <View
-                              accessible
-                              accessibilityLabel={`Profile avatar color ${currentSigilColor || 'default'}`}
-                              testID="ProfileAvatarPreview"
-                            >
-                              <SigilAvatar
-                                contactId={currentUserId}
-                                contactOverride={{
-                                  ...userContact,
-                                  id: currentUserId,
-                                  color: currentSigilColor || null,
-                                }}
-                                width={56}
-                                height={56}
-                                borderRadius="$l"
-                                size="custom"
-                              />
-                            </View>
-                          </XStack>
-                        );
-                      }
-                    : undefined
-                }
-                inputProps={{
-                  placeholder: nicknamePlaceholder,
-                  testID: 'ProfileNicknameInput',
-                }}
-                rules={{
-                  maxLength: {
-                    value: 30,
-                    message: 'Your nickname is limited to 30 characters',
-                  },
-                  validate: (value) => {
-                    if (!isCurrUser) {
-                      return true;
-                    }
-                    const result = validateNickname(value, currentUserId);
-                    if (!result.isValid) {
-                      return getNicknameErrorMessage(result.errorType);
-                    }
-                    return true;
-                  },
-                }}
-              />
-            </View>
-          </XStack>
-
-          <ControlledImageField
-            label="Avatar image"
-            name="avatarImage"
-            hideError={true}
-            control={control}
-            inputProps={{
-              buttonLabel: 'Change avatar image',
-              placeholderUri: avatarPlaceholder,
-            }}
-            rules={{
-              pattern: {
-                value: /^(?!file|data).+/,
-                message: 'Image has not finished uploading',
-              },
-            }}
-          />
-
-          {isCurrUser ? (
-            <ControlledColorField
-              name="sigilColor"
-              label="Default avatar color"
-              control={control}
-            />
-          ) : null}
-
-          {isCurrUser ? (
-            <>
-              <View>
-                <ControlledTextField
-                  name="status"
-                  label="Status"
-                  control={control}
-                  inputProps={{
-                    placeholder: 'Hanging out...',
-                  }}
-                  rules={{
-                    maxLength: {
-                      value: 50,
-                      message: 'Your status is limited to 50 characters',
-                    },
-                  }}
-                />
-              </View>
-              <View>
-                <ControlledTextareaField
-                  name="bio"
-                  label="Bio"
-                  control={control}
-                  inputProps={{
-                    placeholder: 'About yourself',
-                    numberOfLines: 5,
-                    multiline: true,
-                  }}
-                  rules={{
-                    maxLength: {
-                      value: 300,
-                      message: 'Your bio is limited to 300 characters',
-                    },
-                  }}
-                />
-              </View>
-              <Field label="Pinned groups">
-                <FavoriteGroupsDisplay
-                  groups={pinnedGroups}
-                  onUpdate={handleUpdatePinnedGroups}
-                />
-              </Field>
-
-              <EditAttestationsDisplay
-                attestations={attestations}
-                onPressAttestation={props.onGoToAttestation}
-              />
-            </>
-          ) : (
-            <>
-              <BioDisplay
-                bio={userContact?.bio ?? ''}
-                backgroundColor="$secondaryBackground"
-              />
-              <PinnedGroupsDisplay
-                groups={pinnedGroups ?? []}
-                onPressGroup={() => {}}
-                itemProps={{ backgroundColor: '$secondaryBackground' }}
-              />
-            </>
-          )}
-        </FormFrame>
-      </KeyboardAwareScrollView>
       <ConfirmDialog
         open={discardDialogOpen}
         onOpenChange={setDiscardDialogOpen}
@@ -374,8 +359,161 @@ export function EditProfileScreenView(props: Props) {
         description="You have unsaved changes. Are you sure you want to discard them?"
         confirmText="Discard"
         destructive
-        onConfirm={handleDiscardConfirm}
+        onConfirm={() => {
+          setDiscardDialogOpen(false);
+          onGoBack();
+        }}
       />
-    </View>
+    </SettingsListScreenView>
+  );
+}
+
+/**
+ * The groups shown on a profile. Your own save as soon as they change, as
+ * they always have; the rest of the form waits for Save.
+ */
+function usePinnedGroups(contact: db.Contact | null | undefined) {
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [pinned, setPinned] = useState<db.Group[]>(
+    () =>
+      (contact?.pinnedGroups
+        ?.map((pin) => pin.group)
+        .filter(Boolean) as db.Group[]) ?? []
+  );
+  const allGroups = useGroups();
+  const choices = useAlphabeticallySegmentedGroups({
+    groups:
+      allGroups?.filter(
+        (g) => g.privacy !== 'secret' && g.currentUserIsMember === true
+      ) ?? [],
+    enabled: true,
+  });
+  // Shown as they are now, where the group is still around.
+  const groups = useMemo(
+    () => pinned.map((g) => allGroups?.find((p) => p.id === g.id) ?? g),
+    [pinned, allGroups]
+  );
+
+  const toggle = useCallback(
+    (group: db.Group) => {
+      const next = pinned.some((g) => g.id === group.id)
+        ? pinned.filter((g) => g.id !== group.id)
+        : pinned.length < maxPinnedGroups
+          ? [...pinned, group]
+          : null;
+      if (next) {
+        setPinned(next);
+        store.updateProfilePinnedGroups(next);
+      }
+    },
+    [pinned]
+  );
+
+  return {
+    groups,
+    choices,
+    toggle,
+    selectorOpen,
+    setSelectorOpen,
+    openSelector: () => setSelectorOpen(true),
+  };
+}
+
+function groupRow(group: db.Group): SettingsRowModel {
+  return {
+    key: group.id,
+    title: group.title || 'Untitled group',
+    leading: {
+      kind: 'element',
+      render: ({ size }) => (
+        <View>
+          <ListItem.GroupIcon
+            model={group}
+            size="custom"
+            width={size}
+            height={size}
+            borderRadius={size * 0.25}
+          />
+        </View>
+      ),
+    },
+  };
+}
+
+function attestationRow(
+  type: 'twitter' | 'phone',
+  title: string,
+  contact: db.Contact | null | undefined,
+  onPress: Props['onGoToAttestation']
+): SettingsRowModel {
+  const attestation = contact?.attestations
+    ?.map((a) => a.attestation)
+    .find((a) => a?.type === type);
+  const handle = attestation?.value
+    ? type === 'twitter'
+      ? `@${attestation.value}`
+      : domain.displayablePhoneNumber(attestation.value)
+    : undefined;
+  return {
+    key: type,
+    title,
+    subtitle: handle,
+    value: attestation
+      ? attestation.status === 'verified'
+        ? 'Verified'
+        : 'In progress'
+      : undefined,
+    onPress: onPress ? () => onPress(type) : undefined,
+    testID: `ProfileAttestation-${type}`,
+  };
+}
+
+const dotSize = 26;
+
+/** The default avatar's color, as a row of dots under the avatar. */
+function AvatarColorDots({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <XStack justifyContent="center" gap="$s" flexWrap="wrap">
+      {avatarColorPresets.map(([name, token]) => {
+        const color = getTokenValue(token, 'color');
+        const selected = value === color;
+        return (
+          <Pressable
+            key={color}
+            // Choosing the chosen color goes back to the default.
+            onPress={() => onChange(selected ? '' : color)}
+            testID={`ProfileColorSwatch-${color.slice(1)}`}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected }}
+            accessibilityLabel={`Profile avatar color ${name}`}
+          >
+            <View
+              width={dotSize + 6}
+              height={dotSize + 6}
+              borderRadius={(dotSize + 6) / 2}
+              borderWidth={2}
+              borderColor={selected ? '$primaryText' : 'transparent'}
+              alignItems="center"
+              justifyContent="center"
+            >
+              <View
+                width={dotSize}
+                height={dotSize}
+                borderRadius={dotSize / 2}
+                backgroundColor={color}
+                borderWidth={1}
+                borderColor="$shadow"
+              />
+            </View>
+          </Pressable>
+        );
+      })}
+    </XStack>
   );
 }

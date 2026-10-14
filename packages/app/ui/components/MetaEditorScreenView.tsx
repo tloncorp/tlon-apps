@@ -1,15 +1,13 @@
 import type { ConnectionStatus } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
-import { type ReactNode, useCallback, useState } from 'react';
-import { Spinner, View, XStack, YStack } from 'tamagui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useCallback, useState } from 'react';
 
 import { capitalize } from '../utils';
 import AttachmentSheet from './AttachmentSheet';
 import { useImageInput } from './Form';
-import { IconMenu } from './IconMenu';
-import type { IconMenuItem } from './IconMenu.types';
+import { IconEditor, editorAvatar, imageMenuItems } from './IconEditor';
 import { ListItem } from './ListItem';
 import {
   SETTINGS_LIST_COLUMN_WIDTH,
@@ -96,31 +94,6 @@ function MetaEditorForm({
       borderRadius={editorAvatar.radius}
     />
   ) : null;
-  const iconMenuItems: IconMenuItem[] = [
-    {
-      key: 'library',
-      title: 'Choose Photo',
-      systemImage: 'photo.on.rectangle',
-      onPress: icon.pickFromLibrary,
-    },
-    {
-      key: 'camera',
-      title: 'Take Photo',
-      systemImage: 'camera',
-      onPress: icon.takePhoto,
-    },
-    ...(icon.assetUri
-      ? [
-          {
-            key: 'remove',
-            title: 'Remove Icon',
-            systemImage: 'trash',
-            destructive: true,
-            onPress: icon.clear,
-          },
-        ]
-      : []),
-  ];
   const sections: SettingsSectionModel[] = [
     {
       key: 'icon',
@@ -129,8 +102,9 @@ function MetaEditorForm({
         <IconEditor
           avatar={avatar}
           isUploading={icon.isUploading}
-          menuItems={iconMenuItems}
+          menuItems={imageMenuItems(icon, 'Remove Icon')}
           onPressFallback={icon.toggleSheet}
+          accessibilityLabel="Change icon"
           notice={
             group && logic.isPersonalGroup(group, currentUserId) ? (
               <WayfindingNotice.CustomizeGroup />
@@ -206,77 +180,6 @@ function MetaEditorForm({
       {/* Web picks from this sheet; removing is in the menu. */}
       <AttachmentSheet {...icon.sheetProps} showClearOption={false} />
     </SettingsListScreenView>
-  );
-}
-
-const editorAvatar = { size: 96, radius: 22 } as const;
-
-/**
- * The icon centered on its own row, with a camera in its corner. Pressing it
- * opens what can be done to it: a native menu on iOS and Android, the picker
- * sheet on web.
- */
-function IconEditor({
-  avatar,
-  isUploading,
-  menuItems,
-  onPressFallback,
-  notice,
-}: {
-  avatar: ReactNode;
-  isUploading: boolean;
-  menuItems: IconMenuItem[];
-  onPressFallback: () => void;
-  notice: ReactNode;
-}) {
-  return (
-    <YStack paddingTop="$l" gap="$l">
-      {notice}
-      <XStack justifyContent="center">
-        <IconMenu
-          items={menuItems}
-          onPress={onPressFallback}
-          accessibilityLabel="Change icon"
-          testID="ImageInputPreview"
-        >
-          <View>
-            <View opacity={isUploading ? 0.4 : 1}>{avatar}</View>
-            {isUploading ? (
-              <View
-                position="absolute"
-                top={0}
-                right={0}
-                bottom={0}
-                left={0}
-                alignItems="center"
-                justifyContent="center"
-              >
-                <Spinner size="small" />
-              </View>
-            ) : null}
-            {/* Inside the corner: the menu's hosted label clips anything
-                hanging outside it. */}
-            <View
-              position="absolute"
-              right={5}
-              bottom={5}
-              width={26}
-              height={26}
-              borderRadius={13}
-              backgroundColor="$background"
-              alignItems="center"
-              justifyContent="center"
-              shadowColor="#000000"
-              shadowOpacity={0.15}
-              shadowRadius={3}
-              shadowOffset={{ width: 0, height: 1 }}
-            >
-              <Icon type="Camera" size="$s" color="$secondaryText" />
-            </View>
-          </View>
-        </IconMenu>
-      </XStack>
-    </YStack>
   );
 }
 
