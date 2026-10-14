@@ -335,8 +335,13 @@ const sampleRuns: ContextLens[] = [
   taskRun({
     lensId: 'nine-days',
     createdAt: morningOf(9),
-    posted: 'Quiet morning: two stories worth reading, both about the port.',
-    outcome: { status: 'ok', delivered: true, deliveryStatus: 'delivered' },
+    output: 'Quiet morning: two stories worth reading, both about the port.',
+    outcome: {
+      status: 'ok',
+      delivered: false,
+      deliveryStatus: 'not-delivered',
+      deliveryError: 'The channel could not be reached',
+    },
     tools: ['web_search'],
   }),
 ];
@@ -567,7 +572,8 @@ function RunDetailFixture({ lensId }: { lensId: string | null }) {
       <TaskRunDetailView
         lens={lens}
         now={runNow}
-        destinationLabel="Tlon · General"
+        // As the screen does: only a run that posted names where.
+        destinationLabel={lens?.outputs?.length ? 'Tlon · General' : undefined}
         onBack={noop}
       />
     </FullScreen>
@@ -799,4 +805,5 @@ export default {
   '7b · Test run, finished': <RunDetailFixture lensId="test-earlier" />,
   '7c · Scheduled run, posted': <RunDetailFixture lensId="today" />,
   '7d · Scheduled run, failed': <RunDetailFixture lensId="yesterday" />,
+  '7e · Scheduled run, not delivered': <RunDetailFixture lensId="nine-days" />,
 };

@@ -1,12 +1,12 @@
 import { Button, LoadingSpinner, Pressable } from '@tloncorp/ui';
-import { SizableText, View, XStack, YStack } from 'tamagui';
+import { SizableText, View, XStack, YStack, styled } from 'tamagui';
 
 import { formatDuration, pluralize } from './Channel/ContextLens/format';
 import {
   type LensMessageTarget,
   RunInspector,
 } from './Channel/ContextLens/RunInspector';
-import { RunSummary } from './Channel/ContextLens/RunSummary';
+import { RunMetrics } from './Channel/ContextLens/RunSummary';
 import type { ContextLens } from './Channel/ContextLens/types';
 import { COLUMN_WIDTH } from './RecurringTasks';
 import { ScreenHeader } from './ScreenHeader';
@@ -340,7 +340,9 @@ function TaskRunTimelineItem({
 
 /**
  * One run of a scheduled task: what it produced first, then the run itself
- * laid out the way Context Lens lays out any bot run.
+ * laid out the way Context Lens lays out any bot run. The outcome shows on
+ * the output card alone: the lens's own status says the agent finished, not
+ * that the task's post went out.
  */
 export function TaskRunDetailView({
   lens,
@@ -383,7 +385,9 @@ export function TaskRunDetailView({
                 now={now}
                 destinationLabel={destinationLabel}
               />
-              <RunSummary lens={lens} />
+              <RunCard>
+                <RunMetrics lens={lens} />
+              </RunCard>
               <RunInspector
                 lens={lens}
                 onPressMessage={onPressMessage}
@@ -407,6 +411,15 @@ export function TaskRunDetailView({
   );
 }
 
+const RunCard = styled(YStack, {
+  gap: '$s',
+  borderWidth: 1,
+  borderColor: '$border',
+  borderRadius: '$m',
+  padding: '$m',
+  backgroundColor: '$secondaryBackground',
+});
+
 function TaskRunOutputCard({
   lens,
   now,
@@ -425,15 +438,7 @@ function TaskRunOutputCard({
       ? `Posted to ${destinationLabel}.`
       : null;
   return (
-    <YStack
-      gap="$s"
-      borderWidth={1}
-      borderColor="$border"
-      borderRadius="$m"
-      padding="$m"
-      backgroundColor="$secondaryBackground"
-      testID="TaskRunOutput"
-    >
+    <RunCard testID="TaskRunOutput">
       <XStack alignItems="center" justifyContent="space-between" gap="$s">
         <SectionLabel>Output</SectionLabel>
         <SizableText size="$s" color={TASK_RUN_OUTCOME_COLORS[outcome]}>
@@ -478,6 +483,6 @@ function TaskRunOutputCard({
           {note}
         </SizableText>
       ) : null}
-    </YStack>
+    </RunCard>
   );
 }
