@@ -17,13 +17,13 @@ export function imageMenuItems(
   return [
     {
       key: 'library',
-      title: 'Choose Photo',
+      title: 'Choose photo',
       systemImage: 'photo.on.rectangle',
       onPress: image.pickFromLibrary,
     },
     {
       key: 'camera',
-      title: 'Take Photo',
+      title: 'Take photo',
       systemImage: 'camera',
       onPress: image.takePhoto,
     },
@@ -110,7 +110,7 @@ export function IconEditor({
           </View>
         </IconMenu>
       </XStack>
-      <XStack justifyContent="center" marginTop="$-s">
+      <XStack justifyContent="center" marginTop="$-xs">
         <IconMenu
           items={menuItems}
           onPress={onPressFallback}
