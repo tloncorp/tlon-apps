@@ -1,15 +1,23 @@
 // The model fills every field of the cron tool's schema, whether or not it
 // means to set it: empty strings, nulls, `fallbacks: []`, a schedule of every
-// 1 ms, a trigger that never fires, `sessionTarget: "main"`, delivery mode
+// 1 ms, a trigger that can never fire, `sessionTarget: "main"`, delivery mode
 // "none". Core rejects some of that outright ("cron patch agentId cannot be
-// changed") and quietly applies the rest, which can strip a job's delivery or
-// make a scheduled run strict about fallbacks. This keeps what the model
-// actually set and drops the placeholders before the call runs.
+// changed", "cron triggers are disabled") and quietly applies the rest, which
+// can strip a job's delivery or make a scheduled run strict about fallbacks.
+// This keeps what the model actually set and drops the placeholders before the
+// call runs.
 
 type Json = Record<string, unknown>;
 
 const MIN_EVERY_MS = 60_000;
+// A trigger script gates a run by returning `{ fire: true }`. The model's
+// filler is a script that always answers the same (`return { fire: false };`,
+// `return {fire:true}`) or a stray word ("x", "unused") that can't fire at
+// all. One that always fires is the same as no trigger, unless it's there to
+// stop the job after its first run.
 const NEVER_FIRES = /^\s*return\s*\{\s*fire\s*:\s*false\s*\}\s*;?\s*$/;
+const ALWAYS_FIRES = /^\s*return\s*\{\s*fire\s*:\s*true\s*\}\s*;?\s*$/;
+const MENTIONS_FIRE = /\bfire\b/;
 // Fields an update has no business changing on its own initiative; the model
 // only ever sets them to the schema's first enum value.
 const UPDATE_PLACEHOLDER_FIELDS = ['sessionTarget', 'wakeMode'];
@@ -46,8 +54,16 @@ function cleanJob(raw: unknown, isPatch: boolean): Json | undefined {
   if (!isObject(job)) return undefined;
 
   delete job.owner;
-  if (isObject(job.trigger) && NEVER_FIRES.test(String(job.trigger.script))) {
-    delete job.trigger;
+  if (isObject(job.trigger)) {
+    const script = String(job.trigger.script ?? '');
+    const gatesNothing = ALWAYS_FIRES.test(script) && job.trigger.once !== true;
+    if (
+      !MENTIONS_FIRE.test(script) ||
+      NEVER_FIRES.test(script) ||
+      gatesNothing
+    ) {
+      delete job.trigger;
+    }
   }
   if (isObject(job.schedule)) {
     const schedule = job.schedule;

@@ -141,6 +141,60 @@ describe('cleanCronToolArgs', () => {
     });
   });
 
+  it('drops a trigger that could never fire, whatever the filler says', () => {
+    // Captured from a real run: with any of these left in, core refused the
+    // job ("cron triggers are disabled") and a plain reminder was never made.
+    for (const script of [
+      'x',
+      'unused',
+      'disabled',
+      'ordinary schedule',
+      '',
+      'return {fire:true}',
+      'return { fire: true };',
+    ]) {
+      const cleaned = cleanCronToolArgs({
+        action: 'add',
+        job: {
+          ...placeholderJob,
+          name: 'Timesheet reminder',
+          schedule: {
+            kind: 'cron',
+            expr: '0 16 * * 5',
+            tz: 'America/New_York',
+          },
+          trigger: { script, once: false },
+          sessionTarget: 'isolated',
+          payload: { kind: 'agentTurn', message: 'Submit your timesheet.' },
+          delivery: { mode: 'announce', channel: 'tlon', to: '~ten' },
+        },
+      });
+      expect(cleaned?.job).toEqual({
+        name: 'Timesheet reminder',
+        schedule: { kind: 'cron', expr: '0 16 * * 5', tz: 'America/New_York' },
+        sessionTarget: 'isolated',
+        wakeMode: 'next-heartbeat',
+        payload: { kind: 'agentTurn', message: 'Submit your timesheet.' },
+        delivery: { mode: 'announce', channel: 'tlon', to: '~ten' },
+      });
+    }
+  });
+
+  it('keeps an always-true trigger that ends the job after one run', () => {
+    const cleaned = cleanCronToolArgs({
+      action: 'add',
+      job: {
+        name: 'Once, at the next tick',
+        schedule: { kind: 'cron', expr: '0 9 * * *' },
+        trigger: { script: 'return { fire: true };', once: true },
+        payload: { kind: 'agentTurn', message: 'Say hello.' },
+      },
+    });
+    expect(cleaned?.job).toMatchObject({
+      trigger: { script: 'return { fire: true };', once: true },
+    });
+  });
+
   it('treats a job-only update as the change', () => {
     const cleaned = cleanCronToolArgs({
       action: 'update',
