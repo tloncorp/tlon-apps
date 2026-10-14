@@ -261,6 +261,29 @@ describe('startCronTestRun', () => {
     await finalLens();
   });
 
+  it('starts a new run once the job has changed', async () => {
+    const job = { ...digest, id: 'job-changed', updatedAtMs: 1 };
+    const { deps, run, runEmbeddedAgent, published } = harness('job-changed', [
+      job,
+    ]);
+
+    const first = await startCronTestRun('job-changed', deps);
+    // Saved again while the first test runs.
+    job.updatedAtMs = 2;
+    const second = await startCronTestRun('job-changed', deps);
+    const third = await startCronTestRun('job-changed', deps);
+
+    expect(second.type === 'started' && second.lensId).not.toBe(
+      first.type === 'started' && first.lensId
+    );
+    expect(third).toEqual(second);
+    await vi.waitFor(() => expect(runEmbeddedAgent).toHaveBeenCalledTimes(2));
+    run.resolve({ payloads: [{ text: 'Done.' }], meta: { durationMs: 1 } });
+    await vi.waitFor(() =>
+      expect(published.filter(({ phase }) => phase === 'final')).toHaveLength(2)
+    );
+  });
+
   it('records a silent reply as no reply and a failed run as an error', async () => {
     const silent = harness('job-silent');
     await startCronTestRun('job-silent', silent.deps);
@@ -302,6 +325,24 @@ describe('startCronTestRun', () => {
         meta: { durationMs: 1 },
       })
     ).toEqual({ status: 'completed', output: 'Three new threads today.' });
+  });
+
+  it('refuses a job the credit budget paused', async () => {
+    const { deps, runEmbeddedAgent } = harness('job-held', [
+      {
+        ...digest,
+        id: 'job-held',
+        enabled: false,
+        description: '[Paused: credit budget] Daily digest',
+      },
+    ]);
+
+    expect(await startCronTestRun('job-held', deps)).toEqual({
+      type: 'error',
+      errorType: 'invalid',
+      message: ['this task is paused while credits are limited'],
+    });
+    expect(runEmbeddedAgent).not.toHaveBeenCalled();
   });
 
   it('refuses an unknown job and one with nothing to run', async () => {

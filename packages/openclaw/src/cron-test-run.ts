@@ -13,6 +13,7 @@ import {
   ensureBackgroundContextLensForSession,
   finishBackgroundContextLens,
 } from './context-lens.js';
+import { BUDGET_HOLD_PREFIX } from './cron-budget-hold.js';
 import { runEmbeddedAgentWithFallbacks } from './embedded-agent-fallbacks.js';
 import {
   isMcpDescribeToolName,
@@ -89,6 +90,9 @@ export function cronTestRunToolBlock(
 export type CronTestJob = {
   id: string;
   name?: string;
+  description?: string;
+  enabled?: boolean;
+  updatedAtMs?: number;
   agentId?: string;
   sessionTarget?: string;
   payload?: {
@@ -262,9 +266,13 @@ export interface CronTestRunDeps {
   now?: () => number;
 }
 
-// The test run under way for each job. Asking again while one runs answers
-// with the run already going rather than starting a second.
-const runningTests = sharedMap<string, string>('cronTestRun.running');
+// The test run under way for each job, and the version of the job it runs.
+// Asking again while one runs answers with the run already going rather
+// than starting a second, unless the job has changed since.
+const runningTests = sharedMap<
+  string,
+  { lensId: string; updatedAtMs: number | undefined }
+>('cronTestRun.running');
 
 /**
  * Start a test run of job `jobId` and answer as soon as it is under way,
@@ -275,10 +283,6 @@ export async function startCronTestRun(
   jobId: string,
   deps: CronTestRunDeps
 ): Promise<StewardAutomationResponseBody> {
-  const running = runningTests.get(jobId);
-  if (running) {
-    return { type: 'started', id: jobId, lensId: running };
-  }
   let job: CronTestJob | null = null;
   try {
     job =
@@ -297,6 +301,10 @@ export async function startCronTestRun(
       message: [`unknown cron job id: ${jobId}`],
     };
   }
+  const running = runningTests.get(jobId);
+  if (running && running.updatedAtMs === job.updatedAtMs) {
+    return { type: 'started', id: jobId, lensId: running.lensId };
+  }
   if (!canTestCronJob(job)) {
     return {
       type: 'error',
@@ -304,6 +312,17 @@ export async function startCronTestRun(
       message: [
         'only a task that runs in its own session can be tested; this one runs in the main session',
       ],
+    };
+  }
+  // A job the credit budget paused would spend the same credits on a test.
+  if (
+    job.enabled === false &&
+    job.description?.startsWith(BUDGET_HOLD_PREFIX.trimEnd())
+  ) {
+    return {
+      type: 'error',
+      errorType: 'invalid',
+      message: ['this task is paused while credits are limited'],
     };
   }
   const prompt = cronTestPromptText(job);
@@ -347,7 +366,7 @@ export async function startCronTestRun(
     };
   }
   const { lensId } = created.lens;
-  runningTests.set(jobId, lensId);
+  runningTests.set(jobId, { lensId, updatedAtMs: job.updatedAtMs });
   deps.publish('created', created.lens);
 
   const finish = (end: {
@@ -443,7 +462,10 @@ export async function startCronTestRun(
       });
     })
     .finally(() => {
-      runningTests.delete(jobId);
+      // A test of the job's newer version may have taken the slot.
+      if (runningTests.get(jobId)?.lensId === lensId) {
+        runningTests.delete(jobId);
+      }
       // The transcript holds the prompt and the reply; say if it is left.
       rm(sessionFile, { force: true }).catch((error: unknown) => {
         deps.logger.warn(

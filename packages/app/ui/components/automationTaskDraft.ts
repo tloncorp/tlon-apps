@@ -703,6 +703,9 @@ export function describeTestRunError(error: unknown): string {
       if (detail.includes('no prompt')) {
         return 'This task has no prompt to test.';
       }
+      if (detail.includes('credits are limited')) {
+        return 'Testing is paused while credits are limited.';
+      }
       return 'Your bot needs an update before it can test tasks.';
     case 'unknown':
       return 'Your bot needs an update before it can test tasks.';

@@ -1088,6 +1088,11 @@ describe('describeTestRunError', () => {
     ).toBe('This task has no prompt to test.');
     expect(
       describeTestRunError(
+        refusal('invalid', 'this task is paused while credits are limited')
+      )
+    ).toBe('Testing is paused while credits are limited.');
+    expect(
+      describeTestRunError(
         refusal('invalid', 'Invalid steward automation dispatch: action')
       )
     ).toBe('Your bot needs an update before it can test tasks.');
