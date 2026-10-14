@@ -2404,13 +2404,10 @@ export const insertContextLensRuns = createWriteQuery(
       .onConflictDoUpdate({
         target: [$contextLensRuns.botShip, $contextLensRuns.lensId],
         set: conflictUpdateSetAll($contextLensRuns, ['botShip', 'lensId']),
-        // A run only moves toward finished. A snapshot fetched before it
-        // finished can land after the feed's final record, and must not
-        // undo it.
-        setWhere: or(
-          eq($contextLensRuns.complete, false),
-          sql`excluded.complete = 1`
-        ),
+        // The owner ship stamps each record of a run as it stores it, so a
+        // snapshot fetched earlier that lands after a newer record, from the
+        // feed, carries an older stamp and must not undo it.
+        setWhere: lte($contextLensRuns.receivedAt, sql`excluded.received_at`),
       });
   },
   ['contextLensRuns']
