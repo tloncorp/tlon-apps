@@ -5,6 +5,7 @@ import { createContext } from 'react';
 export const ActionSheetContext = createContext<{
   isInsideSheet: boolean;
   mode?: 'sheet' | 'dialog' | 'popover';
+  nativePresentation?: boolean;
 }>({
   isInsideSheet: false,
 });

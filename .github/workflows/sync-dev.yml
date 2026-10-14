@@ -22,8 +22,21 @@ jobs:
           git pull
           git checkout develop
           git pull
-          git merge staging
-          git checkout --theirs desk/desk.docket-0
+          # desk.docket-0 conflicts on every sync (each branch carries its own glob
+          # hash), so the merge must not abort the step (bash -e) before the
+          # --theirs recovery below. Only the docket may conflict: anything else
+          # is a real merge conflict that needs a human, so stop here rather than
+          # commit conflict markers to develop.
+          git merge staging || true
+          unmerged=$(git diff --name-only --diff-filter=U)
+          if [ -n "$unmerged" ] && [ "$unmerged" != "desk/desk.docket-0" ]; then
+            echo "::error::staging→develop sync has conflicts outside desk/desk.docket-0; resolve by hand:"
+            echo "$unmerged"
+            exit 1
+          fi
+          if [ "$unmerged" = "desk/desk.docket-0" ]; then
+            git checkout --theirs desk/desk.docket-0
+          fi
           git add -A
           git diff-index --quiet HEAD || git commit -n --no-edit
           git push

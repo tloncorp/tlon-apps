@@ -67,7 +67,7 @@ Commands:
 Content sources (Markdown):
   --body <file>       Read the note body from a Markdown file
   --markdown <file>   Alias for --body
-  --stdin             Read the note body from stdin
+  --stdin             Shell CLI only: read piped Markdown; unavailable through the tlon tool
 
 Note bodies are plain Markdown. LaTeX math delimiters ($...$, $$...$$,
 \\(...\\), \\[...\\]) do not render; use plain text/Unicode or code blocks.
@@ -77,7 +77,7 @@ Examples:
   tlon notes request 0vabc
   tlon channels create ~zod/group "Notes" --kind notes
   tlon notes note-create notes/~zod/blog root "First Note" --markdown post.md
-  tlon notes note-update notes/~zod/blog 12 --stdin --expected-revision 3`;
+  tlon notes note-update notes/~zod/blog 12 --body post.md --expected-revision 3`;
 
 export const NOTES_COMMAND_HELP: Record<string, string> = {
   status: 'Usage: tlon notes status',
@@ -91,9 +91,9 @@ export const NOTES_COMMAND_HELP: Record<string, string> = {
   create:
     'Usage: tlon notes create <title>\nCreates a standalone %notes notebook only. For Tlon app/group notebooks, use:\n  tlon channels create ~host/group-slug "Title" --kind notes',
   'note-create':
-    'Usage: tlon notes note-create <nest> <folder-id|root> <title> (--body <file> | --stdin | --markdown <file>)',
+    'Usage: tlon notes note-create <nest> <folder-id|root> <title> (--body <file> | --stdin | --markdown <file>)\n--stdin is for shell pipes only; the tlon tool requires a file.',
   'note-update':
-    'Usage: tlon notes note-update <nest> <id> (--body <file> | --stdin) [--expected-revision <n>]',
+    'Usage: tlon notes note-update <nest> <id> (--body <file> | --stdin) [--expected-revision <n>]\n--stdin is for shell pipes only; the tlon tool requires a file.',
   'note-rename':
     'Usage: tlon notes note-rename <nest> <id> <title>\nExample: tlon notes note-rename notes/~zod/blog 12 "New Title"',
   'note-move':

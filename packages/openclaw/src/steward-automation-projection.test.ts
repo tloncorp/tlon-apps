@@ -35,6 +35,7 @@ describe('Steward automation projection normalization', () => {
               kind: 'agentTurn',
               message: 'Send a short reminder.',
             },
+            delivery: { mode: 'announce', channel: 'tlon', to: '~sample' },
             createdAtMs: 1_785_734_006_665,
             updatedAtMs: 1_785_734_006_665,
           },
@@ -54,6 +55,7 @@ describe('Steward automation projection normalization', () => {
               kind: 'agentTurn',
               message: 'Send a playful reminder.',
             },
+            delivery: { mode: 'announce', channel: 'tlon', to: '~sample' },
             createdAtMs: 1_785_735_243_782,
             updatedAtMs: 1_785_740_230_441,
           },
@@ -75,6 +77,7 @@ describe('Steward automation projection normalization', () => {
               kind: 'agentTurn',
               message: 'Send a weekday reminder.',
             },
+            delivery: { mode: 'none', channel: 'last' },
             createdAtMs: 1_786_416_589_889,
             updatedAtMs: 1_786_416_589_889,
           },
@@ -85,7 +88,6 @@ describe('Steward automation projection normalization', () => {
     expect(result.project.tasks[1]).not.toHaveProperty('description');
     for (const task of result.project.tasks) {
       expect(task).not.toHaveProperty('state');
-      expect(task).not.toHaveProperty('delivery');
       expect(task).not.toHaveProperty('deleteAfterRun');
       expect(task).not.toHaveProperty('sessionKey');
       expect(task.payload).not.toHaveProperty('text');
@@ -126,6 +128,7 @@ describe('Steward automation projection normalization', () => {
             enabled: false,
             schedule: { kind: 'cron', expr: '', tz: '', staggerMs: 0 },
             payload: { kind: '', message: 'canonical message' },
+            delivery: { mode: 'announce', to: '~sample' },
             createdAtMs: 0,
             updatedAtMs: 0,
           },
@@ -134,7 +137,6 @@ describe('Steward automation projection normalization', () => {
     });
     const [task] = result.project.tasks;
     expect(task).not.toHaveProperty('state');
-    expect(task).not.toHaveProperty('delivery');
     expect(task).not.toHaveProperty('deleteAfterRun');
     expect(task).not.toHaveProperty('sessionKey');
     expect(task.payload).not.toHaveProperty('text');
@@ -348,5 +350,63 @@ describe('Steward automation projection normalization', () => {
         runtimeJob({}),
       ])
     ).toEqual({ project: { tasks: [{ id: 'a' }] } });
+  });
+});
+
+describe('delivery and tool allow-list projection', () => {
+  it('mirrors the delivery block and toolsAllow off a job', () => {
+    const {
+      project: {
+        tasks: [job],
+      },
+    } = normalizeStewardAutomationProjection([
+      {
+        id: 'job-1',
+        name: 'Tlonbot scheduled update',
+        schedule: { kind: 'cron', expr: '0 9 * * *' },
+        payload: {
+          kind: 'agentTurn',
+          message: 'Write the update.',
+          toolsAllow: ['group:web'],
+        },
+        delivery: {
+          mode: 'announce',
+          channel: 'tlon',
+          to: 'diary/~zod/notebook',
+          failureDestination: {
+            mode: 'announce',
+            channel: 'tlon',
+            to: 'chat/~zod/errors',
+          },
+        },
+      },
+    ] as never);
+
+    expect(job?.payload).toEqual({
+      kind: 'agentTurn',
+      message: 'Write the update.',
+      toolsAllow: ['group:web'],
+    });
+    expect(job?.delivery).toEqual({
+      mode: 'announce',
+      channel: 'tlon',
+      to: 'diary/~zod/notebook',
+      failureDestination: {
+        mode: 'announce',
+        channel: 'tlon',
+        to: 'chat/~zod/errors',
+      },
+    });
+  });
+
+  it('leaves delivery absent on a job that has none', () => {
+    const {
+      project: {
+        tasks: [job],
+      },
+    } = normalizeStewardAutomationProjection([
+      { id: 'job-1', name: 'No destination' },
+    ] as never);
+    expect(job && 'delivery' in job).toBe(false);
   });
 });

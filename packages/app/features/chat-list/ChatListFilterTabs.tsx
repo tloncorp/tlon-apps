@@ -1,5 +1,4 @@
 import {
-  CHAT_LIST_FILTERS,
   CHAT_LIST_FILTER_LABELS,
   type ChatListFilter,
 } from '../../hooks/chatListFilters';
@@ -8,13 +7,16 @@ import { Tabs } from '../../ui';
 export function ChatListFilterTabs({
   activeFilter,
   onPressFilter,
+  filters,
 }: {
   activeFilter: ChatListFilter;
   onPressFilter: (filter: ChatListFilter) => void;
+  /** The chips to offer, in order. */
+  filters: ChatListFilter[];
 }) {
   return (
     <Tabs>
-      {CHAT_LIST_FILTERS.map((filter) => (
+      {filters.map((filter) => (
         <Tabs.Tab
           key={filter}
           name={filter}

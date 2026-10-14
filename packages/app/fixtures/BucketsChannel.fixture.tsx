@@ -179,14 +179,14 @@ type SearchOrigin = {
   selectedItemId: string | null;
 };
 
-function folder(id: string, name: string, itemCount: number): BucketItem {
+function folder(id: string, name: string, fileCount: number): BucketItem {
   return {
     id,
     kind: 'folder',
     name,
     author: '',
     modifiedLabel: '',
-    itemCount,
+    fileCount,
   };
 }
 
@@ -479,6 +479,7 @@ function BucketsFixture({
         ),
       })),
     onDownloadItem: (item: BucketItem) => setSelectedItemId(item.id),
+    onCopyItemLink: (item: BucketItem) => setSelectedItemId(item.id),
     onMoveItem: (item: BucketItem) => setSelectedItemId(item.id),
     onRenameItem: (item: BucketItem) => setSelectedItemId(item.id),
   };

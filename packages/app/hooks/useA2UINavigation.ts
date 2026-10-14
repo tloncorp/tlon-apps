@@ -4,6 +4,7 @@ import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
 import { useCallback } from 'react';
 
+import { useOptionalBrowserCredentialHandoff } from '../features/browser/BrowserCredentialHandoffProvider';
 import { useRootNavigation } from '../navigation/utils';
 
 const logger = createDevLogger('a2ui-navigation', false);
@@ -63,6 +64,7 @@ function postFromTarget(
 
 export function useA2UINavigation() {
   const rootNavigation = useRootNavigation();
+  const browserHandoff = useOptionalBrowserCredentialHandoff();
 
   const navigateToMessage = useCallback(
     async (target: A2UI.MessageNavigationTarget) => {
@@ -116,7 +118,12 @@ export function useA2UINavigation() {
   return useCallback(
     async (
       target: A2UI.NavigationTarget,
-      options?: { allowBotMcpSettings?: boolean }
+      options?: {
+        allowBotMcpSettings?: boolean;
+        allowBrowserCredentialHandoff?: boolean;
+        allowBrowserSession?: boolean;
+        onBrowserCredentialHandoffComplete?: () => Promise<void>;
+      }
     ) => {
       switch (target.type) {
         case 'message':
@@ -169,9 +176,31 @@ export function useA2UINavigation() {
               }
               rootNavigation.navigateToBotMcpSettings(target.providerId);
               return;
+            case 'browserSession':
+              if (!options?.allowBrowserSession) return;
+              if (!browserHandoff)
+                throw new Error('Browser session viewer is unavailable.');
+              browserHandoff.openViewer(target.viewerUrl);
+              return;
+            case 'browserCredentialHandoff':
+              if (!options?.allowBrowserCredentialHandoff) {
+                logger.log('blocked untrusted browser target');
+                return;
+              }
+              if (!browserHandoff) {
+                throw new Error(
+                  'Browser credential handoff provider is unavailable.'
+                );
+              }
+              const handoffId = browserHandoff.register({
+                viewerUrl: target.viewerUrl,
+                onComplete: options.onBrowserCredentialHandoffComplete,
+              });
+              rootNavigation.navigateToBrowserCredentialHandoff(handoffId);
+              return;
           }
       }
     },
-    [navigateToMessage, rootNavigation]
+    [browserHandoff, navigateToMessage, rootNavigation]
   );
 }

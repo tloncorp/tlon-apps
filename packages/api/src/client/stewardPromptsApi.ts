@@ -1,0 +1,208 @@
+import { z } from 'zod';
+
+import type {
+  StewardPromptFiles,
+  StewardPromptResponse,
+  StewardPromptUpdate,
+} from '../urbit/stewardPrompts';
+import { httpRequest, steward, subscribeRequest } from './requests';
+
+// Steward answers an expired session with 401, where requestJson only
+// reauthenticates on 403 by default. 403 is left out on purpose: the edit
+// route uses it for an untrusted bot, which no reauthentication can fix.
+const OPTIONS = { reauthStatuses: [401] };
+const responseSchema = z.object({
+  requestId: z.string(),
+  body: z.discriminatedUnion('type', [
+    z.object({ type: z.literal('updated'), name: z.string() }),
+    z.object({
+      type: z.literal('error'),
+      errorType: z.enum([
+        'not-authorized',
+        'invalid',
+        'harness-offline',
+        'harness-error',
+        'unknown',
+      ]),
+      message: z.array(z.string()),
+    }),
+    z.object({
+      type: z.literal('pending'),
+      status: z.enum(['sending', 'acked', 'nacked']),
+    }),
+  ]),
+});
+
+export class StewardPromptEditError extends Error {
+  constructor(
+    readonly requestId: string,
+    readonly body: Extract<StewardPromptResponse['body'], { type: 'error' }>
+  ) {
+    super(`Prompt edit failed (${body.errorType}): ${body.message.join('\n')}`);
+    this.name = 'StewardPromptEditError';
+  }
+}
+
+export class StewardPromptPendingError extends Error {
+  constructor(
+    readonly requestId: string,
+    readonly status: 'sending' | 'acked' | 'nacked'
+  ) {
+    super('Prompt edit is still pending');
+    this.name = 'StewardPromptPendingError';
+  }
+}
+
+function settle(response: StewardPromptResponse) {
+  const { requestId, body } = response;
+  switch (body.type) {
+    case 'updated':
+      return { requestId, name: body.name };
+    case 'error':
+      throw new StewardPromptEditError(requestId, body);
+    case 'pending':
+      throw new StewardPromptPendingError(requestId, body.status);
+  }
+}
+
+/** A successful response confirms the workspace write; the feed supplies contents. */
+export async function setStewardPrompt(params: {
+  bot: string;
+  name: string;
+  text: string;
+  requestId?: string;
+}) {
+  const { bot, name, text, requestId } = params;
+  const raw = await httpRequest(steward.promptEdit)(
+    {},
+    {
+      body: {
+        ...(requestId ? { requestId } : {}),
+        bot,
+        action: { set: { name, text } },
+      },
+      options: OPTIONS,
+    }
+  );
+  return settle(responseSchema.parse(raw));
+}
+
+/** Pending is returned as data so the caller can continue waiting for a late result. */
+export async function getStewardPromptRequest(
+  requestId: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<StewardPromptResponse> {
+  return responseSchema.parse(
+    await httpRequest(steward.promptRequest)(
+      { requestId: encodeURIComponent(requestId) },
+      {
+        options: options.signal
+          ? { ...OPTIONS, signal: options.signal }
+          : OPTIONS,
+      }
+    )
+  );
+}
+
+/**
+ * Poll until the request is terminal. The signal stops both the requests
+ * and the waits between them: a caller torn down mid-poll (navigation,
+ * logout, an account switch) must not keep polling — possibly a different
+ * ship — for the rest of the minute.
+ */
+export async function awaitStewardPromptRequest(
+  requestId: string,
+  {
+    attempts = 30,
+    intervalMs = 2_000,
+    signal,
+  }: { attempts?: number; intervalMs?: number; signal?: AbortSignal } = {}
+) {
+  let status: 'sending' | 'acked' | 'nacked' = 'sending';
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    signal?.throwIfAborted();
+    const last = attempt + 1 >= attempts;
+    let response: StewardPromptResponse;
+    try {
+      response = await getStewardPromptRequest(
+        requestId,
+        signal ? { signal } : {}
+      );
+    } catch (error) {
+      // A failed poll says nothing about the command, which remains live on
+      // the backend. Keep polling so a transient failure cannot invite a
+      // second, competing edit while the first one lands.
+      if (last) {
+        throw error;
+      }
+      await sleep(intervalMs, signal);
+      continue;
+    }
+    // A terminal result still throws from here: that is the command's own
+    // answer, not a failure to ask.
+    if (response.body.type !== 'pending') return settle(response);
+    status = response.body.status;
+    if (!last) {
+      await sleep(intervalMs, signal);
+    }
+  }
+  throw new StewardPromptPendingError(requestId, status);
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/**
+ * A missing prompts route can mean either an older ship or a temporarily
+ * unavailable %steward. Callers retry this typed error before treating it as
+ * a settled "no prompt support" result.
+ */
+export class PromptsUnsupportedError extends Error {
+  constructor() {
+    super('Steward prompts endpoint is unavailable');
+    this.name = 'PromptsUnsupportedError';
+  }
+}
+
+export async function getStewardPromptFiles(): Promise<StewardPromptFiles> {
+  try {
+    return await httpRequest(steward.promptFiles)({}, { options: OPTIONS });
+  } catch (error) {
+    if ((error as { status?: number } | null)?.status === 404) {
+      throw new PromptsUnsupportedError();
+    }
+    throw error;
+  }
+}
+
+// Async so a desk without the prompts module rejects, as a failed watch does,
+// rather than throwing from the guard before the caller's catch is attached.
+// `onRejected` hears %steward refusing the watch, which arrives after this has
+// resolved.
+export async function subscribeToStewardPrompts(
+  handler: (update: StewardPromptUpdate) => void,
+  onQuit?: () => void,
+  onRejected?: (error: unknown) => void
+) {
+  return subscribeRequest(steward.promptFeed)<StewardPromptUpdate>(
+    {},
+    handler,
+    onRejected,
+    { onQuit }
+  );
+}

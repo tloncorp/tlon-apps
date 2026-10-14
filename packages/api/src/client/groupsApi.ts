@@ -24,7 +24,11 @@ import {
   threadRequest,
   trackedPokeRequest,
 } from './requests';
-import { BadResponseError, getCurrentUserId, subscribeOnce } from './urbit';
+import {
+  BadResponseError,
+  getCurrentUserId,
+  getDeskCountsAllSeats,
+} from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
 
@@ -311,16 +315,12 @@ export const setPinnedItemOrder = async (itemIds: string[]) => {
 export const getChannelPreview = async (
   channelId: string
 ): Promise<db.Channel | null> => {
-  // oxlint-disable-next-line tlon/no-raw-desk-request -- dead request, see TLON-6538
-  const channelPreview = await subscribeOnce<ub.ChannelPreview>(
-    {
-      app: 'groups',
-      path: `/chan/${channelId}`,
-    },
-    undefined,
-    undefined,
-    { tag: 'getChannelPreview' }
-  );
+  const { kind, host, name } = parseGroupChannelId(channelId);
+  const channelPreview = await subscribeOnceRequest(
+    groups.channelPreview
+  )<ub.ChannelPreview>({ app: kind, ship: host, name }, undefined, undefined, {
+    tag: 'getChannelPreview',
+  });
 
   if (!channelPreview) {
     return null;
@@ -1332,9 +1332,16 @@ export const toGroupsUpdate = (
 
   // Handle group creation
   if ('create' in event) {
+    const group = toClientGroup(groupId, event.create, true);
     return {
       type: 'addGroup',
-      group: toClientGroup(groupId, event.create, true),
+      group: {
+        ...group,
+        // A %create sends the bare group: no member-count, but every seat,
+        // unlike the truncated rosters of init and changes.
+        memberCount:
+          group.memberCount ?? Object.keys(event.create.seats ?? {}).length,
+      },
     };
   }
 
@@ -1835,6 +1842,9 @@ export function toClientGroup(
     // undefined and null differ downstream: omitting blob leaves a stored
     // value alone, an explicit null clears it.
     blob: group.blob,
+    // init and changes truncate seats to ours plus 14 others, so this, not
+    // members.length, is the group's size.
+    ...toClientMemberCount(group['member-count']),
     haveInvite: isJoined ? false : undefined,
     haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,
@@ -1933,6 +1943,7 @@ export function toClientGroupFromForeign(
     haveRequestedInvite: foreign.progress === 'ask',
     joinStatus,
     ...(foreign.preview ? toClientGroupMeta(foreign.preview.meta) : {}),
+    ...toClientMemberCount(foreign.preview?.['member-count']),
   };
 }
 
@@ -1961,6 +1972,29 @@ function getJoinStatusFromForeign(foreign: ub.Foreign): db.Group['joinStatus'] {
     default:
       return undefined;
   }
+}
+
+// Omitted rather than nulled when the payload has no count, so writing a group
+// from such a payload leaves a stored count alone.
+function toClientMemberCount(count: number | undefined) {
+  return count === undefined ? {} : { memberCount: count };
+}
+
+// Init and changes truncate seats to ours plus 14 others, and through desk
+// 12.3.1 they counted the truncated seats, so every group of 15 or more
+// reported exactly this.
+const TRUNCATED_SEAT_COUNT = 15;
+
+/**
+ * Drops an init or changes member count that may be the truncated seat count,
+ * leaving the stored count alone. A count below it is exact, and only a desk
+ * that counts every seat sends one above it. Such a desk is trusted at 15 too,
+ * since a group can shrink to exactly that.
+ */
+export function withoutTruncatedMemberCount(group: db.Group): db.Group {
+  return !getDeskCountsAllSeats() && group.memberCount === TRUNCATED_SEAT_COUNT
+    ? { ...group, memberCount: undefined }
+    : group;
 }
 
 function toClientGroupMeta(meta: ub.GroupMeta) {

@@ -14,6 +14,13 @@ export const groupsUi = {
     path: '/v10/init',
     since: '12.2.0',
   },
+  initBuckets: {
+    kind: 'scry',
+    agent: 'groups-ui',
+    path: '/v11/init',
+    since: '12.3.0',
+    guardedBy: 'deskSupportsBuckets',
+  },
   changes: {
     kind: 'scry',
     agent: 'groups-ui',

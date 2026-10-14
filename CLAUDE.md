@@ -544,6 +544,14 @@ The frontend communicates with Urbit backend through:
 -   HTTP API via `@tloncorp/api/http-api`
 -   Server-sent events for real-time updates
 -   Custom API layer in `packages/shared/src/api/`
+-   Every desk request in the scope of `oxlint/desk-request-scope.json` (bot
+    automation is excluded by design) is an entry in
+    `packages/api/src/client/requests/`, called through its helper. Adding or
+    changing a request means adding or updating its entry (`since`). A
+    non-exempt entry that only the current desk serves also needs `guardedBy`;
+    the helpers refuse the request once the desk is known not to serve it,
+    and send it while the capability is still unresolved. Entries labelled
+    with an external `desk` already bypass the version comparison. See `docs/tlon-apps/desk-compatibility.md`.
 
 ## Database Schema
 
@@ -561,6 +569,15 @@ Uses Drizzle ORM with SQLite for local data storage:
 -   DB reads and writes declare table dependencies/effects via `createReadQuery` / `createWriteQuery` (`packages/shared/src/db/query.ts`). A write invalidates readers whose declared tables overlap its effects.
 -   **The deps `Set` from `useKeyFromQueryDeps` must sit at `queryKey` index 1.** The invalidation predicate only looks at that position; a key that puts it elsewhere silently never refreshes again.
 -   `invalidateQueries` flags queries stale and refetches only those with active observers. It does not clear cached data, so a remounted query serves its previous value for a render while refetching in the background — and keeps that value if the refetch fails.
+
+## Feature Map (what Tlonbot tells people about the app)
+
+`docs/feature-map/` describes how to do each thing in the app, one file per area. Tlonbot answers "how do I…" questions from it, so a stale entry sends a real person looking for a button that isn't there. **Read `docs/feature-map/README.md` before editing it.**
+
+-   The map describes the app at one store build, named in `docs/feature-map/release.json`, not `develop`. A UI change on develop does not need a map edit. The map is brought up to date once per store build; the README's "Updating for a new store build" has the steps.
+-   `node scripts/feature-map.mjs check` compares the map with that build's source. CI runs it when the map, its script or the guide changes.
+-   To fix a wrong entry between builds, edit it in `docs/feature-map/`, make sure it is true for the store build rather than for develop, then run `node scripts/feature-map.mjs publish`.
+-   Never edit `packages/openclaw/skills/tlon-product-guide/references/` by hand. `publish` writes it from the map, and CI fails when the two differ.
 
 ## Adding a New Post Blob Entry Type
 

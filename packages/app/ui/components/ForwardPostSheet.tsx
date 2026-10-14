@@ -10,7 +10,11 @@ import {
 } from 'react';
 
 import { ForwardToChannelSheet } from './ForwardToChannelSheet';
-import { useForwardToChannelSheet } from './useForwardToChannelSheet';
+import { ListItem } from './ListItem';
+import {
+  useForwardToChannelSheet,
+  useLastForwarded,
+} from './useForwardToChannelSheet';
 
 const ForwardPostSheetContext = createContext<{
   open: (post: db.Post) => void;
@@ -41,7 +45,13 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
     },
     [post]
   );
-  const { handleChannelSelected, renderFooter } = useForwardToChannelSheet({
+  const {
+    handleChannelSelected,
+    renderFooter,
+    onNativeDismissed,
+    keepMounted,
+    presentationKey,
+  } = useForwardToChannelSheet({
     isOpen,
     onClose: () => handleOpenChange(false),
     onForwardToChannel: handleForwardToChannel,
@@ -49,14 +59,25 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
     failureMessage: 'Failed to forward post',
   });
 
+  const shownPost = useLastForwarded(post);
+
   const contextValue = useMemo(() => ({ open: handleOpen }), [handleOpen]);
   return (
     <ForwardPostSheetContext.Provider value={contextValue}>
       {children}
       <ForwardToChannelSheet
+        key={presentationKey}
         open={isOpen}
         onOpenChange={handleOpenChange}
+        onNativeDismissed={onNativeDismissed}
+        keepMounted={keepMounted}
         title="Forward to channel"
+        subtitle={shownPost?.textContent?.trim() || undefined}
+        icon={
+          shownPost ? (
+            <ListItem.ContactIcon contactId={shownPost.authorId} />
+          ) : undefined
+        }
         onChannelSelected={handleChannelSelected}
         footerComponent={renderFooter}
       />

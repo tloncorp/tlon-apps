@@ -41,6 +41,8 @@ export type PendingApproval = {
 };
 
 export type TlonSettingsStore = {
+  /** First-run onboarding state; absent preserves legacy cron behavior. */
+  bootstrapComplete?: boolean;
   groupChannels?: string[];
   dmAllowlist?: string[];
   autoDiscover?: boolean;
@@ -339,6 +341,10 @@ export function parseSettingsResponse(raw: unknown): TlonSettingsStore {
   const settings = bucket as Record<string, unknown>;
 
   return {
+    bootstrapComplete:
+      typeof settings.bootstrapComplete === 'boolean'
+        ? settings.bootstrapComplete
+        : undefined,
     groupChannels: Array.isArray(settings.groupChannels)
       ? settings.groupChannels.filter((x): x is string => typeof x === 'string')
       : undefined,
@@ -581,6 +587,9 @@ export function applySettingsUpdate(
   const next = { ...current };
 
   switch (key) {
+    case 'bootstrapComplete':
+      next.bootstrapComplete = typeof value === 'boolean' ? value : undefined;
+      break;
     case 'groupChannels':
       next.groupChannels = Array.isArray(value)
         ? value.filter((x): x is string => typeof x === 'string')
@@ -673,9 +682,10 @@ export type SettingsLoadOptions = {
   logSnapshot?: boolean;
   /**
    * Adjust a fresh scry result before it is installed as the snapshot. Runs
-   * synchronously, so a value the caller knows to be newer than the scry (an
-   * echo that overtook it) is never exposed as the baseline, not even to a
-   * subscription event in the same tick.
+   * synchronously, so a value the caller knows to be newer than the scry is
+   * never exposed as the baseline, not even to a subscription event in the
+   * same tick. Facts that overtook the scry need no hook: the manager
+   * replays them itself.
    */
   reconcile?: (settings: TlonSettingsStore) => TlonSettingsStore;
 };
@@ -700,6 +710,24 @@ export function createSettingsManager(
   const listeners = new Set<
     (settings: TlonSettingsStore, changedKey: string) => void
   >();
+
+  // A scry can resolve after facts its result predates. Each load replays
+  // the facts applied since it was issued; the sequence keeps an overlapping
+  // load from replaying facts older than its own scry.
+  let factSeq = 0;
+  let loadsInFlight = 0;
+  let inFlightFacts: { seq: number; key: string; value: unknown }[] = [];
+  // A load that resolves after a later-issued one installed holds an older
+  // snapshot, and its replay would regress keys the newer scry already saw.
+  let loadSeq = 0;
+  let lastInstalledLoad = 0;
+
+  const applyLocal = (key: string, value: unknown): TlonSettingsStore => {
+    factSeq += 1;
+    if (loadsInFlight > 0) inFlightFacts.push({ seq: factSeq, key, value });
+    state.current = applySettingsUpdate(state.current, key, value);
+    return state.current;
+  };
 
   const notify = (changedKey: string) => {
     for (const listener of listeners) {
@@ -732,15 +760,28 @@ export function createSettingsManager(
     async load(
       options: SettingsLoadOptions = {}
     ): Promise<{ settings: TlonSettingsStore; fresh: boolean }> {
+      const since = factSeq;
+      const loadId = ++loadSeq;
+      loadsInFlight += 1;
       try {
         const raw = await api.scry('/settings/all.json');
+        if (loadId < lastInstalledLoad) {
+          return { settings: state.current, fresh: false };
+        }
         // Response shape: { all: { [desk]: { [bucket]: { [key]: value } } } }
         const allData = raw as {
           all?: Record<string, Record<string, unknown>>;
         };
         const deskData = allData?.all?.[SETTINGS_DESK];
         const parsed = parseSettingsResponse(deskData ?? {});
-        state.current = options.reconcile ? options.reconcile(parsed) : parsed;
+        let next = options.reconcile ? options.reconcile(parsed) : parsed;
+        for (const fact of inFlightFacts) {
+          if (fact.seq > since) {
+            next = applySettingsUpdate(next, fact.key, fact.value);
+          }
+        }
+        state.current = next;
+        lastInstalledLoad = loadId;
         state.loaded = true;
         if (options.logSnapshot !== false) {
           logger?.log?.(
@@ -756,6 +797,9 @@ export function createSettingsManager(
         );
         state.loaded = true;
         return { settings: state.current, fresh: false };
+      } finally {
+        loadsInFlight -= 1;
+        if (loadsInFlight === 0) inFlightFacts = [];
       }
     },
 
@@ -765,10 +809,7 @@ export function createSettingsManager(
      * after the migration and does not replay it, so without this the next
      * unrelated fact would present the pre-write value as a key change.
      */
-    applyLocal(key: string, value: unknown): TlonSettingsStore {
-      state.current = applySettingsUpdate(state.current, key, value);
-      return state.current;
-    },
+    applyLocal,
 
     /**
      * Subscribe to settings changes. `onGap` fires when the subscription
@@ -796,11 +837,7 @@ export function createSettingsManager(
               update.value
             )}`
           );
-          state.current = applySettingsUpdate(
-            state.current,
-            update.key,
-            update.value
-          );
+          applyLocal(update.key, update.value);
           notify(update.key);
         },
         err: (error) => {

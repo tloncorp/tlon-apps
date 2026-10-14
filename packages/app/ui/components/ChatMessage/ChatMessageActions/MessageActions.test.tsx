@@ -6,6 +6,7 @@ import {
   isMessageActionVisible,
   messageActionContentKey,
   messageContentKey,
+  uploadedFileUrlsOfPost,
 } from './messageActionModel';
 
 const CURRENT_USER = 'current-user-id';
@@ -236,6 +237,61 @@ describe('viewReactions', () => {
         })
       )
     ).toBe(true);
+  });
+});
+
+describe('copyFileUrl', () => {
+  test('shown only when the post has an uploaded file', () => {
+    expect(isMessageActionVisible('copyFileUrl', context())).toBe(false);
+    expect(
+      isMessageActionVisible(
+        'copyFileUrl',
+        context({
+          post: {
+            id: 'post-1',
+            authorId: OTHER_USER,
+            reactionCount: 0,
+            uploadedFileCount: 1,
+          },
+        })
+      )
+    ).toBe(true);
+  });
+
+  test('reads uploads from both the story and the blob', () => {
+    const post = {
+      content: [
+        {
+          block: {
+            image: {
+              src: 'https://cdn.example.com/photo.jpg',
+              width: 1,
+              height: 1,
+              alt: '',
+            },
+          },
+        },
+      ],
+      blob: JSON.stringify([
+        {
+          type: 'file',
+          version: 1,
+          fileUri: 'https://cdn.example.com/notes.txt',
+          size: 3,
+        },
+      ]),
+    } as unknown as db.Post;
+
+    expect(uploadedFileUrlsOfPost(post)).toEqual([
+      'https://cdn.example.com/notes.txt',
+      'https://cdn.example.com/photo.jpg',
+    ]);
+  });
+
+  test('offers nothing for content it cannot read', () => {
+    expect(
+      uploadedFileUrlsOfPost({ content: '{not json', blob: null } as db.Post)
+    ).toEqual([]);
   });
 });
 

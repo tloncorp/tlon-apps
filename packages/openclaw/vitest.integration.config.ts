@@ -19,6 +19,11 @@ export default defineConfig({
     sequence: { shuffle: false },
     pool: 'forks',
     fileParallelism: false,
-    exclude: [...configDefaults.exclude, '**/.pnpm-store/**'],
+    // Hermetic tool-file tests use Bun and run via test:tool-files.
+    exclude: [
+      ...configDefaults.exclude,
+      '**/.pnpm-store/**',
+      'test/hermetic/**',
+    ],
   },
 });

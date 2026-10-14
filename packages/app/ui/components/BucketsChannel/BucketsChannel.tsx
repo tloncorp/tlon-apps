@@ -1,4 +1,5 @@
 import { FlashList, FlashListRef } from '@shopify/flash-list';
+import { formatBucketContents } from '@tloncorp/shared/logic';
 import {
   Button,
   FilePreview,
@@ -13,8 +14,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack, getTokenValue } from 'tamagui';
 
 import { calculateBucketUploadProgress } from '../../../utils/bucketUploadProgress';
+import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { Badge } from '../Badge';
+import { useContactName } from '../ContactNameV2';
 import { TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { NotesActionMenu } from '../NotesChannel/NotesActions';
@@ -30,11 +33,14 @@ export type BucketItem = {
   id: string;
   kind: 'file' | 'folder';
   name: string;
+  /** The last editor's user id. Rows show their name as the app does. */
   author: string;
   isBot?: boolean;
   modifiedLabel: string;
   sizeLabel?: string;
-  itemCount?: number;
+  /** Folder-only: what the folder holds, through every level beneath it. */
+  fileCount?: number;
+  folderCount?: number;
   mimeType?: string;
   previewUri?: string;
   /** Bytes, from the manifest. Present for published files. */
@@ -216,9 +222,11 @@ export function BucketsPane({
   layout = 'stack',
   rootLabel = 'Project Files',
   selectedItemId,
+  showBreadcrumb = true,
   state = 'populated',
   uploadAggregateProgress,
   uploadItems,
+  onCopyItemLink,
   onDeleteItem,
   onDownloadItem,
   onCancelUpload,
@@ -227,6 +235,7 @@ export function BucketsPane({
   onNavigateRoot,
   onOpenItem,
   onRenameItem,
+  onRemoveFailedUploads,
   onRetryUpload,
 }: {
   canEdit: boolean;
@@ -235,9 +244,12 @@ export function BucketsPane({
   layout?: 'stack' | 'takeover';
   rootLabel?: string;
   selectedItemId?: string | null;
+  /** Off where the header above already names `currentFolder`. */
+  showBreadcrumb?: boolean;
   state?: BucketsPaneState;
   uploadAggregateProgress?: number;
   uploadItems?: BucketItem[];
+  onCopyItemLink?: (item: BucketItem) => void;
   onDeleteItem?: (item: BucketItem) => void;
   onDownloadItem?: (item: BucketItem) => void;
   onCancelUpload?: (item: BucketItem) => void;
@@ -246,6 +258,7 @@ export function BucketsPane({
   onNavigateRoot?: () => void;
   onOpenItem: (item: BucketItem) => void;
   onRenameItem?: (item: BucketItem) => void;
+  onRemoveFailedUploads?: (items: BucketItem[]) => void;
   onRetryUpload?: (item: BucketItem) => void;
 }) {
   const listRef = useRef<FlashListRef<BucketItem>>(null);
@@ -268,8 +281,9 @@ export function BucketsPane({
   }, [selectedIndex]);
 
   const populated = state === 'populated' && items.length > 0;
+  const breadcrumbShown = !!currentFolder && showBreadcrumb;
   const horizontalPadding = getTokenValue('$l', 'size');
-  const topPadding = getTokenValue(currentFolder ? '$xs' : '$m', 'size');
+  const topPadding = getTokenValue(breadcrumbShown ? '$xs' : '$m', 'size');
 
   return (
     <BucketsDropTarget
@@ -280,7 +294,7 @@ export function BucketsPane({
       onFilesDropped={onFilesDropped}
     >
       <YStack flex={1} minHeight={0} backgroundColor="$background">
-        {currentFolder ? (
+        {currentFolder && breadcrumbShown ? (
           <BucketBreadcrumb
             rootLabel={rootLabel}
             folderLabel={currentFolder}
@@ -309,6 +323,7 @@ export function BucketsPane({
                   canEdit={canEdit}
                   item={item}
                   selected={selectedItemId === item.id}
+                  onCopyItemLink={onCopyItemLink}
                   onDeleteItem={onDeleteItem}
                   onDownloadItem={onDownloadItem}
                   onCancelUpload={onCancelUpload}
@@ -327,7 +342,7 @@ export function BucketsPane({
               maxWidth={layout === 'takeover' ? 'unset' : 760}
               marginHorizontal="auto"
               paddingHorizontal="$l"
-              paddingTop={currentFolder ? '$xs' : '$m'}
+              paddingTop={breadcrumbShown ? '$xs' : '$m'}
               paddingBottom="$2xl"
             >
               {state === 'loading' ? (
@@ -342,6 +357,7 @@ export function BucketsPane({
           <BucketsUploadTray
             aggregateProgress={uploadAggregateProgress}
             items={trayItems}
+            onRemoveFailedUploads={onRemoveFailedUploads}
             onRetryUpload={onRetryUpload}
           />
         ) : null}
@@ -354,6 +370,7 @@ function BucketRow({
   canEdit,
   item,
   selected,
+  onCopyItemLink,
   onDeleteItem,
   onDownloadItem,
   onCancelUpload,
@@ -365,6 +382,7 @@ function BucketRow({
   canEdit: boolean;
   item: BucketItem;
   selected: boolean;
+  onCopyItemLink?: (item: BucketItem) => void;
   onDeleteItem?: (item: BucketItem) => void;
   onDownloadItem?: (item: BucketItem) => void;
   onCancelUpload?: (item: BucketItem) => void;
@@ -377,6 +395,15 @@ function BucketRow({
   const [isFocused, setIsFocused] = useState(false);
   const [open, setOpen] = useState(false);
   const isWindowNarrow = useIsWindowNarrow();
+  const authorName = useContactName(item.author);
+  // Rename, move and preview each present another sheet, so they wait for
+  // the menu to finish dismissing.
+  const { dismissThenRun, onDismissed, presentationKey } =
+    useSheetDismissalAction({
+      open,
+      onOpenChange: setOpen,
+      waitForDismissal: Platform.OS !== 'web',
+    });
   // Focus counts as well as hover. Keeping the trigger out of the DOM until
   // a pointer arrives put every action behind it -- delete included -- out of
   // reach of the keyboard and of anything driving the page through one.
@@ -396,6 +423,12 @@ function BucketRow({
         startIcon: 'ArrowDown',
         action: () => onDownloadItem?.(item),
       },
+      item.kind === 'file' &&
+        onCopyItemLink && {
+          title: 'Copy link',
+          startIcon: 'Link',
+          action: () => onCopyItemLink(item),
+        },
     ],
     canEdit &&
       (onRenameItem || onMoveItem) && [
@@ -474,7 +507,7 @@ function BucketRow({
           >
             {item.name}
           </ListItem.Title>
-          <BucketItemMetadata item={item} />
+          <BucketItemMetadata authorName={authorName} item={item} />
         </ListItem.MainContent>
         <ListItem.EndContent minWidth="$3xl">
           {uploadState === 'failed' ? (
@@ -502,14 +535,17 @@ function BucketRow({
             />
           ) : showOverflow ? (
             <NotesActionMenu
+              key={presentationKey}
               groups={groups}
               header={{
                 icon: item.kind === 'folder' ? 'Folder' : 'Attachment',
-                subtitle: metadataLabel(item),
+                subtitle: metadataLabel(item, authorName),
                 title: item.name,
               }}
               open={open}
+              onAction={(action) => dismissThenRun(() => action?.())}
               onOpenChange={setOpen}
+              onNativeDismissed={onDismissed}
               trigger={trigger}
             />
           ) : item.kind === 'folder' ? (
@@ -528,6 +564,7 @@ function BucketSearchRow({
   result: BucketSearchResult;
   onOpenResult: (result: BucketSearchResult) => void;
 }) {
+  const authorName = useContactName(result.author);
   return (
     <Pressable
       aria-label={`Open ${result.name} in ${result.pathLabel}`}
@@ -560,9 +597,7 @@ function BucketSearchRow({
               size="$label/m"
             >
               {result.pathLabel}
-              {result.kind === 'file' && result.author
-                ? ` · ${result.author}`
-                : ''}
+              {result.kind === 'file' && authorName ? ` · ${authorName}` : ''}
             </Text>
             {result.isBot ? (
               <Badge type="neutral" size="micro" text="Bot" />
@@ -605,7 +640,6 @@ export function BucketsRenameSheet({
     <ActionSheet
       closeButton={isWeb}
       dialogContentProps={{ width: 420, maxWidth: '90%', minWidth: 320 }}
-      keyboardBehavior="interactive"
       moveOnKeyboardChange
       open={item !== null}
       onOpenChange={onOpenChange}
@@ -743,6 +777,12 @@ export function BucketsNewSheet({
   const [folderName, setFolderName] = useState('');
   const isWeb = Platform.OS === 'web';
   const normalizedFolderName = folderName.trim();
+  // The system pickers cannot present while the sheet is still dismissing.
+  const { dismissThenRun, onDismissed, presentationKey } =
+    useSheetDismissalAction({
+      open,
+      onOpenChange,
+    });
 
   useEffect(() => {
     if (open) {
@@ -759,12 +799,13 @@ export function BucketsNewSheet({
 
   return (
     <ActionSheet
+      key={presentationKey}
       closeButton={isWeb}
       dialogContentProps={{ width: 420, maxWidth: '90%', minWidth: 320 }}
-      keyboardBehavior="interactive"
       moveOnKeyboardChange
       open={open}
       onOpenChange={onOpenChange}
+      onNativeDismissed={onDismissed}
       modal
       snapPointsMode="fit"
       title={view === 'folder' ? 'New folder' : 'New'}
@@ -782,10 +823,7 @@ export function BucketsNewSheet({
                 action={{
                   title: 'Upload files',
                   startIcon: 'Attachment',
-                  action: () => {
-                    onOpenChange(false);
-                    onUploadFiles();
-                  },
+                  action: () => dismissThenRun(onUploadFiles),
                 }}
                 testID="BucketsUploadFilesAction"
               />
@@ -793,10 +831,7 @@ export function BucketsNewSheet({
                 action={{
                   title: 'Choose photos',
                   startIcon: 'Camera',
-                  action: () => {
-                    onOpenChange(false);
-                    onChoosePhotos();
-                  },
+                  action: () => dismissThenRun(onChoosePhotos),
                 }}
                 testID="BucketsChoosePhotosAction"
               />
@@ -886,13 +921,15 @@ function BucketItemIcon({ item }: { item: BucketItem }) {
   );
 }
 
-function BucketItemMetadata({ item }: { item: BucketItem }) {
+function BucketItemMetadata({
+  authorName,
+  item,
+}: {
+  authorName: string;
+  item: BucketItem;
+}) {
   if (item.kind === 'folder') {
-    return (
-      <ListItem.Subtitle>
-        {item.itemCount === 1 ? '1 item' : `${item.itemCount ?? 0} items`}
-      </ListItem.Subtitle>
-    );
+    return <ListItem.Subtitle>{folderContentsLabel(item)}</ListItem.Subtitle>;
   }
 
   const uploadState = uploadStateFor(item);
@@ -919,8 +956,13 @@ function BucketItemMetadata({ item }: { item: BucketItem }) {
     return (
       <XStack alignItems="center" gap="$s" minWidth={0}>
         <XStack alignItems="center" gap="$xs" flex={1} minWidth={0}>
-          <Text color="$tertiaryText" numberOfLines={1} size="$label/m">
-            {item.author}
+          <Text
+            color="$tertiaryText"
+            flexShrink={1}
+            numberOfLines={1}
+            size="$label/m"
+          >
+            {authorName}
           </Text>
           {item.isBot ? <Badge type="neutral" size="micro" text="Bot" /> : null}
           <Text
@@ -939,8 +981,13 @@ function BucketItemMetadata({ item }: { item: BucketItem }) {
 
   return (
     <XStack alignItems="center" gap="$xs" minWidth={0}>
-      <Text color="$tertiaryText" numberOfLines={1} size="$label/m">
-        {item.author}
+      <Text
+        color="$tertiaryText"
+        flexShrink={1}
+        numberOfLines={1}
+        size="$label/m"
+      >
+        {authorName}
       </Text>
       {item.isBot ? <Badge type="neutral" size="micro" text="Bot" /> : null}
       <Text
@@ -1027,10 +1074,12 @@ function UploadProgress({ progress }: { progress: number }) {
 function BucketsUploadTray({
   aggregateProgress,
   items,
+  onRemoveFailedUploads,
   onRetryUpload,
 }: {
   aggregateProgress?: number;
   items: BucketItem[];
+  onRemoveFailedUploads?: (items: BucketItem[]) => void;
   onRetryUpload?: (item: BucketItem) => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -1098,6 +1147,18 @@ function BucketsUploadTray({
             : 'You can keep browsing'}
         </Text>
       </YStack>
+      {failedItems.length > 0 && onRemoveFailedUploads ? (
+        <UploadAction
+          accessibilityLabel={
+            failedItems.length === 1
+              ? 'Remove failed upload'
+              : 'Remove failed uploads'
+          }
+          label={failedItems.length === 1 ? 'Remove' : 'Remove failed'}
+          onPress={() => onRemoveFailedUploads(failedItems)}
+          testID="BucketsRemoveFailedUploads"
+        />
+      ) : null}
       {failedItems.length > 0 ? (
         <UploadAction
           accessibilityLabel={
@@ -1222,12 +1283,19 @@ function BucketsEmptyState({ canEdit }: { canEdit: boolean }) {
   );
 }
 
-function metadataLabel(item: BucketItem) {
+function folderContentsLabel(item: BucketItem) {
+  return formatBucketContents({
+    fileCount: item.fileCount ?? 0,
+    folderCount: item.folderCount ?? 0,
+  });
+}
+
+function metadataLabel(item: BucketItem, authorName: string) {
   if (item.kind === 'folder') {
-    return item.itemCount === 1 ? '1 item' : `${item.itemCount ?? 0} items`;
+    return folderContentsLabel(item);
   }
 
-  return [item.author, item.modifiedLabel, item.sizeLabel]
+  return [authorName, item.modifiedLabel, item.sizeLabel]
     .filter(Boolean)
     .join(' · ');
 }

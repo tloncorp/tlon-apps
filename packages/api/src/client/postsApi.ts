@@ -41,6 +41,7 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
+import { postHasBrowserHandoff } from './content-helpers';
 import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { referenceLookupId } from './references';
 import {
@@ -168,6 +169,14 @@ function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
   });
 }
 
+function assertBrowserHandoffDestination(channelId: string, blob?: string) {
+  if (blob && !isDmChannelId(channelId) && postHasBrowserHandoff(blob)) {
+    throw new Error(
+      'Browser login handoffs can only be sent in a one-to-one DM.'
+    );
+  }
+}
+
 export const sendPost = async ({
   channelId,
   authorId,
@@ -185,6 +194,7 @@ export const sendPost = async ({
   metadata?: db.PostMetadata;
   botProfile?: AuthorProfile;
 }) => {
+  assertBrowserHandoffDestination(channelId, blob);
   logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
 
@@ -262,6 +272,7 @@ export const editPost = async ({
   // Bot tag. Callers pass the existing post's authorship shape back in.
   botProfile?: AuthorProfile;
 }) => {
+  assertBrowserHandoffDestination(channelId, blob);
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
@@ -348,6 +359,7 @@ export const sendReply = async ({
   sentAt: number;
   botProfile?: AuthorProfile;
 }) => {
+  assertBrowserHandoffDestination(channelId, blob);
   const author = toAuthor(authorId, botProfile);
 
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {

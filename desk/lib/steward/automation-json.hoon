@@ -46,6 +46,39 @@
     ^-  task-payload:v1:a
     :*  (optional 'kind' so jon)
         (optional 'message' so jon)
+        (optional 'toolsAllow' (ar so) jon)
+    ==
+  ++  delivery-mode
+    |=  jon=json
+    ^-  delivery-mode:v1:a
+    =/  mode  (so jon)
+    ?:  =('none' mode)      %none
+    ?:  =('announce' mode)  %announce
+    ?:  =('webhook' mode)   %webhook
+    ~|(bad-delivery-mode+mode !!)
+  ++  failure-mode
+    |=  jon=json
+    ^-  ?(%announce %webhook)
+    =/  mode  (so jon)
+    ?:  =('announce' mode)  %announce
+    ?:  =('webhook' mode)   %webhook
+    ~|(bad-delivery-mode+mode !!)
+  ++  failure-destination
+    |=  jon=json
+    ^-  failure-destination:v1:a
+    :*  (optional 'mode' failure-mode jon)
+        (optional 'channel' so jon)
+        (optional 'to' so jon)
+        (optional 'accountId' so jon)
+    ==
+  ++  delivery
+    |=  jon=json
+    ^-  delivery:v1:a
+    :*  (optional 'mode' delivery-mode jon)
+        (optional 'channel' so jon)
+        (optional 'to' so jon)
+        (optional 'accountId' so jon)
+        (optional 'failureDestination' failure-destination jon)
     ==
   ++  task
     |=  jon=json
@@ -58,6 +91,7 @@
         (optional 'sessionTarget' so jon)
         (optional 'wakeMode' so jon)
         (optional 'payload' payload jon)
+        (optional 'delivery' delivery jon)
         (optional 'createdAtMs' date jon)
         (optional 'updatedAtMs' date jon)
     ==
@@ -182,6 +216,40 @@
     =/  fields=(list [@t json])  ~
     =.  fields  ?~(kind.payload fields [['kind' s+u.kind.payload] fields])
     =.  fields  ?~(message.payload fields [['message' s+u.message.payload] fields])
+    =.  fields
+      ?~  tools-allow.payload
+        fields
+      :_  fields
+      ['toolsAllow' a+(turn u.tools-allow.payload |=(t=@t s+t))]
+    (pairs fields)
+  ++  failure-destination
+    |=  dest=failure-destination:v1:a
+    ^-  json
+    =/  fields=(list [@t json])  ~
+    =.  fields  ?~(mode.dest fields [['mode' s+(scot %tas u.mode.dest)] fields])
+    =.  fields  ?~(channel.dest fields [['channel' s+u.channel.dest] fields])
+    =.  fields  ?~(to.dest fields [['to' s+u.to.dest] fields])
+    =.  fields
+      ?~(account-id.dest fields [['accountId' s+u.account-id.dest] fields])
+    (pairs fields)
+  ++  delivery
+    |=  =delivery:v1:a
+    ^-  json
+    =/  fields=(list [@t json])  ~
+    =.  fields
+      ?~(mode.delivery fields [['mode' s+(scot %tas u.mode.delivery)] fields])
+    =.  fields
+      ?~(channel.delivery fields [['channel' s+u.channel.delivery] fields])
+    =.  fields  ?~(to.delivery fields [['to' s+u.to.delivery] fields])
+    =.  fields
+      ?~  account-id.delivery
+        fields
+      [['accountId' s+u.account-id.delivery] fields]
+    =.  fields
+      ?~  failure-destination.delivery
+        fields
+      :_  fields
+      ['failureDestination' (failure-destination u.failure-destination.delivery)]
     (pairs fields)
   ++  task
     |=  =task:v1:a
@@ -201,6 +269,8 @@
     =.  fields  ?~(wake-mode.task fields [['wakeMode' s+u.wake-mode.task] fields])
     =.  fields
       ?~(payload.task fields [['payload' (payload u.payload.task)] fields])
+    =.  fields
+      ?~(delivery.task fields [['delivery' (delivery u.delivery.task)] fields])
     =.  fields
       ?~  created-at.task
         fields

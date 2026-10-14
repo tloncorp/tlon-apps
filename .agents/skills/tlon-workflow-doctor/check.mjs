@@ -105,6 +105,33 @@ const checks = [
     },
   },
   {
+    name: 'node',
+    test() {
+      // stim and eas run on the node that resolves on PATH, which need not be
+      // the one running this script. Off the pinned major, the failure lands
+      // far from its cause: Node 26's stripTypeScriptTypes rejects the
+      // `transform` mode @expo/require-utils loads app.config.ts with, so
+      // `expo config` exits 1 and eas prints no JSON.
+      const pin = readFileSync(join(REPO, '.nvmrc'), 'utf8').trim();
+      const major = (v) => v?.match(/^v?(\d+)/)?.[1];
+      const how = `nvm use && nvm alias default ${pin}`;
+      const path = which('node');
+      if (!path) return { fix: 'node is not on PATH', how };
+      const onPath = version('node');
+      if (major(onPath) !== major(pin))
+        return {
+          fix: `node ${onPath} at ${path}, which stim and eas run on; .nvmrc pins ${pin}`,
+          how,
+        };
+      if (major(process.version) !== major(pin))
+        return {
+          fix: `this script runs on node ${process.version.slice(1)}; .nvmrc pins ${pin} (PATH has ${onPath})`,
+          how,
+        };
+      return { ok: `node ${onPath} at ${path}` };
+    },
+  },
+  {
     name: 'stim',
     test() {
       const path = which('stim');
@@ -202,8 +229,21 @@ const checks = [
       try {
         available = JSON.parse(gate.stdout).available;
       } catch {
+        const err = gate.stderr
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .join('\n      ');
+        // eas evaluates app.config.ts through `expo config`, and says only
+        // that it exited; eas-cli itself is not what failed. Rerun it in APP,
+        // where eas ran: a cold worktree has no expo for npx to find.
+        if (/ config --json exited/.test(gate.stderr))
+          return {
+            fix: `eas simulator:availability could not read the Expo config:\n      ${err}`,
+            how: `cd ${APP} && npx expo config --json`,
+          };
         return {
-          fix: `eas simulator:availability did not return JSON (eas-cli ${v} may predate it)`,
+          fix: `eas simulator:availability did not return JSON (eas-cli ${v} may predate it)${err ? `:\n      ${err}` : ''}`,
           how: 'npm install -g eas-cli@latest',
           cmd: ['npm', ['install', '-g', 'eas-cli@latest']],
         };

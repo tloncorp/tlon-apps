@@ -1,3 +1,5 @@
+import catalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
+import { ALLOWED_TLON_COMMANDS } from './tlon-tool-guard.js';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -38,6 +40,133 @@ function beforeImmediate<T>(promise: Promise<T>) {
 }
 
 describe('tlon tool execution', () => {
+  it.each(['--help', '-h', '', '--version', '-v'])(
+    'classifies discovery as a known utility: %s',
+    (command) => {
+      expect(summarizeTlonCommand(command)).toMatchObject({
+        isKnownSubcommand: true,
+        intent: 'utility',
+      });
+    }
+  );
+
+  it('keeps reviewed tool policy aligned with the discoverable command catalog', () => {
+    // A catalog addition must be explicitly reviewed in the policy list.
+    expect(
+      ALLOWED_TLON_COMMANDS.filter(
+        (name) => !['help', 'version', 'notebook'].includes(name)
+      ).sort()
+    ).toEqual(Object.keys(catalog).sort());
+  });
+
+  it.each(['help', '--help', '-h', ''])(
+    'answers top-level discovery locally: %s',
+    async (command) => {
+      const runCommand = vi.fn();
+      const execute = createTlonToolExecutor({
+        runCommand,
+        notifyDiaryMigrationDiscovery: vi.fn(),
+      });
+      const result = await execute('help', { command });
+      expect(result.details).toBeUndefined();
+      expect(result.content[0].text).toContain('help notes note-create');
+      expect(result.content[0].text).toContain('stdin is shell-only');
+      expect(runCommand).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    'notes note-create notes/~zod/blog root "Title" --stdin',
+    'notes note-update notes/~zod/blog 1 --stdin',
+    '--config /tmp/owner.json notes note-update notes/~zod/blog 1 --stdin',
+    'upload --stdin -t image/png',
+  ])('rejects unsupported input before spawning: %s', async (command) => {
+    const runCommand = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(),
+    });
+    const result = await execute('stdin', { command });
+    expect(runCommand).not.toHaveBeenCalled();
+    expect(result.details).toMatchObject({ status: 'error' });
+    expect(result.content[0].text).toContain('cannot supply stdin');
+    expect(result.content[0].text).toContain('--body <file>');
+  });
+
+  it.each([
+    'notes note-create notes/~zod/blog root "--stdin" --body post.md',
+    'notes note-update notes/~zod/blog 1 --stdin --help',
+    'upload --help',
+  ])('preserves literal titles and CLI help: %s', async (command) => {
+    const runCommand = vi.fn().mockResolvedValue('ok');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(),
+    });
+    expect((await execute('help', { command })).details).toBeUndefined();
+    expect(runCommand).toHaveBeenCalledOnce();
+  });
+
+  describe('browser handoff credential binding', () => {
+    it.each(
+      ['--config', '--ship', '--url', '--code', '--cookie']
+        .flatMap((flag) => [
+          `${flag} private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
+          `${flag}=private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
+          `browser handoff https://browser-session.tlon.network/s/private.signature ${flag}=private-value`,
+        ])
+        .flatMap((command) => [
+          command,
+          command.replace('browser handoff', 'browser share'),
+        ])
+    )(
+      'rejects an override without executing or logging the capability (%s)',
+      async (command) => {
+        const runCommand = vi.fn();
+        const logError = vi.fn();
+        const execute = createTlonToolExecutor({
+          runCommand,
+          logError,
+          notifyDiaryMigrationDiscovery: vi.fn(),
+        });
+        const result = await execute('handoff', { command });
+        expect(runCommand).not.toHaveBeenCalled();
+        expect(result.details).toMatchObject({
+          status: 'blocked',
+          reason: 'browser_account_override',
+        });
+        expect(JSON.stringify([result, logError.mock.calls])).not.toContain(
+          'private-value'
+        );
+        expect(JSON.stringify([result, logError.mock.calls])).not.toContain(
+          'private.signature'
+        );
+      }
+    );
+
+    it('runs a handoff without overrides and leaves ordinary credential overrides available', async () => {
+      const runCommand = vi.fn().mockResolvedValue('ok');
+      const execute = createTlonToolExecutor({
+        runCommand,
+        notifyDiaryMigrationDiscovery: vi.fn(),
+      });
+      await execute('handoff', {
+        command:
+          'browser handoff https://browser-session.tlon.network/s/payload.signature',
+      });
+      await execute('read', {
+        command: '--config /tmp/other.json contacts self',
+      });
+      expect(runCommand).toHaveBeenCalledTimes(2);
+      expect(runCommand).toHaveBeenLastCalledWith([
+        '--config',
+        '/tmp/other.json',
+        'contacts',
+        'self',
+      ]);
+    });
+  });
+
   it('returns a local diary refusal before discovery delivery settles and preserves notifier deduplication', async () => {
     let settleSend!: (messageId: string | undefined) => void;
     const send = vi.fn(
@@ -219,6 +348,100 @@ describe('tlon tool execution', () => {
       reason: 'migration_operation',
     });
   });
+
+  it.each([
+    { id: 'auto-provision', component: 'Button' },
+    { id: 'another-button', component: 'Button' },
+    { id: 'topic-choice', component: 'SmallChoice' },
+  ])(
+    'reserves $component provisioning blobs for the typed task-plan tool',
+    async (component) => {
+      const runCommand = vi.fn(async () => 'unexpected CLI invocation');
+      const execute = createTlonToolExecutor({
+        runCommand,
+        notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      });
+      const blob = JSON.stringify([
+        {
+          type: 'a2ui',
+          messages: [
+            {
+              updateComponents: {
+                components: [
+                  {
+                    ...component,
+                    action: {
+                      event: { name: 'tlon.provisionAgent', context: {} },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const result = await execute('reserved-auto-provision', {
+        command: `posts send chat/~zod/home plan --blob '${blob}'`,
+      });
+
+      expect(result).toEqual({
+        content: [
+          {
+            type: 'text',
+            text: expect.stringContaining('tlon_agent_task_plan'),
+          },
+        ],
+        details: {
+          status: 'blocked',
+          blocked: true,
+          reason: 'reserved_automatic_provision',
+        },
+      });
+      expect(runCommand).not.toHaveBeenCalled();
+    }
+  );
+
+  it('blocks model-authored provider configuration actions in post blobs', async () => {
+    const runCommand = vi.fn(async () => 'unexpected CLI invocation');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+    const blob = JSON.stringify([
+      {
+        type: 'a2ui',
+        messages: [
+          {
+            updateComponents: {
+              components: [
+                {
+                  id: 'connected-services',
+                  component: 'McpConnect',
+                  configureAction: {
+                    event: {
+                      name: 'tlon.configureAgentProviders',
+                      context: {},
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+
+    const result = await execute('forged-provider-access', {
+      command: `posts send chat/~zod/home connect --blob '${blob}'`,
+    });
+
+    expect(result.details).toMatchObject({
+      status: 'blocked',
+      reason: 'reserved_provider_configuration',
+    });
+    expect(runCommand).not.toHaveBeenCalled();
+  });
 });
 
 describe('owner credential injection for groups invite-link', () => {
@@ -327,6 +550,15 @@ describe('owner credential injection for groups invite-link', () => {
 });
 
 describe('checkBlockedTlonOperation', () => {
+  it('does not block channels leave or join on chat and heap nests', () => {
+    expect(
+      checkBlockedTlonOperation(['channels', 'leave', 'chat/~zod/x'])
+    ).toBeNull();
+    expect(
+      checkBlockedTlonOperation(['channels', 'join', 'heap/~zod/x'])
+    ).toBeNull();
+  });
+
   it('blocks migration writes after a separate --config prefix', () => {
     expect(
       checkBlockedTlonOperation([
@@ -510,6 +742,21 @@ describe('checkBlockedTlonOperation', () => {
 
 const documentedActionOperations = {
   activity: ['mentions', 'replies', 'all', 'unreads'],
+  browser: ['handoff', 'share'],
+  buckets: [
+    'list',
+    'show',
+    'files',
+    'search',
+    'create',
+    'mkdir',
+    'upload',
+    'read',
+    'rename',
+    'move',
+    'delete',
+    'set-writers',
+  ],
   channels: [
     'dms',
     'group-dms',
@@ -520,6 +767,8 @@ const documentedActionOperations = {
     'update',
     'rename',
     'delete',
+    'leave',
+    'join',
     'add-writers',
     'del-writers',
     'add-readers',
@@ -634,6 +883,40 @@ const documentedActionOperations = {
 } as const;
 
 describe('tlon tool telemetry summarizer', () => {
+  it('classifies Bucket reads, uploads, and destructive operations without leaking paths', () => {
+    const read = summarizeTlonCommand(
+      'buckets read buckets/~zod/private-files 12'
+    );
+    expect(read).toMatchObject({
+      channelKind: 'buckets',
+      intent: 'read',
+      operation: 'read',
+      subcommand: 'buckets',
+    });
+
+    const upload = summarizeTlonCommand(
+      'buckets upload buckets/~zod/private-files ./secret-plan.md -t text/markdown'
+    );
+    expect(upload).toMatchObject({
+      channelKind: 'buckets',
+      contentTypeProvided: true,
+      intent: 'write',
+      operation: 'upload',
+      uploadSource: 'local',
+    });
+    expect(JSON.stringify(upload)).not.toContain('secret-plan.md');
+    expect(JSON.stringify(upload)).not.toContain('private-files');
+
+    const deletion = summarizeTlonCommand(
+      'buckets delete buckets/~zod/private-files 12'
+    );
+    expect(deletion).toMatchObject({
+      channelKind: 'buckets',
+      intent: 'admin',
+      operation: 'delete',
+    });
+  });
+
   it('accounts for documented tlon action operations', () => {
     for (const [subcommand, operations] of Object.entries(
       documentedActionOperations
@@ -819,6 +1102,21 @@ describe('tlon tool telemetry summarizer', () => {
     );
   });
 
+  it('summarizes browser handoff without storing its signed capability', () => {
+    const summary = summarizeTlonCommand(
+      'browser handoff https://browser-session-ovh1.tlon.network/s/private.signature'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'browser.handoff',
+      subcommand: 'browser',
+      operation: 'handoff',
+      intent: 'write',
+      isKnownSubcommand: true,
+    });
+    expect(JSON.stringify(summary)).not.toContain('private.signature');
+  });
+
   it('marks wrong-path DM sends as blocked without storing the target ship', () => {
     const summary = summarizeTlonCommand(
       'dms send ~sampel-palnet "hello there"'
@@ -928,6 +1226,14 @@ describe('tlon tool telemetry summarizer', () => {
     });
 
     expect(JSON.stringify(summary)).not.toContain('General');
+  });
+
+  it('classifies channels leave as a write with its channel kind', () => {
+    expect(summarizeTlonCommand('channels leave chat/~zod/x')).toMatchObject({
+      summaryKey: 'channels.leave',
+      intent: 'write',
+      channelKind: 'chat',
+    });
   });
 
   it('captures notes channel kinds from notes nests', () => {

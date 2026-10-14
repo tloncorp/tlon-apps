@@ -22,6 +22,7 @@ const ENABLE_DB_FILE_LOAD = IS_SECURE_CONTEXT;
 const ENABLE_DB_FILE_SAVE = IS_SECURE_CONTEXT;
 const MIN_FREE_BYTES_BEFORE_VACUUM = 4 * 1024 * 1024;
 const MIN_FREE_RATIO_BEFORE_VACUUM = 0.25;
+const SQLITE_WASM_BASENAME = /^sqlite3-[A-Za-z0-9_-]+\.wasm$/;
 
 /** Stage of `setupDb` in progress, reported when setup fails. */
 type SetupPhase =
@@ -35,6 +36,88 @@ type SetupPhase =
 type WebDbOptions = {
   enableStoragePersistence?: boolean;
 };
+
+type WasmResourceDiagnostics = {
+  file: string;
+  responseStatus: number | undefined;
+  transferSize: number;
+  encodedBodySize: number;
+  duration: number;
+  startedAfterSetupMs: number;
+};
+
+function readNow(): number | null {
+  try {
+    return typeof performance === 'undefined' ? null : performance.now();
+  } catch {
+    return null;
+  }
+}
+
+// The sqlite WASM fetch fails inside SQLocal, out of reach of our catch, so its
+// resource timing is the only trace of it we can attach to the setup failure.
+// Only a validated basename is reported, never a URL.
+function findWasmResource(
+  setupStartedAt: number | null
+): WasmResourceDiagnostics | null {
+  if (setupStartedAt == null) {
+    return null;
+  }
+  try {
+    if (typeof performance === 'undefined' || typeof location === 'undefined') {
+      return null;
+    }
+    let match: { entry: PerformanceResourceTiming; file: string } | null = null;
+    for (const entry of performance.getEntriesByType(
+      'resource'
+    ) as PerformanceResourceTiming[]) {
+      if (entry.startTime < setupStartedAt) {
+        continue;
+      }
+      if (match && entry.startTime < match.entry.startTime) {
+        continue;
+      }
+      const url = new URL(entry.name);
+      const file = url.pathname.split('/').pop() ?? '';
+      if (url.origin === location.origin && SQLITE_WASM_BASENAME.test(file)) {
+        match = { entry, file };
+      }
+    }
+    if (!match) {
+      return null;
+    }
+    const { entry, file } = match;
+    return {
+      file,
+      responseStatus: entry.responseStatus,
+      transferSize: entry.transferSize,
+      encodedBodySize: entry.encodedBodySize,
+      duration: entry.duration,
+      startedAfterSetupMs: entry.startTime - setupStartedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readSwControlled(): boolean | undefined {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.serviceWorker) {
+      return undefined;
+    }
+    return Boolean(navigator.serviceWorker.controller);
+  } catch {
+    return undefined;
+  }
+}
+
+function readOnline(): boolean | undefined {
+  try {
+    return typeof navigator === 'undefined' ? undefined : navigator.onLine;
+  } catch {
+    return undefined;
+  }
+}
 
 // crypto.randomUUID() is only available in secure contexts. Polyfill it
 // for plain HTTP so that SQLocal (which uses it internally) can function.
@@ -66,6 +149,7 @@ export class WebDb extends BaseDb {
     // the resulting error rarely says which one gave out. Tracking the phase is
     // what makes the reported failure diagnosable.
     let phase: SetupPhase = 'connect';
+    const setupStartedAt = readNow();
     // Whether the shared client ever got registered decides whether the rest of
     // the session has a database at all, so report it outright.
     let clientRegistered = false;
@@ -75,16 +159,26 @@ export class WebDb extends BaseDb {
       // :memory: databases), SQLocal's processor.postMessage is async and
       // queries can race ahead of initialization without this.
       const sqlocal = await new Promise<SQLocalDrizzle>((resolve, reject) => {
+        let abandoned = false;
         const instance = new SQLocalDrizzle({
           databasePath: ':memory:',
           verbose: false,
           onConnect: () => {
+            if (abandoned) {
+              // Connected after we gave up; the retry owns the database now.
+              // Once connected, destroy() settles and touches only this instance.
+              instance.destroy().catch(() => undefined);
+              return;
+            }
             clearTimeout(timeout);
             resolve(instance);
           },
         });
         const timeout = setTimeout(() => {
-          instance.destroy();
+          // No destroy() here: on an instance that never connected it never
+          // settles and holds SQLocal's origin-wide mutation lock, which wedges
+          // the retry's overwriteDatabaseFile and every later query.
+          abandoned = true;
           reject(new Error('SQLocal init timed out'));
         }, 15000);
       });
@@ -202,6 +296,9 @@ export class WebDb extends BaseDb {
         secureContext: IS_SECURE_CONTEXT,
         error: e,
         errorMessage: e.message,
+        wasmResource: findWasmResource(setupStartedAt),
+        swControlled: readSwControlled(),
+        online: readOnline(),
         severity: AnalyticsSeverity.Critical,
       });
       // An instance without a registered client is useless, and leaving it set

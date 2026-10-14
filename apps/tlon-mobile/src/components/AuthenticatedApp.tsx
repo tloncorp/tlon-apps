@@ -1,4 +1,3 @@
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import NetInfo, { useNetInfo } from '@react-native-community/netinfo';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
@@ -27,9 +26,11 @@ import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
   ForwardPostSheetProvider,
   LoadingSpinner,
+  View,
   ZStack,
   useWebAppSplash,
 } from '@tloncorp/app/ui';
+import { MessageTextSelectionProvider } from '@tloncorp/app/ui/components/ChatMessage/MessageTextSelectionSheet';
 import {
   createDevLogger,
   observeSyncSinceCompletion,
@@ -394,30 +395,24 @@ function AuthenticatedAppContent({
 
   if (!clientReady || isProbingColdStart) {
     return (
-      <ZStack flex={1} alignItems="center" justifyContent="center">
+      <View flex={1} alignItems="center" justifyContent="center">
         <LoadingSpinner />
-      </ZStack>
+      </View>
     );
   }
 
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-      {/*
-        Re-root BottomSheetModalProvider here so @gorhom/bottom-sheet modal
-        sheets have access to `AppDataContext`. Tamagui sheets don't need a
-        re-rooted PortalProvider: native portals (react-native-teleport) keep
-        the React tree in place, so portaled content already sees this context.
-      */}
-      <BottomSheetModalProvider>
-        <ForwardPostSheetProvider>
+      <ForwardPostSheetProvider>
+        <MessageTextSelectionProvider>
           <ShareIntentForwardSheetProvider enabled>
             <AuthenticatedApp
               onLogout={onLogout}
               requireHostingAuth={requireHostingAuth}
             />
           </ShareIntentForwardSheetProvider>
-        </ForwardPostSheetProvider>
-      </BottomSheetModalProvider>
+        </MessageTextSelectionProvider>
+      </ForwardPostSheetProvider>
     </AppDataProvider>
   );
 }
@@ -550,9 +545,9 @@ export default function ConnectedAuthenticatedApp({
 
   if (hostingAuthState === 'checking' || !checkedConnection) {
     return (
-      <ZStack flex={1} alignItems="center" justifyContent="center">
+      <View flex={1} alignItems="center" justifyContent="center">
         <LoadingSpinner />
-      </ZStack>
+      </View>
     );
   }
 

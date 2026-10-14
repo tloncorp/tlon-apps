@@ -498,7 +498,7 @@ export const leaveChannel = async (channelId: string) => {
     },
     {},
     (event) => {
-      return 'leave' in event.response && event.response.leave === channelId;
+      return 'leave' in event.response && event.nest === channelId;
     },
     { tag: 'leaveChannel' }
   );

@@ -37,6 +37,12 @@ export const groups = {
     path: '/gangs/{groupId*}/preview',
     since: '12.2.0',
   },
+  channelPreview: {
+    kind: 'subscribe',
+    agent: 'groups',
+    path: '/v1/channels/{app}/{ship}/{name}/preview',
+    since: '7.3.0',
+  },
   gangIndex: {
     kind: 'subscribe',
     agent: 'groups',

@@ -78,6 +78,7 @@ import {
   isSubcommandHelpRequest,
   looksLikePositionalChannelKind,
   printErrorAndExit,
+  channelCreateUsage,
   printHelpAndExit,
   printUsageAndExit,
   refuseNotesChannelDescription,
@@ -96,6 +97,7 @@ import { INVITE_LINK_HELP } from './commands/invite-link';
 import { runInviteLinkCommand } from './invite-link-runtime';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
+import { sleep } from './runtime-deps';
 
 const ADMIN_ROLE_ID = 'admin';
 const GROUP_UPDATE_FLAGS = ['title', 'description', 'image', 'cover'] as const;
@@ -113,6 +115,8 @@ function generateGroupSlug(): string {
 }
 
 const GROUPS_HELP = `Usage: tlon groups <command>
+
+The Tlon Messenger app calls groups "workspaces".
 
 Commands:
   list
@@ -144,7 +148,7 @@ Commands:
   reject-join <group-id> <ship> [<ship2> ...]
   promote <group-id> <ship> [<ship2> ...]
   demote <group-id> <ship> [<ship2> ...]
-  add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
+  ${channelCreateUsage('add-channel')}
 
 Examples:
   tlon groups info ~host/group-slug
@@ -180,7 +184,7 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
   'reject-join': `Usage: tlon groups reject-join <group-id> <ship> [<ship2> ...]\nExample: tlon groups reject-join ~host/group-slug ~nec`,
   promote: `Usage: tlon groups promote <group-id> <ship> [<ship2> ...]\nExample: tlon groups promote ~host/group-slug ~nec`,
   demote: `Usage: tlon groups demote <group-id> <ship> [<ship2> ...]\nExample: tlon groups demote ~host/group-slug ~nec`,
-  'add-channel': `Usage: tlon groups add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
+  'add-channel': `Usage: ${channelCreateUsage('tlon groups add-channel')}\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
 };
 
 function getGroupsHelp(command?: string) {
@@ -360,10 +364,6 @@ type OwnerAdminVerification =
 
 const VERIFY_ATTEMPTS = 5;
 const VERIFY_DELAY_MS = 500;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function groupHasRole(group: Group, roleId: string): boolean {
   return (group.roles || []).some((role) => role.id === roleId);
@@ -938,6 +938,10 @@ async function createOwnedGroup(
   console.log(`   Description: ${description || '(none)'}`);
   console.log(`   Owner: ${ownerShip}`);
   console.log(`   Channel: ${channelId}`);
+  console.log(`   Ref: /1/group/${groupId}`);
+  console.log(
+    `   Share: include the Ref path in a chat message to post a tappable group card.`
+  );
 
   return { groupId, channelId, ownerShip };
 }
@@ -1478,7 +1482,11 @@ async function main() {
         printUsageAndExit(GROUPS_COMMAND_HELP.create);
       }
       const description = getOption(args, 'description', 2) || '';
-      await createGroupWithChannel(title, description);
+      const { groupId } = await createGroupWithChannel(title, description);
+      console.log(`   Ref: /1/group/${groupId}`);
+      console.log(
+        `   Share: include the Ref path in a chat message to post a tappable group card.`
+      );
       break;
     }
 

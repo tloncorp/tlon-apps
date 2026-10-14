@@ -29,16 +29,47 @@ const PayloadSchema = z
     kind: ExpectedStringSchema.optional(),
     message: ExpectedStringSchema.optional(),
     text: ExpectedStringSchema.optional(),
+    toolsAllow: z.array(ExpectedStringSchema).optional(),
   })
-  .transform(({ kind, message: currentMessage, text: fallbackText }) => {
-    // Current OpenClaw runtime values use `message`. Accept `text` only as a
-    // fallback for the older 2026.5.28 plugin declaration.
-    const message = currentMessage ?? fallbackText;
-    return {
-      ...(kind === undefined ? {} : { kind }),
-      ...(message === undefined ? {} : { message }),
-    };
-  });
+  .transform(
+    ({ kind, message: currentMessage, text: fallbackText, toolsAllow }) => {
+      // Current OpenClaw runtime values use `message`. Accept `text` only as a
+      // fallback for the older 2026.5.28 plugin declaration.
+      const message = currentMessage ?? fallbackText;
+      return {
+        ...(kind === undefined ? {} : { kind }),
+        ...(message === undefined ? {} : { message }),
+        ...(toolsAllow === undefined ? {} : { toolsAllow }),
+      };
+    }
+  );
+
+const FailureDestinationSchema = z
+  .object({
+    mode: z.enum(['announce', 'webhook']).optional(),
+    channel: ExpectedStringSchema.optional(),
+    to: ExpectedStringSchema.optional(),
+    accountId: ExpectedStringSchema.optional(),
+  })
+  .transform((value) => stripUndefined(value));
+
+// The host routes a run's output with this block; the plugin SDK's declared
+// cron job type omits it, so it is read off the job permissively.
+const DeliverySchema = z
+  .object({
+    mode: z.enum(['none', 'announce', 'webhook']).optional(),
+    channel: ExpectedStringSchema.optional(),
+    to: ExpectedStringSchema.optional(),
+    accountId: ExpectedStringSchema.optional(),
+    failureDestination: FailureDestinationSchema.optional(),
+  })
+  .transform((value) => stripUndefined(value));
+
+function stripUndefined<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined)
+  ) as T;
+}
 
 const CronScheduleSchema = z
   .object({
@@ -93,6 +124,7 @@ const CronJobSchema = z
     sessionTarget: ExpectedStringSchema.optional(),
     wakeMode: ExpectedStringSchema.optional(),
     payload: PayloadSchema.optional(),
+    delivery: DeliverySchema.optional(),
     createdAtMs: NaturalNumberSchema.optional(),
     updatedAtMs: NaturalNumberSchema.optional(),
   })
@@ -107,6 +139,7 @@ const CronJobSchema = z
       sessionTarget,
       wakeMode,
       payload,
+      delivery,
       createdAtMs,
       updatedAtMs,
     }) => ({
@@ -119,6 +152,7 @@ const CronJobSchema = z
       ...(sessionTarget === undefined ? {} : { sessionTarget }),
       ...(wakeMode === undefined ? {} : { wakeMode }),
       ...(payload === undefined ? {} : { payload }),
+      ...(delivery === undefined ? {} : { delivery }),
       ...(createdAtMs === undefined ? {} : { createdAtMs }),
       ...(updatedAtMs === undefined ? {} : { updatedAtMs }),
     })

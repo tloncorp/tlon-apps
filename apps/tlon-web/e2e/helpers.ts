@@ -1892,7 +1892,10 @@ export async function reactToMessage(
   await waitForSessionStability(page);
 
   await longPressMessage(page, messageText);
-  await page.getByTestId(`EmojiToolbarButton-${emoji}`).click();
+  const reactionAction = page.getByTestId(`EmojiToolbarButton-${emoji}`);
+  // A visible popup can still place its reaction toolbar above the viewport.
+  await expect(reactionAction).toBeInViewport({ ratio: 1 });
+  await reactionAction.click();
 
   // Map emoji names to actual emoji characters
   const emojiMap = {

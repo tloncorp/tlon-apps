@@ -3,7 +3,7 @@ import type { LinkingOptions } from '@react-navigation/native';
 import {
   DesktopBasePathStackParamList,
   MobileBasePathStackParamList,
-} from './BasePathNavigator';
+} from './types';
 
 export const getMobileLinkingConfig = (
   mode: string
@@ -51,6 +51,20 @@ export const getMobileLinkingConfig = (
             parse: {
               ...parsePathParams('channelId', 'groupId'),
               folderId: Number,
+            },
+          },
+          BucketFolder: {
+            path: 'group/:groupId/channel/:channelId/bucket/folder/:folderId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              folderId: Number,
+            },
+          },
+          BucketFile: {
+            path: 'group/:groupId/channel/:channelId/bucket/file/:entryId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              entryId: Number,
             },
           },
           ChannelSearch: { path: 'channel/:channelId/search' },
@@ -186,6 +200,14 @@ export const getDesktopLinkingConfig = (
                   NotesFolder: {
                     path: 'folder/:folderId',
                     parse: { folderId: Number },
+                  },
+                  BucketFolder: {
+                    path: 'bucket/folder/:folderId',
+                    parse: { folderId: Number },
+                  },
+                  BucketFile: {
+                    path: 'bucket/file/:entryId',
+                    parse: { entryId: Number },
                   },
                   Post: postScreenConfig(mode),
                   MediaViewer: {},

@@ -515,3 +515,92 @@ test('addRole lands a group_roles row for a group the user already joined', asyn
   });
   expect(remainingRoles).toEqual([]);
 });
+
+// Most group payloads carry no member count; upserting one must not clear the
+// count init stored, since the roster init stores is truncated to 15.
+test('addGroup keeps a stored member count when the payload has none', async () => {
+  const groupId = '~bus/count-upsert-group';
+  const base = {
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  };
+
+  await queries.insertGroups({ groups: [{ ...base, memberCount: 40 }] });
+  await batchEffects('test:addGroup-no-count', (ctx) =>
+    handleGroupUpdate({ type: 'addGroup', group: { ...base } }, ctx)
+  );
+  expect((await queries.getGroup({ id: groupId }))?.memberCount).toBe(40);
+
+  await batchEffects('test:addGroup-count', (ctx) =>
+    handleGroupUpdate(
+      { type: 'addGroup', group: { ...base, memberCount: 41 } },
+      ctx
+    )
+  );
+  expect((await queries.getGroup({ id: groupId }))?.memberCount).toBe(41);
+});
+
+test('seat events move a known member count and leave an unknown one null', async () => {
+  const known = '~bus/count-seat-known';
+  const unknown = '~bus/count-seat-unknown';
+  const base = {
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  };
+  await queries.insertGroups({
+    groups: [
+      { ...base, id: known, memberCount: 40 },
+      { ...base, id: unknown },
+    ],
+  });
+
+  for (const groupId of [known, unknown]) {
+    await batchEffects('test:seat-add', (ctx) =>
+      handleGroupUpdate(
+        { type: 'addGroupMembers', groupId, ships: ['~nec', '~wes'] },
+        ctx
+      )
+    );
+    await batchEffects('test:seat-del', (ctx) =>
+      handleGroupUpdate(
+        { type: 'removeGroupMembers', groupId, ships: ['~nec'] },
+        ctx
+      )
+    );
+  }
+
+  expect((await queries.getGroup({ id: known }))?.memberCount).toBe(41);
+  expect((await queries.getGroup({ id: unknown }))?.memberCount).toBeNull();
+});
+
+// Only foreign previews carry a count; the /gangs preview syncGroupPreviews
+// fetches doesn't, and must not clear it.
+test('setUnjoinedGroups keeps a member count through a count-less preview', async () => {
+  const groupId = '~bus/count-unjoined-group';
+  const base = {
+    id: groupId,
+    currentUserIsMember: false,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  };
+
+  await batchEffects('test:unjoined-count', (ctx) =>
+    handleGroupUpdate(
+      { type: 'setUnjoinedGroups', groups: [{ ...base, memberCount: 40 }] },
+      ctx
+    )
+  );
+  await batchEffects('test:unjoined-no-count', (ctx) =>
+    handleGroupUpdate(
+      { type: 'setUnjoinedGroups', groups: [{ ...base, title: 'Previewed' }] },
+      ctx
+    )
+  );
+
+  const group = await queries.getGroup({ id: groupId });
+  expect(group?.title).toBe('Previewed');
+  expect(group?.memberCount).toBe(40);
+});

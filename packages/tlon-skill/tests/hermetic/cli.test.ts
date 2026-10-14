@@ -171,6 +171,28 @@ function expectCliCase(result: CliResult, testCase: CliCase) {
 }
 
 describe('CLI hermetic subprocess behavior', () => {
+  it.each([
+    { args: ['--help'] },
+    { args: ['-h'] },
+    { args: ['browser', '--help'] },
+    { args: ['browser', 'handoff', '--help'] },
+  ])(
+    'teaches session handles without a capability-copying example (%j)',
+    async ({ args }) => {
+      const result = await runCli([...args]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('browser handoff <session_id>');
+      expect(result.stdout).toContain(
+        'sess_ handle from browser_session_create'
+      );
+      expect(result.stdout).not.toContain('<signed-viewer-url>');
+      expect(result.stdout).not.toContain(
+        'browser-session-ovh1.tlon.network/s/'
+      );
+      expect(result.stderr).toBe('');
+    }
+  );
+
   it('prints source CLI version without host credentials', async () => {
     const result = await runCli(['--version']);
 
@@ -178,6 +200,23 @@ describe('CLI hermetic subprocess behavior', () => {
     expect(result.stdout).toBe('dev\n');
     expect(result.stderr).toBe('');
   });
+
+  for (const args of [
+    ['help'],
+    ['help', 'notes'],
+    ['help', 'notes', 'note-create'],
+    ['help', 'buckets', 'upload'],
+    ['version'],
+  ]) {
+    it(`supports discovery alias ${args.join(' ')} without credentials`, async () => {
+      const result = await runCli(args, {
+        env: { TLON_CONFIG_FILE: '/nonexistent/credentials.json' },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(result.stdout).toContain(args[0] === 'version' ? 'dev' : 'Usage:');
+    });
+  }
 
   for (const testCase of CLI_MATRIX_CASES) {
     it(testCase.name, async () => {

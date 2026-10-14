@@ -5,6 +5,7 @@ import type {
 import { readStringParam } from 'openclaw/plugin-sdk/param-readers';
 
 import { normalizeShip, parseTlonTarget } from './targets.js';
+import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
 import { resolveTlonAccount } from './types.js';
 import { withAuthenticatedTlonApi } from './urbit/api-client.js';
 import {
@@ -108,7 +109,12 @@ export const tlonMessageActions: ChannelMessageActionAdapter = {
         }
 
         if (action === 'reply') {
-          return await handleReply({ params, fromShip, toolContext });
+          return await handleReply({
+            params,
+            accountId: account.accountId,
+            fromShip,
+            toolContext,
+          });
         }
 
         throw new Error(`Tlon action "${action}" is not supported.`);
@@ -251,10 +257,12 @@ async function handleDelete({
 
 async function handleReply({
   params,
+  accountId,
   fromShip,
   toolContext,
 }: {
   params: Record<string, unknown>;
+  accountId: string;
   fromShip: string;
   toolContext?: { currentChannelId?: string };
 }) {
@@ -297,11 +305,15 @@ async function handleReply({
     );
   }
 
-  await sendChannelPost({
-    fromShip,
-    nest: parsed.nest,
-    story,
-    replyToId: messageId,
-  });
+  await observeActiveTlonTurnDelivery(
+    () =>
+      sendChannelPost({
+        fromShip,
+        nest: parsed.nest,
+        story,
+        replyToId: messageId,
+      }),
+    { accountId, destinationKind: 'group_channel', ship: fromShip }
+  );
   return jsonResult({ ok: true, replied: messageId, target: to });
 }

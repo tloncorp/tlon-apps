@@ -1,18 +1,8 @@
-// Serializes a tool call's params for the context lens's `argumentDetail`.
-//
-// Consumers parse this field back into structured arguments — the tlonbot e2e
-// harness evaluates fixture `args_match` predicates against it — so the one
-// invariant that matters is that the output is always valid JSON. It used to be
-// produced by pretty-printing the params and slicing the result at the budget,
-// which fails that invariant exactly when it matters: a model that fills in
-// every optional parameter (gpt-5.6-luna sends ~108 keys on a `message` call)
-// overflows the budget, the document is cut mid-key, and the consumer loses
-// every argument rather than the one long value that caused the overflow.
-//
-// Instead, in order, stopping at the first result that fits: serialize the
-// params compactly and verbatim; shrink individual values; drop the keys the
-// model left empty, reporting how many; describe the shape. Every path returns
-// parseable JSON that is within budget, or undefined.
+// Serializes tool params as budgeted, parseable JSON for Context Lens consumers.
+// Browser handoff capabilities are redacted before serialization. To fit the
+// budget, drop empty padding, clamp individual values, then describe the shape.
+
+import { redactBrowserHandoffCommand } from './tlon-tool-command.js';
 
 export const MAX_TOOL_PARAM_DETAIL_CHARS = 2000;
 // Values longer than this are elided individually. Generous enough to keep the
@@ -131,7 +121,14 @@ export function detailToolParams(params: unknown): string | undefined {
     return undefined;
   }
 
-  // 1. Everything, exactly as passed.
+  if (isPlainRecord(params) && typeof params.command === 'string') {
+    params = {
+      ...params,
+      command: redactBrowserHandoffCommand(params.command),
+    };
+  }
+
+  // 1. Everything, with sensitive command arguments redacted.
   const verbatim = safeStringify(params);
   if (fits(verbatim)) {
     return verbatim;

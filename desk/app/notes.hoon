@@ -1,6 +1,6 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
-/-  n=notes, mcp-proxy, av=activity-ver
+/-  n=notes, mcp-proxy, av=activity-ver, gv=groups-ver
 /+  default-agent, dbug, verb, server, logs, notes-json, eyre-reply
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
@@ -120,9 +120,8 @@
 ::  suspends any standalone %notes desk and force-starts ours via kiln rein).
 ::
 ++  load
-  |=  =vase
+  |^  |=  =vase
   ^+  cor
-  |^
   =+  !<(old=any-state vase)
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
   ?>  ?=(%15 -.old)
@@ -159,6 +158,20 @@
   ^+  cor
   |^
   ?+  mark  ~|(bad-mark+mark !!)
+      %egg-any
+    ?>  =(our.bowl src.bowl)
+    =/  =egg:gall  (latest:egg-aid:gall !<(egg-any:gall vase))
+    ?.  ?=(%live -.egg)
+      ~&  [dap.bowl %egg-not-live]
+      cor
+    (run-import egg)
+  ::
+      %noun
+    =+  ;;([%notebook-wake name=@tas] +.vase)
+    =/  =flag:n  [src.bowl name]
+    ?.  (~(has by books) flag)  cor
+    no-abet:no-start-watch:(no-abed:no-core flag)
+  ::
       %handle-http-request
     (serve-http !<([eyre-id=@ta =inbound-request:eyre] vase))
   ::
@@ -205,13 +218,14 @@
   ::
       %group-channel-join
     ::  channel-host convention: %groups auto-joins this notes nest as the
-    ::  group fleet grows. Same-ship poke. We host it or already joined →
-    ::  nothing to do; otherwise subscribe to the host like a normal %join.
+    ::  group fleet grows. Same-ship poke. An existing notebook still needs
+    ::  an outgoing watch when its cached state outlives the subscription.
     ?>  =(our.bowl src.bowl)
     =+  !<(j=channel-join:n vase)
     =/  =flag:n  [host.nest.j name.nest.j]
     ?:  =(our.bowl ship.flag)  cor
-    ?:  (~(has by books) flag)  cor
+    ?:  (~(has by books) flag)
+      no-abet:no-ensure-watch:(no-abed:no-core flag)
     =/  rid=request-id:v1:n  `@uv`eny.bowl
     (join-remote-v1 rid flag)
   ::
@@ -228,6 +242,47 @@
     (leave-remote-v1 rid flag)
   ==
   --
+::  Restore missing data while retaining live notebooks and continuations.
+::
+++  run-import
+  |=  egg=$>(%live egg:gall)
+  ^+  cor
+  =/  bak  (load -:!>(*any-state:load) +>.old-state.egg)
+  =.  books  (~(uni by books:bak) books)
+  =.  next-id  (max next-id next-id:bak)
+  =.  published  (~(uni by published:bak) published)
+  ::  Request records belong to their live HTTP IDs, watches and timers.
+  ::  Keep current requests and API-key settings; neither comes from bak.
+  =.  cor
+    %+  roll  ~(tap by invites:bak)
+    |=  [[=flag:n info=invite-info:n] =_cor]
+    ?:  |((~(has by invites.cor) flag) (~(has by books.cor) flag))  cor
+    =.  invites.cor  (~(put by invites.cor) flag info)
+    (give-inbox-received:cor flag from.info sent-at.info title.info)
+  =.  cor  (emit notebooks-changed-card)
+  ::  Reconnect restored subscriptions and refresh existing UI/peer caches
+  ::  before any subsequent incremental updates use their revisions.
+  =.  cor
+    %+  roll  ~(tap by books)
+    |=  [[=flag:n [=net:n =notebook-state:n]] =_cor]
+    =.  cor  no-abet:no-ensure-watch:(no-abed:no-core:cor flag)
+    =/  area=path  /v0/notes/(scot %p ship.flag)/[name.flag]
+    =/  paths=(list path)  ~[(weld area /stream)]
+    =?  paths  ?=(%pub -.net)  [(weld area /updates) paths]
+    %-  give:cor
+    [%fact paths notes-response+!>(`response:n`[%snapshot flag visibility.notebook-state notebook-state])]
+  ::  Like channels-server, wake the backup's remote subscribers so their
+  ::  notes agents establish fresh watches against this Gall instance.
+  %+  roll  ~(val by bitt.egg)
+  |=  [[who=ship pax=path] =_cor]
+  ?:  =(who our.bowl.cor)  cor
+  ?.  ?=([%v0 %notes @ @ %updates ~] pax)  cor
+  =/  =flag:n  [(slav %p i.t.t.pax) `@tas`i.t.t.t.pax]
+  ?.  =(ship.flag our.bowl.cor)  cor
+  ?~  entry=(~(get by books.cor) flag)  cor
+  ?.  ?=(%pub -.net.u.entry)  cor
+  %-  emit:cor
+  [%pass /notes/wake %agent [who %notes] %poke noun+!>([%notebook-wake name.flag])]
 ::  +serve-http: dispatch an HTTP request to the right responder.
 ::  Order: v1 API → PWA static assets → published note → share redirect → UI fallback.
 ::
@@ -761,10 +816,9 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+  pole  ~|(bad-agent-wire+pole !!)
-      ::  %groups revocation watch. We avoid a groups-sur dependency by
-      ::  extracting just the changed group's flag from the r-groups fact
-      ::  ([flag r-group] — flag is the head) and rechecking only the
-      ::  subscribers of notebooks bound to that group.
+      ::  %groups watch: each r-groups fact rechecks the subscribers of
+      ::  notebooks bound to the changed group (revocation), then syncs
+      ::  a channel listing title edit.
       [%logs ~]
     cor
   ::
@@ -774,9 +828,9 @@
         %kick
       (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
         %fact
-      ::  r-groups fact is [flag r-group]; decode just the flag head.
-      =+  !<([=flag:n *] q.cage.sign)
-      (recheck-group-access flag)
+      =+  !<(=r-groups:v9:gv q.cage.sign)
+      =.  cor  (recheck-group-access flag.r-groups)
+      (sync-listing-title r-groups)
     ==
   ::
       [%notes %sub ship=@ name=@ ~]
@@ -823,7 +877,12 @@
     ::  Best-effort %member-leave to host on +leave-remote. We don't act
     ::  on the ack — the local entry is already gone either way.
     ?+  -.sign  cor
-        %poke-ack  cor
+      %poke-ack  cor
+    ==
+  ::
+      [%notes %wake ~]
+    ?+  -.sign  cor
+      %poke-ack  cor
     ==
   ::
       [%said ship=@ name=@ %note id=@ ~]
@@ -1149,6 +1208,27 @@
     ?:  (can-view-flag flag who)  ~
     `[%give %kick ~[pax] `who]
   (emil kicks)
+::  +sync-listing-title: the %groups channel listing is the user-visible
+::  name of a group notebook, and group admins rename it there. When a
+::  listing %edit for a group notebook we host carries a new title, apply
+::  it to the %notes title. Narrowed to the channel %edit case and
+::  guarded before se-abed's asserts, so any other fact is a no-op.
+::
+++  sync-listing-title
+  |=  =r-groups:v9:gv
+  ^+  cor
+  =/  rg  r-group.r-groups
+  ?.  ?=([%channel * %edit *] rg)  cor
+  ?.  &(=(%notes p.nest.rg) =(our.bowl p.q.nest.rg))  cor
+  =/  nf=flag:n  q.nest.rg
+  ?~  entry=(~(get by books) nf)  cor
+  ?.  ?=(%pub -.net.u.entry)  cor
+  =*  ns  notebook-state.u.entry
+  ?.  =(`flag.r-groups group.ns)  cor
+  =/  new=@t  title.meta.channel.r-channel.rg
+  ?:  =(new title.notebook.ns)  cor
+  ?.  =(`%owner (~(get by members.ns) our.bowl))  cor
+  se-abet:(se-rename-notebook:(se-abed:se-core nf) new)
 ::  +find-flag-by-nid: find the flag for a notebook by numeric notebook id
 ::
 ++  find-flag-by-nid
@@ -2642,7 +2722,14 @@
     ?:  =(%pub -.net)
       %-  (slog leaf+"no-start-watch: host, skipping watch" ~)
       no-core
+    =?  no-core  (~(has by wex.bowl) [no-sub-wire ship.flag %notes])
+      (emit [%pass no-sub-wire %agent [ship.flag %notes] %leave ~])
     (emit [%pass no-sub-wire %agent [ship.flag %notes] %watch no-sub-path])
+  ::
+  ++  no-ensure-watch
+    ?:  ?=(%pub -.net)  no-core
+    ?:  (~(has by wex.bowl) [no-sub-wire ship.flag %notes])  no-core
+    no-start-watch
   ::
   ++  no-leave
     ?:  =(%pub -.net)

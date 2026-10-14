@@ -13,6 +13,8 @@
  *   npx ts-node channels.ts rename <nest> "New Title"
  *   npx ts-node channels.ts update <nest> --title "..." [--description "..."]
  *   npx ts-node channels.ts delete <nest> # Delete a channel (must be group admin)
+ *   npx ts-node channels.ts leave <nest>  # Leave one channel; stay in the group
+ *   npx ts-node channels.ts join <nest>   # Rejoin a channel in a group you're in
  *   npx ts-node channels.ts add-writers <nest> <role1> [role2...]
  *   npx ts-node channels.ts del-writers <nest> <role1> [role2...]
  *   npx ts-node channels.ts add-readers <group-flag> <nest> <role1> [role2...]
@@ -26,12 +28,19 @@ import {
   deleteNotesNotebookBestEffort,
   getGroups,
   getInitData,
+  joinChannel,
+  leaveChannel,
   poke,
   updateChannel,
 } from '@tloncorp/api';
 import type { Channel as ApiChannel, Group as ApiGroup } from '@tloncorp/api';
 
 import { ensureClient, getCurrentShip } from './api-client';
+import {
+  type ChannelMembershipDeps,
+  joinChannelByNest,
+  leaveChannelByNest,
+} from './channel-membership';
 import {
   assertKnownChannelKind,
   getOption,
@@ -40,12 +49,15 @@ import {
   isNotesNest,
   isSubcommandHelpRequest,
   looksLikePositionalChannelKind,
+  parseNest,
   printErrorAndExit,
+  channelCreateUsage,
   printHelpAndExit,
   printUsageAndExit,
   refuseDiaryNest,
+  refuseNonGroupChannelNest,
   refuseNotesChannelDescription,
-  refuseNotesChannelMetadataUpdate,
+  refuseNotesChannelMembership,
   refuseNotesWriters,
   refuseRemovedChannelKind,
 } from './cli-utils';
@@ -70,10 +82,12 @@ Commands:
   groups
   all
   info <nest>
-  create <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
+  ${channelCreateUsage('create')}
   update <nest> (--title "..." | --description "...")
   rename <nest> "New Title"
   delete <nest>
+  leave <nest>
+  join <nest>
   add-writers <nest> <role1> [role2...]
   del-writers <nest> <role1> [role2...]
   add-readers <group-flag> <nest> <role1> [role2...]
@@ -89,10 +103,12 @@ const CHANNELS_COMMAND_HELP: Record<string, string> = {
   groups: `Usage: tlon channels groups`,
   all: `Usage: tlon channels all`,
   info: `Usage: tlon channels info <nest>\nExample: tlon channels info chat/~host/slug`,
-  create: `Usage: tlon channels create <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]\nExample: tlon channels create ~host/group-slug "Projects" --kind chat`,
+  create: `Usage: ${channelCreateUsage('tlon channels create')}\nExample: tlon channels create ~host/group-slug "Projects" --kind chat`,
   update: `Usage: tlon channels update <nest> (--title "..." | --description "...")\nExample: tlon channels update chat/~host/slug --title "New Title"`,
   rename: `Usage: tlon channels rename <nest> "New Title"\nExample: tlon channels rename chat/~host/slug "Project Updates"`,
   delete: `Usage: tlon channels delete <nest>\nExample: tlon channels delete chat/~host/slug`,
+  leave: `Usage: tlon channels leave <nest>\nExample: tlon channels leave chat/~host/slug`,
+  join: `Usage: tlon channels join <nest>\nExample: tlon channels join chat/~host/slug`,
   'add-writers': `Usage: tlon channels add-writers <nest> <role1> [role2...]\nExample: tlon channels add-writers chat/~host/slug admin`,
   'del-writers': `Usage: tlon channels del-writers <nest> <role1> [role2...]\nExample: tlon channels del-writers chat/~host/slug member`,
   'add-readers': `Usage: tlon channels add-readers <group-flag> <nest> <role1> [role2...]\nExample: tlon channels add-readers ~host/group-slug chat/~host/slug admin`,
@@ -142,7 +158,6 @@ function validateChannelsArgs(args: string[]): void {
     case 'update': {
       if (!args[1]) printUsageAndExit(CHANNELS_COMMAND_HELP.update);
       refuseDiaryNest(args[1]);
-      refuseNotesChannelMetadataUpdate(args[1]);
       if (
         !CHANNEL_UPDATE_FLAGS.some((flag) =>
           hasOptionValue(args, flag, CHANNEL_UPDATE_FLAGS)
@@ -159,7 +174,6 @@ function validateChannelsArgs(args: string[]): void {
         printUsageAndExit(CHANNELS_COMMAND_HELP.rename);
       }
       refuseDiaryNest(args[1]);
-      refuseNotesChannelMetadataUpdate(args[1]);
       return;
     }
     case 'add-writers':
@@ -177,6 +191,14 @@ function validateChannelsArgs(args: string[]): void {
         printUsageAndExit(CHANNELS_COMMAND_HELP[command]);
       }
       refuseDiaryNest(args[2]);
+      return;
+    }
+    case 'leave':
+    case 'join': {
+      if (!args[1]) printUsageAndExit(CHANNELS_COMMAND_HELP[command]);
+      refuseDiaryNest(args[1]);
+      refuseNotesChannelMembership(args[1], command);
+      refuseNonGroupChannelNest(args[1], command);
       return;
     }
   }
@@ -258,19 +280,6 @@ async function getAll() {
     dms,
     groupDms,
     groups,
-  };
-}
-
-// Parse nest into components: kind/~host/name -> { kind, host, name, group }
-function parseNest(nest: string): { kind: string; host: string; name: string } {
-  const parts = nest.split('/');
-  if (parts.length !== 3) {
-    throw new Error(`Invalid nest format: ${nest}. Expected: kind/~host/name`);
-  }
-  return {
-    kind: parts[0],
-    host: parts[1].startsWith('~') ? parts[1] : `~${parts[1]}`,
-    name: parts[2],
   };
 }
 
@@ -521,6 +530,26 @@ async function removeReaders(groupFlag: string, nest: string, roles: string[]) {
 }
 
 // CLI
+function createChannelMembershipDeps(): ChannelMembershipDeps {
+  return {
+    getSnapshot: async () => {
+      const init = await getInitData();
+      return {
+        joinedChannelIds: new Set(init.channelPerms.map((c) => c.channelId)),
+        groups: init.groups.map((group) => ({
+          id: group.id,
+          channelIds: (group.channels ?? []).map((c) => c.id),
+        })),
+      };
+    },
+    findGroupIdForChannel: async (nest) =>
+      (await findChannelGroup(nest))?.group.id ?? null,
+    leaveChannel,
+    joinChannel,
+    log: (line) => console.log(line),
+  };
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
@@ -642,6 +671,16 @@ async function main() {
           process.exit(1);
         }
         await deleteChannelByNest(nest);
+        break;
+      }
+
+      case 'leave': {
+        await leaveChannelByNest(args[1], createChannelMembershipDeps());
+        break;
+      }
+
+      case 'join': {
+        await joinChannelByNest(args[1], createChannelMembershipDeps());
         break;
       }
 

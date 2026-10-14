@@ -24,7 +24,6 @@ module.exports = [
   '@react-navigation/native-stack',
   'react-native-safe-area-context',
   '@tanstack/react-query',
-  '@gorhom/bottom-sheet',
   'drizzle-orm',
   'lodash',
   'zustand',

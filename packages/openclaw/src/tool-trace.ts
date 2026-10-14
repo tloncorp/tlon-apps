@@ -1,3 +1,5 @@
+import { redactBrowserHandoffCommand } from './tlon-tool-command.js';
+
 const TOOL_TRACE_CONTENT_ENV_VARS = [
   'TEST_LIVE_TOOL_TRACE_CONTENTS',
   'CI_LIVE_TOOL_TRACE_CONTENTS',
@@ -126,7 +128,12 @@ function sanitizeValue(value: unknown, depth = 0): unknown {
       }
       output[key] = isSensitiveKey(key)
         ? REDACTED
-        : sanitizeValue(nested, depth + 1);
+        : sanitizeValue(
+            key === 'command' && typeof nested === 'string'
+              ? redactBrowserHandoffCommand(nested)
+              : nested,
+            depth + 1
+          );
     }
     return output;
   }

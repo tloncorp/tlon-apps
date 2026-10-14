@@ -13,10 +13,14 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
+import { httpStatusFromError, isIgnoredError } from '../../errorReporting';
 import {
   MIN_GROUPS_VERSION,
   activityVersionSupportsNotes,
+  deskVersionSupportsAutomations,
+  deskVersionCountsAllSeats,
   deskVersionSupportsBuckets,
+  deskVersionSupportsStewardPrompts,
   activityVersionSupportsReactions,
   classifyDeskVersion,
 } from '../../logic';
@@ -666,6 +670,13 @@ export const syncAppInfo = async (
   api.setDeskSupportsBuckets(
     deskVersionSupportsBuckets(appInfo?.groupsVersion)
   );
+  api.setDeskSupportsAutomations(
+    deskVersionSupportsAutomations(appInfo?.groupsVersion)
+  );
+  api.setDeskCountsAllSeats(deskVersionCountsAllSeats(appInfo?.groupsVersion));
+  api.setDeskSupportsStewardPrompts(
+    deskVersionSupportsStewardPrompts(appInfo?.groupsVersion)
+  );
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -702,6 +713,11 @@ export const syncReactionSupport = async () => {
   );
   api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
   api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
+  api.setDeskSupportsAutomations(deskVersionSupportsAutomations(groupsVersion));
+  api.setDeskCountsAllSeats(deskVersionCountsAllSeats(groupsVersion));
+  api.setDeskSupportsStewardPrompts(
+    deskVersionSupportsStewardPrompts(groupsVersion)
+  );
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -1354,6 +1370,10 @@ export async function handleGroupUpdate(
         ctx
       );
       break;
+    // The stored roster can't tell whether a seat event changed the count:
+    // init keeps only 15 seats, and kicks and accepted joins are written
+    // optimistically before their event arrives. So trust the event; a no-op
+    // one (re-adding a member) drifts the count until init resets it.
     case 'addGroupMembers':
       await db.addChatMembers(
         {
@@ -1364,6 +1384,10 @@ export async function handleGroupUpdate(
         },
         ctx
       );
+      await db.adjustGroupMemberCount(
+        { groupId: update.groupId, delta: update.ships.length },
+        ctx
+      );
       break;
     case 'removeGroupMembers': {
       await db.removeChatMembers(
@@ -1371,6 +1395,10 @@ export async function handleGroupUpdate(
           chatId: update.groupId,
           contactIds: update.ships,
         },
+        ctx
+      );
+      await db.adjustGroupMemberCount(
+        { groupId: update.groupId, delta: -update.ships.length },
         ctx
       );
       if (update.ships.includes(currentUserId)) {
@@ -2615,9 +2643,17 @@ const checkDeskCompatibility = async (
       { priority: syncStartPriority.high, retry: false },
       { timeout: DESK_PROBE_TIMEOUT, isStale: isAbandoned }
     ).catch((err) => {
-      logger.trackError('Desk compatibility probe failed', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      const message = err instanceof Error ? err.message : String(err);
+      // Transient network failures are expected here, and the persisted desk
+      // version covers them.
+      if (isIgnoredError(err)) {
+        logger.crumb('Desk compatibility probe failed', message);
+      } else {
+        logger.trackError('Desk compatibility probe failed', {
+          error: message,
+          status: httpStatusFromError(err),
+        });
+      }
       return null;
     }),
     probeTimedOut,
@@ -2788,6 +2824,10 @@ export const syncStart = async (
       // subscriptions and first-sync bookkeeping, and resolve rather than throw
       // so every caller's success path is a no-op.
       return deskOutcome;
+    }
+
+    if (isSubscribed) {
+      subscribeToBucketsIfMissed();
     }
 
     // it's important that this isn't within the main batchEffects block. If we're
@@ -2997,8 +3037,73 @@ export const syncStart = async (
   }
 };
 
+// Which client lifetime has its %buckets subscription open or opening, so the
+// high-priority set and the late path below never both open it.
+let bucketsSubscribedGeneration: number | null = null;
+// Which client lifetime's high-priority set has already read the capability.
+// Until then a change is that set's to pick up when it reads it; from then on,
+// only the late path below can open %buckets for the lifetime.
+let bucketsCheckedGeneration: number | null = null;
+
+async function subscribeToBucketsOnce() {
+  const generation = getClientGeneration();
+  if (
+    !api.getDeskSupportsBuckets() ||
+    bucketsSubscribedGeneration === generation
+  ) {
+    return;
+  }
+  bucketsSubscribedGeneration = generation;
+  // Not open after all, so the next chance in this lifetime tries again. A
+  // watch %buckets nacks lands here after the subscribe has already resolved.
+  const reopen = () => {
+    if (bucketsSubscribedGeneration === generation) {
+      bucketsSubscribedGeneration = null;
+    }
+  };
+  try {
+    await api.subscribeToBuckets(createHandler(handleBucketsUpdate), reopen);
+  } catch (err) {
+    reopen();
+    throw err;
+  }
+}
+
+// A ship upgraded to a Buckets desk while the app stays open is found by the
+// recovery sync's re-probe, and that sync skips subscribing because everything
+// it would watch is still up. %buckets is the exception: it was never watched,
+// and useLiveBucket reads only what this subscription reduces into the
+// database, so the Bucket the capability now opens would stay empty until a
+// restart. Run when the capability changes, and by every recovery sync, since
+// a failed attempt leaves the capability on and nothing would change it again.
+function subscribeToBucketsIfMissed() {
+  if (
+    getSession() === null ||
+    bucketsCheckedGeneration !== getClientGeneration()
+  ) {
+    return;
+  }
+  subscribeToBucketsOnce().catch((error) =>
+    logger.trackError('buckets: late subscribe failed', { error })
+  );
+}
+
+let watchingBucketsSupport = false;
+
+// Registered on first use rather than on import, so the modules that import
+// sync under a partial api mock never reach it.
+function watchBucketsSupport() {
+  if (watchingBucketsSupport) {
+    return;
+  }
+  watchingBucketsSupport = true;
+  api.onDeskSupportsBucketsChange(subscribeToBucketsIfMissed);
+}
+
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
   return syncQueue.add('setupHighPrioritySubscriptions', ctx, () => {
+    bucketsCheckedGeneration = getClientGeneration();
+    watchBucketsSupport();
     return Promise.all([
       api.subscribeToChannelsUpdates(createHandler(handleChannelsUpdate)),
       // Gated on the same capability that picks the init endpoint. The desk
@@ -3007,9 +3112,7 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
       // agent is simply absent: watching it there is nacked, and one
       // rejection in this Promise.all takes every high-priority subscription
       // down with it.
-      ...(api.getDeskSupportsBuckets()
-        ? [api.subscribeToBuckets(createHandler(handleBucketsUpdate))]
-        : []),
+      subscribeToBucketsOnce(),
       api.subscribeToChatUpdates(createHandler(handleChatUpdate)),
       api.subscribeGroups(createHandler(handleGroupUpdate)),
       api.subscribeToPresenceUpdates(handlePresenceEvent),

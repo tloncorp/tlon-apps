@@ -1,3 +1,4 @@
+import { parseNest } from './cli-utils';
 import { commandError, errorMessage } from './commands/command';
 import { archiveRename } from './migrate-helpers';
 import {
@@ -10,7 +11,6 @@ import {
   computeWriteWidening,
   measureEnvelopeBytes,
   normalizeShip,
-  parseNest,
 } from './notes-migrate';
 import {
   PREFLIGHT_ENVELOPE_CONTEXT,

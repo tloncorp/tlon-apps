@@ -4,6 +4,7 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "esModuleInterop": true,
+    "resolveJsonModule": true,
     "strict": true,
     // api source (reached through @tloncorp/api subpath exports) is written
     // against the root tsconfig, which keeps catch variables as `any`.

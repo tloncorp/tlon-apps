@@ -128,6 +128,46 @@ describe('channel discovery logging', () => {
     expect(runtime.error).not.toHaveBeenCalled();
   });
 
+  it('reads the joined set from the %channels init without filtering discovery', async () => {
+    const runtime = createRuntime();
+    // Literal ui-init-7 shape: `channel.channels` is the %channels init,
+    // keyed by nest (desk/mar/ui/init-7.hoon).
+    const api = {
+      scry: vi.fn().mockResolvedValue({
+        groups: {
+          '~zod/test': {
+            channels: {
+              'chat/~zod/general': { meta: { title: 'General' } },
+              'chat/~zod/left': { meta: { title: 'Left' } },
+            },
+          },
+        },
+        channel: { channels: { 'chat/~zod/general': {} } },
+      }),
+    };
+
+    const result = await fetchInitData(api, runtime);
+
+    expect(result.joinedChannels).toEqual(new Set(['chat/~zod/general']));
+    expect(result.channels).toEqual(['chat/~zod/general', 'chat/~zod/left']);
+  });
+
+  it.each([
+    { case: 'missing', init: { groups: {} } },
+    { case: 'malformed', init: { channel: { channels: ['chat/~zod/x'] } } },
+    { case: 'null', init: { channel: { channels: null } } },
+  ])('leaves the joined set unknown when it is $case', async ({ init }) => {
+    const api = { scry: vi.fn().mockResolvedValue(init) };
+    const result = await fetchInitData(api, createRuntime());
+    expect(result.joinedChannels).toBeNull();
+  });
+
+  it('leaves the joined set unknown when the init scry fails', async () => {
+    const api = { scry: vi.fn().mockRejectedValue(new Error('down')) };
+    const result = await fetchInitData(api, createRuntime());
+    expect(result.joinedChannels).toBeNull();
+  });
+
   it('does not log successful incremental discovery but retains failures', async () => {
     const runtime = createRuntime();
     const api = { scry: vi.fn().mockResolvedValue({ changes: [] }) };

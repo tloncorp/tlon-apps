@@ -13,6 +13,8 @@ export type StorageItemConfig<T> = {
   defaultValue: T;
   isSecure?: boolean;
   persistAfterLogout?: boolean;
+  /** False for DB/install metadata that must survive both session and first-install cleanup. */
+  registerForReset?: boolean;
   /** Set to true to avoid 5mb max size limit in web AsyncStorage */
   isLarge?: boolean;
   serialize?: (value: T) => string;
@@ -101,7 +103,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   };
 
   const resetValue = async (): Promise<T> => {
-    updateLock = updateLock.then(async () => {
+    const update = updateLock.then(async () => {
       await storage.setItem(key, serialize(defaultValue));
       queryClient.invalidateQueries({ queryKey: [key] });
       storageItemListeners.get(key)?.forEach((listener) => {
@@ -109,12 +111,13 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
       });
       logger.log(`reset value ${key}`);
     });
-    await updateLock;
+    updateLock = update.catch(() => {});
+    await update;
     return defaultValue;
   };
 
   const setValue = async (valueInput: T | ((curr: T) => T)): Promise<void> => {
-    updateLock = updateLock.then(async () => {
+    const update = updateLock.then(async () => {
       let newValue: T;
       if (valueInput instanceof Function) {
         const currValue = await getValue();
@@ -132,7 +135,10 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
       });
       logger.log(`set value ${key}`, newValue);
     });
-    await updateLock;
+    // Report this operation's failure to its caller, but release the queue so
+    // a transient storage error cannot poison every subsequent read or write.
+    updateLock = update.catch(() => {});
+    await update;
   };
 
   function useValue() {
@@ -173,7 +179,9 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     config,
   };
 
-  storageItems.push(storageItem);
+  if (config.registerForReset !== false) {
+    storageItems.push(storageItem);
+  }
 
   return storageItem;
 };

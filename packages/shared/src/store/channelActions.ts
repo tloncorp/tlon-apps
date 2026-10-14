@@ -1154,6 +1154,17 @@ export async function upsertDmChannel({
   const existingDm = dms.find((dm) => dm.id === dmPartner);
   if (existingDm) {
     logger.log(`found it, returning existing dm`, existingDm);
+    if (!existingDm.members?.some((m) => m.contactId === dmPartner)) {
+      await db.insertMembers({
+        members: [
+          {
+            chatId: dmPartner,
+            contactId: dmPartner,
+            membershipType: 'channel',
+          },
+        ],
+      });
+    }
     return existingDm;
   }
 

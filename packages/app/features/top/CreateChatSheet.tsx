@@ -14,8 +14,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Alert, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
@@ -35,6 +34,7 @@ import {
   capitalize,
   useIsWindowNarrow,
 } from '../../ui';
+import { useSheetBottomInset } from '../../ui/hooks/useSheetBottomInset';
 import { GroupTitleInputSheet } from '../groups/GroupTitleInputSheet';
 import {
   GroupType,
@@ -249,7 +249,7 @@ const JoinGroupFormContent = ({
   close: () => void;
 }) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
-  const { bottom } = useSafeAreaInsets();
+  const bottom = useSheetBottomInset();
 
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
@@ -270,18 +270,23 @@ const CreateChatFormContent = ({
   onScrollChange,
 }: CreateChatFormContentProps) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
-  const { bottom } = useSafeAreaInsets();
+  const bottom = useSheetBottomInset();
   const isWindowNarrow = useIsWindowNarrow();
   const isGroup = chatType === 'group';
   const disabledIds = store.useGroupsNegotiationClashes({ enabled: isGroup });
 
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
-      <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
+      <ActionSheet.SimpleHeader
+        title={title}
+        subtitle={subtitle}
+        alignWithAvatars={isWindowNarrow}
+      />
       <YStack flex={1} gap="$l" $sm={{ paddingHorizontal: '$xl' }}>
         <ContactBook
           searchable
           multiSelect={chatType === 'group'}
+          appearance={isWindowNarrow ? 'plain' : 'block'}
           searchPlaceholder="Filter by nickname or id"
           autoFocus={!isWindowNarrow}
           onSelect={onSelectDmContact}
@@ -514,7 +519,8 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         onOpenChange={handleOpenChange}
         mode="dialog"
         closeButton
-        dialogContentProps={{ height: 'auto', maxHeight: 1200, width: 600 }}
+        dialogScrollEnabled={false}
+        dialogContentProps={{ width: 600 }}
       >
         <View flex={1} padding="$m">
           <CreateChatFormContent
@@ -581,7 +587,9 @@ function TypeSelectionContent({
             key={index}
             action={action}
             testID={action.testID}
-            paddingHorizontal={'$xl'}
+            // Phones keep the standard row inset that lines rows up with
+            // the sheet header.
+            {...(isWindowNarrow ? null : { paddingHorizontal: '$xl' })}
           />
         ))}
       </ActionSheet.ActionGroup>
@@ -673,12 +681,6 @@ export function CreateChatInviteSheet({
     });
   }, [onSubmit, selectedContactIds, templateId, title]);
 
-  // hack: ensure the nested ContactBook will scroll properly within the sheet
-  // by disabling drag within the main content (drag handle only)
-  const enableContentPanningGesture = useMemo(() => {
-    return Platform.OS === 'android' ? false : undefined;
-  }, []);
-
   return (
     <ActionSheet
       disableDrag={screenScrolling}
@@ -687,8 +689,9 @@ export function CreateChatInviteSheet({
       onOpenChange={onOpenChange}
       snapPoints={[90]}
       snapPointsMode="percent"
-      enableContentPanningGesture={enableContentPanningGesture}
-      hasScrollableContent
+      // The nested ContactBook owns vertical pans on Android, the only
+      // platform this acts on. Back and the scrim still dismiss.
+      enableContentPanningGesture={false}
       modal
     >
       <CreateChatFormContent
@@ -711,8 +714,6 @@ export function JoinGroupSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { bottom } = useSafeAreaInsets();
-
   return (
     <ActionSheet
       moveOnKeyboardChange
@@ -720,7 +721,7 @@ export function JoinGroupSheet({
       onOpenChange={onOpenChange}
       modal
     >
-      <YStack flex={1} paddingBottom={bottom}>
+      <YStack flex={1}>
         <JoinGroupFormContent
           chatType="joinGroup"
           open={open}

@@ -23,6 +23,7 @@
       ~
       ~
       ~
+      ~
   ==
 ++  trace-at-task
   ^-  task:v1:a
@@ -33,7 +34,8 @@
       (some [%at (some (unix-milliseconds-to-date:au 1.785.734.301.000))])
       (some 'isolated')
       (some 'now')
-      (some [(some 'agentTurn') (some 'Send a short reminder.')])
+      (some [(some 'agentTurn') (some 'Send a short reminder.') ~])
+      ~
       (some (unix-milliseconds-to-date:au 1.785.734.006.665))
       (some (unix-milliseconds-to-date:au 1.785.734.006.665))
   ==
@@ -46,7 +48,8 @@
       (some [%every (some ~m2) (some (unix-milliseconds-to-date:au 1.785.735.243.782))])
       (some 'isolated')
       (some 'now')
-      (some [(some 'agentTurn') (some 'Send a playful reminder.')])
+      (some [(some 'agentTurn') (some 'Send a playful reminder.') ~])
+      ~
       (some (unix-milliseconds-to-date:au 1.785.735.243.782))
       (some (unix-milliseconds-to-date:au 1.785.740.230.441))
   ==
@@ -59,7 +62,8 @@
       (some [%cron (some '17 4 * * 1-5') (some 'America/New_York') (some ~s45)])
       (some 'isolated')
       (some 'now')
-      (some [(some 'agentTurn') (some 'Send a weekday reminder.')])
+      (some [(some 'agentTurn') (some 'Send a weekday reminder.') ~])
+      ~
       (some (unix-milliseconds-to-date:au 1.786.416.589.889))
       (some (unix-milliseconds-to-date:au 1.786.416.589.889))
   ==
@@ -67,6 +71,7 @@
   ^-  task:v1:a
   :*  ~
       (some 'Named task')
+      ~
       ~
       ~
       ~
@@ -250,6 +255,60 @@
     (expect-eq !>(`action:v1:a`[%project ~]) !>(actual))
     (expect-eq !>((parse-json body)) !>((action:enjs:aj actual)))
   ==
+::  a task's delivery block and tool allow-list survive the round trip;
+::  these are what say where a run posts and which tools it may use
+::
+++  test-delivery-and-tools-allow-roundtrip
+  =/  body=@t
+    '''
+    {
+      "project": {
+        "tasks": [
+          {
+            "id": "scheduled",
+            "name": "Tlonbot scheduled update",
+            "payload": {
+              "kind": "agentTurn",
+              "message": "Write the update.",
+              "toolsAllow": ["group:web"]
+            },
+            "delivery": {
+              "mode": "announce",
+              "channel": "tlon",
+              "to": "diary/~zod/notebook",
+              "failureDestination": {
+                "mode": "announce",
+                "channel": "tlon",
+                "to": "chat/~zod/errors"
+              }
+            }
+          }
+        ]
+      }
+    }
+    '''
+  =/  =task:v1:a  empty-task
+  =/  expected=task:v1:a
+    %=  task
+      name      (some 'Tlonbot scheduled update')
+      payload   (some [(some 'agentTurn') (some 'Write the update.') (some ~['group:web'])])
+      delivery
+        %-  some
+        :*  (some %announce)
+            (some 'tlon')
+            (some 'diary/~zod/notebook')
+            ~
+            (some [(some %announce) (some 'tlon') (some 'chat/~zod/errors') ~])
+        ==
+    ==
+  =/  actual=action:v1:a  (parse-action body)
+  ;:  weld
+    (expect-eq !>(`action:v1:a`[%project ~[['scheduled' expected]]]) !>(actual))
+    %+  expect-eq
+      !>((parse-json body))
+    !>((action:enjs:aj actual))
+  ==
+::
 ++  test-absent-optionals-roundtrip
   =/  body=@t
     '''
@@ -421,7 +480,7 @@
     enabled         (some %.y)
     session-target  (some 'isolated')
     wake-mode       (some 'now')
-    payload         (some [(some 'agentTurn') (some 'Say hello.')])
+    payload         (some [(some 'agentTurn') (some 'Say hello.') ~])
   ==
 ++  round-trip-action
   |=  act=a-automation:v1:a

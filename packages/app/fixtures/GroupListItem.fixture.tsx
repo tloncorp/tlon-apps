@@ -35,6 +35,28 @@ function ParameterizedGroupListItemFixture() {
   );
 }
 
+function mutedSpecimen(title: string, muted: boolean, count: number) {
+  return {
+    ...groupWithColorAndNoImage,
+    id: `${groupWithColorAndNoImage.id}-${title}`,
+    title,
+    volumeSettings: muted
+      ? {
+          itemId: groupWithColorAndNoImage.id,
+          itemType: 'group' as const,
+          level: 'soft' as const,
+        }
+      : null,
+    unread: {
+      groupId: groupWithColorAndNoImage.id,
+      updatedAt: Date.now(),
+      count,
+      notify: false,
+      notifyCount: 0,
+    },
+  };
+}
+
 export default {
   basic: (
     <FixtureWrapper fillWidth innerBackgroundColor="$secondaryBackground">
@@ -48,4 +70,14 @@ export default {
     </FixtureWrapper>
   ),
   'Parameterized Unread': <ParameterizedGroupListItemFixture />,
+  Muted: (
+    <FixtureWrapper fillWidth innerBackgroundColor="$secondaryBackground">
+      <View gap="$s" paddingHorizontal="$l">
+        <GroupListItem model={mutedSpecimen('Muted, no unreads', true, 0)} />
+        <GroupListItem model={mutedSpecimen('Muted, 3 unreads', true, 3)} />
+        <GroupListItem model={mutedSpecimen('Unmuted, no unreads', false, 0)} />
+        <GroupListItem model={mutedSpecimen('Unmuted, 3 unreads', false, 3)} />
+      </View>
+    </FixtureWrapper>
+  ),
 };

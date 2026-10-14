@@ -28,6 +28,8 @@ export const TlonTelemetrySchema = z.object({
 });
 
 export const TlonLifecycleSchema = z.object({
+  // Optional. When unset, the plugin imposes no turn timeout and OpenClaw's
+  // agents.defaults.timeoutSeconds governs each agent turn.
   runTimeoutMs: z.number().int().min(1_000).optional(),
   toolTimeoutMs: z.number().int().min(1_000).optional(),
 });
@@ -166,6 +168,18 @@ export const TlonConfigSchema = z.object({
   // Opt-in hosted-only re-engagement nudges; absent/false keeps the
   // scheduler off even when ownerShip is configured.
   reengagement: TlonReengagementSchema.optional(),
+  onboardingCampaign: z
+    .object({
+      enabled: z.boolean().optional(),
+      enrollAfter: z.iso.datetime().optional(),
+      testing: z
+        .object({
+          intervalMinutes: z.number().int().min(15).max(1440).optional(),
+          ignoreLocalDeliveryWindow: z.boolean().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
   // Hosted BOOT.md catch-up, gated on authenticated connection readiness.
   // The generic boot-md hook must be disabled when this is enabled.
   restartCatchup: z.object({ enabled: z.boolean().optional() }).optional(),

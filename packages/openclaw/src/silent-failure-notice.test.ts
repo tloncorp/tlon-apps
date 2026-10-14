@@ -34,6 +34,7 @@ function makeSummary(
     sourceReplyCount: 0,
     toolCallCount: 7,
     toolErrorCount: 2,
+    superseded: false,
     trigger: 'mention',
     ...overrides,
   };
@@ -169,6 +170,24 @@ describe('resolveSilentFailureNotice', () => {
         conversation: 'our DM with ~sipnup-litnux',
       })
     ).not.toBeNull();
+  });
+
+  it('stays silent when a newer owner message superseded the turn', () => {
+    expect(
+      resolveSilentFailureNotice({
+        summary: makeSummary({
+          trigger: 'dm',
+          destinationKind: 'dm',
+          result: 'intentional_silence',
+          toolErrorCount: 0,
+          lastToolError: null,
+          superseded: true,
+        }),
+        deliveredCount: 0,
+        requester: '~sipnup-litnux',
+        conversation: 'our DM with ~sipnup-litnux',
+      })
+    ).toBeNull();
   });
 
   it('stays silent for empty or intentionally silent group turns', () => {
@@ -311,6 +330,31 @@ describe('terminal failure presentation', () => {
         timedOut: false,
         durationMs: 5,
         timeoutMs: 1_000,
+      })
+    ).toBe('LLM request failed.');
+  });
+
+  it('relies on the OpenClaw timeout signal when no plugin timeout is set', () => {
+    // OpenClaw reported a timeout: report the observed elapsed time.
+    expect(
+      rewriteGenericTerminalErrorReply({
+        text: 'LLM request failed.',
+        isError: true,
+        timedOut: true,
+        durationMs: 600_000,
+        timeoutMs: null,
+      })
+    ).toBe(
+      'The model request timed out after 10 minutes before it could finish. Please try again.'
+    );
+    // No timeout signal and no plugin deadline: never guess a timeout.
+    expect(
+      rewriteGenericTerminalErrorReply({
+        text: 'LLM request failed.',
+        isError: true,
+        timedOut: false,
+        durationMs: 120_000,
+        timeoutMs: null,
       })
     ).toBe('LLM request failed.');
   });

@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   getAgentOnboardingFirstEntryPendingAt,
@@ -32,6 +32,7 @@ export function useAgentOnboardingFirstEntry({
   channelId,
   groupId,
   isFocused,
+  notebookNest,
   posts,
   provisionId,
   provisionAcknowledgedAt,
@@ -41,6 +42,7 @@ export function useAgentOnboardingFirstEntry({
   channelId: string;
   groupId: string | null | undefined;
   isFocused: boolean;
+  notebookNest: string | null | undefined;
   posts: db.Post[] | null | undefined;
   provisionId: string | null | undefined;
   provisionAcknowledgedAt: number | null | undefined;
@@ -67,6 +69,22 @@ export function useAgentOnboardingFirstEntry({
   const firstEntryStartedAt = provisionAcknowledgedAt ?? renderedPendingAt;
   const firstEntryActive = awaitingFirstEntry || renderedPendingAt != null;
   const [indicatorExpired, setIndicatorExpired] = useState(false);
+  const refreshedNotebookRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!renderedSettled || !notebookNest) return;
+    const refreshKey = `${provisionId ?? ''}:${notebookNest}`;
+    if (refreshedNotebookRef.current === refreshKey) return;
+    refreshedNotebookRef.current = refreshKey;
+
+    // The reveal post can reach chat before the background notes snapshot has
+    // refreshed. Warm the exact notebook now so Home does not immediately
+    // contradict “Your first entry is ready” with a stale “No notes” count.
+    store.markNotesNotebookStale(notebookNest);
+    void store.warmNotesNotebookSnapshot(notebookNest).catch(() => {
+      // The stale mark remains set, so the mounted Home row retries normally.
+    });
+  }, [notebookNest, provisionId, renderedSettled]);
 
   useEffect(() => {
     setIndicatorExpired(false);

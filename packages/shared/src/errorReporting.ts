@@ -307,7 +307,12 @@ function walkCauses<T>(
     if (found !== null) {
       return found;
     }
-    const cause = (current as { cause?: unknown } | null | undefined)?.cause;
+    let cause: unknown;
+    try {
+      cause = (current as { cause?: unknown } | null | undefined)?.cause;
+    } catch {
+      return null;
+    }
     if (cause === null || cause === undefined || cause === current) {
       return null;
     }
@@ -323,22 +328,28 @@ function walkCauses<T>(
  */
 export function httpStatusFromError(error: unknown): number | null {
   return walkCauses(error, (current) => {
-    const fields = current as
-      | { status?: unknown; responseStatus?: unknown }
-      | null
-      | undefined;
-    for (const value of [fields?.status, fields?.responseStatus]) {
-      if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-        return value;
+    // Callers pass whatever was thrown, and they run inside catch handlers: a
+    // throwing accessor must not turn into a second rejection there.
+    try {
+      const fields = current as
+        | { status?: unknown; responseStatus?: unknown }
+        | null
+        | undefined;
+      for (const value of [fields?.status, fields?.responseStatus]) {
+        if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+          return value;
+        }
       }
-    }
-    const message = (current as { message?: unknown } | null | undefined)
-      ?.message;
-    if (typeof message !== 'string') {
+      const message = (current as { message?: unknown } | null | undefined)
+        ?.message;
+      if (typeof message !== 'string') {
+        return null;
+      }
+      const match = message.match(STATUS_IN_MESSAGE);
+      return match ? Number(match[1]) : null;
+    } catch {
       return null;
     }
-    const match = message.match(STATUS_IN_MESSAGE);
-    return match ? Number(match[1]) : null;
   });
 }
 
@@ -687,5 +698,34 @@ export const SENTRY_IGNORE_ERRORS: RegExp[] = IGNORE_BODIES.map(
   (body) =>
     new RegExp(`^${IGNORE_ERROR_PREFIX}(?:${HTTP_WRAPPED_PREFIX})?${body}$`)
 );
+
+// The api client's reauth path rethrows as `Error during reauth: ${e}`, which
+// hides the original message behind a prefix no ignore pattern expects.
+const REAUTH_WRAPPER_PREFIX = 'Error during reauth: ';
+
+function isIgnoredMessage(message: string): boolean {
+  const inner = message.startsWith(REAUTH_WRAPPER_PREFIX)
+    ? message.slice(REAUTH_WRAPPER_PREFIX.length)
+    : null;
+  return SENTRY_IGNORE_ERRORS.some(
+    (pattern) =>
+      pattern.test(message) || (inner !== null && pattern.test(inner))
+  );
+}
+
+/**
+ * Whether Sentry would drop this error, or any error in its `cause` chain, by
+ * its message alone. Lets callers that report through `trackError` skip the
+ * same transient network failures.
+ */
+export function isIgnoredError(error: unknown): boolean {
+  return (
+    walkCauses(error, (current) => {
+      const message =
+        current instanceof Error ? current.message : String(current);
+      return isIgnoredMessage(message) ? true : null;
+    }) === true
+  );
+}
 
 export const SENTRY_DENY_URLS_WEB: RegExp[] = [/\/hawk499\//];

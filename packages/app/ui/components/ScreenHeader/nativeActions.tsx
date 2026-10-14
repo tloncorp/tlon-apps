@@ -158,7 +158,7 @@ export function buildNativeHeaderActionOptions({
 
   return {
     [`header${side === 'left' ? 'Left' : 'Right'}`]: () => (
-      <ScreenHeaderItemElements actions={actions} nativeHeader />
+      <ScreenHeaderItemElements actions={actions} nativeHeader={side} />
     ),
   };
 }

@@ -11,7 +11,7 @@ import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import { useDebugStore } from '@tloncorp/shared';
 import * as SplashScreen from 'expo-splash-screen';
-import { Platform, Text } from 'react-native';
+import { AppState, Platform, Text } from 'react-native';
 import { act } from 'react-test-renderer';
 
 import { useDbReady } from '../hooks/useDbReady';
@@ -85,6 +85,9 @@ describe.each(platforms)('RootErrorBoundary on %s', (os) => {
       'OS',
       os
     );
+    // The db deadline only counts foreground time, and the preset's AppState
+    // mock reports no state at all.
+    AppState.currentState = 'active';
     ensureDbReadyMock.mockReset();
     hideAsyncMock.mockClear();
     capture = jest.fn();
@@ -126,6 +129,7 @@ describe.each(platforms)('RootErrorBoundary on %s', (os) => {
     expect(payload.lastError).toBeNull();
     expect(payload.attempt).toBe(1);
     expect(payload.elapsedMs).toBe(30_000);
+    expect(payload.activeElapsedMs).toBe(30_000);
 
     ensureDbReadyMock.mockImplementation(() => Promise.resolve());
 

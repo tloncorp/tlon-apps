@@ -86,8 +86,11 @@ export async function syncGroup(
       updateLastActivityTime();
     });
   } catch (e) {
-    logger.trackError('group sync failed', e);
-    console.error(e);
+    // Callers cancel queued syncs on unmount; that is expected, not a failure.
+    if (!ctx?.abortSignal?.aborted) {
+      logger.trackError('group sync failed', e);
+      console.error(e);
+    }
     throw e;
   } finally {
     groupSyncsInProgress.delete(syncKey);

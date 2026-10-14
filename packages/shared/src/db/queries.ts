@@ -166,6 +166,8 @@ const GROUP_META_COLUMNS = {
   iconImageColor: true,
   coverImage: true,
   coverImageColor: true,
+  // only foreign previews carry a count; a /gangs preview must not clear it
+  memberCount: true,
 };
 
 export interface GetGroupsOptions {
@@ -2019,7 +2021,10 @@ export const insertGroups = createWriteQuery(
                 $groups.currentUserIsMember,
                 $groups.haveInvite,
                 $groups.haveRequestedInvite,
-                $groups.memberCount
+                // same for the count, which most group payloads don't carry
+                ...(group.memberCount !== undefined
+                  ? [$groups.memberCount]
+                  : [])
               ),
             });
         } else {
@@ -2245,6 +2250,7 @@ export const insertGroups = createWriteQuery(
       'chatMembers',
       'chatMemberGroupRoles',
       'channels',
+      'channelReaders',
       'pins',
     ];
     if (groups.some((group) => group.channels?.length)) {
@@ -2285,6 +2291,22 @@ export const updateGroup = createWriteQuery(
     return ctx.db.update($groups).set(group).where(eq($groups.id, group.id));
   },
   ['groups', 'channels', 'groupNavSections', 'groupNavSectionChannels']
+);
+
+// A live seat event moves the count without carrying it. A null count is
+// unknown, not zero, so it stays null until a payload carries one.
+export const adjustGroupMemberCount = createWriteQuery(
+  'adjustGroupMemberCount',
+  async (
+    { groupId, delta }: { groupId: string; delta: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groups)
+      .set({ memberCount: sql`max(${$groups.memberCount} + ${delta}, 0)` })
+      .where(and(eq($groups.id, groupId), isNotNull($groups.memberCount)));
+  },
+  ['groups']
 );
 
 export const deleteGroup = createWriteQuery(
@@ -2676,6 +2698,36 @@ export const deleteBucketUpload = createWriteQuery(
   ['bucketUploads']
 );
 
+/**
+ * Delete the given upload rows that are still failed, and return them.
+ *
+ * Checked and deleted in one statement, so a row retried in the meantime is
+ * not swept up with the failures. One write, so dismissing a thousand
+ * failures invalidates the readers once rather than a thousand times.
+ * Chunked to stay under SQLite's bound-parameter limit.
+ */
+export const deleteFailedBucketUploads = createWriteQuery(
+  'deleteFailedBucketUploads',
+  async (ids: string[], ctx: QueryCtx) => {
+    const deleted: (typeof $bucketUploads.$inferSelect)[] = [];
+    for (let i = 0; i < ids.length; i += 500) {
+      deleted.push(
+        ...(await ctx.db
+          .delete($bucketUploads)
+          .where(
+            and(
+              inArray($bucketUploads.id, ids.slice(i, i + 500)),
+              eq($bucketUploads.state, 'failed')
+            )
+          )
+          .returning())
+      );
+    }
+    return deleted;
+  },
+  ['bucketUploads']
+);
+
 export const getBucketUploads = createReadQuery(
   'getBucketUploads',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
@@ -2714,6 +2766,58 @@ export const getBucket = createReadQuery(
       where: eq($bucketEntries.channelId, channelId),
     });
     return { ...bucket, entries };
+  },
+  ['buckets', 'bucketEntries']
+);
+
+export interface BucketCounts {
+  fileCount: number;
+  folderCount: number;
+}
+
+// Counts every held Bucket at once, as getNotesCountsByNotebook does for
+// notebooks: the channel list needs a count per Buckets channel. Only files
+// that have finished uploading count -- a pending or failed entry is not a
+// file anyone can open. Every Bucket we hold a manifest for gets an entry,
+// zeroes included, so callers can tell an empty Bucket from one that hasn't
+// arrived yet. One statement, so a snapshot's delete-then-reinsert in
+// replaceBucketEntries can't land between two separate counts.
+export const getBucketCountsByChannel = createReadQuery(
+  'getBucketCountsByChannel',
+  async (ctx: QueryCtx): Promise<Record<string, BucketCounts>> => {
+    const rows = await ctx.db
+      .select({
+        channelId: $buckets.channelId,
+        fileCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($bucketEntries)
+          .where(
+            and(
+              eq($bucketEntries.channelId, $buckets.channelId),
+              eq($bucketEntries.kind, 'file'),
+              eq($bucketEntries.status, 'ready')
+            )
+          )}`,
+        folderCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($bucketEntries)
+          .where(
+            and(
+              eq($bucketEntries.channelId, $buckets.channelId),
+              eq($bucketEntries.kind, 'folder')
+            )
+          )}`,
+      })
+      .from($buckets);
+
+    const counts: Record<string, BucketCounts> = {};
+    for (const row of rows) {
+      counts[row.channelId] = {
+        fileCount: row.fileCount,
+        folderCount: row.folderCount,
+      };
+    }
+    return counts;
   },
   ['buckets', 'bucketEntries']
 );
@@ -2924,6 +3028,52 @@ export const getJoinedGroupSeats = createReadQuery(
       );
   },
   ['chatMembers', 'groups']
+);
+
+// A member's roles in every group, and below, every channel's writer and
+// reader roles. Together they answer where that member may post (see
+// useCanWrite, and notesPermissionsCompat for notebooks) for a whole list of
+// channels at once, without loading each one's relations.
+export const getMemberGroupRoles = createReadQuery(
+  'getMemberGroupRoles',
+  async ({ contactId }: { contactId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        groupId: $chatMemberGroupRoles.groupId,
+        roleId: $chatMemberGroupRoles.roleId,
+      })
+      .from($chatMemberGroupRoles)
+      .where(eq($chatMemberGroupRoles.contactId, contactId));
+  },
+  ['chatMemberGroupRoles']
+);
+
+// Only channels that restrict writing have rows here.
+export const getChannelWriterRoles = createReadQuery(
+  'getChannelWriterRoles',
+  async (ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        channelId: $channelWriters.channelId,
+        roleId: $channelWriters.roleId,
+      })
+      .from($channelWriters);
+  },
+  ['channelWriters']
+);
+
+// Only channels that restrict reading have rows here.
+export const getChannelReaderRoles = createReadQuery(
+  'getChannelReaderRoles',
+  async (ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        channelId: $channelReaders.channelId,
+        roleId: $channelReaders.roleId,
+      })
+      .from($channelReaders);
+  },
+  ['channelReaders']
 );
 
 export const addChatMembers = createWriteQuery(

@@ -30,6 +30,9 @@ interface NativeMessageContextMenuProps extends ViewProps {
   presentationKey: string;
   alignment: 'leading' | 'trailing';
   previewBackgroundColor: string;
+  menuBackgroundColor: string;
+  menuForegroundColor: string;
+  menuDestructiveColor: string;
   onSelect: (event: NativeSyntheticEvent<NativeMessageMenuSelection>) => void;
 }
 
@@ -136,6 +139,9 @@ function EnabledMessageContextMenu({
     : undefined;
   const alignment = post.authorId === currentUserId ? 'trailing' : 'leading';
   const previewBackgroundColor = theme.secondaryBackground.val;
+  const menuBackgroundColor = theme.secondaryBackground.val;
+  const menuForegroundColor = theme.primaryText.val;
+  const menuDestructiveColor = theme.negativeActionText.val;
   const contactPresentationKey = useMemo(
     () =>
       [post.authorId, ...(post.replyContactIds ?? [])].map((contactId) => {
@@ -153,6 +159,9 @@ function EnabledMessageContextMenu({
     moreReactionsToken,
     alignment,
     previewBackgroundColor,
+    menuBackgroundColor,
+    menuForegroundColor,
+    menuDestructiveColor,
     contactPresentationKey,
   ]);
 
@@ -164,6 +173,9 @@ function EnabledMessageContextMenu({
       presentationKey={presentationKey}
       alignment={alignment}
       previewBackgroundColor={previewBackgroundColor}
+      menuBackgroundColor={menuBackgroundColor}
+      menuForegroundColor={menuForegroundColor}
+      menuDestructiveColor={menuDestructiveColor}
       onSelect={(event) => {
         const { kind, value, token } = event.nativeEvent;
         if (kind === 'action') {
