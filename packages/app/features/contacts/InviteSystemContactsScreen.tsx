@@ -142,50 +142,40 @@ export function InviteSystemContactsScreen(props: Props) {
       }
     }
     const hidden = displayContacts.length - limit;
-    const chosenKind = selectedRecipients[0]
-      ? selectedRecipients[0].phoneNumber
-        ? 'text'
-        : 'email'
-      : null;
     return [
-      ...(chosenKind
+      {
+        key: 'note',
+        rows: [],
+        // Always shown, so picking someone doesn't push the list down under
+        // the next tap. It also says up front why the other kind of contact
+        // greys out once someone is picked.
+        element: (
+          <Text
+            size="$label/m"
+            color="$secondaryText"
+            paddingHorizontal="$xl"
+            paddingTop="$l"
+          >
+            Choose up to 10 people, all by text or all by email.
+          </Text>
+        ),
+      },
+      ...shown,
+      ...(hidden > 0
         ? [
             {
-              key: 'kind',
-              rows: [],
-              // Says why the other kind of contact is greyed out, where it is
-              // seen rather than at the end of the list.
-              element: (
-                <Text
-                  size="$label/m"
-                  color="$secondaryText"
-                  paddingHorizontal="$xl"
-                  paddingTop="$l"
-                >
-                  {chosenKind === 'text'
-                    ? 'Inviting by text, so contacts with only an email are unavailable. Send email invites separately.'
-                    : 'Inviting by email, so contacts with only a phone number are unavailable. Send text invites separately.'}
-                </Text>
-              ),
-            },
-          ]
-        : []),
-      ...shown,
-      {
-        key: 'more',
-        footer: 'Choose up to 10 people.',
-        rows:
-          hidden > 0
-            ? [
+              key: 'more',
+              rows: [
                 {
                   key: 'more',
                   title: `Show ${Math.min(hidden, pageSize)} more`,
                   action: true,
                   onPress: () => setLimit((current) => current + pageSize),
                 },
-              ]
-            : [],
-      },
+              ],
+            },
+          ]
+        : []),
     ];
   }, [
     alphabeticalContactSections,
