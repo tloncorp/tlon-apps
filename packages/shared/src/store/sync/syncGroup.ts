@@ -88,6 +88,7 @@ export async function syncGroup(
         // written like a roster page, which fails outright when its write
         // does, so a sync that didn't land isn't counted done below. Each
         // light seat carries all of its roles, as a page's do.
+        if (getClientGeneration() !== generation) return;
         await db.insertGroupMembersPage({ groupId: id, members }, queryCtx);
       });
       if (getClientGeneration() !== generation) return;

@@ -185,6 +185,24 @@ describe('syncGroup on a big group', () => {
     expect(await storedMemberIds()).toEqual(['~zod', '~nec']);
   });
 
+  test('a light sync stops writing once the account changes', async () => {
+    await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
+    vi.spyOn(api, 'getGroupLight').mockResolvedValue(
+      group({ memberCount: 600, members: [member('~zod'), member('~nec')] })
+    );
+    const insert = dbIndex.insertGroups;
+    vi.spyOn(dbIndex, 'insertGroups').mockImplementation(async (...args) => {
+      const result = await insert(...args);
+      updateInitializedClient(false);
+      return result;
+    });
+    const writeMembers = vi.spyOn(dbIndex, 'insertGroupMembersPage');
+
+    await syncGroup(groupId);
+
+    expect(writeMembers).not.toHaveBeenCalled();
+  });
+
   test('syncs whole when the desk serves no pages', async () => {
     api.setDeskServesRosterPages(false);
     await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
