@@ -340,7 +340,7 @@ describe('secure browser form screen', () => {
     ).toHaveLength(0);
     expect(JSON.stringify(renderer.toJSON())).toContain('Personal');
     expect(JSON.stringify(renderer.toJSON())).toContain(
-      'The site still shows this form'
+      "Sign-in hasn't completed"
     );
     expect(
       renderer.root.findByProps({ label: 'Open live browser' })
@@ -1015,7 +1015,7 @@ describe('secure browser form screen', () => {
       renderer.root.findByProps({ label: 'Continue' }).props.disabled
     ).toBe(true);
     expect(JSON.stringify(renderer.toJSON())).toContain(
-      'The site still shows this form'
+      "Sign-in hasn't completed"
     );
     expect(mocks.submitCredentials).toHaveBeenCalledOnce();
     act(() => renderer.unmount());

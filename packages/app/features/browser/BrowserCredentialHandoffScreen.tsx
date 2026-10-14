@@ -530,7 +530,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           setHandoff(next);
           if (next.formId === handoff.formId)
             setError(
-              'The site still shows this form. Check the browser before trying again.'
+              "Sign-in hasn't completed. Open the live browser to check for a verification step or error."
             );
           return;
         }
