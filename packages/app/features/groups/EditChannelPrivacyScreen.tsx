@@ -74,11 +74,15 @@ export function EditChannelPrivacyScreen(props: Props) {
       const base = currentReaders.includes('admin')
         ? currentReaders
         : ['admin', ...currentReaders];
-      form.setValue('readers', [...base, createdRoleId]);
+      form.setValue('readers', [...base, createdRoleId], {
+        shouldDirty: true,
+      });
       if (usesNotesPermissionsCompat) {
-        form.setValue('writers', [...base, createdRoleId]);
+        form.setValue('writers', [...base, createdRoleId], {
+          shouldDirty: true,
+        });
       }
-      form.setValue('isPrivate', true);
+      form.setValue('isPrivate', true, { shouldDirty: true });
     }
   }, [createdRoleId, form, usesNotesPermissionsCompat]);
 
@@ -176,7 +180,7 @@ export function EditChannelPrivacyScreen(props: Props) {
           id: 'ChannelPrivacySaveButton',
           text: 'Save',
           tint: '$positiveActionText',
-          disabled: !channel,
+          disabled: !channel || !isDirty,
           onPress: handleSave,
           testID: 'ChannelPrivacySaveButton',
         },
