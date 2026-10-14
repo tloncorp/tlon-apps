@@ -47,6 +47,11 @@ export function channelPermissionSections({
     { id: MEMBERS_MARKER, title: 'Members', subtitle: 'Everyone in the group' },
   ];
   const without = (ids: string[], id: string) => ids.filter((x) => x !== id);
+  // Members are everyone in the group, so while they can see the channel
+  // every role can.
+  const everyoneReads = readers.includes(MEMBERS_MARKER);
+  const reads = (id: string) =>
+    id === 'admin' || readers.includes(id) || everyoneReads;
   const createRoleRows: SettingsRowModel[] = onCreateRole
     ? [
         {
@@ -102,23 +107,37 @@ export function channelPermissionSections({
       title: 'Who can see it',
       rows: [
         ...roles.map((role) => {
+          const isMembers = role.id === MEMBERS_MARKER;
           const canRead = readers.includes(role.id);
           return {
             key: role.id,
             title: role.title,
             subtitle: role.subtitle,
-            selected: role.id === 'admin' || canRead,
+            selected: reads(role.id),
             multiple: true,
-            disabled: role.id === 'admin',
-            // No read means no write.
+            // A role's own tick means nothing while members can all see it.
+            disabled: role.id === 'admin' || (everyoneReads && !isMembers),
             onPress: () =>
               onChange(
-                canRead
-                  ? {
-                      readers: without(readers, role.id),
+                isMembers && canRead
+                  ? // Roles that post keep seeing the channel once members
+                    // no longer do.
+                    {
+                      readers: [
+                        ...new Set([
+                          ...without(readers, role.id),
+                          ...without(writers, role.id),
+                        ]),
+                      ],
                       writers: without(writers, role.id),
                     }
-                  : { readers: [...readers, role.id], writers }
+                  : canRead
+                    ? // No read means no write.
+                      {
+                        readers: without(readers, role.id),
+                        writers: without(writers, role.id),
+                      }
+                    : { readers: [...readers, role.id], writers }
               ),
             testID: `ReadToggle-${role.title}`,
           };
@@ -131,7 +150,7 @@ export function channelPermissionSections({
       title: 'Who can post',
       footer: 'Only roles that can see the channel can post in it.',
       rows: roles
-        .filter((role) => role.id === 'admin' || readers.includes(role.id))
+        .filter((role) => reads(role.id))
         .map((role) => {
           const canWrite = writers.includes(role.id);
           return {

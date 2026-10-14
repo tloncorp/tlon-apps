@@ -365,6 +365,7 @@ function RoleForm({
                   destructive: true,
                   disabled: disableDelete,
                   onPress: handleDelete,
+                  testID: 'DeleteRoleButton',
                 },
               ]
             : [],
