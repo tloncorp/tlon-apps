@@ -8,8 +8,10 @@ A support bot answers "how do I…" questions from this guide. Read `docs/featur
 ## Limits
 
 - Edit files under `docs/feature-map/` only. Never edit `packages/openclaw/skills/tlon-product-guide/references/`; it is generated.
+- `publish` already ran after the first pass, so `docs/feature-map/release.json`, the guide's `references/` and its index already name NEW. That is expected; leave them alone. `publish` runs again after you.
 - Do not commit, push, switch branches or open a pull request.
 - The files in this checkout are newer than NEW. Read the app's source only with `git show {{new}}:<path>`, and compare builds only with `git diff {{old_commit}} {{new}} -- <path>`.
+- The commands you can run are `git show`, `git diff`, `git log`, `git status`, `git ls-tree`, `grep`, and `node scripts/feature-map.mjs` with `check` or `affected`. Anything else is refused. To search the source at NEW, pipe `git show {{new}}:<path>` into `grep`.
 
 ## Steps
 
