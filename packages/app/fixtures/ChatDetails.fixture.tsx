@@ -39,7 +39,6 @@ function Details(props: Partial<ComponentProps<typeof ChatDetailsScreenView>>) {
         currentUserIsAdmin
         hostStatus={online}
         roleCount={3}
-        baseVolumeLevel="medium"
         onGoBack={noop}
         onPressEdit={noop}
         onPressInvite={noop}

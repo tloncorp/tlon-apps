@@ -15,6 +15,10 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import {
+  getLevelShortTitle,
+  getNotificationLevelContext,
+} from '../../ui/components/NotificationLevelSelector';
+import {
   SETTINGS_LIST_COLUMN_WIDTH,
   type SettingsSectionModel,
   SettingsListScreenView,
@@ -60,8 +64,13 @@ function ChatVolumeScreenView({
 }) {
   const navigation = useNavigation();
   const { navigateToChatDetails } = useRootNavigation();
-  const { group, channel } = useChatOptions();
-  const { currentLevel, options, updateVolume } = useChatVolumeOptions();
+  const { group, channel, updateVolume } = useChatOptions();
+  const { currentLevel, options } = useChatVolumeOptions();
+  const context = getNotificationLevelContext(channel);
+  // A chat without a level of its own follows the setting above it.
+  const ownLevel = (chatType === 'channel' ? channel : group)?.volumeSettings
+    ?.level;
+  const isDefault = !ownLevel || ownLevel === 'default';
   const isWindowNarrow = useIsWindowNarrow();
 
   const handleGoBack = useCallback(() => {
@@ -85,16 +94,50 @@ function ChatVolumeScreenView({
     () => [
       {
         key: 'volume',
-        rows: options.map((option) => ({
-          key: option.value,
-          title: option.title,
-          subtitle: option.description,
-          selected: option.value === currentLevel,
-          onPress: () => updateVolume(option.value),
-        })),
+        footer:
+          context === 'dm'
+            ? 'Choose whether this chat notifies you.'
+            : chatType === 'group'
+              ? 'Choose what in this group notifies you. A channel can have its own setting too.'
+              : 'Choose what in this channel notifies you.',
+        rows: [
+          {
+            key: 'default',
+            title: 'Default',
+            subtitle:
+              chatType === 'channel' && channel?.groupId
+                ? 'Follows the group'
+                : 'Follows your notification settings',
+            selected: isDefault,
+            onPress: () => {
+              if (!isDefault) updateVolume(null);
+            },
+          },
+          ...options.map((option) => {
+            const shortTitle = getLevelShortTitle(option.value, context);
+            const selected = !isDefault && option.value === currentLevel;
+            return {
+              key: option.value,
+              title: shortTitle,
+              subtitle: option.title === shortTitle ? undefined : option.title,
+              selected,
+              onPress: () => {
+                if (!selected) updateVolume(option.value);
+              },
+            };
+          }),
+        ],
       },
     ],
-    [currentLevel, options, updateVolume]
+    [
+      channel?.groupId,
+      chatType,
+      context,
+      currentLevel,
+      isDefault,
+      options,
+      updateVolume,
+    ]
   );
 
   const chatTitle =

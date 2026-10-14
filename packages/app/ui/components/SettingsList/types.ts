@@ -67,8 +67,8 @@ export interface SettingsRowModel {
   accessory?: 'chevron' | 'external' | 'none';
   /**
    * For a title that is prose, such as a description: true shows all of it,
-   * false cuts it off after a few lines. Left out, each list does what it does
-   * for a label.
+   * false cuts it off after a few lines with "More" beneath, so the row shows
+   * it opens. Left out, each list does what it does for a label.
    */
   expanded?: boolean;
   onPress?: () => void;

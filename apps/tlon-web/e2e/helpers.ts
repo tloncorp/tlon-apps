@@ -856,7 +856,7 @@ export async function forwardGroupReference(page: Page, channelName: string) {
   await waitForSessionStability(page);
 
   // Click the Forward button in group info
-  await page.getByText('Forward reference').click();
+  await page.getByTestId('GroupQuickAction-Forward reference').click();
 
   // Verify forward sheet opened
   await expect(page.getByText('Forward group')).toBeVisible();

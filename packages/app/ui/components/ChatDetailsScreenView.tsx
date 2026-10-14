@@ -23,6 +23,10 @@ import {
 } from '../utils';
 import { ListItem } from './ListItem';
 import {
+  getLevelShortTitle,
+  getNotificationLevelContext,
+} from './NotificationLevelSelector';
+import {
   SETTINGS_LIST_COLUMN_WIDTH,
   type SettingsContextAction,
   type SettingsRowModel,
@@ -44,7 +48,6 @@ export interface ChatDetailsScreenViewProps {
   hostStatus: ConnectionStatus;
   /** How many roles the group has, counting the one every member holds. */
   roleCount: number;
-  baseVolumeLevel: ub.NotificationLevel;
   /** The bot's tasks that post here. Left out, the row is not shown. */
   scheduledTaskCount?: number;
   onGoBack: () => void;
@@ -89,7 +92,6 @@ export function ChatDetailsScreenView({
   currentUserIsAdmin,
   hostStatus,
   roleCount,
-  baseVolumeLevel,
   scheduledTaskCount,
   onGoBack,
   onPressEdit,
@@ -156,11 +158,9 @@ export function ChatDetailsScreenView({
     if (hasSettings) {
       const isPinned = chatType === 'group' ? group?.pin : channel?.pin;
       if (canInvite) {
-        quickActions.push({
-          title: 'Invite',
-          onPress: onPressInvite,
-          hero: true,
-        });
+        // Every action is drawn alike, so the name stays the screen's heaviest
+        // element.
+        quickActions.push({ title: 'Invite', onPress: onPressInvite });
       }
       if (chatType === 'group' && group?.unread?.count !== 0) {
         quickActions.push({ title: 'Mark read', onPress: onMarkRead });
@@ -171,8 +171,9 @@ export function ChatDetailsScreenView({
       });
       if (chatType === 'group') {
         quickActions.push(
-          { title: 'Forward reference', onPress: onForward },
-          { title: 'Copy group ID', onPress: onCopyGroupId }
+          // Short enough that the row ends on a whole pill on a phone.
+          { title: 'Forward', id: 'Forward reference', onPress: onForward },
+          { title: 'Copy ID', id: 'Copy group ID', onPress: onCopyGroupId }
         );
       }
     }
@@ -229,7 +230,10 @@ export function ChatDetailsScreenView({
                 ? {
                     key: 'description',
                     title: description,
-                    expanded: descriptionExpanded,
+                    // Only a description that may be cut off offers More.
+                    expanded: mayBeCutOff(description)
+                      ? descriptionExpanded
+                      : undefined,
                     accessory: 'none',
                     onPress: mayBeCutOff(description)
                       ? () => setDescriptionExpanded((expanded) => !expanded)
@@ -259,11 +263,13 @@ export function ChatDetailsScreenView({
             {
               key: 'notifications',
               title: 'Notifications',
-              subtitle: getNotificationTitle(
+              value: getNotificationValue(
                 chatType === 'group'
                   ? group?.volumeSettings
                   : channel?.volumeSettings,
-                baseVolumeLevel
+                getNotificationLevelContext(
+                  chatType === 'group' ? null : channel
+                )
               ),
               onPress: onPressNotifications,
               testID: `${idPrefix}Notifications`,
@@ -319,7 +325,8 @@ export function ChatDetailsScreenView({
                 (channel?.readerRoles?.length ?? 0) > 0 ||
                 (channel?.writerRoles?.length ?? 0) > 0
                   ? 'Custom'
-                  : 'Public',
+                  : // "Public" would read against a private or secret group.
+                    'All members',
               disabled: !actionsEnabled,
               onPress: onPressChannelPermissions,
               testID: 'ChannelPrivacy',
@@ -469,7 +476,6 @@ export function ChatDetailsScreenView({
     );
   }, [
     actionsEnabled,
-    baseVolumeLevel,
     canDelete,
     canEdit,
     canInvite,
@@ -557,9 +563,9 @@ export function ChatDetailsScreenView({
 
 interface QuickAction {
   title: string;
+  /** Names the action's test ID when its title is shortened or changes. */
+  id?: string;
   onPress?: () => void;
-  /** The one action drawn solid. */
-  hero?: boolean;
 }
 
 /**
@@ -619,11 +625,10 @@ function ChatDetailsHero({
         >
           {quickActions.map((action) => (
             <ProfileButton
-              key={action.title}
+              key={action.id ?? action.title}
               title={action.title}
               onPress={action.onPress}
-              hero={action.hero}
-              testID={`${testIDPrefix}-${action.title}`}
+              testID={`${testIDPrefix}-${action.id ?? action.title}`}
             />
           ))}
         </ScrollView>
@@ -643,13 +648,19 @@ const compactTitleStyle = { fontSize: 26, lineHeight: 30 } as const;
 const subtitleOffset = { full: -2, compact: 0 } as const;
 
 /**
- * Whether a description is long enough that its collapsed row may be cutting
- * it off, and so should open on a press. Three lines hold a little over a
- * hundred characters on a phone; guessing low only makes a row that fits
- * pressable to no effect, where guessing high would leave text unreachable.
+ * Whether a description runs past the three lines its collapsed row shows,
+ * so the row offers More. A phone line holds a little over forty characters;
+ * counting each paragraph's lines from forty guesses slightly early, which
+ * only offers More on text that already fits.
  */
 function mayBeCutOff(description: string) {
-  return description.length > 90 || description.includes('\n');
+  const lines = description
+    .split('\n')
+    .reduce(
+      (sum, paragraph) => sum + Math.max(1, Math.ceil(paragraph.length / 40)),
+      0
+    );
+  return lines > 3;
 }
 
 /** Where left-aligned header content starts: the cards' own 16pt margin. */
@@ -711,15 +722,13 @@ function getChannelSubtitle(
   }
 }
 
-function getNotificationTitle(
+/** The chat's own level by the name its notifications screen uses. */
+function getNotificationValue(
   volumeSettings: { level: ub.NotificationLevel } | null | undefined,
-  baseVolumeLevel: ub.NotificationLevel
+  context: ReturnType<typeof getNotificationLevelContext>
 ): string {
-  // One of the short names ends in a space.
-  if (volumeSettings?.level) {
-    const levelName = ub.NotificationNamesShort[volumeSettings.level].trim();
-    return `${levelName} (custom)`;
-  }
-  const defaultLevelName = ub.NotificationNamesShort[baseVolumeLevel].trim();
-  return `${defaultLevelName} (app default)`;
+  const level = volumeSettings?.level;
+  return !level || level === 'default'
+    ? 'Default'
+    : getLevelShortTitle(level, context);
 }
