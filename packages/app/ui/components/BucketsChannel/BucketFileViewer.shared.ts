@@ -2604,6 +2604,7 @@ function settledLink(
 const LINK_ATTRIBUTES = new Set(['download', 'href', 'target', 'xlink:href']);
 const SRCDOC_ATTRIBUTE = new Set(['srcdoc']);
 const REL_ATTRIBUTE = new Set(['rel']);
+const HTTP_EQUIV_ATTRIBUTE = new Set(['http-equiv']);
 
 // What a `<link>` naming one of these does is not a load, so no source list
 // governs it: WebKit connects to a preconnect's host under the preview's
@@ -2611,9 +2612,18 @@ const REL_ATTRIBUTE = new Set(['rel']);
 // up -- either one tells the host the file was opened.
 const RESOURCE_HINTS = new Set(['dns-prefetch', 'preconnect']);
 
-// Markup that may hold a hint: a `<link>` start tag, or a srcdoc whose
-// document may hold one. A tag's name is never escaped, nor an attribute's.
-const MAY_HOLD_HINTS = /<link[\t\n\f\r />]|srcdoc/i;
+// The browser's own DNS prefetching of a document's links, which Chromium
+// and WebKit leave off in a sandboxed srcdoc document and let its markup turn
+// on -- unless the same document turned it off first, which this does; a
+// frame's document does not inherit that, so the rewrite makes a file's own
+// switch inert (rewrittenMarkup).
+const DNS_PREFETCH_OFF =
+  '<meta http-equiv="x-dns-prefetch-control" content="off">';
+
+// Markup the rewrite may change: a `<link>` or `<meta>` start tag, or a
+// srcdoc whose document may hold one. A tag's name is never escaped, nor an
+// attribute's.
+const MAY_NEED_REWRITE = /<(?:link|meta)[\t\n\f\r />]|srcdoc/i;
 
 /** The tokens of a `<link>`'s rel that are not resource hints (RESOURCE_HINTS); undefined when it names none. */
 function relWithoutHints(rel: string | undefined): string[] | undefined {
@@ -2625,10 +2635,12 @@ function relWithoutHints(rel: string | undefined): string[] | undefined {
 
 /**
  * The file's markup with every resource hint (RESOURCE_HINTS) dropped from
- * its `<link>`s, the documents of its inline frames included, each read as
- * its frame reads it (`scripting`): a `<link>` a running frame's parser
- * leaves inside a `<noscript>` is text, and one inside an ordinary template
- * never loads. Markup that cannot hold one (MAY_HOLD_HINTS) is left unread.
+ * its `<link>`s, and every `<meta>` that would turn on DNS prefetching
+ * (DNS_PREFETCH_OFF) made inert, the documents of its inline frames
+ * included, each read as its frame reads it (`scripting`): an element a
+ * running frame's parser leaves inside a `<noscript>` is text, and one inside
+ * an ordinary template never loads. Markup that holds neither
+ * (MAY_NEED_REWRITE) is left unread.
  *
  * With `settle` (under Electron, where no script runs), every link as well
  * -- an HTML or SVG `<a>`, an HTML `<area>`, and any MathML element with an
@@ -2677,7 +2689,7 @@ function rewrittenMarkup(
   inherited?: string,
   inheritedPolicies: AuthoredPolicy[] = []
 ): string | null {
-  if (!settle && !MAY_HOLD_HINTS.test(html)) return html;
+  if (!settle && !MAY_NEED_REWRITE.test(html)) return html;
   // The file's tree read as a running frame reads it has no source offsets,
   // which the rewrite needs.
   const parsed =
@@ -2707,6 +2719,11 @@ function rewrittenMarkup(
       element.nodeName === 'link' && element.namespaceURI === NS.HTML
         ? relWithoutHints(attributeOf(element, 'rel'))
         : undefined;
+    const prefetchSwitch =
+      element.nodeName === 'meta' &&
+      element.namespaceURI === NS.HTML &&
+      asciiLowercase((attributeOf(element, 'http-equiv') ?? '').trim()) ===
+        'x-dns-prefetch-control';
     const srcdoc =
       element.nodeName === 'iframe' && element.namespaceURI === NS.HTML
         ? attributeOf(element, 'srcdoc')
@@ -2715,7 +2732,7 @@ function rewrittenMarkup(
     // tag) shares its start tag with the first.
     if (
       !tag ||
-      (!link && rel === undefined && srcdoc === undefined) ||
+      (!link && rel === undefined && !prefetchSwitch && srcdoc === undefined) ||
       rewritten.has(tag.startOffset)
     ) {
       continue;
@@ -2749,6 +2766,8 @@ function rewrittenMarkup(
       text =
         (rel.length === 0 ? '' : ` rel="${escapeAttribute(rel.join(' '))}"`) +
         withoutAttributes(attributes, REL_ATTRIBUTE);
+    } else if (prefetchSwitch) {
+      text = withoutAttributes(attributes, HTTP_EQUIV_ATTRIBUTE);
     } else {
       // The frame's document inherits the base set by the time the parser
       // reached the frame, and the policies in force then.
@@ -2801,7 +2820,8 @@ function rewrittenMarkup(
  * the markup is settled instead (rewrittenMarkup): a link the reader clicks
  * becomes a popup, which the desktop shell opens in the system browser, and
  * only for a web, mail or phone address. In every mode the markup's resource
- * hints are dropped (rewrittenMarkup), which no policy stops.
+ * hints are dropped (rewrittenMarkup), which no policy stops, and the
+ * browser's DNS prefetching of its links is turned off (DNS_PREFETCH_OFF).
  */
 export function htmlPreviewDocument(
   html: string,
@@ -2815,7 +2835,7 @@ export function htmlPreviewDocument(
     // rendered anyway, it would render empty rather than unsettled.
     return withDocumentHead(
       rewrittenMarkup(html, { settle: true, scripting: false }) ?? '',
-      `${policyMeta(HTML_PREVIEW_POLICY)}<base target="_blank">`
+      `${policyMeta(HTML_PREVIEW_POLICY)}${DNS_PREFETCH_OFF}<base target="_blank">`
     );
   }
   const nonce = options.scripts === 'ours' ? options.nonce : undefined;
@@ -2823,7 +2843,7 @@ export function htmlPreviewDocument(
     nonce === undefined ? HTML_PREVIEW_POLICY : htmlPreviewHeldPolicy(nonce);
   return withDocumentHead(
     rewrittenMarkup(html, { settle: false, scripting: true }) ?? '',
-    `${policyMeta(policy)}<base target="_blank">${linkScript(key, nonce)}`
+    `${policyMeta(policy)}${DNS_PREFETCH_OFF}<base target="_blank">${linkScript(key, nonce)}`
   );
 }
 

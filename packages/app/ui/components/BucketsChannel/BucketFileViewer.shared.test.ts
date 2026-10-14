@@ -813,7 +813,7 @@ describe('htmlPreviewShell', () => {
 });
 
 describe('htmlPreviewDocument', () => {
-  const lead = `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}"><base target="_blank"><script>`;
+  const lead = `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}"><meta http-equiv="x-dns-prefetch-control" content="off"><base target="_blank"><script>`;
 
   // After the doctype, or the page goes quirks, past any comment tokens ahead
   // of it as the tokenizer ends them; first when a file's script could run
@@ -868,7 +868,7 @@ describe('htmlPreviewDocument', () => {
     });
     expect(
       out.startsWith(
-        `<!doctype html><meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(TOKEN)}"><base target="_blank"><script nonce="${TOKEN}">`
+        `<!doctype html><meta http-equiv="Content-Security-Policy" content="${htmlPreviewHeldPolicy(TOKEN)}"><meta http-equiv="x-dns-prefetch-control" content="off"><base target="_blank"><script nonce="${TOKEN}">`
       )
     ).toBe(true);
     expect(out.endsWith(`</script>${file}`)).toBe(true);
@@ -894,7 +894,7 @@ describe('htmlPreviewDocument', () => {
       { scripts: 'none' },
     ] as const) {
       const out = htmlPreviewDocument(file, KEY, options);
-      expect(out).not.toMatch(/preconnect|dns-prefetch/i);
+      expect(out).not.toMatch(/preconnect|dns-prefetch(?!-control)/i);
       expect(out).toContain('rel="STYLESHEET"');
     }
     // Markup that only mentions one is left as it is, and so is a running
@@ -912,6 +912,27 @@ describe('htmlPreviewDocument', () => {
         { scripts: 'none' }
       )
     ).not.toContain('preconnect');
+  });
+
+  // The browser's own DNS prefetching of the file's links stays off: ours
+  // comes first in the file's document, and a file's switch, there or in an
+  // inline frame's document, which would not inherit ours, is made inert.
+  it("keeps the browser from prefetching the file's links", () => {
+    const on = '<meta http-equiv="X-DNS-Prefetch-Control" content="on">';
+    const file = `${on}<a href="https://a.example/">a</a><iframe srcdoc='${on}<a href="https://b.example/">b</a>'></iframe>`;
+    for (const options of [
+      {},
+      { scripts: 'ours', nonce: TOKEN },
+      { scripts: 'none' },
+    ] as const) {
+      const out = htmlPreviewDocument(file, KEY, options);
+      expect(out.match(/x-dns-prefetch-control/gi)).toEqual([
+        'x-dns-prefetch-control',
+      ]);
+      expect(out.indexOf('content="off"')).toBeLessThan(
+        out.indexOf('a.example')
+      );
+    }
   });
 
   // They are written in as text, where a slip in an escape would break every
@@ -1048,7 +1069,7 @@ describe('htmlPreviewDocument without scripts', () => {
   it('carries no script of ours, and drops a srcdoc nested deeper than it reads', () => {
     const out = scriptless('<!doctype html><p>x</p>');
     expect(out).toContain(
-      `content="${HTML_PREVIEW_POLICY}"><base target="_blank"><p>x</p>`
+      `content="${HTML_PREVIEW_POLICY}"><meta http-equiv="x-dns-prefetch-control" content="off"><base target="_blank"><p>x</p>`
     );
     expect(out).not.toContain('<script');
     const deep = scriptless(nested('<a href="zoommtg://join">z</a>', 4));
