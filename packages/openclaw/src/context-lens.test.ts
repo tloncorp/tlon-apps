@@ -745,7 +745,7 @@ describe('context lens registry', () => {
     expect(cronLensTtlMs(2 * 60 * 60_000)).toBe(2 * 60 * 60_000 + 10 * 60_000);
   });
 
-  it('gives a later run without a lens of its own nothing to overwrite', () => {
+  it('records a run that failed before the agent as a lens of its own', () => {
     const sessionKey = 'session-background-cron-one-verdict';
     ensureBackgroundContextLensForSession(sessionKey, {
       runKind: 'cron',
@@ -757,11 +757,28 @@ describe('context lens registry', () => {
       outcome: { status: 'ok', summary: 'Posted', delivered: true },
     });
 
-    // The next run failed before the agent ran, so no lens was created.
+    // The next run failed before the agent ran, so no lens was created for
+    // it; its verdict gets one rather than overwriting the run before it.
+    const failed = recordCronRunOutcome({
+      jobId: 'job-one-verdict',
+      outcome: { status: 'error', error: 'setup failed' },
+    });
+    expect(failed?.lensId).not.toBe(first?.lensId);
+    expect(failed).toMatchObject({
+      runKind: 'cron',
+      status: 'error',
+      error: 'setup failed',
+      cron: {
+        jobId: 'job-one-verdict',
+        outcome: { status: 'error', error: 'setup failed' },
+      },
+    });
+    // Only a failure gets one: a run skipped before the agent has nothing
+    // to show.
     expect(
       recordCronRunOutcome({
         jobId: 'job-one-verdict',
-        outcome: { status: 'error', error: 'setup failed' },
+        outcome: { status: 'skipped' },
       })
     ).toBeNull();
     expect(first).toMatchObject({

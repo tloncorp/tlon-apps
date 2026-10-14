@@ -9,6 +9,7 @@ import {
   CRON_TEST_RUN_BLOCK_REASON,
   type CronTestRunDeps,
   buildCronTestPrompt,
+  cronTestRunResult,
   cronTestRunToolBlock,
   defaultCronAgentId,
   isCronTestSessionKey,
@@ -57,6 +58,8 @@ function harness(id: string, jobs: unknown[] = [{ ...digest, id }]) {
       resolveAgentTimeoutMs: vi.fn(({ overrideSeconds }) =>
         overrideSeconds ? overrideSeconds * 1_000 : 60_000
       ),
+      normalizeThinkingLevel: (raw?: string | null) =>
+        raw === 'on' ? 'low' : (raw ?? undefined),
     } as unknown as CronTestRunDeps['runtime'],
     stateDir: () => mkdtempSync(path.join(tmpdir(), 'cron-test-run-')),
     publish: (phase, lens) => published.push({ phase, lens }),
@@ -104,7 +107,9 @@ describe('startCronTestRun', () => {
       disableMessageTool: true,
       toolsAllow: ['tlon', 'web_search'],
       bootstrapContextRunKind: 'cron',
+      cleanupBundleMcpOnRunEnd: true,
     });
+    expect(params).not.toHaveProperty('thinkLevel');
     // The gateway's configured agent timeout, as a scheduled run gets; the
     // runner passes what is left of it.
     expect(params.timeoutMs).toBeGreaterThan(59_000);
@@ -138,14 +143,14 @@ describe('startCronTestRun', () => {
     });
   });
 
-  it('loads the light context a job asks for', async () => {
+  it('loads the context and thinking level a job asks for', async () => {
     const { deps, run, runEmbeddedAgent, started, finalLens } = harness(
       'job-light',
       [
         {
           ...digest,
           id: 'job-light',
-          payload: { ...digest.payload, lightContext: true },
+          payload: { ...digest.payload, lightContext: true, thinking: 'on' },
         },
       ]
     );
@@ -156,6 +161,7 @@ describe('startCronTestRun', () => {
     expect(runEmbeddedAgent.mock.calls[0]![0]).toMatchObject({
       bootstrapContextMode: 'lightweight',
       bootstrapContextRunKind: 'cron',
+      thinkLevel: 'low',
     });
     run.resolve({ payloads: [{ text: 'Done.' }], meta: { durationMs: 1 } });
     await finalLens();
@@ -276,6 +282,26 @@ describe('startCronTestRun', () => {
       status: 'error',
       error: 'provider overloaded',
     });
+  });
+
+  it('fails a run whose only answer is an error, not one with a reply', () => {
+    expect(
+      cronTestRunResult({
+        payloads: [{ text: 'Provider billing error', isError: true }],
+        meta: { durationMs: 1 },
+      })
+    ).toEqual({ status: 'error', error: 'Provider billing error' });
+    // The host's warning about a failed tool, as a blocked write gives,
+    // follows the reply; the reply stands.
+    expect(
+      cronTestRunResult({
+        payloads: [
+          { text: 'Three new threads today.' },
+          { text: '⚠️ 🛠️ tlon failed', isError: true },
+        ],
+        meta: { durationMs: 1 },
+      })
+    ).toEqual({ status: 'completed', output: 'Three new threads today.' });
   });
 
   it('refuses an unknown job and one with nothing to run', async () => {

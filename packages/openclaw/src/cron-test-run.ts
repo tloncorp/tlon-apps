@@ -100,6 +100,7 @@ export type CronTestJob = {
     fallbacks?: string[];
     timeoutSeconds?: number;
     lightContext?: boolean;
+    thinking?: string;
   };
 };
 
@@ -192,17 +193,28 @@ export function cronTestRunResult(result: EmbeddedResult): {
   if (result.meta.aborted) {
     return { status: 'aborted', error: 'The test run was stopped.' };
   }
-  const visible = (result.payloads ?? [])
-    // Hosts from 2026.7 mark pre-tool commentary, which is not the reply.
-    .filter(
-      (payload) =>
-        !payload.isReasoning &&
-        !(payload as { isCommentary?: boolean }).isCommentary
-    )
+  const replies = (result.payloads ?? []).filter(
+    (payload) =>
+      // Hosts from 2026.7 mark pre-tool commentary, which is not the reply.
+      !payload.isReasoning &&
+      !(payload as { isCommentary?: boolean }).isCommentary
+  );
+  const visible = replies
+    .filter((payload) => !payload.isError)
     .map((payload) => payload.text?.trim() ?? '')
     .filter(Boolean)
     .join('\n\n');
   const output = visible || result.meta.finalAssistantVisibleText?.trim();
+  // A provider failure can come back as an error payload alone. One after a
+  // reply is the host's warning about a failed tool, as a blocked write
+  // gives here, and the reply still stands.
+  const lastError = replies.findLast((payload) => payload.isError);
+  if (!output && lastError) {
+    return {
+      status: 'error',
+      error: lastError.text?.trim() || 'The run returned an error.',
+    };
+  }
   if (!output || isExplicitSilentReply(output)) {
     return { status: 'no_reply' };
   }
@@ -240,6 +252,7 @@ export interface CronTestRunDeps {
     | 'resolveAgentWorkspaceDir'
     | 'resolveAgentDir'
     | 'resolveAgentTimeoutMs'
+    | 'normalizeThinkingLevel'
   >;
   stateDir: () => string;
   publish: (phase: string, lens: ContextLens) => void;
@@ -360,6 +373,9 @@ export async function startCronTestRun(
     `${runId}.jsonl`
   );
   const fallbacks = job.payload?.fallbacks;
+  const thinkLevel = job.payload?.thinking
+    ? deps.runtime.normalizeThinkingLevel(job.payload.thinking)
+    : undefined;
   const run = async () => {
     await mkdir(path.dirname(sessionFile), { recursive: true });
     const result = await runEmbeddedAgentWithFallbacks(
@@ -385,11 +401,15 @@ export async function startCronTestRun(
         jobId: job.id,
         prompt: buildCronTestPrompt(job, prompt, deps.config, now),
         bootstrapContextRunKind: 'cron',
-        // A job that asks for a light context gets the one its scheduled run
-        // loads, so the test answers from the same context.
+        // The context and thinking level the job asks for, as its scheduled
+        // run gets them, so the test answers the same way.
         ...(job.payload?.lightContext === true
           ? { bootstrapContextMode: 'lightweight' as const }
           : {}),
+        ...(thinkLevel ? { thinkLevel } : {}),
+        // Each test is a scratch session nothing resumes; leave no MCP
+        // runtime behind for it.
+        cleanupBundleMcpOnRunEnd: true,
         disableMessageTool: true,
         ...(job.payload?.toolsAllow
           ? { toolsAllow: job.payload.toolsAllow }

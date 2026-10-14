@@ -1221,9 +1221,9 @@ function isSilentCronOutcome(
  * Record the host's verdict on a scheduled cron run and finish its lens.
  * The run is found among its job's runs still waiting for a verdict, by the
  * host's run or session id, else as the oldest of them. Each run takes one
- * verdict, so a later run that failed before it reached the agent, and has
- * no lens of its own, finds nothing to overwrite. Returns the finished lens
- * to publish, or null when there is no lens for the run.
+ * verdict. A run that failed before it reached the agent has no lens yet, and
+ * gets one here, finished, so the failure shows in its job's history. Returns
+ * the finished lens to publish, or null when there is none.
  */
 export function recordCronRunOutcome(params: {
   jobId: string;
@@ -1257,7 +1257,21 @@ export function recordCronRunOutcome(params: {
     }
   }
   if (!lens) {
-    return null;
+    if (params.outcome.status !== 'error') {
+      return null;
+    }
+    const now = Date.now();
+    lens = registry.create({
+      messageId: `cron:${params.jobId}:${now}`,
+      chatType: 'internal',
+      runKind: 'cron',
+      visibility: 'owner',
+      trigger: 'cron',
+      conversationId: `cron:${params.jobId}`,
+      receivedAt: now,
+      preview: `cron job ${params.jobId}`,
+      cron: { jobId: params.jobId },
+    });
   }
   const { lensId } = lens;
   forgetCronLens(params.jobId, lensId);
