@@ -266,6 +266,21 @@ export function useBotSettingsSectionModels(
             })),
         },
       });
+    } else if (
+      settingsReady &&
+      draft.model.provider === 'openrouter' &&
+      draft.model.model
+    ) {
+      // An OpenRouter model's ZDR is set with the model, in the model list, so
+      // here it is shown rather than switched: a model that may keep data says so.
+      modelRows.push({
+        key: 'zdr',
+        title: 'Zero data retention',
+        value: draft.model.zdr ? 'On' : 'Off',
+        pending: pending.zdr,
+        disabled: controlsReadOnly,
+        onPress: () => navigate('BotModelSettings', { mode: 'default' }),
+      });
     }
 
     return {
