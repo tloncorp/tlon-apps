@@ -1805,6 +1805,273 @@ class OwnerInviteLinkInjectionTests(unittest.TestCase):
                 self.assertEqual(run_env["TLON_CODE"], BOT_CODE)
 
 
+class OwnerWorkspacePredicateTests(unittest.TestCase):
+    """The owner-workspace truth table, shared with the OpenClaw plugin."""
+
+    def _args(self, command):
+        args, error = tlon_tool.split_tlon_command(command)
+        self.assertIsNone(error)
+        return tlon_tool.normalize_global_command_args(args)
+
+    def test_routes_a_create_owned_for_the_configured_owner(self):
+        for command in (
+            "groups create-owned Projects --owner ~owner",
+            "groups CREATE-OWNED Projects --owner owner --description Work",
+            # Options follow the title, so a workspace may be titled --agent.
+            "groups create-owned --agent --owner ~owner",
+            # Each option takes the next token, so --agent may be a description.
+            "groups create-owned Projects --owner ~owner --description --agent",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(
+                    tlon_tool.should_create_workspace_on_owner(
+                        self._args(command), OWNER_SHIP
+                    )
+                )
+
+    def test_skips_other_owners_agents_help_and_credential_flags(self):
+        commands = [
+            "groups create-owned Projects --owner ~someone",
+            "groups create-owned Projects --owner ~owner --agent ~x",
+            "groups create-owned -h",
+            "groups create-owned Projects --owner ~owner --help",
+            "groups create-owned Projects --owner",
+            "--ship ~bot groups create-owned Projects --owner ~owner",
+            "--config=/tmp/x.json groups create-owned Projects --owner ~owner",
+            "groups create Projects",
+            "groups invite-link ~host/book-club",
+        ]
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertFalse(
+                    tlon_tool.should_create_workspace_on_owner(
+                        self._args(command), OWNER_SHIP
+                    )
+                )
+
+    def test_skips_without_a_configured_owner(self):
+        self.assertFalse(
+            tlon_tool.should_create_workspace_on_owner(
+                self._args("groups create-owned Projects --owner ~owner"), ""
+            )
+        )
+
+
+CREATE_OWNED_HELP_WITH_AGENT = (
+    'Usage: tlon groups create-owned "Group Name" --owner <ship> '
+    '[--agent <ship>] [--description "..."]\n'
+)
+CREATE_OWNED_HELP_WITHOUT_AGENT = (
+    'Usage: tlon groups create-owned "Group Name" --owner <ship> '
+    '[--description "..."]\n'
+)
+
+
+class OwnerWorkspaceRoutingTests(unittest.TestCase):
+    def _run(self, command, cfg, env=None, help_text=CREATE_OWNED_HELP_WITH_AGENT):
+        calls = []
+
+        async def runner(argv, run_env, timeout, _on_deadline):
+            calls.append((tuple(argv), dict(run_env)))
+            if "--help" in argv:
+                return tlon_api.TlonProcessResult(returncode=0, stdout=help_text)
+            return tlon_api.TlonProcessResult(
+                returncode=0, stdout="✅ Owned group created successfully!\n"
+            )
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": command}, config=cfg, runner=runner
+            )
+
+        with patch.dict(os.environ, env or {}, clear=False):
+            payload = json.loads(asyncio.run(run()))
+        return payload, calls
+
+    def test_runs_as_the_owner_with_the_bot_as_agent(self):
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+
+        payload, calls = self._run(
+            "groups create-owned Projects --owner ~owner", cfg, OWNER_ENV
+        )
+
+        self.assertTrue(payload["success"])
+        probe_argv, _probe_env = calls[0]
+        self.assertEqual(
+            probe_argv, ("tlon-test", "groups", "create-owned", "--help")
+        )
+        argv, run_env = calls[-1]
+        self.assertEqual(
+            argv,
+            (
+                "tlon-test",
+                "groups",
+                "create-owned",
+                "Projects",
+                "--owner",
+                "~owner",
+                "--agent",
+                "~bot",
+            ),
+        )
+        self.assertEqual(run_env["TLON_SHIP"], OWNER_SHIP)
+        self.assertEqual(run_env["TLON_CODE"], OWNER_CODE)
+        self.assertNotIn("TLON_COOKIE", run_env)
+        self.assertNotIn(BOT_COOKIE, run_env.values())
+        self.assertEqual(cfg.ship_name, "~bot")
+
+    def test_keeps_the_bot_hosted_workspace_without_the_owner_triple(self):
+        cfg = _bot_config()
+        env = {key: "" for key in OWNER_ENV}
+
+        payload, calls = self._run(
+            "groups create-owned Projects --owner ~owner", cfg, env
+        )
+
+        self.assertTrue(payload["success"])
+        argv, run_env = calls[0]
+        self.assertEqual(
+            argv,
+            ("tlon-test", "groups", "create-owned", "Projects", "--owner", "~owner"),
+        )
+        self.assertEqual(run_env["TLON_SHIP"], "~bot")
+        self.assertEqual(run_env["TLON_CODE"], BOT_CODE)
+
+    def test_keeps_the_bot_hosted_workspace_when_the_cli_lacks_agent(self):
+        # An older CLI ignores --agent, so running it as the owner would leave
+        # the bot out of the workspace.
+        cfg = _bot_config()
+
+        with self.assertLogs(tlon_api.logger, level="ERROR"):
+            payload, calls = self._run(
+                "groups create-owned Projects --owner ~owner",
+                cfg,
+                OWNER_ENV,
+                help_text=CREATE_OWNED_HELP_WITHOUT_AGENT,
+            )
+
+        self.assertTrue(payload["success"])
+        argv, run_env = calls[-1]
+        self.assertEqual(
+            argv,
+            ("tlon-test", "groups", "create-owned", "Projects", "--owner", "~owner"),
+        )
+        self.assertEqual(run_env["TLON_SHIP"], "~bot")
+        self.assertEqual(run_env["TLON_CODE"], BOT_CODE)
+
+    def test_leaves_a_workspace_for_another_requester_on_bot_credentials(self):
+        cfg = _bot_config()
+
+        payload, calls = self._run(
+            "groups create-owned Projects --owner ~someone", cfg, OWNER_ENV
+        )
+
+        self.assertTrue(payload["success"])
+        argv, run_env = calls[0]
+        self.assertNotIn("--agent", argv)
+        self.assertEqual(run_env["TLON_SHIP"], "~bot")
+
+
+class OwnerChannelPredicateTests(unittest.TestCase):
+    """The owner-channel truth table, shared with the OpenClaw plugin."""
+
+    def _args(self, command):
+        args, error = tlon_tool.split_tlon_command(command)
+        self.assertIsNone(error)
+        return tlon_tool.normalize_global_command_args(args)
+
+    def test_routes_a_channel_create_in_an_owner_hosted_group(self):
+        for command in (
+            "channels create ~owner/team Discussion --kind chat",
+            "groups add-channel owner/team Research --kind notes",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(
+                    tlon_tool.should_create_channel_on_owner(
+                        self._args(command), OWNER_SHIP
+                    )
+                )
+
+    def test_skips_other_hosts_help_credentials_and_operations(self):
+        commands = [
+            "channels create ~someone/team Discussion",
+            "channels create ~bot/team Discussion",
+            "channels create ~owner/team Discussion --help",
+            "--ship ~bot channels create ~owner/team Discussion",
+            "--config=/tmp/x.json channels create ~owner/team Discussion",
+            "channels update chat/~owner/abc --title New",
+            "channels create",
+        ]
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertFalse(
+                    tlon_tool.should_create_channel_on_owner(
+                        self._args(command), OWNER_SHIP
+                    )
+                )
+
+
+class OwnerChannelRoutingTests(unittest.TestCase):
+    def _run(self, command, cfg, env=None):
+        calls = []
+
+        async def runner(argv, run_env, timeout, _on_deadline):
+            calls.append((tuple(argv), dict(run_env)))
+            return tlon_api.TlonProcessResult(
+                returncode=0, stdout="✅ Channel created!\n"
+            )
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": command}, config=cfg, runner=runner
+            )
+
+        with patch.dict(os.environ, env or {}, clear=False):
+            payload = json.loads(asyncio.run(run()))
+        return payload, calls
+
+    def test_creates_the_channel_as_the_owner(self):
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+
+        payload, calls = self._run(
+            "channels create ~owner/team Discussion", cfg, OWNER_ENV
+        )
+
+        self.assertTrue(payload["success"])
+        argv, run_env = calls[-1]
+        self.assertEqual(
+            argv, ("tlon-test", "channels", "create", "~owner/team", "Discussion")
+        )
+        self.assertEqual(run_env["TLON_SHIP"], OWNER_SHIP)
+        self.assertEqual(run_env["TLON_CODE"], OWNER_CODE)
+        self.assertNotIn(BOT_COOKIE, run_env.values())
+        self.assertEqual(cfg.ship_name, "~bot")
+
+    def test_keeps_the_bot_hosted_channel_without_the_owner_triple(self):
+        cfg = _bot_config()
+        env = {key: "" for key in OWNER_ENV}
+
+        payload, calls = self._run(
+            "channels create ~owner/team Discussion", cfg, env
+        )
+
+        self.assertTrue(payload["success"])
+        _argv, run_env = calls[-1]
+        self.assertEqual(run_env["TLON_SHIP"], "~bot")
+        self.assertEqual(run_env["TLON_CODE"], BOT_CODE)
+
+    def test_leaves_a_channel_in_another_hosts_group_on_bot_credentials(self):
+        cfg = _bot_config()
+
+        payload, calls = self._run(
+            "channels create ~someone/team Discussion", cfg, OWNER_ENV
+        )
+
+        self.assertTrue(payload["success"])
+        _argv, run_env = calls[-1]
+        self.assertEqual(run_env["TLON_SHIP"], "~bot")
+
+
 class TlonSkillPathTests(unittest.TestCase):
     def test_resolve_tlon_skill_path_uses_explicit_file(self):
         with tempfile.TemporaryDirectory() as tmp:

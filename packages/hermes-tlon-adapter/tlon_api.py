@@ -958,6 +958,16 @@ BOT_FLAG = "--bot"
 _BOT_FLAG_TOKEN = re.compile(r"(?<![\w-])--bot(?![\w-])")
 
 
+# `groups create-owned --agent` arrived later still, and a CLI without it
+# ignores the unknown option. Run as the owner, such a CLI would invite the
+# owner to its own group and leave the agent out, so the owner-hosted
+# workspace path probes for the option first and keeps the bot-hosted create
+# when it is missing.
+AGENT_OPTION_PROBE_ARGS = ("groups", "create-owned", "--help")
+AGENT_OPTION = "--agent"
+_AGENT_OPTION_TOKEN = re.compile(r"(?<![\w-])--agent(?![\w-])")
+
+
 def _is_bot_flag_token(arg: str) -> bool:
     """`--bot` and the joined form the CLI rejects as a usage error. Both have
     to be recognized here: an older CLI has no bot-flag parser to reject them,
@@ -1043,6 +1053,29 @@ class TlonCLI:
                     result.returncode,
                 )
             return supported
+
+    async def supports_agent_option(self) -> bool:
+        """Whether the installed CLI's ``groups create-owned`` takes ``--agent``.
+        Not cached: only the rare owner-hosted workspace path asks, and its
+        caller builds a fresh TlonCLI each time anyway."""
+        # Unobserved so a help invocation never lands in CLI telemetry.
+        result = await self._run_unobserved(
+            AGENT_OPTION_PROBE_ARGS, timeout=BOT_FLAG_PROBE_TIMEOUT_SECONDS
+        )
+        supported = bool(result.success) and bool(
+            _AGENT_OPTION_TOKEN.search(f"{result.stdout}\n{result.stderr}")
+        )
+        if not supported:
+            logger.error(
+                "[tlon] installed tlon CLI (%s) does not support groups "
+                "create-owned %s (probe rc=%s) — creating the workspace on the "
+                "bot node instead of the owner's. Rebuild the image with a tlon "
+                "CLI that has it.",
+                self.config.cli,
+                AGENT_OPTION,
+                result.returncode,
+            )
+        return supported
 
     async def _decorate(self, args: Sequence[str]) -> tuple[str, ...]:
         """Append the bot-author flags to every message-authoring invocation.

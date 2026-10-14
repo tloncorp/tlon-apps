@@ -154,7 +154,7 @@ Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can re
 
 ### Make a group
 
-With a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar), then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, for a group without your bot in it. The create menu offers it on desktop, and on phones without a hosted bot; a phone with a hosted bot shows only `New Workspace`. (A self-hosted OpenClaw bot doesn't get `New Workspace` at all — ask the bot to make the group instead.)
+With a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar), then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you. On a hosted account it makes it on your node with the bot as an admin, like `New Workspace`; a self-hosted bot hosts it itself and makes you an admin. The steps below are the `New group` flow, for a group without your bot in it. The create menu offers it on desktop, and on phones without a hosted bot; a phone with a hosted bot shows only `New Workspace`. (A self-hosted OpenClaw bot doesn't get `New Workspace` at all — ask the bot to make the group instead.)
 
 1. Tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar).  
 2. Tap `New group`.  
@@ -272,11 +272,11 @@ Add your bot to any group. In channels, mention it (@nickname) to trigger a resp
 
 Other members can use it too, but not by default. A new channel starts restricted: when someone who isn't you mentions the bot, it stays quiet and sends you an approval request instead. Approve them, or open the channel to everyone, and from then on they can ask it questions, have it settle debates, run trivia. Worth saying up front — silence from an unapproved member looks like the bot is broken.
 
-Your bot can also do group admin work from a DM: create groups, set up channels, create roles, customize permissions, invite members with specific roles, and remove members.
+Your bot can also do group admin work from a DM: create groups, set up channels, create roles, customize permissions, invite members with specific roles, and remove members. On a hosted account, channels it sets up in a group on your node live on your node too.
 
-That works in groups the bot hosts — the ones it made for you. In someone else's group, adding the bot as a member isn't enough: administration is reserved for the host and for members with an admin role, so the group's owner has to give the bot one first. Without it the requests come back as errors.
+That works in the groups the bot made for you: on a hosted account they live on your node with the bot as an admin, and a self-hosted bot hosts them itself. In someone else's group, adding the bot as a member isn't enough: administration is reserved for the host and for members with an admin role, so the group's owner has to give the bot one first. Without it the requests come back as errors.
 
-Deleting a group is the exception, and an admin role doesn't buy it. Only the host can delete a group, so the bot can delete the ones it hosts and no others — someone else's group has to be deleted by whoever made it.
+Deleting a group is the exception, and an admin role doesn't buy it. Only the host can delete a group, so the bot can delete only the groups it hosts. A workspace it made on your node is yours to delete, and someone else's group has to be deleted by whoever made it.
 
 You control who it listens to — tell it in a DM which members it may respond to or communicate with.
 

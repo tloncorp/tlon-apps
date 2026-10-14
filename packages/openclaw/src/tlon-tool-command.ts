@@ -1,5 +1,6 @@
 import commandCatalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
 import { locateOwnerShipConfig } from './owner-ship-config.js';
+import { normalizeShip } from './targets.js';
 import {
   ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
   checkBlockedDiaryOperation,
@@ -511,12 +512,153 @@ function ownerInviteLinkPrefixArgs(
   return ['--ship', ownerShip];
 }
 
+const CREATE_OWNED_VALUE_OPTIONS = new Set(['--owner', '--description']);
+
+/**
+ * Whether `--agent` is one of create-owned's options, read as the CLI reads
+ * them: options follow the title, and each takes the next token as its value.
+ * A workspace titled "--agent", or described as "--agent", has none.
+ */
+function hasCreateOwnedAgentOption(commandArgs: string[]): boolean {
+  for (let i = 3; i < commandArgs.length; i += 1) {
+    if (commandArgs[i] === '--agent') return true;
+    if (CREATE_OWNED_VALUE_OPTIONS.has(commandArgs[i])) i += 1;
+  }
+  return false;
+}
+
+/**
+ * The shared owner-workspace predicate (the Hermes adapter implements the same
+ * truth table): a `groups create-owned` whose `--owner` is the configured
+ * owner, with no credential flag in either form, no `--agent`, and no help
+ * token. A moon cannot create a group on its parent, so this is how a bot's
+ * workspace for its owner ends up hosted on the owner's ship.
+ */
+export function shouldCreateWorkspaceOnOwner(
+  args: string[],
+  ownerShip: string | undefined
+): boolean {
+  if (!ownerShip) return false;
+  if (hasCredentialOverride(args)) return false;
+
+  const subIdx = findTlonSubcommandIndex(args);
+  if (subIdx < 0) return false;
+  const commandArgs = args.slice(subIdx);
+  if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
+  if (commandArgs[1]?.toLowerCase() !== 'create-owned') return false;
+  if (commandArgs.some((arg) => HELP_TOKENS.has(arg))) return false;
+  if (hasCreateOwnedAgentOption(commandArgs)) return false;
+
+  const ownerIdx = commandArgs.indexOf('--owner', 3);
+  const owner = ownerIdx < 0 ? undefined : commandArgs[ownerIdx + 1];
+  return owner !== undefined && normalizeShip(owner) === ownerShip;
+}
+
+/**
+ * The prefix and suffix that run a create-owned as the owner with the bot as
+ * its agent, or null to run it as written. Unlike invite-link, a missing
+ * credential file is not an error: a bot-hosted workspace is still a working
+ * one, it is all a self-hosted bot can make, and the output names its host.
+ */
+function ownerWorkspaceArgs(
+  deps: TlonToolExecutorDeps
+): { prefix: string[]; suffix: string[] } | null {
+  const botShip = deps.botShip;
+  if (!botShip) return null;
+  const prefix = ownerCredentialArgs(deps, 'the workspace');
+  return prefix ? { prefix, suffix: ['--agent', botShip] } : null;
+}
+
+/**
+ * `--ship <owner>` when the owner's hosted credentials are provisioned and the
+ * bot is not its own owner, or null to run the command as written. A missing
+ * file is logged rather than an error: what the bot makes on its own ship
+ * still works, and it is all a self-hosted bot can make.
+ */
+function ownerCredentialArgs(
+  deps: TlonToolExecutorDeps,
+  what: string
+): string[] | null {
+  const ownerShip = deps.ownerShip;
+  if (!ownerShip || deps.botShip === ownerShip) return null;
+
+  const location = locateOwnerShipConfig(ownerShip, deps);
+  if (location.kind === 'no-config-file') {
+    deps.logError?.(
+      `Creating ${what} on the bot's ship: owner credentials are missing at ${location.configPath}.`
+    );
+  }
+  return location.kind === 'found' ? ['--ship', ownerShip] : null;
+}
+
+const CHANNEL_CREATE_COMMANDS: ReadonlyArray<readonly [string, string]> = [
+  ['channels', 'create'],
+  ['groups', 'add-channel'],
+];
+
+/**
+ * The shared owner-channel predicate (the Hermes adapter implements the same
+ * truth table): a channel create in a group the configured owner hosts, with
+ * no credential flag in either form and no help token. A channel is hosted by
+ * the ship that creates it, so run as the bot — a non-host admin there — it
+ * would land on the bot's ship instead of the owner's.
+ */
+export function shouldCreateChannelOnOwner(
+  args: string[],
+  ownerShip: string | undefined
+): boolean {
+  if (!ownerShip) return false;
+  if (hasCredentialOverride(args)) return false;
+
+  const subIdx = findTlonSubcommandIndex(args);
+  if (subIdx < 0) return false;
+  const commandArgs = args.slice(subIdx);
+  const command = commandArgs[0]?.toLowerCase();
+  const operation = commandArgs[1]?.toLowerCase();
+  if (
+    !CHANNEL_CREATE_COMMANDS.some(([c, o]) => c === command && o === operation)
+  ) {
+    return false;
+  }
+  if (commandArgs.some((arg) => HELP_TOKENS.has(arg))) return false;
+
+  const groupHost = commandArgs[2]?.split('/')[0];
+  return !!groupHost && normalizeShip(groupHost) === ownerShip;
+}
+
+const AGENT_OPTION_PROBE_ARGS = ['groups', 'create-owned', '--help'];
+const AGENT_OPTION_TOKEN = /(?<![\w-])--agent(?![\w-])/;
+
+/**
+ * Whether the installed CLI's create-owned takes --agent. A CLI without it
+ * ignores the option, so running it as the owner would invite the owner to
+ * its own group and leave the bot out; the caller keeps the bot-hosted create
+ * instead. The Hermes adapter probes the same way.
+ */
+async function cliSupportsAgentOption(
+  deps: TlonToolExecutorDeps
+): Promise<boolean> {
+  let help = '';
+  try {
+    help = await deps.runCommand(AGENT_OPTION_PROBE_ARGS);
+  } catch {
+    // A probe that did not run says nothing about support.
+  }
+  if (AGENT_OPTION_TOKEN.test(help)) return true;
+  deps.logError?.(
+    "Creating the workspace on the bot's ship: the installed tlon CLI's groups create-owned does not take --agent."
+  );
+  return false;
+}
+
 export type TlonToolExecutorDeps = {
   runCommand: (args: string[]) => Promise<string>;
   notifyDiaryMigrationDiscovery: (nest: string) => Promise<boolean>;
   logError?: (message: string) => void;
   /** Configured owner ship, already normalized to `~ship`. */
   ownerShip?: string;
+  /** This bot's own ship, already normalized to `~ship`. */
+  botShip?: string;
   env?: NodeJS.ProcessEnv;
   fileExists?: (path: string) => boolean;
 };
@@ -652,6 +794,14 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
           };
         }
         commandArgs = [...prefixArgs, ...args];
+      } else if (shouldCreateWorkspaceOnOwner(args, deps.ownerShip)) {
+        const ownerArgs = ownerWorkspaceArgs(deps);
+        if (ownerArgs && (await cliSupportsAgentOption(deps))) {
+          commandArgs = [...ownerArgs.prefix, ...args, ...ownerArgs.suffix];
+        }
+      } else if (shouldCreateChannelOnOwner(args, deps.ownerShip)) {
+        const prefix = ownerCredentialArgs(deps, 'the channel');
+        if (prefix) commandArgs = [...prefix, ...args];
       }
 
       const output = await deps.runCommand(commandArgs);

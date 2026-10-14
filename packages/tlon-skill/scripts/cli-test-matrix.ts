@@ -822,6 +822,45 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '--owner',
     '~zod',
   ]),
+  authRequiredCase('groups create-owned with an agent reaches auth', [
+    'groups',
+    'create-owned',
+    'Projects',
+    '--owner',
+    '~sampel-palnet',
+    '--agent',
+    '~pinser-botter-sampel-palnet',
+  ]),
+  authRequiredCase(
+    'groups create-owned --agent as a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~sampel-palnet',
+      '--description',
+      '--agent',
+    ]
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a bare --agent',
+    ['groups', 'create-owned', 'Projects', '--owner', '~zod', '--agent'],
+    'Usage: tlon groups create-owned'
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a flag as the agent',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~zod',
+      '--agent',
+      '--description',
+    ],
+    'Usage: tlon groups create-owned'
+  ),
   authRequiredCase('groups update title option-like value reaches auth', [
     'groups',
     'update',

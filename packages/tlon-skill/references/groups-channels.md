@@ -16,6 +16,8 @@ On accounts with a hosted Tlonbot, the app’s `New Workspace` action creates a 
 
 Use the actual requester's verified ship identity. This invites them and makes them an admin. Plain `groups create` creates a group under the current ship; it is not the default for a user-requested group. Do not report success until the owner invitation/admin step has succeeded.
 
+When the requester is your owner and the runtime holds the owner's hosted credentials, the tool runs this as the owner: the owner's ship hosts the workspace, and you are invited as an admin and join automatically. Otherwise your own ship hosts it. The output's `Host:` line says which; name the host when you reply. A workspace hosted by your owner appears in your `groups list` once you have joined it.
+
 Share the returned `Ref:` path in the reply so Tlon can render the group card.
 
 ## Create a channel
@@ -26,6 +28,8 @@ Share the returned `Ref:` path in the reply so Tlon can render the group card.
 ```
 
 Description is supported for chat/heap, not notes. For notebooks, continue with [notes.md](notes.md); for shared files, use [buckets.md](buckets.md). Inspect `help channels create` for kind-specific flags.
+
+A channel is hosted by the ship that creates it. In a group your owner hosts, when the runtime holds the owner's hosted credentials, the tool creates the channel as the owner, so it lives on the owner's node and you join it automatically. Use the nest it returns, whose host part names the owner.
 
 To leave a single channel, use `channels leave <nest>`; `groups leave` leaves the whole workspace and all its channels. `channels join` does not check read access: it can report "Joined" while messages remain unavailable to an account without access.
 

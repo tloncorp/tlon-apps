@@ -972,15 +972,21 @@ OWNER_INVITE_LINK_SELF_HINT = (
 )
 
 
-def should_inject_owner_credentials(args: Sequence[str]) -> bool:
-    """The shared owner-injection predicate — the OpenClaw plugin implements the
-    same truth table. Inject iff the parsed subcommand is ``groups invite-link``
-    with no credential flag in either form, no ``--self``, and no help token."""
+def _has_credential_flag(args: Sequence[str]) -> bool:
     for raw in args:
         arg = str(raw)
         flag = arg.split("=", 1)[0] if "=" in arg else arg
         if flag in CREDENTIAL_FLAGS_WITH_VALUE:
-            return False
+            return True
+    return False
+
+
+def should_inject_owner_credentials(args: Sequence[str]) -> bool:
+    """The shared owner-injection predicate — the OpenClaw plugin implements the
+    same truth table. Inject iff the parsed subcommand is ``groups invite-link``
+    with no credential flag in either form, no ``--self``, and no help token."""
+    if _has_credential_flag(args):
+        return False
 
     sub_idx = find_subcommand_index(args)
     if sub_idx < 0:
@@ -995,6 +1001,106 @@ def should_inject_owner_credentials(args: Sequence[str]) -> bool:
     return not any(
         arg == "--self" or _is_help_arg(arg) for arg in command_args
     )
+
+
+CREATE_OWNED_VALUE_OPTIONS = frozenset({"--owner", "--description"})
+
+
+def _has_create_owned_agent_option(command_args: Sequence[str]) -> bool:
+    """Whether ``--agent`` is one of create-owned's options, read as the CLI
+    reads them: options follow the title, and each takes the next token as its
+    value. A workspace titled "--agent", or described as "--agent", has none."""
+    i = 3
+    while i < len(command_args):
+        if command_args[i] == "--agent":
+            return True
+        i += 2 if command_args[i] in CREATE_OWNED_VALUE_OPTIONS else 1
+    return False
+
+
+def should_create_workspace_on_owner(
+    args: Sequence[str], owner_ship: str
+) -> bool:
+    """The shared owner-workspace predicate — the OpenClaw plugin implements the
+    same truth table. True iff the parsed subcommand is ``groups create-owned``
+    whose ``--owner`` is the configured owner, with no credential flag in either
+    form, no ``--agent``, and no help token. A moon cannot create a group on
+    its parent, so this is how a bot's workspace for its owner ends up hosted
+    on the owner's ship."""
+    owner = normalize_ship(owner_ship).lower()
+    if not owner or _has_credential_flag(args):
+        return False
+
+    sub_idx = find_subcommand_index(args)
+    if sub_idx < 0:
+        return False
+    command_args = [str(arg) for arg in args[sub_idx:]]
+    if len(command_args) < 2:
+        return False
+    if command_args[0].lower() != "groups":
+        return False
+    if command_args[1].lower() != "create-owned":
+        return False
+    if any(_is_help_arg(arg) for arg in command_args):
+        return False
+    if _has_create_owned_agent_option(command_args):
+        return False
+    if "--owner" not in command_args[3:]:
+        return False
+    owner_idx = command_args.index("--owner", 3)
+    if owner_idx + 1 >= len(command_args):
+        return False
+    return normalize_ship(command_args[owner_idx + 1]).lower() == owner
+
+
+CHANNEL_CREATE_COMMANDS = frozenset(
+    {("channels", "create"), ("groups", "add-channel")}
+)
+
+
+def should_create_channel_on_owner(args: Sequence[str], owner_ship: str) -> bool:
+    """The shared owner-channel predicate — the OpenClaw plugin implements the
+    same truth table. True iff the parsed subcommand creates a channel in a
+    group the configured owner hosts, with no credential flag in either form
+    and no help token. A channel is hosted by the ship that creates it, so run
+    as the bot — a non-host admin there — it would land on the bot node."""
+    owner = normalize_ship(owner_ship).lower()
+    if not owner or _has_credential_flag(args):
+        return False
+
+    sub_idx = find_subcommand_index(args)
+    if sub_idx < 0:
+        return False
+    command_args = [str(arg) for arg in args[sub_idx:]]
+    if len(command_args) < 3:
+        return False
+    operation = (command_args[0].lower(), command_args[1].lower())
+    if operation not in CHANNEL_CREATE_COMMANDS:
+        return False
+    if any(_is_help_arg(arg) for arg in command_args):
+        return False
+    group_host = command_args[2].split("/", 1)[0]
+    return bool(group_host) and normalize_ship(group_host).lower() == owner
+
+
+def _hosted_owner_config(
+    cfg: TlonConfig, env: Mapping[str, str] | None = None
+) -> Optional[TlonConfig]:
+    """The owner's hosted credential triple as a replacement config, or None
+    when the owner ship is unset or the triple is missing or names another
+    ship. See ``owner_invite_link_config`` for why it replaces, never overlays."""
+    owner = normalize_ship(cfg.owner_ship)
+    if not owner:
+        return None
+
+    source = os.environ if env is None else env
+    url = str(source.get("TLON_OWNER_URL") or "").strip()
+    env_owner = normalize_ship(str(source.get("TLON_OWNER_SHIP") or ""))
+    code = str(source.get("TLON_PLANET_CODE") or "").strip()
+    if not url or env_owner != owner or not code:
+        return None
+
+    return replace(cfg, ship_url=url, ship_name=owner, ship_code=code, cookie="")
 
 
 def owner_invite_link_config(
@@ -1019,21 +1125,46 @@ def owner_invite_link_config(
             + OWNER_INVITE_LINK_SELF_HINT
         )
 
-    source = os.environ if env is None else env
-    url = str(source.get("TLON_OWNER_URL") or "").strip()
-    env_owner = normalize_ship(str(source.get("TLON_OWNER_SHIP") or ""))
-    code = str(source.get("TLON_PLANET_CODE") or "").strip()
-    if not url or env_owner != owner or not code:
+    owner_cfg = _hosted_owner_config(cfg, env)
+    if owner_cfg is None:
         return None, (
             f"Retrieving the invite link as {owner} requires hosted owner "
             "credentials TLON_OWNER_URL, TLON_OWNER_SHIP, and TLON_PLANET_CODE. "
             + OWNER_INVITE_LINK_SELF_HINT
         )
 
-    return (
-        replace(cfg, ship_url=url, ship_name=owner, ship_code=code, cookie=""),
-        None,
-    )
+    return owner_cfg, None
+
+
+def owner_channel_config(
+    cfg: TlonConfig, env: Mapping[str, str] | None = None
+) -> Optional[TlonConfig]:
+    """The owner config that creates a channel in the owner's group on the
+    owner node, or None to run it as written: a bot that is its own owner
+    already hosts it there, and without the owner triple a bot-hosted channel
+    still works."""
+    bot = normalize_ship(cfg.ship_name)
+    owner = normalize_ship(cfg.owner_ship)
+    if bot and bot.lower() == owner.lower():
+        return None
+    return _hosted_owner_config(cfg, env)
+
+
+def owner_workspace_config(
+    cfg: TlonConfig, env: Mapping[str, str] | None = None
+) -> Optional[tuple[TlonConfig, str]]:
+    """The owner config and agent ship that run a create-owned as the owner, or
+    None to run it as written. Unlike invite-link, missing owner credentials
+    are not an error: a bot-hosted workspace is still a working one, it is all
+    a self-hosted bot can make, and the CLI output names its host."""
+    bot = normalize_ship(cfg.ship_name)
+    owner = normalize_ship(cfg.owner_ship)
+    if not bot or bot.lower() == owner.lower():
+        return None
+    owner_cfg = _hosted_owner_config(cfg, env)
+    if owner_cfg is None:
+        return None
+    return owner_cfg, bot
 
 
 def _command_for_display(command: Sequence[str]) -> str:
@@ -1102,6 +1233,18 @@ async def execute_tlon_tool(
         if owner_error:
             return _json({"error": owner_error})
         cfg = owner_cfg
+    elif should_create_workspace_on_owner(args, cfg.owner_ship):
+        owner_workspace = owner_workspace_config(cfg)
+        if (
+            owner_workspace is not None
+            and await TlonCLI(cfg, runner=runner).supports_agent_option()
+        ):
+            cfg, agent = owner_workspace
+            args = [*args, "--agent", agent]
+    elif should_create_channel_on_owner(args, cfg.owner_ship):
+        owner_channel = owner_channel_config(cfg)
+        if owner_channel is not None:
+            cfg = owner_channel
 
     # Lazy import keeps this module importable standalone (no cycle at load).
     from .telemetry import cli_context, get_active_telemetry

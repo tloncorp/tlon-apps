@@ -41,7 +41,7 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 ## Identity, delivery, and completion
 
 - Use returned group flags, channel nests, note IDs, and revisions. Display titles are not identifiers. Resolve ambiguous targets before writing.
-- Credentials are supplied by the runtime. Use the current account; do not collect access codes, print credentials, or switch to the owner's identity to work around permissions. Some documented commands, such as invite-link retrieval, have an explicit owner-bound behavior.
+- Credentials are supplied by the runtime. Use the current account; do not collect access codes, print credentials, or switch to the owner's identity to work around permissions. Some documented commands, such as invite-link retrieval, creating a workspace for the owner, and creating a channel in a group the owner hosts, have an explicit owner-bound behavior.
 - Use `message` for ordinary outbound messages and replies. For local media, upload first and pass the returned HTTPS URL; see the media reference.
 - Use `groups create-owned` to create a group for a user and make them an admin. Read the groups reference for the identity requirements.
 - Use `notes` for Markdown notebooks. Deprecated `%diary` management is unavailable through this tool; ask the owner to use `/migrate <diary-nest>` instead of attempting migration writes yourself.
