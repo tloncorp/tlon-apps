@@ -147,15 +147,12 @@ export function BotShipListSettingsScreen(props: Props) {
                   subtitle: nickname ? userId : undefined,
                   leading: { kind: 'contact', contactId: ship },
                   // Removing only edits the draft, which the apply bar commits.
-                  swipeActions: [
-                    {
-                      key: 'remove',
-                      title: 'Remove',
-                      systemImage: 'minus.circle',
-                      destructive: true,
-                      onPress: () => removeShip(ship),
-                    },
-                  ],
+                  trailingAction: {
+                    key: 'remove',
+                    title: 'Remove',
+                    destructive: true,
+                    onPress: () => removeShip(ship),
+                  },
                 };
               }),
       },

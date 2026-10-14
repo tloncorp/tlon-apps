@@ -408,15 +408,12 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                   subtitle: nickname ? userId : undefined,
                   leading: { kind: 'contact' as const, contactId: ship },
                   disabled: controlsDisabled,
-                  swipeActions: [
-                    {
-                      key: 'remove',
-                      title: 'Remove',
-                      systemImage: 'minus.circle',
-                      destructive: true,
-                      onPress: () => removeShip(ship),
-                    },
-                  ],
+                  trailingAction: {
+                    key: 'remove',
+                    title: 'Remove',
+                    destructive: true,
+                    onPress: () => removeShip(ship),
+                  },
                 };
               }),
               {

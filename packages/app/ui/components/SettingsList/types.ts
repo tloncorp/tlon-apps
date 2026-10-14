@@ -78,10 +78,10 @@ export interface SettingsRowModel {
    */
   contextActions?: SettingsContextAction[];
   /**
-   * Actions on the row itself, such as removing it from a list. iOS reveals
-   * them by swiping the row; Android and web show the first at the row's end.
+   * A button at the row's end that acts on the row itself, such as removing
+   * it from a list. Only the button is tappable, not the whole row.
    */
-  swipeActions?: SettingsMenuItem[];
+  trailingAction?: SettingsMenuItem & { testID?: string };
   toggle?: { value: boolean; onValueChange: (value: boolean) => void };
   /**
    * An editable single-line value, such as a URL or token. The row shows the
@@ -145,6 +145,11 @@ export interface SettingsListProps {
   maxWidth?: number;
   /** iOS only: shows the drag handles of sections that can be reordered. */
   editing?: boolean;
+  /**
+   * iOS only: tighter gaps between sections, for lists of many short
+   * sections, such as members grouped by role.
+   */
+  compactSections?: boolean;
   /**
    * iOS only: hears when the list has scrolled this far from its top, and when
    * it comes back, so a screen can name itself in its bar once its own header

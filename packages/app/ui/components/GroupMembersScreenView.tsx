@@ -192,6 +192,8 @@ export function GroupMembersScreenView({
       onBackPressed={goBack}
       showsBackOnWideWindows
       maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      // A heading per role leaves many short cards; default gaps outweigh them.
+      compactSections
       search={{
         value: searchQuery,
         onChangeText: setSearchQuery,

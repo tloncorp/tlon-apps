@@ -190,6 +190,8 @@ export function InviteSystemContactsScreen(props: Props) {
     <SettingsListScreenView
       title="Invite your friends"
       sections={sections}
+      // Letter headings over a few people each, like the members list.
+      compactSections={displayContacts.length > letterHeadingsFrom}
       onBackPressed={() => props.navigation.goBack()}
       search={{
         value: query,

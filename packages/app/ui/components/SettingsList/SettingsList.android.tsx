@@ -255,19 +255,21 @@ function PlainRow({
           <HostedCheckmark />
         </RNHostView>
       ) : null}
-      {/* iOS swipes for these; here the first sits at the row's end. */}
-      {row.swipeActions?.[0] ? (
+      {row.trailingAction ? (
         <Text
           color={
-            row.swipeActions[0].destructive ? colors.negative : colors.accent
+            row.trailingAction.destructive ? colors.negative : colors.accent
           }
           style={{ fontSize: 16 }}
           modifiers={[
-            clickable(row.swipeActions[0].onPress),
+            clickable(row.trailingAction.onPress),
             padding(8, 4, 0, 4),
+            ...(row.trailingAction.testID
+              ? [testID(row.trailingAction.testID)]
+              : []),
           ]}
         >
-          {row.swipeActions[0].title}
+          {row.trailingAction.title}
         </Text>
       ) : null}
     </Row>

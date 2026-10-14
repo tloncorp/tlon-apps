@@ -11,7 +11,6 @@ import {
   SecureField,
   Section,
   Spacer,
-  SwipeActions,
   Text,
   TextField,
   Toggle,
@@ -26,6 +25,7 @@ import {
   accessibilityValue,
   autocorrectionDisabled,
   background,
+  buttonStyle,
   deleteDisabled,
   disabled,
   environment,
@@ -37,6 +37,7 @@ import {
   listRowInsets,
   listRowSeparatorTint,
   listSectionMargins,
+  listSectionSpacing,
   onSubmit as submitAction,
   opacity,
   padding,
@@ -80,6 +81,12 @@ const firstSectionModifiers = [
   listSectionMargins({ edges: 'top', length: 24 }),
 ];
 
+// A compact list keeps its first heading as close to the bar as the gaps
+// between its sections.
+const compactFirstSectionModifiers = [
+  listSectionMargins({ edges: 'top', length: 0 }),
+];
+
 // A screen's own content at the top sits right under the navigation bar.
 const flushFirstSectionModifiers = [
   listSectionMargins({ edges: 'top', length: 0 }),
@@ -90,6 +97,7 @@ export function SettingsList({
   sections,
   scrollMark,
   editing,
+  compactSections,
 }: SettingsListProps) {
   const colors = useSettingsListColors();
   const scrollMarkModifier = useScrollMark(scrollMark);
@@ -108,6 +116,7 @@ export function SettingsList({
           ...(editing === undefined
             ? []
             : [environment('editMode', editing ? 'active' : 'inactive')]),
+          ...(compactSections ? [listSectionSpacing('compact')] : []),
           scrollContentBackground('hidden'),
           background(colors.page),
         ]}
@@ -120,7 +129,9 @@ export function SettingsList({
                 ? undefined
                 : section.element
                   ? flushFirstSectionModifiers
-                  : firstSectionModifiers
+                  : compactSections
+                    ? compactFirstSectionModifiers
+                    : firstSectionModifiers
             }
             header={
               section.element ? (
@@ -344,8 +355,16 @@ function SettingsRow({
   const content = (
     <HStack
       spacing={8}
-      // A row with nothing to open is plain content, not a button.
-      modifiers={row.onPress ? undefined : labelledRowModifiers}
+      // A row with nothing to open is plain content, not a button. One with a
+      // button of its own keeps their labels apart, or VoiceOver would read
+      // the button by the row's title.
+      modifiers={
+        row.onPress
+          ? undefined
+          : row.trailingAction
+            ? rowModifiers
+            : labelledRowModifiers
+      }
     >
       <RowLabel row={row} colors={colors} />
       <Spacer />
@@ -364,6 +383,28 @@ function SettingsRow({
       {row.selected ? (
         <Image systemName="checkmark" size={15} color={colors.accent} />
       ) : null}
+      {row.trailingAction ? (
+        <Button
+          onPress={row.trailingAction.onPress}
+          // Borderless, so only the button reacts and not the whole row.
+          modifiers={[
+            buttonStyle('borderless'),
+            ...(row.trailingAction.testID
+              ? [accessibilityIdentifier(row.trailingAction.testID)]
+              : []),
+          ]}
+        >
+          <Text
+            modifiers={[
+              foregroundStyle(
+                row.trailingAction.destructive ? colors.negative : colors.accent
+              ),
+            ]}
+          >
+            {row.trailingAction.title}
+          </Text>
+        </Button>
+      ) : null}
       {accessory === 'external' ? (
         <Image
           systemName="arrow.up.right"
@@ -380,23 +421,12 @@ function SettingsRow({
     </HStack>
   );
 
-  const pressable = row.onPress ? (
+  const body = row.onPress ? (
     <Button onPress={row.onPress} modifiers={labelledRowModifiers}>
       {content}
     </Button>
   ) : (
     content
-  );
-
-  const body = row.swipeActions?.length ? (
-    <SwipeActions>
-      <SwipeActions.Actions edge="trailing">
-        <MenuItems items={row.swipeActions} />
-      </SwipeActions.Actions>
-      {pressable}
-    </SwipeActions>
-  ) : (
-    pressable
   );
 
   if (!row.contextActions?.length) {

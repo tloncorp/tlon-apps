@@ -41,6 +41,7 @@ export function SettingsListScreenView({
   bottomBar,
   maxWidth,
   editing,
+  compactSections,
   children,
 }: {
   title: string;
@@ -70,6 +71,8 @@ export function SettingsListScreenView({
   maxWidth?: number;
   /** iOS only: shows the drag handles of sections that can be reordered. */
   editing?: boolean;
+  /** iOS only: tighter gaps between sections; see `SettingsListProps`. */
+  compactSections?: boolean;
   /** Anything else the screen mounts, such as its dialogs. */
   children?: ReactNode;
 }) {
@@ -133,6 +136,7 @@ export function SettingsListScreenView({
             maxWidth={maxWidth}
             scrollMark={scrollMark}
             editing={editing}
+            compactSections={compactSections}
           />
         )}
       </View>
