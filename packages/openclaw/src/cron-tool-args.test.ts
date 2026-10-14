@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cleanCronToolArgs, cronTriggersEnabled } from './cron-tool-args.js';
-
-const TRIGGERS_ON = { triggersEnabled: true };
+import { cleanCronToolArgs } from './cron-tool-args.js';
 
 // The shape the model sends: every schema field, mostly placeholders.
 const placeholderJob = {
@@ -127,109 +125,20 @@ describe('cleanCronToolArgs', () => {
     });
   });
 
-  it('keeps a real interval', () => {
+  it('keeps a real interval and a real trigger', () => {
     const cleaned = cleanCronToolArgs({
       action: 'add',
       job: {
         name: 'Hourly check',
         schedule: { kind: 'every', everyMs: 3_600_000 },
+        trigger: { script: 'return { fire: prices.drop > 5 };' },
         payload: { kind: 'agentTurn', message: 'Check prices.' },
       },
     });
     expect(cleaned?.job).toMatchObject({
       schedule: { kind: 'every', everyMs: 3_600_000 },
+      trigger: { script: 'return { fire: prices.drop > 5 };' },
     });
-  });
-
-  it('drops the trigger while triggers are off, whatever its script', () => {
-    // The filler is captured from a real run: with any of it left in, core
-    // refused the job ("cron triggers are disabled") and a plain reminder was
-    // never made. Core refuses a real script the same way.
-    for (const script of [
-      'x',
-      'unused',
-      'disabled',
-      'ordinary schedule',
-      '',
-      'return {fire:true}',
-      'return { fire: false };',
-      'do not fire',
-      'return { fire: prices.drop > 5 };',
-    ]) {
-      const cleaned = cleanCronToolArgs({
-        action: 'add',
-        job: {
-          ...placeholderJob,
-          name: 'Timesheet reminder',
-          schedule: {
-            kind: 'cron',
-            expr: '0 16 * * 5',
-            tz: 'America/New_York',
-          },
-          trigger: { script, once: false },
-          sessionTarget: 'isolated',
-          payload: { kind: 'agentTurn', message: 'Submit your timesheet.' },
-          delivery: { mode: 'announce', channel: 'tlon', to: '~ten' },
-        },
-      });
-      expect(cleaned?.job).toEqual({
-        name: 'Timesheet reminder',
-        schedule: { kind: 'cron', expr: '0 16 * * 5', tz: 'America/New_York' },
-        sessionTarget: 'isolated',
-        wakeMode: 'next-heartbeat',
-        payload: { kind: 'agentTurn', message: 'Submit your timesheet.' },
-        delivery: { mode: 'announce', channel: 'tlon', to: '~ten' },
-      });
-    }
-  });
-
-  it('drops the trigger from an update while triggers are off', () => {
-    const cleaned = cleanCronToolArgs({
-      action: 'update',
-      jobId: 'job-1',
-      patch: {
-        schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/New_York' },
-        trigger: { script: 'unused', once: false },
-      },
-    });
-    expect(cleaned?.patch).toEqual({
-      schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/New_York' },
-    });
-  });
-
-  it('leaves the trigger as sent while triggers are on', () => {
-    for (const trigger of [
-      { script: 'json({ fire: price < 10 })' },
-      { script: 'return { fire: true };', once: true },
-      { script: 'unused', once: false },
-    ]) {
-      const add = cleanCronToolArgs(
-        {
-          action: 'add',
-          job: {
-            name: 'Price watch',
-            schedule: { kind: 'every', everyMs: 3_600_000 },
-            trigger,
-            payload: { kind: 'agentTurn', message: 'Check the price.' },
-          },
-        },
-        TRIGGERS_ON
-      );
-      expect(add?.job).toMatchObject({ trigger });
-      const update = cleanCronToolArgs(
-        { action: 'update', jobId: 'job-1', patch: { trigger } },
-        TRIGGERS_ON
-      );
-      expect(update?.patch).toEqual({ trigger });
-    }
-  });
-
-  it('reads whether triggers are on from the gateway config', () => {
-    expect(cronTriggersEnabled({ cron: { triggers: { enabled: true } } })).toBe(
-      true
-    );
-    expect(cronTriggersEnabled({ cron: { enabled: true } })).toBe(false);
-    expect(cronTriggersEnabled(undefined)).toBe(false);
   });
 
   it('treats a job-only update as the change', () => {

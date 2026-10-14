@@ -1,15 +1,15 @@
 // The model fills every field of the cron tool's schema, whether or not it
 // means to set it: empty strings, nulls, `fallbacks: []`, a schedule of every
-// 1 ms, a trigger with a filler script, `sessionTarget: "main"`, delivery mode
+// 1 ms, a trigger that never fires, `sessionTarget: "main"`, delivery mode
 // "none". Core rejects some of that outright ("cron patch agentId cannot be
-// changed", "cron triggers are disabled") and quietly applies the rest, which
-// can strip a job's delivery or make a scheduled run strict about fallbacks.
-// This keeps what the model actually set and drops the placeholders before the
-// call runs.
+// changed") and quietly applies the rest, which can strip a job's delivery or
+// make a scheduled run strict about fallbacks. This keeps what the model
+// actually set and drops the placeholders before the call runs.
 
 type Json = Record<string, unknown>;
 
 const MIN_EVERY_MS = 60_000;
+const NEVER_FIRES = /^\s*return\s*\{\s*fire\s*:\s*false\s*\}\s*;?\s*$/;
 // Fields an update has no business changing on its own initiative; the model
 // only ever sets them to the schema's first enum value.
 const UPDATE_PLACEHOLDER_FIELDS = ['sessionTarget', 'wakeMode'];
@@ -40,32 +40,15 @@ function prune(value: unknown): unknown {
   return entries.length ? Object.fromEntries(entries) : undefined;
 }
 
-type CleanOptions = {
-  /** `cron.triggers.enabled`; core refuses every trigger while it's off. */
-  triggersEnabled?: boolean;
-};
-
-/** Whether this gateway runs trigger scripts at all. */
-export function cronTriggersEnabled(config: unknown): boolean {
-  const cron = isObject(config) ? config.cron : undefined;
-  const triggers = isObject(cron) ? cron.triggers : undefined;
-  return isObject(triggers) && triggers.enabled === true;
-}
-
 /** One job or patch, with placeholders that would change the job removed. */
-function cleanJob(
-  raw: unknown,
-  isPatch: boolean,
-  options: CleanOptions
-): Json | undefined {
+function cleanJob(raw: unknown, isPatch: boolean): Json | undefined {
   const job = prune(raw);
   if (!isObject(job)) return undefined;
 
   delete job.owner;
-  // The model sends a trigger on nearly every call, its script filler ("x",
-  // "unused", `return { fire: false };`). Core refuses any trigger while
-  // triggers are off, which they are on hosted bots, so it can only go.
-  if (!options.triggersEnabled) delete job.trigger;
+  if (isObject(job.trigger) && NEVER_FIRES.test(String(job.trigger.script))) {
+    delete job.trigger;
+  }
   if (isObject(job.schedule)) {
     const schedule = job.schedule;
     if (schedule.anchorMs === 0) delete schedule.anchorMs;
@@ -109,10 +92,7 @@ function cleanJob(
  * The cron call as the model meant it, or undefined when there's nothing to
  * clean (not an add or update).
  */
-export function cleanCronToolArgs(
-  params: unknown,
-  options: CleanOptions = {}
-): Json | undefined {
+export function cleanCronToolArgs(params: unknown): Json | undefined {
   if (!isObject(params)) return undefined;
   const { action } = params;
   if (action !== 'add' && action !== 'update') return undefined;
@@ -135,11 +115,11 @@ export function cleanCronToolArgs(
   }
   // An add describes the job; an update describes only the change.
   if (action === 'add') {
-    const job = cleanJob(params.job, false, options);
+    const job = cleanJob(params.job, false);
     if (job) cleaned.job = job;
   } else {
     // A change sent only as `job` is still the change.
-    const patch = cleanJob(params.patch ?? params.job, true, options);
+    const patch = cleanJob(params.patch ?? params.job, true);
     if (patch) cleaned.patch = patch;
   }
   return cleaned;

@@ -10,10 +10,7 @@ import {
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
-import {
-  cleanCronToolArgs,
-  cronTriggersEnabled,
-} from './src/cron-tool-args.js';
+import { cleanCronToolArgs } from './src/cron-tool-args.js';
 import { modelPrivacyNote } from './src/model-privacy-context.js';
 import { registerTlonCommands } from './src/commands-registry.js';
 import { notifyCampaignCronChanged } from './src/monitor/campaign/live.js';
@@ -1083,7 +1080,6 @@ export default defineBundledChannelEntry({
     // Read once per registerFull pass; a hot reload that skips registerFull
     // keeps the value the gateway started with (see the note above).
     const cronArgsGuardEnabled = isCronArgsGuardEnabled();
-    const cronTriggersOn = cronTriggersEnabled(api.config);
 
     const recordBlockedToolCallInLens = (
       sessionKey: string | null | undefined,
@@ -1121,9 +1117,7 @@ export default defineBundledChannelEntry({
       const toolCallId = readToolCallId(event);
       // What the model meant, without the schema placeholders it fills in.
       const cronParams = isCronToolName(event.toolName)
-        ? cleanCronToolArgs(event.params, {
-            triggersEnabled: cronTriggersOn,
-          })
+        ? cleanCronToolArgs(event.params)
         : undefined;
       const allowed = () => (cronParams ? { params: cronParams } : undefined);
       const runSurface = getTlonSessionRunSurface(ctx.runId);
