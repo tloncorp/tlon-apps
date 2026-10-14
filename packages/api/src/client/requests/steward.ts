@@ -99,7 +99,7 @@ export const steward = {
     agent: 'steward',
     method: 'GET',
     path: '/steward/~/v1/prompts/files',
-    since: '12.3.2',
+    since: '12.4.0',
     guardedBy: 'deskSupportsStewardPrompts',
   },
   promptEdit: {
@@ -107,7 +107,7 @@ export const steward = {
     agent: 'steward',
     method: 'POST',
     path: '/steward/~/v1/prompts',
-    since: '12.3.2',
+    since: '12.4.0',
     guardedBy: 'deskSupportsStewardPrompts',
   },
   promptRequest: {
@@ -115,14 +115,14 @@ export const steward = {
     agent: 'steward',
     method: 'GET',
     path: '/steward/~/v1/prompts/request/{requestId}',
-    since: '12.3.2',
+    since: '12.4.0',
     guardedBy: 'deskSupportsStewardPrompts',
   },
   promptFeed: {
     kind: 'subscribe',
     agent: 'steward',
     path: '/v1/prompts/files',
-    since: '12.3.2',
+    since: '12.4.0',
     guardedBy: 'deskSupportsStewardPrompts',
   },
 } as const satisfies Record<string, Entry>;

@@ -375,7 +375,7 @@ try {
 
 **Principle:** Sensitive tools are owner-only. Non-owners cannot use them, enforced at the plugin level (not via prompt instructions).
 
-**Restricted tools:** `tlon`, `cron`, `read`.
+**Restricted tools:** `tlon`, `cron` (also under `automations`, its name on newer OpenClaw), `read`.
 
 | Scenario | Behavior |
 | -------- | -------- |

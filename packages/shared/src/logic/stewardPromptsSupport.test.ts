@@ -10,7 +10,7 @@ describe('deskVersionSupportsStewardPrompts', () => {
     expect(
       deskVersionSupportsStewardPrompts(STEWARD_PROMPTS_MIN_GROUPS_VERSION)
     ).toBe(true);
-    expect(deskVersionSupportsStewardPrompts('12.4.0')).toBe(true);
+    expect(deskVersionSupportsStewardPrompts('12.4.1')).toBe(true);
     expect(deskVersionSupportsStewardPrompts('13.0.0')).toBe(true);
   });
 
@@ -21,7 +21,7 @@ describe('deskVersionSupportsStewardPrompts', () => {
   });
 
   test('refuses a version it cannot fully parse rather than guessing', () => {
-    expect(deskVersionSupportsStewardPrompts('12.3.2 dirty')).toBe(false);
+    expect(deskVersionSupportsStewardPrompts('12.4.0 dirty')).toBe(false);
     expect(deskVersionSupportsStewardPrompts('')).toBe(false);
     expect(deskVersionSupportsStewardPrompts(null)).toBe(false);
     expect(deskVersionSupportsStewardPrompts(undefined)).toBe(false);

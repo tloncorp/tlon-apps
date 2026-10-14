@@ -9,7 +9,10 @@ import {
   type IdentifiedAutomationTask,
   ScheduledTasksScreenView,
 } from '../../ui/components/RecurringTasks';
-import { tasksPostingTo } from '../../ui/components/automationTaskDraft';
+import {
+  ownerTasks,
+  tasksPostingTo,
+} from '../../ui/components/automationTaskDraft';
 import {
   refetchAutomationsOnFocus,
   tasksForShip,
@@ -33,7 +36,7 @@ export function ScheduledTasksScreen({ navigation, route }: Props) {
   const { data: channel } = store.useChannel({ id: channelId });
   const channelTitle = useChannelTitle(channel ?? null);
   const tasks = useMemo<IdentifiedAutomationTask[]>(() => {
-    const all = tasksForShip(query.data, botShip) ?? {};
+    const all = ownerTasks(tasksForShip(query.data, botShip) ?? {});
     const shown = channelId
       ? tasksPostingTo(all, new Set([channelId]))
       : groupId

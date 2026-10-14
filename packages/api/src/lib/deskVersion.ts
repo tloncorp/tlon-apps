@@ -59,7 +59,7 @@ export const AUTOMATIONS_MIN_GROUPS_VERSION = '12.3.1';
 // not just the 15 they keep (TLON-6779). Below it, a member count of exactly
 // 15 may be that cap (getDeskCountsAllSeats). Must move in lockstep with
 // desk/desk.docket-0's version if the release number changes.
-export const FULL_MEMBER_COUNT_MIN_GROUPS_VERSION = '12.3.2';
+export const FULL_MEMBER_COUNT_MIN_GROUPS_VERSION = '12.4.0';
 
 // The first %groups release that serves a big roster in parts: the light ui
 // group and the seat pages (TLON-4698). Guarded registry entries name it as
@@ -72,4 +72,4 @@ export const ROSTER_PAGES_MIN_GROUPS_VERSION = '12.3.2';
 // (/steward/~/v1/prompts). Guarded registry entries name it as their `since`.
 // Must move in lockstep with desk/desk.docket-0's version if the release
 // number changes.
-export const STEWARD_PROMPTS_MIN_GROUPS_VERSION = '12.3.2';
+export const STEWARD_PROMPTS_MIN_GROUPS_VERSION = '12.4.0';
