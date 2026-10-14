@@ -49,18 +49,131 @@ describe('shouldEngageInGroup', () => {
     expect(result).toEqual({ engage: true, reason: 'mention' });
   });
 
-  it('engages on participated thread', () => {
-    const result = shouldEngageInGroup(
-      baseOpts({ inParticipatedThread: true, ownerListenEnabled: false })
-    );
-    expect(result).toEqual({ engage: true, reason: 'thread' });
-  });
+  describe('owner-listen inactive makes the owner mention-only', () => {
+    const OWNER_LISTEN_OFF = [
+      ['global off', { ownerListenEnabled: false }],
+      [
+        'channel muted',
+        { ownerListenDisabledChannels: new Set([OWNED_BY_OWNER]) },
+      ],
+    ] as const;
 
-  it('engages on owner blob-only message even when listen path off', () => {
-    const result = shouldEngageInGroup(
-      baseOpts({ isOwnerBlob: true, ownerListenEnabled: false })
+    it('participated thread engages when owner-listen active', () => {
+      expect(
+        shouldEngageInGroup(baseOpts({ inParticipatedThread: true }))
+      ).toEqual({ engage: true, reason: 'thread' });
+    });
+
+    it.each(OWNER_LISTEN_OFF)(
+      'owner in participated thread skips when %s',
+      (_label, off) => {
+        expect(
+          shouldEngageInGroup(baseOpts({ inParticipatedThread: true, ...off }))
+        ).toEqual({ engage: false, reason: 'skip' });
+      }
     );
-    expect(result).toEqual({ engage: true, reason: 'owner-blob' });
+
+    it.each(OWNER_LISTEN_OFF)(
+      'non-owner in participated thread still engages when %s',
+      (_label, off) => {
+        expect(
+          shouldEngageInGroup(
+            baseOpts({
+              inParticipatedThread: true,
+              senderShip: STRANGER,
+              ...off,
+            })
+          )
+        ).toEqual({ engage: true, reason: 'thread' });
+      }
+    );
+
+    it('owner in third-party-hosted participated thread engages when global on', () => {
+      expect(
+        shouldEngageInGroup(
+          baseOpts({
+            inParticipatedThread: true,
+            channelNest: STRANGER_HOSTED,
+            groupHost: STRANGER,
+          })
+        )
+      ).toEqual({ engage: true, reason: 'thread' });
+    });
+
+    it('owner in third-party-hosted participated thread skips when global off', () => {
+      expect(
+        shouldEngageInGroup(
+          baseOpts({
+            inParticipatedThread: true,
+            channelNest: STRANGER_HOSTED,
+            groupHost: STRANGER,
+            ownerListenEnabled: false,
+          })
+        )
+      ).toEqual({ engage: false, reason: 'skip' });
+    });
+
+    it.each(OWNER_LISTEN_OFF)(
+      'owner command wins over a participated thread when %s',
+      (_label, off) => {
+        expect(
+          shouldEngageInGroup(
+            baseOpts({
+              isOwnerCommand: true,
+              inParticipatedThread: true,
+              ...off,
+            })
+          )
+        ).toEqual({ engage: true, reason: 'owner-command' });
+      }
+    );
+
+    it.each(OWNER_LISTEN_OFF)(
+      'owner command wins over an owner blob when %s',
+      (_label, off) => {
+        expect(
+          shouldEngageInGroup(
+            baseOpts({ isOwnerCommand: true, isOwnerBlob: true, ...off })
+          )
+        ).toEqual({ engage: true, reason: 'owner-command' });
+      }
+    );
+
+    it('participated thread engages with global off when no owner is configured', () => {
+      expect(
+        shouldEngageInGroup(
+          baseOpts({
+            ownerShip: null,
+            inParticipatedThread: true,
+            ownerListenEnabled: false,
+          })
+        )
+      ).toEqual({ engage: true, reason: 'thread' });
+    });
+
+    it('owner blob engages when owner-listen active', () => {
+      expect(shouldEngageInGroup(baseOpts({ isOwnerBlob: true }))).toEqual({
+        engage: true,
+        reason: 'owner-blob',
+      });
+    });
+
+    it.each(OWNER_LISTEN_OFF)('owner blob skips when %s', (_label, off) => {
+      expect(
+        shouldEngageInGroup(baseOpts({ isOwnerBlob: true, ...off }))
+      ).toEqual({ engage: false, reason: 'skip' });
+    });
+
+    it.each(OWNER_LISTEN_OFF)(
+      'mention in a participated thread engages when %s',
+      (_label, off) => {
+        expect(
+          shouldEngageInGroup(
+            baseOpts({ mentioned: true, inParticipatedThread: true, ...off })
+          )
+        ).toEqual({ engage: true, reason: 'mention' });
+      }
+    );
   });
 
   it('engages owner in owner-hosted channel', () => {
