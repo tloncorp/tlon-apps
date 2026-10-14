@@ -127,25 +127,24 @@ describe('cleanCronToolArgs', () => {
     });
   });
 
-  it('keeps a real interval and a real trigger', () => {
+  it('keeps a real interval', () => {
     const cleaned = cleanCronToolArgs({
       action: 'add',
       job: {
         name: 'Hourly check',
         schedule: { kind: 'every', everyMs: 3_600_000 },
-        trigger: { script: 'return { fire: prices.drop > 5 };' },
         payload: { kind: 'agentTurn', message: 'Check prices.' },
       },
     });
     expect(cleaned?.job).toMatchObject({
       schedule: { kind: 'every', everyMs: 3_600_000 },
-      trigger: { script: 'return { fire: prices.drop > 5 };' },
     });
   });
 
-  it('drops a trigger that could never fire, whatever the filler says', () => {
-    // Captured from a real run: with any of these left in, core refused the
-    // job ("cron triggers are disabled") and a plain reminder was never made.
+  it('drops the trigger while triggers are off, whatever its script', () => {
+    // The filler is captured from a real run: with any of it left in, core
+    // refused the job ("cron triggers are disabled") and a plain reminder was
+    // never made. Core refuses a real script the same way.
     for (const script of [
       'x',
       'unused',
@@ -153,11 +152,9 @@ describe('cleanCronToolArgs', () => {
       'ordinary schedule',
       '',
       'return {fire:true}',
-      'return { fire: true };',
-      'json({ fire: true })',
-      'return json({ fire: false });',
+      'return { fire: false };',
       'do not fire',
-      'fire disabled',
+      'return { fire: prices.drop > 5 };',
     ]) {
       const cleaned = cleanCronToolArgs({
         action: 'add',
@@ -186,115 +183,45 @@ describe('cleanCronToolArgs', () => {
     }
   });
 
-  it('drops an always-true trigger from a one-shot reminder', () => {
-    // Core refuses a trigger on an `at` schedule, `once` or not, even with
-    // triggers on.
-    const cleaned = cleanCronToolArgs(
-      {
-        action: 'add',
-        job: {
-          name: 'Call the dentist',
-          schedule: { kind: 'at', at: '2026-10-20T13:00:00Z' },
-          trigger: { script: 'return { fire: true };', once: true },
-          sessionTarget: 'isolated',
-          payload: {
-            kind: 'agentTurn',
-            message: 'Remind ~ten to call the dentist.',
-          },
-        },
-      },
-      TRIGGERS_ON
-    );
-    expect(cleaned?.job).not.toHaveProperty('trigger');
-  });
-
-  it('leaves a run-once trigger alone on an update that leaves the schedule out', () => {
-    // Whether it can stay depends on the stored job's schedule, which this
-    // call doesn't say.
-    const update = {
+  it('drops the trigger from an update while triggers are off', () => {
+    const cleaned = cleanCronToolArgs({
       action: 'update',
       jobId: 'job-1',
       patch: {
-        payload: { kind: 'agentTurn', message: 'Remind ~ten to call.' },
-        trigger: { script: 'return { fire: true };', once: true },
-      },
-    };
-    expect(cleanCronToolArgs(update, TRIGGERS_ON)?.patch).toMatchObject({
-      trigger: { script: 'return { fire: true };', once: true },
-    });
-    // With triggers off, core would refuse it whatever the schedule.
-    expect(cleanCronToolArgs(update)?.patch).not.toHaveProperty('trigger');
-  });
-
-  it('keeps a real trigger in the documented form', () => {
-    const cleaned = cleanCronToolArgs({
-      action: 'add',
-      job: {
-        name: 'Price watch',
-        schedule: { kind: 'every', everyMs: 3_600_000 },
-        trigger: { script: 'json({ fire: price < 10 })' },
-        payload: { kind: 'agentTurn', message: 'Check the price.' },
+        schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/New_York' },
+        trigger: { script: 'unused', once: false },
       },
     });
-    expect(cleaned?.job).toMatchObject({
-      trigger: { script: 'json({ fire: price < 10 })' },
-    });
-  });
-
-  it('keeps a real trigger however it sets fire', () => {
-    for (const script of [
-      'json({ "fire": price < 10 })',
-      "return { 'fire': price < 10 };",
-      'const out = {}; out["fire"] = price < 10; return out;',
-      'const { fire } = observation; json({ fire })',
-    ]) {
-      const cleaned = cleanCronToolArgs({
-        action: 'add',
-        job: {
-          name: 'Price watch',
-          schedule: { kind: 'every', everyMs: 3_600_000 },
-          trigger: { script },
-          payload: { kind: 'agentTurn', message: 'Check the price.' },
-        },
-      });
-      expect(cleaned?.job).toMatchObject({ trigger: { script } });
-    }
-  });
-
-  it('clears the trigger when an update makes it always fire', () => {
-    // Left out of the patch, the job's old trigger would stay.
-    const cleaned = cleanCronToolArgs(
-      {
-        action: 'update',
-        jobId: 'job-1',
-        patch: {
-          schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/New_York' },
-          trigger: { script: 'json({ fire: true })', once: false },
-        },
-      },
-      TRIGGERS_ON
-    );
     expect(cleaned?.patch).toEqual({
       schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/New_York' },
-      trigger: null,
     });
   });
 
-  it('keeps an always-true trigger that ends a recurring job after one run', () => {
-    const add = {
-      action: 'add',
-      job: {
-        name: 'Once, at the next tick',
-        schedule: { kind: 'cron', expr: '0 9 * * *' },
-        trigger: { script: 'return { fire: true };', once: true },
-        payload: { kind: 'agentTurn', message: 'Say hello.' },
-      },
-    };
-    expect(cleanCronToolArgs(add, TRIGGERS_ON)?.job).toMatchObject({
-      trigger: { script: 'return { fire: true };', once: true },
-    });
-    // With triggers off, core would refuse it.
-    expect(cleanCronToolArgs(add)?.job).not.toHaveProperty('trigger');
+  it('leaves the trigger as sent while triggers are on', () => {
+    for (const trigger of [
+      { script: 'json({ fire: price < 10 })' },
+      { script: 'return { fire: true };', once: true },
+      { script: 'unused', once: false },
+    ]) {
+      const add = cleanCronToolArgs(
+        {
+          action: 'add',
+          job: {
+            name: 'Price watch',
+            schedule: { kind: 'every', everyMs: 3_600_000 },
+            trigger,
+            payload: { kind: 'agentTurn', message: 'Check the price.' },
+          },
+        },
+        TRIGGERS_ON
+      );
+      expect(add?.job).toMatchObject({ trigger });
+      const update = cleanCronToolArgs(
+        { action: 'update', jobId: 'job-1', patch: { trigger } },
+        TRIGGERS_ON
+      );
+      expect(update?.patch).toEqual({ trigger });
+    }
   });
 
   it('reads whether triggers are on from the gateway config', () => {

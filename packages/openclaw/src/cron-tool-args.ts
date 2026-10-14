@@ -1,6 +1,6 @@
 // The model fills every field of the cron tool's schema, whether or not it
 // means to set it: empty strings, nulls, `fallbacks: []`, a schedule of every
-// 1 ms, a trigger that can never fire, `sessionTarget: "main"`, delivery mode
+// 1 ms, a trigger with a filler script, `sessionTarget: "main"`, delivery mode
 // "none". Core rejects some of that outright ("cron patch agentId cannot be
 // changed", "cron triggers are disabled") and quietly applies the rest, which
 // can strip a job's delivery or make a scheduled run strict about fallbacks.
@@ -10,15 +10,6 @@
 type Json = Record<string, unknown>;
 
 const MIN_EVERY_MS = 60_000;
-// A trigger script gates a run by returning `{ fire: true }`, which
-// OpenClaw's docs write `json({ fire: true })`. The model's filler is a script
-// that always answers the same (`return { fire: false };`, `return {fire:true}`)
-// or words that never set `fire` ("x", "unused", "do not fire"). A real script
-// sets it as a key (`fire:`, `"fire":`), by assignment, or in shorthand
-// (`{ fire }`).
-const CONSTANT_FIRE =
-  /^\s*(?:return\b\s*)?(?:json\s*\(\s*)?\{\s*["']?fire["']?\s*:\s*(true|false)\s*\}\s*\)?\s*;?\s*$/;
-const SETS_FIRE = /\bfire["']?\]?\s*[:=]|[{,]\s*fire\s*(?=[,}])/;
 // Fields an update has no business changing on its own initiative; the model
 // only ever sets them to the schema's first enum value.
 const UPDATE_PLACEHOLDER_FIELDS = ['sessionTarget', 'wakeMode'];
@@ -61,38 +52,6 @@ export function cronTriggersEnabled(config: unknown): boolean {
   return isObject(triggers) && triggers.enabled === true;
 }
 
-/** Drops a trigger the model filled in, or clears it where that's meant. */
-function cleanTrigger(
-  job: Json,
-  isPatch: boolean,
-  triggersEnabled: boolean
-): void {
-  if (!isObject(job.trigger)) return;
-  const script = String(job.trigger.script ?? '');
-  const constant = CONSTANT_FIRE.exec(script)?.[1];
-  // Words that never set `fire` can't fire, and with triggers off a constant
-  // script gates nothing core would let it keep.
-  if (!SETS_FIRE.test(script) || (constant && !triggersEnabled)) {
-    delete job.trigger;
-    return;
-  }
-  if (constant === 'false') {
-    delete job.trigger;
-    return;
-  }
-  if (constant !== 'true') return;
-  // Always firing is no trigger, except that `once` can stop a recurring job
-  // after its first run. Only an every or cron schedule can carry it; an
-  // update that leaves the schedule out goes through as sent.
-  const scheduleKind = isObject(job.schedule) ? job.schedule.kind : undefined;
-  const recurring = scheduleKind === 'every' || scheduleKind === 'cron';
-  const unknownOnUpdate = isPatch && scheduleKind === undefined;
-  if (job.trigger.once === true && (recurring || unknownOnUpdate)) return;
-  // Left out of an update, the job's old trigger would stay; clear it.
-  if (isPatch) job.trigger = null;
-  else delete job.trigger;
-}
-
 /** One job or patch, with placeholders that would change the job removed. */
 function cleanJob(
   raw: unknown,
@@ -103,7 +62,10 @@ function cleanJob(
   if (!isObject(job)) return undefined;
 
   delete job.owner;
-  cleanTrigger(job, isPatch, options.triggersEnabled === true);
+  // The model sends a trigger on nearly every call, its script filler ("x",
+  // "unused", `return { fire: false };`). Core refuses any trigger while
+  // triggers are off, which they are on hosted bots, so it can only go.
+  if (!options.triggersEnabled) delete job.trigger;
   if (isObject(job.schedule)) {
     const schedule = job.schedule;
     if (schedule.anchorMs === 0) delete schedule.anchorMs;

@@ -422,7 +422,7 @@ describe('before_tool_call cron args guard', () => {
     expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
   });
 
-  it('keeps a run-once trigger only when the gateway runs triggers', async () => {
+  it('keeps a trigger only when the gateway runs triggers', async () => {
     const add = {
       toolName: 'cron',
       params: {
@@ -430,7 +430,7 @@ describe('before_tool_call cron args guard', () => {
         job: {
           ...CLEAN_ADD.params.job,
           schedule: { kind: 'cron', expr: '0 9 * * *' },
-          trigger: { script: 'return { fire: true };', once: true },
+          trigger: { script: 'json({ fire: price < 10 })' },
         },
       },
     };
@@ -439,7 +439,7 @@ describe('before_tool_call cron args guard', () => {
       on.handler(add, { sessionKey: OWNER_SESSION })
     ).resolves.toMatchObject({
       params: {
-        job: { trigger: { script: 'return { fire: true };', once: true } },
+        job: { trigger: { script: 'json({ fire: price < 10 })' } },
       },
     });
     _testing.clearAll();
