@@ -1,16 +1,13 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
+import { ShipPickerSheet, useCalm, useContactIndex } from '../../ui';
 import {
-  ContactList,
-  ScreenHeader,
-  SettingsContentScrollView,
-  ShipPickerSheet,
-} from '../../ui';
-import { Badge } from '../../ui/components/Badge';
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
+import { formatUserId } from '../../ui/utils/user';
 import {
   formatShipList,
   normalizeShip,
@@ -56,7 +53,6 @@ const shipListMeta: Record<
 export function BotShipListSettingsScreen(props: Props) {
   const { list } = props.route.params;
   const meta = shipListMeta[list];
-  const isWindowNarrow = useIsWindowNarrow();
   // Populate the draft from the server before editing. Reaching this leaf
   // directly (cold launch / deep link) would otherwise start from an empty
   // draft, and applying would persist those empty defaults over the real
@@ -130,58 +126,53 @@ export function BotShipListSettingsScreen(props: Props) {
     [updateShips]
   );
 
+  const contactIndex = useContactIndex();
+  const { disableNicknames } = useCalm();
+  const sections = useMemo<SettingsSectionModel[]>(
+    () => [
+      {
+        key: list,
+        footer: meta.description,
+        rows:
+          ships.length === 0
+            ? [{ key: 'empty', title: 'No users on this list.' }]
+            : ships.map((ship) => {
+                const userId = formatUserId(ship)?.display ?? ship;
+                const nickname = disableNicknames
+                  ? null
+                  : contactIndex?.[ship]?.nickname;
+                return {
+                  key: ship,
+                  title: nickname || userId,
+                  subtitle: nickname ? userId : undefined,
+                  leading: { kind: 'contact', contactId: ship },
+                  value: 'Remove',
+                  // Removing only edits the draft, which the apply bar commits.
+                  accessory: 'none',
+                  onPress: () => removeShip(ship),
+                };
+              }),
+      },
+    ],
+    [contactIndex, disableNicknames, list, meta.description, removeShip, ships]
+  );
+
   return (
-    <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
-        title={meta.title}
-        rightActions={[
-          {
-            id: 'add-ship',
-            icon: 'Add',
-            label: `Add ${meta.title.toLowerCase()}`,
-            onPress: () => setPickerOpen(true),
-            visible: ready,
-          },
-        ]}
-        placement="navigation"
-      />
-      {!ready ? (
-        <View flex={1} alignItems="center" justifyContent="center">
-          <LoadingSpinner />
-        </View>
-      ) : (
-        <SettingsContentScrollView
-          paddingHorizontal="$l"
-          paddingTop="$l"
-          safeAreaBottomOffset={24}
-        >
-          <YStack gap="$l" paddingBottom="$2xl">
-            <Text size="$label/m" color="$secondaryText" paddingHorizontal="$s">
-              {meta.description}
-            </Text>
-            {ships.length === 0 ? (
-              <View alignItems="center" paddingTop="$xl">
-                <Text color="$secondaryText">No users on this list.</Text>
-              </View>
-            ) : (
-              <ContactList borderWidth={0}>
-                {ships.map((ship) => (
-                  <ContactList.Item
-                    key={ship}
-                    contactId={ship}
-                    onPress={() => removeShip(ship)}
-                    showNickname
-                    showEndContent
-                    endContent={<Badge text="Remove" type="neutral" />}
-                  />
-                ))}
-              </ContactList>
-            )}
-          </YStack>
-        </SettingsContentScrollView>
-      )}
+    <SettingsListScreenView
+      title={meta.title}
+      sections={sections}
+      onBackPressed={handleBack}
+      loading={!ready}
+      rightActions={[
+        {
+          id: 'add-ship',
+          icon: 'Add',
+          label: `Add ${meta.title.toLowerCase()}`,
+          onPress: () => setPickerOpen(true),
+          visible: ready,
+        },
+      ]}
+    >
       <ShipPickerSheet
         open={ready && pickerOpen}
         onOpenChange={setPickerOpen}
@@ -189,6 +180,6 @@ export function BotShipListSettingsScreen(props: Props) {
         disabledIds={ships}
         onSelect={handleSelectShip}
       />
-    </View>
+    </SettingsListScreenView>
   );
 }

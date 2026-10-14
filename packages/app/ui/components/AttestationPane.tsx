@@ -12,7 +12,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { useMemo } from 'react';
 import { Linking } from 'react-native';
-import { XStack, XStackProps, YStack, styled } from 'tamagui';
+import { XStack, XStackProps, YStack, YStackProps, styled } from 'tamagui';
 
 import { HiddenPhoneDisplay } from './Profile/HiddenPhoneDisplay';
 
@@ -21,10 +21,11 @@ type SigStatus = 'initial' | 'loading' | 'verified' | 'invalid' | 'errored';
 export function AttestationPane({
   attestation,
   currentUserId,
+  ...props
 }: {
   attestation: db.Attestation;
   currentUserId: string;
-}) {
+} & YStackProps) {
   const [revoking, setRevoking] = useState(false);
   const [sigStatus, setSigStatus] = useState<SigStatus>('initial');
   const [error, setError] = useState<Error | null>(null);
@@ -102,7 +103,7 @@ export function AttestationPane({
   }, [sigStatus]);
 
   return (
-    <YStack paddingHorizontal="$2xl" gap="$xl">
+    <YStack paddingHorizontal="$2xl" gap="$xl" {...props}>
       <ItemContainer height={108}>
         <AttestationValueDisplay
           attestation={attestation}

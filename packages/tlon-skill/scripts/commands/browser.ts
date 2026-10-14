@@ -9,12 +9,18 @@ import {
   writeLine,
 } from './command';
 
-export const BROWSER_HANDOFF_HELP = `Usage: tlon browser --help
+export const BROWSER_HANDOFF_HELP = String.raw`Usage: tlon browser --help
 
-Tlon tool: browser handoff <session_id>
+Tlon tool: browser handoff <session_id> [--fields <JSON array>]
 Tlon tool: browser share <session_id>
 
 Use the sess_ handle from browser_session_create in the tool's command argument.
+Use --fields when the owner should fill only selected controls. Prefer current
+snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'.
+Exact {"name":"..."} or {"label":"..."} selectors must match uniquely.
+Encode apostrophes in selector text as \u0027 inside the single-quoted JSON:
+  browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'
+Omit --fields for automatic discovery of the visible form.
 The plugin resolves a fresh signed link and delivers the card through this CLI.
 Do not copy, construct, or pass a viewer URL in a model tool call. This CLI
 subcommand is the plugin's delivery transport, not a shell session-handle lookup.`;
@@ -24,14 +30,17 @@ export const BROWSER_HELP = `${BROWSER_HANDOFF_HELP}
 Use browser share to send a rich link card that opens the live session in the browser.
 Never send raw or labeled browser-session links in ordinary messages.
 
-Send the owner a secure form for the login, address, or card fields visible in
-a hosted browser session. The form sends input directly to the browser service,
-without passing it through chat or the bot. Login steps continue inside the
-handoff; address and card entry fills fields without submitting a transaction. The recipient is always the owner configured for the active bot
-account and cannot be overridden.
+Use browser handoff to send a native secure-entry card for login identifiers,
+passwords, verification codes, card fields, and private personal details.
+Selected-field cards fill one step without submitting the page. Values go directly to the browser
+service without passing through chat or the bot. Completing entry generates a
+task continuation; sharing alone does not. Neither command grants purchase approval.
+Read the hosted-browser skill for checkout, login, sharing, and recovery workflows.
+The recipient is always the owner configured for the active bot account and
+cannot be overridden.
 
 Tlon tool call:
-  {"command": "browser handoff <session_id>"}`;
+  ${JSON.stringify({ command: 'browser handoff <session_id> --fields \'["@e12","@e13"]\'' })}`;
 
 export interface BrowserDeps extends Pick<
   PostsDeps,
@@ -206,7 +215,7 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
             },
           ]
         : markdownToStory(
-            'The browser needs you to sign in before I can continue.'
+            'The browser needs information you can enter securely.'
           ),
       blob: sharing
         ? undefined

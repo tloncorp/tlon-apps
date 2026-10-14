@@ -28,7 +28,13 @@ export function extractClientVolumes(
       settings.push({ itemId: entityId, itemType: 'group', level });
     }
 
-    if (sourceType === 'channel' || sourceType === 'dm') {
+    // DM sources are keyed `ship/~x` and multi-DMs `club/0v...` on the wire,
+    // matching sourceToString; both ride the channel volume row
+    if (
+      sourceType === 'channel' ||
+      sourceType === 'ship' ||
+      sourceType === 'club'
+    ) {
       const level = getLevelFromVolumeMap(volumeMap);
       settings.push({ itemId: entityId, itemType: 'channel', level });
     }

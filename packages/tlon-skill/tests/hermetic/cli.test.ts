@@ -201,6 +201,23 @@ describe('CLI hermetic subprocess behavior', () => {
     expect(result.stderr).toBe('');
   });
 
+  for (const args of [
+    ['help'],
+    ['help', 'notes'],
+    ['help', 'notes', 'note-create'],
+    ['help', 'buckets', 'upload'],
+    ['version'],
+  ]) {
+    it(`supports discovery alias ${args.join(' ')} without credentials`, async () => {
+      const result = await runCli(args, {
+        env: { TLON_CONFIG_FILE: '/nonexistent/credentials.json' },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(result.stdout).toContain(args[0] === 'version' ? 'dev' : 'Usage:');
+    });
+  }
+
   for (const testCase of CLI_MATRIX_CASES) {
     it(testCase.name, async () => {
       const result = await runCli(testCase.args);

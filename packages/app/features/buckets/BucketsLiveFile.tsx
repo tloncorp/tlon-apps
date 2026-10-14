@@ -6,8 +6,6 @@ import { toItem, toViewerItem } from './BucketsLiveChannel';
 import { useBucketPreview } from './useBucketPreview';
 import { useLiveBucket } from './useLiveBucket';
 
-const noChildCounts: ReadonlyMap<number, number> = new Map();
-
 /** One file of a Bucket, on the screen the narrow layout pushes for it. */
 export function BucketsLiveFile({
   entryId,
@@ -21,7 +19,7 @@ export function BucketsLiveFile({
   const live = useLiveBucket(flag);
   const preview = useBucketPreview(live.readGrant);
   const entry = live.entries.find((candidate) => candidate.id === entryId);
-  const file = entry?.kind === 'file' ? toItem(entry, noChildCounts) : null;
+  const file = entry?.kind === 'file' ? toItem(entry) : null;
 
   // Loaded once, when the entry first appears: the grant is read off the
   // manifest, so asking before it arrives fails. A later rename or delete
@@ -31,7 +29,7 @@ export function BucketsLiveFile({
   useEffect(() => {
     if (requested.current || entry?.kind !== 'file') return;
     requested.current = true;
-    void load(toItem(entry, noChildCounts));
+    void load(toItem(entry));
   }, [entry, load]);
 
   // Only once the manifest is known: a link opened cold reads an empty

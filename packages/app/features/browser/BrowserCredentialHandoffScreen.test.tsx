@@ -3,6 +3,7 @@ import { ReactTestRenderer, act, create } from 'react-test-renderer';
 import {
   afterAll,
   beforeAll,
+  afterEach,
   beforeEach,
   describe,
   expect,
@@ -10,9 +11,11 @@ import {
   vi,
 } from 'vitest';
 import { BrowserCredentialHandoffScreen } from './BrowserCredentialHandoffScreen';
-import type {
-  BrowserCredentialHandoff,
-  BrowserSecureField,
+import { BrowserViewerModal } from './BrowserViewerModal';
+import {
+  BrowserFormError,
+  type BrowserCredentialHandoff,
+  type BrowserSecureField,
 } from './browserCredentialHandoff';
 
 const mocks = vi.hoisted(() => ({
@@ -22,8 +25,13 @@ const mocks = vi.hoisted(() => ({
   complete: vi.fn(),
   discard: vi.fn(),
   resolve: vi.fn(),
-  openURL: vi.fn(),
   isWeb: false,
+  openURL: vi.fn(),
+  openWindow: vi.fn(),
+}));
+vi.mock('react-native', () => ({
+  Linking: { openURL: mocks.openURL },
+  Keyboard: { dismiss: vi.fn() },
 }));
 vi.mock('@tloncorp/ui', () => ({
   Button: 'Button',
@@ -31,7 +39,9 @@ vi.mock('@tloncorp/ui', () => ({
   Pressable: 'Pressable',
   Text: 'Text',
 }));
-vi.mock('react-native', () => ({ Linking: { openURL: mocks.openURL } }));
+vi.mock('./BrowserViewerModal', () => ({
+  BrowserViewerModal: 'BrowserViewerModal',
+}));
 vi.mock('tamagui', () => ({
   get isWeb() {
     return mocks.isWeb;
@@ -128,8 +138,19 @@ describe('secure browser form screen', () => {
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT;
   });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubGlobal(
+      'window',
+      Object.assign(new EventTarget(), { open: mocks.openWindow })
+    );
+    vi.stubGlobal(
+      'document',
+      Object.assign(new EventTarget(), { visibilityState: 'visible' })
+    );
     mocks.isWeb = false;
     mocks.resolve.mockReturnValue(
       'https://browser-session.tlon.network/s/payload.signature'
@@ -503,16 +524,212 @@ describe('secure browser form screen', () => {
     }
   );
 
-  it('offers the live browser when a form is unsupported', async () => {
-    mocks.beginHandoff.mockRejectedValue(new Error('No supported form'));
+  it('opens the live browser when no secure form is available and stays closed on dismissal', async () => {
+    mocks.beginHandoff.mockRejectedValue(
+      new BrowserFormError('No supported form', 404)
+    );
     const { renderer } = await render();
-    await press(renderer, 'Open live browser');
-    expect(mocks.openURL).toHaveBeenCalledWith(
+    expect(renderer.root.findByType(BrowserViewerModal).props.viewerUrl).toBe(
       'https://browser-session.tlon.network/s/payload.signature'
     );
+    expect(JSON.stringify(renderer.toJSON())).not.toContain(
+      'No supported form'
+    );
+    expect(mocks.complete).not.toHaveBeenCalled();
+    expect(mocks.openURL).not.toHaveBeenCalled();
+    expect(mocks.openWindow).not.toHaveBeenCalled();
+    expect(mocks.submitCredentials).not.toHaveBeenCalled();
+    await act(async () =>
+      renderer.root.findByType(BrowserViewerModal).props.onClose()
+    );
+    expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+    expect(JSON.stringify(renderer.toJSON())).toContain(
+      'Continue in the live browser.'
+    );
+    await press(renderer, 'Open live browser');
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(1);
+    act(() => renderer.unmount());
+  });
+
+  it('shows a continuation failure after dismissing the automatic browser', async () => {
+    mocks.beginHandoff.mockRejectedValue(
+      new BrowserFormError('No supported form', 404)
+    );
+    mocks.complete.mockRejectedValue(new Error('Could not notify the bot'));
+    const { renderer } = await render();
+    await act(async () =>
+      renderer.root.findByType(BrowserViewerModal).props.onClose()
+    );
+    await press(renderer, 'Return to conversation');
+    expect(JSON.stringify(renderer.toJSON())).toContain(
+      'Could not notify the bot'
+    );
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
+
+  it('shows a fresh secure form after closing the automatic live viewer', async () => {
+    mocks.beginHandoff.mockRejectedValueOnce(
+      new BrowserFormError('No supported form', 404)
+    );
+    const { renderer } = await render();
+    await act(async () =>
+      renderer.root.findByType(BrowserViewerModal).props.onClose()
+    );
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+    expect(
+      renderer.root.findByProps({ accessibilityLabel: 'Password' }).props.value
+    ).toBe('');
+    expect(mocks.complete).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+  });
+
+  it.each([401, 410, 429, 500])(
+    'keeps discovery error %s visible without opening the browser',
+    async (status) => {
+      mocks.beginHandoff.mockRejectedValue(
+        new BrowserFormError('Browser unavailable', status)
+      );
+      const { renderer } = await render();
+      expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+      expect(JSON.stringify(renderer.toJSON())).toContain(
+        'Browser unavailable'
+      );
+      expect(mocks.complete).not.toHaveBeenCalled();
+      act(() => renderer.unmount());
+    }
+  );
+
+  it('ignores a missing-form response after leaving the screen', async () => {
+    let reject!: (error: Error) => void;
+    mocks.beginHandoff.mockImplementation(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        })
+    );
+    const { renderer, navigation } = await render();
+    await act(async () =>
+      renderer.root
+        .findByType('ScreenHeader' as React.ElementType)
+        .props.backAction()
+    );
+    const tree = renderer.toJSON();
+    await act(async () =>
+      reject(new BrowserFormError('No supported form', 404))
+    );
+    expect(renderer.toJSON()).toEqual(tree);
+    expect(navigation.goBack).toHaveBeenCalledOnce();
+    expect(mocks.complete).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+  });
+
+  it('offers a user-initiated live browser tab on web when no secure form is available', async () => {
+    mocks.isWeb = true;
+    mocks.beginHandoff.mockRejectedValue(
+      new BrowserFormError('No supported form', 404)
+    );
+    const { renderer } = await render();
+    expect(mocks.openWindow).not.toHaveBeenCalled();
+    expect(JSON.stringify(renderer.toJSON())).toContain(
+      'Continue in the live browser.'
+    );
+    expect(JSON.stringify(renderer.toJSON())).not.toContain(
+      'No supported form'
+    );
+    await press(renderer, 'Open live browser');
+    expect(mocks.openWindow).toHaveBeenCalledOnce();
+    expect(mocks.complete).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+  });
+
+  it('clears typed secrets and reloads the form after closing live control', async () => {
+    const { renderer } = await render();
+    act(() => enter(renderer, 'Password', 'private-password'));
+    await press(renderer, 'Open live browser');
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('private-password');
+    await act(async () =>
+      renderer.root.findByType(BrowserViewerModal).props.onClose()
+    );
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+    expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
+    expect(mocks.complete).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+  });
+
+  it.each([false, true])(
+    'rejects untrusted handoff URLs (web=%s)',
+    async (web) => {
+      mocks.isWeb = web;
+      const { renderer } = await render();
+      mocks.resolve.mockReturnValue('https://evil.example/s/payload.signature');
+      await press(renderer, 'Open live browser');
+      expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+      expect(mocks.openWindow).not.toHaveBeenCalled();
+      expect(JSON.stringify(renderer.toJSON())).toContain(
+        'not from a trusted Tlon host'
+      );
+      act(() => renderer.unmount());
+    }
+  );
+
+  it('opens web handoffs in a separate tab without completing or submitting the form', async () => {
+    mocks.isWeb = true;
+    const { renderer } = await render();
+    await press(renderer, 'Open live browser');
+    expect(mocks.openWindow).toHaveBeenCalledOnce();
+    expect(mocks.openWindow).toHaveBeenCalledWith(
+      'https://browser-session.tlon.network/s/payload.signature',
+      '_blank',
+      'noopener,noreferrer'
+    );
+    expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
+    expect(mocks.complete).not.toHaveBeenCalled();
     expect(mocks.submitCredentials).not.toHaveBeenCalled();
     act(() => renderer.unmount());
   });
+
+  it.each(['focus', 'visibility', 'both'] as const)(
+    'refreshes once on browser return via %s',
+    async (signal) => {
+      mocks.isWeb = true;
+      const { renderer } = await render();
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+      });
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(1);
+      await press(renderer, 'Open live browser');
+      mocks.beginHandoff.mockResolvedValue(form([code], { formId: 'form-2' }));
+      Object.assign(document, { visibilityState: 'hidden' });
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(1);
+      Object.assign(document, { visibilityState: 'visible' });
+      await act(async () => {
+        if (signal !== 'focus')
+          document.dispatchEvent(new Event('visibilitychange'));
+        if (signal !== 'visibility') window.dispatchEvent(new Event('focus'));
+      });
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
+      expect(
+        renderer.root.findAllByProps({ accessibilityLabel: 'Password' })
+      ).toHaveLength(0);
+      expect(
+        renderer.root.findByProps({ accessibilityLabel: 'Verification code' })
+      ).toBeDefined();
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+      });
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
+      expect(mocks.complete).not.toHaveBeenCalled();
+      expect(mocks.submitCredentials).not.toHaveBeenCalled();
+      act(() => renderer.unmount());
+      window.dispatchEvent(new Event('focus'));
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(2);
+    }
+  );
 
   it('requires reopening an unavailable in-memory handoff', async () => {
     mocks.resolve.mockReturnValue(undefined);

@@ -1,3 +1,5 @@
+import catalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
+import { ALLOWED_TLON_COMMANDS } from './tlon-tool-guard.js';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -38,6 +40,41 @@ function beforeImmediate<T>(promise: Promise<T>) {
 }
 
 describe('tlon tool execution', () => {
+  it.each(['--help', '-h', '', '--version', '-v'])(
+    'classifies discovery as a known utility: %s',
+    (command) => {
+      expect(summarizeTlonCommand(command)).toMatchObject({
+        isKnownSubcommand: true,
+        intent: 'utility',
+      });
+    }
+  );
+
+  it('keeps reviewed tool policy aligned with the discoverable command catalog', () => {
+    // A catalog addition must be explicitly reviewed in the policy list.
+    expect(
+      ALLOWED_TLON_COMMANDS.filter(
+        (name) => !['help', 'version', 'notebook'].includes(name)
+      ).sort()
+    ).toEqual(Object.keys(catalog).sort());
+  });
+
+  it.each(['help', '--help', '-h', ''])(
+    'answers top-level discovery locally: %s',
+    async (command) => {
+      const runCommand = vi.fn();
+      const execute = createTlonToolExecutor({
+        runCommand,
+        notifyDiaryMigrationDiscovery: vi.fn(),
+      });
+      const result = await execute('help', { command });
+      expect(result.details).toBeUndefined();
+      expect(result.content[0].text).toContain('help notes note-create');
+      expect(result.content[0].text).toContain('stdin is shell-only');
+      expect(runCommand).not.toHaveBeenCalled();
+    }
+  );
+
   it.each([
     'notes note-create notes/~zod/blog root "Title" --stdin',
     'notes note-update notes/~zod/blog 1 --stdin',
@@ -310,6 +347,100 @@ describe('tlon tool execution', () => {
       blocked: true,
       reason: 'migration_operation',
     });
+  });
+
+  it.each([
+    { id: 'auto-provision', component: 'Button' },
+    { id: 'another-button', component: 'Button' },
+    { id: 'topic-choice', component: 'SmallChoice' },
+  ])(
+    'reserves $component provisioning blobs for the typed task-plan tool',
+    async (component) => {
+      const runCommand = vi.fn(async () => 'unexpected CLI invocation');
+      const execute = createTlonToolExecutor({
+        runCommand,
+        notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      });
+      const blob = JSON.stringify([
+        {
+          type: 'a2ui',
+          messages: [
+            {
+              updateComponents: {
+                components: [
+                  {
+                    ...component,
+                    action: {
+                      event: { name: 'tlon.provisionAgent', context: {} },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const result = await execute('reserved-auto-provision', {
+        command: `posts send chat/~zod/home plan --blob '${blob}'`,
+      });
+
+      expect(result).toEqual({
+        content: [
+          {
+            type: 'text',
+            text: expect.stringContaining('tlon_agent_task_plan'),
+          },
+        ],
+        details: {
+          status: 'blocked',
+          blocked: true,
+          reason: 'reserved_automatic_provision',
+        },
+      });
+      expect(runCommand).not.toHaveBeenCalled();
+    }
+  );
+
+  it('blocks model-authored provider configuration actions in post blobs', async () => {
+    const runCommand = vi.fn(async () => 'unexpected CLI invocation');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+    const blob = JSON.stringify([
+      {
+        type: 'a2ui',
+        messages: [
+          {
+            updateComponents: {
+              components: [
+                {
+                  id: 'connected-services',
+                  component: 'McpConnect',
+                  configureAction: {
+                    event: {
+                      name: 'tlon.configureAgentProviders',
+                      context: {},
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+
+    const result = await execute('forged-provider-access', {
+      command: `posts send chat/~zod/home connect --blob '${blob}'`,
+    });
+
+    expect(result.details).toMatchObject({
+      status: 'blocked',
+      reason: 'reserved_provider_configuration',
+    });
+    expect(runCommand).not.toHaveBeenCalled();
   });
 });
 

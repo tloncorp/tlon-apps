@@ -19,7 +19,9 @@ import {
 const mocks = vi.hoisted(() => ({
   hasFirstEntry: false,
   hasFirstEntryFailed: false,
+  markNotesNotebookStale: vi.fn(),
   pendingAt: undefined as number | undefined,
+  warmNotesNotebookSnapshot: vi.fn(async () => Date.now()),
 }));
 
 vi.mock('@tloncorp/shared/db', () => ({
@@ -27,7 +29,9 @@ vi.mock('@tloncorp/shared/db', () => ({
   getChanPosts: vi.fn(async () => []),
 }));
 vi.mock('@tloncorp/shared/store', () => ({
+  markNotesNotebookStale: mocks.markNotesNotebookStale,
   syncSince: vi.fn(async () => undefined),
+  warmNotesNotebookSnapshot: mocks.warmNotesNotebookSnapshot,
 }));
 vi.mock('./agentOnboardingFirstEntry', () => ({
   hasAgentOnboardingFirstEntry: () => mocks.hasFirstEntry,
@@ -55,6 +59,7 @@ const waitingProps = (): HookProps => ({
   channelId: 'chat/~zod/setup',
   groupId: '~zod/home',
   isFocused: false,
+  notebookNest: 'notes/~zod/updates',
   posts: [],
   provisionId: 'provision-1',
   provisionAcknowledgedAt: Date.now(),
@@ -97,7 +102,9 @@ describe('useAgentOnboardingFirstEntry', () => {
     vi.useFakeTimers();
     mocks.hasFirstEntry = false;
     mocks.hasFirstEntryFailed = false;
+    mocks.markNotesNotebookStale.mockClear();
     mocks.pendingAt = undefined;
+    mocks.warmNotesNotebookSnapshot.mockClear();
   });
 
   afterEach(() => {
@@ -150,6 +157,24 @@ describe('useAgentOnboardingFirstEntry', () => {
 
     advance(STATUS_INTERVAL_MS * 3);
     expect(labelOf(renderer)).toBeUndefined();
+    act(() => renderer.unmount());
+  });
+
+  it('refreshes the delivered notebook when the first entry lands', async () => {
+    const props = waitingProps();
+    const renderer = render(props);
+
+    mocks.hasFirstEntry = true;
+    await act(async () => {
+      renderer.update(<Harness {...props} posts={[]} />);
+    });
+
+    expect(mocks.markNotesNotebookStale).toHaveBeenCalledWith(
+      'notes/~zod/updates'
+    );
+    expect(mocks.warmNotesNotebookSnapshot).toHaveBeenCalledWith(
+      'notes/~zod/updates'
+    );
     act(() => renderer.unmount());
   });
 

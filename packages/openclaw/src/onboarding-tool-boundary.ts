@@ -1,0 +1,520 @@
+import { isCronToolName } from './cron-tool-args-guard.js';
+import { ONBOARDING_JOB_NAME } from './monitor/onboarding-job.js';
+import { sharedMap } from './shared-state.js';
+import { SupersededTurnError } from './superseded-turn.js';
+import { isDmNest } from './targets.js';
+
+type TlonSessionSurface = {
+  kind: 'direct' | 'group';
+  senderRole?: 'owner' | 'user';
+  channelNest?: string;
+  requestedOnboardingGroupId?: string;
+  threadParentId?: string;
+  bootstrapComplete?: boolean;
+  messageId?: string;
+  onboardingDeviceTimezone?: string;
+  timestamp: number;
+};
+
+type TlonSessionRunSurface = TlonSessionSurface & {
+  sessionKey: string;
+};
+
+type TlonTaskPlanCall = {
+  runId: string;
+  sessionKey: string;
+  interviewMessageId: string;
+  onboardingDeviceTimezone?: string;
+  timestamp: number;
+};
+
+type TlonInterviewStart = {
+  messageId: string;
+  timestamp: number;
+};
+
+type TlonChoiceCall = {
+  runId: string;
+  sessionKey: string;
+  ownerMessageId: string;
+  timestamp: number;
+};
+
+type TlonServiceSetupCall = {
+  sessionKey: string;
+  ownerMessageId: string;
+  timestamp: number;
+};
+
+const sessionSurfaces = sharedMap<string, TlonSessionSurface>(
+  'onboarding-session-surfaces'
+);
+const sessionRunSurfaces = sharedMap<string, TlonSessionRunSurface>(
+  'onboarding-session-run-surfaces'
+);
+const taskPlanRunClaims = sharedMap<string, string>(
+  'onboarding-task-plan-run-claims'
+);
+const choiceRunClaims = sharedMap<string, string>(
+  'onboarding-choice-run-claims'
+);
+const taskPlanCalls = sharedMap<string, TlonTaskPlanCall>(
+  'onboarding-task-plan-calls'
+);
+const interviewStarts = sharedMap<string, TlonInterviewStart>(
+  'onboarding-interview-starts'
+);
+const choiceCalls = sharedMap<string, TlonChoiceCall>(
+  'onboarding-choice-calls'
+);
+const serviceSetupCalls = sharedMap<string, TlonServiceSetupCall>(
+  'onboarding-service-setup-calls'
+);
+const SURFACE_TTL_MS = 60 * 60 * 1000;
+
+function baseSessionKey(sessionKey: string): string {
+  const threadIndex = sessionKey.indexOf(':thread:');
+  return threadIndex > 0 ? sessionKey.slice(0, threadIndex) : sessionKey;
+}
+
+export function resolveTlonSessionThreadParentId(
+  isThreadReply: boolean | undefined,
+  parentId: string | null | undefined
+): string | undefined {
+  const normalized = parentId?.trim();
+  return isThreadReply && normalized ? normalized : undefined;
+}
+
+export function resolveTlonSessionOwnerMessageId(
+  senderRole: 'owner' | 'user',
+  messageId: string,
+  previousMessageId?: string
+): string | undefined {
+  return senderRole === 'owner' ? messageId : previousMessageId;
+}
+
+function pruneExpiredSurfaces(now = Date.now()): void {
+  for (const [key, entry] of sessionSurfaces) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      sessionSurfaces.delete(key);
+    }
+  }
+  for (const [key, entry] of sessionRunSurfaces) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      sessionRunSurfaces.delete(key);
+    }
+  }
+  for (const [callId, entry] of taskPlanCalls) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      taskPlanCalls.delete(callId);
+      if (taskPlanRunClaims.get(entry.runId) === callId) {
+        taskPlanRunClaims.delete(entry.runId);
+      }
+    }
+  }
+  for (const [key, entry] of interviewStarts) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      interviewStarts.delete(key);
+    }
+  }
+  for (const [key, entry] of choiceCalls) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      choiceCalls.delete(key);
+      if (choiceRunClaims.get(entry.runId) === key) {
+        choiceRunClaims.delete(entry.runId);
+      }
+    }
+  }
+  for (const [key, entry] of serviceSetupCalls) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      serviceSetupCalls.delete(key);
+    }
+  }
+}
+
+export function setTlonSessionSurface(
+  sessionKey: string,
+  surface: Omit<TlonSessionSurface, 'timestamp'>
+): void {
+  const now = Date.now();
+  pruneExpiredSurfaces(now);
+  sessionSurfaces.set(sessionKey, { ...surface, timestamp: now });
+}
+
+export function getTlonSessionSurface(
+  sessionKey: string | null | undefined
+): TlonSessionSurface | undefined {
+  const key = sessionKey?.trim();
+  if (!key) return undefined;
+
+  const lookup = (candidate: string) => {
+    const entry = sessionSurfaces.get(candidate);
+    if (!entry) return undefined;
+    if (Date.now() - entry.timestamp > SURFACE_TTL_MS) {
+      sessionSurfaces.delete(candidate);
+      return undefined;
+    }
+    return entry;
+  };
+
+  const direct = lookup(key);
+  if (direct) return direct;
+  const threadIndex = key.indexOf(':thread:');
+  return threadIndex > 0 ? lookup(key.slice(0, threadIndex)) : undefined;
+}
+
+export function rememberTlonSessionRunSurface(
+  runId: string,
+  sessionKey: string,
+  runContext?: Pick<TlonSessionSurface, 'senderRole'>
+): void {
+  const surface = getTlonSessionSurface(sessionKey);
+  if (!surface) return;
+  pruneExpiredSurfaces();
+  sessionRunSurfaces.set(runId, { ...surface, ...runContext, sessionKey });
+}
+
+export function getTlonSessionRunSurface(
+  runId: string | null | undefined
+): TlonSessionRunSurface | undefined {
+  const key = runId?.trim();
+  if (!key) return undefined;
+  const surface = sessionRunSurfaces.get(key);
+  if (!surface) return undefined;
+  if (Date.now() - surface.timestamp > SURFACE_TTL_MS) {
+    sessionRunSurfaces.delete(key);
+    return undefined;
+  }
+  return surface;
+}
+
+export function clearTlonSessionRunSurface(
+  runId: string | null | undefined
+): void {
+  const key = runId?.trim();
+  if (!key) return;
+  sessionRunSurfaces.delete(key);
+  choiceRunClaims.delete(key);
+  const callId = taskPlanRunClaims.get(key);
+  if (callId) taskPlanCalls.delete(callId);
+  taskPlanRunClaims.delete(key);
+}
+
+export function bindTlonInterviewStartToCurrentOwnerTurn(
+  runId: string | null | undefined,
+  sessionKey: string | null | undefined
+): void {
+  const key = sessionKey?.trim();
+  const runSurface = getTlonSessionRunSurface(runId);
+  if (!key || !runSurface?.messageId || runSurface.sessionKey !== key) return;
+  pruneExpiredSurfaces();
+  const interviewKey = baseSessionKey(key);
+  if (!interviewStarts.has(interviewKey)) {
+    interviewStarts.set(interviewKey, {
+      messageId: runSurface.messageId,
+      timestamp: Date.now(),
+    });
+  }
+}
+
+export function claimTlonChoiceCall(input: {
+  toolCallId?: string;
+  runId?: string;
+  sessionKey?: string;
+}): string | undefined {
+  const toolCallId = input.toolCallId?.trim();
+  const runId = input.runId?.trim();
+  const sessionKey = input.sessionKey?.trim();
+  if (!toolCallId || !runId || !sessionKey) {
+    return 'The interview coordinator could not bind this choice to the current owner turn.';
+  }
+  const existingCallId = choiceRunClaims.get(runId);
+  if (existingCallId) {
+    return (
+      'A choice was already posted in this owner turn. Return NO_REPLY now ' +
+      'and wait for the owner answer; do not post another question or call another tool.'
+    );
+  }
+  const runSurface = getTlonSessionRunSurface(runId);
+  if (!runSurface?.messageId || runSurface.sessionKey !== sessionKey) {
+    return 'The interview coordinator could not identify the owner message that started this turn.';
+  }
+  bindTlonInterviewStartToCurrentOwnerTurn(runId, sessionKey);
+  choiceCalls.set(toolCallId, {
+    runId,
+    sessionKey,
+    ownerMessageId: runSurface.messageId,
+    timestamp: Date.now(),
+  });
+  choiceRunClaims.set(runId, toolCallId);
+  return undefined;
+}
+
+export function assertTlonChoiceCallCurrent(toolCallId: string): void {
+  const call = choiceCalls.get(toolCallId);
+  if (!call) throw new Error('choice is not bound to the current owner turn');
+  if (
+    getTlonSessionSurface(call.sessionKey)?.messageId !== call.ownerMessageId
+  ) {
+    throw new SupersededTurnError();
+  }
+}
+
+export function finishTlonChoiceCall(
+  toolCallId: string,
+  retainClaim: boolean
+): void {
+  const call = choiceCalls.get(toolCallId);
+  if (!call || retainClaim) return;
+  choiceCalls.delete(toolCallId);
+  if (choiceRunClaims.get(call.runId) === toolCallId) {
+    choiceRunClaims.delete(call.runId);
+  }
+}
+
+/** Tie a setup card to the owner message whose turn is posting it. */
+export function bindTlonServiceSetupCall(input: {
+  toolCallId?: string;
+  runId?: string;
+  sessionKey?: string;
+}): void {
+  const toolCallId = input.toolCallId?.trim();
+  const sessionKey = input.sessionKey?.trim();
+  const runSurface = getTlonSessionRunSurface(input.runId);
+  if (!toolCallId || !sessionKey || !runSurface?.messageId) return;
+  pruneExpiredSurfaces();
+  serviceSetupCalls.set(toolCallId, {
+    sessionKey,
+    ownerMessageId: runSurface.messageId,
+    timestamp: Date.now(),
+  });
+}
+
+export function assertTlonServiceSetupCallCurrent(toolCallId: string): void {
+  const call = serviceSetupCalls.get(toolCallId);
+  serviceSetupCalls.delete(toolCallId);
+  if (!call) return;
+  const current = getTlonSessionSurface(call.sessionKey);
+  if (current?.messageId && current.messageId !== call.ownerMessageId) {
+    throw new SupersededTurnError();
+  }
+}
+
+export function claimTlonTaskPlanCall(input: {
+  toolCallId?: string;
+  runId?: string;
+  sessionKey?: string;
+}): string | undefined {
+  const toolCallId = input.toolCallId?.trim();
+  const runId = input.runId?.trim();
+  const sessionKey = input.sessionKey?.trim();
+  if (!toolCallId || !runId || !sessionKey) {
+    return 'The task-plan coordinator could not bind this call to the current owner turn.';
+  }
+
+  pruneExpiredSurfaces();
+  if (choiceRunClaims.has(runId)) {
+    return (
+      'A choice was already posted in this owner turn. Return NO_REPLY now ' +
+      'and wait for the owner answer; do not post a task plan or call another tool.'
+    );
+  }
+  const existingCallId = taskPlanRunClaims.get(runId);
+  if (existingCallId) {
+    return existingCallId === toolCallId
+      ? undefined
+      : 'Only one task plan may be posted from an owner turn.';
+  }
+
+  const runSurface = getTlonSessionRunSurface(runId);
+  if (!runSurface?.messageId || runSurface.sessionKey !== sessionKey) {
+    return 'The task-plan coordinator could not identify the owner message that started this turn.';
+  }
+  bindTlonInterviewStartToCurrentOwnerTurn(runId, sessionKey);
+  taskPlanRunClaims.set(runId, toolCallId);
+  taskPlanCalls.set(toolCallId, {
+    runId,
+    sessionKey,
+    interviewMessageId: runSurface.messageId,
+    ...(runSurface.onboardingDeviceTimezone
+      ? { onboardingDeviceTimezone: runSurface.onboardingDeviceTimezone }
+      : {}),
+    timestamp: Date.now(),
+  });
+  return undefined;
+}
+
+export function getTlonTaskPlanEvidence(toolCallId: string): {
+  interviewStartMessageId?: string;
+  interviewMessageId: string;
+  interviewTimezone?: string;
+  onboardingGroupId?: string;
+  onboardingTarget?: string;
+} {
+  pruneExpiredSurfaces();
+  const call = taskPlanCalls.get(toolCallId);
+  if (!call) {
+    throw new Error('task plan is not bound to the current owner turn');
+  }
+  const interviewStart = interviewStarts.get(baseSessionKey(call.sessionKey));
+  const runSurface = getTlonSessionRunSurface(call.runId);
+  return {
+    ...(interviewStart
+      ? { interviewStartMessageId: interviewStart.messageId }
+      : {}),
+    interviewMessageId: call.interviewMessageId,
+    ...(call.onboardingDeviceTimezone
+      ? { interviewTimezone: call.onboardingDeviceTimezone }
+      : {}),
+    ...(runSurface?.kind === 'direct' && runSurface.requestedOnboardingGroupId
+      ? {
+          onboardingGroupId: runSurface.requestedOnboardingGroupId,
+          onboardingTarget: runSurface.channelNest,
+        }
+      : {}),
+  };
+}
+
+export function assertTlonTaskPlanCallCurrent(toolCallId: string): void {
+  const call = taskPlanCalls.get(toolCallId);
+  if (!call) {
+    throw new Error('task plan is not bound to the current owner turn');
+  }
+  const current = getTlonSessionSurface(call.sessionKey);
+  if (current?.messageId !== call.interviewMessageId) {
+    throw new SupersededTurnError();
+  }
+}
+
+export function finishTlonTaskPlanCall(
+  toolCallId: string,
+  retainClaim: boolean
+): void {
+  const call = taskPlanCalls.get(toolCallId);
+  if (!call) return;
+  if (retainClaim) {
+    interviewStarts.delete(baseSessionKey(call.sessionKey));
+    return;
+  }
+  taskPlanCalls.delete(toolCallId);
+  if (taskPlanRunClaims.get(call.runId) === toolCallId) {
+    taskPlanRunClaims.delete(call.runId);
+  }
+}
+
+export function onboardingToolBlockReason(
+  toolName: string,
+  params: unknown,
+  surface: TlonSessionSurface | undefined,
+  runSurface?: TlonSessionRunSurface,
+  /** For a call that changes, runs or removes a job: whether it is the onboarding task. */
+  managedCronJob?: { onboardingJob: boolean }
+): string | undefined {
+  const isTypedOnboardingTool =
+    toolName === 'tlon_agent_choice' ||
+    toolName === 'tlon_agent_task_plan' ||
+    toolName === 'tlon_agent_service_setup';
+
+  if (isTypedOnboardingTool) {
+    if (
+      !surface?.channelNest ||
+      (surface.kind !== 'group' &&
+        !(surface.kind === 'direct' && surface.requestedOnboardingGroupId))
+    ) {
+      return (
+        'Recurring-task onboarding is available only in the active Tlonbot ' +
+        'group or its furnished first-run bot DM. Tell the owner to choose +, then New Tlonbot group, and stop.'
+      );
+    }
+    if (runSurface?.threadParentId ?? surface.threadParentId) {
+      return (
+        'Recurring-task onboarding actions are not supported from a thread. ' +
+        'Continue in the main group conversation, then try again.'
+      );
+    }
+    const target =
+      params && typeof params === 'object' && 'target' in params
+        ? String((params as { target?: unknown }).target ?? '')
+        : '';
+    if (target !== surface.channelNest) {
+      return 'The onboarding tool target must match the active conversation.';
+    }
+  }
+
+  if (
+    isCronToolName(toolName) &&
+    surface?.bootstrapComplete === false &&
+    !cronOpenDuringOnboarding(params, managedCronJob)
+  ) {
+    return surface.kind === 'direct' && !surface.requestedOnboardingGroupId
+      ? 'First-run recurring-task provisioning is owned by the group coordinator. Tell the owner to choose +, then New Tlonbot group, and stop.'
+      : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan to activate the agreed task, and do not call cron directly. ' +
+          "Until the task's first entry has posted, cron can list jobs, add one that delivers to a DM or a group chat, and change, run or remove any job other than the onboarding task.";
+  }
+
+  return undefined;
+}
+
+const CRON_MANAGE_ACTIONS = ['update', 'remove', 'run'];
+
+/** The job a cron call changes, runs or removes, if it is that kind of call. */
+export function managedCronJobIdOf(params: unknown): string | undefined {
+  const { action, jobId, id } = (params ?? {}) as Record<string, unknown>;
+  if (!CRON_MANAGE_ACTIONS.includes(String(action))) return undefined;
+  const target = [jobId, id].find(
+    (value): value is string => typeof value === 'string' && value !== ''
+  );
+  return target;
+}
+
+type CronJobShape = { name?: unknown; delivery?: { to?: unknown } };
+
+/** Somewhere the onboarding task never delivers: a DM, or a group chat. */
+const ordinaryDelivery = (to: unknown) =>
+  typeof to === 'string' && (isDmNest(to) || to.startsWith('chat/'));
+
+/**
+ * During first-run onboarding the typed task plan owns the onboarding task, so
+ * cron stays closed to it. Reads stay open, and so does adding an ordinary job
+ * that delivers somewhere the onboarding task never does: a reminder in a DM,
+ * or posts in a group chat. A job like that can also be changed, run or
+ * removed, as long as the change doesn't turn it into the onboarding task.
+ */
+function cronOpenDuringOnboarding(
+  params: unknown,
+  managedCronJob?: { onboardingJob: boolean }
+) {
+  const { action, job, patch } = (params ?? {}) as {
+    action?: unknown;
+    job?: CronJobShape;
+    patch?: CronJobShape;
+  };
+  if (['status', 'list', 'get', 'runs'].includes(String(action))) return true;
+  if (action === 'add') {
+    return (
+      job?.name !== ONBOARDING_JOB_NAME && ordinaryDelivery(job?.delivery?.to)
+    );
+  }
+  if (!CRON_MANAGE_ACTIONS.includes(String(action))) return false;
+  // Not told which job this is, or it is the onboarding task: stay closed.
+  if (managedCronJob?.onboardingJob !== false) return false;
+  const change = patch ?? job;
+  const to = change?.delivery?.to;
+  return (
+    change?.name !== ONBOARDING_JOB_NAME &&
+    (to === undefined || ordinaryDelivery(to))
+  );
+}
+
+export const _testing = {
+  clearAll: () => {
+    sessionSurfaces.clear();
+    sessionRunSurfaces.clear();
+    taskPlanRunClaims.clear();
+    choiceRunClaims.clear();
+    taskPlanCalls.clear();
+    interviewStarts.clear();
+    choiceCalls.clear();
+    serviceSetupCalls.clear();
+  },
+};

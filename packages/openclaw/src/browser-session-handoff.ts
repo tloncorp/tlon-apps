@@ -4,6 +4,7 @@ import {
   MAX_BROWSER_VIEWER_URL_LENGTH,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+import { z } from 'zod';
 
 import {
   resolveBrowserHandoffAccount,
@@ -12,12 +13,24 @@ import {
 import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 
-export const BROWSER_SESSION_HANDOFF_HELP =
-  'Usage: browser handoff <session_id> or browser share <session_id> (the sess_ handle from browser_session_create). Do not supply a viewer URL.';
+export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> [--fields <JSON array>] or browser share <session_id> (the sess_ handle from browser_session_create). Use --fields when the owner should fill only selected controls; omit it for automatic discovery of the visible form. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
+
+const formFieldsSchema = z
+  .array(
+    z.union([
+      z.string().regex(/^@e\d+$/),
+      z.object({ name: z.string().min(1).max(512) }).strict(),
+      z.object({ label: z.string().min(1).max(1024) }).strict(),
+    ])
+  )
+  .min(1)
+  .max(40);
+type FormFields = z.infer<typeof formFieldsSchema>;
 
 const LOOKUP_DEADLINE_MS = 15_000;
 const LOOKUP_ATTEMPT_TIMEOUT_MS = 5_000;
 const LOOKUP_MAX_ATTEMPTS = 3;
+const PREPARE_TIMEOUT_MS = 30_000;
 const TRANSIENT_NETWORK_CODES = new Set([
   'EAI_AGAIN',
   'ENOTFOUND',
@@ -34,6 +47,7 @@ const TRANSIENT_NETWORK_CODES = new Set([
 ]);
 
 class TransientBrowserLookupError extends Error {}
+class BrowserSelectionRejectedError extends Error {}
 
 function isTransientLookupError(error: unknown): boolean {
   for (let depth = 0; error && depth < 5; depth++) {
@@ -106,7 +120,7 @@ async function readMcpReply(response: Response, id: string): Promise<unknown> {
   }
 }
 
-function validateViewerUrl(value: unknown): string {
+function validateViewerUrl(value: unknown, selected = false): string {
   if (
     typeof value !== 'string' ||
     value.length > MAX_BROWSER_VIEWER_URL_LENGTH
@@ -142,7 +156,12 @@ function validateViewerUrl(value: unknown): string {
     ) ||
     typeof payload.exp !== 'number' ||
     !Number.isSafeInteger(payload.exp) ||
-    payload.exp <= Math.floor(Date.now() / 1000)
+    payload.exp <= Math.floor(Date.now() / 1000) ||
+    (selected &&
+      (typeof payload.form !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          payload.form
+        )))
   ) {
     throw new Error('Invalid browser viewer scope or deadline.');
   }
@@ -153,7 +172,8 @@ function validateViewerUrl(value: unknown): string {
 async function resolveViewerUrl(
   handle: string,
   config: OpenClawConfig,
-  allowPrivateNetwork: boolean | null
+  allowPrivateNetwork: boolean | null,
+  fields?: FormFields
 ): Promise<string> {
   try {
     const server = record(record(record(record(config).mcp).servers).mcp);
@@ -187,8 +207,12 @@ async function resolveViewerUrl(
     ) {
       throw new Error('Missing configured MCP proxy credential.');
     }
-    const deadline = Date.now() + LOOKUP_DEADLINE_MS;
-    for (let attempt = 0; attempt < LOOKUP_MAX_ATTEMPTS; attempt++) {
+    // Preparation mints a capability. A timed-out request may still complete
+    // upstream, so give it one longer attempt rather than create duplicate forms.
+    const maxAttempts = fields ? 1 : LOOKUP_MAX_ATTEMPTS;
+    const deadline =
+      Date.now() + (fields ? PREPARE_TIMEOUT_MS : LOOKUP_DEADLINE_MS);
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const remainingMs = deadline - Date.now();
         if (remainingMs <= 0)
@@ -210,17 +234,25 @@ async function resolveViewerUrl(
               method: 'tools/call',
               params: {
                 name: 'browser_browser_session_live_view',
-                arguments: { session_id: handle },
+                arguments: {
+                  session_id: handle,
+                  ...(fields ? { action: 'prepare_form', fields } : {}),
+                },
               },
             }),
           },
           ssrfPolicy: ssrfPolicyFromAllowPrivateNetwork(allowPrivateNetwork),
-          timeoutMs: Math.min(LOOKUP_ATTEMPT_TIMEOUT_MS, remainingMs),
+          timeoutMs: fields
+            ? remainingMs
+            : Math.min(LOOKUP_ATTEMPT_TIMEOUT_MS, remainingMs),
           maxRedirects: 0,
           auditContext: 'tlon-browser-handoff',
         });
         try {
-          if ([408, 500, 502, 503, 504].includes(request.response.status)) {
+          if (
+            [408, 500, 502, 503, 504].includes(request.response.status) ||
+            (fields && request.response.status === 429)
+          ) {
             await request.response.body?.cancel();
             throw new TransientBrowserLookupError(
               'Browser lookup unavailable.'
@@ -229,16 +261,41 @@ async function resolveViewerUrl(
           const reply = record(await readMcpReply(request.response, id));
           const result = record(reply.result);
           const metadata = record(result.structuredContent);
-          if (
-            reply.jsonrpc !== '2.0' ||
-            reply.id !== id ||
-            reply.error ||
-            result.isError ||
-            metadata.session_id !== handle
-          ) {
+          if (reply.jsonrpc !== '2.0' || reply.id !== id || reply.error) {
             throw new Error('Browser session lookup refused.');
           }
-          return validateViewerUrl(metadata.viewer_url);
+          if (result.isError) {
+            const upstreamError = record(metadata.error);
+            const code = upstreamError.code;
+            const status = record(upstreamError.details).status;
+            if (
+              fields &&
+              typeof code === 'string' &&
+              ['stale_ref', 'ref_not_found', 'invalid_argument'].includes(code)
+            ) {
+              throw new BrowserSelectionRejectedError();
+            }
+            if (
+              fields &&
+              ((typeof code === 'string' &&
+                [
+                  'timeout',
+                  'rate_limited',
+                  'session_busy',
+                  'session_releasing',
+                ].includes(code)) ||
+                (code === 'steel_error' &&
+                  typeof status === 'number' &&
+                  [408, 429, 500, 502, 503, 504].includes(status)))
+            ) {
+              throw new TransientBrowserLookupError();
+            }
+            throw new Error('Browser session lookup refused.');
+          }
+          if (metadata.session_id !== handle) {
+            throw new Error('Browser session lookup refused.');
+          }
+          return validateViewerUrl(metadata.viewer_url, !!fields);
         } finally {
           await request.release();
         }
@@ -246,7 +303,7 @@ async function resolveViewerUrl(
         const delayMs = 500 * 2 ** attempt;
         if (
           !isTransientLookupError(error) ||
-          attempt + 1 === LOOKUP_MAX_ATTEMPTS ||
+          attempt + 1 === maxAttempts ||
           Date.now() + delayMs >= deadline
         )
           throw error;
@@ -254,9 +311,23 @@ async function resolveViewerUrl(
       }
     }
     throw new Error('Browser lookup attempts exhausted.');
-  } catch {
+  } catch (error) {
     // Transport and upstream errors can contain bearer URLs or tenant headers.
-    throw new Error('Could not resolve a live browser session for handoff.');
+    if (!fields)
+      throw new Error('Could not resolve a live browser session for handoff.');
+    if (error instanceof BrowserSelectionRejectedError) {
+      throw new Error(
+        'Could not prepare the selected fields. Take a fresh browser snapshot, select unique visible controls, and retry the handoff.'
+      );
+    }
+    if (isTransientLookupError(error)) {
+      throw new Error(
+        'Could not prepare the selected fields because the browser service is temporarily unavailable or timed out. Try again shortly.'
+      );
+    }
+    throw new Error(
+      'Could not prepare the selected fields because the browser service is unavailable. Report the failure to the owner and check the browser service configuration.'
+    );
   }
 }
 
@@ -273,18 +344,29 @@ export async function runBrowserSessionHandoff(
     return BROWSER_SESSION_HANDOFF_HELP;
   }
   if (
-    args.length !== 3 ||
+    ![3, 5].includes(args.length) ||
     args[0] !== 'browser' ||
     !['handoff', 'share'].includes(args[1]) ||
-    !/^sess_[A-Za-z0-9_-]{22}$/.test(args[2])
+    !/^sess_[A-Za-z0-9_-]{22}$/.test(args[2]) ||
+    (args.length === 5 && (args[1] !== 'handoff' || args[3] !== '--fields'))
   ) {
     throw new Error(BROWSER_SESSION_HANDOFF_HELP);
+  }
+  let fields: FormFields | undefined;
+  if (args.length === 5) {
+    try {
+      if (args[4].length > 16_384) throw new Error('Too many fields.');
+      fields = formFieldsSchema.parse(JSON.parse(args[4]));
+    } catch {
+      throw new Error(BROWSER_SESSION_HANDOFF_HELP);
+    }
   }
   const account = resolveBrowserHandoffAccount(config);
   const viewerUrl = await resolveViewerUrl(
     args[2],
     config,
-    account.allowPrivateNetwork
+    account.allowPrivateNetwork,
+    fields
   );
   try {
     await runBrowserHandoffCommand(

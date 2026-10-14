@@ -292,6 +292,52 @@ const ListItemEndContent = styled(YStack, {
   },
 });
 
+/**
+ * The checked/unchecked control at the end of a selectable row. It is an
+ * avatar-sized box placed straight in the row, not inside `EndContent`, whose
+ * top padding (for time labels) would push it off-center.
+ */
+function ListItemSelectionIndicator({
+  selected,
+  immutable = false,
+  showUnselected = true,
+}: {
+  selected: boolean;
+  immutable?: boolean;
+  /**
+   * Draw the empty circle on rows that are not picked. Turn it off where only
+   * one row can be picked: a circle on every row reads as pick-many. The
+   * space is still held so the row does not shift when it is picked.
+   */
+  showUnselected?: boolean;
+}) {
+  return (
+    <View
+      justifyContent="center"
+      alignItems="center"
+      height="$4xl"
+      width="$4xl"
+    >
+      {selected || immutable ? (
+        <Icon
+          type="Checkmark"
+          size="$xl"
+          color={immutable ? '$blue' : undefined}
+        />
+      ) : showUnselected ? (
+        <View
+          borderWidth={1}
+          borderRadius="$4xl"
+          borderColor="$tertiaryText"
+          opacity={0.6}
+          height="$3xl"
+          width="$3xl"
+        />
+      ) : null}
+    </View>
+  );
+}
+
 export type ListItem = typeof ListItemFrame;
 
 export const ListItem = withStaticProperties(ListItemFrame, {
@@ -308,5 +354,6 @@ export const ListItem = withStaticProperties(ListItemFrame, {
   SubtitleIcon: ListItemSubtitleIcon,
   PostPreview: ListItemPostPreview,
   EndContent: ListItemEndContent,
+  SelectionIndicator: ListItemSelectionIndicator,
   Time: ListItemTime,
 });

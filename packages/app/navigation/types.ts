@@ -135,6 +135,23 @@ export type RootStackParamList = {
   BotPermissionsSettings: undefined;
   BotIdentitySettings: undefined;
   BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
+  BotModels: undefined;
+  BotConnections: undefined;
+  ScheduledTasks: {
+    botShip: string;
+    /** Narrows the list to the tasks that post into this group. */
+    groupId?: string;
+    /** Narrows it further, to the tasks that post into this one channel. */
+    channelId?: string;
+  };
+  ScheduledTaskEditor: {
+    botShip: string;
+    taskId?: string;
+    /** For a new task: the group it was started from, where it should post. */
+    groupId?: string;
+    /** For a new task: the channel it was started from, where it should post. */
+    channelId?: string;
+  };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -234,12 +251,21 @@ export type HomeDrawerParamList = Pick<TopLevelTabParamList, 'ChatList'> &
 export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
   Pick<
     RootStackParamList,
-    'AddContacts' | 'UserProfile' | 'EditProfile' | 'Attestation'
+    | 'AddContacts'
+    | 'UserProfile'
+    | 'ScheduledTasks'
+    | 'ScheduledTaskEditor'
+    | 'EditProfile'
+    | 'Attestation'
   >;
 
 export type ActivityDrawerParamList = Pick<
   RootStackParamList,
-  'GroupSettings' | 'UserProfile' | 'EditProfile'
+  | 'GroupSettings'
+  | 'UserProfile'
+  | 'ScheduledTasks'
+  | 'ScheduledTaskEditor'
+  | 'EditProfile'
 > & {
   // Drawer-only placeholder shown before an activity item is selected.
   ActivityEmpty: undefined;
@@ -262,6 +288,10 @@ export type SettingsDrawerParamList = Pick<
   | 'BotPermissionsSettings'
   | 'BotIdentitySettings'
   | 'BotProviderListSettings'
+  | 'BotModels'
+  | 'BotConnections'
+  | 'ScheduledTasks'
+  | 'ScheduledTaskEditor'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
@@ -295,6 +325,8 @@ export type ChannelStackParamList = {
   BucketFile: RootStackParamList['BucketFile'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
+  ScheduledTasks: RootStackParamList['ScheduledTasks'];
+  ScheduledTaskEditor: RootStackParamList['ScheduledTaskEditor'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
   ChannelMeta: RootStackParamList['ChannelMeta'];
@@ -312,6 +344,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'BucketFile'
   | 'MediaViewer'
   | 'UserProfile'
+  | 'ScheduledTasks'
+  | 'ScheduledTaskEditor'
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'

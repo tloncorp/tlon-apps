@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
+import { browserSessionCard } from '../client/browserSession';
 import { A2UI } from '../client/a2ui';
 import {
   editPost,
@@ -752,4 +753,32 @@ test('transport failure does not report a response; malformed payload does', asy
   scryMock.mockResolvedValueOnce({});
   await expect(getPostWithReplies(options)).rejects.toThrow();
   expect(onResponse).toHaveBeenCalledOnce();
+});
+
+test('session sharing is a separate, valid card and cannot be posted to shared destinations', async () => {
+  const card = browserSessionCard(
+    'https://browser-session.tlon.network/s/private.signature',
+    'session'
+  );
+  expect(A2UI.validateBlobEntry(card)).toBe(true);
+  const blob = JSON.stringify([card]);
+  expect(blob).not.toContain('browserCredentialHandoff');
+  for (const channelId of [
+    'chat/~zod/general',
+    'heap/~zod/gallery',
+    'notes/~zod/notes',
+    '0v123',
+  ]) {
+    const input = { ...browserHandoffPost, channelId, blob };
+    for (const write of [
+      () => sendPost(input),
+      () => sendReply(input),
+      () => editPost(input),
+    ]) {
+      await expect(write()).rejects.toThrow('one-to-one DM');
+    }
+  }
+  expect(pokeMock).not.toHaveBeenCalled();
+  await sendPost({ ...browserHandoffPost, channelId: '~nec', blob });
+  expect(pokeMock).toHaveBeenCalledOnce();
 });
