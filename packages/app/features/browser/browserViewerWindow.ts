@@ -23,7 +23,9 @@ export async function openBrowserViewerWindow(
   );
   try {
     const authorized = await authorizeBrowserViewer(viewerUrl);
-    if (!viewer.closed) viewer.location.replace(authorized);
+    const destination = new URL(authorized);
+    destination.searchParams.set('returnToApp', 'true');
+    if (!viewer.closed) viewer.location.replace(destination.toString());
   } catch (error) {
     viewer.close();
     throw error;

@@ -56,7 +56,7 @@ it('reserves an isolated tab during the click and navigates only after owner aut
   resolve('https://browser-session.tlon.network/s/owner.link');
   await pending;
   expect(viewer.location.replace).toHaveBeenCalledWith(
-    'https://browser-session.tlon.network/s/owner.link'
+    'https://browser-session.tlon.network/s/owner.link?returnToApp=true'
   );
 });
 it('closes the reserved tab when the owner proof fails', async () => {
