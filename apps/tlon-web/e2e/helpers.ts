@@ -1126,6 +1126,18 @@ export async function deleteChannel(
 }
 
 /**
+ * Ticks or unticks one of the channel permission checklists' rows.
+ */
+async function setPermissionChoice(page: Page, testId: string, on: boolean) {
+  const row = page.getByTestId(testId);
+  await expect(row).toBeVisible();
+  if ((await row.getAttribute('aria-checked')) !== String(on)) {
+    await row.click();
+  }
+  await expect(row).toHaveAttribute('aria-checked', String(on));
+}
+
+/**
  * Sets channel permissions for reader and writer roles
  */
 export async function setChannelPermissions(
@@ -1136,45 +1148,37 @@ export async function setChannelPermissions(
 ) {
   if (readerRoles && readerRoles.length > 0) {
     const privateToggle = page.getByTestId('PrivateChannelToggle');
-    const isEnabled = await privateToggle.getAttribute('aria-checked');
-
-    if (isEnabled !== 'true') {
+    if ((await privateToggle.getAttribute('aria-checked')) !== 'true') {
       await privateToggle.click();
-      // Wait for Add roles button to appear after enabling private mode
-      await expect(page.getByText('Add roles')).toBeVisible();
     }
+    await expect(page.getByText('Who can see it')).toBeVisible();
 
-    await page.getByText('Add roles').click();
-    await expect(page.getByText('Select roles')).toBeVisible();
-
-    // Deselect Members if it's pre-selected and not in the requested roles
+    // Turning on custom permissions lets members see the channel; keep them
+    // only when asked to.
     if (
       !keepMembers &&
       !readerRoles.some((r) => r.toLowerCase() === 'members')
     ) {
-      const membersOption = page.getByTestId('RoleOption-Members');
-      if (await membersOption.isVisible({ timeout: 1000 })) {
-        await membersOption.click();
-      }
+      await setPermissionChoice(page, 'ReadToggle-Members', false);
     }
-
     for (const role of readerRoles) {
       if (role.toLowerCase() === 'admin') continue;
-      await page.getByTestId('RoleSearchInput').fill(role);
-      await page.getByText(role, { exact: true }).click();
-      await page.getByTestId('RoleSearchInput').fill('');
+      await setPermissionChoice(page, `ReadToggle-${role}`, true);
     }
-    await page.getByTestId('RoleSelectionSaveButton').click();
-    // Wait for navigation back to Channel privacy screen
-    await expect(page.getByText('Channel permissions')).toBeVisible();
   }
 
   if (writerRoles && writerRoles.length > 0) {
     for (const role of writerRoles) {
       if (role.toLowerCase() === 'admin') continue;
+      // A notes channel has one list for both.
       const writeToggle = page.getByTestId(`WriteToggle-${role}`);
-      await expect(writeToggle).toBeVisible();
-      await writeToggle.click();
+      await setPermissionChoice(
+        page,
+        (await writeToggle.count()) > 0
+          ? `WriteToggle-${role}`
+          : `ReadToggle-${role}`,
+        true
+      );
     }
   }
 }
@@ -1357,13 +1361,10 @@ export async function changeGroupDescription(page: Page, description: string) {
  * Attempts to change group icon (handles web file picker behavior)
  */
 export async function changeGroupIcon(page: Page, imagePath?: string) {
-  await expect(
-    page.getByText('Storage not configured', { exact: true })
-  ).toHaveCount(0);
-
-  const changeIconButton = page.getByText('Change icon image', { exact: true });
-  await expect(changeIconButton).toBeVisible({ timeout: 5000 });
-  await changeIconButton.click();
+  // On web, the icon opens the picker sheet.
+  const icon = page.getByTestId('ImageInputPreview');
+  await expect(icon).toBeVisible({ timeout: 5000 });
+  await icon.click();
 
   // Wait for the attachment dialog to appear
   await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });

@@ -47,9 +47,8 @@ test('should prevent Admin role from being edited', async ({ zodPage }) => {
   const titleInput = page.getByTestId('RoleTitleInput');
   const descriptionInput = page.getByTestId('RoleDescriptionInput');
 
-  // Check that inputs have readonly attribute (editable={false} renders as readonly)
-  await expect(titleInput).toHaveAttribute('readonly');
-  await expect(descriptionInput).toHaveAttribute('readonly');
+  await expect(titleInput).not.toBeEditable();
+  await expect(descriptionInput).not.toBeEditable();
 
   // Verify Delete button is not visible for Admin role
   await expect(page.getByText('Delete role')).not.toBeVisible();
@@ -144,18 +143,15 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   // Set channel permissions
   await helpers.setChannelPermissions(page, ['Testing role'], ['Testing role']);
 
-  // Verify "Testing role" appears in the Roles section (as a chip)
-  await expect(page.getByText('Testing role').first()).toBeVisible();
-
-  // Verify "Testing role" has read permissions in the permission table
-  await expect(page.getByTestId('ReadToggle-Testing role')).toBeVisible();
-
-  // Verify "Testing role" has write permissions enabled
-  // The write toggle was clicked by setChannelPermissions helper
-  // We can verify the checkmark icon is visible inside the write toggle
-  const writeToggle = page.getByTestId('WriteToggle-Testing role');
-  await expect(writeToggle).toBeVisible();
-  await expect(writeToggle.getByRole('img')).toBeVisible(); // Checkmark icon
+  // "Testing role" can see and post
+  await expect(page.getByTestId('ReadToggle-Testing role')).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
+  await expect(page.getByTestId('WriteToggle-Testing role')).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
 
   await page.getByText('Save').click();
   await page.waitForTimeout(2000);
@@ -186,9 +182,8 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(page.getByText('Edit Testing role')).toBeVisible();
 
   // Verify the role cannot be deleted (should show warning message and disabled button)
-  const deleteButton = page.getByText('Delete role');
+  const deleteButton = page.getByTestId('DeleteRoleButton');
   await expect(deleteButton).toBeVisible();
-  // Button with disabled prop renders as aria-disabled in the DOM
   await expect(deleteButton).toHaveAttribute('aria-disabled', 'true');
   await expect(page.getByText(/This role cannot be deleted.*/)).toBeVisible();
 
@@ -227,16 +222,13 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByTestId('ChannelPrivacy').click();
   await expect(page.getByText('Channel permissions')).toBeVisible();
 
-  // Remove "Renamed role" from readers by clicking the X on the role chip
-  await expect(page.getByText('Renamed role').first()).toBeVisible();
-  await page.getByTestId('RemoveRole-Renamed role').click();
-  await page.waitForTimeout(500);
+  // Take "Renamed role" off the roles that can see the channel
+  const renamedRoleRead = page.getByTestId('ReadToggle-Renamed role');
+  await expect(renamedRoleRead).toHaveAttribute('aria-checked', 'true');
+  await renamedRoleRead.click();
+  await expect(renamedRoleRead).toHaveAttribute('aria-checked', 'false');
 
-  // Verify "Renamed role" is no longer visible in the Roles section
-  await expect(page.getByText('Renamed role')).not.toBeVisible();
-
-  // Verify it's also not in the permission table
-  await expect(page.getByTestId('ReadToggle-Renamed role')).not.toBeVisible();
+  // A role that can't see the channel can't post in it either
   await expect(page.getByTestId('WriteToggle-Renamed role')).not.toBeVisible();
 
   await page.getByTestId('ChannelPrivacySaveButton').click();
@@ -347,20 +339,23 @@ test('should persist role permissions after save and reopen', async ({
     true // keepMembers — exercises the Members + specific role code path
   );
 
-  // Verify Members is still visible in the permission table
-  await expect(
-    page.getByText('Members', { exact: true }).first()
-  ).toBeVisible();
+  // Members still see the channel
+  await expect(page.getByTestId('ReadToggle-Members')).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
 
   // Uncheck write for Members (so Members = read-only, Writer role = read+write)
   const membersWriteToggle = page.getByTestId('WriteToggle-Members');
-  await expect(membersWriteToggle).toBeVisible();
+  await expect(membersWriteToggle).toHaveAttribute('aria-checked', 'true');
   await membersWriteToggle.click();
+  await expect(membersWriteToggle).toHaveAttribute('aria-checked', 'false');
 
   // Verify Writer role has write enabled
-  const writerRoleWriteToggle = page.getByTestId('WriteToggle-Writer role');
-  await expect(writerRoleWriteToggle).toBeVisible();
-  await expect(writerRoleWriteToggle.getByRole('img')).toBeVisible();
+  await expect(page.getByTestId('WriteToggle-Writer role')).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
 
   // Save
   await page.getByTestId('ChannelPrivacySaveButton').click();
@@ -383,56 +378,32 @@ test('should persist role permissions after save and reopen', async ({
   await page.getByTestId('ChannelPrivacy').click();
   await expect(page.getByText('Channel permissions')).toBeVisible();
 
-  // Verify "Writer role" is still visible in the permission table
-  await expect(
-    page.getByText('Writer role', { exact: true }).first()
-  ).toBeVisible();
-
-  // Verify Members is still visible
-  await expect(
-    page.getByText('Members', { exact: true }).first()
-  ).toBeVisible();
-
-  // Verify "Writer role" still has write permission (checkmark visible)
-  const writerRoleWriteToggleAfter = page.getByTestId(
-    'WriteToggle-Writer role'
+  // Writer role still sees and posts; Members still see but don't post
+  await expect(page.getByTestId('ReadToggle-Writer role')).toHaveAttribute(
+    'aria-checked',
+    'true'
   );
-  await expect(writerRoleWriteToggleAfter).toBeVisible();
-  await expect(writerRoleWriteToggleAfter.getByRole('img')).toBeVisible();
+  await expect(page.getByTestId('WriteToggle-Writer role')).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
+  await expect(page.getByTestId('ReadToggle-Members')).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
+  await expect(page.getByTestId('WriteToggle-Members')).toHaveAttribute(
+    'aria-checked',
+    'false'
+  );
 
-  // Verify "Writer role" has read permission
-  await expect(page.getByTestId('ReadToggle-Writer role')).toBeVisible();
-
-  // Verify Members write is still unchecked (read-only) after reopen
-  const membersWriteToggleAfter = page.getByTestId('WriteToggle-Members');
-  await expect(membersWriteToggleAfter).toBeVisible();
-  await expect(membersWriteToggleAfter.getByRole('img')).not.toBeVisible();
-
-  // Verify writer-only roles survive opening and saving from the role picker
-  await page.getByText('Add roles').click();
-  await expect(page.getByText('Select roles')).toBeVisible();
-  // "Writer role" should be pre-selected in the picker
-  await page.getByTestId('RoleSelectionSaveButton').click();
-  await expect(page.getByText('Channel permissions')).toBeVisible();
-
-  // Verify "Writer role" is still present after saving from picker without changes
-  await expect(
-    page.getByText('Writer role', { exact: true }).first()
-  ).toBeVisible();
-  await expect(page.getByTestId('WriteToggle-Writer role')).toBeVisible();
-  await expect(
-    page.getByTestId('WriteToggle-Writer role').getByRole('img')
-  ).toBeVisible();
-
-  // Verify unchecking write doesn't cause the role to vanish from the table
+  // Unchecking write leaves the role able to see the channel
   await page.getByTestId('WriteToggle-Writer role').click();
-  // Role should still be visible in the table as read-only
-  await expect(
-    page.getByText('Writer role', { exact: true }).first()
-  ).toBeVisible();
-  await expect(page.getByTestId('ReadToggle-Writer role')).toBeVisible();
-  // Write toggle should no longer have a checkmark
-  await expect(
-    page.getByTestId('WriteToggle-Writer role').getByRole('img')
-  ).not.toBeVisible();
+  await expect(page.getByTestId('WriteToggle-Writer role')).toHaveAttribute(
+    'aria-checked',
+    'false'
+  );
+  await expect(page.getByTestId('ReadToggle-Writer role')).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
 });
