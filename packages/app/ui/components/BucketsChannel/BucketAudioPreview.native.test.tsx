@@ -6,6 +6,7 @@ import { BucketAudioPreview } from './BucketAudioPreview.native';
 
 const mocks = vi.hoisted(() => ({
   mode: vi.fn(() => Promise.resolve()),
+  activate: vi.fn((_active: boolean) => Promise.resolve()),
   player: {
     play: vi.fn(),
     pause: vi.fn(),
@@ -61,12 +62,14 @@ vi.mock('expo-audio', () => ({
   useAudioPlayer: () => mocks.player,
   useAudioPlayerStatus: () => mocks.status,
   setAudioModeAsync: mocks.mode,
+  setIsAudioActiveAsync: mocks.activate,
 }));
 
 setupReactTestEnvironment();
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.mode.mockResolvedValue(undefined);
+  mocks.activate.mockResolvedValue(undefined);
   mocks.status.currentTime = 0;
   mocks.status.didJustFinish = false;
   mocks.status.playing = false;
@@ -84,6 +87,57 @@ function render() {
 }
 
 describe('Bucket audio playback lifecycle', () => {
+  it('reactivates audio before playing after a background and foreground cycle', async () => {
+    const tree = render();
+    act(() => mocks.appState('background'));
+    act(() => mocks.appState('active'));
+    let activated!: () => void;
+    mocks.activate.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          activated = resolve;
+        })
+    );
+    await act(async () =>
+      tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
+    );
+    expect(mocks.activate).toHaveBeenCalledWith(true);
+    expect(mocks.player.play).not.toHaveBeenCalled();
+    await act(async () => activated());
+    expect(mocks.player.play).toHaveBeenCalledTimes(1);
+    act(() => tree.unmount());
+  });
+
+  it.each(['unmount', 'blur', 'background'])(
+    'does not seek or play after %s while audio activation is pending',
+    async (leave) => {
+      mocks.status.didJustFinish = true;
+      let activated!: () => void;
+      mocks.activate.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            activated = resolve;
+          })
+      );
+      const tree = render();
+      await act(async () =>
+        tree.root
+          .findByProps({ testID: 'BucketAudioPlayPause' })
+          .props.onPress()
+      );
+      expect(mocks.activate).toHaveBeenCalledWith(true);
+      act(() => {
+        if (leave === 'unmount') tree.unmount();
+        else if (leave === 'blur') mocks.navigationEvents.get('blur')?.();
+        else mocks.appState('background');
+      });
+      await act(async () => activated());
+      expect(mocks.player.seekTo).not.toHaveBeenCalled();
+      expect(mocks.player.play).not.toHaveBeenCalled();
+      if (leave !== 'unmount') act(() => tree.unmount());
+    }
+  );
+
   it('does not start playback after leaving a file while audio mode setup is pending', async () => {
     let ready!: () => void;
     mocks.mode.mockImplementationOnce(
@@ -100,6 +154,7 @@ describe('Bucket audio playback lifecycle', () => {
     await act(async () => {
       ready();
     });
+    expect(mocks.activate).not.toHaveBeenCalled();
     expect(mocks.player.play).not.toHaveBeenCalled();
   });
   it('pauses when the screen loses focus or the app goes into the background', () => {

@@ -8,6 +8,8 @@ type ReadGrant = (
 ) => Promise<{ readUrl: string; expiresAt: string }>;
 type CachedPreview = { item: BucketItem; expiresAt: number };
 const MAX_CACHED_PREVIEWS = 20;
+// Leave time for a remounted viewer to buffer and issue follow-up range requests.
+const READ_GRANT_EXPIRY_MARGIN_MS = 30_000;
 
 /** Session-local previews shared by the desktop pane and the file screen. */
 export function useBucketPreview(readGrant: ReadGrant, bucketKey: string) {
@@ -30,7 +32,8 @@ export function useBucketPreview(readGrant: ReadGrant, bucketKey: string) {
 
   const getCached = (target: BucketItem): BucketItem | undefined => {
     const cached = cache.current.get(keyFor(target));
-    if (!cached || cached.expiresAt <= Date.now()) return;
+    if (!cached || cached.expiresAt <= Date.now() + READ_GRANT_EXPIRY_MARGIN_MS)
+      return;
     return {
       ...target,
       previewUri: cached.item.previewUri,

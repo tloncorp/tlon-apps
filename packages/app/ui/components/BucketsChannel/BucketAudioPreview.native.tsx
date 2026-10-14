@@ -3,6 +3,7 @@ import { makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import { FilePreview, Icon, IconButton, Pressable, Text } from '@tloncorp/ui';
 import {
   setAudioModeAsync,
+  setIsAudioActiveAsync,
   useAudioPlayer,
   useAudioPlayerStatus,
 } from 'expo-audio';
@@ -60,6 +61,9 @@ export function BucketAudioPreview({
         playsInSilentMode: true,
         interruptionMode: 'doNotMix',
       });
+      if (!active.current) return;
+      // NowPlayingProvider deactivates the shared audio subsystem on background.
+      await setIsAudioActiveAsync(true);
       if (!active.current) return;
       if (
         status.didJustFinish ||

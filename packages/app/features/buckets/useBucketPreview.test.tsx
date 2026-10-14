@@ -16,6 +16,7 @@ vi.mock('../../ui', async () => ({
 setupReactTestEnvironment();
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const photo: BucketItem = {
@@ -135,6 +136,54 @@ describe('useBucketPreview session cache', () => {
       'https://files.test/photo.jpg'
     );
   });
+
+  it.each([
+    ['recording.mp3', 'audio/mpeg'],
+    ['video.mp4', 'video/mp4'],
+    ['document.pdf', 'application/pdf'],
+  ])(
+    'renews %s before its cached grant is too close to expiry',
+    async (name, mimeType) => {
+      vi.useFakeTimers();
+      const start = new Date('2026-10-14T12:00:00Z').getTime();
+      vi.setSystemTime(start);
+      const target = { ...photo, name, mimeType };
+      const renewed = deferred<ReturnType<typeof grant>>();
+      const hook = render(
+        vi
+          .fn()
+          .mockResolvedValueOnce(grant('https://files.test/original', 300_000))
+          .mockResolvedValueOnce(grant('https://files.test/other', 300_000))
+          .mockReturnValueOnce(renewed.promise)
+      );
+      const other = { ...photo, id: '3' };
+      await act(async () => hook.current.load(target));
+      await act(async () => hook.current.load(other));
+
+      vi.setSystemTime(start + 269_999);
+      act(() => void hook.current.load(target));
+      expect(hook.current.item?.previewCached).toBe(true);
+      expect(hook.current.loading).toBe(false);
+      expect(hook.readGrant).toHaveBeenCalledTimes(2);
+      await act(async () => hook.current.load(other));
+
+      vi.setSystemTime(start + 270_000);
+      expect(hook.current.getCached(target)).toBeUndefined();
+      let request!: Promise<void>;
+      act(() => {
+        request = hook.current.load(target);
+      });
+      expect(hook.readGrant).toHaveBeenCalledTimes(3);
+      expect(hook.current.item?.previewUri).toBeUndefined();
+      expect(hook.current.loading).toBe(true);
+      await act(async () => {
+        renewed.resolve(grant('https://files.test/renewed', 300_000));
+        await request;
+      });
+      expect(hook.current.item?.previewUri).toBe('https://files.test/renewed');
+      expect(hook.current.loading).toBe(false);
+    }
+  );
 
   it('retries a failed text request and permits an explicit refresh of a cached file', async () => {
     const fetchFile = vi
