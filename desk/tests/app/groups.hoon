@@ -1040,6 +1040,72 @@
     %+  ex-equal  !>(invited.admissions.group)
     !>((my ~[[~fun [now.bowl `0v123]]]))
   (pure:m ~)
+::  +test-invite-during-join: an invite is kept until the join completes,
+::  and dropped once we hold the group
+::
+++  test-invite-during-join
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-a-foreigns [%foreign my-flag %join ~])
+  ;<  =bowl:gall  bind:m  get-bowl
+  =/  =invite:v8:gv
+    :*  my-flag
+        now.bowl
+        ~fun
+        ~               ::  token
+        ~               ::  note
+        *preview:v8:gv  ::  preview
+        &
+    ==
+  ::  before the poke-ack: the invite is stored
+  ::
+  ;<  *  bind:m
+    %-  (do-as ~fun)
+    (do-poke group-foreign-2+!>([%invite invite]))
+  ;<  ~  bind:m
+    ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~zod/my-test-group)
+    =+  foreign=!<(foreign:v8:gv q.peek)
+    (ex-equal !>(invites.foreign) !>(~[invite]))
+  ;<  *  bind:m
+    %-  (do-as ~zod)
+    (do-agent (weld fi-area /join/public) my-flag [%poke-ack ~])
+  ::  after the poke-ack: the invite is dropped
+  ::
+  ;<  *  bind:m
+    %-  (do-as ~fun)
+    (do-poke group-foreign-2+!>([%invite invite]))
+  ;<  ~  bind:m
+    ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~zod/my-test-group)
+    =+  foreign=!<(foreign:v8:gv q.peek)
+    (ex-equal !>(invites.foreign) !>(~[invite]))
+  ;<  *  bind:m
+    (do-agent (weld go-area /updates) [~zod my-agent] [%watch-ack ~])
+  ;<  =bowl:gall  bind:m  get-bowl
+  =/  init-log=log:g
+    %+  gas:log-on:g  *log:g
+    ^-  (list [@da u-group:g])
+    :~  now.bowl^[%create my-group]
+    ==
+  ;<  *  bind:m
+    %^  do-agent  (weld go-area /updates)
+      [~zod my-agent]
+    [%fact group-log+!>(init-log)]
+  ::  the join completed: the foreign record and its invites are gone
+  ::
+  ;<  ~  bind:m
+    ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns)
+    =+  foreigns=!<(foreigns:v8:gv q.peek)
+    (ex-equal !>((~(has by foreigns) my-flag)) !>(|))
+  ::  after the join: the invite is dropped without a trace
+  ::
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~fun)
+    (do-poke group-foreign-2+!>([%invite invite]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns)
+  =+  foreigns=!<(foreigns:v8:gv q.peek)
+  (ex-equal !>((~(has by foreigns) my-flag)) !>(|))
 ::  +test-invites-group-deleted: test that invites are revoked when a group is deleted
 ::
 ++  test-invites-group-deleted

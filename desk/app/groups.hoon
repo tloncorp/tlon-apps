@@ -451,6 +451,14 @@
         fi-abet:(fi-a-foreign:foreign-core a-foreign.a-foreigns)
       ::
           %invite
+        ::  an invite to a group we hold is stale. checked here rather
+        ::  than in +fi-invite, so +fi-abet does not store a blank record.
+        ::
+        ::  nb: this also drops an invite sent after a kick that has not
+        ::  reached us yet. we can not tell the two apart; the inviter
+        ::  has to invite again.
+        ::
+        ?:  (~(has by groups) flag.invite.a-foreigns)  cor
         =/  foreign-core  (fi-abed:fi-core flag.invite.a-foreigns)
         fi-abet:(fi-invite:foreign-core invite.a-foreigns)
       ::
