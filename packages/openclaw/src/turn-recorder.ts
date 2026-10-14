@@ -11,7 +11,7 @@ import {
   type TlonMessageJourneyDestinationKind,
   recordTlonMessageJourneyEvent,
 } from './message-journey.js';
-import { sharedMap } from './shared-state.js';
+import { sharedMap, sharedSlot } from './shared-state.js';
 import { isSuccessfulSilentAgentOutput } from './silent-reply.js';
 
 export type TlonAgentTurnExecution =
@@ -195,7 +195,12 @@ const agentOutputsByRunId = sharedMap<string, TurnAgentOutput>(
 );
 const MAX_TRACKED_AGENT_OUTPUTS = 1_024;
 
-const turnStorage = new AsyncLocalStorage<TlonAgentTurnState>();
+const turnStorageSlot = sharedSlot<AsyncLocalStorage<TlonAgentTurnState>>(
+  'turnRecorder.turnStorage'
+);
+const turnStorage =
+  turnStorageSlot.get() ?? new AsyncLocalStorage<TlonAgentTurnState>();
+turnStorageSlot.set(turnStorage);
 const traceIdsByRunId = sharedMap<string, string>(
   'turnRecorder.traceIdsByRunId'
 );
@@ -665,6 +670,11 @@ function updateActiveTurn(update: (state: TlonAgentTurnState) => void): void {
     return;
   }
   update(state);
+}
+
+export function getActiveTlonTurnAccountId(): string | null {
+  const state = turnStorage.getStore();
+  return state && !state.finalized ? state.accountId : null;
 }
 
 export function recordActiveTlonTurnSourceReply(reply?: {

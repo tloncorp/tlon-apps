@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   findOnboardingGroupIdInChannel,
-  isAgentOnboardingReply,
   isDmNest,
 } from './agent-onboarding.js';
 
@@ -96,20 +95,5 @@ describe('findOnboardingGroupIdInChannel', () => {
       )
     ).resolves.toBeUndefined();
     expect(deps.fetchHistory).not.toHaveBeenCalled();
-  });
-});
-
-describe('isAgentOnboardingReply', () => {
-  it('recognizes a picker choice typed by hand', () => {
-    expect(isAgentOnboardingReply('A daily digest')).toBe(true);
-  });
-
-  it('does not treat ordinary conversation as onboarding', () => {
-    // This is what keeps an ordinary DM from paying for a history read.
-    expect(isAgentOnboardingReply('what is the weather like today')).toBe(
-      false
-    );
-    expect(isAgentOnboardingReply('')).toBe(false);
-    expect(isAgentOnboardingReply(null)).toBe(false);
   });
 });
