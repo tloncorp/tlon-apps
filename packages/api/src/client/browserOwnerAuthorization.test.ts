@@ -32,9 +32,10 @@ afterEach(() => {
 describe('browser vault owner authorization', () => {
   it('uses the authenticated ship session without calling Hosting or the code recovery callback', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(Response.json(code));
+    const fetcher = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json(code)
+    );
     const getCode = session(fetcher);
     expect(await getBrowserVaultOwnerAuthorization()).toEqual({
       planet: 'tantec-lidler',

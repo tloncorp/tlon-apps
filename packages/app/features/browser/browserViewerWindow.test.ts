@@ -6,7 +6,30 @@ vi.mock('./browserCredentialHandoff', () => ({
   authorizeBrowserViewer: auth,
 }));
 afterEach(() => {
+  vi.clearAllMocks();
   vi.unstubAllGlobals();
+});
+it('opens the authorized viewer through Electron without reserving a popup', async () => {
+  let resolve!: (value: string) => void;
+  auth.mockReturnValue(
+    new Promise<string>((done) => {
+      resolve = done;
+    })
+  );
+  const open = vi.fn().mockReturnValue(null);
+  vi.stubGlobal('window', { navigator: { userAgent: 'Electron/34' }, open });
+  const pending = openBrowserViewerWindow(
+    'https://browser-session.tlon.network/s/public.link'
+  );
+  expect(open).not.toHaveBeenCalled();
+  resolve('https://browser-session.tlon.network/s/owner.link');
+  await pending;
+  expect(open).toHaveBeenCalledOnce();
+  expect(open).toHaveBeenCalledWith(
+    'https://browser-session.tlon.network/s/owner.link',
+    '_blank',
+    'noopener,noreferrer'
+  );
 });
 it('reserves an isolated tab during the click and navigates only after owner authorization', async () => {
   let resolve!: (value: string) => void;

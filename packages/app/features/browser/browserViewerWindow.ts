@@ -1,3 +1,4 @@
+import { isElectron } from '../../hooks/useIsElectron';
 import {
   authorizeBrowserViewer,
   trustedBrowserViewerUrl,
@@ -8,6 +9,12 @@ export async function openBrowserViewerWindow(
   viewerUrl: string
 ): Promise<void> {
   trustedBrowserViewerUrl(viewerUrl);
+  if (isElectron()) {
+    const authorized = await authorizeBrowserViewer(viewerUrl);
+    // Electron routes external window requests to the system browser.
+    window.open(authorized, '_blank', 'noopener,noreferrer');
+    return;
+  }
   const viewer = window.open('about:blank', '_blank');
   if (!viewer) throw new Error('Allow pop-ups to open the browser.');
   viewer.opener = null;

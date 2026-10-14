@@ -50,6 +50,7 @@ export async function browserVaultOwnerRequest(
   const url = new URL(endpoint);
   if (
     url.protocol !== 'https:' ||
+    url.port ||
     !isTrustedBrowserViewerHost(url.hostname) ||
     url.username ||
     url.password ||
@@ -83,6 +84,8 @@ export async function browserVaultOwnerRequest(
   });
   if (!response.ok)
     throw new Error('Saved logins are unavailable. Reconnect and try again.');
+  if (url.pathname === '/vault/delete' || url.pathname === '/vault/permission')
+    return;
   return response.json();
 }
 

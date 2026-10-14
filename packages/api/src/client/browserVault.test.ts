@@ -4,6 +4,7 @@ import {
   browserVaultOwnerRequest,
   deleteBrowserLogin,
   listBrowserLogins,
+  setBrowserLoginPermission,
 } from './browserVault';
 
 const mocks = vi.hoisted(() => ({ scry: vi.fn(), fetch: vi.fn() }));
@@ -64,6 +65,8 @@ describe('browser vault owner requests', () => {
     'https://browser-session.tlon.network/vault/list',
     `${endpoint}?token=x`,
     'https://user:pass@browser-session.tlon.network/vault/list',
+    'https://browser-session-ovh-test-1.test.tlon.systems:8443/vault/list',
+    'https://browser-session-ovh-test-1.test.tlon.systems:8443/viewer-authorize',
   ])('rejects %s before reading owner proof', async (url) => {
     await expect(browserVaultOwnerRequest(url, {})).rejects.toThrow('trusted');
     expect(mocks.scry).not.toHaveBeenCalled();
@@ -108,4 +111,27 @@ describe('browser vault owner requests', () => {
       JSON.stringify(await authorizeBrowserLoginHandoff(endpoint))
     ).not.toContain('private-password');
   });
+  it.each([200, 204])(
+    'accepts empty %s responses for vault mutations',
+    async (status) => {
+      mocks.fetch.mockImplementation(
+        async () => new Response(null, { status })
+      );
+      const record = { id: account.id, revision: 1 };
+      await expect(
+        deleteBrowserLogin('pinser-botter-sampel-palnet', record)
+      ).resolves.toBeUndefined();
+      await expect(
+        setBrowserLoginPermission(
+          'pinser-botter-sampel-palnet',
+          record,
+          'allow'
+        )
+      ).resolves.toBeUndefined();
+      await expect(
+        listBrowserLogins('pinser-botter-sampel-palnet')
+      ).rejects.toThrow();
+      await expect(authorizeBrowserLoginHandoff(endpoint)).rejects.toThrow();
+    }
+  );
 });
