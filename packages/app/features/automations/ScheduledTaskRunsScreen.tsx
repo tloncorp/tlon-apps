@@ -44,25 +44,29 @@ export function ScheduledTaskRunsScreen({ navigation, route }: Props) {
 
   const startTestRun = useStartTestRun(botShip);
   const [testing, setTesting] = useState(false);
-  // A test answered after the person left this screen opens nothing.
-  const focused = useRef(false);
+  // A test can outlast its visit: the mounted screen can be left, and on
+  // desktop shown again for another task, before the bot answers. What the
+  // answer does to the screen belongs to the visit that asked for it.
+  const visit = useRef(0);
   useFocusEffect(
     useCallback(() => {
-      focused.current = true;
+      visit.current += 1;
+      setTesting(false);
       return () => {
-        focused.current = false;
+        visit.current += 1;
       };
     }, [])
   );
   const test = useCallback(async () => {
+    const during = visit.current;
     setTesting(true);
     try {
       const lensId = await startTestRun(taskId);
-      if (focused.current) openRun(lensId, true);
+      if (visit.current === during) openRun(lensId, true);
     } catch (error) {
       showToast({ message: describeTestRunError(error), duration: 4000 });
     } finally {
-      setTesting(false);
+      if (visit.current === during) setTesting(false);
     }
   }, [openRun, showToast, startTestRun, taskId]);
 
