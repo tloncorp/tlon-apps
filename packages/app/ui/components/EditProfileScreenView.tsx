@@ -253,20 +253,15 @@ function EditProfileForm({
           {
             key: 'pinned',
             title: 'Pinned groups',
-            footer: pinned.groups.length
-              ? 'Shown on your profile. Long-press a group to take it off.'
-              : `Shown on your profile, up to ${maxPinnedGroups}.`,
+            footer: `Shown on your profile, up to ${maxPinnedGroups}.`,
             rows: [
               ...pinned.groups.map(
                 (group): SettingsRowModel => ({
                   ...groupRow(group),
-                  contextActions: [
-                    {
-                      key: 'remove',
-                      title: 'Remove from profile',
-                      onPress: () => pinned.toggle(group),
-                    },
-                  ],
+                  value: 'Remove',
+                  accessory: 'none',
+                  onPress: () => pinned.toggle(group),
+                  testID: 'ProfilePinnedGroupRemove',
                 })
               ),
               {
