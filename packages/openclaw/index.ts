@@ -1085,7 +1085,11 @@ export default defineBundledChannelEntry({
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
       const role = getSessionRole(ctx.sessionKey ?? '');
-      const ownerOnlyDecision = resolveOwnerOnlyToolBlock(event.toolName, role);
+      const ownerOnlyDecision = resolveOwnerOnlyToolBlock(
+        event.toolName,
+        role,
+        event.params
+      );
       const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
       const blocksNonOwner = ownerOnlyDecision.blocked;
       const isMcpDescribe = isMcpDescribeToolName(event.toolName);
@@ -1247,6 +1251,11 @@ export default defineBundledChannelEntry({
         await deliverBrowserLoginApproval(event);
       } catch {
         api.logger.warn('[tlon] Could not send the saved login approval card.');
+        if (ctx.sessionKey)
+          api.runtime.system.enqueueSystemEvent(
+            'The saved login approval card could not be sent. No new approval prompt was delivered. Tell the owner that delivery failed; do not retry login or claim that approval is pending. Use the Tlon browser handoff command if the owner asks to try again.',
+            { sessionKey: ctx.sessionKey }
+          );
       }
 
       const toolCallId = readToolCallId(event);

@@ -89,6 +89,20 @@ function createRecordingApi(config: Record<string, unknown> = {}): {
       if (prop === 'config') {
         return config;
       }
+      if (prop === 'runtime') {
+        return new Proxy(() => undefined, {
+          get(_runtime, key) {
+            if (key === 'config') return { loadConfig: () => config };
+            return Reflect.get(proxy as object, key);
+          },
+        });
+      }
+
+      if (prop === 'enqueueSystemEvent') {
+        return (message: string, options: { sessionKey: string }) => {
+          logs.push(`system:${options.sessionKey}:${message}`);
+        };
+      }
       if (prop === 'on') {
         return (name: string, handler: unknown) => {
           hooks.set(name, handler);
@@ -381,4 +395,64 @@ describe('saved login approval hook', () => {
       config
     );
   });
+});
+
+it('blocks non-owner saved login and shared browser access before dispatch', async () => {
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  for (const name of [
+    'browser_browser_login',
+    'browser_browser_snapshot',
+    'browser_browser_act',
+  ]) {
+    expect(
+      await handler(
+        {
+          toolName: 'mcp__call',
+          params: { name, arguments: { action: 'use' } },
+        },
+        { sessionKey: USER_SESSION }
+      )
+    ).toMatchObject({
+      block: true,
+      blockReason: expect.stringContaining('owner-only'),
+    });
+  }
+});
+
+it('puts approval delivery failure into the originating conversation without leaking upstream errors', async () => {
+  vi.mocked(runBrowserSessionHandoff).mockRejectedValueOnce(
+    new Error('private-token')
+  );
+  const { hooks, logs } = registerEntry();
+  const handler = hooks.get('after_tool_call') as (
+    event: unknown,
+    ctx: { sessionKey: string }
+  ) => Promise<void>;
+  await handler(
+    {
+      toolName: 'mcp__call',
+      params: {
+        name: 'browser_browser_login',
+        arguments: { session_id: 'delivery-failure', action: 'use' },
+      },
+      result: {
+        details: {
+          structuredContent: {
+            session_id: 'delivery-failure',
+            login: { status: 'approval_required' },
+          },
+        },
+      },
+    },
+    { sessionKey: OWNER_SESSION }
+  );
+  expect(
+    logs.some((line) =>
+      line.startsWith(
+        `system:${OWNER_SESSION}:The saved login approval card could not be sent.`
+      )
+    )
+  ).toBe(true);
+  expect(logs.join('\n')).not.toContain('private-token');
 });
