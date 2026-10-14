@@ -3,21 +3,14 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo, useState } from 'react';
-import { Keyboard } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
+import { triggerHaptic, useInviteSystemContacts } from '../../ui';
 import {
-  BlockSectionList,
-  Icon,
-  ScreenHeader,
-  SearchBar,
-  SystemContactListItem,
-  triggerHaptic,
-  useInviteSystemContacts,
-} from '../../ui';
-import { Badge } from '../../ui/components/Badge';
+  type SettingsRowModel,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 import {
   sortSystemContactsIntoSections,
   useSystemContactSearch,
@@ -31,7 +24,8 @@ export function InviteSystemContactsScreen(props: Props) {
   const [selectedRecipients, setSelectedRecipients] = useState<
     db.SystemContact[]
   >([]);
-  const insets = useSafeAreaInsets();
+  const [query, setQuery] = useState('');
+  const [limit, setLimit] = useState(pageSize);
 
   const { displayContacts, handleSearch } = useSystemContactSearch(
     systemContacts ?? []
@@ -60,19 +54,6 @@ export function InviteSystemContactsScreen(props: Props) {
       }
     },
     [selectedRecipients]
-  );
-
-  const renderItem = useCallback(
-    ({ item }: { item: db.SystemContact }) => {
-      return (
-        <SystemIconRow
-          item={item}
-          selectedSet={selectedRecipients}
-          onPress={handleItemPress}
-        />
-      );
-    },
-    [selectedRecipients, handleItemPress]
   );
 
   const handleDone = useCallback(async () => {
@@ -115,139 +96,131 @@ export function InviteSystemContactsScreen(props: Props) {
     }
   }, [inviteSystemContacts, props.navigation, selectedRecipients]);
 
+  const sections = useMemo((): SettingsSectionModel[] => {
+    if (!displayContacts.length) {
+      return [
+        {
+          key: 'none',
+          rows: [
+            {
+              key: 'none',
+              title: query.trim()
+                ? 'No one matches that search.'
+                : 'No contacts to invite.',
+            },
+          ],
+        },
+      ];
+    }
+    // The native lists draw every row they are given, so a long address book
+    // is shown a page at a time.
+    let budget = limit;
+    const shown: SettingsSectionModel[] = [];
+    for (const section of alphabeticalContactSections) {
+      if (budget <= 0) break;
+      const contacts = section.data.slice(0, budget);
+      budget -= contacts.length;
+      shown.push({
+        key: section.label,
+        title: section.label,
+        rows: contacts.map((contact) =>
+          contactRow(contact, selectedRecipients, handleItemPress)
+        ),
+      });
+    }
+    const hidden = displayContacts.length - limit;
+    return [
+      ...shown,
+      {
+        key: 'more',
+        footer:
+          'Choose up to 10 people. One invite goes by text or by email, not both.',
+        rows:
+          hidden > 0
+            ? [
+                {
+                  key: 'more',
+                  title: `Show ${Math.min(hidden, pageSize)} more`,
+                  action: true,
+                  onPress: () => setLimit((current) => current + pageSize),
+                },
+              ]
+            : [],
+      },
+    ];
+  }, [
+    alphabeticalContactSections,
+    displayContacts.length,
+    handleItemPress,
+    limit,
+    query,
+    selectedRecipients,
+  ]);
+
   return (
-    <View flex={1}>
-      <ScreenHeader
-        title="Invite your friends"
-        leftControls={
-          <ScreenHeader.TextButton onPress={() => props.navigation.goBack()}>
-            Cancel
-          </ScreenHeader.TextButton>
-        }
-        rightControls={
-          selectedRecipients.length > 0 ? (
-            <ScreenHeader.TextButton
-              color="$positiveActionText"
-              onPress={handleDone}
-            >
-              Invite
-            </ScreenHeader.TextButton>
-          ) : null
-        }
-      />
-      <View flex={1} onTouchStart={Keyboard.dismiss} marginTop="$l">
-        <SearchBar
-          onChangeQuery={handleSearch}
-          paddingHorizontal="$xl"
-          height="$4xl"
-          marginBottom="$s"
-          flexGrow={0}
-          debounceTime={100}
-          placeholder="Search contacts"
-          inputProps={{
-            spellCheck: false,
-            autoCapitalize: 'none',
-            autoComplete: 'off',
-            flex: 1,
-          }}
-        />
-        <BlockSectionList
-          sections={alphabeticalContactSections}
-          renderItem={renderItem}
-          style={{
-            flex: 1,
-            paddingTop: 8,
-          }}
-          contentContainerStyle={{
-            marginHorizontal: 14,
-            paddingBottom: insets.bottom,
-          }}
-          stickySectionHeadersEnabled={false}
-          stickyHeaderHiddenOnScroll={false}
-        ></BlockSectionList>
-      </View>
-    </View>
+    <SettingsListScreenView
+      title="Invite your friends"
+      sections={sections}
+      onBackPressed={() => props.navigation.goBack()}
+      search={{
+        value: query,
+        onChangeText: (text) => {
+          setQuery(text);
+          handleSearch(text);
+        },
+        placeholder: 'Search contacts',
+      }}
+      rightActions={[
+        {
+          id: 'InviteSystemContactsSend',
+          text: selectedRecipients.length
+            ? `Invite (${selectedRecipients.length})`
+            : 'Invite',
+          tint: '$positiveActionText',
+          disabled: selectedRecipients.length === 0,
+          onPress: handleDone,
+          testID: 'InviteSystemContactsSend',
+        },
+      ]}
+    />
   );
 }
 
-export function SystemIconRow({
-  item,
-  selectedSet,
-  onPress,
-}: {
-  item: db.SystemContact;
-  selectedSet: db.SystemContact[];
-  onPress: (contact: db.SystemContact) => void;
-}) {
-  const contactType = useMemo(() => {
-    return item.phoneNumber ? 'sms' : 'email';
-  }, [item.phoneNumber]);
+const pageSize = 100;
+// Someone sent a personal invite in the last two weeks isn't offered again.
+const reinviteAfter = 1000 * 60 * 60 * 24 * 14;
 
-  const selected = useMemo(() => {
-    return selectedSet.some((recipient) => recipient.id === item.id);
-  }, [item.id, selectedSet]);
-
-  const wrongTypeGivenRecipients = useMemo(() => {
-    if (!selectedSet.length) {
-      return false;
-    }
-
-    const firstRecipient = selectedSet[0];
-    const recipientsType = firstRecipient.phoneNumber ? 'sms' : 'email';
-    return contactType !== recipientsType;
-  }, [contactType, selectedSet]);
-
-  // don't allow selecting anyone who was already sent a personal invite in the last 2 weeks
-  const previouslyInvited = useMemo(() => {
-    const LAST_INVITE_THRESHOLD = 1000 * 60 * 60 * 24 * 14; // 14 days
-    return item.sentInvites?.some(
-      (invite) =>
-        invite.invitedAt &&
-        invite.invitedAt > Date.now() - LAST_INVITE_THRESHOLD &&
-        invite.invitedTo === domain.InvitedToPersonalKey
-    );
-  }, [item]);
-
-  const handlePress = useCallback(() => {
-    if (previouslyInvited || wrongTypeGivenRecipients) {
-      triggerHaptic('error');
-      return;
-    }
-    onPress(item);
-  }, [onPress, item, previouslyInvited, wrongTypeGivenRecipients]);
-
-  return (
-    <BlockSectionList.ItemWrapper>
-      <SystemContactListItem
-        systemContact={item}
-        onPress={handlePress}
-        backgroundColor="$secondaryBackground"
-        iconProps={{ backgroundColor: '$border' }}
-        showEndContent
-        endContent={
-          <View justifyContent="center" alignItems="center" height="$4xl">
-            {previouslyInvited ? (
-              <Badge
-                text="Invited"
-                type="tertiary"
-                position="relative"
-                left={16} // manually adjust to align with checkmarks
-              />
-            ) : selected ? (
-              <Icon type="Checkmark" size="$xl" />
-            ) : !wrongTypeGivenRecipients ? (
-              <View
-                borderWidth={1}
-                borderRadius="$4xl"
-                borderColor="$tertiaryText"
-                opacity={0.6}
-                height="$3xl"
-                width="$3xl"
-              />
-            ) : null}
-          </View>
-        }
-      />
-    </BlockSectionList.ItemWrapper>
+function contactRow(
+  contact: db.SystemContact,
+  selected: db.SystemContact[],
+  onPress: (contact: db.SystemContact) => void
+): SettingsRowModel {
+  const previouslyInvited = contact.sentInvites?.some(
+    (invite) =>
+      invite.invitedAt &&
+      invite.invitedAt > Date.now() - reinviteAfter &&
+      invite.invitedTo === domain.InvitedToPersonalKey
   );
+  // One invite goes out as a text or as an email, so the first person chosen
+  // sets which kind of contact the rest can be.
+  const kind = contact.phoneNumber ? 'sms' : 'email';
+  const chosenKind = selected[0]
+    ? selected[0].phoneNumber
+      ? 'sms'
+      : 'email'
+    : null;
+  const isSelected = selected.some((recipient) => recipient.id === contact.id);
+  return {
+    key: contact.id,
+    title: [contact.firstName, contact.lastName].filter(Boolean).join(' '),
+    subtitle: contact.phoneNumber
+      ? domain.displayablePhoneNumber(contact.phoneNumber)
+      : (contact.email ?? undefined),
+    value: previouslyInvited ? 'Invited' : undefined,
+    selected: isSelected,
+    multiple: true,
+    disabled:
+      previouslyInvited || (!isSelected && !!chosenKind && chosenKind !== kind),
+    onPress: () => onPress(contact),
+  };
 }
