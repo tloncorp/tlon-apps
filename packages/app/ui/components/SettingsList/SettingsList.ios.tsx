@@ -11,6 +11,7 @@ import {
   SecureField,
   Section,
   Spacer,
+  SwipeActions,
   Text,
   TextField,
   Toggle,
@@ -377,12 +378,23 @@ function SettingsRow({
     </HStack>
   );
 
-  const body = row.onPress ? (
+  const pressable = row.onPress ? (
     <Button onPress={row.onPress} modifiers={labelledRowModifiers}>
       {content}
     </Button>
   ) : (
     content
+  );
+
+  const body = row.swipeActions?.length ? (
+    <SwipeActions>
+      <SwipeActions.Actions edge="trailing">
+        <MenuItems items={row.swipeActions} />
+      </SwipeActions.Actions>
+      {pressable}
+    </SwipeActions>
+  ) : (
+    pressable
   );
 
   if (!row.contextActions?.length) {

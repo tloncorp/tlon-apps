@@ -77,6 +77,11 @@ export interface SettingsRowModel {
    * dropdown menu; web runs the first one directly.
    */
   contextActions?: SettingsContextAction[];
+  /**
+   * Actions on the row itself, such as removing it from a list. iOS reveals
+   * them by swiping the row; Android and web show the first at the row's end.
+   */
+  swipeActions?: SettingsMenuItem[];
   toggle?: { value: boolean; onValueChange: (value: boolean) => void };
   /**
    * An editable single-line value, such as a URL or token. The row shows the

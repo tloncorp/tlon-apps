@@ -258,10 +258,16 @@ function EditProfileForm({
               ...pinned.groups.map(
                 (group): SettingsRowModel => ({
                   ...groupRow(group),
-                  value: 'Remove',
-                  accessory: 'none',
-                  onPress: () => pinned.toggle(group),
-                  testID: 'ProfilePinnedGroupRemove',
+                  swipeActions: [
+                    {
+                      key: 'remove',
+                      title: 'Remove',
+                      systemImage: 'minus.circle',
+                      destructive: true,
+                      onPress: () => pinned.toggle(group),
+                    },
+                  ],
+                  testID: 'ProfilePinnedGroup',
                 })
               ),
               {
