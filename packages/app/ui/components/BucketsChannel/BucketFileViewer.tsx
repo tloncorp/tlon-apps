@@ -1,4 +1,5 @@
 import { FilePreview, Pressable, Text } from '@tloncorp/ui';
+import { useState } from 'react';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
 import { ScreenHeader } from '../ScreenHeader';
@@ -91,23 +92,12 @@ export function BucketFileViewer({
               onRetry={onRetry}
             />
           ) : previewKind === 'video' ? (
-            <View
-              flex={1}
-              alignItems="center"
-              justifyContent="center"
-              padding="$l"
-            >
-              <video
-                src={item.uri}
-                controls
-                preload="metadata"
-                style={{
-                  display: 'block',
-                  maxHeight: '100%',
-                  maxWidth: '100%',
-                }}
-              />
-            </View>
+            <WebVideoPreview
+              key={item.uri}
+              uri={item.uri}
+              onError={onPreviewError}
+              onRetry={onRetry}
+            />
           ) : previewKind === 'pdf' ? (
             <iframe
               src={item.uri}
@@ -167,6 +157,9 @@ function FailedPreview({ onRetry }: { onRetry?: () => void }) {
       </YStack>
       {onRetry ? (
         <Pressable
+          accessibilityLabel="Retry file"
+          aria-label="Retry file"
+          role="button"
           backgroundColor="$primaryText"
           borderRadius="$xl"
           onPress={onRetry}
@@ -179,6 +172,34 @@ function FailedPreview({ onRetry }: { onRetry?: () => void }) {
         </Pressable>
       ) : null}
     </YStack>
+  );
+}
+
+function WebVideoPreview({
+  uri,
+  onError,
+  onRetry,
+}: {
+  uri: string;
+  onError?: () => void;
+  onRetry?: () => void;
+}) {
+  const [failed, setFailed] = useState(false);
+  return failed ? (
+    <FailedPreview onRetry={onRetry} />
+  ) : (
+    <View flex={1} alignItems="center" justifyContent="center" padding="$l">
+      <video
+        src={uri}
+        controls
+        preload="metadata"
+        onError={() => {
+          setFailed(true);
+          onError?.();
+        }}
+        style={{ display: 'block', maxHeight: '100%', maxWidth: '100%' }}
+      />
+    </View>
   );
 }
 

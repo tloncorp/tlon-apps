@@ -1,6 +1,6 @@
 import { FilePreview, Pressable, Text } from '@tloncorp/ui';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
@@ -95,7 +95,12 @@ export function BucketFileViewer({
               onRetry={onRetry}
             />
           ) : previewKind === 'video' ? (
-            <NativeVideoPreview uri={item.uri} />
+            <NativeVideoPreview
+              key={item.uri}
+              uri={item.uri}
+              onError={onPreviewError}
+              onRetry={onRetry}
+            />
           ) : previewKind === 'pdf' && Platform.OS === 'ios' ? (
             <NativePdfPreview
               uri={item.uri}
@@ -159,6 +164,8 @@ function FailedPreview({ onRetry }: { onRetry?: () => void }) {
       </YStack>
       {onRetry ? (
         <Pressable
+          accessibilityLabel="Retry file"
+          role="button"
           backgroundColor="$primaryText"
           borderRadius="$xl"
           onPress={onRetry}
@@ -196,12 +203,40 @@ function NativePdfPreview({
   );
 }
 
-function NativeVideoPreview({ uri }: { uri: string }) {
+function NativeVideoPreview({
+  uri,
+  onError,
+  onRetry,
+}: {
+  uri: string;
+  onError?: () => void;
+  onRetry?: () => void;
+}) {
   const player = useVideoPlayer({ uri }, (videoPlayer) => {
     videoPlayer.play();
   });
+  const [failed, setFailed] = useState(false);
+  const failureReported = useRef(false);
+  useEffect(() => {
+    const subscription = player.addListener('statusChange', ({ status }) => {
+      if (status === 'error') setFailed(true);
+    });
+    // Loading may fail before the listener attaches.
+    // eslint-disable-next-line react/set-state-in-effect -- Sync the native player's state after subscribing.
+    if (player.status === 'error') setFailed(true);
+    return () => subscription.remove();
+  }, [player]);
+  useEffect(() => {
+    if (failed && !failureReported.current) {
+      failureReported.current = true;
+      player.pause();
+      onError?.();
+    }
+  }, [failed, onError, player]);
 
-  return (
+  return failed ? (
+    <FailedPreview onRetry={onRetry} />
+  ) : (
     <View flex={1} alignItems="center" justifyContent="center" padding="$l">
       <VideoView
         player={player}

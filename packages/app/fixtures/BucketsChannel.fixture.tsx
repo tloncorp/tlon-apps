@@ -716,6 +716,12 @@ const cacheFixtureFiles = [
     mimeType: 'application/pdf',
     uri: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
   },
+  {
+    id: 'video',
+    name: 'Demo.mp4',
+    mimeType: 'video/mp4',
+    uri: 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
+  },
 ];
 
 const cachedPreviewFiles: BucketItem[] = cacheFixtureFiles.map(
