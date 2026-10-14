@@ -119,7 +119,12 @@ function ChatVolumeScreenView({
             return {
               key: option.value,
               title: shortTitle,
-              subtitle: option.title === shortTitle ? undefined : option.title,
+              // "All activity" says all there is; the others' full titles add
+              // what they include.
+              subtitle:
+                option.value === 'loud' || option.title === shortTitle
+                  ? undefined
+                  : option.title,
               selected,
               onPress: () => {
                 if (!selected) updateVolume(option.value);

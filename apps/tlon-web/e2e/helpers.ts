@@ -1226,8 +1226,8 @@ export async function setGroupPrivacy(
 export async function setGroupNotifications(
   page: Page,
   level:
-    | 'All group activity'
-    | 'Group posts, mentions, and replies'
+    | 'All activity'
+    | 'Posts and mentions'
     | 'Mentions and replies'
     | 'Nothing'
 ) {
@@ -1238,7 +1238,7 @@ export async function setGroupNotifications(
   await expect(
     page.getByText('Group posts, mentions, and replies', { exact: true })
   ).toBeVisible();
-  await page.getByText(level).click();
+  await page.getByText(level, { exact: true }).click();
 }
 
 /**
