@@ -32,7 +32,10 @@ Each record retains the factor used to encrypt it. Changing the planet's code
 therefore does not invalidate saved passwords. Owner proofs use domain-separated
 HMAC-SHA256 with a ten-minute expiry, checked against the current code and server
 time. The server allows one minute of clock skew. The encryption factor grants
-no owner authority. Raw codes stay in the app and Pioneer. Factors, owner proofs,
+no owner authority. The client obtains the current code through the authenticated
+ship session using the `%base` `code` thread, then derives the short-lived proof.
+This requires no Hosting login, including on a locally served web client.
+Raw codes stay in the app and Pioneer. Factors, owner proofs,
 and decrypted secrets never appear in model-facing account lists or login results.
 
 The server key is durable deployment configuration shared by the browser

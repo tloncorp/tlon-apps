@@ -218,11 +218,13 @@ export function setClientResolver(resolver: ClientResolver | null): void {
 /** A vault-specific owner proof; neither the ship code nor Memex authority leaves this module. */
 export async function getBrowserVaultOwnerAuthorization() {
   const session = config.session;
-  if (!session?.getCode || session.loggingOut)
+  if (!session || session.loggingOut)
     throw new Error('Owner authentication is unavailable.');
-  const code = await session.getCode();
+  const { base, threadRequest } = await import('./requests');
   abandonIfSwapped(session);
-  if (session.loggingOut)
+  const code = await threadRequest(base.loginCode)<null, unknown>(null);
+  abandonIfSwapped(session);
+  if (session.loggingOut || typeof code !== 'string' || !code.trim())
     throw new Error('Owner authentication is unavailable.');
   return {
     planet: session.shipName.replace(/^~/, ''),
