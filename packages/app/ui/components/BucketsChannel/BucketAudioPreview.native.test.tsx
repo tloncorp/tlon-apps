@@ -274,6 +274,10 @@ describe('Bucket audio coordination and recovery', () => {
     );
     expect(mocks.player.pause).toHaveBeenCalledTimes(1);
     expect(mocks.sharedPlayback.pause).not.toHaveBeenCalled();
+    expect(mocks.activate).toHaveBeenCalledWith(false);
+    expect(mocks.player.pause.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.activate.mock.invocationCallOrder[0]
+    );
     act(() => tree.unmount());
   });
 });

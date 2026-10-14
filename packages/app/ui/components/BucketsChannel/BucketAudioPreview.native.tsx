@@ -63,6 +63,7 @@ export function BucketAudioPreview({
     try {
       if (status.playing) {
         player.pause();
+        await setIsAudioActiveAsync(false);
         return;
       }
       // Stop voice memos and cancel a source still loading before this player

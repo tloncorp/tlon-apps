@@ -72,6 +72,7 @@ function render(readGrant = vi.fn(async (_id: number) => grant())) {
       return preview;
     },
     switchBucket: () => act(() => tree.update(<Harness bucket="~nec/files" />)),
+    unmount: () => act(() => tree.unmount()),
   };
 }
 
@@ -279,7 +280,33 @@ describe('useBucketPreview session cache', () => {
   });
 });
 
-describe('external-open error ownership', () => {
+describe('external-open ownership', () => {
+  it.each(['page', 'close', 'bucket', 'unmount'])(
+    'does not launch a late Open grant after %s changes the selection',
+    async (change) => {
+      const hook = render();
+      await act(async () => hook.current.load(photo));
+      const pending = deferred<ReturnType<typeof grant>>();
+      hook.readGrant.mockImplementationOnce(() => pending.promise);
+      act(() => hook.current.openExternally?.());
+      if (change === 'page')
+        await act(async () => hook.current.load({ ...photo, id: '3' }));
+      else if (change === 'close') act(() => hook.current.close());
+      else if (change === 'bucket') hook.switchBucket();
+      else hook.unmount();
+      await act(async () => pending.resolve(grant('https://files.test/stale')));
+      expect(Linking.openURL).not.toHaveBeenCalled();
+    }
+  );
+
+  it('opens the fresh grant when the initiating file remains selected', async () => {
+    const hook = render();
+    await act(async () => hook.current.load(photo));
+    hook.readGrant.mockResolvedValueOnce(grant('https://files.test/fresh'));
+    await act(async () => hook.current.openExternally?.());
+    expect(Linking.openURL).toHaveBeenCalledWith('https://files.test/fresh');
+  });
+
   it.each(['grant', 'launch'])(
     'ignores a stale %s error after paging to another file',
     async (stage) => {

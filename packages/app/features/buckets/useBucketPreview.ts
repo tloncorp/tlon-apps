@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Linking } from 'react-native';
 
 import { type BucketItem, canPreviewAsText } from '../../ui';
@@ -17,6 +17,13 @@ export function useBucketPreview(readGrant: ReadGrant, bucketKey: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
+  const externalOpenScope = useRef<{ bucketKey: string } | null>(null);
+  useEffect(() => {
+    externalOpenScope.current = { bucketKey };
+    return () => {
+      externalOpenScope.current = null;
+    };
+  }, [bucketKey]);
   const cache = useRef(new Map<string, CachedPreview>());
   const pending = useRef(new Map<string, Promise<CachedPreview>>());
 
@@ -152,10 +159,17 @@ export function useBucketPreview(readGrant: ReadGrant, bucketKey: string) {
     item && item.previewUri
       ? () => {
           const openedRequestId = requestId.current;
+          const openedScope = externalOpenScope.current;
+          const isCurrent = () =>
+            openedScope !== null &&
+            requestId.current === openedRequestId &&
+            externalOpenScope.current === openedScope;
           void readGrant(Number(item.id))
-            .then((grant) => Linking.openURL(grant.readUrl))
+            .then((grant) => {
+              if (isCurrent()) return Linking.openURL(grant.readUrl);
+            })
             .catch((cause) => {
-              if (requestId.current === openedRequestId)
+              if (isCurrent())
                 setError(
                   cause instanceof Error ? cause.message : String(cause)
                 );
