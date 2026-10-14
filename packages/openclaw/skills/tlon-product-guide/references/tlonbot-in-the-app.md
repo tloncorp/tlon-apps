@@ -67,7 +67,7 @@ Notes: the name must be shorter than 64 characters. This screen has the name and
 Phone: on the Settings tab, tap `Default model`. On `Choose provider`, tap a provider, then `Choose Model`. Search or scroll, tap a model, tap `Done`, then apply. Picking `Basic (GPT-5.6 Luna)` has no model step.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
-Notes: the provider list only holds what your bot can use: the included Basic model, plus any provider with a saved API key or a connected subscription. A list shows 50 models at a time, so use `Search models` to find the rest. Some models show a price, and with OpenRouter some carry a `Recommended` badge.
+Notes: the provider list only holds what your bot can use: the included Basic model, plus any provider with a saved API key or a connected subscription. The Basic label's version is out of date: Tlon runs GPT-6 Luna behind it today. A list shows 50 models at a time, so use `Search models` to find the rest. Some models show a price, and with OpenRouter some carry a `Recommended` badge.
 
 ## Set fallback models
 
@@ -76,12 +76,12 @@ Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot 
 Who: hosted accounts with a Tlonbot.
 Notes: if the default model fails, the bot tries these in order. The order is the order you added them; you can't drag to reorder. On the included Basic model with none chosen, the row reads `Managed by Tlon`.
 
-## Turn on zero data retention
+## Turn zero data retention on or off
 
-Phone: on the Settings tab, under `Privacy`, switch on `Zero data retention`, then apply.
+Phone: on the Settings tab, under `Privacy`, use the `Zero data retention` switch, then apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot. The `Privacy` section only shows while the default model is the included Basic model.
-Notes: the app describes it as `Avoid model providers that retain data. May use your included credits faster.` With OpenRouter the same switch sits at the top of the model list instead, where it narrows the list to models tagged `ZDR`.
+Notes: it is on by default. The app describes it as `Avoid model providers that retain data. May use your included credits faster.` Requests still reach a model provider, just one that keeps nothing. Leaving Basic and coming back turns it off. With OpenRouter the same switch sits at the top of the model list, where it narrows the list to models tagged `ZDR`. Subscriptions and other providers' keys aren't covered.
 
 ## Add an API key for a model provider
 

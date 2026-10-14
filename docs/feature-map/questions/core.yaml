@@ -579,6 +579,38 @@
     - "Tlon runs the node for you"
     - "hosting includes health monitoring, updates and data backups with restoration"
 
+# Added 2026-10-14, after the bot got these wrong in a team thread.
+- id: provider-keeps-data
+  ask: "does the ai company behind my bot keep copies of what i say to it?"
+  kind: concept
+  file: tlonbot-in-the-app.md
+  entry: "Turn zero data retention on or off"
+  must:
+    - "zero data retention is on by default for the included model"
+    - "requests still go to a model provider, one that keeps nothing"
+    - "it does not cover a connected subscription or a direct API key"
+  must_not:
+    - "says the owner has to turn it on first"
+
+- id: take-bot-memory
+  ask: "if i stop using tlon's hosting can i take my bot's memory with me?"
+  kind: concept
+  must:
+    - "the bot's state is kept on their own node, so it goes with the node"
+    - "Tlon sends the files in the bot's OpenClaw directory on request"
+  must_not:
+    - "says the bot's memory can't be moved yet"
+    - "points to a button in the app for exporting the bot"
+
+- id: included-model
+  ask: "what ai model do i get for free with my bot?"
+  kind: concept
+  must:
+    - "OpenAI's GPT-6 Luna today, which Tlon can change"
+    - "$5 a month of included credits"
+  must_not:
+    - "says the included model is GPT-5.6 Luna"
+
 # Held out until 2026-10-06, when their failures were read to fix the grader.
 - id: channel-members-absent
   ask: "where do i see everyone who joined this channel, not the whole group?"
