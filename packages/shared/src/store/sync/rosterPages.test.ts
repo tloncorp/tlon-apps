@@ -160,7 +160,6 @@ describe('syncGroup on a big group', () => {
     expect((await queries.getGroup({ id: groupId }))?.memberCount).toBe(599);
   });
 
-  // insertMembers logs a failed batch instead of throwing
   test('a light sync whose members did not land runs again', async () => {
     // a session that started after earlier tests' light syncs of this group
     updateSession({ startTime: Date.now() });
@@ -171,13 +170,12 @@ describe('syncGroup on a big group', () => {
       .mockResolvedValue(
         group({ memberCount: 600, members: [member('~zod'), member('~nec')] })
       );
-    const insertGroups = vi
-      .spyOn(dbIndex, 'insertGroups')
-      .mockResolvedValue(undefined);
+    vi.spyOn(dbIndex, 'insertGroupMembersPage').mockRejectedValueOnce(
+      new Error('write failed')
+    );
 
     try {
-      await syncGroup(groupId);
-      insertGroups.mockRestore();
+      await expect(syncGroup(groupId)).rejects.toThrow('write failed');
       await syncGroup(groupId);
     } finally {
       updateSession(null);
@@ -572,6 +570,17 @@ test('compareShips orders by @p value, non-ships last', () => {
 test('getGroupsWithMemberThreshold reads the count, not the stored roster', async () => {
   await queries.insertGroups({
     groups: [group({ memberCount: 11000, members: [member('~zod')] })],
+  });
+  expect(await queries.getGroupsWithMemberThreshold(14)).toEqual([]);
+});
+
+// invites count toward the stored rows but not the seat count
+test('getGroupsWithMemberThreshold keeps out a group padded with invites', async () => {
+  const invited = Array.from({ length: 20 }, (_, i) =>
+    member(`~invited-${i}`, { status: 'invited' })
+  );
+  await queries.insertGroups({
+    groups: [group({ memberCount: 3, members: [member('~zod'), ...invited] })],
   });
   expect(await queries.getGroupsWithMemberThreshold(14)).toEqual([]);
 });

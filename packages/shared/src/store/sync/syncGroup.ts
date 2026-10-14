@@ -57,7 +57,7 @@ export async function syncGroup(
         api.getGroupLight(id)
       );
       if (getClientGeneration() !== generation) return;
-      const stored = await batchEffects('syncGroup', async (queryCtx) => {
+      await batchEffects('syncGroup', async (queryCtx) => {
         const members = await fitToLiveChanges(
           id,
           snapshot,
@@ -68,13 +68,13 @@ export async function syncGroup(
           { groupId: id },
           queryCtx
         );
-        if (getClientGeneration() !== generation) return false;
+        if (getClientGeneration() !== generation) return;
         await db.insertGroups(
           {
             groups: [
               {
                 ...response,
-                members,
+                members: [],
                 // left out, the stored count stands
                 memberCount:
                   countNow === snapshot.count
@@ -85,23 +85,12 @@ export async function syncGroup(
           },
           queryCtx
         );
-        // insertMembers logs a failed batch rather than throwing, so only
-        // count the sync done once every member landed
-        const storedIds = new Set(
-          await db.getGroupMemberIds({ groupId: id }, queryCtx)
-        );
-        const missing = members.filter(
-          (member) => !storedIds.has(member.contactId)
-        );
-        if (missing.length) {
-          logger.trackError('light group sync stored an incomplete roster', {
-            missing: missing.length,
-          });
-          return false;
-        }
-        return true;
+        // written like a roster page, which fails outright when its write
+        // does, so a sync that didn't land isn't counted done below. Each
+        // light seat carries all of its roles, as a page's do.
+        await db.insertGroupMembersPage({ groupId: id, members }, queryCtx);
       });
-      if (!stored) return;
+      if (getClientGeneration() !== generation) return;
       lightSyncedAt.set(syncKey, Date.now());
       updateLastActivityTime();
       return;

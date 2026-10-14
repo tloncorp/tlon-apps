@@ -355,9 +355,11 @@ export const getGroupsWithMemberThreshold = createReadQuery(
       },
     });
 
-    // the stored roster of a big group is partial; its count isn't
+    // the stored roster of a big group is partial, so its count decides.
+    // The stored rows include invites, which the count leaves out, so they
+    // decide too.
     return allJoinedWithMembers.filter(
-      (g) => (g.memberCount ?? g.members.length) <= threshold
+      (g) => Math.max(g.memberCount ?? 0, g.members.length) <= threshold
     );
   },
   ['groups']

@@ -31,7 +31,7 @@ const group: db.Group = {
   hostUserId: '~zod',
 };
 
-function render() {
+function render(rendered: db.Group = group) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -45,7 +45,7 @@ function render() {
   act(() => {
     renderer = create(
       <QueryClientProvider client={client}>
-        <Harness onResult={onResult} />
+        <Harness onResult={onResult} rendered={rendered} />
       </QueryClientProvider>
     );
   });
@@ -53,7 +53,7 @@ function render() {
     act(() => {
       renderer.update(
         <QueryClientProvider client={client}>
-          <Harness onResult={onResult} />
+          <Harness onResult={onResult} rendered={rendered} />
         </QueryClientProvider>
       );
     });
@@ -62,17 +62,28 @@ function render() {
 
 function Harness({
   onResult,
+  rendered,
 }: {
   onResult: (result: ReturnType<typeof useGroupRosterPages>) => void;
+  rendered: db.Group;
 }) {
-  onResult(useGroupRosterPages(group));
+  onResult(useGroupRosterPages(rendered));
   return null;
 }
 
-async function settle() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
+// React Query settles over several ticks, more of them under a busy suite
+async function waitFor(check: () => void) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      check();
+      return;
+    } catch (error) {
+      if (attempt >= 100) throw error;
+    }
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+  }
 }
 
 afterEach(() => {
@@ -84,9 +95,7 @@ describe('useGroupRosterPages', () => {
   it('shows the stored roster after a failed first page, and retries it', async () => {
     syncGroupMembersPage.mockRejectedValueOnce(new Error('desk unreachable'));
     const { latest } = render();
-    await settle();
-
-    expect(latest.current?.awaitingFirstPage).toBe(false);
+    await waitFor(() => expect(latest.current?.awaitingFirstPage).toBe(false));
 
     syncGroupMembersPage.mockResolvedValueOnce({
       total: 600,
@@ -94,10 +103,8 @@ describe('useGroupRosterPages', () => {
       next: '~nec',
     });
     act(() => latest.current?.loadMore());
-    await settle();
-
+    await waitFor(() => expect(latest.current?.loadedThrough).toBe('~nec'));
     expect(syncGroupMembersPage).toHaveBeenCalledTimes(2);
-    expect(latest.current?.loadedThrough).toBe('~nec');
   });
 
   // a new session follows a dropped connection, which may have missed seat
@@ -109,17 +116,28 @@ describe('useGroupRosterPages', () => {
       next: '~nec',
     });
     const { latest, rerender } = render();
-    await settle();
+    await waitFor(() => expect(latest.current?.loadedThrough).toBe('~nec'));
     expect(syncGroupMembersPage).toHaveBeenCalledTimes(1);
 
     session.startTime = 2;
     rerender();
-    await settle();
-
-    expect(syncGroupMembersPage).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(syncGroupMembersPage).toHaveBeenCalledTimes(2));
     expect(syncGroupMembersPage.mock.calls[1][0]).toMatchObject({
       after: null,
     });
-    expect(latest.current?.loadedThrough).toBe('~nec');
+    await waitFor(() => expect(latest.current?.loadedThrough).toBe('~nec'));
+  });
+
+  // e.g. a join tips a fully loaded group over the threshold
+  it('leaves a whole roster from this session unpaged', async () => {
+    const { latest } = render({ ...group, syncedAt: 5 });
+    await waitFor(() => expect(latest.current).not.toBeNull());
+    expect(latest.current?.paged).toBe(false);
+    expect(latest.current?.awaitingFirstPage).toBe(false);
+    // time for a page fetch to start, had paging been on
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(syncGroupMembersPage).not.toHaveBeenCalled();
   });
 });

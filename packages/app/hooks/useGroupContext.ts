@@ -23,7 +23,9 @@ export const useGroupContext = ({
     if (groupId) {
       sync.syncGroup(
         groupId,
-        { priority: store.SyncPriority.High },
+        // screens that need the whole roster stay gated until it lands, so
+        // a failed fetch is retried rather than leaving them stuck
+        { priority: store.SyncPriority.High, retry: !!wholeRoster },
         { wholeRoster }
       );
     }

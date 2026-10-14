@@ -30,6 +30,13 @@ export function useGroupRosterPages(group: db.Group | null) {
     onDeskServesRosterPagesChange,
     getDeskServesRosterPages
   );
+  // a new session follows a dropped connection, which may have missed seat
+  // events, so the pages start over with it
+  const sessionStartTime = store.useCurrentSession()?.startTime;
+  // a whole roster synced this session is complete, and live events keep it
+  // so: there's nothing to page
+  const rosterIsWhole =
+    sessionStartTime !== undefined && (group?.syncedAt ?? 0) > sessionStartTime;
   const pagedNow = !!group && store.isRosterPaged(group);
   // once this screen pages a group, it keeps paging: a count dipping under
   // the threshold mid-load would otherwise switch it to the partial roster
@@ -40,7 +47,8 @@ export function useGroupRosterPages(group: db.Group | null) {
   }
   // ...as long as the desk still serves pages
   const paged =
-    pagedNow || (!!group && pagedGroupId === groupId && servesPages);
+    !rosterIsWhole &&
+    (pagedNow || (!!group && pagedGroupId === groupId && servesPages));
   // a desk that stops serving them leaves only part of the roster stored,
   // so load the rest whole
   const pagesWithdrawn = !!groupId && pagedGroupId === groupId && !servesPages;
@@ -56,9 +64,6 @@ export function useGroupRosterPages(group: db.Group | null) {
       )
       .catch(() => {});
   }, [pagesWithdrawn, groupId]);
-  // a new session follows a dropped connection, which may have missed seat
-  // events, so the pages start over with it
-  const sessionStartTime = store.useCurrentSession()?.startTime;
   const roleIds = useMemo(
     () => (group?.roles ?? []).map((role) => role.id).sort(),
     [group?.roles]
