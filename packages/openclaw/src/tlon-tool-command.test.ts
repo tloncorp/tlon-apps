@@ -818,6 +818,11 @@ const documentedActionOperations = {
     'promote',
     'demote',
     'add-channel',
+    'add-section',
+    'rename-section',
+    'delete-section',
+    'move-channel',
+    'order-sections',
   ],
   hooks: [
     'init',
@@ -1179,6 +1184,21 @@ describe('tlon tool telemetry summarizer', () => {
     });
 
     expect(JSON.stringify(summary)).not.toContain('Project Notes');
+  });
+
+  it('classifies section commands as group admin operations', () => {
+    const summary = summarizeTlonCommand(
+      'groups move-channel ~zod/quiet-launch chat/~zod/general --section Archive --index 0'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'groups.move-channel',
+      operation: 'move-channel',
+      intent: 'admin',
+      isKnownSubcommand: true,
+    });
+
+    expect(JSON.stringify(summary)).not.toContain('Archive');
   });
 
   it('matches the default chat kind for group channel creation', () => {

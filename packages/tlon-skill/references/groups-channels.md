@@ -29,6 +29,17 @@ Description is supported for chat/heap, not notes. For notebooks, continue with 
 
 To leave a single channel, use `channels leave <nest>`; `groups leave` leaves the whole workspace and all its channels. `channels join` does not check read access: it can report "Joined" while messages remain unavailable to an account without access.
 
+## Sections and channel order
+
+Read section ids, titles and 0-based channel positions from `groups info <group-flag>` first; commands accept a section id or its title. All section commands are admin only and refuse up front otherwise.
+
+```json
+{"command":"groups add-section ~host/group \"Archive\""}
+{"command":"groups move-channel ~host/group chat/~host/general --section Archive --index 0"}
+```
+
+`add-section` puts the new section at the bottom; `rename-section <group-flag> <section> "<new title>"` changes only its title. `move-channel --index N` is the channel's final 0-based position; without it, the channel goes to the end of the section, unless it is already assigned to and listed in that section, in which case nothing changes. `order-sections` must list every section exactly once, `default` included. The `default` section cannot be deleted; `delete-section` first moves the section's channels to the top of `default`, keeping their order. Multi-step commands check each step but are not atomic: on a partial failure, follow the printed recovery instructions exactly, and do not re-run `add-section` unless told to.
+
 ## Membership and permissions
 
 Use `help groups` for invites, join requests, roles, and member management; inspect the specific operation before changing access. Joining a private group can request an invitation rather than immediately join it. Verify membership before claiming access.

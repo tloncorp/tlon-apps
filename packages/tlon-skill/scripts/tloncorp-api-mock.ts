@@ -21,8 +21,9 @@
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
  * posts, invites), the notes runtimes (notesV1 et al.), and
  * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
- * enableGroup, BadResponseError), and `activity-runtime.ts`
- * (getInitialActivity, getGroupAndChannelUnreads, getTextContent).
+ * enableGroup, BadResponseError), `activity-runtime.ts`
+ * (getInitialActivity, getGroupAndChannelUnreads, getTextContent), and
+ * `group-sections-runtime.ts` (poke).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 // The real broker client, by subpath, which the root mock below does not
@@ -109,6 +110,10 @@ export const mockedGetChannelPosts = {
 };
 
 export const mockedScry = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedPoke = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
@@ -206,6 +211,7 @@ mock.module('@tloncorp/api', () => ({
   internalRemoveClient: () => undefined,
   preSig: (ship: string) => (ship.startsWith('~') ? ship : `~${ship}`),
   scry: (...args: unknown[]) => mockedScry.impl(...args),
+  poke: (...args: unknown[]) => mockedPoke.impl(...args),
   subscribe: async () => 0,
   // dms.ts value imports (reaction helpers take injected deps in tests, so
   // these defaults are load-time placeholders, never assertion targets)
