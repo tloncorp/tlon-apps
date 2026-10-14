@@ -76,7 +76,7 @@ describe('saved login approval delivery', () => {
     }
   );
 
-  it('shares concurrent delivery and permits a fresh request after completion', async () => {
+  it('sends only one card across concurrent requests and later retries', async () => {
     let finish!: () => void;
     const send = vi.fn().mockImplementationOnce(
       () =>
@@ -92,7 +92,7 @@ describe('saved login approval delivery', () => {
     finish();
     await Promise.all([first, second]);
     await handle(event());
-    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it('reports delivery failure and allows a subsequent attempt', async () => {

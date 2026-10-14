@@ -15,7 +15,12 @@ function record(value: unknown): Record<string, unknown> {
 export function createBrowserLoginApprovalHandler(
   sendHandoff: (sessionId: string) => Promise<unknown>
 ) {
-  const pending = new Map<string, Promise<unknown>>();
+  // Browser sessions have a maximum lifetime of 24 hours. Keep successful
+  // delivery for that lifetime so sequential retries cannot reopen the modal.
+  const delivered = new Map<
+    string,
+    { promise: Promise<unknown>; expiresAt: number }
+  >();
   return async (event: BrowserLoginToolResult): Promise<void> => {
     if (
       event.error ||
@@ -42,19 +47,25 @@ export function createBrowserLoginApprovalHandler(
     )
       return;
 
-    // Concurrent requests for this session share one card. A later request
-    // prepares a fresh single-use form, including after a delivery failure.
-    const existing = pending.get(sessionId);
+    const now = Date.now();
+    for (const [id, entry] of delivered) {
+      if (entry.expiresAt <= now) delivered.delete(id);
+    }
+    const existing = delivered.get(sessionId);
     if (existing) {
-      await existing;
+      await existing.promise;
       return;
     }
-    const delivery = Promise.resolve().then(() => sendHandoff(sessionId));
-    pending.set(sessionId, delivery);
+    const promise = Promise.resolve().then(() => sendHandoff(sessionId));
+    delivered.set(sessionId, {
+      promise,
+      expiresAt: now + 24 * 60 * 60_000,
+    });
     try {
-      await delivery;
-    } finally {
-      pending.delete(sessionId);
+      await promise;
+    } catch (error) {
+      delivered.delete(sessionId);
+      throw error;
     }
   };
 }
