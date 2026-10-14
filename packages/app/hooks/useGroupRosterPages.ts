@@ -61,18 +61,21 @@ export function useGroupRosterPages(group: db.Group | null) {
     [group?.roles]
   );
 
-  // every role's holders up front, so the role sections are whole
-  useQuery({
+  // every role's holders up front, so the role sections are whole. A role
+  // with more holders than the cap isn't checked past the pages it loaded,
+  // so it isn't reported whole and its holders wait for the main pages.
+  const roleHolders = useQuery({
     queryKey: ['groupRosterRoles', groupId, roleIds],
     enabled: paged && roleIds.length > 0,
     // fresh on every visit: the cache never goes stale on its own, and a
     // group left and rejoined would otherwise keep its old pages
     gcTime: 0,
     queryFn: async ({ signal }) => {
+      const wholeRoles: string[] = [];
       for (const roleId of roleIds) {
         let after: string | null = null;
         for (let i = 0; i < MAX_ROLE_PAGES; i++) {
-          if (signal.aborted) return null;
+          if (signal.aborted) return wholeRoles;
           const page = await store.syncGroupMembersPage(
             { groupId, roleId, after },
             { priority: store.SyncPriority.Medium, abortSignal: signal }
@@ -80,10 +83,15 @@ export function useGroupRosterPages(group: db.Group | null) {
           after = page.next;
           if (!after) break;
         }
+        if (!after) wholeRoles.push(roleId);
       }
-      return null;
+      return wholeRoles;
     },
   });
+  const wholeRoles = useMemo(
+    () => new Set(roleHolders.data ?? []),
+    [roleHolders.data]
+  );
 
   const pages = useInfiniteQuery({
     queryKey: ['groupRosterPages', groupId],
@@ -115,6 +123,8 @@ export function useGroupRosterPages(group: db.Group | null) {
     loadedThrough: paged && lastPage?.next ? lastPage.next : null,
     // until the first page lands, nothing past the light roster is known
     awaitingFirstPage: paged && !pages.data,
+    // roles whose holders have all been checked against the desk
+    wholeRoles,
     hasMore: paged && (!pages.data || !!hasNextPage),
     isLoading: paged && pages.isFetching,
     loadMore,

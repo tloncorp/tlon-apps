@@ -46,6 +46,7 @@ describe('pagedMembers', () => {
     { contactId: '~bud', status: 'invited' },
   ] as db.ChatMember[];
   const ids = (members: db.ChatMember[]) => members.map((m) => m.contactId);
+  const admins = new Set(['admin']);
 
   it('keeps members up to the last loaded ship, in page order', () => {
     expect(
@@ -53,6 +54,7 @@ describe('pagedMembers', () => {
         pagedMembers(roster, {
           loadedThrough: '~nec',
           awaitingFirstPage: false,
+          wholeRoles: admins,
         })
       )
     ).toEqual(['~zod', '~nec', '~bud', '~wes']);
@@ -61,7 +63,11 @@ describe('pagedMembers', () => {
   it('keeps everyone once every page has loaded', () => {
     expect(
       ids(
-        pagedMembers(roster, { loadedThrough: null, awaitingFirstPage: false })
+        pagedMembers(roster, {
+          loadedThrough: null,
+          awaitingFirstPage: false,
+          wholeRoles: admins,
+        })
       )
     ).toEqual(['~zod', '~nec', '~bud', '~wes', '~sev']);
   });
@@ -70,8 +76,26 @@ describe('pagedMembers', () => {
   it('holds back plain members until the first page lands', () => {
     expect(
       ids(
-        pagedMembers(roster, { loadedThrough: null, awaitingFirstPage: true })
+        pagedMembers(roster, {
+          loadedThrough: null,
+          awaitingFirstPage: true,
+          wholeRoles: admins,
+        })
       )
     ).toEqual(['~bud', '~wes']);
+  });
+
+  // a role with more holders than its pages loaded hasn't been checked past
+  // them, so its holders wait for the main pages
+  it('pages holders of a role that did not load whole', () => {
+    expect(
+      ids(
+        pagedMembers(roster, {
+          loadedThrough: '~nec',
+          awaitingFirstPage: false,
+          wholeRoles: new Set(),
+        })
+      )
+    ).toEqual(['~zod', '~nec', '~bud']);
   });
 });

@@ -134,18 +134,6 @@ export async function syncGroupMembersPage(
     );
     if (abandoned()) return;
     await db.insertGroupMembersPage({ groupId, members }, ctx);
-    // insertMembers logs a failed batch rather than throwing. A page whose
-    // members didn't land must fail, or its cursor moves on and the page is
-    // never fetched again.
-    const stored = new Set(
-      await db.getGroupMemberIds({ groupId, seatedOnly: true }, ctx)
-    );
-    const missing = members.filter((member) => !stored.has(member.contactId));
-    if (missing.length) {
-      throw new Error(
-        `roster page stored ${members.length - missing.length} of ${members.length} members`
-      );
-    }
     const onPage = new Set(page.members.map((member) => member.contactId));
     if (roleId) {
       // a role page holds every holder of the role in its range, so a holder
@@ -171,9 +159,7 @@ export async function syncGroupMembersPage(
     // a page that has a next one ends at it; the last runs to the end
     const departed = snapshot.seats.filter(
       (contactId) =>
-        stored.has(contactId) &&
-        !onPage.has(contactId) &&
-        isInPage(contactId, after, page.next)
+        !onPage.has(contactId) && isInPage(contactId, after, page.next)
     );
     if (abandoned()) return;
     if (departed.length) {

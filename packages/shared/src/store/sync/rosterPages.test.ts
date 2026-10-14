@@ -526,16 +526,20 @@ describe('syncGroupMembersPage while the roster changes', () => {
     expect((await queries.getGroup({ id: groupId }))?.memberCount).toBe(600);
   });
 
-  // insertMembers logs a failed batch instead of throwing
-  test('fails a page whose members did not land', async () => {
-    vi.spyOn(api, 'getGroupMembersPage').mockResolvedValue(
-      pageOf({ total: 600, members: [member('~wes')], next: '~wes' })
-    );
-    vi.spyOn(dbIndex, 'insertGroupMembersPage').mockResolvedValue(undefined);
+  // unlike insertMembers, which logs a failed batch and carries on, so the
+  // page's cursor would move past members that never landed
+  test('a page write that fails throws', async () => {
+    const unwritable = {
+      ...member('~wes'),
+      contactId: null,
+    } as unknown as db.ChatMember;
 
-    await expect(syncGroupMembersPage({ groupId })).rejects.toThrow(
-      'roster page stored 0 of 1 members'
-    );
+    await expect(
+      queries.insertGroupMembersPage({
+        groupId,
+        members: [member('~nec'), unwritable],
+      })
+    ).rejects.toThrow();
   });
 
   test('stops writing once the account changes mid-page', async () => {

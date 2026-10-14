@@ -27,20 +27,26 @@ export function getGroupMemberCount(
 
 /**
  * A big group's members as far as its pages have loaded, in page order, so
- * the list only grows at its end. Role holders and invites aren't paged that
- * way, so they all stay. Until the first page lands, the rest wait for it.
+ * the list only grows at its end. Invites, and holders of a role whose
+ * holders have all loaded, aren't paged that way, so they all stay. Until
+ * the first page lands, the rest wait for it.
  */
 export function pagedMembers(
   members: db.ChatMember[],
   {
     loadedThrough,
     awaitingFirstPage,
-  }: { loadedThrough: string | null; awaitingFirstPage: boolean }
+    wholeRoles,
+  }: {
+    loadedThrough: string | null;
+    awaitingFirstPage: boolean;
+    wholeRoles: ReadonlySet<string>;
+  }
 ): db.ChatMember[] {
   return members
     .filter(
       (member) =>
-        (member.roles?.length ?? 0) > 0 ||
+        (member.roles ?? []).some((role) => wholeRoles.has(role.roleId)) ||
         member.status === 'invited' ||
         (!awaitingFirstPage &&
           (loadedThrough === null ||

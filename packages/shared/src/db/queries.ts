@@ -3383,7 +3383,16 @@ export const insertGroupMembersPage = createWriteQuery(
   ) => {
     if (members.length === 0) return;
     return withTransactionCtx(ctx, async (txCtx) => {
-      await insertMembers({ members }, txCtx);
+      // not insertMembers, which logs a failed batch and carries on: a page
+      // whose members didn't land must fail, or its cursor moves on and the
+      // page is never fetched again
+      await txCtx.db
+        .insert($chatMembers)
+        .values(members)
+        .onConflictDoUpdate({
+          target: [$chatMembers.chatId, $chatMembers.contactId],
+          set: conflictUpdateSetAll($chatMembers),
+        });
       await txCtx.db.delete($chatMemberGroupRoles).where(
         and(
           eq($chatMemberGroupRoles.groupId, groupId),

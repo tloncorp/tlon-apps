@@ -39,9 +39,16 @@ export function GroupMembersScreen(props: Props) {
         ? pagedMembers(groupMembers, {
             loadedThrough: roster.loadedThrough,
             awaitingFirstPage: roster.awaitingFirstPage,
+            wholeRoles: roster.wholeRoles,
           })
         : groupMembers,
-    [groupMembers, roster.paged, roster.loadedThrough, roster.awaitingFirstPage]
+    [
+      groupMembers,
+      roster.paged,
+      roster.loadedThrough,
+      roster.awaitingFirstPage,
+      roster.wholeRoles,
+    ]
   );
 
   const handleGoBack = useHandleGoBack(navigation, {
