@@ -422,6 +422,35 @@ describe('before_tool_call cron args guard', () => {
     expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
   });
 
+  it('keeps a run-once trigger only when the gateway runs triggers', async () => {
+    const add = {
+      toolName: 'cron',
+      params: {
+        action: 'add',
+        job: {
+          ...CLEAN_ADD.params.job,
+          schedule: { kind: 'cron', expr: '0 9 * * *' },
+          trigger: { script: 'return { fire: true };', once: true },
+        },
+      },
+    };
+    const on = registerEntry({ cron: { triggers: { enabled: true } } });
+    await expect(
+      on.handler(add, { sessionKey: OWNER_SESSION })
+    ).resolves.toMatchObject({
+      params: {
+        job: { trigger: { script: 'return { fire: true };', once: true } },
+      },
+    });
+    _testing.clearAll();
+    setSessionRole(OWNER_SESSION, 'owner');
+    const off = registerEntry();
+    const result = (await off.handler(add, { sessionKey: OWNER_SESSION })) as {
+      params: { job: Record<string, unknown> };
+    };
+    expect(result.params.job).not.toHaveProperty('trigger');
+  });
+
   it('does not block the forbidden arguments when the guard is disabled', async () => {
     vi.stubEnv('TLON_CRON_ARGS_GUARD', '0');
     const { handler, logs } = registerEntry();

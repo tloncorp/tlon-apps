@@ -13,12 +13,10 @@ const MIN_EVERY_MS = 60_000;
 // A trigger script gates a run by returning `{ fire: true }`, which
 // OpenClaw's docs write `json({ fire: true })`. The model's filler is a script
 // that always answers the same (`return { fire: false };`, `return {fire:true}`)
-// or words that never set `fire` ("x", "unused", "do not fire"). One that
-// always fires is the same as no trigger, unless it's there to stop a
-// recurring job after its first run.
+// or words that never set `fire` ("x", "unused", "do not fire").
 const CONSTANT_FIRE =
-  /^\s*(?:return\b\s*)?(?:json\s*\(\s*)?\{\s*fire\s*:\s*(true|false)\s*\}\s*\)?\s*;?\s*$/;
-const SETS_FIRE = /\bfire\s*[:=]/;
+  /^\s*(?:return\b\s*)?(?:json\s*\(\s*)?\{\s*["']?fire["']?\s*:\s*(true|false)\s*\}\s*\)?\s*;?\s*$/;
+const SETS_FIRE = /\bfire["']?\]?\s*[:=]/;
 // Fields an update has no business changing on its own initiative; the model
 // only ever sets them to the schema's first enum value.
 const UPDATE_PLACEHOLDER_FIELDS = ['sessionTarget', 'wakeMode'];
@@ -49,31 +47,61 @@ function prune(value: unknown): unknown {
   return entries.length ? Object.fromEntries(entries) : undefined;
 }
 
+type CleanOptions = {
+  /** `cron.triggers.enabled`; core refuses every trigger while it's off. */
+  triggersEnabled?: boolean;
+};
+
+/** Whether this gateway runs trigger scripts at all. */
+export function cronTriggersEnabled(config: unknown): boolean {
+  const cron = isObject(config) ? config.cron : undefined;
+  const triggers = isObject(cron) ? cron.triggers : undefined;
+  return isObject(triggers) && triggers.enabled === true;
+}
+
+/** Drops a trigger the model filled in, or clears it where that's meant. */
+function cleanTrigger(
+  job: Json,
+  isPatch: boolean,
+  triggersEnabled: boolean
+): void {
+  if (!isObject(job.trigger)) return;
+  const script = String(job.trigger.script ?? '');
+  const constant = CONSTANT_FIRE.exec(script)?.[1];
+  // Words that never set `fire` can't fire, and with triggers off a constant
+  // script gates nothing core would let it keep.
+  if (!SETS_FIRE.test(script) || (constant && !triggersEnabled)) {
+    delete job.trigger;
+    return;
+  }
+  if (constant === 'false') {
+    delete job.trigger;
+    return;
+  }
+  if (constant !== 'true') return;
+  // Always firing is no trigger, except that `once` can stop a recurring job
+  // after its first run. Only an every or cron schedule can carry it; an
+  // update that leaves the schedule out goes through as sent.
+  const scheduleKind = isObject(job.schedule) ? job.schedule.kind : undefined;
+  const recurring = scheduleKind === 'every' || scheduleKind === 'cron';
+  const unknownOnUpdate = isPatch && scheduleKind === undefined;
+  if (job.trigger.once === true && (recurring || unknownOnUpdate)) return;
+  // Left out of an update, the job's old trigger would stay; clear it.
+  if (isPatch) job.trigger = null;
+  else delete job.trigger;
+}
+
 /** One job or patch, with placeholders that would change the job removed. */
-function cleanJob(raw: unknown, isPatch: boolean): Json | undefined {
+function cleanJob(
+  raw: unknown,
+  isPatch: boolean,
+  options: CleanOptions
+): Json | undefined {
   const job = prune(raw);
   if (!isObject(job)) return undefined;
 
   delete job.owner;
-  if (isObject(job.trigger)) {
-    const script = String(job.trigger.script ?? '');
-    const constant = CONSTANT_FIRE.exec(script)?.[1];
-    // Core only lets a trigger gate an every or cron schedule, so `once`
-    // counts only when this call sets one. An update that leaves the schedule
-    // out may be changing a one-shot `at` job, which would refuse it.
-    const scheduleKind = isObject(job.schedule) ? job.schedule.kind : undefined;
-    const stopsAfterFirstRun =
-      job.trigger.once === true &&
-      (scheduleKind === 'every' || scheduleKind === 'cron');
-    if (constant === 'true' && !stopsAfterFirstRun) {
-      // Leaving it out of an update would keep whatever trigger the job has;
-      // always firing means clearing it.
-      if (isPatch) job.trigger = null;
-      else delete job.trigger;
-    } else if (constant === 'false' || !SETS_FIRE.test(script)) {
-      delete job.trigger;
-    }
-  }
+  cleanTrigger(job, isPatch, options.triggersEnabled === true);
   if (isObject(job.schedule)) {
     const schedule = job.schedule;
     if (schedule.anchorMs === 0) delete schedule.anchorMs;
@@ -117,7 +145,10 @@ function cleanJob(raw: unknown, isPatch: boolean): Json | undefined {
  * The cron call as the model meant it, or undefined when there's nothing to
  * clean (not an add or update).
  */
-export function cleanCronToolArgs(params: unknown): Json | undefined {
+export function cleanCronToolArgs(
+  params: unknown,
+  options: CleanOptions = {}
+): Json | undefined {
   if (!isObject(params)) return undefined;
   const { action } = params;
   if (action !== 'add' && action !== 'update') return undefined;
@@ -140,11 +171,11 @@ export function cleanCronToolArgs(params: unknown): Json | undefined {
   }
   // An add describes the job; an update describes only the change.
   if (action === 'add') {
-    const job = cleanJob(params.job, false);
+    const job = cleanJob(params.job, false, options);
     if (job) cleaned.job = job;
   } else {
     // A change sent only as `job` is still the change.
-    const patch = cleanJob(params.patch ?? params.job, true);
+    const patch = cleanJob(params.patch ?? params.job, true, options);
     if (patch) cleaned.patch = patch;
   }
   return cleaned;

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { cleanCronToolArgs } from './cron-tool-args.js';
+import { cleanCronToolArgs, cronTriggersEnabled } from './cron-tool-args.js';
+
+const TRIGGERS_ON = { triggersEnabled: true };
 
 // The shape the model sends: every schema field, mostly placeholders.
 const placeholderJob = {
@@ -202,17 +204,22 @@ describe('cleanCronToolArgs', () => {
     expect(cleaned?.job).not.toHaveProperty('trigger');
   });
 
-  it('clears a run-once trigger on an update that leaves the schedule out', () => {
-    // The stored job may be a one-shot `at` reminder, which refuses it.
-    const cleaned = cleanCronToolArgs({
+  it('leaves a run-once trigger alone on an update that leaves the schedule out', () => {
+    // Whether it can stay depends on the stored job's schedule, which this
+    // call doesn't say.
+    const update = {
       action: 'update',
       jobId: 'job-1',
       patch: {
         payload: { kind: 'agentTurn', message: 'Remind ~ten to call.' },
         trigger: { script: 'return { fire: true };', once: true },
       },
+    };
+    expect(cleanCronToolArgs(update, TRIGGERS_ON)?.patch).toMatchObject({
+      trigger: { script: 'return { fire: true };', once: true },
     });
-    expect(cleaned?.patch).toMatchObject({ trigger: null });
+    // With triggers off, core would refuse it whatever the schedule.
+    expect(cleanCronToolArgs(update)?.patch).not.toHaveProperty('trigger');
   });
 
   it('keeps a real trigger in the documented form', () => {
@@ -230,24 +237,46 @@ describe('cleanCronToolArgs', () => {
     });
   });
 
+  it('keeps a real trigger with a quoted fire key', () => {
+    for (const script of [
+      'json({ "fire": price < 10 })',
+      "return { 'fire': price < 10 };",
+      'const out = {}; out["fire"] = price < 10; return out;',
+    ]) {
+      const cleaned = cleanCronToolArgs({
+        action: 'add',
+        job: {
+          name: 'Price watch',
+          schedule: { kind: 'every', everyMs: 3_600_000 },
+          trigger: { script },
+          payload: { kind: 'agentTurn', message: 'Check the price.' },
+        },
+      });
+      expect(cleaned?.job).toMatchObject({ trigger: { script } });
+    }
+  });
+
   it('clears the trigger when an update makes it always fire', () => {
     // Left out of the patch, the job's old trigger would stay.
-    const cleaned = cleanCronToolArgs({
-      action: 'update',
-      jobId: 'job-1',
-      patch: {
-        schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/New_York' },
-        trigger: { script: 'json({ fire: true })', once: false },
+    const cleaned = cleanCronToolArgs(
+      {
+        action: 'update',
+        jobId: 'job-1',
+        patch: {
+          schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/New_York' },
+          trigger: { script: 'json({ fire: true })', once: false },
+        },
       },
-    });
+      TRIGGERS_ON
+    );
     expect(cleaned?.patch).toEqual({
       schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/New_York' },
       trigger: null,
     });
   });
 
-  it('keeps an always-true trigger that ends the job after one run', () => {
-    const cleaned = cleanCronToolArgs({
+  it('keeps an always-true trigger that ends a recurring job after one run', () => {
+    const add = {
       action: 'add',
       job: {
         name: 'Once, at the next tick',
@@ -255,10 +284,20 @@ describe('cleanCronToolArgs', () => {
         trigger: { script: 'return { fire: true };', once: true },
         payload: { kind: 'agentTurn', message: 'Say hello.' },
       },
-    });
-    expect(cleaned?.job).toMatchObject({
+    };
+    expect(cleanCronToolArgs(add, TRIGGERS_ON)?.job).toMatchObject({
       trigger: { script: 'return { fire: true };', once: true },
     });
+    // With triggers off, core would refuse it.
+    expect(cleanCronToolArgs(add)?.job).not.toHaveProperty('trigger');
+  });
+
+  it('reads whether triggers are on from the gateway config', () => {
+    expect(cronTriggersEnabled({ cron: { triggers: { enabled: true } } })).toBe(
+      true
+    );
+    expect(cronTriggersEnabled({ cron: { enabled: true } })).toBe(false);
+    expect(cronTriggersEnabled(undefined)).toBe(false);
   });
 
   it('treats a job-only update as the change', () => {
