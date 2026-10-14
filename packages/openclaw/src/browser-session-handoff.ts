@@ -13,7 +13,7 @@ import {
 import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 
-export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> [--fields <JSON array>] or browser share <session_id> (the session ID from browser_session_create). Use --fields when the owner should fill only selected controls; omit it for automatic discovery of the visible form. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
+export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> [--fields <JSON array>] or browser approve-login <session_id> [--record <JSON object>] or browser share <session_id> (the session ID from browser_session_create). Use --fields when the owner should fill only selected controls; omit it for automatic discovery of the visible form. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
 
 const formFieldsSchema = z
   .array(
@@ -349,15 +349,30 @@ export async function runBrowserSessionHandoff(
   if (
     ![3, 5].includes(args.length) ||
     args[0] !== 'browser' ||
-    !['handoff', 'share'].includes(args[1]) ||
+    !['handoff', 'share', 'approve-login'].includes(args[1]) ||
     // Session IDs are opaque; the authenticated lookup establishes ownership.
     !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(args[2]) ||
-    (args.length === 5 && (args[1] !== 'handoff' || args[3] !== '--fields'))
+    (args.length === 5 &&
+      !(
+        (args[1] === 'handoff' && args[3] === '--fields') ||
+        (args[1] === 'approve-login' && args[3] === '--record')
+      ))
   ) {
     throw new Error(BROWSER_SESSION_HANDOFF_HELP);
   }
   let fields: FormFields | undefined;
-  if (args.length === 5) {
+  let loginRecord: { id: string; revision: number } | undefined;
+  if (args.length === 5 && args[1] === 'approve-login') {
+    try {
+      loginRecord = z
+        .object({ id: z.uuid(), revision: z.number().int().positive() })
+        .strict()
+        .parse(JSON.parse(args[4]));
+    } catch {
+      throw new Error(BROWSER_SESSION_HANDOFF_HELP);
+    }
+  }
+  if (args.length === 5 && args[1] === 'handoff') {
     try {
       if (args[4].length > 16_384) throw new Error('Too many fields.');
       fields = formFieldsSchema.parse(JSON.parse(args[4]));
@@ -370,16 +385,21 @@ export async function runBrowserSessionHandoff(
     args[2],
     config,
     account.allowPrivateNetwork,
-    args[1] === 'handoff',
+    args[1] !== 'share',
     fields
   );
   try {
     await runBrowserHandoffCommand(
       binary,
-      ['browser', args[1], viewerUrl],
+      [
+        'browser',
+        args[1],
+        viewerUrl,
+        ...(loginRecord ? ['--record', JSON.stringify(loginRecord)] : []),
+      ],
       config
     );
-    return `✓ ${args[1] === 'share' ? 'Browser session' : 'Secure browser form'} sent to ${account.ownerShip}`;
+    return `✓ ${args[1] === 'share' ? 'Browser session' : args[1] === 'approve-login' ? 'Saved login approval' : 'Secure browser form'} sent to ${account.ownerShip}`;
   } catch {
     throw new Error(
       args[1] === 'share'

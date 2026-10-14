@@ -13,7 +13,10 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 export function createBrowserLoginApprovalHandler(
-  sendHandoff: (sessionId: string) => Promise<unknown>
+  sendHandoff: (
+    sessionId: string,
+    choice?: { id: string; revision: number }
+  ) => Promise<unknown>
 ) {
   // Browser sessions have a maximum lifetime of 24 hours. Keep successful
   // delivery for that lifetime so sequential retries cannot reopen the modal.
@@ -56,7 +59,17 @@ export function createBrowserLoginApprovalHandler(
       await existing.promise;
       return;
     }
-    const promise = Promise.resolve().then(() => sendHandoff(sessionId));
+    const requested = record(args.record);
+    const choice =
+      typeof requested.id === 'string' &&
+      typeof requested.revision === 'number' &&
+      Number.isInteger(requested.revision) &&
+      requested.revision > 0
+        ? { id: requested.id, revision: requested.revision }
+        : undefined;
+    const promise = Promise.resolve().then(() =>
+      sendHandoff(sessionId, choice)
+    );
     delivered.set(sessionId, {
       promise,
       expiresAt: now + 24 * 60 * 60_000,

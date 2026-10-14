@@ -1,3 +1,4 @@
+import type { A2UI } from '@tloncorp/api/client/a2ui';
 import type {
   NavigationProp,
   NavigatorScreenParams,
@@ -213,6 +214,7 @@ export type RootDrawerParamList = {
 
 export type BrowserCredentialHandoffParams = {
   handoffId: string;
+  loginApproval?: A2UI.BrowserCredentialHandoffNavigationTarget['loginApproval'];
 };
 
 export type MobileBasePathStackParamList = {

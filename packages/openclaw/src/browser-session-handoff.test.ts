@@ -111,6 +111,25 @@ describe('browser session handoff', () => {
     expect(result).toContain('sent');
   });
 
+  it('delivers a dedicated approval card bound to the requested saved account', async () => {
+    const url = viewerUrl();
+    reply({ session_id: handle, viewer_url: url });
+    const choice = { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 3 };
+    await runBrowserSessionHandoff(
+      'tlon',
+      ['browser', 'approve-login', handle, '--record', JSON.stringify(choice)],
+      config
+    );
+    expect(
+      JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments
+    ).toEqual({ session_id: handle, action: 'prepare_form' });
+    expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
+      'tlon',
+      ['browser', 'approve-login', url, '--record', JSON.stringify(choice)],
+      config
+    );
+  });
+
   it('refuses an unscoped capability for a selected-field request', async () => {
     reply({
       session_id: handle,

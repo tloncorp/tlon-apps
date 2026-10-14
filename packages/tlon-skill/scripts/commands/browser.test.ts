@@ -81,6 +81,41 @@ describe('browser handoff', () => {
     expect(context.sent).toEqual([]);
   });
 
+  it('sends a saved-login approval card with the requested account and no credential fields', async () => {
+    const context = makeDeps();
+    const choice = { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 3 };
+    expect(
+      await run(
+        [
+          'approve-login',
+          'https://browser-session.tlon.network/s/payload.signature',
+          '--record',
+          JSON.stringify(choice),
+        ],
+        context.deps
+      )
+    ).toBe(0);
+    const [entry] = JSON.parse(context.sent[0].blob!);
+    const components = entry.messages[1].updateComponents.components;
+    expect(
+      components.find((component: { id: string }) => component.id === 'title')
+        .text
+    ).toBe('Approve saved sign-in');
+    expect(
+      components.find(
+        (component: { id: string }) => component.id === 'open-form'
+      ).action.event.context.target.loginApproval
+    ).toEqual({ record: choice });
+    expect(JSON.stringify(context.sent[0])).not.toContain(
+      'The browser needs information'
+    );
+    expect(
+      JSON.stringify(
+        convertContent(context.sent[0].content, context.sent[0].blob)
+      )
+    ).toContain('loginApproval');
+  });
+
   it.each([2048, 2049])(
     'checks the renderer URL length limit (%s characters)',
     async (length) => {

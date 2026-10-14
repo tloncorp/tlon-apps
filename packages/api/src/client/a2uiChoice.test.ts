@@ -421,6 +421,31 @@ describe('screen navigation target', () => {
     { id: 'l', component: 'Text', text: 'Connect services' },
   ];
 
+  test('accepts saved-login approval identity and rejects malformed records', () => {
+    const target = {
+      type: 'screen',
+      screen: 'browserCredentialHandoff',
+      viewerUrl: 'https://browser-session.tlon.network/s/payload.signature',
+    };
+    for (const loginApproval of [
+      {},
+      { record: { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 1 } },
+    ]) {
+      expect(
+        A2UI.validateBlobEntry(entryWith(button({ ...target, loginApproval })))
+      ).toBe(true);
+    }
+    for (const loginApproval of [
+      { record: { id: 'invalid', revision: 1 } },
+      { record: { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 0 } },
+      { password: 'not-allowed' },
+    ]) {
+      expect(
+        A2UI.validateBlobEntry(entryWith(button({ ...target, loginApproval })))
+      ).toBe(false);
+    }
+  });
+
   test('allowlisted screen names only — never a free route', () => {
     expect(
       A2UI.validateBlobEntry(

@@ -28,6 +28,7 @@ import {
 } from './routeHelpers';
 import { getTopLevelTabRoute } from './topLevelTabs';
 import {
+  BrowserCredentialHandoffParams,
   CombinedParamList,
   DesktopBasePathStackParamList,
   MobileBasePathStackParamList,
@@ -531,9 +532,13 @@ export function useRootNavigation() {
   );
 
   const navigateToBrowserCredentialHandoff = useCallback(
-    (handoffId: string) => {
+    (
+      handoffId: string,
+      loginApproval?: BrowserCredentialHandoffParams['loginApproval']
+    ) => {
       navigationRef.current.navigate('BrowserCredentialHandoff', {
         handoffId,
+        ...(loginApproval ? { loginApproval } : {}),
       });
     },
     [navigationRef]

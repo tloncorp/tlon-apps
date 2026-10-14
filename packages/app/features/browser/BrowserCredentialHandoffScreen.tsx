@@ -181,6 +181,9 @@ function SecureField({
 }
 
 export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
+  const loginApproval = route.params.loginApproval;
+  const [approved, setApproved] = useState(false);
+  const approvingSavedLogin = !!loginApproval && !approved;
   const [handoff, setHandoff] = useState<BrowserCredentialHandoff>();
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -250,6 +253,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     );
   const canSubmit =
     !!handoff &&
+    (!approvingSavedLogin || choice?.mode === 'use') &&
     choiceIsCurrent &&
     (choice?.mode === 'use' || validBrowserFormValues(handoff, values)) &&
     (!(choice?.mode === 'use' || saveLogin) || !!vaultAuth) &&
@@ -268,24 +272,57 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     setVaultAuth(undefined);
-    if (!handoff || !vaultEligible || !vaultRequested) return;
+    if (!handoff || !vaultEligible || (!vaultRequested && !approvingSavedLogin))
+      return;
     setVaultError(undefined);
     const controller = new AbortController();
     void authorizeBrowserLogins(handoff, controller.signal)
       .then((result) => {
-        if (!controller.signal.aborted)
-          setVaultAuth({ ...result, fillUrl: handoff.fillUrl });
+        if (controller.signal.aborted) return;
+        setVaultAuth({ ...result, fillUrl: handoff.fillUrl });
+        if (approvingSavedLogin) {
+          const requested = loginApproval?.record;
+          const account = requested
+            ? result.accounts.find(
+                (account) =>
+                  account.id === requested.id &&
+                  account.revision === requested.revision
+              )
+            : result.accounts.length === 1
+              ? result.accounts[0]
+              : undefined;
+          if (account) {
+            setChoice({
+              mode: 'use',
+              record: { id: account.id, revision: account.revision },
+            });
+            setAllowAutomatic(false);
+          } else if (requested || !result.accounts.length) {
+            setVaultError(
+              'This saved login is no longer available. Cancel and ask your bot to check again.'
+            );
+          }
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) {
           clearSavedLoginSelection();
           setVaultError(
-            'Saved logins are unavailable. You can still enter your login.'
+            approvingSavedLogin
+              ? 'Could not load the saved login. Cancel or try again.'
+              : 'Saved logins are unavailable. You can still enter your login.'
           );
         }
       });
     return () => controller.abort();
-  }, [handoff, vaultEligible, vaultRequested, clearSavedLoginSelection]);
+  }, [
+    handoff,
+    vaultEligible,
+    vaultRequested,
+    approvingSavedLogin,
+    loginApproval,
+    clearSavedLoginSelection,
+  ]);
 
   useEffect(() => {
     if (vaultAuth && choice && !choiceIsCurrent) {
@@ -340,7 +377,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           trustedUrl
         ) {
           setNoSecureForm(true);
-          if (!isWeb && openWhenMissing) {
+          if (!isWeb && openWhenMissing && !loginApproval) {
             Keyboard.dismiss();
             try {
               const ownerUrl = await authorizeBrowserViewer(trustedUrl);
@@ -355,7 +392,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       }
       if (!signal?.aborted) setLoading(false);
     },
-    [handoffId, resolve, clearSavedLoginSelection]
+    [handoffId, resolve, clearSavedLoginSelection, loginApproval]
   );
 
   const cancelHandoff = useCallback((id: string, viewerUrl?: string) => {
@@ -454,6 +491,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         signal
       );
       if (signal.aborted) return;
+      if (approvingSavedLogin) setApproved(true);
       setValues({});
       setHandoff(undefined);
       pendingSave.current =
@@ -520,6 +558,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     resolve,
     handoffId,
     returnToConversation,
+    approvingSavedLogin,
     vaultAuth,
     choice,
     saveLogin,
@@ -597,7 +636,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       <ScreenHeader
         borderBottom
         backAction={dismiss}
-        title="Secure browser form"
+        title={approvingSavedLogin ? 'Approve sign-in' : 'Secure browser form'}
       />
       <SettingsContentScrollView
         paddingHorizontal="$l"
@@ -639,6 +678,85 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   loading={returning}
                   disabled={returning}
                   onPress={returnToConversation}
+                />
+              </>
+            ) : handoff && approvingSavedLogin ? (
+              <>
+                <Text size="$label/l" fontWeight="600">
+                  Approve sign-in to {new URL(handoff.origin).hostname}?
+                </Text>
+                <Text color="$secondaryText">{handoff.origin}</Text>
+                <Text>
+                  Your bot is asking to use a saved login for this sign-in.
+                </Text>
+                {!vaultEligible ? (
+                  <Text color="$negativeActionText">
+                    This page cannot use a saved login. Cancel and ask your bot
+                    to open the sign-in page.
+                  </Text>
+                ) : vaultError ? (
+                  <Text color="$negativeActionText">{vaultError}</Text>
+                ) : !vaultAuth ? (
+                  <Text color="$secondaryText">Loading saved login…</Text>
+                ) : (
+                  <YStack gap="$m">
+                    {vaultAuth.accounts
+                      .filter(
+                        (account) =>
+                          !loginApproval?.record ||
+                          account.id === loginApproval.record.id
+                      )
+                      .map((account) => (
+                        <YStack key={account.id} gap="$s">
+                          {vaultAuth.accounts.length === 1 ||
+                          loginApproval?.record ? (
+                            <Text size="$label/l" fontWeight="600">
+                              {account.label}
+                            </Text>
+                          ) : (
+                            <Button
+                              preset="secondary"
+                              label={`${choice?.record.id === account.id ? 'Selected: ' : ''}${account.label}`}
+                              disabled={submitting}
+                              onPress={() =>
+                                setChoice({
+                                  mode: 'use',
+                                  record: {
+                                    id: account.id,
+                                    revision: account.revision,
+                                  },
+                                })
+                              }
+                            />
+                          )}
+                          {account.username ? (
+                            <Text>{account.username}</Text>
+                          ) : null}
+                        </YStack>
+                      ))}
+                    <Text color="$secondaryText">
+                      Your password stays hidden. Approval allows this sign-in
+                      only.
+                    </Text>
+                  </YStack>
+                )}
+                {error ? (
+                  <Text color="$negativeActionText">{error}</Text>
+                ) : null}
+                <Button
+                  preset="primary"
+                  label="Approve sign-in"
+                  centered
+                  loading={submitting}
+                  disabled={submitting || !canSubmit}
+                  onPress={fillAndSubmit}
+                />
+                <Button
+                  preset="secondary"
+                  label="Cancel"
+                  centered
+                  disabled={submitting}
+                  onPress={dismiss}
                 />
               </>
             ) : handoff ? (
@@ -885,7 +1003,11 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               </>
             )}
           </YStack>
-          {!loading && !submitting && !returning && !filled ? (
+          {!loading &&
+          !submitting &&
+          !returning &&
+          !filled &&
+          !approvingSavedLogin ? (
             <YStack gap="$m">
               <Button
                 preset="secondary"

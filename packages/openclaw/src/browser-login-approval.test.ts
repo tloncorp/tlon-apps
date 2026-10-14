@@ -23,7 +23,24 @@ describe('saved login approval delivery', () => {
   it('sends a secure card for the requested session without passing credentials or record metadata', async () => {
     const send = vi.fn().mockResolvedValue(undefined);
     await createBrowserLoginApprovalHandler(send)(event());
-    expect(send).toHaveBeenCalledExactlyOnceWith('fresh-ivory-finch');
+    expect(send).toHaveBeenCalledExactlyOnceWith(
+      'fresh-ivory-finch',
+      undefined
+    );
+  });
+
+  it('passes only the requested account identity into the approval card', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const request = event();
+    const choice = { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 3 };
+    await createBrowserLoginApprovalHandler(send)({
+      ...request,
+      params: {
+        ...request.params,
+        arguments: { ...request.params.arguments, record: choice },
+      },
+    });
+    expect(send).toHaveBeenCalledExactlyOnceWith('fresh-ivory-finch', choice);
   });
 
   it.each([

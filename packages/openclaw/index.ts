@@ -1238,10 +1238,15 @@ export default defineBundledChannelEntry({
     });
 
     const deliverBrowserLoginApproval = createBrowserLoginApprovalHandler(
-      (sessionId) =>
+      (sessionId, record) =>
         runBrowserSessionHandoff(
           tlonBinary,
-          ['browser', 'handoff', sessionId],
+          [
+            'browser',
+            'approve-login',
+            sessionId,
+            ...(record ? ['--record', JSON.stringify(record)] : []),
+          ],
           api.config
         )
     );
@@ -1253,7 +1258,7 @@ export default defineBundledChannelEntry({
         api.logger.warn('[tlon] Could not send the saved login approval card.');
         if (ctx.sessionKey)
           api.runtime.system.enqueueSystemEvent(
-            'The saved login approval card could not be sent. No new approval prompt was delivered. Tell the owner that delivery failed; do not retry login or claim that approval is pending. Use the Tlon browser handoff command if the owner asks to try again.',
+            'The saved login approval card could not be sent. No new approval prompt was delivered. Tell the owner that delivery failed; do not retry login or claim that approval is pending. Use the Tlon browser approve-login command if the owner asks to try again.',
             { sessionKey: ctx.sessionKey }
           );
       }

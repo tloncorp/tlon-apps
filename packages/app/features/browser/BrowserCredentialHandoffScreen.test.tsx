@@ -117,13 +117,21 @@ function form(
     ...extra,
   };
 }
-async function render(navigation = { goBack: vi.fn(), isFocused: () => true }) {
+async function render(
+  navigation = { goBack: vi.fn(), isFocused: () => true },
+  loginApproval?: { record?: { id: string; revision: number } }
+) {
   let renderer!: ReactTestRenderer;
   await act(async () => {
     renderer = create(
       <BrowserCredentialHandoffScreen
         navigation={navigation}
-        route={{ params: { handoffId: 'opaque-handoff-id' } }}
+        route={{
+          params: {
+            handoffId: 'opaque-handoff-id',
+            ...(loginApproval ? { loginApproval } : {}),
+          },
+        }}
       />
     );
   });
@@ -262,6 +270,82 @@ describe('secure browser form screen', () => {
       save: { label: 'private-user', permission: 'ask' },
     });
     expect(mocks.complete.mock.calls[0]).toEqual(['opaque-handoff-id']);
+  });
+
+  it('opens saved-login approval directly and fills only after explicit approval', async () => {
+    mocks.beginHandoff.mockResolvedValue(form(undefined, { vault }));
+    const account = {
+      id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
+      revision: 1,
+      label: 'Personal',
+      username: 'test-account',
+      origin: 'https://example.com',
+      updatedAt: 1,
+      permission: 'ask',
+    };
+    mocks.authorize.mockResolvedValue({
+      grant: 'g'.repeat(43),
+      accounts: [account],
+    });
+    const { renderer } = await render(undefined, {
+      record: { id: account.id, revision: 1 },
+    });
+    expect(mocks.authorize).toHaveBeenCalledOnce();
+    expect(mocks.submitCredentials).not.toHaveBeenCalled();
+    expect(
+      renderer.root.findAllByProps({ accessibilityLabel: password.label })
+    ).toHaveLength(0);
+    expect(
+      renderer.root.findAllByProps({ accessibilityLabel: username.label })
+    ).toHaveLength(0);
+    expect(
+      renderer.root.findAllByProps({ label: 'Use saved login' })
+    ).toHaveLength(0);
+    expect(JSON.stringify(renderer.toJSON())).toContain('Personal');
+    expect(JSON.stringify(renderer.toJSON())).toContain('test-account');
+    await press(renderer, 'Approve sign-in');
+    expect(mocks.submitCredentials.mock.calls[0][1]).toEqual({
+      values: undefined,
+      submit: true,
+      grant: 'g'.repeat(43),
+      use: { id: account.id, revision: 1 },
+      allowAutomatic: false,
+    });
+    expect(mocks.complete).toHaveBeenCalledOnce();
+  });
+
+  it('cancels saved-login approval without filling or resuming the task', async () => {
+    mocks.beginHandoff.mockResolvedValue(form(undefined, { vault }));
+    mocks.authorize.mockResolvedValue({
+      grant: 'g'.repeat(43),
+      accounts: [{ id: 'account', revision: 1, label: 'Personal' }],
+    });
+    const { renderer, navigation } = await render(undefined, {});
+    await press(renderer, 'Cancel');
+    await act(async () => renderer.unmount());
+    expect(mocks.submitCredentials).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
+    expect(mocks.cancel).toHaveBeenCalledOnce();
+    expect(navigation.goBack).toHaveBeenCalledOnce();
+  });
+
+  it('keeps approval disabled if the requested saved account changes', async () => {
+    mocks.beginHandoff.mockResolvedValue(form(undefined, { vault }));
+    mocks.authorize.mockResolvedValue({
+      grant: 'g'.repeat(43),
+      accounts: [{ id: 'account', revision: 2, label: 'Personal' }],
+    });
+    const { renderer } = await render(undefined, {
+      record: { id: 'account', revision: 1 },
+    });
+    expect(
+      renderer.root.findByProps({ label: 'Approve sign-in' }).props.disabled
+    ).toBe(true);
+    expect(
+      renderer.root.findAllByProps({ accessibilityLabel: password.label })
+    ).toHaveLength(0);
+    expect(JSON.stringify(renderer.toJSON())).toContain('no longer available');
+    expect(mocks.submitCredentials).not.toHaveBeenCalled();
   });
 
   it('uses an explicitly selected account without fetching or submitting its password', async () => {

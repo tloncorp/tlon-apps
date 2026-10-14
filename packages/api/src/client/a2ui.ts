@@ -130,6 +130,18 @@ const browserCredentialHandoffNavigationTargetSchema = z.object({
   type: z.literal('screen'),
   screen: z.literal('browserCredentialHandoff'),
   viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
+  loginApproval: z
+    .object({
+      record: z
+        .object({
+          id: z.string().uuid(),
+          revision: z.number().int().positive(),
+        })
+        .strict()
+        .optional(),
+    })
+    .strict()
+    .optional(),
 });
 const browserSessionNavigationTargetSchema = z.object({
   type: z.literal('screen'),

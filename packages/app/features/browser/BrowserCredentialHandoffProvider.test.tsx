@@ -54,6 +54,7 @@ vi.mock('./BrowserViewerModal', () => ({ BrowserViewerModal: () => null }));
 describe('browser handoff registry', () => {
   beforeEach(() => {
     platform.isWeb = false;
+    navigate.mockClear();
     openWindow.mockClear();
     openWindow.mockReturnValue({
       opener: {},
@@ -186,54 +187,66 @@ describe('browser handoff registry', () => {
     expect(navigate).not.toHaveBeenCalled();
     act(() => renderer.unmount());
   });
-  it('keeps the capability out of linked navigation state and discards it on completion', async () => {
-    let registry!: ReturnType<typeof useBrowserCredentialHandoff>;
-    let navigateA2UI!: ReturnType<typeof useA2UINavigation>;
-    function Consumer() {
-      const value = useBrowserCredentialHandoff();
-      const navigateToTarget = useA2UINavigation();
-      useEffect(() => {
-        registry = value;
-        navigateA2UI = navigateToTarget;
-      }, [value, navigateToTarget]);
-      return null;
+  it.each([
+    undefined,
+    { record: { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 3 } },
+  ])(
+    'keeps the capability private and preserves approval intent (%j)',
+    async (loginApproval) => {
+      let registry!: ReturnType<typeof useBrowserCredentialHandoff>;
+      let navigateA2UI!: ReturnType<typeof useA2UINavigation>;
+      function Consumer() {
+        const value = useBrowserCredentialHandoff();
+        const navigateToTarget = useA2UINavigation();
+        useEffect(() => {
+          registry = value;
+          navigateA2UI = navigateToTarget;
+        }, [value, navigateToTarget]);
+        return null;
+      }
+      let renderer!: ReactTestRenderer;
+      await act(async () => {
+        renderer = create(
+          <BrowserCredentialHandoffProvider>
+            <Consumer />
+          </BrowserCredentialHandoffProvider>
+        );
+      });
+      const viewerUrl =
+        'https://browser-session.tlon.network/s/payload.signature';
+      const onComplete = vi.fn().mockResolvedValue(undefined);
+      const target = {
+        type: 'screen',
+        screen: 'browserCredentialHandoff',
+        viewerUrl,
+        ...(loginApproval ? { loginApproval } : {}),
+      } as const;
+      await navigateA2UI(target);
+      expect(navigate).not.toHaveBeenCalled();
+      await navigateA2UI(target, {
+        allowBrowserCredentialHandoff: true,
+        onBrowserCredentialHandoffComplete: onComplete,
+      });
+      const [handoffId] = navigate.mock.calls[0];
+      if (loginApproval)
+        expect(navigate).toHaveBeenCalledWith(
+          expect.any(String),
+          loginApproval
+        );
+      else expect(navigate).toHaveBeenCalledWith(expect.any(String));
+      const state = {
+        routes: [{ name: 'BrowserCredentialHandoff', params: { handoffId } }],
+      };
+      expect(getPathFromState(state)).toContain(handoffId);
+      expect(JSON.stringify(state)).not.toContain(viewerUrl);
+      expect(getPathFromState(state)).not.toContain('payload.signature');
+      expect(registry.resolve(handoffId)).toBe(viewerUrl);
+      await registry.complete(handoffId);
+      expect(onComplete).toHaveBeenCalledOnce();
+      expect(registry.resolve(handoffId)).toBeUndefined();
+      act(() => renderer.unmount());
     }
-    let renderer!: ReactTestRenderer;
-    await act(async () => {
-      renderer = create(
-        <BrowserCredentialHandoffProvider>
-          <Consumer />
-        </BrowserCredentialHandoffProvider>
-      );
-    });
-    const viewerUrl =
-      'https://browser-session.tlon.network/s/payload.signature';
-    const onComplete = vi.fn().mockResolvedValue(undefined);
-    const target = {
-      type: 'screen',
-      screen: 'browserCredentialHandoff',
-      viewerUrl,
-    } as const;
-    await navigateA2UI(target);
-    expect(navigate).not.toHaveBeenCalled();
-    await navigateA2UI(target, {
-      allowBrowserCredentialHandoff: true,
-      onBrowserCredentialHandoffComplete: onComplete,
-    });
-    const [handoffId] = navigate.mock.calls[0];
-    expect(navigate).toHaveBeenCalledWith(expect.any(String));
-    const state = {
-      routes: [{ name: 'BrowserCredentialHandoff', params: { handoffId } }],
-    };
-    expect(getPathFromState(state)).toContain(handoffId);
-    expect(JSON.stringify(state)).not.toContain(viewerUrl);
-    expect(getPathFromState(state)).not.toContain('payload.signature');
-    expect(registry.resolve(handoffId)).toBe(viewerUrl);
-    await registry.complete(handoffId);
-    expect(onComplete).toHaveBeenCalledOnce();
-    expect(registry.resolve(handoffId)).toBeUndefined();
-    act(() => renderer.unmount());
-  });
+  );
 
   it('supports optional completion, retries, and dismissal', async () => {
     let registry!: ReturnType<typeof useBrowserCredentialHandoff>;

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { validateBrowserViewerUrl } from '../browser-viewer';
 import { markdownToStory } from '../markdown';
 import type { PostsDeps } from './posts';
@@ -12,6 +13,7 @@ import {
 export const BROWSER_HANDOFF_HELP = String.raw`Usage: tlon browser --help
 
 Tlon tool: browser handoff <session_id> [--fields <JSON array>]
+Tlon tool: browser approve-login <session_id> [--record <JSON object>]
 Tlon tool: browser share <session_id>
 
 Use the session ID from browser_session_create in the tool's command argument.
@@ -29,6 +31,8 @@ export const BROWSER_HELP = `${BROWSER_HANDOFF_HELP}
 
 Use browser share to send a rich link card that opens the live session in the browser.
 Never send raw or labeled browser-session links in ordinary messages.
+
+Use browser approve-login to ask for permission to use a saved login. The owner reviews the site and account, then approves or cancels without entering credentials.
 
 Use browser handoff to send a native secure-entry card for login identifiers,
 passwords, verification codes, card fields, and private personal details.
@@ -51,7 +55,8 @@ export interface BrowserDeps extends Pick<
 
 function browserCredentialHandoffBlob(
   viewerUrl: string,
-  surfaceId: string
+  surfaceId: string,
+  loginApproval?: { record?: { id: string; revision: number } }
 ): string {
   const components = [
     { id: 'root', component: 'Card', child: 'body' },
@@ -72,31 +77,37 @@ function browserCredentialHandoffBlob(
       id: 'title',
       component: 'Text',
       variant: 'h3',
-      text: 'Secure browser input',
+      text: loginApproval ? 'Approve saved sign-in' : 'Secure browser input',
     },
     { id: 'title-divider', component: 'Divider' },
     {
       id: 'explanation',
       component: 'Text',
-      text: 'The browser needs information you can enter securely.',
+      text: loginApproval
+        ? 'Your bot is asking to use a saved login. Review the account and site before approving.'
+        : 'The browser needs information you can enter securely.',
     },
     {
       id: 'privacy-direct',
       component: 'Text',
       variant: 'caption',
-      text: 'Your input goes directly to the live browser.',
+      text: loginApproval
+        ? 'Approval allows this sign-in only.'
+        : 'Your input goes directly to the live browser.',
     },
     {
       id: 'privacy-context',
       component: 'Text',
       variant: 'caption',
-      text: 'It does not pass through chat or the bot.',
+      text: loginApproval
+        ? 'Your password stays hidden from chat and your bot.'
+        : 'It does not pass through chat or the bot.',
     },
     { id: 'action-divider', component: 'Divider' },
     {
       id: 'actions',
       component: 'Row',
-      children: ['open-form', 'continue'],
+      children: loginApproval ? ['open-form'] : ['open-form', 'continue'],
       align: 'center',
     },
     {
@@ -113,6 +124,7 @@ function browserCredentialHandoffBlob(
               type: 'screen',
               screen: 'browserCredentialHandoff',
               viewerUrl,
+              ...(loginApproval ? { loginApproval } : {}),
             },
           },
         },
@@ -121,7 +133,7 @@ function browserCredentialHandoffBlob(
     {
       id: 'open-form-label',
       component: 'Text',
-      text: 'Open secure form',
+      text: loginApproval ? 'Review sign-in' : 'Open secure form',
     },
     {
       id: 'continue',
@@ -177,11 +189,18 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
     if (!args[0]) {
       throw usageError(BROWSER_HELP);
     }
-    if (!['handoff', 'share'].includes(args[0]) || !args[1]) {
+    if (!['handoff', 'share', 'approve-login'].includes(args[0]) || !args[1]) {
       throw usageError(BROWSER_HELP);
     }
 
-    if (args.length !== 2) {
+    if (
+      args.length !== 2 &&
+      !(
+        args[0] === 'approve-login' &&
+        args.length === 4 &&
+        args[2] === '--record'
+      )
+    ) {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 
@@ -189,6 +208,25 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 
+    let loginApproval:
+      | { record?: { id: string; revision: number } }
+      | undefined;
+    if (args[0] === 'approve-login') {
+      loginApproval = {};
+      if (args.length === 4) {
+        try {
+          loginApproval.record = z
+            .object({
+              id: z.string().uuid(),
+              revision: z.number().int().positive(),
+            })
+            .strict()
+            .parse(JSON.parse(args[3]));
+        } catch {
+          throw usageError(BROWSER_HANDOFF_HELP);
+        }
+      }
+    }
     const sharing = args[0] === 'share';
     const viewerUrl = validateBrowserViewerUrl(args[1]);
     const target = deps.getOwnerShip();
@@ -215,16 +253,22 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
             },
           ]
         : markdownToStory(
-            'The browser needs information you can enter securely.'
+            loginApproval
+              ? 'Your bot needs approval to use a saved login.'
+              : 'The browser needs information you can enter securely.'
           ),
       blob: sharing
         ? undefined
-        : browserCredentialHandoffBlob(viewerUrl, `browser-form-${sentAt}`),
+        : browserCredentialHandoffBlob(
+            viewerUrl,
+            `browser-form-${sentAt}`,
+            loginApproval
+          ),
       botProfile: { nickname: null, avatar: null },
     });
     writeLine(
       deps.stdout,
-      `✓ ${sharing ? 'Browser session' : 'Secure browser form'} sent to ${target}`
+      `✓ ${sharing ? 'Browser session' : loginApproval ? 'Saved login approval' : 'Secure browser form'} sent to ${target}`
     );
     return 0;
   } catch (error) {
