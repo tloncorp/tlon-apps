@@ -160,11 +160,14 @@ function beforeToolTracePayloads(logs: string[]): Record<string, unknown>[] {
     });
 }
 
+// The flat spelling core also accepts. Cleaning leaves it as sent, so the
+// guard still has to catch it.
 const DIRTY_ADD = {
   toolName: 'cron',
   params: {
     action: 'add',
-    job: { name: 'daily', payload: { fallbacks: [] } },
+    name: 'daily',
+    payload: { fallbacks: [] },
   },
 };
 
@@ -172,7 +175,26 @@ const DIRTY_AUTOMATIONS_ADD = {
   toolName: 'automations',
   params: {
     action: 'add',
-    job: { name: 'daily', payload: { fallbacks: [] } },
+    name: 'daily',
+    payload: { fallbacks: [] },
+  },
+};
+
+// The shape the model sends: the tool's nested job, with the placeholders.
+const DIRTY_NESTED_ADD = {
+  toolName: 'cron',
+  params: {
+    action: 'add',
+    job: {
+      name: 'daily',
+      payload: { kind: 'agentTurn', message: 'summarize', fallbacks: [] },
+      delivery: {
+        mode: 'announce',
+        channel: 'tlon',
+        to: '~zod',
+        bestEffort: true,
+      },
+    },
   },
 };
 
@@ -212,7 +234,7 @@ describe('before_tool_call cron args guard', () => {
     });
     expect(cronArgsBlockedLogs(logs)).toHaveLength(1);
     expect(cronArgsBlockedLogs(logs)[0]).toContain(
-      'job.payload.fallbacks=empty-fallbacks'
+      'payload.fallbacks=empty-fallbacks'
     );
   });
 
@@ -226,7 +248,7 @@ describe('before_tool_call cron args guard', () => {
     });
     expect(cronArgsBlockedLogs(logs)).toHaveLength(1);
     expect(cronArgsBlockedLogs(logs)[0]).toContain(
-      'job.payload.fallbacks=empty-fallbacks'
+      'payload.fallbacks=empty-fallbacks'
     );
   });
 
@@ -381,13 +403,31 @@ describe('before_tool_call cron args guard', () => {
     expect(allowedLogs(logs)).toHaveLength(0);
   });
 
+  it("cleans the model's usual add instead of blocking it", async () => {
+    const { handler, logs } = registerEntry();
+    // Blocked, the model retried with the same fields dozens of times on a
+    // real gateway; cleaned, the job is made on the first call.
+    await expect(
+      handler(DIRTY_NESTED_ADD, { sessionKey: OWNER_SESSION })
+    ).resolves.toEqual({
+      params: {
+        action: 'add',
+        job: {
+          name: 'daily',
+          payload: { kind: 'agentTurn', message: 'summarize' },
+          delivery: { mode: 'announce', channel: 'tlon', to: '~zod' },
+        },
+      },
+    });
+    expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
+  });
+
   it('does not block the forbidden arguments when the guard is disabled', async () => {
     vi.stubEnv('TLON_CRON_ARGS_GUARD', '0');
     const { handler, logs } = registerEntry();
-    // The call goes through; cleaning still drops the empty fallbacks list.
     await expect(
       handler(DIRTY_ADD, { sessionKey: OWNER_SESSION })
-    ).resolves.toEqual({ params: { action: 'add', job: { name: 'daily' } } });
+    ).resolves.toBeUndefined();
     expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
   });
 });
