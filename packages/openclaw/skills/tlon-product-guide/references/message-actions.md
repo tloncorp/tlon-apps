@@ -10,7 +10,7 @@ Notes: the list depends on the kind of channel, whether the message is yours, wh
 
 ## What the menu offers in a chat, a DM, a Gallery or a Bulletin
 
-Notes: these are the most each kind can show; the entries below say when each one appears. Group chat channel: `Quote`, `Reply`, `Mute thread`, `View reactions`, `Copy link to message`, `Forward`, `Copy message text`, `Edit message`, `Hide message`, `Report message`, `Pin post to channel`, `Unpin post`, `Delete message`. DM or group DM: `Quote`, `Reply`, `Mute thread`, `View reactions`, `Copy message text`, `Hide message`, `Delete message`. Gallery: `Reply`, `Comment`, `Mute thread`, `Copy link to post`, `Forward`, `Edit post`, `Report post`, `Hide post`, `Pin post to channel`, `Unpin post`, `Delete post`. Bulletin: the Gallery list without `Reply`. Notebook channels have no message menu.
+Notes: these are the most each kind can show; the entries below say when each one appears. Group chat channel: `Quote`, `Reply`, `Mute thread`, `View reactions`, `Copy link to message`, `Copy link to file`, `Forward`, `Copy message text`, `Select text`, `Edit message`, `Hide message`, `Report message`, `Pin post to channel`, `Unpin post`, `Delete message`. DM or group DM: `Quote`, `Reply`, `Mute thread`, `View reactions`, `Copy message text`, `Select text`, `Copy link to file`, `Hide message`, `Delete message`. Gallery: `Reply`, `Comment`, `Mute thread`, `Copy link to post`, `Copy link to file`, `Forward`, `Edit post`, `Report post`, `Hide post`, `Pin post to channel`, `Unpin post`, `Delete post`. Bulletin: the Gallery list without `Reply`. Notebook channels have no message menu.
 
 ## React to a message with an emoji
 
@@ -62,6 +62,17 @@ Notes: this is a mention, not a nested thread; your comment lands in the same li
 Phone: press and hold the message and tap `Copy message text`.
 Desktop: hover the message, open its three-dot menu and pick `Copy message text`.
 Notes: offered in group chats, DMs and group DMs, and it works without a connection. Gallery and Bulletin posts have no copy-text action.
+
+## Copy only part of a message
+
+Phone: press and hold the message and tap `Select text`. Drag the handles over the part you want and copy it. `Copy all text` at the bottom of that sheet takes the lot.
+Notes: `Select text` is on the phone only, and only for messages that contain text in group chats, DMs and group DMs.
+
+## Copy the link to a photo or file in a message
+
+Phone: press and hold the message and tap `Copy link to file`. If the message holds more than one, it reads `Copy links to files` and copies them one per line.
+Desktop: hover the message, open its three-dot menu and pick the same item.
+Notes: this copies the web address where the uploaded image, video, voice memo or file is stored. It only appears on messages that have one, in group chats, DMs, group DMs and Galleries. It works without a connection.
 
 ## Copy a link to a message
 

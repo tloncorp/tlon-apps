@@ -39,7 +39,7 @@ Notes: Settings on desktop has no `Your profile` or `Contacts` row, so the avata
 
 ## Open Settings on desktop
 
-Desktop: click the gear near the bottom of the left rail. The sidebar lists the settings, and the one you click opens in the main pane. Under `App` you get `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug` and `Experimental features`.
+Desktop: click the gear near the bottom of the left rail. The sidebar lists the settings, and the one you click opens in the main pane. The rows are `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug` and `Experimental features`.
 Who: `Bot Settings` shows above that list only on a hosted account that already has a DM with its bot.
 Notes: rows the phone has that desktop lacks: `Your profile` and `Contacts` (use your avatar in the rail), `Manage Tlon account`, `Tlon Messenger on the Web` and `Log out`.
 

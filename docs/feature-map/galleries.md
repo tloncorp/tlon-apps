@@ -101,7 +101,7 @@ Notes: the same message shows when an edit or a delete failed to go through.
 <!-- flag: buckets -->
 <!-- covers: flag:buckets -->
 
-Phone: a Bucket is a channel that holds shared files and folders instead of messages. It is experimental and off by default. To be able to make one, open the Settings tab, tap `Experimental features`, and switch on `Enable Buckets channels`.
+Phone: a Bucket is a channel that holds shared files and folders instead of messages. It is experimental and off by default. To be able to make one, open the Settings tab, tap `Experimental features`, and switch on `Buckets channels`.
 Desktop: Settings in the left rail, then `Experimental features`.
 Notes: the switch only adds `Buckets` to the channel types offered when you create a channel. It is set per device. A Bucket that already exists in a group shows in the channel list and works for members who haven't flipped the switch.
 
@@ -138,6 +138,39 @@ Notes: deleting a file happens at once, with no confirmation. Deleting a folder 
 Phone: tap the magnifying glass at the top of the Bucket and start typing. Results come from the whole Bucket, whichever folder you were in, and show their folder paths. Tap a file to preview it or a folder to open it; the back arrow returns to search.
 Desktop: in a wide window, results open in place. Leaving a file preview returns to its folder's list.
 Notes: the search screen explains its reach: `Search filenames, folders, and members across this Bucket.` It matches file and folder names (so files inside a matching folder show up too), file types, and the ship name of whoever last changed the item. It does not look inside files. Nothing matching shows `No results found`.
+
+## Open, preview or download a file in a Bucket
+<!-- src: packages/app/ui/components/BucketsChannel/BucketsChannel.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.native.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.shared.ts, packages/app/features/buckets/BucketsLiveChannel.tsx, packages/app/features/top/BucketFileScreen.tsx, packages/app/features/buckets/BucketsLiveFile.tsx -->
+<!-- flag: buckets -->
+<!-- covers: route:BucketFile -->
+
+Phone: tap a file to open its preview on a separate screen. Pictures, videos, PDFs and text files (such as .txt, .md, .json or .csv, up to 2 MB) open inside the app. `Open` at the top right hands it to your browser or another app. To skip the preview, press and hold the file, or tap its three-dot button, then `Download`.
+Desktop: the preview replaces the Bucket's list. Hover a row for its three-dot button.
+Notes: on the phone, the preview's back arrow returns to the list, or to search if you opened a search result. Other types show `Preview unavailable` with `Open file`. Android PDFs show `Open PDF to view` instead.
+
+## Browse folders in a Bucket
+<!-- src: packages/app/features/buckets/BucketsLiveChannel.tsx, packages/app/features/top/BucketFolderScreen.tsx, packages/app/ui/components/BucketsChannel/BucketsChannel.tsx, packages/app/features/top/ChannelScreen.tsx, packages/app/ui/components/Channel/index.tsx -->
+<!-- flag: buckets -->
+<!-- covers: route:BucketFolder -->
+
+Phone: tap a folder to open it. Its name appears at the top. Each folder opens on its own screen; the back arrow returns to the screen you opened it from, so nested folders let you go back one level at a time. At the Bucket's top level, back leaves the Bucket.
+Desktop: a column on the left lists the top-level folders. Folders open in the list beside it. Inside a folder, click the Bucket's name above the list to return to the top level. A narrow window works like the phone.
+Notes: if someone deletes the folder you are in, the app leaves that folder automatically.
+
+## A Bucket upload failed or is waiting
+<!-- src: packages/app/ui/components/BucketsChannel/BucketsChannel.tsx, packages/app/features/buckets/useLiveBucket.ts, packages/app/features/buckets/bucketUploadQueue.ts, packages/app/features/buckets/bucketUploadPreflight.ts, packages/app/features/buckets/bucketUploadFinish.ts -->
+<!-- flag: buckets -->
+
+Phone: `Waiting to upload` means the file is queued; up to three uploads run at once. `Cancel` stops a waiting or running upload. A failed row shows its reason with `Retry` and `Remove`. In the bottom bar, `Retry all` retries several failures and `Remove failed` dismisses them; with one failure these read `Retry` and `Remove`.
+Notes: empty files, files larger than 5 GB and files whose size can't be determined fail before uploading. `Uploaded, but the host has not confirmed it yet` means the file may already be there; retry checks that upload again. Removing a failed attempt does not delete a file that was published successfully.
+
+## Copy a link to a file in a Bucket
+<!-- src: packages/app/ui/components/BucketsChannel/BucketsChannel.tsx, packages/app/features/buckets/BucketsLiveChannel.tsx, packages/app/features/buckets/bucketLinkCopy.ts -->
+<!-- flag: buckets -->
+
+Phone: press and hold the file, or tap its three-dot button, then tap `Copy link`.
+Desktop: hover the file's row and click the three-dot button.
+Notes: the link is temporary. A message confirms the copy and says how many minutes the link will keep working; after that, copy a fresh one. Only files have `Copy link`, not folders.
 
 ## What Buckets don't do
 <!-- src: packages/app/ui/utils/channelUtils.tsx, packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelScreen.tsx, packages/app/ui/components/BucketsChannel/BucketsPostCollection.tsx, packages/app/features/buckets/BucketsLiveChannel.tsx, packages/api/src/types/PostCollectionConfiguration.ts, packages/app/ui/components/ForwardToChannelSheet.tsx, packages/app/features/top/GroupChannelsScreen.tsx -->

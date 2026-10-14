@@ -146,7 +146,7 @@ Notes: this makes an empty channel of the same type and copies over the add-ons 
 <!-- src: packages/app/ui/components/ManageChannels/CreateChannelSheet.tsx, packages/app/lib/featureFlags.ts, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/utils/channelUtils.tsx, packages/app/ui/components/SystemNotices.tsx -->
 <!-- flag: buckets -->
 
-Phone: on the Settings tab, open `Experimental features` and switch on `Enable Buckets channels`. Then start a new channel the usual way: `Buckets` now appears under `Channel type`, described as `Shared files for members and agents`.
+Phone: on the Settings tab, open `Experimental features` and switch on `Buckets channels`. Then start a new channel the usual way: `Buckets` now appears under `Channel type`, described as `Shared files for members and agents`.
 Who: group admins, in groups the app can tell are hosted on Tlon. In other groups the sheet says `Buckets are currently available only in groups hosted on Tlon.` and leaves the type out. Your node also needs a version that supports Buckets.
 Notes: the switch is off by default and is set per device. A Bucket always lives on the group host's node and uses its storage. It can't be left, and it can't be deleted from its info screen.
 

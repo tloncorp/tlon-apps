@@ -663,7 +663,7 @@
   entry: "Go back to the default for a chat"
   must:
     - "Settings, Notifications, then Overrides"
-    - "tap the X next to the chat to remove its own level"
+    - "tap the chat in Overrides, then Remove on the Remove this override prompt"
 
 - id: phone-app-build-where
   ask: "support asked what build i'm on. where can i find that on my phone?"

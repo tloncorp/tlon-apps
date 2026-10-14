@@ -36,84 +36,84 @@ Notes: after `Not now` the prompt stays away until the app is restarted. The wai
 
 ## Open my bot's settings
 
-Phone: open the Settings tab (the gear). Your bot's settings are at the top, above the `App` section: `Models`, `Connections`, `Permissions`, sometimes `Privacy`, and `Advanced`. Or open the Bot tab, tap the bot's name at the top, and tap `Bot settings` on its profile.
+Phone: open the Settings tab (the gear). Your bot's card sits under your profile: its name, with `Bot profile` under it, then `Models`, `Connections`, `Permissions` and, when your node can show them, `Scheduled tasks`. Or open the Bot tab, tap the bot's name at the top, and tap `Bot settings` on its profile.
 Desktop: click the gear icon in the left rail, then `Bot Settings`. That opens Tlon's bot settings page (tlon.network/tlonbot) in a new browser tab. The bot settings screens in this file are in the phone app only.
 Who: hosted accounts with a Tlonbot.
 Notes: on a self-hosted node there are no bot rows in Settings.
 
 ## Is my bot online?
 
-Phone: open the Settings tab. Beside your bot's name at the top is a badge: `Online`, `Starting` or `Restarting…`. Under the name it says `Your personal bot` and the bot's own username.
+Phone: open the Settings tab. Under your bot's card is the footer `Tlonbot is starting. Settings may take a moment to become editable.` while the bot is starting. To check the bot itself, open its profile: the `Node` tile reads `Online` or `Offline`.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
-Notes: while the badge says `Starting`, most rows stay greyed out until your settings have loaded. Once they have, you'll see `Tlonbot is starting. Settings may take a moment to become editable.` `Restarting…` shows while your changes are being applied.
+Notes: the card has no online badge of its own. Until the bot's settings have loaded, the apply bar is disabled, so changes can't be applied yet.
 
 ## Save changes to bot settings
 
 Phone: changes to the bot's name, models, permissions and channel rules are not saved as you make them. Each changed row gets a `Pending` badge, and a bar appears at the bottom with `Discard` and a button such as "Apply 2 Changes". Tap it, then `Apply & restart` on the `Restart gateway?` prompt.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
-Notes: the prompt says the bot restarts and will be offline for about 20 seconds. The bar shows on the Settings tab, the profile's `Bot settings` screen, and the `Permissions` and `Identity` screens, so go back to one of those to apply. API keys, subscriptions and connected services save straight away. A failure shows in red above the buttons.
+Notes: the prompt says the bot restarts and will be offline for about 20 seconds. The bar shows on the Settings tab, the profile's `Bot settings` screen, and the `Models`, `Connections`, `Permissions` and `Identity` screens, so go back to one of those to apply. API keys, subscriptions and connected services save straight away. A failure shows in red above the buttons.
 
 ## Change my bot's name
 
-Phone: on the Settings tab, tap `Advanced` so it opens, then `Identity`. Type the new name in the `Nickname` box and tap done on the keyboard. Then apply the change with the button at the bottom.
+Phone: on the Settings tab, tap the bot's name at the top of its card (`Bot profile` is under it). Type the new name in the `Nickname` box and tap done on the keyboard. Then apply the change with the button at the bottom.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the name must be shorter than 64 characters. This screen has the name and nothing else: bot settings have no control for the bot's avatar, bio or status. Your own name is set separately, under `Your profile`.
 
 ## Change the AI model my bot uses
 
-Phone: on the Settings tab, tap `Default model`. On `Choose provider`, tap a provider, then `Choose Model`. Search or scroll, tap a model, tap `Done`, then apply. Picking `Basic (GPT-5.6 Luna)` has no model step.
+Phone: on the Settings tab, tap `Models` in your bot's card, then `Default model`. The list has a section for each provider. Tap a model to pick it; the screen closes by itself, then apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
-Notes: the provider list only holds what your bot can use: the included Basic model, plus any provider with a saved API key or a connected subscription. A list shows 50 models at a time, so use `Search models` to find the rest. Some models show a price, and with OpenRouter some carry a `Recommended` badge.
+Notes: only what your bot can use is listed: the included Basic model under `Included with Tlon`, plus any provider with a saved API key or a connected subscription. A provider with many models shows five, with `See all` and the count under them. Use `Search models` to find a model. Some models show a price, and some carry a `Recommended` or `ZDR` label. Tapping the included model when it is already your bot's model changes nothing.
 
 ## Set fallback models
 
-Phone: on the Settings tab, tap `Fallback models`. Under `Available models`, tap each model you want. It gets a checkmark and joins the numbered `Fallback chain` at the top. Tap the X beside one to remove it. Tap `Done`, then apply.
+Phone: on the Settings tab, tap `Models` in your bot's card, then `Fallback models`. Under `Available models`, tap each model you want. It gets a checkmark and joins the numbered `Fallback chain` at the top. Tap `Remove` beside one to take it out. Tap `Done`, then apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: if the default model fails, the bot tries these in order. The order is the order you added them; you can't drag to reorder. On the included Basic model with none chosen, the row reads `Managed by Tlon`.
 
 ## Turn on zero data retention
 
-Phone: on the Settings tab, under `Privacy`, switch on `Zero data retention`, then apply.
+Phone: on the Settings tab, tap `Models` in your bot's card, then switch on `Zero data retention` and apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
-Who: hosted accounts with a Tlonbot. The `Privacy` section only shows while the default model is the included Basic model.
-Notes: the app describes it as `Avoid model providers that retain data. May use your included credits faster.` With OpenRouter the same switch sits at the top of the model list instead, where it narrows the list to models tagged `ZDR`.
+Who: hosted accounts with a Tlonbot. The switch only shows while the default model is the included Basic model.
+Notes: the switch's text reads `Zero data retention avoids model providers that retain data. It may use your included credits faster.` With OpenRouter the same switch sits at the top of its section in the default model list instead, where it narrows the list to models tagged `ZDR`.
 
 ## Add an API key for a model provider
 
-Phone: on the Settings tab, tap `API keys`, then the provider: `Anthropic`, `OpenAI`, `OpenRouter` or `xAI (Grok)`. Paste the key into `API key` and tap `Save key`.
+Phone: on the Settings tab, in your bot's card tap `Connections`, then `API keys`, then the provider: `Anthropic`, `OpenAI`, `OpenRouter` or `xAI (Grok)`. Paste the key into `API key` and tap `Save key`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the key saves straight away, and that provider then appears when you choose a model. The eye icon shows what you typed. Afterwards only the last four characters are shown. Keys in the wrong shape are refused: OpenAI keys start with "sk-", OpenRouter with "sk-or-", Anthropic with "sk-ant-" or "anthropic-".
 
 ## Replace or remove an API key
 
-Phone: on the Settings tab, tap `API keys`, then the provider. To replace the key, type the new one where it says `Enter replacement key` and tap `Save key`. To remove it, tap `Remove key`, then `Remove`.
+Phone: on the Settings tab, in your bot's card tap `Connections`, then `API keys`, then the provider. To replace the key, type the new one where it says `Enter replacement key` and tap `Save key`. To remove it, tap `Remove key`, then `Remove`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the confirmation says `Tlonbot will stop using custom models from this provider.` Both changes are saved straight away, with no apply step. The full key is never shown again, only its last four characters.
 
 ## Connect my ChatGPT subscription
 
-Phone: on the Settings tab, tap `Provider subscriptions`, then `ChatGPT`, then the connect button. A `One-time code` appears; tap it to copy. Tap the button that opens OpenAI's sign-in page, sign in and enter the code. Back in the app you'll see `Connected. Loading your models…`, then `Choose provider`. Tap `OpenAI`, then `Choose Model`, pick one, tap `Done` and apply.
+Phone: on the Settings tab, in your bot's card tap `Connections`, then `Provider subscriptions`, then `ChatGPT`, then the connect button. A `One-time code` appears; tap it to copy. Tap the button that opens OpenAI's sign-in page, sign in and enter the code. Back in the app you'll see `Connected. Loading your models…`, then the model list. Under `OpenAI`, tap a model, then apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot. The rows are greyed out until the bot is online.
 Notes: if the code runs out you'll see `This connection attempt expired.` and `Try again`. A row reading `Unavailable` means the app couldn't check the subscription; open it and tap `Try again`.
 
 ## Connect a Claude or Grok subscription
 
-Phone: on the Settings tab, tap `Provider subscriptions`, then `Claude` or `Grok`, then the connect button. Grok works like ChatGPT: copy the `One-time code` and enter it on the sign-in page. Claude is different: on a computer with Claude Code installed, run `claude setup-token`, paste the result into `Paste setup token` and tap `Connect`.
+Phone: on the Settings tab, in your bot's card tap `Connections`, then `Provider subscriptions`, then `Claude` or `Grok`, then the connect button. Grok works like ChatGPT: copy the `One-time code` and enter it on the sign-in page. Claude is different: on a computer with Claude Code installed, run `claude setup-token`, paste the result into `Paste setup token` and tap `Connect`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
-Notes: once connected, the app opens `Choose provider`. Tap `Anthropic` for Claude or `xAI (Grok)` for Grok, then `Choose Model` to pick one of that subscription's models.
+Notes: once connected, the model list opens. Tap a model under `Anthropic` for Claude or `xAI (Grok)` for Grok, then apply.
 
 ## Disconnect a subscription
 
-Phone: on the Settings tab, tap `Provider subscriptions`, then the one marked `Active`. Tap `Disconnect subscription`, then `Disconnect`.
+Phone: on the Settings tab, in your bot's card tap `Connections`, then `Provider subscriptions`, then the one marked `Active`. Tap `Disconnect subscription`, then `Disconnect`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the confirmation says `Tlonbot will no longer be able to use models from this subscription.` The same screen has a `Choose model` button.
@@ -127,14 +127,14 @@ Notes: OpenRouter has no subscription option, only a key. Keys and subscriptions
 
 ## Connect an outside service to my bot
 
-Phone: on the Settings tab, tap `Connected services`. On the `Connect MCP` screen, tap a service under `Available`. Your browser opens so you can sign in and approve access. Back in the app it sits under `Connected` with an `Active` badge.
+Phone: on the Settings tab, in your bot's card tap `Connections`, then `Connected services`. On the `Connect MCP` screen, tap a service under `Available`. Your browser opens so you can sign in and approve access. Back in the app it sits under `Connected` with an `Active` badge.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: Tlon sets which services are listed. You can't add your own server or paste a token; every service connects by signing in. There is no apply step. The refresh icon at the top right reloads the list. `OAuth setup is unavailable for this ship.` means nothing can be connected right now.
 
 ## Disconnect a service from my bot
 
-Phone: on the Settings tab, tap `Connected services`. Tap the service under `Connected`, then `Disconnect`.
+Phone: on the Settings tab, in your bot's card tap `Connections`, then `Connected services`. Tap the service under `Connected`, then `Disconnect`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: you'll see `Connection disconnected.` and the service moves back under `Available`. The bot can no longer use it.
@@ -168,10 +168,10 @@ Notes: the app says `These users can invite Tlonbot to groups.`
 
 ## Choose which channels my bot responds in
 
-Phone: on the Settings tab, tap `Permissions`, then `Per-channel rules`. The `Channel rules` screen lists your channels by group, each marked `Off`, `Open` or `Allowlist`. Search with `Filter by name`, or tap `Enabled` to see only channels where the bot is on. Tap a channel to change it, then go back to `Permissions` and apply.
+Phone: on the Settings tab, tap `Permissions`, then `Per-channel rules`. The `Channel rules` screen lists your channels by group, each marked `Off`, `Open` or `Allowlist`. Search with `Filter by name`, or turn on `Enabled only` to see only channels where the bot is on. Tap a channel to change it, then go back to `Permissions` and apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
-Notes: a group the bot is not in shows a `Join` button. `Paused` means the bot has left that group.
+Notes: a group the bot is not in shows a `Join group` row. `Paused` means the bot has left that group.
 
 ## Turn my bot on or off in one channel
 
@@ -189,21 +189,21 @@ Notes: in the channel list the row then shows the provider beside its access mod
 
 ## Add my bot to a group from channel rules
 
-Phone: on `Channel rules`, find the group and tap `Join` beside its name, then `Join` again to confirm. The button reads `Joining…` while it works. Once the bot is in, tap a channel and enable it.
+Phone: on `Channel rules`, find the group and tap `Join group` in its section, then `Join` to confirm. The row reads `Joining…` while it works. Once the bot is in, tap a channel and enable it.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
 Notes: the confirmation says `This adds your Tlonbot to the group. After it joins, you can choose which channels it can respond in.` Until then a channel in that group reads `Join this group to enable Tlonbot in this channel.` If joining fails you'll see a message such as `Failed to join this group.`
 
 ## Turn my bot off in every channel at once
 
-Phone: on `Channel rules`, tap the `Enabled` tab, then `Disable all` in the `Disable everywhere` row. Go back to `Permissions` and apply.
+Phone: on `Channel rules`, turn on `Enabled only`, then tap `Disable all channels`. Go back to `Permissions` and apply.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
 Notes: `Undo` puts the channels back if you tap it before leaving the screen. This only changes group channels; it does not change who can DM the bot.
 
 ## Why does a channel say Paused?
 
-Phone: the bot has left that group. On `Channel rules` the group shows `Tlonbot is no longer in this group` and its channels read `Paused`. Tap `Join` to bring the bot back and resume the rules, or `Clear rules` to remove them, then apply.
+Phone: the bot has left that group. On `Channel rules` the group shows `Tlonbot is no longer in this group` and its channels read `Paused`. Tap `Join group` to bring the bot back and resume the rules, or `Clear rules` to remove them, then apply.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
 Notes: after `Clear rules` the button becomes `Undo` until you apply.
@@ -256,9 +256,46 @@ Notes: the badge shows for Tlon-hosted bots and for any account that declares it
 
 ## What's on my bot's profile?
 
-Phone: in the Bot tab, tap the bot's name at the top. The profile shows its avatar, its name with a `Bot` badge, and its username (tap to copy). Below are `Message`, `Add Contact` or `Remove Contact`, and `Block`, then a `Bot settings` row, its `Status` and `About` text if it has any, and `Node` and `Sponsor` tiles showing whether it can be reached.
+Phone: in the Bot tab, tap the bot's name at the top. The profile shows its avatar, its name with a `Bot` badge, and its username (tap to copy). Below are `Message`, `Add Contact` or `Remove Contact`, and `Block` on a bot that is not yours, then on your own bot a `Bot settings` row and a `Scheduled tasks` row with a count. Then its `Status` and `About` text if it has any, and `Node` and `Sponsor` tiles showing whether it can be reached.
 Desktop: `Bot settings` on the profile opens Tlon's bot settings web page.
-Who: the `Bot settings` row only shows on your own bot's profile.
+Who: the `Bot settings` and `Scheduled tasks` rows only show on your own bot's profile. Your own bot has no `Block` button.
+
+## Edit my bot's instructions or personality
+
+Phone: in the Bot tab, tap the bot's name at the top and scroll down to `Bot behavior`. Tap a prompt: `Instructions`, `Personality`, `Tools`, `Identity`, `About you` or `Bootstrap`. Change the text and tap `Save changes`.
+Who: the bot's owner, on a node that supports it. Nobody else sees the section.
+Notes: saving a prompt briefly restarts your bot, and the sheet says so. A prompt can be 64 KB at most. `Preview` shows the text as it renders, and `Edit` goes back to the text. If the prompt is changed elsewhere while you are editing, the sheet shows the latest version and says so.
+
+## See my bot's scheduled tasks
+
+Phone: tap `Scheduled tasks` in your bot's card on the Settings tab, or on the bot's profile. In your DM with your bot, the clock icon at the top right opens them too. A group's or channel's info screen has a `Scheduled tasks` row too, which opens the tasks posting there. Each task shows its schedule, with `Paused` or `Paused for credits` before it when it is not running. Tap `New task` at the top right to add one.
+Desktop: the same row sits under `Bot Settings` in the Settings list.
+Who: the bot's owner for the Settings and profile rows. The group and channel rows appear when the bot has tasks there or could post there.
+Notes: a group's or channel's list holds only the tasks that post there. If your node is too old, the list says `Scheduled tasks unavailable`. Until the bot has shared its tasks it says `Scheduled tasks not synced`, with `Refresh`.
+
+## Add, edit, pause or delete a scheduled task
+
+Phone: to add one, tap `New task` on the list. Type a `Task name` and a `Task prompt`, set `Time` and the days under `Repeat`, and pick a channel under `Posts to`. Tap `Create`. To change one, open it, edit the fields and tap `Save`. For an existing task, `Active` pauses or restarts it. Tap `Delete task` at the bottom, then `Delete`, to remove it.
+Who: the bot's owner.
+Notes: a task started from a group's or channel's list posts there. The time shows the time zone it runs in. A paused-for-credits task can't be edited: the screen says `This task is paused while your credits are limited.` A task your bot made with its own schedule shows `Custom schedule`, and you change that by asking the bot. A task whose prompt the app can't change (a webhook, for example) greys out `Task prompt`, with `Ask your bot to change what this task does.` below it.
+
+## Look at the browser my bot is using
+
+Phone: when the bot shares its browser, a card in your DM reads `Browser session` with `View and control the shared browser.` Tap `Open browser` on it. The browser opens in the app. The three-dot icon at the top right opens a menu with `Agent View`, `Mobile View` and `Show browser controls`. The one in use has a checkmark.
+Who: only from a DM with your own bot.
+Notes: the same trust rule as the sign-in form applies.
+
+## Fill in a sign-in form for my bot's browser
+
+Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`. Fill in the fields and tap `Continue` for a sign-in, or `Fill fields` for other details. The app then returns you to the chat, and a message goes to the bot to carry on the task. If you finish in the live browser instead, tap `Return to conversation`.
+Who: only from a DM with your own bot.
+Notes: the screen says `These fields go directly to the live browser. They are never posted to chat or returned to the bot.` Filling in details does not submit a payment or place an order. `Open live browser` lets you finish any extra steps yourself.
+
+## Ask Tlon for more credits when my bot pauses scheduled tasks
+
+Phone: when your token credits run low, the bot pauses your scheduled tasks and sends a message saying so, with a `Request credit increase` button. Tap it. The button changes to `Credit Increase Requested`.
+Who: hosted accounts with a Tlonbot.
+Notes: the request goes to Tlon and nothing is posted in the chat. If it can't be sent you'll see `Couldn't send the request. Please try again.`
 
 ## How do I know my bot is working on a reply?
 
@@ -274,7 +311,7 @@ Notes: the phone shows up to 4 matches at a time and desktop up to 7. The menu i
 
 ## What do I see if I self-host instead of using a hosted Tlonbot?
 
-Phone: there is no Bot tab, and the Settings tab has no bot section; it starts at `App`. The app opens on the Workspaces tab.
+Phone: there is no Bot tab, and the Settings tab has no bot card. The app opens on the Workspaces tab.
 Notes: the bot settings screens work through Tlon's hosting, so the model, API key, subscription, connected service and permission screens are not available. Opened without a Tlon hosting login they show `Cannot access bot settings.` A bot you run yourself can still get the `Bot` badge, the slash-command menu in its DM, and run details on its replies. Thumbs-up and thumbs-down ratings are for hosted Tlonbots only.
 
 ## Why does bot settings say "Logout Required"?

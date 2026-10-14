@@ -6,7 +6,7 @@ Finding, adding, inviting and blocking people, looking at someone's profile, and
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/features/top/ContactsScreen.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx, packages/app/ui/components/Activity/ActivityScreenView.tsx -->
 <!-- covers: route:Contacts -->
 
-Phone: open the Settings tab and tap `Contacts`. It says `People you know and invite` underneath. There is no Contacts tab in the tab bar.
+Phone: open the Settings tab and tap `Contacts`. There is no Contacts tab in the tab bar.
 Desktop: click your own avatar in the left rail. Your contacts are listed in the sidebar, and a profile opens beside them.
 Notes: you are always first in the list, marked `You`, followed by your contacts. Below them there can be a `Suggested from %pals and DMs` section and, on the phone, a `From your address book` section. Tap a contact or a suggestion to open their profile. When the Activity tab is empty, the phone also shows a `View Contacts` button there.
 
@@ -14,7 +14,7 @@ Notes: you are always first in the list, marked `You`, followed by your contacts
 <!-- src: packages/app/features/contacts/AddContactsScreen.tsx, packages/app/ui/components/AddContactsView.tsx, packages/app/ui/components/ContactBook.tsx, packages/app/ui/hooks/contactSorters.ts, packages/app/features/top/ContactsScreen.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx -->
 <!-- covers: route:AddContacts -->
 
-Phone: open the Settings tab, tap `Contacts`, then tap the plus icon at the top left. In the `Filter by nickname, @p` box, type the start of the person's nickname or ID. Tap each person you want so they are checked, then tap the button at the bottom, which reads "Add 1 contact" or similar.
+Phone: open the Settings tab, tap `Contacts`, then tap the plus icon at the top right. In the `Filter by nickname, @p` box, type the start of the person's nickname or ID. Tap each person you want so they are checked, then tap the button at the bottom, which reads "Add 1 contact" or similar.
 Desktop: click your avatar in the left rail, then the plus icon at the top of the Contacts sidebar.
 Notes: search covers people the app already has a profile for. To add anyone else, type their full ID (it starts with ~) and they appear as a result. People who are already contacts show a blue check and can't be unticked here.
 
@@ -121,7 +121,7 @@ Notes: a tile only appears once verification has finished. Other people never se
 ## Block someone
 <!-- src: packages/app/ui/components/UserProfileScreenView.tsx, packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/GroupMemberProfileSheet.tsx, packages/app/ui/components/Channel/DmInviteOptions.tsx -->
 
-Phone: open the person's profile and tap `Block` in the row of buttons under their name. In a group's member list, you can instead tap the member and then `Block` at the bottom of the sheet. When someone new sends you a DM, the request screen offers `Accept`, `Deny` and `Block`. That `Block` turns the request down and blocks the sender.
+Phone: open the person's profile and tap `Block` in the row of buttons under their name. A bot you own has no `Block` button there. In a group's member list, you can instead tap the member and then `Block` at the bottom of the sheet. When someone new sends you a DM, the request screen offers `Accept`, `Deny` and `Block`. That `Block` turns the request down and blocks the sender.
 Notes: there is no confirmation. It happens on the tap. You can't block yourself, and the DM request `Block` is only offered for one-to-one DMs.
 
 ## What happens when you block someone
@@ -130,17 +130,17 @@ Notes: there is no confirmation. It happens on the tap. You can't block yourself
 Notes: in chats you both belong to, their messages are replaced with `Message from a blocked user.` and a `Show anyway` link, so you can still read one if you choose. Gallery and notebook posts read `Post from a blocked user.` Chat previews in your list read `(Post from blocked user)`. `Message` disappears from their profile, and they stop appearing when you type @ to mention someone. The app does not remove them from your contacts or from any group you share. To take someone out of a group, an admin has to remove them there.
 
 ## Unblock someone or see who you've blocked
-<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/BlockedUsersScreen.tsx, packages/app/ui/components/BlockedContactsWidget.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/shared/src/store/blockingActions.ts, packages/app/navigation/desktop/SettingsNavigator.tsx -->
+<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/BlockedUsersScreen.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/shared/src/store/blockingActions.ts, packages/app/navigation/desktop/SettingsNavigator.tsx -->
 <!-- covers: route:BlockedUsers -->
 
-Phone: open the Settings tab and tap `Blocked users`. Everyone you have blocked is listed with an `Unblock` badge. Tap a person, then confirm with `Unblock`.
+Phone: open the Settings tab and tap `Blocked users`. Everyone you have blocked is listed, each with `Unblock` on its row. Tap a person, then confirm with `Unblock`.
 Desktop: open Settings from the left rail and click `Blocked users`. The browser asks you to confirm.
 Notes: an empty list reads `No blocked users`. You can also unblock from the person's profile, where the `Block` button reads `Unblock` once they are blocked. This screen only unblocks. To block someone, use their profile.
 
 ## Find your own profile
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/ui/components/ContactsScreenView.tsx -->
 
-Phone: open the Settings tab and tap `Your profile`. It is the first row under `App`.
+Phone: open the Settings tab and tap your name at the top, with `Your profile` under it. It is the first row.
 Desktop: click your avatar in the left rail. Your own profile is what opens. In the Contacts sidebar you are the first row, marked `You`.
 Notes: desktop's Settings sidebar has no profile row. On the phone you can also reach your profile by tapping the `You` row at the top of your contacts list.
 
@@ -162,7 +162,7 @@ Notes: `Default avatar color` sets the colour of the avatar you get when you hav
 ## Set your status quickly
 <!-- src: packages/app/features/settings/SettingsScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/ProfileStatusSheet.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx -->
 
-Phone: on the Settings tab, press and hold `Your profile`. A sheet opens with a box labelled `Update your status`. Type up to 50 characters and tap the arrow button.
+Phone: on the Settings tab, press and hold your profile row. On iPhone, tap `Set status` in the menu that opens; on Android the sheet opens straight away. The sheet is headed `Update your status`, with a status box. Type up to 50 characters and tap the arrow button.
 Desktop: there is no shortcut. Edit your profile and change `Status` there.
 Notes: people see your status under your name in their contacts list and in a `Status` block on your profile. To clear it, save an empty status.
 
