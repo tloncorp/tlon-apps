@@ -67,6 +67,11 @@ export const ForwardChannelSheetProvider = ({
 
   const shownChannel = useLastForwarded(channel);
   const channelTitle = useChannelTitle(shownChannel);
+  // Forwarding a channel into itself is a no-op for the reader.
+  const excludeSource = useCallback(
+    (candidate: db.Channel) => candidate.id !== channel?.id,
+    [channel?.id]
+  );
   const contextValue = useMemo(() => ({ open: handleOpen }), [handleOpen]);
   return (
     <ForwardChannelSheetContext.Provider value={contextValue}>
@@ -85,6 +90,7 @@ export const ForwardChannelSheetProvider = ({
           ) : undefined
         }
         onChannelSelected={handleChannelSelected}
+        channelFilter={excludeSource}
         footerComponent={renderFooter}
       />
     </ForwardChannelSheetContext.Provider>
