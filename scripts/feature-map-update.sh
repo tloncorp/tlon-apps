@@ -6,7 +6,7 @@
 #
 # With no --to it asks `feature-map.mjs next` whether a store build newer than
 # the one in docs/feature-map/release.json has been tagged, and stops if there
-# is none or if a pull request for it is already open. So it is safe to run on
+# is none or if an update pull request is already open. So it is safe to run on
 # a schedule.
 #
 #   --prepare  stop after the commit and say which branch and description to
@@ -20,8 +20,10 @@
 # the entries (docs/feature-map/agent/update.md), one to check the first
 # (docs/feature-map/agent/review.md). It is Claude Code, held to what the job
 # needs: it can read this checkout, edit files under docs/feature-map/, and run
-# a few read-only git commands, grep and the map's own checks. Nothing else, so
-# no network and no other shell. Settings:
+# a few read-only git commands, grep and the map's own checks. Claude Code also
+# lets it run some read-only commands such as `wc` or `tail` on files in the
+# checkout. It refuses anything that writes elsewhere, reaches the network,
+# runs another program or reads outside the checkout. Settings:
 #
 #   FEATURE_MAP_MODEL           the model, by Claude Code's name for it
 #                               (default claude-haiku-5-5)
@@ -131,8 +133,13 @@ fi
 
 branch="feature-map/$(printf '%s' "$target" | tr -c 'A-Za-z0-9._-' '-')"
 if [ "$check_remote" = 1 ]; then
-  if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
-    echo "a pull request for $target is already open"
+  # One update at a time. While one waits for review the map on develop still
+  # describes the old build, so a newer build would start a second full update
+  # from the same place. The first run after the open one merges catches up.
+  open=$(gh pr list --base develop --state open --limit 500 --json number,headRefName \
+    --jq '[.[] | select(.headRefName | startswith("feature-map/")) | "#\(.number)"] | join(" ")')
+  if [ -n "$open" ]; then
+    echo "an update pull request is already open: $open"
     go_back
     exit 0
   fi
