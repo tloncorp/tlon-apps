@@ -190,7 +190,7 @@ export function BotPromptFileScreen(props: Props) {
       <>
         <BotSettingsSection
           title="Additions"
-          description="Kept when Tlon updates the defaults."
+          subtitle="Kept when Tlon updates the defaults."
         >
           {additions ? (
             <PromptText text={additions} testID="BotPromptFileAdditions" />
@@ -228,7 +228,7 @@ export function BotPromptFileScreen(props: Props) {
         </YStack>
         <BotSettingsSection
           title="Tlon's default"
-          description="Tlon keeps this part up to date."
+          subtitle="Tlon keeps this part up to date."
         >
           <PromptText text={managedText} testID="BotPromptFileDefault" />
         </BotSettingsSection>
@@ -237,7 +237,7 @@ export function BotPromptFileScreen(props: Props) {
   } else {
     body = (
       <BotSettingsSection
-        description={
+        subtitle={
           access?.kind === 'unmanaged'
             ? "This file is missing Tlon's defaults, so you can't edit it here. They come back the next time your bot restarts."
             : 'Read-only. Tlon keeps this file up to date so your bot keeps working.'
