@@ -136,8 +136,9 @@ if [ "$check_remote" = 1 ]; then
   # One update at a time. While one waits for review the map on develop still
   # describes the old build, so a newer build would start a second full update
   # from the same place. The first run after the open one merges catches up.
-  open=$(gh pr list --base develop --state open --limit 500 --json number,headRefName \
-    --jq '[.[] | select(.headRefName | startswith("feature-map/")) | "#\(.number)"] | join(" ")')
+  # Only branches in this repo count, so a fork's PR can't hold updates up.
+  open=$(gh pr list --base develop --state open --limit 500 --json number,headRefName,isCrossRepository \
+    --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("feature-map/"))) | "#\(.number)"] | join(" ")')
   if [ -n "$open" ]; then
     echo "an update pull request is already open: $open"
     go_back

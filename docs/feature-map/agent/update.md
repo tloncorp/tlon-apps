@@ -25,7 +25,7 @@ The guide is `docs/feature-map/`. A support bot answers "how do I…" questions 
 
 3. Look in `docs/feature-map/drafts/`. For each entry there, check whether NEW has what it describes: every file in its `src` line exists at NEW and every label it quotes is in those files. If so, read it against the source at NEW, correct it, and move it into the map file of the same name. When that file already has an entry under the same heading, the draft is its newer version and replaces it. Do the same for the lines in `drafts/surface-ignore.txt`. Leave the rest where they are.
 
-4. If you renamed or removed a heading that a question in `docs/feature-map/questions/core.yaml` points at, update that question's `entry:`. Change a question's `must` or `must_not` only when the entry no longer says it. Never edit `questions/sealed.yaml`: a person decides what happens to it. If one of its questions no longer matches its entry, name it under **Questions**.
+4. If you renamed or removed a heading that a question in `docs/feature-map/questions/*.yaml` points at, update that question's `entry:`. In `core.yaml`, change a question's `must` or `must_not` only when the entry no longer says it. In `sealed.yaml`, change nothing but an `entry:` that follows a renamed heading: a person decides the rest. If a sealed question's `must` or `must_not` no longer matches its entry, name it under **Questions**.
 
 5. Run `node scripts/feature-map.mjs check --ref {{new}}` again. It must report 0 problems before you stop.
 
