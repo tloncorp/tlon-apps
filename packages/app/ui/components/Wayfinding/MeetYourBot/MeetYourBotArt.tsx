@@ -103,7 +103,7 @@ function useGlance(reduceMotion: boolean) {
     value.set(
       withRepeat(
         withSequence(
-          withDelay(7600, withTiming(-1.8, { duration: 1900, easing })),
+          withDelay(7600, withTiming(1, { duration: 1900, easing })),
           withDelay(2660, withTiming(0, { duration: 1900, easing })),
           withDelay(4940, withTiming(0, { duration: 0 }))
         ),
@@ -116,43 +116,55 @@ function useGlance(reduceMotion: boolean) {
   return value;
 }
 
-function Face({
-  width,
-  reduceMotion,
-}: {
-  width: number;
-  reduceMotion: boolean;
-}) {
-  const unit = width / 80;
-  const height = width * 0.875;
+// The Tlonbot mark's proportions, as fractions of the tile's side.
+const MARK = {
+  tilt: '-4.2deg',
+  radius: 0.155,
+  eyeX: 0.099,
+  eyeY: -0.088,
+  eyeWidth: 0.044,
+  eyeHeight: 0.113,
+  smileHalfWidth: 0.0945,
+  smileY: 0.104,
+  smileSag: 0.034,
+  stroke: 0.044,
+  glance: -0.0104,
+};
+
+function Face({ size, reduceMotion }: { size: number; reduceMotion: boolean }) {
   const blink = useBlink(reduceMotion);
   const glance = useGlance(reduceMotion);
   const glanceStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: glance.value * unit }],
+    transform: [{ translateX: glance.value * MARK.glance * size }],
   }));
   const blinkStyle = useAnimatedStyle(() => ({
     transform: [{ scaleY: blink.value }],
   }));
-  const eye = (x: number) => ({
+  const eye = (side: -1 | 1) => ({
     position: 'absolute' as const,
-    left: (40 + x) * unit - 3.5 * unit,
-    top: 11.5 * unit,
-    width: 7 * unit,
-    height: 21 * unit,
-    borderRadius: 3.5 * unit,
+    left: size * (0.5 + side * MARK.eyeX - MARK.eyeWidth / 2),
+    top: size * (0.5 + MARK.eyeY - MARK.eyeHeight / 2),
+    width: size * MARK.eyeWidth,
+    height: size * MARK.eyeHeight,
+    borderRadius: (size * MARK.eyeWidth) / 2,
     backgroundColor: '#16181D',
   });
+  // A cubic whose control points sit level reaches 3/4 of their depth.
+  const half = MARK.smileHalfWidth * 100;
+  const y = (0.5 + MARK.smileY) * 100;
+  const depth = ((MARK.smileSag * 100) / 3) * 4;
+  const smile = `M${50 - half} ${y}C${50 - half * 0.476} ${y + depth} ${50 + half * 0.476} ${y + depth} ${50 + half} ${y}`;
   return (
-    <View style={{ width, height }}>
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Animated.View style={[StyleSheet.absoluteFill, glanceStyle]}>
-        <Animated.View style={[eye(-13), blinkStyle]} />
-        <Animated.View style={[eye(13), blinkStyle]} />
+        <Animated.View style={[eye(-1), blinkStyle]} />
+        <Animated.View style={[eye(1), blinkStyle]} />
       </Animated.View>
-      <Svg width={width} height={height} viewBox="-40 -35 80 70">
+      <Svg width={size} height={size} viewBox="0 0 100 100">
         <Path
-          d="M-21 10c11 10 31 10 42 0"
+          d={smile}
           stroke="#16181D"
-          strokeWidth={7}
+          strokeWidth={MARK.stroke * 100}
           strokeLinecap="round"
           fill="none"
         />
@@ -199,13 +211,11 @@ function Chip({
   slide,
   mode,
   size,
-  radius,
   reduceMotion,
 }: {
   slide: Slide;
   mode: Mode;
   size: number;
-  radius: number;
   reduceMotion: boolean;
 }) {
   const [from, to] = CHIP_TINT[slide][mode];
@@ -215,7 +225,7 @@ function Chip({
       style={{
         width: size,
         height: size,
-        transform: [{ rotate: '-6deg' }],
+        transform: [{ rotate: MARK.tilt }],
         shadowColor: mode === 'light' ? '#1E285A' : '#000000',
         shadowOffset: { width: 0, height: 10 },
         shadowRadius: 11,
@@ -225,7 +235,7 @@ function Chip({
       <View
         style={{
           flex: 1,
-          borderRadius: radius,
+          borderRadius: size * MARK.radius,
           overflow: 'hidden',
           borderWidth: 1,
           borderColor:
@@ -251,7 +261,7 @@ function Chip({
           <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
         </Svg>
         <Sheen reduceMotion={reduceMotion} />
-        <Face width={size * 0.46} reduceMotion={reduceMotion} />
+        <Face size={size - 2} reduceMotion={reduceMotion} />
       </View>
     </View>
   );
@@ -345,7 +355,6 @@ function FloatingBot({
               slide={1}
               mode={mode}
               size={166}
-              radius={44}
               reduceMotion={reduceMotion}
             />
           </Animated.View>
@@ -405,13 +414,7 @@ function DomedBot({
         style={[{ position: 'absolute', left: 62, top: 116 }, riseStyle]}
       >
         <Animated.View style={swayStyle}>
-          <Chip
-            slide={2}
-            mode={mode}
-            size={106}
-            radius={28}
-            reduceMotion={reduceMotion}
-          />
+          <Chip slide={2} mode={mode} size={106} reduceMotion={reduceMotion} />
         </Animated.View>
       </Animated.View>
 
