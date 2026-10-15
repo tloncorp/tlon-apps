@@ -177,8 +177,10 @@ export function MeetYourBotPane(props: {
       </View>
 
       {/* On short phones (an iPhone SE leaves about 186 points here) the
-          text scrolls rather than being cut off. */}
+          text scrolls rather than being cut off. Keyed by slide so slide 2
+          starts at the top even if slide 1 was scrolled. */}
       <ScrollView
+        key={slide}
         style={{ flex: 1 }}
         contentContainerStyle={{ gap: 20, paddingTop: 20, paddingBottom: 8 }}
         bounces={false}
