@@ -431,7 +431,8 @@ describe('saved login approval hook', () => {
     expect(runBrowserSessionHandoff).toHaveBeenCalledExactlyOnceWith(
       expect.any(String),
       ['browser', 'approve-login', 'fresh-ivory-finch'],
-      config
+      config,
+      expect.any(Function)
     );
   });
 });

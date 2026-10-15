@@ -10,7 +10,8 @@ than inventing a workflow or collecting secrets in chat.
 ## Invocation and delivery
 
 Call the model-facing `tlon` tool with an argument string. Do not include the
-`tlon` executable name or invoke a shell. Both commands accept the `session_id` returned by `browser_session_create` for the live session.
+`tlon` executable name or invoke a shell. These commands accept the `session_id` returned by
+`browser_session_create` for the live session.
 
 The plugin resolves a fresh signed viewer URL through the authenticated
 browser service and passes it privately to its delivery transport. Do not
@@ -59,19 +60,20 @@ when available; do not place a literal apostrophe inside a single-quoted array.
 
 Text inputs, textareas, dropdowns, checkboxes, and radio groups are supported.
 Each fill is bound to the selected live controls and origin; values go directly
-to the browser service without passing through chat or the bot. Completing
-entry generates a task continuation. A selected-field card fills one step
-without submitting the page. Sending the card or filling fields does not
-grant purchase approval.
+to the browser service without passing through chat or the bot. The browser service reports each step’s result to the originating
+agent conversation. Wait for that result before using the browser again. Each card
+fills one step; login forms may submit, while other forms only fill.
+Sending the card or filling fields does not grant purchase approval.
 
 A replaced control can resolve by its recorded name or label only inside its
 original form and document. An ambiguous name, changed document, expired card,
 or changed control requires a fresh snapshot and a new handoff. Do not remove
 `--fields` to recover from a selection failure: that broadens the request.
 
-Omitting `--fields` requests automatic discovery of the visible form. This mode
-supports successive login steps in one card. Use explicit selection whenever
-the owner is asked to enter only part of a form.
+Omitting `--fields` requests automatic discovery of the visible form. Each
+card covers that form only. After the service reports a result, inspect the page and request a fresh card if another private field needs input. Handle
+ordinary page controls, including optional passkey setup, with browser tools.
+Use explicit selection whenever the owner is asked to enter only part of a form.
 
 `browser_session_handoff` is a separate MCP viewer/elicitation operation, not
 a prerequisite for either Tlon command or a way to refresh signed viewer URLs.

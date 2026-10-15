@@ -25,7 +25,8 @@ describe('saved login approval delivery', () => {
     await createBrowserLoginApprovalHandler(send).handle(event());
     expect(send).toHaveBeenCalledExactlyOnceWith(
       'fresh-ivory-finch',
-      undefined
+      undefined,
+      {}
     );
   });
 
@@ -52,7 +53,11 @@ describe('saved login approval delivery', () => {
           arguments: encoded ? JSON.stringify(args) : args,
         },
       });
-      expect(send).toHaveBeenCalledExactlyOnceWith('fresh-ivory-finch', choice);
+      expect(send).toHaveBeenCalledExactlyOnceWith(
+        'fresh-ivory-finch',
+        choice,
+        {}
+      );
     }
   );
 

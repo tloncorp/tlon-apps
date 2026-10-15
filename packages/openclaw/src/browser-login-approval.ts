@@ -12,13 +12,15 @@ function record(value: unknown): Record<string, unknown> {
     : {};
 }
 
+type RunContext = { sessionKey?: string; sessionId?: string; runId?: string };
+
 export function createBrowserLoginApprovalHandler(
   sendHandoff: (
     sessionId: string,
-    choice?: { id: string; revision: number }
+    choice: { id: string; revision: number } | undefined,
+    ctx: RunContext
   ) => Promise<unknown>
 ) {
-  type RunContext = { sessionKey?: string; runId?: string };
   const runKey = (ctx: RunContext) =>
     JSON.stringify([ctx.sessionKey, ctx.runId]);
   const deliveries = new Map<string, Map<string, Promise<unknown>>>();
@@ -78,7 +80,7 @@ export function createBrowserLoginApprovalHandler(
         ? { id: requested.id, revision: requested.revision }
         : undefined;
     const promise = Promise.resolve().then(() =>
-      sendHandoff(sessionId, choice)
+      sendHandoff(sessionId, choice, ctx)
     );
     delivered.set(sessionId, promise);
     try {

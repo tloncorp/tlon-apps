@@ -98,6 +98,10 @@ import {
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
 import { createBrowserLoginApprovalHandler } from './src/browser-login-approval.js';
+import {
+  registerBrowserHandoffResults,
+  browserToolSessionId,
+} from './src/browser-handoff-results.js';
 import { runTlonCommand } from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
@@ -984,6 +988,23 @@ export default defineBundledChannelEntry({
         }),
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
+    const browserHandoffs = registerBrowserHandoffResults(api);
+    const runBrowserCommand = async (
+      args: string[],
+      ctx: { sessionKey?: string; sessionId?: string }
+    ) => {
+      if (
+        ['handoff', 'approve-login'].includes(args[1]) &&
+        args[2] &&
+        (await browserHandoffs.isPending(args[2]))
+      )
+        throw new Error(
+          'This browser is waiting for secure entry. Wait for its result.'
+        );
+      return runBrowserSessionHandoff(tlonBinary, args, api.config, (request) =>
+        browserHandoffs.watch(request, ctx)
+      );
+    };
 
     if (credentials) {
       api.logger.info(`[tlon] Credentials available for ${account.ship}`);
@@ -999,7 +1020,7 @@ export default defineBundledChannelEntry({
         const executeTlonTool = createTlonToolExecutor({
           runCommand: (args) =>
             args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
-              ? runBrowserSessionHandoff(tlonBinary, args, api.config)
+              ? runBrowserCommand(args, ctx)
               : runTlonCommand(tlonBinary, args, credentials, {
                   timeoutMs: toolTimeoutMs,
                   cwd: ctx.workspaceDir,
@@ -1126,8 +1147,19 @@ export default defineBundledChannelEntry({
             configuredTlonShipHosts(api.runtime.config.loadConfig())
           )
         : { blocked: false };
+      const browserSessionId = browserToolSessionId(
+        event.toolName,
+        event.params
+      );
+      const blocksBrowserHandoff =
+        !blocksNonOwner &&
+        !!browserSessionId &&
+        (await browserHandoffs.isPending(browserSessionId));
       const blocksPolicy =
-        blocksNonOwner || blocksOnboardingMcp || tlonAppBrowser.blocked;
+        blocksNonOwner ||
+        blocksOnboardingMcp ||
+        tlonAppBrowser.blocked ||
+        blocksBrowserHandoff;
       // Decided here, with the other block decisions, so the trace and the
       // allowed/blocked logs below all describe the same outcome.
       const forbiddenCronArgs =
@@ -1140,7 +1172,10 @@ export default defineBundledChannelEntry({
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
         : blocksCronArgs
           ? CRON_ARGS_BLOCK_REASON
-          : (ownerOnlyDecision.reason ?? tlonAppBrowser.reason);
+          : (ownerOnlyDecision.reason ??
+            (blocksBrowserHandoff
+              ? 'This browser is waiting for secure entry. Stop browser tool calls and wait for the service result; it resumes this conversation.'
+              : tlonAppBrowser.reason));
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
@@ -1238,16 +1273,15 @@ export default defineBundledChannelEntry({
     });
 
     const browserLoginApprovals = createBrowserLoginApprovalHandler(
-      (sessionId, record) =>
-        runBrowserSessionHandoff(
-          tlonBinary,
+      (sessionId, record, ctx) =>
+        runBrowserCommand(
           [
             'browser',
             'approve-login',
             sessionId,
             ...(record ? ['--record', JSON.stringify(record)] : []),
           ],
-          api.config
+          ctx
         )
     );
 

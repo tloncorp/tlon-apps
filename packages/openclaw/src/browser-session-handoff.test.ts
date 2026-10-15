@@ -13,9 +13,14 @@ vi.mock('./tlon-command-runner.js', async (original) => ({
 
 import {
   BROWSER_SESSION_HANDOFF_HELP,
-  runBrowserSessionHandoff,
+  runBrowserSessionHandoff as runHandoff,
 } from './browser-session-handoff.js';
 import { shellSplitCommand } from './tlon-tool-command.js';
+
+const watchHandoff = vi.fn().mockResolvedValue(undefined);
+function runBrowserSessionHandoff(...args: Parameters<typeof runHandoff>) {
+  return runHandoff(args[0], args[1], args[2], watchHandoff);
+}
 
 const handle = 'calm-blue-fox';
 const sessionId = '123e4567-e89b-42d3-a456-426614174000';

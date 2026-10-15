@@ -12,6 +12,7 @@ import {
 } from './tlon-command-runner.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
+import type { BrowserHandoffRequest } from './browser-handoff-results.js';
 
 export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> [--fields <JSON array>] or browser approve-login <session_id> [--record <JSON object>] or browser share <session_id> (the session ID from browser_session_create). Use --fields when the owner should fill only selected controls; omit it for automatic discovery of the visible form. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
 
@@ -338,7 +339,8 @@ async function resolveViewerUrl(
 export async function runBrowserSessionHandoff(
   binary: string,
   args: string[],
-  config: OpenClawConfig
+  config: OpenClawConfig,
+  watchHandoff?: (request: BrowserHandoffRequest) => Promise<void>
 ): Promise<string> {
   if (
     args[0] === 'browser' &&
@@ -381,6 +383,8 @@ export async function runBrowserSessionHandoff(
     }
   }
   const account = resolveBrowserHandoffAccount(config);
+  if (args[1] !== 'share' && !watchHandoff)
+    throw new Error('Secure entry requires result delivery to the agent.');
   const viewerUrl = await resolveViewerUrl(
     args[2],
     config,
@@ -388,6 +392,11 @@ export async function runBrowserSessionHandoff(
     args[1] !== 'share',
     fields
   );
+  if (args[1] !== 'share')
+    await watchHandoff!({
+      browserSessionId: args[2],
+      viewerUrl,
+    });
   try {
     await runBrowserHandoffCommand(
       binary,
@@ -399,7 +408,12 @@ export async function runBrowserSessionHandoff(
       ],
       config
     );
-    return `✓ ${args[1] === 'share' ? 'Browser session' : args[1] === 'approve-login' ? 'Saved login approval' : 'Secure browser form'} sent to ${account.ownerShip}`;
+    return (
+      `✓ ${args[1] === 'share' ? 'Browser session' : args[1] === 'approve-login' ? 'Saved login approval' : 'Secure browser form'} sent to ${account.ownerShip}` +
+      (args[1] === 'share'
+        ? ''
+        : '. Wait for the secure-entry result before using this browser again. The service resumes this conversation after entry.')
+    );
   } catch {
     throw new Error(
       args[1] === 'share'

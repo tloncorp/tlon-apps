@@ -21,12 +21,6 @@ import {
   CHAT_REF_LIKE_MAX_WIDTH,
 } from '../../../constants';
 import { canUseBrowserHandoff } from '../../../features/browser/browserHandoffTrust';
-import {
-  BROWSER_HANDOFF_CONTINUATION,
-  getBrowserHandoffContinuationSelection,
-  isBrowserHandoffContinuationSelection,
-  sendBrowserHandoffContinuation,
-} from '../../../features/browser/browserHandoffContinuation';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { submitCreditIncreaseRequest } from '../../../utils/creditIncreaseRequest';
@@ -353,41 +347,23 @@ export function StaticChatMessage({
   );
 
   const sendA2UIMessage = useCallback(
-    async (
-      text: string,
-      selection?: PostBlobDataEntryA2UISelection,
-      requireReady = false
-    ) => {
+    async (text: string, selection?: PostBlobDataEntryA2UISelection) => {
       if (!draftInputContext || draftInputContext.canStartDraft === false) {
-        if (requireReady) {
-          throw new Error('This channel is not ready to send messages');
-        }
         return;
       }
       const trimmed = text.trim();
       if (!trimmed) return;
-      const send = () =>
-        draftInputContext.sendPostFromDraft({
-          channelId: draftInputContext.channel.id,
-          content: [trimmed],
-          attachments: [],
-          blob: selection ? appendToPostBlob(undefined, selection) : undefined,
-          channelType: draftInputContext.channel.type,
-          replyToPostId: null,
-          isEdit: false,
-        });
-      if (selection && isBrowserHandoffContinuationSelection(post, selection)) {
-        await sendBrowserHandoffContinuation({
-          channelId: post.channelId,
-          authorId: currentUserId,
-          selection,
-          send,
-        });
-      } else {
-        await send();
-      }
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [trimmed],
+        attachments: [],
+        blob: selection ? appendToPostBlob(undefined, selection) : undefined,
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
     },
-    [draftInputContext, post, currentUserId]
+    [draftInputContext]
   );
 
   const handleA2UIAction = useCallback(
@@ -409,31 +385,10 @@ export function StaticChatMessage({
         return;
       }
       if (action.event.name === A2UI.action.navigate) {
-        const target = action.event.context.target;
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
           allowBrowserCredentialHandoff: allowBrowserHandoff,
           allowBrowserSession: allowBrowserHandoff,
-          onBrowserCredentialHandoffComplete:
-            target.type === 'screen' &&
-            target.screen === 'browserCredentialHandoff'
-              ? async () => {
-                  const continuation = getBrowserHandoffContinuationSelection(
-                    post,
-                    target.viewerUrl
-                  );
-                  if (!continuation) {
-                    throw new Error(
-                      'The originating browser handoff is no longer available.'
-                    );
-                  }
-                  await sendA2UIMessage(
-                    BROWSER_HANDOFF_CONTINUATION,
-                    continuation,
-                    true
-                  );
-                }
-              : undefined,
         });
         return;
       }

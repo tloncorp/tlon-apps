@@ -122,7 +122,6 @@ export function useA2UINavigation() {
         allowBotMcpSettings?: boolean;
         allowBrowserCredentialHandoff?: boolean;
         allowBrowserSession?: boolean;
-        onBrowserCredentialHandoffComplete?: () => Promise<void>;
       }
     ) => {
       switch (target.type) {
@@ -194,7 +193,6 @@ export function useA2UINavigation() {
               }
               const handoffId = browserHandoff.register({
                 viewerUrl: target.viewerUrl,
-                onComplete: options.onBrowserCredentialHandoffComplete,
               });
               rootNavigation.navigateToBrowserCredentialHandoff(
                 handoffId,

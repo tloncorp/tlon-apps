@@ -36,9 +36,10 @@ Use browser approve-login to ask for permission to use a saved login. The owner 
 
 Use browser handoff to send a native secure-entry card for login identifiers,
 passwords, verification codes, card fields, and private personal details.
-Selected-field cards fill one step without submitting the page. Values go directly to the browser
-service without passing through chat or the bot. Completing entry generates a
-task continuation; sharing alone does not. Neither command grants purchase approval.
+Each card fills one secure step. Login forms may submit; other forms only fill.
+Values go directly to the browser service without passing through chat or the bot.
+Wait for the service result before using that browser again. The result resumes
+the originating conversation even if the app disconnects; sharing alone does not. Neither command grants purchase approval.
 Read the hosted-browser skill for checkout, login, sharing, and recovery workflows.
 The recipient is always the owner configured for the active bot account and
 cannot be overridden.
@@ -107,7 +108,7 @@ function browserCredentialHandoffBlob(
     {
       id: 'actions',
       component: 'Row',
-      children: loginApproval ? ['open-form'] : ['open-form', 'continue'],
+      children: ['open-form'],
       align: 'center',
     },
     {
@@ -134,26 +135,6 @@ function browserCredentialHandoffBlob(
       id: 'open-form-label',
       component: 'Text',
       text: loginApproval ? 'Review sign-in' : 'Open secure form',
-    },
-    {
-      id: 'continue',
-      component: 'Button',
-      weight: 1,
-      variant: 'secondary',
-      child: 'continue-label',
-      action: {
-        event: {
-          name: 'tlon.sendMessage',
-          context: {
-            text: 'Continue the browser task. Check the current page; this does not confirm sign-in or authorize a purchase.',
-          },
-        },
-      },
-    },
-    {
-      id: 'continue-label',
-      component: 'Text',
-      text: 'Continue task',
     },
   ];
 

@@ -22,7 +22,6 @@ import {
   authorizeBrowserViewer,
   beginBrowserCredentialHandoff,
   cancelBrowserCredentialHandoff,
-  nextBrowserCredentialHandoff,
   submitBrowserCredentials,
   supportsSavedLogins,
   trustedBrowserViewerUrl,
@@ -39,7 +38,7 @@ type Props = {
 
 const SAVE_NOTICES = {
   saved: 'Login saved for this bot.',
-  pending: 'Continue to the password step to save this login.',
+  pending: 'Login saving continues in the next secure step.',
   failed: 'Your login was entered, but could not be saved.',
 };
 
@@ -189,12 +188,11 @@ function SecureField({
 
 export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const loginApproval = route.params.loginApproval;
-  const [approved, setApproved] = useState(false);
   const [handoff, setHandoff] = useState<BrowserCredentialHandoff>();
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [returning, setReturning] = useState(false);
+  const [attempted, setAttempted] = useState(false);
   const [filled, setFilled] = useState(false);
   const [noSecureForm, setNoSecureForm] = useState(false);
   const [liveViewer, setLiveViewer] = useState<{
@@ -219,20 +217,15 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   }>();
   const [saveStatus, setSaveStatus] = useState<keyof typeof SAVE_NOTICES>();
   const saveNotice = saveStatus ? SAVE_NOTICES[saveStatus] : undefined;
-  const { resolve, complete, discard } = useBrowserCredentialHandoff();
+  const { resolve, discard } = useBrowserCredentialHandoff();
   const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
-  const outcomes = useRef(
-    new Map<string, 'completing' | 'completed' | 'canceled'>()
-  );
-  const pendingSave = useRef<{ handoffId: string; origin: string } | undefined>(
-    undefined
-  );
+  const outcomes = useRef(new Map<string, 'completed' | 'canceled'>());
   const externalViewerHandoff = useRef<string | null>(null);
   const submittingRef = useRef(false);
   const requestController = useRef<AbortController | undefined>(undefined);
   const vaultEligible = !!handoff?.vault && supportsSavedLogins(handoff);
-  const approvingSavedLogin = !!loginApproval && (!approved || vaultEligible);
+  const approvingSavedLogin = !!loginApproval;
   const vaultAuth =
     vaultEligible && authorization?.fillUrl === handoff?.fillUrl
       ? authorization
@@ -259,7 +252,6 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     (!saveLogin || choice?.mode === 'use' || !!saveLabel);
 
   const clearSavedLoginSelection = useCallback(() => {
-    pendingSave.current = undefined;
     setSaveStatus((status) => (status === 'pending' ? undefined : status));
     setSaveLogin(false);
     setAllowAutomatic(false);
@@ -337,14 +329,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       setValues({});
       setHandoff(undefined);
       setFilled(false);
-      const pendingOrigin =
-        pendingSave.current?.handoffId === handoffId
-          ? pendingSave.current.origin
-          : undefined;
-      if (!pendingOrigin) {
-        clearSavedLoginSelection();
-        setSaveStatus(undefined);
-      }
+      setAttempted(false);
+      clearSavedLoginSelection();
+      setSaveStatus(undefined);
       setVaultError(undefined);
       setNoSecureForm(false);
       setError(undefined);
@@ -359,13 +346,6 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         trustedUrl = trustedBrowserViewerUrl(viewerUrl);
         const next = await beginBrowserCredentialHandoff(trustedUrl, signal);
         if (!signal?.aborted) {
-          if (
-            pendingOrigin &&
-            (next.origin !== pendingOrigin ||
-              !next.vault ||
-              !supportsSavedLogins(next))
-          )
-            clearSavedLoginSelection();
           setHandoff(next);
         }
       } catch (nextError) {
@@ -425,31 +405,12 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     };
   }, [cancelHandoff, discard, handoffId, resolve]);
 
-  const returnToConversation = useCallback(async () => {
-    if (outcomes.current.has(handoffId)) return;
-    const viewerUrl = resolve(handoffId);
-    const signal = requestController.current?.signal;
-    outcomes.current.set(handoffId, 'completing');
-    setReturning(true);
-    setError(undefined);
-    try {
-      await complete(handoffId);
-      outcomes.current.set(handoffId, 'completed');
-      if (
-        activeHandoffs.current.has(handoffId) &&
-        !signal?.aborted &&
-        navigation.isFocused()
-      )
-        navigation.goBack();
-    } catch (nextError) {
-      outcomes.current.delete(handoffId);
-      if (!activeHandoffs.current.has(handoffId))
-        cancelHandoff(handoffId, viewerUrl);
-      if (signal?.aborted) return;
-      setError(errorMessage(nextError));
-      setReturning(false);
-    }
-  }, [cancelHandoff, complete, handoffId, navigation, resolve]);
+  const finishHandoff = useCallback(() => {
+    outcomes.current.set(handoffId, 'completed');
+    discard(handoffId);
+    if (activeHandoffs.current.has(handoffId) && navigation.isFocused())
+      navigation.goBack();
+  }, [discard, handoffId, navigation]);
 
   const fillAndSubmit = useCallback(async () => {
     const signal = requestController.current?.signal;
@@ -462,6 +423,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     )
       return;
     submittingRef.current = true;
+    setAttempted(true);
     setSubmitting(true);
     setError(undefined);
     try {
@@ -491,57 +453,13 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         signal
       );
       if (signal.aborted) return;
-      if (approvingSavedLogin) setApproved(true);
       setValues({});
       setHandoff(undefined);
-      pendingSave.current =
-        result.saveStatus === 'pending'
-          ? { handoffId, origin: handoff.origin }
-          : undefined;
-      if (result.saveStatus === 'pending' && saveLabel)
-        setAccountLabel(saveLabel);
+      // The service reports this step to the agent, which inspects the page.
+      outcomes.current.set(handoffId, 'completed');
       if (result.saveStatus) setSaveStatus(result.saveStatus);
-      if (handoff.kind === 'login') {
-        const viewerUrl = resolve(handoffId);
-        if (!viewerUrl)
-          throw new Error(
-            'Reopen the secure browser form from the conversation.'
-          );
-        setLoading(true);
-        const next = await nextBrowserCredentialHandoff(
-          viewerUrl,
-          handoff.formId,
-          signal
-        );
-        if (signal.aborted) return;
-        setLoading(false);
-        // A filled form with no safe submit control continues through the bot's
-        // browser-owned receipt instead of asking the user to enter it again.
-        if (next && (next.formId !== handoff.formId || result.submitted)) {
-          if (
-            next.origin !== handoff.origin ||
-            !next.vault ||
-            !supportsSavedLogins(next) ||
-            (result.saveStatus !== 'pending' && choice?.mode !== 'use')
-          ) {
-            clearSavedLoginSelection();
-          }
-          setHandoff(next);
-          if (next.formId === handoff.formId)
-            setError(
-              "Sign-in hasn't completed. Open the live browser to check for a verification step or error."
-            );
-          return;
-        }
-      }
-      if (result.saveStatus === 'pending') {
-        setError('The next step is not ready. Try again or open the browser.');
-        return;
-      }
       setFilled(true);
-      // The agent checks the resulting page; filling does not prove sign-in
-      // or authorize a payment, order, or other consequential action.
-      if (result.saveStatus !== 'failed') await returnToConversation();
+      if (result.saveStatus !== 'failed') finishHandoff();
     } catch (nextError) {
       if (signal.aborted) return;
       setValues({});
@@ -555,17 +473,14 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   }, [
     handoff,
     values,
-    resolve,
     handoffId,
-    returnToConversation,
-    approvingSavedLogin,
+    finishHandoff,
     vaultAuth,
     choice,
     saveLogin,
     allowAutomatic,
     saveLabel,
     canSubmit,
-    clearSavedLoginSelection,
   ]);
 
   const reloadForm = useCallback(
@@ -656,9 +571,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               <Text color="$secondaryText">{saveNotice}</Text>
             ) : null}
             {loading ? (
-              <Text color="$secondaryText">
-                {submitting ? 'Checking the next step…' : 'Finding the form…'}
-              </Text>
+              <Text color="$secondaryText">Finding the form…</Text>
             ) : filled ? (
               <>
                 <Text size="$label/l" fontWeight="600">
@@ -675,9 +588,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   preset="primary"
                   label="Return to conversation"
                   centered
-                  loading={returning}
-                  disabled={returning}
-                  onPress={returnToConversation}
+                  onPress={finishHandoff}
                 />
               </>
             ) : handoff && approvingSavedLogin ? (
@@ -981,18 +892,24 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                 </Text>
                 <Button
                   preset="secondary"
-                  label={noSecureForm ? 'Check for secure form' : 'Try again'}
+                  label={
+                    attempted
+                      ? 'Return to conversation'
+                      : noSecureForm
+                        ? 'Check for secure form'
+                        : 'Try again'
+                  }
                   centered
-                  onPress={retry}
+                  onPress={attempted ? dismiss : retry}
                 />
               </>
             )}
           </YStack>
           {!loading &&
           !submitting &&
-          !returning &&
+          !attempted &&
           !filled &&
-          (!approvingSavedLogin || approved) ? (
+          !approvingSavedLogin ? (
             <YStack gap="$m">
               <Button
                 preset="secondary"
@@ -1003,13 +920,13 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               <Text color="$secondaryText">
                 {isWeb
                   ? 'The browser opens in a new tab. Return here when you’re done.'
-                  : 'Complete any additional steps here, then continue the task.'}
+                  : 'Close the live browser to return to secure entry.'}
               </Text>
               <Button
                 preset="secondary"
-                label="Return to conversation"
+                label="Cancel secure entry"
                 centered
-                onPress={returnToConversation}
+                onPress={dismiss}
               />
             </YStack>
           ) : null}
