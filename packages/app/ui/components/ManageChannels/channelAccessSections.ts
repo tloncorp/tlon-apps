@@ -93,25 +93,28 @@ export function channelAccessSections({
 
   const effective = (id: string) =>
     Math.max(floor, roleLevels.get(id) ?? 0) as Level;
+  // Admins aren't a choice here, so they lead the sentence as people, in
+  // lowercase, rather than as a row.
   const who = (min: Level) => {
-    if (floor >= min) return 'Everyone in the group';
-    const names = [
-      'Admin',
-      ...roles.filter((role) => effective(role.id) >= min).map((r) => r.title),
-    ];
-    return names.length < 3
-      ? names.join(' and ')
-      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+    if (floor >= min) return 'Everyone';
+    const names = roles
+      .filter((role) => effective(role.id) >= min)
+      .map((role) => role.title);
+    const list =
+      names.length < 2
+        ? names.join('')
+        : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+    return names.length ? `Only admins and ${list}` : 'Only admins';
   };
   const seers = who(1);
   const posters = who(2);
   const summary = notes
-    ? `${floor === 2 ? posters : `Only ${posters}`} can see and edit this notebook.`
+    ? `${posters} can see and edit this notebook.`
     : floor === 2
-      ? 'Everyone in the group can see and post.'
+      ? 'Everyone can see and post.'
       : seers === posters
-        ? `Only ${posters} can see and post.`
-        : `${seers} can see this channel. Only ${posters} can post.`;
+        ? `${posters} can see and post.`
+        : `${seers} can see this channel. ${posters} can post.`;
 
   // A role's menu starts at what everyone has; picking that level hands the
   // role back to everyone's setting.
@@ -154,12 +157,12 @@ export function channelAccessSections({
 
   return [
     {
-      key: 'access',
-      footer: summary,
+      key: 'everyone',
+      footer: 'All members of the group, with or without a role.',
       rows: [
         {
           key: 'everyone',
-          title: 'Everyone in the group',
+          title: 'Everyone',
           picker: {
             value: String(floor),
             options: levels.map((level) => ({
@@ -170,14 +173,13 @@ export function channelAccessSections({
           },
           testID: 'AccessLevel-Everyone',
         },
-        {
-          key: 'admin',
-          title: 'Admin',
-          subtitle: 'Always',
-          value: levelName(2),
-          accessory: 'none',
-          testID: 'AccessLevel-Admin',
-        },
+      ],
+    },
+    {
+      key: 'roles',
+      title: 'Roles',
+      footer: summary,
+      rows: [
         ...roleRows,
         ...(onCreateRole
           ? [
