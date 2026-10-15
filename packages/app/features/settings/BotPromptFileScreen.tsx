@@ -42,6 +42,7 @@ import { BotSettingsSection } from './bot/BotSettingsUI';
 import {
   isHostedBotOfCurrentUser,
   restartHostedBot,
+  useHostedBotRestarting,
 } from './bot/restartHostedBot';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotPromptFile'>;
@@ -94,7 +95,9 @@ export function BotPromptFileScreen(props: Props) {
   const warningSeen = db.botPromptEditWarningSeen.useValue();
   const queryClient = useQueryClient();
   const restartsBot = isHostedBotOfCurrentUser(botShip, currentUserId);
-  const [restarting, setRestarting] = useState(false);
+  // Hosting addresses the bot by its owner's ship.
+  const hostedShip = desig(currentUserId);
+  const restarting = useHostedBotRestarting(restartsBot ? hostedShip : null);
 
   // Both name the file they were opened for: the desktop settings drawer
   // keeps this screen mounted when another file is opened, and nothing begun
@@ -157,9 +160,13 @@ export function BotPromptFileScreen(props: Props) {
     if (!restartsBot) {
       return;
     }
-    const ship = desig(currentUserId);
-    setRestarting(true);
-    const message = await restartHostedBot(ship).then(
+    // The bot card's status badge reads readiness, and nothing refetches a
+    // cached `true` on its own. Mark the bot not ready for the outage, which
+    // also starts bot settings' own polling until it is back, then refresh
+    // once more when the restart settles.
+    const readyKey = ['tlonbot', 'ready', hostedShip];
+    queryClient.setQueryData(readyKey, false);
+    const message = await restartHostedBot(hostedShip).then(
       (confirmed) =>
         confirmed
           ? 'Your bot restarted with the change.'
@@ -167,11 +174,9 @@ export function BotPromptFileScreen(props: Props) {
       () =>
         "Saved, but your bot couldn't restart. It picks up the change the next time it does."
     );
-    // The bot card's status badge reads this.
-    queryClient.invalidateQueries({ queryKey: ['tlonbot', 'ready', ship] });
-    setRestarting(false);
+    queryClient.invalidateQueries({ queryKey: readyKey });
     showToast({ message, duration: 3000 });
-  }, [currentUserId, queryClient, restartsBot, showToast]);
+  }, [hostedShip, queryClient, restartsBot, showToast]);
 
   const handleSaved = useCallback(() => {
     refreshPrompts();

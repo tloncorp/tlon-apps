@@ -10,16 +10,21 @@ const mocks = vi.hoisted(() => ({
   prompts: [] as { name: string; text: string }[],
   warningSeen: false,
   hosted: true,
+  restartingShip: null as string | null,
   setWarningSeen: vi.fn(),
   save: vi.fn(),
   refresh: vi.fn(),
   restart: vi.fn(),
   invalidate: vi.fn(),
+  setQueryData: vi.fn(),
   toast: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ invalidateQueries: mocks.invalidate }),
+  useQueryClient: () => ({
+    invalidateQueries: mocks.invalidate,
+    setQueryData: mocks.setQueryData,
+  }),
 }));
 vi.mock('@tloncorp/api', () => ({
   getBotUserIdForUser: () => '~bot',
@@ -78,6 +83,8 @@ vi.mock('./bot/BotSettingsUI', async () => {
 vi.mock('./bot/restartHostedBot', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./bot/restartHostedBot')>()),
   restartHostedBot: mocks.restart,
+  useHostedBotRestarting: (ship: string | null) =>
+    ship !== null && ship === mocks.restartingShip,
 }));
 
 setupReactTestEnvironment();
@@ -89,6 +96,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.warningSeen = false;
   mocks.hosted = true;
+  mocks.restartingShip = null;
   mocks.save.mockResolvedValue(undefined);
   mocks.restart.mockResolvedValue(true);
   mocks.prompts = [
@@ -269,14 +277,17 @@ describe('BotPromptFileScreen', () => {
     });
     expect(mocks.refresh).toHaveBeenCalled();
     expect(mocks.restart).toHaveBeenCalledWith('owner');
-    expect(byTestID(tree, 'BotPromptFileRestarting')).toHaveLength(1);
-    expect(byTestID(tree, 'BotPromptFileEdit')[0].props.disabled).toBe(true);
+    // Readiness is marked off for the outage, which also starts bot
+    // settings' own polling until the bot is back.
+    expect(mocks.setQueryData).toHaveBeenCalledWith(
+      ['tlonbot', 'ready', 'owner'],
+      false
+    );
+    expect(mocks.invalidate).not.toHaveBeenCalled();
 
     await act(async () => {
       finish(true);
     });
-    expect(byTestID(tree, 'BotPromptFileRestarting')).toHaveLength(0);
-    expect(byTestID(tree, 'BotPromptFileEdit')[0].props.disabled).toBe(false);
     expect(mocks.invalidate).toHaveBeenCalledWith({
       queryKey: ['tlonbot', 'ready', 'owner'],
     });
@@ -285,6 +296,39 @@ describe('BotPromptFileScreen', () => {
         message: 'Your bot restarted with the change.',
       })
     );
+  });
+
+  it('shows a restart in progress only for the bot being restarted', async () => {
+    mocks.restartingShip = 'owner';
+    mocks.prompts = [{ name: 'SOUL.md', text: `Call me Captain.\n${block}\n` }];
+    const tree = await render('SOUL.md');
+    expect(byTestID(tree, 'BotPromptFileRestarting')).toHaveLength(1);
+    expect(byTestID(tree, 'BotPromptFileEdit')[0].props.disabled).toBe(true);
+    expect(byTestID(tree, 'BotPromptFileReset')[0].props.disabled).toBe(true);
+
+    // The desktop drawer reuses this screen for another bot's file.
+    await act(async () => {
+      tree.update(
+        <BotPromptFileScreen
+          navigation={{ goBack: vi.fn() } as never}
+          route={{ params: { name: 'SOUL.md', botShip: '~other' } } as never}
+        />
+      );
+    });
+    expect(byTestID(tree, 'BotPromptFileRestarting')).toHaveLength(0);
+    expect(byTestID(tree, 'BotPromptFileEdit')[0].props.disabled).toBe(false);
+
+    mocks.restartingShip = null;
+    await act(async () => {
+      tree.update(
+        <BotPromptFileScreen
+          navigation={{ goBack: vi.fn() } as never}
+          route={{ params: { name: 'SOUL.md' } } as never}
+        />
+      );
+    });
+    expect(byTestID(tree, 'BotPromptFileRestarting')).toHaveLength(0);
+    expect(byTestID(tree, 'BotPromptFileEdit')[0].props.disabled).toBe(false);
   });
 
   it('keeps the save when the bot cannot be restarted', async () => {

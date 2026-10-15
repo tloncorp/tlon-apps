@@ -1,4 +1,5 @@
 import * as api from '@tloncorp/api';
+import { useCallback, useSyncExternalStore } from 'react';
 
 /**
  * Hosting answers the reload once it has signalled the pod; tlawn then stops
@@ -16,9 +17,16 @@ type ShipRestart = {
   followUp: Promise<boolean> | null;
 };
 const restarts = new Map<string, ShipRestart>();
+const listeners = new Set<() => void>();
 
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+const notify = () => {
+  for (const listener of listeners) {
+    listener();
+  }
+};
 
 /**
  * Only the user's own hosted bot runs under Hosting's supervisor, which is
@@ -37,6 +45,31 @@ export function isHostedBotOfCurrentUser(
   } catch {
     return false;
   }
+}
+
+/** Whether a restart of this ship's bot is under way, follow-up included. */
+export function isRestarting(ship: string): boolean {
+  return restarts.has(ship);
+}
+
+export function subscribeToRestarts(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/**
+ * Follows `isRestarting` for one ship. Kept outside any screen so that a
+ * screen the navigator reuses for another bot, or one reopened mid-restart,
+ * shows the restart only when it is that bot's.
+ */
+export function useHostedBotRestarting(ship: string | null): boolean {
+  const getSnapshot = useCallback(
+    () => ship !== null && restarts.has(ship),
+    [ship]
+  );
+  return useSyncExternalStore(subscribeToRestarts, getSnapshot, getSnapshot);
 }
 
 /**
@@ -74,11 +107,18 @@ async function runRestart(ship: string): Promise<boolean> {
 function launch(ship: string): Promise<boolean> {
   const entry: ShipRestart = { active: Promise.resolve(false), followUp: null };
   entry.active = runRestart(ship).finally(() => {
-    if (restarts.get(ship) === entry) {
-      restarts.delete(ship);
+    if (restarts.get(ship) !== entry) {
+      return;
+    }
+    restarts.delete(ship);
+    // A queued follow-up launches right after this and registers itself;
+    // announcing the gap in between would flash the ship as idle.
+    if (!entry.followUp) {
+      notify();
     }
   });
   restarts.set(ship, entry);
+  notify();
   return entry.active;
 }
 

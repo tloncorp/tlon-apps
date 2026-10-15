@@ -24,7 +24,9 @@ import {
   POLL_MS,
   STOP_TIMEOUT_MS,
   isHostedBotOfCurrentUser,
+  isRestarting,
   restartHostedBot,
+  subscribeToRestarts,
 } from './restartHostedBot';
 
 describe('isHostedBotOfCurrentUser', () => {
@@ -133,5 +135,27 @@ describe('restartHostedBot', () => {
     await expect(first).rejects.toThrow('503');
     await expect(second).resolves.toBe(true);
     expect(mocks.reloadBot).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports the ship as restarting from the reload until the chain settles', async () => {
+    const seen: boolean[] = [];
+    const unsubscribe = subscribeToRestarts(() =>
+      seen.push(isRestarting('owner'))
+    );
+    expect(isRestarting('owner')).toBe(false);
+
+    const first = restartHostedBot('owner');
+    expect(isRestarting('owner')).toBe(true);
+    expect(isRestarting('other')).toBe(false);
+    const second = restartHostedBot('owner');
+    await first;
+    // The follow-up took over without a gap being announced in between.
+    expect(isRestarting('owner')).toBe(true);
+    expect(seen).not.toContain(false);
+
+    await second;
+    expect(isRestarting('owner')).toBe(false);
+    expect(seen[seen.length - 1]).toBe(false);
+    unsubscribe();
   });
 });
