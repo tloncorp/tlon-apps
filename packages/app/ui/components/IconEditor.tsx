@@ -99,13 +99,15 @@ export function IconEditor({
               width={26}
               height={26}
               borderRadius={13}
-              backgroundColor="$primaryText"
-              borderWidth={2}
-              borderColor="$background"
+              backgroundColor="$background"
               alignItems="center"
               justifyContent="center"
+              shadowColor="#000000"
+              shadowOpacity={0.15}
+              shadowRadius={3}
+              shadowOffset={{ width: 0, height: 1 }}
             >
-              <Icon type="Camera" size="$s" color="$background" />
+              <Icon type="Camera" size="$s" color="$secondaryText" />
             </View>
           </View>
         </IconMenu>
