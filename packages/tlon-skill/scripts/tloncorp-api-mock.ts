@@ -19,7 +19,7 @@
  * The export shape here is the superset of what the mocked import graphs
  * pull in by value: `api-client.ts` (Urbit, client, configureClient,
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
- * posts, invites), the notes runtimes (notesV1 et al.), and
+ * posts, invites), the notes runtimes (notesV1, notes et al.), and
  * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
  * enableGroup, BadResponseError), `activity-runtime.ts`
  * (getInitialActivity, getGroupAndChannelUnreads, getTextContent),
@@ -104,6 +104,20 @@ export class MockNotesV1PendingWriteError extends Error {
 export const mockedNotesV1 = Object.fromEntries(
   NOTES_V1_OPS.map((op) => [op, async () => undefined])
 ) as MockedNotesV1;
+
+export const NOTES_PUBLISH_OPS = [
+  'listPublished',
+  'publishNote',
+  'unpublishNote',
+] as const;
+
+/** The publish slice of `notes` the notes runtime wraps; reassign per test. */
+export const mockedNotes = Object.fromEntries(
+  NOTES_PUBLISH_OPS.map((op) => [op, async () => undefined])
+) as Record<
+  (typeof NOTES_PUBLISH_OPS)[number],
+  (...args: unknown[]) => Promise<unknown>
+>;
 
 export const mockedGetChannelPosts = {
   impl: async (..._args: unknown[]) => ({
@@ -257,6 +271,7 @@ mock.module('@tloncorp/api', () => ({
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   BucketsActionFailed: MockBucketsActionFailed,
   notesV1: mockedNotesV1,
+  notes: mockedNotes,
   getGroups: (...args: unknown[]) => mockedGetGroups.impl(...args),
   getGroup: (...args: unknown[]) => mockedGetGroup.impl(...args),
   getBuckets: (...args: unknown[]) => mockedGetBuckets.impl(...args),

@@ -844,6 +844,74 @@ export const commonScenarios: readonly SharedScenario[] = [
       expect(firstThreadReplies).toHaveLength(1);
       await expectModelExpectations(ctx.fakeModel, firstKey, firstScript);
 
+      // OpenClaw: owner-listen off makes the owner mention-only, including in
+      // threads the bot already joined (TLON-6818). Hermes keeps the legacy gate.
+      const followOffKey = scenarioKey('thread-follow-off');
+      const followOffReply = `Participated thread follow reply ${followOffKey}`;
+      const followOffScript = driver.model.replyText(followOffReply);
+      const followOffTag = await registerModelScript(
+        ctx.fakeModel,
+        followOffKey,
+        followOffScript
+      );
+      await actors.owner.replyToPost({
+        channelId: fixture.channelId,
+        parentId: secondRoot.id,
+        parentAuthor: secondRoot.authorId,
+        content: `${followOffTag} Follow the participated thread without a mention.`,
+      });
+      const deliveredReplies = [firstReply];
+      if (driver.name === 'openclaw') {
+        await sleep(NEGATIVE_SETTLE_MS);
+        await expectNoModelCalls(ctx.fakeModel, followOffKey);
+        const mutedThread = await actors.owner.state.postWithReplies({
+          channelId: fixture.channelId,
+          rootId: secondRoot.id,
+          rootAuthor: actors.owner.ship,
+        });
+        expect(
+          mutedThread.replies.filter(
+            (reply) => reply.author === normalizeShip(actors.bot.ship)
+          )
+        ).toHaveLength(1);
+      } else {
+        await waitForModelCalls(ctx.fakeModel, followOffKey);
+        const followOffThreadReplies = await waitForThreadReplies(
+          actors.owner,
+          fixture.channelId,
+          secondRoot.id,
+          actors.owner.ship,
+          actors.bot.ship,
+          followOffReply
+        );
+        expect(followOffThreadReplies).toHaveLength(1);
+        await expectModelExpectations(
+          ctx.fakeModel,
+          followOffKey,
+          followOffScript
+        );
+        deliveredReplies.push(followOffReply);
+      }
+
+      const controlKey = scenarioKey('thread-control');
+      await actors.owner.replyToPost({
+        channelId: fixture.channelId,
+        parentId: firstRoot.id,
+        parentAuthor: firstRoot.authorId,
+        content: `[tlon-test:${controlKey}] Do not follow this unparticipated thread.`,
+      });
+      await expectNoBotThreadReply(
+        actors.owner,
+        fixture.channelId,
+        firstRoot.id,
+        actors.owner.ship,
+        actors.bot.ship
+      );
+      await expectNoModelCalls(ctx.fakeModel, controlKey);
+
+      // With owner-listen back on, the owner's unmentioned follow in the
+      // participated thread engages on both drivers.
+      await withSettingsEntry(actors, 'ownerListenEnabled', true);
       const followKey = scenarioKey('thread-follow');
       const followReply = `Participated thread follow reply ${followKey}`;
       const followScript = driver.model.replyText(followReply);
@@ -869,28 +937,13 @@ export const commonScenarios: readonly SharedScenario[] = [
       );
       expect(followThreadReplies).toHaveLength(1);
       await expectModelExpectations(ctx.fakeModel, followKey, followScript);
-
-      const controlKey = scenarioKey('thread-control');
-      await actors.owner.replyToPost({
-        channelId: fixture.channelId,
-        parentId: firstRoot.id,
-        parentAuthor: firstRoot.authorId,
-        content: `[tlon-test:${controlKey}] Do not follow this unparticipated thread.`,
-      });
-      await expectNoBotThreadReply(
-        actors.owner,
-        fixture.channelId,
-        firstRoot.id,
-        actors.owner.ship,
-        actors.bot.ship
-      );
-      await expectNoModelCalls(ctx.fakeModel, controlKey);
+      deliveredReplies.push(followReply);
 
       await expectNoTopLevelBotChannelReplies(
         actors.owner,
         fixture.channelId,
         actors.bot.ship,
-        [firstReply, followReply],
+        deliveredReplies,
         topLevelBaseline
       );
       const thread = await actors.owner.state.postWithReplies({
@@ -898,20 +951,15 @@ export const commonScenarios: readonly SharedScenario[] = [
         rootId: secondRoot.id,
         rootAuthor: actors.owner.ship,
       });
-      const firstSettledReplies = thread.replies.filter(
-        (reply) =>
-          reply.author === normalizeShip(actors.bot.ship) &&
-          reply.text.includes(firstReply)
-      );
-      expect(firstSettledReplies).toHaveLength(1);
-      expect(firstSettledReplies[0]?.parentId).toBe(secondRoot.id);
-      const followSettledReplies = thread.replies.filter(
-        (reply) =>
-          reply.author === normalizeShip(actors.bot.ship) &&
-          reply.text.includes(followReply)
-      );
-      expect(followSettledReplies).toHaveLength(1);
-      expect(followSettledReplies[0]?.parentId).toBe(secondRoot.id);
+      for (const deliveredReply of deliveredReplies) {
+        const settledReplies = thread.replies.filter(
+          (reply) =>
+            reply.author === normalizeShip(actors.bot.ship) &&
+            reply.text.includes(deliveredReply)
+        );
+        expect(settledReplies).toHaveLength(1);
+        expect(settledReplies[0]?.parentId).toBe(secondRoot.id);
+      }
     }
   ),
 

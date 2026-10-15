@@ -52,7 +52,7 @@
   "notes": {
     "summary": "Markdown notebooks and notes",
     "reference": "references/notes.md",
-    "toolGuidance": "Use workspace files; owner-confirmed migration writes are unavailable."
+    "toolGuidance": "Use workspace files; note-publish makes a note public as the owner, so publish only on request; owner-confirmed migration writes are unavailable."
   },
   "posts": {
     "summary": "Post reactions, edits, deletes, and pins",
