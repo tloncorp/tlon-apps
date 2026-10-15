@@ -407,13 +407,12 @@ const scopeCopy: Record<
     saving: 'Saving and restarting your bot…',
   },
   additions: {
-    fieldLabel: 'Your additions',
-    inputLabel: (title) => `Your additions to ${title}`,
+    fieldLabel: 'Additions',
+    inputLabel: (title) => `Additions to ${title}`,
     placeholder: 'Add your own instructions…',
     idle: 'Your bot uses these from its next reply.',
     saving: 'Saving…',
-    description:
-      "Added alongside Tlon's defaults. Tlon's updates never replace them.",
+    description: "Added to Tlon's defaults and kept when Tlon updates them.",
   },
 };
 

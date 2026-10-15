@@ -106,10 +106,11 @@ const byTestID = (tree: ReactTestRenderer, testID: string) =>
 const dialog = (tree: ReactTestRenderer, confirmText: string) =>
   tree.root.find(
     (node) =>
-      node.type === 'ConfirmDialog' && node.props.confirmText === confirmText
+      (node.type as unknown) === 'ConfirmDialog' &&
+      node.props.confirmText === confirmText
   );
 const editorSheets = (tree: ReactTestRenderer) =>
-  tree.root.findAll((node) => node.type === 'EditorSheet');
+  tree.root.findAll((node) => (node.type as unknown) === 'EditorSheet');
 
 function press(tree: ReactTestRenderer, testID: string) {
   act(() => {
@@ -160,6 +161,27 @@ describe('BotPromptFileScreen', () => {
     });
     expect(mocks.save).toHaveBeenCalledWith(`${block}\n`);
     expect(mocks.refresh).toHaveBeenCalled();
+  });
+
+  it("won't reset a file that lost Tlon's block while the dialog was up", async () => {
+    mocks.prompts = [{ name: 'SOUL.md', text: `Call me Captain.\n${block}\n` }];
+    const tree = await render('SOUL.md');
+    press(tree, 'BotPromptFileReset');
+    // Rewritten whole from another device before the reset was confirmed.
+    mocks.prompts = [{ name: 'SOUL.md', text: 'My own soul.\n' }];
+    await act(async () => {
+      tree.update(
+        <BotPromptFileScreen
+          navigation={{ goBack: vi.fn() } as never}
+          route={{ params: { name: 'SOUL.md' } } as never}
+        />
+      );
+    });
+
+    await act(async () => {
+      await dialog(tree, 'Reset').props.onConfirm();
+    });
+    expect(mocks.save).not.toHaveBeenCalled();
   });
 
   it('offers no reset when nothing has been added', async () => {

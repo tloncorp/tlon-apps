@@ -50,7 +50,7 @@ export function sortPromptFiles<T extends { name: string }>(prompts: T[]) {
  * The files an owner may add to from bot settings. The rest carry what the
  * bot needs to work, and Tlon has to be able to keep changing them.
  */
-const EDITABLE_PROMPT_FILES = new Set(['SOUL.md', 'IDENTITY.md', 'USER.md']);
+const EDITABLE_PROMPT_FILES = new Set(['SOUL.md', 'IDENTITY.md']);
 
 // Tlon's prompt sync owns these blocks: on every gateway start it replaces
 // each one with the published prompt set's, and keeps whatever is outside
@@ -59,6 +59,8 @@ const EDITABLE_PROMPT_FILES = new Set(['SOUL.md', 'IDENTITY.md', 'USER.md']);
 const MANAGED_BLOCK =
   /<!-- idempotency-marker:[^\s]+ -->\n[\s\S]*?\n<!-- \/idempotency-marker -->/g;
 const STRAY_MARKER = /<!-- idempotency-marker:[^\s]+ -->\n?/g;
+const ANY_MARKER =
+  /<!-- (?:idempotency-marker:[^\s]+|\/idempotency-marker) -->/g;
 const MARKER_LINE =
   /^<!-- (?:idempotency-marker:[^\s]+|\/idempotency-marker) -->\n?/gm;
 
@@ -82,10 +84,12 @@ export function splitPromptFile(text: string): PromptFileParts {
 
 /**
  * The file with its additions replaced and Tlon's blocks kept verbatim, laid
- * out the way the sync writes it so that its next run changes nothing.
+ * out the way the sync writes it so that its next run changes nothing. Marker
+ * comments in the additions are dropped: the sync would take them for one of
+ * its own blocks and delete what they enclose.
  */
 export function joinPromptFile(text: string, additions: string) {
-  const own = trimNewlines(additions);
+  const own = trimNewlines(additions.replace(ANY_MARKER, ''));
   return [own, ...splitPromptFile(text).managedBlocks]
     .filter(Boolean)
     .join('\n')

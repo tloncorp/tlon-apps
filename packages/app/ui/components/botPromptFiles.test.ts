@@ -102,6 +102,18 @@ describe('joinPromptFile', () => {
     }
   });
 
+  it('drops marker comments from additions so the sync cannot take them', () => {
+    const pasted = `Keep me.\n<!-- idempotency-marker:mine -->\nAnd me.\n<!-- /idempotency-marker -->`;
+    const saved = joinPromptFile(fresh, pasted);
+    expect(splitPromptFile(saved)).toEqual({
+      managedBlocks: [block],
+      additions: 'Keep me.\n\nAnd me.',
+    });
+    expect(splitPromptFile(syncUpsert(saved, published)).additions).toBe(
+      'Keep me.\n\nAnd me.'
+    );
+  });
+
   it('writes additions that survive a sync publishing a new block', () => {
     const updated = published.replace('tlon-runtime:v10', 'tlon-runtime:v11');
     const synced = syncUpsert(
@@ -123,13 +135,19 @@ describe('promptDisplayText', () => {
 
 describe('promptFileAccess', () => {
   it('keeps the files Tlon must maintain read-only', () => {
-    for (const name of ['AGENTS.md', 'TOOLS.md', 'BOOTSTRAP.md', 'NEW.md']) {
+    for (const name of [
+      'AGENTS.md',
+      'TOOLS.md',
+      'BOOTSTRAP.md',
+      'USER.md',
+      'NEW.md',
+    ]) {
       expect(promptFileAccess(name, fresh)).toEqual({ kind: 'read-only' });
     }
   });
 
-  it('lets the owner add to personality, identity and about you', () => {
-    for (const name of ['SOUL.md', 'IDENTITY.md', 'USER.md']) {
+  it('lets the owner add to personality and identity', () => {
+    for (const name of ['SOUL.md', 'IDENTITY.md']) {
       expect(promptFileAccess(name, `Mine.\n${block}\n`)).toEqual({
         kind: 'additions',
         additions: 'Mine.',

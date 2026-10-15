@@ -142,7 +142,13 @@ export function BotPromptFileScreen(props: Props) {
 
   const handleReset = useCallback(async () => {
     const current = latestPromptRef.current;
-    if (!current || resetting) {
+    // A file that lost Tlon's blocks while the confirmation was up would
+    // reset to nothing at all.
+    if (
+      !current ||
+      resetting ||
+      promptFileAccess(current.name, current.text).kind !== 'additions'
+    ) {
       return;
     }
     setResetting(true);
@@ -183,8 +189,8 @@ export function BotPromptFileScreen(props: Props) {
     body = (
       <>
         <BotSettingsSection
-          title="Your additions"
-          description="Tlon's updates never replace your additions."
+          title="Additions"
+          description="Kept when Tlon updates the defaults."
         >
           {additions ? (
             <PromptText text={additions} testID="BotPromptFileAdditions" />
@@ -300,7 +306,7 @@ export function BotPromptFileScreen(props: Props) {
         onOpenChange={handleDialogOpenChange}
         destructive
         title="Reset to default?"
-        description="This removes everything you added. Tlon's defaults stay."
+        description="This removes all additions, including any your bot made. Tlon's defaults stay."
         confirmText="Reset"
         onConfirm={handleReset}
       />
