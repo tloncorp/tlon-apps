@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('Members row appears with correct defaults when enabling Custom Permissions', async ({
+test('Everyone can see and post by default on channel permissions', async ({
   zodPage,
 }) => {
   const page = zodPage;
@@ -27,24 +27,9 @@ test('Members row appears with correct defaults when enabling Custom Permissions
     timeout: 5000,
   });
 
-  // Toggle Custom Permissions on
-  const privateToggle = page.getByTestId('PrivateChannelToggle');
-  const isEnabled = await privateToggle.getAttribute('aria-checked');
-  if (isEnabled !== 'true') {
-    await privateToggle.click();
-  }
-
-  // Members can see and post by default, and admins always can
-  for (const id of [
-    'ReadToggle-Members',
-    'WriteToggle-Members',
-    'ReadToggle-Admin',
-    'WriteToggle-Admin',
-  ]) {
-    await expect(page.getByTestId(id)).toHaveAttribute('aria-checked', 'true', {
-      timeout: 5000,
-    });
-  }
+  // Everyone can see and post until someone picks otherwise
+  await helpers.expectAccessLevel(page, 'Everyone', 'Can post');
+  await expect(page.getByText('Everyone can see and post.')).toBeVisible();
 
   // A role can be made from here
   await expect(page.getByTestId('ChannelPermissionsNewRole')).toBeVisible();

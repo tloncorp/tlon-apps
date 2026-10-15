@@ -1,7 +1,8 @@
-import { Icon, Pressable, Text } from '@tloncorp/ui';
+import { Picker } from '@react-native-picker/picker';
+import { Icon, Pressable, Text, desktopTypeStyles } from '@tloncorp/ui';
 import { Fragment } from 'react';
-import { Switch } from 'react-native';
-import { XStack } from 'tamagui';
+import { Switch, type TextStyle } from 'react-native';
+import { XStack, getConfig, useTheme } from 'tamagui';
 
 import { Badge } from '../Badge';
 import { TextInput } from '../Form';
@@ -79,12 +80,13 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
     !isChoice &&
     (row.accessory ?? 'chevron') === 'chevron';
   // A row with nothing to open has no pressable wrapper to carry its test ID:
-  // a toggle's goes on the switch, any other row's on the row itself.
+  // a toggle's goes on the switch, a picker's on its select, any other row's
+  // on the row itself.
   const unwrappedTestID = row.onPress ? undefined : row.testID;
   const content = (
     <ListItem
       opacity={row.disabled ? 0.6 : 1}
-      testID={row.toggle ? undefined : unwrappedTestID}
+      testID={row.toggle || row.picker ? undefined : unwrappedTestID}
     >
       <SettingsRowLeading row={row} />
       <ListItem.MainContent>
@@ -124,6 +126,7 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
             {row.value}
           </Text>
         ) : null}
+        {row.picker ? <RowPicker row={row} /> : null}
         {row.toggle ? (
           <Switch
             value={row.toggle.value}
@@ -178,5 +181,63 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
     >
       {content}
     </Pressable>
+  );
+}
+
+// Drops the browser's own select arrow and focus ring. React Native's style
+// types do not list these CSS properties; react-native-web passes them on.
+const bareSelectStyle = {
+  appearance: 'none',
+  outlineStyle: 'none',
+} as unknown as TextStyle;
+
+/**
+ * A picker row's choice, as a bare `<select>` in the value's place, with its
+ * own chevron.
+ */
+function RowPicker({ row }: { row: SettingsRowModel }) {
+  const theme = useTheme();
+  const picker = row.picker!;
+  return (
+    <XStack alignItems="center" position="relative">
+      <Picker
+        accessibilityLabel={row.title}
+        selectedValue={picker.value}
+        onValueChange={(value) => picker.onChange(String(value))}
+        testID={row.testID}
+        style={[
+          {
+            borderWidth: 0,
+            // The open list of options takes these too, so it follows the
+            // app's theme rather than the system's.
+            backgroundColor: theme.background.val,
+            color: theme.tertiaryText.val,
+            fontFamily: String(getConfig().fonts.body?.family),
+            fontSize: desktopTypeStyles['$label/m'].fontSize,
+            textAlign: 'right',
+            // Clears the chevron.
+            paddingRight: 22,
+            cursor: 'pointer',
+          },
+          bareSelectStyle,
+        ]}
+      >
+        {picker.options.map((option) => (
+          <Picker.Item
+            key={option.value}
+            label={option.title}
+            value={option.value}
+          />
+        ))}
+      </Picker>
+      <Icon
+        type="ChevronDown"
+        size="$s"
+        color="$tertiaryText"
+        position="absolute"
+        right={0}
+        pointerEvents="none"
+      />
+    </XStack>
   );
 }

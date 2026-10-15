@@ -1108,62 +1108,40 @@ export async function deleteChannel(
     .click();
 }
 
+const accessLevelValues = {
+  'No access': '0',
+  'Can view': '1',
+  'Can post': '2',
+  'Can view and edit': '2',
+} as const;
+
+type AccessLevel = keyof typeof accessLevelValues;
+
 /**
- * Ticks or unticks one of the channel permission checklists' rows.
+ * Picks an access level on the channel permissions screen, for 'Everyone' or
+ * a role by its title. A role only has a choice while everyone has less than
+ * full access, so set Everyone first.
  */
-async function setPermissionChoice(page: Page, testId: string, on: boolean) {
-  const row = page.getByTestId(testId);
-  await expect(row).toBeVisible();
-  if ((await row.getAttribute('aria-checked')) !== String(on)) {
-    await row.click();
-  }
-  await expect(row).toHaveAttribute('aria-checked', String(on));
+export async function setAccessLevel(
+  page: Page,
+  who: string,
+  level: AccessLevel
+) {
+  const picker = page.getByTestId(`AccessLevel-${who}`);
+  await expect(picker).toBeVisible();
+  await picker.selectOption(accessLevelValues[level]);
+  await expect(picker).toHaveValue(accessLevelValues[level]);
 }
 
-/**
- * Sets channel permissions for reader and writer roles
- */
-export async function setChannelPermissions(
+/** Checks the access level picked for 'Everyone' or a role. */
+export async function expectAccessLevel(
   page: Page,
-  readerRoles?: string[],
-  writerRoles?: string[],
-  keepMembers?: boolean
+  who: string,
+  level: AccessLevel
 ) {
-  if (readerRoles && readerRoles.length > 0) {
-    const privateToggle = page.getByTestId('PrivateChannelToggle');
-    if ((await privateToggle.getAttribute('aria-checked')) !== 'true') {
-      await privateToggle.click();
-    }
-    await expect(page.getByText('Who can see it')).toBeVisible();
-
-    // Turning on custom permissions lets members see the channel; keep them
-    // only when asked to.
-    if (
-      !keepMembers &&
-      !readerRoles.some((r) => r.toLowerCase() === 'members')
-    ) {
-      await setPermissionChoice(page, 'ReadToggle-Members', false);
-    }
-    for (const role of readerRoles) {
-      if (role.toLowerCase() === 'admin') continue;
-      await setPermissionChoice(page, `ReadToggle-${role}`, true);
-    }
-  }
-
-  if (writerRoles && writerRoles.length > 0) {
-    for (const role of writerRoles) {
-      if (role.toLowerCase() === 'admin') continue;
-      // A notes channel has one list for both.
-      const writeToggle = page.getByTestId(`WriteToggle-${role}`);
-      await setPermissionChoice(
-        page,
-        (await writeToggle.count()) > 0
-          ? `WriteToggle-${role}`
-          : `ReadToggle-${role}`,
-        true
-      );
-    }
-  }
+  await expect(page.getByTestId(`AccessLevel-${who}`)).toHaveValue(
+    accessLevelValues[level]
+  );
 }
 
 /**

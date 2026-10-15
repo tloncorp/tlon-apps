@@ -1,14 +1,17 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createChannel, useGroup } from '@tloncorp/shared';
-import { notesPermissionsCompatActive } from '@tloncorp/shared/logic/notesPermissionsCompat';
 import { useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import {
+  type ChannelAccess,
+  channelAccessSections,
+  withCreatedRole,
+} from '../../ui/components/ManageChannels/channelAccessSections';
 import { processFinalPermissions } from '../../ui/components/ManageChannels/channelFormUtils';
-import { channelPermissionSections } from '../../ui/components/ManageChannels/channelPermissionSections';
 import {
   SETTINGS_LIST_COLUMN_WIDTH,
   SettingsListScreenView,
@@ -31,7 +34,6 @@ export function CreateChannelPermissionsScreen() {
   const [isCreating, setIsCreating] = useState(false);
 
   const { groupId, channelTitle, channelType, createdRoleId } = route.params;
-  const usesNotesPermissionsCompat = notesPermissionsCompatActive(channelType);
 
   const { data: group } = useGroup({ id: groupId });
 
@@ -45,23 +47,28 @@ export function CreateChannelPermissionsScreen() {
     },
   });
 
+  const isPrivate = useWatch({ control: form.control, name: 'isPrivate' });
   const readers = useWatch({ control: form.control, name: 'readers' });
   const writers = useWatch({ control: form.control, name: 'writers' });
 
-  // Handle newly created role returned from AddRole screen
+  const handleAccessChange = useCallback(
+    (access: ChannelAccess) => {
+      form.setValue('isPrivate', access.isPrivate, { shouldDirty: true });
+      form.setValue('readers', access.readers, { shouldDirty: true });
+      form.setValue('writers', access.writers, { shouldDirty: true });
+    },
+    [form]
+  );
+
+  // A role made from here comes back with access of its own.
   useEffect(() => {
     if (!createdRoleId) return;
-    const currentReaders = form.getValues('readers');
-    if (!currentReaders.includes(createdRoleId)) {
-      const base = currentReaders.includes('admin')
-        ? currentReaders
-        : ['admin', ...currentReaders];
-      form.setValue('readers', [...base, createdRoleId]);
-      if (usesNotesPermissionsCompat) {
-        form.setValue('writers', [...base, createdRoleId]);
-      }
+    const current = form.getValues();
+    const next = withCreatedRole(current, createdRoleId, channelType);
+    if (next !== current) {
+      handleAccessChange(next);
     }
-  }, [createdRoleId, form, usesNotesPermissionsCompat]);
+  }, [channelType, createdRoleId, form, handleAccessChange]);
 
   const handleCreateRole = useCallback(() => {
     navigation.navigate('AddRole', {
@@ -70,14 +77,6 @@ export function CreateChannelPermissionsScreen() {
       returnParams: { groupId, channelTitle, channelType },
     });
   }, [navigation, groupId, channelTitle, channelType]);
-
-  const handlePermissionsChange = useCallback(
-    ({ readers, writers }: { readers: string[]; writers: string[] }) => {
-      form.setValue('readers', readers, { shouldDirty: true });
-      form.setValue('writers', writers, { shouldDirty: true });
-    },
-    [form]
-  );
 
   const handleCreateChannel = useCallback(async () => {
     const {
@@ -120,12 +119,13 @@ export function CreateChannelPermissionsScreen() {
       title="Channel permissions"
       sections={
         group
-          ? channelPermissionSections({
+          ? channelAccessSections({
               groupRoles: group.roles ?? [],
               channelType,
+              isPrivate,
               readers,
               writers,
-              onChange: handlePermissionsChange,
+              onChange: handleAccessChange,
               onCreateRole: handleCreateRole,
             })
           : []

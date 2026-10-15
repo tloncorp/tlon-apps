@@ -1,19 +1,19 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { notesPermissionsCompatActive } from '@tloncorp/shared/logic/notesPermissionsCompat';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { Platform } from 'react-native';
 
 import { useChannelEditScreen } from '../../hooks/useChannelEditScreen';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
-  MEMBERS_MARKER,
+  type ChannelAccess,
+  channelAccessSections,
+  withCreatedRole,
+} from '../../ui/components/ManageChannels/channelAccessSections';
+import {
   getChannelPrivacyDefaults,
   processFinalPermissions,
 } from '../../ui/components/ManageChannels/channelFormUtils';
-import { channelAccessSections } from '../../ui/components/ManageChannels/channelAccessSections';
-import { channelPermissionSections } from '../../ui/components/ManageChannels/channelPermissionSections';
 import {
   SETTINGS_LIST_COLUMN_WIDTH,
   type SettingsSectionModel,
@@ -47,11 +47,6 @@ export function EditChannelPrivacyScreen(props: Props) {
   const readers = useWatch({ control: form.control, name: 'readers' });
   const writers = useWatch({ control: form.control, name: 'writers' });
   const isWindowNarrow = useIsWindowNarrow();
-  // Prototype: one access level per role, from a native menu, on iOS.
-  const accessLevels = Platform.OS === 'ios';
-  const usesNotesPermissionsCompat = notesPermissionsCompatActive(
-    channel?.type
-  );
   const { isDirty } = form.formState;
   const channelIdRef = useRef(channel?.id);
 
@@ -70,48 +65,8 @@ export function EditChannelPrivacyScreen(props: Props) {
     }
   }, [channel, form, isDirty]);
 
-  // Handle newly created role returned from AddRole screen
-  useEffect(() => {
-    if (!createdRoleId) return;
-    if (accessLevels) {
-      // Prototype: the new role starts one step above everyone; on an open
-      // channel it is simply the same as everyone.
-      const current = form.getValues();
-      if (!current.isPrivate) return;
-      const everyoneSees = current.readers.includes(MEMBERS_MARKER);
-      form.setValue(
-        'readers',
-        [...new Set([...current.readers, createdRoleId])],
-        { shouldDirty: true }
-      );
-      if (everyoneSees || usesNotesPermissionsCompat) {
-        form.setValue(
-          'writers',
-          [...new Set([...current.writers, createdRoleId])],
-          { shouldDirty: true }
-        );
-      }
-      return;
-    }
-    const currentReaders = form.getValues('readers');
-    if (!currentReaders.includes(createdRoleId)) {
-      const base = currentReaders.includes('admin')
-        ? currentReaders
-        : ['admin', ...currentReaders];
-      form.setValue('readers', [...base, createdRoleId], {
-        shouldDirty: true,
-      });
-      if (usesNotesPermissionsCompat) {
-        form.setValue('writers', [...base, createdRoleId], {
-          shouldDirty: true,
-        });
-      }
-      form.setValue('isPrivate', true, { shouldDirty: true });
-    }
-  }, [accessLevels, createdRoleId, form, usesNotesPermissionsCompat]);
-
   const handleAccessChange = useCallback(
-    (access: { isPrivate: boolean; readers: string[]; writers: string[] }) => {
+    (access: ChannelAccess) => {
       form.setValue('isPrivate', access.isPrivate, { shouldDirty: true });
       form.setValue('readers', access.readers, { shouldDirty: true });
       form.setValue('writers', access.writers, { shouldDirty: true });
@@ -119,23 +74,15 @@ export function EditChannelPrivacyScreen(props: Props) {
     [form]
   );
 
-  const handleTogglePrivate = useCallback(
-    (value: boolean) => {
-      form.setValue('isPrivate', value, { shouldDirty: true });
-      if (value) {
-        form.setValue('readers', ['admin', MEMBERS_MARKER], {
-          shouldDirty: true,
-        });
-        form.setValue('writers', ['admin', MEMBERS_MARKER], {
-          shouldDirty: true,
-        });
-      } else {
-        form.setValue('readers', [], { shouldDirty: true });
-        form.setValue('writers', [], { shouldDirty: true });
-      }
-    },
-    [form]
-  );
+  // A role made from here comes back with access of its own.
+  useEffect(() => {
+    if (!createdRoleId) return;
+    const current = form.getValues();
+    const next = withCreatedRole(current, createdRoleId, channel?.type);
+    if (next !== current) {
+      handleAccessChange(next);
+    }
+  }, [channel?.type, createdRoleId, form, handleAccessChange]);
 
   const handleCreateRole = useCallback(() => {
     navigation.navigate('AddRole', {
@@ -144,14 +91,6 @@ export function EditChannelPrivacyScreen(props: Props) {
       returnParams: { groupId, channelId, fromChatDetails },
     });
   }, [navigation, groupId, channelId, fromChatDetails]);
-
-  const handlePermissionsChange = useCallback(
-    ({ readers, writers }: { readers: string[]; writers: string[] }) => {
-      form.setValue('readers', readers, { shouldDirty: true });
-      form.setValue('writers', writers, { shouldDirty: true });
-    },
-    [form]
-  );
 
   const handleSave = useCallback(() => {
     if (!channel) return;
@@ -172,8 +111,8 @@ export function EditChannelPrivacyScreen(props: Props) {
     handleGoBack();
   }, [channel, form, updateChannel, handleGoBack]);
 
-  const sections: SettingsSectionModel[] = accessLevels
-    ? group && channel
+  const sections: SettingsSectionModel[] =
+    group && channel
       ? channelAccessSections({
           groupRoles: group.roles ?? [],
           channelType: channel.type,
@@ -183,33 +122,7 @@ export function EditChannelPrivacyScreen(props: Props) {
           onChange: handleAccessChange,
           onCreateRole: handleCreateRole,
         })
-      : []
-    : [
-        {
-          key: 'custom',
-          footer: isPrivate
-            ? 'Only the roles you choose can see this channel.'
-            : 'Everyone in the group can see and post in this channel.',
-          rows: [
-            {
-              key: 'custom',
-              title: 'Custom permissions',
-              toggle: { value: isPrivate, onValueChange: handleTogglePrivate },
-              testID: 'PrivateChannelToggle',
-            },
-          ],
-        },
-        ...(isPrivate && group && channel
-          ? channelPermissionSections({
-              groupRoles: group.roles ?? [],
-              channelType: channel.type,
-              readers,
-              writers,
-              onChange: handlePermissionsChange,
-              onCreateRole: handleCreateRole,
-            })
-          : []),
-      ];
+      : [];
 
   return (
     <SettingsListScreenView

@@ -154,15 +154,24 @@ function PlainRow({
   row: SettingsRowModel;
   colors: SettingsListColors;
 }) {
-  // Long-press actions open a menu anchored to the row.
+  // Long-press actions, or a picker's choices on a tap, open a menu anchored
+  // to the row.
   const [menuOpen, setMenuOpen] = useState(false);
+  const picker = row.picker;
   const actions = row.contextActions ?? [];
-  const onClick = row.toggle
-    ? () => row.toggle?.onValueChange(!row.toggle.value)
-    : row.onPress;
+  const onClick = picker
+    ? () => setMenuOpen(true)
+    : row.toggle
+      ? () => row.toggle?.onValueChange(!row.toggle.value)
+      : row.onPress;
   const onLongClick = actions.length ? () => setMenuOpen(true) : undefined;
+  const pickedTitle = picker?.options.find(
+    (option) => option.value === picker.value
+  )?.title;
   // Material shows a setting's value as the line under its title.
-  const supporting = [row.subtitle, row.value].filter(Boolean).join(' · ');
+  const supporting = [row.subtitle, row.value ?? pickedTitle]
+    .filter(Boolean)
+    .join(' · ');
   const isChoice = row.selected !== undefined;
 
   const content = (
@@ -274,6 +283,40 @@ function PlainRow({
       ) : null}
     </Row>
   );
+
+  if (picker) {
+    return (
+      <DropdownMenu
+        expanded={menuOpen}
+        onDismissRequest={() => setMenuOpen(false)}
+      >
+        <DropdownMenu.Trigger>{content}</DropdownMenu.Trigger>
+        <DropdownMenu.Items>
+          {picker.options.map((option) => (
+            <DropdownMenuItem
+              key={option.value}
+              onClick={() => {
+                setMenuOpen(false);
+                picker.onChange(option.value);
+              }}
+            >
+              <DropdownMenuItem.Text>
+                <Text
+                  color={
+                    option.value === picker.value
+                      ? colors.accent
+                      : colors.primaryText
+                  }
+                >
+                  {option.title}
+                </Text>
+              </DropdownMenuItem.Text>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenu.Items>
+      </DropdownMenu>
+    );
+  }
 
   if (!actions.length) {
     return content;

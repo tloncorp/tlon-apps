@@ -7,7 +7,7 @@ import type {
 } from '../SettingsList/types';
 import { MEMBERS_MARKER } from './channelFormUtils';
 
-interface Access {
+export interface ChannelAccess {
   isPrivate: boolean;
   readers: string[];
   writers: string[];
@@ -31,10 +31,10 @@ export function channelAccessSections({
   writers,
   onChange,
   onCreateRole,
-}: Access & {
+}: ChannelAccess & {
   groupRoles: db.GroupRole[];
   channelType?: string | null;
-  onChange: (access: Access) => void;
+  onChange: (access: ChannelAccess) => void;
   onCreateRole?: () => void;
 }): SettingsSectionModel[] {
   const notes = notesPermissionsCompatActive(channelType ?? undefined);
@@ -195,4 +195,27 @@ export function channelAccessSections({
       ],
     },
   ];
+}
+
+/**
+ * Gives a role made from a permissions screen one step more access than
+ * everyone has, so it shows up as a choice made. On a channel everyone can
+ * post in, there is no step above, so it changes nothing.
+ */
+export function withCreatedRole(
+  access: ChannelAccess,
+  roleId: string,
+  channelType?: string | null
+): ChannelAccess {
+  if (!access.isPrivate || access.readers.includes(roleId)) {
+    return access;
+  }
+  const notes = notesPermissionsCompatActive(channelType ?? undefined);
+  const everyoneSees = access.readers.includes(MEMBERS_MARKER);
+  return {
+    isPrivate: true,
+    readers: [...access.readers, roleId],
+    writers:
+      notes || everyoneSees ? [...access.writers, roleId] : access.writers,
+  };
 }
