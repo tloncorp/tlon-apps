@@ -23,6 +23,11 @@ describe('resolveOwnerOnlyToolBlock', () => {
     'browser_browser_act',
     'browser_browser_session_create',
     'browser_browser_session_list',
+    'browser_login',
+    'browser_snapshot',
+    'browser_act',
+    'browser_session_create',
+    'browser_session_list',
   ])('protects shared browser operation %s from non-owner sessions', (name) => {
     expect(
       resolveOwnerOnlyToolBlock('mcp__call', 'user', { name })

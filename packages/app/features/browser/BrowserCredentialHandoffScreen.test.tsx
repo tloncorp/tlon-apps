@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-native', () => ({
   Linking: { openURL: mocks.openURL },
   Keyboard: { dismiss: vi.fn() },
+  Switch: 'Switch',
 }));
 vi.mock('@tloncorp/ui', () => ({
   Button: 'Button',
@@ -246,14 +247,14 @@ describe('secure browser form screen', () => {
     });
     const { renderer } = await render();
     const checkbox = renderer.root.findByProps({
-      accessibilityRole: 'checkbox',
+      accessibilityLabel: 'Save login for this bot',
     });
-    expect(checkbox.props.accessibilityState.checked).toBe(false);
+    expect(checkbox.props.value).toBe(false);
     expect(mocks.authorize).not.toHaveBeenCalled();
     await act(async () => {
       enter(renderer, username.label, 'private-user');
       enter(renderer, password.label, 'private-password');
-      checkbox.props.onPress();
+      checkbox.props.onValueChange(true);
     });
     expect(JSON.stringify(renderer.toJSON())).not.toContain(
       'previously-saved-user'
@@ -477,12 +478,13 @@ describe('secure browser form screen', () => {
       enter(renderer, username.label, 'private-user');
       enter(renderer, password.label, 'private-password');
       renderer.root
-        .findByProps({ accessibilityRole: 'checkbox' })
-        .props.onPress();
+        .findByProps({ accessibilityLabel: 'Save login for this bot' })
+        .props.onValueChange(true);
     });
     expect(
-      renderer.root.findByProps({ accessibilityRole: 'switch' }).props
-        .accessibilityState.checked
+      renderer.root.findByProps({
+        accessibilityLabel: 'Allow automatic sign-in',
+      }).props.value
     ).toBe(false);
     await press(renderer);
     expect(mocks.submitCredentials.mock.calls[0][1].save.permission).toBe(
@@ -498,11 +500,13 @@ describe('secure browser form screen', () => {
       enter(renderer, username.label, 'private-user');
       enter(renderer, password.label, 'private-password');
       renderer.root
-        .findByProps({ accessibilityRole: 'checkbox' })
-        .props.onPress();
+        .findByProps({ accessibilityLabel: 'Save login for this bot' })
+        .props.onValueChange(true);
     });
     act(() =>
-      renderer.root.findByProps({ accessibilityRole: 'switch' }).props.onPress()
+      renderer.root
+        .findByProps({ accessibilityLabel: 'Allow automatic sign-in' })
+        .props.onValueChange(true)
     );
     await press(renderer);
     expect(mocks.submitCredentials.mock.calls[0][1].save.permission).toBe(
@@ -529,13 +533,14 @@ describe('secure browser form screen', () => {
     await act(async () => {
       enter(renderer, username.label, 'private-user');
       renderer.root
-        .findByProps({ accessibilityRole: 'checkbox' })
-        .props.onPress();
+        .findByProps({ accessibilityLabel: 'Save login for this bot' })
+        .props.onValueChange(true);
     });
     await press(renderer);
     expect(
-      renderer.root.findByProps({ accessibilityRole: 'checkbox' }).props
-        .accessibilityState.checked
+      renderer.root.findByProps({
+        accessibilityLabel: 'Save login for this bot',
+      }).props.value
     ).toBe(true);
     act(() => enter(renderer, password.label, 'private-password'));
     await press(renderer);
@@ -606,8 +611,8 @@ describe('secure browser form screen', () => {
       enter(renderer, username.label, 'private-user');
       enter(renderer, password.label, 'private-password');
       renderer.root
-        .findByProps({ accessibilityRole: 'checkbox' })
-        .props.onPress();
+        .findByProps({ accessibilityLabel: 'Save login for this bot' })
+        .props.onValueChange(true);
     });
     await press(renderer);
     expect(
@@ -692,8 +697,8 @@ describe('secure browser form screen', () => {
         else
           await act(async () =>
             renderer.root
-              .findByProps({ accessibilityRole: 'checkbox' })
-              .props.onPress()
+              .findByProps({ accessibilityLabel: 'Save login for this bot' })
+              .props.onValueChange(true)
           );
         act(() => enter(renderer, username.label, 'private-user'));
       }
@@ -704,8 +709,9 @@ describe('secure browser form screen', () => {
           .value
       ).toBe('');
       expect(
-        renderer.root.findByProps({ accessibilityRole: 'checkbox' }).props
-          .accessibilityState.checked
+        renderer.root.findByProps({
+          accessibilityLabel: 'Save login for this bot',
+        }).props.value
       ).toBe(false);
       expect(JSON.stringify(renderer.toJSON())).toContain(
         'You can still enter your login.'
@@ -756,7 +762,9 @@ describe('secure browser form screen', () => {
       await press(renderer);
       expect(mocks.authorize).toHaveBeenCalledOnce();
       expect(
-        renderer.root.findAllByProps({ accessibilityRole: 'checkbox' })
+        renderer.root.findAllByProps({
+          accessibilityLabel: 'Save login for this bot',
+        })
       ).toHaveLength(0);
       expect(
         renderer.root.findByProps({ label: 'Continue' }).props.disabled
@@ -796,8 +804,8 @@ describe('secure browser form screen', () => {
       await act(async () => {
         enter(renderer, username.label, 'private-user');
         renderer.root
-          .findByProps({ accessibilityRole: 'checkbox' })
-          .props.onPress();
+          .findByProps({ accessibilityLabel: 'Save login for this bot' })
+          .props.onValueChange(true);
       });
       await press(renderer);
       expect(mocks.complete).not.toHaveBeenCalled();
@@ -821,8 +829,9 @@ describe('secure browser form screen', () => {
         )
       ).toBe(keepConsent);
       expect(
-        renderer.root.findByProps({ accessibilityRole: 'checkbox' }).props
-          .accessibilityState.checked
+        renderer.root.findByProps({
+          accessibilityLabel: 'Save login for this bot',
+        }).props.value
       ).toBe(keepConsent);
       act(() => enter(renderer, password.label, 'private-password'));
       await press(renderer);

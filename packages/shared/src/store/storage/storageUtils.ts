@@ -1,6 +1,5 @@
 import * as api from '@tloncorp/api';
 import { StorageConfiguration } from '@tloncorp/api';
-import { getMemexBaseUrl } from '@tloncorp/api/client/memex';
 import { base, scryRequest } from '@tloncorp/api/client/requests';
 import { desig } from '@tloncorp/api/lib/urbit';
 import { StorageCredentials } from '@tloncorp/api/urbit';
@@ -95,6 +94,8 @@ export async function getObjectStorageMethod(): Promise<
   }
 }
 
+const MEMEX_BASE_URL = 'https://memex.tlon.network';
+
 export interface MemexUploadParams {
   token: string;
   contentLength: number;
@@ -115,7 +116,7 @@ export const getMemexUpload = async (
     ...params,
   };
 
-  const endpoint = `${getMemexBaseUrl()}/v1/${desig(currentUser)}/upload`;
+  const endpoint = `${MEMEX_BASE_URL}/v1/${desig(currentUser)}/upload`;
   const response = await fetch(`${endpoint}`, {
     method: 'PUT',
     headers: {
@@ -172,7 +173,7 @@ export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
     throw new Error('Failed to get secret', { cause: e });
   });
 
-  const endpoint = `${getMemexBaseUrl()}/v1/${desig(currentUser)}/storage-info`;
+  const endpoint = `${MEMEX_BASE_URL}/v1/${desig(currentUser)}/storage-info`;
   const response = await fetch(`${endpoint}`, {
     method: 'GET',
     headers: {
@@ -202,7 +203,7 @@ export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
 
 export const getHostingUploadURL = async () => {
   const isHosted = api.getCurrentUserIsHosted();
-  return isHosted ? getMemexBaseUrl() : '';
+  return isHosted ? MEMEX_BASE_URL : '';
 };
 
 export const downloadImageForWeb = async (uri: string) => {

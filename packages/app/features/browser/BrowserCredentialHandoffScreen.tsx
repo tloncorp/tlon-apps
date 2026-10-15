@@ -1,11 +1,10 @@
-import { openBrowserViewerWindow } from './browserViewerWindow';
-import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import type {
   BrowserLoginChoice,
   SavedBrowserLogin,
 } from '@tloncorp/api/client/browserVault';
+import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Keyboard } from 'react-native';
+import { Keyboard, Switch } from 'react-native';
 import { ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/types';
@@ -19,16 +18,17 @@ import {
   type BrowserCredentialHandoff,
   type BrowserSecureField,
   BrowserFormError,
+  authorizeBrowserLogins,
+  authorizeBrowserViewer,
   beginBrowserCredentialHandoff,
   cancelBrowserCredentialHandoff,
   nextBrowserCredentialHandoff,
   submitBrowserCredentials,
   supportsSavedLogins,
-  authorizeBrowserViewer,
   trustedBrowserViewerUrl,
   validBrowserFormValues,
-  authorizeBrowserLogins,
 } from './browserCredentialHandoff';
+import { openBrowserViewerWindow } from './browserViewerWindow';
 import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffProvider';
 import { BrowserViewerModal } from './BrowserViewerModal';
 
@@ -36,6 +36,13 @@ type Props = {
   navigation: { goBack(): void; isFocused(): boolean };
   route: { params: BrowserCredentialHandoffParams };
 };
+
+const SAVE_NOTICES = {
+  saved: 'Login saved for this bot.',
+  pending: 'Continue to the password step to save this login.',
+  failed: 'Your login was entered, but could not be saved.',
+};
+
 function errorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
@@ -195,7 +202,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     handoffId: string;
   }>();
   const [error, setError] = useState<string>();
-  const [authorization, setVaultAuth] = useState<{
+  const [authorization, setAuthorization] = useState<{
     fillUrl: string;
     grant: string;
     accounts: SavedBrowserLogin[];
@@ -210,16 +217,8 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     mode: 'use' | 'update';
     record: BrowserLoginChoice;
   }>();
-  const [saveStatus, setSaveStatus] = useState<
-    'saved' | 'pending' | 'failed'
-  >();
-  const saveNotice = saveStatus
-    ? saveStatus === 'saved'
-      ? 'Login saved for this bot.'
-      : saveStatus === 'pending'
-        ? 'Continue to the password step to save this login.'
-        : 'Your login was entered, but could not be saved.'
-    : undefined;
+  const [saveStatus, setSaveStatus] = useState<keyof typeof SAVE_NOTICES>();
+  const saveNotice = saveStatus ? SAVE_NOTICES[saveStatus] : undefined;
   const { resolve, complete, discard } = useBrowserCredentialHandoff();
   const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
@@ -271,7 +270,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   }, []);
 
   useEffect(() => {
-    setVaultAuth(undefined);
+    setAuthorization(undefined);
     if (!handoff || !vaultEligible || (!vaultRequested && !approvingSavedLogin))
       return;
     setVaultError(undefined);
@@ -279,7 +278,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     void authorizeBrowserLogins(handoff, controller.signal)
       .then((result) => {
         if (controller.signal.aborted) return;
-        setVaultAuth({ ...result, fillUrl: handoff.fillUrl });
+        setAuthorization({ ...result, fillUrl: handoff.fillUrl });
         if (approvingSavedLogin) {
           const requested = loginApproval?.record;
           const account = requested
@@ -883,28 +882,18 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   : null}
                 {vaultEligible && choice?.mode !== 'use' ? (
                   <YStack gap="$m">
-                    <Pressable
-                      style={{
-                        minHeight: 48,
-                        justifyContent: 'center',
-                        paddingVertical: 12,
-                      }}
-                      accessibilityRole="checkbox"
-                      accessibilityLabel="Save login for this bot"
-                      accessibilityState={{
-                        checked: saveLogin,
-                        disabled: submitting,
-                      }}
-                      disabled={submitting}
-                      onPress={() => {
-                        setVaultRequested(true);
-                        setSaveLogin((save) => !save);
-                      }}
-                    >
-                      <Text>
-                        {saveLogin ? '☑' : '☐'} Save login for this bot
-                      </Text>
-                    </Pressable>
+                    <XStack alignItems="center" gap="$m" minHeight={48}>
+                      <Text flex={1}>Save login for this bot</Text>
+                      <Switch
+                        accessibilityLabel="Save login for this bot"
+                        value={saveLogin}
+                        disabled={submitting}
+                        onValueChange={(save) => {
+                          setVaultRequested(true);
+                          setSaveLogin(save);
+                        }}
+                      />
+                    </XStack>
                     {saveLogin ? (
                       <>
                         <Text color="$secondaryText">
@@ -932,27 +921,22 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   </YStack>
                 ) : null}
                 {vaultEligible && (saveLogin || choice?.mode === 'use') ? (
-                  <Pressable
-                    accessibilityRole="switch"
-                    accessibilityLabel="Allow automatic sign-in"
-                    accessibilityState={{
-                      checked: allowAutomatic,
-                      disabled: submitting,
-                    }}
-                    disabled={submitting}
-                    onPress={() => setAllowAutomatic((allowed) => !allowed)}
-                    style={{ minHeight: 48, justifyContent: 'center' }}
-                  >
-                    <Text>
-                      {allowAutomatic ? '☑' : '☐'} Always allow this bot to sign
-                      in
-                    </Text>
-                    <Text color="$secondaryText">
-                      {allowAutomatic
-                        ? 'Your bot can use this login without asking.'
-                        : 'Your bot must ask before using this saved login.'}
-                    </Text>
-                  </Pressable>
+                  <XStack alignItems="center" gap="$m" minHeight={48}>
+                    <YStack flex={1} gap="$s">
+                      <Text>Always allow this bot to sign in</Text>
+                      <Text color="$secondaryText">
+                        {allowAutomatic
+                          ? 'Your bot can use this login without asking.'
+                          : 'Your bot must ask before using this saved login.'}
+                      </Text>
+                    </YStack>
+                    <Switch
+                      accessibilityLabel="Allow automatic sign-in"
+                      value={allowAutomatic}
+                      disabled={submitting}
+                      onValueChange={setAllowAutomatic}
+                    />
+                  </XStack>
                 ) : null}
                 {choice?.mode === 'use' ? (
                   <Text>

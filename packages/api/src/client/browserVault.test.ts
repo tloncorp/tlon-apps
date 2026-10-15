@@ -2,17 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   authorizeBrowserLoginHandoff,
   browserVaultOwnerRequest,
-  deleteBrowserLogin,
-  listBrowserLogins,
-  setBrowserLoginPermission,
 } from './browserVault';
 
-const mocks = vi.hoisted(() => ({ scry: vi.fn(), fetch: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  authorize: vi.fn(),
+  fetch: vi.fn(),
+  apiUrl: 'https://test.tlon.systems',
+}));
 vi.mock('./urbit', () => ({
-  getBrowserVaultOwnerAuthorization: () => mocks.scry(),
+  getBrowserVaultOwnerAuthorization: () => mocks.authorize(),
 }));
 vi.mock('../types', () => ({
-  getConstants: () => ({ API_URL: 'https://test.tlon.systems' }),
+  getConstants: () => ({ API_URL: mocks.apiUrl }),
 }));
 const endpoint = `https://browser-session-ovh-test-1.test.tlon.systems/credential-vault/${'a'.repeat(43)}`;
 const account = {
@@ -26,8 +27,9 @@ const account = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.apiUrl = 'https://test.tlon.systems';
   vi.stubGlobal('fetch', mocks.fetch);
-  mocks.scry.mockResolvedValue({
+  mocks.authorize.mockResolvedValue({
     planet: 'sampel-palnet',
     ownerToken: 'owner-proof-private',
   });
@@ -56,41 +58,53 @@ describe('browser vault owner requests', () => {
       cache: 'no-store',
       redirect: 'error',
     });
-    expect(mocks.scry).toHaveBeenCalledOnce();
+    expect(mocks.authorize).toHaveBeenCalledOnce();
   });
   it.each([
-    'http://browser-session.tlon.network/vault/list',
-    'https://evil.example/vault/list',
+    'http://browser-session-ovh-test-1.test.tlon.systems/viewer-authorize',
+    'https://evil.example/viewer-authorize',
     'https://browser-session.tlon.network/other',
-    'https://browser-session.tlon.network/vault/list',
+    'https://browser-session.tlon.network/viewer-authorize',
     `${endpoint}?token=x`,
-    'https://user:pass@browser-session.tlon.network/vault/list',
-    'https://browser-session-ovh-test-1.test.tlon.systems:8443/vault/list',
+    'https://user:pass@browser-session-ovh-test-1.test.tlon.systems/viewer-authorize',
+    'https://browser-session-ovh-test-1.test.tlon.systems/vault/list',
     'https://browser-session-ovh-test-1.test.tlon.systems:8443/viewer-authorize',
   ])('rejects %s before reading owner proof', async (url) => {
     await expect(browserVaultOwnerRequest(url, {})).rejects.toThrow('trusted');
-    expect(mocks.scry).not.toHaveBeenCalled();
+    expect(mocks.authorize).not.toHaveBeenCalled();
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
-  it('lists metadata and deletes only the explicit revision on the configured bot moon', async () => {
-    expect(await listBrowserLogins('~pinser-botter-sampel-palnet')).toEqual([
-      account,
-    ]);
-    mocks.fetch.mockResolvedValue(new Response('{"ok":true}'));
-    await deleteBrowserLogin('~pinser-botter-sampel-palnet', {
-      id: account.id,
-      revision: 1,
+  it.each([
+    [
+      'https://test.tlon.systems',
+      'browser-session-another-cluster.test.tlon.systems',
+    ],
+    [
+      'https://api.tlon.network',
+      'browser-session-another-cluster.tlon.network',
+    ],
+  ])('uses the supplied viewer endpoint for %s', async (apiUrl, viewerHost) => {
+    mocks.apiUrl = apiUrl;
+    const viewerEndpoint = `https://${viewerHost}/viewer-authorize`;
+    await browserVaultOwnerRequest(viewerEndpoint, {
+      capability: 'session-capability',
     });
-    expect(mocks.fetch.mock.calls[1][0]).toBe(
-      'https://browser-session-ovh-test-1.test.tlon.systems/vault/delete'
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      viewerEndpoint,
+      expect.any(Object)
     );
-    expect(JSON.parse(mocks.fetch.mock.calls[1][1].body)).toEqual({
-      planet: 'sampel-palnet',
-      moon: 'pinser-botter-sampel-palnet',
+    expect(JSON.parse(mocks.fetch.mock.calls[0][1].body)).toMatchObject({
+      capability: 'session-capability',
       ownerToken: 'owner-proof-private',
-      record: { id: account.id, revision: 1 },
     });
-    expect(mocks.scry).toHaveBeenCalledTimes(2);
+  });
+  it('rejects a test viewer from the production app before reading owner authority', async () => {
+    mocks.apiUrl = 'https://api.tlon.network';
+    await expect(authorizeBrowserLoginHandoff(endpoint)).rejects.toThrow(
+      'environment'
+    );
+    expect(mocks.authorize).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
   });
   it('does not expose remote errors or unknown secret fields to callers', async () => {
     mocks.fetch.mockResolvedValue(
@@ -111,27 +125,4 @@ describe('browser vault owner requests', () => {
       JSON.stringify(await authorizeBrowserLoginHandoff(endpoint))
     ).not.toContain('private-password');
   });
-  it.each([200, 204])(
-    'accepts empty %s responses for vault mutations',
-    async (status) => {
-      mocks.fetch.mockImplementation(
-        async () => new Response(null, { status })
-      );
-      const record = { id: account.id, revision: 1 };
-      await expect(
-        deleteBrowserLogin('pinser-botter-sampel-palnet', record)
-      ).resolves.toBeUndefined();
-      await expect(
-        setBrowserLoginPermission(
-          'pinser-botter-sampel-palnet',
-          record,
-          'allow'
-        )
-      ).resolves.toBeUndefined();
-      await expect(
-        listBrowserLogins('pinser-botter-sampel-palnet')
-      ).rejects.toThrow();
-      await expect(authorizeBrowserLoginHandoff(endpoint)).rejects.toThrow();
-    }
-  );
 });

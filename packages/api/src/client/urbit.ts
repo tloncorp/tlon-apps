@@ -215,7 +215,7 @@ export function setClientResolver(resolver: ClientResolver | null): void {
   clientResolver = resolver;
 }
 
-/** A vault-specific owner proof; neither the ship code nor Memex authority leaves this module. */
+/** Derive a short-lived owner proof from the authenticated ship session. */
 export async function getBrowserVaultOwnerAuthorization() {
   const session = config.session;
   if (!session || session.loggingOut)

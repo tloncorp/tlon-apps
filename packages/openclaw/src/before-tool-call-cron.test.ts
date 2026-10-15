@@ -443,6 +443,9 @@ it('blocks non-owner saved login and shared browser access before dispatch', asy
     'browser_browser_login',
     'browser_browser_snapshot',
     'browser_browser_act',
+    'browser_login',
+    'browser_snapshot',
+    'browser_act',
   ]) {
     expect(
       await handler(

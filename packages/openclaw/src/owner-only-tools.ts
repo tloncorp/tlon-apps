@@ -45,7 +45,7 @@ export function resolveOwnerOnlyToolBlock(
   const browserTool =
     toolName === 'mcp__call' &&
     typeof params?.name === 'string' &&
-    params.name.startsWith('browser_browser_');
+    params.name.startsWith('browser_');
   const ownerOnly = OWNER_ONLY_TOOLS.has(toolName) || browserTool;
   // Only an explicit non-owner ('user') role blocks. Owner sessions and
   // internal sessions (heartbeat, cron, subagents — no stored role) pass.

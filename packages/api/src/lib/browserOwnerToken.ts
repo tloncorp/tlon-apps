@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer';
 import { hmac } from 'fast-sha256';
 
-/** Ten-minute vault authority, independent of encryption factors and bot keys. */
+/** Owner proofs expire ten minutes after issuance. */
 export function deriveBrowserOwnerToken(
   code: string,
   now = Date.now()

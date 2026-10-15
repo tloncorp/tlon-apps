@@ -88,7 +88,7 @@ export function trustedBrowserViewerUrl(viewerUrl: string): string {
   return parseViewerUrl(viewerUrl).url.toString();
 }
 
-/** Viewer capabilities are granted to the authenticated owner, never to the bot's conversation link. */
+/** Exchange a session capability for an owner-authorized viewer URL. */
 export async function authorizeBrowserViewer(
   viewerUrl: string
 ): Promise<string> {

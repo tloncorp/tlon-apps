@@ -10,7 +10,6 @@ import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
 import {
   BuildOptions,
-  ConfigEnv,
   Plugin,
   PluginOption,
   ProxyOptions,
@@ -26,7 +25,7 @@ import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
 
 // https://vitejs.dev/config/
-export default ({ mode, command }: ConfigEnv) => {
+export default ({ mode }: { mode: string }) => {
   process.env.VITE_STORAGE_VERSION =
     mode === 'dev' ? Date.now().toString() : packageJson.version;
 
@@ -51,30 +50,6 @@ export default ({ mode, command }: ConfigEnv) => {
   );
   const shouldUploadSourcemaps =
     process.env.CI === 'true' && Boolean(process.env.SENTRY_AUTH_TOKEN);
-
-  const memexUrl =
-    process.env.TLON_MEMEX_URL?.trim() ||
-    process.env.VITE_TLON_MEMEX_URL?.trim() ||
-    'https://memex.tlon.network';
-  const inviteServiceUrl =
-    process.env.VITE_INVITE_SERVICE_ENDPOINT?.trim() || '';
-  const memexProxyPath = '/apps/groups/__memex';
-  const inviteProxyPath = '/apps/groups/__invites';
-  const serviceProxy: Record<string, ProxyOptions> = {};
-  function proxyService(path: string, target: string) {
-    serviceProxy[path] = {
-      target: target.replace(/\/+$/, ''),
-      changeOrigin: true,
-      rewrite: (url) => url.slice(path.length),
-      configure: (proxy) => {
-        proxy.on('proxyReq', (request) => request.removeHeader('cookie'));
-      },
-    };
-  }
-  if (command === 'serve') {
-    proxyService(memexProxyPath, memexUrl);
-    if (inviteServiceUrl) proxyService(inviteProxyPath, inviteServiceUrl);
-  }
 
   // why-did-you-render's jsx runtime wraps every createElement call and pulls
   // the library into the bundle, so only opt in when WDYR is actually enabled
@@ -288,15 +263,16 @@ export default ({ mode, command }: ConfigEnv) => {
     // `platform`" at boot.
     define: {
       'process.env.EXPO_OS': JSON.stringify('web'),
-      // Local service requests use the dev server's origin to avoid CORS.
-      // Builds use the configured service URL directly.
+      // Nothing else reaches the browser through process.env -- envPrefix only
+      // exposes VITE_* via import.meta.env -- so without this the storage
+      // broker override is inert on web and uploads silently go to production
+      // while the host pushes read grants somewhere else.
+      //
+      // Both spellings, for the same reason SHIP_URL takes both above: only
+      // VITE_* names survive loadEnv into an .env file, while the shell can
+      // set the bare name.
       'process.env.TLON_MEMEX_URL': JSON.stringify(
-        command === 'serve' ? memexProxyPath : memexUrl
-      ),
-      'import.meta.env.VITE_INVITE_SERVICE_ENDPOINT': JSON.stringify(
-        command === 'serve' && inviteServiceUrl
-          ? inviteProxyPath
-          : inviteServiceUrl
+        process.env.TLON_MEMEX_URL ?? process.env.VITE_TLON_MEMEX_URL ?? ''
       ),
     },
     base: base(mode),
@@ -308,7 +284,7 @@ export default ({ mode, command }: ConfigEnv) => {
       //      as a workaround for this, we rewrite the path going into the
       //      proxy to "hide" the empty path segments, and then rewrite the
       //      path coming "out" of the proxy to obtain the original path.
-      proxy: { ...serviceProxy, ...urbitProxy },
+      proxy: urbitProxy,
     },
     preview: {
       proxy: urbitProxy,

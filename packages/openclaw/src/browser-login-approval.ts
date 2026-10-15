@@ -1,4 +1,4 @@
-/** Sends owner approval through the same authenticated secure-entry path as browser handoff. */
+/** Deliver one saved-login approval card per browser session in each agent run. */
 export type BrowserLoginToolResult = {
   toolName: string;
   params: Record<string, unknown>;
@@ -29,10 +29,19 @@ export function createBrowserLoginApprovalHandler(
     if (
       event.error ||
       event.toolName !== 'mcp__call' ||
-      event.params.name !== 'browser_browser_login'
+      (event.params.name !== 'browser_browser_login' &&
+        event.params.name !== 'browser_login')
     )
       return;
-    const args = record(event.params.arguments);
+    let argumentsValue = event.params.arguments;
+    if (typeof argumentsValue === 'string') {
+      try {
+        argumentsValue = JSON.parse(argumentsValue);
+      } catch {
+        return;
+      }
+    }
+    const args = record(argumentsValue);
     const sessionId = args.session_id;
     if (
       (args.action !== undefined && args.action !== 'use') ||

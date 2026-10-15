@@ -228,12 +228,7 @@ describe('browser handoff registry', () => {
         onBrowserCredentialHandoffComplete: onComplete,
       });
       const [handoffId] = navigate.mock.calls[0];
-      if (loginApproval)
-        expect(navigate).toHaveBeenCalledWith(
-          expect.any(String),
-          loginApproval
-        );
-      else expect(navigate).toHaveBeenCalledWith(expect.any(String));
+      expect(navigate).toHaveBeenCalledWith(expect.any(String), loginApproval);
       const state = {
         routes: [{ name: 'BrowserCredentialHandoff', params: { handoffId } }],
       };

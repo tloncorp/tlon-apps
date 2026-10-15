@@ -29,21 +29,37 @@ describe('saved login approval delivery', () => {
     );
   });
 
-  it('passes only the requested account identity into the approval card', async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
-    const request = event();
-    const choice = { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 3 };
-    await createBrowserLoginApprovalHandler(send).handle({
-      ...request,
-      params: {
-        ...request.params,
-        arguments: { ...request.params.arguments, record: choice },
-      },
-    });
-    expect(send).toHaveBeenCalledExactlyOnceWith('fresh-ivory-finch', choice);
-  });
+  it.each([
+    ['browser_browser_login', false],
+    ['browser_browser_login', true],
+    ['browser_login', false],
+    ['browser_login', true],
+  ])(
+    'passes only the requested account identity for %s with JSON arguments %s',
+    async (name, encoded) => {
+      const send = vi.fn().mockResolvedValue(undefined);
+      const request = event();
+      const choice = {
+        id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
+        revision: 3,
+      };
+      const args = { ...request.params.arguments, record: choice };
+      await createBrowserLoginApprovalHandler(send).handle({
+        ...request,
+        params: {
+          ...request.params,
+          name,
+          arguments: encoded ? JSON.stringify(args) : args,
+        },
+      });
+      expect(send).toHaveBeenCalledExactlyOnceWith('fresh-ivory-finch', choice);
+    }
+  );
 
   it.each([
+    { params: { ...event().params, arguments: '{' } },
+    { params: { ...event().params, arguments: 'null' } },
+    { params: { ...event().params, arguments: '[]' } },
     { toolName: 'untrusted_tool' },
     { params: { ...event().params, name: 'other_browser_login' } },
     {

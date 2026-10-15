@@ -196,12 +196,10 @@ export function useA2UINavigation() {
                 viewerUrl: target.viewerUrl,
                 onComplete: options.onBrowserCredentialHandoffComplete,
               });
-              if (target.loginApproval)
-                rootNavigation.navigateToBrowserCredentialHandoff(
-                  handoffId,
-                  target.loginApproval
-                );
-              else rootNavigation.navigateToBrowserCredentialHandoff(handoffId);
+              rootNavigation.navigateToBrowserCredentialHandoff(
+                handoffId,
+                target.loginApproval
+              );
               return;
           }
       }
