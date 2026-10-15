@@ -63,8 +63,9 @@ Two things about the current app shape are worth knowing before editing a flow:
 
 **The group fixture comes from a deep link, not the create sheet.**
 `subflows/create-group.yaml` opens
-`io.tlon.groups://e2e/group?op=create-template&template=basic-group&title=<title>`,
-which creates the basic-group template -- `Chat`, `Gallery` and `Notebook` --
+`<scheme>://e2e/group?op=create-template&template=basic-group&title=<title>`,
+where `<scheme>` is the installed app's scheme (`MAESTRO_APP_ID`), which
+creates the basic-group template -- `Chat`, `Gallery` and `Notebook` --
 under the run's fixture title, opens it as the create sheet would, and reports
 `PASS: created <title>` (or `FAIL: <reason>`) in an alert the subflow
 dismisses. That is the same group on an account with an agent and one without;

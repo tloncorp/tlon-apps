@@ -6,7 +6,7 @@ appId: ${MAESTRO_APP_ID}
 # opens it, as the create sheet would, so callers start on the group's channel
 # list either way. It needs an AUTOMATED_TEST build; see the reliability README.
 - assertNotVisible: ${output.reliability.groupPattern}
-- openLink: "${'io.tlon.groups://e2e/group?op=create-template&template=basic-group&title=' + output.reliability.groupEncoded}"
+- openLink: "${MAESTRO_APP_ID + '://e2e/group?op=create-template&template=basic-group&title=' + output.reliability.groupEncoded}"
 - extendedWaitUntil:
     visible: 'Open'
     optional: true
