@@ -4,11 +4,11 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
 import { getDefaultBotName } from '../botName';
-import { TlonBotSetupPaneView } from '../TlonBotSetupPaneView';
+import { MeetYourBotPane } from '../MeetYourBot/MeetYourBotPane';
 import { resolveLandingChannelId } from './landingChannel';
 import { PromiseTimeoutError, withTimeout } from './promiseTimeout';
 
@@ -18,10 +18,6 @@ const wait = (ms: number) =>
 const LANDING_CONSUMPTION_TIMEOUT_MS = 10_000;
 const FURNISH_ATTEMPT_TIMEOUT_MS = 30_000;
 const BOT_NAME_SYNC_TIMEOUT_MS = 8_000;
-const HANDOFF_MESSAGES = [
-  'Your Tlonbot is ready. Finishing the chat setup now.',
-  'Opening your private Tlonbot group.',
-];
 
 async function waitForLandingConsumption(isCancelled: () => boolean) {
   const deadline = Date.now() + LANDING_CONSUMPTION_TIMEOUT_MS;
@@ -124,7 +120,11 @@ export function AgentOnboardingSequence(props: {
   fallback: React.ReactNode;
 }) {
   const [useFallback, setUseFallback] = useState(false);
+  const [ready, setReady] = useState(false);
   const completedRef = useRef(false);
+  // Set once the chat is ready behind the cover; the user's tap on
+  // "Start chatting" runs it to reveal the chat.
+  const revealRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -282,21 +282,26 @@ export function AgentOnboardingSequence(props: {
             });
           });
           completedRef.current = true;
-          logger.trackEvent(AnalyticsEvent.AgentOnboardingChatOpened, {
-            groupId: activeGroupId,
-            channelId: activeChannelId,
-          });
-          props.onCompleted();
-          void store
-            .completeWayfindingSplash({
-              showBotMentionHint: false,
-            })
-            .catch((error) => {
-              logger.trackError(
-                'Failed to persist agent onboarding completion',
-                error
-              );
+          const groupId = activeGroupId;
+          const channelId = activeChannelId;
+          revealRef.current = () => {
+            logger.trackEvent(AnalyticsEvent.AgentOnboardingChatOpened, {
+              groupId,
+              channelId,
             });
+            props.onCompleted();
+            void store
+              .completeWayfindingSplash({
+                showBotMentionHint: false,
+              })
+              .catch((error) => {
+                logger.trackError(
+                  'Failed to persist agent onboarding completion',
+                  error
+                );
+              });
+          };
+          if (!cancelled) setReady(true);
           return;
         } catch (error) {
           lastError = error;
@@ -330,12 +335,15 @@ export function AgentOnboardingSequence(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleStartChatting = useCallback(() => {
+    const reveal = revealRef.current;
+    revealRef.current = null;
+    reveal?.();
+  }, []);
+
   if (useFallback) return <>{props.fallback}</>;
 
   return (
-    <TlonBotSetupPaneView
-      title="Opening your Tlonbot chat..."
-      messages={HANDOFF_MESSAGES}
-    />
+    <MeetYourBotPane ready={ready} onStartChatting={handleStartChatting} />
   );
 }
