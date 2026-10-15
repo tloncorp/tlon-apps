@@ -50,15 +50,16 @@ Send options:
                        Applies to send and reply.
 
 Pins and thread replies:
-  pin and unpin need group admin and work in group chat/ and heap/ channels.
+  pin and unpin need a group admin or the channel's host ship and work in
+  group chat/ and heap/ channels.
   Pinning keeps the previous pin queued behind the new one, so unpinning the
   current pin can bring that earlier pin back; the output names it.
   With --parent, edit and delete act on a thread reply: <post-id> is the reply
   id and --parent is the thread's top-level post. Find reply ids with
   'tlon messages post <channel> <post-id>'. Only a reply's author can edit
-  it; deleting another member's reply needs group admin. A separately
-  supplied --parent token selects the reply path, so quote a message that
-  contains those words as one argument. A reply edit that leaves the
+  it; deleting another member's reply needs a group admin or the channel's
+  host ship. A separately supplied --parent token selects the reply path, so
+  quote a message that contains those words as one argument. A reply edit that leaves the
   content unchanged is reported as confirmed without proving anything changed.
 
 Examples:
@@ -1145,7 +1146,8 @@ async function deleteReply(
     return 'already-deleted';
   }
 
-  // The host accepts a reply %del from its author or a group admin.
+  // The host accepts a reply %del from its author, a group admin or the
+  // ship hosting the channel.
   if (
     normalizeShip(reply.authorId) !== normalizeShip(deps.getCurrentUserId())
   ) {
