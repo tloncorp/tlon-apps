@@ -134,6 +134,8 @@ export type RootStackParamList = {
   };
   BotPermissionsSettings: undefined;
   BotIdentitySettings: undefined;
+  BotPromptFiles: undefined;
+  BotPromptFile: { name: string };
   BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
   BotModels: undefined;
   BotConnections: undefined;
@@ -287,6 +289,8 @@ export type SettingsDrawerParamList = Pick<
   | 'BotChannelRuleSettings'
   | 'BotPermissionsSettings'
   | 'BotIdentitySettings'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'BotProviderListSettings'
   | 'BotModels'
   | 'BotConnections'

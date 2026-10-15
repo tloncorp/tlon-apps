@@ -8,7 +8,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
-import { BotSystemPromptsSection, useIsOwnedBot } from './BotSystemPrompts';
+import {
+  BotSystemPromptEditorSheet,
+  BotSystemPromptsSection,
+  useIsOwnedBot,
+} from './BotSystemPrompts';
 
 const mocks = vi.hoisted(() => ({
   files: {} as Record<string, Record<string, string>>,
@@ -258,5 +262,72 @@ describe('BotSystemPromptsSection', () => {
 
     expect(sentIds()).toEqual(['0v1', '0v1', '0v2']);
     expect(editor(tree)).toHaveLength(0);
+  });
+});
+
+describe('BotSystemPromptEditorSheet in additions scope', () => {
+  const block = (version: string) =>
+    `<!-- idempotency-marker:tlon-runtime:${version} -->\n\n## Who You Are\n<!-- /idempotency-marker -->`;
+
+  const sheet = (text: string) => (
+    <BotSystemPromptEditorSheet
+      botShip="~bot-a"
+      prompt={{ name: 'SOUL.md', text }}
+      scope="additions"
+      changedElsewhere={false}
+      onClose={vi.fn()}
+      onSaved={vi.fn()}
+    />
+  );
+
+  async function save(tree: ReactTestRenderer) {
+    await act(async () => {
+      tree.root
+        .find((node) => node.props.testID === 'BotSystemPromptSave')
+        .props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  it("edits only the owner's text and saves it beside Tlon's block", async () => {
+    mocks.setStewardPrompt.mockResolvedValue({});
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(sheet(`Call me Captain.\n${block('v10')}\n`));
+    });
+    expect(editor(tree)[0].props.value).toBe('Call me Captain.');
+
+    act(() => {
+      editor(tree)[0].props.onChange('Call me Admiral.');
+    });
+    await save(tree);
+
+    expect(mocks.setStewardPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'SOUL.md',
+        text: `Call me Admiral.\n${block('v10')}\n`,
+      })
+    );
+  });
+
+  it('keeps a Tlon block that was refreshed while the draft was open', async () => {
+    mocks.setStewardPrompt.mockResolvedValue({});
+    let tree!: ReactTestRenderer;
+    await act(async () => {
+      tree = create(sheet(`${block('v10')}\n`));
+    });
+    act(() => {
+      editor(tree)[0].props.onChange('Call me Captain.');
+    });
+    // A gateway restart republished the block mid-edit.
+    await act(async () => {
+      tree.update(sheet(`${block('v11')}\n`));
+    });
+    expect(editor(tree)[0].props.value).toBe('Call me Captain.');
+    await save(tree);
+
+    expect(mocks.setStewardPrompt.mock.calls[0][0].text).toBe(
+      `Call me Captain.\n${block('v11')}\n`
+    );
   });
 });
