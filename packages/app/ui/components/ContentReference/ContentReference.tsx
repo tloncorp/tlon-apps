@@ -377,13 +377,19 @@ export function ChannelLinkReferenceLoader({
   const { data: channel, isLoading } = useChannelPreview({ id: channelId });
   const { data: group } = useGroupPreview(channel?.groupId ?? '');
   const { onPressChannelRef, onPressGroupRef } = useNavigation();
+  // Preview-fetched channels leave currentUserIsMember unset even when readable
+  const canOpenChannel =
+    !!channel &&
+    !!group?.currentUserIsMember &&
+    channel.currentUserIsMember !== false;
+  const pressTarget = canOpenChannel ? onPressChannelRef : onPressGroupRef;
   const handlePress = useCallback(() => {
-    if (channel && group?.currentUserIsMember) {
+    if (canOpenChannel && channel) {
       onPressChannelRef?.(channel);
     } else if (group) {
       onPressGroupRef?.(group);
     }
-  }, [channel, group, onPressChannelRef, onPressGroupRef]);
+  }, [canOpenChannel, channel, group, onPressChannelRef, onPressGroupRef]);
 
   return (
     <ChannelLinkReference
@@ -391,7 +397,7 @@ export function ChannelLinkReferenceLoader({
       channel={channel}
       parentGroup={group}
       isLoading={isLoading}
-      onPress={openOnPress && group ? handlePress : undefined}
+      onPress={openOnPress && group && pressTarget ? handlePress : undefined}
       {...props}
     />
   );
@@ -413,6 +419,7 @@ export function ChannelLinkReference({
   const groupTitle = useGroupTitle(parentGroup);
   const icon = channelTypeIcons[getChannelType(channelId)] ?? 'ChannelTalk';
   const title = channelTitle || channelId.split('/')[2] || channelId;
+  const { testID, ...skeletonProps } = props;
 
   return (
     // The missing-channel state is rendered below so it can show the slug.
@@ -454,7 +461,11 @@ export function ChannelLinkReference({
           )}
         </Reference.Body>
       ) : !isLoading ? (
-        <ReferenceSkeleton message={title} messageType="error" {...props} />
+        <ReferenceSkeleton
+          message={title}
+          messageType="error"
+          {...skeletonProps}
+        />
       ) : null}
     </Reference>
   );

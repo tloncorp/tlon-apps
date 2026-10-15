@@ -4,6 +4,8 @@ import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
 test.describe('Channel Reference', () => {
+  test.setTimeout(120000);
+
   test('forwards a channel reference to a DM, renders a card, and opens the channel on tap', async ({
     zodSetup,
     tenSetup,
@@ -30,9 +32,13 @@ test.describe('Channel Reference', () => {
     });
     await tenPage.getByTestId('HomeNavIcon').click();
 
-    // Step 3: Create a multi-channel group (lands in General) and open
-    // channel details
+    // Step 3: Create a public multi-channel group (lands in General) and open
+    // channel details. New groups default to secret, and the host refuses
+    // channel previews to non-members of a secret group, so ~ten could never
+    // load the card.
     await helpers.createGroup(zodPage);
+    await helpers.openGroupSettings(zodPage);
+    await helpers.setGroupPrivacy(zodPage, 'public');
     await helpers.setupMultiChannelGroup(zodPage);
     await zodPage
       .getByTestId('ChannelHeaderTitle')
@@ -58,14 +64,28 @@ test.describe('Channel Reference', () => {
     await zodPage.getByText('Forward to ~ten').click();
     await expect(zodPage.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
 
-    // Step 5: ~ten sees the channel card (not the upgrade fallback)
+    // Step 5: ~ten (not a group member) sees the loaded channel card, not the
+    // upgrade fallback
     await tenPage.getByTestId('ChannelListItem-~zod').click();
     const tenCard = tenPage.getByTestId('ChannelLinkReference');
-    await expect(tenCard).toBeVisible({ timeout: 15000 });
+    await expect(tenCard.getByText('General', { exact: true })).toBeVisible({
+      timeout: 15000,
+    });
     await expect(tenCard.getByText('Channel', { exact: true })).toBeVisible();
     await expect(
       tenPage.getByText('Upgrade your app to see this reference')
     ).not.toBeVisible();
+
+    // Step 5b: tapping the card as a non-member opens the group preview
+    // Use force click to bypass opacity animation on reference frame
+    await tenCard.click({ force: true });
+    await expect(tenPage.getByTestId('ActionButton-Join group')).toBeVisible({
+      timeout: 10000,
+    });
+    await tenPage.keyboard.press('Escape');
+    await expect(
+      tenPage.getByTestId('ActionButton-Join group')
+    ).not.toBeVisible({ timeout: 5000 });
 
     // Step 6: ~zod (a member) taps the card in the DM and lands in General
     await zodPage.getByTestId('HomeNavIcon').click();
@@ -77,10 +97,17 @@ test.describe('Channel Reference', () => {
     });
     // Use force click to bypass opacity animation on reference frame
     await zodCard.click({ force: true });
+    // The web stack keeps the DM screen mounted underneath, so match only the
+    // visible channel screen
     await expect(
-      zodPage.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle')
+      zodPage
+        .getByTestId('ChannelHeaderTitle')
+        .getByTestId('ScreenHeaderTitle')
+        .filter({ visible: true })
     ).toHaveText('General', { timeout: 10000 });
-    await expect(zodPage.getByTestId('MessageInput')).toBeVisible({
+    await expect(
+      zodPage.getByTestId('MessageInput').filter({ visible: true })
+    ).toBeVisible({
       timeout: 5000,
     });
   });
