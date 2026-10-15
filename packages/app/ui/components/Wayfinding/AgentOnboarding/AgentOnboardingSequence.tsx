@@ -6,6 +6,7 @@ import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+import { startAgentGroupNavigationLockFailsafe } from '../../../../hooks/useAgentGroupOnboardingLock';
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
 import { getDefaultBotName } from '../botName';
 import { MeetYourBotPane } from '../MeetYourBot/MeetYourBotPane';
@@ -289,17 +290,31 @@ export function AgentOnboardingSequence(props: {
               groupId,
               channelId,
             });
-            props.onCompleted();
-            void store
-              .completeWayfindingSplash({
-                showBotMentionHint: false,
-              })
-              .catch((error) => {
-                logger.trackError(
-                  'Failed to persist agent onboarding completion',
-                  error
-                );
-              });
+            const reveal = () => {
+              props.onCompleted();
+              void store
+                .completeWayfindingSplash({
+                  showBotMentionHint: false,
+                })
+                .catch((error) => {
+                  logger.trackError(
+                    'Failed to persist agent onboarding completion',
+                    error
+                  );
+                });
+            };
+            // The landing consumer armed the navigation lock's failsafe when
+            // the chat was built behind the cover. Reading the slides can
+            // outlast that window, so re-arm a full one before the chat shows.
+            if (!groupId) return reveal();
+            void startAgentGroupNavigationLockFailsafe(groupId)
+              .catch((error) =>
+                logger.trackError('Failed to re-arm the navigation lock', {
+                  error,
+                  groupId,
+                })
+              )
+              .finally(reveal);
           };
           if (!cancelled) setReady(true);
           return;

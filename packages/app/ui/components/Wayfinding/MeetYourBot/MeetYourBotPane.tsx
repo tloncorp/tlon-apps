@@ -1,6 +1,6 @@
 import { Button, Text } from '@tloncorp/ui';
 import { useState } from 'react';
-import { useWindowDimensions } from 'react-native';
+import { ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { View, XStack, YStack, useTheme } from 'tamagui';
@@ -176,7 +176,13 @@ export function MeetYourBotPane(props: {
         <MeetYourBotArt key={slide} slide={slide} width={width} />
       </View>
 
-      <YStack flex={1} gap={20} paddingTop={20} overflow="hidden">
+      {/* On short phones (an iPhone SE leaves about 186 points here) the
+          text scrolls rather than being cut off. */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ gap: 20, paddingTop: 20, paddingBottom: 8 }}
+        bounces={false}
+      >
         <Text
           marginHorizontal="$xl"
           fontSize={24}
@@ -227,7 +233,7 @@ export function MeetYourBotPane(props: {
             </XStack>
           ))}
         </YStack>
-      </YStack>
+      </ScrollView>
 
       <YStack paddingHorizontal="$xl" paddingTop="$l" gap={14}>
         <XStack
