@@ -253,7 +253,7 @@ describe('createPostsDeps() error mapping', () => {
     });
     try {
       const refusal = await createPostsDeps()
-        .assertCanAdminister('~host/group', 'pin posts')
+        .assertCanAdminister('~host/group', 'pin posts', 'chat/~host/channel')
         .catch((error: unknown) => error);
 
       expect(helper.mock.calls).toEqual([['~host/group', 'pin posts']]);
@@ -261,6 +261,49 @@ describe('createPostsDeps() error mapping', () => {
       expect((refusal as CommandError).message).toBe(
         "Can't pin posts in ~host/group: not an admin"
       );
+    } finally {
+      helper.mockRestore();
+    }
+  });
+
+  it('runs the group admin check when the channel host is another ship', async () => {
+    const helper = spyOn(
+      groupAdmin,
+      'assertActingShipCanAdminister'
+    ).mockImplementation(async () => undefined);
+    try {
+      await createPostsDeps().assertCanAdminister(
+        '~zod/group',
+        'pin posts',
+        'chat/~host/channel'
+      );
+
+      expect(helper.mock.calls).toEqual([['~zod/group', 'pin posts']]);
+    } finally {
+      helper.mockRestore();
+    }
+  });
+
+  it('admits the channel host (the acting ship) without the group admin check', async () => {
+    // The mocked acting ship is ~zod; the group is hosted elsewhere and the
+    // group check would refuse, but ~zod hosts the channel.
+    const helper = spyOn(
+      groupAdmin,
+      'assertActingShipCanAdminister'
+    ).mockImplementation(async () => {
+      throw new Error("Can't pin posts in ~host/group: not an admin");
+    });
+    try {
+      for (const nest of ['chat/~zod/channel', 'heap/zod/gallery']) {
+        await expect(
+          createPostsDeps().assertCanAdminister(
+            '~host/group',
+            'pin posts',
+            nest
+          )
+        ).resolves.toBeUndefined();
+      }
+      expect(helper.mock.calls).toEqual([]);
     } finally {
       helper.mockRestore();
     }

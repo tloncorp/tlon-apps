@@ -15,7 +15,8 @@ import {
 } from '@tloncorp/api';
 import type { ChannelFromServer } from '@tloncorp/api/urbit';
 
-import { ensureClient } from './api-client';
+import { ensureClient, normalizeShip } from './api-client';
+import { parseNest } from './cli-utils';
 import { commandError, errorMessage } from './commands/command';
 import type {
   ChannelState,
@@ -147,7 +148,19 @@ export function createPostsDeps(): PostsDeps {
     now: () => Date.now(),
     buildImageVerse: (url: string) => fetchImageVerse(url),
     getChannelState,
-    assertCanAdminister: async (groupId: string, action: string) => {
+    assertCanAdminister: async (
+      groupId: string,
+      action: string,
+      nest: string
+    ) => {
+      // Mirrors `is-admin` in desk/lib/channel-utils.hoon: the ship hosting
+      // the channel administers it regardless of its group roles.
+      if (
+        normalizeShip(parseNest(nest).host) ===
+        normalizeShip(apiGetCurrentUserId())
+      ) {
+        return;
+      }
       try {
         await assertActingShipCanAdminister(groupId, action);
       } catch (error) {
