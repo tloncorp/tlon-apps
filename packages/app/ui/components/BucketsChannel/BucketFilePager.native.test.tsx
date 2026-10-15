@@ -1,11 +1,26 @@
 import React, { useEffect } from 'react';
 import { act, create } from 'react-test-renderer';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 
 import { setupReactTestEnvironment } from '../../../test/sheetTestUtils';
 import { BucketFilePager } from './BucketFilePager.native';
 
+type ScrollEndEvent = {
+  nativeEvent: {
+    contentOffset: { x: number };
+    layoutMeasurement: { width: number };
+  };
+};
 const scrollToIndex = vi.hoisted(() => vi.fn());
+const carouselState = vi.hoisted(() => ({
+  reducedMotion: false,
+  onVisibleIndexChange: (_index: number) => {},
+  onScrollBeginDrag: () => {},
+  onMomentumScrollEnd: (_event: ScrollEndEvent) => {},
+}));
+vi.mock('react-native-reanimated', () => ({
+  useReducedMotion: () => carouselState.reducedMotion,
+}));
 vi.mock('@tloncorp/shared', async () => {
   const { useRef } = await import('react');
   return {
@@ -17,13 +32,31 @@ vi.mock('@tloncorp/shared', async () => {
   };
 });
 vi.mock('@tloncorp/ui', async () => {
-  const { forwardRef, useImperativeHandle } = await import('react');
+  const { forwardRef, useEffect, useImperativeHandle } = await import('react');
   const Container = ({ children }: { children?: React.ReactNode }) => children;
   const Carousel = forwardRef(function TestCarousel(
-    { children }: { children?: React.ReactNode },
+    {
+      children,
+      onVisibleIndexChange,
+      flatListProps,
+    }: {
+      children?: React.ReactNode;
+      onVisibleIndexChange: (index: number) => void;
+      flatListProps?: {
+        onScrollBeginDrag?: () => void;
+        onMomentumScrollEnd?: (event: ScrollEndEvent) => void;
+      };
+    },
     ref
   ) {
     useImperativeHandle(ref, () => ({ scrollToIndex }));
+    useEffect(() => {
+      carouselState.onVisibleIndexChange = onVisibleIndexChange;
+      carouselState.onScrollBeginDrag =
+        flatListProps?.onScrollBeginDrag ?? (() => {});
+      carouselState.onMomentumScrollEnd =
+        flatListProps?.onMomentumScrollEnd ?? (() => {});
+    }, [onVisibleIndexChange, flatListProps]);
     return children;
   });
   const FilePreview = Object.assign(() => null, {
@@ -39,6 +72,10 @@ vi.mock('tamagui', () => ({
   YStack: ({ children }: { children?: React.ReactNode }) => children,
 }));
 setupReactTestEnvironment();
+beforeEach(() => {
+  scrollToIndex.mockClear();
+  carouselState.reducedMotion = false;
+});
 
 it.each(['image', 'pdf', 'text'])(
   'keeps a visited %s mounted across swipes but releases an audio page',
@@ -133,5 +170,103 @@ it('preserves the active player as siblings are added, reordered, removed, and r
     [2, false],
     [0, false],
   ]);
+  act(() => tree.unmount());
+});
+
+function renderNavigation() {
+  const items = [0, 1, 2].map((index) => ({
+    id: String(index),
+    name: `${index}.jpg`,
+  }));
+  const onSelect = vi.fn();
+  const element = (index: number) => (
+    <BucketFilePager navigation={{ items, index, onSelect }}>
+      <span>{items[index].name}</span>
+    </BucketFilePager>
+  );
+  let tree!: ReturnType<typeof create>;
+  act(() => {
+    tree = create(element(0));
+  });
+  return {
+    tree,
+    onSelect,
+    select: (index: number) => act(() => tree.update(element(index))),
+  };
+}
+
+it('animates arrow selection without reselecting intermediate pages during rapid taps', () => {
+  const { tree, onSelect, select } = renderNavigation();
+  select(1);
+  select(2);
+  expect(scrollToIndex.mock.calls).toEqual([
+    [1, true],
+    [2, true],
+  ]);
+  act(() => carouselState.onVisibleIndexChange(1));
+  expect(onSelect).not.toHaveBeenCalled();
+  act(() =>
+    carouselState.onMomentumScrollEnd({
+      nativeEvent: {
+        contentOffset: { x: 100 },
+        layoutMeasurement: { width: 100 },
+      },
+    })
+  ); // Finishing a superseded animation must not release the current target.
+  act(() => carouselState.onVisibleIndexChange(1));
+  expect(onSelect).not.toHaveBeenCalled();
+  select(2); // A loading/cache update must not restart the scroll.
+  expect(scrollToIndex).toHaveBeenCalledTimes(2);
+  act(() => carouselState.onVisibleIndexChange(2));
+  expect(onSelect).not.toHaveBeenCalled();
+  act(() => carouselState.onVisibleIndexChange(1));
+  expect(onSelect).toHaveBeenCalledWith(1);
+  select(1); // A swipe already moved the carousel.
+  expect(scrollToIndex).toHaveBeenCalledTimes(2);
+  act(() => tree.unmount());
+});
+
+it('cancels an in-flight forward move when the previous arrow is pressed', () => {
+  const { tree, onSelect, select } = renderNavigation();
+  select(1);
+  select(0);
+  expect(scrollToIndex.mock.calls).toEqual([
+    [1, true],
+    [0, true],
+  ]);
+  // The reversal can end before the rounded visible index ever changes.
+  act(() =>
+    carouselState.onMomentumScrollEnd({
+      nativeEvent: {
+        contentOffset: { x: 0 },
+        layoutMeasurement: { width: 100 },
+      },
+    })
+  );
+  expect(onSelect).not.toHaveBeenCalled();
+  act(() => carouselState.onVisibleIndexChange(1));
+  expect(onSelect).toHaveBeenCalledWith(1);
+  act(() => tree.unmount());
+});
+
+it('lets a manual drag take over an arrow transition', () => {
+  const { tree, onSelect, select } = renderNavigation();
+  select(2);
+  act(() => carouselState.onVisibleIndexChange(1));
+  expect(onSelect).not.toHaveBeenCalled();
+  act(() => carouselState.onScrollBeginDrag());
+  expect(onSelect).toHaveBeenCalledWith(1);
+  select(1);
+  expect(scrollToIndex).toHaveBeenCalledTimes(1);
+  act(() => carouselState.onVisibleIndexChange(0));
+  expect(onSelect).toHaveBeenLastCalledWith(0);
+  act(() => tree.unmount());
+});
+
+it('changes documents without animation when Reduce Motion is enabled', () => {
+  carouselState.reducedMotion = true;
+  const { tree, select } = renderNavigation();
+  select(1);
+  expect(scrollToIndex).toHaveBeenCalledWith(1, false);
   act(() => tree.unmount());
 });
