@@ -373,255 +373,160 @@ describe('owner credential injection for invite-link and note publishing', () =>
     return { execute, runCommand };
   }
 
-  it('runs a bare invite-link as the owner via --ship', async () => {
-    // --ship, not --config: ship-only resolution validates the file's ship and
-    // cookie against the owner, so a stale owner-named file cannot mint a
-    // bot-attributed link.
-    const { execute, runCommand } = makeExecutor();
-
-    const result = await execute('inject', {
-      command: 'groups invite-link ~host/book-club',
-    });
-
-    expect(runCommand).toHaveBeenCalledWith([
-      '--ship',
-      '~owner',
-      'groups',
-      'invite-link',
-      '~host/book-club',
-    ]);
-    expect(result.details).toBeUndefined();
-  });
-
-  it.each([
-    ['--self', 'groups invite-link ~host/book-club --self'],
-    ['-h', 'groups invite-link -h'],
-    ['--help', 'groups invite-link --help'],
-    ['separate-value --config', '--config /tmp/x.json groups invite-link ~h/g'],
-    ['=-form --config', '--config=/tmp/x.json groups invite-link ~h/g'],
-    ['separate-value --ship', '--ship ~other groups invite-link ~h/g'],
-    ['=-form --ship', '--ship=~other groups invite-link ~h/g'],
-    ['separate-value --url', '--url https://x groups invite-link ~h/g'],
-    [
-      '=-form --code',
-      '--code=sampel-ticlyt-migfun-falmel groups invite-link ~h/g',
-    ],
-    ['=-form --cookie', '--cookie=urbauth-~zod=0v groups invite-link ~h/g'],
-  ])('leaves the command untouched with %s', async (_label, command) => {
-    const { execute, runCommand } = makeExecutor();
-
-    await execute('skip', { command });
-
+  function expectRanVerbatim(
+    runCommand: ReturnType<typeof makeExecutor>['runCommand'],
+    command: string
+  ) {
+    expect(runCommand).toHaveBeenCalledTimes(1);
     const [args] = runCommand.mock.calls[0] as unknown as [string[]];
-    expect(args).toEqual(command.split(' '));
-  });
+    expect(args, command).toEqual(command.split(' '));
+  }
 
-  it('leaves other subcommands untouched', async () => {
-    const { execute, runCommand } = makeExecutor();
+  const OWNER_COMMANDS = [
+    'groups invite-link ~host/book-club',
+    'notes note-publish notes/~h/b 12',
+    'notes note-unpublish notes/~h/b 12',
+  ];
 
-    await execute('other', { command: 'groups info ~host/book-club' });
-    await execute('other', { command: 'groups list' });
-    await execute('other', { command: 'contacts self' });
-
-    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
-      expect(args).not.toContain('--ship');
-    }
-  });
-
-  it('errors instead of silently using bot credentials when provisioning is missing', async () => {
-    const noSkillDir = makeExecutor({ env: {} as NodeJS.ProcessEnv });
-    const missingSkillDir = await noSkillDir.execute('no-dir', {
-      command: 'groups invite-link ~host/book-club',
-    });
-    expect(missingSkillDir.details).toEqual({ error: true });
-    expect(missingSkillDir.content[0]?.text).toContain('TLON_SKILL_DIR');
-    expect(noSkillDir.runCommand).not.toHaveBeenCalled();
-
-    const noFile = makeExecutor({ fileExists: () => false });
-    const missingFile = await noFile.execute('no-file', {
-      command: 'groups invite-link ~host/book-club',
-    });
-    expect(missingFile.details).toEqual({ error: true });
-    expect(missingFile.content[0]?.text).toContain(OWNER_CONFIG);
-    expect(noFile.runCommand).not.toHaveBeenCalled();
-
-    const noOwner = makeExecutor({ ownerShip: undefined });
-    const missingOwner = await noOwner.execute('no-owner', {
-      command: 'groups invite-link ~host/book-club',
-    });
-    expect(missingOwner.details).toEqual({ error: true });
-    expect(missingOwner.content[0]?.text).toContain('--self');
-    expect(noOwner.runCommand).not.toHaveBeenCalled();
-  });
-
-  it('keeps the invite-link provisioning errors word-for-word', async () => {
-    const command = 'groups invite-link ~host/book-club';
-    const texts = await Promise.all(
-      [
-        makeExecutor({ ownerShip: undefined }),
-        makeExecutor({ env: {} as NodeJS.ProcessEnv }),
-        makeExecutor({ fileExists: () => false }),
-      ].map(async ({ execute }) => {
-        const result = await execute('wording', { command });
-        return result.content[0]?.text;
-      })
-    );
-
-    expect(texts).toEqual([
-      "Retrieving the owner's invite link requires a configured owner ship. Add --self to retrieve this bot's own invite link instead.",
-      "Retrieving the invite link as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to retrieve this bot's own invite link instead.",
-      `Retrieving the invite link as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to retrieve this bot's own invite link instead.`,
-    ]);
-  });
-
-  const NOTE_OPERATIONS = ['note-publish', 'note-unpublish'] as const;
-
-  it.each(NOTE_OPERATIONS)(
-    'runs a bare notes %s as the owner via --ship',
-    async (operation) => {
+  // --ship, not --config: ship-only resolution validates the file's ship and
+  // cookie against the owner, so a stale owner-named file cannot mint a
+  // bot-attributed link or publish as the bot.
+  it.each(OWNER_COMMANDS)(
+    'runs a bare `%s` as the owner via --ship',
+    async (command) => {
       const { execute, runCommand } = makeExecutor();
 
-      const result = await execute('inject', {
-        command: `notes ${operation} notes/~h/b 12`,
-      });
+      const result = await execute('inject', { command });
 
       expect(runCommand).toHaveBeenCalledWith([
         '--ship',
         '~owner',
-        'notes',
-        operation,
-        'notes/~h/b',
-        '12',
+        ...command.split(' '),
       ]);
       expect(result.details).toBeUndefined();
     }
   );
 
-  const NOTE_OPT_OUTS: Array<[string, (operation: string) => string]> = [
-    ['--self after', (op) => `notes ${op} notes/~h/b 12 --self`],
-    ['--self before', (op) => `notes ${op} --self notes/~h/b 12`],
-    ['-h', (op) => `notes ${op} -h`],
-    ['--help', (op) => `notes ${op} --help`],
-    ...['--config', '--ship', '--url', '--code', '--cookie'].flatMap(
-      (flag): Array<[string, (operation: string) => string]> => [
-        [
-          `separate-value ${flag}`,
-          (op) => `${flag} x notes ${op} notes/~h/b 12`,
-        ],
-        [`=-form ${flag}`, (op) => `${flag}=x notes ${op} notes/~h/b 12`],
-      ]
-    ),
+  // The opt-out parse is the same for every owner command, so one
+  // representative command covers them all.
+  const OPT_OUT_BASE = 'notes note-publish notes/~h/b 12';
+  // Mirrors CREDENTIAL_FLAGS_WITH_VALUE in tlon-tool-command.ts (not exported);
+  // keep the two in sync.
+  const CREDENTIAL_FLAGS = [
+    '--config',
+    '--url',
+    '--ship',
+    '--code',
+    '--cookie',
+  ];
+  const OPT_OUTS: Array<[string, string[]]> = [
+    [
+      '--self before and after positionals',
+      ['notes note-publish --self notes/~h/b 12', `${OPT_OUT_BASE} --self`],
+    ],
+    ['help tokens', ['notes note-publish -h', 'notes note-publish --help']],
+    [
+      'separate-value credential flags',
+      CREDENTIAL_FLAGS.map((flag) => `${flag} x ${OPT_OUT_BASE}`),
+    ],
+    [
+      '=-form credential flags',
+      CREDENTIAL_FLAGS.map((flag) => `${flag}=x ${OPT_OUT_BASE}`),
+    ],
   ];
 
-  it.each(
-    NOTE_OPERATIONS.flatMap((operation) =>
-      NOTE_OPT_OUTS.map(
-        ([label, build]) => [operation, label, build(operation)] as const
-      )
-    )
-  )(
-    'leaves notes %s untouched with %s',
-    async (_operation, _label, command) => {
-      const { execute, runCommand } = makeExecutor();
-
-      await execute('skip', { command });
-
-      const [args] = runCommand.mock.calls[0] as unknown as [string[]];
-      expect(args).toEqual(command.split(' '));
+  it.each(OPT_OUTS)(
+    'leaves the command untouched with %s',
+    async (_label, commands) => {
+      for (const command of commands) {
+        const { execute, runCommand } = makeExecutor();
+        await execute('skip', { command });
+        expectRanVerbatim(runCommand, command);
+      }
     }
   );
 
-  it('leaves other notes subcommands untouched', async () => {
+  it('leaves other subcommands untouched', async () => {
     const { execute, runCommand } = makeExecutor();
+    const commands = [
+      'groups info ~host/book-club',
+      'groups list',
+      'contacts self',
+      'notes note notes/~h/b 12',
+      'notes note-delete notes/~h/b 12',
+      'notes list',
+    ];
 
-    await execute('other', { command: 'notes note notes/~h/b 12' });
-    await execute('other', { command: 'notes note-delete notes/~h/b 12' });
-    await execute('other', { command: 'notes list' });
+    for (const command of commands) {
+      await execute('other', { command });
+    }
 
-    expect(runCommand).toHaveBeenCalledTimes(3);
+    expect(runCommand).toHaveBeenCalledTimes(commands.length);
     for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
       expect(args).not.toContain('--ship');
     }
   });
 
-  const NOTE_PROVISIONING_FAILURES: Array<
-    [
-      string,
-      Parameters<typeof makeExecutor>[0],
-      Record<(typeof NOTE_OPERATIONS)[number], string>,
-    ]
-  > = [
-    [
-      'no owner',
-      { ownerShip: undefined },
-      {
-        'note-publish':
-          "Publishing a note as the owner requires a configured owner ship. Add --self to publish from this bot's own ship instead.",
-        'note-unpublish':
-          "Unpublishing a note as the owner requires a configured owner ship. Add --self to unpublish from this bot's own ship instead.",
-      },
-    ],
-    [
-      'no skill dir',
-      { env: {} as NodeJS.ProcessEnv },
-      {
-        'note-publish':
-          "Publishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to publish from this bot's own ship instead.",
-        'note-unpublish':
-          "Unpublishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to unpublish from this bot's own ship instead.",
-      },
-    ],
-    [
-      'no config file',
-      { fileExists: () => false },
-      {
-        'note-publish': `Publishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to publish from this bot's own ship instead.`,
-        'note-unpublish': `Unpublishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to unpublish from this bot's own ship instead.`,
-      },
-    ],
+  const PROVISIONING_FAILURES: Array<Parameters<typeof makeExecutor>[0]> = [
+    { ownerShip: undefined },
+    { env: {} as NodeJS.ProcessEnv },
+    { fileExists: () => false },
   ];
 
-  it.each(
-    NOTE_OPERATIONS.flatMap((operation) =>
-      NOTE_PROVISIONING_FAILURES.map(
-        ([label, overrides, texts]) =>
-          [operation, label, overrides, texts[operation]] as const
-      )
-    )
-  )(
-    'errors on notes %s with %s instead of silently using bot credentials',
-    async (operation, _label, overrides, text) => {
-      const { execute, runCommand } = makeExecutor(overrides);
+  it.each([
+    [
+      OWNER_COMMANDS[0],
+      [
+        "Retrieving the owner's invite link requires a configured owner ship. Add --self to retrieve this bot's own invite link instead.",
+        "Retrieving the invite link as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to retrieve this bot's own invite link instead.",
+        `Retrieving the invite link as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to retrieve this bot's own invite link instead.`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[1],
+      [
+        "Publishing a note as the owner requires a configured owner ship. Add --self to publish from this bot's own ship instead.",
+        "Publishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to publish from this bot's own ship instead.",
+        `Publishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to publish from this bot's own ship instead.`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[2],
+      [
+        "Unpublishing a note as the owner requires a configured owner ship. Add --self to unpublish from this bot's own ship instead.",
+        "Unpublishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to unpublish from this bot's own ship instead.",
+        `Unpublishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to unpublish from this bot's own ship instead.`,
+      ],
+    ],
+  ])(
+    'errors on `%s` instead of silently using bot credentials when provisioning is missing',
+    async (command, texts) => {
+      for (const [index, overrides] of PROVISIONING_FAILURES.entries()) {
+        const { execute, runCommand } = makeExecutor(overrides);
 
-      const result = await execute('missing', {
-        command: `notes ${operation} notes/~h/b 12`,
-      });
+        const result = await execute('missing', { command });
 
-      expect(result.content[0]?.text).toBe(text);
-      expect(result.details).toEqual({ error: true });
-      expect(runCommand).not.toHaveBeenCalled();
+        expect(result.content[0]?.text).toBe(texts[index]);
+        expect(result.details).toEqual({ error: true });
+        expect(runCommand).not.toHaveBeenCalled();
+      }
     }
   );
 
-  it.each(
-    NOTE_OPERATIONS.flatMap((operation) =>
-      NOTE_OPT_OUTS.flatMap(([optOut, build]) =>
-        NOTE_PROVISIONING_FAILURES.map(
-          ([failure, overrides]) =>
-            [operation, optOut, failure, overrides, build(operation)] as const
-        )
-      )
-    )
-  )(
-    'honors the notes %s opt-out %s despite %s',
-    async (_operation, _optOut, _failure, overrides, command) => {
-      const { execute, runCommand } = makeExecutor(overrides);
+  // An opt-out short-circuits before provisioning is consulted. The two
+  // commands hit the two opt-out exits: the credential-override check and the
+  // --self/help check.
+  it.each([`${OPT_OUT_BASE} --self`, `--ship=~other ${OPT_OUT_BASE}`])(
+    'honors the opt-out in `%s` despite missing provisioning',
+    async (command) => {
+      for (const overrides of PROVISIONING_FAILURES) {
+        const { execute, runCommand } = makeExecutor(overrides);
 
-      const result = await execute('opt-out', { command });
+        const result = await execute('opt-out', { command });
 
-      expect(result.details).toBeUndefined();
-      const [args] = runCommand.mock.calls[0] as unknown as [string[]];
-      expect(args).toEqual(command.split(' '));
+        expect(result.details).toBeUndefined();
+        expectRanVerbatim(runCommand, command);
+      }
     }
   );
 });
