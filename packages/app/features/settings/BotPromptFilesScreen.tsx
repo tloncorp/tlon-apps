@@ -81,7 +81,7 @@ export function BotPromptFilesScreen(props: Props) {
           rows: [
             messageRow(
               unsupported
-                ? "Your ship can't show prompt files yet."
+                ? "Prompt files aren't available yet."
                 : "Your bot hasn't shared its prompt files yet."
             ),
           ],
@@ -93,7 +93,7 @@ export function BotPromptFilesScreen(props: Props) {
         key: 'prompt-files',
         title: 'Prompt files',
         footer:
-          'Tlon keeps these files up to date so your bot keeps working. You can add your own instructions to some of them.',
+          'Tlon keeps these files up to date so your bot keeps working. You can add to some of them.',
         rows: sortPromptFiles(prompts).map((prompt) => {
           const access = promptFileAccess(prompt.name, prompt.text);
           return {
@@ -105,7 +105,7 @@ export function BotPromptFilesScreen(props: Props) {
                 ? access.additions
                   ? 'Customized'
                   : undefined
-                : 'Read only',
+                : 'Read-only',
             onPress: () =>
               navigation.navigate('BotPromptFile', { name: prompt.name }),
             testID: `BotPromptFileRow:${prompt.name}`,

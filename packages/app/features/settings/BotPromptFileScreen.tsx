@@ -222,7 +222,7 @@ export function BotPromptFileScreen(props: Props) {
         </YStack>
         <BotSettingsSection
           title="Tlon's default"
-          description="Tlon keeps this part up to date. It can't be edited."
+          description="Tlon keeps this part up to date."
         >
           <PromptText text={managedText} testID="BotPromptFileDefault" />
         </BotSettingsSection>
@@ -233,8 +233,8 @@ export function BotPromptFileScreen(props: Props) {
       <BotSettingsSection
         description={
           access?.kind === 'unmanaged'
-            ? "This file no longer has Tlon's defaults, so it can't be edited here. Your bot restores them the next time it restarts."
-            : "Tlon keeps this file up to date so your bot keeps working. It can't be edited."
+            ? "This file is missing Tlon's defaults, so you can't edit it here. They come back the next time your bot restarts."
+            : 'Read-only. Tlon keeps this file up to date so your bot keeps working.'
         }
       >
         <PromptText
@@ -291,7 +291,7 @@ export function BotPromptFileScreen(props: Props) {
         open={dialog?.kind === 'warning' && isThisFile(dialog)}
         onOpenChange={handleDialogOpenChange}
         title={`Edit ${label}?`}
-        description="What you add here changes how your bot behaves in every conversation. Tlon's defaults stay in place, and you can reset your additions at any time."
+        description="What you add changes how your bot behaves in every conversation. Tlon's defaults stay, and you can reset at any time."
         confirmText="Continue"
         onConfirm={handleWarningConfirmed}
       />
@@ -300,7 +300,7 @@ export function BotPromptFileScreen(props: Props) {
         onOpenChange={handleDialogOpenChange}
         destructive
         title="Reset to default?"
-        description="This removes everything you added to this file. Tlon's defaults stay as they are."
+        description="This removes everything you added. Tlon's defaults stay."
         confirmText="Reset"
         onConfirm={handleReset}
       />
