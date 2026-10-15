@@ -134,6 +134,9 @@ export type RootStackParamList = {
   };
   BotPermissionsSettings: undefined;
   BotIdentitySettings: undefined;
+  /** The bot defaults to the user's hosted bot. */
+  BotPromptFiles: { botShip?: string } | undefined;
+  BotPromptFile: { name: string; botShip?: string };
   BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
   BotModels: undefined;
   BotConnections: undefined;
@@ -265,6 +268,8 @@ export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
     | 'ScheduledTaskEditor'
     | 'ScheduledTaskRuns'
     | 'ScheduledTaskRun'
+    | 'BotPromptFiles'
+    | 'BotPromptFile'
     | 'EditProfile'
     | 'Attestation'
   >;
@@ -277,6 +282,8 @@ export type ActivityDrawerParamList = Pick<
   | 'ScheduledTaskEditor'
   | 'ScheduledTaskRuns'
   | 'ScheduledTaskRun'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'EditProfile'
 > & {
   // Drawer-only placeholder shown before an activity item is selected.
@@ -299,6 +306,8 @@ export type SettingsDrawerParamList = Pick<
   | 'BotChannelRuleSettings'
   | 'BotPermissionsSettings'
   | 'BotIdentitySettings'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'BotProviderListSettings'
   | 'BotModels'
   | 'BotConnections'
@@ -343,6 +352,8 @@ export type ChannelStackParamList = {
   ScheduledTaskEditor: RootStackParamList['ScheduledTaskEditor'];
   ScheduledTaskRuns: RootStackParamList['ScheduledTaskRuns'];
   ScheduledTaskRun: RootStackParamList['ScheduledTaskRun'];
+  BotPromptFiles: RootStackParamList['BotPromptFiles'];
+  BotPromptFile: RootStackParamList['BotPromptFile'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
   ChannelMeta: RootStackParamList['ChannelMeta'];
@@ -364,6 +375,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'ScheduledTaskEditor'
   | 'ScheduledTaskRuns'
   | 'ScheduledTaskRun'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'

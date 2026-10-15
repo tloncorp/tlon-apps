@@ -4727,13 +4727,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
         // Check if we should respond:
         // 1. Direct mention always triggers response
-        // 2. Thread replies where we've participated - respond if relevant (let agent decide)
-        // 3. Owner blob-only message (image/file with no text from owner)
+        // 2. Thread replies where we've participated - respond if relevant (let
+        //    agent decide), except for the owner while owner-listen is off for
+        //    this channel (global toggle off or channel muted)
+        // 3. Owner blob-bearing message (image/file from owner), same owner-mute
+        //    exception as 2
         // 4. Owner command: owner's bare registered/core slash command in any
         //    watched chat channel (escape hatch; the popup inserts these bare).
         //    The chat/ constraint keeps heap/diary behavior unchanged.
-        // 5. Owner-listen: owner posts in an owner/bot-hosted channel and the
-        //    channel is not in the per-channel disabled list
+        // 5. Owner-listen: owner posts in an owner/bot-hosted channel, the
+        //    global toggle is on, and the channel is not in the per-channel
+        //    disabled list
         const inParticipatedThread = Boolean(
           isThreadReply && parentId && participatedThreads.has(parentId)
         );
@@ -4762,27 +4766,28 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // are owner-initiated no-mention engagement, and both trigger unions
         // (ContextLensTrigger, TlonAgentTurnTrigger) plus the run-kind mapping
         // already accept it without parallel edits.
-        const trigger: ContextLensTrigger = mentioned
-          ? 'mention'
-          : inParticipatedThread
-            ? 'thread'
-            : isOwnerBlob
-              ? 'owner-blob'
-              : engageDecision.reason === 'owner-owned' ||
-                  engageDecision.reason === 'owner-command'
-                ? 'owner-listen'
-                : 'unknown';
+        const trigger: ContextLensTrigger =
+          engageDecision.reason === 'mention'
+            ? 'mention'
+            : engageDecision.reason === 'thread'
+              ? 'thread'
+              : engageDecision.reason === 'owner-blob'
+                ? 'owner-blob'
+                : engageDecision.reason === 'owner-owned' ||
+                    engageDecision.reason === 'owner-command'
+                  ? 'owner-listen'
+                  : 'unknown';
 
         // Log why we're responding
         if (engageDecision.reason === 'owner-owned') {
           runtime.log?.(
             `[tlon] Owner ${senderShip} heard without mention in owned channel ${nest}`
           );
-        } else if (isOwnerBlob && !mentioned && !inParticipatedThread) {
+        } else if (engageDecision.reason === 'owner-blob') {
           runtime.log?.(
-            `[tlon] Responding to owner blob-only message in ${nest}`
+            `[tlon] Responding to owner blob-bearing message in ${nest}`
           );
-        } else if (inParticipatedThread && !mentioned) {
+        } else if (engageDecision.reason === 'thread') {
           runtime.log?.(
             `[tlon] Responding to thread we participated in (no mention): ${parentId}`
           );

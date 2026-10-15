@@ -31,6 +31,8 @@ import {
 import { BotOpenAISubscriptionScreen } from '../features/settings/BotOpenAISubscriptionScreen';
 import { BotIdentitySettingsScreen } from '../features/settings/BotIdentitySettingsScreen';
 import { BotPermissionsSettingsScreen } from '../features/settings/BotPermissionsSettingsScreen';
+import { BotPromptFileScreen } from '../features/settings/BotPromptFileScreen';
+import { BotPromptFilesScreen } from '../features/settings/BotPromptFilesScreen';
 import { BotProviderListSettingsScreen } from '../features/settings/BotProviderListSettingsScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../features/settings/BotShipListSettingsScreen';
@@ -249,6 +251,16 @@ function RootStackContent() {
       <Root.Screen
         name="BotIdentitySettings"
         component={BotIdentitySettingsScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="BotPromptFiles"
+        component={BotPromptFilesScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="BotPromptFile"
+        component={BotPromptFileScreen}
         options={nativeHeaderScreenOptions}
       />
       <Root.Screen

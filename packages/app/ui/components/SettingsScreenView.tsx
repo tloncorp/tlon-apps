@@ -69,6 +69,8 @@ const botSettingsRouteNames = new Set([
   'BotChannelRuleSettings',
   'BotPermissionsSettings',
   'BotIdentitySettings',
+  'BotPromptFiles',
+  'BotPromptFile',
   'BotProviderListSettings',
   'BotModels',
   'BotConnections',
