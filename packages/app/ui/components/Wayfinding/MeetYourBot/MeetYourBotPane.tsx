@@ -163,9 +163,6 @@ export function MeetYourBotPane(props: {
   const isDark = useIsDarkMode();
   const content = SLIDES[slide];
   const iconColor = theme.secondaryText.val;
-  // The detail sits a step quieter than the secondary text so the three
-  // titles carry the list.
-  const detailColor = isDark ? '#9A9A9A' : '#8A8A8A';
 
   return (
     <View
@@ -223,7 +220,7 @@ export function MeetYourBotPane(props: {
                 >
                   {point.title}
                 </Text>
-                <Text fontSize={14} lineHeight={20} color={detailColor}>
+                <Text fontSize={14} lineHeight={20} color="$secondaryText">
                   {point.detail}
                 </Text>
               </YStack>
