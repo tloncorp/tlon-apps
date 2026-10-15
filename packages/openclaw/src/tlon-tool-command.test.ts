@@ -444,7 +444,7 @@ describe('tlon tool execution', () => {
   });
 });
 
-describe('owner credential injection for invite-link and note publishing', () => {
+describe('owner credential injection for invite-link, note publishing and notification settings', () => {
   const SKILL_DIR = '/srv/tlon-skill';
   const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
 
@@ -718,6 +718,122 @@ describe('owner credential injection for invite-link and note publishing', () =>
       expect(args).toEqual(command.split(' '));
     }
   );
+
+  const ACTIVITY_COMMANDS = {
+    mute: 'activity mute ~zod/book-club',
+    unmute: 'activity unmute chat/~nec/general 170.141',
+    volume: 'activity volume ~ten hush',
+  } as const;
+
+  it.each(Object.entries(ACTIVITY_COMMANDS))(
+    'runs a bare activity %s as the owner via --ship',
+    async (_operation, command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      const result = await execute('inject', { command });
+
+      expect(runCommand).toHaveBeenCalledWith([
+        '--ship',
+        '~owner',
+        ...command.split(' '),
+      ]);
+      expect(result.details).toBeUndefined();
+    }
+  );
+
+  // The predicate is shared by every owner-bound op, so one table spread
+  // across the activity ops covers each opt-out form.
+  it.each([
+    ['--self after', 'activity mute ~zod/book-club --self'],
+    ['--self before', 'activity unmute --self chat/~nec/general'],
+    ['-h', 'activity volume -h'],
+    ['--help', 'activity mute --help'],
+    ['separate-value --config', '--config x activity unmute ~ten'],
+    ['=-form --ship', '--ship=~other activity volume ~ten hush'],
+  ])('leaves activity untouched with %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+  });
+
+  it('never injects owner credentials for activity reads', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('read', { command: 'activity mentions --limit 5' });
+    await execute('read', { command: 'activity unreads' });
+
+    expect(runCommand).toHaveBeenCalledTimes(2);
+    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+      expect(args).not.toContain('--ship');
+    }
+  });
+
+  it('requires the op to belong to its own family', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('other', { command: 'notes invite-link ~zod/book-club' });
+    await execute('other', { command: 'contacts note-publish' });
+    await execute('other', { command: 'groups mute ~zod/book-club' });
+
+    expect(runCommand).toHaveBeenCalledTimes(3);
+    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+      expect(args).not.toContain('--ship');
+    }
+  });
+
+  it('words the activity provisioning errors per op', async () => {
+    const hint =
+      "Add --self to change this bot's own notification settings instead.";
+    const failures = [
+      makeExecutor({ ownerShip: undefined }),
+      makeExecutor({ env: {} as NodeJS.ProcessEnv }),
+      makeExecutor({ fileExists: () => false }),
+    ];
+    const texts: Record<string, Array<string | undefined>> = {};
+    for (const [operation, command] of Object.entries(ACTIVITY_COMMANDS)) {
+      texts[operation] = await Promise.all(
+        failures.map(async ({ execute }) => {
+          const result = await execute('wording', { command });
+          expect(result.details).toEqual({ error: true });
+          return result.content[0]?.text;
+        })
+      );
+    }
+
+    expect(texts).toEqual({
+      mute: [
+        `Muting as the owner requires a configured owner ship. ${hint}`,
+        `Muting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${hint}`,
+        `Muting as ~owner requires owner credentials at ${OWNER_CONFIG}. ${hint}`,
+      ],
+      unmute: [
+        `Unmuting as the owner requires a configured owner ship. ${hint}`,
+        `Unmuting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${hint}`,
+        `Unmuting as ~owner requires owner credentials at ${OWNER_CONFIG}. ${hint}`,
+      ],
+      volume: [
+        `Changing a notification level as the owner requires a configured owner ship. ${hint}`,
+        `Changing a notification level as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${hint}`,
+        `Changing a notification level as ~owner requires owner credentials at ${OWNER_CONFIG}. ${hint}`,
+      ],
+    });
+    for (const { runCommand } of failures) {
+      expect(runCommand).not.toHaveBeenCalled();
+    }
+  });
+
+  it('honors --self on activity despite missing owner provisioning', async () => {
+    const { execute, runCommand } = makeExecutor({ ownerShip: undefined });
+    const command = 'activity mute ~zod/book-club --self';
+
+    const result = await execute('opt-out', { command });
+
+    expect(result.details).toBeUndefined();
+    expect(runCommand).toHaveBeenCalledWith(command.split(' '));
+  });
 });
 
 describe('checkBlockedTlonOperation', () => {
@@ -912,7 +1028,15 @@ describe('checkBlockedTlonOperation', () => {
 });
 
 const documentedActionOperations = {
-  activity: ['mentions', 'replies', 'all', 'unreads'],
+  activity: [
+    'mentions',
+    'replies',
+    'all',
+    'unreads',
+    'mute',
+    'unmute',
+    'volume',
+  ],
   browser: ['handoff', 'share'],
   buckets: [
     'list',
@@ -1366,6 +1490,26 @@ describe('tlon tool telemetry summarizer', () => {
     });
 
     expect(JSON.stringify(summary)).not.toContain('Project Notes');
+  });
+
+  it('classifies notification changes as writes without leaking targets', () => {
+    for (const operation of ['mute', 'unmute', 'volume']) {
+      const summary = summarizeTlonCommand(
+        `activity ${operation} ~zod/secret-group --self`
+      );
+
+      expect(summary).toMatchObject({
+        summaryKey: `activity.${operation}`,
+        operation,
+        intent: 'write',
+        isKnownSubcommand: true,
+      });
+      expect(JSON.stringify(summary)).not.toContain('secret-group');
+    }
+    expect(summarizeTlonCommand('activity unreads')).toMatchObject({
+      summaryKey: 'activity.unreads',
+      intent: 'read',
+    });
   });
 
   it('classifies post pins as channel admin operations', () => {

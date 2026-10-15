@@ -7,7 +7,7 @@
  *   tlon [options] <command> <subcommand> [args...]
  *
  * Commands:
- *   activity     Activity/notifications (mentions, replies, all, unreads)
+ *   activity     Activity/notifications (mentions, replies, all, unreads, mute, unmute, volume)
  *   browser      Hosted browser handoff operations
  *   buckets      Shared %buckets file channels
  *   channels     Channel listing and management

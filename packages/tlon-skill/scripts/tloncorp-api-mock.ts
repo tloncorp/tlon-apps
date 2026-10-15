@@ -22,7 +22,9 @@
  * posts, invites), the notes runtimes (notesV1, notes et al.), and
  * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
  * enableGroup, BadResponseError), `activity-runtime.ts`
- * (getInitialActivity, getGroupAndChannelUnreads, getTextContent),
+ * (getInitialActivity, getGroupAndChannelUnreads, getTextContent,
+ * adjustVolumeSetting, getVolumeSettings, setActivitySupportsReactions,
+ * setActivitySupportsNotes, getGroups, getChannelPosts),
  * `group-sections-runtime.ts` (poke), and `posts-runtime.ts` (editPost,
  * getPostWithReplies, deleteReply, setOrder, toPostContent).
  */
@@ -120,7 +122,7 @@ export const mockedNotes = Object.fromEntries(
 >;
 
 export const mockedGetChannelPosts = {
-  impl: async (..._args: unknown[]) => ({
+  impl: async (..._args: unknown[]): Promise<unknown> => ({
     posts: [],
     older: null,
     totalPosts: 0,
@@ -153,6 +155,18 @@ export const mockedPoke = {
 
 export const mockedGetGroups = {
   impl: async (..._args: unknown[]): Promise<unknown> => [],
+};
+
+/**
+ * The activity volume surface: reassign per test. The two flags record the
+ * values the runtime last set, so a test can read them from inside a call.
+ */
+export const mockedVolume = {
+  adjustVolumeSetting: async (..._args: unknown[]): Promise<unknown> =>
+    undefined,
+  getVolumeSettings: async (..._args: unknown[]): Promise<unknown> => ({}),
+  supportsReactions: false,
+  supportsNotes: false,
 };
 
 export const mockedGetGroup = {
@@ -312,4 +326,14 @@ mock.module('@tloncorp/api', () => ({
     threadActivity: [],
   }),
   getTextContent: () => '',
+  adjustVolumeSetting: (...args: unknown[]) =>
+    mockedVolume.adjustVolumeSetting(...args),
+  getVolumeSettings: (...args: unknown[]) =>
+    mockedVolume.getVolumeSettings(...args),
+  setActivitySupportsReactions: (value: boolean) => {
+    mockedVolume.supportsReactions = value;
+  },
+  setActivitySupportsNotes: (value: boolean) => {
+    mockedVolume.supportsNotes = value;
+  },
 }));

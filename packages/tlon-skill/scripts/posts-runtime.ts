@@ -7,18 +7,15 @@ import {
   getCurrentUserId as apiGetCurrentUserId,
   getPostWithReplies as apiGetPostWithReplies,
   removeReaction as apiRemoveReaction,
-  scry,
   sendPost as apiSendPost,
   sendReply as apiSendReply,
   setOrder as apiSetOrder,
   toPostContent,
 } from '@tloncorp/api';
-import type { ChannelFromServer } from '@tloncorp/api/urbit';
-
 import { ensureClient } from './api-client';
+import { getChannelState } from './channel-state-runtime';
 import { commandError, errorMessage } from './commands/command';
 import type {
-  ChannelState,
   ExistingReply,
   ExistingThread,
   PostDeleteInput,
@@ -111,29 +108,6 @@ export function toExistingThread(post: {
         contentKey: replyContentKey(reply.content ?? null),
       })
     ),
-  };
-}
-
-// `/v5/channels` lists every channel in the local %channels state (joined
-// channels only), each with its arranged order and its group, without posts.
-async function getChannelState(nest: string): Promise<ChannelState> {
-  let channels: Record<string, ChannelFromServer> | null;
-  try {
-    channels = await scry<Record<string, ChannelFromServer>>({
-      app: 'channels',
-      path: '/v5/channels',
-    });
-  } catch (error) {
-    throw commandError(errorMessage(error));
-  }
-  const channel = channels?.[nest];
-  if (!channel) {
-    return { joined: false };
-  }
-  return {
-    joined: true,
-    groupId: channel.perms.group,
-    order: channel.order ?? [],
   };
 }
 
