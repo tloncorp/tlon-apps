@@ -944,6 +944,88 @@ describe('activity mute / unmute / volume: read-back', () => {
     );
   });
 
+  it('confirms an acked channel clear while an older entry for the nest remains under the key', async () => {
+    // The desk keys channels by nest alone, so an older override for the same
+    // nest under a former group survives the acked delete.
+    const context = makeVolumeContext({
+      initial: { [`group/${GROUP}`]: SOFT, [`channel/${NEST}`]: HUSH },
+      applyPoke: false,
+    });
+
+    expect(await run(['unmute', NEST], context.deps)).toBe(0);
+    expect(context.stderr()).toBe('');
+    expect(context.stdout()).toBe(
+      [
+        `✓ Unmuted channel ${NEST} for ${ACTING}`,
+        '  Level: default (follows Use group default: soft (Mentions and replies))',
+        '  In the app: Channel options → Channel notifications',
+        '',
+      ].join('\n')
+    );
+    expect(context.stdout()).not.toContain('still');
+    expect(context.calls.reads).toBe(1);
+    expect(context.calls.sleeps).toEqual([]);
+    expect(context.calls.getChannelState).toEqual([NEST, NEST]);
+  });
+
+  it('confirms an acked thread clear while an older entry for the root id remains under the key', async () => {
+    const context = makeVolumeContext({
+      initial: {
+        [`channel/${NEST}`]: MEDIUM,
+        [`thread/${NEST}/${ROOT_ID}`]: SOFT,
+      },
+      applyPoke: false,
+    });
+
+    expect(await run(['volume', NEST, ROOT_ID, 'default'], context.deps)).toBe(
+      0
+    );
+    expect(context.stderr()).toBe('');
+    expect(context.stdout()).toStartWith(
+      `✓ Set thread ${ROOT_ID} in ${NEST} to default for ${ACTING}\n`
+    );
+    expect(context.stdout()).toContain(
+      '  Level: default (follows Use channel default: medium ('
+    );
+    expect(context.stdout()).not.toContain('still');
+    expect(context.calls.reads).toBe(1);
+    expect(context.calls.sleeps).toEqual([]);
+    expect(context.calls.findRootPost).toEqual([
+      [NEST, ROOT_ID],
+      [NEST, ROOT_ID],
+    ]);
+  });
+
+  it('keeps an acked DM clear unconfirmed while the entry remains', async () => {
+    const context = makeVolumeContext({
+      initial: { [`ship/${AUTHOR}`]: HUSH },
+      applyPoke: false,
+    });
+
+    expect(await run(['unmute', AUTHOR], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Unmute of DM with ${AUTHOR} was sent but is not confirmed: the stored setting is still hush. Running the command again is safe.\n`
+    );
+    expect(context.calls.reads).toBe(5);
+  });
+
+  it('keeps an unacknowledged channel clear unconfirmed while the entry remains', async () => {
+    const message = 'Poke ack timed out after 30000ms';
+    const context = makeVolumeContext({
+      poke: { kind: 'ambiguous', message },
+      initial: { [`channel/${NEST}`]: HUSH },
+      applyPoke: false,
+    });
+
+    expect(await run(['unmute', NEST], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Unmute of channel ${NEST} was sent but is not confirmed: the stored setting is still hush. Running the command again is safe. (poke error: ${message})\n`
+    );
+    expect(context.calls.reads).toBe(5);
+  });
+
   it('confirms every requested entry even when a legacy entry changes the inferred level', async () => {
     const context = makeVolumeContext({
       initial: {

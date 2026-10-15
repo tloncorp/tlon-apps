@@ -774,6 +774,10 @@ async function setVolume(
   const pokeError = ambiguous ? outcome.message : null;
 
   const key = deps.volume.sourceKey(source);
+  // An acked clear is definitive. A channel or thread entry left under the key
+  // may be an older one written under another group or root author: same key,
+  // different noun, so it never goes away and cannot gate the clear.
+  const clearedOnAck = !sent && !ambiguous && resolved.channel !== undefined;
   let settings: VolumeSettings | null = null;
   let lastReadError: string | null = null;
   let satisfied = false;
@@ -783,7 +787,7 @@ async function setVolume(
       const stored = settings[key] ?? null;
       satisfied = sent
         ? stored !== null && mapDiffs(sent, stored).length === 0
-        : stored === null;
+        : clearedOnAck || stored === null;
     } catch (error) {
       lastReadError = errorMessage(error);
     }
