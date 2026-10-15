@@ -307,6 +307,21 @@ describe('BotPromptFileScreen', () => {
     );
   });
 
+  it('says when the restart could not be confirmed', async () => {
+    mocks.warningSeen = true;
+    mocks.restart.mockResolvedValue(false);
+    const tree = await render('SOUL.md');
+    press(tree, 'BotPromptFileEdit');
+    await act(async () => {
+      editorSheets(tree)[0].props.onSaved('SOUL.md', `${block}\n`);
+    });
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("couldn't confirm"),
+      })
+    );
+  });
+
   it('restarts after a reset too', async () => {
     mocks.prompts = [{ name: 'SOUL.md', text: `Call me Captain.\n${block}\n` }];
     const tree = await render('SOUL.md');

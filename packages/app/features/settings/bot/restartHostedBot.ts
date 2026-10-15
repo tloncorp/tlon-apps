@@ -2,14 +2,23 @@ import * as api from '@tloncorp/api';
 
 /**
  * Hosting answers the reload once it has signalled the pod; tlawn then stops
- * the gateway and starts a fresh one. Polling at once can find the old
- * process still up and call the restart finished before it has begun.
+ * the gateway and starts a fresh one, and `/running` keeps answering for the
+ * old process until it is gone. So a restart counts as confirmed only once
+ * the bot has been seen down and then up again.
  */
-export const RESTART_SETTLE_MS = 3_000;
-export const RESTART_TIMEOUT_MS = 30_000;
-export const RESTART_POLL_MS = 1_500;
+export const STOP_TIMEOUT_MS = 15_000;
+export const START_TIMEOUT_MS = 30_000;
+export const POLL_MS = 1_500;
 
-const inFlight = new Map<string, Promise<boolean>>();
+type ShipRestart = {
+  active: Promise<boolean>;
+  /** One more restart after this one, for a save that landed during it. */
+  followUp: Promise<boolean> | null;
+};
+const restarts = new Map<string, ShipRestart>();
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
  * Only the user's own hosted bot runs under Hosting's supervisor, which is
@@ -31,29 +40,68 @@ export function isHostedBotOfCurrentUser(
 }
 
 /**
- * Restarts the hosted bot's gateway, the way applying bot settings does, so
- * it starts on its current workspace. Resolves true once the bot reports
- * running again and false if it has not within the timeout; rejects when
- * Hosting refuses the reload. Overlapping calls for one ship share a single
- * restart instead of queueing another behind it.
+ * True once Hosting no longer sees the gateway up. A probe that fails says
+ * nothing about the gateway, so it is not taken as down.
  */
-export function restartHostedBot(ship: string): Promise<boolean> {
-  const existing = inFlight.get(ship);
-  if (existing) {
-    return existing;
+async function awaitBotStopped(ship: string): Promise<boolean> {
+  const deadline = Date.now() + STOP_TIMEOUT_MS;
+  for (;;) {
+    try {
+      if (!(await api.isBotRunning(ship))) {
+        return true;
+      }
+    } catch {
+      // Hosting itself did not answer; keep probing.
+    }
+    if (Date.now() >= deadline) {
+      return false;
+    }
+    await sleep(POLL_MS);
   }
-  const restart = (async () => {
-    await api.reloadBot(ship);
-    await new Promise((resolve) => setTimeout(resolve, RESTART_SETTLE_MS));
-    return api.awaitBotRunning(ship, {
-      timeoutMs: RESTART_TIMEOUT_MS,
-      pollIntervalMs: RESTART_POLL_MS,
-    });
-  })().finally(() => {
-    if (inFlight.get(ship) === restart) {
-      inFlight.delete(ship);
+}
+
+async function runRestart(ship: string): Promise<boolean> {
+  await api.reloadBot(ship);
+  if (!(await awaitBotStopped(ship))) {
+    return false;
+  }
+  return api.awaitBotRunning(ship, {
+    timeoutMs: START_TIMEOUT_MS,
+    pollIntervalMs: POLL_MS,
+  });
+}
+
+function launch(ship: string): Promise<boolean> {
+  const entry: ShipRestart = { active: Promise.resolve(false), followUp: null };
+  entry.active = runRestart(ship).finally(() => {
+    if (restarts.get(ship) === entry) {
+      restarts.delete(ship);
     }
   });
-  inFlight.set(ship, restart);
-  return restart;
+  restarts.set(ship, entry);
+  return entry.active;
+}
+
+/**
+ * Restarts the hosted bot's gateway, the way applying bot settings does, so
+ * it starts on its current workspace. Resolves true once the bot has been
+ * seen to go down and come back, false when that could not be confirmed in
+ * time, and rejects when Hosting refuses the reload.
+ *
+ * A call made while a restart is under way gets one follow-up restart after
+ * it, shared with every other call that arrives meanwhile: the new gateway
+ * may already have read its workspace before the later save landed.
+ */
+export function restartHostedBot(ship: string): Promise<boolean> {
+  const entry = restarts.get(ship);
+  if (!entry) {
+    return launch(ship);
+  }
+  if (!entry.followUp) {
+    entry.followUp = entry.active.then(
+      () => launch(ship),
+      () => launch(ship)
+    );
+  }
+  return entry.followUp;
 }

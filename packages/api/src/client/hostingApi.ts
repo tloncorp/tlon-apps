@@ -861,10 +861,14 @@ export async function joinTlawnGroup(
   );
 }
 
+/**
+ * Restart the gateway process in place (tlawn's hot reload, which also
+ * refreshes the prompt set). Rejects when Hosting refuses, such as on an
+ * expired session: a raw fetch would resolve on that and let a caller take a
+ * refusal for a restart.
+ */
 export async function reloadBot(ship: string): Promise<void> {
-  await rawHostingFetch(`/v1/tlawn/ships/${ship}/reload`, {
-    method: 'POST',
-  });
+  await fetchVoid(`/v1/tlawn/ships/${ship}/reload`, { method: 'POST' });
 }
 
 export async function isBotRunning(ship: string): Promise<boolean> {

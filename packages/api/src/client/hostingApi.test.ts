@@ -13,6 +13,7 @@ import {
   getTlawnNickname,
   getTlawnOpenRouterRecommendedModels,
   getTlawnOpenRouterZdrEndpoints,
+  reloadBot,
   startTlawnLLMAuth,
   requestLoginOtpForUser,
   verifyLoginOtpForUser,
@@ -235,6 +236,40 @@ describe('Tlawn provider auth', () => {
       'https://hosting.test/v1/tlawn/users/user-1/openrouter/recommended-models',
       'https://hosting.test/v1/tlawn/users/user-1/openrouter/zdr-endpoints',
     ]);
+  });
+});
+
+describe('Bot reload', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('tlonEnv', {
+      API_URL: 'https://hosting.test',
+      API_AUTH_USERNAME: undefined,
+      API_AUTH_PASSWORD: undefined,
+    });
+    configureHostingSessionStore({
+      authToken: {
+        getValue: async () => 'session=abc; HttpOnly;',
+        setValue: async () => undefined,
+      },
+    });
+  });
+
+  it('posts the reload and rejects when Hosting refuses it', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(() => respond(null, 202))
+      .mockImplementationOnce(() => respond({ message: 'expired' }, 401));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(reloadBot('zod')).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://hosting.test/v1/tlawn/ships/zod/reload',
+      expect.objectContaining({ method: 'POST' })
+    );
+
+    await expect(reloadBot('zod')).rejects.toBeInstanceOf(HostingError);
   });
 });
 

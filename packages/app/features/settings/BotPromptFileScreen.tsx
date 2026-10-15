@@ -160,10 +160,10 @@ export function BotPromptFileScreen(props: Props) {
     const ship = desig(currentUserId);
     setRestarting(true);
     const message = await restartHostedBot(ship).then(
-      (running) =>
-        running
+      (confirmed) =>
+        confirmed
           ? 'Your bot restarted with the change.'
-          : "Your bot is still restarting. It picks up the change once it's back.",
+          : "Saved, but couldn't confirm your bot restarted. It picks up the change once it does.",
       () =>
         "Saved, but your bot couldn't restart. It picks up the change the next time it does."
     );
