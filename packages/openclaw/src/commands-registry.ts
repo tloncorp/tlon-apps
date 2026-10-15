@@ -161,8 +161,11 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     name: 'owner-listen',
     description:
       'Control whether the bot listens for the owner without @-mention in owned channels. ' +
+      'Off makes the owner mention-only there, including threads the bot has joined and posts with attachments; ' +
+      'bare slash commands still work in chat channels, and /owner-listen in any owned channel. ' +
       'Usage: /owner-listen [on|off|status|list] [<channel-nest>]; ' +
-      '/owner-listen all [on|off] for the global kill switch.',
+      '/owner-listen all [on|off] for the global kill switch, which also covers ' +
+      'threads and attachments in channels hosted by others.',
     acceptsArgs: true,
     handler: async (ctx) => {
       const result = resolveBridgeForCommand(ctx);

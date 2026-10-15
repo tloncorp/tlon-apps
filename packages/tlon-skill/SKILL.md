@@ -32,6 +32,8 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 | Read activity, search history, manage reactions, pins, notification levels, or existing posts | [Reading](references/reading.md) |
 | Workspaces (groups), membership, permissions, channels, channel sections, public exposure | [Groups and channels](references/groups-channels.md) |
 | Find notebooks, create/edit Markdown notes, and publish them | [Notes](references/notes.md) |
+| Workspaces (groups), membership, permissions, channels, channel sections, public exposure | [Groups and channels](references/groups-channels.md) |
+| Find notebooks, create/edit Markdown notes, and publish them | [Notes](references/notes.md) |
 | Shared group files and folders | [Buckets](references/buckets.md) |
 | Upload media for messages or profiles | [Media](references/media.md) |
 | Contacts, profile changes, bot settings | [Contacts and settings](references/contacts-settings.md) |
