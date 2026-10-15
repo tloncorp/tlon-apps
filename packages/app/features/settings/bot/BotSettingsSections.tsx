@@ -43,6 +43,7 @@ export type BotSettingsNavigate = (
     | 'BotMcpSettings'
     | 'BotPermissionsSettings'
     | 'BotIdentitySettings'
+    | 'BotPromptFiles'
     | 'BotModels'
     | 'BotConnections'
     | 'ScheduledTasks',
@@ -337,6 +338,14 @@ export function useBotSettingsSectionModels(
                   },
                 ]
               : []),
+            // The prompt files come from our own ship, not hosting, so the row
+            // is there even while the hosted settings load.
+            {
+              key: 'advanced',
+              title: 'Advanced',
+              onPress: () => navigate('BotPromptFiles'),
+              testID: 'BotAdvancedRow',
+            },
           ],
         },
       ],
