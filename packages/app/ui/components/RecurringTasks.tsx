@@ -240,6 +240,7 @@ export function RecurringTaskEditorView({
           text: save.busy ? 'Saving…' : save.label,
           onPress: save.onPress,
           disabled: save.disabled || save.busy,
+          tint: '$positiveActionText',
         },
       ]}
     >
