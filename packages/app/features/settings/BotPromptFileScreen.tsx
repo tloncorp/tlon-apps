@@ -111,11 +111,13 @@ export function BotPromptFileScreen(props: Props) {
   const access = prompt ? promptFileAccess(prompt.name, prompt.text) : null;
   const additions = access?.kind === 'additions' ? access.additions : null;
 
-  // The confirmation runs the callback it was opened with, and the file can
-  // change while it is up: reset from the file as it is when confirmed.
-  const latestPromptRef = useRef(prompt);
+  // The native confirmation runs the callback it was opened with, while the
+  // file, and even which file this screen shows, can change while it is up:
+  // reset from the file as it is when confirmed, and only the file it was
+  // opened for.
+  const latestRef = useRef({ bot: botShip, prompt });
   useEffect(() => {
-    latestPromptRef.current = prompt;
+    latestRef.current = { bot: botShip, prompt };
   });
 
   const handleBack = useCallback(() => navigation.goBack(), [navigation]);
@@ -141,11 +143,13 @@ export function BotPromptFileScreen(props: Props) {
   }, [beginEditing]);
 
   const handleReset = useCallback(async () => {
-    const current = latestPromptRef.current;
+    const { bot: currentBot, prompt: current } = latestRef.current;
     // A file that lost Tlon's blocks while the confirmation was up would
     // reset to nothing at all.
     if (
       !current ||
+      currentBot !== botShip ||
+      current.name !== name ||
       resetting ||
       promptFileAccess(current.name, current.text).kind !== 'additions'
     ) {
@@ -160,7 +164,7 @@ export function BotPromptFileScreen(props: Props) {
       showToast({ message: 'Failed to reset prompt.', duration: 3000 });
     }
     setResetting(false);
-  }, [refreshPrompts, resetting, savePrompt, showToast]);
+  }, [botShip, name, refreshPrompts, resetting, savePrompt, showToast]);
 
   const handleDialogOpenChange = useCallback((open: boolean) => {
     if (!open) {

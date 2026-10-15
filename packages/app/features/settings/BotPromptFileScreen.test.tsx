@@ -184,6 +184,31 @@ describe('BotPromptFileScreen', () => {
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
+  it('confirms a reset only for the file it was opened for', async () => {
+    mocks.prompts = [
+      { name: 'SOUL.md', text: `Call me Captain.\n${block}\n` },
+      { name: 'IDENTITY.md', text: `Name: Ahab.\n${block}\n` },
+    ];
+    const tree = await render('SOUL.md');
+    press(tree, 'BotPromptFileReset');
+    // A native alert keeps the callback it was opened with.
+    const confirmOpened = dialog(tree, 'Reset').props.onConfirm;
+
+    // A deep link reuses the screen for another file while the alert is up.
+    await act(async () => {
+      tree.update(
+        <BotPromptFileScreen
+          navigation={{ goBack: vi.fn() } as never}
+          route={{ params: { name: 'IDENTITY.md' } } as never}
+        />
+      );
+    });
+    await act(async () => {
+      await confirmOpened();
+    });
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
   it('offers no reset when nothing has been added', async () => {
     const tree = await render('SOUL.md');
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(1);
