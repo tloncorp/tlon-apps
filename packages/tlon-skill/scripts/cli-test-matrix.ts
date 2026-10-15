@@ -623,6 +623,16 @@ export const NESTED_HELP_CASES: CliCase[] = [
     'Usage: tlon notes note-delete'
   ),
   helpCase(
+    'notes note-publish --help',
+    ['notes', 'note-publish', '--help'],
+    'Usage: tlon notes note-publish'
+  ),
+  helpCase(
+    'notes note-unpublish --help',
+    ['notes', 'note-unpublish', '--help'],
+    'Usage: tlon notes note-unpublish'
+  ),
+  helpCase(
     'notes history --help',
     ['notes', 'history', '--help'],
     'Usage: tlon notes history'
@@ -1288,6 +1298,26 @@ export const NOTES_FAMILY_CASES: CliCase[] = [
     ['notes', 'note-move', 'notes/~zod/blog', '12', 'abc'],
     'Invalid folder id: abc'
   ),
+  usageErrorCase(
+    'notes note-publish missing id',
+    ['notes', 'note-publish', 'notes/~zod/blog'],
+    'Usage: tlon notes note-publish'
+  ),
+  usageErrorCase(
+    'notes note-unpublish missing id',
+    ['notes', 'note-unpublish', 'notes/~zod/blog'],
+    'Usage: tlon notes note-unpublish'
+  ),
+  usageErrorCase(
+    'notes note-publish rejects non-numeric id',
+    ['notes', 'note-publish', 'notes/~zod/blog', 'abc'],
+    'Invalid note id: abc'
+  ),
+  usageErrorCase(
+    'notes note-publish rejects an unknown option',
+    ['notes', 'note-publish', 'notes/~zod/blog', '12', '--force'],
+    'Unknown option: --force'
+  ),
   authRequiredCase('notes folders reaches auth', [
     'notes',
     'folders',
@@ -1369,6 +1399,32 @@ export const NOTES_FAMILY_CASES: CliCase[] = [
     'note-delete',
     'notes/~zod/blog',
     '12',
+  ]),
+  authRequiredCase('notes note-publish reaches auth', [
+    'notes',
+    'note-publish',
+    'notes/~zod/blog',
+    '12',
+  ]),
+  authRequiredCase('notes note-publish --self reaches auth', [
+    'notes',
+    'note-publish',
+    'notes/~zod/blog',
+    '12',
+    '--self',
+  ]),
+  authRequiredCase('notes note-unpublish reaches auth', [
+    'notes',
+    'note-unpublish',
+    'notes/~zod/blog',
+    '12',
+  ]),
+  authRequiredCase('notes note-unpublish --self reaches auth', [
+    'notes',
+    'note-unpublish',
+    'notes/~zod/blog',
+    '12',
+    '--self',
   ]),
   authRequiredCase('notes history reaches auth', [
     'notes',
@@ -1804,6 +1860,11 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
   { name: 'notes note-rename', args: ['notes', 'note-rename', '--help'] },
   { name: 'notes note-move', args: ['notes', 'note-move', '--help'] },
   { name: 'notes note-delete', args: ['notes', 'note-delete', '--help'] },
+  { name: 'notes note-publish', args: ['notes', 'note-publish', '--help'] },
+  {
+    name: 'notes note-unpublish',
+    args: ['notes', 'note-unpublish', '--help'],
+  },
   { name: 'notes history', args: ['notes', 'history', '--help'] },
   { name: 'notes folders', args: ['notes', 'folders', '--help'] },
   { name: 'notes folder', args: ['notes', 'folder', '--help'] },
