@@ -7,6 +7,7 @@ import {
   Image,
   List,
   Menu,
+  Picker,
   RNHostView,
   SecureField,
   Section,
@@ -41,10 +42,13 @@ import {
   onSubmit as submitAction,
   opacity,
   padding,
+  pickerStyle,
   scrollContentBackground,
   shapes,
   submitLabel,
+  tag,
   textInputAutocapitalization,
+  tint,
   useScrollGeometryChange,
 } from '@expo/ui/swift-ui/modifiers';
 
@@ -294,6 +298,47 @@ function SettingsRow({
 
   if (row.textField) {
     return <TextFieldRow row={row} modifiers={rowModifiers} />;
+  }
+
+  if (row.picker) {
+    const picker = row.picker;
+    return (
+      <Picker
+        label={
+          row.subtitle ? (
+            <VStack alignment="leading" spacing={2}>
+              <Text modifiers={[foregroundStyle(colors.primaryText)]}>
+                {row.title}
+              </Text>
+              <Text
+                modifiers={[
+                  font({ size: 13 }),
+                  foregroundStyle(colors.secondaryText),
+                ]}
+              >
+                {row.subtitle}
+              </Text>
+            </VStack>
+          ) : (
+            row.title
+          )
+        }
+        selection={picker.value}
+        onSelectionChange={(value) => picker.onChange(String(value))}
+        modifiers={[
+          ...rowModifiers,
+          pickerStyle('menu'),
+          // The chosen value reads like other rows' values, not like a link.
+          tint(colors.secondaryText),
+        ]}
+      >
+        {picker.options.map((option) => (
+          <Text key={option.value} modifiers={[tag(option.value)]}>
+            {option.title}
+          </Text>
+        ))}
+      </Picker>
+    );
   }
 
   if (row.toggle) {
