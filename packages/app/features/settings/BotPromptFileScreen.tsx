@@ -41,6 +41,7 @@ import {
 import { BotSettingsSection } from './bot/BotSettingsUI';
 import {
   isHostedBotOfCurrentUser,
+  isRestarting,
   restartHostedBot,
   useHostedBotRestarting,
 } from './bot/restartHostedBot';
@@ -174,6 +175,12 @@ export function BotPromptFileScreen(props: Props) {
       () =>
         "Saved, but your bot couldn't restart. It picks up the change the next time it does."
     );
+    if (isRestarting(hostedShip)) {
+      // A later save queued another restart: the bot is going down again,
+      // and that save's caller reports once the chain is idle.
+      queryClient.setQueryData(readyKey, false);
+      return;
+    }
     queryClient.invalidateQueries({ queryKey: readyKey });
     showToast({ message, duration: 3000 });
   }, [hostedShip, queryClient, restartsBot, showToast]);

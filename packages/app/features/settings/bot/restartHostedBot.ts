@@ -107,13 +107,12 @@ async function runRestart(ship: string): Promise<boolean> {
 function launch(ship: string): Promise<boolean> {
   const entry: ShipRestart = { active: Promise.resolve(false), followUp: null };
   entry.active = runRestart(ship).finally(() => {
-    if (restarts.get(ship) !== entry) {
-      return;
-    }
-    restarts.delete(ship);
-    // A queued follow-up launches right after this and registers itself;
-    // announcing the gap in between would flash the ship as idle.
-    if (!entry.followUp) {
+    // A queued follow-up replaces this entry when it launches, right after
+    // this settles. Until then the ship still counts as restarting, so a
+    // caller whose continuation runs in between does not take the chain for
+    // idle.
+    if (restarts.get(ship) === entry && !entry.followUp) {
+      restarts.delete(ship);
       notify();
     }
   });

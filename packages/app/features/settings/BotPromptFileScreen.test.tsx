@@ -83,6 +83,7 @@ vi.mock('./bot/BotSettingsUI', async () => {
 vi.mock('./bot/restartHostedBot', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./bot/restartHostedBot')>()),
   restartHostedBot: mocks.restart,
+  isRestarting: (ship: string) => ship === mocks.restartingShip,
   useHostedBotRestarting: (ship: string | null) =>
     ship !== null && ship === mocks.restartingShip,
 }));
@@ -296,6 +297,44 @@ describe('BotPromptFileScreen', () => {
         message: 'Your bot restarted with the change.',
       })
     );
+  });
+
+  it('keeps readiness off and holds its report while a follow-up restart runs', async () => {
+    mocks.warningSeen = true;
+    let finish!: (running: boolean) => void;
+    mocks.restart.mockReturnValueOnce(
+      new Promise<boolean>((resolve) => {
+        finish = resolve;
+      })
+    );
+    const tree = await render('SOUL.md');
+    press(tree, 'BotPromptFileEdit');
+    await act(async () => {
+      editorSheets(tree)[0].props.onSaved('SOUL.md', `${block}\n`);
+    });
+
+    // A second save queued a follow-up that is still running when the first
+    // restart settles.
+    mocks.restartingShip = 'owner';
+    await act(async () => {
+      finish(true);
+    });
+    expect(mocks.setQueryData).toHaveBeenLastCalledWith(
+      ['tlonbot', 'ready', 'owner'],
+      false
+    );
+    expect(mocks.invalidate).not.toHaveBeenCalled();
+    expect(mocks.toast).not.toHaveBeenCalled();
+
+    // The follow-up's own caller reports once the chain is idle.
+    mocks.restartingShip = null;
+    await act(async () => {
+      editorSheets(tree)[0].props.onSaved('SOUL.md', `${block}\n`);
+    });
+    expect(mocks.invalidate).toHaveBeenCalledWith({
+      queryKey: ['tlonbot', 'ready', 'owner'],
+    });
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
   });
 
   it('shows a restart in progress only for the bot being restarted', async () => {

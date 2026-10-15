@@ -158,4 +158,16 @@ describe('restartHostedBot', () => {
     expect(seen[seen.length - 1]).toBe(false);
     unsubscribe();
   });
+
+  it('counts a queued follow-up as restarting before it has launched', async () => {
+    // Attached before the follow-up is queued, so it runs in the gap between
+    // the first restart settling and the follow-up launching.
+    const seenByFirst = restartHostedBot('owner').then(() =>
+      isRestarting('owner')
+    );
+    const second = restartHostedBot('owner');
+    await expect(seenByFirst).resolves.toBe(true);
+    await second;
+    expect(isRestarting('owner')).toBe(false);
+  });
 });
