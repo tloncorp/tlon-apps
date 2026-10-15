@@ -33,11 +33,9 @@ vi.mock('@tloncorp/ui', () => ({
   ConfirmDialog: 'ConfirmDialog',
   LoadingSpinner: 'LoadingSpinner',
   Text: 'Text',
-  useIsWindowNarrow: () => true,
   useToast: () => mocks.toast,
 }));
 vi.mock('tamagui', () => ({ View: 'View', YStack: 'YStack' }));
-vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 vi.mock('../../hooks/useCurrentUser', () => ({
   useCurrentUserId: () => '~owner',
 }));
@@ -137,7 +135,6 @@ describe('BotPromptFileScreen', () => {
     });
     expect(mocks.setWarningSeen).toHaveBeenCalledWith(true);
     expect(editorSheets(tree)[0].props).toMatchObject({
-      scope: 'additions',
       prompt: { name: 'SOUL.md' },
     });
   });
@@ -207,6 +204,27 @@ describe('BotPromptFileScreen', () => {
       await confirmOpened();
     });
     expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it('drops an open editor when the screen moves to another file', async () => {
+    mocks.warningSeen = true;
+    mocks.prompts = [
+      { name: 'SOUL.md', text: `${block}\n` },
+      { name: 'IDENTITY.md', text: `${block}\n` },
+    ];
+    const tree = await render('SOUL.md');
+    press(tree, 'BotPromptFileEdit');
+    expect(editorSheets(tree)).toHaveLength(1);
+
+    await act(async () => {
+      tree.update(
+        <BotPromptFileScreen
+          navigation={{ goBack: vi.fn() } as never}
+          route={{ params: { name: 'IDENTITY.md' } } as never}
+        />
+      );
+    });
+    expect(editorSheets(tree)).toHaveLength(0);
   });
 
   it('offers no reset when nothing has been added', async () => {

@@ -7,11 +7,9 @@ import {
   ConfirmDialog,
   LoadingSpinner,
   Text,
-  useIsWindowNarrow,
   useToast,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
@@ -74,10 +72,10 @@ export function BotPromptFileScreen(props: Props) {
   const { name } = props.route.params;
   const { page: settingsPage } = useSettingsListSurfaces();
   const headerColor = useSettingsListHeaderColor();
-  const isWindowNarrow = useIsWindowNarrow();
   const showToast = useToast();
   const currentUserId = useCurrentUserId();
-  const botShip = api.getBotUserIdForUser(currentUserId);
+  const botShip =
+    props.route.params.botShip ?? api.getBotUserIdForUser(currentUserId);
   useStewardPromptsFeed(botShip);
   const promptsQuery = useBotSystemPrompts(botShip);
   const deskSupportsPrompts = useDeskSupportsPrompts();
@@ -260,9 +258,7 @@ export function BotPromptFileScreen(props: Props) {
       <ScreenHeader
         backgroundColor={headerColor}
         borderBottom
-        backAction={
-          Platform.OS !== 'web' || isWindowNarrow ? handleBack : undefined
-        }
+        backAction={handleBack}
         title={label}
         placement="navigation"
       />
@@ -291,7 +287,6 @@ export function BotPromptFileScreen(props: Props) {
           key={`${botShip}/${prompt.name}`}
           botShip={botShip}
           prompt={prompt}
-          scope="additions"
           changedElsewhere={editing.baseAdditions !== access.additions}
           onClose={() => setEditing(null)}
           onSaved={refreshPrompts}

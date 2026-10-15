@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   },
   deskSupports: null as boolean | null,
   navigate: vi.fn(),
+  botShips: [] as string[],
 }));
 
 vi.mock('@tloncorp/api', () => {
@@ -30,7 +31,10 @@ vi.mock('../../hooks/useCurrentUser', () => ({
   useCurrentUserId: () => '~owner',
 }));
 vi.mock('../../ui/components/BotSystemPrompts', () => ({
-  useBotSystemPrompts: () => mocks.query,
+  useBotSystemPrompts: (botShip: string) => {
+    mocks.botShips.push(botShip);
+    return mocks.query;
+  },
   useDeskSupportsPrompts: () => mocks.deskSupports,
   useStewardPromptsFeed: () => {},
 }));
@@ -46,6 +50,7 @@ const managed = (body: string) =>
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.deskSupports = null;
+  mocks.botShips = [];
   mocks.query = {
     data: [
       { name: 'TOOLS.md', text: managed('tools') },
@@ -59,13 +64,13 @@ beforeEach(() => {
   };
 });
 
-async function render() {
+async function render(params?: { botShip?: string }) {
   let tree!: ReactTestRenderer;
   await act(async () => {
     tree = create(
       <BotPromptFilesScreen
         navigation={{ goBack: vi.fn(), navigate: mocks.navigate } as never}
-        route={{ params: undefined } as never}
+        route={{ params } as never}
       />
     );
   });
@@ -97,6 +102,19 @@ describe('BotPromptFilesScreen', () => {
     });
     expect(mocks.navigate).toHaveBeenCalledWith('BotPromptFile', {
       name: 'SOUL.md',
+      botShip: '~bot',
+    });
+  });
+
+  it("lists the files of the bot it was opened for, as from that bot's profile", async () => {
+    const tree = await render({ botShip: '~other-bot' });
+    act(() => {
+      rows(tree)[0].onPress();
+    });
+    expect(mocks.botShips).toEqual(['~other-bot']);
+    expect(mocks.navigate).toHaveBeenCalledWith('BotPromptFile', {
+      name: 'AGENTS.md',
+      botShip: '~other-bot',
     });
   });
 

@@ -35,13 +35,14 @@ const messageRow = (title: string): SettingsRowModel => ({
 
 /**
  * The bot's advanced settings: the prompt files its workspace runs on, read
- * from the projection mirrored into our own ship's %steward. The bot's
- * profile lists the same files.
+ * from the projection mirrored into our own ship's %steward. Bot settings
+ * opens it for the user's hosted bot; a bot's profile opens it for that bot.
  */
 export function BotPromptFilesScreen(props: Props) {
   const { navigation } = props;
   const currentUserId = useCurrentUserId();
-  const botShip = api.getBotUserIdForUser(currentUserId);
+  const botShip =
+    props.route.params?.botShip ?? api.getBotUserIdForUser(currentUserId);
   useStewardPromptsFeed(botShip);
   const promptsQuery = useBotSystemPrompts(botShip);
   const deskSupportsPrompts = useDeskSupportsPrompts();
@@ -107,19 +108,25 @@ export function BotPromptFilesScreen(props: Props) {
                   : undefined
                 : 'Read-only',
             onPress: () =>
-              navigation.navigate('BotPromptFile', { name: prompt.name }),
+              navigation.navigate('BotPromptFile', {
+                name: prompt.name,
+                botShip,
+              }),
             testID: `BotPromptFileRow:${prompt.name}`,
           };
         }),
       },
     ];
-  }, [navigation, prompts, refetch, unsupported]);
+  }, [botShip, navigation, prompts, refetch, unsupported]);
 
   return (
     <SettingsListScreenView
       title="Advanced"
       sections={sections}
       onBackPressed={handleBack}
+      // Wide windows open this beside a profile, not under a settings list.
+      showsBackOnWideWindows
+      maxWidth={600}
       loading={!unsupported && promptsQuery.isPending}
     />
   );
