@@ -480,6 +480,9 @@ describe('owner credential injection for invite-link, note publishing and notifi
     'groups invite-link ~host/book-club',
     'notes note-publish notes/~h/b 12',
     'notes note-unpublish notes/~h/b 12',
+    'activity mute ~zod/book-club',
+    'activity unmute chat/~nec/general 170.141',
+    'activity volume ~ten hush',
   ];
 
   // --ship, not --config: ship-only resolution validates the file's ship and
@@ -501,8 +504,8 @@ describe('owner credential injection for invite-link, note publishing and notifi
     }
   );
 
-  // The opt-out parse is the same for every owner command, so one
-  // representative command covers them all.
+  // ownerCredentialCommand applies the same opt-out logic to every listed op,
+  // so the table runs against one representative command.
   const OPT_OUT_BASE = 'notes note-publish notes/~h/b 12';
   // Mirrors CREDENTIAL_FLAGS_WITH_VALUE in tlon-tool-command.ts (not exported);
   // keep the two in sync.
@@ -566,6 +569,8 @@ describe('owner credential injection for invite-link, note publishing and notifi
     { env: {} as NodeJS.ProcessEnv },
     { fileExists: () => false },
   ];
+  const ACTIVITY_HINT =
+    "Add --self to change this bot's own notification settings instead.";
 
   it.each([
     [
@@ -592,6 +597,30 @@ describe('owner credential injection for invite-link, note publishing and notifi
         `Unpublishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to unpublish from this bot's own ship instead.`,
       ],
     ],
+    [
+      OWNER_COMMANDS[3],
+      [
+        `Muting as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
+        `Muting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
+        `Muting as ~owner requires owner credentials at ${OWNER_CONFIG}. ${ACTIVITY_HINT}`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[4],
+      [
+        `Unmuting as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
+        `Unmuting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
+        `Unmuting as ~owner requires owner credentials at ${OWNER_CONFIG}. ${ACTIVITY_HINT}`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[5],
+      [
+        `Changing a notification level as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
+        `Changing a notification level as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
+        `Changing a notification level as ~owner requires owner credentials at ${OWNER_CONFIG}. ${ACTIVITY_HINT}`,
+      ],
+    ],
   ])(
     'errors on `%s` instead of silently using bot credentials when provisioning is missing',
     async (command, texts) => {
@@ -610,7 +639,10 @@ describe('owner credential injection for invite-link, note publishing and notifi
   // An opt-out short-circuits before provisioning is consulted. The two
   // commands hit the two opt-out exits: the credential-override check and the
   // --self/help check.
-  it.each([`${OPT_OUT_BASE} --self`, `--ship=~other ${OPT_OUT_BASE}`])(
+  it.each([
+    'activity mute ~zod/book-club --self',
+    `--ship=~other ${OPT_OUT_BASE}`,
+  ])(
     'honors the opt-out in `%s` despite missing provisioning',
     async (command) => {
       for (const overrides of PROVISIONING_FAILURES) {
@@ -623,46 +655,6 @@ describe('owner credential injection for invite-link, note publishing and notifi
       }
     }
   );
-
-  const ACTIVITY_COMMANDS = {
-    mute: 'activity mute ~zod/book-club',
-    unmute: 'activity unmute chat/~nec/general 170.141',
-    volume: 'activity volume ~ten hush',
-  } as const;
-
-  it.each(Object.entries(ACTIVITY_COMMANDS))(
-    'runs a bare activity %s as the owner via --ship',
-    async (_operation, command) => {
-      const { execute, runCommand } = makeExecutor();
-
-      const result = await execute('inject', { command });
-
-      expect(runCommand).toHaveBeenCalledWith([
-        '--ship',
-        '~owner',
-        ...command.split(' '),
-      ]);
-      expect(result.details).toBeUndefined();
-    }
-  );
-
-  // The predicate is shared by every owner-bound op, so one table spread
-  // across the activity ops covers each opt-out form.
-  it.each([
-    ['--self after', 'activity mute ~zod/book-club --self'],
-    ['--self before', 'activity unmute --self chat/~nec/general'],
-    ['-h', 'activity volume -h'],
-    ['--help', 'activity mute --help'],
-    ['separate-value --config', '--config x activity unmute ~ten'],
-    ['=-form --ship', '--ship=~other activity volume ~ten hush'],
-  ])('leaves activity untouched with %s', async (_label, command) => {
-    const { execute, runCommand } = makeExecutor();
-
-    await execute('skip', { command });
-
-    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
-    expect(args).toEqual(command.split(' '));
-  });
 
   it('never injects owner credentials for activity reads', async () => {
     const { execute, runCommand } = makeExecutor();
@@ -687,57 +679,6 @@ describe('owner credential injection for invite-link, note publishing and notifi
     for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
       expect(args).not.toContain('--ship');
     }
-  });
-
-  it('words the activity provisioning errors per op', async () => {
-    const hint =
-      "Add --self to change this bot's own notification settings instead.";
-    const failures = [
-      makeExecutor({ ownerShip: undefined }),
-      makeExecutor({ env: {} as NodeJS.ProcessEnv }),
-      makeExecutor({ fileExists: () => false }),
-    ];
-    const texts: Record<string, Array<string | undefined>> = {};
-    for (const [operation, command] of Object.entries(ACTIVITY_COMMANDS)) {
-      texts[operation] = await Promise.all(
-        failures.map(async ({ execute }) => {
-          const result = await execute('wording', { command });
-          expect(result.details).toEqual({ error: true });
-          return result.content[0]?.text;
-        })
-      );
-    }
-
-    expect(texts).toEqual({
-      mute: [
-        `Muting as the owner requires a configured owner ship. ${hint}`,
-        `Muting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${hint}`,
-        `Muting as ~owner requires owner credentials at ${OWNER_CONFIG}. ${hint}`,
-      ],
-      unmute: [
-        `Unmuting as the owner requires a configured owner ship. ${hint}`,
-        `Unmuting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${hint}`,
-        `Unmuting as ~owner requires owner credentials at ${OWNER_CONFIG}. ${hint}`,
-      ],
-      volume: [
-        `Changing a notification level as the owner requires a configured owner ship. ${hint}`,
-        `Changing a notification level as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${hint}`,
-        `Changing a notification level as ~owner requires owner credentials at ${OWNER_CONFIG}. ${hint}`,
-      ],
-    });
-    for (const { runCommand } of failures) {
-      expect(runCommand).not.toHaveBeenCalled();
-    }
-  });
-
-  it('honors --self on activity despite missing owner provisioning', async () => {
-    const { execute, runCommand } = makeExecutor({ ownerShip: undefined });
-    const command = 'activity mute ~zod/book-club --self';
-
-    const result = await execute('opt-out', { command });
-
-    expect(result.details).toBeUndefined();
-    expect(runCommand).toHaveBeenCalledWith(command.split(' '));
   });
 });
 
