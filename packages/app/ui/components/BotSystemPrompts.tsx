@@ -287,12 +287,15 @@ export function BotSystemPromptEditorSheet({
   botShip,
   prompt,
   changedElsewhere,
+  restartsBotOnSave = false,
   onClose,
   onSaved,
 }: {
   botShip: string;
   prompt: BotSystemPrompt;
   changedElsewhere: boolean;
+  /** The screen restarts the bot once the save lands; say so up front. */
+  restartsBotOnSave?: boolean;
   onClose: () => void;
   onSaved: (name: string, text: string) => void;
 }) {
@@ -421,7 +424,9 @@ export function BotSystemPromptEditorSheet({
       ? 'This prompt changed elsewhere. Showing the latest version.'
       : isDirty
         ? 'Unsaved changes'
-        : 'Your bot uses these from its next reply.';
+        : restartsBotOnSave
+          ? 'Saving restarts your bot briefly.'
+          : 'Your bot uses these from its next reply.';
 
   const saveButton = (
     <Button

@@ -285,4 +285,29 @@ describe('BotSystemPromptEditorSheet', () => {
 
     expect(sentIds()).toEqual(['0v1', '0v1', '0v2']);
   });
+
+  it('says a save restarts the bot only when the screen will restart it', async () => {
+    const statusTexts = (tree: ReactTestRenderer) =>
+      tree.root
+        .findAll((node) => (node.type as unknown) === 'Text')
+        .map((node) => node.props.children);
+    const tree = await renderSheet(`${block('v10')}\n`);
+    expect(statusTexts(tree)).toContain(
+      'Your bot uses these from its next reply.'
+    );
+
+    await act(async () => {
+      tree.update(
+        <BotSystemPromptEditorSheet
+          botShip="~bot-a"
+          prompt={{ name: 'SOUL.md', text: `${block('v10')}\n` }}
+          changedElsewhere={false}
+          restartsBotOnSave
+          onClose={vi.fn()}
+          onSaved={vi.fn()}
+        />
+      );
+    });
+    expect(statusTexts(tree)).toContain('Saving restarts your bot briefly.');
+  });
 });

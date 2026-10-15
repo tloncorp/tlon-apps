@@ -9,14 +9,24 @@ import { BotPromptFileScreen } from './BotPromptFileScreen';
 const mocks = vi.hoisted(() => ({
   prompts: [] as { name: string; text: string }[],
   warningSeen: false,
+  hosted: true,
   setWarningSeen: vi.fn(),
   save: vi.fn(),
   refresh: vi.fn(),
+  restart: vi.fn(),
+  invalidate: vi.fn(),
   toast: vi.fn(),
 }));
 
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: mocks.invalidate }),
+}));
 vi.mock('@tloncorp/api', () => ({
   getBotUserIdForUser: () => '~bot',
+  getCurrentUserIsHosted: () => mocks.hosted,
+}));
+vi.mock('@tloncorp/api/lib/urbit', () => ({
+  desig: (ship: string) => ship.replace(/^~/, ''),
 }));
 vi.mock('@tloncorp/shared', () => ({
   markdownToStory: (markdown: string) => markdown,
@@ -65,6 +75,10 @@ vi.mock('./bot/BotSettingsUI', async () => {
   const { Passthrough } = await import('../../test/sheetTestUtils');
   return { BotSettingsSection: Passthrough };
 });
+vi.mock('./bot/restartHostedBot', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./bot/restartHostedBot')>()),
+  restartHostedBot: mocks.restart,
+}));
 
 setupReactTestEnvironment();
 
@@ -74,7 +88,9 @@ const block =
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.warningSeen = false;
+  mocks.hosted = true;
   mocks.save.mockResolvedValue(undefined);
+  mocks.restart.mockResolvedValue(true);
   mocks.prompts = [
     { name: 'SOUL.md', text: `${block}\n` },
     {
@@ -84,13 +100,13 @@ beforeEach(() => {
   ];
 });
 
-async function render(name: string) {
+async function render(name: string, botShip?: string) {
   let tree!: ReactTestRenderer;
   await act(async () => {
     tree = create(
       <BotPromptFileScreen
         navigation={{ goBack: vi.fn() } as never}
-        route={{ params: { name } } as never}
+        route={{ params: { name, botShip } } as never}
       />
     );
   });
@@ -231,5 +247,100 @@ describe('BotPromptFileScreen', () => {
     const tree = await render('SOUL.md');
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(1);
     expect(byTestID(tree, 'BotPromptFileReset')).toHaveLength(0);
+  });
+
+  it('restarts the hosted bot after a save so it runs on the new file', async () => {
+    mocks.warningSeen = true;
+    let finish!: (running: boolean) => void;
+    mocks.restart.mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        finish = resolve;
+      })
+    );
+    const tree = await render('SOUL.md');
+    press(tree, 'BotPromptFileEdit');
+    expect(editorSheets(tree)[0].props.restartsBotOnSave).toBe(true);
+
+    await act(async () => {
+      editorSheets(tree)[0].props.onSaved(
+        'SOUL.md',
+        `Call me Admiral.\n${block}\n`
+      );
+    });
+    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.restart).toHaveBeenCalledWith('owner');
+    expect(byTestID(tree, 'BotPromptFileRestarting')).toHaveLength(1);
+    expect(byTestID(tree, 'BotPromptFileEdit')[0].props.disabled).toBe(true);
+
+    await act(async () => {
+      finish(true);
+    });
+    expect(byTestID(tree, 'BotPromptFileRestarting')).toHaveLength(0);
+    expect(byTestID(tree, 'BotPromptFileEdit')[0].props.disabled).toBe(false);
+    expect(mocks.invalidate).toHaveBeenCalledWith({
+      queryKey: ['tlonbot', 'ready', 'owner'],
+    });
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Your bot restarted with the change.',
+      })
+    );
+  });
+
+  it('keeps the save when the bot cannot be restarted', async () => {
+    mocks.warningSeen = true;
+    mocks.restart.mockRejectedValue(new Error('403'));
+    const tree = await render('SOUL.md');
+    press(tree, 'BotPromptFileEdit');
+    await act(async () => {
+      editorSheets(tree)[0].props.onSaved(
+        'SOUL.md',
+        `Call me Admiral.\n${block}\n`
+      );
+    });
+    expect(byTestID(tree, 'BotPromptFileRestarting')).toHaveLength(0);
+    expect(byTestID(tree, 'BotPromptFileEdit')[0].props.disabled).toBe(false);
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("couldn't restart"),
+      })
+    );
+  });
+
+  it('restarts after a reset too', async () => {
+    mocks.prompts = [{ name: 'SOUL.md', text: `Call me Captain.\n${block}\n` }];
+    const tree = await render('SOUL.md');
+    press(tree, 'BotPromptFileReset');
+    await act(async () => {
+      await dialog(tree, 'Reset').props.onConfirm();
+    });
+    expect(mocks.restart).toHaveBeenCalledWith('owner');
+  });
+
+  it("leaves a bot Hosting doesn't run alone", async () => {
+    mocks.warningSeen = true;
+    const tree = await render('SOUL.md', '~other');
+    press(tree, 'BotPromptFileEdit');
+    expect(editorSheets(tree)[0].props.restartsBotOnSave).toBe(false);
+
+    await act(async () => {
+      editorSheets(tree)[0].props.onSaved('SOUL.md', `${block}\n`);
+    });
+    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.restart).not.toHaveBeenCalled();
+    expect(byTestID(tree, 'BotPromptFileRestarting')).toHaveLength(0);
+  });
+
+  it('does not reach for Hosting from a self-hosted ship', async () => {
+    mocks.hosted = false;
+    mocks.warningSeen = true;
+    const tree = await render('SOUL.md');
+    press(tree, 'BotPromptFileEdit');
+    expect(editorSheets(tree)[0].props.restartsBotOnSave).toBe(false);
+
+    await act(async () => {
+      editorSheets(tree)[0].props.onSaved('SOUL.md', `${block}\n`);
+    });
+    expect(mocks.restart).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useQueryClient } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
+import { desig } from '@tloncorp/api/lib/urbit';
 import { convertContent, markdownToStory } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
@@ -37,6 +39,10 @@ import {
   splitPromptFile,
 } from '../../ui/components/botPromptFiles';
 import { BotSettingsSection } from './bot/BotSettingsUI';
+import {
+  isHostedBotOfCurrentUser,
+  restartHostedBot,
+} from './bot/restartHostedBot';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotPromptFile'>;
 
@@ -66,6 +72,10 @@ function PromptText({ text, testID }: { text: string; testID?: string }) {
  * One prompt file from the bot's workspace. Files Tlon has to keep updating
  * are read-only; for the rest, the owner edits only what sits outside Tlon's
  * managed blocks, since the prompt sync replaces those on every restart.
+ *
+ * A save reaches the workspace through %steward, but the gateway reads its
+ * prompt files when it starts, so the hosted bot is restarted afterwards the
+ * way applying bot settings restarts it.
  */
 export function BotPromptFileScreen(props: Props) {
   const { navigation } = props;
@@ -82,6 +92,9 @@ export function BotPromptFileScreen(props: Props) {
   const refreshPrompts = useRefreshStewardPrompts();
   const savePrompt = useStewardPromptSave(botShip, name);
   const warningSeen = db.botPromptEditWarningSeen.useValue();
+  const queryClient = useQueryClient();
+  const restartsBot = isHostedBotOfCurrentUser(botShip, currentUserId);
+  const [restarting, setRestarting] = useState(false);
 
   // Both name the file they were opened for: the desktop settings drawer
   // keeps this screen mounted when another file is opened, and nothing begun
@@ -140,6 +153,31 @@ export function BotPromptFileScreen(props: Props) {
     beginEditing();
   }, [beginEditing]);
 
+  const restartBot = useCallback(async () => {
+    if (!restartsBot) {
+      return;
+    }
+    const ship = desig(currentUserId);
+    setRestarting(true);
+    const message = await restartHostedBot(ship).then(
+      (running) =>
+        running
+          ? 'Your bot restarted with the change.'
+          : "Your bot is still restarting. It picks up the change once it's back.",
+      () =>
+        "Saved, but your bot couldn't restart. It picks up the change the next time it does."
+    );
+    // The bot card's status badge reads this.
+    queryClient.invalidateQueries({ queryKey: ['tlonbot', 'ready', ship] });
+    setRestarting(false);
+    showToast({ message, duration: 3000 });
+  }, [currentUserId, queryClient, restartsBot, showToast]);
+
+  const handleSaved = useCallback(() => {
+    refreshPrompts();
+    void restartBot();
+  }, [refreshPrompts, restartBot]);
+
   const handleReset = useCallback(async () => {
     const { bot: currentBot, prompt: current } = latestRef.current;
     // A file that lost Tlon's blocks while the confirmation was up would
@@ -158,11 +196,20 @@ export function BotPromptFileScreen(props: Props) {
       await savePrompt(joinPromptFile(current.text, ''));
       refreshPrompts();
       showToast({ message: 'Reset to default.', duration: 3000 });
+      void restartBot();
     } catch {
       showToast({ message: 'Failed to reset prompt.', duration: 3000 });
     }
     setResetting(false);
-  }, [botShip, name, refreshPrompts, resetting, savePrompt, showToast]);
+  }, [
+    botShip,
+    name,
+    refreshPrompts,
+    resetting,
+    restartBot,
+    savePrompt,
+    showToast,
+  ]);
 
   const handleDialogOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -212,7 +259,7 @@ export function BotPromptFileScreen(props: Props) {
             preset="primary"
             label={additions ? 'Edit additions' : 'Add instructions'}
             centered
-            disabled={resetting}
+            disabled={resetting || restarting}
             onPress={handleEditPressed}
             testID="BotPromptFileEdit"
           />
@@ -221,11 +268,22 @@ export function BotPromptFileScreen(props: Props) {
               preset="destructive"
               label="Reset to default"
               centered
-              disabled={resetting}
+              disabled={resetting || restarting}
               loading={resetting}
               onPress={() => setDialog({ kind: 'reset', bot: botShip, name })}
               testID="BotPromptFileReset"
             />
+          ) : null}
+          {restarting ? (
+            <Text
+              size="$label/s"
+              color="$secondaryText"
+              paddingHorizontal="$s"
+              accessibilityLiveRegion="polite"
+              testID="BotPromptFileRestarting"
+            >
+              Restarting your bot so it picks this up…
+            </Text>
           ) : null}
         </YStack>
         <BotSettingsSection
@@ -288,15 +346,18 @@ export function BotPromptFileScreen(props: Props) {
           botShip={botShip}
           prompt={prompt}
           changedElsewhere={editing.baseAdditions !== access.additions}
+          restartsBotOnSave={restartsBot}
           onClose={() => setEditing(null)}
-          onSaved={refreshPrompts}
+          onSaved={handleSaved}
         />
       ) : null}
       <ConfirmDialog
         open={dialog?.kind === 'warning' && isThisFile(dialog)}
         onOpenChange={handleDialogOpenChange}
         title={`Edit ${label}?`}
-        description="What you add changes how your bot behaves in every conversation. Tlon's defaults stay, and you can reset at any time."
+        description={`What you add changes how your bot behaves in every conversation.${
+          restartsBot ? ' Saving restarts your bot briefly.' : ''
+        } Tlon's defaults stay, and you can reset at any time.`}
         confirmText="Continue"
         onConfirm={handleWarningConfirmed}
       />
@@ -305,7 +366,9 @@ export function BotPromptFileScreen(props: Props) {
         onOpenChange={handleDialogOpenChange}
         destructive
         title="Reset to default?"
-        description="This removes all additions, including any your bot made. Tlon's defaults stay."
+        description={`This removes all additions, including any your bot made. Tlon's defaults stay.${
+          restartsBot ? ' Your bot restarts briefly.' : ''
+        }`}
         confirmText="Reset"
         onConfirm={handleReset}
       />
