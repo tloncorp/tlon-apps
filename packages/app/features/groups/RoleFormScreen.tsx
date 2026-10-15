@@ -399,6 +399,7 @@ function RoleForm({
           id: 'RoleSaveButton',
           text: 'Save',
           tint: '$positiveActionText',
+          prominent: true,
           // A new role can be saved as soon as it has a title; an existing one
           // once something about it has changed.
           disabled: !isValid || (isEditMode && !hasUnsavedChanges),

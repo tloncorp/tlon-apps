@@ -180,6 +180,7 @@ export function EditChannelPrivacyScreen(props: Props) {
           id: 'ChannelPrivacySaveButton',
           text: 'Save',
           tint: '$positiveActionText',
+          prominent: true,
           disabled: !channel || !isDirty,
           onPress: handleSave,
           testID: 'ChannelPrivacySaveButton',

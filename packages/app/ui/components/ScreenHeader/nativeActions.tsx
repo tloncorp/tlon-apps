@@ -84,6 +84,7 @@ export function buildNativeHeaderItem(
       disabled: action.disabled,
       sharesBackground: true,
       tintColor: action.tint,
+      ...(action.prominent ? { variant: 'prominent' as const } : {}),
     };
   }
 

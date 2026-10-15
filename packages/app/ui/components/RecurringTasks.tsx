@@ -241,6 +241,7 @@ export function RecurringTaskEditorView({
           onPress: save.onPress,
           disabled: save.disabled || save.busy,
           tint: '$positiveActionText',
+          prominent: true,
         },
       ]}
     >

@@ -268,6 +268,7 @@ export function BotApiKeySettingsScreen(props: Props) {
           id: 'BotApiKeySaveButton',
           text: saveProviderKey.isPending ? 'Saving…' : 'Save',
           tint: '$positiveActionText',
+          prominent: true,
           disabled: busy || !key.trim() || !subscriptionStatusKnown,
           onPress: handleSave,
           testID: 'BotApiKeySaveButton',

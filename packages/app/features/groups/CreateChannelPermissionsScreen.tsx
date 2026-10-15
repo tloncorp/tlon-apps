@@ -140,6 +140,7 @@ export function CreateChannelPermissionsScreen() {
           id: 'CreateChannelButton',
           text: 'Create',
           tint: '$positiveActionText',
+          prominent: true,
           disabled: isCreating,
           onPress: handleCreateChannel,
           testID: 'CreateChannelButton',
