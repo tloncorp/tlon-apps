@@ -286,8 +286,9 @@ export function ManageChannelsScreenView({
           id: 'ManageChannelsSort',
           // iOS calls its reorder mode Edit.
           text: isEditMode ? 'Done' : 'Edit',
-          // Moves save as they happen, so this only enters and leaves a mode.
-          tint: '$primaryText',
+          // Done ends editing, which iOS draws as its confirming action.
+          tint: isEditMode ? '$positiveActionText' : '$primaryText',
+          prominent: isEditMode,
           onPress: () => setIsEditMode(!isEditMode),
           testID: 'ManageChannelsSort',
         },

@@ -208,6 +208,7 @@ export function InviteSystemContactsScreen(props: Props) {
             ? `Invite (${selectedRecipients.length})`
             : 'Invite',
           tint: '$positiveActionText',
+          prominent: true,
           disabled: selectedRecipients.length === 0,
           onPress: handleDone,
           testID: 'InviteSystemContactsSend',

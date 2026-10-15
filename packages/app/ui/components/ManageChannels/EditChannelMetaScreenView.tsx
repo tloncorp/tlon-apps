@@ -107,6 +107,7 @@ function ChannelMetaForm({
           id: 'ChannelSettingsSaveButton',
           text: 'Save',
           tint: '$positiveActionText',
+          prominent: true,
           disabled: !isValid || !isDirty,
           onPress: handleSave,
           testID: 'ChannelSettingsSaveButton',

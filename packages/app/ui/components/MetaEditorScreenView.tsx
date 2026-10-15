@@ -175,6 +175,7 @@ function MetaEditorForm({
           id: 'MetaEditorSaveButton',
           text: 'Save',
           tint: '$positiveActionText',
+          prominent: true,
           disabled: !canSave,
           onPress: handleSave,
           testID: 'MetaEditorSaveButton',

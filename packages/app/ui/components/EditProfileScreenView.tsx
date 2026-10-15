@@ -341,6 +341,7 @@ function EditProfileForm({
           id: 'ProfileSaveButton',
           text: 'Save',
           tint: '$positiveActionText',
+          prominent: true,
           disabled: !canSave,
           onPress: handleSave,
           testID: 'ProfileSaveButton',
