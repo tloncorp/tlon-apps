@@ -570,6 +570,15 @@ Uses Drizzle ORM with SQLite for local data storage:
 -   **The deps `Set` from `useKeyFromQueryDeps` must sit at `queryKey` index 1.** The invalidation predicate only looks at that position; a key that puts it elsewhere silently never refreshes again.
 -   `invalidateQueries` flags queries stale and refetches only those with active observers. It does not clear cached data, so a remounted query serves its previous value for a render while refetching in the background — and keeps that value if the refetch fails.
 
+## Feature Map (what Tlonbot tells people about the app)
+
+`docs/feature-map/` describes how to do each thing in the app, one file per area. Tlonbot answers "how do I…" questions from it, so a stale entry sends a real person looking for a button that isn't there. **Read `docs/feature-map/README.md` before editing it.**
+
+-   The map describes the app at one store build, named in `docs/feature-map/release.json`, not `develop`. A UI change on develop does not need a map edit. The map is brought up to date once per store build; the README's "Updating for a new store build" has the steps.
+-   `node scripts/feature-map.mjs check` compares the map with that build's source. CI runs it when the map, its script or the guide changes.
+-   To fix a wrong entry between builds, edit it in `docs/feature-map/`, make sure it is true for the store build rather than for develop, then run `node scripts/feature-map.mjs publish`.
+-   Never edit `packages/openclaw/skills/tlon-product-guide/references/` by hand. `publish` writes it from the map, and CI fails when the two differ.
+
 ## Adding a New Post Blob Entry Type
 
 See `docs/tlon-apps/post-blobs.md` for the full post-blob spec: wire format, current entry types, read/write behavior, and integration rules.

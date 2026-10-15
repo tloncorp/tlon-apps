@@ -212,6 +212,8 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'note-rename',
       'note-move',
       'note-delete',
+      'note-publish',
+      'note-unpublish',
       'history',
       'folders',
       'folder',
@@ -458,26 +460,56 @@ export function checkBlockedTlonOperation(
 
 const HELP_TOKENS = new Set(['-h', '--help']);
 
+type OwnerCredentialCommand = 'invite-link' | 'note-publish' | 'note-unpublish';
+
+const OWNER_CREDENTIAL_COMMANDS = new Map<string, OwnerCredentialCommand[]>([
+  ['groups', ['invite-link']],
+  ['notes', ['note-publish', 'note-unpublish']],
+]);
+
+const OWNER_CREDENTIAL_WORDING: Record<
+  OwnerCredentialCommand,
+  { noOwner: string; asShip: string; selfHint: string }
+> = {
+  'invite-link': {
+    noOwner: "Retrieving the owner's invite link",
+    asShip: 'Retrieving the invite link as',
+    selfHint: "Add --self to retrieve this bot's own invite link instead.",
+  },
+  'note-publish': {
+    noOwner: 'Publishing a note as the owner',
+    asShip: 'Publishing a note as',
+    selfHint: "Add --self to publish from this bot's own ship instead.",
+  },
+  'note-unpublish': {
+    noOwner: 'Unpublishing a note as the owner',
+    asShip: 'Unpublishing a note as',
+    selfHint: "Add --self to unpublish from this bot's own ship instead.",
+  },
+};
+
 /**
  * The shared owner-injection predicate (the Hermes adapter implements the same
- * truth table): a bare `groups invite-link`, with no credential flag in either
- * form, no `--self`, and no help token. Anything else runs on the bot's own
- * credentials, exactly as the model wrote it.
+ * truth table for `groups invite-link` only): a bare `groups invite-link`,
+ * `notes note-publish` or `notes note-unpublish`, with no credential flag in
+ * either form, no `--self`, and no help token. Any other command keeps the
+ * credential selection it was given, exactly as the model wrote it.
  */
-export function shouldInjectOwnerCredentials(args: string[]): boolean {
-  if (hasCredentialOverride(args)) return false;
+function ownerCredentialCommand(args: string[]): OwnerCredentialCommand | null {
+  if (hasCredentialOverride(args)) return null;
 
   const subIdx = findTlonSubcommandIndex(args);
-  if (subIdx < 0) return false;
+  if (subIdx < 0) return null;
   const commandArgs = args.slice(subIdx);
-  if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
-  if (commandArgs[1]?.toLowerCase() !== 'invite-link') return false;
+  const operation = OWNER_CREDENTIAL_COMMANDS.get(
+    commandArgs[0]?.toLowerCase() ?? ''
+  )?.find((command) => command === commandArgs[1]?.toLowerCase());
+  if (!operation) return null;
 
-  return !commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg));
+  return commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg))
+    ? null
+    : operation;
 }
-
-const OWNER_INVITE_LINK_SELF_HINT =
-  "Add --self to retrieve this bot's own invite link instead.";
 
 /**
  * `--ship <owner>`, never `--config <path>`: ship-only resolution validates the
@@ -486,31 +518,27 @@ const OWNER_INVITE_LINK_SELF_HINT =
  * minting a bot-attributed link. Missing provisioning is a tool error for the
  * same reason — never a silent fall back to the bot's own credentials.
  */
-function ownerInviteLinkPrefixArgs(
-  deps: TlonToolExecutorDeps
+function ownerCredentialPrefixArgs(
+  deps: TlonToolExecutorDeps,
+  command: OwnerCredentialCommand
 ): string[] | { error: string } {
+  const { noOwner, asShip, selfHint } = OWNER_CREDENTIAL_WORDING[command];
   const ownerShip = deps.ownerShip?.trim();
   if (!ownerShip) {
     return {
-      error:
-        "Retrieving the owner's invite link requires a configured owner ship. " +
-        OWNER_INVITE_LINK_SELF_HINT,
+      error: `${noOwner} requires a configured owner ship. ${selfHint}`,
     };
   }
 
   const location = locateOwnerShipConfig(ownerShip, deps);
   if (location.kind === 'no-skill-dir') {
     return {
-      error:
-        `Retrieving the invite link as ${ownerShip} requires TLON_SKILL_DIR so the owner credential file can be located. ` +
-        OWNER_INVITE_LINK_SELF_HINT,
+      error: `${asShip} ${ownerShip} requires TLON_SKILL_DIR so the owner credential file can be located. ${selfHint}`,
     };
   }
   if (location.kind === 'no-config-file') {
     return {
-      error:
-        `Retrieving the invite link as ${ownerShip} requires owner credentials at ${location.configPath}. ` +
-        OWNER_INVITE_LINK_SELF_HINT,
+      error: `${asShip} ${ownerShip} requires owner credentials at ${location.configPath}. ${selfHint}`,
     };
   }
   return ['--ship', ownerShip];
@@ -648,8 +676,9 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       }
 
       let commandArgs = args;
-      if (shouldInjectOwnerCredentials(args)) {
-        const prefixArgs = ownerInviteLinkPrefixArgs(deps);
+      const ownerCommand = ownerCredentialCommand(args);
+      if (ownerCommand) {
+        const prefixArgs = ownerCredentialPrefixArgs(deps, ownerCommand);
         if (!Array.isArray(prefixArgs)) {
           return {
             content: [{ type: 'text' as const, text: prefixArgs.error }],
@@ -1175,6 +1204,8 @@ function summarizeNotesOperation(
     case 'migrate-plan':
       return build('read');
     case 'note-delete':
+    case 'note-publish':
+    case 'note-unpublish':
     case 'folder-delete':
     case 'notebook-delete':
       return build('admin');

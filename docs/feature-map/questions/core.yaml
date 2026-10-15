@@ -1,0 +1,773 @@
+# Everyday questions for the onboarding lab's `ask` command. See
+# docs/feature-map/README.md ("Testing answers") for the format.
+
+- id: pin-chat
+  ask: how do i keep a chat at the top of my list?
+  kind: how-to
+  file: workspaces-list.md
+  entry: Pin or unpin a chat
+  must:
+    - press and hold the chat on the Workspaces tab (or swipe it left)
+    - tap Pin
+  must_not:
+    - sends the person to a settings screen to do it
+
+- id: reorder-pins
+  ask: can i change the order of my pinned chats
+  kind: how-to
+  file: workspaces-list.md
+  entry: Reorder pinned chats
+  must:
+    - tap Sort next to the Pinned heading
+    - drag the chats into order
+    - tap Done
+
+- id: mute-dm
+  ask: one of my dms is blowing up my phone, how do i shut it up without leaving
+  kind: how-to
+  file: notifications-and-activity.md
+  entry: Mute a chat completely
+  must:
+    - swipe the chat to the left and tap the crossed-out bell, or set its notifications to Nothing
+  must_not:
+    - tells them to leave or block the chat as the way to mute it
+
+- id: mute-group-mentions
+  ask: i muted a group by swiping but i still get pinged when someone @s me. is that a bug?
+  kind: how-to
+  file: notifications-and-activity.md
+  entry: Mute a chat completely
+  must:
+    - says it is not a bug, because muting a group by swipe still lets mentions and replies through
+    - to silence it fully, set the group's notifications to Nothing
+
+- id: edit-dm-message
+  ask: i made a typo in a dm, how do i edit it?
+  kind: cannot
+  file: message-actions.md
+  entry: Edit a message
+  must:
+    - says messages in DMs can't be edited
+    - suggests deleting it and sending it again
+  must_not:
+    - gives steps for editing a DM message as if it were possible
+
+- id: edit-group-message
+  ask: how do i fix a typo in something i posted in our group chat
+  kind: how-to
+  file: message-actions.md
+  entry: Edit a message
+  must:
+    - press and hold your own message
+    - tap Edit message
+    - save with the check mark
+  must_not:
+    - says you can edit other people's messages
+
+- id: group-dm-start
+  ask: how do i start a group dm with three friends?
+  kind: cannot
+  file: direct-messages.md
+  entry: Start a group DM
+  must:
+    - says the app can't start a new group DM
+    - suggests making a group instead
+  must_not:
+    - describes picking several people in New Message
+
+- id: logout-desktop
+  ask: where's the log out button? i'm on my laptop in the browser
+  kind: desktop
+  file: settings-and-account.md
+  entry: Log out
+  must:
+    - says there is no Log out in Settings in the browser or the desktop app
+  must_not:
+    - gives a path to a Log out button on desktop
+    - gives only the phone steps as if they applied on the laptop
+
+- id: logout-data
+  ask: if i log out on my phone do i lose my messages?
+  kind: how-to
+  file: settings-and-account.md
+  entry: Log out
+  must:
+    - no, the messages stay on your node and load again when you log back in
+    - logging out only clears the copy on that phone
+
+- id: dark-mode
+  ask: is there a dark mode
+  kind: where
+  file: settings-and-account.md
+  entry: Change the theme or turn on dark mode
+  must:
+    - yes
+    - Settings, then Appearance
+    - pick Tlon Dark, or Auto with the device set to dark
+
+- id: delete-account
+  ask: i want to delete my account. how?
+  kind: cannot
+  file: settings-and-account.md
+  entry: Delete my account
+  must:
+    - says the app itself has no delete button
+    - points to Manage Tlon account on the Settings tab for hosted accounts
+  must_not:
+    - says logging out deletes the account
+    - invents a Delete account button in the app
+
+- id: what-is-a-node
+  ask: what's a node? is that like my account
+  kind: concept
+  must:
+    - a node is your own personal server that holds your messages and data
+  must_not:
+    - uses ship, planet or moon without the person having used those words
+
+- id: restrict-announcements
+  ask: "how do i make an announcements chat everyone can read but only admins can write in?"
+  kind: how-to
+  file: channels.md
+  entry: "Make a channel where only admins can post"
+  must:
+    - "open the channel info and tap Permissions"
+    - "enable Custom Permissions and empty Members Write while leaving Read filled"
+    - "tap Save"
+
+- id: notebook-read-only-role
+  ask: "can i let a role read our notebook without being able to change it?"
+  kind: cannot
+  file: channels.md
+  entry: "Give a role read-only access to a Notebook"
+  must:
+    - "says the app cannot give a role read-only Notebook access"
+    - "any role that can read a Notebook can also edit it"
+    - "leave a role out to stop it editing"
+  must_not:
+    - "says to empty Write while keeping Read for that role"
+
+- id: channel-rename-permission
+  ask: "can any member change the name of a channel?"
+  kind: who-can
+  file: channels.md
+  entry: "Rename a channel or change its description"
+  must:
+    - "only group admins can rename it"
+
+- id: rejoin-old-channel
+  ask: "where did the channel i left go? i want back in"
+  kind: where
+  file: channels.md
+  entry: "Rejoin a channel you left"
+  must:
+    - "look under Available Channels at the bottom of the group channel list"
+    - "tap the channel with the Join badge"
+
+- id: channel-new-section
+  ask: "how do i put a few channels together under a heading on my phone?"
+  kind: how-to
+  file: channels.md
+  entry: "Group channels into sections"
+  must:
+    - "on the group Channels screen tap New, then New section"
+    - "enter a Title and Save"
+    - "tap Sort and drag channels under the new header"
+
+- id: contacts-computer
+  ask: "where are all my contacts on the website? settings looks different"
+  kind: desktop
+  file: contacts-and-profile.md
+  entry: "Find your contacts list"
+  must:
+    - "click your own avatar in the left rail"
+    - "contacts are listed in the sidebar"
+  must_not:
+    - "sends them to a Contacts row in desktop Settings"
+
+- id: change-permanent-name
+  ask: "i hate the name with the squiggle at the start. how do i change that?"
+  kind: cannot
+  file: contacts-and-profile.md
+  entry: "Change your ID or username"
+  must:
+    - "says the app cannot change your ID"
+    - "you can change your Nickname instead"
+  must_not:
+    - "invents an ID field in the profile editor"
+
+- id: local-friend-name
+  ask: "can i give anybody my own name for them or do i have to add them first?"
+  kind: who-can
+  file: contacts-and-profile.md
+  entry: "Give a contact your own nickname or picture"
+  must:
+    - "only people in your contacts can get your own nickname or picture"
+    - "these labels do not change their real profile"
+
+- id: verify-mobile-number
+  ask: "how do i connect my phone number to my profile on my phone?"
+  kind: how-to
+  file: contacts-and-profile.md
+  entry: "Verify your phone number"
+  must:
+    - "Settings, Your profile, pencil icon, then Phone under Connected Accounts"
+    - "enter the number and tap Connect Phone Number"
+    - "enter the six-digit code sent to that number"
+
+- id: missing-bottom-tabs-laptop
+  ask: "on my laptop there are no tabs along the bottom, how do i get to my chats and settings?"
+  kind: desktop
+  file: desktop.md
+  entry: "Where the phone's tabs are on desktop"
+  must:
+    - "use the left rail instead of a tab bar"
+    - "the house opens Home for groups and DMs"
+    - "the gear near the bottom opens Settings"
+
+- id: laptop-attach-photo
+  ask: "how do i send a photo from my laptop? clicking the plus just opens my files"
+  kind: desktop
+  file: desktop.md
+  entry: "Attach a file or photo on desktop"
+  must:
+    - "the plus beside the message box opens the computer's file picker directly"
+    - "pick a file, or drag files onto the open chat"
+  must_not:
+    - "says to choose Media Library from a desktop attachment menu"
+
+- id: narrow-browser-layout
+  ask: "the website suddenly looks like the phone app when i resize it. how do i get the sidebar back?"
+  kind: desktop
+  file: desktop.md
+  entry: "The layout changed when I made the window smaller"
+  must:
+    - "make the window at least 768 pixels wide to restore the rail and sidebar"
+    - "below 768 pixels the app uses the phone layout"
+
+- id: dm-options-browser
+  ask: "how do i open the options for a private chat on my computer? clicking the name just shows their profile"
+  kind: desktop
+  file: direct-messages.md
+  entry: "Open the options menu for a DM"
+  must:
+    - "hover the DM in the sidebar and open its three-dot menu, or right-click it"
+    - "the menu opens from the list only"
+  must_not:
+    - "claims a control inside the DM opens its options menu"
+
+- id: support-chat-location
+  ask: "tlon hosts my account. where do i message the support people in the phone app?"
+  kind: where
+  file: direct-messages.md
+  entry: "Find my DM with Tlon Support"
+  must:
+    - "look for the Tlon Support DM on the Workspaces tab"
+    - "the Messages filter narrows the list to DMs"
+
+- id: gallery-edit-others
+  ask: "who is allowed to change someone else's gallery post?"
+  kind: who-can
+  file: galleries.md
+  entry: "Edit a gallery post"
+  must:
+    - "group admins can edit other people's opened gallery posts"
+
+- id: gallery-next-browser
+  ask: "i'm looking at a gallery picture on the website. how do i go to the next post?"
+  kind: desktop
+  file: galleries.md
+  entry: "Open a gallery post and comment on it"
+  must:
+    - "go back to the grid and open another post"
+    - "desktop has no swiping between posts"
+  must_not:
+    - "tells them to swipe left or right on desktop"
+
+- id: gallery-web-link
+  ask: "how do i add a website to the gallery with a little preview?"
+  kind: how-to
+  file: galleries.md
+  entry: "Add a link to a gallery"
+  must:
+    - "tap New, then Link and enter the address under URL"
+    - "tap Post after the address is valid and preview loading finishes"
+
+- id: promote-group-friend
+  ask: "how do i make a friend an admin of our group?"
+  kind: how-to
+  file: groups.md
+  entry: "Give a member a role, or make them an admin"
+  must:
+    - "Group info & settings, Manage members, select the person, then Assign role"
+    - "give them the Admin role"
+
+- id: private-group-inviter
+  ask: "can a regular member invite people into a private group?"
+  kind: who-can
+  file: groups.md
+  entry: "Find out why I can't invite people to a group"
+  must:
+    - "only admins can invite to a private or secret group"
+
+- id: group-privacy-control
+  ask: "who gets to change whether a group is open to anyone?"
+  kind: who-can
+  file: groups.md
+  entry: "Change a group's privacy"
+  must:
+    - "admins can change privacy while the group host is reachable"
+
+- id: group-unban-return
+  ask: "i unblocked someone from the group but they still aren't in it. how do i get them back?"
+  kind: how-to
+  file: groups.md
+  entry: "Ban or unban someone"
+  must:
+    - "unbanning lifts the ban but does not rejoin the person"
+    - "invite them again to bring them back"
+
+- id: keep-message-later
+  ask: "how do i star a message so i can find it later?"
+  kind: cannot
+  file: message-actions.md
+  entry: "Bookmark, star or save a message for later"
+  must:
+    - "says the app has no bookmarks or saved-messages list"
+    - "copy a message link into your notes or forward the message to a chat of your own"
+  must_not:
+    - "invents a star button or saved-message screen"
+
+- id: remove-emoji-vote
+  ask: "oops i reacted with the wrong emoji. how do i take it off?"
+  kind: how-to
+  file: message-actions.md
+  entry: "Remove my reaction"
+  must:
+    - "tap your highlighted reaction under the message, or press and hold and tap the same emoji again"
+
+- id: note-comments-missing
+  ask: "why can't i leave a comment under a notebook note?"
+  kind: cannot
+  file: notebooks.md
+  entry: "Comments, reactions and version history on notes"
+  must:
+    - "says notes have no comments or replies"
+    - "copy a reference to the note and discuss it in a Chat channel"
+  must_not:
+    - "invents a note comment box"
+
+- id: search-notebook-laptop
+  ask: "how do i search inside this notebook on my laptop? there's no search icon in the sidebar"
+  kind: desktop
+  file: notebooks.md
+  entry: "Search the notes in a notebook"
+  must:
+    - "with the notebook open press Command+Shift+F on Mac or Ctrl+Shift+F elsewhere"
+    - "the search covers titles and text in this one notebook"
+  must_not:
+    - "says to click a search button in the wide notebook sidebar"
+
+- id: note-auto-save
+  ask: "how do i save a note? i can't find a save button anywhere"
+  kind: how-to
+  file: notebooks.md
+  entry: "Does a note save by itself?"
+  must:
+    - "there is no save button to find; notes save by themselves"
+  must_not:
+    - "invents a Save button for notes"
+
+- id: note-public-sharing
+  ask: "how do i send a notebook note from my phone to someone who doesn't have the app?"
+  kind: how-to
+  file: notebooks.md
+  entry: "Publish a note to a public link"
+  must:
+    - "press and hold the note in the notebook list and turn on Publish to web"
+    - "the app copies the public link and anyone with it can open it without logging in"
+
+- id: automatic-night-silence
+  ask: "how do i make the app stop notifying me every night and start again in the morning?"
+  kind: cannot
+  file: notifications-and-activity.md
+  entry: "Change the notification sound, or set quiet hours"
+  must:
+    - "says the app has no quiet-hours schedule"
+    - "use the device focus settings or lower the notification level and raise it later"
+  must_not:
+    - "invents an in-app quiet-hours schedule"
+
+- id: browser-alerts-enable
+  ask: "how do i get message alerts on my laptop in the browser?"
+  kind: desktop
+  file: notifications-and-activity.md
+  entry: "Get notifications in a browser"
+  must:
+    - "gear in the left rail, Notifications, then Enable under Browser notifications"
+    - "allow notifications in the browser prompt"
+    - "leave a tab with Tlon Messenger open"
+  must_not:
+    - "says alerts arrive after all app tabs are closed"
+
+- id: wipe-unread-badges
+  ask: "how do i clear all the unread numbers on my phone at once?"
+  kind: how-to
+  file: notifications-and-activity.md
+  entry: "Mark everything as read"
+  must:
+    - "Activity tab, three-dot icon, Mark all as read"
+    - "confirm with Mark all read"
+    - "clears unread counts on every chat and notification"
+
+- id: hide-deleted-gaps
+  ask: "how do i stop seeing placeholders where messages were deleted on my phone?"
+  kind: how-to
+  file: settings-and-account.md
+  entry: "Show or hide placeholders for deleted messages"
+  must:
+    - "Settings, Appearance, then switch Show deleted messages off"
+
+- id: bot-settings-computer
+  ask: "tlon hosts my account. i'm on a computer, how do i get into my bot's settings?"
+  kind: desktop
+  file: tlonbot-in-the-app.md
+  entry: "Open my bot's settings"
+  must:
+    - "click the gear in the left rail, then Bot Settings"
+    - "opens Tlon's bot settings page in a new browser tab"
+  must_not:
+    - "describes the phone bot settings screens as being inside the desktop app"
+
+- id: bot-run-owner
+  ask: "can everyone in our group see what the bot did behind the scenes for a reply?"
+  kind: who-can
+  file: tlonbot-in-the-app.md
+  entry: "See what my bot did to produce a reply"
+  must:
+    - "only the bot's owner can view run details"
+    - "the reply must carry run details"
+
+- id: bot-channel-restrictions
+  ask: "how do i make my included bot answer only certain people in one chat? i use the phone app"
+  kind: how-to
+  file: tlonbot-in-the-app.md
+  entry: "Turn my bot on or off in one channel"
+  must:
+    - "on Channel rules select the channel and enable Tlonbot there"
+    - "choose Allowlist only and add usernames"
+    - "tap Done and apply from Permissions"
+
+- id: bot-settings-pending
+  ask: "i changed my included bot's name on my phone but nothing happened. how do i actually save it?"
+  kind: how-to
+  file: tlonbot-in-the-app.md
+  entry: "Save changes to bot settings"
+  must:
+    - "tap the button at the bottom showing how many changes to apply"
+    - "confirm with Apply & restart"
+    - "the bot restarts and is offline for about twenty seconds"
+
+- id: bot-private-chat-where
+  ask: "i have the included bot. where do i talk to just it on my phone?"
+  kind: where
+  file: tlonbot-in-the-app.md
+  entry: "Where is my Tlonbot in the app?"
+  must:
+    - "tap the Bot tab, the first icon in the bottom bar"
+    - "it opens your private chat with your bot"
+
+- id: chat-list-refresh
+  ask: "how do i pull down to refresh the chat list? it won't do anything"
+  kind: cannot
+  file: workspaces-list.md
+  entry: "What the Connecting or Syncing line under the title means"
+  must:
+    - "says the chat list has no pull-to-refresh or refresh button"
+    - "syncing is automatic"
+  must_not:
+    - "tells them to pull down on the Workspaces list"
+
+- id: filter-private-chats
+  ask: "how do i hide the groups and just see my private chats on my phone?"
+  kind: how-to
+  file: workspaces-list.md
+  entry: "Show only DMs, or only workspaces shared with other people"
+  must:
+    - "tap Messages at the top of the Workspaces tab"
+    - "it shows DMs and group DMs only"
+
+- id: desktop-newline
+  ask: "on my computer how do i put a line break in a message without sending it?"
+  kind: desktop
+  file: writing-messages.md
+  entry: "Start a new line without sending"
+  must:
+    - "press Shift+Enter for a new line"
+    - "Enter alone sends"
+  must_not:
+    - "says Enter alone inserts a line break on desktop"
+
+- id: storage-meter-eligibility
+  ask: "who can see how much upload storage they have left in the phone app?"
+  kind: who-can
+  file: writing-messages.md
+  entry: "See how much upload storage I have left"
+  must:
+    - "hosted accounts using Tlon's storage can see it"
+    - "nodes with their own S3 storage have no figures"
+
+- id: message-schedule
+  ask: "can i write a message now and have the app send it tomorrow morning?"
+  kind: cannot
+  file: writing-messages.md
+  entry: "Can I schedule a message, send a GIF, or see who is typing?"
+  must:
+    - "says the message box has no way to send a message later"
+  must_not:
+    - "invents a scheduled-send control"
+
+- id: bot-group-attention
+  ask: "my bot ignores what i say in a group. how do i get its attention?"
+  kind: how-to
+  file: writing-messages.md
+  entry: "Get a bot's attention in a group chat"
+  must:
+    - "type @ and the first letters of the bot's name and select it"
+    - "finish the message and send"
+
+- id: link-without-card
+  ask: "how do i send a website address without the preview card?"
+  kind: how-to
+  file: writing-messages.md
+  entry: "Send a link with a preview"
+  must:
+    - "tap the X on the preview card before sending"
+    - "send the link as usual"
+
+- id: encryption-at-rest
+  ask: "are my messages encrypted while they're sitting on my node too?"
+  kind: concept
+  must:
+    - "messages are encrypted in transit"
+    - "messages stored on the node are not encrypted and device access allows reading them"
+
+- id: export-photos-too
+  ask: "if i export my node do all my pictures come with it?"
+  kind: concept
+  must:
+    - "pictures and large files live in S3-compatible storage"
+    - "a node export includes their links, not the files"
+
+- id: bot-separate-home
+  ask: "does my bot live on my node or does it have its own?"
+  kind: concept
+  must:
+    - "Tlonbot runs on its own node linked to yours"
+
+- id: company-versus-os
+  ask: "is tlon the same thing as urbit? i'm confused"
+  kind: concept
+  must:
+    - "Tlon is the company building Tlon Messenger"
+    - "Urbit is an operating system and Tlon Messenger is the app"
+
+- id: hosting-explained
+  ask: "what am i getting when tlon hosts my node?"
+  kind: concept
+  must:
+    - "Tlon runs the node for you"
+    - "hosting includes health monitoring, updates and data backups with restoration"
+
+# Held out until 2026-10-06, when their failures were read to fix the grader.
+- id: channel-members-absent
+  ask: "where do i see everyone who joined this channel, not the whole group?"
+  kind: cannot
+  file: channels.md
+  entry: "See who is in a channel"
+  must:
+    - "says a group channel has no member list of its own"
+    - "look at the group members and their roles in Group info & settings"
+  must_not:
+    - "claims the channel info screen lists its members"
+
+- id: contact-remove-keep-chat
+  ask: "how do i remove someone from my contacts without blocking them?"
+  kind: how-to
+  file: contacts-and-profile.md
+  entry: "Add or remove a contact from their profile"
+  must:
+    - "open their profile and tap Remove Contact"
+    - "removing a contact does not block them or delete the DM"
+
+- id: website-alert-refused
+  ask: "i'm on the website on my laptop and i refused notifications earlier. how do i allow them now?"
+  kind: how-to
+  file: desktop.md
+  entry: "Turn on notifications in the browser"
+  must:
+    - "allow notifications for the site in the browser's own settings"
+    - "Blocked in browser means the in-app Enable button is gone"
+
+- id: dm-history-clear
+  ask: "how do i clear the history in a dm but keep the conversation?"
+  kind: cannot
+  file: direct-messages.md
+  entry: "Leave or delete a DM"
+  must:
+    - "says the app cannot clear a DM's history"
+    - "leaving is the only way to remove a DM from the list"
+  must_not:
+    - "invents a clear-history action"
+
+- id: gallery-retry-upload
+  ask: "a photo in our gallery didn't send. how do i try it again on my phone?"
+  kind: how-to
+  file: galleries.md
+  entry: "A gallery post failed to send"
+  must:
+    - "tap the red Tap to retry text at the bottom right of its tile"
+
+- id: group-delete-admin-limit
+  ask: "i'm an admin but i didn't make this group. can i delete it for everyone?"
+  kind: who-can
+  file: groups.md
+  entry: "Understand the Admin role"
+  must:
+    - "only the group host sees Delete group"
+    - "an admin who is not the host cannot delete the group"
+
+- id: remove-group-message
+  ask: "how do i delete one of my messages from our group chat on my phone?"
+  kind: how-to
+  file: message-actions.md
+  entry: "Delete a message"
+  must:
+    - "press and hold the message, tap Delete message and confirm"
+    - "deleting removes the message for everyone"
+
+- id: move-notebook-note
+  ask: "how do i move a note into a different folder on my phone? dragging doesn't work"
+  kind: how-to
+  file: notebooks.md
+  entry: "Move a note or a folder"
+  must:
+    - "press and hold the note and tap Move to folder"
+    - "pick a folder and tap the Move to button"
+    - "notes cannot be dragged to move them"
+
+- id: notification-default-again
+  ask: "how do i undo a special notification setting for one chat on my phone so it follows the default again?"
+  kind: how-to
+  file: notifications-and-activity.md
+  entry: "Go back to the default for a chat"
+  must:
+    - "Settings, Notifications, then Overrides"
+    - "tap the X next to the chat to remove its own level"
+
+- id: phone-app-build-where
+  ask: "support asked what build i'm on. where can i find that on my phone?"
+  kind: where
+  file: settings-and-account.md
+  entry: "Find the app version or my node's software version"
+  must:
+    - "Settings, then App info"
+    - "Build version is the app build on this phone"
+
+- id: bot-extra-service-server
+  ask: "how do i add my own service server to my hosted bot? i only see a list of services"
+  kind: cannot
+  file: tlonbot-in-the-app.md
+  entry: "Connect an outside service to my bot"
+  must:
+    - "says you cannot add your own server or paste a token"
+    - "connect a listed service by signing in and approving access"
+  must_not:
+    - "invents a custom-server field"
+
+- id: chat-filter-name
+  ask: "where do i look up a chat by name in the phone app?"
+  kind: where
+  file: workspaces-list.md
+  entry: "Find a chat by name"
+  must:
+    - "tap the magnifying glass at the top right of Workspaces"
+    - "type in Filter by name to narrow the list"
+
+- id: audio-from-computer
+  ask: "i'm on my laptop, how do i record a voice message here?"
+  kind: desktop
+  file: writing-messages.md
+  entry: "Send a voice message"
+  must:
+    - "desktop cannot record voice messages"
+    - "attach an audio file with the plus icon instead"
+  must_not:
+    - "offers Voice Memo recording on desktop"
+
+- id: channel-order-admin-changed
+  ask: "our admin organized the channels but mine still look random. how do i see their order on my phone?"
+  kind: how-to
+  file: channels.md
+  entry: "The channel order or sections an admin set aren't showing"
+  must:
+    - "press and hold the group on Workspaces and tap Sort channels"
+    - "choose Sort by arrangement"
+    - "this is each member's own display setting"
+
+- id: revoke-phone-verification
+  ask: "how do i disconnect the verified phone number from my profile on my phone?"
+  kind: how-to
+  file: contacts-and-profile.md
+  entry: "Remove a verified phone number or X account"
+  must:
+    - "Settings, Your profile, pencil icon, then Phone under Connected Accounts"
+    - "tap Revoke at the bottom"
+
+- id: gallery-readonly-comment
+  ask: "if a gallery is read only for me can i still comment on the pictures?"
+  kind: who-can
+  file: galleries.md
+  entry: "Who can post in a gallery, and what read-only members see"
+  must:
+    - "read-only members cannot add comments"
+    - "they can still open posts and read comments"
+
+- id: secret-group-request
+  ask: "how do i ask to join a secret group if i haven't been invited?"
+  kind: cannot
+  file: groups.md
+  entry: "Ask to join a private group, or cancel the request"
+  must:
+    - "says you cannot request to join a secret group"
+    - "you need an invite"
+  must_not:
+    - "gives Request invite steps for a secret group"
+
+- id: unhide-chat-message
+  ask: "how do i permanently bring back a message i hid on my phone?"
+  kind: how-to
+  file: message-actions.md
+  entry: "Hide a message, or show it again"
+  must:
+    - "tap Show anyway beside the hidden-message line"
+    - "press and hold the revealed message and tap Show message"
+    - "Show anyway alone only reveals it temporarily"
+
+- id: note-conflicting-edit
+  ask: "my note says someone changed it elsewhere and now it won't save. how do i keep my version?"
+  kind: how-to
+  file: notebooks.md
+  entry: "Two people changed the same note"
+  must:
+    - "tap Keep mine to save your version over theirs"
+    - "saving is paused until you choose"
+
+- id: failed-bot-answer-retry
+  ask: "who can retry a bot reply that timed out?"
+  kind: who-can
+  file: tlonbot-in-the-app.md
+  entry: "Ask my bot to try again after a reply failed"
+  must:
+    - "only the bot's owner can retry"
+    - "Retry appears on timed-out, no-reply, aborted or error runs"
