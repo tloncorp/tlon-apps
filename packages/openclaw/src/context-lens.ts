@@ -1221,9 +1221,11 @@ function isSilentCronOutcome(
  * Record the host's verdict on a scheduled cron run and finish its lens.
  * The run is found among its job's runs still waiting for a verdict, by the
  * host's run or session id, else as the oldest of them. Each run takes one
- * verdict. A run that failed before it reached the agent has no lens yet, and
- * gets one here, finished, so the failure shows in its job's history. Returns
- * the finished lens to publish, or null when there is none.
+ * verdict. A run that never reached the agent has no lens yet: one that
+ * failed in setup, or a system event the host queued for the main session
+ * and called done. It gets one here, finished, so it shows in its job's
+ * history; a skipped run records nothing. Returns the finished lens to
+ * publish, or null when there is none.
  */
 export function recordCronRunOutcome(params: {
   jobId: string;
@@ -1257,7 +1259,7 @@ export function recordCronRunOutcome(params: {
     }
   }
   if (!lens) {
-    if (params.outcome.status !== 'error') {
+    if (params.outcome.status === 'skipped') {
       return null;
     }
     const now = Date.now();

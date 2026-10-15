@@ -910,9 +910,19 @@ describe('context lens registry', () => {
           outcome: { status: 'ok', delivered: true },
         })
       ).toMatchObject({ lensId: second?.lens.lensId, status: 'completed' });
-      expect(
-        recordCronRunOutcome({ jobId: 'job-same', outcome: { status: 'ok' } })
-      ).toBeNull();
+      // A third run, with no lens of its own, gets one rather than taking
+      // either run's verdict.
+      const third = recordCronRunOutcome({
+        jobId: 'job-same',
+        outcome: { status: 'ok', summary: 'Reminder sent' },
+      });
+      expect(third).toMatchObject({
+        status: 'completed',
+        cron: { jobId: 'job-same', outcome: { summary: 'Reminder sent' } },
+      });
+      expect([first?.lens.lensId, second?.lens.lensId]).not.toContain(
+        third?.lensId
+      );
     } finally {
       finalizeBackgroundContextLensForSession(sessionKey);
     }
@@ -1013,12 +1023,13 @@ describe('context lens registry', () => {
     });
 
     try {
+      // A scheduled run's verdict while the test runs is its own.
       expect(
         recordCronRunOutcome({
           jobId: 'job-tested',
           outcome: { status: 'ok' },
-        })
-      ).toBeNull();
+        })?.lensId
+      ).not.toBe(created!.lens.lensId);
       const finished = finishBackgroundContextLens(created!.lens.lensId, {
         status: 'completed',
         cron: { output: 'Here is the digest.' },
