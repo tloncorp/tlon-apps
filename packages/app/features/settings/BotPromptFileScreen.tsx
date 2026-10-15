@@ -41,7 +41,6 @@ import {
 import { BotSettingsSection } from './bot/BotSettingsUI';
 import {
   isHostedBotOfCurrentUser,
-  isRestarting,
   restartHostedBot,
   useHostedBotRestarting,
 } from './bot/restartHostedBot';
@@ -162,27 +161,22 @@ export function BotPromptFileScreen(props: Props) {
       return;
     }
     // The bot card's status badge reads readiness, and nothing refetches a
-    // cached `true` on its own. Mark the bot not ready for the outage, which
-    // also starts bot settings' own polling until it is back, then refresh
-    // once more when the restart settles.
-    const readyKey = ['tlonbot', 'ready', hostedShip];
-    queryClient.setQueryData(readyKey, false);
-    const message = await restartHostedBot(hostedShip).then(
+    // cached `true` on its own. Marking the bot not ready starts bot
+    // settings' own polling, which turns it back on once the bot is up.
+    queryClient.setQueryData(['tlonbot', 'ready', hostedShip], false);
+    // The status line going away is the signal that it worked; only a
+    // restart that could not be made, or confirmed, needs saying.
+    const problem = await restartHostedBot(hostedShip).then(
       (confirmed) =>
         confirmed
-          ? 'Your bot restarted with the change.'
+          ? null
           : "Saved, but couldn't confirm your bot restarted. It picks up the change once it does.",
       () =>
         "Saved, but your bot couldn't restart. It picks up the change the next time it does."
     );
-    if (isRestarting(hostedShip)) {
-      // A later save queued another restart: the bot is going down again,
-      // and that save's caller reports once the chain is idle.
-      queryClient.setQueryData(readyKey, false);
-      return;
+    if (problem) {
+      showToast({ message: problem, duration: 4000 });
     }
-    queryClient.invalidateQueries({ queryKey: readyKey });
-    showToast({ message, duration: 3000 });
   }, [hostedShip, queryClient, restartsBot, showToast]);
 
   const handleSaved = useCallback(() => {

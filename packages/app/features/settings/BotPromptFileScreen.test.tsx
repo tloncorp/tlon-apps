@@ -15,16 +15,12 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   refresh: vi.fn(),
   restart: vi.fn(),
-  invalidate: vi.fn(),
   setQueryData: vi.fn(),
   toast: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({
-    invalidateQueries: mocks.invalidate,
-    setQueryData: mocks.setQueryData,
-  }),
+  useQueryClient: () => ({ setQueryData: mocks.setQueryData }),
 }));
 vi.mock('@tloncorp/api', () => ({
   getBotUserIdForUser: () => '~bot',
@@ -83,7 +79,6 @@ vi.mock('./bot/BotSettingsUI', async () => {
 vi.mock('./bot/restartHostedBot', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./bot/restartHostedBot')>()),
   restartHostedBot: mocks.restart,
-  isRestarting: (ship: string) => ship === mocks.restartingShip,
   useHostedBotRestarting: (ship: string | null) =>
     ship !== null && ship === mocks.restartingShip,
 }));
@@ -278,63 +273,19 @@ describe('BotPromptFileScreen', () => {
     });
     expect(mocks.refresh).toHaveBeenCalled();
     expect(mocks.restart).toHaveBeenCalledWith('owner');
-    // Readiness is marked off for the outage, which also starts bot
-    // settings' own polling until the bot is back.
+    // Readiness is marked off for the outage; bot settings polls it back on
+    // once the bot is up, so nothing here has to know when that is.
     expect(mocks.setQueryData).toHaveBeenCalledWith(
       ['tlonbot', 'ready', 'owner'],
       false
     );
-    expect(mocks.invalidate).not.toHaveBeenCalled();
 
     await act(async () => {
       finish(true);
     });
-    expect(mocks.invalidate).toHaveBeenCalledWith({
-      queryKey: ['tlonbot', 'ready', 'owner'],
-    });
-    expect(mocks.toast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'Your bot restarted with the change.',
-      })
-    );
-  });
-
-  it('keeps readiness off and holds its report while a follow-up restart runs', async () => {
-    mocks.warningSeen = true;
-    let finish!: (running: boolean) => void;
-    mocks.restart.mockReturnValueOnce(
-      new Promise<boolean>((resolve) => {
-        finish = resolve;
-      })
-    );
-    const tree = await render('SOUL.md');
-    press(tree, 'BotPromptFileEdit');
-    await act(async () => {
-      editorSheets(tree)[0].props.onSaved('SOUL.md', `${block}\n`);
-    });
-
-    // A second save queued a follow-up that is still running when the first
-    // restart settles.
-    mocks.restartingShip = 'owner';
-    await act(async () => {
-      finish(true);
-    });
-    expect(mocks.setQueryData).toHaveBeenLastCalledWith(
-      ['tlonbot', 'ready', 'owner'],
-      false
-    );
-    expect(mocks.invalidate).not.toHaveBeenCalled();
+    // The status line going away is the signal; a confirmed restart adds no
+    // toast to "Changes saved."
     expect(mocks.toast).not.toHaveBeenCalled();
-
-    // The follow-up's own caller reports once the chain is idle.
-    mocks.restartingShip = null;
-    await act(async () => {
-      editorSheets(tree)[0].props.onSaved('SOUL.md', `${block}\n`);
-    });
-    expect(mocks.invalidate).toHaveBeenCalledWith({
-      queryKey: ['tlonbot', 'ready', 'owner'],
-    });
-    expect(mocks.toast).toHaveBeenCalledTimes(1);
   });
 
   it('shows a restart in progress only for the bot being restarted', async () => {

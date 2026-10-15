@@ -66,7 +66,7 @@ export function subscribeToRestarts(listener: () => void): () => void {
  */
 export function useHostedBotRestarting(ship: string | null): boolean {
   const getSnapshot = useCallback(
-    () => ship !== null && restarts.has(ship),
+    () => ship !== null && isRestarting(ship),
     [ship]
   );
   return useSyncExternalStore(subscribeToRestarts, getSnapshot, getSnapshot);
