@@ -388,6 +388,41 @@ class CommandRegistryTests(unittest.TestCase):
         self.assertFalse(commands.is_core_command("   "))
         self.assertFalse(commands.is_core_command(None))
 
+    def test_runtime_registry_accepts_aliases_without_advertising_them(self):
+        core = types.ModuleType("hermes_cli.commands")
+        setattr(core, "GATEWAY_KNOWN_COMMANDS", frozenset({"profile", "reset", "reasoning"}))
+        with patch.dict(sys.modules, {"hermes_cli.commands": core}):
+            self.assertTrue(commands.is_core_command(" /PROFILE "))
+            self.assertTrue(commands.is_core_command("/reset name"))
+            self.assertTrue(commands.is_core_command("/reasoning high"))
+            for text in ("/profileish", "/profile/file", "/unknown", "please /profile"):
+                self.assertFalse(commands.is_core_command(text), text)
+        self.assertNotIn("/profile", commands.CORE_COMMAND_TOKENS)
+
+    def test_core_command_fallback_when_gateway_registry_is_unavailable(self):
+        for module in (None, types.ModuleType("hermes_cli.commands")):
+            with self.subTest(module=module), patch.dict(
+                sys.modules, {"hermes_cli.commands": module}
+            ):
+                self.assertTrue(commands.is_core_command("/model example"))
+                self.assertFalse(commands.is_core_command("/profile"))
+                self.assertFalse(commands.is_core_command("/modelish"))
+
+    def test_confirmation_replies_are_preserved_but_plain_dialogue_is_not(self):
+        for module in (None, types.ModuleType("hermes_cli.commands")):
+            with self.subTest(module=module), patch.dict(
+                sys.modules, {"hermes_cli.commands": module}
+            ):
+                for name in commands.GATEWAY_CONFIRM_REPLY_NAMES:
+                    self.assertTrue(commands.is_core_command("/" + name))
+                    self.assertTrue(commands.is_core_command("/" + name.upper()))
+                    self.assertFalse(commands.is_core_command(name))
+                    self.assertFalse(commands.is_core_command("/" + name + "ish"))
+                    self.assertFalse(commands.is_core_command("/" + name + "/file"))
+                self.assertFalse(commands.is_core_command("please /always"))
+                self.assertFalse(commands.is_core_command("!always"))
+        self.assertNotIn("/always", commands.engagement_tokens())
+
     def test_engagement_tokens_are_all_registry_rows_plus_core(self):
         # All eleven registry rows (the dispatcher handles /tlon-version even
         # though it is never advertised) followed by the core tokens.
