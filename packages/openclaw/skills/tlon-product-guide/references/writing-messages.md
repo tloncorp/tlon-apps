@@ -97,7 +97,7 @@ Notes: the message goes out with the original shown as a card. Tap the X on the 
 
 ## Is the text I haven't sent saved?
 
-Notes: yes. What you type is saved as you go, separately for each chat, DM and thread. Leave and come back, and it is waiting in the message box. It clears when you send. Drafts stay on the device you typed them on, so a draft started on your phone will not appear on desktop. Only text and mentions are saved; attachments you added but did not send are not part of the draft.
+Notes: yes. What you type is saved as you go, separately for each chat, DM and thread. Leave and come back, and it is waiting in the message box. It clears when you send. Drafts stay on the device you typed them on, so a draft started on your phone will not appear on desktop. Text, mentions and a quoted message are saved; photos and files you added but did not send are not part of the draft.
 
 ## A message failed to send
 

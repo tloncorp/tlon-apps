@@ -49,15 +49,15 @@ Notes: Settings on desktop has no `Your profile` or `Contacts` row, so the avata
 <!-- src: packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 
 Desktop: click the gear near the bottom of the left rail. The sidebar lists the settings, and the one you click opens in the main pane. The rows are `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug` and `Experimental features`.
-Who: `Bot Settings` shows above that list only on a hosted account that already has a DM with its bot.
+Who: `Bot Settings` shows above that list only on a hosted account that already has a DM with its bot, with `Scheduled tasks` under it when your node can show tasks.
 Notes: rows the phone has that desktop lacks: `Your profile` and `Contacts` (use your avatar in the rail), `Tlon Messenger on the Web` and `Log out`.
 
 ## Find my bot's chat and its settings on desktop
-<!-- src: packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/utils/botSettings.ts, packages/app/features/top/UserProfileScreen.tsx, packages/app/ui/components/UserProfileScreenView.tsx -->
+<!-- src: packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/utils/botSettings.ts, packages/app/features/top/UserProfileScreen.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/app/ui/components/BotSystemPrompts.tsx -->
 
 Desktop: there is no Bot tab. Your chat with your bot is an ordinary DM: find it by the bot's name in the Home list, or in Messages. For its settings, click the gear in the left rail, then `Bot Settings`. That opens Tlon's bot settings web page, tlon.network/tlonbot, in your browser. The `Bot settings` row on the bot's own profile opens the same page.
 Who: `Bot Settings` only appears on a hosted account that already has a DM with its bot.
-Notes: the desktop and web app have no bot settings screens of their own; the row only opens that page. On the phone the bot's settings are on the Settings tab.
+Notes: apart from `Scheduled tasks` in Settings and the `Bot behavior` section on your bot's profile, the desktop and web app have no bot settings screens of their own; the row only opens that page. On the phone the bot's settings are on the Settings tab.
 
 ## Start a DM, make a group or join one on desktop
 <!-- src: packages/app/features/top/CreateChatSheet.tsx, packages/app/navigation/desktop/HomeSidebar.tsx, packages/app/navigation/desktop/MessagesSidebar.tsx -->
@@ -118,7 +118,7 @@ Notes: none of these exist in the phone app. Notifications work differently too:
 ## Things only the phone app can do
 <!-- src: packages/app/ui/components/AttachmentSheet.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/hooks/useContactPermissions.ts, packages/app/navigation/desktop/ProfileNavigator.tsx, packages/app/ui/components/listItems/InteractableChatListItem.tsx, packages/app/features/settings/AppInfoScreen.tsx, packages/app/features/top/CreateChatSheet.tsx, packages/app/features/settings/PushNotificationSettingsScreen.tsx, packages/app/hooks/useBotDmTab.ts -->
 
-Phone: taking a photo or video from inside the app, and recording a `Voice Memo`. Syncing your phone's contacts and inviting people from your address book. Push notifications while the app is closed. The Bot tab, and changing the bot's settings inside the app. `New Workspace`, unless the app on your computer knows about your bot. `Manage Tlon account`. `Log out`. Swiping chats in the list. `Export DB` under `App info`.
+Phone: taking a photo or video from inside the app, and recording a `Voice Memo`. Syncing your phone's contacts and inviting people from your address book. Push notifications while the app is closed. The Bot tab, and the bot's settings screens, except its scheduled tasks and its instructions. `New Workspace`, unless the app on your computer knows about your bot. `Manage Tlon account`. `Log out`. Swiping chats in the list. `Export DB` under `App info`.
 Desktop: none of these are offered in a browser or in the desktop app.
 
 ## Turn on notifications in the browser

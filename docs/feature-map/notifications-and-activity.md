@@ -92,7 +92,7 @@ Notes: muting a DM by swipe sets it to `Nothing`. Muting a group by swipe sets i
 ## Go back to the default for a chat
 <!-- src: packages/app/features/settings/PushNotificationSettingsScreen.tsx, packages/app/ui/contexts/chatOptions/useChatVolumeOptions.ts, packages/app/ui/components/SettingsScreenView.tsx -->
 
-Phone: on the Settings tab, tap `Notifications` and scroll to `Overrides`. It lists every group, channel and DM that has its own level. Tap the X beside one, then `Remove` on the `Remove this override?` prompt, to remove its own level, so it goes back to the default.
+Phone: on the Settings tab, tap `Notifications` and scroll to `Overrides`. It lists every group, channel and DM that has its own level. Tap one, then `Remove` on the `Remove this override?` prompt, to remove its own level, so it goes back to the default.
 Desktop: click the gear in the left rail, then `Notifications`; the same `Overrides` list is at the bottom.
 Notes: `Overrides` only appears once at least one chat has its own level. A chat's own notification menu has no "use default" choice, so this list is the way back. The one shortcut is a chat you muted by swiping on the phone: unmuting it the same way also returns it to the default. Muted threads are not listed here.
 

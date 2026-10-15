@@ -97,7 +97,7 @@ Notes: people in that chat can tap the reference to open the group's preview. Th
 
 Phone: open `Group info & settings` and tap `Rename` at the top right. On `Edit group info`, change the `Name`, tap `Change icon image` to choose a picture, or edit the `Description`. Tap `Save`.
 Who: admins, while the group's host can be reached.
-Notes: `Rename` is the usual way in, and it covers the icon and description too. In a new group chat with no messages yet, an admin also sees `Edit group`, which opens the same screen. The name can be up to 30 characters and the description up to 300. To remove an icon, tap the icon button and choose `Clear`. If the button says `Storage not configured`, image uploads aren't set up yet. Groups have no cover image setting.
+Notes: `Rename` is the usual way in, and it covers the icon and description too. In a new group with a single channel and no messages yet, an admin also sees `Edit group`, which opens the same screen. In a group with more channels that button reads `Edit channel` and edits the channel instead. The name can be up to 30 characters and the description up to 300. To remove an icon, tap the icon button and choose `Clear`. If the button says `Storage not configured`, image uploads aren't set up yet. Groups have no cover image setting.
 
 ## Change a group's privacy
 

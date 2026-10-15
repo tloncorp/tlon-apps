@@ -14,7 +14,7 @@ Notes: you are always first in the list, marked `You`, followed by your contacts
 <!-- src: packages/app/features/contacts/AddContactsScreen.tsx, packages/app/ui/components/AddContactsView.tsx, packages/app/ui/components/ContactBook.tsx, packages/app/ui/hooks/contactSorters.ts, packages/app/features/top/ContactsScreen.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx -->
 <!-- covers: route:AddContacts -->
 
-Phone: open the Settings tab, tap `Contacts`, then tap the plus icon at the top left. In the `Filter by nickname, @p` box, type the start of the person's nickname or ID. Tap each person you want so they are checked, then tap the button at the bottom, which reads "Add 1 contact" or similar.
+Phone: open the Settings tab, tap `Contacts`, then tap the plus icon at the top right. In the `Filter by nickname, @p` box, type the start of the person's nickname or ID. Tap each person you want so they are checked, then tap the button at the bottom, which reads "Add 1 contact" or similar.
 Desktop: click your avatar in the left rail, then the plus icon at the top of the Contacts sidebar.
 Notes: search covers people the app already has a profile for. To add anyone else, type their full ID (it starts with ~) and they appear as a result. People who are already contacts show a blue check and can't be unticked here.
 
@@ -110,7 +110,7 @@ Notes: `Pending` means the check has not finished yet, and it can take a moment 
 Phone: look for a small `Bot` badge beside the name, on the profile and on messages. The badge reads `Bot · Offline` when the bot is reported offline. On the profile of your own bot there is also a `Bot settings` row, which opens its settings.
 Desktop: `Bot settings` shows only on hosted accounts that have a DM with their bot, and it opens Tlon's bot settings page in a new browser tab.
 Who: `Bot settings` is only on your own bot's profile, never on someone else's bot.
-Notes: apart from that, a bot's profile works like a person's, with the same `Message`, `Add Contact` and `Block` buttons.
+Notes: apart from that, a bot's profile works like a person's, with the same `Message`, `Add Contact` and `Block` buttons. Your own bot has no `Block` button.
 
 ## Check how someone's phone or X account was verified
 <!-- src: packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/app/ui/components/Profile/HiddenPhoneDisplay.tsx, packages/app/ui/components/AttestationSheet.tsx, packages/app/ui/components/AttestationPane.tsx -->
@@ -162,7 +162,7 @@ Notes: `Default avatar color` sets the colour of the avatar you get when you hav
 ## Set your status quickly
 <!-- src: packages/app/features/settings/SettingsScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/ProfileStatusSheet.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx -->
 
-Phone: on the Settings tab, press and hold `Your profile`. A sheet opens with a box labelled `Update your status`. Type up to 50 characters and tap the arrow button.
+Phone: on the Settings tab, press and hold your profile row at the top. On an iPhone a menu opens; tap `Set status`. On Android the sheet opens straight away. It is headed `Update your status`. Type up to 50 characters and tap the arrow button.
 Desktop: there is no shortcut. Edit your profile and change `Status` there.
 Notes: people see your status under your name in their contacts list and in a `Status` block on your profile. To clear it, save an empty status.
 
