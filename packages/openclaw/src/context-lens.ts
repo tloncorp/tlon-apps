@@ -1305,7 +1305,8 @@ export function getActiveBackgroundContextLens(): ContextLens | null {
       continue;
     }
     const lens = binding.registry.get(binding.lensId);
-    if (!lens) {
+    // A test run posts nothing, so a send is never its own.
+    if (!lens || lens.cron?.test) {
       continue;
     }
     if (!best || lens.updatedAt > best.updatedAt) {

@@ -294,7 +294,11 @@ function TaskEditor({ navigation, route }: Props) {
       const lensId = await startTestRun(taskId);
       if (edit.onScreen()) openRuns('ScheduledTaskRun', lensId);
     } catch (error) {
-      showToast({ message: describeTestRunError(error), duration: 4000 });
+      // A test asked for on another visit, possibly of another task, would
+      // read as this one failing.
+      if (edit.onScreen()) {
+        showToast({ message: describeTestRunError(error), duration: 4000 });
+      }
     } finally {
       if (edit.onScreen()) setBusy(null);
     }

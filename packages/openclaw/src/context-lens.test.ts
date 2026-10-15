@@ -741,6 +741,27 @@ describe('context lens registry', () => {
     });
   });
 
+  it('never stamps a send with a test run', async () => {
+    const scheduled = ensureBackgroundContextLensForSession(
+      'session-send-scheduled',
+      { runKind: 'cron', trigger: 'cron', cron: { jobId: 'job-send' } }
+    );
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    ensureBackgroundContextLensForSession('agent:main:tlon-cron-test:send', {
+      runKind: 'cron',
+      trigger: 'cron',
+      cron: { jobId: 'job-send', test: true },
+    });
+    try {
+      expect(getActiveBackgroundContextLens()?.lensId).toBe(
+        scheduled?.lens.lensId
+      );
+    } finally {
+      finalizeBackgroundContextLensForSession('session-send-scheduled');
+      finalizeBackgroundContextLensForSession('agent:main:tlon-cron-test:send');
+    }
+  });
+
   it("stamps a background run with its latest model call's model", () => {
     const sessionKey = 'session-background-cron-model';
     ensureBackgroundContextLensForSession(sessionKey, {

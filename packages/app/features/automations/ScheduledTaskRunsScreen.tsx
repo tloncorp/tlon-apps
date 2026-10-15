@@ -64,7 +64,9 @@ export function ScheduledTaskRunsScreen({ navigation, route }: Props) {
       const lensId = await startTestRun(taskId);
       if (visit.current === during) openRun(lensId, true);
     } catch (error) {
-      showToast({ message: describeTestRunError(error), duration: 4000 });
+      if (visit.current === during) {
+        showToast({ message: describeTestRunError(error), duration: 4000 });
+      }
     } finally {
       if (visit.current === during) setTesting(false);
     }

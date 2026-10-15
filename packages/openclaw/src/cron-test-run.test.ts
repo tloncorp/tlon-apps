@@ -443,6 +443,10 @@ describe('cronTestRunToolBlock', () => {
     expect(
       cronTestRunToolBlock('tlon', { command: 'contacts del ~sampel-palnet' })
     ).toBe(CRON_TEST_RUN_BLOCK_REASON);
+    // Fetching profiles pokes %contacts.
+    expect(
+      cronTestRunToolBlock('tlon', { command: 'contacts sync ~sampel-palnet' })
+    ).toBe(CRON_TEST_RUN_BLOCK_REASON);
     expect(
       cronTestRunToolBlock('tlon', {
         command: 'buckets read buckets/~zod/private-files 12',

@@ -983,8 +983,10 @@ function summarizeContactsOperation(
             (field === 'nickname' || field === 'avatar') && hasFlag(args, flag)
         ).map(({ field }) => field),
       });
+    // Fetching profiles pokes %contacts with a meet, which records the
+    // ships as peers.
     case 'sync':
-      return build('read', {
+      return build('write', {
         contactCount: positionals.length,
       });
     default:
