@@ -34,6 +34,9 @@ export const ART_HEIGHT = 352;
 const EASE = Easing.bezier(0.37, 0, 0.63, 1);
 const EMOJI = ['🤖', '🛎️', '🔍', '🌱', '🌤️', '📥'];
 const PAGE = { light: '#FFFFFF', dark: '#1A1818' };
+// On dark, the plain dark blur lays a grey haze over the glass; the thinnest
+// material keeps it clear.
+const DARK_GLASS = 'systemUltraThinMaterialDark' as const;
 
 type Mode = 'light' | 'dark';
 type Slide = 1 | 2;
@@ -41,11 +44,11 @@ type Slide = 1 | 2;
 const CHIP_TINT: Record<Slide, Record<Mode, [string, string]>> = {
   1: {
     light: ['rgba(220,255,210,0.55)', 'rgba(170,230,160,0.35)'],
-    dark: ['rgba(205,250,195,0.78)', 'rgba(150,215,140,0.6)'],
+    dark: ['rgba(190,240,180,0.62)', 'rgba(110,195,100,0.42)'],
   },
   2: {
     light: ['rgba(195,218,255,0.92)', 'rgba(130,176,245,0.82)'],
-    dark: ['rgba(215,230,255,0.78)', 'rgba(150,185,245,0.6)'],
+    dark: ['rgba(200,220,255,0.62)', 'rgba(110,160,240,0.42)'],
   },
 };
 
@@ -228,12 +231,16 @@ function Chip({
           borderColor:
             mode === 'light'
               ? 'rgba(255,255,255,0.65)'
-              : 'rgba(255,255,255,0.28)',
+              : 'rgba(255,255,255,0.45)',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <BlurView intensity={40} tint={mode} style={StyleSheet.absoluteFill} />
+        <BlurView
+          intensity={40}
+          tint={mode === 'light' ? 'light' : DARK_GLASS}
+          style={StyleSheet.absoluteFill}
+        />
         <Svg style={StyleSheet.absoluteFill}>
           <Defs>
             <LinearGradient id={gradientId} x1="0.2" y1="0" x2="0.8" y2="1">
@@ -356,9 +363,9 @@ const DOME_STOPS: Record<Mode, [string, string, number][]> = {
     ['1', '#466EB4', 0.15],
   ],
   dark: [
-    ['0', '#FFFFFF', 0.04],
-    ['0.7', '#FFFFFF', 0.06],
-    ['1', '#FFFFFF', 0.18],
+    ['0', '#FFFFFF', 0.02],
+    ['0.7', '#FFFFFF', 0.04],
+    ['1', '#FFFFFF', 0.16],
   ],
 };
 
@@ -426,12 +433,12 @@ function DomedBot({
           borderWidth: 1,
           borderColor: light
             ? 'rgba(60,95,160,0.34)'
-            : 'rgba(255,255,255,0.42)',
+            : 'rgba(255,255,255,0.55)',
         }}
       >
         <BlurView
-          intensity={light ? 4 : 10}
-          tint={mode}
+          intensity={light ? 4 : 5}
+          tint={light ? 'light' : DARK_GLASS}
           style={StyleSheet.absoluteFill}
         />
         <Svg style={StyleSheet.absoluteFill}>
@@ -451,23 +458,23 @@ function DomedBot({
           </Defs>
           <Rect width="100%" height="100%" fill={`url(#myb-dome-${mode})`} />
         </Svg>
-        {light ? (
-          <View
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              right: 0,
-              bottom: 0,
-              borderTopLeftRadius: 114,
-              borderTopRightRadius: 114,
-              borderBottomLeftRadius: 13,
-              borderBottomRightRadius: 13,
-              borderWidth: 1.5,
-              borderColor: 'rgba(255,255,255,0.9)',
-            }}
-          />
-        ) : null}
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            borderTopLeftRadius: 114,
+            borderTopRightRadius: 114,
+            borderBottomLeftRadius: 13,
+            borderBottomRightRadius: 13,
+            borderWidth: 1.5,
+            borderColor: light
+              ? 'rgba(255,255,255,0.9)'
+              : 'rgba(255,255,255,0.12)',
+          }}
+        />
       </View>
 
       <Svg
@@ -492,30 +499,28 @@ function DomedBot({
           fill={`url(#myb-streak-${mode})`}
         />
       </Svg>
-      {light ? (
-        <Svg
-          width={230}
-          height={244}
-          style={{ position: 'absolute', left: 0, top: 0 }}
-        >
-          <Path
-            d="M44 40A103 103 0 0 1 96 13"
-            fill="none"
-            stroke="#FFFFFF"
-            strokeWidth={4}
-            strokeLinecap="round"
-            opacity={0.95}
-          />
-          <Path
-            d="M205 72A103 103 0 0 1 213 100"
-            fill="none"
-            stroke="#3C5FA0"
-            strokeOpacity={0.09}
-            strokeWidth={2.5}
-            strokeLinecap="round"
-          />
-        </Svg>
-      ) : null}
+      <Svg
+        width={230}
+        height={244}
+        style={{ position: 'absolute', left: 0, top: 0 }}
+      >
+        <Path
+          d="M44 40A103 103 0 0 1 96 13"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth={4}
+          strokeLinecap="round"
+          opacity={light ? 0.95 : 0.7}
+        />
+        <Path
+          d="M205 72A103 103 0 0 1 213 100"
+          fill="none"
+          stroke={light ? '#3C5FA0' : '#FFFFFF'}
+          strokeOpacity={light ? 0.09 : 0.16}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+        />
+      </Svg>
 
       {/* The base */}
       <View
@@ -540,34 +545,41 @@ function DomedBot({
             borderWidth: 1,
             borderColor: light
               ? 'rgba(60,95,160,0.26)'
-              : 'rgba(255,255,255,0.28)',
+              : 'rgba(255,255,255,0.32)',
           }}
         >
-          {light ? (
-            <Svg style={StyleSheet.absoluteFill}>
-              <Defs>
-                <LinearGradient id="myb-base" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor="#FFFFFF" />
-                  <Stop offset="1" stopColor="#DDE6F5" />
-                </LinearGradient>
-              </Defs>
-              <Rect width="100%" height="100%" fill="url(#myb-base)" />
-            </Svg>
-          ) : (
-            <>
-              <BlurView
-                intensity={40}
-                tint="dark"
-                style={StyleSheet.absoluteFill}
-              />
-              <View
-                style={[
-                  StyleSheet.absoluteFill,
-                  { backgroundColor: 'rgba(255,255,255,0.09)' },
-                ]}
-              />
-            </>
-          )}
+          <Svg style={StyleSheet.absoluteFill}>
+            <Defs>
+              <LinearGradient
+                id={`myb-base-${mode}`}
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                {light
+                  ? [
+                      <Stop key="0" offset="0" stopColor="#FFFFFF" />,
+                      <Stop key="1" offset="1" stopColor="#DDE6F5" />,
+                    ]
+                  : [
+                      <Stop
+                        key="0"
+                        offset="0"
+                        stopColor="#FFFFFF"
+                        stopOpacity={0.22}
+                      />,
+                      <Stop
+                        key="1"
+                        offset="1"
+                        stopColor="#FFFFFF"
+                        stopOpacity={0.05}
+                      />,
+                    ]}
+              </LinearGradient>
+            </Defs>
+            <Rect width="100%" height="100%" fill={`url(#myb-base-${mode})`} />
+          </Svg>
         </View>
       </View>
     </View>
@@ -607,7 +619,7 @@ function EmojiField({ mode }: { mode: Mode }) {
             top: item.y,
             fontSize: 12.5,
             lineHeight: 15,
-            opacity: mode === 'light' ? 0.34 : 0.22,
+            opacity: mode === 'light' ? 0.34 : 0.17,
           }}
         >
           {item.e}
@@ -624,10 +636,10 @@ function Halo({ slide, mode }: { slide: Slide; mode: Mode }) {
     slide === 1
       ? mode === 'light'
         ? '#96D78C'
-        : '#3C783C'
+        : '#43A84E'
       : mode === 'light'
         ? '#96C4F5'
-        : '#3C69AA';
+        : '#3F7FE6';
   const cx = 196.5;
   if (slide === 1) {
     const cy = 190;
@@ -666,41 +678,25 @@ function Halo({ slide, mode }: { slide: Slide; mode: Mode }) {
     );
   }
   const cy = 200;
-  // On light, the emoji are cleared right under the dome so the glass reads
-  // clean; outside it the field stays.
+  // The emoji are cleared right under the dome so the glass reads clean;
+  // outside it the field stays.
   const squash = 190 / 150;
   return (
     <Svg style={StyleSheet.absoluteFill}>
       <Defs>
-        {mode === 'light' ? (
-          <RadialGradient
-            id="myb-wash-2-light"
-            cx={cx}
-            cy={cy - 15}
-            r={150}
-            gradientUnits="userSpaceOnUse"
-            gradientTransform={`matrix(1 0 0 ${squash} 0 ${(cy - 15) * (1 - squash)})`}
-          >
-            <Stop offset="0" stopColor={wash} stopOpacity={0.97} />
-            <Stop offset="0.76" stopColor={wash} stopOpacity={0.97} />
-            <Stop offset="0.88" stopColor={wash} stopOpacity={0.45} />
-            <Stop offset="1" stopColor={wash} stopOpacity={0} />
-          </RadialGradient>
-        ) : (
-          <RadialGradient
-            id="myb-wash-2-dark"
-            cx={cx}
-            cy={cy}
-            r={230}
-            gradientUnits="userSpaceOnUse"
-          >
-            <Stop offset="0" stopColor={wash} stopOpacity={0} />
-            <Stop offset="0.278" stopColor={wash} stopOpacity={0.1} />
-            <Stop offset="0.513" stopColor={wash} stopOpacity={0.8} />
-            <Stop offset="0.713" stopColor={wash} stopOpacity={0.55} />
-            <Stop offset="1" stopColor={wash} stopOpacity={0} />
-          </RadialGradient>
-        )}
+        <RadialGradient
+          id={`myb-wash-2-${mode}`}
+          cx={cx}
+          cy={cy - 15}
+          r={150}
+          gradientUnits="userSpaceOnUse"
+          gradientTransform={`matrix(1 0 0 ${squash} 0 ${(cy - 15) * (1 - squash)})`}
+        >
+          <Stop offset="0" stopColor={wash} stopOpacity={0.97} />
+          <Stop offset="0.76" stopColor={wash} stopOpacity={0.97} />
+          <Stop offset="0.88" stopColor={wash} stopOpacity={0.45} />
+          <Stop offset="1" stopColor={wash} stopOpacity={0} />
+        </RadialGradient>
         <RadialGradient
           id={`myb-glow-2-${mode}`}
           cx={cx}
