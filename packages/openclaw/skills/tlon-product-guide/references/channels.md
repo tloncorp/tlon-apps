@@ -51,13 +51,13 @@ Notes: all of these open `Channel info`. In a group with a single channel, the m
 
 ## What the Channel info screen shows
 
-Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Host`, the node that runs the channel, which you can tap to open its profile; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen.
+Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Host`, the node that runs the channel, which you can tap to open its profile; `Scheduled tasks` with a count, when your bot has tasks posting here or could post here; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen.
 
 ## Rename a channel or change its description
 
 Phone: open the channel's `Channel info` screen and tap `Rename` at the top right. On `Edit channel info`, change `Name` and `Description`, then tap `Save`.
 Who: group admins. `Rename` is greyed out while the app can't reach the group's host.
-Notes: a name can be up to 30 characters and a description up to 300. In a group with several channels, the description shows under the channel's name at the top of the channel. If you opened the info from the group's channel-management screen, the button is a pencil icon instead of `Rename`. A channel has no picture of its own to set, and its type can't be changed after it's made.
+Notes: a name can be up to 30 characters and a description up to 300. In a group with several channels, the description shows under the channel's name at the top of the channel. If you opened the info from the group's channel-management screen, the button is a pencil icon instead of `Rename`. A channel has no picture of its own to set, and its type can't be changed after it's made. For a Notebook channel, the new name also becomes the notebook's title when you are its owner on the node that hosts it.
 
 ## Reorder channels or move one to another section
 

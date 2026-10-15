@@ -6,7 +6,7 @@ Finding, adding, inviting and blocking people, looking at someone's profile, and
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/features/top/ContactsScreen.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx, packages/app/ui/components/Activity/ActivityScreenView.tsx -->
 <!-- covers: route:Contacts -->
 
-Phone: open the Settings tab and tap `Contacts`. It says `People you know and invite` underneath. There is no Contacts tab in the tab bar.
+Phone: open the Settings tab and tap `Contacts`. There is no Contacts tab in the tab bar.
 Desktop: click your own avatar in the left rail. Your contacts are listed in the sidebar, and a profile opens beside them.
 Notes: you are always first in the list, marked `You`, followed by your contacts. Below them there can be a `Suggested from %pals and DMs` section and, on the phone, a `From your address book` section. Tap a contact or a suggestion to open their profile. When the Activity tab is empty, the phone also shows a `View Contacts` button there.
 
@@ -130,7 +130,7 @@ Notes: there is no confirmation. It happens on the tap. You can't block yourself
 Notes: in chats you both belong to, their messages are replaced with `Message from a blocked user.` and a `Show anyway` link, so you can still read one if you choose. Gallery and notebook posts read `Post from a blocked user.` Chat previews in your list read `(Post from blocked user)`. `Message` disappears from their profile, and they stop appearing when you type @ to mention someone. The app does not remove them from your contacts or from any group you share. To take someone out of a group, an admin has to remove them there.
 
 ## Unblock someone or see who you've blocked
-<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/BlockedUsersScreen.tsx, packages/app/ui/components/BlockedContactsWidget.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/shared/src/store/blockingActions.ts, packages/app/navigation/desktop/SettingsNavigator.tsx -->
+<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/BlockedUsersScreen.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/shared/src/store/blockingActions.ts, packages/app/navigation/desktop/SettingsNavigator.tsx -->
 <!-- covers: route:BlockedUsers -->
 
 Phone: open the Settings tab and tap `Blocked users`. Everyone you have blocked is listed with an `Unblock` badge. Tap a person, then confirm with `Unblock`.
@@ -140,7 +140,7 @@ Notes: an empty list reads `No blocked users`. You can also unblock from the per
 ## Find your own profile
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/ui/components/ContactsScreenView.tsx -->
 
-Phone: open the Settings tab and tap `Your profile`. It is the first row under `App`.
+Phone: open the Settings tab and tap `Your profile`. It is the first row, above your bot's rows if you have one.
 Desktop: click your avatar in the left rail. Your own profile is what opens. In the Contacts sidebar you are the first row, marked `You`.
 Notes: desktop's Settings sidebar has no profile row. On the phone you can also reach your profile by tapping the `You` row at the top of your contacts list.
 

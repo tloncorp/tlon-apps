@@ -192,5 +192,5 @@ Notes: unlike a chat message, a Bulletin post has no `Quote`, `Copy message text
 
 Phone: with this turned on, a new Bulletin post opens as a plain text box that reads `Write your content in Markdown...`. To go back to the usual editor, tap the floating button at the bottom right, then `Switch to Rich Text`. In the usual editor, the formatting bar gains a Markdown button at its left end that switches back.
 Desktop: `Switch to Rich Text` sits in a bar above the body.
-Who: off by default. The switch, `Enable Markdown mode for notebook posts`, is under `Experimental features` in Settings and is only listed for Tlon staff.
+Who: off by default. The switch, `Markdown notebooks`, is under `Experimental features` in Settings and is only listed for Tlon staff.
 Notes: despite its name it changes Bulletin posts only. Notebook notes are always Markdown. Editing an existing post starts in the usual editor.
