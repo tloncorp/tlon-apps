@@ -84,8 +84,9 @@ export interface SettingsRowModel {
   trailingAction?: SettingsMenuItem & { testID?: string };
   toggle?: { value: boolean; onValueChange: (value: boolean) => void };
   /**
-   * iOS only: the row's value picked from a native menu, with the title as
-   * its label, the way Settings shows a choice such as Location access.
+   * The row's value, picked from a short list: a native menu on iOS and
+   * Android, the way Settings shows a choice such as Location access, and a
+   * select on web.
    */
   picker?: {
     value: string;

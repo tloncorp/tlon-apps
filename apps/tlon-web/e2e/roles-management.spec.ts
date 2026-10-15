@@ -140,18 +140,12 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByTestId('ChannelPrivacy').click();
   await expect(page.getByText('Channel permissions')).toBeVisible();
 
-  // Set channel permissions
-  await helpers.setChannelPermissions(page, ['Testing role'], ['Testing role']);
-
-  // "Testing role" can see and post
-  await expect(page.getByTestId('ReadToggle-Testing role')).toHaveAttribute(
-    'aria-checked',
-    'true'
-  );
-  await expect(page.getByTestId('WriteToggle-Testing role')).toHaveAttribute(
-    'aria-checked',
-    'true'
-  );
+  // Only admins and "Testing role" can see and post
+  await helpers.setAccessLevel(page, 'Everyone', 'No access');
+  await helpers.setAccessLevel(page, 'Testing role', 'Can post');
+  await expect(
+    page.getByText('Only admins and Testing role can see and post.')
+  ).toBeVisible();
 
   await page.getByText('Save').click();
   await page.waitForTimeout(2000);
@@ -222,14 +216,10 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByTestId('ChannelPrivacy').click();
   await expect(page.getByText('Channel permissions')).toBeVisible();
 
-  // Take "Renamed role" off the roles that can see the channel
-  const renamedRoleRead = page.getByTestId('ReadToggle-Renamed role');
-  await expect(renamedRoleRead).toHaveAttribute('aria-checked', 'true');
-  await renamedRoleRead.click();
-  await expect(renamedRoleRead).toHaveAttribute('aria-checked', 'false');
-
-  // A role that can't see the channel can't post in it either
-  await expect(page.getByTestId('WriteToggle-Renamed role')).not.toBeVisible();
+  // Take "Renamed role" off the channel
+  await helpers.expectAccessLevel(page, 'Renamed role', 'Can post');
+  await helpers.setAccessLevel(page, 'Renamed role', 'No access');
+  await expect(page.getByText('Only admins can see and post.')).toBeVisible();
 
   await page.getByTestId('ChannelPrivacySaveButton').click();
   await page.waitForTimeout(2000);
@@ -331,31 +321,14 @@ test('should persist role permissions after save and reopen', async ({
   await page.getByTestId('ChannelPrivacy').click();
   await expect(page.getByText('Channel permissions')).toBeVisible();
 
-  // Set permissions: keep Members selected, add "Writer role" with read+write
-  await helpers.setChannelPermissions(
-    page,
-    ['Writer role'],
-    ['Writer role'],
-    true // keepMembers — exercises the Members + specific role code path
-  );
-
-  // Members still see the channel
-  await expect(page.getByTestId('ReadToggle-Members')).toHaveAttribute(
-    'aria-checked',
-    'true'
-  );
-
-  // Uncheck write for Members (so Members = read-only, Writer role = read+write)
-  const membersWriteToggle = page.getByTestId('WriteToggle-Members');
-  await expect(membersWriteToggle).toHaveAttribute('aria-checked', 'true');
-  await membersWriteToggle.click();
-  await expect(membersWriteToggle).toHaveAttribute('aria-checked', 'false');
-
-  // Verify Writer role has write enabled
-  await expect(page.getByTestId('WriteToggle-Writer role')).toHaveAttribute(
-    'aria-checked',
-    'true'
-  );
+  // Everyone can see the channel, and only admins and "Writer role" can post
+  await helpers.setAccessLevel(page, 'Everyone', 'Can view');
+  await helpers.setAccessLevel(page, 'Writer role', 'Can post');
+  await expect(
+    page.getByText(
+      'Everyone can see this channel. Only admins and Writer role can post.'
+    )
+  ).toBeVisible();
 
   // Save
   await page.getByTestId('ChannelPrivacySaveButton').click();
@@ -378,32 +351,13 @@ test('should persist role permissions after save and reopen', async ({
   await page.getByTestId('ChannelPrivacy').click();
   await expect(page.getByText('Channel permissions')).toBeVisible();
 
-  // Writer role still sees and posts; Members still see but don't post
-  await expect(page.getByTestId('ReadToggle-Writer role')).toHaveAttribute(
-    'aria-checked',
-    'true'
-  );
-  await expect(page.getByTestId('WriteToggle-Writer role')).toHaveAttribute(
-    'aria-checked',
-    'true'
-  );
-  await expect(page.getByTestId('ReadToggle-Members')).toHaveAttribute(
-    'aria-checked',
-    'true'
-  );
-  await expect(page.getByTestId('WriteToggle-Members')).toHaveAttribute(
-    'aria-checked',
-    'false'
-  );
+  // Everyone still sees the channel and "Writer role" still posts
+  await helpers.expectAccessLevel(page, 'Everyone', 'Can view');
+  await helpers.expectAccessLevel(page, 'Writer role', 'Can post');
 
-  // Unchecking write leaves the role able to see the channel
-  await page.getByTestId('WriteToggle-Writer role').click();
-  await expect(page.getByTestId('WriteToggle-Writer role')).toHaveAttribute(
-    'aria-checked',
-    'false'
-  );
-  await expect(page.getByTestId('ReadToggle-Writer role')).toHaveAttribute(
-    'aria-checked',
-    'true'
-  );
+  // Taking posting away leaves the role seeing the channel, like everyone
+  await helpers.setAccessLevel(page, 'Writer role', 'Can view');
+  await expect(
+    page.getByText('Everyone can see this channel. Only admins can post.')
+  ).toBeVisible();
 });
