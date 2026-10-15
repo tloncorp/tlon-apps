@@ -46,7 +46,11 @@ interface MakeDepsOptions {
   // Error entry is thrown.
   channelStates?: Array<ChannelState | Error>;
   threads?: Array<ExistingThread | Error>;
-  assertCanAdminister?: (groupId: string, action: string) => Promise<void>;
+  assertCanAdminister?: (
+    groupId: string,
+    action: string,
+    nest: string
+  ) => Promise<void>;
   setOrder?: (channelId: string, order: string[]) => Promise<void>;
   deleteReply?: (input: ReplyDeleteInput) => Promise<void>;
 }
@@ -180,10 +184,10 @@ function makeDeps(options: MakeDepsOptions = {}) {
       calls.order.push('getChannelState');
       return nextChannelState();
     },
-    assertCanAdminister: async (groupId, action) => {
+    assertCanAdminister: async (groupId, action, nest) => {
       calls.assertCanAdminister.push([groupId, action]);
       calls.order.push('assertCanAdminister');
-      await options.assertCanAdminister?.(groupId, action);
+      await options.assertCanAdminister?.(groupId, action, nest);
     },
     contentKeyOf,
     // Lookups and read-backs sleep between attempts; tests record, not wait.
@@ -1181,6 +1185,23 @@ describe('posts react', () => {
     expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
     expectNoAuthOrApi(context);
   });
+
+  it('rejects an unconsumed option token before auth', async () => {
+    for (const stray of ['--parent=170141', '--bogus']) {
+      const context = makeDeps({ currentUserId: '~nec' });
+      const exitCode = await run(
+        ['react', 'chat/~host/channel', '170142', '🔥', stray],
+        context.deps
+      );
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(
+        `Error: Unexpected argument: ${stray}\n\n${POSTS_COMMAND_HELP.react}\n`
+      );
+      expectNoAuthOrApi(context);
+    }
+  });
 });
 
 describe('posts unreact', () => {
@@ -1311,6 +1332,23 @@ describe('posts unreact', () => {
     expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
     expectNoAuthOrApi(context);
   });
+
+  it('rejects an unconsumed option token before auth', async () => {
+    for (const stray of ['--parent=170141', '--bogus']) {
+      const context = makeDeps({ currentUserId: '~nec' });
+      const exitCode = await run(
+        ['unreact', 'chat/~host/channel', '170142', stray],
+        context.deps
+      );
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(
+        `Error: Unexpected argument: ${stray}\n\n${POSTS_COMMAND_HELP.unreact}\n`
+      );
+      expectNoAuthOrApi(context);
+    }
+  });
 });
 
 describe('posts delete', () => {
@@ -1389,6 +1427,37 @@ describe('posts delete', () => {
 
     expect(exitCode).toBe(1);
     expect(context.stderr()).toBe('Error: delete failed\n');
+  });
+
+  it('rejects an unconsumed option token before auth', async () => {
+    for (const stray of ['--parent=170141', '--bogus']) {
+      const context = makeDeps({ currentUserId: '~nec' });
+      const exitCode = await run(
+        ['delete', 'chat/~host/channel', '170142', stray],
+        context.deps
+      );
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(
+        `Error: Unexpected argument: ${stray}\n\n${POSTS_COMMAND_HELP.delete}\n`
+      );
+      expectNoAuthOrApi(context);
+    }
+  });
+
+  it('rejects a stray option after a consumed --parent before auth', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['delete', 'chat/~host/channel', '170142', '--parent', '170141', '--x'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Unexpected argument: --x\n\n${POSTS_COMMAND_HELP.delete}\n`
+    );
+    expectNoAuthOrApi(context);
   });
 });
 
@@ -1774,6 +1843,20 @@ function deferred() {
 }
 
 describe('posts pin', () => {
+  it('passes the channel nest to the admin check', async () => {
+    const seen: string[] = [];
+    const context = makeDeps({
+      channelStates: [joined([Y, Z]), joined([Y, Z]), joined([X, Y, Z])],
+      threads: [topLevel()],
+      assertCanAdminister: async (_groupId, _action, nest) => {
+        seen.push(nest);
+      },
+    });
+
+    expect(await run(['pin', 'chat/host/channel', X], context.deps)).toBe(0);
+    expect(seen).toEqual([NEST]);
+  });
+
   it('pins after the admin check, a target read and a fresh read, keeping the old pin second', async () => {
     const context = makeDeps({
       channelStates: [joined([Y, Z]), joined([Y, Z]), joined([X, Y, Z])],

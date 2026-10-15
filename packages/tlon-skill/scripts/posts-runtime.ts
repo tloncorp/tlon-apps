@@ -12,8 +12,9 @@ import {
   setOrder as apiSetOrder,
   toPostContent,
 } from '@tloncorp/api';
-import { ensureClient } from './api-client';
+import { ensureClient, normalizeShip } from './api-client';
 import { getChannelState } from './channel-state-runtime';
+import { parseNest } from './cli-utils';
 import { commandError, errorMessage } from './commands/command';
 import type {
   ExistingReply,
@@ -121,7 +122,19 @@ export function createPostsDeps(): PostsDeps {
     now: () => Date.now(),
     buildImageVerse: (url: string) => fetchImageVerse(url),
     getChannelState,
-    assertCanAdminister: async (groupId: string, action: string) => {
+    assertCanAdminister: async (
+      groupId: string,
+      action: string,
+      nest: string
+    ) => {
+      // Mirrors `is-admin` in desk/lib/channel-utils.hoon: the ship hosting
+      // the channel administers it regardless of its group roles.
+      if (
+        normalizeShip(parseNest(nest).host) ===
+        normalizeShip(apiGetCurrentUserId())
+      ) {
+        return;
+      }
       try {
         await assertActingShipCanAdminister(groupId, action);
       } catch (error) {

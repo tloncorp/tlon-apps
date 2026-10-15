@@ -265,8 +265,12 @@ export interface PostsDeps extends CommandDeps {
   postsApi: PostsApi;
   // The acting ship's local view of a channel: its group and arranged order.
   getChannelState: (nest: string) => Promise<ChannelState>;
-  // Throws when the acting ship is neither the group's host nor an admin.
-  assertCanAdminister: (groupId: string, action: string) => Promise<void>;
+  // Throws when the acting ship cannot administer the channel `nest`.
+  assertCanAdminister: (
+    groupId: string,
+    action: string,
+    nest: string
+  ) => Promise<void>;
   // The projection the runtime applies to a read-back reply's content.
   contentKeyOf: (story: Story) => string;
 }
@@ -323,6 +327,21 @@ function optionalReactionParent(
   const parentId = args[idx + 1];
   if (!parentId || parentId.startsWith('--')) throw usageError(help);
   return parentId;
+}
+
+// After `--parent <id>` is taken, any other option token (a typo, or the
+// unsupported `--parent=<id>` form) is refused rather than silently ignored:
+// an unconsumed `--parent=` would turn a reply delete into a top-level one.
+function rejectStrayOptions(args: string[], help: string): void {
+  const parentIdx = args.indexOf('--parent');
+  args.forEach((arg, idx) => {
+    if (idx === parentIdx || (parentIdx !== -1 && idx === parentIdx + 1)) {
+      return;
+    }
+    if (arg.startsWith('--')) {
+      throw usageError(`Unexpected argument: ${arg}`, help);
+    }
+  });
 }
 
 // Optional `--sent-at <unix-ms>`: overrides the send timestamp so a caller
@@ -646,13 +665,9 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       ) {
         throw usageError(POSTS_COMMAND_HELP.react);
       }
-      return {
-        kind: 'react',
-        channelId,
-        postId,
-        emoji,
-        parentId: optionalReactionParent(args, POSTS_COMMAND_HELP.react),
-      };
+      const parentId = optionalReactionParent(args, POSTS_COMMAND_HELP.react);
+      rejectStrayOptions(args, POSTS_COMMAND_HELP.react);
+      return { kind: 'react', channelId, postId, emoji, parentId };
     }
     case 'unreact': {
       const [, channelId, postId] = args;
@@ -662,12 +677,9 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (channelId.startsWith('--') || postId.startsWith('--')) {
         throw usageError(POSTS_COMMAND_HELP.unreact);
       }
-      return {
-        kind: 'unreact',
-        channelId,
-        postId,
-        parentId: optionalReactionParent(args, POSTS_COMMAND_HELP.unreact),
-      };
+      const parentId = optionalReactionParent(args, POSTS_COMMAND_HELP.unreact);
+      rejectStrayOptions(args, POSTS_COMMAND_HELP.unreact);
+      return { kind: 'unreact', channelId, postId, parentId };
     }
     case 'delete': {
       const [, channelId, postId] = args;
@@ -678,6 +690,7 @@ function parseArgs(args: string[]): ParsedPostsArgs {
         throw usageError(POSTS_COMMAND_HELP.delete);
       }
       const parentId = optionalReactionParent(args, POSTS_COMMAND_HELP.delete);
+      rejectStrayOptions(args, POSTS_COMMAND_HELP.delete);
       if (parentId === undefined) {
         return { kind: 'delete', channelId, postId };
       }
@@ -1141,7 +1154,8 @@ async function deleteReply(
     }
     await deps.assertCanAdminister(
       state.groupId,
-      "delete other members' replies"
+      "delete other members' replies",
+      nest
     );
   }
 
@@ -1271,7 +1285,7 @@ async function pinPost(
   if (!checked.joined) {
     throw commandError(notJoinedMessage(nest));
   }
-  await deps.assertCanAdminister(checked.groupId, 'pin posts');
+  await deps.assertCanAdminister(checked.groupId, 'pin posts', nest);
 
   // The host stores any id it is given, so this read is what keeps a reply,
   // deleted or mistyped id from becoming a phantom pin.
@@ -1313,7 +1327,7 @@ async function unpinPost(
   if (!checked.joined) {
     throw commandError(notJoinedMessage(nest));
   }
-  await deps.assertCanAdminister(checked.groupId, 'unpin posts');
+  await deps.assertCanAdminister(checked.groupId, 'unpin posts', nest);
 
   const current = await freshChannelState(nest, checked.groupId, deps);
   const pinned = current.order[0];
