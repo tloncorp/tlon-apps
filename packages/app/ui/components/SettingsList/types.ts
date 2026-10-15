@@ -84,6 +84,15 @@ export interface SettingsRowModel {
   trailingAction?: SettingsMenuItem & { testID?: string };
   toggle?: { value: boolean; onValueChange: (value: boolean) => void };
   /**
+   * iOS only: the row's value picked from a native menu, with the title as
+   * its label, the way Settings shows a choice such as Location access.
+   */
+  picker?: {
+    value: string;
+    options: { value: string; title: string }[];
+    onChange: (value: string) => void;
+  };
+  /**
    * An editable single-line value, such as a URL or token. The row shows the
    * field in place of its title, which still labels it for accessibility, so
    * give the section a title that says what the value is.
