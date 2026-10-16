@@ -17,6 +17,7 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
   'tlon_agent_choice',
   'tlon_agent_task_plan',
   'tlon_agent_service_setup',
+  'set_timezone',
 ] as const;
 
 describe('OWNER_ONLY_TOOLS', () => {
