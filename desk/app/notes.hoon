@@ -1568,9 +1568,15 @@
 ::  unconditional (the request is informational from the host's POV);
 ::  the request-id loop just gives the FE a confirmation point.
 ::
+::  A host can't leave its own notebook (it deletes it instead): the
+::  %member-leave would go to ourselves and strip our %owner role. Crash
+::  rather than finalize %no-change, so the poke nacks and the FE's
+::  optimistic leave rolls back instead of reporting success.
+::
 ++  leave-remote-v1
   |=  [rid=request-id:v1:n =flag:n]
   ^+  cor
+  ?<  =(our.bowl ship.flag)
   ?>  (~(has by books) flag)
   ::  no-leave reports the leave to %groups and drops the local book (incl.
   ::  its group) via the gone flag.
@@ -2079,6 +2085,10 @@
   ::
   ++  se-member-join
     ^+  se-core
+    ::  A host can't join its own notebook: recording src.bowl as %editor
+    ::  below would overwrite our %owner row and lock us out of owner actions.
+    ::
+    ?<  =(our.bowl src.bowl)
     ::  Access check — one of three cases:
     ::    non-group private: src must already be in the members map
     ::    non-group public:  anyone is welcome — no check needed
@@ -2097,6 +2107,10 @@
   ::
   ++  se-member-leave
     ^+  se-core
+    ::  A host can't leave its own notebook: deleting src.bowl below would
+    ::  remove our %owner row and lock us out of owner actions.
+    ::
+    ?<  =(our.bowl src.bowl)
     =.  members.notebook-state
       (~(del by members.notebook-state) src.bowl)
     (se-update [%member-left src.bowl])

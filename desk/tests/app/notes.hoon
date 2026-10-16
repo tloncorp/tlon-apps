@@ -2343,6 +2343,104 @@
   ?:  (~(has by books.s2) remote-flag)
     |+['placeholder not cleaned up after failed join']~
   &+[~ s3]
+::  +test-leave-hosted-notebook-rejected
+::
+::  %leave on a notebook we host must be refused. Unguarded, +leave-remote-v1
+::  sends %member-leave to ship.flag — ourselves — and +se-member-leave strips
+::  the host's %owner role. Covers both action marks; %group-channel-leave
+::  instead ignores a hosted nest.
+::
+++  test-leave-hosted-notebook-rejected
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'Hosted NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'Hosted NB' 1)
+  ;<  ~  b  (ex-fail (poke-a [%leave f]))
+  ;<  ~  b  (ex-fail (poke-a-v1 [0v1 [%leave f]]))
+  ;<  caz=(list card)  b
+    %+  do-poke-drain  %group-channel-leave
+    !>(`channel-leave:n`[%notes ship.f name.f])
+  ;<  ~  b  (ex-cards caz ~)
+  ;<  sv=vase  b  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  |=  s2=state
+  ?~  entry=(~(get by books.s) f)
+    |+['hosted notebook dropped by leave']~
+  ?.  =(`%owner (~(get by members.notebook-state.u.entry) our.bowl))
+    |+['host lost its %owner role']~
+  &+[~ s2]
+::  +test-join-hosted-notebook-rejected
+::
+::  A %member-join from the host itself must be refused. Unguarded,
+::  +se-member-join records src.bowl — the host — as %editor, overwriting
+::  its %owner row. Only a raw self-poke of %notes-command-1 reaches it:
+::  +join-remote-v1 asserts the flag isn't ours and %group-channel-join
+::  ignores a hosted nest. ~bus joining the now-public notebook is the
+::  positive control.
+::
+++  test-join-hosted-notebook-rejected
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'Hosted NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'Hosted NB' 1)
+  ;<  ~  b  (ex-fail (poke-c-v1 [0v1 [%notebook f [%member-join ~]]]))
+  ;<  *  b  (poke-a [%notebook f [%visibility %public]])
+  ;<  *  b  (set-src ~bus)
+  ;<  *  b  (poke-c-v1 [0v2 [%notebook f [%member-join ~]]])
+  ;<  *  b  (set-src our.bowl)
+  ;<  sv=vase  b  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  |=  s2=state
+  ?~  entry=(~(get by books.s) f)
+    |+['hosted notebook missing']~
+  =*  members  members.notebook-state.u.entry
+  ?.  =(`%owner (~(get by members) our.bowl))
+    |+['host lost its %owner role']~
+  ?.  =(`%editor (~(get by members) ~bus))
+    |+['~bus not recorded as %editor after joining']~
+  &+[~ s2]
+::  +test-member-leave-from-host-rejected
+::
+::  A %member-leave from the host itself must be refused. Unguarded,
+::  +se-member-leave deletes src.bowl — the host — from the members map,
+::  taking its %owner row with it. +leave-remote-v1 refuses a hosted flag,
+::  so only a raw self-poke of %notes-command-1 reaches it. ~bus joining
+::  and then leaving is the positive control.
+::
+++  test-member-leave-from-host-rejected
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'Hosted NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'Hosted NB' 1)
+  ;<  ~  b  (ex-fail (poke-c-v1 [0v1 [%notebook f [%member-leave ~]]]))
+  ;<  *  b  (poke-a [%notebook f [%visibility %public]])
+  ;<  *  b  (set-src ~bus)
+  ;<  *  b  (poke-c-v1 [0v2 [%notebook f [%member-join ~]]])
+  ;<  *  b  (poke-c-v1 [0v3 [%notebook f [%member-leave ~]]])
+  ;<  *  b  (set-src our.bowl)
+  ;<  sv=vase  b  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  |=  s2=state
+  ?~  entry=(~(get by books.s) f)
+    |+['hosted notebook missing']~
+  =*  members  members.notebook-state.u.entry
+  ?.  =(`%owner (~(get by members) our.bowl))
+    |+['host lost its %owner role']~
+  ?:  (~(has by members) ~bus)
+    |+['~bus still a member after leaving']~
+  &+[~ s2]
 ::  json encoder tests
 ::
 ::
