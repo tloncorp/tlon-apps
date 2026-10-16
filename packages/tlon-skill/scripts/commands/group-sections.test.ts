@@ -443,6 +443,16 @@ describe('add-section', () => {
     ]);
   });
 
+  it('drops a dangling id from the order and confirms against the filtered read-back', async () => {
+    const state = baseGroup();
+    state['section-order'] = ['default', 'zgone', 'zarc'];
+    const { h, deps } = harness({ state });
+    await addSection(G, 'Four', deps);
+    expect(h.pokes[1]).toEqual(orderPoke(['default', 'zarc', 'znew1']));
+    expect(h.state['section-order']).toEqual(['default', 'zarc', 'znew1']);
+    expect(h.logs).toEqual(['✓ Section added at the bottom: Four (znew1)']);
+  });
+
   it('fails verification when only the new section lands at the end', async () => {
     const { h, deps } = harness({
       beforeVerify: (index, state) => {
