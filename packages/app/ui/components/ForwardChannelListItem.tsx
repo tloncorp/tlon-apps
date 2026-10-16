@@ -1,6 +1,7 @@
 import type * as db from '@tloncorp/shared/db';
 import { Icon } from '@tloncorp/ui';
 import { ComponentProps, memo } from 'react';
+import { StyleSheet } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
 import { getChannelTypeIcon } from '../utils';
@@ -96,15 +97,19 @@ export const ForwardChannelListItem = memo(
         }
       : { borderColor: 'transparent' };
 
-    const sharedProps = {
+    const rowProps = {
       model: channel,
       onPress,
       onLayout,
       disableOptions: true,
       disableFocusedStyle: true,
       showGroupTitle: true,
-      borderWidth: '$2xs',
-      marginHorizontal: -1,
+      // A destination needs a name, not its latest message or unread count.
+      showActivity: false,
+      // One device pixel. The row hands the same amount back at its edges,
+      // so the border does not push its content off the sheet's shared line.
+      borderWidth: StyleSheet.hairlineWidth,
+      marginHorizontal: -StyleSheet.hairlineWidth,
       accessibilityLabel: selected
         ? 'Selected forwarding destination'
         : undefined,
@@ -112,14 +117,22 @@ export const ForwardChannelListItem = memo(
       ...selectedStyles,
     } as const;
 
-    if (!isNonDmGroupChannel(channel)) {
-      return <ChannelListItem {...sharedProps} />;
-    }
-
     return (
       <ChannelListItem
-        {...sharedProps}
-        StartIcon={<ForwardGroupChannelIcon channel={channel} />}
+        {...rowProps}
+        // A channel is recognised by its group, so show the group's own
+        // avatar, with the kind of channel as a badge on its corner.
+        StartIcon={
+          isNonDmGroupChannel(channel) ? (
+            <ForwardGroupChannelIcon channel={channel} />
+          ) : undefined
+        }
+        EndContent={
+          <ListItem.SelectionIndicator
+            selected={selected}
+            showUnselected={false}
+          />
+        }
       />
     );
   },

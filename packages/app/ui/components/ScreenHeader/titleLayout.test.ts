@@ -19,6 +19,12 @@ const menu: ScreenHeaderAction = {
   label: 'Details',
 };
 
+const clock: ScreenHeaderAction = {
+  id: 'clock',
+  icon: 'Clock',
+  label: 'Scheduled tasks',
+};
+
 describe('native header title space', () => {
   it.each([320, 375, 393, 402, 430])(
     'keeps the whole title clear of two right actions at %i points',
@@ -92,6 +98,52 @@ describe('native header title space', () => {
       right: [search, menu],
     });
     expect(titleWidth).toBeGreaterThan(700);
+  });
+
+  it.each([393, 402, 440])(
+    'gives up centering under three right actions at %i points, where it would leave almost nothing',
+    (width) => {
+      const args = {
+        width,
+        fontScale: 1,
+        platform: 'ios',
+        left: [back],
+        right: [search, clock, menu],
+      };
+      const titleWidth = getNativeTitleMaxWidth(args);
+      // Back button: 16 + 44 + 12. Three buttons: 16 + 3 * 44 + 2 * 12 + 12.
+      expect(titleWidth).toBe(width - 72 - 184);
+      // Centered, it would have had this much.
+      expect(width - 2 * 184).toBeLessThan(titleWidth / 2);
+      // The same room whichever side the buttons are on.
+      expect(
+        getNativeTitleMaxWidth({ ...args, left: args.right, right: args.left })
+      ).toBe(titleWidth);
+    }
+  );
+
+  it('still centers under three right actions where there is room to', () => {
+    expect(
+      getNativeTitleMaxWidth({
+        width: 1024,
+        fontScale: 1,
+        platform: 'ios',
+        left: [back],
+        right: [search, clock, menu],
+      })
+    ).toBe(1024 - 2 * 184);
+  });
+
+  it('gives up centering under three right actions on Android too', () => {
+    expect(
+      getNativeTitleMaxWidth({
+        width: 360,
+        fontScale: 1,
+        platform: 'android',
+        left: [back],
+        right: [search, clock, menu],
+      })
+    ).toBe(360 - (16 + 32 + 12) - (16 + 32 * 3 + 12 * 2 + 12));
   });
 
   it('lets an iOS title with no leading buttons run up to the trailing ones', () => {

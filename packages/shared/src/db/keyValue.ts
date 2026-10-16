@@ -500,6 +500,27 @@ export const hostingBotEnabled = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+/**
+ * What the bot's settings card last showed, so the card can draw at once
+ * while its live values load. Scoped to the ship it was read for.
+ */
+export type BotSettingsSummary = {
+  ship: string;
+  models: string | null;
+  connections: string | null;
+};
+
+export const botSettingsSummary = createStorageItem<BotSettingsSummary | null>({
+  key: 'botSettingsSummary',
+  defaultValue: null,
+});
+
+/** Set once the owner has read the warning before their first prompt edit. */
+export const botPromptEditWarningSeen = createStorageItem<boolean>({
+  key: 'botPromptEditWarningSeen',
+  defaultValue: false,
+});
+
 export const nodeAccessCode = createStorageItem<string | null>({
   key: 'nodeAccessCode',
   defaultValue: null,

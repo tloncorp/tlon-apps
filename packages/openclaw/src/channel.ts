@@ -1,3 +1,6 @@
+import { createRequire } from 'node:module';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describeAccountSnapshot } from 'openclaw/plugin-sdk/account-helpers';
 import { createHybridChannelConfigAdapter } from 'openclaw/plugin-sdk/channel-config-helpers';
 import { createRuntimeOutboundDelegates } from 'openclaw/plugin-sdk/channel-outbound';
@@ -14,7 +17,35 @@ import {
 } from 'openclaw/plugin-sdk/status-helpers';
 
 import { tlonMessageActions } from './actions.js';
+import {
+  type AgentChoiceToolParams,
+  agentChoiceToolMetadata,
+  agentChoiceToolParameters,
+  createAgentChoiceToolExecutor,
+} from './agent-choice-tool.js';
+import {
+  type AgentServiceSetupToolParams,
+  agentServiceSetupToolMetadata,
+  agentServiceSetupToolParameters,
+  createAgentServiceSetupToolExecutor,
+} from './agent-service-setup-tool.js';
+import {
+  type AgentTaskPlanToolParams,
+  agentTaskPlanToolMetadata,
+  agentTaskPlanToolParameters,
+  createAgentTaskPlanToolExecutor,
+  resolveOnboardingDmGroupId,
+  resolveTaskPlanGroupId,
+} from './agent-task-plan-tool.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
+import {
+  assertTlonChoiceCallCurrent,
+  assertTlonServiceSetupCallCurrent,
+  finishTlonChoiceCall,
+  assertTlonTaskPlanCallCurrent,
+  finishTlonTaskPlanCall,
+  getTlonTaskPlanEvidence,
+} from './onboarding-tool-boundary.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import {
   applyTlonSetupConfig,
@@ -23,9 +54,20 @@ import {
   tlonSetupAdapter,
 } from './setup-core.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
+import { resolveTlonBinary } from './tlon-binary.js';
+import {
+  DEFAULT_TLON_CLI_TIMEOUT_MS,
+  runTlonCommand,
+} from './tlon-command-runner.js';
+import {
+  getActiveTlonTurnAccountId,
+  observeActiveTlonTurnDelivery,
+} from './turn-recorder.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 
 const TLON_CHANNEL_ID = 'tlon' as const;
+const require = createRequire(import.meta.url);
+const packageDir = dirname(dirname(fileURLToPath(import.meta.url)));
 
 const loadTlonChannelRuntime = createLazyRuntimeModule(
   () => import('./channel.runtime.js')
@@ -152,6 +194,96 @@ export const tlonPlugin = createChatChannelPlugin({
         resolveTlonOutboundSessionRoute(params),
     },
     actions: tlonMessageActions,
+    // These tools belong to the Tlon conversation surface. Registering them
+    // as channel tools avoids the host's plugin-id/core-tool name collision
+    // for the existing `tlon` CLI tool and keeps them available in every Tlon
+    // owner turn.
+    agentTools: ({ cfg }) => {
+      const tlonBinary = resolveTlonBinary({
+        moduleDir: packageDir,
+        resolveModule: require.resolve,
+      });
+      const runForActiveAccount = (args: string[]) => {
+        const account = resolveTlonAccount(
+          cfg ?? {},
+          getActiveTlonTurnAccountId() ?? undefined
+        );
+        const credentials =
+          account.configured && account.url && account.ship && account.code
+            ? {
+                url: account.url,
+                ship: account.ship,
+                code: account.code,
+              }
+            : undefined;
+        const timeoutMs =
+          account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
+        return runTlonCommand(tlonBinary, args, credentials, { timeoutMs });
+      };
+      const postSurface = (
+        target: string,
+        fallbackText: string,
+        blob: string
+      ) =>
+        observeActiveTlonTurnDelivery(() =>
+          runForActiveAccount([
+            'posts',
+            'send',
+            target,
+            fallbackText,
+            '--blob',
+            blob,
+          ])
+        );
+      const executeChoice = createAgentChoiceToolExecutor({
+        assertCurrent: assertTlonChoiceCallCurrent,
+        finish: finishTlonChoiceCall,
+        postChoice: ({ target, fallbackQuestion, blob }) =>
+          postSurface(target, fallbackQuestion, blob),
+      });
+      const executeServiceSetup = createAgentServiceSetupToolExecutor({
+        assertCurrent: assertTlonServiceSetupCallCurrent,
+        postSetup: ({ target, fallbackMessage, blob }) =>
+          postSurface(target, fallbackMessage, blob),
+      });
+      const executeTaskPlan = createAgentTaskPlanToolExecutor({
+        getEvidence: getTlonTaskPlanEvidence,
+        assertCurrent: assertTlonTaskPlanCallCurrent,
+        finish: finishTlonTaskPlanCall,
+        resolveGroupId: async (target, evidence) => {
+          if (target.startsWith('~')) {
+            return resolveOnboardingDmGroupId(target, evidence);
+          }
+          return resolveTaskPlanGroupId(
+            await runForActiveAccount(['channels', 'groups']),
+            target
+          );
+        },
+        postPlan: ({ target, fallbackSummary, blob }) =>
+          postSurface(target, fallbackSummary, blob),
+      });
+
+      return [
+        {
+          ...agentChoiceToolMetadata,
+          parameters: agentChoiceToolParameters,
+          execute: (id, params) =>
+            executeChoice(id, params as AgentChoiceToolParams),
+        },
+        {
+          ...agentTaskPlanToolMetadata,
+          parameters: agentTaskPlanToolParameters,
+          execute: (id, params) =>
+            executeTaskPlan(id, params as AgentTaskPlanToolParams),
+        },
+        {
+          ...agentServiceSetupToolMetadata,
+          parameters: agentServiceSetupToolParameters,
+          execute: (id, params) =>
+            executeServiceSetup(id, params as AgentServiceSetupToolParams),
+        },
+      ];
+    },
     agentPrompt: {
       messageToolHints: ({ cfg, accountId }) => {
         const account = resolveTlonAccount(cfg, accountId ?? undefined);

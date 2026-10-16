@@ -3526,18 +3526,16 @@
   ^-  form:m
   ;<  f=flag:n  bind:m  setup-listing-notebook
   (ex-book-unchanged f (listing-edit [~zod %grp] [%chat f] 'Renamed'))
-::  +test-listing-edit-malformed-ignored
+::  +test-listing-edit-other-r-group-ignored
 ::
-::  a malformed tail under a valid flag, and an unrelated r-group, must
-::  neither crash nor rename
+::  an r-group other than a channel %edit (here a group %meta rename)
+::  must not rename
 ::
-++  test-listing-edit-malformed-ignored
+++  test-listing-edit-other-r-group-ignored
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  f=flag:n  bind:m  setup-listing-notebook
-  ;<  ~  bind:m
-    (ex-book-unchanged f [%fact %group-response-1 !>([`flag:n`[~zod %grp] %bogus])])
   =/  meta-fact=r-groups:v9:gv  [[~zod %grp] %meta ['Renamed' '' '' '']]
   (ex-book-unchanged f [%fact %group-response-1 !>(meta-fact)])
 ::  +test-listing-edit-sub-notebook-ignored

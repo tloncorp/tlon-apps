@@ -6,18 +6,28 @@ import {
   formatOwnerOnlyToolBlockReason,
   resolveOwnerOnlyToolBlock,
 } from './owner-only-tools.js';
+import { CRON_TOOL_NAMES } from './cron-tool-args-guard.js';
 import type { SenderRole } from './session-roles.js';
 
 const EXPECTED_OWNER_ONLY_TOOLS = [
   'tlon',
-  'automations',
   'cron',
+  'automations',
   'read',
+  'tlon_agent_choice',
+  'tlon_agent_task_plan',
+  'tlon_agent_service_setup',
 ] as const;
 
 describe('OWNER_ONLY_TOOLS', () => {
   it('contains exactly the expected tools in advertised order', () => {
     expect([...OWNER_ONLY_TOOLS]).toEqual([...EXPECTED_OWNER_ONLY_TOOLS]);
+  });
+
+  it('covers the scheduler under every name the cron guard knows', () => {
+    for (const name of CRON_TOOL_NAMES) {
+      expect(OWNER_ONLY_TOOLS.has(name)).toBe(true);
+    }
   });
 });
 
@@ -73,7 +83,7 @@ describe('formatOwnerOnlyToolBlockReason', () => {
       expect(reason).toContain(`the ${tool} tool is owner-only`);
       expect(reason).toContain('not the owner');
       expect(reason).toContain('Tell them you cannot do this for them');
-      expect(reason).toContain('do not retry,');
+      expect(reason).toContain('do not retry for them');
       expect(reason).toContain(
         'do not blame a reload, outage, or missing tool'
       );

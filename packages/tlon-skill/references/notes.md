@@ -51,6 +51,15 @@ Verify the saved body and identity before claiming completion. If the command re
 
 Tlon does not render LaTeX. Use plain text/Unicode math or code blocks in notes and messages.
 
+## Publish a note to the web
+
+```json
+{"command":"notes note-publish notes/~host/name 12"}
+{"command":"notes note-unpublish notes/~host/name 12"}
+```
+
+OpenClaw defaults these commands to the configured owner unless `--self` or explicit credential flags are supplied, so the page is served from the owner's ship and, after a refresh, the owner's app shows the note as published and can unpublish it too. The owner's ship must host or have joined the notebook. Do not switch identities silently to work around an error. Publishing makes the note public to anyone with the link: publish only notes the user asked to publish, and return the URL the command prints, not a constructed one. The page is a snapshot: after `note-update`, run `note-publish` again to refresh it.
+
 ## Other notebook operations
 
 Use `help notes` and operation-specific help for folders, membership, renaming, moving, history, or deletion. Recursive folder deletion and notebook deletion have wider effects than deleting one note.

@@ -26,6 +26,11 @@ import {
   useHasExpectedBotDm,
 } from '../../utils/botSettings';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
+import {
+  useOpenScheduledTasks,
+  useScheduledTasksEntry,
+} from '../automations/useScheduledTasksEntry';
+import { useOpenBotPromptFiles } from '../settings/useOpenBotPromptFiles';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
@@ -106,6 +111,18 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const isOwnBotProfile = useMemo(() => {
     return api.isBotUserIdForUser(userId, currentUserId);
   }, [currentUserId, userId]);
+  const scheduledTasks = useScheduledTasksEntry({ forShip: userId });
+  const { visible: canOpenScheduledTasks } = scheduledTasks;
+  const openScheduledTasks = useOpenScheduledTasks();
+  const handlePressScheduledTasks = useCallback(
+    () => openScheduledTasks({ botShip: scheduledTasks.botShip }),
+    [openScheduledTasks, scheduledTasks.botShip]
+  );
+  const openBotPromptFiles = useOpenBotPromptFiles();
+  const handlePressPromptFiles = useCallback(
+    () => openBotPromptFiles(userId),
+    [openBotPromptFiles, userId]
+  );
 
   const isHostedUser = isWeb ? getCurrentUserIsHostedSafely() : false;
   const hasExpectedBotDm = useHasExpectedBotDm(
@@ -156,22 +173,20 @@ export function UserProfileScreen({ route, navigation }: Props) {
               title="Profile"
               backgroundColor={theme.secondaryBackground.val}
               useHorizontalTitleLayout={!isWindowNarrow && shouldShowBackButton}
-              leftControls={
-                shouldShowBackButton ? (
-                  <ScreenHeader.BackButton
-                    onPress={() => navigation.goBack()}
-                  />
-                ) : null
+              backAction={
+                shouldShowBackButton ? () => navigation.goBack() : undefined
               }
-              rightControls={
-                canEdit ? (
-                  <ScreenHeader.IconButton
-                    onPress={handlePressEdit}
-                    testID="ContactEditButton"
-                    type="Draw"
-                  />
-                ) : null
-              }
+              rightActions={[
+                {
+                  id: 'edit-profile',
+                  icon: 'EditList',
+                  label: 'Edit profile',
+                  testID: 'ContactEditButton',
+                  onPress: handlePressEdit,
+                  visible: Boolean(canEdit),
+                },
+              ]}
+              placement="navigation"
             />
             <UserProfileScreenView
               userId={userId}
@@ -181,6 +196,11 @@ export function UserProfileScreen({ route, navigation }: Props) {
                   ? handlePressBotSettings
                   : undefined
               }
+              onPressScheduledTasks={
+                canOpenScheduledTasks ? handlePressScheduledTasks : undefined
+              }
+              scheduledTaskCount={scheduledTasks.count}
+              onPressPromptFiles={handlePressPromptFiles}
               onPressGroup={handlePressGroup}
             />
           </View>
