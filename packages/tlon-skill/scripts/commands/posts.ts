@@ -195,6 +195,8 @@ export interface ExistingPost {
   description?: string | null;
   cover?: string | null;
   isBot?: boolean | null;
+  // The bot author's nickname and avatar, when the read carried them.
+  botProfile?: BotAuthorProfile | null;
   blob?: string | null;
 }
 
@@ -215,6 +217,8 @@ export interface ExistingReply {
   // `PostsDeps.contentKeyOf` of the story that was sent.
   contentKey: string;
   isBot?: boolean | null;
+  // The bot author's nickname and avatar, when the read carried them.
+  botProfile?: BotAuthorProfile | null;
   isDeleted?: boolean | null;
   blob?: string | null;
 }
@@ -1024,10 +1028,25 @@ async function editPost(
     content: markdownToStory(parsed.message),
     metadata,
     ...(existing.blob ? { blob: existing.blob } : {}),
-    // Authorship shape comes from the existing post rather than being
-    // re-derived: a bot post stays bot-authored, a human post stays bare.
-    ...(existing.isBot ? { botProfile: { nickname: null, avatar: null } } : {}),
+    // Authorship comes from the existing post rather than being re-derived: a
+    // bot post keeps its Bot tag, nickname and avatar unchanged, a human post
+    // stays bare.
+    ...(existing.isBot ? { botProfile: carriedBotProfile(existing) } : {}),
   });
+}
+
+// The profile an edit resends for a bot-authored post: exactly what it had.
+function carriedBotProfile(existing: {
+  botProfile?: BotAuthorProfile | null;
+}): BotAuthorProfile {
+  return {
+    nickname: existing.botProfile?.nickname ?? null,
+    avatar: existing.botProfile?.avatar ?? null,
+  };
+}
+
+function sameBotProfile(a: BotAuthorProfile, b: BotAuthorProfile): boolean {
+  return a.nickname === b.nickname && a.avatar === b.avatar;
 }
 
 type ReplyCheck = (observed: ExistingReply | undefined) => string | null;
@@ -1109,7 +1128,7 @@ async function editReply(
     sentAt: original.sentAt,
     content,
     ...(original.blob ? { blob: original.blob } : {}),
-    ...(original.isBot ? { botProfile: { nickname: null, avatar: null } } : {}),
+    ...(original.isBot ? { botProfile: carriedBotProfile(original) } : {}),
   });
 
   const expectedContentKey = deps.contentKeyOf(content);
@@ -1131,6 +1150,15 @@ async function editReply(
       }
       if (!!observed.isBot !== !!original.isBot) {
         return "the reply's Bot authorship changed";
+      }
+      if (
+        original.isBot &&
+        !sameBotProfile(
+          carriedBotProfile(observed),
+          carriedBotProfile(original)
+        )
+      ) {
+        return "the reply's bot nickname or avatar changed";
       }
       return null;
     },

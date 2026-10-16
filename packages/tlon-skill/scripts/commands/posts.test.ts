@@ -1697,6 +1697,27 @@ describe('posts edit', () => {
     });
   });
 
+  it("carries a bot post's nickname and avatar through the edit unchanged", async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...existing,
+        isBot: true,
+        botProfile: { nickname: 'Botty', avatar: 'https://x.test/botty.png' },
+      }),
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].botProfile).toEqual({
+      nickname: 'Botty',
+      avatar: 'https://x.test/botty.png',
+    });
+  });
+
   it('leaves a human-authored post bare-authored on edit', async () => {
     for (const post of [
       { ...existing, isBot: false },
@@ -2564,6 +2585,23 @@ describe('posts edit --parent (thread reply)', () => {
     expect('metadata' in human.calls.editPost[0]).toBe(false);
   });
 
+  it("carries a bot reply's nickname and avatar through the edit unchanged", async () => {
+    const profile = { nickname: 'Botty', avatar: 'https://x.test/botty.png' };
+    const context = makeDeps({
+      threads: [
+        thread(reply({ isBot: true, botProfile: profile })),
+        thread(
+          reply({ isBot: true, botProfile: profile, contentKey: NEW_KEY })
+        ),
+      ],
+    });
+
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], context.deps)
+    ).toBe(0);
+    expect(context.calls.editPost[0].botProfile).toEqual(profile);
+  });
+
   it("refuses to edit another author's reply, and normalizes ship names", async () => {
     const other = makeDeps({ threads: [thread(reply({ authorId: '~nec' }))] });
     expect(
@@ -2664,12 +2702,24 @@ describe('posts edit --parent (thread reply)', () => {
   });
 
   it('does not confirm matching content when a preserved field changed', async () => {
-    const original = reply({ blob: 'b1', isBot: true });
+    const original = reply({
+      blob: 'b1',
+      isBot: true,
+      botProfile: { nickname: 'Botty', avatar: null },
+    });
     const cases: Array<[Partial<ExistingReply>, string]> = [
       [{ sentAt: 1 }, "the reply's sent time changed"],
       [{ blob: 'b2' }, "the reply's attachment data changed"],
       [{ blob: null }, "the reply's attachment data changed"],
       [{ isBot: false }, "the reply's Bot authorship changed"],
+      [
+        { botProfile: { nickname: 'Other', avatar: null } },
+        "the reply's bot nickname or avatar changed",
+      ],
+      [
+        { botProfile: { nickname: 'Botty', avatar: 'https://x.test/b.png' } },
+        "the reply's bot nickname or avatar changed",
+      ],
     ];
     for (const [change, reason] of cases) {
       const context = makeDeps({

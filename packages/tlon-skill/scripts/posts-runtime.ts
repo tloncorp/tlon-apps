@@ -14,6 +14,7 @@ import {
 } from '@tloncorp/api';
 import { ensureClient, normalizeShip } from './api-client';
 import { getChannelState } from './channel-state-runtime';
+import type { BotAuthorProfile } from './bot-profile-flags';
 import { parseNest } from './cli-utils';
 import { commandError, errorMessage } from './commands/command';
 import type {
@@ -84,6 +85,7 @@ interface ReplyRecord {
   sentAt: number;
   content?: unknown;
   isBot?: boolean | null;
+  botProfile?: BotAuthorProfile | null;
   isDeleted?: boolean | null;
   blob?: string | null;
 }
@@ -104,6 +106,7 @@ export function toExistingThread(post: {
         authorId: reply.authorId,
         sentAt: reply.sentAt,
         isBot: reply.isBot,
+        botProfile: reply.botProfile,
         isDeleted: reply.isDeleted,
         blob: reply.blob,
         contentKey: replyContentKey(reply.content ?? null),
