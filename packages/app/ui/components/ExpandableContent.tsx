@@ -1,16 +1,17 @@
 import { Pressable, Text } from '@tloncorp/ui';
 import { transparentize } from 'color2k';
 import { PropsWithChildren, useCallback, useState } from 'react';
-import { LayoutChangeEvent, View } from 'react-native';
+import { LayoutChangeEvent, Platform, View } from 'react-native';
 import { YStack } from 'tamagui';
 import { LinearGradient } from 'tamagui/linear-gradient';
 
 const FADE_HEIGHT = 72;
 
 /**
- * Content cut to `collapsedHeight` under a fade into `fadeColor`, the surface
- * it sits on, with a toggle to show the rest. Content that fits is shown
- * whole, with no toggle.
+ * Content cut to `collapsedHeight` under a fade, with a toggle to show the
+ * rest. `fadeColor` is the surface it sits on, as a resolved color rather
+ * than a theme token. Content that would lose less than the fade's own height
+ * is shown whole, with no toggle.
  */
 export function ExpandableContent({
   collapsedHeight,
@@ -23,20 +24,28 @@ export function ExpandableContent({
   testID?: string;
 }>) {
   const [expanded, setExpanded] = useState(false);
-  // Measured on the unclipped content, so it holds while collapsed. Clipping
-  // from the first frame keeps long content from flashing at full height.
-  const [contentHeight, setContentHeight] = useState(0);
-  const overflows = contentHeight > collapsedHeight;
+  // Measured on the unclipped content, so it holds while collapsed. Until it
+  // is measured the content is clipped, which keeps long content from
+  // flashing at full height.
+  const [contentHeight, setContentHeight] = useState<number | null>(null);
+  const overflows =
+    contentHeight !== null && contentHeight > collapsedHeight + FADE_HEIGHT;
+  const clipped = !expanded && (contentHeight === null || overflows);
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     setContentHeight(event.nativeEvent.layout.height);
   }, []);
+  const toggle = useCallback(() => setExpanded((value) => !value), []);
 
   return (
     <YStack>
       <YStack
-        maxHeight={expanded ? undefined : collapsedHeight}
-        overflow="hidden"
+        maxHeight={clipped ? collapsedHeight : undefined}
+        // Yoga lays children out within the height of a box that hides its
+        // overflow, which collapses `flex: 1` content such as rendered lists
+        // to nothing and spoils the measurement. A box set to scroll clips the
+        // same way without bounding its children. Web layout is unaffected.
+        overflow={Platform.OS === 'web' ? 'hidden' : 'scroll'}
       >
         {/* A plain view: on web, a Tamagui stack in this spot never reports
             its layout. */}
@@ -55,9 +64,20 @@ export function ExpandableContent({
       </YStack>
       {overflows ? (
         <Pressable
-          onPress={() => setExpanded((value) => !value)}
-          accessibilityRole="button"
-          accessibilityState={{ expanded }}
+          onPress={toggle}
+          role="button"
+          aria-expanded={expanded}
+          {...(Platform.OS === 'web'
+            ? {
+                tabIndex: 0,
+                onKeyDown: (event: { key: string; preventDefault(): void }) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggle();
+                  }
+                },
+              }
+            : null)}
           minHeight={44}
           justifyContent="center"
           paddingHorizontal="$l"

@@ -103,7 +103,7 @@ export function BotPromptFilesScreen(props: Props) {
             subtitle: promptDescription(prompt.name),
             value:
               access.kind === 'additions'
-                ? access.additions
+                ? access.additions.trim()
                   ? 'Customized'
                   : undefined
                 : 'Read-only',

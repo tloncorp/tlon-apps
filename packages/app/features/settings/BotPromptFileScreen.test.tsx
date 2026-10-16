@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { act, create } from 'react-test-renderer';
 import type { ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -54,9 +55,17 @@ vi.mock('../../ui/components/BotSystemPrompts', () => ({
   useStewardPromptSave: () => mocks.save,
   useStewardPromptsFeed: () => {},
 }));
-vi.mock('../../ui/components/ExpandableContent', () => ({
-  ExpandableContent: 'ExpandableContent',
-}));
+vi.mock('../../ui/components/ExpandableContent', async () => {
+  const { createElement, useState } = await import('react');
+  let mounts = 0;
+  return {
+    // Numbers each mount, so a test can tell a remount from a re-render.
+    ExpandableContent: ({ children }: { children: ReactNode }) => {
+      const [mount] = useState(() => ++mounts);
+      return createElement('ExpandableContent', { mount }, children);
+    },
+  };
+});
 vi.mock('../../ui/components/NotebookPost/NotebookPost', () => ({
   NotebookContentRenderer: 'NotebookContentRenderer',
 }));
@@ -111,6 +120,8 @@ const dialog = (tree: ReactTestRenderer, confirmText: string) =>
       (node.type as unknown) === 'ConfirmDialog' &&
       node.props.confirmText === confirmText
   );
+const expander = (tree: ReactTestRenderer) =>
+  tree.root.find((node) => (node.type as unknown) === 'ExpandableContent');
 const editorSheets = (tree: ReactTestRenderer) =>
   tree.root.findAll((node) => (node.type as unknown) === 'EditorSheet');
 
@@ -256,11 +267,36 @@ describe('BotPromptFileScreen', () => {
       )
       .map((node) => node.props.testID);
     expect(order).toEqual(['BotPromptFileDefault', 'BotPromptFileAdditions']);
-    const expander = tree.root.find(
-      (node) => (node.type as unknown) === 'ExpandableContent'
-    );
     expect(
-      expander.findAll((node) => node.props.testID === 'BotPromptFileDefault')
+      expander(tree).findAll(
+        (node) => node.props.testID === 'BotPromptFileDefault'
+      )
     ).not.toHaveLength(0);
+  });
+
+  it('shows no additions block for whitespace alone', async () => {
+    mocks.prompts = [{ name: 'SOUL.md', text: `   \n${block}\n` }];
+    const tree = await render('SOUL.md');
+    expect(byTestID(tree, 'BotPromptFileAdditions')).toHaveLength(0);
+    expect(byTestID(tree, 'BotPromptFileReset')).toHaveLength(0);
+  });
+
+  it("collapses Tlon's default again when the screen moves to another file", async () => {
+    mocks.prompts = [
+      { name: 'SOUL.md', text: `${block}\n` },
+      { name: 'IDENTITY.md', text: `${block}\n` },
+    ];
+    const tree = await render('SOUL.md');
+    const before = expander(tree).props.mount;
+
+    await act(async () => {
+      tree.update(
+        <BotPromptFileScreen
+          navigation={{ goBack: vi.fn() } as never}
+          route={{ params: { name: 'IDENTITY.md' } } as never}
+        />
+      );
+    });
+    expect(expander(tree).props.mount).not.toBe(before);
   });
 });

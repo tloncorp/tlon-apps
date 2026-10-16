@@ -8,7 +8,7 @@ import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 import { ExpandableContent } from './ExpandableContent';
 
 vi.mock('@tloncorp/ui', () => ({ Pressable: 'Pressable', Text: 'Text' }));
-vi.mock('react-native', () => ({ View: 'View' }));
+vi.mock('react-native', () => ({ Platform: { OS: 'ios' }, View: 'View' }));
 vi.mock('tamagui', () => ({ YStack: 'YStack' }));
 vi.mock('tamagui/linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
@@ -69,7 +69,15 @@ describe('ExpandableContent', () => {
   it('shows content that fits with no fade or toggle', async () => {
     const tree = await render();
     measure(tree, 180);
+    expect(clip(tree).props.maxHeight).toBeUndefined();
     expect(byType(tree, 'LinearGradient')).toHaveLength(0);
+    expect(toggles(tree)).toHaveLength(0);
+  });
+
+  it('shows content whole when the fade would hide less than itself', async () => {
+    const tree = await render();
+    measure(tree, 300);
+    expect(clip(tree).props.maxHeight).toBeUndefined();
     expect(toggles(tree)).toHaveLength(0);
   });
 
@@ -81,16 +89,12 @@ describe('ExpandableContent', () => {
       'rgba(255, 255, 255, 0)',
       '#FFFFFF',
     ]);
-    expect(toggles(tree)[0].props.accessibilityState).toEqual({
-      expanded: false,
-    });
+    expect(toggles(tree)[0].props['aria-expanded']).toBe(false);
 
     pressToggle(tree);
     expect(clip(tree).props.maxHeight).toBeUndefined();
     expect(byType(tree, 'LinearGradient')).toHaveLength(0);
-    expect(toggles(tree)[0].props.accessibilityState).toEqual({
-      expanded: true,
-    });
+    expect(toggles(tree)[0].props['aria-expanded']).toBe(true);
 
     pressToggle(tree);
     expect(clip(tree).props.maxHeight).toBe(240);

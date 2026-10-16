@@ -8,6 +8,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // native views while keeping the React tree in place, preserving context. This
 // import-time side effect configures the backend before any PortalProvider renders.
 import '@tamagui/native/setup-teleport';
+// Tamagui's LinearGradient draws nothing on native until expo-linear-gradient
+// is registered with it.
+import '@tamagui/native/setup-expo-linear-gradient';
 import PlatformState from '@tloncorp/app';
 import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
