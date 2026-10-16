@@ -73,26 +73,26 @@ env:
     id: ScreenHeaderTitle
     text: '^Workspaces$'
 - longPressOn: ${'GalleryActions-' + MAESTRO_RUN_TAG}
-- tapOn: '^Group info & settings$'
+- tapOn: '^Workspace info & settings$'
 - scrollUntilVisible:
     element:
-      id: GroupLeaveAction-Delete group
+      id: GroupLeaveAction-Delete workspace
     direction: DOWN
     timeout: 5000
 - tapOn:
-    id: GroupLeaveAction-Delete group
+    id: GroupLeaveAction-Delete workspace
 - runFlow:
     when:
       platform: iOS
     commands:
       - tapOn:
-          text: '^Delete group$'
+          text: '^Delete workspace$'
           rightOf: '^Cancel$'
 - runFlow:
     when:
       platform: Android
     commands:
-      - tapOn: '(?i)^Delete group$'
+      - tapOn: '(?i)^Delete workspace$'
 - extendedWaitUntil:
     visible:
       id: ScreenHeaderTitle

@@ -64,7 +64,7 @@ export function BotPermissionsSettingsScreen(props: Props) {
           },
           {
             key: 'auto-discover-channels',
-            title: 'Auto-discover group channels',
+            title: 'Auto-discover workspace channels',
             subtitle: 'Index new channels you join',
             pending: pending.autoDiscoverChannels,
             disabled: controlsReadOnly,
@@ -100,7 +100,7 @@ export function BotPermissionsSettingsScreen(props: Props) {
           },
           {
             key: 'group-invite-allowlist',
-            title: 'Can invite to groups',
+            title: 'Can invite to workspaces',
             value: userCount(
               normalizeShipList(draft.chat.groupInviteAllowlist).length
             ),

@@ -17,19 +17,19 @@ test('should customize group name, icon, and description', async ({
   // Navigate back to Home and verify group creation
   await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group')).toBeVisible();
-    await page.getByText('Untitled group').click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText('Untitled workspace')).toBeVisible();
+    await page.getByText('Untitled workspace').click();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   // Verify we're in the blank channel state (Welcome to your group! message)
-  await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  await expect(page.getByText('Welcome to your workspace!')).toBeVisible();
 
   // Open the Customize group screen from the blank channel
   await helpers.openGroupCustomization(page);
 
   // Verify we're on the group customization screen
-  await expect(page.getByText('Edit group info')).toBeVisible();
+  await expect(page.getByText('Edit workspace info')).toBeVisible();
 
   // Change the group name
   await helpers.changeGroupName(page, 'My Group');

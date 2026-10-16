@@ -75,7 +75,7 @@ const SLIDES: Record<
       {
         icon: 'people',
         title: 'Bring it into your chats',
-        detail: 'Collaborate with friends in group chats.',
+        detail: 'Collaborate with friends in your workspaces.',
       },
       {
         icon: 'plug',
