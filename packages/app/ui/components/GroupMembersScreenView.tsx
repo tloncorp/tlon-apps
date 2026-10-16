@@ -293,7 +293,9 @@ export function GroupMembersScreenView({
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
           stickySectionHeadersEnabled={false}
-          onEndReached={onEndReached}
+          // a search filters the loaded members, so a short result list
+          // would keep asking for pages and walk the whole roster
+          onEndReached={searchQuery.trim() ? undefined : onEndReached}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             isLoadingMore ? (
