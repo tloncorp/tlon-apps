@@ -1,8 +1,8 @@
 {
   "activity": {
-    "summary": "Mentions, replies, and unread activity",
+    "summary": "Mentions, replies, unreads, and notification levels",
     "reference": "references/reading.md",
-    "toolGuidance": "Read activity; results are bounded."
+    "toolGuidance": "Read activity; results are bounded. mute/unmute/volume change the owner's notification settings: change them only on request."
   },
   "browser": {
     "summary": "Hosted-browser sharing and secure form handoff",
@@ -55,7 +55,7 @@
     "toolGuidance": "Use workspace files; note-publish makes a note public as the owner, so publish only on request; owner-confirmed migration writes are unavailable."
   },
   "posts": {
-    "summary": "Post reactions, edits, and deletes",
+    "summary": "Post reactions, edits, deletes, and pins",
     "reference": "references/reading.md",
     "toolGuidance": "Send/reply through message; do not manage deprecated diary posts."
   },

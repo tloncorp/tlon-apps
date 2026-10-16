@@ -7,6 +7,7 @@ import {
   hasOptionValue,
   isCommandHelpRequest,
   isDiaryNest,
+  isGroupFlag,
   isSubcommandHelpRequest,
   looksLikePositionalChannelKind,
   looksLikeRemovedPositionalChannelKind,
@@ -14,6 +15,20 @@ import {
 } from './cli-utils';
 
 describe('cli-utils', () => {
+  describe('isGroupFlag', () => {
+    it('accepts ~host/slug with a valid ship', () => {
+      expect(isGroupFlag('~zod/book-club')).toBe(true);
+      expect(isGroupFlag('~sampel-palnet/g2')).toBe(true);
+    });
+
+    it('rejects invalid ships, empty slugs and uppercase slugs', () => {
+      expect(isGroupFlag('~foo/x')).toBe(false);
+      expect(isGroupFlag('~zod/')).toBe(false);
+      expect(isGroupFlag('~zod/Bad')).toBe(false);
+      expect(isGroupFlag('zod/book-club')).toBe(false);
+    });
+  });
+
   describe('channelCreatedLines', () => {
     it('prints the nest and the group Ref, since channels have no card', () => {
       expect(
