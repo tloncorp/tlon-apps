@@ -5,9 +5,10 @@
  * and is rebuilt on every boot, so the tool cannot edit
  * `agents.defaults.userTimezone` itself. It records the choice in the
  * pier-backed state dir instead; tlawn reads that file into userTimezone in
- * preference to TLON_TIMEZONE, at boot and whenever the file changes, and the
- * gateway hot-applies it (agents.* needs no restart). The file name and shape
- * are shared with tlonbot's entrypoint/tlawn.py.
+ * preference to TLON_TIMEZONE, at boot and whenever the file changes. A
+ * running gateway does not pick up an external userTimezone edit, so tlawn
+ * then asks for an in-process restart, which waits for this turn to finish.
+ * The file name and shape are shared with tlonbot's entrypoint/tlawn.py.
  */
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
