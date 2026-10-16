@@ -5333,10 +5333,12 @@
       =.  progress  `%watch
       ?:  (~(has by groups) flag)
         ::  accomodate rejoin, useful particularly for joining
-        ::  a self-hosted group.
+        ::  a self-hosted group. a live subscription has already
+        ::  been acked: the join is done.
         ::
-        =.  cor
-          go-abet:(go-safe-sub:(go-abed:go-core flag) |)
+        =/  go  (go-abed:go-core flag)
+        ?:  go-has-sub:go  (fi-watched ~)
+        =.  cor  go-abet:(go-safe-sub:go |)
         fi-core
       =/  =net:g  [%sub *@da |]
       =|  =group:g
