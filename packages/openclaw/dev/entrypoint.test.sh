@@ -82,6 +82,9 @@ dangerouslyAllowAllBuilds: true
 minimumReleaseAge: 0
 verifyDepsBeforeRun: false
 PNPM_EOF
+# Collected into one `overrides:` mapping below: two blocks would be a
+# duplicate YAML key.
+pnpm_overrides=""
 # The tarball's package.json declares ^3.190.0 for the AWS S3 SDK, so this
 # standalone install (no monorepo lockfile in scope) would float to latest.
 # Pin both packages to the exact monorepo lockfile resolution: newer SDK
@@ -91,11 +94,22 @@ PNPM_EOF
 # intentionally, this pin moves with it.
 if [ "${OPENCLAW_WORKSPACE_API_TARBALL:-0}" = "1" ] \
   && [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
-  cat >> pnpm-workspace.yaml << 'PNPM_EOF'
-overrides:
-  "@aws-sdk/client-s3": 3.190.0
-  "@aws-sdk/s3-request-presigner": 3.190.0
-PNPM_EOF
+  pnpm_overrides="${pnpm_overrides}  \"@aws-sdk/client-s3\": 3.190.0
+  \"@aws-sdk/s3-request-presigner\": 3.190.0
+"
+fi
+# The plugin builds against the openclaw devDependency, so its plugin-sdk
+# imports would resolve from the dev pin rather than the core under test. Point
+# them at the requested core so a canary typechecks and runs the plugin
+# against that core's SDK. No lockfile is copied, so the install is not frozen.
+plugin_sdk_version="$(jq -r '.devDependencies.openclaw // empty' package.json)"
+if [ "$plugin_sdk_version" != "$requested_core_version" ]; then
+  echo "==> plugin SDK override: openclaw@$requested_core_version"
+  pnpm_overrides="${pnpm_overrides}  openclaw: \"$requested_core_version\"
+"
+fi
+if [ -n "$pnpm_overrides" ]; then
+  printf 'overrides:\n%s' "$pnpm_overrides" >> pnpm-workspace.yaml
 fi
 pnpm install
 # A reused node_modules volume may contain a previous test's skill snapshot,

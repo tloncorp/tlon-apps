@@ -1,4 +1,7 @@
-FROM node:24.16.0-bookworm-slim
+# Overridable through the harness NODE_IMAGE env (compose build arg) for a
+# local run on another Node line; CI always uses this default.
+ARG NODE_IMAGE=node:24.16.0-bookworm-slim
+FROM ${NODE_IMAGE}
 
 RUN apt-get update && apt-get install -y git curl jq && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@11.9.0
@@ -10,14 +13,27 @@ RUN npm install -g pnpm@11.9.0
 ARG OPENCLAW_CORE_VERSION=2026.9.4
 RUN npm install -g "openclaw@${OPENCLAW_CORE_VERSION}"
 ENV OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION}
-RUN echo "[tlon-e2e-build] openclaw-core-version=${OPENCLAW_CORE_VERSION}"
 
 # Install the Brave web-search plugin at build time. Production installs the
 # same package before gateway start (tlonbot entrypoint);
 # baking it here keeps container startup off the npm registry. The install
 # ledger lives in ~/.openclaw/plugins/, which entrypoint.test.sh's config
 # rewrite does not touch.
-RUN openclaw plugins install @openclaw/brave-plugin
+# Brave releases in lockstep with core, so pin it to the core under test;
+# cores without a matching brave release (prereleases) fall back to latest.
+RUN openclaw plugins install "@openclaw/brave-plugin@${OPENCLAW_CORE_VERSION}" \
+    || { openclaw plugins install @openclaw/brave-plugin \
+      && echo "[tlon-e2e-build] brave-plugin: no release matching core ${OPENCLAW_CORE_VERSION}, installed latest"; }
+# Printed after the brave install so the canary's build log records what was
+# actually installed, not just what was requested. The brave version comes
+# from whichever package.json the install left under ~/.openclaw; "unknown"
+# if the ledger layout moves.
+RUN echo "[tlon-e2e-build] openclaw-core-version=${OPENCLAW_CORE_VERSION}" \
+    "installed=$(openclaw --version 2>/dev/null | tr '\n' ' ')" \
+    "brave-plugin=$(find "$HOME/.openclaw" -name package.json -path '*brave*' \
+      -not -path '*/node_modules/*/node_modules/*' -exec jq -r \
+      'select(.name == "@openclaw/brave-plugin") | .version' {} + 2>/dev/null \
+      | head -n1 | grep . || echo unknown)"
 
 # Create workspace
 WORKDIR /workspace

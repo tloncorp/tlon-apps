@@ -3,7 +3,11 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { createRuntimeContext } from '../runtime/context.js';
 import { allocateRuntimeEndpoints } from '../runtime/ports.js';
-import { openclawDriver, workspaceApiTarballPath } from './openclaw.js';
+import {
+  derivePrewarmExpectation,
+  openclawDriver,
+  workspaceApiTarballPath,
+} from './openclaw.js';
 import type { RuntimeSeed } from './types.js';
 
 const OPTIONAL_ENV_KEYS = [
@@ -21,6 +25,9 @@ const OPTIONAL_ENV_KEYS = [
   'FAKE_SHIP_CACHE_DIR',
   'TLONBOT_DIR',
   'VERBOSE',
+  'OPENCLAW_CORE_VERSION',
+  'NODE_IMAGE',
+  'TEST_EXPECT_OPENCLAW_PREWARM',
 ] as const;
 
 const savedEnv = new Map<string, string | undefined>();
@@ -86,6 +93,72 @@ describe('OpenClaw driver runtime spec', () => {
       FAKE_MODEL_BASE_URL: 'http://127.0.0.1:4100',
     });
     expect(ctx.testEnv.TEST_STORAGE_BUCKET).toBeUndefined();
+    // No core override: the Dockerfile/compose defaults pick the image, and
+    // test 08 still gets the matching default expectation.
+    expect(ctx.composeEnv.OPENCLAW_CORE_VERSION).toBeUndefined();
+    expect(ctx.composeEnv.NODE_IMAGE).toBeUndefined();
+    expect(ctx.testEnv).toMatchObject({
+      TEST_OPENCLAW_CORE_VERSION: '2026.9.4',
+      TEST_EXPECT_OPENCLAW_PREWARM: '0',
+    });
+  });
+
+  test('forwards a core and image override to both compose and tests', async () => {
+    clearOptionalEnv();
+    setEnv('OPENCLAW_CORE_VERSION', '2026.9.8');
+    setEnv('NODE_IMAGE', 'node:24.16.0-bookworm-slim');
+
+    const seed = await createSeed(path.resolve('/repo'));
+    seed.capabilityPartition = { key: 'baseline', capabilities: [] };
+    const ctx = createRuntimeContext(seed, openclawDriver.resolveRuntime(seed));
+
+    expect(ctx.composeEnv).toMatchObject({
+      OPENCLAW_CORE_VERSION: '2026.9.8',
+      NODE_IMAGE: 'node:24.16.0-bookworm-slim',
+    });
+    expect(ctx.testEnv).toMatchObject({
+      TEST_OPENCLAW_CORE_VERSION: '2026.9.8',
+      TEST_EXPECT_OPENCLAW_PREWARM: '0',
+    });
+  });
+
+  test('treats an empty core override as unset', async () => {
+    clearOptionalEnv();
+    setEnv('OPENCLAW_CORE_VERSION', '');
+    setEnv('NODE_IMAGE', '');
+
+    const seed = await createSeed(path.resolve('/repo'));
+    const ctx = createRuntimeContext(seed, openclawDriver.resolveRuntime(seed));
+
+    expect(ctx.composeEnv.OPENCLAW_CORE_VERSION).toBeUndefined();
+    expect(ctx.composeEnv.NODE_IMAGE).toBeUndefined();
+    expect(ctx.testEnv.TEST_OPENCLAW_CORE_VERSION).toBe('2026.9.4');
+  });
+
+  test('honors an explicit prewarm expectation over the derived one', async () => {
+    clearOptionalEnv();
+    setEnv('OPENCLAW_CORE_VERSION', '2026.9.8');
+    setEnv('TEST_EXPECT_OPENCLAW_PREWARM', '1');
+
+    const seed = await createSeed(path.resolve('/repo'));
+    const ctx = createRuntimeContext(seed, openclawDriver.resolveRuntime(seed));
+
+    expect(ctx.testEnv.TEST_EXPECT_OPENCLAW_PREWARM).toBe('1');
+  });
+
+  test('derives the prewarm expectation with the run.sh table', () => {
+    expect(derivePrewarmExpectation('2026.5.28')).toBe('0');
+    expect(derivePrewarmExpectation('2026.6.11')).toBe('1');
+    expect(derivePrewarmExpectation('2026.7.1')).toBe('1');
+    // 9.x no longer logs the prewarm marker.
+    expect(derivePrewarmExpectation('2026.9.4')).toBe('0');
+    expect(derivePrewarmExpectation('2026.9.8')).toBe('0');
+    expect(derivePrewarmExpectation('2027.1.1')).toBe('0');
+    // Unknown to the table: left for test 08 to demand an explicit value.
+    expect(derivePrewarmExpectation('2026.8.1')).toBeUndefined();
+    expect(derivePrewarmExpectation('2026.8.35')).toBeUndefined();
+    expect(derivePrewarmExpectation('2026.5.7')).toBeUndefined();
+    expect(derivePrewarmExpectation('2026.9.8-beta.1')).toBeUndefined();
   });
 
   test('passes only explicit optional OpenClaw coverage inputs', async () => {

@@ -3,6 +3,11 @@ services:
     build:
       context: ${OPENCLAW_DEV_DIR:?OPENCLAW_DEV_DIR is required}
       dockerfile: Dockerfile.test
+      # Fallbacks repeat the Dockerfile ARG defaults: an unset or empty
+      # variable must build exactly the image the PR lane always has.
+      args:
+        OPENCLAW_CORE_VERSION: ${OPENCLAW_CORE_VERSION:-2026.9.4}
+        NODE_IMAGE: ${NODE_IMAGE:-node:24.16.0-bookworm-slim}
     environment:
       TLON_URL: ${TLON_URL:?TLON_URL is required}
       TLON_SHIP: ${TLON_SHIP:?TLON_SHIP is required}
