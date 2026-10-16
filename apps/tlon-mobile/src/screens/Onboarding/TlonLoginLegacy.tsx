@@ -167,7 +167,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
                       trigger('password');
                     }}
                     onChangeText={onChange}
-                    onSubmitEditing={onSubmit}
+                    onSubmitEditing={() => onSubmit()}
                     value={value}
                     secureTextEntry={!passwordVisible}
                     autoCapitalize="none"

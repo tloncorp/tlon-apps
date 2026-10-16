@@ -1,7 +1,7 @@
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
+import { TextInputKeyPressEvent } from 'react-native';
 
 import {
   TextInput,
@@ -70,7 +70,7 @@ export function GlobalSearch({
   );
 
   const handleKeyPress = useCallback(
-    (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    (e: TextInputKeyPressEvent) => {
       const key = e.nativeEvent.key;
       const metaKey = (e.nativeEvent as any).metaKey;
       const ctrlKey = (e.nativeEvent as any).ctrlKey;

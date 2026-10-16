@@ -104,7 +104,7 @@ export const ResetPasswordScreen = ({
                     trigger('email');
                   }}
                   onChangeText={onChange}
-                  onSubmitEditing={onSubmit}
+                  onSubmitEditing={() => onSubmit()}
                   value={value}
                   keyboardType="email-address"
                   autoCapitalize="none"

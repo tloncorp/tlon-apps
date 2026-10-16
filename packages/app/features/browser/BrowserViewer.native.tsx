@@ -39,7 +39,7 @@ export function BrowserViewer({
   onError: () => void;
 }) {
   const uri = trustedBrowserViewerUrl(viewerUrl);
-  const webView = useRef<WebView>(null);
+  const webView = useRef<WebView<{}>>(null);
   const session = useRef({
     input: null as InputState | null,
     revision: 0,
@@ -133,7 +133,7 @@ export function BrowserViewer({
 
   return (
     <YStack flex={1} minHeight={0} backgroundColor="#0b0b0b">
-      <WebView
+      <WebView<{}>
         ref={webView}
         source={{ uri }}
         style={{ flex: 1 }}

@@ -46,7 +46,7 @@ export function ChannelMembersScreenView({
         placement="navigation"
       />
       <FlatList
-        data={channel?.members}
+        data={channel?.members ?? undefined}
         {...screenScrollProps}
         contentContainerStyle={{
           paddingHorizontal: getTokenValue('$l', 'size'),
