@@ -1,9 +1,8 @@
-"""Inbound channel-cite resolution for Hermes Tlon messages.
+"""Inbound cite rendering for Hermes Tlon messages.
 
-Ports OpenClaw's cite enrichment while using Hermes' existing ``/channels/v4``
-history parsing and rendering helpers. Cites are parsed synchronously from the
-story, then resolved through an injected scry function so callers can bound
-the work and tests can provide small fakes.
+Cites are parsed synchronously from the story, then rendered in story order:
+channel cites resolve through an injected scry; group cites render a pointer
+line straight from the flag already in the cite (no ship round-trip).
 """
 
 from __future__ import annotations
@@ -28,6 +27,9 @@ _NEST_RE = re.compile(r"(?:chat|heap|diary)/~[a-z-]+/[a-zA-Z0-9-]+")
 _UD_RE = re.compile(r"[0-9]+(?:\.[0-9]+)*")
 _WHERE_RE = re.compile(r"^/(?:msg|note|curio)/([^/]+)(?:/([^/]+))?$")
 _LEGACY_WHERE_RE = re.compile(r"^/msg/(~[a-z-]+)/([^/]+)$")
+# As loose as ``_NEST_RE`` by design: the job is delimiter safety (no
+# whitespace, bracket, or newline reaches a rendered line), not flag grammar.
+_GROUP_FLAG_RE = re.compile(r"~[a-z-]+/[a-zA-Z0-9-]+")
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,7 @@ class ParsedCite:
     post_id: Optional[str] = None
     reply_id: Optional[str] = None
     legacy_author: Optional[str] = None
+    group: Optional[str] = None
 
 
 def extract_cites(content: Any) -> list[ParsedCite]:
@@ -60,7 +63,13 @@ def extract_cites(content: Any) -> list[ParsedCite]:
             if cite_type not in raw_cite:
                 continue
             if cite_type != "chan":
-                cites.append(ParsedCite(type=cite_type))
+                raw_value = raw_cite.get(cite_type)
+                cites.append(
+                    ParsedCite(
+                        type=cite_type,
+                        group=raw_value if cite_type == "group" else None,
+                    )
+                )
                 break
 
             chan = raw_cite.get("chan")
@@ -116,6 +125,10 @@ def _valid_nest(nest: Optional[str]) -> bool:
     return isinstance(nest, str) and _NEST_RE.fullmatch(nest) is not None
 
 
+def _valid_group_flag(flag: Optional[str]) -> bool:
+    return isinstance(flag, str) and _GROUP_FLAG_RE.fullmatch(flag) is not None
+
+
 def _valid_ud(value: Optional[str]) -> bool:
     if not isinstance(value, str) or _UD_RE.fullmatch(value) is None:
         return False
@@ -126,33 +139,52 @@ def _valid_ud(value: Optional[str]) -> bool:
 
 
 async def resolve_cites(
-    scry: ScryFn,
+    scry: Optional[ScryFn],
     content: Any,
     *,
     max_attempts: int = 3,
     collected: Optional[list[str]] = None,
 ) -> str:
-    """Resolve up to ``max_attempts`` valid channel cites in story order.
+    """Render cite lines in story order, scrying at most ``max_attempts`` cites.
 
-    A failed scry is an expected miss and does not consume a replacement from
-    later cites. Cancellation intentionally propagates to the caller's budget.
-    When the caller's budget cancels this coroutine, ``collected`` retains the
-    lines resolved before cancellation.
+    Group cites render a pointer line from their own (validated) flag and cost
+    no scry, so they never consume ``max_attempts`` and still render after the
+    scry cap is reached. Channel cites need ``scry``: a ``None`` scry (no live
+    connection) skips them exactly as an unroutable path does. ``max_attempts``
+    counts scry attempts, not successes: a failed scry is an expected miss and
+    does not consume a replacement from later cites. ``max_attempts <= 0``
+    disables the renderer entirely, group pointers included.
+
+    Cancellation intentionally propagates to the caller's budget. When the
+    caller's budget cancels this coroutine, ``collected`` retains the lines
+    emitted before cancellation — rendering is sequential, so a group pointer
+    sequenced *after* a hung scry is lost just as a later quote would be.
     """
     if max_attempts <= 0:
         return ""
 
-    attempts: list[tuple[ParsedCite, str]] = []
+    attempts: list[tuple[ParsedCite, Optional[str]]] = []
+    scries = 0
     for cite in extract_cites(content):
+        if cite.type == "group":
+            if _valid_group_flag(cite.group):
+                attempts.append((cite, None))
+            continue
+        if scry is None:
+            continue
         path = _validated_scry_path(cite)
         if path is None:
             continue
+        if scries == max_attempts:
+            continue
         attempts.append((cite, path))
-        if len(attempts) == max_attempts:
-            break
+        scries += 1
 
     lines = collected if collected is not None else []
     for cite, path in attempts:
+        if path is None:
+            lines.append(f"> [ref: group {cite.group}]")
+            continue
         try:
             payload = await scry(path)
             entry = parse_parent_post(payload, cite.post_id or "", cite.nest)

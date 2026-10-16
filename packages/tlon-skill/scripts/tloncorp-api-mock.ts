@@ -25,10 +25,12 @@
  * (getInitialActivity, getGroupAndChannelUnreads, getTextContent).
  */
 import type { NotesV1Api } from '@tloncorp/api';
+import { parsePostBlob } from '@tloncorp/api/client/content-helpers';
 // The real broker client, by subpath, which the root mock below does not
 // intercept. It has no dependencies but fetch, so tests keep exercising the
 // real request and error mapping against a stubbed fetch.
 import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
+import { getTextContent } from '@tloncorp/api/client/postContent';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -232,6 +234,10 @@ mock.module('@tloncorp/api', () => ({
   sendReply: async () => undefined,
   batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
   getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
+  // message-content.ts value imports -- the real renderers, not stubs: their
+  // output is exactly what the parse repair is under test for.
+  parsePostBlob,
+  getTextContent,
   toUrbitStory: (content: unknown) => content ?? [],
   updateChannel: async () => undefined,
   // notes runtime value imports
@@ -270,7 +276,8 @@ mock.module('@tloncorp/api', () => ({
   enableGroup: (...args: unknown[]) => mockedEnableGroup.impl(...args),
   BadResponseError: MockBadResponseError,
   // activity runtime value imports (formatter tests call the pure helpers
-  // directly, so these are load-time placeholders)
+  // directly, so these are load-time placeholders; its getTextContent is the
+  // real renderer registered above for message-content.ts)
   getInitialActivity: async () => ({ events: [], relevantUnreads: {} }),
   getGroupAndChannelUnreads: async () => ({
     baseUnread: null,
@@ -278,5 +285,4 @@ mock.module('@tloncorp/api', () => ({
     channelUnreads: [],
     threadActivity: [],
   }),
-  getTextContent: () => '',
 }));

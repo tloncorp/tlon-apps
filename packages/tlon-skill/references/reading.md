@@ -16,6 +16,8 @@ Discover the target before fetching history when its identity is ambiguous. Chan
 
 For history pagination, surrounding context, reactions, edits, deletes, or DM management, inspect `help messages`, `help posts`, or `help dms`, then the operation's help. CLI help also lists send/reply operations; ordinary sends and replies belong on `message` instead. Ship-targeted `dms send/reply` is blocked by the tool.
 
+In `messages` output, every line of a message body starts with `| `. A shared group always prints a `> [ref: group ~host/slug]` pointer line. `--resolve-cites` also fetches the text of quoted channel messages (at most 3 per command) and prints their lines with `> `. `--json` instead prints NDJSON, one object per post, oldest first: `id`, `authorId`, `sentAt`, `parentId`, `blob`, and `content` with the parsed story rather than flattened text. It ignores `--resolve-cites`. Use it when the exact message structure matters more than readability.
+
 History and activity responses are bounded. A short or empty page does not prove that no older matching messages exist; use the supported pagination/search options before making an exhaustive claim.
 
 ## Share a Tlon reference
