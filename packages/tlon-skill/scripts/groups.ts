@@ -89,6 +89,7 @@ import {
   printHelpAndExit,
   printUsageAndExit,
   refShareHint,
+  refuseDiaryNest,
   refuseNotesChannelDescription,
   refuseRemovedChannelKind,
 } from './cli-utils';
@@ -371,6 +372,7 @@ function validateGroupsArgs(args: string[]): void {
           );
         }
       }
+      refuseDiaryNest(args[2]);
       try {
         canonicalizeNest(args[2]);
       } catch (error) {
