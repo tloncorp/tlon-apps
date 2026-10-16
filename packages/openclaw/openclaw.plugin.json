@@ -79,6 +79,9 @@
           "showModelSignature": {
             "type": "boolean"
           },
+          "showCommentary": {
+            "type": "boolean"
+          },
           "authorization": {
             "type": "object",
             "properties": {
@@ -180,6 +183,9 @@
                   "type": "boolean"
                 },
                 "showModelSignature": {
+                  "type": "boolean"
+                },
+                "showCommentary": {
                   "type": "boolean"
                 },
                 "autoAcceptDmInvites": {

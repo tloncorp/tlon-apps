@@ -47,6 +47,8 @@ export type TlonResolvedAccount = {
   groupInviteAllowlist: string[];
   autoDiscoverChannels: boolean | null;
   showModelSignature: boolean | null;
+  /** Agent commentary and tool labels in the Thinking row (default: true) */
+  showCommentary: boolean;
   autoAcceptDmInvites: boolean | null;
   autoAcceptGroupInvites: boolean | null;
   defaultAuthorizedShips: string[];
@@ -156,6 +158,7 @@ export function resolveTlonAccount(
         groupInviteAllowlist?: string[];
         autoDiscoverChannels?: boolean;
         showModelSignature?: boolean;
+        showCommentary?: boolean;
         autoAcceptDmInvites?: boolean;
         autoAcceptGroupInvites?: boolean;
         ownerShip?: string;
@@ -185,6 +188,7 @@ export function resolveTlonAccount(
       groupInviteAllowlist: [],
       autoDiscoverChannels: null,
       showModelSignature: null,
+      showCommentary: true,
       autoAcceptDmInvites: null,
       autoAcceptGroupInvites: null,
       defaultAuthorizedShips: [],
@@ -253,6 +257,9 @@ export function resolveTlonAccount(
   const showModelSignature = (account?.showModelSignature ??
     base.showModelSignature ??
     null) as boolean | null;
+  const showCommentary = (account?.showCommentary ??
+    base.showCommentary ??
+    true) as boolean;
   const autoAcceptDmInvites = (account?.autoAcceptDmInvites ??
     base.autoAcceptDmInvites ??
     null) as boolean | null;
@@ -309,6 +316,7 @@ export function resolveTlonAccount(
     groupInviteAllowlist,
     autoDiscoverChannels,
     showModelSignature,
+    showCommentary,
     autoAcceptDmInvites,
     autoAcceptGroupInvites,
     defaultAuthorizedShips,
