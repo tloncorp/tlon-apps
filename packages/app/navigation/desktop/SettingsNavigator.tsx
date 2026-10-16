@@ -76,6 +76,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
     navigate('ScheduledTasks', { botShip: scheduledTasks.botShip });
   }, [navigate, scheduledTasks.botShip]);
 
+  const onPromptFilesPressed = useCallback(() => {
+    navigate('BotPromptFiles');
+  }, [navigate]);
+
   const onAppInfoPressed = useCallback(() => {
     navigate('AppInfo');
   }, [navigate]);
@@ -131,6 +135,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
         scheduledTasks.visible ? onScheduledTasksPressed : undefined
       }
       scheduledTaskCount={scheduledTasks.count}
+      onPromptFilesPressed={onPromptFilesPressed}
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
