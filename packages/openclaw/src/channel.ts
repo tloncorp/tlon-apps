@@ -46,6 +46,12 @@ import {
   finishTlonTaskPlanCall,
   getTlonTaskPlanEvidence,
 } from './onboarding-tool-boundary.js';
+import {
+  type OwnerTimezoneToolParams,
+  createOwnerTimezoneToolExecutor,
+  ownerTimezoneToolMetadata,
+  ownerTimezoneToolParameters,
+} from './owner-timezone-tool.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import {
   applyTlonSetupConfig,
@@ -238,6 +244,7 @@ export const tlonPlugin = createChatChannelPlugin({
         postSetup: ({ target, fallbackMessage, blob }) =>
           postSurface(target, fallbackMessage, blob),
       });
+      const executeSetTimezone = createOwnerTimezoneToolExecutor();
       const executeTaskPlan = createAgentTaskPlanToolExecutor({
         getEvidence: getTlonTaskPlanEvidence,
         assertCurrent: assertTlonTaskPlanCallCurrent,
@@ -273,6 +280,12 @@ export const tlonPlugin = createChatChannelPlugin({
           parameters: agentServiceSetupToolParameters,
           execute: (id, params) =>
             executeServiceSetup(id, params as AgentServiceSetupToolParams),
+        },
+        {
+          ...ownerTimezoneToolMetadata,
+          parameters: ownerTimezoneToolParameters,
+          execute: (id, params) =>
+            executeSetTimezone(id, params as OwnerTimezoneToolParams),
         },
       ];
     },
