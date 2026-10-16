@@ -70,6 +70,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   deskSupportsBuckets: boolean | null;
   deskSupportsAutomations: boolean | null;
   deskSupportsStewardPrompts: boolean | null;
+  deskSupportsTaskRuns: boolean | null;
   deskCountsAllSeats: boolean;
   deskSupportsStewardBots: boolean | null;
 }
@@ -198,6 +199,7 @@ const config: Config = {
   // Guarded requests refuse only false.
   deskSupportsAutomations: null,
   deskSupportsStewardPrompts: null,
+  deskSupportsTaskRuns: null,
   // Off until the app confirms the backend's groups version counts every seat
   // in init and changes, so a member count of 15 stays suspect by default.
   deskCountsAllSeats: false,
@@ -410,6 +412,32 @@ export const onDeskSupportsStewardPromptsChange = (
   };
 };
 
+const deskSupportsTaskRunsListeners = new Set<() => void>();
+
+// Whether the connected backend's %steward pages a task's runs and relays
+// test runs. Like the prompts capability, a view listens to try again once a
+// desk upgrade turns it on.
+export const setDeskSupportsTaskRuns = (value: boolean | null) => {
+  const changed = config.deskSupportsTaskRuns !== value;
+  config.deskSupportsTaskRuns = value;
+  if (changed) {
+    deskSupportsTaskRunsListeners.forEach((listener) => listener());
+  }
+};
+
+export const getDeskSupportsTaskRunsState = (): boolean | null => {
+  return config.deskSupportsTaskRuns;
+};
+
+export const onDeskSupportsTaskRunsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsTaskRunsListeners.add(listener);
+  return () => {
+    deskSupportsTaskRunsListeners.delete(listener);
+  };
+};
+
 export const client = new Proxy(
   {},
   {
@@ -583,6 +611,7 @@ export function internalRemoveClient() {
   setDeskSupportsBuckets(null);
   setDeskSupportsAutomations(null);
   setDeskSupportsStewardPrompts(null);
+  setDeskSupportsTaskRuns(null);
   setDeskCountsAllSeats(false);
   setDeskSupportsStewardBots(null);
 }

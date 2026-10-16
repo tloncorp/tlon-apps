@@ -207,6 +207,13 @@ function SettingsRow({
           backgroundColor={colors.pending.background}
         />
       ) : null}
+      {row.badge ? (
+        <Pill
+          text={row.badge}
+          textColor={colors.badge.text}
+          backgroundColor={colors.badge.background}
+        />
+      ) : null}
       {row.toggle ? (
         <Switch
           value={row.toggle.value}

@@ -968,6 +968,19 @@
       =/  =id:v1:sl  i.t.t.t.path
       ?~  r=(~(get by runs.lens.state) [bot id])  [~ ~]
       ``steward-lens-update-1+!>(`update:v1:sl`[%entry [bot id] u.r])
+    ::
+        [%v1 %cron @ @ @ ~]
+      =/  bot  (slav %p i.t.t.path)
+      =/  count  (slav %ud i.t.t.t.t.path)
+      =/  =update:v1:sl  (le-cron-page bot i.t.t.t.path count ~)
+      ``steward-lens-update-1+!>(update)
+    ::
+        [%v1 %cron @ @ @ @ ~]
+      =/  bot  (slav %p i.t.t.path)
+      =/  count  (slav %ud i.t.t.t.t.path)
+      =/  before  (slav %da i.t.t.t.t.t.path)
+      =/  =update:v1:sl  (le-cron-page bot i.t.t.t.path count `before)
+      ``steward-lens-update-1+!>(update)
     ==
   ::
   ++  le-send
@@ -1069,6 +1082,49 @@
     %+  turn  sorted
     |=  [[bot=ship =id:v1:sl] =run:v1:sl]
     `entry:v1:sl`[[bot id] run]
+  ::
+  ::  one page of the runs .bot recorded for cron job .job, newest first:
+  ::  the newest .count, or with .before the newest .count older than it.
+  ::  a client pages back by passing the oldest .received it has
+  ::
+  ++  le-cron-page
+    |=  [bot=ship job=@t count=@ud before=(unit @da)]
+    ^-  update:v1:sl
+    =/  runs
+      %+  skim  ~(tap by runs.lens.state)
+      |=  [[who=ship *] =run:v1:sl]
+      &(=(who bot) (le-is-cron-run job payload.run))
+    =/  sorted
+      %+  sort  runs
+      |=  [a=[* =run:v1:sl] b=[* =run:v1:sl]]
+      (gth received.run.a received.run.b)
+    =/  older
+      ?~  before  sorted
+      %+  skim  sorted
+      |=([* =run:v1:sl] (lth received.run u.before))
+    :+  %page  (lent sorted)
+    %+  turn  (scag count older)
+    |=  [[who=ship =id:v1:sl] =run:v1:sl]
+    `entry:v1:sl`[[who id] run]
+  ::
+  ::  whether a run record is a run of cron job .job. the gateway stamps
+  ::  .cron.jobId; a record from before it did is matched by the trigger
+  ::  preview it has always written for cron runs, "cron job <id>"
+  ::
+  ++  le-is-cron-run
+    |=  [job=@t payload=json]
+    ^-  ?
+    ?.  ?=([%o *] payload)  |
+    =/  rec  (~(get by p.payload) 'lens')
+    ?.  ?=([~ %o *] rec)  |
+    =/  cron  (~(get by p.u.rec) 'cron')
+    ?:  ?=([~ %o *] cron)
+      =(`s+job (~(get by p.u.cron) 'jobId'))
+    =/  details  (~(get by p.u.rec) 'triggerDetails')
+    ?.  ?=([~ %o *] details)  |
+    ?&  =(`s+'cron' (~(get by p.u.rec) 'runKind'))
+        =(`s+(cat 3 'cron job ' job) (~(get by p.u.details) 'preview'))
+    ==
   --
 ::  |ga-core: gateway module
 ::

@@ -24,9 +24,12 @@ import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
 import { initContextLensStore } from './src/context-lens-store.js';
 import { detailToolParams } from './src/context-lens-tool-params.js';
 import {
+  cronLensTtlMs,
   ensureBackgroundContextLensForSession,
+  recordContextLensModelForSession,
   recordContextLensToolResultForSession,
   recordContextLensToolStartForSession,
+  recordCronRunOutcome,
   scheduleBackgroundContextLensFinalization,
 } from './src/context-lens.js';
 import {
@@ -35,6 +38,7 @@ import {
 } from './src/cron-observability.js';
 import {
   clearCronServiceAccessor,
+  getTlonCronService,
   handleCronChangedEvent,
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
@@ -46,8 +50,13 @@ import {
 } from './src/cron-tool-args-guard.js';
 import {
   beginCronSilenceObservation,
+  peekCronSilenceOutput,
   recordCronSilenceOutput,
 } from './src/cron-silence.js';
+import {
+  cronTestRunToolBlock,
+  isCronTestSessionKey,
+} from './src/cron-test-run.js';
 import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
@@ -1161,6 +1170,9 @@ export default defineBundledChannelEntry({
             configuredTlonShipHosts(api.runtime.config.loadConfig())
           )
         : { blocked: false };
+      const testRunBlock = isCronTestSessionKey(ctx.sessionKey)
+        ? cronTestRunToolBlock(event.toolName, event.params)
+        : null;
       const sessionSurface = getTlonSessionSurface(ctx.sessionKey);
       // Changing or removing a job during first-run setup is fine unless it
       // is the onboarding task; only the job list can say which it is.
@@ -1185,6 +1197,7 @@ export default defineBundledChannelEntry({
       const choiceClaimReason =
         !blocksNonOwner &&
         !blocksOnboardingMcp &&
+        testRunBlock === null &&
         !onboardingBoundaryReason &&
         event.toolName === 'tlon_agent_choice'
           ? claimTlonChoiceCall({
@@ -1196,6 +1209,7 @@ export default defineBundledChannelEntry({
       const taskPlanClaimReason =
         !blocksNonOwner &&
         !blocksOnboardingMcp &&
+        testRunBlock === null &&
         !onboardingBoundaryReason &&
         event.toolName === 'tlon_agent_task_plan'
           ? claimTlonTaskPlanCall({
@@ -1213,7 +1227,8 @@ export default defineBundledChannelEntry({
         blocksNonOwner ||
         blocksOnboardingMcp ||
         blocksOnboardingBoundary ||
-        tlonAppBrowser.blocked;
+        tlonAppBrowser.blocked ||
+        testRunBlock !== null;
       // Decided here, with the other block decisions, so the trace and the
       // allowed/blocked logs below all describe the same outcome. The guard
       // reads the cleaned call: cleaning drops the empty fallbacks list and
@@ -1238,7 +1253,8 @@ export default defineBundledChannelEntry({
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
         : blocksCronArgs
           ? CRON_ARGS_BLOCK_REASON
-          : (effectiveOnboardingBoundaryReason ??
+          : (testRunBlock ??
+            effectiveOnboardingBoundaryReason ??
             ownerOnlyDecision.reason ??
             tlonAppBrowser.reason);
       if (contextLensEnabled) {
@@ -1312,11 +1328,13 @@ export default defineBundledChannelEntry({
         } else {
           const blockCause = blocksOnboardingMcp
             ? 'outside onboarding MCP policy'
-            : blocksOnboardingBoundary
-              ? 'outside the onboarding tool boundary'
-              : blocksNonOwner
-                ? 'for non-owner'
-                : 'targeting the Tlon app in the hosted browser';
+            : testRunBlock !== null
+              ? 'during a scheduled task test run'
+              : blocksOnboardingBoundary
+                ? 'outside the onboarding tool boundary'
+                : blocksNonOwner
+                  ? 'for non-owner'
+                  : 'targeting the Tlon app in the hosted browser';
           api.logger.warn(
             `[tlon] Blocked ${event.toolName} tool ${blockCause}. Session: ${ctx.sessionKey}, Role: ${role}, Reason: ${blockReason}`
           );
@@ -1533,6 +1551,32 @@ export default defineBundledChannelEntry({
 
     api.on('cron_changed', async (event, ctx) => {
       notifyCampaignCronChanged(event);
+      if (contextLensEnabled && event.action === 'finished' && event.status) {
+        const finished = recordCronRunOutcome({
+          jobId: event.jobId,
+          ...(event.runId ? { runId: event.runId } : {}),
+          ...(event.sessionId ? { runSessionId: event.sessionId } : {}),
+          outcome: {
+            status: event.status,
+            ...(event.error ? { error: event.error } : {}),
+            ...(event.summary ? { summary: event.summary } : {}),
+            ...(event.delivered === undefined
+              ? {}
+              : { delivered: event.delivered }),
+            ...(event.deliveryStatus
+              ? { deliveryStatus: event.deliveryStatus }
+              : {}),
+            ...(event.deliveryError
+              ? { deliveryError: event.deliveryError }
+              : {}),
+            // Read, not consumed: the telemetry hook below consumes it.
+            ...(peekCronSilenceOutput(event) ? { silent: true } : {}),
+          },
+        });
+        if (finished) {
+          publishContextLensEvent('final', finished);
+        }
+      }
       try {
         await handleCronChangedEvent(event, ctx);
       } catch (error) {
@@ -1672,10 +1716,38 @@ export default defineBundledChannelEntry({
     // no `:cron:` marker — the agent-level hook context is the only place
     // the gateway exposes the cron trigger, so tag the run's lens here
     // before any tool fires. Idempotent across both hooks.
+    // A scheduled run's lens has to last as long as the run may: the job's
+    // own timeout when it sets one, else the configured agent timeout.
+    const cronRunLensTtlMs = (jobId: string | undefined) => {
+      try {
+        const cron = getTlonCronService() as
+          | {
+              getJob?: (
+                id: string
+              ) => { payload?: { timeoutSeconds?: unknown } } | undefined;
+            }
+          | undefined;
+        const timeoutSeconds = jobId
+          ? cron?.getJob?.(jobId)?.payload?.timeoutSeconds
+          : undefined;
+        return cronLensTtlMs(
+          api.runtime.agent.resolveAgentTimeoutMs({
+            cfg: api.runtime.config.loadConfig(),
+            ...(typeof timeoutSeconds === 'number' && timeoutSeconds > 0
+              ? { overrideSeconds: timeoutSeconds }
+              : {}),
+          })
+        );
+      } catch {
+        return undefined;
+      }
+    };
     const ensureCronContextLens = async (ctx: {
       sessionKey?: string;
       trigger?: string;
       jobId?: string;
+      runId?: string;
+      sessionId?: string;
     }) => {
       if (!contextLensEnabled || ctx.trigger !== 'cron') {
         return;
@@ -1684,6 +1756,7 @@ export default defineBundledChannelEntry({
         ctx.jobId
       );
       const background = ensureBackgroundContextLensForSession(ctx.sessionKey, {
+        ttlMs: cronRunLensTtlMs(ctx.jobId),
         ...(onboardingChannelNest
           ? {
               chatType: 'channel' as const,
@@ -1693,7 +1766,13 @@ export default defineBundledChannelEntry({
         runKind: 'cron',
         trigger: 'cron',
         preview: ctx.jobId ? `cron job ${ctx.jobId}` : 'cron run',
+        ...(ctx.jobId ? { cron: { jobId: ctx.jobId } } : {}),
+        ...(ctx.runId ? { runId: ctx.runId } : {}),
+        ...(ctx.sessionId ? { runSessionId: ctx.sessionId } : {}),
       });
+      if (background?.superseded) {
+        publishContextLensEvent('final', background.superseded);
+      }
       if (background?.created) {
         publishContextLensEvent('created', background.lens);
       }
@@ -1709,7 +1788,11 @@ export default defineBundledChannelEntry({
       jobId?: string;
       runId?: string;
     }) => {
-      if (ctx.trigger === 'cron') {
+      if (ctx.trigger === 'cron' && isCronTestSessionKey(ctx.sessionKey)) {
+        // A test run is the owner trying a job, not the job running: it
+        // takes the job's tool policy but stays out of cron telemetry.
+        rememberCronJobForSession(ctx.sessionKey, ctx.jobId);
+      } else if (ctx.trigger === 'cron') {
         rememberCronJobForSession(ctx.sessionKey, ctx.jobId);
         recordTlonCronAgentContext({
           jobId: ctx.jobId,
@@ -1746,10 +1829,13 @@ export default defineBundledChannelEntry({
       }
       await onCronAgentHook(ctx);
     });
-    api.on('model_call_started', async (_event, ctx) => {
+    api.on('model_call_started', async (event, ctx) => {
       beginCronSilenceObservation(ctx);
       beginTlonTurnSilenceObservation(ctx);
       await onCronAgentHook(ctx);
+      if (contextLensEnabled) {
+        recordContextLensModelForSession(ctx.sessionKey, event);
+      }
     });
 
     // Background lenses normally finalize on tool-result idle; agent_end

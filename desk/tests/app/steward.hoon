@@ -592,6 +592,8 @@
     %delete  [%delete id.edit]
     %create  [%create (narrow-task task.edit)]
     %update  [%update id.edit (narrow-task task.edit)]
+    ::  test runs arrived after %3; no fixture pends one
+    %test    ~|(%test-has-no-v0-form !!)
   ==
 ++  narrow-task
   |=  t=task:v1:au
@@ -1859,6 +1861,78 @@
   ;<  ~  bind:m  (ex-equal !>((lent entries.update)) !>(1))
   ?>  ?=(^ entries.update)
   (ex-equal !>(id.i.entries.update) !>('run-b'))
+::
+::  a lens run payload attributed to cron job .job, as the gateway stamps it
+::
+++  cron-payload
+  |=  job=@t
+  ^-  json
+  =,  enjs:format
+  %-  pairs
+  :~  ['schemaVersion' (numb 1)]
+      :-  'lens'
+      (pairs ~[['runKind' s+'cron'] ['cron' (frond 'jobId' s+job)]])
+  ==
+::  a cron run recorded before the gateway stamped .cron: only its trigger
+::  preview names the job
+::
+++  legacy-cron-payload
+  |=  job=@t
+  ^-  json
+  =,  enjs:format
+  %-  pairs
+  :~  ['schemaVersion' (numb 1)]
+      :-  'lens'
+      %-  pairs
+      :~  ['runKind' s+'cron']
+          ['triggerDetails' (frond 'preview' s+(cat 3 'cron job ' job))]
+      ==
+  ==
+::  +moon sends one finalized run, a minute after the last
+::
+++  moon-run
+  |=  [=id:v1:l jon=json]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add now.b ~m1))))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry id jon &]))
+  (pure:m ~)
+::
+++  page-ids
+  |=  =update:v1:l
+  ^-  [total=@ud ids=(list id:v1:l)]
+  ?>  ?=(%page -.update)
+  [total.update (turn entries.update |=(=entry:v1:l id.entry))]
+::
+::  the cron scry pages one job's runs, newest first, matching stamped and
+::  legacy records and nothing else, and counts every run of the job
+::
+++  test-cron-scry-pages-runs-of-one-job
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  ~  bind:m  (moon-run 'run-a' (cron-payload 'job-1'))
+  ;<  ~  bind:m  (moon-run 'run-b' (legacy-cron-payload 'job-1'))
+  ;<  ~  bind:m  (moon-run 'run-c' (cron-payload 'job-2'))
+  ;<  ~  bind:m  (moon-run 'run-d' payload)
+  ;<  ~  bind:m  (moon-run 'run-e' (cron-payload 'job-1'))
+  =/  base  /x/v1/lens/cron/(scot %p moon)/job-1
+  ;<  res=cage  bind:m  (got-peek (weld base /2))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((page-ids !<(update:v1:l q.res)))
+    !>(`[@ud (list id:v1:l)]`[3 ~['run-e' 'run-b']])
+  ::  run-b arrived at ~2024.1.1..00.02.00
+  ;<  res=cage  bind:m
+    (got-peek (weld base /2/(scot %da (add ~2024.1.1 ~m2))))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((page-ids !<(update:v1:l q.res)))
+    !>(`[@ud (list id:v1:l)]`[3 ~['run-a']])
+  ;<  res=cage  bind:m  (got-peek /x/v1/lens/cron/(scot %p ~dev)/job-1/2)
+  (ex-equal !>((page-ids !<(update:v1:l q.res))) !>(`[@ud (list id:v1:l)]`[0 ~]))
 ::
 ::  an oversized payload (jam > 512KB) is dropped, not stored or facted
 ::
@@ -3151,6 +3225,33 @@
   ;<  ~  bind:m  (ex-equal !>(result.req) !>(`created))
   ;<  pen=pending:v1:au  bind:m  got-pending
   (ex-equal !>(pen) !>(*pending:v1:au))
+::
+::  a test run rides the same loop: the harness answers %started with the
+::  lens run that records it, and the task map is never touched
+::
+++  test-automation-self-owned-test-round-trip
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  test=edit:v1:au  [%test 'job-1']
+  =/  started=response-body:v1:au  [%started 'job-1' 'lens-1']
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~dev)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  caz=(list card)  bind:m  (do-edit ~dev test)
+  ;<  ~  bind:m  (ex-cards caz (ex-relay ~dev test ~2024.1.1))
+  ;<  *  bind:m  (do-watch (req-path ~dev))
+  ;<  caz=(list card)  bind:m  (do-command test)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-dispatch ~[harness-path] test)])
+  ;<  caz=(list card)  bind:m  (do-finalize started)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-bot-response ~dev started)])
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign ~dev (response-fact started))
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-local-response started) (ex-req-leave ~dev)])
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  ;<  ~  bind:m  (ex-equal !>(result.req) !>(`started))
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(tasks.automation.st) !>(*(map ship tasks:v1:au)))
 ::
 ::  ----------------------------------------------------------
 ::  HTTP surface

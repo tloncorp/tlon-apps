@@ -41,9 +41,12 @@ export type LensMessageTarget = {
 export function RunInspector({
   lens,
   onPressMessage,
+  omitOutput = false,
 }: {
   lens: ContextLens;
   onPressMessage?: (target: LensMessageTarget) => void;
+  /** For a screen that shows the run's output itself. */
+  omitOutput?: boolean;
 }) {
   const sources = lens.context.sources ?? [];
   const includedSources = sources.filter((source) => source.included);
@@ -54,6 +57,10 @@ export function RunInspector({
 
   const triggerMessageId = lens.triggerDetails?.messageId ?? lens.messageId;
   const triggerChannelId = lens.triggerDetails?.conversationId;
+  // Cron and internal runs start from no message: their trigger id is made
+  // up for the lens, so there is nothing to open.
+  const triggerIsMessage =
+    lens.runKind !== 'cron' && lens.chatType !== 'internal';
 
   return (
     <YStack gap="$s">
@@ -67,7 +74,10 @@ export function RunInspector({
           label="Message"
           value={triggerMessageId}
           onPress={
-            onPressMessage && triggerMessageId && triggerChannelId
+            onPressMessage &&
+            triggerIsMessage &&
+            triggerMessageId &&
+            triggerChannelId
               ? () =>
                   onPressMessage({
                     postId: triggerMessageId,
@@ -132,21 +142,23 @@ export function RunInspector({
         )}
       </InspectorSection>
 
-      <InspectorSection title="Output">
-        {outputs.length ? (
-          <YStack gap="$xs">
-            {outputs.map((output, index) => (
-              <OutputItem
-                key={`${output.messageId}-${index}`}
-                output={output}
-                onPressMessage={onPressMessage}
-              />
-            ))}
-          </YStack>
-        ) : (
-          <MutedLine value="No bot reply recorded yet" />
-        )}
-      </InspectorSection>
+      {omitOutput ? null : (
+        <InspectorSection title="Output">
+          {outputs.length ? (
+            <YStack gap="$xs">
+              {outputs.map((output, index) => (
+                <OutputItem
+                  key={`${output.messageId}-${index}`}
+                  output={output}
+                  onPressMessage={onPressMessage}
+                />
+              ))}
+            </YStack>
+          ) : (
+            <MutedLine value="No bot reply recorded yet" />
+          )}
+        </InspectorSection>
+      )}
 
       <InspectorSection title="Persistence">
         {persistenceEvents.length ? (
