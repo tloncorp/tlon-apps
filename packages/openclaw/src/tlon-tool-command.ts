@@ -170,6 +170,11 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'promote',
       'demote',
       'add-channel',
+      'add-section',
+      'rename-section',
+      'delete-section',
+      'move-channel',
+      'order-sections',
     ]),
   ],
   [

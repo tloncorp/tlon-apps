@@ -1792,6 +1792,118 @@ export const CHANNEL_MEMBERSHIP_CASES: CliCase[] = (
   ]),
 ]);
 
+const GROUP = '~host/group';
+const MOVE_CHANNEL = ['groups', 'move-channel', GROUP, 'chat/~host/general'];
+
+// Section commands validate locally (arity, blank titles, --section/--index,
+// nest format) before credentials are looked up.
+export const GROUP_SECTION_CASES: CliCase[] = [
+  ...(
+    [
+      ['add-section', ['groups', 'add-section', GROUP]],
+      ['rename-section', ['groups', 'rename-section', GROUP, 'Archive']],
+      ['delete-section', ['groups', 'delete-section', GROUP]],
+      ['move-channel', ['groups', 'move-channel', GROUP]],
+      ['order-sections', ['groups', 'order-sections', GROUP]],
+    ] as const
+  ).flatMap(([command, missingArgs]) => [
+    usageErrorCase(
+      `groups ${command} missing args`,
+      [...missingArgs],
+      `Usage: tlon groups ${command}`
+    ),
+    helpCase(
+      `groups ${command} --help`,
+      ['groups', command, '--help'],
+      `Usage: tlon groups ${command}`
+    ),
+  ]),
+  usageErrorCase(
+    'groups add-section blank title',
+    ['groups', 'add-section', GROUP, '   '],
+    'a non-blank section title is required'
+  ),
+  usageErrorCase(
+    'groups rename-section blank title',
+    ['groups', 'rename-section', GROUP, 'Archive', ' '],
+    'a non-blank section title is required'
+  ),
+  usageErrorCase(
+    'groups move-channel missing --section',
+    [...MOVE_CHANNEL],
+    'Usage: tlon groups move-channel'
+  ),
+  usageErrorCase(
+    'groups move-channel --section followed by --index',
+    [...MOVE_CHANNEL, '--section', '--index', '2'],
+    'Usage: tlon groups move-channel'
+  ),
+  usageErrorCase(
+    'groups move-channel dangling --section',
+    [...MOVE_CHANNEL, '--section'],
+    'Usage: tlon groups move-channel'
+  ),
+  ...(
+    [
+      ['negative', ['--index', '-1']],
+      ['non-numeric', ['--index', 'x']],
+      ['dangling', ['--index']],
+    ] as const
+  ).map(([label, index]) =>
+    usageErrorCase(
+      `groups move-channel ${label} --index`,
+      [...MOVE_CHANNEL, '--section', 'Archive', ...index],
+      '--index requires a non-negative integer'
+    )
+  ),
+  refusalCase(
+    'groups move-channel malformed nest refuses',
+    ['groups', 'move-channel', GROUP, 'chat/~host', '--section', 'Archive'],
+    'Invalid nest format: chat/~host'
+  ),
+  diaryRefusedCase('groups move-channel diary nest refuses', [
+    'groups',
+    'move-channel',
+    GROUP,
+    'diary/~host/blog',
+    '--section',
+    'Archive',
+  ]),
+  authRequiredCase('groups add-section reaches auth', [
+    'groups',
+    'add-section',
+    GROUP,
+    'Archive',
+  ]),
+  authRequiredCase('groups rename-section reaches auth', [
+    'groups',
+    'rename-section',
+    GROUP,
+    'Archive',
+    'Old stuff',
+  ]),
+  authRequiredCase('groups delete-section reaches auth', [
+    'groups',
+    'delete-section',
+    GROUP,
+    'Archive',
+  ]),
+  authRequiredCase('groups move-channel reaches auth', [
+    ...MOVE_CHANNEL,
+    '--section',
+    'Archive',
+    '--index',
+    '0',
+  ]),
+  authRequiredCase('groups order-sections reaches auth', [
+    'groups',
+    'order-sections',
+    GROUP,
+    'Archive',
+    'default',
+  ]),
+];
+
 export const CLI_MATRIX_CASES: CliCase[] = [
   ...(['channels', 'groups'] as const).flatMap((family) => {
     const operation = family === 'channels' ? 'create' : 'add-channel';
@@ -1825,6 +1937,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...DIARY_REMOVED_CASES,
   ...INVITE_LINK_CREDENTIAL_CASES,
   ...CHANNEL_MEMBERSHIP_CASES,
+  ...GROUP_SECTION_CASES,
 ];
 
 export type HostileHelpCommand = {
@@ -1842,6 +1955,16 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
     args: [family, '--help'],
   })),
   { name: 'groups invite-link', args: ['groups', 'invite-link', '--help'] },
+  ...[
+    'add-section',
+    'rename-section',
+    'delete-section',
+    'move-channel',
+    'order-sections',
+  ].map((command) => ({
+    name: `groups ${command}`,
+    args: ['groups', command, '--help'],
+  })),
   { name: 'posts react', args: ['posts', 'react', '--help'] },
   { name: 'posts send', args: ['posts', 'send', '--help'] },
   { name: 'posts reply', args: ['posts', 'reply', '--help'] },
