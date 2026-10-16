@@ -1320,7 +1320,7 @@ export default defineBundledChannelEntry({
         if (event.toolName === 'sessions_send') {
           // Injected input bypasses the monitor; treat it like a non-owner
           // message on the target.
-          noteCrossSessionSend(event.params);
+          noteCrossSessionSend(event.params, ctx.runId);
         }
         return allowed();
       }

@@ -127,6 +127,9 @@ export const TlonAccountSchema = z.object({
       error:
         'ownerDefault is set on the root Tlon channel config, not per account',
     })
+    .describe(
+      'Not allowed per account: set ownerDefault on the root Tlon channel config.'
+    )
     .optional(),
   // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
   reactionLevel: ReactionLevelSchema.optional(),

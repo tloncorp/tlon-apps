@@ -7,13 +7,15 @@
  * for its runId says it answers an owner message. Every other run, snapshotless
  * runs included, acts as the bot. The decision is recorded at the run's first
  * observation on any hook or gate path, and only ever moves toward the bot: a
- * non-owner message dispatched on the run's session demotes it, which also
- * revokes the run's owner-only tools (the veto treats it as a non-owner turn).
+ * non-owner message dispatched on the run's session demotes every run on that
+ * session, which also revokes their owner-only tools (the veto treats them as
+ * non-owner turns).
  *
  * Lifetime: every hook bumps the run's record. After an hour without activity
- * it becomes a tombstone that resolves to the bot for seven days, so a later
- * attempt under the same runId cannot regain owner identity or fall back to a
- * session role that changed since. Retained memory is bounded by seven days of
+ * it becomes a tombstone for seven days: a later attempt under the same runId
+ * acts as the bot and is vetoed from owner-only tools, so an owner run idle for
+ * an hour loses owner-only tools for the rest of that run, and no run can fall
+ * back to a session role that changed since. Retained memory is bounded by seven days of
  * runs (about 10,000 tombstones at one run a minute), each a runId and a
  * number; pruning sweeps only expired entries, oldest first.
  *
@@ -26,6 +28,8 @@
  *   runs have no snapshot and act as the bot.
  * - Run snapshots and the onboarding publication claims bound to them are kept
  *   across attempts and expire by TTL, not at `agent_end`.
+ * - `sessions_send` from an owner-directed run demotes nothing; from any other
+ *   run it demotes the target's runs (every tracked session's when unresolved).
  * - The owner's queued follow-ups run under fresh runIds without a snapshot,
  *   so they act as the bot; the owner has to ask again.
  */
@@ -40,7 +44,7 @@ export type TurnIdentity = 'owner' | 'bot';
 
 /** A run's record stays active for this long after its last hook. */
 export const RUN_ACTIVE_TTL_MS = 60 * 60 * 1000;
-/** How long a quiet run's tombstone resolves it to the bot. */
+/** How long a quiet run's tombstone resolves it to a vetoed bot turn. */
 export const RUN_TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 type RunRecord = {
@@ -53,7 +57,7 @@ type RunRecord = {
   lastSeenAt: number;
 };
 
-type Tombstone = { expiresAt: number; nonOwner?: true };
+type Tombstone = { expiresAt: number };
 
 // Insertion order is lastSeenAt order (a bump re-inserts), and tombstones are
 // created in that same order, so both sweeps stop at the first live entry.
@@ -73,7 +77,6 @@ function sweep(now: number): void {
     activeRuns.delete(runId);
     tombstones.set(runId, {
       expiresAt: record.lastSeenAt + RUN_ACTIVE_TTL_MS + RUN_TOMBSTONE_TTL_MS,
-      ...(record.senderRole === 'user' ? { nonOwner: true as const } : {}),
     });
   }
   for (const [runId, tombstone] of tombstones) {
@@ -138,16 +141,15 @@ export const resolveTurnIdentity = observeRun;
 
 /**
  * The role the owner-only veto uses for a run that has been seen: the
- * recorded sender, `'user'` for a non-owner tombstone, and `null` when the run
- * is known but carries no role. `undefined` only for a run never seen.
+ * recorded sender, `'user'` for any tombstone (fail closed), and `null` when
+ * the run is active but carries no role. `undefined` only for a run never seen.
  */
 export function getRecordedRunRole(
   runId: string | null | undefined
 ): SenderRole | null | undefined {
   const key = runId?.trim();
   if (!key) return undefined;
-  const tombstone = tombstones.get(key);
-  if (tombstone) return tombstone.nonOwner ? 'user' : null;
+  if (tombstones.has(key)) return 'user';
   const record = activeRuns.get(key);
   return record ? (record.senderRole ?? null) : undefined;
 }
@@ -161,14 +163,15 @@ export function getRunAccountId(
 }
 
 /**
- * Demote the active owner runs, and unstarted owner snapshots, on a session:
- * identity to the bot and the veto role to a non-owner, so every owner-only
- * tool is refused for the rest of the run, not only owner identity.
+ * Demote every active run, and every unstarted snapshot, on a session: identity
+ * to the bot and the veto role to a non-owner, so every owner-only tool is
+ * refused for the rest of those runs. Roleless runs (subagents, internal and
+ * control-UI turns) are included: a non-owner message can be steered into them
+ * as well.
  */
 function demoteSession(canonicalKey: string, now: number): void {
   for (const [runId, surface] of listTlonSessionRunSurfaces()) {
     if (
-      surface.senderRole === 'owner' &&
       canonicalSessionKey(surface.sessionKey) === canonicalKey &&
       !activeRuns.has(runId) &&
       !tombstones.has(runId)
@@ -181,10 +184,7 @@ function demoteSession(canonicalKey: string, now: number): void {
     }
   }
   for (const [runId, record] of activeRuns) {
-    if (
-      (record.identity === 'owner' || record.senderRole === 'owner') &&
-      canonicalSessionKey(record.sessionKey) === canonicalKey
-    ) {
+    if (canonicalSessionKey(record.sessionKey) === canonicalKey) {
       activeRuns.set(runId, { ...record, identity: 'bot', senderRole: 'user' });
     }
   }
@@ -213,13 +213,22 @@ export function noteInboundDispatching(input: {
 }
 
 /**
- * Another session's run can be injected into with `sessions_send`. Demote the
- * owner runs on the target when it is a tracked session; otherwise (labels,
- * session ids, aliases, agent-only addressing) demote every owner run, since
- * the target cannot be resolved here.
+ * Another session's run can be injected into with `sessions_send`. Input from
+ * an owner-directed run (the owner driving a subagent it spawned) is the
+ * owner's and demotes nothing. From any other caller (a non-owner or demoted
+ * run, a roleless run, an unseen run, a tombstone), demote the runs on the
+ * target when it is a tracked session; otherwise (labels, session ids,
+ * aliases, agent-only addressing) demote the runs on every tracked session,
+ * since the target cannot be resolved here.
  */
-export function noteCrossSessionSend(params: unknown, now = Date.now()): void {
+export function noteCrossSessionSend(
+  params: unknown,
+  callerRunId?: string,
+  now = Date.now()
+): void {
   sweep(now);
+  const caller = callerRunId?.trim();
+  if (caller && activeRuns.get(caller)?.identity === 'owner') return;
   const target =
     params && typeof params === 'object'
       ? (params as { sessionKey?: unknown }).sessionKey

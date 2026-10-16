@@ -135,7 +135,7 @@ describe('turn identity', () => {
       }
     });
 
-    it('tombstones a run quiet for an hour as the bot, keeping a non-owner veto', () => {
+    it('tombstones a run quiet for an hour as a vetoed bot turn', () => {
       inbound('owner', 'owner-run');
       observeRun({ runId: 'owner-run', sessionKey: SESSION });
       inbound('user', 'user-run', OTHER);
@@ -143,7 +143,7 @@ describe('turn identity', () => {
       vi.advanceTimersByTime(RUN_ACTIVE_TTL_MS + MINUTE);
       inbound('owner', 'owner-run');
       expect(identity('owner-run')).toBe('bot');
-      expect(getRecordedRunRole('owner-run')).toBeNull();
+      expect(getRecordedRunRole('owner-run')).toBe('user');
       expect(getRecordedRunRole('user-run')).toBe('user');
       expect(identity('user-run', OTHER)).toBe('bot');
     });
@@ -171,6 +171,34 @@ describe('turn identity', () => {
   });
 
   describe('sessions_send', () => {
+    it("demotes nothing for an owner-directed caller's own sessions_send", () => {
+      inbound('owner', 'owner-caller');
+      inbound('owner', 'run-2', OTHER);
+      expect(identity('owner-caller')).toBe('owner');
+      noteCrossSessionSend({ label: 'helper', message: 'hi' }, 'owner-caller');
+      expect(identity('owner-caller')).toBe('owner');
+      expect(identity('run-2', OTHER)).toBe('owner');
+    });
+
+    it.each([
+      ['a non-owner caller', 'user-caller'],
+      ['a roleless caller', 'roleless-caller'],
+      ['an unseen caller', 'never-seen'],
+    ])('demotes every tracked session for %s', (_label, caller) => {
+      inbound('user', 'user-caller', 'agent:main:tlon:direct:~mug');
+      identity('user-caller', 'agent:main:tlon:direct:~mug');
+      observeRun({
+        runId: 'roleless-caller',
+        sessionKey: 'agent:main:subagent:x',
+      });
+      inbound('owner', 'run-1');
+      inbound('owner', 'run-2', OTHER);
+      noteCrossSessionSend({ label: 'helper', message: 'hi' }, caller);
+      expect(identity('run-1')).toBe('bot');
+      expect(identity('run-2', OTHER)).toBe('bot');
+      expect(getRecordedRunRole('run-1')).toBe('user');
+    });
+
     it('demotes owner runs on a tracked target session only', () => {
       inbound('owner', 'run-1');
       inbound('owner', 'run-2', OTHER);

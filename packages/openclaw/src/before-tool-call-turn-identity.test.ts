@@ -302,15 +302,38 @@ describe('before_tool_call turn identity', () => {
       });
     });
 
-    it('keeps a snapshotless bot run on --self after an hour', async () => {
+    it('keeps a snapshotless bot run on --self while active, and vetoes it after an hour idle', async () => {
       const { beforeToolCall, prepare } = registerEntry();
       setSessionRole(GROUP, 'owner');
       const ctx = { sessionKey: GROUP, runId: 'gateway-1' };
       await prepare({}, { ...ctx, trigger: 'user', messageProvider: 'tlon' });
+      await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toEqual(SELF_CALL);
       vi.advanceTimersByTime(RUN_ACTIVE_TTL_MS + 60_000);
       inbound('owner', 'run-2');
       await prepare({}, { ...ctx, trigger: 'user', messageProvider: 'tlon' });
-      await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toEqual(SELF_CALL);
+      // Never the owner; a tombstone fails closed for owner-only tools.
+      await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toMatchObject({
+        block: true,
+        blockReason: formatOwnerOnlyToolBlockReason('tlon'),
+      });
+    });
+
+    it('vetoes every owner-only tool for an owner run idle for over an hour', async () => {
+      const { beforeToolCall } = registerEntry();
+      inbound('owner', 'run-1');
+      const ctx = { sessionKey: GROUP, runId: 'run-1' };
+      await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toBeUndefined();
+      vi.advanceTimersByTime(RUN_ACTIVE_TTL_MS + 60_000);
+      for (const call of [
+        TLON_CALL,
+        { toolName: 'read', params: { path: 'MEMORY.md' } },
+        { toolName: 'cron', params: { action: 'list' } },
+      ]) {
+        await expect(beforeToolCall(call, ctx)).resolves.toMatchObject({
+          block: true,
+          blockReason: formatOwnerOnlyToolBlockReason(call.toolName),
+        });
+      }
     });
 
     it('keeps an owner run the owner past an hour while it stays active', async () => {
@@ -359,5 +382,47 @@ describe('before_tool_call turn identity', () => {
     await expect(
       beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId: 'run-default' })
     ).resolves.toBeUndefined();
+  });
+
+  it('revokes owner-only tools for roleless runs on a session that gets a non-owner message', async () => {
+    const { beforeToolCall, prepare } = registerEntry();
+    // An internal run on the group session, seen before any role was stored.
+    const ctx = { sessionKey: GROUP, runId: 'internal-1' };
+    await prepare({}, { ...ctx, trigger: 'manual' });
+    await expect(
+      beforeToolCall({ toolName: 'read', params: { path: 'x' } }, ctx)
+    ).resolves.toBeUndefined();
+    inbound('user', 'run-mug');
+    for (const call of [
+      TLON_CALL,
+      { toolName: 'read', params: { path: 'MEMORY.md' } },
+      { toolName: 'cron', params: { action: 'list' } },
+    ]) {
+      await expect(beforeToolCall(call, ctx)).resolves.toMatchObject({
+        block: true,
+        blockReason: formatOwnerOnlyToolBlockReason(call.toolName),
+      });
+    }
+  });
+
+  it("revokes a subagent run's owner-only tools on a sessions_send into its session", async () => {
+    const { beforeToolCall, prepare } = registerEntry();
+    const subagent = 'agent:main:subagent:abc';
+    const ctx = { sessionKey: subagent, runId: 'sub-1' };
+    await prepare({}, { ...ctx, trigger: 'user' });
+    await expect(
+      beforeToolCall({ toolName: 'read', params: { path: 'x' } }, ctx)
+    ).resolves.toBeUndefined();
+    inbound('user', 'run-mug');
+    await beforeToolCall(
+      {
+        toolName: 'sessions_send',
+        params: { sessionKey: subagent, message: 'hi' },
+      },
+      { sessionKey: GROUP, runId: 'run-mug' }
+    );
+    await expect(
+      beforeToolCall({ toolName: 'read', params: { path: 'x' } }, ctx)
+    ).resolves.toMatchObject({ block: true });
   });
 });
