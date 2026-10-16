@@ -444,7 +444,7 @@ describe('tlon tool execution', () => {
   });
 });
 
-describe('owner credential injection for invite-link and note publishing', () => {
+describe('owner credential injection for invite-link, note publishing and notification settings', () => {
   const SKILL_DIR = '/srv/tlon-skill';
   const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
 
@@ -480,6 +480,9 @@ describe('owner credential injection for invite-link and note publishing', () =>
     'groups invite-link ~host/book-club',
     'notes note-publish notes/~h/b 12',
     'notes note-unpublish notes/~h/b 12',
+    'activity mute ~zod/book-club',
+    'activity unmute chat/~nec/general 170.141',
+    'activity volume ~ten hush',
   ];
 
   // --ship, not --config: ship-only resolution validates the file's ship and
@@ -501,8 +504,8 @@ describe('owner credential injection for invite-link and note publishing', () =>
     }
   );
 
-  // The opt-out parse is the same for every owner command, so one
-  // representative command covers them all.
+  // ownerCredentialCommand applies the same opt-out logic to every listed op,
+  // so the table runs against one representative command.
   const OPT_OUT_BASE = 'notes note-publish notes/~h/b 12';
   // Mirrors CREDENTIAL_FLAGS_WITH_VALUE in tlon-tool-command.ts (not exported);
   // keep the two in sync.
@@ -566,6 +569,8 @@ describe('owner credential injection for invite-link and note publishing', () =>
     { env: {} as NodeJS.ProcessEnv },
     { fileExists: () => false },
   ];
+  const ACTIVITY_HINT =
+    "Add --self to change this bot's own notification settings instead.";
 
   it.each([
     [
@@ -592,6 +597,30 @@ describe('owner credential injection for invite-link and note publishing', () =>
         `Unpublishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to unpublish from this bot's own ship instead.`,
       ],
     ],
+    [
+      OWNER_COMMANDS[3],
+      [
+        `Muting as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
+        `Muting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
+        `Muting as ~owner requires owner credentials at ${OWNER_CONFIG}. ${ACTIVITY_HINT}`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[4],
+      [
+        `Unmuting as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
+        `Unmuting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
+        `Unmuting as ~owner requires owner credentials at ${OWNER_CONFIG}. ${ACTIVITY_HINT}`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[5],
+      [
+        `Changing a notification level as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
+        `Changing a notification level as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
+        `Changing a notification level as ~owner requires owner credentials at ${OWNER_CONFIG}. ${ACTIVITY_HINT}`,
+      ],
+    ],
   ])(
     'errors on `%s` instead of silently using bot credentials when provisioning is missing',
     async (command, texts) => {
@@ -610,7 +639,10 @@ describe('owner credential injection for invite-link and note publishing', () =>
   // An opt-out short-circuits before provisioning is consulted. The two
   // commands hit the two opt-out exits: the credential-override check and the
   // --self/help check.
-  it.each([`${OPT_OUT_BASE} --self`, `--ship=~other ${OPT_OUT_BASE}`])(
+  it.each([
+    'activity mute ~zod/book-club --self',
+    `--ship=~other ${OPT_OUT_BASE}`,
+  ])(
     'honors the opt-out in `%s` despite missing provisioning',
     async (command) => {
       for (const overrides of PROVISIONING_FAILURES) {
@@ -623,6 +655,31 @@ describe('owner credential injection for invite-link and note publishing', () =>
       }
     }
   );
+
+  it('never injects owner credentials for activity reads', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('read', { command: 'activity mentions --limit 5' });
+    await execute('read', { command: 'activity unreads' });
+
+    expect(runCommand).toHaveBeenCalledTimes(2);
+    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+      expect(args).not.toContain('--ship');
+    }
+  });
+
+  it('requires the op to belong to its own family', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('other', { command: 'notes invite-link ~zod/book-club' });
+    await execute('other', { command: 'contacts note-publish' });
+    await execute('other', { command: 'groups mute ~zod/book-club' });
+
+    expect(runCommand).toHaveBeenCalledTimes(3);
+    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+      expect(args).not.toContain('--ship');
+    }
+  });
 });
 
 describe('checkBlockedTlonOperation', () => {
@@ -817,7 +874,15 @@ describe('checkBlockedTlonOperation', () => {
 });
 
 const documentedActionOperations = {
-  activity: ['mentions', 'replies', 'all', 'unreads'],
+  activity: [
+    'mentions',
+    'replies',
+    'all',
+    'unreads',
+    'mute',
+    'unmute',
+    'volume',
+  ],
   browser: ['handoff', 'share'],
   buckets: [
     'list',
@@ -1271,6 +1336,26 @@ describe('tlon tool telemetry summarizer', () => {
     });
 
     expect(JSON.stringify(summary)).not.toContain('Project Notes');
+  });
+
+  it('classifies notification changes as writes without leaking targets', () => {
+    for (const operation of ['mute', 'unmute', 'volume']) {
+      const summary = summarizeTlonCommand(
+        `activity ${operation} ~zod/secret-group --self`
+      );
+
+      expect(summary).toMatchObject({
+        summaryKey: `activity.${operation}`,
+        operation,
+        intent: 'write',
+        isKnownSubcommand: true,
+      });
+      expect(JSON.stringify(summary)).not.toContain('secret-group');
+    }
+    expect(summarizeTlonCommand('activity unreads')).toMatchObject({
+      summaryKey: 'activity.unreads',
+      intent: 'read',
+    });
   });
 
   it('classifies post pins as channel admin operations', () => {

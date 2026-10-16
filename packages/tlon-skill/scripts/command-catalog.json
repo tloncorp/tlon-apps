@@ -1,8 +1,8 @@
 {
   "activity": {
-    "summary": "Mentions, replies, and unread activity",
+    "summary": "Mentions, replies, unreads, and notification levels",
     "reference": "references/reading.md",
-    "toolGuidance": "Read activity; results are bounded."
+    "toolGuidance": "Read activity; results are bounded. mute/unmute/volume change the owner's notification settings: change them only on request."
   },
   "browser": {
     "summary": "Hosted-browser sharing and secure form handoff",

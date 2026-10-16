@@ -1,6 +1,7 @@
 /**
  * CLI argument parsing utilities
  */
+import { valid } from '@urbit/aura';
 
 /**
  * Get an option value from command line args
@@ -133,6 +134,15 @@ export function parseNest(nest: string): {
     host: parts[1].startsWith('~') ? parts[1] : `~${parts[1]}`,
     name: parts[2],
   };
+}
+
+// Mirrors @tloncorp/api's whomIsFlag (value imports from @tloncorp/api are
+// forbidden in migrated command modules): ~ship/term with a valid patp ship.
+export function isGroupFlag(value: string): boolean {
+  return (
+    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(value) &&
+    valid('p', value.split('/')[0])
+  );
 }
 
 export function canonicalizeNest(nest: string): string {

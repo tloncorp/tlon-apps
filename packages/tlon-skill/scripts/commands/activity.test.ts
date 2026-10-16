@@ -1,12 +1,46 @@
+import type { VolumeMap, VolumeSettings } from '@tloncorp/api/urbit';
 import { describe, expect, it } from 'bun:test';
 
+import { volumeHelpers } from '../activity-runtime';
+import type { ChannelState } from '../channel-state-runtime';
+import { DIARY_REMOVED } from '../cli-utils';
 import {
+  ACTIVITY_COMMAND_HELP,
   ACTIVITY_HELP,
   type ActivityDeps,
   type ActivityEvent,
+  DM_THREAD_REFUSAL,
+  NOTES_VOLUME_REFUSAL,
+  type PokeOutcome,
+  type RootPost,
   run,
 } from './activity';
 import { commandError } from './command';
+
+// Volume deps that fail loudly: the read commands must never reach them.
+function unusedVolumeDeps(): Pick<
+  ActivityDeps,
+  | 'volumeApi'
+  | 'volume'
+  | 'isJoinedGroup'
+  | 'getChannelState'
+  | 'findRootPost'
+  | 'getCurrentUserId'
+  | 'sleep'
+> {
+  const unused = () => {
+    throw new Error('volume dependency used by a read command');
+  };
+  return {
+    volumeApi: { adjustVolumeSetting: unused, getVolumeSettings: unused },
+    volume: volumeHelpers,
+    isJoinedGroup: unused,
+    getChannelState: unused,
+    findRootPost: unused,
+    getCurrentUserId: unused,
+    sleep: unused,
+  };
+}
 
 function makeDeps(
   options: {
@@ -25,6 +59,7 @@ function makeDeps(
   };
 
   const deps: ActivityDeps = {
+    ...unusedVolumeDeps(),
     stdout: (text) => stdout.push(text),
     stderr: (text) => stderr.push(text),
     authenticate: async () => {
@@ -215,5 +250,1092 @@ describe('activity command run', () => {
       'unexpected failure'
     );
     expect(context.stderr()).toBe('');
+  });
+});
+
+// Fixtures with distinct identities: the acting ship, the group host, the
+// channel host and the thread's root author are all different ships.
+const ACTING = '~bus';
+const GROUP = '~zod/book-club';
+const NEST = 'chat/~nec/general';
+const AUTHOR = '~ten';
+const CLUB = '0v1f.abcde';
+const ROOT_ID = '170.141';
+
+// `getVolumeMap(level, true)` written out, independent of the function:
+// only reacts have unreads off.
+const LOUD: VolumeMap = {
+  post: { unreads: true, notify: true },
+  'post-mention': { unreads: true, notify: true },
+  reply: { unreads: true, notify: true },
+  'reply-mention': { unreads: true, notify: true },
+  react: { unreads: false, notify: true },
+  'dm-react': { unreads: false, notify: true },
+  'dm-invite': { unreads: true, notify: true },
+  'dm-post': { unreads: true, notify: true },
+  'dm-post-mention': { unreads: true, notify: true },
+  'dm-reply': { unreads: true, notify: true },
+  'dm-reply-mention': { unreads: true, notify: true },
+  'group-ask': { unreads: true, notify: true },
+  'group-join': { unreads: true, notify: true },
+  'group-kick': { unreads: true, notify: true },
+  'group-invite': { unreads: true, notify: true },
+  'group-role': { unreads: true, notify: true },
+  'flag-post': { unreads: true, notify: true },
+  'flag-reply': { unreads: true, notify: true },
+  'note-create': { unreads: true, notify: true },
+  'note-edit': { unreads: true, notify: true },
+};
+const MEDIUM: VolumeMap = {
+  post: { unreads: true, notify: true },
+  'post-mention': { unreads: true, notify: true },
+  reply: { unreads: true, notify: false },
+  'reply-mention': { unreads: true, notify: true },
+  react: { unreads: false, notify: true },
+  'dm-react': { unreads: false, notify: true },
+  'dm-invite': { unreads: true, notify: true },
+  'dm-post': { unreads: true, notify: true },
+  'dm-post-mention': { unreads: true, notify: true },
+  'dm-reply': { unreads: true, notify: true },
+  'dm-reply-mention': { unreads: true, notify: true },
+  'group-ask': { unreads: true, notify: true },
+  'group-join': { unreads: true, notify: false },
+  'group-kick': { unreads: true, notify: false },
+  'group-invite': { unreads: true, notify: true },
+  'group-role': { unreads: true, notify: false },
+  'flag-post': { unreads: true, notify: true },
+  'flag-reply': { unreads: true, notify: true },
+  'note-create': { unreads: true, notify: true },
+  'note-edit': { unreads: true, notify: true },
+};
+const SOFT: VolumeMap = {
+  post: { unreads: true, notify: false },
+  'post-mention': { unreads: true, notify: true },
+  reply: { unreads: true, notify: false },
+  'reply-mention': { unreads: true, notify: true },
+  react: { unreads: false, notify: false },
+  'dm-react': { unreads: false, notify: false },
+  'dm-invite': { unreads: true, notify: true },
+  'dm-post': { unreads: true, notify: true },
+  'dm-post-mention': { unreads: true, notify: true },
+  'dm-reply': { unreads: true, notify: true },
+  'dm-reply-mention': { unreads: true, notify: true },
+  'group-ask': { unreads: true, notify: true },
+  'group-join': { unreads: true, notify: false },
+  'group-kick': { unreads: true, notify: false },
+  'group-invite': { unreads: true, notify: true },
+  'group-role': { unreads: true, notify: false },
+  'flag-post': { unreads: true, notify: true },
+  'flag-reply': { unreads: true, notify: true },
+  'note-create': { unreads: true, notify: false },
+  'note-edit': { unreads: true, notify: false },
+};
+const HUSH: VolumeMap = {
+  post: { unreads: true, notify: false },
+  'post-mention': { unreads: true, notify: false },
+  reply: { unreads: true, notify: false },
+  'reply-mention': { unreads: true, notify: false },
+  react: { unreads: false, notify: false },
+  'dm-react': { unreads: false, notify: false },
+  'dm-invite': { unreads: true, notify: false },
+  'dm-post': { unreads: true, notify: false },
+  'dm-post-mention': { unreads: true, notify: false },
+  'dm-reply': { unreads: true, notify: false },
+  'dm-reply-mention': { unreads: true, notify: false },
+  'group-ask': { unreads: true, notify: false },
+  'group-join': { unreads: true, notify: false },
+  'group-kick': { unreads: true, notify: false },
+  'group-invite': { unreads: true, notify: false },
+  'group-role': { unreads: true, notify: false },
+  'flag-post': { unreads: true, notify: false },
+  'flag-reply': { unreads: true, notify: false },
+  'note-create': { unreads: true, notify: false },
+  'note-edit': { unreads: true, notify: false },
+};
+
+const CHANNEL_SOURCE = { channel: { nest: NEST, group: GROUP } };
+const THREAD_SOURCE = {
+  thread: {
+    channel: NEST,
+    group: GROUP,
+    key: { id: `${AUTHOR}/${ROOT_ID}`, time: ROOT_ID },
+  },
+};
+
+type Step<T> = T | Error | (() => Promise<T>);
+
+function sequence<T>(steps: Step<T>[]): () => Promise<T> {
+  let index = 0;
+  return async () => {
+    const step = steps[Math.min(index, steps.length - 1)];
+    index += 1;
+    if (step instanceof Error) throw step;
+    if (typeof step === 'function') return (step as () => Promise<T>)();
+    return step;
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+function makeVolumeContext(
+  options: {
+    groups?: string[] | Error;
+    channelStates?: Step<ChannelState>[];
+    roots?: Step<RootPost | null>[];
+    poke?: Step<PokeOutcome>;
+    // The stored settings before the command; the default store then applies
+    // each poke the way the desk does (merge a map, delete on null).
+    initial?: VolumeSettings;
+    applyPoke?: boolean;
+    // Replaces the store-backed read entirely.
+    reads?: Step<VolumeSettings>[];
+  } = {}
+) {
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  const store: VolumeSettings = structuredClone(options.initial ?? {});
+  const calls = {
+    authenticate: 0,
+    pokes: [] as Array<{ source: unknown; volume: VolumeMap | null }>,
+    reads: 0,
+    sleeps: [] as number[],
+    isJoinedGroup: [] as string[],
+    getChannelState: [] as string[],
+    findRootPost: [] as Array<[string, string]>,
+    order: [] as string[],
+  };
+  const nextChannelState = sequence<ChannelState>(
+    options.channelStates ?? [{ joined: true, groupId: GROUP, order: [] }]
+  );
+  const nextRoot = sequence<RootPost | null>(
+    options.roots ?? [{ id: ROOT_ID, authorId: AUTHOR, isDeleted: false }]
+  );
+  const nextPoke = sequence<PokeOutcome>([options.poke ?? { kind: 'acked' }]);
+  const nextRead = options.reads
+    ? sequence<VolumeSettings>(options.reads)
+    : async () => structuredClone(store);
+
+  const deps: ActivityDeps = {
+    ...unusedVolumeDeps(),
+    stdout: (text) => stdout.push(text),
+    stderr: (text) => stderr.push(text),
+    authenticate: async () => {
+      calls.authenticate += 1;
+      calls.order.push('authenticate');
+    },
+    activityApi: {
+      getInitialActivity: async () => ({ events: [] }),
+      getGroupAndChannelUnreads: async () => {
+        throw new Error('unused');
+      },
+    },
+    format: makeDeps().deps.format,
+    volumeApi: {
+      adjustVolumeSetting: async (source, volume) => {
+        calls.pokes.push({ source, volume });
+        calls.order.push('poke');
+        const outcome = await nextPoke();
+        calls.order.push('poke settled');
+        if (outcome.kind !== 'nacked' && options.applyPoke !== false) {
+          const key = volumeHelpers.sourceKey(source);
+          if (volume) {
+            store[key] = { ...(store[key] ?? {}), ...volume };
+          } else {
+            delete store[key];
+          }
+        }
+        return outcome;
+      },
+      getVolumeSettings: async () => {
+        calls.reads += 1;
+        calls.order.push('read');
+        return nextRead();
+      },
+    },
+    volume: volumeHelpers,
+    isJoinedGroup: async (flag) => {
+      calls.isJoinedGroup.push(flag);
+      if (options.groups instanceof Error) throw options.groups;
+      return (options.groups ?? [GROUP]).includes(flag);
+    },
+    getChannelState: async (nest) => {
+      calls.getChannelState.push(nest);
+      return nextChannelState();
+    },
+    findRootPost: async (nest, id) => {
+      calls.findRootPost.push([nest, id]);
+      return nextRoot();
+    },
+    getCurrentUserId: () => ACTING,
+    sleep: async (ms) => {
+      calls.sleeps.push(ms);
+    },
+  };
+
+  return {
+    deps,
+    calls,
+    store,
+    stdout: () => stdout.join(''),
+    stderr: () => stderr.join(''),
+  };
+}
+
+describe('activity mute / unmute / volume: payloads', () => {
+  const cases: Array<{
+    args: string[];
+    source: unknown;
+    volume: VolumeMap | null;
+  }> = [
+    { args: ['mute', AUTHOR], source: { dm: { ship: AUTHOR } }, volume: HUSH },
+    { args: ['mute', CLUB], source: { dm: { club: CLUB } }, volume: HUSH },
+    { args: ['mute', GROUP], source: { group: GROUP }, volume: SOFT },
+    { args: ['mute', NEST], source: CHANNEL_SOURCE, volume: HUSH },
+    { args: ['mute', NEST, ROOT_ID], source: THREAD_SOURCE, volume: SOFT },
+    {
+      args: ['unmute', AUTHOR],
+      source: { dm: { ship: AUTHOR } },
+      volume: null,
+    },
+    { args: ['unmute', GROUP], source: { group: GROUP }, volume: null },
+    { args: ['unmute', NEST], source: CHANNEL_SOURCE, volume: null },
+    { args: ['unmute', NEST, ROOT_ID], source: THREAD_SOURCE, volume: null },
+    {
+      args: ['volume', GROUP, 'default'],
+      source: { group: GROUP },
+      volume: null,
+    },
+    { args: ['volume', NEST, 'loud'], source: CHANNEL_SOURCE, volume: LOUD },
+    {
+      args: ['volume', NEST, 'medium'],
+      source: CHANNEL_SOURCE,
+      volume: MEDIUM,
+    },
+    { args: ['volume', NEST, 'soft'], source: CHANNEL_SOURCE, volume: SOFT },
+    { args: ['volume', NEST, 'hush'], source: CHANNEL_SOURCE, volume: HUSH },
+    {
+      args: ['volume', NEST, ROOT_ID, 'hush'],
+      source: THREAD_SOURCE,
+      volume: HUSH,
+    },
+    {
+      args: ['volume', AUTHOR, 'medium'],
+      source: { dm: { ship: AUTHOR } },
+      volume: MEDIUM,
+    },
+    {
+      args: ['volume', CLUB, 'hush'],
+      source: { dm: { club: CLUB } },
+      volume: HUSH,
+    },
+  ];
+
+  for (const testCase of cases) {
+    it(`${testCase.args.join(' ')} sends the app's exact source and map`, async () => {
+      const context = makeVolumeContext();
+
+      const exitCode = await run(testCase.args, context.deps);
+
+      expect(context.stderr()).toBe('');
+      expect(exitCode).toBe(0);
+      expect(context.calls.authenticate).toBe(1);
+      expect(context.calls.pokes).toEqual([
+        { source: testCase.source, volume: testCase.volume },
+      ]);
+      expect(context.stdout()).toStartWith('✓ ');
+    });
+  }
+
+  it('takes a channel group from the channel state, not the nest host', async () => {
+    const context = makeVolumeContext();
+
+    await run(['mute', NEST], context.deps);
+
+    expect(context.calls.getChannelState[0]).toBe(NEST);
+    const [{ source }] = context.calls.pokes;
+    expect(source).toEqual({
+      channel: { nest: NEST, group: '~zod/book-club' },
+    });
+  });
+
+  it('keys a thread by its root author, not the acting ship or channel host', async () => {
+    const context = makeVolumeContext();
+
+    await run(['mute', NEST, ROOT_ID], context.deps);
+
+    expect(context.calls.findRootPost[0]).toEqual([NEST, ROOT_ID]);
+    const [{ source }] = context.calls.pokes;
+    expect((source as typeof THREAD_SOURCE).thread.key.id.split('/')[0]).toBe(
+      '~ten'
+    );
+  });
+
+  it('mutes a DM with no prior conversation without any conversation lookup', async () => {
+    const context = makeVolumeContext();
+
+    const exitCode = await run(['mute', '~sampel-palnet'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.pokes).toEqual([
+      { source: { dm: { ship: '~sampel-palnet' } }, volume: HUSH },
+    ]);
+    expect(context.calls.isJoinedGroup).toEqual([]);
+    expect(context.calls.getChannelState).toEqual([]);
+    expect(context.calls.findRootPost).toEqual([]);
+    expect(context.stdout()).toStartWith(
+      '✓ Muted DM with ~sampel-palnet for ~bus\n'
+    );
+  });
+
+  it('accepts a comet and canonicalizes a channel host without ~', async () => {
+    const comet = '~dalnel-fadpun-lapdys-ronfet--hinlyn-dirnux-sidwet-ravlyx';
+    const dm = makeVolumeContext();
+    expect(await run(['mute', comet], dm.deps)).toBe(0);
+    expect(dm.calls.pokes[0].source).toEqual({ dm: { ship: comet } });
+
+    const channel = makeVolumeContext();
+    expect(await run(['mute', 'chat/nec/general'], channel.deps)).toBe(0);
+    expect(channel.calls.getChannelState[0]).toBe(NEST);
+    expect(channel.calls.pokes[0].source).toEqual(CHANNEL_SOURCE);
+  });
+
+  it('accepts an undotted root post id and sends it dotted', async () => {
+    const context = makeVolumeContext({
+      roots: [{ id: '170.141.184', authorId: AUTHOR, isDeleted: false }],
+    });
+
+    expect(await run(['mute', NEST, '170141184'], context.deps)).toBe(0);
+    expect(context.calls.findRootPost[0]).toEqual([NEST, '170.141.184']);
+    expect(context.calls.pokes[0].source).toEqual({
+      thread: {
+        channel: NEST,
+        group: GROUP,
+        key: { id: `${AUTHOR}/170.141.184`, time: '170.141.184' },
+      },
+    });
+  });
+
+  it('ignores --self before or after the target', async () => {
+    const plain = makeVolumeContext();
+    await run(['volume', NEST, 'soft'], plain.deps);
+
+    for (const args of [
+      ['volume', '--self', NEST, 'soft'],
+      ['volume', NEST, 'soft', '--self'],
+    ]) {
+      const context = makeVolumeContext();
+      expect(await run(args, context.deps)).toBe(0);
+      expect(context.calls.pokes).toEqual(plain.calls.pokes);
+      expect(context.stdout()).toBe(plain.stdout());
+    }
+  });
+});
+
+describe('activity mute / unmute / volume: resolution refusals', () => {
+  const cases: Array<{
+    name: string;
+    args: string[];
+    options: Parameters<typeof makeVolumeContext>[0];
+    message: string;
+  }> = [
+    {
+      name: 'unjoined group',
+      args: ['mute', GROUP],
+      options: { groups: [] },
+      message: `Group ${GROUP} is not joined on this ship; nothing changed.`,
+    },
+    {
+      name: 'group read error',
+      args: ['mute', GROUP],
+      options: { groups: new Error('scry 500') },
+      message: 'Could not read groups: scry 500; nothing changed.',
+    },
+    {
+      name: 'unjoined channel',
+      args: ['mute', NEST],
+      options: { channelStates: [{ joined: false }] },
+      message: `Channel ${NEST} is not joined on this ship; nothing changed.`,
+    },
+    {
+      name: 'channel read error',
+      args: ['mute', NEST, ROOT_ID],
+      options: { channelStates: [new Error('scry 500')] },
+      message: 'Could not read channels: scry 500; nothing changed.',
+    },
+    {
+      name: 'missing root post',
+      args: ['mute', NEST, ROOT_ID],
+      options: { roots: [null] },
+      message: `Could not find top-level post ${ROOT_ID} in ${NEST}; nothing changed. Threads are muted by their root post id.`,
+    },
+    {
+      name: 'deleted root post',
+      args: ['unmute', NEST, ROOT_ID],
+      options: {
+        roots: [{ id: ROOT_ID, authorId: AUTHOR, isDeleted: true }],
+      },
+      message: `Could not find top-level post ${ROOT_ID} in ${NEST}; nothing changed. Threads are muted by their root post id.`,
+    },
+    {
+      name: 'root read error',
+      args: ['mute', NEST, ROOT_ID],
+      options: { roots: [new Error('scry 404')] },
+      message: `Could not read ${NEST}: scry 404; nothing changed.`,
+    },
+  ];
+
+  for (const testCase of cases) {
+    it(`refuses an ${testCase.name} without poking`, async () => {
+      const context = makeVolumeContext(testCase.options);
+
+      const exitCode = await run(testCase.args, context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(`Error: ${testCase.message}\n`);
+      expect(context.calls.pokes).toEqual([]);
+      expect(context.calls.reads).toBe(0);
+    });
+  }
+});
+
+describe('activity mute / unmute / volume: poke outcome', () => {
+  it('reports a nack as a definitive failure without reading back', async () => {
+    const context = makeVolumeContext({
+      poke: { kind: 'nacked', message: 'bail: %activity crashed' },
+    });
+
+    const exitCode = await run(['mute', GROUP], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Could not mute group ${GROUP}: bail: %activity crashed\n`
+    );
+    expect(context.calls.reads).toBe(0);
+  });
+
+  it('names the level in a failed volume change', async () => {
+    const context = makeVolumeContext({
+      poke: { kind: 'nacked', message: 'nack' },
+    });
+
+    expect(await run(['volume', AUTHOR, 'default'], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Could not set DM with ${AUTHOR} to default: nack\n`
+    );
+  });
+
+  it('confirms an unacknowledged DM or group change the read-back verifies', async () => {
+    for (const args of [
+      ['mute', GROUP],
+      ['mute', AUTHOR],
+      ['unmute', NEST],
+    ]) {
+      const context = makeVolumeContext({
+        poke: { kind: 'ambiguous', message: 'Channel was reaped' },
+      });
+
+      expect(await run(args, context.deps)).toBe(0);
+      expect(context.stdout()).toStartWith('✓ ');
+      expect(context.stderr()).toBe('');
+    }
+  });
+
+  it('keeps an unacknowledged channel or thread change unconfirmed even when the key matches', async () => {
+    const message = 'Poke ack timed out after 30000ms';
+    const channel = makeVolumeContext({
+      poke: { kind: 'ambiguous', message },
+      // An older override for the same nest under a former group: same key.
+      initial: { [`channel/${NEST}`]: HUSH },
+      applyPoke: false,
+    });
+    expect(await run(['mute', NEST], channel.deps)).toBe(1);
+    expect(channel.stdout()).toBe('');
+    expect(channel.stderr()).toBe(
+      `Error: Mute of channel ${NEST} was sent but is not confirmed: the stored entry matches, but the poke was not acknowledged and the entry cannot be told apart from an older one for this channel under another group. Running the command again is safe. (poke error: ${message})\n`
+    );
+
+    const thread = makeVolumeContext({
+      poke: { kind: 'ambiguous', message },
+      // An older override for the same root id under another author.
+      initial: { [`thread/${NEST}/${ROOT_ID}`]: SOFT },
+      applyPoke: false,
+    });
+    expect(await run(['mute', NEST, ROOT_ID], thread.deps)).toBe(1);
+    expect(thread.stdout()).toBe('');
+    expect(thread.stderr()).toContain(
+      'cannot be told apart from an older one for this thread under another group or root author'
+    );
+    expect(thread.stderr()).not.toContain('Muted');
+  });
+
+  it('keeps an unacknowledged channel change unconfirmed when the poke error has no message', async () => {
+    // activity-runtime passes `error.message` through, so `new Error()` yields
+    // an ambiguous outcome with an empty message.
+    const context = makeVolumeContext({
+      poke: { kind: 'ambiguous', message: new Error().message },
+    });
+
+    expect(await run(['mute', NEST], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Mute of channel ${NEST} was sent but is not confirmed: the stored entry matches, but the poke was not acknowledged and the entry cannot be told apart from an older one for this channel under another group. Running the command again is safe.\n`
+    );
+    expect(context.stderr()).not.toContain('✓');
+  });
+
+  it('keeps an unacknowledged thread change unconfirmed when the poke error has no message', async () => {
+    const context = makeVolumeContext({
+      poke: { kind: 'ambiguous', message: new Error().message },
+    });
+
+    expect(await run(['mute', NEST, ROOT_ID], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Mute of thread ${ROOT_ID} in ${NEST} was sent but is not confirmed: the stored entry matches, but the poke was not acknowledged and the entry cannot be told apart from an older one for this thread under another group or root author. Running the command again is safe.\n`
+    );
+    expect(context.stderr()).not.toContain('✓');
+  });
+
+  it('reports an unacknowledged change that never shows up as unconfirmed with the poke error', async () => {
+    const context = makeVolumeContext({
+      poke: { kind: 'ambiguous', message: 'Poke ack timed out after 30000ms' },
+      applyPoke: false,
+    });
+
+    expect(await run(['mute', GROUP], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mute of group ${GROUP} was sent but is not confirmed: the stored setting is not set (follows the default). Running the command again is safe. (poke error: Poke ack timed out after 30000ms)\n`
+    );
+    expect(context.calls.reads).toBe(5);
+  });
+
+  it('starts reading back only after the poke settles', async () => {
+    const gate = deferred<PokeOutcome>();
+    const context = makeVolumeContext({ poke: () => gate.promise });
+
+    const running = run(['mute', GROUP], context.deps);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(context.calls.pokes).toHaveLength(1);
+    expect(context.calls.reads).toBe(0);
+
+    gate.resolve({ kind: 'acked' });
+    expect(await running).toBe(0);
+    expect(context.calls.order).toEqual([
+      'authenticate',
+      'poke',
+      'poke settled',
+      'read',
+    ]);
+  });
+});
+
+describe('activity mute / unmute / volume: read-back', () => {
+  it('prints nothing before the settings read resolves', async () => {
+    const gate = deferred<VolumeSettings>();
+    const context = makeVolumeContext({ reads: [() => gate.promise] });
+
+    const running = run(['mute', GROUP], context.deps);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(context.calls.reads).toBe(1);
+    expect(context.stdout()).toBe('');
+
+    gate.resolve({ [`group/${GROUP}`]: SOFT });
+    expect(await running).toBe(0);
+    expect(context.stdout()).toStartWith(`✓ Muted group ${GROUP}`);
+  });
+
+  it('confirms on the first read', async () => {
+    const context = makeVolumeContext();
+
+    expect(await run(['mute', GROUP], context.deps)).toBe(0);
+    expect(context.calls.reads).toBe(1);
+    expect(context.calls.sleeps).toEqual([]);
+  });
+
+  it('confirms on the third read after two stale ones', async () => {
+    const context = makeVolumeContext({
+      reads: [{}, {}, { [`group/${GROUP}`]: SOFT }],
+    });
+
+    expect(await run(['mute', GROUP], context.deps)).toBe(0);
+    expect(context.calls.reads).toBe(3);
+    expect(context.calls.sleeps).toEqual([500, 500]);
+  });
+
+  it('reports unconfirmed after five reads that never show the change', async () => {
+    const context = makeVolumeContext({ reads: [{}] });
+
+    expect(await run(['volume', GROUP, 'hush'], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Setting group ${GROUP} to hush was sent but is not confirmed: the stored setting is not set (follows the default). Running the command again is safe.\n`
+    );
+    expect(context.calls.reads).toBe(5);
+    expect(context.calls.sleeps).toEqual([500, 500, 500, 500]);
+  });
+
+  it('reports an unreadable setting with the last read error', async () => {
+    const context = makeVolumeContext({ reads: [new Error('scry 500')] });
+
+    expect(await run(['mute', AUTHOR], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mute of DM with ${AUTHOR} was sent but is not confirmed: the stored setting is unreadable. Running the command again is safe. (last read error: scry 500)\n`
+    );
+  });
+
+  it('reports the inferred level when another level is stored', async () => {
+    const context = makeVolumeContext({
+      reads: [{ [`group/${GROUP}`]: LOUD }],
+    });
+
+    expect(await run(['mute', GROUP], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mute of group ${GROUP} was sent but is not confirmed: the stored setting is loud. Running the command again is safe.\n`
+    );
+  });
+
+  it('does not confirm a map that differs only in unreads', async () => {
+    const stored = structuredClone(SOFT);
+    stored.post = { unreads: false, notify: false };
+    const context = makeVolumeContext({
+      reads: [{ [`group/${GROUP}`]: stored }],
+    });
+
+    expect(await run(['volume', GROUP, 'soft'], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Setting group ${GROUP} to soft was sent but is not confirmed: the stored setting is soft but differs from the requested entries: post (stored notify false, unreads false; sent notify false, unreads true). Running the command again is safe.\n`
+    );
+  });
+
+  it('does not confirm a map missing only note-edit', async () => {
+    const stored = structuredClone(SOFT);
+    delete stored['note-edit'];
+    const context = makeVolumeContext({
+      reads: [{ [`group/${GROUP}`]: stored }],
+    });
+
+    expect(await run(['mute', GROUP], context.deps)).toBe(1);
+    expect(context.stderr()).toContain(
+      'the stored setting is soft but differs from the requested entries: note-edit (missing).'
+    );
+  });
+
+  it('confirms an unset when the key is absent and not while it remains', async () => {
+    const cleared = makeVolumeContext({
+      initial: { [`ship/${AUTHOR}`]: HUSH },
+    });
+    expect(await run(['unmute', AUTHOR], cleared.deps)).toBe(0);
+    expect(cleared.store[`ship/${AUTHOR}`]).toBeUndefined();
+
+    const remaining = makeVolumeContext({
+      initial: { [`ship/${AUTHOR}`]: HUSH },
+      applyPoke: false,
+    });
+    expect(await run(['unmute', AUTHOR], remaining.deps)).toBe(1);
+    expect(remaining.stderr()).toBe(
+      `Error: Unmute of DM with ${AUTHOR} was sent but is not confirmed: the stored setting is still hush. Running the command again is safe.\n`
+    );
+  });
+
+  it('confirms an acked channel clear while an older entry for the nest remains under the key', async () => {
+    // The desk keys channels by nest alone, so an older override for the same
+    // nest under a former group survives the acked delete.
+    const context = makeVolumeContext({
+      initial: { [`group/${GROUP}`]: SOFT, [`channel/${NEST}`]: HUSH },
+      applyPoke: false,
+    });
+
+    expect(await run(['unmute', NEST], context.deps)).toBe(0);
+    expect(context.stderr()).toBe('');
+    expect(context.stdout()).toBe(
+      [
+        `✓ Unmuted channel ${NEST} for ${ACTING}`,
+        '  Level: default (follows Use group default: soft (Mentions and replies))',
+        '  In the app: Channel options → Channel notifications',
+        '',
+      ].join('\n')
+    );
+    expect(context.stdout()).not.toContain('still');
+    expect(context.calls.reads).toBe(1);
+    expect(context.calls.sleeps).toEqual([]);
+    expect(context.calls.getChannelState).toEqual([NEST, NEST]);
+  });
+
+  it('confirms an acked thread clear while an older entry for the root id remains under the key', async () => {
+    const context = makeVolumeContext({
+      initial: {
+        [`channel/${NEST}`]: MEDIUM,
+        [`thread/${NEST}/${ROOT_ID}`]: SOFT,
+      },
+      applyPoke: false,
+    });
+
+    expect(await run(['volume', NEST, ROOT_ID, 'default'], context.deps)).toBe(
+      0
+    );
+    expect(context.stderr()).toBe('');
+    expect(context.stdout()).toStartWith(
+      `✓ Set thread ${ROOT_ID} in ${NEST} to default for ${ACTING}\n`
+    );
+    expect(context.stdout()).toContain(
+      '  Level: default (follows Use channel default: medium ('
+    );
+    expect(context.stdout()).not.toContain('still');
+    expect(context.calls.reads).toBe(1);
+    expect(context.calls.sleeps).toEqual([]);
+    expect(context.calls.findRootPost).toEqual([
+      [NEST, ROOT_ID],
+      [NEST, ROOT_ID],
+    ]);
+  });
+
+  it('keeps an acked DM clear unconfirmed while the entry remains', async () => {
+    const context = makeVolumeContext({
+      initial: { [`ship/${AUTHOR}`]: HUSH },
+      applyPoke: false,
+    });
+
+    expect(await run(['unmute', AUTHOR], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Unmute of DM with ${AUTHOR} was sent but is not confirmed: the stored setting is still hush. Running the command again is safe.\n`
+    );
+    expect(context.calls.reads).toBe(5);
+  });
+
+  it('keeps an unacknowledged channel clear unconfirmed while the entry remains', async () => {
+    const message = 'Poke ack timed out after 30000ms';
+    const context = makeVolumeContext({
+      poke: { kind: 'ambiguous', message },
+      initial: { [`channel/${NEST}`]: HUSH },
+      applyPoke: false,
+    });
+
+    expect(await run(['unmute', NEST], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Unmute of channel ${NEST} was sent but is not confirmed: the stored setting is still hush. Running the command again is safe. (poke error: ${message})\n`
+    );
+    expect(context.calls.reads).toBe(5);
+  });
+
+  it('confirms every requested entry even when a legacy entry changes the inferred level', async () => {
+    const context = makeVolumeContext({
+      initial: {
+        [`group/${GROUP}`]: { contact: { unreads: false, notify: false } },
+      },
+    });
+
+    expect(await run(['volume', GROUP, 'loud'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      [
+        `✓ Set group ${GROUP} to loud for ${ACTING}`,
+        '  Level: soft (Mentions and replies)',
+        '  Note: The stored map infers soft because it also contains legacy entries; all requested entries were verified.',
+        '  In the app: Group options → Group notifications',
+        '',
+      ].join('\n')
+    );
+  });
+});
+
+describe('activity mute / unmute / volume: identity re-read', () => {
+  const joined = (groupId: string): ChannelState => ({
+    joined: true,
+    groupId,
+    order: [],
+  });
+  const root = (authorId: string, isDeleted = false): RootPost => ({
+    id: ROOT_ID,
+    authorId,
+    isDeleted,
+  });
+
+  const cases: Array<{
+    name: string;
+    args: string[];
+    options: Parameters<typeof makeVolumeContext>[0];
+    reason: string;
+  }> = [
+    {
+      name: "the channel's group changed",
+      args: ['mute', NEST],
+      options: { channelStates: [joined(GROUP), joined('~zod/other')] },
+      reason: `the channel's group changed from ${GROUP} to ~zod/other while the setting was applied, so it may not take effect`,
+    },
+    {
+      name: 'the channel is no longer joined',
+      args: ['mute', NEST],
+      options: { channelStates: [joined(GROUP), { joined: false }] },
+      reason: `${NEST} is no longer joined`,
+    },
+    {
+      name: 'the channel re-read fails',
+      args: ['unmute', NEST],
+      options: { channelStates: [joined(GROUP), new Error('scry 500')] },
+      reason: 'the channel could not be re-read (scry 500)',
+    },
+    {
+      name: "the root post's author changed",
+      args: ['mute', NEST, ROOT_ID],
+      options: { roots: [root(AUTHOR), root('~nec')] },
+      reason: `the root post's author changed from ${AUTHOR} to ~nec while the setting was applied, so it may not take effect`,
+    },
+    {
+      name: 'the root post was deleted',
+      args: ['mute', NEST, ROOT_ID],
+      options: { roots: [root(AUTHOR), root(AUTHOR, true)] },
+      reason: `root post ${ROOT_ID} is no longer found`,
+    },
+    {
+      name: 'the root post re-read fails',
+      args: ['mute', NEST, ROOT_ID],
+      options: { roots: [root(AUTHOR), new Error('scry 404')] },
+      reason: 'the root post could not be re-read (scry 404)',
+    },
+  ];
+
+  for (const testCase of cases) {
+    it(`reports unconfirmed when ${testCase.name}`, async () => {
+      const context = makeVolumeContext(testCase.options);
+
+      expect(await run(testCase.args, context.deps)).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toEndWith(
+        `was sent but is not confirmed: ${testCase.reason}. Running the command again is safe.\n`
+      );
+      // The map matched on the first read; a changed identity is final.
+      expect(context.calls.reads).toBe(1);
+      expect(context.calls.sleeps).toEqual([]);
+    });
+  }
+
+  it('confirms after re-reading an unchanged channel and root', async () => {
+    const context = makeVolumeContext();
+
+    expect(await run(['mute', NEST, ROOT_ID], context.deps)).toBe(0);
+    expect(context.calls.getChannelState).toEqual([NEST, NEST]);
+    expect(context.calls.findRootPost).toEqual([
+      [NEST, ROOT_ID],
+      [NEST, ROOT_ID],
+    ]);
+  });
+});
+
+describe('activity mute / unmute / volume: output', () => {
+  it('prints a muted group', async () => {
+    const context = makeVolumeContext();
+
+    expect(await run(['mute', GROUP], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      [
+        `✓ Muted group ${GROUP} for ${ACTING}`,
+        '  Level: soft (Mentions and replies)',
+        '  In the app: Group options → Group notifications',
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('prints a muted DM', async () => {
+    const context = makeVolumeContext();
+
+    expect(await run(['mute', AUTHOR], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      [
+        `✓ Muted DM with ${AUTHOR} for ${ACTING}`,
+        '  Level: hush (No notifications)',
+        '  In the app: Chat options → Chat notifications',
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('prints an unmuted channel with the group level it now follows', async () => {
+    const context = makeVolumeContext({
+      initial: { [`group/${GROUP}`]: SOFT, [`channel/${NEST}`]: HUSH },
+    });
+
+    expect(await run(['unmute', NEST], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      [
+        `✓ Unmuted channel ${NEST} for ${ACTING}`,
+        '  Level: default (follows Use group default: soft (Mentions and replies))',
+        '  In the app: Channel options → Channel notifications',
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('prints a muted thread', async () => {
+    const context = makeVolumeContext();
+
+    expect(await run(['mute', NEST, ROOT_ID], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      [
+        `✓ Muted thread ${ROOT_ID} in ${NEST} for ${ACTING}`,
+        '  Level: soft (Mentions and replies)',
+        "  In the app: the root post's message menu → Mute thread / Unmute thread (shown once the post has replies)",
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('prints medium without the app enum padding', async () => {
+    const context = makeVolumeContext();
+
+    expect(await run(['volume', AUTHOR, 'medium'], context.deps)).toBe(0);
+    expect(context.stdout()).toContain('  Level: medium (All posts)\n');
+  });
+});
+
+describe('activity mute / unmute / volume: arguments', () => {
+  const channelHint =
+    '(expected chat/~host/channel-slug or heap/~host/channel-slug)';
+  const usageCases: Array<{ args: string[]; message: string | null }> = [
+    {
+      args: ['mute', '~foo'],
+      message: 'Invalid ship: ~foo (expected a ship such as ~sampel-palnet)',
+    },
+    {
+      args: ['mute', '~ZOD'],
+      message: 'Invalid ship: ~ZOD (expected a ship such as ~sampel-palnet)',
+    },
+    {
+      args: ['mute', '0v4.abc'],
+      message:
+        'Invalid group-DM id: 0v4.abc (expected a 0v... id such as 0v1f.abcde)',
+    },
+    {
+      args: ['mute', '~h/g'],
+      message: 'Invalid group id: ~h/g (expected ~host/group-slug)',
+    },
+    {
+      args: ['mute', '~zod/'],
+      message: 'Invalid group id: ~zod/ (expected ~host/group-slug)',
+    },
+    {
+      args: ['mute', 'chat//general'],
+      message: `Invalid channel: chat//general ${channelHint}`,
+    },
+    {
+      args: ['mute', 'chat/~zod/General'],
+      message: `Invalid channel: chat/~zod/General ${channelHint}`,
+    },
+    {
+      args: ['mute', 'chat/~foo/general'],
+      message: `Invalid channel: chat/~foo/general ${channelHint}`,
+    },
+    {
+      args: ['mute', 'pond/~zod/x'],
+      message: 'Unsupported channel kind: pond. Use chat/ or heap/',
+    },
+    ...['a/b/c/d', 'zod'].map((target) => ({
+      args: ['mute', target],
+      message: `Unrecognized target: ${target}. Use ~ship, a group-DM id (0v...), ~host/group, chat/~host/name or heap/~host/name, or a channel and a post id for a thread`,
+    })),
+    ...['.', '1..2', '0170', '170.1', '~ten/170.141', '1e3'].map((id) => ({
+      args: ['mute', NEST, id],
+      message: `Invalid post id: ${id} (expected a numeric post id such as 170.141.184.507)`,
+    })),
+    {
+      args: ['volume', NEST, 'LOUD'],
+      message: 'Unknown level: LOUD. Levels: loud, medium, soft, hush, default',
+    },
+    {
+      args: ['volume', AUTHOR, 'loud'],
+      message:
+        'DMs take medium, hush or default (the app offers only these for DMs)',
+    },
+    {
+      args: ['volume', CLUB, 'soft'],
+      message:
+        'DMs take medium, hush or default (the app offers only these for DMs)',
+    },
+    {
+      args: ['mute', GROUP, ROOT_ID],
+      message: 'A thread needs a channel (chat/~host/name), not a group id',
+    },
+    { args: ['mute', GROUP, '--force'], message: 'Unknown option: --force' },
+    {
+      args: ['mute', NEST, ROOT_ID, 'extra'],
+      message: 'Unexpected argument: extra',
+    },
+    {
+      args: ['volume', NEST, ROOT_ID, 'soft', 'extra'],
+      message: 'Unexpected argument: extra',
+    },
+    { args: ['mute'], message: null },
+    { args: ['unmute', '--self'], message: null },
+    { args: ['volume', GROUP], message: null },
+  ];
+
+  for (const testCase of usageCases) {
+    it(`rejects ${testCase.args.join(' ')} before authenticating`, async () => {
+      const context = makeVolumeContext();
+      const command = testCase.args[0] as keyof typeof ACTIVITY_COMMAND_HELP;
+
+      expect(await run(testCase.args, context.deps)).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(
+        testCase.message === null
+          ? `${ACTIVITY_COMMAND_HELP[command]}\n`
+          : `Error: ${testCase.message}\n\n${ACTIVITY_COMMAND_HELP[command]}\n`
+      );
+      expect(context.calls.authenticate).toBe(0);
+      expect(context.calls.pokes).toEqual([]);
+    });
+  }
+
+  const refusals: Array<{ args: string[]; message: string }> = [
+    { args: ['mute', 'notes/~zod/blog'], message: NOTES_VOLUME_REFUSAL },
+    {
+      args: ['volume', 'notes/~zod/blog', 'soft'],
+      message: NOTES_VOLUME_REFUSAL,
+    },
+    { args: ['mute', 'diary/~zod/blog'], message: DIARY_REMOVED },
+    { args: ['mute', AUTHOR, ROOT_ID], message: DM_THREAD_REFUSAL },
+    { args: ['unmute', CLUB, ROOT_ID], message: DM_THREAD_REFUSAL },
+  ];
+
+  for (const testCase of refusals) {
+    it(`refuses ${testCase.args.join(' ')} locally`, async () => {
+      const context = makeVolumeContext();
+
+      expect(await run(testCase.args, context.deps)).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(`Error: ${testCase.message}\n`);
+      expect(context.calls.authenticate).toBe(0);
+    });
+  }
+
+  it('prints per-command help without authenticating', async () => {
+    for (const command of ['mute', 'unmute', 'volume'] as const) {
+      for (const args of [
+        [command, '--help'],
+        [command, NEST, '-h'],
+      ]) {
+        const context = makeVolumeContext();
+        expect(await run(args, context.deps)).toBe(0);
+        expect(context.stdout()).toBe(`${ACTIVITY_COMMAND_HELP[command]}\n`);
+        expect(context.calls.authenticate).toBe(0);
+      }
+    }
+  });
+
+  it('keeps help free of harness names', () => {
+    for (const help of [
+      ACTIVITY_HELP,
+      ...Object.values(ACTIVITY_COMMAND_HELP),
+    ]) {
+      expect(help).not.toContain('OpenClaw');
+    }
   });
 });

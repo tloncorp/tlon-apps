@@ -4,6 +4,7 @@ import {
   botProfileFlagIndex,
   parseBotProfileFlags,
 } from '../bot-profile-flags';
+import type { ChannelState } from '../channel-state-runtime';
 import {
   DIARY_REMOVED,
   NOTES_CHANNEL_CONTENT_UNSUPPORTED,
@@ -233,10 +234,8 @@ export interface ReplyDeleteInput {
   authorId: string;
 }
 
-// Discriminated so a joined channel always carries its group.
-export type ChannelState =
-  | { joined: false }
-  | { joined: true; groupId: string; order: string[] };
+// Re-exported for callers that typed channel reads against this module.
+export type { ChannelState };
 
 export interface PostsApi {
   addReaction: (input: PostReactionInput) => Promise<void>;

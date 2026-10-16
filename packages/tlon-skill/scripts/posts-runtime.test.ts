@@ -111,39 +111,6 @@ describe('createPostsDeps().postsApi.getPostWithReplies', () => {
   });
 });
 
-describe('createPostsDeps().getChannelState', () => {
-  it('reads the order and group of a joined channel from /v5/channels', async () => {
-    const received: unknown[] = [];
-    mockedScry.impl = async (...args: unknown[]) => {
-      received.push(args[0]);
-      return {
-        'chat/~host/channel': {
-          perms: { group: '~host/group', writers: [] },
-          order: ['170141184507'],
-          view: 'list',
-          sort: 'time',
-          pending: { posts: {}, replies: {} },
-          meta: null,
-        },
-      };
-    };
-    const deps = createPostsDeps();
-
-    expect(await deps.getChannelState('chat/~host/channel')).toEqual({
-      joined: true,
-      groupId: '~host/group',
-      order: ['170141184507'],
-    });
-    expect(await deps.getChannelState('chat/~host/other')).toEqual({
-      joined: false,
-    });
-    expect(received).toEqual([
-      { app: 'channels', path: '/v5/channels' },
-      { app: 'channels', path: '/v5/channels' },
-    ]);
-  });
-});
-
 describe('createPostsDeps().contentKeyOf', () => {
   it('matches the read-back projection of the same story in another key order', async () => {
     const story = markdownToStory('![cat](https://x.test/cat.png)');
