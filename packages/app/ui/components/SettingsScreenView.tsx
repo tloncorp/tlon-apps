@@ -31,6 +31,12 @@ interface Props {
    */
   onScheduledTasksPressed?: () => void;
   scheduledTaskCount?: number;
+  /**
+   * Opens the bot's prompt files. Like the scheduled tasks, they come from
+   * the ship rather than hosting, so they stay in reach where the bot's own
+   * card is not shown.
+   */
+  onPromptFilesPressed?: () => void;
   onThemePressed?: () => void;
   onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
@@ -69,12 +75,11 @@ const botSettingsRouteNames = new Set([
   'BotChannelRuleSettings',
   'BotPermissionsSettings',
   'BotIdentitySettings',
-  'BotPromptFiles',
-  'BotPromptFile',
   'BotProviderListSettings',
   'BotModels',
-  'BotConnections',
 ]);
+
+const promptFileRouteNames = new Set(['BotPromptFiles', 'BotPromptFile']);
 
 export function SettingsScreenView(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
@@ -119,6 +124,7 @@ function useSettingsSections(
     onBotSettingsPressed,
     onScheduledTasksPressed,
     scheduledTaskCount,
+    onPromptFilesPressed,
   } = props;
 
   return useMemo(() => {
@@ -206,6 +212,18 @@ function useSettingsSections(
         isFocused:
           focusedRouteName !== undefined &&
           scheduledTaskRouteNames.has(focusedRouteName),
+      });
+    }
+    if (botEnabled && onPromptFilesPressed && !botSections) {
+      botLinkRows.push({
+        key: 'prompt-files',
+        title: 'Prompt files',
+        leading: { kind: 'icon', icon: 'ChannelNote' },
+        onPress: onPromptFilesPressed,
+        testID: 'SettingsPromptFilesRow',
+        isFocused:
+          focusedRouteName !== undefined &&
+          promptFileRouteNames.has(focusedRouteName),
       });
     }
 
@@ -305,6 +323,7 @@ function useSettingsSections(
     focusedRouteName,
     onBotSettingsPressed,
     onLogoutPressed,
+    onPromptFilesPressed,
     onScheduledTasksPressed,
     scheduledTaskCount,
     profileName,

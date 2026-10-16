@@ -486,7 +486,7 @@ test('createChannel rejects a Bucket in a Moon-hosted group before poking Gall',
       channelType: 'buckets',
     })
   ).rejects.toThrow(
-    'Buckets are currently available only in groups hosted on Tlon.'
+    'Buckets are currently available only in workspaces hosted on Tlon.'
   );
 
   expect(sendBucketsAction).not.toHaveBeenCalled();
@@ -510,7 +510,7 @@ test('createChannel rejects a Bucket when our own node is self-hosted', async ()
       channelType: 'buckets',
     })
   ).rejects.toThrow(
-    'Buckets are currently available only in groups hosted on Tlon.'
+    'Buckets are currently available only in workspaces hosted on Tlon.'
   );
 
   expect(sendBucketsAction).not.toHaveBeenCalled();

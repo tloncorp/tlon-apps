@@ -429,6 +429,7 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+    [%x %v1 %bots ~]        ``steward-bots-1+!>(bots.state)
     [%x %v1 %lens *]        (le-peek:le-core [%v1 t.t.t.path])
     [%x %v1 %gateway *]     (ga-peek:ga-core [%v1 t.t.t.path])
     [%x %v1 %automation *]  (au-peek:au-core [%v1 t.t.t.path])

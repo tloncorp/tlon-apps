@@ -3,6 +3,7 @@ import * as store from '@tloncorp/shared/store';
 import { useEffect, useMemo, useState } from 'react';
 
 import type { RootStackParamList } from '../../navigation/types';
+import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 import {
   ScreenHeader,
   ScreenScrollView,
@@ -43,6 +44,10 @@ export function ContextLensRunScreen(props: Props) {
     [runQuery.data]
   );
   const loading = runQuery.isLoading || (resolving && !lens);
+  // The copy row sits above the scroll view, so it clears the floating header
+  // itself. Only the lens branch mounts the scroll view that makes the header
+  // float; the empty state leaves it opaque, with content already beneath it.
+  const headerClearance = useFloatingHeaderHeight(lens != null);
 
   const handlePressMessage = useLensMessageNavigation(botShip);
 
@@ -60,6 +65,7 @@ export function ContextLensRunScreen(props: Props) {
       {runQuery.data?.payload != null ? (
         <XStack
           justifyContent="flex-end"
+          marginTop={headerClearance}
           paddingHorizontal="$l"
           paddingTop="$l"
         >

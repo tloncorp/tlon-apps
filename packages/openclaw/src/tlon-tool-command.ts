@@ -71,7 +71,18 @@ const UNKNOWN_SUBCOMMAND = 'unknown';
 const INVALID_OPERATION = 'invalid';
 
 const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
-  ['activity', new Set(['mentions', 'replies', 'all', 'unreads'])],
+  [
+    'activity',
+    new Set([
+      'mentions',
+      'replies',
+      'all',
+      'unreads',
+      'mute',
+      'unmute',
+      'volume',
+    ]),
+  ],
   ['browser', new Set(['handoff', 'share'])],
   [
     'buckets',
@@ -170,6 +181,11 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'promote',
       'demote',
       'add-channel',
+      'add-section',
+      'rename-section',
+      'delete-section',
+      'move-channel',
+      'order-sections',
     ]),
   ],
   [
@@ -224,7 +240,19 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'notebook-delete',
     ]),
   ],
-  ['posts', new Set(['send', 'reply', 'react', 'unreact', 'edit', 'delete'])],
+  [
+    'posts',
+    new Set([
+      'send',
+      'reply',
+      'react',
+      'unreact',
+      'edit',
+      'delete',
+      'pin',
+      'unpin',
+    ]),
+  ],
   [
     'settings',
     new Set([
@@ -455,40 +483,67 @@ export function checkBlockedTlonOperation(
 
 const HELP_TOKENS = new Set(['-h', '--help']);
 
-type OwnerCredentialCommand = 'invite-link' | 'note-publish' | 'note-unpublish';
+// Keyed `<family> <op>` so the same op name in two families cannot collide.
+type OwnerCredentialCommand =
+  | 'groups invite-link'
+  | 'notes note-publish'
+  | 'notes note-unpublish'
+  | 'activity mute'
+  | 'activity unmute'
+  | 'activity volume';
 
-const OWNER_CREDENTIAL_COMMANDS = new Map<string, OwnerCredentialCommand[]>([
+const OWNER_CREDENTIAL_COMMANDS = new Map<string, readonly string[]>([
   ['groups', ['invite-link']],
   ['notes', ['note-publish', 'note-unpublish']],
+  ['activity', ['mute', 'unmute', 'volume']],
 ]);
+
+const NOTIFICATION_SELF_HINT =
+  "Add --self to change this bot's own notification settings instead.";
 
 const OWNER_CREDENTIAL_WORDING: Record<
   OwnerCredentialCommand,
   { noOwner: string; asShip: string; selfHint: string }
 > = {
-  'invite-link': {
+  'groups invite-link': {
     noOwner: "Retrieving the owner's invite link",
     asShip: 'Retrieving the invite link as',
     selfHint: "Add --self to retrieve this bot's own invite link instead.",
   },
-  'note-publish': {
+  'notes note-publish': {
     noOwner: 'Publishing a note as the owner',
     asShip: 'Publishing a note as',
     selfHint: "Add --self to publish from this bot's own ship instead.",
   },
-  'note-unpublish': {
+  'notes note-unpublish': {
     noOwner: 'Unpublishing a note as the owner',
     asShip: 'Unpublishing a note as',
     selfHint: "Add --self to unpublish from this bot's own ship instead.",
+  },
+  'activity mute': {
+    noOwner: 'Muting as the owner',
+    asShip: 'Muting as',
+    selfHint: NOTIFICATION_SELF_HINT,
+  },
+  'activity unmute': {
+    noOwner: 'Unmuting as the owner',
+    asShip: 'Unmuting as',
+    selfHint: NOTIFICATION_SELF_HINT,
+  },
+  'activity volume': {
+    noOwner: 'Changing a notification level as the owner',
+    asShip: 'Changing a notification level as',
+    selfHint: NOTIFICATION_SELF_HINT,
   },
 };
 
 /**
  * The shared owner-injection predicate (the Hermes adapter implements the same
  * truth table for `groups invite-link` only): a bare `groups invite-link`,
- * `notes note-publish` or `notes note-unpublish`, with no credential flag in
- * either form, no `--self`, and no help token. Any other command keeps the
- * credential selection it was given, exactly as the model wrote it.
+ * `notes note-publish`, `notes note-unpublish` or `activity mute|unmute|volume`,
+ * with no credential flag in either form, no `--self`, and no help token. Any
+ * other command keeps the credential selection it was given, exactly as the
+ * model wrote it.
  */
 function ownerCredentialCommand(args: string[]): OwnerCredentialCommand | null {
   if (hasCredentialOverride(args)) return null;
@@ -496,10 +551,10 @@ function ownerCredentialCommand(args: string[]): OwnerCredentialCommand | null {
   const subIdx = findTlonSubcommandIndex(args);
   if (subIdx < 0) return null;
   const commandArgs = args.slice(subIdx);
-  const operation = OWNER_CREDENTIAL_COMMANDS.get(
-    commandArgs[0]?.toLowerCase() ?? ''
-  )?.find((command) => command === commandArgs[1]?.toLowerCase());
-  if (!operation) return null;
+  const family = commandArgs[0]?.toLowerCase() ?? '';
+  const op = commandArgs[1]?.toLowerCase() ?? '';
+  if (!OWNER_CREDENTIAL_COMMANDS.get(family)?.includes(op)) return null;
+  const operation = `${family} ${op}` as OwnerCredentialCommand;
 
   return commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg))
     ? null
@@ -772,7 +827,12 @@ function summarizeKnownTlonCommand(
 
   switch (subcommand) {
     case 'activity':
-      return build('read');
+      // mute/unmute/volume change only the acting ship's own preferences.
+      return build(
+        operation === 'mute' || operation === 'unmute' || operation === 'volume'
+          ? 'write'
+          : 'read'
+      );
     case 'browser':
       return build('write');
     case 'buckets':
@@ -1313,6 +1373,9 @@ function summarizePostsOperation(
         hasImage: hasFlag(args, '--image'),
         hasContent: hasFlag(args, '--content'),
       });
+    case 'pin':
+    case 'unpin':
+      return build('admin', { channelKind });
     default:
       return build('write', { channelKind });
   }

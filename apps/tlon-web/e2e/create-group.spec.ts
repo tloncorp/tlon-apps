@@ -28,7 +28,7 @@ async function testGroupCreation({
 
   // Quick groups show welcome message, template groups don't
   if (hasWelcomeMessage) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible({
+    await expect(page.getByText('Welcome to your workspace!')).toBeVisible({
       timeout: 5000,
     });
   } else {
@@ -55,7 +55,7 @@ async function testGroupCreation({
   await helpers.openGroupSettings(page);
   await helpers.deleteGroup(
     page,
-    expectedTitle !== 'Untitled group' ? expectedTitle : undefined
+    expectedTitle !== 'Untitled workspace' ? expectedTitle : undefined
   );
 
   await expect(page.getByText('Home')).toBeVisible();
@@ -68,7 +68,7 @@ test('should create a quick group with default single channel', async ({
   await testGroupCreation({
     page: zodPage,
     groupType: 'quick',
-    expectedTitle: 'Untitled group',
+    expectedTitle: 'Untitled workspace',
     expectedChannels: [{ title: 'General', type: 'chat' }],
     hasWelcomeMessage: true,
   });

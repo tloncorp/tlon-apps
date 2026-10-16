@@ -85,3 +85,21 @@ test('parallel journeys cannot share fixture names or search queries', () => {
     journeys.length
   );
 });
+
+test('the encoded fixture title survives the create-group deep link', () => {
+  for (const journey of journeys) {
+    for (const runTag of ['r123456789abc', 'r123456789abcdefghijklmnop']) {
+      const { group, groupEncoded } = fixture(
+        journey,
+        runTag,
+        1_800_000_000_000
+      );
+      const link = new URL(
+        'io.tlon.groups://e2e/group?op=create-template&template=basic-group&title=' +
+          groupEncoded
+      );
+      assert.equal(link.searchParams.get('title'), group, journey);
+      assert.equal(decodeURIComponent(groupEncoded), group, journey);
+    }
+  }
+});
