@@ -28,4 +28,4 @@ To share a group, post, or note as a card, follow the reference rules in the ski
 {"command":"activity volume chat/~host/channel soft"}
 ```
 
-OpenClaw runs these as the configured owner unless `--self` or explicit credential flags are supplied, so they change the owner's notifications as seen in the owner's app. Change notifications only when asked. A thread is addressed by its channel and root post id. Report the level the command prints; if it says the change is not confirmed, say so instead of claiming success.
+Under the OpenClaw harness these run as the owner unless `--self` is given, changing the owner's notifications as seen in the owner's app; other harnesses run them as the current account (see the tool description). Change notifications only when asked. A thread is addressed by its channel and root post id. Report the level the command prints; if it says the change is not confirmed, say so instead of claiming success.

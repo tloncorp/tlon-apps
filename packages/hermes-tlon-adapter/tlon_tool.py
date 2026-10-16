@@ -973,9 +973,8 @@ OWNER_INVITE_LINK_SELF_HINT = (
 
 
 def should_inject_owner_credentials(args: Sequence[str]) -> bool:
-    """The shared owner-injection predicate — the OpenClaw plugin implements the
-    same truth table. Inject iff the parsed subcommand is ``groups invite-link``
-    with no credential flag in either form, no ``--self``, and no help token."""
+    """Inject iff the parsed subcommand is ``groups invite-link`` with no
+    credential flag in either form, no ``--self``, and no help token."""
     for raw in args:
         arg = str(raw)
         flag = arg.split("=", 1)[0] if "=" in arg else arg

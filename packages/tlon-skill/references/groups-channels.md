@@ -4,7 +4,7 @@ The Tlon Messenger app calls groups **workspaces**. Use the `groups` commands fo
 
 First discover the target using `groups list`, `groups info <group-flag>`, and `channels groups`. A group flag is `~host/group`; a channel nest is `chat/~host/channel`, `heap/~host/channel`, `notes/~host/channel`, or `buckets/~host/channel`. Use the returned IDs rather than deriving them from titles.
 
-`groups list` shows only groups the active account belongs to. When asked for someone else’s workspaces, use their explicitly authorized configured account (`--config`) if available; otherwise state that the list covers only workspaces visible to the bot.
+`groups list` shows the groups of the acting ship, the harness's default identity (see the tool description). Do not switch identities to look at anyone else's.
 
 On accounts with a hosted Tlonbot, the app’s `New Workspace` action creates a group with the bot in it. Desktop also offers `New group`; self-hosted accounts without a hosted bot use `New group`.
 
@@ -14,7 +14,7 @@ On accounts with a hosted Tlonbot, the app’s `New Workspace` action creates a 
 {"command":"groups create-owned \"Project\" --owner ~requester"}
 ```
 
-Use the actual requester's verified ship identity. This invites them and makes them an admin. Plain `groups create` creates a group under the current ship; it is not the default for a user-requested group. Do not report success until the owner invitation/admin step has succeeded.
+Use the actual requester's verified ship identity. The bot should host the group (the tool description says how to select the bot when it is not the default identity); the requester's verified ship is invited and made admin. Plain `groups create` creates the group on the acting ship; it is not the default for a user-requested workspace. Do not report success until the invitation and admin step has succeeded.
 
 Share the returned `Ref:` path in the reply so Tlon can render the group card.
 
@@ -48,7 +48,7 @@ Use `help groups` for invites, join requests, roles, and member management; insp
 
 Empty reader lists mean every group member can read. Empty writer lists mean every eligible reader can write (chat defaults to group members). Roles must already exist. Removing the last reader/writer restriction can broaden access; do not interpret an empty list as denying everyone.
 
-`groups invite-link <group-flag>` retrieves the configured owner's invite link in OpenClaw. `--self` selects the current bot credentials instead. Do not switch identities silently to work around a permission error.
+`groups invite-link <group-flag>` is owner-bound: it retrieves the owner's invite link, so invitees onboard attributed to the owner (the tool description says how to retrieve the bot's). Do not switch identities to work around a permission error.
 
 Use the returned canonical invite URL; never compose or guess one. Retrieving a link may mint it if none exists. For private/secret groups, the acting ship must be the host or an admin.
 
