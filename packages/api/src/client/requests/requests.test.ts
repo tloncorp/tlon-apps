@@ -153,7 +153,7 @@ test('a guarded request is refused unsent while its guard is off', async () => {
 test('the steward bots read is refused unsent on a desk without it', async () => {
   setDeskSupportsStewardBots(false);
   expect(() => scryRequest(steward.bots)({})).toThrow(
-    'steward.bots needs desk 12.4.0 (deskSupportsStewardBots is off)'
+    'steward.bots needs desk 12.5.0 (deskSupportsStewardBots is off)'
   );
   expect(calls(scry)).toEqual([]);
 
