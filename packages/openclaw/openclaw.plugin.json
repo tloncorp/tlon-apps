@@ -193,7 +193,8 @@
                   "minLength": 1
                 },
                 "ownerDefault": {
-                  "type": "boolean"
+                  "not": {},
+                  "description": "Not allowed per account: set ownerDefault on the root Tlon channel config."
                 },
                 "reactionLevel": {
                   "type": "string",

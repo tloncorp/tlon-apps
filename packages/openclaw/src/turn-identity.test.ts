@@ -93,6 +93,8 @@ describe('turn identity', () => {
       inbound('owner', 'run-3');
       expect(identity('run-1')).toBe('bot');
       expect(identity('run-3')).toBe('owner');
+      expect(getRecordedRunRole('run-1')).toBe('user');
+      expect(getRecordedRunRole('run-3')).toBe('owner');
     });
 
     it('demotes an owner run not yet seen by any hook', () => {

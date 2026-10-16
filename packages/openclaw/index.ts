@@ -130,6 +130,7 @@ import {
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
 import {
   getRecordedRunRole,
+  getRunAccountId,
   noteCrossSessionSend,
   observeRun,
   resolveTurnIdentity,
@@ -1362,10 +1363,14 @@ export default defineBundledChannelEntry({
         account.ownerDefault &&
         event.toolName === 'tlon' &&
         typeof event.params.command === 'string' &&
-        resolveTurnIdentity({
+        (resolveTurnIdentity({
           runId: ctx.runId,
           sessionKey: ctx.sessionKey,
-        }) === 'bot'
+        }) === 'bot' ||
+          // The tool acts with this account's owner; a run answering a
+          // message on another account must not borrow it.
+          (getRunAccountId(ctx.runId) ?? account.accountId) !==
+            account.accountId)
       ) {
         // Not owner-directed: the call runs as the bot. Not a denial.
         return {

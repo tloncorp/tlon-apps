@@ -269,9 +269,9 @@ export function resolveTlonAccount(
   const ownerShip = (account?.ownerShip ?? base.ownerShip ?? null) as
     | string
     | null;
-  const ownerDefault =
-    ((account as Record<string, unknown> | undefined)?.ownerDefault ??
-      base.ownerDefault) === true;
+  // Root-only (accounts reject it in the schema): the tlon tool and its gate
+  // are registered once, for the default account.
+  const ownerDefault = base.ownerDefault === true;
   const reactionLevel = (account?.reactionLevel ??
     base.reactionLevel ??
     null) as string | null;

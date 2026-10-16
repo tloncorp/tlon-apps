@@ -7,6 +7,8 @@ import { isDmNest } from './targets.js';
 type TlonSessionSurface = {
   kind: 'direct' | 'group';
   senderRole?: 'owner' | 'user';
+  /** The Tlon account the answered message arrived on. */
+  accountId?: string;
   channelNest?: string;
   requestedOnboardingGroupId?: string;
   threadParentId?: string;
@@ -166,7 +168,7 @@ export function getTlonSessionSurface(
 export function rememberTlonSessionRunSurface(
   runId: string,
   sessionKey: string,
-  runContext?: Pick<TlonSessionSurface, 'senderRole'>
+  runContext?: Pick<TlonSessionSurface, 'senderRole' | 'accountId'>
 ): void {
   const surface = getTlonSessionSurface(sessionKey);
   if (!surface) return;

@@ -63,6 +63,7 @@ function registerEntry(
 }
 
 const GROUP = 'agent:main:tlon:group:chat/~h/general';
+const OTHER_GROUP = 'agent:main:tlon:group:chat/~h/other';
 const TLON_CALL = {
   toolName: 'tlon',
   params: { command: 'contacts self' },
@@ -149,14 +150,34 @@ describe('before_tool_call turn identity', () => {
     await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toEqual(SELF_CALL);
   });
 
-  it('rewrites an owner run once a non-owner message reached its session', async () => {
+  it('revokes owner-only tools for an owner run once a non-owner message reached its session', async () => {
     const { beforeToolCall } = registerEntry();
     inbound('owner', 'run-1');
+    inbound('owner', 'run-plain', OTHER_GROUP);
     inbound('user', 'run-2');
     inbound('owner', 'run-3');
+    const ctx = { sessionKey: GROUP, runId: 'run-1' };
+    for (const call of [
+      TLON_CALL,
+      {
+        toolName: 'tlon',
+        params: { command: '--self settings allow-dm ~mug' },
+      },
+      { toolName: 'read', params: { path: 'MEMORY.md' } },
+      { toolName: 'cron', params: { action: 'list' } },
+    ]) {
+      await expect(beforeToolCall(call, ctx)).resolves.toMatchObject({
+        block: true,
+        blockReason: formatOwnerOnlyToolBlockReason(call.toolName),
+      });
+    }
+    // An owner run on another session, and the owner's new run, are untouched.
     await expect(
-      beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId: 'run-1' })
-    ).resolves.toEqual(SELF_CALL);
+      beforeToolCall(TLON_CALL, { sessionKey: OTHER_GROUP, runId: 'run-plain' })
+    ).resolves.toBeUndefined();
+    await expect(
+      beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId: 'run-3' })
+    ).resolves.toBeUndefined();
   });
 
   it('keeps a non-owner turn blocked after the session role flips to owner mid-turn', async () => {
@@ -177,7 +198,10 @@ describe('before_tool_call turn identity', () => {
     );
     await expect(
       beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId: 'run-1' })
-    ).resolves.toEqual(SELF_CALL);
+    ).resolves.toMatchObject({
+      block: true,
+      blockReason: formatOwnerOnlyToolBlockReason('tlon'),
+    });
   });
 
   it('keeps a run first seen at model_call_started on --self after preparation', async () => {
@@ -219,11 +243,14 @@ describe('before_tool_call turn identity', () => {
     expect(getTlonSessionRunSurface('run-1')).toMatchObject({
       senderRole: 'owner',
     });
-    // The demoted runs stay the bot on their next attempt.
+    // The demoted runs stay vetoed on their next attempt.
     for (const runId of ['run-1', 'run-2']) {
       await expect(
         beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId })
-      ).resolves.toEqual(SELF_CALL);
+      ).resolves.toMatchObject({
+        block: true,
+        blockReason: formatOwnerOnlyToolBlockReason('tlon'),
+      });
     }
     expect(
       claimTlonChoiceCall({
@@ -307,5 +334,30 @@ describe('before_tool_call turn identity', () => {
     await expect(
       beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId: 'run-1' })
     ).resolves.toMatchObject({ block: true });
+  });
+
+  it("never lends the tool's owner to a run answering another account's message", async () => {
+    const { beforeToolCall } = registerEntry();
+    setSessionRole(GROUP, 'owner');
+    setTlonSessionSurface(GROUP, {
+      kind: 'group',
+      senderRole: 'owner',
+      channelNest: 'chat/~h/general',
+      messageId: 'owner/second',
+    });
+    rememberTlonSessionRunSurface('run-second', GROUP, {
+      senderRole: 'owner',
+      accountId: 'second',
+    });
+    rememberTlonSessionRunSurface('run-default', GROUP, {
+      senderRole: 'owner',
+      accountId: 'default',
+    });
+    await expect(
+      beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId: 'run-second' })
+    ).resolves.toEqual(SELF_CALL);
+    await expect(
+      beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId: 'run-default' })
+    ).resolves.toBeUndefined();
   });
 });

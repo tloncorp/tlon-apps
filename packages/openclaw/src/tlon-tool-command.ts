@@ -335,24 +335,55 @@ export function findTlonSubcommandIndex(args: string[]): number {
 }
 
 /**
- * `--self` is a plugin-level identity flag, never passed to the CLI. Strip every
- * exact `--self` token first, then a leading `tlon` executable token, so the
- * gate's rewrite (`--self tlon contacts …`) and a model-written
- * `tlon --self contacts …` normalize identically wherever `--self` appears.
+ * `--self` is a plugin-level identity flag in the global-option position:
+ * before the command family, alongside an optional leading `tlon` executable
+ * token (the gate's rewrite is `--self tlon contacts …`; a model may write
+ * `tlon --self contacts …`). Both are removed there. After the family, a
+ * `--self` token is an ordinary argument (a title, a bio, a search query) and
+ * is passed through untouched; only the legacy owner operations, whose CLI
+ * parsers take their own `--self` option, also read it as a bot request.
  */
 export function normalizeTlonCommandArgs(args: string[]): {
   args: string[];
   selfRequested: boolean;
 } {
-  const withoutSelf = args.filter((arg) => arg !== SELF_FLAG);
-  const executableIndex = findTlonSubcommandIndex(withoutSelf);
-  return {
-    args:
-      withoutSelf[executableIndex] === 'tlon'
-        ? withoutSelf.filter((_, index) => index !== executableIndex)
-        : withoutSelf,
-    selfRequested: withoutSelf.length !== args.length,
-  };
+  const prefix: string[] = [];
+  let selfRequested = false;
+  let removedExecutable = false;
+  let index = 0;
+  while (index < args.length) {
+    const arg = args[index];
+    if (arg === SELF_FLAG) {
+      selfRequested = true;
+      index += 1;
+      continue;
+    }
+    if (arg === 'tlon' && !removedExecutable) {
+      removedExecutable = true;
+      index += 1;
+      continue;
+    }
+    if (isCredentialFlagToken(arg)) {
+      prefix.push(arg);
+      if (!arg.includes('=') && index + 1 < args.length) {
+        prefix.push(args[index + 1]);
+        index += 2;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+    break;
+  }
+  const rest = args.slice(index);
+  const operation = `${rest[0] ?? ''} ${rest[1] ?? ''}`.toLowerCase();
+  if (
+    LEGACY_OWNER_OPERATIONS.has(operation) &&
+    rest.slice(2).includes(SELF_FLAG)
+  ) {
+    selfRequested = true;
+  }
+  return { args: [...prefix, ...rest], selfRequested };
 }
 
 function isCredentialFlagToken(arg: string): boolean {
@@ -360,7 +391,11 @@ function isCredentialFlagToken(arg: string): boolean {
 }
 
 export function isBrowserHandoffCommand(args: string[]): boolean {
-  const normalized = normalizeTlonCommandArgs(args).args;
+  // Redaction errs toward hiding: a `--self` anywhere does not shield a
+  // browser capability from it.
+  const normalized = normalizeTlonCommandArgs(
+    args.filter((arg) => arg !== SELF_FLAG)
+  ).args;
   const subIdx = findTlonSubcommandIndex(normalized);
   return (
     normalized[subIdx]?.toLowerCase() === 'browser' &&
@@ -399,7 +434,9 @@ export function redactTlonCommand(command: string): string {
     }
   }
   if (isBrowserHandoffCommand(tokens)) {
-    const normalized = normalizeTlonCommandArgs(tokens).args;
+    const normalized = normalizeTlonCommandArgs(
+      tokens.filter((arg) => arg !== SELF_FLAG)
+    ).args;
     const subIdx = findTlonSubcommandIndex(normalized);
     // Keep only the operation: arguments can carry a signed viewer capability.
     return `browser ${normalized[subIdx + 1].toLowerCase()} [REDACTED]`;
@@ -866,9 +903,23 @@ export type TlonToolExecutorDeps = {
  */
 export function formatTlonIdentityGuidance(ownerDefault: boolean): string {
   return ownerDefault
-    ? "Commands act as your owner by default: reads return the owner's data and writes land on the owner's ship. Add --self to act as this bot (its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message); use --self groups create-owned to create a workspace for a user. settings and browser always act as the bot. Credential flags are rejected."
+    ? "Commands act as your owner by default: reads return the owner's data and writes land on the owner's ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message; use --self groups create-owned to create a workspace for a user. A --self after the command is an ordinary argument. settings and browser always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again)."
     : 'Commands act as this bot. groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute and volume act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
 }
+
+/** Which commands read or change different data under each identity. */
+const OWNER_DEFAULT_IDENTITY_TABLE = [
+  'Owner or bot: decide which one the person means ("my DMs" is the owner\'s; "your profile" is the bot\'s).',
+  "  channels dms|group-dms, messages dm|search: the owner's conversations; with --self, the bot's.",
+  "  activity (incl. mute, unmute, volume): the owner's activity and notification levels; with --self, the bot's.",
+  "  contacts self|list|add|remove|update|update-profile: the owner's profile and contact book; with --self, the bot's.",
+  "  groups list|join|leave|accept-invite|reject-invite|request-invite, channels join|leave: the owner's membership; with --self, the bot's.",
+  '  posts send|reply to ~ship: a DM from the owner; with --self, from the bot (prefer message).',
+  "  posts react|unreact|edit|delete: as the owner (edit only the owner's posts); with --self, as the bot.",
+  "  dms react|unreact|delete: in the owner's DMs; with --self, in the bot's.",
+  "  hooks: hooks in the owner's groups; with --self, in channels the bot hosts.",
+  '  upload: an owner-hosted URL for content posted as the owner; with --self, a bot-hosted URL for images you send with message.',
+];
 
 /** The tool description; its identity guidance follows the rollout flag. */
 export function formatTlonToolDescription(ownerDefault: boolean): string {
@@ -899,6 +950,7 @@ export function formatTlonToolHelp(ownerDefault = false): string {
     'Usage: {"command":"<command> <operation> [arguments]"}',
     'Use {"command":"help notes"} or {"command":"help notes note-create"} for exact syntax.',
     formatTlonIdentityGuidance(ownerDefault),
+    ...(ownerDefault ? OWNER_DEFAULT_IDENTITY_TABLE : []),
     'CLI usage may show a leading tlon: omit it in this tool. No shell expansion, pipes, redirects, or stdin.',
     'Relative file paths use the active agent workspace. Use message for ordinary sends/replies.',
     'Read the tlon skill at its discovered location for task-specific references.',

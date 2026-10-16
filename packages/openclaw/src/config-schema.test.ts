@@ -262,3 +262,21 @@ describe('Tlon config schema', () => {
     expect(parsed.ownerListenDisabledChannels).toBeUndefined();
   });
 });
+
+describe('ownerDefault', () => {
+  it('is accepted on the root Tlon channel config', () => {
+    expect(TlonConfigSchema.parse({ ownerDefault: true }).ownerDefault).toBe(
+      true
+    );
+  });
+
+  it('is rejected per account', () => {
+    const result = TlonConfigSchema.safeParse({
+      accounts: { second: { ownerDefault: true } },
+    });
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain(
+      'ownerDefault is set on the root Tlon channel config, not per account'
+    );
+  });
+});

@@ -3519,7 +3519,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         sessionKeys: lensSessionKeys,
         role: senderRole,
       });
-      rememberTlonSessionRunSurface(runId, route.sessionKey, { senderRole });
+      rememberTlonSessionRunSurface(runId, route.sessionKey, {
+        senderRole,
+        ...(route.accountId ? { accountId: route.accountId } : {}),
+      });
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,
         runId,

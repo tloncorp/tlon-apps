@@ -7,7 +7,8 @@
  * for its runId says it answers an owner message. Every other run, snapshotless
  * runs included, acts as the bot. The decision is recorded at the run's first
  * observation on any hook or gate path, and only ever moves toward the bot: a
- * non-owner message dispatched on the run's session demotes it.
+ * non-owner message dispatched on the run's session demotes it, which also
+ * revokes the run's owner-only tools (the veto treats it as a non-owner turn).
  *
  * Lifetime: every hook bumps the run's record. After an hour without activity
  * it becomes a tombstone that resolves to the bot for seven days, so a later
@@ -47,6 +48,8 @@ type RunRecord = {
   sessionKey: string;
   /** Sender of the answered message, or the session role at first sight. */
   senderRole?: SenderRole;
+  /** The Tlon account the answered message arrived on, when known. */
+  accountId?: string;
   lastSeenAt: number;
 };
 
@@ -96,6 +99,7 @@ function firstSight(
       identity: snapshot.senderRole === 'owner' ? 'owner' : 'bot',
       sessionKey: snapshot.sessionKey,
       senderRole: snapshot.senderRole ?? 'user',
+      ...(snapshot.accountId ? { accountId: snapshot.accountId } : {}),
       lastSeenAt: now,
     };
   }
@@ -148,7 +152,19 @@ export function getRecordedRunRole(
   return record ? (record.senderRole ?? null) : undefined;
 }
 
-/** Demote the active owner runs, and unstarted owner snapshots, on a session. */
+/** The Tlon account a run's answered message arrived on, when recorded. */
+export function getRunAccountId(
+  runId: string | null | undefined
+): string | undefined {
+  const key = runId?.trim();
+  return key ? activeRuns.get(key)?.accountId : undefined;
+}
+
+/**
+ * Demote the active owner runs, and unstarted owner snapshots, on a session:
+ * identity to the bot and the veto role to a non-owner, so every owner-only
+ * tool is refused for the rest of the run, not only owner identity.
+ */
 function demoteSession(canonicalKey: string, now: number): void {
   for (const [runId, surface] of listTlonSessionRunSurfaces()) {
     if (
@@ -160,15 +176,16 @@ function demoteSession(canonicalKey: string, now: number): void {
       setActive(runId, {
         ...firstSight(runId, undefined, now),
         identity: 'bot',
+        senderRole: 'user',
       });
     }
   }
   for (const [runId, record] of activeRuns) {
     if (
-      record.identity === 'owner' &&
+      (record.identity === 'owner' || record.senderRole === 'owner') &&
       canonicalSessionKey(record.sessionKey) === canonicalKey
     ) {
-      activeRuns.set(runId, { ...record, identity: 'bot' });
+      activeRuns.set(runId, { ...record, identity: 'bot', senderRole: 'user' });
     }
   }
 }

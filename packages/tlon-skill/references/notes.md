@@ -58,7 +58,7 @@ Tlon does not render LaTeX. Use plain text/Unicode math or code blocks in notes 
 {"command":"notes note-unpublish notes/~host/name 12"}
 ```
 
-These run as the owner by default (add `--self` for the bot's ship), so the page is served from the owner's ship and, after a refresh, the owner's app shows the note as published and can unpublish it too. The owner's ship must host or have joined the notebook. Do not switch identities silently to work around an error. Publishing makes the note public to anyone with the link: publish only notes the user asked to publish, and return the URL the command prints, not a constructed one. The page is a snapshot: after `note-update`, run `note-publish` again to refresh it.
+These are owner-bound (the tool description says how to use the bot's ship instead), so the page is served from the owner's ship and, after a refresh, the owner's app shows the note as published and can unpublish it too. The owner's ship must host or have joined the notebook. Do not switch identities silently to work around an error. Publishing makes the note public to anyone with the link: publish only notes the user asked to publish, and return the URL the command prints, not a constructed one. The page is a snapshot: after `note-update`, run `note-publish` again to refresh it.
 
 ## Other notebook operations
 

@@ -476,11 +476,8 @@ describe('owner-by-default identity selection', () => {
 
     it.each([
       '--self contacts self',
-      'contacts --self self',
-      'contacts self --self',
       'tlon --self contacts self',
       '--self tlon contacts self',
-      'tlon contacts self --self',
     ])(
       'runs `%s` as the bot with neither --self nor tlon reaching argv',
       async (command) => {
@@ -489,6 +486,33 @@ describe('owner-by-default identity selection', () => {
         expect(ranWith(runCommand)).toEqual(['contacts', 'self']);
       }
     );
+
+    it.each([
+      [
+        'contacts update-profile --bio "--self" --status ok',
+        ['contacts', 'update-profile', '--bio', '--self', '--status', 'ok'],
+      ],
+      ['contacts self --self', ['contacts', 'self', '--self']],
+      ['posts send chat/~h/c --self', ['posts', 'send', 'chat/~h/c', '--self']],
+    ])(
+      'keeps a --self after the command as a literal argument: `%s`',
+      async (command, expected) => {
+        const { execute, runCommand } = makeExecutor();
+        await execute('literal', { command });
+        expect(ranWith(runCommand)).toEqual(['--ship', '~owner', ...expected]);
+      }
+    );
+
+    it("reads a legacy command's own trailing --self as a bot request", async () => {
+      const { execute, runCommand } = makeExecutor();
+      await execute('legacy', { command: 'groups invite-link ~h/g --self' });
+      expect(ranWith(runCommand)).toEqual([
+        'groups',
+        'invite-link',
+        '~h/g',
+        '--self',
+      ]);
+    });
 
     it('accepts a leading tlon token for owner commands', async () => {
       const { execute, runCommand } = makeExecutor();
@@ -763,7 +787,7 @@ describe('owner-by-default identity selection', () => {
     it.each([
       ['--self contacts self', 'contacts.self', 'read'],
       [
-        'contacts --self update-profile --nickname x',
+        '--self contacts update-profile --nickname x',
         'contacts.update-profile',
         'write',
       ],
@@ -1014,6 +1038,10 @@ describe('model-facing identity guidance', () => {
           ? 'use groups commands and --self groups create-owned'
           : 'use groups commands and groups create-owned'
       );
+      for (const marker of ['Owner or bot:', 'Put --self before the command']) {
+        if (ownerDefault) expect(help).toContain(marker);
+        else expect(help).not.toContain(marker);
+      }
       const execute = createTlonToolExecutor({
         runCommand: vi.fn(),
         notifyDiaryMigrationDiscovery: vi.fn(),
@@ -1120,9 +1148,8 @@ describe('owner default off (staged rollout)', () => {
       ]) {
         const { execute, runCommand } = makeExecutor();
         await execute('legacy', { command: variant });
-        expect(runCommand).toHaveBeenCalledWith(
-          shellSplitCommand(variant).filter((arg) => arg !== '--self')
-        );
+        // The legacy commands' own parsers accept a trailing --self.
+        expect(runCommand).toHaveBeenCalledWith(shellSplitCommand(variant));
       }
     }
   );
