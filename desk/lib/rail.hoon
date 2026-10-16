@@ -252,6 +252,7 @@
 /%  group-response-1            %group-response-1
 /%  group-response-2            %group-response-2
 /%  group-response-3            %group-response-3
+/%  group-seats-page-1          %group-seats-page-1
 /%  group-token                 %group-token
 /%  group-ui                    %group-ui
 /%  group-ui-1                  %group-ui-1
@@ -611,6 +612,7 @@
       $:  %group-response-1            $+  group-response-1            p=_*vale:group-response-1            ==
       $:  %group-response-2            $+  group-response-2            p=_*vale:group-response-2            ==
       $:  %group-response-3            $+  group-response-3            p=_*vale:group-response-3            ==
+      $:  %group-seats-page-1          $+  group-seats-page-1          p=_*vale:group-seats-page-1          ==
       $:  %group-token                 $+  group-token                 p=_*vale:group-token                 ==
       $:  %group-ui                    $+  group-ui                    p=_*vale:group-ui                    ==
       $:  %group-ui-1                  $+  group-ui-1                  p=_*vale:group-ui-1                  ==
@@ -972,6 +974,7 @@
     %group-response-1            [-.rail !>(+.rail)]
     %group-response-2            [-.rail !>(+.rail)]
     %group-response-3            [-.rail !>(+.rail)]
+    %group-seats-page-1          [-.rail !>(+.rail)]
     %group-token                 [-.rail !>(+.rail)]
     %group-ui                    [-.rail !>(+.rail)]
     %group-ui-1                  [-.rail !>(+.rail)]
@@ -1331,6 +1334,7 @@
     %group-response-1            [p !<(_*vale:group-response-1 q)]
     %group-response-2            [p !<(_*vale:group-response-2 q)]
     %group-response-3            [p !<(_*vale:group-response-3 q)]
+    %group-seats-page-1          [p !<(_*vale:group-seats-page-1 q)]
     %group-token                 [p !<(_*vale:group-token q)]
     %group-ui                    [p !<(_*vale:group-ui q)]
     %group-ui-1                  [p !<(_*vale:group-ui-1 q)]
@@ -1690,6 +1694,7 @@
       :-  %group-response-1            -:!>(*vale:group-response-1)
       :-  %group-response-2            -:!>(*vale:group-response-2)
       :-  %group-response-3            -:!>(*vale:group-response-3)
+      :-  %group-seats-page-1          -:!>(*vale:group-seats-page-1)
       :-  %group-token                 -:!>(*vale:group-token)
       :-  %group-ui                    -:!>(*vale:group-ui)
       :-  %group-ui-1                  -:!>(*vale:group-ui-1)
