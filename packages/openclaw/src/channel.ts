@@ -308,7 +308,9 @@ export const tlonPlugin = createChatChannelPlugin({
           '',
           'On Tlon, action=react and action=delete only work on messages in the current conversation.',
           '- To react, unreact, or delete in any other conversation, use the tlon tool instead: `tlon posts react|unreact|delete <channel> <postId> ...` for channels, `tlon dms react|unreact|delete ~ship <postId> ...` for DMs.',
-          '- If a reaction or delete call returns an error, say it failed; never claim it succeeded.'
+          '- If a reaction or delete call returns an error, say it failed; never claim it succeeded.',
+          '',
+          'When you act in another channel (a note, a post, a new group or channel, a cron job that posts elsewhere), include the returned Ref: path in your reply here. A bare reference path on its own line renders as a card; do not wrap it in a link or bold. The messageId a send returns is not the post ID — read the ID back before referencing a post: `tlon messages channel <nest>` for /1/chan/<nest>/msg/<id>, or `tlon messages post <nest> <parent>` for a thread reply at /1/chan/<nest>/msg/<parent>/<id>.'
         );
 
         const level = account.reactionLevel ?? 'minimal';

@@ -18,6 +18,4 @@ For history pagination, surrounding context, reactions, edits, deletes, or DM ma
 
 History and activity responses are bounded. A short or empty page does not prove that no older matching messages exist; use the supported pagination/search options before making an exhaustive claim.
 
-## Share a Tlon reference
-
-Native reference paths render as cards in messages: `/1/group/<host>/<slug>` for groups, `/1/chan/<nest>/msg/<id>` for posts, and `/1/chan/notes/<host>/<name>/note/<id>` for notes. Prefer a returned `Ref:` path and preserve its identifiers. Put the reference after the sentence introducing it; malformed paths remain literal text.
+To share a group, post, or note as a card, follow the reference rules in the skill's "Identity, delivery, and completion" section.

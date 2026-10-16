@@ -22,10 +22,7 @@ import { BotChannelRuleSettingsScreen } from '../features/settings/BotChannelRul
 import { BotChannelRulesScreen } from '../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
 import { BotModelSettingsScreen } from '../features/settings/BotModelSettingsScreen';
-import {
-  BotConnectionsScreen,
-  BotModelsScreen,
-} from '../features/settings/BotSettingsAreaScreens';
+import { BotModelsScreen } from '../features/settings/BotSettingsAreaScreens';
 import { BotOpenAISubscriptionScreen } from '../features/settings/BotOpenAISubscriptionScreen';
 import { BotIdentitySettingsScreen } from '../features/settings/BotIdentitySettingsScreen';
 import { BotPermissionsSettingsScreen } from '../features/settings/BotPermissionsSettingsScreen';
@@ -269,11 +266,6 @@ function RootStackContent() {
       <Root.Screen
         name="BotModels"
         component={BotModelsScreen}
-        options={nativeHeaderScreenOptions}
-      />
-      <Root.Screen
-        name="BotConnections"
-        component={BotConnectionsScreen}
         options={nativeHeaderScreenOptions}
       />
       <Root.Screen

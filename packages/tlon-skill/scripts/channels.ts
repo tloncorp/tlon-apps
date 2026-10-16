@@ -43,6 +43,7 @@ import {
 } from './channel-membership';
 import {
   assertKnownChannelKind,
+  channelCreatedLines,
   getOption,
   hasOptionValue,
   isHelpArg,
@@ -357,9 +358,9 @@ async function createChannelInGroup(
   });
 
   console.log(`✅ Channel created!`);
-  console.log(`   Nest: ${nest}`);
-  console.log(`   Title: ${title}`);
-  console.log(`   Group: ${groupId}`);
+  for (const line of channelCreatedLines(nest, title, groupId)) {
+    console.log(line);
+  }
   return nest;
 }
 
@@ -373,9 +374,9 @@ async function createNotesChannel(groupId: string, title: string) {
   );
 
   console.log(`✅ Notes channel created!`);
-  console.log(`   Nest: ${nest}`);
-  console.log(`   Title: ${title}`);
-  console.log(`   Group: ${groupId}`);
+  for (const line of channelCreatedLines(nest, title, groupId)) {
+    console.log(line);
+  }
   return nest;
 }
 
