@@ -1,0 +1,4 @@
+# Lines for ../surface-ignore.txt that name things newer than the store build.
+# Move one across when a build has it.
+
+route:Root            # wrapper navigator, not a screen

@@ -294,12 +294,13 @@ describe('messages', () => {
     // owner-listen state. Lives in 02-owner-listen.test.ts where we can
     // toggle the setting first.
 
-    test("engages on reply to bot's own channel post (thread participation)", async () => {
+    test("engages on owner's unmentioned reply to bot's own channel post (owner-listen)", async () => {
       requireFixtureGroup(fixtures);
 
       // Seed: have the bot post a parent message in the channel directly,
-      // bypassing the agent loop. The test exercises the engagement decision
-      // on the *reply*, not the parent.
+      // bypassing the agent loop. That never adds the parent to the plugin's
+      // participatedThreads, so this is not a thread-participation test; it
+      // exercises the engagement decision on the *reply*, not the parent.
       const parentToken = `it-bot-parent-${Date.now().toString(36)}`;
       await fixtures.botState.sendPost({
         channelId: fixtures.group.chatChannel,
@@ -317,8 +318,8 @@ describe('messages', () => {
         { kind: 'text', content: 'Acked thread reply' },
       ]);
 
-      // Reply to the bot's parent — no mention text, but thread participation
-      // should engage per shouldEngageInGroup.
+      // Reply to the bot's parent — no mention text. Engages via default
+      // owner-listen: the owner posts in the bot-hosted fixture group.
       await fixtures.userState.sendReply({
         channelId: fixtures.group.chatChannel,
         parentId: parent.id,

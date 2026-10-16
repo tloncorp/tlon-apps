@@ -607,7 +607,9 @@ export async function forwardGroup({
       metadata:
         channel.type === 'notebook'
           ? {
-              title: group.title ? `${group.title} group` : 'Forwarded group',
+              title: group.title
+                ? `${group.title} workspace`
+                : 'Forwarded workspace',
             }
           : undefined,
     });

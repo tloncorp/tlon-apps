@@ -39,6 +39,14 @@ const NOTES_V1_OPS = [
 
 type NotesV1Op = (typeof NOTES_V1_OPS)[number];
 
+const NOTES_PUBLISH_OPS = [
+  'listPublished',
+  'publishNote',
+  'unpublishNote',
+] as const;
+
+type NotesPublishOp = (typeof NOTES_PUBLISH_OPS)[number];
+
 interface NotesV1Call {
   op: NotesV1Op;
   args: unknown[];
@@ -47,6 +55,7 @@ interface NotesV1Call {
 interface MakeDepsOptions {
   authenticate?: () => Promise<void>;
   notesV1?: Partial<Record<NotesV1Op, AnyFn>>;
+  notesPublish?: Partial<Record<NotesPublishOp, AnyFn>>;
   isPendingWriteError?: NotesDeps['isPendingWriteError'];
   joinNotesNotebook?: (nest: string) => Promise<void>;
   leaveNotesNotebook?: (nest: string) => Promise<void>;
@@ -81,6 +90,10 @@ function makeDeps(options: MakeDepsOptions = {}) {
   const calls = {
     authenticate: 0,
     notesV1: [] as NotesV1Call[],
+    notesPublish: [] as Array<{ op: NotesPublishOp; args: unknown[] }>,
+    render: [] as Array<{ title: string; body: string }>,
+    publishedNoteUrl: [] as Array<[string, number]>,
+    sleep: [] as number[],
     joinNotesNotebook: [] as string[],
     leaveNotesNotebook: [] as string[],
     readFile: [] as string[],
@@ -95,6 +108,17 @@ function makeDeps(options: MakeDepsOptions = {}) {
       calls.order.push(`notesV1:${op}`);
       const responder = options.notesV1?.[op];
       return responder ? await responder(...args) : undefined;
+    };
+  }
+
+  const notesPublish = {} as Record<NotesPublishOp, AnyFn>;
+  for (const op of NOTES_PUBLISH_OPS) {
+    notesPublish[op] = async (...args: unknown[]) => {
+      calls.notesPublish.push({ op, args });
+      calls.order.push(`notesPublish:${op}`);
+      const responder = options.notesPublish?.[op];
+      if (responder) return await responder(...args);
+      return op === 'listPublished' ? [] : undefined;
     };
   }
 
@@ -124,7 +148,19 @@ function makeDeps(options: MakeDepsOptions = {}) {
     deleteNotesNotebookStrict: async () => undefined,
     getGroupChannelListings: async () => [],
     getGroupChannelIds: async () => [],
-    sleep: async () => undefined,
+    sleep: async (ms) => {
+      calls.sleep.push(ms);
+    },
+    notesPublish: notesPublish as unknown as NotesDeps['notesPublish'],
+    renderPublishedNoteHtml: (note) => {
+      calls.render.push(note);
+      calls.order.push('render');
+      return `<html>${note.title}|${note.body}</html>`;
+    },
+    publishedNoteUrl: (flag, noteId) => {
+      calls.publishedNoteUrl.push([flag, noteId]);
+      return `https://owner.example/notes/pub/${flag}/${noteId}`;
+    },
     readFile: (path) => {
       calls.readFile.push(path);
       calls.order.push('readFile');
@@ -150,6 +186,7 @@ function makeDeps(options: MakeDepsOptions = {}) {
 function expectNoAuthOrIo(context: ReturnType<typeof makeDeps>) {
   expect(context.calls.authenticate).toBe(0);
   expect(context.calls.notesV1).toEqual([]);
+  expect(context.calls.notesPublish).toEqual([]);
   expect(context.calls.joinNotesNotebook).toEqual([]);
   expect(context.calls.leaveNotesNotebook).toEqual([]);
   expect(context.calls.readFile).toEqual([]);
@@ -1041,5 +1078,410 @@ describe('notes ordering and error propagation', () => {
 
     expect(context.calls.readFile).toEqual([]);
     expect(context.calls.notesV1).toEqual([]);
+  });
+});
+
+describe('notes publish and unpublish', () => {
+  const NOTE = { id: 12, title: 'Launch plan', bodyMd: '# Hello', revision: 3 };
+  const LISTED = { host: '~zod', flagName: 'blog', noteId: 12 };
+  const PUBLISHED_STDOUT =
+    '✓ Note published\n' +
+    '  Public URL: https://owner.example/notes/pub/~zod/blog/12\n' +
+    '  This is a snapshot: later edits are not shown until you run note-publish again.\n';
+
+  function publishDeps(
+    overrides: Partial<Record<NotesPublishOp, AnyFn>> = {},
+    getNote: AnyFn = async () => NOTE
+  ) {
+    return makeDeps({
+      notesV1: { getNote },
+      notesPublish: { listPublished: async () => [LISTED], ...overrides },
+    });
+  }
+
+  function listings(context: ReturnType<typeof makeDeps>) {
+    return context.calls.notesPublish.filter((c) => c.op === 'listPublished')
+      .length;
+  }
+
+  function opsOf(context: ReturnType<typeof makeDeps>) {
+    return context.calls.notesPublish.map((c) => c.op);
+  }
+
+  it('note-publish reads the note, renders its title and Markdown body, then publishes that HTML', async () => {
+    const context = publishDeps();
+
+    const exitCode = await run(
+      ['note-publish', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.order).toEqual([
+      'authenticate',
+      'notesV1:getNote',
+      'render',
+      'notesPublish:publishNote',
+      'notesPublish:listPublished',
+    ]);
+    expect(context.calls.notesV1[0].args).toEqual([
+      { flag: 'notes/~zod/blog', noteId: 12 },
+    ]);
+    expect(context.calls.render).toEqual([
+      { title: 'Launch plan', body: '# Hello' },
+    ]);
+    expect(context.calls.notesPublish[0].args).toEqual([
+      {
+        flag: 'notes/~zod/blog',
+        noteId: 12,
+        html: '<html>Launch plan|# Hello</html>',
+      },
+    ]);
+  });
+
+  it('note-publish waits for the poke before confirming or reporting', async () => {
+    let resolvePoke!: () => void;
+    const context = publishDeps({
+      publishNote: () =>
+        new Promise<void>((resolve) => {
+          resolvePoke = resolve;
+        }),
+    });
+
+    const pending = run(
+      ['note-publish', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(opsOf(context)).toEqual(['publishNote']);
+    expect(context.stdout()).toBe('');
+
+    resolvePoke();
+    expect(await pending).toBe(0);
+    expect(context.stdout()).toBe(PUBLISHED_STDOUT);
+  });
+
+  it('note-publish prints the public URL and the snapshot note once listPublished confirms', async () => {
+    const context = publishDeps();
+
+    const exitCode = await run(
+      ['note-publish', 'notes/zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe(PUBLISHED_STDOUT);
+    expect(context.stderr()).toBe('');
+    expect(context.calls.publishedNoteUrl).toEqual([['~zod/blog', 12]]);
+    expect(context.calls.sleep).toEqual([]);
+  });
+
+  it('note-publish polls listPublished until the note appears', async () => {
+    let call = 0;
+    const context = publishDeps({
+      listPublished: async () => (call++ === 0 ? [] : [LISTED]),
+    });
+
+    const exitCode = await run(
+      ['note-publish', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(listings(context)).toBe(2);
+    expect(context.calls.sleep).toEqual([300]);
+    expect(context.stdout()).toBe(PUBLISHED_STDOUT);
+  });
+
+  it('note-publish does not accept a published record for another host, notebook, or note', async () => {
+    const context = publishDeps({
+      listPublished: async () => [
+        { host: '~bus', flagName: 'blog', noteId: 12 },
+        { host: '~zod', flagName: 'other', noteId: 12 },
+        { host: '~zod', flagName: 'blog', noteId: 13 },
+      ],
+    });
+
+    const exitCode = await run(
+      ['note-publish', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(listings(context)).toBe(8);
+  });
+
+  it('note-publish reports an unconfirmed publish', async () => {
+    const context = publishDeps({ listPublished: async () => [] });
+
+    const exitCode = await run(
+      ['note-publish', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      "Error: Publish of note 12 in notes/~zod/blog was sent but is not confirmed: the note is not listed as published yet. Retrying publishes the note's current contents.\n"
+    );
+    expect(listings(context)).toBe(8);
+    expect(context.calls.sleep).toEqual(Array(7).fill(300));
+  });
+
+  it('note-publish never publishes a note it cannot read', async () => {
+    const unreadable = publishDeps({}, async () => {
+      throw commandError('HTTP 404: notebook not found');
+    });
+    expect(
+      await run(['note-publish', 'notes/~zod/blog', '12'], unreadable.deps)
+    ).toBe(1);
+    expect(unreadable.stderr()).toBe(
+      'Error: Could not read note 12 in notes/~zod/blog; nothing was published: HTTP 404: notebook not found\n'
+    );
+    expect(unreadable.calls.notesPublish).toEqual([]);
+    expect(unreadable.calls.render).toEqual([]);
+
+    const noBody = publishDeps({}, async () => ({ ...NOTE, bodyMd: null }));
+    expect(
+      await run(['note-publish', 'notes/~zod/blog', '12'], noBody.deps)
+    ).toBe(1);
+    expect(noBody.stderr()).toBe(
+      'Error: Could not read the body of note 12 in notes/~zod/blog; nothing was published.\n'
+    );
+    expect(noBody.calls.notesPublish).toEqual([]);
+    expect(noBody.stdout()).toBe('');
+  });
+
+  it('note-publish publishes a note whose body is empty', async () => {
+    const context = publishDeps({}, async () => ({ ...NOTE, bodyMd: '' }));
+
+    const exitCode = await run(
+      ['note-publish', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.render).toEqual([{ title: 'Launch plan', body: '' }]);
+    expect(opsOf(context)).toEqual(['publishNote', 'listPublished']);
+  });
+
+  it('note-publish surfaces poke and listing failures with context', async () => {
+    const pokeFails = publishDeps({
+      publishNote: async () => {
+        throw commandError('poke timed out');
+      },
+    });
+    expect(
+      await run(['note-publish', 'notes/~zod/blog', '12'], pokeFails.deps)
+    ).toBe(1);
+    expect(pokeFails.stderr()).toBe(
+      'Error: Could not publish note 12 in notes/~zod/blog: poke timed out\n'
+    );
+    expect(listings(pokeFails)).toBe(0);
+    expect(pokeFails.stdout()).toBe('');
+
+    const listingFails = publishDeps({
+      listPublished: async () => {
+        throw commandError('HTTP 500');
+      },
+    });
+    expect(
+      await run(['note-publish', 'notes/~zod/blog', '12'], listingFails.deps)
+    ).toBe(1);
+    expect(listingFails.stderr()).toBe(
+      "Error: Publish of note 12 in notes/~zod/blog was sent but could not be confirmed: HTTP 500. Retrying publishes the note's current contents.\n"
+    );
+    expect(listingFails.stdout()).toBe('');
+
+    const notOnShip = publishDeps({
+      publishNote: async () => {
+        throw commandError(
+          '/app/notes/hoon::[2.562 3].[2.563 5]\nno-abed-not-found\n[~zod %blog]'
+        );
+      },
+    });
+    expect(
+      await run(['note-publish', 'notes/~zod/blog', '12'], notOnShip.deps)
+    ).toBe(1);
+    expect(notOnShip.stderr()).toBe(
+      'Error: notes/~zod/blog is not on this ship (it neither hosts nor has joined it); join it before publishing.\n'
+    );
+    expect(listings(notOnShip)).toBe(0);
+  });
+
+  it('note-unpublish unpublishes without reading the note and confirms it is gone', async () => {
+    let call = 0;
+    const context = publishDeps({
+      listPublished: async () => (call++ === 0 ? [LISTED] : []),
+    });
+
+    const exitCode = await run(
+      ['note-unpublish', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.notesV1).toEqual([]);
+    expect(context.calls.order).toEqual([
+      'authenticate',
+      'notesPublish:unpublishNote',
+      'notesPublish:listPublished',
+      'notesPublish:listPublished',
+    ]);
+    expect(context.calls.notesPublish[0].args).toEqual([
+      { flag: 'notes/~zod/blog', noteId: 12 },
+    ]);
+    expect(context.calls.sleep).toEqual([300]);
+    expect(context.stdout()).toBe('✓ Note unpublished\n');
+  });
+
+  it('note-unpublish succeeds immediately when the note is already absent', async () => {
+    const context = publishDeps({
+      listPublished: async () => [
+        { host: '~zod', flagName: 'blog', noteId: 13 },
+      ],
+    });
+
+    const exitCode = await run(
+      ['note-unpublish', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(listings(context)).toBe(1);
+    expect(context.calls.sleep).toEqual([]);
+    expect(context.stdout()).toBe('✓ Note unpublished\n');
+  });
+
+  it('note-unpublish reports an unpublish the listing never confirms', async () => {
+    const context = publishDeps();
+
+    const exitCode = await run(
+      ['note-unpublish', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      'Error: Unpublish of note 12 in notes/~zod/blog was sent but is not confirmed: the note is still listed as published. Running note-unpublish again is safe.\n'
+    );
+    expect(listings(context)).toBe(8);
+  });
+
+  it('note-unpublish surfaces poke, membership, and listing failures', async () => {
+    const pokeFails = publishDeps({
+      unpublishNote: async () => {
+        throw commandError('poke timed out');
+      },
+    });
+    expect(
+      await run(['note-unpublish', 'notes/~zod/blog', '12'], pokeFails.deps)
+    ).toBe(1);
+    expect(pokeFails.stderr()).toBe(
+      'Error: Could not unpublish note 12 in notes/~zod/blog: poke timed out\n'
+    );
+    expect(pokeFails.stdout()).toBe('');
+    expect(listings(pokeFails)).toBe(0);
+
+    const notOnShip = publishDeps({
+      unpublishNote: async () => {
+        throw commandError('no-abed-not-found');
+      },
+    });
+    expect(
+      await run(['note-unpublish', 'notes/~zod/blog', '12'], notOnShip.deps)
+    ).toBe(1);
+    expect(notOnShip.stderr()).toBe(
+      'Error: notes/~zod/blog is not on this ship (it neither hosts nor has joined it), so nothing there is published.\n'
+    );
+
+    const listingFails = publishDeps({
+      listPublished: async () => {
+        throw commandError('HTTP 500');
+      },
+    });
+    expect(
+      await run(['note-unpublish', 'notes/~zod/blog', '12'], listingFails.deps)
+    ).toBe(1);
+    expect(listingFails.stderr()).toBe(
+      'Error: Unpublish of note 12 in notes/~zod/blog was sent but could not be confirmed: HTTP 500. Running note-unpublish again is safe.\n'
+    );
+    expect(listingFails.stdout()).toBe('');
+  });
+
+  it('--self is a no-op for note-publish and note-unpublish', async () => {
+    const cases: Array<[string, string]> = [
+      ['note-publish', PUBLISHED_STDOUT],
+      ['note-unpublish', '✓ Note unpublished\n'],
+    ];
+    for (const [command, expectedStdout] of cases) {
+      const variants = [
+        [command, 'notes/~zod/blog', '12'],
+        [command, '--self', 'notes/~zod/blog', '12'],
+        [command, 'notes/~zod/blog', '12', '--self'],
+        [command, 'notes/~zod/blog', '--self', '12', '--self'],
+      ];
+      const results = [];
+      for (const args of variants) {
+        const context =
+          command === 'note-publish'
+            ? publishDeps()
+            : publishDeps({ listPublished: async () => [] });
+        const exitCode = await run(args, context.deps);
+        expect(exitCode).toBe(0);
+        expect(context.stdout()).toBe(expectedStdout);
+        results.push({
+          stdout: context.stdout(),
+          stderr: context.stderr(),
+          order: context.calls.order,
+          publish: context.calls.notesPublish,
+        });
+      }
+      expect(results[0].order).toContain(
+        command === 'note-publish'
+          ? 'notesPublish:publishNote'
+          : 'notesPublish:unpublishNote'
+      );
+      for (const result of results.slice(1)) {
+        expect(result).toEqual(results[0]);
+      }
+    }
+  });
+
+  it('note-publish and note-unpublish reject bad arguments before auth', async () => {
+    for (const command of ['note-publish', 'note-unpublish']) {
+      const help = NOTES_COMMAND_HELP[command];
+      const cases: Array<[string[], string]> = [
+        [[command, 'notes/~zod/blog'], `${help}\n`],
+        [
+          [command, 'notes/~zod/blog', 'x'],
+          `Error: Invalid note id: x. Expected a number.\n\n${help}\n`,
+        ],
+        [
+          [command, '~zod/blog', '12'],
+          `Error: Invalid notes nest: ~zod/blog. Expected notes/~host/name.\n\n${help}\n`,
+        ],
+        [
+          [command, 'notes/~zod/blog', '12', '--force'],
+          `Error: Unknown option: --force\n\n${help}\n`,
+        ],
+        [
+          [command, 'notes/~zod/blog', '12', 'x'],
+          `Error: Unexpected argument: x\n\n${help}\n`,
+        ],
+      ];
+      for (const [args, expectedStderr] of cases) {
+        const context = makeDeps();
+        const exitCode = await run(args, context.deps);
+
+        expect(exitCode).toBe(1);
+        expect(context.stdout()).toBe('');
+        expect(context.stderr()).toBe(expectedStderr);
+        expectNoAuthOrIo(context);
+      }
+    }
   });
 });

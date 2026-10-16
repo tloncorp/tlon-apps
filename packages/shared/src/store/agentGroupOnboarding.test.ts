@@ -497,6 +497,7 @@ describe('isProvisionedAgentGroupTitle', () => {
     for (const title of [
       null,
       '',
+      'My agent workspace',
       'My agent group',
       "~zod's Group",
       "Dan's Group",

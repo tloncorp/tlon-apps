@@ -97,6 +97,10 @@ export default function SettingsScreen() {
     });
   }, [navigationRef, scheduledTasks.botShip]);
 
+  const onPromptFilesPressed = useCallback(() => {
+    navigationRef.current.navigate('BotPromptFiles');
+  }, [navigationRef]);
+
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigationRef.current.navigate('FeatureFlags');
   }, [navigationRef]);
@@ -145,6 +149,7 @@ export default function SettingsScreen() {
       ? onScheduledTasksPressed
       : undefined,
     scheduledTaskCount: scheduledTasks.count,
+    onPromptFilesPressed,
     onExperimentalFeaturesPressed,
     onThemePressed,
     onPrivacyPressed,

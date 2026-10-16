@@ -383,7 +383,7 @@ test('single-channel group: notifications back button returns to group details',
     .click();
 
   // Verify we're on GROUP details (not channel details)
-  await expect(page.getByText('Group info & settings')).toBeVisible({
+  await expect(page.getByText('Workspace info & settings')).toBeVisible({
     timeout: 5000,
   });
 
@@ -401,7 +401,7 @@ test('single-channel group: notifications back button returns to group details',
   await helpers.navigateBack(page);
 
   // Verify we're back on group details
-  await expect(page.getByText('Group info & settings')).toBeVisible({
+  await expect(page.getByText('Workspace info & settings')).toBeVisible({
     timeout: 5000,
   });
 });
@@ -481,7 +481,7 @@ test('group details back button returns to channel conversation (single-channel)
     .click();
 
   // Verify we're on GROUP details
-  await expect(page.getByText('Group info & settings')).toBeVisible({
+  await expect(page.getByText('Workspace info & settings')).toBeVisible({
     timeout: 5000,
   });
 
