@@ -1,5 +1,5 @@
 diff --git a/android/src/main/java/expo/modules/backgroundtask/BackgroundTaskScheduler.kt b/android/src/main/java/expo/modules/backgroundtask/BackgroundTaskScheduler.kt
-index 74c5719139a2dd00300e36af02c9b2b685bf9519..92965017556931478142be4496bfc9f668f1d759 100644
+index 3c00eae63273a9dd3fc9c9d7fdd17d434f87b0ea..09395a568d364874e32bdc3cebc4c00667a7c2fc 100644
 --- a/android/src/main/java/expo/modules/backgroundtask/BackgroundTaskScheduler.kt
 +++ b/android/src/main/java/expo/modules/backgroundtask/BackgroundTaskScheduler.kt
 @@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit

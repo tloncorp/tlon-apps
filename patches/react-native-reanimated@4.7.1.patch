@@ -1,5 +1,5 @@
 diff --git a/lib/module/ReanimatedModule/js-reanimated/index.js b/lib/module/ReanimatedModule/js-reanimated/index.js
-index 65873f83e1ddf9b865cc1ae3145fb5d3de9e6ff0..6db0697d6704a53a76b1dadb25da3488651fa0ad 100644
+index bd5293b0c854462bf3ca211d0497183175220d96..8473da79db5e21d990e7d390f2357c1650b1eab6 100644
 --- a/lib/module/ReanimatedModule/js-reanimated/index.js
 +++ b/lib/module/ReanimatedModule/js-reanimated/index.js
 @@ -6,8 +6,11 @@ export { createJSReanimatedModule } from "./JSReanimated.js";
@@ -25,10 +25,10 @@ index 65873f83e1ddf9b865cc1ae3145fb5d3de9e6ff0..6db0697d6704a53a76b1dadb25da3488
        // React Native Web 0.19+ no longer provides setNativeProps function,
        // so we need to update DOM nodes directly.
        updatePropsDOM(component, rawStyles, isAnimatedProps);
--    } else if (Object.keys(component.props).length > 0) {
+-    } else if (component.props && Object.keys(component.props).length > 0) {
 +    } else if (component.props && Object.keys(component.props).length > 0 && component._touchableNode) {
        Object.keys(component.props).forEach(key => {
-         if (!rawStyles[key]) {
+         if (!(key in rawStyles)) {
            return;
 @@ -38,6 +41,16 @@ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
      }
@@ -87,27 +87,27 @@ index 65873f83e1ddf9b865cc1ae3145fb5d3de9e6ff0..6db0697d6704a53a76b1dadb25da3488
  //# sourceMappingURL=index.js.map
 \ No newline at end of file
 diff --git a/lib/module/createAnimatedComponent/InlinePropManager.js b/lib/module/createAnimatedComponent/InlinePropManager.js
-index d20b8c95439ed04acba518b62132254b9075c025..e3ff29d59c43f7217585712463ce09ee4ca5df85 100644
+index a6be62007cc8519fa87a7557945fcb2eb0478fb7..73e2f5f68ae9de965bfc2c3adce418fc1684ce95 100644
 --- a/lib/module/createAnimatedComponent/InlinePropManager.js
 +++ b/lib/module/createAnimatedComponent/InlinePropManager.js
 @@ -12,11 +12,13 @@ function isInlineStyleTransform(transform) {
    return transform.some(t => hasInlineStyles(t));
  }
- function inlinePropsHasChanged(styles1, styles2) {
--  if (Object.keys(styles1).length !== Object.keys(styles2).length) {
-+  const s1 = styles1 ?? {};
-+  const s2 = styles2 ?? {};
+ function inlinePropsHasChanged(props1, props2) {
+-  if (Object.keys(props1).length !== Object.keys(props2).length) {
++  const s1 = props1 ?? {};
++  const s2 = props2 ?? {};
 +  if (Object.keys(s1).length !== Object.keys(s2).length) {
      return true;
    }
--  for (const key of Object.keys(styles1)) {
--    if (styles1[key] !== styles2[key]) {
+-  for (const key of Object.keys(props1)) {
+-    if (props1[key] !== props2[key]) {
 +  for (const key of Object.keys(s1)) {
 +    if (s1[key] !== s2[key]) {
        return true;
      }
    }
-@@ -81,6 +83,9 @@ export function getInlineStyle(style, isFirstRender) {
+@@ -85,6 +87,9 @@ export function getInlineStyle(style, isFirstRender) {
      return getInlinePropsUpdate(style);
    }
    const newStyle = {};
@@ -118,7 +118,7 @@ index d20b8c95439ed04acba518b62132254b9075c025..e3ff29d59c43f7217585712463ce09ee
      if (!isSharedValue(styleValue) && !(key === 'transform' && isInlineStyleTransform(styleValue))) {
        newStyle[key] = styleValue;
 diff --git a/src/ReanimatedModule/js-reanimated/index.ts b/src/ReanimatedModule/js-reanimated/index.ts
-index d90c2b3a5c9feb49f5c9c3036dc7ae9d2748c499..01b7480ca153de43eafb20f3e78ea6b2ae209ac1 100644
+index 40d048f1873289ff96e9927aa081650ae11de785..bbfc05044f45921861e0086f4e4d4835b91be607 100644
 --- a/src/ReanimatedModule/js-reanimated/index.ts
 +++ b/src/ReanimatedModule/js-reanimated/index.ts
 @@ -14,8 +14,8 @@ interface JSReanimatedComponent {
@@ -171,14 +171,14 @@ index d90c2b3a5c9feb49f5c9c3036dc7ae9d2748c499..01b7480ca153de43eafb20f3e78ea6b2
        // React Native Web 0.19+ no longer provides setNativeProps function,
        // so we need to update DOM nodes directly.
        updatePropsDOM(component, rawStyles, isAnimatedProps);
--    } else if (Object.keys(component.props).length > 0) {
+-    } else if (component.props && Object.keys(component.props).length > 0) {
 +    } else if (
 +      component.props &&
 +      Object.keys(component.props).length > 0 &&
 +      component._touchableNode
 +    ) {
        Object.keys(component.props).forEach((key) => {
-         if (!rawStyles[key]) {
+         if (!(key in rawStyles)) {
            return;
          }
          const dashedKey = key.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
@@ -187,17 +187,23 @@ index d90c2b3a5c9feb49f5c9c3036dc7ae9d2748c499..01b7480ca153de43eafb20f3e78ea6b2
        });
      } else {
        const componentName =
-@@ -85,6 +87,29 @@ export const _updatePropsJS = (
+@@ -85,6 +87,35 @@ export const _updatePropsJS = (
    }
  };
  
-+const getComponentFromRef = (
-+  viewRef: (JSReanimatedComponent | ReanimatedHTMLElement) & {
-+    getAnimatableRef?: () => JSReanimatedComponent | ReanimatedHTMLElement;
++type JSReanimatedComponentRef = (
++  | JSReanimatedComponent
++  | ReanimatedHTMLElement
++) & {
++  host?: JSReanimatedComponent | ReanimatedHTMLElement;
++  current?: {
 +    host?: JSReanimatedComponent | ReanimatedHTMLElement;
-+    current?: {
-+      host?: JSReanimatedComponent | ReanimatedHTMLElement;
-+    };
++  };
++};
++
++const getComponentFromRef = (
++  viewRef: JSReanimatedComponentRef & {
++    getAnimatableRef?: () => JSReanimatedComponentRef;
 +  }
 +): JSReanimatedComponent | ReanimatedHTMLElement | undefined => {
 +  const component = viewRef.getAnimatableRef
@@ -217,7 +223,7 @@ index d90c2b3a5c9feb49f5c9c3036dc7ae9d2748c499..01b7480ca153de43eafb20f3e78ea6b2
  const setNativeProps = (
    component: JSReanimatedComponent | ReanimatedHTMLElement,
    newProps: StyleProps,
-@@ -114,9 +139,13 @@ const updatePropsDOM = (
+@@ -114,9 +145,13 @@ const updatePropsDOM = (
    const currentStyle = { ...previousStyle, ...style };
    (component as JSReanimatedComponent).previousStyle = currentStyle;
  
@@ -234,7 +240,7 @@ index d90c2b3a5c9feb49f5c9c3036dc7ae9d2748c499..01b7480ca153de43eafb20f3e78ea6b2
    }
  
    if (
-@@ -147,3 +176,31 @@ const updatePropsDOM = (
+@@ -147,3 +182,31 @@ const updatePropsDOM = (
      }
    }
  };
@@ -267,28 +273,28 @@ index d90c2b3a5c9feb49f5c9c3036dc7ae9d2748c499..01b7480ca153de43eafb20f3e78ea6b2
 +    .filter(Boolean)
 +    .join(' ');
 diff --git a/src/createAnimatedComponent/InlinePropManager.ts b/src/createAnimatedComponent/InlinePropManager.ts
-index 3f698bfccafee8289ce2c17d8e09dedeb0053fa0..6ab2b9a152bc1c12a9e69cd33913efe8db06f450 100644
+index aef210d2d83262019b7395d37c2655126892a619..f6bdda3b1d099d49687df9f582c3c2e02267f991 100644
 --- a/src/createAnimatedComponent/InlinePropManager.ts
 +++ b/src/createAnimatedComponent/InlinePropManager.ts
-@@ -25,12 +25,14 @@ function inlinePropsHasChanged(
-   styles1: StyleProps,
-   styles2: StyleProps
+@@ -26,12 +26,14 @@ function inlinePropsHasChanged(
+   props1: UnknownRecord,
+   props2: UnknownRecord
  ): boolean {
--  if (Object.keys(styles1).length !== Object.keys(styles2).length) {
-+  const s1 = styles1 ?? {};
-+  const s2 = styles2 ?? {};
+-  if (Object.keys(props1).length !== Object.keys(props2).length) {
++  const s1 = props1 ?? {};
++  const s2 = props2 ?? {};
 +  if (Object.keys(s1).length !== Object.keys(s2).length) {
      return true;
    }
  
--  for (const key of Object.keys(styles1)) {
--    if (styles1[key] !== styles2[key]) {
+-  for (const key of Object.keys(props1)) {
+-    if (props1[key] !== props2[key]) {
 +  for (const key of Object.keys(s1)) {
 +    if (s1[key] !== s2[key]) {
        return true;
      }
    }
-@@ -114,6 +116,9 @@ export function getInlineStyle(
+@@ -119,6 +121,9 @@ export function getInlineStyle(
      return getInlinePropsUpdate(style) as Record<string, unknown>;
    }
    const newStyle: StyleProps = {};
