@@ -12,6 +12,8 @@ import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
 import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { ActivityEmptyState } from '../../features/top/DesktopEmptyStates';
+import { BotPromptFileScreen } from '../../features/settings/BotPromptFileScreen';
+import { BotPromptFilesScreen } from '../../features/settings/BotPromptFilesScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
@@ -129,6 +131,14 @@ export const ActivityNavigator = () => {
       <ActivityDrawer.Screen
         name="ScheduledTaskEditor"
         component={ScheduledTaskEditorScreen}
+      />
+      <ActivityDrawer.Screen
+        name="BotPromptFiles"
+        component={BotPromptFilesScreen}
+      />
+      <ActivityDrawer.Screen
+        name="BotPromptFile"
+        component={BotPromptFileScreen}
       />
       <ActivityDrawer.Screen name="EditProfile" component={EditProfileScreen} />
     </ActivityDrawer.Navigator>

@@ -275,7 +275,7 @@ export function StaticChatMessage({
         postIsFromOwnBot,
       });
       if (!groupId) {
-        throw new Error('The onboarding group is not available');
+        throw new Error('The onboarding workspace is not available');
       }
       return { groupId, draftInput: draftInputContext };
     },
@@ -293,7 +293,7 @@ export function StaticChatMessage({
       // caller hosts it — the same bar configureAgentProviders applies.
       const targetGroup = await db.getGroup({ id: groupId });
       if (!targetGroup?.currentUserIsHost) {
-        throw new Error('The onboarding group is not available');
+        throw new Error('The onboarding workspace is not available');
       }
       // The local channel table can lag behind a freshly furnished group.
       // Re-read and adopt the ship's notebook before creating one, while the
@@ -430,11 +430,11 @@ export function StaticChatMessage({
         draftInputContext.group?.id ??
         draftInputContext.channel.groupId;
       if (currentGroupId && currentGroupId !== groupId) {
-        throw new Error('The agent group is not available');
+        throw new Error('The agent workspace is not available');
       }
       const targetGroup = await db.getGroup({ id: groupId });
       if (!targetGroup?.currentUserIsHost) {
-        throw new Error('The agent group is not available');
+        throw new Error('The agent workspace is not available');
       }
       const uniqueProviderIds = [...new Set(providerIds)];
       const blob = appendToPostBlob(undefined, {
@@ -445,8 +445,8 @@ export function StaticChatMessage({
         providerIds: uniqueProviderIds,
       });
       const content = uniqueProviderIds.length
-        ? `Use ${uniqueProviderIds.join(', ')} for this group’s future entries.`
-        : 'Do not use connected services for this group’s future entries.';
+        ? `Use ${uniqueProviderIds.join(', ')} for this workspace’s future entries.`
+        : 'Do not use connected services for this workspace’s future entries.';
       await draftInputContext.sendPostFromDraft({
         channelId: draftInputContext.channel.id,
         content: [content],

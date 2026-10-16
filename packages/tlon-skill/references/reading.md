@@ -18,6 +18,8 @@ For history pagination, surrounding context, reactions, edits, deletes (includin
 
 History and activity responses are bounded. A short or empty page does not prove that no older matching messages exist; use the supported pagination/search options before making an exhaustive claim.
 
+To share a group, post, or note as a card, follow the reference rules in the skill's "Identity, delivery, and completion" section.
+
 ## Mute or change notification levels
 
 ```json
@@ -27,7 +29,3 @@ History and activity responses are bounded. A short or empty page does not prove
 ```
 
 OpenClaw runs these as the configured owner unless `--self` or explicit credential flags are supplied, so they change the owner's notifications as seen in the owner's app. Change notifications only when asked. A thread is addressed by its channel and root post id. Report the level the command prints; if it says the change is not confirmed, say so instead of claiming success.
-
-## Share a Tlon reference
-
-Native reference paths render as cards in messages: `/1/group/<host>/<slug>` for groups, `/1/chan/<nest>/msg/<id>` for posts, and `/1/chan/notes/<host>/<name>/note/<id>` for notes. Prefer a returned `Ref:` path and preserve its identifiers. Put the reference after the sentence introducing it; malformed paths remain literal text.

@@ -139,7 +139,7 @@ const OPENCLAW_RUNTIME_COMMANDS: SlashCommandOption[] = [
   {
     command: '/pending',
     title: 'Pending approvals',
-    subtitle: 'List pending DM, channel, and group requests',
+    subtitle: 'List pending DM, channel, and workspace requests',
     icon: 'Clock',
     keywords: ['approval', 'requests', 'owner'],
     priority: 5,
@@ -312,7 +312,7 @@ const HERMES_RUNTIME_COMMANDS: SlashCommandOption[] = [
   {
     command: '/pending',
     title: 'Pending approvals',
-    subtitle: 'List pending DM, channel, and group requests',
+    subtitle: 'List pending DM, channel, and workspace requests',
     icon: 'Clock',
     keywords: ['approval', 'requests', 'owner'],
     priority: 11,

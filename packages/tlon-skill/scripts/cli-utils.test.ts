@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  channelCreatedLines,
   getOption,
   getRequiredOptionValue,
   hasOptionValue,
@@ -25,6 +26,20 @@ describe('cli-utils', () => {
       expect(isGroupFlag('~zod/')).toBe(false);
       expect(isGroupFlag('~zod/Bad')).toBe(false);
       expect(isGroupFlag('zod/book-club')).toBe(false);
+    });
+  });
+
+  describe('channelCreatedLines', () => {
+    it('prints the nest and the group Ref, since channels have no card', () => {
+      expect(
+        channelCreatedLines('chat/~zod/abc', 'Discussion', '~zod/proj')
+      ).toEqual([
+        '   Nest: chat/~zod/abc',
+        '   Title: Discussion',
+        '   Group: ~zod/proj',
+        '   Ref: /1/group/~zod/proj',
+        '   Share: channels have no card yet; name the channel and its Nest, and include the group Ref path in a chat message to post a tappable group card.',
+      ]);
     });
   });
 

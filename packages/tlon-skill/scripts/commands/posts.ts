@@ -513,9 +513,7 @@ function postTargetApps(
   target: string | undefined
 ): PostAuthApp[] {
   if ((command === 'send' || command === 'reply') && target) {
-    return target.startsWith('~') || target.startsWith('0v')
-      ? ['chat']
-      : ['channels'];
+    return isDmTarget(target) ? ['chat'] : ['channels'];
   }
   return ['channels'];
 }
@@ -561,6 +559,25 @@ function threadReplyTarget(target: string): string {
     );
   }
   return canonicalizeNest(target);
+}
+
+// The host assigns a channel post's ID after the send returns, so no Ref can be
+// printed here; point at the readback instead. DMs have no reference card.
+function writePostRefHint(
+  channelId: string,
+  deps: PostsDeps,
+  parentId?: string
+): void {
+  if (isDmTarget(channelId)) {
+    return;
+  }
+  const hint = parentId
+    ? `find the reply's ID with \`messages post ${channelId} ${parentId}\`, then put /1/chan/${channelId}/msg/${parentId}/<id>`
+    : `find its ID with \`messages channel ${channelId} --limit 5\`, then put /1/chan/${channelId}/msg/<id>`;
+  writeLine(
+    deps.stdout,
+    `  Share: the host assigns the post ID, so none is returned here; ${hint} in your reply to post a tappable card.`
+  );
 }
 
 function parseArgs(args: string[]): ParsedPostsArgs {
@@ -1366,10 +1383,12 @@ export async function run(args: string[], deps: PostsDeps): Promise<number> {
       case 'send':
         await sendPost(parsed, deps);
         writeLine(deps.stdout, '✓ Message sent');
+        writePostRefHint(parsed.channelId, deps);
         return 0;
       case 'reply':
         await sendReply(parsed, deps);
         writeLine(deps.stdout, '✓ Reply sent');
+        writePostRefHint(parsed.channelId, deps, formatPostId(parsed.postId));
         return 0;
       case 'react':
         await reactToPost(parsed, deps);
