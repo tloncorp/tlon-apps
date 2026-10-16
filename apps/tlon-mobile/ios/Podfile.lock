@@ -1913,7 +1913,7 @@ PODS:
   - react-native-branch (5.9.2):
     - BranchSDK (= 2.2.1)
     - React-Core
-  - react-native-context-menu-view (1.15.0):
+  - react-native-context-menu-view (1.21.0):
     - React
   - react-native-cookies (6.2.1):
     - React-Core
@@ -3764,7 +3764,7 @@ SPEC CHECKSUMS:
   React-mutationobservernativemodule: 2ac0eccd0d99503f49289dbf676462b560daad5a
   react-native-audio-waveform: b33576b575edf94d2634199f3719dd68dacac8c4
   react-native-branch: 5d4ecda7bae040542f6c9f651a05d3df23d8b35a
-  react-native-context-menu-view: c7477ad2a9b5005eb45dd168c2dcdd64526dba77
+  react-native-context-menu-view: da39a4612c1294d651907162529cfba8421e9b89
   react-native-cookies: d648ab7025833b977c0b19e142503034f5f29411
   react-native-get-random-values: d16467cf726c618e9c7a8c3c39c31faa2244bbba
   react-native-keyboard-controller: fc1dab70f0c32c58d58fe8707a0f413a6b23c4d6
