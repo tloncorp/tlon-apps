@@ -11,12 +11,22 @@
  *   ~ten = test user (configured as ownerShip)
  *   ~mug = third-party ship (non-owner, for security tests)
  */
-import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from 'vitest';
 
 import {
   type TestFixtures,
   ensureThirdPartyDmAccess,
   getFixtures,
+  getGatewayRestartPreflight,
+  requireFixtureGroup,
   requireThirdParty,
   waitFor,
 } from '../lib/index.js';
@@ -113,8 +123,8 @@ describe('security', () => {
 
   describe('tool access control', () => {
     test('owner can use the tlon tool', async () => {
-      // Owner (~ten) asks the bot to use the tlon tool to update nickname.
-      // before_tool_call should let the owner through → nickname changes.
+      // Owner (~ten) asks the bot to use the tlon tool to update the bot's
+      // own nickname: --self, since commands act as the owner by default.
       const nicknameToken = `sec-${Date.now().toString(36)}`;
       const key = 'sec-owner-tool';
       await fakeModel.script(key, [
@@ -122,7 +132,7 @@ describe('security', () => {
           kind: 'tool_call',
           name: 'tlon',
           args: {
-            command: `contacts update-profile --nickname "${nicknameToken}"`,
+            command: `--self contacts update-profile --nickname "${nicknameToken}"`,
           },
         },
         { kind: 'text', content: 'Nickname updated.' },
@@ -210,6 +220,356 @@ describe('security', () => {
       expect(blockedResult?.content?.text).toBe(
         formatOwnerOnlyToolBlockReason('tlon')
       );
+    });
+  });
+
+  // =========================================================================
+  // 1b. Owner identity: commands act as the owner on owner-directed turns
+  // =========================================================================
+
+  /**
+   * The text of the tool result for the `tlon` call running `command` that
+   * this key's run made, looked up in the model requests of this key and any
+   * others (a message steered into the run can carry the next request under
+   * its own key). Core gives the transcript its own tool-call ids, so the call
+   * is found in the request transcripts; calls already in the key's first
+   * request are earlier history on a shared session and are skipped.
+   */
+  async function toolResultText(
+    key: string,
+    command: string,
+    otherKeys: string[] = []
+  ): Promise<string | undefined> {
+    const own = await fakeModel.received(key);
+    if (own.length === 0) return undefined;
+    const first = own.reduce((earliest, call) =>
+      call.at < earliest.at ? call : earliest
+    );
+    const history = new Set(
+      (first.messages ?? [])
+        .flatMap((message) => message.tool_calls ?? [])
+        .map((toolCall) => toolCall.id)
+    );
+    const others = await Promise.all(
+      otherKeys.map((other) => fakeModel.received(other))
+    );
+    const messages = [...own, ...others.flat()].flatMap(
+      (call) => call.messages ?? []
+    );
+    const toolCallId = messages
+      .flatMap((message) => message.tool_calls ?? [])
+      .find(
+        (toolCall) =>
+          !history.has(toolCall.id) &&
+          toolCall.function?.name === 'tlon' &&
+          toolCall.function?.arguments?.includes(command)
+      )?.id;
+    if (!toolCallId) return undefined;
+    return messages.find(
+      (message) =>
+        message.role === 'tool' && message.tool_call_id === toolCallId
+    )?.content?.text;
+  }
+
+  /** Let in-flight runs finish so a later fake-model reset cannot strand them. */
+  async function waitForRuntimeIdle(timeoutMs = 90_000): Promise<void> {
+    const composeFile = process.env.TEST_COMPOSE_FILE ?? '';
+    if (!composeFile) return;
+    const deadline = Date.now() + timeoutMs;
+    let preflight = getGatewayRestartPreflight(composeFile, 10_000);
+    while (preflight.counts.totalActive > 0 && Date.now() < deadline) {
+      await sleep(500);
+      preflight = getGatewayRestartPreflight(composeFile, 10_000);
+    }
+    if (preflight.counts.totalActive > 0) {
+      throw new Error(
+        `Runtime still busy after the test: ${JSON.stringify(preflight.counts)}`
+      );
+    }
+  }
+
+  describe('owner identity', () => {
+    afterEach(() => waitForRuntimeIdle());
+
+    test("an owner DM's delegated write lands on the owner's ship", async () => {
+      const token = `own-${Date.now().toString(36)}`;
+      const key = 'sec-owner-delegated-write';
+      const botBefore = extractNickname(
+        await fixtures.botState.scry<Record<string, unknown>>(
+          'contacts',
+          '/v1/self'
+        )
+      );
+      const ownerBefore = extractNickname(
+        await fixtures.userState.scry<Record<string, unknown>>(
+          'contacts',
+          '/v1/self'
+        )
+      );
+      await fakeModel.script(
+        key,
+        [
+          {
+            kind: 'tool_call',
+            name: 'tlon',
+            args: { command: `contacts update-profile --nickname "${token}"` },
+          },
+          { kind: 'text', content: 'Your nickname is updated.' },
+        ],
+        { allowExtraCalls: 1 }
+      );
+
+      try {
+        const response = await fixtures.client.prompt(
+          `[tlon-test:${key}] Change my nickname to "${token}".`
+        );
+        if (!response.success) {
+          throw new Error(response.error ?? 'Prompt failed');
+        }
+
+        await waitFor(
+          async () =>
+            extractNickname(
+              await fixtures.userState.scry<Record<string, unknown>>(
+                'contacts',
+                '/v1/self'
+              )
+            ) === token
+              ? true
+              : undefined,
+          30_000,
+          1_500,
+          "the owner's nickname to change"
+        );
+        expect(
+          extractNickname(
+            await fixtures.botState.scry<Record<string, unknown>>(
+              'contacts',
+              '/v1/self'
+            )
+          )
+        ).toBe(botBefore);
+        expect(await toolResultText(key, token)).toContain(
+          `Ran as ${fixtures.userShip} (owner).`
+        );
+      } finally {
+        await fixtures.userState.poke({
+          app: 'contacts',
+          mark: 'contact-action',
+          json: { edit: [{ nickname: ownerBefore }] },
+        });
+      }
+    });
+
+    test("an owner DM's read returns the owner's data", async () => {
+      const key = 'sec-owner-read';
+      await fakeModel.script(
+        key,
+        [
+          {
+            kind: 'tool_call',
+            name: 'tlon',
+            args: { command: 'contacts self' },
+          },
+          { kind: 'text', content: 'That is you.' },
+        ],
+        { allowExtraCalls: 1 }
+      );
+
+      const response = await fixtures.client.prompt(
+        `[tlon-test:${key}] Who am I on Tlon?`
+      );
+      if (!response.success) {
+        throw new Error(response.error ?? 'Prompt failed');
+      }
+
+      const text = await waitFor(
+        () => toolResultText(key, 'contacts self'),
+        30_000
+      );
+      expect(text).toContain(fixtures.userShip);
+      expect(text).not.toContain(fixtures.botShip);
+    });
+  });
+
+  describe('group-channel turn identity', () => {
+    afterEach(() => waitForRuntimeIdle());
+
+    let chatChannel: string;
+    let groupId: string;
+    // What this suite changed, so cleanup restores exactly that.
+    let addedThirdParty = false;
+    let previousChannelRules: unknown;
+
+    function mention(text: string) {
+      return [{ inline: [{ ship: fixtures.botShip }, ` ${text}`] }];
+    }
+
+    async function putBotSetting(key: string, value: unknown): Promise<void> {
+      await fixtures.botState.poke({
+        app: 'settings',
+        mark: 'settings-event',
+        json: {
+          'put-entry': {
+            desk: 'moltbot',
+            'bucket-key': 'tlon',
+            'entry-key': key,
+            value,
+          },
+        },
+      });
+    }
+
+    async function delBotSetting(key: string): Promise<void> {
+      await fixtures.botState.poke({
+        app: 'settings',
+        mark: 'settings-event',
+        json: {
+          'del-entry': {
+            desk: 'moltbot',
+            'bucket-key': 'tlon',
+            'entry-key': key,
+          },
+        },
+      });
+    }
+
+    beforeAll(async () => {
+      requireFixtureGroup(fixtures);
+      requireThirdParty(fixtures);
+      chatChannel = fixtures.group.chatChannel;
+      groupId = fixtures.group.id;
+      const thirdPartyState = fixtures.thirdPartyState;
+      const settings = await fixtures.botState.scry<{
+        all?: { moltbot?: { tlon?: Record<string, unknown> } };
+      }>('settings', '/all');
+      previousChannelRules = settings?.all?.moltbot?.tlon?.channelRules;
+      if (!(await thirdPartyState.isMemberOfGroup(groupId))) {
+        addedThirdParty = true;
+        await fixtures.botState.inviteToGroup(groupId, [
+          fixtures.thirdPartyShip,
+        ]);
+        await waitFor(
+          async () => {
+            try {
+              await thirdPartyState.joinGroup(groupId);
+              return (await thirdPartyState.isMemberOfGroup(groupId))
+                ? true
+                : undefined;
+            } catch {
+              return undefined;
+            }
+          },
+          60_000,
+          2_000,
+          'third party to join the fixture group'
+        );
+      }
+      // Let the third party's mentions reach the agent instead of queuing an
+      // approval: this suite tests what happens once they do.
+      await putBotSetting(
+        'channelRules',
+        JSON.stringify({ [chatChannel]: { mode: 'open' } })
+      );
+      await sleep(1_000);
+    }, 120_000);
+
+    afterAll(async () => {
+      if (previousChannelRules === undefined) {
+        await delBotSetting('channelRules');
+      } else {
+        await putBotSetting('channelRules', previousChannelRules);
+      }
+      if (addedThirdParty && fixtures.thirdPartyState) {
+        await fixtures.thirdPartyState.leaveGroup(groupId);
+      }
+    });
+
+    test("a non-owner's mention cannot use the tlon tool", async () => {
+      requireThirdParty(fixtures);
+      const key = `sec-group-nonowner-${Date.now().toString(36)}`;
+      await fakeModel.script(
+        key,
+        [
+          {
+            kind: 'tool_call',
+            name: 'tlon',
+            args: { command: 'contacts self' },
+          },
+          { kind: 'text', content: 'Tool rejected by policy.' },
+        ],
+        { allowExtraCalls: 1 }
+      );
+
+      await fixtures.thirdPartyState.sendPost({
+        channelId: chatChannel,
+        content: mention(`[tlon-test:${key}] who is your owner?`),
+      });
+
+      const text = await waitFor(
+        () => toolResultText(key, 'contacts self'),
+        60_000
+      );
+      expect(text).toBe(formatOwnerOnlyToolBlockReason('tlon'));
+    });
+
+    // Skipped: any message that arrives while a run is active on its session
+    // (owner or not, with or without tool calls) leaves that run's and the
+    // queued message's replies undelivered, with 3 pending reply operations
+    // and 1 embedded run that never clear. That strands the runtime for every
+    // later test file. Demotion on a non-owner dispatch is covered by the
+    // turn-identity and before_tool_call unit tests; re-enable this once
+    // mid-run messages deliver.
+    test.skip("a non-owner message during the owner's turn switches it to the bot", async () => {
+      requireThirdParty(fixtures);
+      const run = Date.now().toString(36);
+      const ownerKey = `sec-steer-owner-${run}`;
+      const otherKey = `sec-steer-other-${run}`;
+      // The owner's turn holds its first model response, so the non-owner
+      // message arrives while the run is active, before its tool call.
+      await fakeModel.script(
+        ownerKey,
+        [
+          { kind: 'hold', ms: 8_000 },
+          {
+            kind: 'tool_call',
+            name: 'tlon',
+            args: { command: 'contacts self' },
+          },
+          { kind: 'text', content: 'done' },
+        ],
+        { allowExtraCalls: 2 }
+      );
+      await fakeModel.script(otherKey, [{ kind: 'text', content: 'ack' }], {
+        allowExtraCalls: 2,
+      });
+
+      await fixtures.userState.sendPost({
+        channelId: chatChannel,
+        content: mention(`[tlon-test:${ownerKey}] who am I?`),
+      });
+      // The owner's request has reached the model, so its run is active and
+      // the hold has begun.
+      await waitFor(
+        async () =>
+          (await fakeModel.received(ownerKey)).length > 0 ? true : undefined,
+        60_000,
+        250,
+        "the owner's model request"
+      );
+      // A mention engages the bot, so the monitor dispatches it on the same
+      // channel session.
+      await fixtures.thirdPartyState.sendPost({
+        channelId: chatChannel,
+        content: mention(`[tlon-test:${otherKey}] interjecting`),
+      });
+
+      const text = await waitFor(
+        () => toolResultText(ownerKey, 'contacts self', [otherKey]),
+        90_000
+      );
+      expect(text).toContain(fixtures.botShip);
+      expect(text).not.toContain(fixtures.userShip);
     });
   });
 

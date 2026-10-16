@@ -116,6 +116,12 @@ channels:
         # Owner receives approval requests and can manage the bot
         ownerShip: '~your-main-ship'
 
+        # tlon tool commands act as the owner (via $TLON_SKILL_DIR/ships/<owner>.json)
+        # unless the model adds --self. Defaults to false for staged rollout:
+        # commands then act as the bot, as before. Set it per bot in this
+        # channel config; component-version bundles do not carry it.
+        ownerDefault: false
+
         # Ships allowed to DM the bot directly
         dmAllowlist:
             - '~trusted-friend'

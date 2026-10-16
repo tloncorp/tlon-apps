@@ -162,6 +162,34 @@ describe('browser handoff parameter redaction', () => {
       command: 'contacts get ~zod',
     });
   });
+
+  it.each([
+    ['contacts self --code private-value', 'contacts self --code [REDACTED]'],
+    [
+      'contacts self --code --cookie secret-cookie-value',
+      'contacts self --code --cookie [REDACTED]',
+    ],
+    [
+      '--code --ship=~x --url secret-url-value contacts self',
+      '--code --ship=[REDACTED] --url [REDACTED] contacts self',
+    ],
+    [
+      '--cookie=private-value contacts self',
+      '--cookie=[REDACTED] contacts self',
+    ],
+    ['browser --self share sess_private', 'browser share [REDACTED]'],
+    ['--self tlon browser handoff sess_private', 'browser handoff [REDACTED]'],
+  ])(
+    'redacts credential values and --self browser forms in %s',
+    (command, expected) => {
+      expect(parsed(detailToolParams({ command }))).toEqual({
+        command: expected,
+      });
+      expect(detailToolParams({ command })).not.toMatch(
+        /secret-|private-value|sess_private/
+      );
+    }
+  );
 });
 
 describe('detailToolParams', () => {

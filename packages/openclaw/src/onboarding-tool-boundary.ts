@@ -188,16 +188,17 @@ export function getTlonSessionRunSurface(
   return surface;
 }
 
-export function clearTlonSessionRunSurface(
-  runId: string | null | undefined
-): void {
-  const key = runId?.trim();
-  if (!key) return;
-  sessionRunSurfaces.delete(key);
-  choiceRunClaims.delete(key);
-  const callId = taskPlanRunClaims.get(key);
-  if (callId) taskPlanCalls.delete(callId);
-  taskPlanRunClaims.delete(key);
+/**
+ * Unexpired run snapshots. Snapshots, and the publication claims bound to
+ * them, are never cleared at `agent_end`: core can end an attempt and continue
+ * the same run, which must keep both its identity and its one-publication
+ * limit. They expire by TTL only.
+ */
+export function listTlonSessionRunSurfaces(): Array<
+  [string, TlonSessionRunSurface]
+> {
+  pruneExpiredSurfaces();
+  return [...sessionRunSurfaces.entries()];
 }
 
 export function bindTlonInterviewStartToCurrentOwnerTurn(

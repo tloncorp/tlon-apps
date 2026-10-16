@@ -88,6 +88,7 @@ import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
 import { OWNER_ONLY_TOOLS } from '../owner-only-tools.js';
 import { setSessionRole } from '../session-roles.js';
+import { noteInboundDispatching } from '../turn-identity.js';
 import {
   DM_INVITE_PREVIEW,
   type TlonSettingsStore,
@@ -3512,6 +3513,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const dispatchTimeoutMs = resolveDispatchTimeoutMs(account.lifecycle);
       const compactionObservationTimeoutMs =
         resolveCompactionObservationTimeoutMs(cfg);
+      // Before dispatch: a non-owner message must taint the owner runs on
+      // these sessions before core can steer it into one of them.
+      noteInboundDispatching({
+        sessionKeys: lensSessionKeys,
+        role: senderRole,
+      });
       rememberTlonSessionRunSurface(runId, route.sessionKey, { senderRole });
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,

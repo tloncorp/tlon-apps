@@ -155,6 +155,29 @@ TLON_CONFIG_SHIP="${TLON_SHIP:-~zod}"
 TLON_CONFIG_CODE="${TLON_CODE:-lidlut-tabwed-pillex-ridrup}"
 TLON_CONFIG_OWNER="${TLON_OWNER_SHIP:-~ten}"
 TLON_CONFIG_DM_ALLOWLIST="${TLON_DM_ALLOWLIST:-~ten}"
+TLON_CONFIG_OWNER_DEFAULT="${TLON_OWNER_DEFAULT:-false}"
+if [ "$TLON_CONFIG_OWNER_DEFAULT" != "true" ] && [ "$TLON_CONFIG_OWNER_DEFAULT" != "false" ]; then
+  echo "FATAL: TLON_OWNER_DEFAULT must be true or false"
+  exit 1
+fi
+
+# tlon commands act as the owner by default, through the owner's credential
+# file at $TLON_SKILL_DIR/ships/<owner>.json (hosted deployments provision the
+# same file). The gateway is exec'd from this shell, so the plugin and its CLI
+# children inherit TLON_SKILL_DIR.
+if [ -n "${TLON_OWNER_URL:-}" ] && [ -n "${TLON_OWNER_CODE:-}" ]; then
+  export TLON_SKILL_DIR="${TLON_SKILL_DIR:-/root/.tlon-skill}"
+  owner_name="${TLON_CONFIG_OWNER#\~}"
+  mkdir -p "$TLON_SKILL_DIR/ships"
+  jq -n \
+    --arg url "$TLON_OWNER_URL" \
+    --arg ship "~$owner_name" \
+    --arg code "$TLON_OWNER_CODE" \
+    '{url: $url, ship: $ship, code: $code}' \
+    > "$TLON_SKILL_DIR/ships/$owner_name.json"
+  chmod 600 "$TLON_SKILL_DIR/ships/$owner_name.json"
+  echo "==> Owner credentials provisioned for ~$owner_name"
+fi
 TLON_CONFIG_DM_ALLOWLIST_JSON="$(printf '%s' "$TLON_CONFIG_DM_ALLOWLIST" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
 DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON='["web_fetch","web_search","image_search","read","cron","tlon","message"]'
 OPENCLAW_CONFIG_TOOLS_ALLOW_JSON="${OPENCLAW_TEST_TOOLS_ALLOW_JSON:-$DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON}"
@@ -266,6 +289,7 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "ship": "$TLON_CONFIG_SHIP",
       "code": "$TLON_CONFIG_CODE",
       "ownerShip": "$TLON_CONFIG_OWNER",
+      "ownerDefault": $TLON_CONFIG_OWNER_DEFAULT,
       "dmAllowlist": $TLON_CONFIG_DM_ALLOWLIST_JSON,
       "allowPrivateNetwork": true,
       "maxConsecutiveBotResponses": $TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES,

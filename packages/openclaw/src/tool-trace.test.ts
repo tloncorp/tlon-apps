@@ -89,6 +89,37 @@ describe('tool trace helpers', () => {
     }
   );
 
+  it.each([
+    ['contacts self --code private-value', 'contacts self --code [REDACTED]'],
+    [
+      'contacts self --code --cookie secret-cookie-value',
+      'contacts self --code --cookie [REDACTED]',
+    ],
+    [
+      '--code --ship=~x --url secret-url-value contacts self',
+      '--code --ship=[REDACTED] --url [REDACTED] contacts self',
+    ],
+    [
+      '--cookie=private-value contacts self',
+      '--cookie=[REDACTED] contacts self',
+    ],
+    ['browser --self share sess_private', 'browser share [REDACTED]'],
+    ['--self tlon browser handoff sess_private', 'browser handoff [REDACTED]'],
+  ])(
+    'redacts credential values and --self browser forms in %s',
+    (command, expected) => {
+      expect(_testing.sanitizeValue({ command })).toEqual({
+        command: expected,
+      });
+      const event = formatToolTraceEvent({
+        phase: 'before',
+        toolName: 'tlon',
+        payload: { params: { command } },
+      });
+      expect(event).not.toMatch(/secret-|private-value|sess_private/);
+    }
+  );
+
   it('preserves ordinary command arguments', () => {
     expect(_testing.sanitizeValue({ command: 'contacts get ~zod' })).toEqual({
       command: 'contacts get ~zod',

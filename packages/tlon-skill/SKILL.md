@@ -32,8 +32,6 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 | Read activity, search history, manage reactions, pins, notification levels, or existing posts | [Reading](references/reading.md) |
 | Workspaces (groups), membership, permissions, channels, channel sections, public exposure | [Groups and channels](references/groups-channels.md) |
 | Find notebooks, create/edit Markdown notes, and publish them | [Notes](references/notes.md) |
-| Workspaces (groups), membership, permissions, channels, channel sections, public exposure | [Groups and channels](references/groups-channels.md) |
-| Find notebooks, create/edit Markdown notes, and publish them | [Notes](references/notes.md) |
 | Shared group files and folders | [Buckets](references/buckets.md) |
 | Upload media for messages or profiles | [Media](references/media.md) |
 | Contacts, profile changes, bot settings | [Contacts and settings](references/contacts-settings.md) |
@@ -43,12 +41,30 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 ## Identity, delivery, and completion
 
 - Use returned group flags, channel nests, note IDs, and revisions. Display titles are not identifiers. Resolve ambiguous targets before writing.
-- Credentials are supplied by the runtime. Use the current account; do not collect access codes, print credentials, or switch to the owner's identity to work around permissions. Some documented commands, such as invite-link retrieval, note publishing, and notification settings, have an explicit owner-bound behavior.
+- Commands act as your owner by default: reads return the owner's data and writes land on the owner's ship. Add `--self` to act as this bot's own account: its own DMs, profile, contacts, group membership, the groups it hosts, and uploads you will send with `message`. `settings` and `browser` always act as the bot. Never pass `--config`, `--ship`, `--url`, `--code`, or `--cookie`, never collect access codes or print credentials, and never switch identity to work around a permission error. Each write reports the ship it ran as; check it.
 - Use `message` for ordinary outbound messages and replies. For local media, upload first and pass the returned HTTPS URL; see the media reference.
-- Use `groups create-owned` to create a group for a user and make them an admin. Read the groups reference for the identity requirements.
+- To create a workspace (group) for someone, use `--self groups create-owned "<name>" --owner <their ship>`: the bot hosts it and they become admin. Read the groups reference first.
 - Use `notes` for Markdown notebooks. Deprecated `%diary` management is unavailable through this tool; ask the owner to use `/migrate <diary-nest>` instead of attempting migration writes yourself.
 - Do not use LaTeX delimiters in note bodies or messages; use plain text/Unicode or code blocks.
 - Report a concrete failure if the task could not be completed. Verify the requested state before claiming success. A pending or host-confirmed write needs status/readback, not an immediate duplicate write.
+
+### Owner or bot
+
+Commands run as the owner unless you add `--self`. These read or change different data depending on the identity, so decide which one the person means ("my DMs" means the owner's; "your profile" means the bot's):
+
+| Commands | As the owner (default) | With `--self` |
+| --- | --- | --- |
+| `channels dms\|group-dms`, `messages dm\|search` | the owner's conversations | the bot's |
+| `activity *` (incl. `mute`, `unmute`, `volume`) | the owner's activity and notification levels | the bot's |
+| `contacts self\|list\|add\|remove\|update\|update-profile` | the owner's profile and contact book | the bot's |
+| `groups list\|join\|leave\|accept-invite\|reject-invite\|request-invite`, `channels join\|leave` | the owner's membership | the bot's |
+| `posts send\|reply` to `~ship` | a DM from the owner | a DM from the bot (prefer `message`) |
+| `posts react\|unreact\|edit\|delete` | as the owner (edit only the owner's posts) | as the bot |
+| `dms react\|unreact\|delete` | in the owner's DMs | in the bot's |
+| `hooks` | hooks in the owner's groups | hooks in channels the bot hosts |
+| `upload` | owner-hosted URL, for content posted as the owner | bot-hosted URL, for images you send with `message` |
+
+Only turns answering the owner act as the owner. Scheduled jobs, the heartbeat and subagents run as the bot. If you answer the owner while an earlier reply is still in progress, that answer also runs as the bot; say so and let them ask again.
 
 ## When discovery fails
 

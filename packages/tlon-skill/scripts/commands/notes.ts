@@ -104,9 +104,9 @@ export const NOTES_COMMAND_HELP: Record<string, string> = {
   'note-delete':
     'Usage: tlon notes note-delete <nest> <id>\nExample: tlon notes note-delete notes/~zod/blog 12',
   'note-publish':
-    'Usage: tlon notes note-publish <nest> <id> [--self]\nPublishes a snapshot of the note as a public web page on the acting ship and prints its URL. Later edits are not shown until you publish again. Harnesses with owner injection enabled run this as the owner unless --self or explicit credential flags are supplied; --self uses the current credentials.\nExample: tlon notes note-publish notes/~zod/blog 12',
+    'Usage: tlon notes note-publish <nest> <id> [--self]\nPublishes a snapshot of the note as a public web page on the acting ship and prints its URL. Later edits are not shown until you publish again. Bot harnesses that act for an owner run this as the owner unless --self is given; on the command line --self is accepted and uses the current credentials.\nExample: tlon notes note-publish notes/~zod/blog 12',
   'note-unpublish':
-    "Usage: tlon notes note-unpublish <nest> <id> [--self]\nRemoves the note's public web page from the acting ship. Harnesses with owner injection enabled run this as the owner unless --self or explicit credential flags are supplied; --self uses the current credentials.\nExample: tlon notes note-unpublish notes/~zod/blog 12",
+    "Usage: tlon notes note-unpublish <nest> <id> [--self]\nRemoves the note's public web page from the acting ship. Bot harnesses that act for an owner run this as the owner unless --self is given; on the command line --self is accepted and uses the current credentials.\nExample: tlon notes note-unpublish notes/~zod/blog 12",
   history:
     'Usage: tlon notes history <nest> <id>\nExample: tlon notes history notes/~zod/blog 12',
   folders:

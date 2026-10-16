@@ -39,8 +39,9 @@ describe('installed skill contract', () => {
           const { command } = JSON.parse(line);
           expect(typeof command).toBe('string');
           expect(command).not.toMatch(/^tlon\s|\$[A-Z_]+|--stdin|\|/);
+          // `--self` is the tool's bot-identity flag, not a command family.
           expect(['help', ...Object.keys(catalog)]).toContain(
-            command.split(' ')[0]
+            command.replace(/^--self\s+/, '').split(' ')[0]
           );
         }
       }

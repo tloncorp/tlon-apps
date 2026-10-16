@@ -26,7 +26,7 @@ History and activity responses are bounded. A short or empty page does not prove
 {"command":"activity volume chat/~host/channel soft"}
 ```
 
-OpenClaw runs these as the configured owner unless `--self` or explicit credential flags are supplied, so they change the owner's notifications as seen in the owner's app. Change notifications only when asked. A thread is addressed by its channel and root post id. Report the level the command prints; if it says the change is not confirmed, say so instead of claiming success.
+These change the owner's notifications as seen in the owner's app; add `--self` to change the bot's. Change notifications only when asked. A thread is addressed by its channel and root post id. Report the level the command prints; if it says the change is not confirmed, say so instead of claiming success.
 
 ## Share a Tlon reference
 

@@ -1,5 +1,7 @@
 # Channel hooks
 
+Hook commands run as the owner (the owner's groups) by default; add `--self` for automation channels the bot hosts.
+
 Use this reference for channel event hooks or existing hook configuration. Hooks are Hoon programs tied to the deployed desk's types, not arbitrary shell commands or general gateway jobs.
 
 ```json

@@ -192,6 +192,9 @@
                   "type": "string",
                   "minLength": 1
                 },
+                "ownerDefault": {
+                  "type": "boolean"
+                },
                 "reactionLevel": {
                   "type": "string",
                   "enum": [
@@ -327,6 +330,9 @@
           "ownerShip": {
             "type": "string",
             "minLength": 1
+          },
+          "ownerDefault": {
+            "type": "boolean"
           },
           "reactionLevel": {
             "type": "string",
