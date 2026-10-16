@@ -1324,7 +1324,7 @@ export async function openGroupCustomization(page: Page) {
   const customizationButtonIds = [
     'EmptyChannelEditGroupButton',
     'GroupOptionsEditGroupInfoButton',
-    'ActionSheetAction-Edit workspace info',
+    'ActionSheetAction-Edit group info',
   ];
   let clicked = await clickFirstVisibleTestId(
     page,

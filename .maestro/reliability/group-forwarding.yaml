@@ -39,7 +39,7 @@ env:
     visible:
       id: Post
       containsDescendants:
-        - text: '^Group$'
+        - text: '^Workspace$'
         - text: ${output.reliability.groupPattern}
     timeout: 5000
 - tapOn: '^Back$'

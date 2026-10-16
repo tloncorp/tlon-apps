@@ -120,6 +120,10 @@ function getFriendlyName(routeName: string) {
   const friendlyNames: Record<string, string> = {
     ChatList: 'Home',
     GroupSettings: 'Workspace Settings',
+    GroupChannels: 'Workspace Channels',
+    GroupMeta: 'Workspace Info',
+    GroupMembers: 'Workspace Members',
+    GroupRoles: 'Workspace Roles',
     ChannelSearch: 'Search',
     ChatDetails: 'Chat Details',
     UserProfile: 'Profile',

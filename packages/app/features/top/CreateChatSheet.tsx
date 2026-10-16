@@ -115,7 +115,7 @@ const CHAT_TYPE_CONFIG = {
     actionDescription: 'Create a private chat with one other person',
   },
   group: {
-    title: 'New empty workspace',
+    title: 'New workspace',
     subtitle: 'Select contacts to invite',
     actionTitle: 'New empty workspace',
     actionDescription: 'Create a customizable workspace',

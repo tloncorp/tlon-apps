@@ -790,7 +790,7 @@ export function ChannelOptionsSheetContent({
         channel.type === 'groupDm' && [
           'neutral',
           {
-            title: 'Edit workspace info',
+            title: 'Edit group info',
             endIcon: 'ChevronRight',
             action: wrappedAction.bind(null, onPressChannelMeta, false),
           },
