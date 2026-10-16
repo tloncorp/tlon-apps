@@ -43,13 +43,22 @@ Use `write` to save Markdown to a workspace file, such as `draft.md`. Then:
 {"command":"notes note notes/~host/name 12"}
 ```
 
-Replace `12` and `3` with the returned note ID and revision. `root` resolves to that notebook's root folder. For a different folder, discover its ID with `notes folders`.
+`note-create` and `note-update` print the note's `ID:` and `Ref:`; `notes note` shows its revision. Replace `12` and `3` with those values. When the note is not in the conversation you are replying in, share the `Ref:` path in your reply so Tlon renders a note card. If an older host returns no ID, find the note with `notes notes`. `root` resolves to that notebook's root folder. For a different folder, discover its ID with `notes folders`.
 
 `--body` takes a filename, not inline Markdown. `--markdown` is an alias only on `note-create`; use `--body` for updates. Relative paths use the active agent workspace. The tool cannot provide stdin or execute shell redirections.
 
 Verify the saved body and identity before claiming completion. If the command reports a pending write/request ID, use `notes request <request-id>` before repeating the write. On a revision conflict, re-read and reconcile; do not blindly overwrite a newer edit. `--expected-revision` is optional in the CLI, but protects edits from concurrent changes.
 
 Tlon does not render LaTeX. Use plain text/Unicode math or code blocks in notes and messages.
+
+## Publish a note to the web
+
+```json
+{"command":"notes note-publish notes/~host/name 12"}
+{"command":"notes note-unpublish notes/~host/name 12"}
+```
+
+OpenClaw defaults these commands to the configured owner unless `--self` or explicit credential flags are supplied, so the page is served from the owner's ship and, after a refresh, the owner's app shows the note as published and can unpublish it too. The owner's ship must host or have joined the notebook. Do not switch identities silently to work around an error. Publishing makes the note public to anyone with the link: publish only notes the user asked to publish, and return the URL the command prints, not a constructed one. The page is a snapshot: after `note-update`, run `note-publish` again to refresh it.
 
 ## Other notebook operations
 

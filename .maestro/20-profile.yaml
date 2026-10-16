@@ -63,7 +63,7 @@ appId: io.tlon.groups
     commands:
       - hideKeyboard
 # Set favorite group
-- tapOn: 'Add a group'
+- tapOn: 'Add a workspace'
 - scrollUntilVisible:
     element: 'Tlon Studio'
     timeout: 1000000

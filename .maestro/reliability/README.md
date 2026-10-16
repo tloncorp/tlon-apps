@@ -69,10 +69,11 @@ creates the basic-group template -- `Chat`, `Gallery` and `Notebook` --
 under the run's fixture title, opens it as the create sheet would, and reports
 `PASS: created <title>` (or `FAIL: <reason>`) in an alert the subflow
 dismisses. That is the same group on an account with an agent and one without;
-the create sheet's "New group" action, which the subflow used to tap, is not
-offered once the account has an agent. The link is handled only by a build made
-with `AUTOMATED_TEST=true` -- the `e2e` and `local-testing` EAS profiles -- and
-is ignored by any other build, where these journeys fail waiting for the alert.
+the create sheet's "New custom workspace" action, which the subflow used to
+tap, is not offered once the account has an agent. The link is handled only by
+a build made with `AUTOMATED_TEST=true` -- the `e2e` and `local-testing` EAS
+profiles -- and is ignored by any other build, where these journeys fail
+waiting for the alert.
 
 Do not run concurrent profile/settings journeys against the same account. These
 tests create private groups and posts that remain on the ship; only the

@@ -1,8 +1,8 @@
 {
   "activity": {
-    "summary": "Mentions, replies, and unread activity",
+    "summary": "Mentions, replies, unreads, and notification levels",
     "reference": "references/reading.md",
-    "toolGuidance": "Read activity; results are bounded."
+    "toolGuidance": "Read activity; results are bounded. mute/unmute/volume change the owner's notification settings: change them only on request."
   },
   "browser": {
     "summary": "Hosted-browser sharing and secure form handoff",
@@ -35,9 +35,9 @@
     "toolGuidance": "Changes public visibility; expose only content requested by the user."
   },
   "groups": {
-    "summary": "Workspaces (Tlon groups), roles, and membership",
+    "summary": "Workspaces (Tlon groups), roles, membership, and channel sections",
     "reference": "references/groups-channels.md",
-    "toolGuidance": "Use create-owned when creating a group for a user."
+    "toolGuidance": "Use create-owned when creating a group for a user. Organize channels with the section commands; read ids from groups info first."
   },
   "hooks": {
     "summary": "Channel hooks and automation",
@@ -52,10 +52,10 @@
   "notes": {
     "summary": "Markdown notebooks and notes",
     "reference": "references/notes.md",
-    "toolGuidance": "Use workspace files; owner-confirmed migration writes are unavailable."
+    "toolGuidance": "Use workspace files; note-publish makes a note public as the owner, so publish only on request; owner-confirmed migration writes are unavailable."
   },
   "posts": {
-    "summary": "Post reactions, edits, and deletes",
+    "summary": "Post reactions, edits, deletes, and pins",
     "reference": "references/reading.md",
     "toolGuidance": "Send/reply through message; do not manage deprecated diary posts."
   },

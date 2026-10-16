@@ -11,12 +11,12 @@ test.describe('Customize button race condition', () => {
     await helpers.createGroup(page);
 
     // Verify we're in the welcome/empty state
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+    await expect(page.getByText('Welcome to your workspace!')).toBeVisible();
 
     // Open customization immediately (tests the race condition)
     await helpers.openGroupCustomization(page);
 
     // Verify we navigated to customization screen
-    await expect(page.getByText('Edit group info')).toBeVisible();
+    await expect(page.getByText('Edit workspace info')).toBeVisible();
   });
 });

@@ -1,10 +1,11 @@
 appId: ${MAESTRO_APP_ID}
 ---
 # Builds the fixture through the automated-test deep link rather than the
-# create sheet, whose "New group" action is not offered on an account with an
-# agent. The link creates the basic-group template under this run's title and
-# opens it, as the create sheet would, so callers start on the group's channel
-# list either way. It needs an AUTOMATED_TEST build; see the reliability README.
+# create sheet, whose "New custom workspace" action is not offered on an
+# account with an agent. The link creates the basic-group template under this
+# run's title and opens it, as the create sheet would, so callers start on the
+# group's channel list either way. It needs an AUTOMATED_TEST build; see the
+# reliability README.
 - assertNotVisible: ${output.reliability.groupPattern}
 - openLink: "${MAESTRO_APP_ID + '://e2e/group?op=create-template&template=basic-group&title=' + output.reliability.groupEncoded}"
 - extendedWaitUntil:

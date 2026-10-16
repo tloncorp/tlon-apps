@@ -444,7 +444,7 @@ describe('tlon tool execution', () => {
   });
 });
 
-describe('owner credential injection for groups invite-link', () => {
+describe('owner credential injection for invite-link, note publishing and notification settings', () => {
   const SKILL_DIR = '/srv/tlon-skill';
   const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
 
@@ -467,85 +467,218 @@ describe('owner credential injection for groups invite-link', () => {
     return { execute, runCommand };
   }
 
-  it('runs a bare invite-link as the owner via --ship', async () => {
-    // --ship, not --config: ship-only resolution validates the file's ship and
-    // cookie against the owner, so a stale owner-named file cannot mint a
-    // bot-attributed link.
-    const { execute, runCommand } = makeExecutor();
-
-    const result = await execute('inject', {
-      command: 'groups invite-link ~host/book-club',
-    });
-
-    expect(runCommand).toHaveBeenCalledWith([
-      '--ship',
-      '~owner',
-      'groups',
-      'invite-link',
-      '~host/book-club',
-    ]);
-    expect(result.details).toBeUndefined();
-  });
-
-  it.each([
-    ['--self', 'groups invite-link ~host/book-club --self'],
-    ['-h', 'groups invite-link -h'],
-    ['--help', 'groups invite-link --help'],
-    ['separate-value --config', '--config /tmp/x.json groups invite-link ~h/g'],
-    ['=-form --config', '--config=/tmp/x.json groups invite-link ~h/g'],
-    ['separate-value --ship', '--ship ~other groups invite-link ~h/g'],
-    ['=-form --ship', '--ship=~other groups invite-link ~h/g'],
-    ['separate-value --url', '--url https://x groups invite-link ~h/g'],
-    [
-      '=-form --code',
-      '--code=sampel-ticlyt-migfun-falmel groups invite-link ~h/g',
-    ],
-    ['=-form --cookie', '--cookie=urbauth-~zod=0v groups invite-link ~h/g'],
-  ])('leaves the command untouched with %s', async (_label, command) => {
-    const { execute, runCommand } = makeExecutor();
-
-    await execute('skip', { command });
-
+  function expectRanVerbatim(
+    runCommand: ReturnType<typeof makeExecutor>['runCommand'],
+    command: string
+  ) {
+    expect(runCommand).toHaveBeenCalledTimes(1);
     const [args] = runCommand.mock.calls[0] as unknown as [string[]];
-    expect(args).toEqual(command.split(' '));
-  });
+    expect(args, command).toEqual(command.split(' '));
+  }
+
+  const OWNER_COMMANDS = [
+    'groups invite-link ~host/book-club',
+    'notes note-publish notes/~h/b 12',
+    'notes note-unpublish notes/~h/b 12',
+    'activity mute ~zod/book-club',
+    'activity unmute chat/~nec/general 170.141',
+    'activity volume ~ten hush',
+  ];
+
+  // --ship, not --config: ship-only resolution validates the file's ship and
+  // cookie against the owner, so a stale owner-named file cannot mint a
+  // bot-attributed link or publish as the bot.
+  it.each(OWNER_COMMANDS)(
+    'runs a bare `%s` as the owner via --ship',
+    async (command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      const result = await execute('inject', { command });
+
+      expect(runCommand).toHaveBeenCalledWith([
+        '--ship',
+        '~owner',
+        ...command.split(' '),
+      ]);
+      expect(result.details).toBeUndefined();
+    }
+  );
+
+  // ownerCredentialCommand applies the same opt-out logic to every listed op,
+  // so the table runs against one representative command.
+  const OPT_OUT_BASE = 'notes note-publish notes/~h/b 12';
+  // Mirrors CREDENTIAL_FLAGS_WITH_VALUE in tlon-tool-command.ts (not exported);
+  // keep the two in sync.
+  const CREDENTIAL_FLAGS = [
+    '--config',
+    '--url',
+    '--ship',
+    '--code',
+    '--cookie',
+  ];
+  const OPT_OUTS: Array<[string, string[]]> = [
+    [
+      '--self before and after positionals',
+      ['notes note-publish --self notes/~h/b 12', `${OPT_OUT_BASE} --self`],
+    ],
+    ['help tokens', ['notes note-publish -h', 'notes note-publish --help']],
+    [
+      'separate-value credential flags',
+      CREDENTIAL_FLAGS.map((flag) => `${flag} x ${OPT_OUT_BASE}`),
+    ],
+    [
+      '=-form credential flags',
+      CREDENTIAL_FLAGS.map((flag) => `${flag}=x ${OPT_OUT_BASE}`),
+    ],
+  ];
+
+  it.each(OPT_OUTS)(
+    'leaves the command untouched with %s',
+    async (_label, commands) => {
+      for (const command of commands) {
+        const { execute, runCommand } = makeExecutor();
+        await execute('skip', { command });
+        expectRanVerbatim(runCommand, command);
+      }
+    }
+  );
 
   it('leaves other subcommands untouched', async () => {
     const { execute, runCommand } = makeExecutor();
+    const commands = [
+      'groups info ~host/book-club',
+      'groups list',
+      'contacts self',
+      'notes note notes/~h/b 12',
+      'notes note-delete notes/~h/b 12',
+      'notes list',
+    ];
 
-    await execute('other', { command: 'groups info ~host/book-club' });
-    await execute('other', { command: 'groups list' });
-    await execute('other', { command: 'contacts self' });
+    for (const command of commands) {
+      await execute('other', { command });
+    }
 
+    expect(runCommand).toHaveBeenCalledTimes(commands.length);
     for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
       expect(args).not.toContain('--ship');
     }
   });
 
-  it('errors instead of silently using bot credentials when provisioning is missing', async () => {
-    const noSkillDir = makeExecutor({ env: {} as NodeJS.ProcessEnv });
-    const missingSkillDir = await noSkillDir.execute('no-dir', {
-      command: 'groups invite-link ~host/book-club',
-    });
-    expect(missingSkillDir.details).toEqual({ error: true });
-    expect(missingSkillDir.content[0]?.text).toContain('TLON_SKILL_DIR');
-    expect(noSkillDir.runCommand).not.toHaveBeenCalled();
+  const PROVISIONING_FAILURES: Array<Parameters<typeof makeExecutor>[0]> = [
+    { ownerShip: undefined },
+    { env: {} as NodeJS.ProcessEnv },
+    { fileExists: () => false },
+  ];
+  const ACTIVITY_HINT =
+    "Add --self to change this bot's own notification settings instead.";
 
-    const noFile = makeExecutor({ fileExists: () => false });
-    const missingFile = await noFile.execute('no-file', {
-      command: 'groups invite-link ~host/book-club',
-    });
-    expect(missingFile.details).toEqual({ error: true });
-    expect(missingFile.content[0]?.text).toContain(OWNER_CONFIG);
-    expect(noFile.runCommand).not.toHaveBeenCalled();
+  it.each([
+    [
+      OWNER_COMMANDS[0],
+      [
+        "Retrieving the owner's invite link requires a configured owner ship. Add --self to retrieve this bot's own invite link instead.",
+        "Retrieving the invite link as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to retrieve this bot's own invite link instead.",
+        `Retrieving the invite link as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to retrieve this bot's own invite link instead.`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[1],
+      [
+        "Publishing a note as the owner requires a configured owner ship. Add --self to publish from this bot's own ship instead.",
+        "Publishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to publish from this bot's own ship instead.",
+        `Publishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to publish from this bot's own ship instead.`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[2],
+      [
+        "Unpublishing a note as the owner requires a configured owner ship. Add --self to unpublish from this bot's own ship instead.",
+        "Unpublishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to unpublish from this bot's own ship instead.",
+        `Unpublishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to unpublish from this bot's own ship instead.`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[3],
+      [
+        `Muting as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
+        `Muting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
+        `Muting as ~owner requires owner credentials at ${OWNER_CONFIG}. ${ACTIVITY_HINT}`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[4],
+      [
+        `Unmuting as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
+        `Unmuting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
+        `Unmuting as ~owner requires owner credentials at ${OWNER_CONFIG}. ${ACTIVITY_HINT}`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[5],
+      [
+        `Changing a notification level as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
+        `Changing a notification level as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
+        `Changing a notification level as ~owner requires owner credentials at ${OWNER_CONFIG}. ${ACTIVITY_HINT}`,
+      ],
+    ],
+  ])(
+    'errors on `%s` instead of silently using bot credentials when provisioning is missing',
+    async (command, texts) => {
+      for (const [index, overrides] of PROVISIONING_FAILURES.entries()) {
+        const { execute, runCommand } = makeExecutor(overrides);
 
-    const noOwner = makeExecutor({ ownerShip: undefined });
-    const missingOwner = await noOwner.execute('no-owner', {
-      command: 'groups invite-link ~host/book-club',
-    });
-    expect(missingOwner.details).toEqual({ error: true });
-    expect(missingOwner.content[0]?.text).toContain('--self');
-    expect(noOwner.runCommand).not.toHaveBeenCalled();
+        const result = await execute('missing', { command });
+
+        expect(result.content[0]?.text).toBe(texts[index]);
+        expect(result.details).toEqual({ error: true });
+        expect(runCommand).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  // An opt-out short-circuits before provisioning is consulted. The two
+  // commands hit the two opt-out exits: the credential-override check and the
+  // --self/help check.
+  it.each([
+    'activity mute ~zod/book-club --self',
+    `--ship=~other ${OPT_OUT_BASE}`,
+  ])(
+    'honors the opt-out in `%s` despite missing provisioning',
+    async (command) => {
+      for (const overrides of PROVISIONING_FAILURES) {
+        const { execute, runCommand } = makeExecutor(overrides);
+
+        const result = await execute('opt-out', { command });
+
+        expect(result.details).toBeUndefined();
+        expectRanVerbatim(runCommand, command);
+      }
+    }
+  );
+
+  it('never injects owner credentials for activity reads', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('read', { command: 'activity mentions --limit 5' });
+    await execute('read', { command: 'activity unreads' });
+
+    expect(runCommand).toHaveBeenCalledTimes(2);
+    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+      expect(args).not.toContain('--ship');
+    }
+  });
+
+  it('requires the op to belong to its own family', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('other', { command: 'notes invite-link ~zod/book-club' });
+    await execute('other', { command: 'contacts note-publish' });
+    await execute('other', { command: 'groups mute ~zod/book-club' });
+
+    expect(runCommand).toHaveBeenCalledTimes(3);
+    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+      expect(args).not.toContain('--ship');
+    }
   });
 });
 
@@ -741,7 +874,15 @@ describe('checkBlockedTlonOperation', () => {
 });
 
 const documentedActionOperations = {
-  activity: ['mentions', 'replies', 'all', 'unreads'],
+  activity: [
+    'mentions',
+    'replies',
+    'all',
+    'unreads',
+    'mute',
+    'unmute',
+    'volume',
+  ],
   browser: ['handoff', 'share'],
   buckets: [
     'list',
@@ -818,6 +959,11 @@ const documentedActionOperations = {
     'promote',
     'demote',
     'add-channel',
+    'add-section',
+    'rename-section',
+    'delete-section',
+    'move-channel',
+    'order-sections',
   ],
   hooks: [
     'init',
@@ -846,6 +992,8 @@ const documentedActionOperations = {
     'note-rename',
     'note-move',
     'note-delete',
+    'note-publish',
+    'note-unpublish',
     'history',
     'folders',
     'folder',
@@ -860,7 +1008,16 @@ const documentedActionOperations = {
     'migrate-apply',
     'notebook-delete',
   ],
-  posts: ['send', 'reply', 'react', 'unreact', 'edit', 'delete'],
+  posts: [
+    'send',
+    'reply',
+    'react',
+    'unreact',
+    'edit',
+    'delete',
+    'pin',
+    'unpin',
+  ],
   settings: [
     'get',
     'set',
@@ -1181,6 +1338,59 @@ describe('tlon tool telemetry summarizer', () => {
     expect(JSON.stringify(summary)).not.toContain('Project Notes');
   });
 
+  it('classifies notification changes as writes without leaking targets', () => {
+    for (const operation of ['mute', 'unmute', 'volume']) {
+      const summary = summarizeTlonCommand(
+        `activity ${operation} ~zod/secret-group --self`
+      );
+
+      expect(summary).toMatchObject({
+        summaryKey: `activity.${operation}`,
+        operation,
+        intent: 'write',
+        isKnownSubcommand: true,
+      });
+      expect(JSON.stringify(summary)).not.toContain('secret-group');
+    }
+    expect(summarizeTlonCommand('activity unreads')).toMatchObject({
+      summaryKey: 'activity.unreads',
+      intent: 'read',
+    });
+  });
+
+  it('classifies post pins as channel admin operations', () => {
+    for (const operation of ['pin', 'unpin']) {
+      const summary = summarizeTlonCommand(
+        `posts ${operation} chat/~zod/quiet-launch 170.141`
+      );
+
+      expect(summary).toMatchObject({
+        summaryKey: `posts.${operation}`,
+        operation,
+        intent: 'admin',
+        channelKind: 'chat',
+        isKnownSubcommand: true,
+      });
+      expect(JSON.stringify(summary)).not.toContain('quiet-launch');
+      expect(JSON.stringify(summary)).not.toContain('170.141');
+    }
+  });
+
+  it('classifies section commands as group admin operations', () => {
+    const summary = summarizeTlonCommand(
+      'groups move-channel ~zod/quiet-launch chat/~zod/general --section Archive --index 0'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'groups.move-channel',
+      operation: 'move-channel',
+      intent: 'admin',
+      isKnownSubcommand: true,
+    });
+
+    expect(JSON.stringify(summary)).not.toContain('Archive');
+  });
+
   it('matches the default chat kind for group channel creation', () => {
     const summary = summarizeTlonCommand(
       'groups add-channel ~zod/quiet-launch "General"'
@@ -1193,6 +1403,22 @@ describe('tlon tool telemetry summarizer', () => {
 
     expect(JSON.stringify(summary)).not.toContain('General');
   });
+
+  it.each(['note-publish', 'note-unpublish'])(
+    'classifies notes %s as admin without leaking the nest',
+    (operation) => {
+      const summary = summarizeTlonCommand(
+        `notes ${operation} notes/~zod/secret-launch 12 --self`
+      );
+
+      expect(summary).toMatchObject({
+        summaryKey: `notes.${operation}`,
+        intent: 'admin',
+        operation,
+      });
+      expect(JSON.stringify(summary)).not.toContain('secret-launch');
+    }
+  );
 
   it('captures notes channel kinds from channel creation', () => {
     const summary = summarizeTlonCommand(
