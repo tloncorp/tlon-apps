@@ -70,9 +70,14 @@ test('should show and clear unread message counts', async ({
     true
   );
 
-  // Navigate to the group as ~ten to clear unread count
+  // Open the chat as ~ten and wait for the unread posts to render, so the
+  // channel has been read before we leave it
   await tenPage.getByText(groupName).first().click();
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+  await expect(
+    tenPage
+      .getByTestId('Post')
+      .getByText('Second unread message', { exact: true })
+  ).toBeVisible({ timeout: 15000 });
 
   // Navigate back to home and verify unread count is cleared
   await tenPage.getByTestId('HomeNavIcon').click();
