@@ -24,11 +24,17 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
   memberCount,
   membersLayout = 'default',
+  membersBackgroundColor = '$secondaryBackground',
   ...props
 }: {
   model: db.Group | GroupImageShim;
   memberCount?: number;
   membersLayout?: 'default' | 'compact';
+  /**
+   * The tile behind the members' faces when the group has no icon image. The
+   * default reads on a white list; a grey page wants another.
+   */
+  membersBackgroundColor?: AvatarProps['backgroundColor'];
 } & AvatarProps) {
   const { disableNicknames } = useCalm();
   const fallbackTitle = useMemo(() => {
@@ -71,7 +77,7 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
           {...props}
           alignItems="center"
           justifyContent="center"
-          backgroundColor="$secondaryBackground"
+          backgroundColor={membersBackgroundColor}
         >
           <FacePile
             contactIds={memberContactIds}

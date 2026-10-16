@@ -673,7 +673,7 @@ export async function createRole(
   // Ensure session is stable before creating role
   await waitForSessionStability(page);
 
-  await page.getByText('New', { exact: true }).click();
+  await page.getByTestId('GroupRolesNewButton').click();
   await expect(page.getByText('Add role')).toBeVisible();
 
   await fillFormField(page, 'RoleTitleInput', title);
@@ -856,7 +856,7 @@ export async function forwardGroupReference(page: Page, channelName: string) {
   await waitForSessionStability(page);
 
   // Click the Forward button in group info
-  await page.getByText('Forward reference').click();
+  await page.getByTestId('GroupQuickAction-Forward reference').click();
 
   // Verify forward sheet opened
   await expect(page.getByText('Forward group')).toBeVisible();
@@ -1108,58 +1108,40 @@ export async function deleteChannel(
     .click();
 }
 
+const accessLevelValues = {
+  'No access': '0',
+  'Can view': '1',
+  'Can post': '2',
+  'Can view and edit': '2',
+} as const;
+
+type AccessLevel = keyof typeof accessLevelValues;
+
 /**
- * Sets channel permissions for reader and writer roles
+ * Picks an access level on the channel permissions screen, for 'Everyone' or
+ * a role by its title. A role only has a choice while everyone has less than
+ * full access, so set Everyone first.
  */
-export async function setChannelPermissions(
+export async function setAccessLevel(
   page: Page,
-  readerRoles?: string[],
-  writerRoles?: string[],
-  keepMembers?: boolean
+  who: string,
+  level: AccessLevel
 ) {
-  if (readerRoles && readerRoles.length > 0) {
-    const privateToggle = page.getByTestId('PrivateChannelToggle');
-    const isEnabled = await privateToggle.getAttribute('aria-checked');
+  const picker = page.getByTestId(`AccessLevel-${who}`);
+  await expect(picker).toBeVisible();
+  await picker.selectOption(accessLevelValues[level]);
+  await expect(picker).toHaveValue(accessLevelValues[level]);
+}
 
-    if (isEnabled !== 'true') {
-      await privateToggle.click();
-      // Wait for Add roles button to appear after enabling private mode
-      await expect(page.getByText('Add roles')).toBeVisible();
-    }
-
-    await page.getByText('Add roles').click();
-    await expect(page.getByText('Select roles')).toBeVisible();
-
-    // Deselect Members if it's pre-selected and not in the requested roles
-    if (
-      !keepMembers &&
-      !readerRoles.some((r) => r.toLowerCase() === 'members')
-    ) {
-      const membersOption = page.getByTestId('RoleOption-Members');
-      if (await membersOption.isVisible({ timeout: 1000 })) {
-        await membersOption.click();
-      }
-    }
-
-    for (const role of readerRoles) {
-      if (role.toLowerCase() === 'admin') continue;
-      await page.getByTestId('RoleSearchInput').fill(role);
-      await page.getByText(role, { exact: true }).click();
-      await page.getByTestId('RoleSearchInput').fill('');
-    }
-    await page.getByTestId('RoleSelectionSaveButton').click();
-    // Wait for navigation back to Channel privacy screen
-    await expect(page.getByText('Channel permissions')).toBeVisible();
-  }
-
-  if (writerRoles && writerRoles.length > 0) {
-    for (const role of writerRoles) {
-      if (role.toLowerCase() === 'admin') continue;
-      const writeToggle = page.getByTestId(`WriteToggle-${role}`);
-      await expect(writeToggle).toBeVisible();
-      await writeToggle.click();
-    }
-  }
+/** Checks the access level picked for 'Everyone' or a role. */
+export async function expectAccessLevel(
+  page: Page,
+  who: string,
+  level: AccessLevel
+) {
+  await expect(page.getByTestId(`AccessLevel-${who}`)).toHaveValue(
+    accessLevelValues[level]
+  );
 }
 
 /**
@@ -1201,22 +1183,7 @@ export async function setGroupPrivacy(
 
   await expect(page.getByText('Group privacy')).toBeVisible();
 
-  if (privacy === 'private') {
-    await page
-      .getByTestId('GroupPrivacyScreen-RadioInput')
-      .getByText('Private', { exact: true })
-      .click();
-  } else if (privacy === 'secret') {
-    await page
-      .getByTestId('GroupPrivacyScreen-RadioInput')
-      .getByText('Secret', { exact: true })
-      .click();
-  } else {
-    await page
-      .getByTestId('GroupPrivacyScreen-RadioInput')
-      .getByText('Public', { exact: true })
-      .click();
-  }
+  await page.getByTestId(`GroupPrivacyOption-${privacy}`).click();
 
   // Wait for the privacy change to be processed
   await page.waitForTimeout(2000);
@@ -1237,8 +1204,8 @@ export async function setGroupPrivacy(
 export async function setGroupNotifications(
   page: Page,
   level:
-    | 'All group activity'
-    | 'Group posts, mentions, and replies'
+    | 'All activity'
+    | 'Posts and mentions'
     | 'Mentions and replies'
     | 'Nothing'
 ) {
@@ -1249,7 +1216,7 @@ export async function setGroupNotifications(
   await expect(
     page.getByText('Group posts, mentions, and replies', { exact: true })
   ).toBeVisible();
-  await page.getByText(level).click();
+  await page.getByText(level, { exact: true }).click();
 }
 
 /**
@@ -1292,12 +1259,9 @@ export async function verifyElementCount(
   expectedCount: number
 ) {
   await page.waitForTimeout(500);
-  await expect(
-    page
-      .getByTestId(containerTestId)
-      .locator('div')
-      .filter({ hasText: expectedCount.toString() })
-  ).toBeVisible();
+  await expect(page.getByTestId(containerTestId)).toContainText(
+    expectedCount.toString()
+  );
 }
 
 /**
@@ -1358,13 +1322,10 @@ export async function changeGroupDescription(page: Page, description: string) {
  * Attempts to change group icon (handles web file picker behavior)
  */
 export async function changeGroupIcon(page: Page, imagePath?: string) {
-  await expect(
-    page.getByText('Storage not configured', { exact: true })
-  ).toHaveCount(0);
-
-  const changeIconButton = page.getByText('Change icon image', { exact: true });
-  await expect(changeIconButton).toBeVisible({ timeout: 5000 });
-  await changeIconButton.click();
+  // On web, the icon opens the picker sheet.
+  const icon = page.getByTestId('ImageInputPreview');
+  await expect(icon).toBeVisible({ timeout: 5000 });
+  await icon.click();
 
   // Wait for the attachment dialog to appear
   await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });
@@ -2509,9 +2470,7 @@ export async function cleanupOwnProfile(page: Page) {
     }
 
     // Clear status
-    const statusInput = page.getByRole('textbox', {
-      name: 'Hanging out...',
-    });
+    const statusInput = page.getByTestId('ProfileStatusInput');
     if (await statusInput.isVisible({ timeout: 1000 }).catch(() => false)) {
       await statusInput.click();
       await statusInput.clear();
@@ -2519,15 +2478,18 @@ export async function cleanupOwnProfile(page: Page) {
     }
 
     // Clear bio
-    const bioInput = page.getByRole('textbox', { name: 'About yourself' });
+    const bioInput = page.getByTestId('ProfileBioInput');
     if (await bioInput.isVisible({ timeout: 1000 }).catch(() => false)) {
       await bioInput.click();
       await bioInput.clear();
       await bioInput.fill('');
     }
 
-    // Save changes
-    await page.getByText('Save').click();
+    // Save stays unavailable when the profile was already empty.
+    const saveButton = page.getByText('Save');
+    if (await saveButton.isEnabled()) {
+      await saveButton.click();
+    }
     await page.waitForTimeout(1000);
   }
   // Navigate back to home
@@ -2716,8 +2678,11 @@ export async function clearContactNickname(
     await page.getByTestId('ProfileNicknameInput').click();
     await page.getByTestId('ProfileNicknameInput').fill('');
 
-    // Save changes
-    await page.getByText('Save').click();
+    // Save stays unavailable when there was no nickname to clear.
+    const saveButton = page.getByText('Save');
+    if (await saveButton.isEnabled()) {
+      await saveButton.click();
+    }
     await page.waitForTimeout(1000);
 
     // Navigate back home

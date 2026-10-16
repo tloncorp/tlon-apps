@@ -1,19 +1,26 @@
 import * as db from '@tloncorp/shared/db';
-import { SectionListHeader } from '@tloncorp/ui';
 import Fuse from 'fuse.js';
-import { useCallback, useMemo, useState } from 'react';
-import { SectionList } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, getTokenValue } from 'tamagui';
+import { useMemo, useState } from 'react';
 
+import { useCalm } from '../contexts/appDataContext';
 import { useIsAdmin } from '../utils';
-import { ContactList } from './ContactList';
-import { TextInput } from './Form';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
 import { GroupMemberProfileSheet } from './GroupMemberProfileSheet';
-import { ScreenHeader } from './ScreenHeader';
+import {
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+  contactSettingsRow,
+} from './SettingsList';
 
 type GroupPrivacy = db.schema.GroupPrivacy;
+type Person = Pick<db.ChatMember, 'contactId' | 'contact'>;
+
+/**
+ * The native lists draw every row they are given, so a large group is shown a
+ * page at a time. Searching is the quick way to one person.
+ */
+const pageSize = 100;
 
 export function GroupMembersScreenView({
   goBack,
@@ -22,7 +29,6 @@ export function GroupMembersScreenView({
   groupId,
   bannedUsers,
   joinRequests,
-  groupPrivacyType,
   currentUserId,
   onPressAcceptJoinRequest,
   onPressRejectJoinRequest,
@@ -40,249 +46,160 @@ export function GroupMembersScreenView({
   onPressRejectJoinRequest: (contactId: string) => void;
   onPressGoToProfile: (contactId: string) => void;
 }) {
-  const { bottom } = useSafeAreaInsets();
+  const { disableNicknames } = useCalm();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [limit, setLimit] = useState(pageSize);
   const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
-  const contacts = useMemo(
-    () =>
-      members
-        .filter((m) => m.contact !== undefined && m.contact !== null)
-        .map((m) => m.contact!),
-    [members]
-  );
 
-  const fuse = useMemo(() => {
-    return new Fuse(members, {
-      keys: [
-        {
-          name: 'contact.nickname',
-          getFn: (member) => member.contact?.nickname || '',
-        },
-        {
-          name: 'contact.id',
-          getFn: (member) => member.contact?.id || member.contactId,
-        },
-      ],
-      threshold: 0.4,
-    });
-  }, [members]);
+  const groups = useMemo(() => {
+    const contacts = new Map(
+      members.flatMap((m) => (m.contact ? [[m.contactId, m.contact]] : []))
+    );
+    const outsiders = (list: { contactId: string }[]): Person[] =>
+      list.map(({ contactId }) => ({
+        contactId,
+        contact: contacts.get(contactId),
+      }));
+    const query = searchQuery.trim();
+    const matching = <T extends Person>(people: T[]) =>
+      query
+        ? new Fuse(people, {
+            keys: [
+              {
+                name: 'contact.nickname',
+                getFn: (person) => person.contact?.nickname || '',
+              },
+              {
+                name: 'contact.id',
+                getFn: (person) => person.contact?.id || person.contactId,
+              },
+            ],
+            threshold: 0.4,
+          })
+            .search(query)
+            .map((result) => result.item)
+        : people;
 
-  const filteredMembers = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return members;
-    }
-    return fuse.search(searchQuery).map((result) => result.item);
-  }, [members, searchQuery, fuse]);
-
-  const membersByRole = useMemo(
-    () =>
-      filteredMembers.reduce<Record<string, db.ChatMember[]>>((acc, m) => {
-        if (m.roles !== undefined && m.roles !== null) {
-          m.roles.forEach((role) => {
-            if (acc[role.roleId] === undefined) {
-              acc[role.roleId] = [];
-            }
-            acc[role.roleId].push(m);
-          });
-        }
-        return acc;
-      }, {}),
-    [filteredMembers]
-  );
-
-  const membersWithoutRoles = filteredMembers
-    .filter((m) => m.status !== 'invited')
-    .filter((m) => m.roles?.length === 0 || m.roles === null);
-
-  const invitedMembers = filteredMembers.filter((m) => m.status === 'invited');
-
-  const bannedUserData: db.ChatMember[] = useMemo(() => {
-    const bannedData = bannedUsers.map((b) => ({
-      contactId: b.contactId,
-      roles: null,
-      contact: contacts.find((c) => c.id === b.contactId),
-      membershipType: 'group' as const,
-    }));
-
-    if (!searchQuery.trim()) {
-      return bannedData;
+    const found = matching(members);
+    const byRole = new Map<string, db.ChatMember[]>();
+    for (const member of found) {
+      for (const role of member.roles ?? []) {
+        byRole.set(role.roleId, [...(byRole.get(role.roleId) ?? []), member]);
+      }
     }
 
-    const bannedFuse = new Fuse(bannedData, {
-      keys: [
-        {
-          name: 'contact.nickname',
-          getFn: (member) => member.contact?.nickname || '',
-        },
-        {
-          name: 'contact.id',
-          getFn: (member) => member.contact?.id || member.contactId,
-        },
-      ],
-      threshold: 0.4,
-    });
+    const all: { key: string; title: string; people: Person[] }[] = [
+      ...[...byRole].map(([roleId, people]) => ({
+        key: `role-${roleId}`,
+        title: roles.find((role) => role.id === roleId)?.title ?? roleId,
+        people,
+      })),
+      {
+        key: 'join-requests',
+        title: 'Join Requests',
+        people: currentUserIsAdmin ? matching(outsiders(joinRequests)) : [],
+      },
+      {
+        key: 'invited',
+        title: 'Invited',
+        people: found.filter((m) => m.status === 'invited'),
+      },
+      {
+        key: 'banned',
+        title: 'Banned Users',
+        people: currentUserIsAdmin ? matching(outsiders(bannedUsers)) : [],
+      },
+      {
+        key: 'members',
+        title: 'Members',
+        people: found.filter((m) => m.status !== 'invited' && !m.roles?.length),
+      },
+    ];
+    return all.filter((group) => group.people.length > 0);
+  }, [
+    bannedUsers,
+    currentUserIsAdmin,
+    joinRequests,
+    members,
+    roles,
+    searchQuery,
+  ]);
 
-    return bannedFuse.search(searchQuery).map((result) => result.item);
-  }, [bannedUsers, contacts, searchQuery]);
-
-  const joinRequestData: db.ChatMember[] = useMemo(() => {
-    const requestData = joinRequests.map((r) => ({
-      contactId: r.contactId,
-      roles: null,
-      contact: contacts.find((c) => c.id === r.contactId),
-      membershipType: 'group' as const,
-    }));
-
-    if (!searchQuery.trim()) {
-      return requestData;
+  const sections = useMemo(() => {
+    let room = limit;
+    let hidden = 0;
+    const shown: SettingsSectionModel[] = [];
+    for (const group of groups) {
+      const people = group.people.slice(0, room);
+      room -= people.length;
+      hidden += group.people.length - people.length;
+      if (people.length === 0) {
+        continue;
+      }
+      shown.push({
+        key: group.key,
+        title: group.title,
+        rows: people.map(({ contactId, contact }) => ({
+          ...contactSettingsRow(contactId, contact, disableNicknames),
+          accessory: 'none',
+          onPress: () => setSelectedContact(contactId),
+          contextActions: [
+            {
+              key: 'profile',
+              title: 'View profile',
+              systemImage: 'person.crop.circle',
+              onPress: () => onPressGoToProfile(contactId),
+            },
+          ],
+          testID: 'MemberRow',
+        })),
+      });
     }
-
-    const requestFuse = new Fuse(requestData, {
-      keys: [
+    if (shown.length === 0 && searchQuery.trim()) {
+      return [
         {
-          name: 'contact.nickname',
-          getFn: (member) => member.contact?.nickname || '',
+          key: 'none',
+          rows: [{ key: 'none', title: 'No one matches that search.' }],
         },
-        {
-          name: 'contact.id',
-          getFn: (member) => member.contact?.id || member.contactId,
-        },
-      ],
-      threshold: 0.4,
-    });
+      ];
+    }
+    if (hidden > 0) {
+      shown.push({
+        key: 'more',
+        rows: [
+          {
+            key: 'more',
+            title: `Show ${Math.min(hidden, pageSize)} more`,
+            action: true,
+            onPress: () => setLimit((current) => current + pageSize),
+            testID: 'ShowMoreMembers',
+          },
+        ],
+      });
+    }
+    return shown;
+  }, [disableNicknames, groups, limit, onPressGoToProfile, searchQuery]);
 
-    return requestFuse.search(searchQuery).map((result) => result.item);
-  }, [joinRequests, contacts, searchQuery]);
   const selectedIsRequest = joinRequests.some(
     (request) => request.contactId === selectedContact
   );
 
-  const sectionedData = useMemo(
-    () =>
-      Object.keys(membersByRole)
-        .map((role) => ({
-          title: role,
-          data: membersByRole[role],
-        }))
-        .concat(
-          joinRequestData.length > 0 && currentUserIsAdmin
-            ? [
-                {
-                  title: 'Join Requests',
-                  data: joinRequestData,
-                },
-              ]
-            : []
-        )
-        .concat(
-          invitedMembers.length > 0
-            ? [
-                {
-                  title: 'Invited',
-                  data: invitedMembers,
-                },
-              ]
-            : []
-        )
-        .concat(
-          bannedUserData.length > 0 && currentUserIsAdmin
-            ? [
-                {
-                  title: 'Banned Users',
-                  data: bannedUserData,
-                },
-              ]
-            : []
-        )
-        .concat(
-          membersWithoutRoles.length > 0
-            ? [
-                {
-                  title: 'Members',
-                  data: membersWithoutRoles,
-                },
-              ]
-            : []
-        ),
-    [
-      membersByRole,
-      joinRequestData,
-      bannedUserData,
-      membersWithoutRoles,
-      invitedMembers,
-      currentUserIsAdmin,
-    ]
-  );
-
-  const keyExtractor = useCallback((item: db.ChatMember) => item.contactId, []);
-
-  const renderItem = useCallback(
-    ({ item }: { item: db.ChatMember }) => (
-      <ContactList.Item
-        contactId={item.contactId}
-        showNickname
-        size="$4xl"
-        onPress={setSelectedContact}
-        testID="MemberRow"
-      />
-    ),
-    []
-  );
-
-  const renderSectionHeader = useCallback(
-    ({ section }: { section: { title: string } }) => (
-      <SectionListHeader>
-        <SectionListHeader.Text>
-          {roles.find((r) => r.id === section.title)?.title ?? section.title}
-        </SectionListHeader.Text>
-      </SectionListHeader>
-    ),
-    [roles]
-  );
-
-  const handlePressClear = useCallback(() => {
-    setSearchQuery('');
-  }, []);
-
   return (
-    <>
-      <View backgroundColor="$background" flex={1}>
-        <ScreenHeader title="Members" backAction={goBack} />
-        <View paddingHorizontal="$l" paddingBottom="$s">
-          <TextInput
-            icon="Search"
-            placeholder="Search by name or ID"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            spellCheck={false}
-            autoCorrect={false}
-            autoCapitalize="none"
-            rightControls={
-              searchQuery !== '' ? (
-                <TextInput.InnerButton
-                  label="Clear"
-                  onPress={handlePressClear}
-                />
-              ) : undefined
-            }
-          />
-        </View>
-        <SectionList
-          sections={sectionedData}
-          keyExtractor={keyExtractor}
-          maxToRenderPerBatch={6}
-          initialNumToRender={11}
-          contentContainerStyle={{
-            paddingHorizontal: getTokenValue('$l', 'size'),
-            paddingBottom: bottom,
-          }}
-          windowSize={2}
-          renderItem={renderItem}
-          renderSectionHeader={renderSectionHeader}
-          stickySectionHeadersEnabled={false}
-        />
-      </View>
+    <SettingsListScreenView
+      title="Members"
+      sections={sections}
+      onBackPressed={goBack}
+      showsBackOnWideWindows
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      // A heading per role leaves many short cards; default gaps outweigh them.
+      compactSections
+      search={{
+        value: searchQuery,
+        onChangeText: setSearchQuery,
+        placeholder: 'Search by name or ID',
+      }}
+    >
       {selectedContact !== null && !selectedIsRequest && (
         <GroupMemberProfileSheet
           selectedContact={selectedContact}
@@ -293,7 +210,10 @@ export function GroupMembersScreenView({
       )}
       {selectedContact !== null && selectedIsRequest && (
         <GroupJoinRequestSheet
-          contact={contacts.find((c) => c.id === selectedContact)}
+          contact={
+            members.find((m) => m.contactId === selectedContact)?.contact ??
+            undefined
+          }
           contactId={selectedContact}
           currentUserIsAdmin={currentUserIsAdmin}
           open={true}
@@ -310,6 +230,6 @@ export function GroupMembersScreenView({
           }}
         />
       )}
-    </>
+    </SettingsListScreenView>
   );
 }

@@ -107,15 +107,15 @@ describe('SettingsSectionsView', () => {
     const single = render({ ...choice, selected: true }).findByType(
       'Pressable' as never
     );
-    expect(single.props.accessibilityRole).toBe('radio');
-    expect(single.props.accessibilityState).toEqual({ checked: true });
+    expect(single.props.role).toBe('radio');
+    expect(single.props['aria-checked']).toBe(true);
 
     const multiple = render({
       ...choice,
       selected: false,
       multiple: true,
     }).findByType('Pressable' as never);
-    expect(multiple.props.accessibilityRole).toBe('checkbox');
-    expect(multiple.props.accessibilityState).toEqual({ checked: false });
+    expect(multiple.props.role).toBe('checkbox');
+    expect(multiple.props['aria-checked']).toBe(false);
   });
 });

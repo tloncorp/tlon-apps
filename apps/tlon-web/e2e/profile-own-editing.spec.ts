@@ -23,16 +23,12 @@ test('should allow users to edit their own profile', async ({ zodSetup }) => {
     .fill('Zod Testing nickname');
 
   // Update status
-  await zodPage.getByRole('textbox', { name: 'Hanging out...' }).click();
-  await zodPage
-    .getByRole('textbox', { name: 'Hanging out...' })
-    .fill('Zod Testing status');
+  await zodPage.getByTestId('ProfileStatusInput').click();
+  await zodPage.getByTestId('ProfileStatusInput').fill('Zod Testing status');
 
   // Update bio
-  await zodPage.getByRole('textbox', { name: 'About yourself' }).click();
-  await zodPage
-    .getByRole('textbox', { name: 'About yourself' })
-    .fill('Zod Testing bio');
+  await zodPage.getByTestId('ProfileBioInput').click();
+  await zodPage.getByTestId('ProfileBioInput').fill('Zod Testing bio');
 
   // Try to add a group (but close since we don't have any groups in test)
   await zodPage.getByText('Add a group').click();

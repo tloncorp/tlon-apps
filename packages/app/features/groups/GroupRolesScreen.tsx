@@ -1,174 +1,84 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as db from '@tloncorp/shared/db';
-import { useCallback } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMemo } from 'react';
 
 import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { useIsWindowNarrow } from '../../ui';
 import {
-  ActionSheet,
-  ListItem,
-  Pressable,
-  ScreenHeader,
-  ScrollView,
-  View,
-  YStack,
-  useIsWindowNarrow,
-} from '../../ui';
-import { Badge } from '../../ui/components/Badge';
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupRoles'>;
 
-export function GroupRolesScreen(props: Props) {
-  return (
-    <GroupRolesScreenView navigation={props.navigation} route={props.route} />
-  );
-}
-
-type GroupRolesScreenViewProps = {
-  navigation: Props['navigation'];
-  route: Props['route'];
-};
-
-function GroupRolesScreenView({
-  navigation,
-  route,
-}: GroupRolesScreenViewProps) {
+export function GroupRolesScreen({ navigation, route }: Props) {
   const { groupId, fromChatDetails } = route.params;
-
-  const insets = useSafeAreaInsets();
-
-  const { groupRoles, groupMembers } = useGroupContext({
-    groupId,
-  });
+  const { groupRoles, groupMembers } = useGroupContext({ groupId });
+  const isWindowNarrow = useIsWindowNarrow();
 
   const handleGoBack = useHandleGoBack(navigation, {
     groupId,
     fromChatDetails,
   });
 
-  const getMemberCountForRole = useCallback(
-    (roleId: string) => {
-      return groupMembers.filter((member) =>
-        member.roles?.some((r) => r.roleId === roleId)
-      ).length;
-    },
-    [groupMembers]
+  const sections = useMemo<SettingsSectionModel[]>(
+    () => [
+      {
+        key: 'roles',
+        rows: [
+          ...groupRoles.map((role) => ({
+            key: role.id,
+            title: role.title ?? '',
+            subtitle: role.description ?? undefined,
+            value: String(
+              groupMembers.filter((member) =>
+                member.roles?.some((r) => r.roleId === role.id)
+              ).length
+            ),
+            onPress: () =>
+              navigation.navigate('EditRole', {
+                groupId,
+                roleId: role.id,
+                fromChatDetails,
+              }),
+            testID: `GroupRole-${role.title}`,
+          })),
+          // Everyone holds this one, so it opens the group's members; that
+          // also keeps its count in line with the others above it.
+          {
+            key: 'members',
+            title: 'Members',
+            subtitle: 'All group members',
+            value: String(groupMembers.length),
+            onPress: () =>
+              navigation.navigate('GroupMembers', { groupId, fromChatDetails }),
+            testID: 'GroupRole-Members',
+          },
+        ],
+      },
+    ],
+    [fromChatDetails, groupId, groupMembers, groupRoles, navigation]
   );
-
-  const handleSetEditRole = useCallback(
-    (role: db.GroupRole) => {
-      navigation.navigate('EditRole', {
-        groupId,
-        roleId: role.id!,
-        fromChatDetails,
-      });
-    },
-    [navigation, groupId, fromChatDetails]
-  );
-
-  const handleAddRole = useCallback(() => {
-    navigation.navigate('AddRole', {
-      groupId,
-      fromChatDetails,
-    });
-  }, [navigation, groupId, fromChatDetails]);
-
-  const isWindowNarrow = useIsWindowNarrow();
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        backAction={handleGoBack}
-        title={'Group Roles'}
-        backgroundColor="$secondaryBackground"
-        useHorizontalTitleLayout={!isWindowNarrow}
-        rightControls={
-          <ScreenHeader.TextButton
-            color={'$positiveActionText'}
-            onPress={handleAddRole}
-          >
-            New
-          </ScreenHeader.TextButton>
-        }
-      />
-      <ScrollView
-        flex={1}
-        contentContainerStyle={{
-          padding: '$l',
-          paddingTop: '$xl',
-          paddingBottom: insets.bottom,
-          gap: '$3xl',
-          flexDirection: 'column',
-        }}
-      >
-        <ActionSheet.ActionGroup
-          padding={0}
-          contentProps={{
-            backgroundColor: '$background',
-            borderRadius: '$2xl',
-            borderWidth: 0,
-          }}
-        >
-          {groupRoles.map((role) => (
-            <Pressable key={role.id} onPress={() => handleSetEditRole(role)}>
-              <ListItem
-                paddingHorizontal="$2xl"
-                backgroundColor={'$background'}
-                borderRadius="$2xl"
-                testID={`GroupRole-${role.title}`}
-              >
-                <ActionSheet.ActionContent>
-                  <ActionSheet.ActionTitle>
-                    {role.title}
-                  </ActionSheet.ActionTitle>
-                  {role.description && (
-                    <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
-                  )}
-                </ActionSheet.ActionContent>
-
-                <ListItem.EndContent
-                  flexDirection="row"
-                  gap="$xl"
-                  alignItems="center"
-                >
-                  {getMemberCountForRole(role.id) > 0 ? (
-                    <ListItem.Count
-                      notified={false}
-                      count={getMemberCountForRole(role.id!)}
-                    />
-                  ) : (
-                    <Badge text="Add" />
-                  )}
-                  <ActionSheet.ActionIcon
-                    type="ChevronRight"
-                    color="$tertiaryText"
-                  />
-                </ListItem.EndContent>
-              </ListItem>
-            </Pressable>
-          ))}
-          <ListItem
-            paddingHorizontal="$2xl"
-            backgroundColor={'$background'}
-            borderRadius="$2xl"
-            testID="GroupRole-Members"
-          >
-            <ActionSheet.ActionContent>
-              <ActionSheet.ActionTitle>Members</ActionSheet.ActionTitle>
-              <ListItem.Subtitle>All group members</ListItem.Subtitle>
-            </ActionSheet.ActionContent>
-            <ListItem.EndContent
-              flexDirection="row"
-              gap="$xl"
-              alignItems="center"
-            >
-              <ListItem.Count notified={false} count={groupMembers.length} />
-            </ListItem.EndContent>
-          </ListItem>
-        </ActionSheet.ActionGroup>
-      </ScrollView>
-    </View>
+    <SettingsListScreenView
+      title="Group roles"
+      sections={sections}
+      onBackPressed={handleGoBack}
+      showsBackOnWideWindows
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      useHorizontalTitleLayout={!isWindowNarrow}
+      rightActions={[
+        {
+          id: 'GroupRolesNewButton',
+          icon: 'Add',
+          label: 'New role',
+          onPress: () =>
+            navigation.navigate('AddRole', { groupId, fromChatDetails }),
+        },
+      ]}
+    />
   );
 }

@@ -2,6 +2,8 @@ import {
   BasicTextField,
   Box,
   Column,
+  DropdownMenu,
+  DropdownMenuItem,
   Host,
   LazyColumn,
   RNHostView,
@@ -72,55 +74,61 @@ export function SettingsList({ sections }: SettingsListProps) {
         // above the keyboard rather than behind it.
         modifiers={[background(colors.page), imePadding()]}
       >
-        {sections.map((section) => (
-          <Column
-            key={section.key}
-            verticalArrangement={{ spacedBy: 8 }}
-            modifiers={[fillMaxWidth()]}
-          >
-            {section.title ? (
-              <Text
-                color={colors.secondaryText}
-                style={{ fontSize: 14, fontWeight: '500' }}
-                modifiers={[padding(4, 0, 4, 0)]}
-              >
-                {section.title}
-              </Text>
-            ) : null}
+        {sections.map((section) =>
+          section.element ? (
+            <RNHostView key={section.key} matchContents>
+              <View>{section.element}</View>
+            </RNHostView>
+          ) : (
             <Column
-              modifiers={[
-                fillMaxWidth(),
-                clip(cardShape),
-                background(colors.row),
-              ]}
+              key={section.key}
+              verticalArrangement={{ spacedBy: 8 }}
+              modifiers={[fillMaxWidth()]}
             >
-              {section.rows.map((row, index) => (
-                <Fragment key={row.key}>
-                  {index > 0 ? (
-                    <Box
-                      modifiers={[
-                        padding(16, 0, 0, 0),
-                        fillMaxWidth(),
-                        height(1),
-                        background(colors.separator),
-                      ]}
-                    />
-                  ) : null}
-                  <SettingsRow row={row} colors={colors} />
-                </Fragment>
-              ))}
-            </Column>
-            {section.footer ? (
-              <Text
-                color={colors.secondaryText}
-                style={{ fontSize: 13 }}
-                modifiers={[padding(4, 0, 4, 0)]}
+              {section.title ? (
+                <Text
+                  color={colors.secondaryText}
+                  style={{ fontSize: 14, fontWeight: '500' }}
+                  modifiers={[padding(4, 0, 4, 0)]}
+                >
+                  {section.title}
+                </Text>
+              ) : null}
+              <Column
+                modifiers={[
+                  fillMaxWidth(),
+                  clip(cardShape),
+                  background(colors.row),
+                ]}
               >
-                {section.footer}
-              </Text>
-            ) : null}
-          </Column>
-        ))}
+                {section.rows.map((row, index) => (
+                  <Fragment key={row.key}>
+                    {index > 0 ? (
+                      <Box
+                        modifiers={[
+                          padding(16, 0, 0, 0),
+                          fillMaxWidth(),
+                          height(1),
+                          background(colors.separator),
+                        ]}
+                      />
+                    ) : null}
+                    <SettingsRow row={row} colors={colors} />
+                  </Fragment>
+                ))}
+              </Column>
+              {section.footer ? (
+                <Text
+                  color={colors.secondaryText}
+                  style={{ fontSize: 13 }}
+                  modifiers={[padding(4, 0, 4, 0)]}
+                >
+                  {section.footer}
+                </Text>
+              ) : null}
+            </Column>
+          )
+        )}
       </LazyColumn>
     </Host>
   );
@@ -136,16 +144,37 @@ function SettingsRow({
   if (row.textField) {
     return <TextFieldRow row={row} colors={colors} />;
   }
+  return <PlainRow row={row} colors={colors} />;
+}
 
-  const onClick = row.toggle
-    ? () => row.toggle?.onValueChange(!row.toggle.value)
-    : row.onPress;
-  const onLongClick = row.contextActions?.[0]?.onPress;
+function PlainRow({
+  row,
+  colors,
+}: {
+  row: SettingsRowModel;
+  colors: SettingsListColors;
+}) {
+  // Long-press actions, or a picker's choices on a tap, open a menu anchored
+  // to the row.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const picker = row.picker;
+  const actions = row.contextActions ?? [];
+  const onClick = picker
+    ? () => setMenuOpen(true)
+    : row.toggle
+      ? () => row.toggle?.onValueChange(!row.toggle.value)
+      : row.onPress;
+  const onLongClick = actions.length ? () => setMenuOpen(true) : undefined;
+  const pickedTitle = picker?.options.find(
+    (option) => option.value === picker.value
+  )?.title;
   // Material shows a setting's value as the line under its title.
-  const supporting = [row.subtitle, row.value].filter(Boolean).join(' · ');
+  const supporting = [row.subtitle, row.value ?? pickedTitle]
+    .filter(Boolean)
+    .join(' · ');
   const isChoice = row.selected !== undefined;
 
-  return (
+  const content = (
     <Row
       verticalAlignment="center"
       horizontalArrangement={{ spacedBy: 16 }}
@@ -191,12 +220,20 @@ function SettingsRow({
             fontSize: row.prominent ? 18 : 16,
             fontWeight: row.prominent ? '600' : undefined,
           }}
+          // Labels run as long as they need to; only prose is ever cut off.
+          maxLines={row.expanded === false ? 3 : undefined}
+          overflow="ellipsis"
         >
           {row.title}
         </Text>
         {supporting ? (
           <Text color={colors.secondaryText} style={{ fontSize: 14 }}>
             {supporting}
+          </Text>
+        ) : null}
+        {row.expanded === false ? (
+          <Text color={colors.accent} style={{ fontSize: 16 }}>
+            More
           </Text>
         ) : null}
       </Column>
@@ -227,7 +264,86 @@ function SettingsRow({
           <HostedCheckmark />
         </RNHostView>
       ) : null}
+      {row.trailingAction ? (
+        <Text
+          color={
+            row.trailingAction.destructive ? colors.negative : colors.accent
+          }
+          style={{ fontSize: 16 }}
+          modifiers={[
+            clickable(row.trailingAction.onPress),
+            padding(8, 4, 0, 4),
+            ...(row.trailingAction.testID
+              ? [testID(row.trailingAction.testID)]
+              : []),
+          ]}
+        >
+          {row.trailingAction.title}
+        </Text>
+      ) : null}
     </Row>
+  );
+
+  if (picker) {
+    return (
+      <DropdownMenu
+        expanded={menuOpen}
+        onDismissRequest={() => setMenuOpen(false)}
+      >
+        <DropdownMenu.Trigger>{content}</DropdownMenu.Trigger>
+        <DropdownMenu.Items>
+          {picker.options.map((option) => (
+            <DropdownMenuItem
+              key={option.value}
+              onClick={() => {
+                setMenuOpen(false);
+                picker.onChange(option.value);
+              }}
+            >
+              <DropdownMenuItem.Text>
+                <Text
+                  color={
+                    option.value === picker.value
+                      ? colors.accent
+                      : colors.primaryText
+                  }
+                >
+                  {option.title}
+                </Text>
+              </DropdownMenuItem.Text>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenu.Items>
+      </DropdownMenu>
+    );
+  }
+
+  if (!actions.length) {
+    return content;
+  }
+
+  return (
+    <DropdownMenu
+      expanded={menuOpen}
+      onDismissRequest={() => setMenuOpen(false)}
+    >
+      <DropdownMenu.Trigger>{content}</DropdownMenu.Trigger>
+      <DropdownMenu.Items>
+        {actions.map((action) => (
+          <DropdownMenuItem
+            key={action.key}
+            onClick={() => {
+              setMenuOpen(false);
+              action.onPress();
+            }}
+          >
+            <DropdownMenuItem.Text>
+              <Text>{action.title}</Text>
+            </DropdownMenuItem.Text>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenu.Items>
+    </DropdownMenu>
   );
 }
 

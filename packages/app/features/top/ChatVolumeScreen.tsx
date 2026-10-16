@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import {
@@ -10,13 +10,19 @@ import {
 import { useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
-  Form,
-  ScreenHeader,
-  View,
   useChatOptions,
   useChatVolumeOptions,
   useIsWindowNarrow,
 } from '../../ui';
+import {
+  getLevelShortTitle,
+  getNotificationLevelContext,
+} from '../../ui/components/NotificationLevelSelector';
+import {
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 
 // Account for both root and group settings navigation stacks
 type RootStackProps = NativeStackScreenProps<RootStackParamList, 'ChatVolume'>;
@@ -58,8 +64,13 @@ function ChatVolumeScreenView({
 }) {
   const navigation = useNavigation();
   const { navigateToChatDetails } = useRootNavigation();
-  const { group, channel } = useChatOptions();
-  const { currentLevel, options, updateVolume } = useChatVolumeOptions();
+  const { group, channel, updateVolume } = useChatOptions();
+  const { currentLevel, options } = useChatVolumeOptions();
+  const context = getNotificationLevelContext(channel);
+  // A chat without a level of its own follows the setting above it.
+  const ownLevel = (chatType === 'channel' ? channel : group)?.volumeSettings
+    ?.level;
+  const isDefault = !ownLevel || ownLevel === 'default';
   const isWindowNarrow = useIsWindowNarrow();
 
   const handleGoBack = useCallback(() => {
@@ -79,30 +90,77 @@ function ChatVolumeScreenView({
     isWindowNarrow,
   ]);
 
+  const sections = useMemo<SettingsSectionModel[]>(
+    () => [
+      {
+        key: 'volume',
+        footer:
+          context === 'dm'
+            ? 'Choose whether this chat notifies you.'
+            : chatType === 'group'
+              ? 'Choose what in this group notifies you. A channel can have its own setting too.'
+              : 'Choose what in this channel notifies you.',
+        rows: [
+          {
+            key: 'default',
+            title: 'Default',
+            subtitle:
+              chatType === 'channel' && channel?.groupId
+                ? 'Follows the group'
+                : 'Follows your notification settings',
+            selected: isDefault,
+            onPress: () => {
+              if (!isDefault) updateVolume(null);
+            },
+          },
+          ...options.map((option) => {
+            const shortTitle = getLevelShortTitle(option.value, context);
+            const selected = !isDefault && option.value === currentLevel;
+            return {
+              key: option.value,
+              title: shortTitle,
+              // "All activity" says all there is; the others' full titles add
+              // what they include.
+              subtitle:
+                option.value === 'loud' || option.title === shortTitle
+                  ? undefined
+                  : option.title,
+              selected,
+              onPress: () => {
+                if (!selected) updateVolume(option.value);
+              },
+            };
+          }),
+        ],
+      },
+    ],
+    [
+      channel?.groupId,
+      chatType,
+      context,
+      currentLevel,
+      isDefault,
+      options,
+      updateVolume,
+    ]
+  );
+
+  const chatTitle =
+    chatType === 'channel'
+      ? channel?.title && group?.title
+        ? `${group.title}: ${channel.title}`
+        : undefined
+      : (group?.title ?? undefined);
+
   return (
-    <View backgroundColor={'$secondaryBackground'} flex={1}>
-      <ScreenHeader
-        title="Notifications"
-        subtitle={
-          chatType === 'channel'
-            ? `${group?.title}: ${channel?.title}`
-            : group?.title
-        }
-        showSubtitle={
-          (chatType === 'channel' && !!channel?.title && !!group?.title) ||
-          (chatType === 'group' && !!group?.title)
-        }
-        backgroundColor="$secondaryBackground"
-        backAction={handleGoBack}
-        useHorizontalTitleLayout={!isWindowNarrow}
-      />
-      <Form.FormFrame backgroundType="secondary">
-        <Form.RadioInput
-          options={options}
-          value={currentLevel}
-          onChange={updateVolume}
-        />
-      </Form.FormFrame>
-    </View>
+    <SettingsListScreenView
+      title="Notifications"
+      subtitle={chatTitle}
+      sections={sections}
+      onBackPressed={handleGoBack}
+      showsBackOnWideWindows
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      useHorizontalTitleLayout={!isWindowNarrow}
+    />
   );
 }

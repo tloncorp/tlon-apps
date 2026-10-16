@@ -1,8 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
-import { useCallback, useState } from 'react';
-import { Platform } from 'react-native';
+import { useCallback } from 'react';
 
 import {
   useChatSettingsNavigation,
@@ -10,39 +9,29 @@ import {
 } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
-import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
   AttachmentProvider,
-  ConfirmDialog,
   MetaEditorScreenView,
-  YStack,
-  useGroupTitle,
   useIsWindowNarrow,
 } from '../../ui';
+import { useShipConnectionStatus } from '../top/useShipConnectionStatus';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupMeta'>;
 
 export function GroupMetaScreen(props: Props) {
   const { groupId, fromBlankChannel, fromChatDetails } = props.route.params;
   const { navigation } = props;
-  const { group, setGroupMetadata, deleteGroup } = useGroupContext({
+  const { group, setGroupMetadata } = useGroupContext({
     groupId,
   });
   const { onPressChatDetails } = useChatSettingsNavigation();
   const canUpload = useCanUpload();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const currentUserId = useCurrentUserId();
   const isWindowNarrow = useIsWindowNarrow();
-
-  const navigateToHome = useCallback(() => {
-    if (Platform.OS !== 'web' || isWindowNarrow) {
-      const route = getTopLevelTabRoute('ChatList');
-      navigation.getParent()?.navigate(route.name, route.params, { pop: true });
-    } else {
-      navigation.getParent()?.navigate('ChatList', undefined, { pop: true });
-    }
-  }, [isWindowNarrow, navigation]);
+  const hostStatus = useShipConnectionStatus(group?.hostUserId ?? '', {
+    enabled: !!group,
+  });
 
   const handleGoBack = useHandleGoBack(navigation, {
     groupId,
@@ -85,13 +74,6 @@ export function GroupMetaScreen(props: Props) {
     ]
   );
 
-  const handleDeleteGroup = useCallback(() => {
-    deleteGroup();
-    navigateToHome();
-  }, [deleteGroup, navigateToHome]);
-
-  const title = useGroupTitle(group);
-
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
       <MetaEditorScreenView
@@ -100,20 +82,8 @@ export function GroupMetaScreen(props: Props) {
         goBack={handleGoBack}
         onSubmit={handleSubmit}
         currentUserId={currentUserId}
-      >
-        <YStack flex={1} justifyContent="flex-end">
-          <ConfirmDialog
-            open={showDeleteDialog}
-            onOpenChange={setShowDeleteDialog}
-            title={`Delete ${title ?? 'This group'}?`}
-            description="This action cannot be undone."
-            confirmText="Delete group"
-            cancelText="Cancel"
-            onConfirm={handleDeleteGroup}
-            destructive
-          />
-        </YStack>
-      </MetaEditorScreenView>
+        hostStatus={hostStatus}
+      />
     </AttachmentProvider>
   );
 }
