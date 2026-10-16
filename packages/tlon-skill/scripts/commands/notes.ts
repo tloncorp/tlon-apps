@@ -9,6 +9,7 @@ import type {
   NotesV1RequestStatus,
 } from '@tloncorp/api';
 
+import { refShareHint } from '../cli-utils';
 import { pollGroupListings } from '../notes-channel';
 import type { MigrationDeps } from '../notes-migrate';
 import {
@@ -882,14 +883,29 @@ async function runNoteCreate(
 ): Promise<number> {
   const folder = await resolveFolder(parsed.folder, parsed.target, deps);
   const body = await resolveBody(parsed.source, deps);
-  await deps.notesV1.createNote({
+  const note = await deps.notesV1.createNote({
     flag: parsed.target.nest,
     folder,
     title: parsed.title,
     body,
   });
   writeLine(deps.stdout, '✓ Note created');
+  if (note) {
+    writeNoteRef(parsed.target, note.id, deps);
+  } else {
+    // Older %notes hosts omit the created note from the write response.
+    writeLine(
+      deps.stdout,
+      `  ID: not returned by this host; find it with \`notes notes ${parsed.target.nest}\`.`
+    );
+  }
   return 0;
+}
+
+function writeNoteRef(target: Nest, noteId: number, deps: NotesDeps): void {
+  writeLine(deps.stdout, `  ID: ${noteId}`);
+  writeLine(deps.stdout, `  Ref: /1/chan/${target.nest}/note/${noteId}`);
+  writeLine(deps.stdout, `  ${refShareHint('note')}`);
 }
 
 async function runNoteUpdate(
@@ -909,6 +925,7 @@ async function runNoteUpdate(
     expectedRevision: parsed.expectedRevision,
   });
   writeLine(deps.stdout, '✓ Note updated');
+  writeNoteRef(parsed.target, Number(parsed.id), deps);
   return 0;
 }
 

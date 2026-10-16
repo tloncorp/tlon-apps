@@ -14,9 +14,11 @@ Use the `tlon` tool to read; use `message` for ordinary outbound messages and re
 
 Discover the target before fetching history when its identity is ambiguous. Channel nests, group flags, note IDs, and message IDs are different identifiers; preserve the exact value returned for that object. Message/post IDs may contain dots; DM post IDs can include an author prefix. Do not strip or reconstruct them.
 
-For history pagination, surrounding context, reactions, edits, deletes (including thread replies), pins, or DM management, inspect `help messages`, `help posts`, or `help dms`, then the operation's help. Pinning and unpinning need group admin; deleting another member's thread reply also needs admin. CLI help also lists send/reply operations; ordinary sends and replies belong on `message` instead. Ship-targeted `dms send/reply` is blocked by the tool.
+For history pagination, surrounding context, reactions, edits, deletes (including thread replies), pins, or DM management, inspect `help messages`, `help posts`, or `help dms`, then the operation's help. Pinning and unpinning need a group admin or the channel's host ship; deleting another member's thread reply has the same requirement. CLI help also lists send/reply operations; ordinary sends and replies belong on `message` instead. Ship-targeted `dms send/reply` is blocked by the tool.
 
 History and activity responses are bounded. A short or empty page does not prove that no older matching messages exist; use the supported pagination/search options before making an exhaustive claim.
+
+To share a group, post, or note as a card, follow the reference rules in the skill's "Identity, delivery, and completion" section.
 
 ## Mute or change notification levels
 
@@ -27,7 +29,3 @@ History and activity responses are bounded. A short or empty page does not prove
 ```
 
 These change the owner's notifications as seen in the owner's app; add `--self` to change the bot's. Change notifications only when asked. A thread is addressed by its channel and root post id. Report the level the command prints; if it says the change is not confirmed, say so instead of claiming success.
-
-## Share a Tlon reference
-
-Native reference paths render as cards in messages: `/1/group/<host>/<slug>` for groups, `/1/chan/<nest>/msg/<id>` for posts, and `/1/chan/notes/<host>/<name>/note/<id>` for notes. Prefer a returned `Ref:` path and preserve its identifiers. Put the reference after the sentence introducing it; malformed paths remain literal text.

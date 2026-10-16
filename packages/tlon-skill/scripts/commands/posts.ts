@@ -51,15 +51,16 @@ Send options:
                        Applies to send and reply.
 
 Pins and thread replies:
-  pin and unpin need group admin and work in group chat/ and heap/ channels.
+  pin and unpin need a group admin or the channel's host ship and work in
+  group chat/ and heap/ channels.
   Pinning keeps the previous pin queued behind the new one, so unpinning the
   current pin can bring that earlier pin back; the output names it.
   With --parent, edit and delete act on a thread reply: <post-id> is the reply
   id and --parent is the thread's top-level post. Find reply ids with
   'tlon messages post <channel> <post-id>'. Only a reply's author can edit
-  it; deleting another member's reply needs group admin. A separately
-  supplied --parent token selects the reply path, so quote a message that
-  contains those words as one argument. A reply edit that leaves the
+  it; deleting another member's reply needs a group admin or the channel's
+  host ship. A separately supplied --parent token selects the reply path, so
+  quote a message that contains those words as one argument. A reply edit that leaves the
   content unchanged is reported as confirmed without proving anything changed.
 
 Examples:
@@ -194,6 +195,8 @@ export interface ExistingPost {
   description?: string | null;
   cover?: string | null;
   isBot?: boolean | null;
+  // The bot author's nickname and avatar, when the read carried them.
+  botProfile?: BotAuthorProfile | null;
   blob?: string | null;
 }
 
@@ -214,6 +217,8 @@ export interface ExistingReply {
   // `PostsDeps.contentKeyOf` of the story that was sent.
   contentKey: string;
   isBot?: boolean | null;
+  // The bot author's nickname and avatar, when the read carried them.
+  botProfile?: BotAuthorProfile | null;
   isDeleted?: boolean | null;
   blob?: string | null;
 }
@@ -512,9 +517,7 @@ function postTargetApps(
   target: string | undefined
 ): PostAuthApp[] {
   if ((command === 'send' || command === 'reply') && target) {
-    return target.startsWith('~') || target.startsWith('0v')
-      ? ['chat']
-      : ['channels'];
+    return isDmTarget(target) ? ['chat'] : ['channels'];
   }
   return ['channels'];
 }
@@ -560,6 +563,25 @@ function threadReplyTarget(target: string): string {
     );
   }
   return canonicalizeNest(target);
+}
+
+// The host assigns a channel post's ID after the send returns, so no Ref can be
+// printed here; point at the readback instead. DMs have no reference card.
+function writePostRefHint(
+  channelId: string,
+  deps: PostsDeps,
+  parentId?: string
+): void {
+  if (isDmTarget(channelId)) {
+    return;
+  }
+  const hint = parentId
+    ? `find the reply's ID with \`messages post ${channelId} ${parentId}\`, then put /1/chan/${channelId}/msg/${parentId}/<id>`
+    : `find its ID with \`messages channel ${channelId} --limit 5\`, then put /1/chan/${channelId}/msg/<id>`;
+  writeLine(
+    deps.stdout,
+    `  Share: the host assigns the post ID, so none is returned here; ${hint} in your reply to post a tappable card.`
+  );
 }
 
 function parseArgs(args: string[]): ParsedPostsArgs {
@@ -1006,10 +1028,25 @@ async function editPost(
     content: markdownToStory(parsed.message),
     metadata,
     ...(existing.blob ? { blob: existing.blob } : {}),
-    // Authorship shape comes from the existing post rather than being
-    // re-derived: a bot post stays bot-authored, a human post stays bare.
-    ...(existing.isBot ? { botProfile: { nickname: null, avatar: null } } : {}),
+    // Authorship comes from the existing post rather than being re-derived: a
+    // bot post keeps its Bot tag, nickname and avatar unchanged, a human post
+    // stays bare.
+    ...(existing.isBot ? { botProfile: carriedBotProfile(existing) } : {}),
   });
+}
+
+// The profile an edit resends for a bot-authored post: exactly what it had.
+function carriedBotProfile(existing: {
+  botProfile?: BotAuthorProfile | null;
+}): BotAuthorProfile {
+  return {
+    nickname: existing.botProfile?.nickname ?? null,
+    avatar: existing.botProfile?.avatar ?? null,
+  };
+}
+
+function sameBotProfile(a: BotAuthorProfile, b: BotAuthorProfile): boolean {
+  return a.nickname === b.nickname && a.avatar === b.avatar;
 }
 
 type ReplyCheck = (observed: ExistingReply | undefined) => string | null;
@@ -1091,7 +1128,7 @@ async function editReply(
     sentAt: original.sentAt,
     content,
     ...(original.blob ? { blob: original.blob } : {}),
-    ...(original.isBot ? { botProfile: { nickname: null, avatar: null } } : {}),
+    ...(original.isBot ? { botProfile: carriedBotProfile(original) } : {}),
   });
 
   const expectedContentKey = deps.contentKeyOf(content);
@@ -1113,6 +1150,15 @@ async function editReply(
       }
       if (!!observed.isBot !== !!original.isBot) {
         return "the reply's Bot authorship changed";
+      }
+      if (
+        original.isBot &&
+        !sameBotProfile(
+          carriedBotProfile(observed),
+          carriedBotProfile(original)
+        )
+      ) {
+        return "the reply's bot nickname or avatar changed";
       }
       return null;
     },
@@ -1144,7 +1190,8 @@ async function deleteReply(
     return 'already-deleted';
   }
 
-  // The host accepts a reply %del from its author or a group admin.
+  // The host accepts a reply %del from its author, a group admin or the
+  // ship hosting the channel.
   if (
     normalizeShip(reply.authorId) !== normalizeShip(deps.getCurrentUserId())
   ) {
@@ -1364,10 +1411,12 @@ export async function run(args: string[], deps: PostsDeps): Promise<number> {
       case 'send':
         await sendPost(parsed, deps);
         writeLine(deps.stdout, '✓ Message sent');
+        writePostRefHint(parsed.channelId, deps);
         return 0;
       case 'reply':
         await sendReply(parsed, deps);
         writeLine(deps.stdout, '✓ Reply sent');
+        writePostRefHint(parsed.channelId, deps, formatPostId(parsed.postId));
         return 0;
       case 'react':
         await reactToPost(parsed, deps);

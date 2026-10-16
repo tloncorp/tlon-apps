@@ -406,7 +406,9 @@ describe('posts send', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(context.stdout()).toBe('✓ Message sent\n');
+    expect(context.stdout()).toBe(
+      '✓ Message sent\n  Share: the host assigns the post ID, so none is returned here; find its ID with `messages channel chat/~host/channel --limit 5`, then put /1/chan/chat/~host/channel/msg/<id> in your reply to post a tappable card.\n'
+    );
     expect(context.stderr()).toBe('');
     expect(context.calls.authenticateApps).toEqual([['channels']]);
     expect(context.calls.sendPost).toEqual([
@@ -786,7 +788,9 @@ describe('posts reply', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(context.stdout()).toBe('✓ Reply sent\n');
+    expect(context.stdout()).toBe(
+      "✓ Reply sent\n  Share: the host assigns the post ID, so none is returned here; find the reply's ID with `messages post chat/~host/channel 170.141.184`, then put /1/chan/chat/~host/channel/msg/170.141.184/<id> in your reply to post a tappable card.\n"
+    );
     expect(context.calls.authenticateApps).toEqual([['channels']]);
     expect(context.calls.sendReply).toEqual([
       {
@@ -870,6 +874,8 @@ describe('posts reply', () => {
 
     expect(context.calls.authenticateApps).toEqual([['chat']]);
     expect(context.calls.sendReply[0].parentAuthor).toBe('~sampel-palnet');
+    // DMs have no reference card, so no share hint.
+    expect(context.stdout()).toBe('✓ Reply sent\n');
   });
 
   it('routes facade failures through the shared command-error path', async () => {
@@ -1688,6 +1694,27 @@ describe('posts edit', () => {
     expect(context.calls.editPost[0].botProfile).toEqual({
       nickname: null,
       avatar: null,
+    });
+  });
+
+  it("carries a bot post's nickname and avatar through the edit unchanged", async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...existing,
+        isBot: true,
+        botProfile: { nickname: 'Botty', avatar: 'https://x.test/botty.png' },
+      }),
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].botProfile).toEqual({
+      nickname: 'Botty',
+      avatar: 'https://x.test/botty.png',
     });
   });
 
@@ -2558,6 +2585,23 @@ describe('posts edit --parent (thread reply)', () => {
     expect('metadata' in human.calls.editPost[0]).toBe(false);
   });
 
+  it("carries a bot reply's nickname and avatar through the edit unchanged", async () => {
+    const profile = { nickname: 'Botty', avatar: 'https://x.test/botty.png' };
+    const context = makeDeps({
+      threads: [
+        thread(reply({ isBot: true, botProfile: profile })),
+        thread(
+          reply({ isBot: true, botProfile: profile, contentKey: NEW_KEY })
+        ),
+      ],
+    });
+
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], context.deps)
+    ).toBe(0);
+    expect(context.calls.editPost[0].botProfile).toEqual(profile);
+  });
+
   it("refuses to edit another author's reply, and normalizes ship names", async () => {
     const other = makeDeps({ threads: [thread(reply({ authorId: '~nec' }))] });
     expect(
@@ -2658,12 +2702,24 @@ describe('posts edit --parent (thread reply)', () => {
   });
 
   it('does not confirm matching content when a preserved field changed', async () => {
-    const original = reply({ blob: 'b1', isBot: true });
+    const original = reply({
+      blob: 'b1',
+      isBot: true,
+      botProfile: { nickname: 'Botty', avatar: null },
+    });
     const cases: Array<[Partial<ExistingReply>, string]> = [
       [{ sentAt: 1 }, "the reply's sent time changed"],
       [{ blob: 'b2' }, "the reply's attachment data changed"],
       [{ blob: null }, "the reply's attachment data changed"],
       [{ isBot: false }, "the reply's Bot authorship changed"],
+      [
+        { botProfile: { nickname: 'Other', avatar: null } },
+        "the reply's bot nickname or avatar changed",
+      ],
+      [
+        { botProfile: { nickname: 'Botty', avatar: 'https://x.test/b.png' } },
+        "the reply's bot nickname or avatar changed",
+      ],
     ];
     for (const [change, reason] of cases) {
       const context = makeDeps({

@@ -2108,6 +2108,14 @@ export const GROUP_SECTION_CASES: CliCase[] = [
     ['groups', 'move-channel', GROUP, 'chat/~host', '--section', 'Archive'],
     'Invalid nest format: chat/~host'
   ),
+  diaryRefusedCase('groups move-channel diary nest refuses', [
+    'groups',
+    'move-channel',
+    GROUP,
+    'diary/~host/blog',
+    '--section',
+    'Archive',
+  ]),
   authRequiredCase('groups add-section reaches auth', [
     'groups',
     'add-section',

@@ -19,10 +19,7 @@ import { BotChannelRulesScreen } from '../../features/settings/BotChannelRulesSc
 import { BotIdentitySettingsScreen } from '../../features/settings/BotIdentitySettingsScreen';
 import { BotMcpSettingsScreen } from '../../features/settings/BotMcpSettingsScreen';
 import { BotModelSettingsScreen } from '../../features/settings/BotModelSettingsScreen';
-import {
-  BotConnectionsScreen,
-  BotModelsScreen,
-} from '../../features/settings/BotSettingsAreaScreens';
+import { BotModelsScreen } from '../../features/settings/BotSettingsAreaScreens';
 import { BotOpenAISubscriptionScreen } from '../../features/settings/BotOpenAISubscriptionScreen';
 import { BotPermissionsSettingsScreen } from '../../features/settings/BotPermissionsSettingsScreen';
 import { BotPromptFileScreen } from '../../features/settings/BotPromptFileScreen';
@@ -75,6 +72,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const onScheduledTasksPressed = useCallback(() => {
     navigate('ScheduledTasks', { botShip: scheduledTasks.botShip });
   }, [navigate, scheduledTasks.botShip]);
+
+  const onPromptFilesPressed = useCallback(() => {
+    navigate('BotPromptFiles');
+  }, [navigate]);
 
   const onAppInfoPressed = useCallback(() => {
     navigate('AppInfo');
@@ -131,6 +132,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
         scheduledTasks.visible ? onScheduledTasksPressed : undefined
       }
       scheduledTaskCount={scheduledTasks.count}
+      onPromptFilesPressed={onPromptFilesPressed}
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
@@ -230,10 +232,6 @@ export const SettingsNavigator = () => {
         component={BotProviderListSettingsScreen}
       />
       <SettingsDrawer.Screen name="BotModels" component={BotModelsScreen} />
-      <SettingsDrawer.Screen
-        name="BotConnections"
-        component={BotConnectionsScreen}
-      />
       <SettingsDrawer.Screen
         name="ScheduledTasks"
         component={ScheduledTasksScreen}

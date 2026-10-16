@@ -247,8 +247,12 @@ export async function addSection(
     );
   }
 
+  // The host drops ids that no longer name a section before storing an order,
+  // so carrying a dangling one would make the read-back never match.
   const order = [
-    ...sectionOrder(added).filter((id) => id !== sectionId),
+    ...sectionOrder(added).filter(
+      (id) => id !== sectionId && Object.hasOwn(sections(added), id)
+    ),
     sectionId,
   ];
   if (!sameList(sectionOrder(added), order)) {

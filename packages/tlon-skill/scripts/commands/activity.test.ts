@@ -957,7 +957,7 @@ describe('activity mute / unmute / volume: read-back', () => {
     expect(context.stdout()).toBe(
       [
         `✓ Unmuted channel ${NEST} for ${ACTING}`,
-        '  Level: default (follows Use group default: soft (Mentions and replies))',
+        '  Level: default (follows Use workspace default: soft (Mentions and replies))',
         '  In the app: Channel options → Channel notifications',
         '',
       ].join('\n')
@@ -1167,7 +1167,7 @@ describe('activity mute / unmute / volume: output', () => {
     expect(context.stdout()).toBe(
       [
         `✓ Unmuted channel ${NEST} for ${ACTING}`,
-        '  Level: default (follows Use group default: soft (Mentions and replies))',
+        '  Level: default (follows Use workspace default: soft (Mentions and replies))',
         '  In the app: Channel options → Channel notifications',
         '',
       ].join('\n')

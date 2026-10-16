@@ -3,8 +3,8 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test.describe('Secret Group Reference Display', () => {
-  test('should display "Secret Group" title and disabled join button for non-members', async ({
+test.describe('Secret Workspace Reference Display', () => {
+  test('should display "Secret Workspace" title and disabled join button for non-members', async ({
     zodSetup,
     tenSetup,
   }) => {
@@ -38,7 +38,7 @@ test.describe('Secret Group Reference Display', () => {
 
     // Step 4: Forward group reference to DM with ~ten
     await zodPage.getByText('Forward reference').click();
-    await expect(zodPage.getByText('Forward group')).toBeVisible({
+    await expect(zodPage.getByText('Forward workspace')).toBeVisible({
       timeout: 5000,
     });
     await zodPage.getByPlaceholder('Search channels').fill('~ten');
@@ -50,33 +50,33 @@ test.describe('Secret Group Reference Display', () => {
     // Allow cross-ship sync
     await zodPage.waitForTimeout(3000);
 
-    // Step 5: ~ten opens DM and verifies group reference shows "Secret Group"
+    // Step 5: ~ten opens DM and verifies group reference shows "Secret Workspace"
     await tenPage.getByTestId('ChannelListItem-~zod').click();
     await tenPage.waitForTimeout(2000);
 
-    // Verify "Secret Group" is visible and the original bug text is NOT
-    await expect(tenPage.getByText('Secret Group')).toBeVisible({
+    // Verify "Secret Workspace" is visible and the original bug text is NOT
+    await expect(tenPage.getByText('Secret Workspace')).toBeVisible({
       timeout: 10000,
     });
-    // "New group" was the bug - secret groups without preview were showing this
-    await expect(tenPage.getByText('New group')).not.toBeVisible({
+    // "New workspace" was the bug - secret groups without preview were showing this
+    await expect(tenPage.getByText('New workspace')).not.toBeVisible({
       timeout: 2000,
     });
-    await expect(tenPage.getByText('Untitled group')).not.toBeVisible({
+    await expect(tenPage.getByText('Untitled workspace')).not.toBeVisible({
       timeout: 2000,
     });
 
     // Step 6: Click reference to open preview sheet
     // Use force click to bypass opacity animation on reference frame
-    await tenPage.getByText('Secret Group').click({ force: true });
+    await tenPage.getByText('Secret Workspace').click({ force: true });
     await tenPage.waitForTimeout(1000);
 
     // Verify preview shows correct UI for secret groups
     await expect(
-      tenPage.getByTestId('ActionButton-This group is secret')
+      tenPage.getByTestId('ActionButton-This workspace is secret')
     ).toBeVisible({ timeout: 5000 });
     await expect(
-      tenPage.getByText('You need an invite to join this group')
+      tenPage.getByText('You need an invite to join this workspace')
     ).toBeVisible({ timeout: 5000 });
 
     // Close the preview sheet to allow cleanup

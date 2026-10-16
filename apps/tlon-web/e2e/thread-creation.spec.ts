@@ -15,9 +15,9 @@ test('should create threads and send basic messages', async ({ zodPage }) => {
   // Navigate back to Home and verify group creation
   await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group')).toBeVisible();
-    await page.getByText('Untitled group').click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText('Untitled workspace')).toBeVisible();
+    await page.getByText('Untitled workspace').click();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   // Send a message in the General channel

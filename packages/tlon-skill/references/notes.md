@@ -43,7 +43,7 @@ Use `write` to save Markdown to a workspace file, such as `draft.md`. Then:
 {"command":"notes note notes/~host/name 12"}
 ```
 
-Replace `12` and `3` with the returned note ID and revision. `root` resolves to that notebook's root folder. For a different folder, discover its ID with `notes folders`.
+`note-create` and `note-update` print the note's `ID:` and `Ref:`; `notes note` shows its revision. Replace `12` and `3` with those values. When the note is not in the conversation you are replying in, share the `Ref:` path in your reply so Tlon renders a note card. If an older host returns no ID, find the note with `notes notes`. `root` resolves to that notebook's root folder. For a different folder, discover its ID with `notes folders`.
 
 `--body` takes a filename, not inline Markdown. `--markdown` is an alias only on `note-create`; use `--body` for updates. Relative paths use the active agent workspace. The tool cannot provide stdin or execute shell redirections.
 

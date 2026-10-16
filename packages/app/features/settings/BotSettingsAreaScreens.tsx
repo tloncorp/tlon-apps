@@ -15,7 +15,6 @@ type Area = Exclude<keyof BotSettingsSectionModels, 'overview'>;
 
 const areaTitles: Record<Area, string> = {
   models: 'Models',
-  connections: 'Connections',
 };
 
 /**
@@ -54,12 +53,4 @@ export function BotModelsScreen(
   props: NativeStackScreenProps<RootStackParamList, 'BotModels'>
 ) {
   return <BotSettingsAreaScreen area="models" navigation={props.navigation} />;
-}
-
-export function BotConnectionsScreen(
-  props: NativeStackScreenProps<RootStackParamList, 'BotConnections'>
-) {
-  return (
-    <BotSettingsAreaScreen area="connections" navigation={props.navigation} />
-  );
 }

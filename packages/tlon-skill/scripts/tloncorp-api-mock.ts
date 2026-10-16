@@ -25,8 +25,9 @@
  * (getInitialActivity, getGroupAndChannelUnreads, getTextContent,
  * adjustVolumeSetting, getVolumeSettings, setActivitySupportsReactions,
  * setActivitySupportsNotes, getGroups, getChannelPosts),
- * `group-sections-runtime.ts` (poke), and `posts-runtime.ts` (editPost,
- * getPostWithReplies, deleteReply, setOrder, toPostContent).
+ * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
+ * getPostWithReplies, deleteReply, setOrder, toPostContent), and
+ * `channels.ts` (createChannel and the other channel-management calls).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 // The real broker client, by subpath, which the root mock below does not
@@ -171,6 +172,10 @@ export const mockedVolume = {
 
 export const mockedGetGroup = {
   impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
+};
+
+export const mockedCreateChannel = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
 export const mockedGetBuckets = {
@@ -336,4 +341,14 @@ mock.module('@tloncorp/api', () => ({
   setActivitySupportsNotes: (value: boolean) => {
     mockedVolume.supportsNotes = value;
   },
+  // channels.ts value imports (only createChannel is an assertion target;
+  // the rest are load-time placeholders)
+  createChannel: (...args: unknown[]) => mockedCreateChannel.impl(...args),
+  addChannelWriters: async () => undefined,
+  removeChannelWriters: async () => undefined,
+  deleteChannel: async () => undefined,
+  deleteNotesNotebookBestEffort: async () => undefined,
+  getInitData: async () => undefined,
+  joinChannel: async () => undefined,
+  leaveChannel: async () => undefined,
 }));

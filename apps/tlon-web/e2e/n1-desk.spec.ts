@@ -273,11 +273,13 @@ test('current client interoperates with a ship on the N-1 desk', async ({
     // itself rather than of any post in it.
     await budPage.getByTestId('HomeNavIcon').click();
     await expect(
-      budPage.getByTestId('GroupListItem-Untitled group-unpinned')
+      budPage.getByTestId('GroupListItem-Untitled workspace-unpinned')
     ).toBeVisible({ timeout: 15000 });
     await expect(zodPage.getByTestId('ChannelListItem-General')).toBeVisible();
 
-    await budPage.getByTestId('GroupListItem-Untitled group-unpinned').click();
+    await budPage
+      .getByTestId('GroupListItem-Untitled workspace-unpinned')
+      .click();
     await helpers.navigateToChannel(budPage, 'General');
   });
 
@@ -612,21 +614,25 @@ test('current client interoperates with a ship on the N-1 desk', async ({
 
     await zodPage.getByTestId('HomeNavIcon').click();
     await expect(
-      zodPage.getByTestId('GroupListItem-Untitled group-pinned')
+      zodPage.getByTestId('GroupListItem-Untitled workspace-pinned')
     ).toBeVisible({ timeout: 15000 });
 
-    await zodPage.getByTestId('GroupListItem-Untitled group-pinned').click();
+    await zodPage
+      .getByTestId('GroupListItem-Untitled workspace-pinned')
+      .click();
     await helpers.openGroupSettings(zodPage);
     expect(await helpers.toggleChatPin(zodPage)).toBe('unpinned');
 
     await zodPage.getByTestId('HomeNavIcon').click();
     await expect(
-      zodPage.getByTestId('GroupListItem-Untitled group-unpinned')
+      zodPage.getByTestId('GroupListItem-Untitled workspace-unpinned')
     ).toBeVisible({ timeout: 15000 });
   });
 
   await test.step('group admin: the group renamed', async () => {
-    await zodPage.getByTestId('GroupListItem-Untitled group-unpinned').click();
+    await zodPage
+      .getByTestId('GroupListItem-Untitled workspace-unpinned')
+      .click();
     // openGroupCustomization reaches the edit form from the group info screen's
     // header, so the settings screen has to be open before it is called.
     await helpers.openGroupSettings(zodPage);
