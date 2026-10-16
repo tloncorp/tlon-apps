@@ -694,15 +694,20 @@
         (ex-update (add now.bowl (mul tick 2)) [%entry %pending %add (sy ~fun ~) ~])
     ==
   ::  ~dev joins with her token. members seated at creation already
-  ::  carry a joined time, so no seat update is emitted, but the token
-  ::  is spent and ~dev leaves the invited list. ~fun, who has not
-  ::  joined yet, stays on it.
+  ::  carry a joined time, but her seat is updated all the same ahead
+  ::  of the token deletion, so that admins prune her invite before
+  ::  the deletion reaches them. the token is spent and ~dev leaves
+  ::  the invited list. ~fun, who has not joined yet, stays on it.
   ::
   ;<  caz=(list card)  bind:m
     ((do-as ~dev) (do-c-groups [%join my-flag `token0]))
   ;<  join-bowl=bowl:gall  bind:m  get-bowl
   ;<  ~  bind:m
-    (ex-cards caz ~[(ex-update now.join-bowl [%entry %token %del token0])])
+    %+  ex-cards  caz
+    :~  %+  ex-update  now.join-bowl
+        [%seat (sy ~dev ~) %add `seat:v7:gv`[~ now.join-bowl]]
+        (ex-update (add now.join-bowl tick) [%entry %token %del token0])
+    ==
   ;<  peek=cage  bind:m
     (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
@@ -1211,8 +1216,14 @@
   ;<  *  bind:m  (do-create-group-with-members %private ~[~dev])
   ;<  caz=(list card)  bind:m  ((do-as ~dev) (do-c-groups [%join my-flag ~]))
   ;<  =bowl:gall  bind:m  get-bowl
+  ::  her seat is updated with the join time before the token is
+  ::  deleted, so that admins prune her invite first.
+  ::
   ;<  ~  bind:m
-    (ex-cards caz ~[(ex-update now.bowl [%entry %token %del token0])])
+    %+  ex-cards  caz
+    :~  (ex-update now.bowl [%seat (sy ~dev ~) %add `seat:v7:gv`[~ now.bowl]])
+        (ex-update (add now.bowl tick) [%entry %token %del token0])
+    ==
   ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))

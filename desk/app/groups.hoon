@@ -2189,8 +2189,9 @@
   ::
   ::  a banned ship can not enter the group.
   ::
-  ::  re-joining the group creates no seat, but still spends
-  ::  the ship's tokens.
+  ::  re-joining the group, or joining with a seat given at group
+  ::  creation, spends the ship's tokens. the existing seat is
+  ::  updated only if there are tokens to spend.
   ::
   ++  se-c-join
     |=  tok=(unit token:g)
@@ -2198,18 +2199,24 @@
     ^+  se-core
     =^  access=?  ad
       (se-admit src.bowl tok)
-    =/  joined=?  (se-is-joined src.bowl)
     ~|  %se-c-join-access-denied
     ?>  access
     =.  invited.ad  (~(del by invited.ad) src.bowl)
-    ::  members seated at group creation already carry a joined
-    ::  time: their join is vacuous.
-    ::
-    =?  se-core  !joined
-      (se-c-seat (sy src.bowl ~) [%add ~])
     ::  the seat update must precede the token deletions, so that
     ::  admins prune their invited lists before revoking invites.
+    ::  a ship already holding a joined seat, from group creation or
+    ::  an earlier join, gets her seat updated all the same when
+    ::  personal tokens are about to be spent. without any, her
+    ::  join is vacuous.
     ::
+    =/  spends=?
+      %+  lien  ~(tap by tokens.ad)
+      |=  [* meta=token-meta:g]
+      ?&  ?=(%personal -.scheme.meta)
+          =(src.bowl ship.scheme.meta)
+      ==
+    =?  se-core  |(!(se-is-joined src.bowl) spends)
+      (se-c-seat (sy src.bowl ~) [%add ~])
     (se-spend-tokens src.bowl tok)
   ::  +se-spend-tokens: delete the tokens spent by a joining .ship
   ::
