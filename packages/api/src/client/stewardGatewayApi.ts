@@ -19,7 +19,7 @@ const pokeGateway = pokeRequest(steward.gatewayAction);
 
 /**
  * The owner's trusted bots, as `~ship` strings in a stable order. Refused
- * with DeskUnsupportedError on a desk older than 12.4.0.
+ * with DeskUnsupportedError on a desk older than 12.5.0.
  */
 export async function getStewardBots(): Promise<string[]> {
   return scryRequest(steward.bots)<string[]>({});

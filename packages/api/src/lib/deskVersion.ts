@@ -72,4 +72,4 @@ export const STEWARD_PROMPTS_MIN_GROUPS_VERSION = '12.4.0';
 // (/v1/bots), which workspace config reads to name the bot a workspace is
 // for. Guarded registry entries name it as their `since`. Must move in
 // lockstep with desk/desk.docket-0's version if the release number changes.
-export const STEWARD_BOTS_MIN_GROUPS_VERSION = '12.4.0';
+export const STEWARD_BOTS_MIN_GROUPS_VERSION = '12.5.0';
