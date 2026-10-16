@@ -63,7 +63,7 @@ Two things about the current app shape are worth knowing before editing a flow:
 
 **Known gap — the ten group-fixture journeys fail on an account with an
 agent.** `subflows/create-group.yaml` builds its fixture through the create
-sheet's "New empty workspace" action, and that action is not offered on a phone whose
+sheet's "New custom workspace" action, and that action is not offered on a phone whose
 account has an agent: a Workspace is what the flow is for on mobile now. A
 Workspace is also not shaped like the template group these journeys expect --
 it arrives titled "My agent group" with a single chat channel called "General",

@@ -117,7 +117,7 @@ const CHAT_TYPE_CONFIG = {
   group: {
     title: 'New workspace',
     subtitle: 'Select contacts to invite',
-    actionTitle: 'New empty workspace',
+    actionTitle: 'New custom workspace',
     actionDescription: 'Create a customizable workspace',
   },
   agent: {

@@ -43,7 +43,7 @@ export async function createGroup(page: Page) {
   await waitForSessionStability(page);
 
   await page.getByTestId('CreateChatSheetTrigger').click();
-  await page.getByText('New empty workspace', { exact: true }).click();
+  await page.getByText('New custom workspace', { exact: true }).click();
 
   // Select "Quick workspace" from the GroupTypeSelectionSheet
   await expect(page.getByText('Quick workspace')).toBeVisible({
@@ -96,7 +96,7 @@ export async function createGroupWithTemplate(
   await waitForSessionStability(page);
 
   await page.getByTestId('CreateChatSheetTrigger').click();
-  await page.getByText('New empty workspace', { exact: true }).click();
+  await page.getByText('New custom workspace', { exact: true }).click();
 
   // Wait for group type selection sheet
   await expect(page.getByText('Create a workspace')).toBeVisible({

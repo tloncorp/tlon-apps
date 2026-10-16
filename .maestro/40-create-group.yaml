@@ -9,7 +9,7 @@ appId: io.tlon.groups
     id: 'CreateGroupButton'
 # Assert that the sheet pops
 - assertVisible: 'Create a customizable workspace'
-- tapOn: 'New empty workspace'
+- tapOn: 'New custom workspace'
 # Assert that the contacts sheet pops
 - assertVisible: 'Select contacts to invite'
 # Create the group
