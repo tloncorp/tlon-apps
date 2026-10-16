@@ -1566,11 +1566,17 @@
 ::  +leave-remote-v1: locally drop our subscription + placeholder, then
 ::  notify the host so their members map matches. The local cleanup is
 ::  unconditional (the request is informational from the host's POV);
-::  the request-id loop just gives the FE a confirmation point.
+::  the request-id loop just gives the client a confirmation point.
+::
+::  +se-member-leave refuses a leave from the host, but it runs in the
+::  self-poke this arm sends, after the action poke has acked. Refuse here
+::  too, so the action poke itself nacks and the client's optimistic leave
+::  rolls back instead of reporting success.
 ::
 ++  leave-remote-v1
   |=  [rid=request-id:v1:n =flag:n]
   ^+  cor
+  ?<  =(our.bowl ship.flag)
   ?>  (~(has by books) flag)
   ::  no-leave reports the leave to %groups and drops the local book (incl.
   ::  its group) via the gone flag.
@@ -2095,8 +2101,13 @@
       (~(put by members.notebook-state) src.bowl %editor)
     (se-update [%member-joined src.bowl %editor])
   ::
+  ::  +se-member-leave: the host can't leave its own notebook (it deletes
+  ::  it instead). Dropping our %owner row would also break every v1 read,
+  ::  since +no-read-json asserts we're a member.
+  ::
   ++  se-member-leave
     ^+  se-core
+    ?<  =(our.bowl src.bowl)
     =.  members.notebook-state
       (~(del by members.notebook-state) src.bowl)
     (se-update [%member-left src.bowl])
