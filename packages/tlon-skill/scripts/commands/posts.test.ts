@@ -329,7 +329,9 @@ describe('posts send', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(context.stdout()).toBe('✓ Message sent\n');
+    expect(context.stdout()).toBe(
+      '✓ Message sent\n  Share: the host assigns the post ID, so none is returned here; find its ID with `messages channel chat/~host/channel --limit 5`, then put /1/chan/chat/~host/channel/msg/<id> in your reply to post a tappable card.\n'
+    );
     expect(context.stderr()).toBe('');
     expect(context.calls.authenticateApps).toEqual([['channels']]);
     expect(context.calls.sendPost).toEqual([
@@ -709,7 +711,9 @@ describe('posts reply', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(context.stdout()).toBe('✓ Reply sent\n');
+    expect(context.stdout()).toBe(
+      "✓ Reply sent\n  Share: the host assigns the post ID, so none is returned here; find the reply's ID with `messages post chat/~host/channel 170.141.184`, then put /1/chan/chat/~host/channel/msg/170.141.184/<id> in your reply to post a tappable card.\n"
+    );
     expect(context.calls.authenticateApps).toEqual([['channels']]);
     expect(context.calls.sendReply).toEqual([
       {
@@ -793,6 +797,8 @@ describe('posts reply', () => {
 
     expect(context.calls.authenticateApps).toEqual([['chat']]);
     expect(context.calls.sendReply[0].parentAuthor).toBe('~sampel-palnet');
+    // DMs have no reference card, so no share hint.
+    expect(context.stdout()).toBe('✓ Reply sent\n');
   });
 
   it('routes facade failures through the shared command-error path', async () => {
