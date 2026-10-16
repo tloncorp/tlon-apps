@@ -155,6 +155,13 @@ describe('promptFileAccess', () => {
     }
   });
 
+  it('counts whitespace alone as nothing added', () => {
+    expect(promptFileAccess('SOUL.md', `   \n${block}\n`)).toEqual({
+      kind: 'additions',
+      additions: '',
+    });
+  });
+
   it('withholds editing from a file the sync will replace whole', () => {
     expect(promptFileAccess('SOUL.md', 'My own soul.\n')).toEqual({
       kind: 'unmanaged',

@@ -76,9 +76,66 @@ describe('ExpandableContent', () => {
 
   it('shows content whole when the fade would hide less than itself', async () => {
     const tree = await render();
-    measure(tree, 300);
+    measure(tree, 312);
     expect(clip(tree).props.maxHeight).toBeUndefined();
     expect(toggles(tree)).toHaveLength(0);
+
+    measure(tree, 313);
+    expect(clip(tree).props.maxHeight).toBe(240);
+    expect(toggles(tree)).toHaveLength(1);
+  });
+
+  it('clips without bounding its content on native', async () => {
+    // A hidden overflow would let Yoga collapse flex: 1 children (rendered
+    // lists) to nothing inside the clip.
+    const tree = await render();
+    expect(clip(tree).props.overflow).toBe('scroll');
+  });
+
+  it('drops the toggle when expanded content shrinks to fit', async () => {
+    const tree = await render();
+    measure(tree, 900);
+    pressToggle(tree);
+    measure(tree, 200);
+    expect(toggles(tree)).toHaveLength(0);
+    expect(clip(tree).props.maxHeight).toBeUndefined();
+  });
+
+  it('toggles from the keyboard once per key press', async () => {
+    const tree = await render();
+    measure(tree, 900);
+    const key = (key: string, repeat = false) => {
+      const event = { key, repeat, preventDefault: vi.fn() };
+      act(() => {
+        toggles(tree)[0].props.onKeyDown(event);
+      });
+      return event;
+    };
+
+    expect(key('Enter').preventDefault).toHaveBeenCalled();
+    expect(toggles(tree)[0].props['aria-expanded']).toBe(true);
+    key(' ', true);
+    expect(toggles(tree)[0].props['aria-expanded']).toBe(true);
+    key(' ');
+    expect(toggles(tree)[0].props['aria-expanded']).toBe(false);
+    expect(key('a').preventDefault).not.toHaveBeenCalled();
+    expect(toggles(tree)[0].props['aria-expanded']).toBe(false);
+  });
+
+  it("answers the screen reader's expand and collapse actions", async () => {
+    const tree = await render();
+    measure(tree, 900);
+    const perform = (actionName: string) =>
+      act(() => {
+        toggles(tree)[0].props.onAccessibilityAction({
+          nativeEvent: { actionName },
+        });
+      });
+
+    perform('expand');
+    expect(toggles(tree)[0].props['aria-expanded']).toBe(true);
+    perform('collapse');
+    expect(toggles(tree)[0].props['aria-expanded']).toBe(false);
   });
 
   it('fades long content into its surface until it is expanded', async () => {

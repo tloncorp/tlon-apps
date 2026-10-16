@@ -114,8 +114,6 @@ export function BotPromptFileScreen(props: Props) {
       : promptsQuery.data?.find((file) => file.name === name);
   const access = prompt ? promptFileAccess(prompt.name, prompt.text) : null;
   const additions = access?.kind === 'additions' ? access.additions : null;
-  // Whitespace alone is nothing added: it would only show an empty card.
-  const hasAdditions = !!additions?.trim();
 
   // The native confirmation runs the callback it was opened with, while the
   // file, and even which file this screen shows, can change while it is up:
@@ -217,27 +215,24 @@ export function BotPromptFileScreen(props: Props) {
           </ExpandableContent>
         </BotSettingsSection>
         <YStack gap="$xl">
-          {hasAdditions ? (
+          {additions ? (
             <BotSettingsSection
               title="Additions"
               subtitle="Kept when Tlon updates the defaults."
             >
-              <PromptText
-                text={additions ?? ''}
-                testID="BotPromptFileAdditions"
-              />
+              <PromptText text={additions} testID="BotPromptFileAdditions" />
             </BotSettingsSection>
           ) : null}
           <YStack gap="$m">
             <Button
               preset="primary"
-              label={hasAdditions ? 'Edit additions' : 'Add instructions'}
+              label={additions ? 'Edit additions' : 'Add instructions'}
               centered
               disabled={resetting}
               onPress={handleEditPressed}
               testID="BotPromptFileEdit"
             />
-            {hasAdditions ? (
+            {additions ? (
               <Button
                 preset="destructive"
                 label="Reset to default"

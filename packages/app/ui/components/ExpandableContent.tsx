@@ -1,11 +1,19 @@
 import { Pressable, Text } from '@tloncorp/ui';
 import { transparentize } from 'color2k';
 import { PropsWithChildren, useCallback, useState } from 'react';
-import { LayoutChangeEvent, Platform, View } from 'react-native';
+import {
+  AccessibilityActionEvent,
+  LayoutChangeEvent,
+  Platform,
+  View,
+} from 'react-native';
 import { YStack } from 'tamagui';
 import { LinearGradient } from 'tamagui/linear-gradient';
 
 const FADE_HEIGHT = 72;
+// Android offers these to TalkBack for anything with an expanded state, and
+// they do nothing unless they are answered here.
+const EXPAND_ACTIONS = [{ name: 'expand' }, { name: 'collapse' }];
 
 /**
  * Content cut to `collapsedHeight` under a fade, with a toggle to show the
@@ -36,6 +44,24 @@ export function ExpandableContent({
     setContentHeight(event.nativeEvent.layout.height);
   }, []);
   const toggle = useCallback(() => setExpanded((value) => !value), []);
+  const handleKeyDown = useCallback(
+    (event: { key: string; repeat?: boolean; preventDefault(): void }) => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+      event.preventDefault();
+      if (!event.repeat) {
+        toggle();
+      }
+    },
+    [toggle]
+  );
+  const handleAccessibilityAction = useCallback(
+    (event: AccessibilityActionEvent) => {
+      setExpanded(event.nativeEvent.actionName === 'expand');
+    },
+    []
+  );
 
   return (
     <YStack>
@@ -67,17 +93,16 @@ export function ExpandableContent({
           onPress={toggle}
           role="button"
           aria-expanded={expanded}
+          // Focusable on web; on native it makes the toggle one accessibility
+          // element, so screen readers announce a button and its state.
+          tabIndex={0}
+          onKeyDown={handleKeyDown}
           {...(Platform.OS === 'web'
-            ? {
-                tabIndex: 0,
-                onKeyDown: (event: { key: string; preventDefault(): void }) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    toggle();
-                  }
-                },
-              }
-            : null)}
+            ? null
+            : {
+                accessibilityActions: EXPAND_ACTIONS,
+                onAccessibilityAction: handleAccessibilityAction,
+              })}
           minHeight={44}
           justifyContent="center"
           paddingHorizontal="$l"
