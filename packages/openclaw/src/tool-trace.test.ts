@@ -90,10 +90,15 @@ describe('tool trace helpers', () => {
   );
 
   it.each([
-    ['contacts self --code private-value', 'contacts self --code [REDACTED]'],
+    ['--code private-value contacts self', '--code [REDACTED] contacts self'],
+    ['TLON browser handoff sess_private', 'browser handoff [REDACTED]'],
     [
-      'contacts self --code --cookie secret-cookie-value',
-      'contacts self --code --cookie [REDACTED]',
+      'Tlon --code private-value browser share sess_private',
+      'browser share [REDACTED]',
+    ],
+    [
+      '--code --cookie secret-cookie-value contacts self',
+      '--code --cookie [REDACTED] contacts self',
     ],
     [
       '--code --ship=~x --url secret-url-value contacts self',

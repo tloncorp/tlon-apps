@@ -713,15 +713,35 @@ describe('owner-by-default identity selection', () => {
     ];
     const cases = FLAGS.flatMap((flag) =>
       [`${flag} private-value`, `${flag}=private-value`].flatMap((option) =>
-        COMMANDS.flatMap((command) => {
-          const [family, ...rest] = command.split(' ');
-          return [
-            `${option} ${command}`,
-            `${family} ${option} ${rest.join(' ')}`,
-            `${command} ${option}`,
-          ];
-        })
+        // Only the global prefix carries credentials, as in the CLI.
+        COMMANDS.flatMap((command) => [
+          `${option} ${command}`,
+          `tlon ${option} ${command}`,
+        ])
       )
+    );
+
+    it.each([
+      [
+        'contacts update-profile --bio "--ship" --status ok',
+        ['contacts', 'update-profile', '--bio', '--ship', '--status', 'ok'],
+      ],
+      ['contacts self --config=x', ['contacts', 'self', '--config=x']],
+    ])(
+      'passes a credential spelling after the command through as a literal: `%s`',
+      async (command, expected) => {
+        const { execute, runCommand } = makeExecutor();
+        const result = await execute('literal', { command });
+        expect(result.details).not.toMatchObject({
+          reason: 'credential_override',
+        });
+        expect(runCommand.mock.calls[0][0]).toEqual([
+          '--ship',
+          '~owner',
+          ...expected,
+        ]);
+        expect(redactTlonCommand(command)).toBe(command);
+      }
     );
 
     it.each(cases)('rejects `%s`', async (command) => {
@@ -747,16 +767,25 @@ describe('owner-by-default identity selection', () => {
 
   describe('redaction', () => {
     it.each([
-      ['contacts self --code private-value', 'contacts self --code [REDACTED]'],
+      ['--code private-value contacts self', '--code [REDACTED] contacts self'],
+      ['TLON browser handoff sess_private', 'browser handoff [REDACTED]'],
       [
-        'contacts self --code --cookie secret-cookie-value',
-        'contacts self --code --cookie [REDACTED]',
+        'Tlon --code private-value browser share sess_private',
+        'browser share [REDACTED]',
+      ],
+      [
+        'tlon --config private-value contacts self',
+        'tlon --config [REDACTED] contacts self',
+      ],
+      [
+        '--code --cookie secret-cookie-value contacts self',
+        '--code --cookie [REDACTED] contacts self',
       ],
       [
         '--code --ship=~x --url secret-url-value contacts self',
         '--code --ship=[REDACTED] --url [REDACTED] contacts self',
       ],
-      ['contacts self --code=private-value', 'contacts self --code=[REDACTED]'],
+      ['--code=private-value contacts self', '--code=[REDACTED] contacts self'],
       [
         '--cookie "urbauth=private-value" contacts self',
         '--cookie [REDACTED] contacts self',

@@ -169,12 +169,23 @@ export function getRunAccountId(
  * control-UI turns) are included: a non-owner message can be steered into them
  * as well.
  */
-function demoteSession(canonicalKey: string, now: number): void {
+function demoteSession(
+  canonicalKey: string,
+  now: number,
+  /** Demote only runs with a recorded account other than this one. */
+  keepAccountId?: string
+): void {
+  // Runs with no recorded account have no snapshot account and never act as
+  // the owner, so an owner message cannot lend them another account's owner.
+  const keeps = (accountId: string | undefined) =>
+    keepAccountId !== undefined &&
+    (accountId === undefined || accountId === keepAccountId);
   for (const [runId, surface] of listTlonSessionRunSurfaces()) {
     if (
       canonicalSessionKey(surface.sessionKey) === canonicalKey &&
       !activeRuns.has(runId) &&
-      !tombstones.has(runId)
+      !tombstones.has(runId) &&
+      !keeps(surface.accountId)
     ) {
       setActive(runId, {
         ...firstSight(runId, undefined, now),
@@ -184,7 +195,10 @@ function demoteSession(canonicalKey: string, now: number): void {
     }
   }
   for (const [runId, record] of activeRuns) {
-    if (canonicalSessionKey(record.sessionKey) === canonicalKey) {
+    if (
+      canonicalSessionKey(record.sessionKey) === canonicalKey &&
+      !keeps(record.accountId)
+    ) {
       activeRuns.set(runId, { ...record, identity: 'bot', senderRole: 'user' });
     }
   }
@@ -192,15 +206,17 @@ function demoteSession(canonicalKey: string, now: number): void {
 
 /**
  * The monitor is about to dispatch an inbound Tlon message on these session
- * keys. A non-owner message demotes the owner runs on them before core can
- * steer it into one of those runs.
+ * keys, before core can steer it into an active run there. A non-owner message
+ * demotes every run on them. An owner message demotes the runs recorded for a
+ * different Tlon account (the message's owner is not theirs); runs with no
+ * recorded account are left alone by owner messages.
  */
 export function noteInboundDispatching(input: {
   sessionKeys: readonly string[];
   role: 'owner' | 'user';
+  accountId?: string;
   now?: number;
 }): void {
-  if (input.role !== 'user') return;
   const now = input.now ?? Date.now();
   sweep(now);
   const keys = new Set(
@@ -209,7 +225,10 @@ export function noteInboundDispatching(input: {
       .filter(Boolean)
       .map(canonicalSessionKey)
   );
-  for (const key of keys) demoteSession(key, now);
+  for (const key of keys) {
+    if (input.role === 'user') demoteSession(key, now);
+    else demoteSession(key, now, input.accountId ?? '');
+  }
 }
 
 /**

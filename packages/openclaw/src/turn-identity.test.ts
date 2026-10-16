@@ -86,6 +86,56 @@ describe('turn identity', () => {
   });
 
   describe('demotion', () => {
+    function ownerOn(accountId: string | undefined, runId: string) {
+      setSessionRole(SESSION, 'owner');
+      setTlonSessionSurface(SESSION, {
+        kind: 'group',
+        senderRole: 'owner',
+        messageId: `owner/${runId}`,
+      });
+      noteInboundDispatching({
+        sessionKeys: [SESSION],
+        role: 'owner',
+        ...(accountId ? { accountId } : {}),
+      });
+      rememberTlonSessionRunSurface(runId, SESSION, {
+        senderRole: 'owner',
+        ...(accountId ? { accountId } : {}),
+      });
+    }
+
+    it("demotes an owner run when another account's owner message reaches its session", () => {
+      ownerOn('a', 'run-a');
+      expect(identity('run-a')).toBe('owner');
+      ownerOn('b', 'run-b');
+      expect(identity('run-a')).toBe('bot');
+      expect(getRecordedRunRole('run-a')).toBe('user');
+      expect(identity('run-b')).toBe('owner');
+    });
+
+    it('keeps an owner run when its own account sends another owner message', () => {
+      ownerOn('a', 'run-a');
+      expect(identity('run-a')).toBe('owner');
+      ownerOn('a', 'run-a2');
+      expect(identity('run-a')).toBe('owner');
+      expect(getRecordedRunRole('run-a')).toBe('owner');
+    });
+
+    it('leaves a no-account run alone on an owner message, demotes it on a non-owner message', () => {
+      ownerOn(undefined, 'run-none');
+      expect(identity('run-none')).toBe('owner');
+      ownerOn('a', 'run-a');
+      expect(identity('run-none')).toBe('owner');
+      expect(getRecordedRunRole('run-none')).toBe('owner');
+      noteInboundDispatching({
+        sessionKeys: [SESSION],
+        role: 'user',
+        accountId: 'a',
+      });
+      expect(identity('run-none')).toBe('bot');
+      expect(getRecordedRunRole('run-none')).toBe('user');
+    });
+
     it('demotes an owner run when a non-owner message reaches its session', () => {
       inbound('owner', 'run-1');
       expect(identity('run-1')).toBe('owner');

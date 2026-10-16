@@ -346,9 +346,12 @@ export function findTlonSubcommandIndex(args: string[]): number {
 export function normalizeTlonCommandArgs(args: string[]): {
   args: string[];
   selfRequested: boolean;
+  /** A credential flag in the global prefix, where the CLI reads one. */
+  hasCredentialFlag: boolean;
 } {
   const prefix: string[] = [];
   let selfRequested = false;
+  let hasCredentialFlag = false;
   let removedExecutable = false;
   let index = 0;
   while (index < args.length) {
@@ -358,14 +361,15 @@ export function normalizeTlonCommandArgs(args: string[]): {
       index += 1;
       continue;
     }
-    if (arg === 'tlon' && !removedExecutable) {
+    if (arg.toLowerCase() === 'tlon' && !removedExecutable) {
       removedExecutable = true;
       index += 1;
       continue;
     }
     if (isCredentialFlagToken(arg)) {
+      hasCredentialFlag = true;
       prefix.push(arg);
-      if (!arg.includes('=') && index + 1 < args.length) {
+      if (hasCredentialValue(args, index)) {
         prefix.push(args[index + 1]);
         index += 2;
       } else {
@@ -373,6 +377,8 @@ export function normalizeTlonCommandArgs(args: string[]): {
       }
       continue;
     }
+    // Like the CLI's global-option parser, scanning stops at the first other
+    // token: after the command family, credential-looking tokens are literal.
     break;
   }
   const rest = args.slice(index);
@@ -383,11 +389,19 @@ export function normalizeTlonCommandArgs(args: string[]): {
   ) {
     selfRequested = true;
   }
-  return { args: [...prefix, ...rest], selfRequested };
+  return { args: [...prefix, ...rest], selfRequested, hasCredentialFlag };
 }
 
 function isCredentialFlagToken(arg: string): boolean {
   return CREDENTIAL_FLAGS_WITH_VALUE.has(arg.split('=', 1)[0]);
+}
+
+/** Whether the credential flag at `index` takes the next token as its value. */
+function hasCredentialValue(args: string[], index: number): boolean {
+  const next = args[index + 1];
+  return (
+    !args[index].includes('=') && next !== undefined && !next.startsWith('--')
+  );
 }
 
 export function isBrowserHandoffCommand(args: string[]): boolean {
@@ -412,27 +426,36 @@ export function redactTlonCommand(command: string): string {
   const raw = shellSplitCommand(command);
   let redactedCredential = false;
   const tokens: string[] = [];
-  for (let index = 0; index < raw.length; index += 1) {
+  // Only the global prefix carries credentials (see normalizeTlonCommandArgs);
+  // after the command family the same spellings are literal values.
+  let index = 0;
+  let removedExecutable = false;
+  for (; index < raw.length; index += 1) {
     const arg = raw[index];
-    const flag = arg.split('=', 1)[0];
-    if (!CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) {
+    if (arg === SELF_FLAG) {
       tokens.push(arg);
       continue;
     }
+    if (arg.toLowerCase() === 'tlon' && !removedExecutable) {
+      removedExecutable = true;
+      tokens.push(arg);
+      continue;
+    }
+    if (!isCredentialFlagToken(arg)) break;
+    const flag = arg.split('=', 1)[0];
     redactedCredential = true;
     if (arg.includes('=')) {
       tokens.push(`${flag}=[REDACTED]`);
       continue;
     }
     tokens.push(arg);
-    // A following credential flag is not this flag's value: it is processed
-    // on its own, so its value is redacted too.
-    const next = raw[index + 1];
-    if (next !== undefined && !isCredentialFlagToken(next)) {
+    // A following flag is not this flag's value: it is processed on its own.
+    if (hasCredentialValue(raw, index)) {
       tokens.push('[REDACTED]');
       index += 1;
     }
   }
+  tokens.push(...raw.slice(index));
   if (isBrowserHandoffCommand(tokens)) {
     const normalized = normalizeTlonCommandArgs(
       tokens.filter((arg) => arg !== SELF_FLAG)
@@ -1001,7 +1024,7 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
   return async function execute(_id: string, params: { command: string }) {
     try {
       const rawArgs = shellSplitCommand(params.command);
-      const hasCredentialFlag = rawArgs.some(isCredentialFlagToken);
+      const { hasCredentialFlag } = normalizeTlonCommandArgs(rawArgs);
       const family = credentialAwareFamily(rawArgs);
       // The only identities are the owner (default) and the bot (--self);
       // settings and browser are the bot's in both flag states.

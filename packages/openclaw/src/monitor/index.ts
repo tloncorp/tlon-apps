@@ -3518,6 +3518,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       noteInboundDispatching({
         sessionKeys: lensSessionKeys,
         role: senderRole,
+        ...(route.accountId ? { accountId: route.accountId } : {}),
       });
       rememberTlonSessionRunSurface(runId, route.sessionKey, {
         senderRole,

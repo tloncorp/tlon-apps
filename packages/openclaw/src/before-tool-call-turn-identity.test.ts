@@ -425,4 +425,36 @@ describe('before_tool_call turn identity', () => {
       beforeToolCall({ toolName: 'read', params: { path: 'x' } }, ctx)
     ).resolves.toMatchObject({ block: true });
   });
+
+  it("vetoes an owner run once another account's owner message reaches its session", async () => {
+    const { beforeToolCall } = registerEntry();
+    const ownerOn = (accountId: string, runId: string) => {
+      setSessionRole(GROUP, 'owner');
+      setTlonSessionSurface(GROUP, {
+        kind: 'group',
+        senderRole: 'owner',
+        channelNest: 'chat/~h/general',
+        messageId: `owner/${runId}`,
+      });
+      noteInboundDispatching({
+        sessionKeys: [GROUP],
+        role: 'owner',
+        accountId,
+      });
+      rememberTlonSessionRunSurface(runId, GROUP, {
+        senderRole: 'owner',
+        accountId,
+      });
+    };
+    ownerOn('default', 'run-a');
+    const ctx = { sessionKey: GROUP, runId: 'run-a' };
+    await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toBeUndefined();
+    ownerOn('default', 'run-a2');
+    await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toBeUndefined();
+    ownerOn('second', 'run-b');
+    await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toMatchObject({
+      block: true,
+      blockReason: formatOwnerOnlyToolBlockReason('tlon'),
+    });
+  });
 });
