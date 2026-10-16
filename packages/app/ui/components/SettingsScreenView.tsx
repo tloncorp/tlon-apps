@@ -71,7 +71,6 @@ const botSettingsRouteNames = new Set([
   'BotPromptFile',
   'BotProviderListSettings',
   'BotModels',
-  'BotConnections',
 ]);
 
 export function SettingsScreenView(props: Props) {
