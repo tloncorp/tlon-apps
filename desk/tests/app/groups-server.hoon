@@ -184,7 +184,7 @@
 ::
 ::  a ship can join a private group only with a valid token.
 ::  re-joining the group with the same token fails, because
-::  the token is expired.
+::  the token is spent by the join.
 ::
 ++  test-c-groups-join-private
   %-  eval-mare
@@ -200,8 +200,7 @@
   ;<  caz=(list card)  bind:m
     =/  =c-token-add:g
       [[%personal ~dev] ~ ~ |]
-    ::  the token generated is going to be 0v0, as we haven't
-    ::  set entropy.
+    ::  the first token minted with the entropy set above is token0
     ::
     ((do-as ~zod) (do-c-group [%entry %token %add c-token-add]))
   ::  a private group can be joined with a valid token
@@ -211,9 +210,15 @@
   ;<  =bowl  bind:m  get-bowl
   =/  =seat:v7:gv  [~ now.bowl]
   ;<  ~  bind:m
-    (ex-u-groups caz [%seat (sy ~dev ~) [%add seat]]~)
-  ::  trying to reuse the token fails
+    %+  ex-cards  caz
+    :~  (ex-update now.bowl [%seat (sy ~dev ~) %add seat])
+        (ex-update (add now.bowl tick) [%entry %token %del token0])
+    ==
+  ::  the token is spent, so reusing it fails
   ::
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
+  ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))
   ;<  caz=(list card)  bind:m
     (ex-fail ((do-as ~fed) (do-c-groups [%join my-flag `token0])))
   ::  as does using a non-existent token
@@ -602,6 +607,8 @@
 ::  if a ship is invited a second time, the previous invitation
 ::  is revoked.
 ::
+::  when an invited ship joins, it is removed from the invited list.
+::
 ++  test-private-invites
   %-  eval-mare
   =/  m  (mare ,~)
@@ -686,6 +693,30 @@
         ::  entry update
         (ex-update (add now.bowl (mul tick 2)) [%entry %pending %add (sy ~fun ~) ~])
     ==
+  ::  ~dev joins with her token. members seated at creation already
+  ::  carry a joined time, but her seat is updated all the same ahead
+  ::  of the token deletion, so that admins prune her invite before
+  ::  the deletion reaches them. the token is spent and ~dev leaves
+  ::  the invited list. ~fun, who has not joined yet, stays on it.
+  ::
+  ;<  caz=(list card)  bind:m
+    ((do-as ~dev) (do-c-groups [%join my-flag `token0]))
+  ;<  join-bowl=bowl:gall  bind:m  get-bowl
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-update  now.join-bowl
+        [%seat (sy ~dev ~) %add `seat:v7:gv`[~ now.join-bowl]]
+        (ex-update (add now.join-bowl tick) [%entry %token %del token0])
+    ==
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(tokens.admissions.group)
+    !>((my ~[[token2 `token-meta:g`[[%personal ~fun] (add now.bowl ~d365) ~]]]))
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invited.admissions.group)
+    !>((my ~[[~fun [now.bowl `token2]]]))
   (pure:m ~)
 ::  +test-public-invites: test public group invitations
 ::
@@ -693,6 +724,8 @@
 ::
 ::  if a ship is invited a second time, the previous invitation
 ::  is revoked.
+::
+::  when an invited ship joins, it is removed from the invited list.
 ::
 ++  test-public-invites
   %-  eval-mare
@@ -774,6 +807,26 @@
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
     !>(`[now.bowl ~])
+  ::  an admin seats ~fed, which sends her an invite. unlike members
+  ::  seated at creation, her seat has no joined time yet.
+  ::
+  ;<  *  bind:m  ((do-as ~zod) (do-c-group [%seat (sy ~fed ~) %add ~]))
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    (ex-equal !>((~(has by invited.admissions.group) ~fed)) !>(&))
+  ::  ~fed joins. her seat is updated and she leaves the invited list.
+  ::
+  ;<  caz=(list card)  bind:m  ((do-as ~fed) (do-c-groups [%join my-flag ~]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  ~  bind:m
+    (ex-u-groups caz [%seat (sy ~fed ~) %add `seat:v7:gv`[~ now.bowl]]~)
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    (ex-equal !>((~(has by invited.admissions.group) ~fed)) !>(|))
   (pure:m ~)
 ::  +test-invites-banned: test invite revocation for banned ships
 ::
@@ -1044,4 +1097,144 @@
         (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)
     ==
   (pure:m ~)
+::  +test-join-spends-tokens: test personal tokens are spent on join
+::
+::  every personal token issued to a joining ship is deleted, not only
+::  the one she presents. the seat update precedes the deletions.
+::
+++  test-join-spends-tokens
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny eny)))
+  ;<  *  bind:m  (do-create-group %private)
+  ::  an admin seats ~dev, which issues her a personal token,
+  ::  and then issues her a second one.
+  ::
+  ;<  *  bind:m  ((do-as ~zod) (do-c-group [%seat (sy ~dev ~) %add ~]))
+  ;<  *  bind:m
+    ((do-as ~zod) (do-c-group [%entry %token %add [[%personal ~dev] ~ ~ |]]))
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    (ex-equal !>(~(key by tokens.admissions.group)) !>((sy token0 token1 ~)))
+  ::  ~dev joins with the second token. both tokens are deleted,
+  ::  in the order of the tokens map, after her seat is updated.
+  ::
+  ;<  caz=(list card)  bind:m
+    ((do-as ~dev) (do-c-groups [%join my-flag `token1]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  =/  dels=(list token:g)
+    (turn ~(tap by (my ~[[token0 ~] [token1 ~]])) head)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-update now.bowl [%seat (sy ~dev ~) %add `seat:v7:gv`[~ now.bowl]])
+        (ex-update (add now.bowl tick) [%entry %token %del (snag 0 dels)])
+        (ex-update (add now.bowl (mul tick 2)) [%entry %token %del (snag 1 dels)])
+    ==
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))
+  ;<  ~  bind:m  (ex-equal !>(invited.admissions.group) !>(~))
+  (pure:m ~)
+::  +test-join-spends-limited-token: test limited tokens are pruned
+::
+::  a limited token is deleted by its last claim, revoking any
+::  outstanding invites that carry it.
+::
+++  test-join-spends-limited-token
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny eny)))
+  ;<  *  bind:m  (do-create-group %private)
+  ::  issue a token with two claims and invite ~fun with it
+  ::
+  ;<  *  bind:m
+    ((do-as ~zod) (do-c-group [%entry %token %add [[%limited 2] ~ ~ |]]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  =/  expiry=@da  (add now.bowl ~d365)
+  ;<  ~  bind:m  (wait ~m1)
+  ;<  *  bind:m
+    %-  (do-as ~zod)
+    (do-poke group-action-5+!>(`a-groups:v11:gv`[%invite my-flag (sy ~fun ~) `token0 ~]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invited.admissions.group)
+    !>((my ~[[~fun [now.bowl `token0]]]))
+  ::  ~dev claims the first use. the token remains with one claim left.
+  ::
+  ;<  caz=(list card)  bind:m
+    ((do-as ~dev) (do-c-groups [%join my-flag `token0]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  ~  bind:m
+    (ex-u-groups caz [%seat (sy ~dev ~) %add `seat:v7:gv`[~ now.bowl]]~)
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(tokens.admissions.group)
+    !>((my ~[[token0 `token-meta:g`[[%limited 1] expiry ~]]]))
+  ::  ~fed claims the last use. the token is deleted and the invite
+  ::  to ~fun revoked, after ~fed's seat is added.
+  ::
+  ;<  caz=(list card)  bind:m
+    ((do-as ~fed) (do-c-groups [%join my-flag `token0]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  ~  bind:m
+    =/  fun-revoke-wire=wire  (weld se-area /invite/revoke/~fun)
+    %+  ex-cards  caz
+    :~  (ex-update now.bowl [%seat (sy ~fed ~) %add `seat:v7:gv`[~ now.bowl]])
+        (ex-poke fun-revoke-wire [~fun my-agent] group-foreign-2+!>([%revoke my-flag `token0]))
+        (ex-update (add now.bowl tick) [%entry %token %del token0])
+    ==
+  ;<  peek=cage  bind:m
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))
+  ;<  ~  bind:m  (ex-equal !>(invited.admissions.group) !>(~))
+  (pure:m ~)
+::  +test-c-groups-join-seated: a seated ship joins without a token
+::
+::  a ship seated by an admin, here at group creation, is admitted
+::  without a token. her personal token is spent all the same.
+::  a ship without a seat is still denied.
+::
+++  test-c-groups-join-seated
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny eny)))
+  ;<  *  bind:m  (do-create-group-with-members %private ~[~dev])
+  ;<  caz=(list card)  bind:m  ((do-as ~dev) (do-c-groups [%join my-flag ~]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ::  her seat is updated with the join time before the token is
+  ::  deleted, so that admins prune her invite first.
+  ::
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-update now.bowl [%seat (sy ~dev ~) %add `seat:v7:gv`[~ now.bowl]])
+        (ex-update (add now.bowl tick) [%entry %token %del token0])
+    ==
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
+  ;<  ~  bind:m  (ex-equal !>(tokens.admissions.group) !>(~))
+  (ex-fail ((do-as ~fed) (do-c-groups [%join my-flag ~])))
+::  +test-c-entry-token-no-claims: a limited token needs at least one claim
+::
+++  test-c-entry-token-no-claims
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-create-group %private)
+  (ex-fail ((do-as ~zod) (do-c-group [%entry %token %add [[%limited 0] ~ ~ |]])))
 --

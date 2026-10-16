@@ -227,7 +227,7 @@ function referenceLabel(block: Extract<BlockData, { type: 'reference' }>) {
         ? `Reply in ${block.channelId}`
         : `Post in ${block.channelId}`;
     case 'group':
-      return `Group ${block.groupId}`;
+      return `Workspace ${block.groupId}`;
     case 'app':
       return `${block.userId}/${block.appId}`;
   }

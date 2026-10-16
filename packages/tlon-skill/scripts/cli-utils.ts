@@ -110,6 +110,28 @@ export function channelCreateUsage(command: string): string {
   ${command} <group-id> "Channel Name" --kind ${undescribed}`;
 }
 
+// The bot's normal reply turns a bare reference path into a card; `tlon posts
+// send` does not, so the hint names a chat message as the place to put it.
+export function refShareHint(card: 'group' | 'note'): string {
+  return `Share: include the Ref path in a chat message to post a tappable ${card} card.`;
+}
+
+// The app has no channel reference card yet, so a new channel is shared by
+// name and nest alongside its group's card.
+export function channelCreatedLines(
+  nest: string,
+  title: string,
+  groupId: string
+): string[] {
+  return [
+    `   Nest: ${nest}`,
+    `   Title: ${title}`,
+    `   Group: ${groupId}`,
+    `   Ref: /1/group/${groupId}`,
+    `   Share: channels have no card yet; name the channel and its Nest, and include the group Ref path in a chat message to post a tappable group card.`,
+  ];
+}
+
 // Channel kinds the skill used to support but no longer does. The %diary backend
 // is being removed, so diary/notebook channels are refused everywhere with an
 // explanatory message pointing at %notes.

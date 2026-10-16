@@ -47,7 +47,7 @@ export function getNotificationCopy({
     ? `Flagged ${flaggedKind}`
     : channelTitle || contactName || 'New message';
   let body = flaggedKind
-    ? `A ${flaggedKind} by ${contactName} was flagged in your group`
+    ? `A ${flaggedKind} by ${contactName} was flagged in your workspace`
     : isReact
       ? // name the emoji when we have one; a custom react can serialize to an
         // empty string, and "reacted  to your post" reads worse than omitting it

@@ -152,7 +152,7 @@ export const GroupListItem = ({
         hoverStyle={hoverStyle ?? { backgroundColor: '$secondaryBackground' }}
         onMouseEnter={handleHoverIn}
         onMouseLeave={handleHoverOut}
-        testID={`GroupListItem-${model.title || 'Untitled group'}-${model.pin ? 'pinned' : 'unpinned'}`}
+        testID={`GroupListItem-${model.title || 'Untitled workspace'}-${model.pin ? 'pinned' : 'unpinned'}`}
       >
         <ListItem
           {...props}
@@ -171,7 +171,7 @@ export const GroupListItem = ({
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : isSingleChannel ? (
               <ListItem.SubtitleWithIcon icon="ChannelMultiDM">
-                Group
+                Workspace
               </ListItem.SubtitleWithIcon>
             ) : model.lastPost ? (
               <ListItem.SubtitleWithIcon
@@ -179,12 +179,12 @@ export const GroupListItem = ({
               >
                 {(model.channels?.length ?? 0) > 1
                   ? model.channels?.[0]?.title
-                  : 'Group'}
+                  : 'Workspace'}
               </ListItem.SubtitleWithIcon>
             ) : isPending && model.hostUserId ? (
               <>
                 <ListItem.SubtitleWithIcon icon="Mail">
-                  Group invitation
+                  Workspace invitation
                 </ListItem.SubtitleWithIcon>
                 <ListItem.Subtitle>
                   Hosted by{' '}
@@ -196,7 +196,7 @@ export const GroupListItem = ({
               <ListItem.PostPreview post={model.lastPost} />
             ) : !isPending ? (
               model.isPersonalGroup ? (
-                <ListItem.Subtitle>Your personal group</ListItem.Subtitle>
+                <ListItem.Subtitle>Your personal workspace</ListItem.Subtitle>
               ) : (
                 <ListItem.Subtitle>No posts yet</ListItem.Subtitle>
               )

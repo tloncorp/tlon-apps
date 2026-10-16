@@ -25,6 +25,8 @@ Share the returned `Ref:` path in the reply so Tlon can render the group card.
 {"command":"channels create ~host/group \"Research\" --kind notes"}
 ```
 
+The output gives the new channel's `Nest:` and its group's `Ref:`. Channels have no card yet: in your reply, name the channel, give its nest, and share the group `Ref:` path.
+
 Description is supported for chat/heap, not notes. For notebooks, continue with [notes.md](notes.md); for shared files, use [buckets.md](buckets.md). Inspect `help channels create` for kind-specific flags.
 
 To leave a single channel, use `channels leave <nest>`; `groups leave` leaves the whole workspace and all its channels. `channels join` does not check read access: it can report "Joined" while messages remain unavailable to an account without access.

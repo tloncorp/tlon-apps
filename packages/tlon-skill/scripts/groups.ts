@@ -88,6 +88,7 @@ import {
   channelCreateUsage,
   printHelpAndExit,
   printUsageAndExit,
+  refShareHint,
   refuseNotesChannelDescription,
   refuseRemovedChannelKind,
 } from './cli-utils';
@@ -977,9 +978,7 @@ async function createOwnedGroup(
   console.log(`   Owner: ${ownerShip}`);
   console.log(`   Channel: ${channelId}`);
   console.log(`   Ref: /1/group/${groupId}`);
-  console.log(
-    `   Share: include the Ref path in a chat message to post a tappable group card.`
-  );
+  console.log(`   ${refShareHint('group')}`);
 
   return { groupId, channelId, ownerShip };
 }
@@ -1522,9 +1521,7 @@ async function main() {
       const description = getOption(args, 'description', 2) || '';
       const { groupId } = await createGroupWithChannel(title, description);
       console.log(`   Ref: /1/group/${groupId}`);
-      console.log(
-        `   Share: include the Ref path in a chat message to post a tappable group card.`
-      );
+      console.log(`   ${refShareHint('group')}`);
       break;
     }
 

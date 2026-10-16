@@ -8,7 +8,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
-import { BotSystemPromptsSection, useIsOwnedBot } from './BotSystemPrompts';
+import {
+  BotSystemPromptEditorSheet,
+  useHasBotPromptFiles,
+  useIsOwnedBot,
+} from './BotSystemPrompts';
 
 const mocks = vi.hoisted(() => ({
   files: {} as Record<string, Record<string, string>>,
@@ -41,15 +45,12 @@ vi.mock('@tloncorp/shared', () => ({
 }));
 vi.mock('@tloncorp/ui', () => ({
   Button: 'Button',
-  Icon: () => null,
-  Pressable: 'Pressable',
   Text: 'Text',
   useIsWindowNarrow: () => true,
   useToast: () => vi.fn(),
 }));
 vi.mock('tamagui', () => ({
   ScrollView: 'ScrollView',
-  View: 'View',
   XStack: 'XStack',
   YStack: 'YStack',
 }));
@@ -86,25 +87,14 @@ vi.mock('./Form', () => ({
     );
   },
 }));
-vi.mock('./ListItem', async () => {
-  const { Passthrough } = await import('../../test/sheetTestUtils');
-  return {
-    ListItem: Object.assign(Passthrough, {
-      MainContent: Passthrough,
-      Title: Passthrough,
-      Subtitle: Passthrough,
-    }),
-  };
-});
 vi.mock('./NotebookPost/NotebookPost', () => ({
   NotebookContentRenderer: 'NotebookContentRenderer',
 }));
-vi.mock('./SettingsSection', async () => {
-  const { Passthrough, Empty } = await import('../../test/sheetTestUtils');
-  return { SettingsSection: Passthrough, SettingsDivider: Empty };
-});
 
 setupReactTestEnvironment();
+
+const block = (version: string) =>
+  `<!-- idempotency-marker:tlon-runtime:${version} -->\n\n## Who You Are\n<!-- /idempotency-marker -->`;
 
 let queryClient: QueryClient;
 beforeEach(() => {
@@ -114,73 +104,142 @@ beforeEach(() => {
   mocks.deskListeners.clear();
   mocks.minted = 0;
   mocks.files = {
-    '~bot-a': { 'SOUL.md': 'a soul' },
-    '~bot-b': { 'SOUL.md': 'b soul' },
+    '~bot-a': { 'SOUL.md': `a soul\n${block('v10')}\n` },
+    '~bot-b': {},
   };
 });
 
-// A host element the renderer keeps, carrying the hook's result as props.
-const OwnershipProbe = 'OwnershipProbe' as unknown as React.ComponentType<
-  ReturnType<typeof useIsOwnedBot> & { testID: string }
+// A host element the renderer keeps, carrying the hooks' results as props.
+const Probe = 'Probe' as unknown as React.ComponentType<
+  ReturnType<typeof useIsOwnedBot> & { hasPromptFiles: boolean; testID: string }
 >;
 
-function Ownership({ botShip }: { botShip: string }) {
-  return <OwnershipProbe testID="ownership" {...useIsOwnedBot(botShip)} />;
+function Signals({ botShip }: { botShip: string }) {
+  return (
+    <Probe
+      testID="signals"
+      hasPromptFiles={useHasBotPromptFiles(botShip)}
+      {...useIsOwnedBot(botShip)}
+    />
+  );
 }
 
-const section = (botShip: string) => (
-  <QueryClientProvider client={queryClient}>
-    <BotSystemPromptsSection botShip={botShip} />
-    <Ownership botShip={botShip} />
-  </QueryClientProvider>
-);
-
-async function render(botShip: string) {
-  // Seeded so the first render already has the projection to list.
+async function renderSignals(botShip: string) {
   queryClient.setQueryData(['stewardPrompts', '~owner'], mocks.files);
   let tree!: ReactTestRenderer;
   await act(async () => {
-    tree = create(section(botShip));
+    tree = create(
+      <QueryClientProvider client={queryClient}>
+        <Signals botShip={botShip} />
+      </QueryClientProvider>
+    );
   });
-  return tree;
+  return () => tree.root.find((node) => node.props.testID === 'signals').props;
 }
 
-function openPersonality(tree: ReactTestRenderer) {
-  act(() => {
-    tree.root
-      .find(
-        (node) => node.props.accessibilityLabel === 'Edit Personality prompt'
-      )
-      .props.onPress();
+describe('useHasBotPromptFiles', () => {
+  it('is true only for a bot with mirrored files', async () => {
+    expect((await renderSignals('~bot-a'))()).toMatchObject({
+      hasPromptFiles: true,
+      isOwnedBot: true,
+    });
+    // Owned, but synced with no files: nothing to link to.
+    expect((await renderSignals('~bot-b'))()).toMatchObject({
+      hasPromptFiles: false,
+      isOwnedBot: true,
+    });
+    expect((await renderSignals('~stranger'))()).toMatchObject({
+      hasPromptFiles: false,
+      isOwnedBot: false,
+    });
   });
-}
+
+  it('drops a cached projection once the desk stops supporting prompts', async () => {
+    const signals = await renderSignals('~bot-a');
+    expect(signals()).toMatchObject({ hasPromptFiles: true, isOwnedBot: true });
+
+    // A rollback below the prompts module: the cache is still fresh.
+    await act(async () => {
+      mocks.deskSupports = false;
+      mocks.deskListeners.forEach((listener) => listener());
+    });
+    expect(signals()).toMatchObject({
+      hasPromptFiles: false,
+      isOwnedBot: false,
+      isPending: false,
+    });
+  });
+});
 
 const editor = (tree: ReactTestRenderer) =>
   tree.root.findAll((node) => node.props.testID === 'BotSystemPromptEditor');
 
-describe('BotSystemPromptsSection', () => {
-  it('closes a draft rather than carry it to another bot', async () => {
-    const tree = await render('~bot-a');
-    openPersonality(tree);
+const sheet = (text: string) => (
+  <BotSystemPromptEditorSheet
+    botShip="~bot-a"
+    prompt={{ name: 'SOUL.md', text }}
+    changedElsewhere={false}
+    onClose={vi.fn()}
+    onSaved={vi.fn()}
+  />
+);
+
+async function renderSheet(text: string) {
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(sheet(text));
+  });
+  return tree;
+}
+
+async function save(tree: ReactTestRenderer) {
+  await act(async () => {
+    tree.root
+      .find((node) => node.props.testID === 'BotSystemPromptSave')
+      .props.onPress();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+describe('BotSystemPromptEditorSheet', () => {
+  it("edits only the owner's text and saves it beside Tlon's block", async () => {
+    mocks.setStewardPrompt.mockResolvedValue({});
+    const tree = await renderSheet(`Call me Captain.\n${block('v10')}\n`);
+    expect(editor(tree)[0].props.value).toBe('Call me Captain.');
+
     act(() => {
-      editor(tree)[0].props.onChange('draft for a');
+      editor(tree)[0].props.onChange('Call me Admiral.');
     });
-    expect(editor(tree)[0].props.value).toBe('draft for a');
+    await save(tree);
 
-    // The profile screen is reused for another bot whose file shares the name.
-    await act(async () => {
-      tree.update(section('~bot-b'));
-    });
-    expect(editor(tree)).toHaveLength(0);
-
-    openPersonality(tree);
-    expect(editor(tree)[0].props.value).toBe('b soul');
-    expect(mocks.setStewardPrompt).not.toHaveBeenCalled();
+    expect(mocks.setStewardPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'SOUL.md',
+        text: `Call me Admiral.\n${block('v10')}\n`,
+      })
+    );
   });
 
-  it('re-renders the preview when a live projection replaces the text', async () => {
-    const tree = await render('~bot-a');
-    openPersonality(tree);
+  it('keeps a Tlon block that was refreshed while the draft was open', async () => {
+    mocks.setStewardPrompt.mockResolvedValue({});
+    const tree = await renderSheet(`${block('v10')}\n`);
+    act(() => {
+      editor(tree)[0].props.onChange('Call me Captain.');
+    });
+    // A gateway restart republished the block mid-edit.
+    await act(async () => {
+      tree.update(sheet(`${block('v11')}\n`));
+    });
+    expect(editor(tree)[0].props.value).toBe('Call me Captain.');
+    await save(tree);
+
+    expect(mocks.setStewardPrompt.mock.calls[0][0].text).toBe(
+      `Call me Captain.\n${block('v11')}\n`
+    );
+  });
+
+  it('re-renders the preview when a live projection replaces the additions', async () => {
+    const tree = await renderSheet(`a soul\n${block('v10')}\n`);
     act(() => {
       tree.root
         .find((node) => node.props.testID === 'BotSystemPromptPreviewToggle')
@@ -193,54 +252,22 @@ describe('BotSystemPromptsSection', () => {
     expect(preview()).toEqual(['a soul']);
 
     await act(async () => {
-      queryClient.setQueryData(['stewardPrompts', '~owner'], {
-        '~bot-a': { 'SOUL.md': 'a soul, revised' },
-      });
-      // React Query notifies its observers on a timer tick.
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      tree.update(sheet(`a soul, revised\n${block('v10')}\n`));
     });
     expect(preview()).toEqual(['a soul, revised']);
   });
 
-  it('drops a cached projection once the desk stops supporting prompts', async () => {
-    const tree = await render('~bot-a');
-    const ownership = () =>
-      tree.root.find((node) => node.props.testID === 'ownership').props;
-    expect(ownership()).toMatchObject({ isOwnedBot: true });
-
-    // A rollback below the prompts module: the cache is still fresh.
-    await act(async () => {
-      mocks.deskSupports = false;
-      mocks.deskListeners.forEach((listener) => listener());
-    });
-    expect(
-      tree.root.findAll(
-        (node) => node.props.accessibilityLabel === 'Edit Personality prompt'
-      )
-    ).toHaveLength(0);
-    expect(ownership()).toMatchObject({ isOwnedBot: false, isPending: false });
-  });
-
   it('resends an unanswered save under its id, and a settled one under a new id', async () => {
-    const tree = await render('~bot-a');
-    openPersonality(tree);
+    const tree = await renderSheet(`${block('v10')}\n`);
     act(() => {
       editor(tree)[0].props.onChange('new soul');
     });
-    const save = async () => {
-      await act(async () => {
-        tree.root
-          .find((node) => node.props.testID === 'BotSystemPromptSave')
-          .props.onPress();
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      });
-    };
     const sentIds = () =>
       mocks.setStewardPrompt.mock.calls.map(([params]) => params.requestId);
 
     // The POST may have reached the ship; only its answer was lost.
     mocks.setStewardPrompt.mockRejectedValueOnce(new Error('network'));
-    await save();
+    await save(tree);
     // The ship answered: that request is settled.
     mocks.setStewardPrompt.mockRejectedValueOnce(
       new api.StewardPromptEditError('0v1', {
@@ -249,14 +276,13 @@ describe('BotSystemPromptsSection', () => {
         message: [],
       })
     );
-    await save();
+    await save(tree);
     mocks.setStewardPrompt.mockResolvedValueOnce({
       requestId: '0v2',
       name: 'SOUL.md',
     });
-    await save();
+    await save(tree);
 
     expect(sentIds()).toEqual(['0v1', '0v1', '0v2']);
-    expect(editor(tree)).toHaveLength(0);
   });
 });

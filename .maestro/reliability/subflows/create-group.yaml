@@ -1,21 +1,21 @@
 appId: ${MAESTRO_APP_ID}
 ---
-# KNOWN GAP: this stops at "New group" on a phone whose account has an agent.
+# KNOWN GAP: this stops at "New custom workspace" on a phone whose account has an agent.
 # The create sheet drops the bare group action there -- a Workspace is what the
 # flow is for on mobile now -- and a Workspace is not shaped like this template
-# group: it arrives titled "My agent group" with one chat channel called
+# group: it arrives titled "My agent workspace" with one chat channel called
 # "General", gains a notes channel called "Updates" only when it is the
 # account's first, and never gets a Gallery. Rebuilding the fixture from one is
 # its own piece of work, tracked in TLON-6632; see the reliability README.
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Add a chat$'
-- tapOn: '^New group$'
-- tapOn: '^Basic group.*$'
-- tapOn: '^Group name$'
+- tapOn: '^New custom workspace$'
+- tapOn: '^Basic workspace.*$'
+- tapOn: '^Workspace name$'
 - waitForAnimationToEnd:
     timeout: 5000
 - assertVisible:
-    text: '^Name your group$'
+    text: '^Name your workspace$'
     label: Group editor stays visible with keyboard open
 - runFlow:
     file: input.yaml
@@ -23,7 +23,7 @@ appId: ${MAESTRO_APP_ID}
       INPUT_TEXT: ${output.reliability.group}
 - assertVisible:
     text: ${output.reliability.groupPattern}
-    below: '^Name your group$'
+    below: '^Name your workspace$'
     above: '^Next$'
 - runFlow:
     when:
@@ -32,7 +32,7 @@ appId: ${MAESTRO_APP_ID}
       - hideKeyboard
 - tapOn: '^Next$'
 - assertVisible: '^Select contacts to invite$'
-- tapOn: '^Create group$'
+- tapOn: '^Create workspace$'
 - extendedWaitUntil:
     visible: ${output.reliability.groupPattern}
     timeout: 15000
