@@ -59,7 +59,7 @@ export function trustedBrowserViewerUrl(viewerUrl: string): string {
   return parseViewerUrl(viewerUrl).url.toString();
 }
 
-class BrowserFormError extends Error {
+export class BrowserFormError extends Error {
   constructor(
     message: string,
     readonly status: number

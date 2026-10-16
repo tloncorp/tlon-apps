@@ -1,6 +1,6 @@
 ---
 name: tlon
-description: Read Tlon activity and message history; manage workspaces (Tlon groups), channels, Markdown notes, shared Bucket files, contacts, profiles, settings, and channel hooks; expose content publicly; share hosted-browser sessions and arrange secure form handoffs. Use for operating Tlon, not general product explanations or ordinary outbound messaging.
+description: Read Tlon activity and message history; manage workspaces (Tlon groups), channels, Markdown notes, shared Bucket files, contacts, profiles, settings, and channel hooks; expose content publicly; send hosted-browser sharing and secure-entry cards. Use for operating Tlon, not general product explanations or ordinary outbound messaging.
 ---
 
 # Operate Tlon
@@ -29,19 +29,21 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 
 | Task | Reference |
 | --- | --- |
-| Read activity, search history, manage reactions or existing posts | [Reading](references/reading.md) |
-| Workspaces (groups), membership, permissions, channels, public exposure | [Groups and channels](references/groups-channels.md) |
-| Find notebooks and create/edit Markdown notes | [Notes](references/notes.md) |
+| Read activity, search history, manage reactions, pins, notification levels, or existing posts | [Reading](references/reading.md) |
+| Workspaces (groups), membership, permissions, channels, channel sections, public exposure | [Groups and channels](references/groups-channels.md) |
+| Find notebooks, create/edit Markdown notes, and publish them | [Notes](references/notes.md) |
 | Shared group files and folders | [Buckets](references/buckets.md) |
 | Upload media for messages or profiles | [Media](references/media.md) |
 | Contacts, profile changes, bot settings | [Contacts and settings](references/contacts-settings.md) |
-| Share a hosted browser or have the owner enter credentials, address, or card details | [Browser sharing and handoff](references/browser-handoff.md) |
+| Browser card command arguments, delivery, and errors; browser workflow lives in `hosted-browser` | [Browser card commands](references/browser-handoff.md) |
 | Channel hooks and advanced automation | [Hooks](references/hooks-workflow.md) |
 
 ## Identity, delivery, and completion
 
 - Use returned group flags, channel nests, note IDs, and revisions. Display titles are not identifiers. Resolve ambiguous targets before writing.
-- Credentials are supplied by the runtime. Use the current account; do not collect access codes, print credentials, or switch to the owner's identity to work around permissions. Some documented commands, such as invite-link retrieval, have an explicit owner-bound behavior.
+- When a write lands outside the conversation you are replying in (a note, a post in another channel, a new group or channel, a cron job that will post to another channel), put a reference to it in your reply so Tlon renders a card. Forms: `/1/group/<host>/<slug>`, `/1/chan/<nest>/msg/<id>`, thread reply `/1/chan/<nest>/msg/<parent>/<id>`, `/1/chan/notes/<host>/<name>/note/<id>`. Prefer the `Ref:` path a command prints. A post's ID is host-assigned: read it back with `messages channel <nest>`, or `messages post <nest> <parent>` for a thread reply; the `message` tool's `messageId` is not it. A channel (including a cron job's target) has no card yet: name it, give its nest, and share its group's `Ref:`.
+- Put the path bare on its own line after the sentence introducing it; a link, bold, or malformed path stays literal text. Paths render only in your normal reply — `tlon posts send` posts them as literal text.
+- Credentials are supplied by the runtime. Use the current account; do not collect access codes, print credentials, or switch to the owner's identity to work around permissions. Some documented commands, such as invite-link retrieval, note publishing, and notification settings, have an explicit owner-bound behavior.
 - Use `message` for ordinary outbound messages and replies. For local media, upload first and pass the returned HTTPS URL; see the media reference.
 - Use `groups create-owned` to create a group for a user and make them an admin. Read the groups reference for the identity requirements.
 - Use `notes` for Markdown notebooks. Deprecated `%diary` management is unavailable through this tool; ask the owner to use `/migrate <diary-nest>` instead of attempting migration writes yourself.

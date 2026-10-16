@@ -1,0 +1,230 @@
+name: Feature Map Update
+
+# Brings the product guide's feature map up to date when a new store build has
+# been tagged, and opens a pull request for a person to review and merge. See
+# docs/feature-map/README.md.
+#
+# Once a day it asks whether there is a store build newer than the one the map
+# describes (docs/feature-map/release.json). Usually there is not, and it stops
+# there. When there is, scripts/feature-map-update.sh has a coding agent update
+# the entries and a second one check them. Nothing is merged automatically:
+# merging changes what bots tell people.
+#
+# Two jobs, on two machines, on purpose. The agent reads the app's source and
+# runs commands, so whatever it runs on is not trusted afterwards. The token that
+# can push is only ever on a second, fresh machine, which takes the agent's
+# work as a patch file, checks it again, and opens the pull request.
+
+on:
+  schedule:
+    - cron: "0 15 * * *"
+  workflow_dispatch:
+    inputs:
+      to:
+        description: "Store build tag to describe (default: the newest, if it is newer than the map). With a dry run, any ref."
+        required: false
+        type: string
+      dry_run:
+        description: "Do the update and show the result in the run summary; push nothing, open no PR"
+        type: boolean
+        default: false
+
+# One update at a time, and never cancel one partway: a cancelled run has spent
+# the agent's time for nothing.
+concurrency:
+  group: feature-map-update
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    # On a larger model a small update took about ten minutes and one with
+    # weeks of changes behind it about half an hour.
+    timeout-minutes: 120
+    outputs:
+      handoff: ${{ steps.save.outputs.ready }}
+    env:
+      HAS_MODEL_KEY: ${{ secrets.FEATURE_MAP_OPENROUTER_API_KEY != '' }}
+      HAS_PR_TOKEN: ${{ secrets.FEATURE_MAP_GH_TOKEN != '' }}
+      DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+
+    steps:
+      # Skip, not fail, so a fork or a repo without the secrets stays quiet.
+      # A dry run opens no PR, so it does not need the token for one.
+      - name: Check the secrets are set
+        id: secrets
+        run: |
+          missing=()
+          [ "$HAS_MODEL_KEY" = "true" ] || missing+=(FEATURE_MAP_OPENROUTER_API_KEY)
+          [ "$HAS_PR_TOKEN" = "true" ] || [ "$DRY_RUN" = "true" ] || missing+=(FEATURE_MAP_GH_TOKEN)
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::notice::Skipping: missing secrets: ${missing[*]}"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Full history and tags: the update reads the app's source at two builds
+      # and the changes between them.
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          ref: develop
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install the agent
+        if: steps.secrets.outputs.ready == 'true'
+        run: npm install --global @anthropic-ai/claude-code@2.1.294
+
+      # The agent is Claude Code on Haiku, billed through OpenRouter. It has the
+      # model key and nothing else: the script takes the read-only GH_TOKEN
+      # below, and the files a step uses to pass things to later steps, out of
+      # its environment. The script also sets what it may do (read the
+      # checkout, edit the map, a few read-only commands; no network) and
+      # stops if the key turns up in its report or edits. A dry run may point
+      # at any ref; a real one only at a store build newer than the map's.
+      - name: Update the map
+        id: update
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          TO: ${{ inputs.to }}
+          GH_TOKEN: ${{ github.token }}
+          ANTHROPIC_BASE_URL: https://openrouter.ai/api
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.FEATURE_MAP_OPENROUTER_API_KEY }}
+          ANTHROPIC_API_KEY: ""
+          FEATURE_MAP_MODEL: claude-haiku-5-5
+          FEATURE_MAP_PROVIDER_MODEL: anthropic/claude-haiku-5.5
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$DRY_RUN" = "true" ]; then
+            args=(--no-pr)
+          else
+            args=(--prepare)
+          fi
+          if [ -n "$TO" ]; then
+            args+=(--to "$TO")
+          fi
+          scripts/feature-map-update.sh "${args[@]}"
+
+      - name: Show the result
+        if: steps.update.outputs.branch != ''
+        env:
+          BRANCH: ${{ steps.update.outputs.branch }}
+          BODY: ${{ steps.update.outputs.body }}
+        run: |
+          {
+            cat "$BODY"
+            echo
+            echo '```'
+            git show --stat --format= "$BRANCH"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The work leaves this machine as plain files: the commit as a patch,
+      # and the branch name, title and description as text.
+      - name: Save the result for the next job
+        id: save
+        if: steps.update.outputs.branch != '' && inputs.dry_run != true
+        env:
+          BRANCH: ${{ steps.update.outputs.branch }}
+          TITLE: ${{ steps.update.outputs.title }}
+          BODY: ${{ steps.update.outputs.body }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/handoff"
+          git format-patch -1 --stdout "$BRANCH" > "$RUNNER_TEMP/handoff/update.patch"
+          cp "$BODY" "$RUNNER_TEMP/handoff/body.md"
+          printf '%s\n' "$BRANCH" > "$RUNNER_TEMP/handoff/branch"
+          printf '%s\n' "$TITLE" > "$RUNNER_TEMP/handoff/title"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.save.outputs.ready == 'true'
+        with:
+          name: feature-map-update
+          path: ${{ runner.temp }}/handoff
+          retention-days: 7
+
+  # A fresh machine that has run nothing the agent touched. It trusts nothing
+  # in the handoff: the names must have the expected shape, and the patch may
+  # only change plain files in the map and in the copy bots read.
+  open-pr:
+    needs: update
+    if: needs.update.outputs.handoff == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: feature-map-update
+          path: ${{ runner.temp }}/handoff
+
+      - name: Apply and check the patch
+        id: patch
+        run: |
+          handoff="$RUNNER_TEMP/handoff"
+          branch=$(cat "$handoff/branch")
+          title=$(cat "$handoff/title")
+          if ! [[ "$branch" =~ ^feature-map/(ios|android)-production-[0-9]+$ ]]; then
+            echo "::error::Unexpected branch name in the handoff"
+            exit 1
+          fi
+          if ! [[ "$title" =~ ^product\ guide:\ describe\ (ios|android)-production-[0-9]+$ ]]; then
+            echo "::error::Unexpected title in the handoff"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git am "$handoff/update.patch"
+
+          # Each changed path must be in the map or the copy bots read, and a
+          # plain file: no links, nothing executable.
+          bad=$(git diff --raw --no-renames origin/develop HEAD | awk -F'\t' '
+            {
+              split($1, meta, " ")
+              mode = meta[2]
+              path = $2
+              in_guide = (path ~ /^docs\/feature-map\// || path ~ /^packages\/openclaw\/skills\/tlon-product-guide\//)
+              plain = (mode == "100644" || mode == "000000")
+              if (!in_guide || !plain) print
+            }')
+          if [ -n "$bad" ]; then
+            echo "::error::The patch changes something it may not"
+            echo "$bad"
+            exit 1
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "title=$title" >> "$GITHUB_OUTPUT"
+
+      # A PR opened with GITHUB_TOKEN gets only approval-gated CI, so it is
+      # opened with a fine-grained PAT kept for this job alone (Contents + Pull
+      # requests R/W on this repo). The PR is authored by the token's owner.
+      - name: Open the pull request
+        env:
+          GH_TOKEN: ${{ secrets.FEATURE_MAP_GH_TOKEN }}
+          BRANCH: ${{ steps.patch.outputs.branch }}
+          TITLE: ${{ steps.patch.outputs.title }}
+        run: |
+          git push \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/$BRANCH"
+          gh pr create --repo "$GITHUB_REPOSITORY" --base develop \
+            --head "$BRANCH" --title "$TITLE" \
+            --body-file "$RUNNER_TEMP/handoff/body.md"

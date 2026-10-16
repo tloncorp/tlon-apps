@@ -88,6 +88,10 @@ export class NativeDb extends BaseDb {
   private changesPending: boolean = false;
   private didMigrate: boolean = false;
   private setupPromise: Promise<void> | null = null;
+  private purgeInFlight: {
+    generation: number;
+    promise: Promise<void>;
+  } | null = null;
   private readyPromise: Promise<void> | null = null;
   // Bumped by `abandonDbInit`. An attempt captures this when it starts and
   // stops writing shared state once it no longer matches, so an attempt that
@@ -212,6 +216,31 @@ export class NativeDb extends BaseDb {
   // menu, `resetDb`), which have no attempt of their own; `runMigrationsInternal`
   // passes its own so an abandoned attempt can't finish this purge.
   async purgeDb(generation: number = this.generation) {
+    // Two purges in the same generation must not interleave: the second would
+    // null the connection under the first, or delete the database the first
+    // just recreated. A purge from another generation is not shared: one of
+    // the two is stale and stops at its generation check before deleting
+    // anything, and its abandonment is not the other caller's outcome.
+    const inFlight = this.purgeInFlight;
+    if (inFlight && inFlight.generation === generation) {
+      await inFlight.promise;
+      return;
+    }
+
+    const promise = this.runPurge(generation);
+    if (generation === this.generation) {
+      this.purgeInFlight = { generation, promise };
+    }
+    try {
+      await promise;
+    } finally {
+      if (this.purgeInFlight?.promise === promise) {
+        this.purgeInFlight = null;
+      }
+    }
+  }
+
+  private async runPurge(generation: number) {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'purgeDb: purging db',
     });

@@ -46,7 +46,7 @@ describe('getNotificationCopy', () => {
 
     expect(copy).toEqual({
       title: `Flagged ${kind} in Tlon`,
-      body: `A ${kind} by Alice was flagged in your group`,
+      body: `A ${kind} by Alice was flagged in your workspace`,
     });
     expect(copy.body).not.toContain('Alice flagged');
     expect(copy.body).not.toBe('New message');

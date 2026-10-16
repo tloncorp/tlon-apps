@@ -4,13 +4,16 @@ import { XStack, YStack } from 'tamagui';
 
 type A2UIMenuRowProps = {
   accessibilityLabel: string;
+  accessibilityRole?: ComponentProps<typeof Pressable>['accessibilityRole'];
   accessibilityState?: ComponentProps<typeof Pressable>['accessibilityState'];
+  accessibilityValue?: ComponentProps<typeof Pressable>['accessibilityValue'];
   bordered?: boolean;
   dimmed?: boolean;
   disabled?: boolean;
   dividerAfter?: boolean;
   dividerOutside?: boolean;
   label: string;
+  labelCanWrap?: boolean;
   labelColor?: ComponentProps<typeof Text>['color'];
   leading?: ReactNode;
   marginTop?: ComponentProps<typeof XStack>['marginTop'];
@@ -26,13 +29,16 @@ type A2UIMenuRowProps = {
 /** Shared scaffold for the compact controls embedded in A2UI chat cards. */
 export function A2UIMenuRow({
   accessibilityLabel,
+  accessibilityRole,
   accessibilityState,
+  accessibilityValue,
   bordered = false,
   dimmed = false,
   disabled = false,
   dividerAfter = false,
   dividerOutside = false,
   label,
+  labelCanWrap = false,
   labelColor,
   leading,
   marginTop,
@@ -48,7 +54,9 @@ export function A2UIMenuRow({
     <Pressable
       testID={testID}
       accessibilityLabel={accessibilityLabel}
+      accessibilityRole={accessibilityRole}
       accessibilityState={accessibilityState}
+      accessibilityValue={accessibilityValue}
       disabled={disabled}
       onPress={disabled ? undefined : onPress}
     >
@@ -76,7 +84,7 @@ export function A2UIMenuRow({
               size="$label/l"
               color={labelColor ?? (prominent ? '$background' : '$primaryText')}
               trimmed={false}
-              numberOfLines={1}
+              numberOfLines={labelCanWrap ? undefined : 1}
             >
               {label}
             </Text>
@@ -91,7 +99,7 @@ export function A2UIMenuRow({
             trimmed={false}
             flex={1}
             minWidth={0}
-            numberOfLines={1}
+            numberOfLines={labelCanWrap ? undefined : 1}
           >
             {label}
           </Text>
