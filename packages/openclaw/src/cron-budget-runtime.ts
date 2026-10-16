@@ -66,14 +66,26 @@ type Runner = {
 const runnerSlot = sharedSlot<Runner>('cronBudget.runner');
 
 /** Hosted-only. The wrapper supplies an explicit signal, never inferred from a model name. */
-export function registerBudgetHoldHooks(
-  api: Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>
-) {
+/**
+ * Blocks model-forced runs of budget-held recurring jobs. Registered from the
+ * entry's registerCapabilities (see registerAgentTurnHooks in index.ts):
+ * OpenClaw 2026.9.x dispatches before_tool_call inside a turn from a per-turn
+ * registry that never sees registerFull, so a guard registered only there is
+ * inert. Reads only shared state, so it works from any registration.
+ */
+export function registerBudgetRunGuard(api: Pick<OpenClawPluginApi, 'on'>) {
   const paths = budgetHoldPaths();
   if (!paths) return;
 
   api.on('before_tool_call', async (event) => {
-    if (event.toolName !== 'cron' || event.params.action !== 'run') return;
+    // 2026.9.x advertises the scheduler tool as `automations`; `cron` is the
+    // legacy name it still accepts on inbound calls.
+    if (
+      (event.toolName !== 'automations' && event.toolName !== 'cron') ||
+      event.params.action !== 'run'
+    ) {
+      return;
+    }
     const id = event.params.jobId ?? event.params.id;
     if (typeof id !== 'string') return;
     const state = await readBudgetHoldState(paths.state);
@@ -98,6 +110,14 @@ export function registerBudgetHoldHooks(
       };
     }
   });
+}
+
+/** Gateway-lifetime budget hold machinery; registered from registerFull. */
+export function registerBudgetHoldHooks(
+  api: Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>
+) {
+  const paths = budgetHoldPaths();
+  if (!paths) return;
 
   api.on('gateway_start', (_event, ctx) => {
     if (runnerSlot.get()) return;

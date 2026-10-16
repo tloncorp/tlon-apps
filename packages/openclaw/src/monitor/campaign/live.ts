@@ -5,11 +5,11 @@ import {
   parsePostBlob,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
-import type {
-  PluginHookCronChangedEvent,
-  PluginHookGatewayCronJob,
-} from 'openclaw/plugin-sdk/types';
-import { getTlonCronService } from '../../cron-telemetry.js';
+import {
+  type CronChangedEvent as PluginHookCronChangedEvent,
+  type GatewayCronJob as PluginHookGatewayCronJob,
+  getTlonCronService,
+} from '../../cron-telemetry.js';
 import { sharedMap } from '../../shared-state.js';
 import type { TlonTelemetryClient } from '../../telemetry.js';
 import { listRunnableTlonAccountIds } from '../../types.js';

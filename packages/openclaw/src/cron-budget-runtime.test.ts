@@ -3,13 +3,13 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
-import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
   readBudgetHoldState,
   emptyBudgetHoldState,
   reconcileBudgetHolds,
   writeBudgetHoldState,
+  type BudgetCronJob,
 } from './cron-budget-hold.js';
 import { getCurrentUserId } from '@tloncorp/api';
 import {
@@ -19,6 +19,7 @@ import {
 import {
   installBudgetHoldNotifier,
   registerBudgetHoldHooks,
+  registerBudgetRunGuard,
 } from './cron-budget-runtime.js';
 
 const cleanups: (() => Promise<void> | void)[] = [];
@@ -82,19 +83,22 @@ async function setup(accountIds = ['default']) {
   const on = vi.fn((name: string, handler: unknown) => {
     hooks.set(name, handler as (...args: unknown[]) => unknown);
   });
-  const register = () =>
-    registerBudgetHoldHooks({
+  const register = () => {
+    const api = {
       on,
       logger: { warn, info },
       config,
-    } as unknown as Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>);
+    } as unknown as Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>;
+    registerBudgetHoldHooks(api);
+    registerBudgetRunGuard(api);
+  };
   register();
   const fire = async (name: string, ...args: unknown[]) =>
     hooks.get(name)?.(...args);
   cleanups.push(async () => {
     await fire('gateway_stop');
   });
-  const job: PluginHookGatewayCronJob = {
+  const job: BudgetCronJob = {
     id: 'news',
     enabled: true,
     schedule: { kind: 'every', everyMs: 60_000 },
@@ -152,6 +156,12 @@ it('observes live recovery and prevents model-forced runs while held', async () 
   ).toMatchObject({ block: true });
   expect(
     await f.fire('before_tool_call', {
+      toolName: 'automations',
+      params: { action: 'run', jobId: 'news' },
+    })
+  ).toMatchObject({ block: true });
+  expect(
+    await f.fire('before_tool_call', {
       toolName: 'cron',
       params: { action: 'run', jobId: 'one-shot' },
     })
@@ -169,10 +179,12 @@ it('observes live recovery and prevents model-forced runs while held', async () 
 it('does not install budget policy for self-hosted instances without a signal', () => {
   vi.stubEnv('TLON_CRON_BUDGET_FILE', '');
   const on = vi.fn();
-  registerBudgetHoldHooks({ on } as unknown as Pick<
+  const api = { on } as unknown as Pick<
     OpenClawPluginApi,
     'on' | 'logger' | 'config'
-  >);
+  >;
+  registerBudgetHoldHooks(api);
+  registerBudgetRunGuard(api);
   expect(on).not.toHaveBeenCalled();
 });
 
@@ -192,7 +204,7 @@ it('preserves a manual pause when completion overwrites its revision during reco
   const f = await setup();
   f.job.state = { runningAtMs: 50 };
   await f.fire('gateway_start', {}, f.ctx);
-  let finishList!: (jobs: PluginHookGatewayCronJob[]) => void;
+  let finishList!: (jobs: BudgetCronJob[]) => void;
   f.list.mockImplementationOnce(
     () =>
       new Promise((resolve) => {
@@ -221,7 +233,7 @@ it('preserves a manual pause when completion overwrites its revision during reco
 it('does not revoke a new hold when an edit was already handled by the active pass', async () => {
   const f = await setup();
   await f.fire('gateway_start', {}, f.ctx);
-  let finishList!: (jobs: PluginHookGatewayCronJob[]) => void;
+  let finishList!: (jobs: BudgetCronJob[]) => void;
   f.list.mockImplementationOnce(
     () =>
       new Promise((resolve) => {
@@ -304,7 +316,7 @@ it('blocks a newly added recurring task before reconciliation persists its hold'
   await f.setBudget('available');
   await f.fire('gateway_start', {}, f.ctx);
   await f.setBudget('limited');
-  let finishList!: (jobs: PluginHookGatewayCronJob[]) => void;
+  let finishList!: (jobs: BudgetCronJob[]) => void;
   f.list.mockImplementationOnce(
     () =>
       new Promise((resolve) => {

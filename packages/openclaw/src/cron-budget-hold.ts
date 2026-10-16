@@ -1,7 +1,25 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
+
+/**
+ * The fields of a gateway cron job this module reads. OpenClaw 2026.9.x does
+ * not export its hook cron-job type from a public SDK subpath, so this is a
+ * structural subset that both the hook context's cron service and the local
+ * `TlonCronService` satisfy.
+ */
+export type BudgetCronJob = {
+  id: string;
+  description?: string;
+  enabled?: boolean;
+  schedule?: { kind?: string };
+  state?: {
+    runningAtMs?: number;
+    lastRunAtMs?: number;
+    lastDurationMs?: number;
+  };
+  updatedAtMs?: number;
+};
 
 export const BUDGET_SIGNAL_ENV = 'TLON_CRON_BUDGET_FILE';
 export const BUDGET_STARTUP_ENV = 'TLON_CRON_BUDGET_STARTUP';
@@ -16,9 +34,7 @@ export function budgetHoldPaths(env = process.env) {
 export const BUDGET_HOLD_PREFIX = '[Paused: credit budget] ';
 export type BudgetState = 'limited' | 'available' | 'unknown';
 export type BudgetCronService = {
-  list: (opts: {
-    includeDisabled: true;
-  }) => Promise<PluginHookGatewayCronJob[]>;
+  list: (opts: { includeDisabled: true }) => Promise<BudgetCronJob[]>;
   update: (
     id: string,
     patch: { enabled?: boolean; description?: string }
@@ -62,7 +78,7 @@ export const emptyBudgetHoldState = (): BudgetHoldState => ({
   holds: {},
 });
 
-export function isRecurringJob(job: PluginHookGatewayCronJob): boolean {
+export function isRecurringJob(job: BudgetCronJob): boolean {
   return job.schedule?.kind === 'cron' || job.schedule?.kind === 'every';
 }
 

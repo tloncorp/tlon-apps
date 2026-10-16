@@ -1,8 +1,5 @@
-import type {
-  PluginHookAgentContext,
-  PluginHookAgentEndEvent,
-  PluginHookCronChangedEvent,
-} from 'openclaw/plugin-sdk/types';
+import type { AgentEndEvent, AgentHookContext } from './agent-hook-types.js';
+import type { CronChangedEvent } from './cron-telemetry.js';
 
 import { sharedMap } from './shared-state.js';
 import { isSuccessfulSilentAgentOutput } from './silent-reply.js';
@@ -17,7 +14,7 @@ type CronOutput = {
 // Keep only bounded, content-free evidence, consumed by the terminal cron hook.
 const outputs = sharedMap<string, CronOutput>('cronSilence.outputs');
 
-export function beginCronSilenceObservation(ctx: PluginHookAgentContext): void {
+export function beginCronSilenceObservation(ctx: AgentHookContext): void {
   if (!ctx.sessionKey) return;
   const existing = outputs.get(ctx.sessionKey);
   const sameRun =
@@ -44,8 +41,8 @@ export function beginCronSilenceObservation(ctx: PluginHookAgentContext): void {
 }
 
 export function recordCronSilenceOutput(
-  event: PluginHookAgentEndEvent,
-  ctx: PluginHookAgentContext
+  event: AgentEndEvent,
+  ctx: AgentHookContext
 ): void {
   const entry = ctx.sessionKey ? outputs.get(ctx.sessionKey) : undefined;
   if (!entry || entry.runId !== ctx.runId || entry.sessionId !== ctx.sessionId)
@@ -53,9 +50,7 @@ export function recordCronSilenceOutput(
   entry.silent = isSuccessfulSilentAgentOutput(event);
 }
 
-export function consumeCronSilenceOutput(
-  event: PluginHookCronChangedEvent
-): boolean {
+export function consumeCronSilenceOutput(event: CronChangedEvent): boolean {
   if (!event.sessionKey) return false;
   const entry = outputs.get(event.sessionKey);
   outputs.delete(event.sessionKey);
