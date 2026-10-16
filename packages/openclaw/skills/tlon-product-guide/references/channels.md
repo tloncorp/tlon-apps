@@ -57,7 +57,7 @@ Notes: from the top: the channel's name and the group it belongs to; an `Invite`
 
 Phone: open the channel's `Channel info` screen and tap `Rename` at the top right. On `Edit channel info`, change `Name` and `Description`, then tap `Save`.
 Who: group admins. `Rename` is greyed out while the app can't reach the group's host.
-Notes: a name can be up to 30 characters and a description up to 300. In a group with several channels, the description shows under the channel's name at the top of the channel. If you opened the info from the group's channel-management screen, the button is a pencil icon instead of `Rename`. A channel has no picture of its own to set, and its type can't be changed after it's made. For a Notebook channel, the new name also becomes the notebook's title when you are its owner on the node that hosts it.
+Notes: a name can be up to 30 characters and a description up to 300. In a group with several channels, the description shows under the channel's name at the top of the channel. If you opened the info from the group's channel-management screen, the button is a pencil icon instead of `Rename`. A channel has no picture of its own to set, and its type can't be changed after it's made. For a Notebook channel, the new name also becomes the notebook's title.
 
 ## Reorder channels or move one to another section
 

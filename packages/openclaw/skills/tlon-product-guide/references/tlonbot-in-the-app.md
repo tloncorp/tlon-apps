@@ -44,7 +44,7 @@ Notes: on a self-hosted node there are no bot rows in Settings.
 ## Is my bot online?
 
 Phone: the Settings tab has no online badge for your bot. Its card shows the bot's name with `Bot profile` under it. To see whether it is running, open the Bot tab, tap the bot's name, and look for the `Bot` badge beside it: `Bot · Offline` means the bot has reported that it is not running.
-Desktop: the bot's profile shows the same badge.
+Desktop: open your DM with the bot and click its name at the top. Its profile shows the same badge.
 Who: hosted accounts with a Tlonbot.
 Notes: while the bot is starting, the `Default model`, `Fallback models` and `Zero data retention` rows stay greyed out until your settings have loaded. Once they have, the bot's card shows `Tlonbot is starting. Settings may take a moment to become editable.` for as long as the bot is still starting.
 
@@ -210,14 +210,14 @@ Notes: after `Clear rules` the button becomes `Undo` until you apply.
 
 ## Add, change, pause or delete a scheduled task for my bot
 
-Phone: on the Settings tab, tap your bot's `Scheduled tasks` row. It shows how many tasks there are. A group's or channel's info screen has its own `Scheduled tasks` row with a count, which opens the list for that group or channel. On your own bot's profile there is one too, and in your DM with the bot the clock icon in the chat header opens them. Tap the plus at the top right, or the `New task` row under the tasks, to make one, or tap a task to change it. In the editor, give it a `Name`, write what the bot should do under `Prompt`, then pick the time and days under `Schedule` and where it posts under `Posts to`. Save it with the button at the top right; the app then says `Saved`. For an existing task, the `Active` switch pauses or resumes it, and `Delete task` at the bottom removes it.
+Phone: on the Settings tab, tap your bot's `Scheduled tasks` row. It shows how many tasks there are. A group's or channel's info screen has its own `Scheduled tasks` row with a count, which opens the list for that group or channel. On your own bot's profile there is one too, and in your DM with the bot the clock icon in the chat header opens them. Tap the plus at the top right, or the `New task` row under the tasks, to make one, or tap a task to change it. In the editor, give it a `Name`, write what the bot should do under `Prompt`, then pick the time and days under `Schedule` and where it posts under `Posts to`. Tap `Create` at the top right to make a new task. For one you're changing, tap `Save`; the app then says `Saved`. For an existing task, the `Active` switch pauses or resumes it, and `Delete task` at the bottom removes it.
 Desktop: click the gear in the left rail, then `Scheduled tasks`. The list and the editor work the same as on the phone.
 Who: hosted accounts with a Tlonbot.
 Notes: a paused task reads `Paused`, or `Paused for credits` when your credits are low. A list opened for one group or channel is headed `Posting to` that name. If the list says `Scheduled tasks unavailable`, your node needs an update. `Scheduled tasks not synced` means the bot hasn't shared its tasks yet; `Refresh` checks again.
 
 ## Fill in a sign-in form for my bot's browser
 
-Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`. Fill in the fields and tap `Continue` for a sign-in, or `Fill fields` for other details. The app then returns you to the chat. If you finish in the live browser instead, tap `Return to conversation`.
+Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`. Fill in the fields and tap `Continue` for a sign-in, or `Fill fields` for other details. If the site then asks for more, such as a password after the email, the next form opens on the same screen; fill that in too. Once nothing is left, the app returns you to the chat. If you finish in the live browser instead, tap `Return to conversation`.
 Who: only from a DM with your own bot.
 Notes: the screen says `These fields go directly to the live browser. They are never posted to chat or returned to the bot.` Filling in details does not submit a payment or place an order. `Open live browser` lets you finish any extra steps yourself.
 
@@ -276,13 +276,13 @@ Notes: the badge shows for Tlon-hosted bots and for any account that declares it
 ## What's on my bot's profile?
 
 Phone: in the Bot tab, tap the bot's name at the top. The profile shows its avatar, its name with a `Bot` badge, and its username (tap to copy). Below are `Message`, `Add Contact` or `Remove Contact`, and `Block` (not on your own bot), then a `Bot settings` row, its `Status` and `About` text if it has any, and `Node` and `Sponsor` tiles showing whether it can be reached.
-Desktop: `Bot settings` on the profile opens Tlon's bot settings web page.
+Desktop: open your DM with the bot and click its name at the top. `Bot settings` on the profile opens Tlon's bot settings web page.
 Who: the `Bot settings` and `Scheduled tasks` rows only show on your own bot's profile. On your own bot, `Scheduled tasks` sits under `Bot settings` with a count, and a `Bot behavior` section appears at the bottom.
 
 ## Change my bot's instructions, personality or tools
 
 Phone: in the Bot tab, tap your bot's name at the top and scroll to `Bot behavior`. Tap a prompt to open its editor: `Instructions`, `Personality`, `Tools`, `Identity`, `About you` or `Bootstrap`. Change the text and tap `Save changes`.
-Desktop: the same section is on your bot's profile, and works the same way.
+Desktop: open your DM with the bot, click its name at the top, and scroll to the same section. It works the same way.
 Who: the bot's owner. The section does not show for anyone else, or on a bot whose prompts the app cannot reach.
 Notes: each prompt has a one-line description under its name. `Unsaved changes` shows while you edit. `Saving briefly restarts your bot.` is shown in the editor, and the save briefly restarts the bot.
 

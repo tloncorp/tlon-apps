@@ -45,7 +45,7 @@ Notes: rows the phone has that desktop lacks: `Your profile` and `Contacts` (use
 
 ## Find my bot's chat and its settings on desktop
 
-Desktop: there is no Bot tab. Your chat with your bot is an ordinary DM: find it by the bot's name in the Home list, or in Messages. For its settings, click the gear in the left rail, then `Bot Settings`. That opens Tlon's bot settings web page, tlon.network/tlonbot, in your browser. The `Bot settings` row on the bot's own profile opens the same page.
+Desktop: there is no Bot tab. Your chat with your bot is an ordinary DM: find it by the bot's name in the Home list, or in Messages. Click its name at the top of that DM to open its profile. For its settings, click the gear in the left rail, then `Bot Settings`. That opens Tlon's bot settings web page, tlon.network/tlonbot, in your browser. The `Bot settings` row on the bot's own profile opens the same page.
 Who: `Bot Settings` only appears on a hosted account that already has a DM with its bot.
 Notes: apart from `Scheduled tasks` in Settings and the `Bot behavior` section on your bot's profile, the desktop and web app have no bot settings screens of their own; the row only opens that page. On the phone the bot's settings are on the Settings tab.
 

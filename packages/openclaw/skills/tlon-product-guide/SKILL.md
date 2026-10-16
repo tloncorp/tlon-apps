@@ -121,7 +121,7 @@ The tab bar along the bottom is icons only, so describe them by shape:
 - **Bot** — your bot's avatar, or a color tile if it has none (a flower stands in until its profile loads). Your private chat with your Tlonbot. It only appears on hosted accounts with a bot, and it's where a fresh start opens. Come back within a day and the app reopens on the screen you left.
 - **Workspaces** — a `#`. Every group and DM you're in. The screen is headed `Workspaces`.
 - **Activity** — a bell. Mentions, replies, and other notifications.
-- **Settings** — a gear. On a hosted account your bot's settings come first. Your own profile is the first row under `App`.
+- **Settings** — a gear. Your own profile is the first row; on a hosted account your bot's settings come right after it.
 
 Until the bot accepts your first setup answers, or about 30 seconds after the chat opens, the other tabs stay locked.
 
@@ -259,7 +259,7 @@ ChatGPT, Alexa, Siri and most assistants are services you rent. Your conversatio
 1. Download the iOS or Android app and sign in.  
 2. Open the Bot tab, the first icon in the tab bar. On a hosted account your bot is already there, and a fresh start opens on it. Self-hosting? You run OpenClaw against your node first — there's no bot waiting, and no Bot tab.  
 3. Talk to it. You command your bot by typing instructions into the DM, in plain language.  
-4. Configure it from the Settings tab, where your bot's settings sit at the top: `Models` for the AI model it uses, `Connections` for API keys and connected services, `Permissions` for who can message it and which channels it watches (`Per-channel rules`), then `Privacy` and `Advanced`. On desktop, they're behind `Settings` → `Bot Settings`, which opens tlon.network/tlonbot. A change asks to restart the bot (`Apply & restart`) before it takes effect. These settings are part of hosting — if you're running your own bot they won't be there, and the same settings live in your OpenClaw configuration instead.
+4. Configure it from the Settings tab, where your bot's settings sit just below your profile: `Models` for the AI model it uses, `Connections` for API keys and connected services, and `Permissions` for who can message it and which channels it watches (`Per-channel rules`). On desktop, they're behind `Settings` → `Bot Settings`, which opens tlon.network/tlonbot. A change asks to restart the bot (`Apply & restart`) before it takes effect. These settings are part of hosting — if you're running your own bot they won't be there, and the same settings live in your OpenClaw configuration instead.
 
 ### First things to try
 
@@ -370,7 +370,7 @@ There are two ways to connect a provider, both under `Connections`:
 
 A subscription and an API key for the same provider are alternatives, not the same credential. Connecting a subscription replaces a saved API key for that provider, and the app asks first. For ChatGPT the reverse holds too: saving an OpenAI API key disconnects the subscription.
 
-**Zero data retention.** With the included model, `Privacy` → `Zero data retention` keeps requests away from model providers that retain data. It may use the included credits faster. OpenRouter's model list has its own zero-data-retention filter.
+**Zero data retention.** With the included model, the `Zero data retention` switch under `Models` keeps requests away from model providers that retain data. It may use the included credits faster. OpenRouter's model list has its own zero-data-retention filter.
 
 Use `/model` in chat to check or change what's running. When someone asks which model you are, or whether zero data retention is on, answer from your runtime context: it names the model for this run and says whether zero data retention is on for it. `Basic` is only the default.
 
