@@ -19,6 +19,7 @@ import {
   activityVersionSupportsNotes,
   deskVersionSupportsAutomations,
   deskVersionCountsAllSeats,
+  deskVersionServesRosterPages,
   deskVersionSupportsBuckets,
   deskVersionSupportsStewardPrompts,
   deskVersionSupportsStewardBots,
@@ -675,6 +676,9 @@ export const syncAppInfo = async (
     deskVersionSupportsAutomations(appInfo?.groupsVersion)
   );
   api.setDeskCountsAllSeats(deskVersionCountsAllSeats(appInfo?.groupsVersion));
+  api.setDeskServesRosterPages(
+    deskVersionServesRosterPages(appInfo?.groupsVersion)
+  );
   api.setDeskSupportsStewardPrompts(
     deskVersionSupportsStewardPrompts(appInfo?.groupsVersion)
   );
@@ -719,6 +723,7 @@ export const syncReactionSupport = async () => {
   api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
   api.setDeskSupportsAutomations(deskVersionSupportsAutomations(groupsVersion));
   api.setDeskCountsAllSeats(deskVersionCountsAllSeats(groupsVersion));
+  api.setDeskServesRosterPages(deskVersionServesRosterPages(groupsVersion));
   api.setDeskSupportsStewardPrompts(
     deskVersionSupportsStewardPrompts(groupsVersion)
   );

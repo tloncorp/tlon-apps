@@ -28,7 +28,11 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
     useState<string[]>(initialSelected);
   const { bottom } = useSafeAreaInsets();
 
-  const { groupMembers, groupRoles } = useGroupContext({ groupId });
+  // any member can be picked, so load the whole roster
+  const { groupMembers, groupRoles } = useGroupContext({
+    groupId,
+    wholeRoster: true,
+  });
 
   // Find the role being edited to display its title
   const role = useMemo(

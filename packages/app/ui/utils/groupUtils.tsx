@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { compareShips } from '@tloncorp/shared/logic/rosterPagesSupport';
 
 export function getGroupHost(groupId: string) {
   return groupId.split('/')[0];
@@ -22,4 +23,34 @@ export function getGroupMemberCount(
     group.members?.filter((member) => member.status !== 'invited').length ??
     0
   );
+}
+
+/**
+ * A big group's members as far as its pages have loaded, in page order, so
+ * the list only grows at its end. Invites, and holders of a role whose
+ * holders have all loaded, aren't paged that way, so they all stay. Until
+ * the first page lands, the rest wait for it.
+ */
+export function pagedMembers(
+  members: db.ChatMember[],
+  {
+    loadedThrough,
+    awaitingFirstPage,
+    wholeRoles,
+  }: {
+    loadedThrough: string | null;
+    awaitingFirstPage: boolean;
+    wholeRoles: ReadonlySet<string>;
+  }
+): db.ChatMember[] {
+  return members
+    .filter(
+      (member) =>
+        (member.roles ?? []).some((role) => wholeRoles.has(role.roleId)) ||
+        member.status === 'invited' ||
+        (!awaitingFirstPage &&
+          (loadedThrough === null ||
+            compareShips(member.contactId, loadedThrough) <= 0))
+    )
+    .sort((a, b) => compareShips(a.contactId, b.contactId));
 }
