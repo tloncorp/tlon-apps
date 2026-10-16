@@ -34,6 +34,10 @@ import {
 } from '../../ui';
 import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
 import {
+  WorkspaceInstructionsSheet,
+  hasWorkspaceInstructions,
+} from '../../ui/components/WorkspaceInstructionsSheet';
+import {
   channelSupportsNotifications,
   getChannelActionCapabilities,
   getChannelHost,
@@ -425,6 +429,21 @@ export function SettingsSection({
     }
   }, [group, onPressRoles]);
 
+  // Bots honor a workspace config only in groups their owner hosts, so
+  // only the host gets the editor.
+  const supportsInstructions =
+    store.useDeskSupportsStewardBots() === true &&
+    group?.hostUserId === currentUserId;
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const handlePressInstructions = useCallback(
+    () => setInstructionsOpen(true),
+    []
+  );
+  const handleCloseInstructions = useCallback(
+    () => setInstructionsOpen(false),
+    []
+  );
+
   const handlePressEditChannelPrivacy = useCallback(() => {
     if (channel?.groupId) {
       navigateToEditChannelPrivacy(channel.id, channel.groupId);
@@ -554,6 +573,17 @@ export function SettingsSection({
           disabled: !actionsEnabled,
           onPress: handlePressManageChannels,
         },
+        ...(supportsInstructions
+          ? [
+              {
+                title: 'Tlonbot instructions',
+                endValue: hasWorkspaceInstructions(group) ? 'On' : 'Off',
+                testID: 'GroupInstructions',
+                disabled: !actionsEnabled,
+                onPress: handlePressInstructions,
+              },
+            ]
+          : []),
         notificationAction,
         ...scheduledTasksActions,
       ];
@@ -588,6 +618,8 @@ export function SettingsSection({
     handlePressGroupPrivacy,
     handlePressRoles,
     handlePressManageChannels,
+    handlePressInstructions,
+    supportsInstructions,
     handlePressEditChannelPrivacy,
     groupRoles,
     showsScheduledTasks,
@@ -618,6 +650,12 @@ export function SettingsSection({
           />
         ))}
       </ActionSheet.ActionGroup>
+      {instructionsOpen && group ? (
+        <WorkspaceInstructionsSheet
+          group={group}
+          onClose={handleCloseInstructions}
+        />
+      ) : null}
     </View>
   );
 }
