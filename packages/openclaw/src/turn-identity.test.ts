@@ -221,13 +221,70 @@ describe('turn identity', () => {
   });
 
   describe('sessions_send', () => {
-    it("demotes nothing for an owner-directed caller's own sessions_send", () => {
-      inbound('owner', 'owner-caller');
-      inbound('owner', 'run-2', OTHER);
-      expect(identity('owner-caller')).toBe('owner');
-      noteCrossSessionSend({ label: 'helper', message: 'hi' }, 'owner-caller');
-      expect(identity('owner-caller')).toBe('owner');
-      expect(identity('run-2', OTHER)).toBe('owner');
+    /** An owner run recorded on `accountId` (none when undefined). */
+    function ownerRun(
+      runId: string,
+      sessionKey: string,
+      accountId: string | undefined
+    ) {
+      setSessionRole(sessionKey, 'owner');
+      setTlonSessionSurface(sessionKey, {
+        kind: 'group',
+        senderRole: 'owner',
+        messageId: `owner/${runId}`,
+      });
+      rememberTlonSessionRunSurface(runId, sessionKey, {
+        senderRole: 'owner',
+        ...(accountId ? { accountId } : {}),
+      });
+      expect(identity(runId, sessionKey)).toBe('owner');
+    }
+
+    it('leaves a same-account owner target alone for a same-account owner caller', () => {
+      ownerRun('caller', SESSION, 'a');
+      ownerRun('target', OTHER, 'a');
+      noteCrossSessionSend({ sessionKey: OTHER, message: 'hi' }, 'caller');
+      expect(identity('target', OTHER)).toBe('owner');
+      expect(getRecordedRunRole('target')).toBe('owner');
+    });
+
+    it.each([
+      ['a cross-account owner caller', 'b', 'a'],
+      ['an owner caller with no recorded account', undefined, 'a'],
+    ])('demotes the target for %s', (_label, callerAccount, targetAccount) => {
+      ownerRun('caller', SESSION, callerAccount);
+      ownerRun('target', OTHER, targetAccount);
+      noteCrossSessionSend({ sessionKey: OTHER, message: 'hi' }, 'caller');
+      expect(identity('target', OTHER)).toBe('bot');
+      expect(getRecordedRunRole('target')).toBe('user');
+    });
+
+    it('leaves a target with no recorded account alone for an owner caller with an account', () => {
+      ownerRun('caller', SESSION, 'a');
+      observeRun({ runId: 'subagent', sessionKey: OTHER });
+      noteCrossSessionSend({ sessionKey: OTHER, message: 'hi' }, 'caller');
+      // Untouched: no veto role was recorded.
+      expect(getRecordedRunRole('subagent')).toBeNull();
+    });
+
+    it.each([
+      ['a non-owner caller', 'user'],
+      ['an owner caller with no recorded account', undefined],
+    ])('demotes a target with no recorded account for %s', (_label, kind) => {
+      if (kind === 'user') inbound('user', 'caller', SESSION);
+      else ownerRun('caller', SESSION, undefined);
+      observeRun({ runId: 'subagent', sessionKey: OTHER });
+      noteCrossSessionSend({ sessionKey: OTHER, message: 'hi' }, 'caller');
+      expect(identity('subagent', OTHER)).toBe('bot');
+      expect(getRecordedRunRole('subagent')).toBe('user');
+    });
+
+    it('demotes every tracked session for a label target from a cross-account owner caller', () => {
+      ownerRun('caller', SESSION, 'b');
+      ownerRun('target', OTHER, 'a');
+      noteCrossSessionSend({ label: 'helper', message: 'hi' }, 'caller');
+      expect(identity('target', OTHER)).toBe('bot');
+      expect(identity('caller')).toBe('owner');
     });
 
     it.each([

@@ -28,8 +28,9 @@
  *   runs have no snapshot and act as the bot.
  * - Run snapshots and the onboarding publication claims bound to them are kept
  *   across attempts and expire by TTL, not at `agent_end`.
- * - `sessions_send` from an owner-directed run demotes nothing; from any other
- *   run it demotes the target's runs (every tracked session's when unresolved).
+ * - `sessions_send` demotes the target's runs (every tracked session's when
+ *   unresolved), except, for an owner-directed caller with a recorded
+ *   account, runs on that account or with no recorded account.
  * - The owner's queued follow-ups run under fresh runIds without a snapshot,
  *   so they act as the bot; the owner has to ask again.
  */
@@ -172,14 +173,9 @@ export function getRunAccountId(
 function demoteSession(
   canonicalKey: string,
   now: number,
-  /** Demote only runs with a recorded account other than this one. */
-  keepAccountId?: string
+  /** Runs (by recorded account) this demotion leaves alone; none by default. */
+  keeps: (accountId: string | undefined) => boolean = () => false
 ): void {
-  // Runs with no recorded account have no snapshot account and never act as
-  // the owner, so an owner message cannot lend them another account's owner.
-  const keeps = (accountId: string | undefined) =>
-    keepAccountId !== undefined &&
-    (accountId === undefined || accountId === keepAccountId);
   for (const [runId, surface] of listTlonSessionRunSurfaces()) {
     if (
       canonicalSessionKey(surface.sessionKey) === canonicalKey &&
@@ -227,18 +223,27 @@ export function noteInboundDispatching(input: {
   );
   for (const key of keys) {
     if (input.role === 'user') demoteSession(key, now);
-    else demoteSession(key, now, input.accountId ?? '');
+    // Runs with no recorded account never act as the owner, so an owner
+    // message cannot lend them another account's owner.
+    else
+      demoteSession(
+        key,
+        now,
+        (accountId) =>
+          accountId === undefined || accountId === (input.accountId ?? '')
+      );
   }
 }
 
 /**
- * Another session's run can be injected into with `sessions_send`. Input from
- * an owner-directed run (the owner driving a subagent it spawned) is the
- * owner's and demotes nothing. From any other caller (a non-owner or demoted
- * run, a roleless run, an unseen run, a tombstone), demote the runs on the
- * target when it is a tracked session; otherwise (labels, session ids,
- * aliases, agent-only addressing) demote the runs on every tracked session,
- * since the target cannot be resolved here.
+ * Another session's run can be injected into with `sessions_send`. Demote the
+ * runs on the target when it is a tracked session; otherwise (labels, session
+ * ids, aliases, agent-only addressing) the runs on every tracked session, since
+ * the target cannot be resolved here. An owner-directed caller with a recorded
+ * account leaves alone target runs on that account or with no recorded account
+ * (those never hold owner identity); a non-owner, roleless, unseen or
+ * tombstoned caller, a caller with no recorded account, and a target on a
+ * different account all demote.
  */
 export function noteCrossSessionSend(
   params: unknown,
@@ -247,7 +252,17 @@ export function noteCrossSessionSend(
 ): void {
   sweep(now);
   const caller = callerRunId?.trim();
-  if (caller && activeRuns.get(caller)?.identity === 'owner') return;
+  const callerRecord = caller ? activeRuns.get(caller) : undefined;
+  // Only an owner-directed caller injecting into a run on its own, recorded
+  // account is left alone; every other combination demotes.
+  const callerAccount =
+    callerRecord?.identity === 'owner' ? callerRecord.accountId : undefined;
+  // A target with no recorded account never holds owner identity, so an
+  // owner caller with an account leaves it alone (the owner driving its own
+  // subagent keeps that subagent's tools).
+  const keeps = (accountId: string | undefined) =>
+    callerAccount !== undefined &&
+    (accountId === undefined || accountId === callerAccount);
   const target =
     params && typeof params === 'object'
       ? (params as { sessionKey?: unknown }).sessionKey
@@ -266,10 +281,10 @@ export function noteCrossSessionSend(
     }
   }
   if (canonicalTarget !== undefined && trackedSessions.has(canonicalTarget)) {
-    demoteSession(canonicalTarget, now);
+    demoteSession(canonicalTarget, now, keeps);
     return;
   }
-  for (const key of trackedSessions) demoteSession(key, now);
+  for (const key of trackedSessions) demoteSession(key, now, keeps);
 }
 
 export const _testing = {

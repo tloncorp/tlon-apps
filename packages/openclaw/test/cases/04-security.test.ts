@@ -25,10 +25,10 @@ import {
   type TestFixtures,
   ensureThirdPartyDmAccess,
   getFixtures,
-  getGatewayRestartPreflight,
   requireFixtureGroup,
   requireThirdParty,
   waitFor,
+  waitForRuntimeIdle,
 } from '../lib/index.js';
 import { getLatestSequenceForAuthor } from '../lib/post-baseline.js';
 import { fakeModel } from '../support/fake-model/client.js';
@@ -271,25 +271,8 @@ describe('security', () => {
     )?.content?.text;
   }
 
-  /** Let in-flight runs finish so a later fake-model reset cannot strand them. */
-  async function waitForRuntimeIdle(timeoutMs = 90_000): Promise<void> {
-    const composeFile = process.env.TEST_COMPOSE_FILE ?? '';
-    if (!composeFile) return;
-    const deadline = Date.now() + timeoutMs;
-    let preflight = getGatewayRestartPreflight(composeFile, 10_000);
-    while (preflight.counts.totalActive > 0 && Date.now() < deadline) {
-      await sleep(500);
-      preflight = getGatewayRestartPreflight(composeFile, 10_000);
-    }
-    if (preflight.counts.totalActive > 0) {
-      throw new Error(
-        `Runtime still busy after the test: ${JSON.stringify(preflight.counts)}`
-      );
-    }
-  }
-
   describe('owner identity', () => {
-    afterEach(() => waitForRuntimeIdle());
+    afterEach(() => waitForRuntimeIdle('after the test'));
 
     test("an owner DM's delegated write lands on the owner's ship", async () => {
       const token = `own-${Date.now().toString(36)}`;
@@ -393,7 +376,7 @@ describe('security', () => {
   });
 
   describe('group-channel turn identity', () => {
-    afterEach(() => waitForRuntimeIdle());
+    afterEach(() => waitForRuntimeIdle('after the test'));
 
     let chatChannel: string;
     let groupId: string;
