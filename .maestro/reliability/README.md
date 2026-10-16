@@ -66,7 +66,7 @@ agent.** `subflows/create-group.yaml` builds its fixture through the create
 sheet's "New custom workspace" action, and that action is not offered on a phone whose
 account has an agent: a Workspace is what the flow is for on mobile now. A
 Workspace is also not shaped like the template group these journeys expect --
-it arrives titled "My agent group" with a single chat channel called "General",
+it arrives titled "My agent workspace" with a single chat channel called "General",
 gains a notes channel called "Updates" only when it is the account's first, and
 never gets a Gallery -- so rebuilding the fixture from one means renaming the
 group, renaming its channel and creating the missing ones, against a group

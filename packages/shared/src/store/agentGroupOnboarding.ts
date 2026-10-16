@@ -16,7 +16,7 @@ import { finalizeAndSendPost } from './postActions';
 const logger = createDevLogger('agentGroupOnboarding', false);
 const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
-const DEFAULT_AGENT_GROUP_TITLE = 'My agent group';
+const DEFAULT_AGENT_GROUP_TITLE = 'My agent workspace';
 const MAX_GENERATED_GROUP_TITLE_LENGTH = 32;
 const PENDING_GROUP_ADOPTION_ATTEMPTS = 8;
 const PENDING_GROUP_ADOPTION_DELAY_MS = 500;
@@ -798,7 +798,9 @@ function isProvisionedAgentGroupTitle(
 ) {
   const trimmed = title?.trim() ?? '';
   if (!trimmed || trimmed === DEFAULT_AGENT_GROUP_TITLE) return true;
-  if (['Group', 'Home', 'Home Group'].includes(trimmed)) return true;
+  if (['Group', 'Home', 'Home Group', 'My agent group'].includes(trimmed)) {
+    return true;
+  }
   const possessive = /['\u2019]s Group$/;
   if (!possessive.test(trimmed)) return false;
   const named = trimmed.replace(possessive, '');
