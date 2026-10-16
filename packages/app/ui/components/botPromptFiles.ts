@@ -113,6 +113,7 @@ export function promptFileAccess(name: string, text: string): PromptFileAccess {
   }
   const { managedBlocks, additions } = splitPromptFile(text);
   return managedBlocks.length > 0
-    ? { kind: 'additions', additions }
+    ? // Whitespace alone is nothing added.
+      { kind: 'additions', additions: additions.trim() ? additions : '' }
     : { kind: 'unmanaged' };
 }
