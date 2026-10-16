@@ -54,10 +54,14 @@ vi.mock('../../ui/components/BotSystemPrompts', () => ({
   useStewardPromptSave: () => mocks.save,
   useStewardPromptsFeed: () => {},
 }));
+vi.mock('../../ui/components/ExpandableContent', () => ({
+  ExpandableContent: 'ExpandableContent',
+}));
 vi.mock('../../ui/components/NotebookPost/NotebookPost', () => ({
   NotebookContentRenderer: 'NotebookContentRenderer',
 }));
 vi.mock('../../ui/components/SettingsList', () => ({
+  useSettingsListColors: () => ({ row: 'white' }),
   useSettingsListHeaderColor: () => 'white',
   useSettingsListSurfaces: () => ({ page: 'white' }),
 }));
@@ -231,5 +235,32 @@ describe('BotPromptFileScreen', () => {
     const tree = await render('SOUL.md');
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(1);
     expect(byTestID(tree, 'BotPromptFileReset')).toHaveLength(0);
+  });
+
+  it('shows no additions block until something has been added', async () => {
+    const tree = await render('SOUL.md');
+    expect(byTestID(tree, 'BotPromptFileAdditions')).toHaveLength(0);
+    expect(byTestID(tree, 'BotPromptFileDefault')).toHaveLength(1);
+  });
+
+  it("puts Tlon's default, collapsible, above the additions", async () => {
+    mocks.prompts = [{ name: 'SOUL.md', text: `Call me Captain.\n${block}\n` }];
+    const tree = await render('SOUL.md');
+    const order = tree.root
+      .findAll(
+        (node) =>
+          typeof node.type === 'string' &&
+          ['BotPromptFileDefault', 'BotPromptFileAdditions'].includes(
+            node.props.testID
+          )
+      )
+      .map((node) => node.props.testID);
+    expect(order).toEqual(['BotPromptFileDefault', 'BotPromptFileAdditions']);
+    const expander = tree.root.find(
+      (node) => (node.type as unknown) === 'ExpandableContent'
+    );
+    expect(
+      expander.findAll((node) => node.props.testID === 'BotPromptFileDefault')
+    ).not.toHaveLength(0);
   });
 });
