@@ -8,10 +8,10 @@ env:
 - runFlow: subflows/begin.yaml
 - runFlow: subflows/create-group.yaml
 - tapOn: ${output.reliability.groupPattern}
-- assertVisible: '^Group info & settings$'
+- assertVisible: '^Workspace info & settings$'
 - tapOn:
     id: GroupQuickAction-Forward reference
-- assertVisible: '^Forward group$'
+- assertVisible: '^Forward workspace$'
 - assertVisible: '^Search channels$'
 - tapOn: '^Search channels$'
 - runFlow:
@@ -30,9 +30,9 @@ env:
 - assertVisible: '^Forward to Chat$'
 - tapOn: '^Forward to Chat$'
 - extendedWaitUntil:
-    visible: '^Forwarded group to Chat$'
+    visible: '^Forwarded workspace to Chat$'
     timeout: 5000
-- assertNotVisible: '^Forward group$'
+- assertNotVisible: '^Forward workspace$'
 - tapOn: '^Back$'
 - tapOn: '^Chat$'
 - extendedWaitUntil:

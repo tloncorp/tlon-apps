@@ -38,7 +38,7 @@ test('should show and clear unread message counts', async ({
 
   // Wait for the group to appear in the home list (group sync)
   await expect(
-    tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
+    tenPage.getByTestId('GroupListItem-Untitled workspace-unpinned')
   ).toBeVisible({ timeout: 15000 });
 
   // Send a message from ~zod to create unread
@@ -50,7 +50,7 @@ test('should show and clear unread message counts', async ({
   // Verify unread count on ~ten's side
   await helpers.verifyChatUnreadCount(
     tenPage,
-    'Untitled group',
+    'Untitled workspace',
     1,
     false,
     true
@@ -64,7 +64,7 @@ test('should show and clear unread message counts', async ({
 
   await helpers.verifyChatUnreadCount(
     tenPage,
-    'Untitled group',
+    'Untitled workspace',
     2,
     false,
     true
@@ -79,7 +79,7 @@ test('should show and clear unread message counts', async ({
   await expect(tenPage.getByText('Home')).toBeVisible();
   await helpers.verifyChatUnreadCount(
     tenPage,
-    'Untitled group',
+    'Untitled workspace',
     0,
     false,
     true

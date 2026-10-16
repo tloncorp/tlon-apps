@@ -8,17 +8,17 @@ appId: io.tlon.groups
 - tapOn:
     id: 'CreateGroupButton'
 # Assert that the sheet pops
-- assertVisible: 'Create a customizable group chat'
-- tapOn: 'New group'
+- assertVisible: 'Create a customizable workspace'
+- tapOn: 'New empty workspace'
 # Assert that the contacts sheet pops
 - assertVisible: 'Select contacts to invite'
 # Create the group
-- tapOn: 'Create group'
+- tapOn: 'Create workspace'
 - runFlow:
     when:
-      visible: 'Untitled group'
+      visible: 'Untitled workspace'
     commands:
-      - assertVisible: 'Welcome to your group!'
+      - assertVisible: 'Welcome to your workspace!'
 # Navigate back to the Workspaces list and assert that the group is created
 - tapOn:
     id: 'HeaderBackButton'
@@ -26,14 +26,14 @@ appId: io.tlon.groups
     when:
       visible: 'Workspaces'
     commands:
-      - assertVisible: 'Untitled group'
-      - tapOn: 'Untitled group'
-      - assertVisible: 'Untitled group'
+      - assertVisible: 'Untitled workspace'
+      - tapOn: 'Untitled workspace'
+      - assertVisible: 'Untitled workspace'
 # Open the Customize group screen from the empty "General" channel
 - tapOn: 'Customize'
-- assertVisible: 'Edit group info'
+- assertVisible: 'Edit workspace info'
 # Change the group name and confirm on the Workspaces list
-- tapOn: 'Group name'
+- tapOn: 'Workspace name'
 - inputText: 'My Group'
 - 'hideKeyboard'
 - tapOn: 'Save'
@@ -56,24 +56,24 @@ appId: io.tlon.groups
 - tapOn: 'Save'
 # Change the group description
 - tapOn: 'Customize'
-- tapOn: 'About this group'
+- tapOn: 'About this workspace'
 - inputText: 'This is a test group'
 - 'hideKeyboard'
 - tapOn: 'Save'
 # Delete the group and clean up
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
-- tapOn: 'Group info & settings'
+- tapOn: 'Workspace info & settings'
 - scrollUntilVisible:
     direction: DOWN
     element:
-      text: 'Delete group'
-- tapOn: 'Delete group'
+      text: 'Delete workspace'
+- tapOn: 'Delete workspace'
 - runFlow:
     when:
       visible: 'This action cannot be undone.'
     commands:
-      - tapOn: 'Delete group'
+      - tapOn: 'Delete workspace'
 - runFlow:
     when:
       visible: 'Workspaces'

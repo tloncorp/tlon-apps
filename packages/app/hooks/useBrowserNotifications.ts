@@ -341,7 +341,9 @@ export default function useBrowserNotifications() {
             notificationKey,
             disableNicknames,
             shouldSuppressNotification: isAppForegrounded,
-            fallbackTitle: isAsk ? 'Group join request' : 'Group invitation',
+            fallbackTitle: isAsk
+              ? 'Workspace join request'
+              : 'Workspace invitation',
             getBody: (contactName) =>
               isAsk
                 ? `${contactName} is requesting to join`

@@ -329,20 +329,20 @@ export function GroupTypeSelectionSheet({
   const content = (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
       <ActionSheet.SimpleHeader
-        title="Create a group"
-        subtitle="Choose how you'd like to set up your group"
+        title="Create a workspace"
+        subtitle="Choose how you'd like to set up your workspace"
       />
       <YStack gap="$m" paddingHorizontal="$xl">
         <GroupTypeCard
           icons={['ChannelTalk']}
-          title="Quick group"
+          title="Quick workspace"
           subtitle="Start chatting right away with default settings"
           onPress={() => onSelectGroupType('quick')}
         />
         <GroupTypeCard
           icons={['ChannelTalk', 'ChannelGalleries', 'ChannelNotebooks']}
-          title="Basic group"
-          subtitle="Group with chat, gallery, and notebook channels"
+          title="Basic workspace"
+          subtitle="Workspace with chat, gallery, and notebook channels"
           onPress={() => onSelectGroupType('template', 'basic-group')}
         />
         <TemplateCarousel

@@ -8,10 +8,10 @@ env:
 - runFlow: subflows/begin.yaml
 - tapOn: '^Add a chat$'
 - assertVisible: '^Start a conversation$'
-- tapOn: '^Join a group with a code \(reference\)$'
+- tapOn: '^Join a workspace with a code \(reference\)$'
 - assertVisible: '^Join a group$'
 - assertVisible: '^Join a group chat with a code \(reference\)$'
-- assertVisible: '^Enter group code$'
+- assertVisible: '^Enter workspace code$'
 - assertVisible: '^Close$'
 - tapOn: '^Close$'
 - assertVisible:

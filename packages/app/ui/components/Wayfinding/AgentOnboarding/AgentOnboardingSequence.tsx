@@ -20,7 +20,7 @@ const FURNISH_ATTEMPT_TIMEOUT_MS = 30_000;
 const BOT_NAME_SYNC_TIMEOUT_MS = 8_000;
 const HANDOFF_MESSAGES = [
   'Your Tlonbot is ready. Finishing the chat setup now.',
-  'Opening your private Tlonbot group.',
+  'Opening your private Tlonbot workspace.',
 ];
 
 async function waitForLandingConsumption(isCancelled: () => boolean) {
