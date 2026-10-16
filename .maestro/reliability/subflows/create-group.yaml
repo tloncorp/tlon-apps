@@ -1,38 +1,26 @@
 appId: ${MAESTRO_APP_ID}
 ---
-# KNOWN GAP: this stops at "New custom workspace" on a phone whose account has an agent.
-# The create sheet drops the bare group action there -- a Workspace is what the
-# flow is for on mobile now -- and a Workspace is not shaped like this template
-# group: it arrives titled "My agent workspace" with one chat channel called
-# "General", gains a notes channel called "Updates" only when it is the
-# account's first, and never gets a Gallery. Rebuilding the fixture from one is
-# its own piece of work, tracked in TLON-6632; see the reliability README.
+# Builds the fixture through the automated-test deep link rather than the
+# create sheet, whose "New custom workspace" action is not offered on an
+# account with an agent. The link creates the basic-group template under this
+# run's title and opens it, as the create sheet would, so callers start on the
+# group's channel list either way. It needs an AUTOMATED_TEST build; see the
+# reliability README.
 - assertNotVisible: ${output.reliability.groupPattern}
-- tapOn: '^Add a chat$'
-- tapOn: '^New custom workspace$'
-- tapOn: '^Basic workspace.*$'
-- tapOn: '^Workspace name$'
-- waitForAnimationToEnd:
-    timeout: 5000
-- assertVisible:
-    text: '^Name your workspace$'
-    label: Group editor stays visible with keyboard open
-- runFlow:
-    file: input.yaml
-    env:
-      INPUT_TEXT: ${output.reliability.group}
-- assertVisible:
-    text: ${output.reliability.groupPattern}
-    below: '^Name your workspace$'
-    above: '^Next$'
+- openLink: "${MAESTRO_APP_ID + '://e2e/group?op=create-template&template=basic-group&title=' + output.reliability.groupEncoded}"
+- extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
 - runFlow:
     when:
-      platform: Android
+      visible: 'Open'
     commands:
-      - hideKeyboard
-- tapOn: '^Next$'
-- assertVisible: '^Select contacts to invite$'
-- tapOn: '^Create workspace$'
+      - tapOn: 'Open'
+- extendedWaitUntil:
+    visible: "${'^PASS: created ' + output.reliability.groupPattern.slice(1)}"
+    timeout: 30000
+- tapOn: 'OK'
 - extendedWaitUntil:
     visible: ${output.reliability.groupPattern}
     timeout: 15000
