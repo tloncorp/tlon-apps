@@ -30,9 +30,9 @@ import {
 import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
-  BASIC_PROVIDER_LABEL,
   MAX_VISIBLE_MODELS,
   PROVIDER_OPTIONS,
+  getBasicModelLabel,
 } from './bot/constants';
 import {
   ChannelRuleDraft,
@@ -559,7 +559,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                     </XStack>
                     {overrideProvider === BASIC_PROVIDER_ID ? (
                       <Text size="$label/s" color="$secondaryText">
-                        {BASIC_PROVIDER_LABEL}
+                        {getBasicModelLabel(queries.providerConfig)}
                       </Text>
                     ) : (
                       <YStack gap="$m">

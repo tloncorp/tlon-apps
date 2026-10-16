@@ -2,6 +2,11 @@ import type { TlawnChannelGroups } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  getBasicModelLabel,
+  getIncludedModelId,
+  getModelName,
+} from './constants';
+import {
   buildBotGroupMembershipResolver,
   buildChannelModelEntries,
   buildChannelRuleDrafts,
@@ -25,9 +30,11 @@ import {
   normalizeShipList,
   normalizeTlonbotConfig,
   parseChannelRuleKey,
+  pickPrimaryModel,
   resolveGroupFull,
   runApplySteps,
   safeKeySummary,
+  startsZdrOnly,
   toBackendModel,
   toDisplayProviderId,
   validateProviderKey,
@@ -177,10 +184,13 @@ describe('provider config', () => {
       defaultKeys: { basic: { key: 'x' } },
     });
     // The current shared default model on openrouter maps to Basic.
+    expect(toDisplayProviderId(config, 'openrouter', 'openai/gpt-6-luna')).toBe(
+      'basic'
+    );
+    // Keep recognizing previous shared defaults for stored legacy configs.
     expect(
       toDisplayProviderId(config, 'openrouter', 'openai/gpt-5.6-luna')
     ).toBe('basic');
-    // Keep recognizing the previous shared default for stored legacy configs.
     expect(
       toDisplayProviderId(config, 'openrouter', 'minimax/minimax-m3')
     ).toBe('basic');
@@ -223,6 +233,8 @@ describe('provider config', () => {
     const empty = getModelFormValues(undefined);
     expect(empty.provider).toBe('basic');
     expect(empty.model).toBe('');
+    // Hosting provisions Basic with zero data retention on.
+    expect(empty.zdr).toBe(true);
 
     const values = getModelFormValues({
       keys: { anthropic: 'sk-ant-xxx' },
@@ -267,7 +279,7 @@ describe('provider config', () => {
       models: [
         {
           provider: 'basic',
-          model: 'openai/gpt-5.6-luna',
+          model: 'openai/gpt-6-luna',
           primary: true,
           zdr: true,
         },
@@ -515,7 +527,7 @@ describe('channel model overrides', () => {
     expect(entries).toEqual([
       {
         provider: 'basic',
-        model: 'openai/gpt-5.6-luna',
+        model: 'openai/gpt-6-luna',
         channels: ['chat/~zod/general'],
       },
     ]);
@@ -533,7 +545,7 @@ describe('channel model overrides', () => {
     expect(entries).toEqual([
       {
         provider: 'basic',
-        model: 'openai/gpt-5.6-luna',
+        model: 'openai/gpt-6-luna',
         channels: ['chat/~zod/general'],
       },
     ]);
@@ -552,16 +564,148 @@ describe('channel model overrides', () => {
   });
 });
 
+describe('included model name', () => {
+  it('names OpenAI models the way OpenRouter does', () => {
+    expect(getModelName('openai/gpt-6-luna')).toBe('GPT-6 Luna');
+    expect(getModelName('openai/gpt-5.6-luna')).toBe('GPT-5.6 Luna');
+    expect(getModelName('openai/gpt-6-luna-pro')).toBe('GPT-6 Luna Pro');
+    expect(getModelName('openai/gpt-6-luna:nitro')).toBe('GPT-6 Luna');
+  });
+
+  it('shows any other id as sent rather than guess a name', () => {
+    expect(getModelName('z-ai/glm-5.3-flash')).toBe('glm-5.3-flash');
+    expect(getModelName('minimax/minimax-m3')).toBe('minimax-m3');
+  });
+
+  it('follows the model hosting reports', () => {
+    const reported = normalizeProviderConfig({
+      defaultKeys: { basic: { key: 'shared' } },
+      defaultModels: {
+        primaryModel: 'openai/gpt-7-luna',
+        fallbackModels: ['z-ai/glm-5.3-flash:nitro'],
+      },
+    });
+    expect(getIncludedModelId(reported)).toBe('openai/gpt-7-luna');
+    expect(getBasicModelLabel(reported)).toBe('Basic (GPT-7 Luna)');
+
+    // Older hosting omits defaultModels but reports its model on Basic entries.
+    expect(
+      getIncludedModelId({
+        keys: {},
+        defaultKeys: {},
+        models: [{ provider: 'basic', model: 'openai/gpt-7-luna' }],
+      })
+    ).toBe('openai/gpt-7-luna');
+    expect(getBasicModelLabel(undefined)).toBe('Basic (GPT-6 Luna)');
+  });
+});
+
+describe('pickPrimaryModel', () => {
+  const onOpenAI = { provider: 'openai', model: 'gpt-x', zdr: false };
+
+  it('turns zero data retention on when moving to Basic', () => {
+    expect(
+      pickPrimaryModel({
+        provider: 'basic',
+        model: 'openai/gpt-6-luna',
+        saved: onOpenAI,
+        zdrOnly: false,
+      })
+    ).toEqual({ provider: 'basic', model: 'openai/gpt-6-luna', zdr: true });
+  });
+
+  it("restores the bot's saved Basic choice when coming back to it", () => {
+    expect(
+      pickPrimaryModel({
+        provider: 'basic',
+        model: 'openai/gpt-6-luna',
+        saved: { provider: 'basic', model: 'openai/gpt-7-luna', zdr: false },
+        zdrOnly: false,
+      })
+    ).toEqual({ provider: 'basic', model: 'openai/gpt-7-luna', zdr: false });
+  });
+
+  it('follows the ZDR filter for OpenRouter and leaves it off elsewhere', () => {
+    const saved = { provider: 'basic', model: 'openai/gpt-6-luna', zdr: true };
+    expect(
+      pickPrimaryModel({
+        provider: 'openrouter',
+        model: 'x-ai/grok-4.6',
+        saved,
+        zdrOnly: true,
+      }).zdr
+    ).toBe(true);
+    expect(
+      pickPrimaryModel({
+        provider: 'openrouter',
+        model: 'x-ai/grok-4.6',
+        saved,
+        zdrOnly: false,
+      }).zdr
+    ).toBe(false);
+    expect(
+      pickPrimaryModel({
+        provider: 'anthropic',
+        model: 'claude-1',
+        saved,
+        zdrOnly: true,
+      }).zdr
+    ).toBe(false);
+  });
+});
+
+describe('startsZdrOnly', () => {
+  it('starts the filter on by default', () => {
+    expect(
+      startsZdrOnly({
+        provider: 'basic',
+        model: 'openai/gpt-6-luna',
+        zdr: true,
+      })
+    ).toBe(true);
+    expect(
+      startsZdrOnly({
+        provider: 'openrouter',
+        model: 'x-ai/grok-4.6',
+        zdr: true,
+      })
+    ).toBe(true);
+    // ZDR never applied to a direct key or subscription, so nothing was
+    // turned off: the default holds.
+    expect(
+      startsZdrOnly({ provider: 'anthropic', model: 'claude-1', zdr: false })
+    ).toBe(true);
+    expect(startsZdrOnly({ provider: '', model: '', zdr: false })).toBe(true);
+  });
+
+  it("keeps an owner's choice to run without it", () => {
+    expect(
+      startsZdrOnly({
+        provider: 'basic',
+        model: 'openai/gpt-6-luna',
+        zdr: false,
+      })
+    ).toBe(false);
+    expect(
+      startsZdrOnly({
+        provider: 'openrouter',
+        model: 'x-ai/grok-4.6',
+        zdr: false,
+      })
+    ).toBe(false);
+  });
+});
+
 describe('toBackendModel', () => {
   it('persists basic as its own provider and pins the model to the default', () => {
     expect(toBackendModel('basic', '')).toEqual({
       provider: 'basic',
-      model: 'openai/gpt-5.6-luna',
+      model: 'openai/gpt-6-luna',
     });
     // a stale/leftover model on a Basic pick is ignored
     expect(toBackendModel('basic', 'anthropic/claude-1')).toEqual({
       provider: 'basic',
-      model: 'openai/gpt-5.6-luna',
+      model: 'openai/gpt-6-luna',
     });
   });
 

@@ -3,13 +3,46 @@ import type {
   TlawnProviderModel,
 } from '@tloncorp/api';
 
-export const BASIC_PROVIDER_LABEL = 'Basic (GPT-5.6 Luna)';
+// Hosting picks the model behind Basic (`tlonDefaultModels` in ylem) and
+// changes it without an app release. It stores the option as "default"
+// whatever id is sent and reports the model it runs, so the name shown comes
+// from that report. BASIC_DEFAULT_MODEL is only assumed until it arrives.
+export const BASIC_PROVIDER_LABEL = 'Basic';
 export const BASIC_PROVIDER_ID = 'basic';
-export const BASIC_DEFAULT_MODEL = 'openai/gpt-5.6-luna';
-export const BASIC_PROVIDER_MODEL: TlawnProviderModel = {
-  id: BASIC_DEFAULT_MODEL,
-  name: BASIC_PROVIDER_LABEL,
+export const BASIC_DEFAULT_MODEL = 'openai/gpt-6-luna';
+
+/** The model hosting runs behind Basic, as it last reported it. */
+export const getIncludedModelId = (config?: TlawnProviderConfigInfo): string =>
+  config?.defaultModels?.primaryModel ||
+  config?.models?.find((entry) => entry.provider === BASIC_PROVIDER_ID)
+    ?.model ||
+  BASIC_DEFAULT_MODEL;
+
+/**
+ * A model id as people know the model: "openai/gpt-6-luna" is "GPT-6 Luna",
+ * as OpenRouter names it. An id of any other shape is shown as sent, which can
+ * look plain but never names the wrong model.
+ */
+export const getModelName = (modelId: string): string => {
+  const name = modelId.slice(modelId.indexOf('/') + 1).replace(/:.*$/, '');
+  const gpt = /^gpt-(\d+(?:\.\d+)*)((?:-[a-z]+)*)$/.exec(name);
+  if (!gpt) return name;
+  const words = gpt[2]
+    .split('-')
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1));
+  return [`GPT-${gpt[1]}`, ...words].join(' ');
 };
+
+export const getBasicModelLabel = (config?: TlawnProviderConfigInfo): string =>
+  `${BASIC_PROVIDER_LABEL} (${getModelName(getIncludedModelId(config))})`;
+
+export const getBasicProviderModel = (
+  config?: TlawnProviderConfigInfo
+): TlawnProviderModel => ({
+  id: getIncludedModelId(config),
+  name: getBasicModelLabel(config),
+});
 
 export const EMPTY_PROVIDER_CONFIG: TlawnProviderConfigInfo = {
   keys: {},
