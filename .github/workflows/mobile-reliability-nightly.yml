@@ -127,7 +127,9 @@ jobs:
       smoke-url: ${{ steps.smoke.outputs.MAESTRO_CLOUD_CONSOLE_URL }}
       reliability-url: ${{ steps.reliability.outputs.MAESTRO_CLOUD_CONSOLE_URL }}
       smoke-status: ${{ steps.results.outputs.smoke }}
+      smoke-flows: ${{ steps.results.outputs.smoke-flows }}
       reliability-status: ${{ steps.results.outputs.reliability }}
+      reliability-flows: ${{ steps.results.outputs.reliability-flows }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -184,7 +186,9 @@ jobs:
           app-binary-id: ${{ inputs.ios-app-binary-id }}
           workspace: .maestro/reliability
           name: nightly-reliability-ios
-          timeout: 60
+          # The suite outran 60 minutes, and the action only warns when its
+          # wait expires, so a short timeout hides results.
+          timeout: 120
           device-model: iPhone-17
           device-os: iOS-26-2
           include-tags: ${{ inputs.reliability-include-tags }}
@@ -198,13 +202,41 @@ jobs:
         name: Capture iOS results
         if: ${{ always() }}
         env:
-          SMOKE_STATUS: ${{ steps.smoke.outcome }}
-          RELIABILITY_STATUS: ${{ steps.reliability.outcome }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          SMOKE_STATUS: ${{ steps.smoke.outputs.MAESTRO_CLOUD_UPLOAD_STATUS }}
+          SMOKE_FLOWS: ${{ steps.smoke.outputs.MAESTRO_CLOUD_FLOW_RESULTS }}
+          RELIABILITY_OUTCOME: ${{ steps.reliability.outcome }}
+          RELIABILITY_STATUS: ${{ steps.reliability.outputs.MAESTRO_CLOUD_UPLOAD_STATUS }}
+          RELIABILITY_FLOWS: ${{ steps.reliability.outputs.MAESTRO_CLOUD_FLOW_RESULTS }}
         run: |
-          echo "smoke=$SMOKE_STATUS" >> "$GITHUB_OUTPUT"
-          echo "reliability=$RELIABILITY_STATUS" >> "$GITHUB_OUTPUT"
+          # The action exits 0 when its wait times out and only fails on
+          # ERROR, so the step outcome alone cannot tell a pass from a run
+          # that never finished.
+          result_word() {
+            case "$1:$2" in
+              skipped:*) echo skipped ;;
+              success:SUCCESS | success:WARNING) echo passed ;;
+              success:) echo timed-out ;;
+              *:CANCELED | *:STOPPED) echo canceled ;;
+              *) echo failed ;;
+            esac
+          }
+
+          # The action counts WARNING flows as passed.
+          flow_count() {
+            printf '%s' "$1" |
+              jq -r 'if type == "array" and length > 0 then "\(map(select(.status != "SUCCESS" and .status != "WARNING")) | length)/\(length)" else empty end' 2>/dev/null ||
+              true
+          }
+
+          {
+            echo "smoke=$(result_word "$SMOKE_OUTCOME" "$SMOKE_STATUS")"
+            echo "smoke-flows=$(flow_count "$SMOKE_FLOWS")"
+            echo "reliability=$(result_word "$RELIABILITY_OUTCOME" "$RELIABILITY_STATUS")"
+            echo "reliability-flows=$(flow_count "$RELIABILITY_FLOWS")"
+          } >> "$GITHUB_OUTPUT"
       - name: Check iOS results
-        if: ${{ always() && (steps.smoke.outcome != 'success' || steps.reliability.outcome != 'success') }}
+        if: ${{ always() && ((steps.results.outputs.smoke != 'passed' && steps.results.outputs.smoke != 'skipped') || (steps.results.outputs.reliability != 'passed' && steps.results.outputs.reliability != 'skipped')) }}
         run: exit 1
 
   test-android:
@@ -215,6 +247,7 @@ jobs:
     outputs:
       reliability-url: ${{ steps.reliability.outputs.MAESTRO_CLOUD_CONSOLE_URL }}
       reliability-status: ${{ steps.results.outputs.reliability }}
+      reliability-flows: ${{ steps.results.outputs.reliability-flows }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -235,7 +268,9 @@ jobs:
           app-binary-id: ${{ inputs.android-app-binary-id }}
           workspace: .maestro/reliability
           name: nightly-reliability-android
-          timeout: 60
+          # The suite outran 60 minutes, and the action only warns when its
+          # wait expires, so a short timeout hides results.
+          timeout: 120
           android-api-level: 33
           include-tags: ${{ inputs.reliability-include-tags }}
           env: |
@@ -248,10 +283,36 @@ jobs:
         name: Capture Android result
         if: ${{ always() }}
         env:
-          RELIABILITY_STATUS: ${{ steps.reliability.outcome }}
-        run: echo "reliability=$RELIABILITY_STATUS" >> "$GITHUB_OUTPUT"
+          RELIABILITY_OUTCOME: ${{ steps.reliability.outcome }}
+          RELIABILITY_STATUS: ${{ steps.reliability.outputs.MAESTRO_CLOUD_UPLOAD_STATUS }}
+          RELIABILITY_FLOWS: ${{ steps.reliability.outputs.MAESTRO_CLOUD_FLOW_RESULTS }}
+        run: |
+          # The action exits 0 when its wait times out and only fails on
+          # ERROR, so the step outcome alone cannot tell a pass from a run
+          # that never finished.
+          result_word() {
+            case "$1:$2" in
+              skipped:*) echo skipped ;;
+              success:SUCCESS | success:WARNING) echo passed ;;
+              success:) echo timed-out ;;
+              *:CANCELED | *:STOPPED) echo canceled ;;
+              *) echo failed ;;
+            esac
+          }
+
+          # The action counts WARNING flows as passed.
+          flow_count() {
+            printf '%s' "$1" |
+              jq -r 'if type == "array" and length > 0 then "\(map(select(.status != "SUCCESS" and .status != "WARNING")) | length)/\(length)" else empty end' 2>/dev/null ||
+              true
+          }
+
+          {
+            echo "reliability=$(result_word "$RELIABILITY_OUTCOME" "$RELIABILITY_STATUS")"
+            echo "reliability-flows=$(flow_count "$RELIABILITY_FLOWS")"
+          } >> "$GITHUB_OUTPUT"
       - name: Check Android result
-        if: ${{ always() && steps.reliability.outcome != 'success' }}
+        if: ${{ always() && steps.results.outputs.reliability != 'passed' && steps.results.outputs.reliability != 'skipped' }}
         run: exit 1
 
   report:
@@ -270,6 +331,9 @@ jobs:
           IOS_SMOKE_STATUS: ${{ needs.test-ios.outputs.smoke-status }}
           IOS_RELIABILITY_STATUS: ${{ needs.test-ios.outputs.reliability-status }}
           ANDROID_RELIABILITY_STATUS: ${{ needs.test-android.outputs.reliability-status }}
+          IOS_SMOKE_FLOWS: ${{ needs.test-ios.outputs.smoke-flows }}
+          IOS_RELIABILITY_FLOWS: ${{ needs.test-ios.outputs.reliability-flows }}
+          ANDROID_RELIABILITY_FLOWS: ${{ needs.test-android.outputs.reliability-flows }}
           IOS_SMOKE_URL: ${{ needs.test-ios.outputs.smoke-url }}
           IOS_RELIABILITY_URL: ${{ needs.test-ios.outputs.reliability-url }}
           ANDROID_RELIABILITY_URL: ${{ needs.test-android.outputs.reliability-url }}
@@ -284,6 +348,14 @@ jobs:
             fi
           }
 
+          result_text() {
+            if [ -n "$2" ]; then
+              printf '%s (%s flows failed)' "$1" "$2"
+            else
+              printf '%s' "$1"
+            fi
+          }
+
           {
             echo '## Mobile nightly reliability'
             echo
@@ -292,9 +364,9 @@ jobs:
             echo "| Prepare | $PREPARE_STATUS |"
             echo "| iOS build | $([ -n "$IOS_APP_BINARY_ID" ] && echo reused || echo "$IOS_BUILD_STATUS") |"
             echo "| Android build | $([ -n "$ANDROID_APP_BINARY_ID" ] && echo reused || echo "$ANDROID_BUILD_STATUS") |"
-            echo "| iOS smoke | $(result_link "${IOS_SMOKE_STATUS:-$IOS_TEST_STATUS}" "$IOS_SMOKE_URL") |"
-            echo "| iOS reliability | $(result_link "${IOS_RELIABILITY_STATUS:-$IOS_TEST_STATUS}" "$IOS_RELIABILITY_URL") |"
-            echo "| Android reliability | $(result_link "${ANDROID_RELIABILITY_STATUS:-$ANDROID_TEST_STATUS}" "$ANDROID_RELIABILITY_URL") |"
+            echo "| iOS smoke | $(result_link "$(result_text "${IOS_SMOKE_STATUS:-$IOS_TEST_STATUS}" "$IOS_SMOKE_FLOWS")" "$IOS_SMOKE_URL") |"
+            echo "| iOS reliability | $(result_link "$(result_text "${IOS_RELIABILITY_STATUS:-$IOS_TEST_STATUS}" "$IOS_RELIABILITY_FLOWS")" "$IOS_RELIABILITY_URL") |"
+            echo "| Android reliability | $(result_link "$(result_text "${ANDROID_RELIABILITY_STATUS:-$ANDROID_TEST_STATUS}" "$ANDROID_RELIABILITY_FLOWS")" "$ANDROID_RELIABILITY_URL") |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$PREPARE_STATUS" != success ] ||

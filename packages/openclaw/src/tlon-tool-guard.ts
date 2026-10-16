@@ -51,6 +51,8 @@ const POSTS_COMMANDS = new Set([
   'unreact',
   'edit',
   'delete',
+  'pin',
+  'unpin',
 ]);
 const EXPOSE_TARGET_COMMANDS = new Set(['show', 'hide', 'check', 'url']);
 const HELP_ARGS = new Set(['--help', '-h']);
