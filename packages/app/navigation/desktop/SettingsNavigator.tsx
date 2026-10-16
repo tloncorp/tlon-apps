@@ -25,6 +25,8 @@ import {
 } from '../../features/settings/BotSettingsAreaScreens';
 import { BotOpenAISubscriptionScreen } from '../../features/settings/BotOpenAISubscriptionScreen';
 import { BotPermissionsSettingsScreen } from '../../features/settings/BotPermissionsSettingsScreen';
+import { BotPromptFileScreen } from '../../features/settings/BotPromptFileScreen';
+import { BotPromptFilesScreen } from '../../features/settings/BotPromptFilesScreen';
 import { BotProviderListSettingsScreen } from '../../features/settings/BotProviderListSettingsScreen';
 import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../../features/settings/BotShipListSettingsScreen';
@@ -214,6 +216,14 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen
         name="BotIdentitySettings"
         component={BotIdentitySettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotPromptFiles"
+        component={BotPromptFilesScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotPromptFile"
+        component={BotPromptFileScreen}
       />
       <SettingsDrawer.Screen
         name="BotProviderListSettings"

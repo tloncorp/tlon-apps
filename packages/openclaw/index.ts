@@ -1214,10 +1214,15 @@ export default defineBundledChannelEntry({
         blocksOnboardingBoundary ||
         tlonAppBrowser.blocked;
       // Decided here, with the other block decisions, so the trace and the
-      // allowed/blocked logs below all describe the same outcome.
+      // allowed/blocked logs below all describe the same outcome. The guard
+      // reads the cleaned call: cleaning drops the empty fallbacks list and
+      // bestEffort the model fills in, so it only blocks the spellings
+      // cleaning leaves as sent. Blocked, the model's usual call went into
+      // dozens of retries on a real gateway, changing the values but not
+      // dropping the fields.
       const forbiddenCronArgs =
         !blocksPolicy && cronArgsGuardEnabled && isCronToolName(event.toolName)
-          ? findForbiddenCronArgs(event.toolName, event.params)
+          ? findForbiddenCronArgs(event.toolName, cronParams ?? event.params)
           : [];
       const blocksCronArgs = forbiddenCronArgs.length > 0;
       const isBlocked = blocksPolicy || blocksCronArgs;
