@@ -76,10 +76,12 @@ export function NowPlayingProvider({
   const mediaItemRef = useRef<MediaItem | null>(null);
   const isPlayingRef = useRef(false);
   const replaceGenRef = useRef(0);
+  const playbackGenRef = useRef(0);
 
   const ctxValue = useMemo(
     () => ({
       replace(nowPlaying: MediaItem | null) {
+        playbackGenRef.current += 1;
         const gen = ++replaceGenRef.current;
         const hadPreviousSource = mediaItemRef.current != null;
 
@@ -88,7 +90,11 @@ export function NowPlayingProvider({
         mediaItemRef.current = null;
 
         if (!nowPlaying) {
-          audioPlayer.replace(null);
+          // Native Expo Audio requires an AudioSource record, even to clear
+          // playback. Passing null throws before the new player can take over.
+          audioPlayer.pause();
+          isPlayingRef.current = false;
+          audioPlayer.replace({});
           return Promise.resolve();
         }
 
@@ -160,14 +166,20 @@ export function NowPlayingProvider({
         return out;
       },
       async play() {
+        const gen = ++playbackGenRef.current;
+        const isCurrent = () =>
+          playbackGenRef.current === gen && mediaItemRef.current !== null;
+        if (!isCurrent()) return;
         await setAudioModeAsync({
           playsInSilentMode: true,
           interruptionMode: 'doNotMix',
         });
+        if (!isCurrent()) return;
         await setIsAudioActiveAsync(true);
-        audioPlayer.play();
+        if (isCurrent()) audioPlayer.play();
       },
       async pause() {
+        playbackGenRef.current += 1;
         audioPlayer.pause();
         isPlayingRef.current = false;
 
@@ -221,6 +233,7 @@ export function NowPlayingProvider({
       'playbackStatusUpdate',
       async (status) => {
         if (status.didJustFinish) {
+          playbackGenRef.current += 1;
           audioPlayer.pause();
           audioPlayer.seekTo(0);
           await setIsAudioActiveAsync(false);
@@ -255,6 +268,7 @@ export function NowPlayingProvider({
     useCallback(
       async (status) => {
         if (status === 'background') {
+          playbackGenRef.current += 1;
           audioPlayer.pause();
           await setIsAudioActiveAsync(false);
         }
@@ -267,11 +281,16 @@ export function NowPlayingProvider({
 }
 
 export function useNowPlaying() {
-  const value = useContext(ctx);
+  const value = useOptionalNowPlaying();
   if (!value) {
     throw new Error('Must call `useNowPlaying` within a `NowPlayingProvider`');
   }
   return value;
+}
+
+/** Standalone media fixtures can render without the app's playback provider. */
+export function useOptionalNowPlaying() {
+  return useContext(ctx);
 }
 
 /** Provides a controller for loading + controlling playback of the given

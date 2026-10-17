@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
 import { BucketsLiveChannel } from './BucketsLiveChannel';
+import { BucketsLiveFile } from './BucketsLiveFile';
 
 const mocks = vi.hoisted(() => ({
   entries: [] as unknown[],
@@ -17,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   pane: vi.fn((_props: Record<string, unknown>) => null),
   search: vi.fn((_props: Record<string, unknown>) => null),
   viewer: vi.fn((_props: Record<string, unknown>) => null),
+  readGrant: vi.fn<[], Promise<{ readUrl: string; expiresAt: string }>>(
+    () => new Promise(() => {})
+  ),
 }));
 
 vi.mock('@react-navigation/native', async () => {
@@ -87,7 +91,7 @@ vi.mock('./useLiveBucket', () => ({
     loading: mocks.loading,
     localItems: [],
     manifestKnown: mocks.manifestKnown,
-    readGrant: () => new Promise(() => {}),
+    readGrant: mocks.readGrant,
     uploads: [],
   }),
 }));
@@ -190,6 +194,7 @@ beforeEach(() => {
   mocks.pane.mockClear();
   mocks.search.mockClear();
   mocks.viewer.mockClear();
+  mocks.readGrant.mockReset().mockImplementation(() => new Promise(() => {}));
 });
 
 describe('BucketsLiveChannel on the narrow layout', () => {
@@ -393,5 +398,161 @@ describe('BucketsLiveChannel outside a navigator', () => {
 
     expect(stackPane().currentFolder).toBe('Photos');
     expect(stackPane().items.map((item) => item.name)).toEqual(['notes.txt']);
+  });
+});
+
+describe('Bucket file preview navigation', () => {
+  function viewer() {
+    return mocks.viewer.mock.calls.at(-1)![0] as {
+      item: { id?: string; name: string; uri?: string };
+      navigation: {
+        index: number;
+        items: { name: string }[];
+        onSelect: (index: number) => void;
+      };
+      onRetry?: () => void;
+      error?: string;
+      loading?: boolean;
+    };
+  }
+  const secondFile = { ...notes, id: 3, name: 'photo.jpg' };
+
+  it('moves between siblings on the same screen and ignores a late response for the previous file', async () => {
+    mocks.entries = [photos, notes, secondFile];
+    let first!: (grant: { readUrl: string; expiresAt: string }) => void;
+    let second!: (grant: { readUrl: string; expiresAt: string }) => void;
+    mocks.readGrant
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            first = resolve;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            second = resolve;
+          })
+      );
+    act(() => {
+      create(<BucketsLiveFile entryId={2} flag={flag} onClose={vi.fn()} />);
+    });
+    expect(viewer().navigation.items.map((item) => item.name)).toEqual([
+      'notes.txt',
+      'photo.jpg',
+    ]);
+    act(() => viewer().navigation.onSelect(1));
+    expect(viewer().item.name).toBe('photo.jpg');
+    await act(async () =>
+      second({
+        readUrl: 'https://files.test/photo.jpg',
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+      })
+    );
+    await act(async () =>
+      first({
+        readUrl: 'https://files.test/notes.txt',
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+      })
+    );
+    expect(viewer().item.uri).toBe('https://files.test/photo.jpg');
+    expect(viewer().navigation.index).toBe(1);
+    const select = viewer().navigation.onSelect;
+    mocks.viewer.mockClear();
+    act(() => select(0));
+    expect(viewer().item.name).toBe('notes.txt');
+    expect(viewer().item.uri).toBe('https://files.test/notes.txt');
+    expect(mocks.readGrant).toHaveBeenCalledTimes(2);
+    expect(
+      mocks.viewer.mock.calls.every(([props]) => props.loading === false)
+    ).toBe(true);
+  });
+
+  it('allows moving to another file after a read grant fails', async () => {
+    mocks.entries = [photos, notes, secondFile];
+    mocks.readGrant.mockRejectedValueOnce(new Error('Offline'));
+    await act(async () => {
+      create(<BucketsLiveFile entryId={2} flag={flag} onClose={vi.fn()} />);
+    });
+    expect(viewer().error).toBe('Offline');
+    act(() => viewer().navigation.onSelect(1));
+    expect(viewer().item.name).toBe('photo.jpg');
+    expect(viewer().error).toBeNull();
+  });
+
+  it('gives the desktop in-place preview the same sibling navigation', () => {
+    mocks.narrow = false;
+    mocks.entries = [photos, notes, secondFile];
+    render(undefined, 1);
+    act(() => stackPane().onOpenItem(stackPane().items[0]));
+    expect(viewer().navigation.items.map((item) => item.name)).toEqual([
+      'notes.txt',
+      'photo.jpg',
+    ]);
+    act(() => viewer().navigation.onSelect(1));
+    expect(viewer().item.name).toBe('photo.jpg');
+  });
+});
+
+describe('Bucket file route synchronization', () => {
+  it('updates selection in the route without clearing previews, and accepts external route changes', async () => {
+    const secondFile = { ...notes, id: 3, name: 'photo.jpg' };
+    mocks.entries = [photos, notes, secondFile];
+    mocks.readGrant.mockResolvedValue({
+      readUrl: 'https://files.test/file',
+      expiresAt: new Date(Date.now() + 300000).toISOString(),
+    });
+    let changeRoute!: (entryId: number) => void;
+    const routeChanged = vi.fn();
+    function Route() {
+      const [entryId, setEntryId] = React.useState(2);
+      React.useLayoutEffect(() => {
+        changeRoute = setEntryId;
+      }, []);
+      return (
+        <BucketsLiveFile
+          entryId={entryId}
+          flag={flag}
+          onClose={vi.fn()}
+          onSelectEntry={(id) => {
+            routeChanged(id);
+            setEntryId(id);
+          }}
+        />
+      );
+    }
+    const viewer = () =>
+      mocks.viewer.mock.calls.at(-1)![0] as {
+        item: { id: string; uri?: string };
+        loading: boolean;
+        error?: string;
+        navigation: { onSelect: (index: number) => void };
+      };
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<Route />);
+    });
+    await act(async () => viewer().navigation.onSelect(1));
+    expect(routeChanged).toHaveBeenLastCalledWith(3);
+    expect(viewer().item.id).toBe('3');
+    await act(async () => viewer().navigation.onSelect(0));
+    expect(routeChanged).toHaveBeenLastCalledWith(2);
+    expect(viewer().item.id).toBe('2');
+    expect(viewer().loading).toBe(false);
+    expect(mocks.readGrant).toHaveBeenCalledTimes(2);
+    await act(async () => changeRoute(3));
+    expect(viewer().item.id).toBe('3');
+    expect(viewer().loading).toBe(false);
+    expect(mocks.readGrant).toHaveBeenCalledTimes(2);
+    await act(async () => changeRoute(999));
+    expect(viewer().loading).toBe(false);
+    expect(viewer().error).toBe('This file is no longer in the Bucket');
+    expect(viewer().item.id).toBeUndefined();
+    await act(async () => changeRoute(2));
+    expect(viewer().item.id).toBe('2');
+    expect(viewer().loading).toBe(false);
+    expect(viewer().error).toBeNull();
+    expect(mocks.readGrant).toHaveBeenCalledTimes(2);
+    act(() => tree.unmount());
   });
 });
