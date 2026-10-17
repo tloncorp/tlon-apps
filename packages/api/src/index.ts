@@ -48,6 +48,7 @@ export type {
 export * from './urbit/buckets';
 export type {
   AppReference,
+  ChannelLinkReference,
   ChannelReference,
   ContentReference,
   GroupReference,

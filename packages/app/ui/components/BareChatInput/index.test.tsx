@@ -27,13 +27,23 @@ const mocks = vi.hoisted(() => ({
   clearAttachments: vi.fn(() => setAttachments([])),
   hydrateEditPost: vi.fn(),
   noop: vi.fn(),
+  refRegex: /NEVER_A_REFERENCE/ as RegExp,
 }));
 
-vi.mock('@tloncorp/api', () => ({}));
-vi.mock('@tloncorp/api/urbit', () => ({}));
+vi.mock('@tloncorp/api', async () => {
+  const { toContentReference } =
+    await import('@tloncorp/api/client/references');
+  return { toContentReference };
+});
+vi.mock('@tloncorp/api/urbit', async () => {
+  const { pathToCite } = await import('@tloncorp/api/urbit/utils');
+  return { pathToCite };
+});
 vi.mock('@tloncorp/shared', () => ({
   ALL_MENTION_ID: 'all',
-  REF_REGEX: /NEVER_A_REFERENCE/,
+  get REF_REGEX() {
+    return mocks.refRegex;
+  },
   createDevLogger: () => ({ log: mocks.noop, error: mocks.noop }),
   useDebouncedValue: () => '',
   JSONToInlines: () => [],
@@ -132,6 +142,7 @@ let frames: FrameRequestCallback[];
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.attachments = [];
+  mocks.refRegex = /NEVER_A_REFERENCE/;
   frames = [];
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
@@ -656,3 +667,22 @@ test.each(['ios', 'android'])(
     expect(mocks.input.setNativeProps).not.toHaveBeenCalled();
   }
 );
+
+test('pasting a bare channel path attaches a channel link reference', async () => {
+  const { REF_REGEX } = await import('@tloncorp/api/client/utils');
+  mocks.refRegex = REF_REGEX;
+  await mount();
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/test'));
+
+  expect(mocks.attachments).toEqual([
+    {
+      type: 'reference',
+      path: '/1/chan/chat/~zod/test',
+      reference: {
+        type: 'reference',
+        referenceType: 'channelLink',
+        channelId: 'chat/~zod/test',
+      },
+    },
+  ]);
+});
