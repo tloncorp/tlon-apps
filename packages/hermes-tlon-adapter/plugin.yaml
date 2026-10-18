@@ -7,6 +7,9 @@ description: >
   an authenticated Eyre SSE channel and sends replies through the
   @tloncorp/tlon-skill CLI.
 author: tloncorp
+python_dependencies:
+  - aiohttp>=3.9
+  - posthog>=3
 provides_tools:
   - tlon
   - image_search
