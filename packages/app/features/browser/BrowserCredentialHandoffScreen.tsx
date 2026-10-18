@@ -2,10 +2,10 @@ import type {
   BrowserLoginChoice,
   SavedBrowserLogin,
 } from '@tloncorp/api/client/browserVault';
-import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
+import { Button, Icon, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, Switch } from 'react-native';
-import { ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
+import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/types';
 import {
@@ -16,7 +16,6 @@ import {
 } from '../../ui';
 import {
   type BrowserCredentialHandoff,
-  type BrowserSecureField,
   BrowserFormError,
   authorizeBrowserLogins,
   authorizeBrowserViewer,
@@ -30,6 +29,7 @@ import {
 import { openBrowserViewerWindow } from './browserViewerWindow';
 import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffProvider';
 import { BrowserViewerModal } from './BrowserViewerModal';
+import { BrowserSecureFields } from './BrowserSecureFields';
 
 type Props = {
   navigation: { goBack(): void; isFocused(): boolean };
@@ -46,144 +46,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
     : 'Could not connect to the browser form.';
-}
-
-function SecureField({
-  field,
-  value,
-  disabled,
-  onChange,
-  onSubmit,
-}: {
-  field: BrowserSecureField;
-  value: string;
-  disabled: boolean;
-  onChange(value: string): void;
-  onSubmit(): void;
-}) {
-  const [visible, setVisible] = useState(false);
-  const [choosing, setChoosing] = useState(false);
-  const [search, setSearch] = useState('');
-  const options = field.options;
-  const password = field.inputType === 'password';
-  const autocomplete =
-    field.purpose === 'one-time-code'
-      ? 'one-time-code'
-      : isWeb
-        ? 'off'
-        : field.purpose === 'username'
-          ? 'username'
-          : field.purpose === 'current-password'
-            ? 'current-password'
-            : 'off';
-  return (
-    <Field label={`${field.label}${field.required ? '' : ' (optional)'}`}>
-      {options ? (
-        <YStack gap="$s">
-          <Button
-            preset="secondary"
-            label={
-              options.find((option) => option.value === value)?.label ??
-              `Choose ${field.label.toLowerCase()}`
-            }
-            disabled={disabled}
-            onPress={() => setChoosing((open) => !open)}
-          />
-          {choosing ? (
-            <YStack gap="$s">
-              {options.length > 12 ? (
-                <TextInput
-                  accessibilityLabel={`Search ${field.label.toLowerCase()}`}
-                  value={search}
-                  autoComplete="off"
-                  autoCorrect={false}
-                  onChangeText={setSearch}
-                  placeholder="Search options"
-                />
-              ) : null}
-              <ScrollView maxHeight={220} nestedScrollEnabled>
-                <YStack gap="$s">
-                  {options
-                    .filter((option) =>
-                      option.label.toLowerCase().includes(search.toLowerCase())
-                    )
-                    .map((option) => (
-                      <Button
-                        key={option.value}
-                        preset="secondary"
-                        label={option.label}
-                        disabled={disabled}
-                        onPress={() => {
-                          onChange(option.value);
-                          setChoosing(false);
-                          setSearch('');
-                        }}
-                      />
-                    ))}
-                </YStack>
-              </ScrollView>
-            </YStack>
-          ) : null}
-        </YStack>
-      ) : (
-        <XStack alignItems="center" gap="$m">
-          <View flex={1}>
-            <TextInput
-              accessibilityLabel={field.label}
-              value={value}
-              secureTextEntry={password && !visible}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete={autocomplete}
-              importantForAutofill={autocomplete === 'off' ? 'no' : 'yes'}
-              textContentType={
-                autocomplete === 'one-time-code'
-                  ? 'oneTimeCode'
-                  : autocomplete === 'username'
-                    ? 'username'
-                    : autocomplete === 'current-password'
-                      ? 'password'
-                      : 'none'
-              }
-              keyboardType={
-                field.inputType === 'numeric' || field.purpose === 'cc-csc'
-                  ? 'number-pad'
-                  : field.inputType === 'email'
-                    ? 'email-address'
-                    : field.inputType === 'tel'
-                      ? 'phone-pad'
-                      : 'default'
-              }
-              multiline={field.inputType === 'textarea'}
-              maxLength={field.exactLength ?? field.maxLength}
-              placeholder={
-                field.exactLength
-                  ? `${field.exactLength} characters`
-                  : undefined
-              }
-              editable={!disabled}
-              onChangeText={onChange}
-              onSubmitEditing={
-                field.inputType === 'textarea' ? undefined : onSubmit
-              }
-            />
-          </View>
-          {password ? (
-            <Pressable
-              accessibilityLabel={`${visible ? 'Hide' : 'Show'} ${field.label.toLowerCase()}`}
-              onPress={() => setVisible((shown) => !shown)}
-            >
-              <Icon
-                type={visible ? 'EyeClosed' : 'EyeOpen'}
-                size="$m"
-                color="$secondaryText"
-              />
-            </Pressable>
-          ) : null}
-        </XStack>
-      )}
-    </Field>
-  );
 }
 
 export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
@@ -558,14 +420,15 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         paddingTop="$l"
         safeAreaBottomOffset={24}
       >
-        <YStack gap="$xl" maxWidth={560} width="100%" alignSelf="center">
+        <YStack gap="$2xl" maxWidth={640} width="100%" alignSelf="center">
           <YStack
             backgroundColor="$background"
             borderColor="$border"
             borderWidth={1}
             borderRadius="$l"
             padding="$xl"
-            gap="$xl"
+            $gtSm={{ padding: '$3xl' }}
+            gap="$2xl"
           >
             {saveNotice ? (
               <Text color="$secondaryText">{saveNotice}</Text>
@@ -672,28 +535,31 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               </>
             ) : handoff ? (
               <>
-                <XStack alignItems="center" gap="$m">
-                  <Icon type="Lock" size="$m" color="$primaryText" />
-                  <YStack flex={1} gap="$xs">
-                    <Text size="$label/l" fontWeight="600">
-                      {handoff.kind === 'login'
-                        ? 'Sign in to'
-                        : 'Enter details for'}{' '}
-                      {new URL(handoff.origin).hostname}
-                    </Text>
-                    <Text color="$secondaryText">{handoff.origin}</Text>
-                  </YStack>
-                </XStack>
-                <Text color="$secondaryText">
-                  These fields go directly to the live browser. They are not
-                  posted to chat.
-                </Text>
-                {handoff.kind === 'details' ? (
-                  <Text color="$secondaryText">
-                    Filling these fields does not submit a payment or place an
-                    order.
+                <YStack gap="$xl">
+                  <XStack alignItems="center" gap="$l">
+                    <Icon type="Lock" size="$xl" color="$primaryText" />
+                    <YStack flex={1} minWidth={0} gap="$m">
+                      <Text size="$label/m" color="$secondaryText">
+                        {handoff.kind === 'login'
+                          ? 'Sign in to'
+                          : 'Enter details for'}
+                      </Text>
+                      <Text size="$label/3xl" fontWeight="600">
+                        {new URL(handoff.origin).hostname}
+                      </Text>
+                    </YStack>
+                  </XStack>
+                  <Text size="$label/l" color="$secondaryText">
+                    These fields go directly to the live browser. They are not
+                    posted to chat.
                   </Text>
-                ) : null}
+                  {handoff.kind === 'details' ? (
+                    <Text size="$label/l" color="$secondaryText">
+                      Filling these fields does not submit a payment or place an
+                      order.
+                    </Text>
+                  ) : null}
+                </YStack>
                 {vaultEligible && !showSavedLogins ? (
                   <Button
                     preset="secondary"
@@ -774,23 +640,19 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                 {vaultError ? (
                   <Text color="$secondaryText">{vaultError}</Text>
                 ) : null}
-                {choice?.mode !== 'use'
-                  ? handoff.fields.map((field) => (
-                      <SecureField
-                        key={`${handoff.formId}:${field.id}`}
-                        field={field}
-                        value={values[field.id] ?? ''}
-                        disabled={submitting}
-                        onChange={(value) =>
-                          setValues((current) => ({
-                            ...current,
-                            [field.id]: value,
-                          }))
-                        }
-                        onSubmit={() => void fillAndSubmit()}
-                      />
-                    ))
-                  : null}
+                {choice?.mode !== 'use' ? (
+                  <BrowserSecureFields
+                    fields={handoff.fields}
+                    formId={handoff.formId}
+                    values={values}
+                    disabled={submitting}
+                    showSections={handoff.kind === 'details'}
+                    onChange={(id, value) =>
+                      setValues((current) => ({ ...current, [id]: value }))
+                    }
+                    onSubmit={() => void fillAndSubmit()}
+                  />
+                ) : null}
                 {vaultEligible && choice?.mode !== 'use' ? (
                   <YStack gap="$m">
                     <XStack alignItems="center" gap="$m" minHeight={48}>
@@ -860,7 +722,26 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   <Text color="$negativeActionText">{error}</Text>
                 ) : null}
                 <Button
+                  role="button"
+                  tabIndex={submitting || !canSubmit ? -1 : 0}
+                  onKeyDown={
+                    isWeb
+                      ? (event) => {
+                          if (
+                            !submitting &&
+                            canSubmit &&
+                            (event.key === 'Enter' || event.key === ' ')
+                          ) {
+                            event.preventDefault();
+                            void fillAndSubmit();
+                          }
+                        }
+                      : undefined
+                  }
+                  accessibilityRole="button"
+                  focusable
                   preset="primary"
+                  size="large"
                   label={handoff.kind === 'login' ? 'Continue' : 'Fill fields'}
                   centered
                   loading={submitting}

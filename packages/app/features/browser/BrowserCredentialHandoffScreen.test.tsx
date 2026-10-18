@@ -52,6 +52,7 @@ vi.mock('tamagui', () => ({
   YStack: 'YStack',
   ScrollView: 'ScrollView',
 }));
+vi.mock('../../ui/components/Form/inputs', () => ({ TextInput: 'TextInput' }));
 vi.mock('../../ui', () => ({
   Field: 'Field',
   ScreenHeader: 'ScreenHeader',
@@ -605,6 +606,83 @@ describe('secure browser form screen', () => {
     expect(mocks.beginHandoff).toHaveBeenCalledOnce();
     expect(mocks.discard).toHaveBeenCalledOnce();
     expect(JSON.stringify(renderer.toJSON())).not.toContain('4111111111111111');
+    act(() => renderer.unmount());
+  });
+
+  it('cleans checkout labels while preserving the original fill handles and choices', async () => {
+    const fields: BrowserSecureField[] = [
+      {
+        id: 'f0',
+        purpose: 'given-name',
+        label: 'Shipping: First name',
+        inputType: 'text',
+        required: true,
+      },
+      {
+        id: 'f1',
+        purpose: 'address-line2',
+        label: 'Shipping: Apartment (optional) (optional)',
+        inputType: 'text',
+        required: false,
+      },
+      {
+        id: 'f2',
+        purpose: 'payment-method',
+        label: 'basic',
+        inputType: 'select',
+        required: false,
+        options: [
+          { value: '3', label: 'Credit card' },
+          { value: '7', label: 'PayPal' },
+        ],
+      },
+      {
+        id: 'f3',
+        purpose: 'cc-number',
+        label: 'Card number',
+        inputType: 'numeric',
+        required: true,
+      },
+      {
+        id: 'f4',
+        purpose: 'marketing',
+        label: 'Text me with news and offers',
+        inputType: 'select',
+        required: false,
+        options: [
+          { value: '0', label: 'No' },
+          { value: '1', label: 'Yes' },
+        ],
+      },
+    ];
+    mocks.beginHandoff.mockResolvedValue(form(fields, { kind: 'details' }));
+    const { renderer } = await render();
+    const tree = JSON.stringify(renderer.toJSON());
+    expect(tree).not.toContain('Shipping: First name');
+    expect(tree).not.toContain('(optional)');
+    expect(tree).not.toContain('Choose basic');
+    expect(tree).toContain('Shipping');
+    expect(tree).toContain('Payment');
+    act(() => {
+      enter(renderer, 'First name', 'Sample');
+      enter(renderer, 'Card number', '4111111111111111');
+    });
+    await press(renderer, 'Choose payment method');
+    await press(renderer, 'PayPal');
+    const no = renderer.root.findByProps({
+      accessibilityLabel: 'Text me with news and offers: No',
+    });
+    expect(no.props.accessibilityState.selected).toBe(false);
+    act(() => no.props.onPress());
+    await press(renderer, 'Fill fields');
+    expect(mocks.submitCredentials).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        values: { f0: 'Sample', f2: '7', f3: '4111111111111111', f4: '0' },
+        submit: false,
+      },
+      expect.any(AbortSignal)
+    );
     act(() => renderer.unmount());
   });
 
