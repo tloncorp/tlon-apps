@@ -121,7 +121,10 @@ channels:
         # commands then act as the bot, as before. Set it per bot in this
         # channel config, at the root (not under accounts); component-version
         # bundles do not carry it. Runs answering a message on another
-        # account act as the bot.
+        # account act as the bot. It and ownerShip are read from the live
+        # config on every tool call, so a channels.tlon reload (a rollback to
+        # false, or a new owner) applies to the next call with no gateway
+        # restart; a run the previous owner directed loses owner identity.
         ownerDefault: false
 
         # Ships allowed to DM the bot directly

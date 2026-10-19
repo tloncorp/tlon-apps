@@ -25,7 +25,9 @@ const CREDENTIAL_FLAGS_WITH_VALUE = new Set([
 const SELF_FLAG = '--self';
 
 /** Families that only ever act as the bot (see resolveTlonActingIdentity). */
-const BOT_ONLY_FAMILIES = new Set(['settings', 'browser']);
+// hooks install Hoon on the acting ship; no app surface lets an owner do that,
+// so they never run as the owner.
+const BOT_ONLY_FAMILIES = new Set(['settings', 'browser', 'hooks']);
 
 const PROFILE_UPDATE_FIELDS = [
   { flag: '--nickname', field: 'nickname' },
@@ -734,9 +736,9 @@ export type TlonActingIdentity =
   | { actAs: 'bot' };
 
 /**
- * Commands act as the owner by default. The bot acts for `settings` and
- * `browser` (bot-only), `--self`, help and version, and when no owner is
- * configured. A configured owner without a credential file is an error, never
+ * Commands act as the owner by default. The bot acts for `settings`,
+ * `browser` and `hooks` (bot-only), `--self`, help and version, and when no
+ * owner is configured. A configured owner without a credential file is an error, never
  * a silent fall back to the bot.
  *
  * `--ship <owner>`, never `--config <path>`: ship-only resolution validates the
@@ -902,7 +904,7 @@ function resolveLegacyActingIdentity(
 const CREDENTIAL_FLAG_MESSAGE =
   'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted. Commands run as the owner by default; add --self to run as this bot.';
 const BOT_ONLY_CREDENTIAL_FLAG_MESSAGE =
-  'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted on settings or browser; these commands always run as this bot.';
+  'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted on settings, browser or hooks; these commands always run as this bot.';
 const INVALID_DISCOVERY_MESSAGE =
   'Error: help takes a command and an optional operation, for example help posts send.';
 const BOT_SHIP_UNKNOWN_MESSAGE =
@@ -1406,7 +1408,7 @@ export type TlonToolExecutorDeps = {
  */
 export function formatTlonIdentityGuidance(ownerDefault: boolean): string {
   return ownerDefault
-    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings and browser always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
+    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings, browser and hooks always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
     : 'Commands act as this bot. groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
 }
 
@@ -1420,7 +1422,7 @@ const OWNER_DEFAULT_IDENTITY_TABLE = [
   '  posts send|reply to ~ship: a DM from the owner; with --self, from the bot (prefer message).',
   "  posts react|unreact|edit|delete: as the owner (edit only the owner's posts); with --self, as the bot.",
   "  dms react|unreact|delete: in the owner's DMs; with --self, in the bot's.",
-  "  hooks: hooks in the owner's groups; with --self, in channels the bot hosts.",
+  '  hooks: always this bot (hooks in channels the bot hosts or administers).',
   '  upload: an owner-hosted URL for content posted as the owner; with --self, a bot-hosted URL for images you send with message.',
 ];
 
@@ -1508,7 +1510,7 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       const { hasCredentialFlag } = normalizeTlonCommandArgs(rawArgs);
       const family = credentialAwareFamily(rawArgs);
       // The only identities are the owner (default) and the bot (--self);
-      // settings and browser are the bot's in both flag states.
+      // settings, browser and hooks are the bot's in both flag states.
       if (
         hasCredentialFlag &&
         (deps.ownerDefault || BOT_ONLY_FAMILIES.has(family ?? ''))

@@ -42,7 +42,7 @@
   "hooks": {
     "summary": "Channel hooks and automation",
     "reference": "references/hooks-workflow.md",
-    "toolGuidance": "Advanced channel hooks; inspect help and the hook reference first."
+    "toolGuidance": "Advanced channel hooks, always run as the bot; inspect help and the hook reference first."
   },
   "messages": {
     "summary": "Message history and search",

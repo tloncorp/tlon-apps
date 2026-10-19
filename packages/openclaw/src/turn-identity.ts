@@ -33,6 +33,11 @@
  *   account, runs on that account or with no recorded account.
  * - The owner's queued follow-ups run under fresh runIds without a snapshot,
  *   so they act as the bot; the owner has to ask again.
+ *
+ * An owner-directed run also records which ship was the owner when it was
+ * first observed. A config reload that reassigns the owner demotes it at its
+ * next observation, like a non-owner message would: the commands would
+ * otherwise run with the new owner's credentials on the old owner's say-so.
  */
 import {
   getTlonSessionRunSurface,
@@ -55,6 +60,8 @@ type RunRecord = {
   senderRole?: SenderRole;
   /** The Tlon account the answered message arrived on, when known. */
   accountId?: string;
+  /** The configured owner when an owner-directed run was first observed. */
+  ownerShip?: string;
   lastSeenAt: number;
 };
 
@@ -95,15 +102,18 @@ function setActive(runId: string, record: RunRecord): RunRecord {
 function firstSight(
   runId: string,
   sessionKey: string | undefined,
-  now: number
+  now: number,
+  ownerShip?: string
 ): RunRecord {
   const snapshot = getTlonSessionRunSurface(runId);
   if (snapshot) {
+    const identity = snapshot.senderRole === 'owner' ? 'owner' : 'bot';
     return {
-      identity: snapshot.senderRole === 'owner' ? 'owner' : 'bot',
+      identity,
       sessionKey: snapshot.sessionKey,
       senderRole: snapshot.senderRole ?? 'user',
       ...(snapshot.accountId ? { accountId: snapshot.accountId } : {}),
+      ...(identity === 'owner' && ownerShip ? { ownerShip } : {}),
       lastSeenAt: now,
     };
   }
@@ -119,10 +129,12 @@ function firstSight(
 
 /**
  * Any hook or gate call for a run: record it at first sight, bump it after.
- * Returns the identity it resolves to.
+ * Returns the identity it resolves to. Callers that know the live configured
+ * owner pass it as `ownerShip` (undefined when none is configured, but
+ * present): an owner-directed run recorded under a different owner is demoted.
  */
 export function observeRun(
-  ctx: { runId?: string; sessionKey?: string },
+  ctx: { runId?: string; sessionKey?: string; ownerShip?: string },
   now = Date.now()
 ): TurnIdentity {
   const runId = ctx.runId?.trim();
@@ -130,11 +142,21 @@ export function observeRun(
   sweep(now);
   if (tombstones.has(runId)) return 'bot';
   const record = activeRuns.get(runId);
+  if (!record) {
+    return setActive(
+      runId,
+      firstSight(runId, ctx.sessionKey, now, ctx.ownerShip)
+    ).identity;
+  }
+  const ownerChanged =
+    record.identity === 'owner' &&
+    Object.hasOwn(ctx, 'ownerShip') &&
+    record.ownerShip !== ctx.ownerShip;
   return setActive(
     runId,
-    record
-      ? { ...record, lastSeenAt: now }
-      : firstSight(runId, ctx.sessionKey, now)
+    ownerChanged
+      ? { ...record, identity: 'bot', senderRole: 'user', lastSeenAt: now }
+      : { ...record, lastSeenAt: now }
   ).identity;
 }
 
