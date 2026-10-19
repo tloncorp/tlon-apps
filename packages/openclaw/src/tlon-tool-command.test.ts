@@ -717,26 +717,37 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     return { execute, runCommand, logError };
   }
 
-  it('finds the admin in an option position, past a description of --admin', async () => {
-    const { execute, runCommand } = makeExecutor();
-
-    await execute('description', {
-      command:
-        'groups create-owned Projects --description --admin --owner owner',
-    });
-
-    expect(runCommand).toHaveBeenLastCalledWith([
-      '--ship',
-      '~owner',
-      'groups',
-      'create-owned',
-      'Projects',
-      '--description',
+  it.each([
+    [
+      'a description of --admin',
+      'groups create-owned Projects --description --admin --owner owner',
       '--admin',
-      '--admin',
-      '~pinser-botter-owner',
-    ]);
-  });
+    ],
+    [
+      'the legacy description --owner form',
+      'groups create-owned Projects --description --owner owner',
+      '--owner',
+    ],
+  ])(
+    'rebuilds the owner run with the bot as admin, past %s',
+    async (_label, command, description) => {
+      const { execute, runCommand } = makeExecutor();
+
+      await execute('description', { command });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        '--ship',
+        '~owner',
+        'groups',
+        'create-owned',
+        'Projects',
+        '--admin',
+        '~pinser-botter-owner',
+        '--description',
+        description,
+      ]);
+    }
+  );
 
   it.each([
     [
@@ -774,7 +785,7 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     }
   );
 
-  it('rewrites the admin in place, so an empty trailing description cannot take the bot', async () => {
+  it('names the bot as admin ahead of an empty description, so it cannot become one', async () => {
     const { execute, runCommand } = makeExecutor();
 
     await execute('empty', {
@@ -791,8 +802,7 @@ describe('owner-hosted workspaces for groups create-owned', () => {
       '--admin',
       '~pinser-botter-owner',
     ]);
-    expect(args.slice(7)[0]).toBe('--description');
-    expect(args.slice(8)).not.toContain('~pinser-botter-owner');
+    expect(args.slice(7)).not.toContain('~pinser-botter-owner');
   });
 
   it('keeps the bot-hosted workspace, and says so, when the CLI predates --admin', async () => {

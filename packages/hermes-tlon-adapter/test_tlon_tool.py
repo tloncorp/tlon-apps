@@ -1925,7 +1925,7 @@ class OwnerWorkspaceRoutingTests(unittest.TestCase):
         self.assertNotIn(BOT_COOKIE, run_env.values())
         self.assertEqual(cfg.ship_name, "~bot")
 
-    def test_rewrites_in_place_so_an_empty_description_cannot_take_the_bot(self):
+    def test_names_the_bot_admin_ahead_of_an_empty_description(self):
         cfg = _bot_config()
 
         payload, calls = self._run(
@@ -2053,31 +2053,40 @@ class OwnerWorkspaceRoutingTests(unittest.TestCase):
                 )
                 self.assertEqual(run_env["TLON_SHIP"], "~bot")
 
-    def test_finds_the_admin_past_a_description_of_admin(self):
+    def test_rebuilds_the_owner_run_past_option_named_descriptions(self):
         cfg = _bot_config()
 
-        payload, calls = self._run(
-            "groups create-owned Projects --description --admin --owner ~owner",
-            cfg,
-            OWNER_ENV,
-        )
-
-        self.assertTrue(payload["success"])
-        argv, run_env = calls[-1]
-        self.assertEqual(
-            argv,
+        for command, description in (
             (
-                "tlon-test",
-                "groups",
-                "create-owned",
-                "Projects",
-                "--description",
+                "groups create-owned Projects --description --admin --owner ~owner",
                 "--admin",
-                "--admin",
-                "~bot",
             ),
-        )
-        self.assertEqual(run_env["TLON_SHIP"], OWNER_SHIP)
+            # The legacy form: the description is "--owner", and the first
+            # --owner anywhere still names the admin.
+            (
+                "groups create-owned Projects --description --owner ~owner",
+                "--owner",
+            ),
+        ):
+            with self.subTest(command=command):
+                payload, calls = self._run(command, cfg, OWNER_ENV)
+
+                self.assertTrue(payload["success"])
+                argv, run_env = calls[-1]
+                self.assertEqual(
+                    argv,
+                    (
+                        "tlon-test",
+                        "groups",
+                        "create-owned",
+                        "Projects",
+                        "--admin",
+                        "~bot",
+                        "--description",
+                        description,
+                    ),
+                )
+                self.assertEqual(run_env["TLON_SHIP"], OWNER_SHIP)
 
     def test_adds_no_hosting_note_when_the_command_fails(self):
         cfg = _bot_config()

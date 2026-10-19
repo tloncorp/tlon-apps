@@ -686,16 +686,23 @@ function namesOwnShipAdmin(args: string[], botShip: string): boolean {
 function asPlainCreate(args: string[]): string[] {
   const subIdx = findTlonSubcommandIndex(args);
   const commandArgs = args.slice(subIdx);
-  const descriptionIndex = commandArgs.indexOf('--description', 3);
-  const description =
-    descriptionIndex >= 0 ? commandArgs[descriptionIndex + 1] : undefined;
   return [
     ...args.slice(0, subIdx),
     commandArgs[0],
     'create',
     commandArgs[2],
-    ...(description !== undefined ? ['--description', description] : []),
+    ...descriptionArgs(commandArgs),
   ];
+}
+
+/**
+ * create-owned's description as the CLI reads it, the token after the first
+ * `--description`, as an option pair to rebuild a command with.
+ */
+function descriptionArgs(commandArgs: string[]): string[] {
+  const index = commandArgs.indexOf('--description', 3);
+  const description = index >= 0 ? commandArgs[index + 1] : undefined;
+  return description !== undefined ? ['--description', description] : [];
 }
 
 /**
@@ -792,12 +799,13 @@ function ownerCredentialsProvisioned(
 
 /**
  * Every create-owned goes through here. One for the configured owner runs as
- * the owner, with `--ship <owner>` up front and the admin pair rewritten in
- * place to `--admin <bot>`. In place, because a trailing value option whose
- * value the splitter dropped would take an appended ship as its value and
- * leave the bot out. Anything else runs as written, with the admin spelled so
- * any CLI reads it, and a note when it was meant for the owner but stayed on
- * the bot.
+ * the owner, rebuilt from what the CLI would read: `--ship <owner>`, the
+ * title, `--admin <bot>`, then the description. Rebuilt rather than edited,
+ * because a description's value can be an option name (a legacy `--description
+ * --owner <ship>`, or an empty description the splitter dropped), and an
+ * edited or appended admin would then be read as the description. Anything
+ * else runs as written, with the admin spelled so any CLI reads it, and a
+ * note when it was meant for the owner but stayed on the bot.
  */
 async function routeCreateOwned(
   args: string[],
@@ -831,10 +839,18 @@ async function routeCreateOwned(
   }
 
   const subIdx = findTlonSubcommandIndex(args);
-  const adminIndex = subIdx + createOwnedAdminIndex(args.slice(subIdx));
-  const rewritten = [...args];
-  rewritten.splice(adminIndex, 2, '--admin', botShip);
-  return { args: ['--ship', ownerShip, ...rewritten] };
+  const commandArgs = args.slice(subIdx);
+  return {
+    args: [
+      '--ship',
+      ownerShip,
+      ...args.slice(0, subIdx),
+      ...commandArgs.slice(0, 3),
+      '--admin',
+      botShip,
+      ...descriptionArgs(commandArgs),
+    ],
+  };
 }
 
 function routeChannelToOwner(

@@ -1100,12 +1100,23 @@ def _as_plain_create(args: Sequence[str]) -> list[str]:
     all_args = [str(arg) for arg in args]
     sub_idx = find_subcommand_index(all_args)
     command_args = all_args[sub_idx:]
-    plain = [*all_args[:sub_idx], command_args[0], "create", command_args[2]]
+    return [
+        *all_args[:sub_idx],
+        command_args[0],
+        "create",
+        command_args[2],
+        *_description_args(command_args),
+    ]
+
+
+def _description_args(command_args: Sequence[str]) -> list[str]:
+    """create-owned's description as the CLI reads it, the token after the
+    first ``--description``, as an option pair to rebuild a command with."""
     if "--description" in command_args[3:]:
         index = command_args.index("--description", 3)
         if index + 1 < len(command_args):
-            plain += ["--description", command_args[index + 1]]
-    return plain
+            return ["--description", str(command_args[index + 1])]
+    return []
 
 
 def should_create_workspace_on_owner(
@@ -1262,10 +1273,12 @@ async def route_create_owned(
     env: Mapping[str, str] | None = None,
 ) -> OwnerRouting:
     """Every create-owned goes through here. One for the configured owner runs
-    as the owner with the admin pair rewritten in place to ``--admin <bot>``.
-    In place, because a trailing value option whose value the splitter dropped
-    would take an appended ship as its value and leave the bot out. Anything
-    else runs as written, with the admin spelled so any CLI reads it, and a
+    as the owner, rebuilt from what the CLI would read: the title,
+    ``--admin <bot>``, then the description. Rebuilt rather than edited,
+    because a description's value can be an option name (a legacy
+    ``--description --owner <ship>``, or an empty description), and an edited
+    or appended admin would then be read as the description. Anything else
+    runs as written, with the admin spelled so any CLI reads it, and a
     note when it was meant for the owner but stayed on the bot node. Unlike
     invite-link, missing owner credentials are not an error: a bot-hosted
     workspace still works, and it is all a self-hosted bot can make."""
@@ -1300,11 +1313,17 @@ async def route_create_owned(
             f"The installed tlon CLI's create-owned has no --admin, {fallback}",
         )
 
-    rewritten = [str(arg) for arg in args]
-    sub_idx = find_subcommand_index(rewritten)
-    admin_index = sub_idx + _create_owned_admin_index(rewritten[sub_idx:])
-    rewritten[admin_index : admin_index + 2] = ["--admin", bot]
-    return OwnerRouting(owner_cfg, rewritten)
+    all_args = [str(arg) for arg in args]
+    sub_idx = find_subcommand_index(all_args)
+    command_args = all_args[sub_idx:]
+    rebuilt = [
+        *all_args[:sub_idx],
+        *command_args[:3],
+        "--admin",
+        bot,
+        *_description_args(command_args),
+    ]
+    return OwnerRouting(owner_cfg, rebuilt)
 
 
 def _command_for_display(command: Sequence[str]) -> str:
