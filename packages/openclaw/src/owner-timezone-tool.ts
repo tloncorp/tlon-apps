@@ -3,17 +3,18 @@
  *
  * Hosted config (openclaw.json) is root-owned and read-only to the gateway,
  * and is rebuilt on every boot, so the tool cannot edit
- * `agents.defaults.userTimezone` itself. It records the choice in the
- * pier-backed state dir instead; tlawn reads that file into userTimezone in
- * preference to TLON_TIMEZONE, at boot and whenever the file changes. A
- * running gateway does not pick up an external userTimezone edit, so tlawn
- * then asks for an in-process restart, which waits for this turn to finish.
- * The file name and shape are shared with tlonbot's entrypoint/tlawn.py.
+ * `agents.defaults.userTimezone` itself. The hosted wrapper (tlonbot's
+ * entrypoint/tlawn.py) names a pier-backed file in TLON_OWNER_TIMEZONE_FILE;
+ * the tool records the choice there, and tlawn reads it into userTimezone in
+ * preference to TLON_TIMEZONE, at boot and whenever it changes. A running
+ * gateway does not pick up an external userTimezone edit, so tlawn then asks
+ * for an in-process restart, which waits for this turn to finish. Without the
+ * variable nothing would apply the file, so the tool is not offered.
  */
-import { mkdir, rename, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { rename, writeFile } from 'node:fs/promises';
 
-export const OWNER_TIMEZONE_FILE = 'tlon-owner-timezone.json';
+export const OWNER_TIMEZONE_FILE_ENV = 'TLON_OWNER_TIMEZONE_FILE';
 
 export type OwnerTimezoneToolParams = { timezone: string };
 
@@ -69,11 +70,6 @@ export function validTimezone(input: string): string {
   }
 }
 
-export function ownerTimezonePath(env = process.env): string | null {
-  const stateDir = env.OPENCLAW_STATE_DIR?.trim();
-  return stateDir ? join(stateDir, OWNER_TIMEZONE_FILE) : null;
-}
-
 /** e.g. "Saturday, October 17, 2026 at 03:00 GMT+09:00" */
 function describeNow(timezone: string, now: Date): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -89,30 +85,23 @@ function describeNow(timezone: string, now: Date): string {
   }).format(now);
 }
 
-export function createOwnerTimezoneToolExecutor(
-  deps: {
-    path?: () => string | null;
-    now?: () => Date;
-  } = {}
-) {
-  const resolvePath = deps.path ?? (() => ownerTimezonePath());
+export function createOwnerTimezoneToolExecutor(deps: {
+  path: string;
+  now?: () => Date;
+}) {
+  const { path } = deps;
   const now = deps.now ?? (() => new Date());
 
   return async function execute(_id: string, params: OwnerTimezoneToolParams) {
     try {
       const timezone = validTimezone(String(params?.timezone ?? ''));
-      const path = resolvePath();
-      if (!path) {
-        throw new Error('timezone cannot be saved on this install');
-      }
       const at = now();
       const record: OwnerTimezoneRecord = {
         timezone,
         setAt: at.toISOString(),
       };
       // Write-then-rename so tlawn never reads a half-written file.
-      await mkdir(dirname(path), { recursive: true });
-      const tmp = `${path}.${process.pid}.tmp`;
+      const tmp = `${path}.${randomUUID()}.tmp`;
       await writeFile(tmp, `${JSON.stringify(record)}\n`, { mode: 0o600 });
       await rename(tmp, path);
       return {

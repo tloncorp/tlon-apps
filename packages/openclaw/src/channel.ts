@@ -47,6 +47,7 @@ import {
   getTlonTaskPlanEvidence,
 } from './onboarding-tool-boundary.js';
 import {
+  OWNER_TIMEZONE_FILE_ENV,
   type OwnerTimezoneToolParams,
   createOwnerTimezoneToolExecutor,
   ownerTimezoneToolMetadata,
@@ -244,7 +245,11 @@ export const tlonPlugin = createChatChannelPlugin({
         postSetup: ({ target, fallbackMessage, blob }) =>
           postSurface(target, fallbackMessage, blob),
       });
-      const executeSetTimezone = createOwnerTimezoneToolExecutor();
+      // Only the hosted wrapper applies the file, so only it gets the tool.
+      const ownerTimezoneFile = process.env[OWNER_TIMEZONE_FILE_ENV]?.trim();
+      const executeSetTimezone = ownerTimezoneFile
+        ? createOwnerTimezoneToolExecutor({ path: ownerTimezoneFile })
+        : null;
       const executeTaskPlan = createAgentTaskPlanToolExecutor({
         getEvidence: getTlonTaskPlanEvidence,
         assertCurrent: assertTlonTaskPlanCallCurrent,
@@ -281,12 +286,16 @@ export const tlonPlugin = createChatChannelPlugin({
           execute: (id, params) =>
             executeServiceSetup(id, params as AgentServiceSetupToolParams),
         },
-        {
-          ...ownerTimezoneToolMetadata,
-          parameters: ownerTimezoneToolParameters,
-          execute: (id, params) =>
-            executeSetTimezone(id, params as OwnerTimezoneToolParams),
-        },
+        ...(executeSetTimezone
+          ? [
+              {
+                ...ownerTimezoneToolMetadata,
+                parameters: ownerTimezoneToolParameters,
+                execute: (id: string, params: unknown) =>
+                  executeSetTimezone(id, params as OwnerTimezoneToolParams),
+              },
+            ]
+          : []),
       ];
     },
     agentPrompt: {
