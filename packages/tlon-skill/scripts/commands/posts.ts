@@ -15,7 +15,15 @@ import {
   parseNest,
 } from '../cli-utils';
 import { imageFlagIndex, validatedImageFlag } from '../image-attach';
-import { type Story, type StoryVerse, markdownToStory } from '../markdown';
+import {
+  NO_ROLES,
+  type Story,
+  type StoryVerse,
+  dmRoleMentionError,
+  groupRoleMentionError,
+  markdownToStory,
+  unknownRoleMentions,
+} from '../markdown';
 import { defaultReplyParentAuthor } from '../post-targets';
 import {
   type CommandDeps,
@@ -62,6 +70,15 @@ Pins and thread replies:
   host ship. A separately supplied --parent token selects the reply path, so
   quote a message that contains those words as one argument. A reply edit that leaves the
   content unchanged is reported as confirmed without proving anything changed.
+
+Mentions:
+  ~ship mentions a person; @role-id mentions a group role (the id, not its title,
+  case-insensitive) and @all mentions every member. DMs take @all only. An unknown
+  @word is refused; wrap it in backticks or write \\@word to send it as text.
+  Mentions notify only in plain paragraph text, not inside bold, quotes, headings,
+  lists or tables, and edits never notify. An edit re-validates every @role
+  against the group's current roles, so an edit keeping a since-deleted role is
+  refused.
 
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
@@ -270,6 +287,8 @@ export interface PostsDeps extends CommandDeps {
   postsApi: PostsApi;
   // The acting ship's local view of a channel: its group and arranged order.
   getChannelState: (nest: string) => Promise<ChannelState>;
+  // The ids of a group's roles, for checking typed @role mentions.
+  getGroupRoleIds: (groupId: string) => Promise<string[]>;
   // Throws when the acting ship cannot administer the channel `nest`.
   assertCanAdminister: (
     groupId: string,
@@ -843,15 +862,17 @@ async function sendPost(
   },
   deps: PostsDeps
 ): Promise<void> {
+  // The caption is checked first so a refused mention fails before the image
+  // fetch.
+  const caption = parsed.message
+    ? await buildMessageStory(parsed.channelId, parsed.message, deps)
+    : [];
   // Image block first, caption after — matches how the apps compose
   // attachment posts.
   const imageVerse = parsed.imageUrl
     ? await buildImageVerse(parsed.imageUrl, deps)
     : undefined;
-  const content: Story = [
-    ...(imageVerse ? [imageVerse] : []),
-    ...(parsed.message ? markdownToStory(parsed.message) : []),
-  ];
+  const content: Story = [...(imageVerse ? [imageVerse] : []), ...caption];
 
   await deps.postsApi.sendPost({
     channelId: parsed.channelId,
@@ -876,6 +897,11 @@ async function sendReply(
   },
   deps: PostsDeps
 ): Promise<void> {
+  const content = await buildMessageStory(
+    parsed.channelId,
+    parsed.message,
+    deps
+  );
   const authorId = deps.getCurrentUserId();
   await deps.postsApi.sendReply({
     channelId: parsed.channelId,
@@ -885,7 +911,7 @@ async function sendReply(
       authorId,
       parsed.parentAuthor
     ),
-    content: markdownToStory(parsed.message),
+    content,
     sentAt: parsed.sentAt ?? deps.now(),
     authorId,
     blob: parsed.blob,
@@ -1025,7 +1051,7 @@ async function editPost(
     // %edit stores the essay wholesale, so the sent time and blob are handed
     // back as they are (as the app does); blob edits are unsupported.
     sentAt: existing.sentAt,
-    content: markdownToStory(parsed.message),
+    content: await buildMessageStory(parsed.channelId, parsed.message, deps),
     metadata,
     ...(existing.blob ? { blob: existing.blob } : {}),
     // Authorship comes from the existing post rather than being re-derived: a
@@ -1119,7 +1145,7 @@ async function editReply(
     );
   }
 
-  const content = markdownToStory(parsed.message);
+  const content = await buildMessageStory(nest, parsed.message, deps);
   await deps.postsApi.editPost({
     channelId: nest,
     postId: rid,
@@ -1232,6 +1258,45 @@ async function deleteReply(
     );
   }
   return 'deleted';
+}
+
+// Message text as a story, with typed `@all` and `@role-id` as mentions. A
+// role is checked against the target group's current roles and an unknown
+// `@word` refuses the whole send: sent as text it would silently notify
+// nobody. Only text naming a token other than `@all` costs a lookup.
+async function buildMessageStory(
+  target: string,
+  message: string,
+  deps: PostsDeps
+): Promise<Story> {
+  const story = markdownToStory(message, { roleIds: NO_ROLES });
+  const unknown = unknownRoleMentions(message, NO_ROLES);
+  if (unknown.length === 0) {
+    return story;
+  }
+  if (isDmTarget(target)) {
+    throw commandError(dmRoleMentionError(target, unknown));
+  }
+  const nest = canonicalizeNest(target);
+  const state = await readChannelState(nest, deps);
+  if (!state.joined) {
+    throw commandError(`Cannot check role mentions: ${notJoinedMessage(nest)}`);
+  }
+  let roleIds: ReadonlySet<string>;
+  try {
+    roleIds = new Set(await deps.getGroupRoleIds(state.groupId));
+  } catch (error) {
+    throw commandError(
+      `Could not read roles for group ${state.groupId} to check role mentions: ${errorMessage(error)}`
+    );
+  }
+  const still = unknown.filter((token) => !roleIds.has(token.toLowerCase()));
+  if (still.length > 0) {
+    throw commandError(
+      groupRoleMentionError(nest, state.groupId, roleIds, still)
+    );
+  }
+  return markdownToStory(message, { roleIds });
 }
 
 function notJoinedMessage(nest: string): string {
