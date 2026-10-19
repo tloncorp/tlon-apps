@@ -319,6 +319,48 @@
   ;<  sv=vase  bind:m  get-save
   (pure:m (~(got by sessions:!<(state-1:bu sv)) sid))
 ::
+::  +finish-call: ask for a session to be settled and hand back the wire the
+::  completion rides, leaving the broker's answer to the test. The uploader
+::  is answered %pending, and the completion is the one broker call made.
+::
+++  finish-call
+  |=  [rid=@uv sid=@uv]
+  =/  m  (mare ,wire)
+  ^-  form:m
+  ;<  caz=(list card)  bind:m  (ask rid [%bucket flag [%finish-upload sid]])
+  ;<  ~  bind:m  (ex-cards (answers caz) ~[(grant-fact rid [%pending ~])])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  ~  bind:m
+    (ex-equal !>(wire.push) !>(/buckets/upload/(scot %uv sid)/complete))
+  (pure:m wire.push)
+::
+::  +receipt-for: the broker's receipt for a session, describing the object
+::  the session was opened for, so a completion answered with it verifies.
+::
+++  receipt-for
+  |=  ses=upload-session:bu
+  ^-  sign-arvo
+  =/  fil=file:bu  (file-of entry.ses)
+  (iris-object object-key.fil size.fil mime.fil)
+::
+::  +entry-fact: the broadcast that puts one entry in the manifest.
+::
+++  entry-fact
+  |=  [revision=@ud ent=entry:bu]
+  %-  ex-fact
+  :*  ~[/v1 /v1/buckets/~sampel-palnet/project-files/updates]
+      %buckets-response-1
+      !>(`response:bu`[%update flag revision [%entry id.ent [%create ent]]])
+  ==
+::
+::  +saved-bucket: the bucket's manifest as the saved state holds it.
+::
+++  saved-bucket
+  =/  m  (mare ,bucket-state:bu)
+  ^-  form:m
+  ;<  sv=vase  bind:m  get-save
+  (pure:m (state-for !<(state-1:bu sv) flag))
+::
 ::  +sync-for: the pair's sync record, for asserting revisions directly.
 ::
 ++  sync-for
@@ -1092,6 +1134,256 @@
   ;<  sv=vase  b  get-save
   =/  st=state-1:bu  !<(state-1:bu sv)
   (ex-equal !>((~(has by sessions.st) seed)) !>(|))
+::
+::  A completion the broker refuses but says to repeat leaves the session as
+::  it was: pending, on the same reservation, with the refusal recorded and
+::  nothing published or released -- the bytes may be in storage, and
+::  cancelling now would orphan a charged object. A second such refusal keeps
+::  it just the same, and a finish asked again afterwards publishes the
+::  entry and clears the refusal.
+::
+++  test-complete-refusal-the-broker-says-to-repeat-keeps-the-session
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'verified.pdf' 42)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  refused=(list card)  b
+    %+  do-arvo  done
+    %+  iris-json  409
+    '{"code":"invalid_state","message":"upload verification is already in progress","retryable":true}'
+  ::  The answer is the only card: no entry is broadcast and no cancel goes
+  ::  to the broker.
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        :*  %error  %unknown
+            'upload verification is already in progress'
+            `['invalid_state' & ~ ~]
+        ==
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses error.ses awaiting.ses])
+    !>([%pending `'res-1' `'upload verification is already in progress' ~])
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  ;<  ~  b  (ex-equal !>([~(wyt by entries.bs) revision.bs]) !>([0 0]))
+  ::  Storage being away is another refusal worth repeating.
+  ;<  done2=wire  b  (finish-call 0v3 seed)
+  ;<  refused2=(list card)  b
+    %+  do-arvo  done2
+    (iris-json 503 '{"code":"storage_unavailable","message":"storage is down","retryable":true}')
+  ;<  ~  b
+    %+  ex-cards  refused2
+    :~  %+  grant-fact  0v3
+        [%error %unknown 'storage is down' `['storage_unavailable' & ~ ~]]
+    ==
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses2 reservation.ses2 error.ses2 awaiting.ses2])
+    !>([%pending `'res-1' `'storage is down' ~])
+  ::  Asked once more and answered with the receipt, the entry is published
+  ::  in the same event as the uploader is told, and the refusal is over.
+  ;<  done3=wire  b  (finish-call 0v4 seed)
+  ;<  published=(list card)  b  (do-arvo done3 (receipt-for ses2))
+  ;<  ses3=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-cards  published
+    :~  (entry-fact 1 entry.ses3)
+        (grant-fact 0v4 [%ok ~])
+    ==
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses3 reservation.ses3 error.ses3 status:(file-of entry.ses3)])
+    !>([%complete `'res-1' ~ %ready])
+  ;<  bs2=bucket-state:bu  b  saved-bucket
+  %+  ex-equal
+    !>([~(wyt by entries.bs2) revision.bs2 (~(has by entries.bs2) id.entry.ses3)])
+  !>([1 1 &])
+::
+::  A completion refused for good ends the session, and because the
+::  reservation is bound it is released at the broker rather than left to
+::  lapse -- after the waiter is answered, so the uploader hears the refusal
+::  and not the release. Nothing reaches the manifest. The broker refuses to
+::  cancel a reservation that is no longer pending, and that refusal is the
+::  end of it: nobody is waiting and nothing cancels again.
+::
+++  test-complete-refused-for-good-releases-the-reservation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'mismatched.pdf' 42)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  refused=(list card)  b
+    %+  do-arvo  done
+    %+  iris-json  422
+    '{"code":"verification_failed","message":"object size mismatch","retryable":false}'
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'object size mismatch' `['verification_failed' | ~ ~]]
+        (ex-iris /buckets/upload/(scot %uv seed)/cancel)
+    ==
+  =/  release=[=wire =request:http]  (only-iris refused)
+  ;<  ~  b
+    %+  ex-equal
+      !>(url.request.release)
+    !>('https://memex.tlon.network/v2/buckets/uploads/res-1/cancel')
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses error.ses awaiting.ses])
+    !>([%cancelled `'res-1' `'object size mismatch' ~])
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  ;<  ~  b  (ex-equal !>([~(wyt by entries.bs) revision.bs]) !>([0 0]))
+  ::  The broker's answer to the release changes nothing and asks nothing.
+  ;<  settled=(list card)  b
+    %+  do-arvo  wire.release
+    %+  iris-json  409
+    '{"code":"invalid_state","message":"only pending uploads can be canceled","retryable":false}'
+  ;<  ~  b  (ex-cards settled ~)
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses2 reservation.ses2 error.ses2])
+  !>([%cancelled `'res-1' `'object size mismatch'])
+::
+::  Iris giving up on a completion says nothing about whether the broker
+::  committed the object, and only a repeated finish, which the broker
+::  answers idempotently, can say. So the session is kept for the uploader
+::  to ask again and told the outcome is unknown, and the repeated finish
+::  publishes the entry exactly once.
+::
+++  test-complete-outcome-unknown-keeps-the-session
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'lost.pdf' 42)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  refused=(list card)  b  (do-arvo done iris-cancelled)
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        :*  %error  %unknown
+            'the storage request was cancelled'
+            `['outcome_unknown' & ~ ~]
+        ==
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses error.ses awaiting.ses])
+    !>([%pending `'res-1' `'the storage request was cancelled' ~])
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  ;<  ~  b  (ex-equal !>([~(wyt by entries.bs) revision.bs]) !>([0 0]))
+  ;<  done2=wire  b  (finish-call 0v3 seed)
+  ;<  published=(list card)  b  (do-arvo done2 (receipt-for ses))
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-cards  published
+    :~  (entry-fact 1 entry.ses2)
+        (grant-fact 0v3 [%ok ~])
+    ==
+  ;<  bs2=bucket-state:bu  b  saved-bucket
+  %+  ex-equal
+    !>([status.ses2 error.ses2 ~(wyt by entries.bs2) revision.bs2])
+  !>([%complete ~ 1 1])
+::
+::  A 2xx receipt that describes a different object from the one the session
+::  was opened for is no success to publish: the broker committed something,
+::  but not what the manifest would claim. The session is failed and the
+::  bound reservation released. The mismatch is this agent's own finding, so
+::  the answer carries no broker account.
+::
+++  test-complete-receipt-mismatch-is-final
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'short.pdf' 42)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  =/  fil=file:bu  (file-of entry.ses)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  failed=(list card)  b
+    (do-arvo done (iris-object object-key.fil 41 'application/pdf'))
+  ;<  ~  b
+    %+  ex-cards  failed
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'the storage receipt did not match the upload' ~]
+        (ex-iris /buckets/upload/(scot %uv seed)/cancel)
+    ==
+  =/  release=[=wire =request:http]  (only-iris failed)
+  ;<  ~  b
+    %+  ex-equal
+      !>(url.request.release)
+    !>('https://memex.tlon.network/v2/buckets/uploads/res-1/cancel')
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses2 reservation.ses2 error.ses2 awaiting.ses2])
+    !>([%cancelled `'res-1' `'the storage receipt did not match the upload' ~])
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  (ex-equal !>([~(wyt by entries.bs) revision.bs]) !>([0 0]))
+::
+::  A finish on a session already complete is an uploader whose receipt was
+::  lost, not an upload to settle again. It is answered %ok from the
+::  manifest, without a broker call and without a second entry. Everything
+::  else about a complete session is over: it cannot be retried or
+::  cancelled, and it is still only its uploader's to ask about.
+::
+++  test-complete-after-complete-answers-ok-without-a-broker-call
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'landed.pdf' 42)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  *  b  (do-arvo done (receipt-for ses))
+  ;<  again=(list card)  b  (ask 0v3 [%bucket flag [%finish-upload seed]])
+  ;<  ~  b  (ex-cards again ~[(grant-fact 0v3 [%ok ~])])
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses2 ~(wyt by entries.bs) revision.bs])
+    !>([%complete 1 1])
+  ;<  retried=(list card)  b  (ask 0v4 [%bucket flag [%retry-upload seed]])
+  ;<  ~  b
+    %+  ex-cards  retried
+    ~[(grant-fact 0v4 [%error %invalid-input 'upload session is not pending' ~])]
+  ;<  withdrawn=(list card)  b
+    (ask 0v5 [%bucket flag [%cancel-upload seed 'too late']])
+  ;<  ~  b
+    %+  ex-cards  withdrawn
+    ~[(grant-fact 0v5 [%error %invalid-input 'upload session is not pending' ~])]
+  ::  Another writer asking about it is still not the uploader.
+  ;<  ~  b  (set-scry-gate uploader-scries)
+  ;<  other=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v6 [%bucket flag [%finish-upload seed]]])
+  %+  ex-cards  other
+  :~  %-  ex-fact
+      :*  ~[/v1/request/~bus/0v6]
+          %buckets-req-response-2
+          !>(`req-response:bu`[0v6 [%error %not-authorized 'not the uploader' ~]])
+      ==
+  ==
 ::
 ::  A bucket or token we do not have is [~ ~], which Eyre serves as a 404.
 ::  A bare ~ is a 500, and clients treat only a 404 as absent.
