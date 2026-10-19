@@ -100,6 +100,7 @@ import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
+import { sharedSlot } from './src/shared-state.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
@@ -917,11 +918,17 @@ function installTelemetryDiagnosticObservers(
 // manage.
 //
 // The hooks read the state registerFull computed at gateway boot through
-// agentTurnHookDeps, a plain module-level variable. A borrowing turn shares
-// the gateway's module and sees it. A separately loaded instance is a fresh
-// module evaluation where registerFull never ran, as in CLI inspection or
-// doctor: the deps are absent, the owner-only gate still applies, and the
-// lens, trace, and cron-attribution extras are skipped.
+// agentTurnHookDepsSlot, a shared-state slot keyed on globalThis. A separately
+// loaded instance is a fresh module evaluation where registerFull never ran,
+// so a plain module-level variable would be empty there; the slot is shared
+// by every instance in the process, so a discovery-mode turn in the gateway
+// process still sees the gateway's deps — including onCronAgentHook, whose
+// cron attribution the onboarding cron's MCP restriction depends on. The
+// closure stays bound to the gateway instance's registerFull scope, which is
+// where the cron telemetry it records is read. Only a process where no full
+// registration ran (CLI inspection, doctor) finds the slot empty: the
+// owner-only gate still applies, the cron args guard reads its env flag, and
+// the lens, trace, and cron-attribution extras are skipped.
 type AgentTurnHookDeps = {
   contextLensEnabled: boolean;
   logToolTraceContents: boolean;
@@ -937,12 +944,15 @@ type AgentTurnHookDeps = {
   }) => Promise<void>;
 };
 
-let agentTurnHookDeps: AgentTurnHookDeps | undefined;
+const agentTurnHookDepsSlot = sharedSlot<AgentTurnHookDeps>(
+  'agentTurnHooks.deps'
+);
 
 function resolveAgentTurnHookDeps(): Pick<
   AgentTurnHookDeps,
   'contextLensEnabled' | 'logToolTraceContents' | 'cronArgsGuardEnabled'
 > {
+  const agentTurnHookDeps = agentTurnHookDepsSlot.get();
   return {
     contextLensEnabled: agentTurnHookDeps?.contextLensEnabled ?? false,
     logToolTraceContents: agentTurnHookDeps?.logToolTraceContents ?? false,
@@ -1323,12 +1333,12 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     if (ctx.trigger !== 'cron') {
       recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
     }
-    await agentTurnHookDeps?.onCronAgentHook(ctx);
+    await agentTurnHookDepsSlot.get()?.onCronAgentHook(ctx);
   });
   api.on('model_call_started', async (_event, ctx) => {
     beginCronSilenceObservation(ctx);
     beginTlonTurnSilenceObservation(ctx);
-    await agentTurnHookDeps?.onCronAgentHook(ctx);
+    await agentTurnHookDepsSlot.get()?.onCronAgentHook(ctx);
   });
 
   // Background lenses normally finalize on tool-result idle; agent_end
@@ -1838,19 +1848,19 @@ export default defineBundledChannelEntry({
     // registerAgentTurnHooks runs from registerCapabilities so its hooks also
     // land in turn registries that load this plugin in discovery mode (see
     // the Agent-turn hooks comment). Those hooks read the gateway-boot state
-    // computed above through this module-level variable.
+    // computed above through this shared slot.
     // Only the gateway's full registration owns this state; a tool-discovery
     // pass also runs registerFull, possibly against a prepared runtime's config
     // snapshot, and must not swap closures under hooks other registries hold.
     const registrationMode = (api as { registrationMode?: string })
       .registrationMode;
     if (registrationMode === undefined || registrationMode === 'full') {
-      agentTurnHookDeps = {
+      agentTurnHookDepsSlot.set({
         contextLensEnabled,
         logToolTraceContents,
         cronArgsGuardEnabled: isCronArgsGuardEnabled(),
         onCronAgentHook,
-      };
+      });
     }
   },
   registerCapabilities(api) {
