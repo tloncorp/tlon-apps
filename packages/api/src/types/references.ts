@@ -6,6 +6,13 @@ export interface ChannelReference {
   replyId?: string;
 }
 
+/** A whole channel, cited as /1/chan/<nest> with no post. */
+export interface ChannelLinkReference {
+  type: 'reference';
+  referenceType: 'channelLink';
+  channelId: string;
+}
+
 export interface GroupReference {
   type: 'reference';
   referenceType: 'group';
@@ -29,6 +36,7 @@ export interface NoteReference {
 
 export type ContentReference =
   | ChannelReference
+  | ChannelLinkReference
   | GroupReference
   | AppReference
   | NoteReference;

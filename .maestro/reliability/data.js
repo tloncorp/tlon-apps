@@ -101,6 +101,8 @@ output.reliability = {
     ')$',
 };
 output.reliability.groupPattern = exact(output.reliability.group);
+// subflows/create-group.yaml passes the title through a deep link query.
+output.reliability.groupEncoded = encodeURIComponent(output.reliability.group);
 output.reliability.editedTextPattern = exact(
   output.reliability.editedText
 ).replace(/\$$/, ' ?$');
