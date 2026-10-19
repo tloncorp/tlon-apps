@@ -1073,6 +1073,8 @@ describe('model-facing identity guidance', () => {
         if (ownerDefault) expect(description).toContain(marker);
         else expect(description).not.toContain(marker);
       }
+      expect(description).toContain('mark-read');
+      expect(help).toContain('mark-read');
       for (const marker of ['Owner or bot:', 'Put --self before the command']) {
         if (ownerDefault) expect(help).toContain(marker);
         else expect(help).not.toContain(marker);
@@ -1158,6 +1160,8 @@ describe('owner default off (staged rollout)', () => {
     'activity mute ~zod/book-club',
     'activity unmute chat/~nec/general 170.141',
     'activity volume ~ten hush',
+    'activity mark-read ~zod/book-club',
+    'activity mark-read --all',
   ];
 
   it.each(LEGACY)(
@@ -1838,10 +1842,39 @@ describe('owner-hosted workspaces and channels with ownerDefault', () => {
       'groups create-owned X --admin ~owner --self',
       'channels create ~owner/team Talk --self',
       'groups add-channel ~owner/team Talk --self',
+      'groups join --invite https://invite.tlon.io/0v1.abcde --self',
+      'groups join ~zod/team --self',
+      'activity mark-read ~ten --self',
     ])('is a bot request on `%s`', (command) => {
       expect(
         normalizeTlonCommandArgs(shellSplitCommand(command)).selfRequested
       ).toBe(true);
+    });
+
+    it('leaves a plain groups join to the default identity', async () => {
+      for (const [ownerDefault, expected] of [
+        [true, ['--ship', '~owner', 'groups', 'join', '~zod/team']],
+        [false, ['groups', 'join', '~zod/team']],
+      ] as const) {
+        const { execute, ran } = makeExecutor({ ownerDefault });
+        await execute('join', { command: 'groups join ~zod/team' });
+        expect(ran(), String(ownerDefault)).toEqual(expected);
+      }
+    });
+
+    it('echoes the owner for activity mark-read with the flag on', async () => {
+      const { execute, ran } = makeExecutor();
+      const result = await execute('mark-read', {
+        command: 'activity mark-read ~ten',
+      });
+      expect(ran()).toEqual([
+        '--ship',
+        '~owner',
+        'activity',
+        'mark-read',
+        '~ten',
+      ]);
+      expect(result.content[0].text).toBe('Created.\nRan as ~owner (owner).');
     });
 
     it('stays literal on other group operations', () => {
@@ -1872,6 +1905,11 @@ describe('owner-hosted workspaces and channels with ownerDefault', () => {
       ['activity volume --self ~zod/g soft', true],
       ['notes note-publish notes/~h/b --self 12', true],
       ['groups invite-link ~h/g --self', true],
+      ['activity mark-read --self --all', true],
+      // groups join: the optional group flag, and --invite's value.
+      ['groups join --invite "--self"', false],
+      ['groups join ~zod/team', false],
+      ['groups join --self', true],
     ])('reads `%s` as a bot request: %s', (command, expected) => {
       expect(
         normalizeTlonCommandArgs(shellSplitCommand(command)).selfRequested
@@ -1981,6 +2019,20 @@ describe('owner-hosted workspaces and channels with ownerDefault', () => {
       [
         'groups add-channel ~owner/team Talk --self',
         ['groups', 'add-channel', '~owner/team', 'Talk', '--self'],
+      ],
+      [
+        'groups join --invite https://invite.tlon.io/0v1.abcde --self',
+        [
+          'groups',
+          'join',
+          '--invite',
+          'https://invite.tlon.io/0v1.abcde',
+          '--self',
+        ],
+      ],
+      [
+        'activity mark-read ~ten --self',
+        ['activity', 'mark-read', '~ten', '--self'],
       ],
     ])(
       'runs `%s` as the bot in both flag states',

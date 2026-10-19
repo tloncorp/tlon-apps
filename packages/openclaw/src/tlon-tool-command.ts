@@ -87,6 +87,7 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'mute',
       'unmute',
       'volume',
+      'mark-read',
     ]),
   ],
   ['browser', new Set(['handoff', 'share'])],
@@ -794,6 +795,7 @@ const LEGACY_OWNER_OPERATIONS = new Set([
   'activity mute',
   'activity unmute',
   'activity volume',
+  'activity mark-read',
 ]);
 
 /**
@@ -813,11 +815,18 @@ const LEGACY_OWNER_OPERATIONS = new Set([
  *   `--description` with values (getCreateOwnedAdmin in tlon-skill).
  * - channels create, groups add-channel: the group at 2 and the title at 3,
  *   then `--kind` and `--description` with values (getOption from 3).
+ * - groups join: one optional group flag (plain `groups join <flag>`), then
+ *   `--invite` with a value (`groups join --invite <url|token> [--self]`).
  */
 const NO_VALUE_OPTIONS: ReadonlySet<string> = new Set();
 const SELF_OPTION_POSITIONS = new Map<
   string,
-  { start: number; valueOptions: ReadonlySet<string> }
+  {
+    start: number;
+    valueOptions: ReadonlySet<string>;
+    /** A positional at `start` that may be omitted. */
+    optionalPositional?: boolean;
+  }
 >([
   ...[...LEGACY_OWNER_OPERATIONS].map(
     (operation) =>
@@ -838,6 +847,14 @@ const SELF_OPTION_POSITIONS = new Map<
     'groups add-channel',
     { start: 4, valueOptions: new Set(['--kind', '--description']) },
   ],
+  [
+    'groups join',
+    {
+      start: 2,
+      valueOptions: new Set(['--invite']),
+      optionalPositional: true,
+    },
+  ],
 ]);
 
 /**
@@ -849,7 +866,15 @@ function hasOperationSelfFlag(commandArgs: string[]): boolean {
     `${commandArgs[0] ?? ''} ${commandArgs[1] ?? ''}`.toLowerCase();
   const positions = SELF_OPTION_POSITIONS.get(operation);
   if (!positions) return false;
-  for (let i = positions.start; i < commandArgs.length; i += 1) {
+  let start = positions.start;
+  if (
+    positions.optionalPositional &&
+    commandArgs[start] !== undefined &&
+    !commandArgs[start].startsWith('-')
+  ) {
+    start += 1;
+  }
+  for (let i = start; i < commandArgs.length; i += 1) {
     if (commandArgs[i] === SELF_FLAG) return true;
     if (positions.valueOptions.has(commandArgs[i])) i += 1;
   }
@@ -1381,15 +1406,15 @@ export type TlonToolExecutorDeps = {
  */
 export function formatTlonIdentityGuidance(ownerDefault: boolean): string {
   return ownerDefault
-    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute and volume, where --self as an option (not a title or an option\'s value) also selects the bot. settings and browser always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
-    : 'Commands act as this bot. groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute and volume act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
+    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings and browser always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
+    : 'Commands act as this bot. groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
 }
 
 /** Which commands read or change different data under each identity. */
 const OWNER_DEFAULT_IDENTITY_TABLE = [
   'Owner or bot: decide which one the person means ("my DMs" is the owner\'s; "your profile" is the bot\'s).',
   "  channels dms|group-dms, messages dm|search: the owner's conversations; with --self, the bot's.",
-  "  activity (incl. mute, unmute, volume): the owner's activity and notification levels; with --self, the bot's.",
+  "  activity (incl. mute, unmute, volume, mark-read): the owner's activity, notification levels and read state; with --self, the bot's.",
   "  contacts self|list|add|remove|update|update-profile: the owner's profile and contact book; with --self, the bot's.",
   "  groups list|join|leave|accept-invite|reject-invite|request-invite, channels join|leave: the owner's membership; with --self, the bot's.",
   '  posts send|reply to ~ship: a DM from the owner; with --self, from the bot (prefer message).',
@@ -1757,9 +1782,10 @@ function summarizeKnownTlonCommand(
 
   switch (subcommand) {
     case 'activity':
-      // mute/unmute/volume change only the acting ship's own preferences.
+      // mute/unmute/volume change only the acting ship's own preferences;
+      // mark-read moves its read markers.
       return build(
-        operation === 'mute' || operation === 'unmute' || operation === 'volume'
+        ['mute', 'unmute', 'volume', 'mark-read'].includes(operation)
           ? 'write'
           : 'read'
       );

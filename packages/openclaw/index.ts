@@ -1036,29 +1036,37 @@ export default defineBundledChannelEntry({
       );
     }
 
-    // The staged-rollout flag is read from the live runtime config, not the
-    // registration snapshot: a channels.tlon reload restarts monitors without
-    // re-running registerFull, and an operator rollback must take effect
-    // without a gateway restart.
-    const liveOwnerDefault = () =>
-      resolveTlonAccount(api.runtime.config.loadConfig()).ownerDefault;
+    // The staged-rollout flag and the owner ship are read from the live
+    // runtime config, not the registration snapshot: a channels.tlon reload
+    // restarts monitors (which then authorize the new owner) without
+    // re-running registerFull, and an operator rollback or owner change must
+    // take effect without a gateway restart. The bot's own credentials stay
+    // as registered.
+    const liveAccount = () => {
+      const live = resolveTlonAccount(api.runtime.config.loadConfig());
+      return {
+        ownerDefault: live.ownerDefault,
+        ownerShip: normalizeShip(live.ownerShip ?? '') || undefined,
+      };
+    };
 
     // Tool factories receive the active agent workspace, including cron runs.
     // Core calls the factory each time it resolves tools, and its descriptor
     // cache is keyed on the runtime config, so the description follows a
-    // reload; execution reads the flag again on every call.
+    // reload; execution reads the live account again on every call.
     api.registerTool(
       (ctx) => {
-        const ownerDefault = liveOwnerDefault();
-        const executorDeps: Omit<TlonToolExecutorDeps, 'ownerDefault'> = {
+        const executorDeps = ({
+          ownerDefault,
+          ownerShip,
+        }: ReturnType<typeof liveAccount>): TlonToolExecutorDeps => ({
           runCommand: (args) =>
             args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
               ? runBrowserSessionHandoff(tlonBinary, args, api.config)
               : runTlonCommand(tlonBinary, args, credentials, {
                   timeoutMs: toolTimeoutMs,
                   cwd: ctx.workspaceDir,
-                  ownerShip:
-                    normalizeShip(account.ownerShip ?? '') || undefined,
+                  ownerShip,
                 }),
           notifyDiaryMigrationDiscovery: (nest) =>
             notifyDiaryMigrationDiscovery(nest, api.config),
@@ -1068,24 +1076,22 @@ export default defineBundledChannelEntry({
           // did not direct to `--self`. Without it, only the legacy owner
           // operations do, and a workspace made for the owner (or a channel in
           // a group the owner hosts) is hosted on the owner's ship.
-          ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
+          ownerShip,
+          ownerDefault,
           // The ship the runner's own credentials act as, for the owner
           // self-DM guard, the `Ran as` line and the admin of a workspace
           // hosted on the owner's ship.
           botShip: resolveExecutionBotShip(credentials, process.env),
           env: process.env,
           fileExists: (path) => existsSync(path),
-        };
+        });
         const executeTlonTool = (id: string, params: { command: string }) =>
-          createTlonToolExecutor({
-            ...executorDeps,
-            ownerDefault: liveOwnerDefault(),
-          })(id, params);
+          createTlonToolExecutor(executorDeps(liveAccount()))(id, params);
 
         return {
           name: 'tlon',
           label: 'Tlon CLI',
-          description: formatTlonToolDescription(ownerDefault),
+          description: formatTlonToolDescription(liveAccount().ownerDefault),
           parameters: {
             type: 'object',
             properties: {
@@ -1381,7 +1387,7 @@ export default defineBundledChannelEntry({
       if (
         event.toolName === 'tlon' &&
         typeof event.params.command === 'string' &&
-        liveOwnerDefault() &&
+        liveAccount().ownerDefault &&
         (resolveTurnIdentity({
           runId: ctx.runId,
           sessionKey: ctx.sessionKey,
