@@ -805,10 +805,23 @@ describe('owner-by-default identity selection', () => {
         'browser share [REDACTED]',
       ],
       ['--self contacts self', '--self contacts self'],
+      [
+        '--verbose --code private-value contacts self',
+        '--verbose --code [REDACTED] contacts self',
+      ],
+      [
+        '--code private-value --verbose --ship ~private contacts self',
+        '--code [REDACTED] --verbose --ship [REDACTED] contacts self',
+      ],
     ])('redacts `%s`', (command, expected) => {
       const redacted = redactTlonCommand(command);
       expect(redacted).toBe(expected);
       expect(redacted).not.toContain('private');
+    });
+
+    it('keeps a --verbose after the command family literal', () => {
+      const command = 'posts send chat/~zod/x --verbose --code abc';
+      expect(redactTlonCommand(command)).toBe(command);
     });
   });
 

@@ -23,6 +23,7 @@ const CREDENTIAL_FLAGS_WITH_VALUE = new Set([
 ]);
 
 const SELF_FLAG = '--self';
+const VERBOSE_FLAG = '--verbose';
 
 /** Families that only ever act as the bot (see resolveTlonActingIdentity). */
 // hooks install Hoon on the acting ship; no app surface lets an owner do that,
@@ -430,7 +431,9 @@ export function redactTlonCommand(command: string): string {
   let removedExecutable = false;
   for (; index < raw.length; index += 1) {
     const arg = raw[index];
-    if (arg === SELF_FLAG) {
+    // The CLI's global-option parser reads credential flags on past
+    // `--verbose` too.
+    if (arg === SELF_FLAG || arg === VERBOSE_FLAG) {
       tokens.push(arg);
       continue;
     }
@@ -903,6 +906,10 @@ function resolveLegacyActingIdentity(
 
 const CREDENTIAL_FLAG_MESSAGE =
   'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted. Commands run as the owner by default; add --self to run as this bot.';
+const BOT_CREDENTIAL_FLAG_MESSAGE =
+  'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted; this command runs as this bot.';
+const OWNER_IDENTITY_LOST_MESSAGE =
+  'Error: this run lost owner identity while the command was pending; nothing was run. Run it again.';
 const BOT_ONLY_CREDENTIAL_FLAG_MESSAGE =
   'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted on settings, browser or hooks; these commands always run as this bot.';
 const INVALID_DISCOVERY_MESSAGE =
@@ -1400,6 +1407,17 @@ export type TlonToolExecutorDeps = {
   botShip?: string;
   env?: NodeJS.ProcessEnv;
   fileExists?: (path: string) => boolean;
+  /**
+   * The run the gate approved as an owner run has since lost owner identity
+   * (a non-owner message or `sessions_send` demoted it): a command that would
+   * act as the owner is refused.
+   */
+  ownerIdentityLost?: boolean;
+  /**
+   * Reject credential flags with the flag off too: a call with no gate
+   * approval runs as the bot only.
+   */
+  rejectCredentialFlags?: boolean;
 };
 
 /**
@@ -1513,14 +1531,18 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       // settings, browser and hooks are the bot's in both flag states.
       if (
         hasCredentialFlag &&
-        (deps.ownerDefault || BOT_ONLY_FAMILIES.has(family ?? ''))
+        (deps.ownerDefault ||
+          deps.rejectCredentialFlags ||
+          BOT_ONLY_FAMILIES.has(family ?? ''))
       ) {
         return blockedResult(
           deps,
           {
             message: deps.ownerDefault
               ? CREDENTIAL_FLAG_MESSAGE
-              : BOT_ONLY_CREDENTIAL_FLAG_MESSAGE,
+              : deps.rejectCredentialFlags
+                ? BOT_CREDENTIAL_FLAG_MESSAGE
+                : BOT_ONLY_CREDENTIAL_FLAG_MESSAGE,
             reason: 'credential_override',
           },
           family
@@ -1638,6 +1660,9 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
           );
       if ('error' in identity) {
         return errorResult(identity.error);
+      }
+      if (identity.actAs === 'owner' && deps.ownerIdentityLost) {
+        return errorResult(OWNER_IDENTITY_LOST_MESSAGE);
       }
 
       // Model-supplied credentials (allowed only with the flag off) are as
