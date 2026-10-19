@@ -595,17 +595,77 @@ function ownerCredentialPrefixArgs(
   return ['--ship', ownerShip];
 }
 
+const CREATE_OWNED_VALUE_OPTIONS = new Set([
+  '--admin',
+  '--owner',
+  '--description',
+]);
+
 /**
  * Where create-owned's admin option sits in `commandArgs`, found as the CLI
- * finds it: `--admin`, or its legacy alias `--owner`, after the title, with
- * `--admin` winning when both carry a value. -1 when neither does.
+ * finds it: options follow the title and each takes the next token as its
+ * value, and `--admin` wins over its legacy alias `--owner`. When the options
+ * read that way name no admin, the first `--owner` anywhere still counts, as
+ * it did before `--admin` existed. -1 when there is none.
  */
 function createOwnedAdminIndex(commandArgs: string[]): number {
-  for (const option of ['--admin', '--owner']) {
-    const index = commandArgs.indexOf(option, 3);
-    if (index >= 0 && commandArgs[index + 1] !== undefined) return index;
+  let admin = -1;
+  let owner = -1;
+  for (let i = 3; i < commandArgs.length; i += 1) {
+    if (!CREATE_OWNED_VALUE_OPTIONS.has(commandArgs[i])) continue;
+    if (commandArgs[i + 1] !== undefined) {
+      if (commandArgs[i] === '--admin' && admin < 0) admin = i;
+      if (commandArgs[i] === '--owner' && owner < 0) owner = i;
+    }
+    i += 1;
   }
-  return -1;
+  if (admin >= 0) return admin;
+  if (owner >= 0) return owner;
+  const legacy = commandArgs.indexOf('--owner', 3);
+  return legacy >= 0 && commandArgs[legacy + 1] !== undefined ? legacy : -1;
+}
+
+function isCreateOwnedCommand(args: string[]): boolean {
+  const subIdx = findTlonSubcommandIndex(args);
+  return (
+    subIdx >= 0 &&
+    args[subIdx]?.toLowerCase() === 'groups' &&
+    args[subIdx + 1]?.toLowerCase() === 'create-owned'
+  );
+}
+
+/**
+ * The command with its admin spelled `--owner`, which every CLI reads: one
+ * that predates `--admin` rejects it, and a newer one takes `--owner` as its
+ * alias. For a create-owned run as written on the bot's own credentials.
+ */
+function withLegacyAdminSpelling(args: string[]): string[] {
+  const subIdx = findTlonSubcommandIndex(args);
+  const adminIndex = createOwnedAdminIndex(args.slice(subIdx));
+  if (adminIndex < 0 || args[subIdx + adminIndex] !== '--admin') return args;
+  const legacy = [...args];
+  legacy[subIdx + adminIndex] = '--owner';
+  return legacy;
+}
+
+/**
+ * A bot that is its own owner already hosts what it makes, and create-owned
+ * refuses an admin who is the host, so its "workspace for the owner" is a
+ * plain create with the same title and description.
+ */
+function asPlainCreate(args: string[]): string[] {
+  const subIdx = findTlonSubcommandIndex(args);
+  const commandArgs = args.slice(subIdx);
+  const descriptionIndex = commandArgs.indexOf('--description', 3);
+  const description =
+    descriptionIndex >= 0 ? commandArgs[descriptionIndex + 1] : undefined;
+  return [
+    ...args.slice(0, subIdx),
+    commandArgs[0],
+    'create',
+    commandArgs[2],
+    ...(description !== undefined ? ['--description', description] : []),
+  ];
 }
 
 /**
@@ -701,29 +761,37 @@ function ownerCredentialsProvisioned(
 }
 
 /**
- * Runs a create-owned for the owner as the owner, with `--ship <owner>` up
- * front and the admin pair rewritten in place to `--admin <bot>`. In place,
- * because a trailing value option whose value the splitter dropped would take
- * an appended ship as its value and leave the bot out.
+ * Every create-owned goes through here. One for the configured owner runs as
+ * the owner, with `--ship <owner>` up front and the admin pair rewritten in
+ * place to `--admin <bot>`. In place, because a trailing value option whose
+ * value the splitter dropped would take an appended ship as its value and
+ * leave the bot out. Anything else runs as written, with the admin spelled so
+ * any CLI reads it, and a note when it was meant for the owner but stayed on
+ * the bot.
  */
-async function routeWorkspaceToOwner(
+async function routeCreateOwned(
   args: string[],
   deps: TlonToolExecutorDeps
 ): Promise<OwnerRouting> {
+  const asWritten = withLegacyAdminSpelling(args);
   const ownerShip = deps.ownerShip;
+  if (!ownerShip || !shouldCreateWorkspaceOnOwner(args, ownerShip)) {
+    return { args: asWritten };
+  }
   const botShip = deps.botShip;
-  if (!ownerShip || !botShip || botShip === ownerShip) return { args };
+  if (botShip === ownerShip) return { args: asPlainCreate(args) };
+  if (!botShip) return { args: asWritten };
 
   const fallback = `so this ran on your own ship: you host the workspace and ${ownerShip} is its admin.`;
   if (!ownerCredentialsProvisioned(deps, ownerShip, 'the workspace')) {
     return {
-      args,
+      args: asWritten,
       note: `Your owner's credentials aren't available here, ${fallback}`,
     };
   }
   if (!(await cliSupportsAdminOption(deps))) {
     return {
-      args,
+      args: asWritten,
       note: `The installed tlon CLI's create-owned has no --admin, ${fallback}`,
     };
   }
@@ -924,8 +992,8 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
           };
         }
         commandArgs = [...prefixArgs, ...args];
-      } else if (shouldCreateWorkspaceOnOwner(args, deps.ownerShip)) {
-        ({ args: commandArgs, note: routingNote } = await routeWorkspaceToOwner(
+      } else if (isCreateOwnedCommand(args)) {
+        ({ args: commandArgs, note: routingNote } = await routeCreateOwned(
           args,
           deps
         ));

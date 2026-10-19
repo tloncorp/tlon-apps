@@ -138,9 +138,29 @@ function generateGroupSlug(): string {
   return slug;
 }
 
-// `--owner` is the legacy spelling of `--admin`; `--admin` wins when both appear.
+const CREATE_OWNED_VALUE_OPTIONS = new Set([
+  '--admin',
+  '--owner',
+  '--description',
+]);
+
+/**
+ * create-owned's admin ship. Its options follow the title and each takes the
+ * next token as its value, so a description of "--admin" is not an option;
+ * `--admin` wins over its legacy alias `--owner`. When the options read that
+ * way name no admin, the first `--owner` value anywhere still counts, as it
+ * did before `--admin` existed. The tlon tool adapters find it the same way.
+ */
 function getCreateOwnedAdmin(args: string[]): string | undefined {
-  return getOption(args, 'admin', 2) ?? getOption(args, 'owner', 2);
+  let admin: string | undefined;
+  let owner: string | undefined;
+  for (let i = 2; i < args.length; i += 1) {
+    if (!CREATE_OWNED_VALUE_OPTIONS.has(args[i])) continue;
+    if (args[i] === '--admin') admin ??= args[i + 1];
+    if (args[i] === '--owner') owner ??= args[i + 1];
+    i += 1;
+  }
+  return admin ?? owner ?? getOption(args, 'owner', 2);
 }
 
 const GROUPS_HELP = `Usage: tlon groups <command>
@@ -976,12 +996,12 @@ async function createOwnedGroup(
     await assignAdminRole(groupId, adminShip);
     await verifyAdmin(groupId, adminShip);
   } catch (err) {
-    // The group exists now. Name it, so a retry finishes the grant rather than
-    // creating a second group; a failed command's stdout does not reach the
-    // caller.
+    // The group exists now. Name it, so the grant is finished rather than a
+    // second group created; a failed command's stdout does not reach the
+    // caller. Only the host can finish it: the admin may be the one asking.
     const reason = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `Created ${groupId} (Ref: /1/group/${groupId}), but making ${adminShip} its admin failed: ${reason} Do not create it again; finish with: groups promote ${groupId} ${adminShip}`
+      `Created ${groupId} (Ref: /1/group/${groupId}), but making ${adminShip} its admin failed: ${reason} The group exists, so do not create it again. Its host, ${host}, can finish the grant with: groups promote ${groupId} ${adminShip}`
     );
   }
 

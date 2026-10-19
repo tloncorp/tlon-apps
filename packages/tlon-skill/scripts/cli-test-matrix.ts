@@ -854,6 +854,29 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '~sampel-palnet',
     '--self',
   ]),
+  authRequiredCase(
+    'groups create-owned --admin as a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--admin',
+      '--owner',
+      '~sampel-palnet',
+    ]
+  ),
+  authRequiredCase(
+    'groups create-owned legacy --owner after a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--owner',
+      '~sampel-palnet',
+    ]
+  ),
   usageErrorCase(
     'groups create-owned rejects a missing admin',
     ['groups', 'create-owned', 'Projects', '--description', 'Shared'],

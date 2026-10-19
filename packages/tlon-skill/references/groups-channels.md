@@ -14,7 +14,7 @@ On accounts with a hosted Tlonbot, the app’s `New Workspace` action creates a 
 {"command":"groups create-owned \"Project\" --admin ~requester"}
 ```
 
-`create-owned` makes a group hosted by the ship that runs it and makes the `--admin` ship its admin (`--owner` is a legacy alias for `--admin`). Use the actual requester's verified ship identity. Plain `groups create` gives the group no admin besides its host; it is not the default for a user-requested group. Do not report success until the admin step has succeeded. If it fails after the group exists, the error names the group: finish with the `groups promote` it suggests rather than creating it again.
+`create-owned` makes a group hosted by the ship that runs it and makes the `--admin` ship its admin (`--owner` is a legacy alias for `--admin`). Use the actual requester's verified ship identity. Plain `groups create` gives the group no admin besides its host; it is not the default for a user-requested group. Do not report success until the admin step has succeeded. If it fails after the group exists, the error names the group and its host: do not create it again. If you are the host, finish with the `groups promote` it suggests; otherwise ask the host to make the admin an admin in the app.
 
 When the requester is your owner and the runtime holds the owner's hosted credentials, the tool runs this as the owner with you as the admin: the owner's ship hosts the workspace, and you join automatically. Otherwise your own ship hosts it and the tool result says why. The output's `Host:` line says which; name the host when you reply. A workspace hosted by your owner appears in your `groups list` once you have joined it.
 

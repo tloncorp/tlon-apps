@@ -1004,16 +1004,74 @@ def should_inject_owner_credentials(args: Sequence[str]) -> bool:
     )
 
 
+CREATE_OWNED_VALUE_OPTIONS = frozenset({"--admin", "--owner", "--description"})
+
+
 def _create_owned_admin_index(command_args: Sequence[str]) -> int:
     """Where create-owned's admin option sits, found as the CLI finds it:
-    ``--admin``, or its legacy alias ``--owner``, after the title, with
-    ``--admin`` winning when both carry a value. -1 when neither does."""
-    for option in ("--admin", "--owner"):
-        if option in command_args[3:]:
-            index = command_args.index(option, 3)
-            if index + 1 < len(command_args):
-                return index
+    options follow the title and each takes the next token as its value, and
+    ``--admin`` wins over its legacy alias ``--owner``. When the options read
+    that way name no admin, the first ``--owner`` anywhere still counts, as it
+    did before ``--admin`` existed. -1 when there is none."""
+    admin = owner = -1
+    i = 3
+    while i < len(command_args):
+        option = command_args[i]
+        if option in CREATE_OWNED_VALUE_OPTIONS:
+            if i + 1 < len(command_args):
+                if option == "--admin" and admin < 0:
+                    admin = i
+                if option == "--owner" and owner < 0:
+                    owner = i
+            i += 2
+        else:
+            i += 1
+    if admin >= 0:
+        return admin
+    if owner >= 0:
+        return owner
+    if "--owner" in command_args[3:]:
+        legacy = command_args.index("--owner", 3)
+        if legacy + 1 < len(command_args):
+            return legacy
     return -1
+
+
+def _is_create_owned(args: Sequence[str]) -> bool:
+    sub_idx = find_subcommand_index(args)
+    return (
+        sub_idx >= 0
+        and sub_idx + 1 < len(args)
+        and str(args[sub_idx]).lower() == "groups"
+        and str(args[sub_idx + 1]).lower() == "create-owned"
+    )
+
+
+def _with_legacy_admin_spelling(args: Sequence[str]) -> list[str]:
+    """The command with its admin spelled ``--owner``, which every CLI reads:
+    one that predates ``--admin`` rejects it, and a newer one takes ``--owner``
+    as its alias. For a create-owned run as written on the bot's credentials."""
+    legacy = [str(arg) for arg in args]
+    sub_idx = find_subcommand_index(legacy)
+    admin_index = _create_owned_admin_index(legacy[sub_idx:])
+    if admin_index >= 0 and legacy[sub_idx + admin_index] == "--admin":
+        legacy[sub_idx + admin_index] = "--owner"
+    return legacy
+
+
+def _as_plain_create(args: Sequence[str]) -> list[str]:
+    """A bot that is its own owner already hosts what it makes, and
+    create-owned refuses an admin who is the host, so its "workspace for the
+    owner" is a plain create with the same title and description."""
+    all_args = [str(arg) for arg in args]
+    sub_idx = find_subcommand_index(all_args)
+    command_args = all_args[sub_idx:]
+    plain = [*all_args[:sub_idx], command_args[0], "create", command_args[2]]
+    if "--description" in command_args[3:]:
+        index = command_args.index("--description", 3)
+        if index + 1 < len(command_args):
+            plain += ["--description", command_args[index + 1]]
+    return plain
 
 
 def should_create_workspace_on_owner(
@@ -1163,22 +1221,29 @@ def route_channel_to_owner(
     return OwnerRouting(owner_cfg, list(args))
 
 
-async def route_workspace_to_owner(
+async def route_create_owned(
     cfg: TlonConfig,
     args: Sequence[str],
     runner: Optional[CommandRunner] = None,
     env: Mapping[str, str] | None = None,
 ) -> OwnerRouting:
-    """Runs a create-owned for the owner as the owner, with the admin pair
-    rewritten in place to ``--admin <bot>``. In place, because a trailing value
-    option whose value the splitter dropped would take an appended ship as its
-    value and leave the bot out. Unlike invite-link, missing owner credentials
-    are not an error: a bot-hosted workspace still works, and it is all a
-    self-hosted bot can make."""
+    """Every create-owned goes through here. One for the configured owner runs
+    as the owner with the admin pair rewritten in place to ``--admin <bot>``.
+    In place, because a trailing value option whose value the splitter dropped
+    would take an appended ship as its value and leave the bot out. Anything
+    else runs as written, with the admin spelled so any CLI reads it, and a
+    note when it was meant for the owner but stayed on the bot node. Unlike
+    invite-link, missing owner credentials are not an error: a bot-hosted
+    workspace still works, and it is all a self-hosted bot can make."""
+    as_written = _with_legacy_admin_spelling(args)
+    if not should_create_workspace_on_owner(args, cfg.owner_ship):
+        return OwnerRouting(cfg, as_written)
     bot = normalize_ship(cfg.ship_name)
     owner = normalize_ship(cfg.owner_ship)
-    if not bot or bot.lower() == owner.lower():
-        return OwnerRouting(cfg, list(args))
+    if bot and bot.lower() == owner.lower():
+        return OwnerRouting(cfg, _as_plain_create(args))
+    if not bot:
+        return OwnerRouting(cfg, as_written)
 
     fallback = (
         f"so this ran on your own node: you host the workspace and {owner} "
@@ -1188,13 +1253,13 @@ async def route_workspace_to_owner(
     if owner_cfg is None:
         return OwnerRouting(
             cfg,
-            list(args),
+            as_written,
             f"Your owner's credentials aren't available here, {fallback}",
         )
     if not await TlonCLI(cfg, runner=runner).supports_admin_option():
         return OwnerRouting(
             cfg,
-            list(args),
+            as_written,
             f"The installed tlon CLI's create-owned has no --admin, {fallback}",
         )
 
@@ -1274,10 +1339,8 @@ async def execute_tlon_tool(
         if owner_error:
             return _json({"error": owner_error})
         cfg = owner_cfg
-    elif should_create_workspace_on_owner(args, cfg.owner_ship):
-        cfg, args, routing_note = await route_workspace_to_owner(
-            cfg, args, runner=runner
-        )
+    elif _is_create_owned(args):
+        cfg, args, routing_note = await route_create_owned(cfg, args, runner=runner)
     elif should_create_channel_on_owner(args, cfg.owner_ship):
         cfg, args, routing_note = route_channel_to_owner(cfg, args)
 

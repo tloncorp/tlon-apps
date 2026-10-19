@@ -717,6 +717,27 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     return { execute, runCommand, logError };
   }
 
+  it('finds the admin in an option position, past a description of --admin', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('description', {
+      command:
+        'groups create-owned Projects --description --admin --owner owner',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      '--ship',
+      '~owner',
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--admin',
+      '--admin',
+      '~pinser-botter-owner',
+    ]);
+  });
+
   it.each([
     [
       '--owner',
@@ -780,7 +801,7 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     });
 
     const result = await execute('old-cli', {
-      command: 'groups create-owned Projects --owner ~owner',
+      command: 'groups create-owned Projects --admin ~owner',
     });
 
     expect(runCommand).toHaveBeenLastCalledWith([
@@ -805,7 +826,7 @@ describe('owner-hosted workspaces for groups create-owned', () => {
       const { execute, runCommand } = makeExecutor(overrides);
 
       const result = await execute('no-creds', {
-        command: 'groups create-owned Projects --owner ~owner',
+        command: 'groups create-owned Projects --admin ~owner',
       });
 
       expect(runCommand).toHaveBeenLastCalledWith([
@@ -823,7 +844,7 @@ describe('owner-hosted workspaces for groups create-owned', () => {
 
   it.each([
     ['another requester', 'groups create-owned Projects --owner ~someone'],
-    ['--self', 'groups create-owned Projects --admin ~owner --self'],
+    ['--self', 'groups create-owned Projects --owner ~owner --self'],
     ['-h', 'groups create-owned -h'],
     ['--help', 'groups create-owned P --owner ~owner --help'],
     [
@@ -845,20 +866,50 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     expect(result.content[0]?.text).not.toContain('Note:');
   });
 
-  it('runs as written when the bot is its own owner or unknown', async () => {
-    for (const botShip of ['~owner', undefined]) {
-      const { execute, runCommand } = makeExecutor({ botShip });
-      await execute('self', {
-        command: 'groups create-owned Projects --owner ~owner',
-      });
-      expect(runCommand).toHaveBeenLastCalledWith([
-        'groups',
-        'create-owned',
-        'Projects',
-        '--owner',
-        '~owner',
-      ]);
+  it('spells the admin --owner for any create-owned run as written', async () => {
+    for (const command of [
+      'groups create-owned Projects --admin ~someone',
+      'groups create-owned Projects --admin ~owner --self',
+    ]) {
+      const { execute, runCommand } = makeExecutor();
+
+      await execute('legacy', { command });
+
+      const [args] = runCommand.mock.lastCall as unknown as [string[]];
+      expect(args).toEqual(command.replace('--admin', '--owner').split(' '));
     }
+  });
+
+  it('makes a plain group when the bot is its own owner', async () => {
+    const { execute, runCommand } = makeExecutor({ botShip: '~owner' });
+
+    await execute('self', {
+      command: 'groups create-owned Projects --admin ~owner --description Work',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create',
+      'Projects',
+      '--description',
+      'Work',
+    ]);
+  });
+
+  it('runs as written when the bot ship is unknown', async () => {
+    const { execute, runCommand } = makeExecutor({ botShip: undefined });
+
+    await execute('unknown', {
+      command: 'groups create-owned Projects --owner ~owner',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~owner',
+    ]);
   });
 });
 
