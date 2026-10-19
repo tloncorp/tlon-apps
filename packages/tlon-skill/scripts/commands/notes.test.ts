@@ -569,7 +569,10 @@ describe('notes writes call operations with typed args', () => {
   it('note-create resolves root via getNotebook before createNote', async () => {
     const context = makeDeps({
       readFile: () => '# Body',
-      notesV1: { getNotebook: async () => NOTEBOOK_DETAIL },
+      notesV1: {
+        getNotebook: async () => NOTEBOOK_DETAIL,
+        createNote: async () => ({ id: 12, folderId: 3, title: 'Title' }),
+      },
     });
 
     const exitCode = await run(
@@ -586,7 +589,29 @@ describe('notes writes call operations with typed args', () => {
       ],
     });
     expect(context.calls.readFile).toEqual(['note.md']);
-    expect(context.stdout()).toBe('✓ Note created\n');
+    expect(context.stdout()).toBe(
+      [
+        '✓ Note created',
+        '  ID: 12',
+        '  Ref: /1/chan/notes/~zod/blog/note/12',
+        '  Share: include the Ref path in a chat message to post a tappable note card.',
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('note-create points at a readback when the host omits the created note', async () => {
+    const context = makeDeps({ readStdin: async () => 'body' });
+
+    const exitCode = await run(
+      ['note-create', 'notes/~zod/blog', '7', 'Title', '--stdin'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe(
+      '✓ Note created\n  ID: not returned by this host; find it with `notes notes notes/~zod/blog`.\n'
+    );
   });
 
   it('note-create passes an explicit numeric folder without a detail read', async () => {
@@ -721,6 +746,15 @@ describe('notes writes call operations with typed args', () => {
         expectedRevision: undefined,
       },
     ]);
+    expect(noRev.stdout()).toBe(
+      [
+        '✓ Note updated',
+        '  ID: 12',
+        '  Ref: /1/chan/notes/~zod/blog/note/12',
+        '  Share: include the Ref path in a chat message to post a tappable note card.',
+        '',
+      ].join('\n')
+    );
   });
 
   it('note-update rejects a known option token as a file value', async () => {

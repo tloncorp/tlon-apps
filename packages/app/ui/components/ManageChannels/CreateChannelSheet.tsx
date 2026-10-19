@@ -206,7 +206,8 @@ export function CreateChannelSheet({
             <ActionSheet.FormBlock>
               <SystemNotices.NoticeFrame>
                 <SystemNotices.NoticeBody>
-                  Buckets are currently available only in groups hosted on Tlon.
+                  Buckets are currently available only in workspaces hosted on
+                  Tlon.
                 </SystemNotices.NoticeBody>
               </SystemNotices.NoticeFrame>
             </ActionSheet.FormBlock>

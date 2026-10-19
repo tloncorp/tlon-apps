@@ -34,6 +34,7 @@ import { Text, View, XStack, YStack } from 'tamagui';
 import useAppStatus from '../../hooks/useAppStatus';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
+import { useRootNavigation } from '../../navigation/utils';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import {
   AttachmentDraftsProvider,
@@ -311,6 +312,8 @@ function PostScreenViewContent({
     setGroupPreview(group);
   }, []);
 
+  const { navigateToChannel } = useRootNavigation();
+
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
       onGroupAction(action, group);
@@ -385,6 +388,7 @@ function PostScreenViewContent({
       onGoToUserProfile={handleGoToUserProfile}
       onPressRef={handleRefPress}
       onPressGroupRef={onPressGroupRef}
+      onPressChannelRef={navigateToChannel}
       onPressGoToDm={goToDm}
     >
       <ChannelHeaderItemsProvider>

@@ -68,14 +68,14 @@ const SLIDES: Record<
     accent: 'It works for you, and only you.',
     points: [
       {
+        icon: 'people',
+        title: 'Bring it into your chats',
+        detail: 'Collaborate with friends in your workspaces.',
+      },
+      {
         icon: 'chat',
         title: 'Ask it anything',
         detail: 'Questions, web searches and reminders.',
-      },
-      {
-        icon: 'people',
-        title: 'Bring it into your chats',
-        detail: 'Collaborate with friends in group chats.',
       },
       {
         icon: 'plug',
@@ -90,15 +90,13 @@ const SLIDES: Record<
     points: [
       {
         icon: 'computer',
-        title: 'Lives on a computer you own',
-        detail:
-          'It runs on your own Tlon computer, and you can take it with you any time.',
+        title: 'Lives on a private computer you own',
+        detail: 'You can take it with you any time.',
       },
       {
         icon: 'lock',
         title: 'Zero data retention',
-        detail:
-          'By default, the AI company behind it keeps none of your messages.',
+        detail: 'By default, the AI behind it keeps none of your messages.',
       },
       {
         icon: 'sliders',

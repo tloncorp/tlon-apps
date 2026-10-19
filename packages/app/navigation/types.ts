@@ -139,7 +139,6 @@ export type RootStackParamList = {
   BotPromptFile: { name: string; botShip?: string };
   BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
   BotModels: undefined;
-  BotConnections: undefined;
   ScheduledTasks: {
     botShip: string;
     /** Narrows the list to the tasks that post into this group. */
@@ -298,7 +297,6 @@ export type SettingsDrawerParamList = Pick<
   | 'BotPromptFile'
   | 'BotProviderListSettings'
   | 'BotModels'
-  | 'BotConnections'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
   | 'BlockedUsers'

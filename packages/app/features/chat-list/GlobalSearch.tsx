@@ -165,7 +165,7 @@ export function GlobalSearch({
       >
         <TextInput
           ref={inputRef}
-          placeholder={`Navigate to groups, DMs, or channels (${
+          placeholder={`Navigate to workspaces, DMs, or channels (${
             navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'
           })`}
           icon="Search"

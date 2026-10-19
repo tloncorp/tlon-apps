@@ -958,6 +958,15 @@ BOT_FLAG = "--bot"
 _BOT_FLAG_TOKEN = re.compile(r"(?<![\w-])--bot(?![\w-])")
 
 
+# `groups create-owned --admin` arrived later still. A CLI without it knows
+# only --owner, which makes the named ship admin of a group hosted by whoever
+# runs it, so the owner-hosted workspace path probes for --admin first and
+# keeps the bot-hosted create when it is missing.
+ADMIN_OPTION_PROBE_ARGS = ("groups", "create-owned", "--help")
+ADMIN_OPTION = "--admin"
+_ADMIN_OPTION_TOKEN = re.compile(r"(?<![\w-])--admin(?![\w-])")
+
+
 def _is_bot_flag_token(arg: str) -> bool:
     """`--bot` and the joined form the CLI rejects as a usage error. Both have
     to be recognized here: an older CLI has no bot-flag parser to reject them,
@@ -1043,6 +1052,29 @@ class TlonCLI:
                     result.returncode,
                 )
             return supported
+
+    async def supports_admin_option(self) -> bool:
+        """Whether the installed CLI's ``groups create-owned`` takes ``--admin``.
+        Not cached: only the rare owner-hosted workspace path asks, and its
+        caller builds a fresh TlonCLI each time anyway."""
+        # Unobserved so a help invocation never lands in CLI telemetry.
+        result = await self._run_unobserved(
+            ADMIN_OPTION_PROBE_ARGS, timeout=BOT_FLAG_PROBE_TIMEOUT_SECONDS
+        )
+        supported = bool(result.success) and bool(
+            _ADMIN_OPTION_TOKEN.search(f"{result.stdout}\n{result.stderr}")
+        )
+        if not supported:
+            logger.error(
+                "[tlon] installed tlon CLI (%s) does not support groups "
+                "create-owned %s (probe rc=%s) — creating the workspace on the "
+                "bot node instead of the owner's. Rebuild the image with a tlon "
+                "CLI that has it.",
+                self.config.cli,
+                ADMIN_OPTION,
+                result.returncode,
+            )
+        return supported
 
     async def _decorate(self, args: Sequence[str]) -> tuple[str, ...]:
         """Append the bot-author flags to every message-authoring invocation.

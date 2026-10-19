@@ -504,6 +504,13 @@ export const SPECIAL_INPUT_CASES: CliCase[] = [
 ];
 
 export const NESTED_HELP_CASES: CliCase[] = [
+  ...(['mute', 'unmute', 'volume'] as const).map((command) =>
+    helpCase(
+      `activity ${command} --help`,
+      ['activity', command, '--help'],
+      `Usage: tlon activity ${command}`
+    )
+  ),
   helpCase(
     'channels info --help',
     ['channels', 'info', '--help'],
@@ -832,6 +839,73 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '--owner',
     '~zod',
   ]),
+  authRequiredCase('groups create-owned with --admin reaches auth', [
+    'groups',
+    'create-owned',
+    'Projects',
+    '--admin',
+    '~pinser-botter-sampel-palnet',
+  ]),
+  authRequiredCase('groups create-owned --self reaches auth', [
+    'groups',
+    'create-owned',
+    'Projects',
+    '--admin',
+    '~sampel-palnet',
+    '--self',
+  ]),
+  authRequiredCase(
+    'groups create-owned --admin as a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--admin',
+      '--owner',
+      '~sampel-palnet',
+    ]
+  ),
+  authRequiredCase(
+    'groups create-owned legacy --owner after a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--owner',
+      '~sampel-palnet',
+    ]
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a missing admin',
+    ['groups', 'create-owned', 'Projects', '--description', 'Shared'],
+    'Usage: tlon groups create-owned'
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a bare --admin',
+    ['groups', 'create-owned', 'Projects', '--admin'],
+    'Usage: tlon groups create-owned'
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a flag as the admin',
+    ['groups', 'create-owned', 'Projects', '--admin', '--description'],
+    'Usage: tlon groups create-owned'
+  ),
+  authRequiredCase('channels create --self reaches auth', [
+    'channels',
+    'create',
+    '~sampel-palnet/team',
+    'Discussion',
+    '--self',
+  ]),
+  authRequiredCase('groups add-channel --self reaches auth', [
+    'groups',
+    'add-channel',
+    '~sampel-palnet/team',
+    'Discussion',
+    '--self',
+  ]),
   authRequiredCase('groups update title option-like value reaches auth', [
     'groups',
     'update',
@@ -980,6 +1054,140 @@ export const POSTS_FAMILY_CASES: CliCase[] = [
     'chat/~host/channel',
     '170.141',
     '--help',
+  ]),
+];
+
+// `posts pin`/`unpin` and thread-reply `edit`/`delete --parent`: target and
+// argument refusals are local; well-formed invocations reach auth.
+export const POSTS_PIN_AND_REPLY_CASES: CliCase[] = [
+  helpCase('posts pin --help', ['posts', 'pin', '--help'], 'tlon posts pin'),
+  helpCase(
+    'posts unpin --help',
+    ['posts', 'unpin', '--help'],
+    'tlon posts unpin'
+  ),
+  usageErrorCase(
+    'posts pin missing post id',
+    ['posts', 'pin', 'chat/~host/channel'],
+    'Usage: tlon posts pin'
+  ),
+  usageErrorCase(
+    'posts unpin missing args',
+    ['posts', 'unpin'],
+    'Usage: tlon posts unpin'
+  ),
+  {
+    ...usageErrorCase(
+      'posts pin rejects an extra token',
+      ['posts', 'pin', 'chat/~host/channel', '170.141', '--parent', '170.140'],
+      'Unexpected argument: --parent'
+    ),
+    stderrIncludes: ['Unexpected argument: --parent', 'Usage: tlon posts pin'],
+  },
+  {
+    ...usageErrorCase(
+      'posts unpin rejects an extra token',
+      ['posts', 'unpin', 'chat/~host/channel', '170.141', 'extra'],
+      'Unexpected argument: extra'
+    ),
+    stderrIncludes: ['Unexpected argument: extra', 'Usage: tlon posts unpin'],
+  },
+  usageErrorCase(
+    'posts edit rejects an option-like --parent value',
+    [
+      'posts',
+      'edit',
+      'chat/~host/channel',
+      '170.142',
+      'text',
+      '--parent',
+      '--x',
+    ],
+    'Usage: tlon posts edit'
+  ),
+  usageErrorCase(
+    'posts edit rejects text that was only --parent',
+    ['posts', 'edit', 'chat/~host/channel', '170.142', '--parent', '170.141'],
+    'Usage: tlon posts edit'
+  ),
+  usageErrorCase(
+    'posts delete rejects --parent in the post id slot',
+    ['posts', 'delete', 'chat/~host/channel', '--parent', '170.141'],
+    'Usage: tlon posts delete'
+  ),
+  authRequiredCase('posts pin valid args reaches auth', [
+    'posts',
+    'pin',
+    'chat/~host/channel',
+    '170.141',
+  ]),
+  authRequiredCase('posts pin with a host lacking ~ reaches auth', [
+    'posts',
+    'pin',
+    'chat/host/channel',
+    '170.141',
+  ]),
+  authRequiredCase('posts unpin valid args reaches auth', [
+    'posts',
+    'unpin',
+    'heap/~host/gallery',
+    '170.141',
+  ]),
+  authRequiredCase('posts edit --parent reaches auth', [
+    'posts',
+    'edit',
+    'chat/~host/channel',
+    '170.142',
+    'Fixed text',
+    '--parent',
+    '170.141',
+  ]),
+  authRequiredCase('posts delete --parent reaches auth', [
+    'posts',
+    'delete',
+    'chat/~host/channel',
+    '170.142',
+    '--parent',
+    '170.141',
+  ]),
+  refusalCase(
+    'posts pin refuses a DM target before auth',
+    ['posts', 'pin', '~zod', '170.141'],
+    'Pins are for group channels (chat/ or heap/); ~zod is a DM.'
+  ),
+  refusalCase(
+    'posts unpin refuses a non-group nest before auth',
+    ['posts', 'unpin', 'buckets/~host/files', '170.141'],
+    'Pins are for group chat/ and heap/ channels; buckets/~host/files is not one.'
+  ),
+  refusalCase(
+    'posts delete --parent refuses a DM target before auth',
+    ['posts', 'delete', '0v1.abc', '170.142', '--parent', '170.141'],
+    'Editing or deleting a thread reply is supported in group channels only; 0v1.abc is a DM.'
+  ),
+  diaryRefusedCase('posts pin diary nest refuses', [
+    'posts',
+    'pin',
+    'diary/~host/blog',
+    '170.141',
+  ]),
+  diaryRefusedCase('posts unpin diary nest refuses', [
+    'posts',
+    'unpin',
+    'diary/~host/blog',
+    '170.141',
+  ]),
+  notesContentRefusedCase('posts pin notes nest refuses', [
+    'posts',
+    'pin',
+    'notes/~host/blog',
+    '170.141',
+  ]),
+  notesContentRefusedCase('posts unpin notes nest refuses', [
+    'posts',
+    'unpin',
+    'notes/~host/blog',
+    '170.141',
   ]),
 ];
 
@@ -1745,6 +1953,112 @@ export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
   },
 ];
 
+// `activity mute|unmute|volume`: target, post-id and level validation and the
+// local refusals all happen before any credential lookup.
+function activityUsageCase(
+  name: string,
+  args: string[],
+  message: string
+): CliCase {
+  return {
+    ...usageErrorCase(name, ['activity', ...args]),
+    stderrIncludes: [`Error: ${message}`, `Usage: tlon activity ${args[0]}`],
+  };
+}
+
+const DM_LEVELS_MESSAGE =
+  'DMs take medium, hush or default (the app offers only these for DMs)';
+
+export const ACTIVITY_VOLUME_CASES: CliCase[] = [
+  activityUsageCase(
+    'activity volume unknown level',
+    ['volume', '~zod/book-club', 'bogus'],
+    'Unknown level: bogus. Levels: loud, medium, soft, hush, default'
+  ),
+  activityUsageCase(
+    'activity volume DM soft',
+    ['volume', '~ten', 'soft'],
+    DM_LEVELS_MESSAGE
+  ),
+  activityUsageCase(
+    'activity mute invalid ship',
+    ['mute', '~foo'],
+    'Invalid ship: ~foo (expected a ship such as ~sampel-palnet)'
+  ),
+  activityUsageCase(
+    'activity mute invalid group-DM id',
+    ['mute', '0v4.abc'],
+    'Invalid group-DM id: 0v4.abc (expected a 0v... id such as 0v1f.abcde)'
+  ),
+  activityUsageCase(
+    'activity mute invalid channel',
+    ['mute', 'chat//general'],
+    'Invalid channel: chat//general (expected chat/~host/channel-slug or heap/~host/channel-slug)'
+  ),
+  activityUsageCase(
+    'activity unmute invalid post id',
+    ['unmute', 'chat/~nec/general', '1..2'],
+    'Invalid post id: 1..2 (expected a numeric post id such as 170.141.184.507)'
+  ),
+  activityUsageCase(
+    'activity mute group with a post id',
+    ['mute', '~zod/book-club', '170.141'],
+    'A thread needs a channel (chat/~host/name), not a group id'
+  ),
+  activityUsageCase(
+    'activity mute extra argument',
+    ['mute', 'chat/~nec/general', '170.141', 'extra'],
+    'Unexpected argument: extra'
+  ),
+  activityUsageCase(
+    'activity mute unknown option',
+    ['mute', '~ten', '--force'],
+    'Unknown option: --force'
+  ),
+  refusalCase(
+    'activity mute refuses a notes channel',
+    ['activity', 'mute', 'notes/~zod/blog'],
+    'Notification levels for notes channels are not supported by this command yet'
+  ),
+  diaryRefusedCase('activity mute refuses a diary channel', [
+    'activity',
+    'mute',
+    'diary/~zod/blog',
+  ]),
+  refusalCase(
+    'activity mute refuses a DM thread',
+    ['activity', 'mute', '~ten', '170.141'],
+    'Thread notification settings are supported for group channel threads only'
+  ),
+  authRequiredCase('activity mute reaches auth', ['activity', 'mute', '~ten']),
+  authRequiredCase('activity mute --self reaches auth', [
+    'activity',
+    'mute',
+    '~ten',
+    '--self',
+  ]),
+  authRequiredCase('activity volume reaches auth', [
+    'activity',
+    'volume',
+    '~zod/book-club',
+    'soft',
+  ]),
+  authRequiredCase('activity unmute thread reaches auth', [
+    'activity',
+    'unmute',
+    'chat/~nec/general',
+    '170.141',
+  ]),
+  {
+    name: 'activity mute explicit --config beats owner routing',
+    args: ['--config', '/nonexistent', 'activity', 'mute', '~ten'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Ship config not found'],
+    stderrExcludes: ['Usage:', ...STACK_PATTERNS],
+  },
+];
+
 // `channels leave` / `channels join` pre-auth validation: only chat/heap nests
 // reach auth; diary, %notes, and other nests are refused locally.
 export const CHANNEL_MEMBERSHIP_CASES: CliCase[] = (
@@ -1792,6 +2106,118 @@ export const CHANNEL_MEMBERSHIP_CASES: CliCase[] = (
   ]),
 ]);
 
+const GROUP = '~host/group';
+const MOVE_CHANNEL = ['groups', 'move-channel', GROUP, 'chat/~host/general'];
+
+// Section commands validate locally (arity, blank titles, --section/--index,
+// nest format) before credentials are looked up.
+export const GROUP_SECTION_CASES: CliCase[] = [
+  ...(
+    [
+      ['add-section', ['groups', 'add-section', GROUP]],
+      ['rename-section', ['groups', 'rename-section', GROUP, 'Archive']],
+      ['delete-section', ['groups', 'delete-section', GROUP]],
+      ['move-channel', ['groups', 'move-channel', GROUP]],
+      ['order-sections', ['groups', 'order-sections', GROUP]],
+    ] as const
+  ).flatMap(([command, missingArgs]) => [
+    usageErrorCase(
+      `groups ${command} missing args`,
+      [...missingArgs],
+      `Usage: tlon groups ${command}`
+    ),
+    helpCase(
+      `groups ${command} --help`,
+      ['groups', command, '--help'],
+      `Usage: tlon groups ${command}`
+    ),
+  ]),
+  usageErrorCase(
+    'groups add-section blank title',
+    ['groups', 'add-section', GROUP, '   '],
+    'a non-blank section title is required'
+  ),
+  usageErrorCase(
+    'groups rename-section blank title',
+    ['groups', 'rename-section', GROUP, 'Archive', ' '],
+    'a non-blank section title is required'
+  ),
+  usageErrorCase(
+    'groups move-channel missing --section',
+    [...MOVE_CHANNEL],
+    'Usage: tlon groups move-channel'
+  ),
+  usageErrorCase(
+    'groups move-channel --section followed by --index',
+    [...MOVE_CHANNEL, '--section', '--index', '2'],
+    'Usage: tlon groups move-channel'
+  ),
+  usageErrorCase(
+    'groups move-channel dangling --section',
+    [...MOVE_CHANNEL, '--section'],
+    'Usage: tlon groups move-channel'
+  ),
+  ...(
+    [
+      ['negative', ['--index', '-1']],
+      ['non-numeric', ['--index', 'x']],
+      ['dangling', ['--index']],
+    ] as const
+  ).map(([label, index]) =>
+    usageErrorCase(
+      `groups move-channel ${label} --index`,
+      [...MOVE_CHANNEL, '--section', 'Archive', ...index],
+      '--index requires a non-negative integer'
+    )
+  ),
+  refusalCase(
+    'groups move-channel malformed nest refuses',
+    ['groups', 'move-channel', GROUP, 'chat/~host', '--section', 'Archive'],
+    'Invalid nest format: chat/~host'
+  ),
+  diaryRefusedCase('groups move-channel diary nest refuses', [
+    'groups',
+    'move-channel',
+    GROUP,
+    'diary/~host/blog',
+    '--section',
+    'Archive',
+  ]),
+  authRequiredCase('groups add-section reaches auth', [
+    'groups',
+    'add-section',
+    GROUP,
+    'Archive',
+  ]),
+  authRequiredCase('groups rename-section reaches auth', [
+    'groups',
+    'rename-section',
+    GROUP,
+    'Archive',
+    'Old stuff',
+  ]),
+  authRequiredCase('groups delete-section reaches auth', [
+    'groups',
+    'delete-section',
+    GROUP,
+    'Archive',
+  ]),
+  authRequiredCase('groups move-channel reaches auth', [
+    ...MOVE_CHANNEL,
+    '--section',
+    'Archive',
+    '--index',
+    '0',
+  ]),
+  authRequiredCase('groups order-sections reaches auth', [
+    'groups',
+    'order-sections',
+    GROUP,
+    'Archive',
+    'default',
+  ]),
+];
+
 export const CLI_MATRIX_CASES: CliCase[] = [
   ...(['channels', 'groups'] as const).flatMap((family) => {
     const operation = family === 'channels' ? 'create' : 'add-channel';
@@ -1818,13 +2244,16 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NESTED_HELP_CASES,
   ...LITERAL_OPTION_LIKE_VALUE_CASES,
   ...POSTS_FAMILY_CASES,
+  ...POSTS_PIN_AND_REPLY_CASES,
   ...REACTION_PARENT_CASES,
   ...NOTES_FAMILY_CASES,
   ...NOTES_CHANNEL_KIND_CASES,
   ...NOTES_CONTENT_UNSUPPORTED_CASES,
   ...DIARY_REMOVED_CASES,
   ...INVITE_LINK_CREDENTIAL_CASES,
+  ...ACTIVITY_VOLUME_CASES,
   ...CHANNEL_MEMBERSHIP_CASES,
+  ...GROUP_SECTION_CASES,
 ];
 
 export type HostileHelpCommand = {
@@ -1842,12 +2271,28 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
     args: [family, '--help'],
   })),
   { name: 'groups invite-link', args: ['groups', 'invite-link', '--help'] },
+  ...['mute', 'unmute', 'volume'].map((command) => ({
+    name: `activity ${command}`,
+    args: ['activity', command, '--help'],
+  })),
+  ...[
+    'add-section',
+    'rename-section',
+    'delete-section',
+    'move-channel',
+    'order-sections',
+  ].map((command) => ({
+    name: `groups ${command}`,
+    args: ['groups', command, '--help'],
+  })),
   { name: 'posts react', args: ['posts', 'react', '--help'] },
   { name: 'posts send', args: ['posts', 'send', '--help'] },
   { name: 'posts reply', args: ['posts', 'reply', '--help'] },
   { name: 'posts unreact', args: ['posts', 'unreact', '--help'] },
   { name: 'posts delete', args: ['posts', 'delete', '--help'] },
   { name: 'posts edit', args: ['posts', 'edit', '--help'] },
+  { name: 'posts pin', args: ['posts', 'pin', '--help'] },
+  { name: 'posts unpin', args: ['posts', 'unpin', '--help'] },
   { name: 'notes status', args: ['notes', 'status', '--help'] },
   { name: 'notes request', args: ['notes', 'request', '--help'] },
   { name: 'notes list', args: ['notes', 'list', '--help'] },

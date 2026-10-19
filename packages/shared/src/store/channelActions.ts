@@ -39,7 +39,7 @@ class NotesChannelListingUnverifiedError extends Error {}
 class BucketsChannelListingUnverifiedError extends Error {}
 
 export const BUCKETS_HOSTED_SHIP_REQUIRED_MESSAGE =
-  'Buckets are currently available only in groups hosted on Tlon.';
+  'Buckets are currently available only in workspaces hosted on Tlon.';
 
 /**
  * Whether `ship` could hold buckets at all.
