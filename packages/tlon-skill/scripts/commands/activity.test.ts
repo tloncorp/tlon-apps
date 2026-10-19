@@ -9,8 +9,15 @@ import {
   ACTIVITY_HELP,
   type ActivityDeps,
   type ActivityEvent,
+  type ActivityInit,
   BASE_LEVELS_MESSAGE,
+  type ChannelUnread,
   DM_THREAD_REFUSAL,
+  type GroupUnread,
+  MARK_READ_ALL_WITH_TARGET,
+  MARK_READ_POST_ID_MESSAGE,
+  type MarkReadTarget,
+  NOTES_MARK_READ_REFUSAL,
   NOTES_VOLUME_REFUSAL,
   type PokeOutcome,
   type RootPost,
@@ -24,6 +31,7 @@ function unusedVolumeDeps(): Pick<
   ActivityDeps,
   | 'volumeApi'
   | 'volume'
+  | 'readApi'
   | 'isJoinedGroup'
   | 'getChannelState'
   | 'findRootPost'
@@ -36,6 +44,7 @@ function unusedVolumeDeps(): Pick<
   return {
     volumeApi: { adjustVolumeSetting: unused, getVolumeSettings: unused },
     volume: volumeHelpers,
+    readApi: { markRead: unused, getUnreads: unused },
     isJoinedGroup: unused,
     getChannelState: unused,
     findRootPost: unused,
@@ -1563,6 +1572,855 @@ describe('activity mute / unmute / volume: arguments', () => {
       ...Object.values(ACTIVITY_COMMAND_HELP),
     ]) {
       expect(help).not.toContain('OpenClaw');
+    }
+  });
+});
+
+const dmSummary = (
+  channelId: string,
+  count: number,
+  updatedAt = 1,
+  notify = false
+): ChannelUnread => ({
+  channelId,
+  type: 'dm',
+  count,
+  notify,
+  countWithoutThreads: count,
+  updatedAt,
+});
+const channelSummary = (
+  channelId: string,
+  count: number,
+  updatedAt = 1,
+  notify = false
+): ChannelUnread => ({
+  channelId,
+  type: 'channel',
+  count,
+  notify,
+  countWithoutThreads: count,
+  updatedAt,
+});
+const groupSummary = (
+  groupId: string,
+  count: number,
+  updatedAt = 1,
+  notify = false
+): GroupUnread => ({ groupId, count, notify, updatedAt });
+
+function unreads(
+  summaries: Array<ChannelUnread | GroupUnread> = []
+): ActivityInit {
+  return {
+    groupUnreads: summaries.filter(
+      (summary): summary is GroupUnread => 'groupId' in summary
+    ),
+    channelUnreads: summaries.filter(
+      (summary): summary is ChannelUnread => 'channelId' in summary
+    ),
+    threadActivity: [],
+  };
+}
+const NONE = unreads();
+
+function makeReadContext(
+  options: {
+    groups?: string[];
+    channelStates?: Step<ChannelState>[];
+    poke?: Step<PokeOutcome>;
+    // The snapshot first, then each read-back; the last step repeats.
+    unreads?: Step<ActivityInit>[];
+  } = {}
+) {
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  const calls = {
+    authenticate: 0,
+    marks: [] as MarkReadTarget[],
+    unreadReads: 0,
+    sleeps: [] as number[],
+    isJoinedGroup: [] as string[],
+    getChannelState: [] as string[],
+    order: [] as string[],
+  };
+  const nextChannelState = sequence<ChannelState>(
+    options.channelStates ?? [{ joined: true, groupId: GROUP, order: [] }]
+  );
+  const nextPoke = sequence<PokeOutcome>([options.poke ?? { kind: 'acked' }]);
+  const nextUnreads = sequence<ActivityInit>(options.unreads ?? [NONE]);
+
+  const deps: ActivityDeps = {
+    ...unusedVolumeDeps(),
+    stdout: (text) => stdout.push(text),
+    stderr: (text) => stderr.push(text),
+    authenticate: async () => {
+      calls.authenticate += 1;
+      calls.order.push('authenticate');
+    },
+    activityApi: {
+      getInitialActivity: async () => ({ events: [] }),
+      getGroupAndChannelUnreads: async () => {
+        throw new Error('unused');
+      },
+    },
+    format: makeDeps().deps.format,
+    readApi: {
+      markRead: async (target) => {
+        calls.marks.push(target);
+        calls.order.push('mark');
+        const outcome = await nextPoke();
+        calls.order.push('mark settled');
+        return outcome;
+      },
+      getUnreads: async () => {
+        calls.unreadReads += 1;
+        calls.order.push('unreads');
+        return nextUnreads();
+      },
+    },
+    isJoinedGroup: async (flag) => {
+      calls.isJoinedGroup.push(flag);
+      return (options.groups ?? [GROUP]).includes(flag);
+    },
+    getChannelState: async (nest) => {
+      calls.getChannelState.push(nest);
+      return nextChannelState();
+    },
+    getCurrentUserId: () => ACTING,
+    sleep: async (ms) => {
+      calls.sleeps.push(ms);
+    },
+  };
+
+  return {
+    deps,
+    calls,
+    stdout: () => stdout.join(''),
+    stderr: () => stderr.join(''),
+  };
+}
+
+const DM_WHERE = 'Workspaces tab → press and hold the chat → Mark as read';
+const CHANNEL_WHERE =
+  'open its group → press and hold the channel → Mark as read';
+const GROUP_WHERE =
+  'Workspaces tab → press and hold the group → Mark all as read';
+const ALL_WHERE = 'Activity tab → ⋯ → Mark all as read';
+const RERUN = 'Running the command again is safe.';
+
+describe('activity mark-read: payloads', () => {
+  const cases: Array<{ args: string[]; target: MarkReadTarget }> = [
+    { args: [AUTHOR], target: { kind: 'dm-ship', ship: AUTHOR } },
+    { args: [CLUB], target: { kind: 'dm-club', club: CLUB } },
+    { args: [GROUP], target: { kind: 'group', flag: GROUP } },
+    { args: [NEST], target: { kind: 'channel', nest: NEST, groupId: GROUP } },
+    {
+      args: ['heap/~nec/pics'],
+      target: { kind: 'channel', nest: 'heap/~nec/pics', groupId: GROUP },
+    },
+    { args: ['--all'], target: { kind: 'all' } },
+  ];
+
+  for (const testCase of cases) {
+    it(`mark-read ${testCase.args.join(' ')} sends the exact read target`, async () => {
+      const context = makeReadContext();
+
+      expect(await run(['mark-read', ...testCase.args], context.deps)).toBe(0);
+      expect(context.calls.marks).toEqual([testCase.target]);
+      expect(context.stdout().startsWith('✓ ')).toBe(true);
+      expect(context.stderr()).toBe('');
+      expect(context.calls.order).toEqual([
+        'authenticate',
+        'unreads',
+        'mark',
+        'mark settled',
+        'unreads',
+      ]);
+    });
+  }
+
+  it('takes a channel group from the channel state, not the nest host', async () => {
+    const context = makeReadContext();
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(0);
+    expect(context.calls.marks).toEqual([
+      { kind: 'channel', nest: NEST, groupId: '~zod/book-club' },
+    ]);
+  });
+
+  it('ignores --self before or after the target and with --all', async () => {
+    for (const args of [
+      ['mark-read', '--self', AUTHOR],
+      ['mark-read', AUTHOR, '--self'],
+    ]) {
+      const context = makeReadContext();
+      expect(await run(args, context.deps)).toBe(0);
+      expect(context.calls.marks).toEqual([{ kind: 'dm-ship', ship: AUTHOR }]);
+    }
+    const context = makeReadContext();
+    expect(await run(['mark-read', '--all', '--self'], context.deps)).toBe(0);
+    expect(context.calls.marks).toEqual([{ kind: 'all' }]);
+  });
+});
+
+describe('activity mark-read: resolution', () => {
+  it('refuses a group that is not joined without reading or marking', async () => {
+    const context = makeReadContext({ groups: [] });
+
+    expect(await run(['mark-read', '~zod/other'], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      'Error: Group ~zod/other is not joined on this ship; nothing changed.\n'
+    );
+    expect(context.calls.marks).toEqual([]);
+    expect(context.calls.unreadReads).toBe(0);
+  });
+
+  it('refuses a channel that is not joined without reading or marking', async () => {
+    const context = makeReadContext({
+      channelStates: [{ joined: false }],
+    });
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Channel ${NEST} is not joined on this ship; nothing changed.\n`
+    );
+    expect(context.calls.marks).toEqual([]);
+    expect(context.calls.unreadReads).toBe(0);
+  });
+
+  it('reports an unreadable channel state without marking', async () => {
+    const context = makeReadContext({
+      channelStates: [new Error('scry 500')],
+    });
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      'Error: Could not read channels: scry 500; nothing changed.\n'
+    );
+    expect(context.calls.marks).toEqual([]);
+  });
+
+  it('reports an unreadable snapshot without marking', async () => {
+    for (const args of [[GROUP], ['--all']]) {
+      const context = makeReadContext({ unreads: [new Error('scry 500')] });
+
+      expect(await run(['mark-read', ...args], context.deps)).toBe(1);
+      expect(context.stderr()).toBe(
+        'Error: Could not read unreads: scry 500; nothing changed.\n'
+      );
+      expect(context.calls.marks).toEqual([]);
+      expect(context.calls.unreadReads).toBe(1);
+    }
+  });
+
+  it('makes no identity lookups for DM, group DM or group targets', async () => {
+    for (const target of [AUTHOR, CLUB, GROUP]) {
+      const context = makeReadContext();
+      expect(await run(['mark-read', target], context.deps)).toBe(0);
+      expect(context.calls.getChannelState).toEqual([]);
+    }
+  });
+});
+
+describe('activity mark-read: read-back', () => {
+  it('confirms a group on the first read', async () => {
+    const context = makeReadContext({
+      unreads: [unreads([groupSummary(GROUP, 14)]), unreads([])],
+    });
+
+    expect(await run(['mark-read', GROUP], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked group ${GROUP} read for ${ACTING} (cleared 14 unreads)\n  In the app: ${GROUP_WHERE}\n`
+    );
+    expect(context.calls.sleeps).toEqual([]);
+  });
+
+  it('confirms a DM whose summary stays with a zero count', async () => {
+    const context = makeReadContext({
+      unreads: [
+        unreads([dmSummary(AUTHOR, 3)]),
+        unreads([dmSummary(AUTHOR, 0)]),
+      ],
+    });
+
+    expect(await run(['mark-read', AUTHOR], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked DM with ${AUTHOR} read for ${ACTING} (cleared 3 unreads)\n  In the app: ${DM_WHERE}\n`
+    );
+  });
+
+  it('says one unread in the singular', async () => {
+    const context = makeReadContext({
+      unreads: [unreads([dmSummary(CLUB, 1)]), NONE],
+    });
+
+    expect(await run(['mark-read', CLUB], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked group DM ${CLUB} read for ${ACTING} (cleared 1 unread)\n  In the app: ${DM_WHERE}\n`
+    );
+  });
+
+  it('still sends the read when the snapshot shows nothing', async () => {
+    for (const snapshot of [NONE, unreads([channelSummary(NEST, 0)])]) {
+      const context = makeReadContext({ unreads: [snapshot, NONE] });
+
+      expect(await run(['mark-read', NEST], context.deps)).toBe(0);
+      expect(context.calls.marks).toHaveLength(1);
+      expect(context.stdout()).toBe(
+        `✓ Marked channel ${NEST} read for ${ACTING} (no reported unreads)\n  In the app: ${CHANNEL_WHERE}\n`
+      );
+    }
+  });
+
+  it('reports a cleared notification when the count was zero', async () => {
+    const context = makeReadContext({
+      unreads: [unreads([channelSummary(NEST, 0, 1, true)]), NONE],
+    });
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked channel ${NEST} read for ${ACTING} (cleared its notification)\n  In the app: ${CHANNEL_WHERE}\n`
+    );
+  });
+
+  it('confirms on the third read after two stale ones', async () => {
+    const stale = unreads([groupSummary(GROUP, 2)]);
+    const context = makeReadContext({
+      unreads: [stale, stale, stale, NONE],
+    });
+
+    expect(await run(['mark-read', GROUP], context.deps)).toBe(0);
+    expect(context.calls.sleeps).toEqual([500, 500]);
+    expect(context.calls.unreadReads).toBe(4);
+  });
+
+  it('reports unconfirmed after five reads that still show the unreads', async () => {
+    const context = makeReadContext({
+      unreads: [unreads([dmSummary(AUTHOR, 3)])],
+    });
+
+    expect(await run(['mark-read', AUTHOR], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Mark read of DM with ${AUTHOR} was sent but is not confirmed: it still shows 3 unreads. ${RERUN}\n`
+    );
+    expect(context.calls.unreadReads).toBe(6);
+    expect(context.calls.sleeps).toEqual([500, 500, 500, 500]);
+  });
+
+  it('keeps a remaining notification unconfirmed', async () => {
+    const context = makeReadContext({
+      unreads: [
+        unreads([channelSummary(NEST, 2, 5)]),
+        unreads([channelSummary(NEST, 0, 5, true)]),
+      ],
+    });
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mark read of channel ${NEST} was sent but is not confirmed: it still shows a notification. ${RERUN}\n`
+    );
+  });
+
+  it('keeps unchanged or older recency unconfirmed even when acked', async () => {
+    for (const updatedAt of [5, 4]) {
+      const context = makeReadContext({
+        unreads: [
+          unreads([groupSummary(GROUP, 2, 5)]),
+          unreads([groupSummary(GROUP, 2, updatedAt)]),
+        ],
+      });
+
+      expect(await run(['mark-read', GROUP], context.deps)).toBe(1);
+      expect(context.stderr()).toBe(
+        `Error: Mark read of group ${GROUP} was sent but is not confirmed: it still shows 2 unreads. ${RERUN}\n`
+      );
+    }
+  });
+
+  it('reports new activity after an acked read and stops reading', async () => {
+    const context = makeReadContext({
+      unreads: [
+        unreads([channelSummary(NEST, 2, 1)]),
+        unreads([channelSummary(NEST, 2, 2)]),
+      ],
+    });
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked channel ${NEST} read for ${ACTING}; new activity arrived after the read (2 unreads now)\n  In the app: ${CHANNEL_WHERE}\n`
+    );
+    expect(context.calls.unreadReads).toBe(2);
+    expect(context.calls.sleeps).toEqual([]);
+  });
+
+  it('reports new activity on a source absent from the snapshot', async () => {
+    const context = makeReadContext({
+      unreads: [NONE, unreads([dmSummary(AUTHOR, 1, 7)])],
+    });
+
+    expect(await run(['mark-read', AUTHOR], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked DM with ${AUTHOR} read for ${ACTING}; new activity arrived after the read (1 unread now)\n  In the app: ${DM_WHERE}\n`
+    );
+  });
+
+  it('keeps moved recency unconfirmed when the poke was not acknowledged', async () => {
+    const context = makeReadContext({
+      poke: { kind: 'ambiguous', message: 'Poke ack timed out after 30000ms' },
+      unreads: [
+        unreads([channelSummary(NEST, 2, 1)]),
+        unreads([channelSummary(NEST, 2, 2)]),
+      ],
+    });
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mark read of channel ${NEST} was sent but is not confirmed: it still shows 2 unreads, and new activity arrived, so it is unknown whether the read applied. ${RERUN} (poke error: Poke ack timed out after 30000ms)\n`
+    );
+    expect(context.calls.unreadReads).toBe(6);
+  });
+
+  it('confirms an unacknowledged read the read-back shows cleared', async () => {
+    const context = makeReadContext({
+      poke: { kind: 'ambiguous', message: 'Channel was reaped' },
+      unreads: [unreads([groupSummary(GROUP, 4)]), NONE],
+    });
+
+    expect(await run(['mark-read', GROUP], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked group ${GROUP} read for ${ACTING} (cleared 4 unreads)\n  In the app: ${GROUP_WHERE}\n`
+    );
+  });
+
+  it('reports a nack without reading back', async () => {
+    const context = makeReadContext({
+      poke: { kind: 'nacked', message: 'bail: %activity crashed' },
+      unreads: [unreads([groupSummary(GROUP, 4)])],
+    });
+
+    expect(await run(['mark-read', GROUP], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Could not mark group ${GROUP} read: bail: %activity crashed\n`
+    );
+    expect(context.calls.unreadReads).toBe(1);
+  });
+
+  it('reports an unreadable read-back with the last read error', async () => {
+    const context = makeReadContext({
+      unreads: [unreads([groupSummary(GROUP, 4)]), new Error('scry 500')],
+    });
+
+    expect(await run(['mark-read', GROUP], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mark read of group ${GROUP} was sent but is not confirmed: the unreads could not be read. ${RERUN} (last read error: scry 500)\n`
+    );
+    expect(context.calls.unreadReads).toBe(6);
+  });
+
+  it('confirms after a transient read-back error', async () => {
+    const context = makeReadContext({
+      unreads: [unreads([groupSummary(GROUP, 4)]), new Error('scry 500'), NONE],
+    });
+
+    expect(await run(['mark-read', GROUP], context.deps)).toBe(0);
+    expect(context.calls.sleeps).toEqual([500]);
+  });
+
+  it('prints nothing before the read-back resolves', async () => {
+    const entered = deferred<void>();
+    const gate = deferred<ActivityInit>();
+    const context = makeReadContext({
+      unreads: [
+        unreads([groupSummary(GROUP, 4)]),
+        () => {
+          entered.resolve();
+          return gate.promise;
+        },
+      ],
+    });
+
+    const running = run(['mark-read', GROUP], context.deps);
+    await entered.promise;
+    expect(context.calls.unreadReads).toBe(2);
+    expect(context.stdout()).toBe('');
+    gate.resolve(NONE);
+    expect(await running).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked group ${GROUP} read for ${ACTING} (cleared 4 unreads)\n  In the app: ${GROUP_WHERE}\n`
+    );
+  });
+});
+
+describe('activity mark-read: channel identity', () => {
+  const MOVED = '~zod/other-club';
+
+  it('rejects an apparently cleared channel whose group changed', async () => {
+    const context = makeReadContext({
+      channelStates: [
+        { joined: true, groupId: GROUP, order: [] },
+        { joined: true, groupId: MOVED, order: [] },
+      ],
+      unreads: [unreads([channelSummary(NEST, 3)]), NONE],
+    });
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mark read of channel ${NEST} was sent but is not confirmed: the channel's group changed from ${GROUP} to ${MOVED} while the read was sent, so the read may not have applied. ${RERUN}\n`
+    );
+    expect(context.calls.getChannelState).toEqual([NEST, NEST]);
+  });
+
+  it('rejects new activity on a channel whose group changed', async () => {
+    const context = makeReadContext({
+      channelStates: [
+        { joined: true, groupId: GROUP, order: [] },
+        { joined: true, groupId: MOVED, order: [] },
+      ],
+      unreads: [
+        unreads([channelSummary(NEST, 3, 1)]),
+        unreads([channelSummary(NEST, 3, 2)]),
+      ],
+    });
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(1);
+    expect(context.stderr()).toContain(
+      `the channel's group changed from ${GROUP} to ${MOVED} while the read was sent`
+    );
+  });
+
+  it('rejects a channel that was left or cannot be re-read', async () => {
+    const cases: Array<{ state: Step<ChannelState>; reason: string }> = [
+      {
+        state: { joined: false },
+        reason: `${NEST} is no longer joined`,
+      },
+      {
+        state: new Error('scry 500'),
+        reason: 'the channel could not be re-read (scry 500)',
+      },
+    ];
+    for (const testCase of cases) {
+      const context = makeReadContext({
+        channelStates: [
+          { joined: true, groupId: GROUP, order: [] },
+          testCase.state,
+        ],
+        unreads: [NONE],
+      });
+
+      expect(await run(['mark-read', NEST], context.deps)).toBe(1);
+      expect(context.stderr()).toBe(
+        `Error: Mark read of channel ${NEST} was sent but is not confirmed: ${testCase.reason}. ${RERUN}\n`
+      );
+    }
+  });
+});
+
+describe('activity mark-read --all', () => {
+  const NOTEBOOK = 'notes/~zod/blog';
+  const snapshot = unreads([
+    channelSummary(NEST, 3),
+    channelSummary(NOTEBOOK, 1),
+    channelSummary('chat/~zod/quiet', 0),
+    dmSummary(AUTHOR, 2),
+    dmSummary(CLUB, 1),
+    groupSummary(GROUP, 4),
+  ]);
+
+  it('counts every cleared source by kind', async () => {
+    const context = makeReadContext({ unreads: [snapshot, NONE] });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked all read for ${ACTING}\n  Cleared: 2 channels, 1 DM, 1 group DM, 1 group\n  In the app: ${ALL_WHERE}\n`
+    );
+    expect(context.calls.sleeps).toEqual([]);
+  });
+
+  it('reports no reported unreads when the snapshot was clear', async () => {
+    const context = makeReadContext({
+      unreads: [unreads([channelSummary(NEST, 0)]), NONE],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked all read for ${ACTING} (no reported unreads)\n  In the app: ${ALL_WHERE}\n`
+    );
+    expect(context.calls.marks).toEqual([{ kind: 'all' }]);
+  });
+
+  it('lists new activity apart from what it cleared when acked', async () => {
+    const context = makeReadContext({
+      unreads: [
+        snapshot,
+        unreads([
+          channelSummary(NEST, 2, 2),
+          channelSummary('chat/~zod/quiet', 1, 3),
+          dmSummary('~nec', 1, 4),
+        ]),
+      ],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      [
+        `✓ Marked all read for ${ACTING}`,
+        '  Cleared: 1 channel, 1 DM, 1 group DM, 1 group',
+        '  New activity arrived after the read in 3 sources:',
+        `    channel ${NEST}: 2 unreads`,
+        '    channel chat/~zod/quiet: 1 unread',
+        '    DM with ~nec: 1 unread',
+        `  In the app: ${ALL_WHERE}`,
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('reports a residual source with unchanged recency as unconfirmed', async () => {
+    const context = makeReadContext({
+      unreads: [
+        snapshot,
+        unreads([channelSummary(NEST, 3), dmSummary(AUTHOR, 1)]),
+      ],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Mark all read was sent but is not confirmed: 2 sources still show unreads: channel ${NEST} (3 unreads), DM with ${AUTHOR} (1 unread). ${RERUN}\n`
+    );
+    expect(context.calls.sleeps).toEqual([500, 500, 500, 500]);
+  });
+
+  it('reports a mix of cleared, new and unconfirmed sources as unconfirmed', async () => {
+    const context = makeReadContext({
+      poke: { kind: 'ambiguous', message: 'Poke ack timed out after 30000ms' },
+      unreads: [
+        snapshot,
+        unreads([channelSummary(NEST, 3, 2), groupSummary(GROUP, 4)]),
+      ],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mark all read was sent but is not confirmed: 2 sources still show unreads: channel ${NEST} (3 unreads), group ${GROUP} (4 unreads). ${RERUN} (poke error: Poke ack timed out after 30000ms)\n`
+    );
+  });
+
+  it('names only the unchanged residual when an acked read also shows new activity', async () => {
+    const context = makeReadContext({
+      unreads: [
+        snapshot,
+        unreads([channelSummary(NEST, 3, 2), groupSummary(GROUP, 4)]),
+      ],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Mark all read was sent but is not confirmed: 1 source still shows unreads: group ${GROUP} (4 unreads). ${RERUN}\n`
+    );
+  });
+
+  it('separates cleared sources from new activity once an acked mix settles', async () => {
+    const mixed = unreads([channelSummary(NEST, 3, 2), groupSummary(GROUP, 4)]);
+    const context = makeReadContext({
+      unreads: [snapshot, mixed, mixed, unreads([channelSummary(NEST, 3, 2)])],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      [
+        `✓ Marked all read for ${ACTING}`,
+        '  Cleared: 1 channel, 1 DM, 1 group DM, 1 group',
+        '  New activity arrived after the read in 1 source:',
+        `    channel ${NEST}: 3 unreads`,
+        `  In the app: ${ALL_WHERE}`,
+        '',
+      ].join('\n')
+    );
+    expect(context.calls.sleeps).toEqual([500, 500]);
+  });
+
+  it('keeps a late source unconfirmed while the poke is ambiguous, then confirms it cleared', async () => {
+    const context = makeReadContext({
+      poke: { kind: 'ambiguous', message: 'Channel was reaped' },
+      unreads: [NONE, unreads([dmSummary(AUTHOR, 1, 9)]), NONE],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked all read for ${ACTING} (no reported unreads)\n  In the app: ${ALL_WHERE}\n`
+    );
+    expect(context.calls.sleeps).toEqual([500]);
+  });
+
+  it('keeps a persistent residual unconfirmed after five reads', async () => {
+    const context = makeReadContext({
+      unreads: [unreads([groupSummary(GROUP, 4, 3)])],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mark all read was sent but is not confirmed: 1 source still shows unreads: group ${GROUP} (4 unreads). ${RERUN}\n`
+    );
+    expect(context.calls.unreadReads).toBe(6);
+  });
+
+  it('confirms when the last source clears on the fifth read', async () => {
+    const stale = unreads([groupSummary(GROUP, 4)]);
+    const context = makeReadContext({
+      unreads: [stale, stale, stale, stale, stale, NONE],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(0);
+    expect(context.calls.unreadReads).toBe(6);
+    expect(context.calls.sleeps).toEqual([500, 500, 500, 500]);
+  });
+
+  it('reports a read-back failure as unconfirmed', async () => {
+    const context = makeReadContext({
+      unreads: [snapshot, new Error('scry 500')],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mark all read was sent but is not confirmed: the unreads could not be read. ${RERUN} (last read error: scry 500)\n`
+    );
+  });
+
+  it('names at most 20 residual sources', async () => {
+    const residual = (count: number) =>
+      unreads(
+        Array.from({ length: count }, (_, i) =>
+          channelSummary(`chat/~zod/c${i}`, 1)
+        )
+      );
+    const names = (count: number) =>
+      Array.from(
+        { length: count },
+        (_, i) => `channel chat/~zod/c${i} (1 unread)`
+      ).join(', ');
+
+    const twenty = makeReadContext({ unreads: [residual(20)] });
+    expect(await run(['mark-read', '--all'], twenty.deps)).toBe(1);
+    expect(twenty.stderr()).toBe(
+      `Error: Mark all read was sent but is not confirmed: 20 sources still show unreads: ${names(20)}. ${RERUN}\n`
+    );
+
+    const twentyOne = makeReadContext({ unreads: [residual(21)] });
+    expect(await run(['mark-read', '--all'], twentyOne.deps)).toBe(1);
+    expect(twentyOne.stderr()).toBe(
+      `Error: Mark all read was sent but is not confirmed: 21 sources still show unreads: ${names(20)}, and 1 more. ${RERUN}\n`
+    );
+  });
+
+  it('names at most 20 sources with new activity', async () => {
+    const fresh = unreads(
+      Array.from({ length: 21 }, (_, i) =>
+        channelSummary(`chat/~zod/c${i}`, 1, 2)
+      )
+    );
+    const context = makeReadContext({ unreads: [NONE, fresh] });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(0);
+    const lines = context.stdout().split('\n');
+    expect(lines[1]).toBe(
+      '  New activity arrived after the read in 21 sources:'
+    );
+    expect(lines[21]).toBe('    channel chat/~zod/c19: 1 unread');
+    expect(lines[22]).toBe('    and 1 more');
+  });
+
+  it('reports a nack without reading back', async () => {
+    const context = makeReadContext({
+      poke: { kind: 'nacked', message: 'bail: %activity crashed' },
+      unreads: [snapshot],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      'Error: Could not mark everything read: bail: %activity crashed\n'
+    );
+    expect(context.calls.unreadReads).toBe(1);
+  });
+});
+
+describe('activity mark-read: arguments', () => {
+  const help = ACTIVITY_COMMAND_HELP['mark-read'];
+  const unrecognized = (raw: string) =>
+    `Unrecognized target: ${raw}. Use ~ship, a group-DM id (0v...), ~host/group, chat/~host/name or heap/~host/name`;
+  const usageCases: Array<{ args: string[]; message: string | null }> = [
+    { args: [], message: null },
+    { args: ['--self'], message: null },
+    {
+      args: [NEST, ROOT_ID],
+      message: `Unexpected argument: ${ROOT_ID}. ${MARK_READ_POST_ID_MESSAGE}`,
+    },
+    {
+      args: [AUTHOR, ROOT_ID],
+      message: `Unexpected argument: ${ROOT_ID}. ${MARK_READ_POST_ID_MESSAGE}`,
+    },
+    { args: ['--all', GROUP], message: MARK_READ_ALL_WITH_TARGET },
+    { args: [GROUP, '--all'], message: MARK_READ_ALL_WITH_TARGET },
+    { args: ['--force'], message: 'Unknown option: --force' },
+    { args: [GROUP, '--invites'], message: 'Unknown option: --invites' },
+    { args: ['base'], message: unrecognized('base') },
+    { args: ['a/b/c/d'], message: unrecognized('a/b/c/d') },
+    {
+      args: ['~foo'],
+      message: 'Invalid ship: ~foo (expected a ship such as ~sampel-palnet)',
+    },
+    {
+      args: ['0v4.abc'],
+      message:
+        'Invalid group-DM id: 0v4.abc (expected a 0v... id such as 0v1f.abcde)',
+    },
+  ];
+
+  for (const testCase of usageCases) {
+    it(`rejects mark-read ${testCase.args.join(' ')} before authenticating`, async () => {
+      const context = makeReadContext();
+
+      expect(await run(['mark-read', ...testCase.args], context.deps)).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(
+        testCase.message === null
+          ? `${help}\n`
+          : `Error: ${testCase.message}\n\n${help}\n`
+      );
+      expect(context.calls.authenticate).toBe(0);
+      expect(context.calls.marks).toEqual([]);
+    });
+  }
+
+  const refusals: Array<{ target: string; message: string }> = [
+    { target: 'notes/~zod/blog', message: NOTES_MARK_READ_REFUSAL },
+    { target: 'diary/~zod/blog', message: DIARY_REMOVED },
+  ];
+
+  for (const testCase of refusals) {
+    it(`refuses mark-read ${testCase.target} locally`, async () => {
+      const context = makeReadContext();
+
+      expect(await run(['mark-read', testCase.target], context.deps)).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(`Error: ${testCase.message}\n`);
+      expect(context.calls.authenticate).toBe(0);
+    });
+  }
+
+  it('prints mark-read help without authenticating', async () => {
+    for (const args of [
+      ['mark-read', '--help'],
+      ['mark-read', AUTHOR, '-h'],
+    ]) {
+      const context = makeReadContext();
+      expect(await run(args, context.deps)).toBe(0);
+      expect(context.stdout()).toBe(`${help}\n`);
+      expect(context.calls.authenticate).toBe(0);
     }
   });
 });

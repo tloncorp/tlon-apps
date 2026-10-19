@@ -444,7 +444,7 @@ describe('tlon tool execution', () => {
   });
 });
 
-describe('owner credential injection for invite-link, note publishing and notification settings', () => {
+describe('owner credential injection for invite-link, note publishing, notification settings and mark-read', () => {
   const SKILL_DIR = '/srv/tlon-skill';
   const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
 
@@ -485,6 +485,8 @@ describe('owner credential injection for invite-link, note publishing and notifi
     'activity volume ~ten hush',
     'activity volume base soft',
     'activity volume base',
+    'activity mark-read ~ten',
+    'activity mark-read --all',
   ];
 
   // --ship, not --config: ship-only resolution validates the file's ship and
@@ -623,6 +625,14 @@ describe('owner credential injection for invite-link, note publishing and notifi
         `Changing a notification level as ~owner requires owner credentials at ${OWNER_CONFIG}. ${ACTIVITY_HINT}`,
       ],
     ],
+    [
+      OWNER_COMMANDS[8],
+      [
+        "Marking as read as the owner requires a configured owner ship. Add --self to mark this bot's own chats read instead.",
+        "Marking as read as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to mark this bot's own chats read instead.",
+        `Marking as read as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to mark this bot's own chats read instead.`,
+      ],
+    ],
   ])(
     'errors on `%s` instead of silently using bot credentials when provisioning is missing',
     async (command, texts) => {
@@ -638,11 +648,13 @@ describe('owner credential injection for invite-link, note publishing and notifi
     }
   );
 
-  // An opt-out short-circuits before provisioning is consulted. The two
-  // commands hit the two opt-out exits: the credential-override check and the
-  // --self/help check.
+  // An opt-out short-circuits before provisioning is consulted. The commands
+  // hit both opt-out exits: the credential-override check and the --self/help
+  // check.
   it.each([
     'activity mute ~zod/book-club --self',
+    'activity mark-read ~ten --self',
+    'activity mark-read --all --self',
     `--ship=~other ${OPT_OUT_BASE}`,
   ])(
     'honors the opt-out in `%s` despite missing provisioning',
@@ -1364,6 +1376,24 @@ describe('tlon tool telemetry summarizer', () => {
     });
     expect(summarizeTlonCommand('activity volume base soft')).toMatchObject({
       summaryKey: 'activity.volume',
+      intent: 'write',
+    });
+  });
+
+  it('classifies mark-read as a write without leaking targets', () => {
+    const summary = summarizeTlonCommand(
+      'activity mark-read ~zod/secret-group --self'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'activity.mark-read',
+      operation: 'mark-read',
+      intent: 'write',
+      isKnownSubcommand: true,
+    });
+    expect(JSON.stringify(summary)).not.toContain('secret-group');
+    expect(summarizeTlonCommand('activity mark-read --all')).toMatchObject({
+      summaryKey: 'activity.mark-read',
       intent: 'write',
     });
   });
