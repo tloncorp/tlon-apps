@@ -25,9 +25,10 @@ fi
 echo "[tlon-e2e] openclaw-core-version=$installed_core_version requested=$requested_core_version"
 
 # The mounted package declares workspace:^ deps that only resolve inside the
-# tlon-apps pnpm workspace. Copy it to a container-local dir (also the
-# id-shaped path OpenClaw's path hint expects) and rewrite those deps to
-# registry versions there, leaving the host checkout untouched. node_modules
+# tlon-apps pnpm workspace. Copy it to a container-local build dir and
+# rewrite those deps to registry versions there, leaving the host checkout
+# untouched. The built plugin is installed from here into OpenClaw's bundled
+# plugins dir further down. node_modules
 # is a named volume mounted at /workspace/tlon/node_modules. Copying also
 # avoids installing into the host-owned bind mount (no chown needed).
 echo "==> Copying plugin to /workspace/tlon..."
@@ -110,13 +111,6 @@ if [ "${OPENCLAW_WORKSPACE_SKILL_BIN:-0}" = "1" ]; then
 fi
 pnpm build
 
-# Expose tlon CLI to PATH
-TLON_BIN_DIR="/workspace/tlon/node_modules/.bin"
-if [ -f "$TLON_BIN_DIR/tlon" ]; then
-  export PATH="$PATH:$TLON_BIN_DIR"
-  echo "==> tlon CLI available at $TLON_BIN_DIR/tlon"
-fi
-
 # When the shared harness stages a workspace-built tlon binary (see
 # tlon-bot-e2e openclaw driver beforeComposeBuild), lay it over the
 # registry-installed CLI so e2e exercises in-branch CLI code: the loader
@@ -142,9 +136,31 @@ fi
 echo "==> Checking tlon-skill from plugin dependencies..."
 ls -la /workspace/tlon/node_modules/@tloncorp/tlon-skill/ 2>/dev/null || echo "  (in container node_modules volume)"
 
-# Remove bundled tlon plugin to avoid duplicate ID conflict
-rm -rf "$(npm root -g)/openclaw/extensions/tlon"
-rm -rf "$(npm root -g)/openclaw/dist/extensions/tlon"
+# Install the built plugin the way the Pioneer image does: as a bundled
+# extension inside the OpenClaw package, with its runtime dependencies beside
+# it. OpenClaw 2026.9.33 copies every non-bundled plugin's whole dependency
+# tree into a capture dir on each load (minutes on the CI runner) and refuses
+# durable plugin stores to it as untrusted; bundled plugins skip both. This
+# must be a real copy: discovery blocks a bundled entry whose realpath leaves
+# the bundled root, so a symlink to /workspace/tlon is rejected. The copied
+# entries are the published package's files plus node_modules, minus the
+# openclaw devDependency: Pioneer installs with --omit=dev, so the plugin
+# resolves the host core, and that copy is ~40% of node_modules.
+TLON_PLUGIN_DIR="$(npm root -g)/openclaw/dist/extensions/tlon"
+rm -rf "$(npm root -g)/openclaw/extensions/tlon" "$TLON_PLUGIN_DIR"
+mkdir -p "$TLON_PLUGIN_DIR"
+echo "==> Installing plugin as a bundled extension at $TLON_PLUGIN_DIR..."
+(cd /workspace/tlon && tar cf - --exclude=node_modules/openclaw \
+  package.json openclaw.plugin.json README.md dist skills node_modules) \
+  | (cd "$TLON_PLUGIN_DIR" && tar xf - --no-same-owner)
+export TLON_PLUGIN_DIR
+
+# Expose the tlon CLI the installed plugin ships to PATH
+TLON_BIN_DIR="$TLON_PLUGIN_DIR/node_modules/.bin"
+if [ -f "$TLON_BIN_DIR/tlon" ]; then
+  export PATH="$PATH:$TLON_BIN_DIR"
+  echo "==> tlon CLI available at $TLON_BIN_DIR/tlon"
+fi
 
 # Create minimal config for CI
 CONFIG_DIR=/root/.openclaw
@@ -233,9 +249,6 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
   },
   "plugins": {
     "allow": ["tlon"],
-    "load": {
-      "paths": ["/workspace/tlon"]
-    },
     "entries": {
       "tlon": {
         "enabled": true,
@@ -483,10 +496,10 @@ if [ "${VERBOSE:-0}" = "1" ]; then
   ls -la /root/.openclaw/agents/test/ 2>/dev/null || true
 fi
 
-# No doctor --fix here (unlike the hosting entrypoint): this state is fresh,
-# and every core this image targets boots over it directly. On 2026.9.33 each
-# doctor pass re-captures the tlon plugin's dependency tree several times,
-# which alone outlasts the harness's gateway readiness timeout.
+# Finish any offline state migrations before the gateway starts. This mirrors
+# the hosting entrypoint, which runs doctor before every start.
+echo "==> Running openclaw doctor --fix..."
+openclaw doctor --fix --non-interactive || echo "==> WARN: openclaw doctor --fix exited $?"
 
 # Exercise the same discovery path used to build the agent's available skills.
 # An npm package name in plugins.allow can load the channel via auto-enable
@@ -501,7 +514,7 @@ const matches = report.skills.filter((skill) => skill.name === 'tlon');
 if (matches.length !== 1 || !matches[0].eligible) {
   throw new Error('Workspace tlon skill must be discovered exactly once and eligible');
 }
-const root = '/workspace/tlon/node_modules/@tloncorp/tlon-skill';
+const root = `${process.env.TLON_PLUGIN_DIR}/node_modules/@tloncorp/tlon-skill`;
 const catalog = JSON.parse(fs.readFileSync(`${root}/scripts/command-catalog.json`, 'utf8'));
 for (const { reference } of Object.values(catalog)) {
   if (!fs.existsSync(`${root}/${reference}`)) throw new Error(`Missing installed skill reference: ${reference}`);
