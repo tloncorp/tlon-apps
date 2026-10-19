@@ -335,6 +335,14 @@ it('blocks a newly added recurring task before reconciliation persists its hold'
       params: { action: 'run', id: f.job.id },
     })
   ).toMatchObject({ block: true });
+  // A stream job fires on every output batch, so it is held like one.
+  f.job.schedule = { kind: 'stream', command: ['tail', '-f', 'app.log'] };
+  expect(
+    await f.fire('before_tool_call', {
+      toolName: 'cron',
+      params: { action: 'run', id: f.job.id },
+    })
+  ).toMatchObject({ block: true });
   // The same guard leaves one-shot reminders outside this policy.
   f.job.schedule = { kind: 'at', at: '2030-01-01T00:00:00Z' };
   expect(
