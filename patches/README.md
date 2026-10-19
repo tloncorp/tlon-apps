@@ -372,8 +372,12 @@ Validation:
 - Open a production build or `vite preview` session and verify channel open
   and sidebar switches no longer emit `Cannot convert undefined or null to
   object` from Reanimated bundles
-- Confirm the emitted web bundle contains the patch markers
-  (`getComponentFromRef` and `createTransformValueFallback`)
+- Confirm the emitted Reanimated chunk
+  (`dist/assets/react-native-reanimated-*.js`) contains the patched code. The
+  minifier renames `getComponentFromRef` and `createTransformValueFallback`,
+  so search for what survives: the transform units table
+  (`perspective:"px",rotate:"deg"`) and the `getAnimatableRef()` unwrapping
+  that falls back to `.current?.host`
 
 Removal:
 Remove this patch once we upgrade to a Reanimated version that includes an
