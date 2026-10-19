@@ -1078,6 +1078,21 @@ def _with_legacy_admin_spelling(args: Sequence[str]) -> list[str]:
     return [*all_args[:sub_idx], *legacy]
 
 
+def _names_own_ship_admin(args: Sequence[str], bot: str) -> bool:
+    """Whether a create-owned run on the bot's own credentials names the bot
+    as its admin. A credential flag or a help token leaves it as written."""
+    if _has_credential_flag(args):
+        return False
+    sub_idx = find_subcommand_index(args)
+    command_args = [str(arg) for arg in args[sub_idx:]]
+    if any(_is_help_arg(arg) for arg in command_args):
+        return False
+    admin_index = _create_owned_admin_index(command_args)
+    if admin_index < 0:
+        return False
+    return normalize_ship(command_args[admin_index + 1]).lower() == bot.lower()
+
+
 def _as_plain_create(args: Sequence[str]) -> list[str]:
     """A bot that is its own owner already hosts what it makes, and
     create-owned refuses an admin who is the host, so its "workspace for the
@@ -1255,12 +1270,15 @@ async def route_create_owned(
     invite-link, missing owner credentials are not an error: a bot-hosted
     workspace still works, and it is all a self-hosted bot can make."""
     as_written = _with_legacy_admin_spelling(args)
-    if not should_create_workspace_on_owner(args, cfg.owner_ship):
-        return OwnerRouting(cfg, as_written)
     bot = normalize_ship(cfg.ship_name)
     owner = normalize_ship(cfg.owner_ship)
-    if bot and bot.lower() == owner.lower():
+    # Checked before --self opts out of routing: run as itself or not, a bot
+    # that is its own owner would name itself admin, which create-owned
+    # refuses.
+    if bot and bot.lower() == owner.lower() and _names_own_ship_admin(args, bot):
         return OwnerRouting(cfg, _as_plain_create(args))
+    if not should_create_workspace_on_owner(args, cfg.owner_ship):
+        return OwnerRouting(cfg, as_written)
     if not bot:
         return OwnerRouting(cfg, as_written)
 

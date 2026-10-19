@@ -664,6 +664,21 @@ function withLegacyAdminSpelling(args: string[]): string[] {
 }
 
 /**
+ * Whether a create-owned run on the bot's own credentials names the bot as
+ * its admin. A credential flag or a help token leaves the command as written.
+ */
+function namesOwnShipAdmin(args: string[], botShip: string): boolean {
+  if (hasCredentialOverride(args)) return false;
+  const subIdx = findTlonSubcommandIndex(args);
+  const commandArgs = args.slice(subIdx);
+  if (commandArgs.some((arg) => HELP_TOKENS.has(arg))) return false;
+  const adminIndex = createOwnedAdminIndex(commandArgs);
+  return (
+    adminIndex >= 0 && normalizeShip(commandArgs[adminIndex + 1]) === botShip
+  );
+}
+
+/**
  * A bot that is its own owner already hosts what it makes, and create-owned
  * refuses an admin who is the host, so its "workspace for the owner" is a
  * plain create with the same title and description.
@@ -790,11 +805,15 @@ async function routeCreateOwned(
 ): Promise<OwnerRouting> {
   const asWritten = withLegacyAdminSpelling(args);
   const ownerShip = deps.ownerShip;
+  const botShip = deps.botShip;
+  // Checked before --self opts out of routing: run as itself or not, a bot
+  // that is its own owner would name itself admin, which create-owned refuses.
+  if (botShip && botShip === ownerShip && namesOwnShipAdmin(args, botShip)) {
+    return { args: asPlainCreate(args) };
+  }
   if (!ownerShip || !shouldCreateWorkspaceOnOwner(args, ownerShip)) {
     return { args: asWritten };
   }
-  const botShip = deps.botShip;
-  if (botShip === ownerShip) return { args: asPlainCreate(args) };
   if (!botShip) return { args: asWritten };
 
   const fallback = `so this ran on your own ship: you host the workspace and ${ownerShip} is its admin.`;

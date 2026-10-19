@@ -910,21 +910,28 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     ]);
   });
 
-  it('makes a plain group when the bot is its own owner', async () => {
-    const { execute, runCommand } = makeExecutor({ botShip: '~owner' });
+  it.each([
+    ['', 'groups create-owned Projects --admin ~owner --description Work'],
+    [
+      ' with --self',
+      'groups create-owned Projects --admin ~owner --description Work --self',
+    ],
+  ])(
+    'makes a plain group when the bot is its own owner%s',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor({ botShip: '~owner' });
 
-    await execute('self', {
-      command: 'groups create-owned Projects --admin ~owner --description Work',
-    });
+      await execute('self', { command });
 
-    expect(runCommand).toHaveBeenLastCalledWith([
-      'groups',
-      'create',
-      'Projects',
-      '--description',
-      'Work',
-    ]);
-  });
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create',
+        'Projects',
+        '--description',
+        'Work',
+      ]);
+    }
+  );
 
   it('runs as written when the bot ship is unknown', async () => {
     const { execute, runCommand } = makeExecutor({ botShip: undefined });

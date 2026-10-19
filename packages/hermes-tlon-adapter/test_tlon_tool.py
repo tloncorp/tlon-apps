@@ -2031,19 +2031,27 @@ class OwnerWorkspaceRoutingTests(unittest.TestCase):
     def test_makes_a_plain_group_when_the_bot_is_its_own_owner(self):
         cfg = _bot_config(TLON_OWNER_SHIP="~bot")
 
-        payload, calls = self._run(
+        for command in (
             "groups create-owned Projects --admin ~bot --description Work",
-            cfg,
-            OWNER_ENV,
-        )
+            "groups create-owned Projects --admin ~bot --description Work --self",
+        ):
+            with self.subTest(command=command):
+                payload, calls = self._run(command, cfg, OWNER_ENV)
 
-        self.assertTrue(payload["success"])
-        argv, run_env = calls[-1]
-        self.assertEqual(
-            argv,
-            ("tlon-test", "groups", "create", "Projects", "--description", "Work"),
-        )
-        self.assertEqual(run_env["TLON_SHIP"], "~bot")
+                self.assertTrue(payload["success"])
+                argv, run_env = calls[-1]
+                self.assertEqual(
+                    argv,
+                    (
+                        "tlon-test",
+                        "groups",
+                        "create",
+                        "Projects",
+                        "--description",
+                        "Work",
+                    ),
+                )
+                self.assertEqual(run_env["TLON_SHIP"], "~bot")
 
     def test_finds_the_admin_past_a_description_of_admin(self):
         cfg = _bot_config()
