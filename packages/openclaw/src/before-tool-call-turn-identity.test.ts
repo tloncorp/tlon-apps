@@ -437,6 +437,50 @@ describe('before_tool_call turn identity', () => {
     );
   });
 
+  describe('a channels.tlon reload that changes ownerShip', () => {
+    const withOwner = (
+      ownerShip: string,
+      extra: Record<string, unknown> = {}
+    ) => ({
+      channels: { tlon: { ownerDefault: true, ownerShip, ...extra } },
+    });
+    // No credential file exists for either owner here, so the executor's
+    // fail-closed error names the owner it would act as without running the
+    // CLI.
+    const actsAs = async (tool: TlonTool | undefined) =>
+      (await tool!.execute('owner', { command: 'contacts self' })).content[0]
+        .text;
+
+    it.each([
+      ['to another ship', withOwner('~nec'), '~nec'],
+      [
+        'with the owner unchanged',
+        withOwner('~zod', { dmAllowlist: ['~bus'] }),
+        '~zod',
+      ],
+    ])(
+      'runs the next owner-directed call as the live owner: %s',
+      async (_label, reloaded, expectedOwner) => {
+        const { beforeToolCall, reloadConfig, tlonTool } = registerEntry(
+          withOwner('~zod')
+        );
+        const before = tlonTool();
+        expect(await actsAs(before)).toContain('owner credentials for ~zod');
+
+        reloadConfig(reloaded);
+        inbound('owner', 'run-1');
+        await expect(
+          beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId: 'run-1' })
+        ).resolves.toBeUndefined();
+        for (const tool of [before, tlonTool()]) {
+          const text = await actsAs(tool);
+          expect(text).toContain(`owner credentials for ${expectedOwner}`);
+          if (expectedOwner !== '~zod') expect(text).not.toContain('~zod');
+        }
+      }
+    );
+  });
+
   it("never lends the tool's owner to a run answering another account's message", async () => {
     const { beforeToolCall } = registerEntry();
     setSessionRole(GROUP, 'owner');
