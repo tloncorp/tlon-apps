@@ -839,6 +839,73 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '--owner',
     '~zod',
   ]),
+  authRequiredCase('groups create-owned with --admin reaches auth', [
+    'groups',
+    'create-owned',
+    'Projects',
+    '--admin',
+    '~pinser-botter-sampel-palnet',
+  ]),
+  authRequiredCase('groups create-owned --self reaches auth', [
+    'groups',
+    'create-owned',
+    'Projects',
+    '--admin',
+    '~sampel-palnet',
+    '--self',
+  ]),
+  authRequiredCase(
+    'groups create-owned --admin as a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--admin',
+      '--owner',
+      '~sampel-palnet',
+    ]
+  ),
+  authRequiredCase(
+    'groups create-owned legacy --owner after a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--owner',
+      '~sampel-palnet',
+    ]
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a missing admin',
+    ['groups', 'create-owned', 'Projects', '--description', 'Shared'],
+    'Usage: tlon groups create-owned'
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a bare --admin',
+    ['groups', 'create-owned', 'Projects', '--admin'],
+    'Usage: tlon groups create-owned'
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a flag as the admin',
+    ['groups', 'create-owned', 'Projects', '--admin', '--description'],
+    'Usage: tlon groups create-owned'
+  ),
+  authRequiredCase('channels create --self reaches auth', [
+    'channels',
+    'create',
+    '~sampel-palnet/team',
+    'Discussion',
+    '--self',
+  ]),
+  authRequiredCase('groups add-channel --self reaches auth', [
+    'groups',
+    'add-channel',
+    '~sampel-palnet/team',
+    'Discussion',
+    '--self',
+  ]),
   authRequiredCase('groups update title option-like value reaches auth', [
     'groups',
     'update',

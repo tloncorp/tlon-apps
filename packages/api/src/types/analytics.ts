@@ -86,6 +86,7 @@ export enum AnalyticsEvent {
   ActionSendPost = 'Sent Post',
   ActionForwardPost = 'Forwarded Post',
   ActionForwardGroup = 'Forwarded Group',
+  ActionForwardChannel = 'Forwarded Channel',
   ActionStartedDM = 'Started DM',
   ActionSendPostRetry = 'Retried Post Send',
   ActionHidePost = 'Hid Post',
