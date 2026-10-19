@@ -1995,7 +1995,7 @@ describe('activity mark-read: read-back', () => {
       expect(await run(['mark-read', NEST], context.deps)).toBe(1);
       expect(context.stdout()).toBe('');
       expect(context.stderr()).toBe(
-        `Error: Mark read of channel ${NEST} was sent but is not confirmed: the read was not acknowledged and a channel's summary cannot show thread-only unreads. ${RERUN} (poke error: Poke ack timed out after 30000ms)\n`
+        `Error: Mark read of channel ${NEST} was sent but is not confirmed: the read was not acknowledged and its summary cannot show thread-only unreads. ${RERUN} (poke error: Poke ack timed out after 30000ms)\n`
       );
       expect(context.calls.unreadReads).toBe(2);
       expect(context.calls.sleeps).toEqual([]);
@@ -2108,6 +2108,38 @@ describe('activity mark-read: channel identity', () => {
     expect(context.stderr()).toContain(
       `the channel's group changed from ${GROUP} to ${MOVED} while the read was sent`
     );
+  });
+
+  it('names the group change when an acked read leaves the unreads', async () => {
+    const context = makeReadContext({
+      channelStates: [
+        { joined: true, groupId: GROUP, order: [] },
+        { joined: true, groupId: MOVED, order: [] },
+      ],
+      unreads: [unreads([channelSummary(NEST, 3, 5)])],
+    });
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mark read of channel ${NEST} was sent but is not confirmed: the channel's group changed from ${GROUP} to ${MOVED} while the read was sent, so the read may not have applied. ${RERUN}\n`
+    );
+    expect(context.calls.getChannelState).toEqual([NEST, NEST]);
+  });
+
+  it('keeps the unreads as the reason when an acked read leaves them and the group is unchanged', async () => {
+    const context = makeReadContext({
+      channelStates: [
+        { joined: true, groupId: GROUP, order: [] },
+        { joined: true, groupId: GROUP, order: [] },
+      ],
+      unreads: [unreads([channelSummary(NEST, 3, 5)])],
+    });
+
+    expect(await run(['mark-read', NEST], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mark read of channel ${NEST} was sent but is not confirmed: it still shows 3 unreads. ${RERUN}\n`
+    );
+    expect(context.calls.getChannelState).toEqual([NEST, NEST]);
   });
 
   it('rejects a channel that was left or cannot be re-read', async () => {

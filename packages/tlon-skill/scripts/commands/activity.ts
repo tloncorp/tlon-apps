@@ -226,7 +226,7 @@ export type VolumeTarget =
   | { kind: 'base' };
 
 // A single-token target: no base, and no thread (which takes a post id).
-type MarkReadParsedTarget = Exclude<VolumeTarget, { kind: 'base' | 'thread' }>;
+type SingleTokenTarget = Exclude<VolumeTarget, { kind: 'base' | 'thread' }>;
 
 type RequestedLevel = SetLevel | 'default';
 
@@ -252,7 +252,7 @@ type ParsedActivityArgs =
       target: VolumeTarget;
       level: RequestedLevel | null;
     }
-  | { kind: 'mark-read'; target: MarkReadParsedTarget | { kind: 'all' } };
+  | { kind: 'mark-read'; target: SingleTokenTarget | { kind: 'all' } };
 
 function isActivityBucketCommand(
   command: string
@@ -332,7 +332,7 @@ function parseVolumeTarget(
   raw: string,
   help: string,
   messages: TargetMessages = VOLUME_TARGET_MESSAGES
-): MarkReadParsedTarget {
+): SingleTokenTarget {
   const slashes = raw.split('/').length - 1;
   if (slashes === 0 && raw.startsWith('0v')) {
     if (!valid('uv', raw)) {
@@ -1102,7 +1102,7 @@ function clearedText(before: UnreadSummary | undefined): string {
     : 'cleared its notification';
 }
 
-function markReadWhere(target: MarkReadParsedTarget | { kind: 'all' }): string {
+function markReadWhere(target: SingleTokenTarget | { kind: 'all' }): string {
   switch (target.kind) {
     case 'dm-ship':
     case 'dm-club':
@@ -1117,7 +1117,7 @@ function markReadWhere(target: MarkReadParsedTarget | { kind: 'all' }): string {
 }
 
 function toMarkReadTarget(
-  target: MarkReadParsedTarget,
+  target: SingleTokenTarget,
   resolved: ResolvedTarget
 ): MarkReadTarget {
   if (target.kind !== 'channel') return target;
@@ -1164,7 +1164,7 @@ async function readSnapshot(deps: ActivityDeps): Promise<ActivityInit> {
 }
 
 async function markRead(
-  target: MarkReadParsedTarget,
+  target: SingleTokenTarget,
   deps: ActivityDeps
 ): Promise<void> {
   const resolved = await resolveTarget(target, deps);
@@ -1203,6 +1203,15 @@ async function markRead(
   }
 
   const phrase = `Mark read of ${label}`;
+  // A read sent under a group the channel no longer belongs to is an acked
+  // no-op on the desk, and the summary key omits the group, so a cleared or
+  // newer summary only counts if the group is unchanged; when the unreads
+  // remain, the group change is the likelier cause.
+  const changed = await recheckIdentity(
+    resolved,
+    deps,
+    'while the read was sent, so the read may not have applied'
+  );
   if (state === 'unconfirmed') {
     let reason = 'the unreads could not be read';
     if (after && hasUnread(after)) {
@@ -1213,19 +1222,10 @@ async function markRead(
       }
     } else if (read) {
       reason =
-        "the read was not acknowledged and a channel's summary cannot show thread-only unreads";
+        'the read was not acknowledged and its summary cannot show thread-only unreads';
     }
-    throw unconfirmedError(phrase, reason, pokeError, lastReadError);
+    throw unconfirmedError(phrase, changed ?? reason, pokeError, lastReadError);
   }
-
-  // A read sent under a group the channel no longer belongs to is an acked
-  // no-op on the desk, and the summary key omits the group, so a cleared or
-  // newer summary only counts if the group is unchanged.
-  const changed = await recheckIdentity(
-    resolved,
-    deps,
-    'while the read was sent, so the read may not have applied'
-  );
   if (changed) {
     throw unconfirmedError(phrase, changed, pokeError, null);
   }
