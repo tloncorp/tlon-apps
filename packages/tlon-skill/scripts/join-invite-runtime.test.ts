@@ -2,6 +2,7 @@ import { BadResponseError } from '@tloncorp/api';
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
 import { __resetApiClientForTests } from './api-client';
+import { type JoinInviteDeps, run } from './commands/join-invite';
 import {
   createJoinInviteDeps,
   runJoinInviteCommand,
@@ -12,6 +13,7 @@ import {
   mockedPoke,
   mockedRequestGroupInvitation,
   mockedScry,
+  mockedSubscribe,
   mockedSubscribeOnce,
 } from './tloncorp-api-mock';
 
@@ -74,6 +76,17 @@ const notMember = async () => {
   throw new BadResponseError(404, 'not found');
 };
 
+const FOREIGN_PATH = `/v1/foreigns/${FLAG}`;
+const GROUP_METADATA = {
+  tag: 'groups-0',
+  fields: {
+    'bite-type': '2',
+    inviteType: 'group',
+    inviterUserId: '~nec',
+    invitedGroupId: FLAG,
+  },
+};
+
 let savedEnv: Record<string, string | undefined> = {};
 const realFetch = globalThis.fetch;
 
@@ -87,7 +100,8 @@ beforeEach(() => {
   process.env.TLON_SHIP = '~ten';
   process.env.TLON_CODE = 'sampel-ticlyt-migfun-falmel';
   __resetApiClientForTests();
-  mockedScry.impl = async () => ({});
+  mockedScry.impl = notMember;
+  mockedSubscribe.impl = async () => 0;
   mockedSubscribeOnce.impl = async () => undefined;
   mockedGetGroup.impl = notMember;
   mockedJoinGroup.impl = async () => undefined;
@@ -138,12 +152,12 @@ async function suppressCliOutput<T>(
 }
 
 describe('join-invite runtime group state', () => {
-  it('short-circuits on membership without reading foreigns', async () => {
+  it('short-circuits on membership without reading the foreign record', async () => {
     const scries: unknown[] = [];
     mockedGetGroup.impl = async () => ({ currentUserIsMember: true });
     mockedScry.impl = async (...args: unknown[]) => {
       scries.push(args[0]);
-      return {};
+      return foreign();
     };
 
     const read = await createJoinInviteDeps(LOCAL).getGroupState(FLAG);
@@ -160,18 +174,16 @@ describe('join-invite runtime group state', () => {
     expect(scries).toEqual([]);
   });
 
-  it('reads invites, requests and privacy from the foreign record', async () => {
+  it('reads invites, requests and privacy from the per-flag foreign record', async () => {
     const scries: unknown[] = [];
     mockedScry.impl = async (...args: unknown[]) => {
       scries.push(args[0]);
-      return {
-        [FLAG]: foreign({ invites: [invite(true)], progress: 'ask' }),
-      };
+      return foreign({ invites: [invite(true)], progress: 'ask' });
     };
 
     const read = await createJoinInviteDeps(LOCAL).getGroupState(FLAG);
 
-    expect(scries).toEqual([{ app: 'groups', path: '/v1/foreigns' }]);
+    expect(scries).toEqual([{ app: 'groups', path: FOREIGN_PATH }]);
     expect(read).toEqual({
       ok: true,
       state: {
@@ -183,33 +195,70 @@ describe('join-invite runtime group state', () => {
     });
   });
 
-  it('ignores revoked invites and reads a preview-less record as secret', async () => {
-    mockedScry.impl = async () => ({
-      [FLAG]: foreign({ invites: [invite(false)], preview: null }),
-    });
+  it('polls only the foreign record, never membership', async () => {
+    let groupReads = 0;
+    mockedGetGroup.impl = async () => {
+      groupReads += 1;
+      return { currentUserIsMember: true };
+    };
+    const scries: unknown[] = [];
+    mockedScry.impl = async (...args: unknown[]) => {
+      scries.push(args[0]);
+      return foreign();
+    };
 
-    const read = await createJoinInviteDeps(LOCAL).getGroupState(FLAG);
+    const read = await createJoinInviteDeps(LOCAL).getForeignState(FLAG);
 
+    expect(groupReads).toBe(0);
+    expect(scries).toEqual([{ app: 'groups', path: FOREIGN_PATH }]);
     expect(read).toMatchObject({
       ok: true,
-      state: { haveInvite: false, privacy: 'secret' },
+      state: { member: false, privacy: 'private' },
     });
   });
 
-  it('reports no record as unknown privacy', async () => {
-    mockedScry.impl = async () => ({ '~bus/other': foreign() });
+  it('ignores revoked invites and reads a preview-less record as unknown privacy', async () => {
+    mockedScry.impl = async () =>
+      foreign({ invites: [invite(false)], lookup: 'error', preview: null });
 
-    const read = await createJoinInviteDeps(LOCAL).getGroupState(FLAG);
+    const deps = createJoinInviteDeps(LOCAL);
+    for (const read of [
+      await deps.getGroupState(FLAG),
+      await deps.getForeignState(FLAG),
+    ]) {
+      expect(read).toEqual({
+        ok: true,
+        state: {
+          member: false,
+          haveInvite: false,
+          haveRequestedInvite: false,
+          privacy: null,
+        },
+      });
+    }
+  });
 
-    expect(read).toEqual({
-      ok: true,
-      state: {
-        member: false,
-        haveInvite: false,
-        haveRequestedInvite: false,
-        privacy: null,
-      },
-    });
+  it('reads a 404 from the record scry, wrapped or raw, as no record', async () => {
+    for (const error of [
+      new BadResponseError(404, 'no scry result'),
+      new Response('no scry result', { status: 404 }),
+    ]) {
+      mockedScry.impl = async () => {
+        throw error;
+      };
+
+      const read = await createJoinInviteDeps(LOCAL).getForeignState(FLAG);
+
+      expect(read).toEqual({
+        ok: true,
+        state: {
+          member: false,
+          haveInvite: false,
+          haveRequestedInvite: false,
+          privacy: null,
+        },
+      });
+    }
   });
 
   it('reads a raw 404 Response (the post-reauth retry) as not a member', async () => {
@@ -219,7 +268,7 @@ describe('join-invite runtime group state', () => {
     };
     mockedScry.impl = async () => {
       foreignsRead = true;
-      return { [FLAG]: foreign() };
+      return foreign();
     };
 
     const read = await createJoinInviteDeps(LOCAL).getGroupState(FLAG);
@@ -241,13 +290,18 @@ describe('join-invite runtime group state', () => {
   });
 
   it('reports failed reads instead of folding them into "no record"', async () => {
-    mockedScry.impl = async () => {
-      throw new Error('foreigns scry failed');
-    };
-    expect(await createJoinInviteDeps(LOCAL).getGroupState(FLAG)).toEqual({
-      ok: false,
-      error: 'foreigns scry failed',
-    });
+    for (const error of [
+      new Error('foreign scry failed'),
+      new BadResponseError(500, 'boom'),
+      new Response('denied', { status: 403 }),
+    ]) {
+      mockedScry.impl = async () => {
+        throw error;
+      };
+      expect(
+        await createJoinInviteDeps(LOCAL).getForeignState(FLAG)
+      ).toMatchObject({ ok: false });
+    }
 
     let foreignsRead = false;
     mockedGetGroup.impl = async () => {
@@ -255,13 +309,85 @@ describe('join-invite runtime group state', () => {
     };
     mockedScry.impl = async () => {
       foreignsRead = true;
-      return {};
+      return foreign();
     };
     expect(await createJoinInviteDeps(LOCAL).getGroupState(FLAG)).toEqual({
       ok: false,
       error: 'HTTP 500: boom',
     });
     expect(foreignsRead).toBe(false);
+  });
+});
+
+// The real runtime deps under a fake clock, so a whole run (to the 25s
+// deadline) completes instantly. Provider requests go to a stubbed fetch.
+async function runOnFakeClock(args: string[]) {
+  let now = 0;
+  const out: string[] = [];
+  const err: string[] = [];
+  const deps: JoinInviteDeps = {
+    ...createJoinInviteDeps(LOCAL),
+    stdout: (text) => out.push(text),
+    stderr: (text) => err.push(text),
+    now: () => now,
+    sleep: async (ms) => {
+      now += ms;
+    },
+    startTimer: () => ({ expired: new Promise(() => {}), cancel: () => {} }),
+  };
+  const code = await run(args, deps);
+  return { code, out: out.join(''), err: err.join('') };
+}
+
+describe('join-invite runtime privacy from the foreign record', () => {
+  beforeEach(() => {
+    process.env.TLON_INVITE_PROVIDER = PROVIDER;
+    recordFetch((url) =>
+      url.endsWith('/metadata')
+        ? Response.json(GROUP_METADATA)
+        : new Response('<html>sent</html>', { status: 200 })
+    );
+  });
+
+  it('previews a group whose stored record has no preview', async () => {
+    mockedScry.impl = async () => foreign({ lookup: 'error', preview: null });
+    const subscribeCalls: unknown[] = [];
+    mockedSubscribeOnce.impl = async (...args: unknown[]) => {
+      subscribeCalls.push(args[0]);
+      return preview('public');
+    };
+    const joined: unknown[] = [];
+    mockedJoinGroup.impl = async (...args: unknown[]) => {
+      joined.push(args[0]);
+    };
+
+    const result = await runOnFakeClock(['--invite', TOKEN]);
+
+    expect(subscribeCalls).toEqual([
+      { app: 'groups', path: `/gangs/${FLAG}/preview` },
+    ]);
+    expect(joined).toEqual([FLAG]);
+    expect(result.out).toBe(
+      `Joining ${FLAG}. Sync may take a moment to show membership.\n`
+    );
+  });
+
+  it('keeps a known privacy when a later poll reads a preview-less record', async () => {
+    let reads = 0;
+    mockedScry.impl = async () => {
+      reads += 1;
+      return reads === 1 ? foreign() : foreign({ preview: null });
+    };
+    const requested: unknown[] = [];
+    mockedRequestGroupInvitation.impl = async (...args: unknown[]) => {
+      requested.push(args[0]);
+    };
+
+    const result = await runOnFakeClock(['--invite', TOKEN]);
+
+    expect(reads).toBeGreaterThan(2);
+    expect(requested).toEqual([FLAG]);
+    expect(result.out).toContain(`Requested an invite to ${FLAG} instead.`);
   });
 });
 
@@ -361,6 +487,32 @@ describe('join-invite runtime actions and provider', () => {
     ]);
   });
 
+  it('awaits both pokes before the contact add settles', async () => {
+    let releaseHide: (() => void) | undefined;
+    mockedPoke.impl = (...args: unknown[]) => {
+      const { app } = args[0] as { app: string };
+      if (app === 'groups-ui') {
+        return new Promise<void>((resolve) => {
+          releaseHide = resolve;
+        });
+      }
+      return Promise.resolve();
+    };
+
+    let settled = false;
+    const adding = createJoinInviteDeps(LOCAL)
+      .addContact('~nec')
+      .then(() => {
+        settled = true;
+      });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(settled).toBe(false);
+
+    releaseHide?.();
+    await adding;
+    expect(settled).toBe(true);
+  });
+
   it('survives a failed suggestion-hide poke without an unhandled rejection', async () => {
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => unhandled.push(reason);
@@ -398,9 +550,14 @@ describe('join-invite runtime actions and provider', () => {
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => unhandled.push(reason);
     process.on('unhandledRejection', onUnhandled);
+    // The hide fails only after the contact poke has succeeded: the report
+    // below proves the command waited for it.
     mockedPoke.impl = async (...args: unknown[]) => {
       const { app } = args[0] as { app: string };
-      if (app === 'groups-ui') throw new Error('hide failed');
+      if (app === 'groups-ui') {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        throw new Error('hide failed');
+      }
     };
     const stdoutWrite = process.stdout.write;
     const stderrWrite = process.stderr.write;
@@ -414,7 +571,6 @@ describe('join-invite runtime actions and provider', () => {
         ['--invite', `https://invite.tlon.io/${TOKEN}`],
         LOCAL
       );
-      await new Promise((resolve) => setTimeout(resolve, 10));
     } finally {
       process.stdout.write = stdoutWrite;
       process.stderr.write = stderrWrite;
@@ -456,21 +612,50 @@ describe('join-invite runtime actions and provider', () => {
     ]);
   });
 
-  it('never fetches for flag-shaped input', async () => {
+  it('refuses a bare group id without fetching or joining', async () => {
     const calls = recordFetch(() => new Response('', { status: 500 }));
     const joined: string[] = [];
 
     const { result } = await suppressCliOutput(() =>
-      runJoinInviteCommand(['--invite', `https://invite.tlon.io/${FLAG}`], {
+      runJoinInviteCommand(['--invite', FLAG], {
         joinGroupById: async (flag) => {
           joined.push(flag);
         },
       })
     );
 
-    expect(result).toBe(0);
-    expect(joined).toEqual([FLAG]);
+    expect(result).toBe(1);
+    expect(joined).toEqual([]);
     expect(calls).toEqual([]);
+  });
+
+  it('joins a legacy flag link only once the provider knows it', async () => {
+    process.env.TLON_INVITE_PROVIDER = PROVIDER;
+    for (const status of [200, 404]) {
+      const calls = recordFetch(() =>
+        status === 200
+          ? Response.json({ tag: 'groups-0', fields: {} })
+          : new Response('', { status })
+      );
+      const joined: string[] = [];
+
+      const { result } = await suppressCliOutput(() =>
+        runJoinInviteCommand(['--invite', `https://invite.tlon.io/${FLAG}`], {
+          joinGroupById: async (flag) => {
+            joined.push(flag);
+          },
+        })
+      );
+
+      expect(calls).toEqual([
+        { url: `${PROVIDER}/lure/${FLAG}/metadata`, method: 'GET' },
+      ]);
+      expect({ status, result, joined }).toEqual(
+        status === 200
+          ? { status, result: 0, joined: [FLAG] }
+          : { status, result: 1, joined: [] }
+      );
+    }
   });
 
   it('sends only the provider requests, to the provider origin, for a pasted link', async () => {
@@ -489,33 +674,44 @@ describe('join-invite runtime actions and provider', () => {
       }
       return new Response('<html>sent</html>', { status: 200 });
     });
-    let foreignsReads = 0;
-    mockedScry.impl = async () => {
-      foreignsReads += 1;
-      return {
-        [FLAG]: foreign(foreignsReads > 1 ? { invites: [invite(true)] } : {}),
+    const subscriptions: unknown[] = [];
+    mockedSubscribe.impl = async (...args: unknown[]) => {
+      subscriptions.push(args[0]);
+      return 0;
+    };
+    for (const input of [
+      `https://evil.example@invite.tlon.io/${TOKEN}`,
+      `https://evil.example/apps/groups/?inviteToken=${TOKEN}`,
+      `https://invite.tlon.io@evil.example/?token=${TOKEN}`,
+    ]) {
+      calls.length = 0;
+      __resetApiClientForTests();
+      let foreignsReads = 0;
+      mockedScry.impl = async () => {
+        foreignsReads += 1;
+        return foreign(foreignsReads > 1 ? { invites: [invite(true)] } : {});
       };
-    };
-    const joined: unknown[] = [];
-    mockedJoinGroup.impl = async (...args: unknown[]) => {
-      joined.push(args[0]);
-    };
+      const joined: unknown[] = [];
+      mockedJoinGroup.impl = async (...args: unknown[]) => {
+        joined.push(args[0]);
+      };
 
-    const { result, written } = await suppressCliOutput(() =>
-      runJoinInviteCommand(
-        ['--invite', `https://evil.example@invite.tlon.io/${TOKEN}`, '--self'],
-        LOCAL
-      )
-    );
+      const { result, written } = await suppressCliOutput(() =>
+        runJoinInviteCommand(['--invite', input, '--self'], LOCAL)
+      );
 
-    expect(result).toBe(0);
-    expect(calls).toEqual([
-      { url: `${PROVIDER}/lure/${TOKEN}/metadata`, method: 'GET' },
-      { url: `${PROVIDER}/lure/${TOKEN}`, method: 'POST' },
-    ]);
-    expect(joined).toEqual([FLAG]);
-    expect(written.join('')).toBe(
-      `Invite accepted; joining ${FLAG}. Sync may take a moment to show membership.\n`
-    );
+      expect({ input, result }).toEqual({ input, result: 0 });
+      expect(calls).toEqual([
+        { url: `${PROVIDER}/lure/${TOKEN}/metadata`, method: 'GET' },
+        { url: `${PROVIDER}/lure/${TOKEN}`, method: 'POST' },
+      ]);
+      expect(joined).toEqual([FLAG]);
+      expect(written.join('')).toBe(
+        `Invite accepted; joining ${FLAG}. Sync may take a moment to show membership.\n`
+      );
+    }
+    // Authentication opens no standing subscription (no /v1/groups, no
+    // channels /v4): every request is its own scry, poke or subscribeOnce.
+    expect(subscriptions).toEqual([]);
   });
 });

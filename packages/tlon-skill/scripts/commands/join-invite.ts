@@ -4,6 +4,7 @@ import { isGroupFlag } from '../cli-utils';
 import {
   type CommandDeps,
   commandError,
+  errorMessage,
   handleExpectedCommandError,
   isHelpArg,
   usageError,
@@ -30,11 +31,14 @@ Joins public or invited groups. For private groups without an invite,
 requests an invite.
 
 --invite redeems a shared invite link (https://invite.tlon.io/0v...,
-join.tlon.io/..., tlon.network/lure/...) or a bare 0v... token. Only the
-token is read from the link; the link itself is never opened. A group invite
-asks the inviter's ship to send the invite, waits briefly for it, and joins.
-A private or secret group can end as "requested" or "unconfirmed" rather than
-joined. A personal invite adds the inviter as a contact and joins nothing.
+join.tlon.io/..., tlon.network/lure/..., a web link with ?inviteToken=0v...)
+or a bare 0v... token. Only the token is read from the link; the link itself
+is never opened. A group id is not an invite: join it with
+\`tlon groups join <group-id>\`. A group invite always asks the inviter's
+ship to send the invite; a public group is then joined right away, otherwise
+the command waits briefly for the invite and joins. A private or secret group
+can end as "requested" or "unconfirmed" rather than joined. A personal invite
+adds the inviter as a contact and joins nothing.
 
 Options:
   --invite <invite-url|token>  Redeem an invite link instead of a group id
@@ -64,8 +68,18 @@ export type GroupStateRead =
   | { ok: true; state: InviteGroupState }
   | { ok: false; error: string };
 
+/** The metadata fields the CLI reads; the provider validates only these. */
+export interface InviteMetadataFields {
+  inviterUserId?: string;
+  inviteType?: string;
+  invitedGroupId?: string;
+  invitedGroupTitle?: string;
+  inviterNickname?: string;
+  invitedGroupDeleted?: boolean;
+}
+
 export type InviteMetadataResult =
-  | { kind: 'found'; fields: Record<string, string> }
+  | { kind: 'found'; fields: InviteMetadataFields }
   | { kind: 'not-found' };
 
 export type InviteBiteResult = { kind: 'sent' } | { kind: 'not-found' };
@@ -86,7 +100,13 @@ export interface JoinInviteDeps extends CommandDeps {
   joinExistingFlag: (flag: string) => Promise<void>;
   fetchInviteMetadata: (token: string) => Promise<InviteMetadataResult>;
   biteInvite: (token: string, ship: string) => Promise<InviteBiteResult>;
+  /** Membership, then the foreign-group record: the initial read. */
   getGroupState: (flag: string) => Promise<GroupStateRead>;
+  /**
+   * The foreign-group record alone, for polling. Membership cannot appear
+   * without a join poke, so `member` is always false here.
+   */
+  getForeignState: (flag: string) => Promise<GroupStateRead>;
   getPreviewPrivacy: (
     flag: string,
     timeoutMs: number
@@ -117,6 +137,8 @@ export function plainJoinGroupId(args: string[]): string | undefined {
 }
 
 const MISSING_INVITE_MESSAGE = '--invite requires an invite URL or token';
+const BARE_FLAG_MESSAGE =
+  '--invite takes an invite link or token, not a group id; use `tlon groups join <group-id>` for a plain join';
 
 export function parseJoinInviteArgs(args: string[]): ParsedJoinInviteArgs {
   if (args.some(isHelpArg)) return { kind: 'help' };
@@ -163,14 +185,39 @@ export function parseJoinInviteArgs(args: string[]): ParsedJoinInviteArgs {
 const UV_TOKEN = /^0v[0-9a-v]+(\.[0-9a-v]+)*$/;
 
 export type InviteTarget =
-  | { kind: 'flag'; flag: string }
+  | { kind: 'legacy-flag'; flag: string }
   | { kind: 'token'; token: string };
+
+// The web app reads ?inviteToken= (useInviteParam); deferred-install payloads
+// carry token= (inviteUrlFromDeferredPayload). Only the value is used.
+const TOKEN_PARAM = /(?:^|[?&#])(?:inviteToken|token)=([^&#\s]+)/;
+
+function tokenFromQuery(input: string): string | null {
+  const match = input.match(TOKEN_PARAM);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
+function classifyToken(token: string): InviteTarget | null {
+  // A flag-shaped token is a legacy v1 link: biting it builds %bite-1, which
+  // the inviter's grouper rejects, so it is verified on the provider and the
+  // flag is joined directly.
+  if (isGroupFlag(token)) return { kind: 'legacy-flag', flag: token };
+  if (UV_TOKEN.test(token)) return { kind: 'token', token };
+  return null;
+}
 
 export function classifyInviteInput(
   input: string,
   parseInviteLink: JoinInviteDeps['parseInviteLink']
 ): InviteTarget {
-  if (isGroupFlag(input)) return { kind: 'flag', flag: input };
+  // Under bot harnesses --invite switches to the owner's credentials, so a
+  // bare group id must not pass for an invite.
+  if (isGroupFlag(input)) throw usageError(BARE_FLAG_MESSAGE, JOIN_HELP);
   if (UV_TOKEN.test(input)) return { kind: 'token', token: input };
 
   // The host is only checked against the parser's allowlist; nothing ever
@@ -180,12 +227,9 @@ export function classifyInviteInput(
     const ship = withSig(link.wer.replace(/^dm\//, ''));
     throw commandError(`${input} is a DM link to ${ship}, not a group invite.`);
   }
-  if (link?.type === 'lure') {
-    // A flag-shaped token is a legacy v1 link: biting it builds %bite-1,
-    // which the inviter's grouper rejects, so the flag is joined directly.
-    if (isGroupFlag(link.token)) return { kind: 'flag', flag: link.token };
-    if (UV_TOKEN.test(link.token)) return { kind: 'token', token: link.token };
-  }
+  const token = link?.type === 'lure' ? link.token : tokenFromQuery(input);
+  const target = token === null ? null : classifyToken(token);
+  if (target) return target;
   throw usageError(`Not an invite link or token: ${input}`, JOIN_HELP);
 }
 
@@ -207,7 +251,7 @@ type InviteDetails =
 // are told apart by inviteType alone: %reel stamps invitedGroupId on every
 // invite, personal ones included, so a group id proves nothing.
 function readInviteDetails(
-  fields: Record<string, string>,
+  fields: InviteMetadataFields,
   token: string,
   input: string
 ): InviteDetails {
@@ -234,7 +278,7 @@ function readInviteDetails(
     throw unusableMetadataError(token);
   }
   if (!isGroupFlag(flag)) throw unusableMetadataError(token);
-  if (fields.invitedGroupDeleted === 'true') {
+  if (fields.invitedGroupDeleted) {
     throw commandError(`The group for this invite (${flag}) has been deleted.`);
   }
   return {
@@ -311,11 +355,19 @@ export async function run(
     const actingShip = withSig(deps.getResolvedShip());
     await checkPhase(() => deps.authenticate());
 
-    // The legacy join never bites, so it gets the rest of the budget: it is
-    // the plain join (scries, possibly a preview, then a poke), which a short
-    // cap could fail where `groups join <flag>` would succeed.
-    if (target.kind === 'flag') {
+    // A legacy link is joined only once the provider knows it (the app's
+    // getMetadataFromInviteToken asks the same before its flag fallback).
+    // The join never bites, so it gets the rest of the budget: it is the
+    // plain join (scries, possibly a preview, then a poke), which a short cap
+    // could fail where `groups join <flag>` would succeed.
+    if (target.kind === 'legacy-flag') {
       const { flag } = target;
+      const legacy = await checkPhase(() => deps.fetchInviteMetadata(flag));
+      if (legacy.kind === 'not-found') {
+        throw commandError(
+          `Not an invite: the invite service does not know ${parsed.input}.`
+        );
+      }
       await finalAction(
         deps,
         deadline - deps.now(),
@@ -383,23 +435,47 @@ export async function run(
 
     // Previewed at most once, before the bite: the preview subscription can
     // hang (the desk only answers when it has one), so an unanswered preview
-    // reads as unknown privacy rather than holding the command. A stored
-    // "public" is refreshed too, since skipping the bite on a group that has
-    // since gone private would leave nothing to deliver the invite.
+    // falls back to the stored privacy rather than holding the command. A
+    // stored "public" is refreshed too: a group since made private needs the
+    // invite waited for, not an immediate join.
     let privacy = initial.state.privacy;
     if (privacy === null || privacy === 'public') {
       const previewMs = Math.min(PREVIEW_TIMEOUT_MS, preBiteRemaining());
       const preview = await withinCap(deps, previewMs, () =>
         deps.getPreviewPrivacy(flag, previewMs)
       );
-      privacy = preview.done ? preview.value : null;
+      if (preview.done && preview.value !== null) privacy = preview.value;
     }
 
-    // Public groups join directly: the bite would only add the inviter's
-    // "has joined the network" DM.
-    if (privacy === 'public') return await join(false);
-
     if (preBiteRemaining() <= 0) throw commandError(BUDGET_EXHAUSTED_MESSAGE);
+    const bite = () =>
+      withinCap(deps, BITE_TIMEOUT_MS, () =>
+        deps.biteInvite(token, actingShip)
+      );
+
+    // Public groups bite too, as the app does whenever there is no invite or
+    // membership: the bite records the redemption on %bait and has the
+    // inviter's ship send the attributed invite and "joined" DM. Nothing is
+    // waited for, and a bite that fails or outlives its cap does not stop the
+    // join.
+    if (privacy === 'public') {
+      let failure: string | null = null;
+      try {
+        const sent = await bite();
+        if (!sent.done) failure = 'timed out';
+        else if (sent.value.kind === 'not-found') failure = 'invite not found';
+      } catch (error) {
+        failure = errorMessage(error);
+      }
+      if (failure !== null) {
+        writeLine(
+          deps.stderr,
+          `Could not notify ${inviter}'s ship of the invite (${failure}); joining anyway.`
+        );
+      }
+      return await join(false);
+    }
+
     const waitSeconds = Math.floor((deadline - deps.now()) / 1000);
     writeLine(
       deps.stderr,
@@ -408,25 +484,22 @@ export async function run(
     // A 200 only means %bait forwarded the request; the foreign-group poll is
     // the ground truth. A bite that outlives its cap may still have landed,
     // so it is polled for like a sent one.
-    const bite = await withinCap(deps, BITE_TIMEOUT_MS, () =>
-      deps.biteInvite(token, actingShip)
-    );
-    if (bite.done && bite.value.kind === 'not-found') {
+    const sent = await bite();
+    if (sent.done && sent.value.kind === 'not-found') {
       throw notFoundError(token);
     }
 
     // At the deadline, "requested" and privacy reflect the last read that
-    // succeeded; a failed read says nothing either way. A foreign record can
-    // appear only after the bite, which is when unknown privacy resolves.
+    // succeeded; a failed read says nothing either way, and neither does a
+    // record without a preview (which the preview watch itself creates).
     let requested = initial.state.haveRequestedInvite;
     while (deadline - deps.now() > 0) {
       const read = await withinCap(deps, deadline - deps.now(), () =>
-        deps.getGroupState(flag)
+        deps.getForeignState(flag)
       );
       if (!read.done) break;
       if (read.value.ok) {
         const { state } = read.value;
-        if (state.member) return alreadyMember();
         if (state.haveInvite) return await join(true);
         requested = state.haveRequestedInvite;
         // Only the timeout decision uses this. A stored preview can be stale

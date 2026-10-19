@@ -9,14 +9,17 @@ import {
   toClientGroupFromForeign,
 } from '@tloncorp/api';
 import { parseInviteDeepLink } from '@tloncorp/api/client/deeplinks';
+// The request registry by subpath: only its plain-data entries are read here.
+// Its request helpers resolve to a separate, unconfigured client instance.
+import { groups as groupRequests } from '@tloncorp/api/client/requests/groups';
 import {
-  type Foreigns,
+  type Foreign,
   type GroupPreview,
   extractGroupPrivacy,
 } from '@tloncorp/api/urbit';
 
 import { ensureClient, getCredentialResolution } from './api-client';
-import { errorMessage } from './commands/command';
+import { errorMessage, isNotFoundError } from './commands/command';
 import {
   type GroupPrivacy,
   type GroupStateRead,
@@ -36,24 +39,35 @@ export interface JoinInviteLocal {
 }
 
 // Only a real 404 from the joined-group scry means "not a member"; anything
-// else is a failed read and must not be mistaken for an answer. The api
-// wraps a first-attempt failure in BadResponseError, but the retry after a
-// 403 reauth rejects with the raw Response.
-function isNotFound(error: unknown): boolean {
-  if (error instanceof Response) return error.status === 404;
-  return (
-    error instanceof Error &&
-    error.name === 'BadResponseError' &&
-    (error as { status?: unknown }).status === 404
-  );
-}
-
+// else is a failed read and must not be mistaken for an answer.
 async function isMember(flag: string): Promise<boolean> {
   try {
     const group = await getGroup(flag);
     return Boolean(group.currentUserIsMember);
   } catch (error) {
-    if (isNotFound(error)) return false;
+    if (isNotFoundError(error)) return false;
+    throw error;
+  }
+}
+
+const NO_RECORD = {
+  member: false,
+  haveInvite: false,
+  haveRequestedInvite: false,
+  privacy: null,
+} as const;
+
+// The per-flag record scry (groups.hoon `[%x ?(%v1 %v2) %foreigns ship=@
+// name=@ ~]`) answers [~ ~] for a missing record, which eyre serves as a 404.
+async function readForeign(flag: string): Promise<Foreign | null> {
+  const [ship, name] = flag.split('/');
+  try {
+    return await scry<Foreign>({
+      app: 'groups',
+      path: `/v1/foreigns/${ship}/${name}`,
+    });
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
     throw error;
   }
 }
@@ -61,40 +75,17 @@ async function isMember(flag: string): Promise<boolean> {
 // groups.ts's getForeignGroupState folds read failures into "no record",
 // which would let a failed poll erase an earlier "requested" observation.
 // Reads here report success or failure explicitly instead.
-async function readGroupState(
+async function readForeignState(
   flag: string,
   actingShip: string
 ): Promise<GroupStateRead> {
   try {
-    if (await isMember(flag)) {
-      return {
-        ok: true,
-        state: {
-          member: true,
-          haveInvite: false,
-          haveRequestedInvite: false,
-          privacy: null,
-        },
-      };
-    }
-    const foreigns = await scry<Foreigns>({
-      app: 'groups',
-      path: '/v1/foreigns',
-    });
-    const foreign = foreigns?.[flag];
-    if (!foreign) {
-      return {
-        ok: true,
-        state: {
-          member: false,
-          haveInvite: false,
-          haveRequestedInvite: false,
-          privacy: null,
-        },
-      };
-    }
-    // The app's own projection: revoked invites don't count, and a record
-    // without a preview reads as secret.
+    const foreign = await readForeign(flag);
+    if (!foreign) return { ok: true, state: NO_RECORD };
+    // The app's own projection for invites: revoked ones don't count. Its
+    // privacy reads a preview-less record as secret, but the desk creates
+    // such records itself (the first preview watch, or a host that never
+    // answered one), so no preview means unknown here.
     const group = toClientGroupFromForeign(flag, foreign, actingShip);
     return {
       ok: true,
@@ -102,12 +93,31 @@ async function readGroupState(
         member: false,
         haveInvite: Boolean(group.haveInvite),
         haveRequestedInvite: Boolean(group.haveRequestedInvite),
-        privacy: group.privacy ?? null,
+        privacy: foreign.preview ? extractGroupPrivacy(foreign.preview) : null,
       },
     };
   } catch (error) {
     return { ok: false, error: errorMessage(error) };
   }
+}
+
+async function readGroupState(
+  flag: string,
+  actingShip: string
+): Promise<GroupStateRead> {
+  try {
+    if (await isMember(flag)) {
+      return { ok: true, state: { ...NO_RECORD, member: true } };
+    }
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
+  return readForeignState(flag, actingShip);
+}
+
+// Filled from the registry entry, so a path change there follows here.
+function previewPath(flag: string): string {
+  return groupRequests.gangPreview.path.replace(/\{[^}]+\}/, flag);
 }
 
 // The desk answers a preview watch only when it has a preview, so the
@@ -122,7 +132,7 @@ async function readPreviewPrivacy(
 ): Promise<GroupPrivacy | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const preview = subscribeOnce<GroupPreview>(
-    { app: 'groups', path: `/gangs/${flag}/preview` },
+    { app: groupRequests.gangPreview.agent, path: previewPath(flag) },
     timeoutMs
   ).then(
     (result) => extractGroupPrivacy(result),
@@ -152,14 +162,17 @@ export function createJoinInviteDeps(local: JoinInviteLocal): JoinInviteDeps {
   return {
     ...createProcessCommandDeps(),
     getResolvedShip: () => getCredentialResolution().config.ship,
+    // Every request is a scry, an untracked poke, or its own subscribeOnce,
+    // so no standing subscription is opened.
     authenticate: async () => {
-      await ensureClient(['groups', 'channels']);
+      await ensureClient([]);
     },
     parseInviteLink: (input) => parseInviteDeepLink(input),
     joinExistingFlag: (flag) => local.joinGroupById(flag),
     fetchInviteMetadata: (token) => getProvider().getMetadata(token),
     biteInvite: (token, ship) => getProvider().bite(token, ship),
     getGroupState: (flag) => readGroupState(flag, actingShip()),
+    getForeignState: (flag) => readForeignState(flag, actingShip()),
     getPreviewPrivacy: readPreviewPrivacy,
     joinGroup: async (flag) => {
       await joinGroup(flag);
@@ -169,21 +182,24 @@ export function createJoinInviteDeps(local: JoinInviteLocal): JoinInviteDeps {
     },
     // The same two pokes as the api's addContact, which the web app uses for
     // a personal inviter. That helper leaves the suggestion-hide poke's
-    // rejection unhandled, so the pokes are sent here: only the contact poke
+    // rejection unhandled, so the pokes are sent here. Both are awaited (the
+    // process exits as soon as the command returns); only the contact poke
     // decides the result, and a failed hide is reported and ignored.
     addContact: async (ship) => {
-      poke({ app: 'groups-ui', mark: 'ui-hide-contact', json: ship }).catch(
-        (error) => {
-          process.stderr.write(
-            `Could not hide ${ship} from contact suggestions (${errorMessage(error)}).\n`
-          );
-        }
-      );
-      await poke({
-        app: 'contacts',
-        mark: 'contact-action-1',
-        json: { page: { kip: ship, contact: {} } },
-      });
+      const [hide, contact] = await Promise.allSettled([
+        poke({ app: 'groups-ui', mark: 'ui-hide-contact', json: ship }),
+        poke({
+          app: 'contacts',
+          mark: 'contact-action-1',
+          json: { page: { kip: ship, contact: {} } },
+        }),
+      ]);
+      if (hide.status === 'rejected') {
+        process.stderr.write(
+          `Could not hide ${ship} from contact suggestions (${errorMessage(hide.reason)}).\n`
+        );
+      }
+      if (contact.status === 'rejected') throw contact.reason;
     },
     now: () => Date.now(),
     sleep,

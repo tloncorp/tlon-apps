@@ -1,6 +1,8 @@
+import { isGroupFlag } from './cli-utils';
 import { commandError, errorMessage } from './commands/command';
 import {
   type InviteBiteResult,
+  type InviteMetadataFields,
   type InviteMetadataResult,
   unusableMetadataError,
 } from './commands/join-invite';
@@ -45,13 +47,45 @@ export interface InviteProviderClient {
   bite: (token: string, ship: string) => Promise<InviteBiteResult>;
 }
 
+const STRING_FIELDS = [
+  'inviterUserId',
+  'inviteType',
+  'invitedGroupId',
+  'invitedGroupTitle',
+  'inviterNickname',
+] as const;
+
+// Only the fields the CLI reads are validated, and only they are kept. %bait
+// serializes every field as a cord (lib/reel.hoon enjs-metadata), so
+// invitedGroupDeleted is usually the string 'true'; the app's
+// ProviderMetadataResponse declares it boolean, so both are accepted.
+function readMetadataFields(raw: unknown): InviteMetadataFields | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+  const fields: InviteMetadataFields = {};
+  for (const key of STRING_FIELDS) {
+    const value = record[key];
+    if (value === undefined) continue;
+    if (typeof value !== 'string') return null;
+    fields[key] = value;
+  }
+  const deleted = record.invitedGroupDeleted;
+  if (deleted === true || deleted === 'true') fields.invitedGroupDeleted = true;
+  else if (deleted !== undefined && deleted !== false && deleted !== 'false') {
+    return null;
+  }
+  return fields;
+}
+
 export function createInviteProviderClient({
   origin,
   fetchFn = fetch,
   timeoutMs = INVITE_PROVIDER_TIMEOUT_MS,
 }: InviteProviderClientOptions): InviteProviderClient {
+  // A legacy flag-shaped token (`~ship/name`, URL-safe by its shape) keeps
+  // its slash, as in the app's request; anything else is one path segment.
   const lureUrl = (token: string) =>
-    `${origin}/lure/${encodeURIComponent(token)}`;
+    `${origin}/lure/${isGroupFlag(token) ? token : encodeURIComponent(token)}`;
 
   const send = async (url: string, init: RequestInit): Promise<Response> => {
     try {
@@ -84,18 +118,11 @@ export function createInviteProviderClient({
       } catch {
         throw unusableMetadataError(token);
       }
-      // %bait serializes every field as a cord (lib/reel.hoon enjs-metadata),
-      // including invitedGroupDeleted, which is the string 'true'.
-      const fields = (body as { fields?: unknown } | null)?.fields;
-      if (
-        !fields ||
-        typeof fields !== 'object' ||
-        Array.isArray(fields) ||
-        Object.values(fields).some((value) => typeof value !== 'string')
-      ) {
-        throw unusableMetadataError(token);
-      }
-      return { kind: 'found', fields: fields as Record<string, string> };
+      const fields = readMetadataFields(
+        (body as { fields?: unknown } | null)?.fields
+      );
+      if (!fields) throw unusableMetadataError(token);
+      return { kind: 'found', fields };
     },
     bite: async (token, ship) => {
       // %bait only accepts this exact body shape (it checks the `ship=%7E`

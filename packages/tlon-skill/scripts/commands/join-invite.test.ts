@@ -7,6 +7,7 @@ import {
   type GroupStateRead,
   type InviteBiteResult,
   type InviteGroupState,
+  type InviteMetadataFields,
   type InviteMetadataResult,
   JOIN_HELP,
   type JoinInviteDeps,
@@ -19,16 +20,14 @@ const FLAG = '~zod/test';
 const TOKEN = '0v1.abcde';
 const LINK = `https://invite.tlon.io/${TOKEN}`;
 
-const GROUP_FIELDS: Record<string, string> = {
-  'bite-type': '2',
+const GROUP_FIELDS: InviteMetadataFields = {
   inviteType: 'group',
   inviterUserId: '~nec',
   invitedGroupId: FLAG,
   invitedGroupTitle: 'Test',
 };
 
-const PERSONAL_FIELDS: Record<string, string> = {
-  'bite-type': '2',
+const PERSONAL_FIELDS: InviteMetadataFields = {
   inviteType: 'user',
   inviterUserId: '~nec',
   inviterNickname: 'Nec',
@@ -54,9 +53,14 @@ function state(overrides: Partial<InviteGroupState> = {}): GroupStateRead {
   };
 }
 
-function without(fields: Record<string, string>, ...keys: string[]) {
+function without(
+  fields: InviteMetadataFields,
+  ...keys: Array<keyof InviteMetadataFields>
+): InviteMetadataFields {
   return Object.fromEntries(
-    Object.entries(fields).filter(([key]) => !keys.includes(key))
+    Object.entries(fields).filter(
+      ([key]) => !keys.includes(key as keyof InviteMetadataFields)
+    )
   );
 }
 
@@ -67,10 +71,11 @@ type Clock = { now: number };
 interface Options {
   resolvedShipError?: Error;
   authenticate?: (clock: Clock) => Promise<void>;
-  fields?: Record<string, string>;
+  fields?: InviteMetadataFields;
   metadata?: (clock: Clock) => Promise<InviteMetadataResult>;
   bite?: (clock: Clock) => Promise<InviteBiteResult>;
-  // One entry per getGroupState call; the last one repeats.
+  // One entry per state read (the initial getGroupState, then each
+  // getForeignState poll); the last one repeats.
   states?: Array<GroupStateRead | 'hang'>;
   preview?: (clock: Clock) => Promise<GroupPrivacy | null>;
   joinGroup?: () => Promise<void>;
@@ -90,6 +95,7 @@ function makeDeps(options: Options = {}) {
     fetchInviteMetadata: [] as string[],
     biteInvite: [] as Array<[string, string]>,
     getGroupState: [] as string[],
+    getForeignState: [] as string[],
     getPreviewPrivacy: [] as Array<[string, number]>,
     joinGroup: [] as Array<{ flag: string; at: number }>,
     requestInvite: [] as Array<{ flag: string; at: number }>,
@@ -98,6 +104,13 @@ function makeDeps(options: Options = {}) {
     sleep: [] as number[],
   };
   const states = options.states ?? [state()];
+  let reads = 0;
+  const nextState = async () => {
+    const next = states[Math.min(reads, states.length - 1)];
+    reads += 1;
+    if (next === 'hang') return never<GroupStateRead>();
+    return next;
+  };
 
   const deps: JoinInviteDeps = {
     stdout: (text) => stdout.push(text),
@@ -134,10 +147,12 @@ function makeDeps(options: Options = {}) {
     getGroupState: async (flag) => {
       calls.getGroupState.push(flag);
       sequence.push('getGroupState');
-      const next =
-        states[Math.min(calls.getGroupState.length - 1, states.length - 1)];
-      if (next === 'hang') return never();
-      return next;
+      return nextState();
+    },
+    getForeignState: async (flag) => {
+      calls.getForeignState.push(flag);
+      sequence.push('getForeignState');
+      return nextState();
     },
     getPreviewPrivacy: async (flag, timeoutMs) => {
       calls.getPreviewPrivacy.push([flag, timeoutMs]);
@@ -219,6 +234,14 @@ describe('join --invite parsing', () => {
       `https://evil@invite.tlon.io/${TOKEN}`,
       `  ${LINK}  `,
       TOKEN,
+      `https://tlon.network/apps/groups/?inviteToken=${TOKEN}`,
+      `https://invite.tlon.io/?inviteToken=${TOKEN}&utm_source=x`,
+      `https://join.tlon.io/?token=${TOKEN}`,
+      `utm_source=x&token=${TOKEN}`,
+      `token=${encodeURIComponent(TOKEN)}`,
+      // A hostile authority contributes nothing but the token.
+      `https://evil.example/?inviteToken=${TOKEN}`,
+      `https://invite.tlon.io@evil.example/apps/groups/?inviteToken=${TOKEN}`,
     ];
     for (const input of inputs) {
       const result = await runWith(['--invite', input], {
@@ -237,18 +260,52 @@ describe('join --invite parsing', () => {
     expect(result.calls.fetchInviteMetadata).toEqual([TOKEN]);
   });
 
-  it('joins flag-shaped input directly, without the invite service', async () => {
+  it('refuses a bare group id as a usage error before resolving credentials', async () => {
+    for (const args of [
+      ['--invite', FLAG],
+      [`--invite=${FLAG}`, '--self'],
+    ]) {
+      const result = await runWith(args);
+      expect(result.code).toBe(1);
+      expect(result.err).toBe(
+        `Error: --invite takes an invite link or token, not a group id; use \`tlon groups join <group-id>\` for a plain join\n\n${JOIN_HELP}\n`
+      );
+      expect(result.calls.getResolvedShip).toBe(0);
+      expect(result.calls.joinExistingFlag).toEqual([]);
+      expectNoNetwork(result.calls);
+    }
+  });
+
+  it('joins a legacy flag link once the provider knows it', async () => {
     for (const input of [
-      FLAG,
       `https://invite.tlon.io/${FLAG}`,
       `tlon.network/lure/${FLAG}`,
+      `https://tlon.network/apps/groups/?inviteToken=${encodeURIComponent(FLAG)}`,
     ]) {
-      const result = await runWith(['--invite', input]);
+      const result = await runWith(['--invite', input], { fields: {} });
       expect(result.code).toBe(0);
+      expect(result.sequence).toEqual([
+        'getResolvedShip',
+        'authenticate',
+        'fetchInviteMetadata',
+        'joinExistingFlag',
+      ]);
+      expect(result.calls.fetchInviteMetadata).toEqual([FLAG]);
       expect(result.calls.joinExistingFlag).toEqual([FLAG]);
-      expectNoNetwork(result.calls);
-      expect(result.calls.getGroupState).toEqual([]);
+      expect(result.calls.biteInvite).toEqual([]);
     }
+  });
+
+  it('refuses a legacy flag link the provider does not know', async () => {
+    const input = `https://invite.tlon.io/${FLAG}`;
+    const result = await runWith(['--invite', input], {
+      metadata: async () => ({ kind: 'not-found' }),
+    });
+    expect(result.code).toBe(1);
+    expect(result.err).toBe(
+      `Error: Not an invite: the invite service does not know ${input}.\n`
+    );
+    expect(result.calls.joinExistingFlag).toEqual([]);
   });
 
   it('refuses a DM link before resolving credentials', async () => {
@@ -271,6 +328,8 @@ describe('join --invite parsing', () => {
       '0vZZZ',
       `https://invite.tlon.io@evil.example/${TOKEN}`,
       'https://invite.tlon.io/0vZZZ',
+      'https://evil.example/?inviteToken=0vZZZ',
+      'https://evil.example/?inviteToken=%E0%A4%A',
     ]) {
       const result = await runWith(['--invite', input]);
       expect(result.code).toBe(1);
@@ -381,7 +440,7 @@ describe('join --invite ordering and metadata', () => {
 
   it('refuses a deleted group before touching group state', async () => {
     const result = await runWith(['--invite', LINK], {
-      fields: { ...GROUP_FIELDS, invitedGroupDeleted: 'true' },
+      fields: { ...GROUP_FIELDS, invitedGroupDeleted: true },
     });
     expect(result.code).toBe(1);
     expect(result.err).toBe(
@@ -475,17 +534,29 @@ describe('join --invite group invites', () => {
     );
   });
 
-  it('joins a public group directly, without biting', async () => {
+  it('bites a public group, then joins at once without polling', async () => {
     const viaPreview = await runWith(['--invite', LINK], {
       states: [state({ privacy: null })],
       preview: async () => 'public',
     });
     expect(viaPreview.code).toBe(0);
+    expect(viaPreview.sequence).toEqual([
+      'getResolvedShip',
+      'authenticate',
+      'fetchInviteMetadata',
+      'getGroupState',
+      'getPreviewPrivacy',
+      'biteInvite',
+      'joinGroup',
+    ]);
     expect(viaPreview.calls.getPreviewPrivacy).toEqual([[FLAG, 4_000]]);
-    expect(viaPreview.calls.joinGroup.map((call) => call.flag)).toEqual([FLAG]);
-    expect(viaPreview.calls.biteInvite).toEqual([]);
+    expect(viaPreview.calls.biteInvite).toEqual([[TOKEN, '~ten']]);
+    expect(viaPreview.calls.joinGroup).toEqual([{ flag: FLAG, at: 0 }]);
     expect(viaPreview.out).toBe(
       `Joining ${FLAG}. Sync may take a moment to show membership.\n`
+    );
+    expect(viaPreview.err).toBe(
+      `Invite from ~nec for ${FLAG} "Test" as ~ten\n`
     );
 
     // A stored "public" is confirmed by one fresh preview first.
@@ -494,8 +565,39 @@ describe('join --invite group invites', () => {
       preview: async () => 'public',
     });
     expect(viaForeign.calls.getPreviewPrivacy).toEqual([[FLAG, 4_000]]);
-    expect(viaForeign.calls.biteInvite).toEqual([]);
+    expect(viaForeign.calls.biteInvite).toEqual([[TOKEN, '~ten']]);
+    expect(viaForeign.calls.getForeignState).toEqual([]);
     expect(viaForeign.calls.joinGroup).toEqual([{ flag: FLAG, at: 0 }]);
+  });
+
+  it('still joins a public group when the bite times out or fails', async () => {
+    const cases: Array<[Options['bite'], string, number]> = [
+      [() => never(), 'timed out', 5_000],
+      [
+        async () => {
+          throw new Error('provider down');
+        },
+        'provider down',
+        0,
+      ],
+      [async () => ({ kind: 'not-found' }), 'invite not found', 0],
+    ];
+    for (const [bite, reason, at] of cases) {
+      const result = await runWith(['--invite', LINK], {
+        states: [state({ privacy: 'public' })],
+        preview: async () => 'public',
+        bite,
+      });
+      expect(result.code).toBe(0);
+      expect(result.calls.joinGroup).toEqual([{ flag: FLAG, at }]);
+      expect(result.calls.getForeignState).toEqual([]);
+      expect(result.err).toContain(
+        `Could not notify ~nec's ship of the invite (${reason}); joining anyway.\n`
+      );
+      expect(result.out).toBe(
+        `Joining ${FLAG}. Sync may take a moment to show membership.\n`
+      );
+    }
   });
 
   it('bites when a fresh preview contradicts a stored public one', async () => {
@@ -510,16 +612,18 @@ describe('join --invite group invites', () => {
     }
   });
 
-  it('bites and polls when a stored public preview cannot be refreshed', async () => {
+  it('keeps a stored public preview that cannot be refreshed: bites, then joins at once', async () => {
     const result = await runWith(['--invite', LINK], {
-      states: [state({ privacy: 'public' }), state({ privacy: null })],
+      states: [state({ privacy: 'public' }), state({ privacy: 'public' })],
       preview: () => never(),
     });
     expect(result.calls.getPreviewPrivacy).toHaveLength(1);
-    expect(result.calls.biteInvite).toHaveLength(1);
-    expect(result.calls.getGroupState.length).toBeGreaterThan(5);
-    expect(result.calls.joinGroup).toEqual([]);
-    expect(result.out).toBe(PENDING_LINE);
+    expect(result.calls.biteInvite).toEqual([[TOKEN, '~ten']]);
+    expect(result.calls.getForeignState).toEqual([]);
+    expect(result.calls.joinGroup).toEqual([{ flag: FLAG, at: 4_000 }]);
+    expect(result.out).toBe(
+      `Joining ${FLAG}. Sync may take a moment to show membership.\n`
+    );
   });
 
   it('bites, polls, and accepts an invite that arrives', async () => {
@@ -533,9 +637,9 @@ describe('join --invite group invites', () => {
       'fetchInviteMetadata',
       'getGroupState',
       'biteInvite',
-      'getGroupState',
+      'getForeignState',
       'sleep(1000)',
-      'getGroupState',
+      'getForeignState',
       'joinGroup',
     ]);
     expect(result.calls.biteInvite).toEqual([[TOKEN, '~ten']]);
@@ -586,14 +690,6 @@ describe('join --invite group invites', () => {
     expect(clearedAfter.calls.requestInvite).toHaveLength(1);
   });
 
-  it('stops polling when membership appears', async () => {
-    const result = await runWith(['--invite', LINK], {
-      states: [state(), state(), state({ member: true })],
-    });
-    expect(result.out).toBe(`Already a member of ${FLAG}.\n`);
-    expect(result.calls.joinGroup).toEqual([]);
-  });
-
   it('reports a secret or unknown group as pending, sending nothing more', async () => {
     for (const options of [
       { states: [state({ privacy: 'secret' })] },
@@ -619,7 +715,7 @@ describe('join --invite group invites', () => {
     const result = await runWith(['--invite', LINK], {
       states: [state({ privacy: null })],
     });
-    expect(result.calls.getGroupState.length).toBeGreaterThan(5);
+    expect(result.calls.getForeignState.length).toBeGreaterThan(5);
     expect(result.calls.getPreviewPrivacy).toHaveLength(1);
   });
 
@@ -632,6 +728,7 @@ describe('join --invite group invites', () => {
       `Error: Invite link not found (revoked or unknown): ${TOKEN}\n`
     );
     expect(result.calls.getGroupState).toHaveLength(1);
+    expect(result.calls.getForeignState).toEqual([]);
   });
 
   it('surfaces a failed initial state read without biting', async () => {
@@ -705,7 +802,7 @@ describe('join --invite group invites', () => {
     const result = await runWith(['--invite', LINK], {
       states: [state({ privacy: 'private' }), state({ privacy: 'secret' })],
     });
-    expect(result.calls.getGroupState.length).toBeGreaterThan(5);
+    expect(result.calls.getForeignState.length).toBeGreaterThan(5);
     expect(result.calls.requestInvite).toEqual([]);
     expect(result.out).toBe(PENDING_LINE);
   });
@@ -840,7 +937,7 @@ describe('join --invite phase caps', () => {
     expect(result.clock.now).toBe(28_000);
   });
 
-  it('bounds the personal contact poke and the legacy flag join', async () => {
+  it('bounds the personal contact poke and the legacy flag-link join', async () => {
     const personal = await runWith(['--invite', LINK], {
       fields: PERSONAL_FIELDS,
       addContact: () => never(),
@@ -851,7 +948,8 @@ describe('join --invite phase caps', () => {
     );
     expect(personal.clock.now).toBe(3_000);
 
-    const flag = await runWith(['--invite', FLAG], {
+    const flag = await runWith(['--invite', `https://invite.tlon.io/${FLAG}`], {
+      fields: {},
       joinExistingFlag: () => never(),
     });
     expect(flag.code).toBe(1);

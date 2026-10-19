@@ -1995,11 +1995,24 @@ export const JOIN_INVITE_CASES: CliCase[] = [
     'https://invite.tlon.io/0v1.abcde',
     '--self',
   ]),
-  authRequiredCase('groups join --invite flag reaches auth', [
+  // A bare group id is not an invite: refused before any credential lookup.
+  usageErrorCase(
+    'groups join --invite rejects a bare group id',
+    ['groups', 'join', '--invite', '~zod/test'],
+    'Usage: tlon groups join'
+  ),
+  // A legacy flag-shaped link is verified on the provider, after auth.
+  authRequiredCase('groups join --invite legacy flag link reaches auth', [
     'groups',
     'join',
     '--invite',
-    '~zod/test',
+    'https://invite.tlon.io/~zod/test',
+  ]),
+  authRequiredCase('groups join --invite web inviteToken link reaches auth', [
+    'groups',
+    'join',
+    '--invite',
+    'https://tlon.network/apps/groups/?inviteToken=0v1.abcde',
   ]),
   {
     name: 'groups join --invite explicit --config is honored',

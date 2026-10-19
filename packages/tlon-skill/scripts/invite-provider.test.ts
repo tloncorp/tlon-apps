@@ -91,6 +91,53 @@ describe('invite provider metadata', () => {
     expect(calls[0].url).toBe(`${ORIGIN}/lure/0v1%2F..%2Fx/metadata`);
   });
 
+  it('keeps the slash of a legacy flag-shaped token, as the app does', async () => {
+    const { calls, fetchFn } = stubFetch(() => json({}, 404));
+    const client = createInviteProviderClient({ origin: ORIGIN, fetchFn });
+
+    expect(await client.getMetadata('~zod/test')).toEqual({
+      kind: 'not-found',
+    });
+    expect(calls[0].url).toBe(`${ORIGIN}/lure/~zod/test/metadata`);
+  });
+
+  it('validates and keeps only the fields it reads', async () => {
+    for (const [deleted, expected] of [
+      [true, true],
+      ['true', true],
+      [false, undefined],
+      ['false', undefined],
+      [undefined, undefined],
+    ] as const) {
+      const { fetchFn } = stubFetch(() =>
+        json({
+          tag: 'groups-0',
+          fields: {
+            'bite-type': 2,
+            extra: { nested: true },
+            inviteType: 'group',
+            inviterUserId: '~nec',
+            invitedGroupId: '~zod/test',
+            invitedGroupTitle: 'Test',
+            invitedGroupDeleted: deleted,
+          },
+        })
+      );
+      const client = createInviteProviderClient({ origin: ORIGIN, fetchFn });
+
+      expect(await client.getMetadata(TOKEN)).toEqual({
+        kind: 'found',
+        fields: {
+          inviteType: 'group',
+          inviterUserId: '~nec',
+          invitedGroupId: '~zod/test',
+          invitedGroupTitle: 'Test',
+          ...(expected === undefined ? {} : { invitedGroupDeleted: expected }),
+        },
+      });
+    }
+  });
+
   it('maps 404 to not-found', async () => {
     const { fetchFn } = stubFetch(
       () => new Response('Token not found', { status: 404 })
@@ -141,13 +188,15 @@ describe('invite provider metadata', () => {
     );
   });
 
-  it('rejects invalid JSON and non-string or missing fields as unusable', async () => {
+  it('rejects invalid JSON, missing fields, and mistyped read fields as unusable', async () => {
     const bodies = [
       () => new Response('not json', { status: 200 }),
       () => json({ tag: 'x' }),
       () => json({ fields: ['a'] }),
+      () => json({ fields: { inviterUserId: 7 } }),
+      () => json({ fields: { invitedGroupId: null } }),
       () =>
-        json({ fields: { inviterUserId: '~nec', invitedGroupDeleted: true } }),
+        json({ fields: { inviterUserId: '~nec', invitedGroupDeleted: 'yes' } }),
       () => json(null),
     ];
     for (const body of bodies) {
