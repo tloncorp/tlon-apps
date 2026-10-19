@@ -1,4 +1,6 @@
+import { decodeNamedCharacterReference } from 'decode-named-character-reference';
 import type { PhrasingContent, Text } from 'mdast';
+import { decodeNumericCharacterReference } from 'micromark-util-decode-numeric-character-reference';
 import type { Literal, Node } from 'unist';
 
 import { visit } from './astUtils';
@@ -158,7 +160,99 @@ function adjacentChar(atoms: RunAtom[], index: number, step: 1 | -1): string {
   return '';
 }
 
-function scanRun(atoms: RunAtom[], out: TextMentions[]): void {
+const ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/;
+// The character references micromark decodes in text (named, decimal, hex).
+const CHARACTER_REFERENCE =
+  /&(?:#[xX]([0-9A-Fa-f]{1,6})|#([0-9]{1,7})|([A-Za-z0-9]{1,31}));/y;
+
+function decodeReference(
+  raw: string,
+  at: number
+): { length: number; value: string } | null {
+  CHARACTER_REFERENCE.lastIndex = at;
+  const match = CHARACTER_REFERENCE.exec(raw);
+  if (!match) return null;
+  const value = match[1]
+    ? decodeNumericCharacterReference(match[1], 16)
+    : match[2]
+      ? decodeNumericCharacterReference(match[2], 10)
+      : decodeNamedCharacterReference(match[3]);
+  return value ? { length: match[0].length, value } : null;
+}
+
+// The source offset of each character of a text node's decoded value, or null
+// when the two can't be aligned. A backslash escape or character reference
+// maps to its first source character, so only a typed `@` maps to an `@`.
+function sourceOffsets(value: string, raw: string): number[] | null {
+  const offsets: number[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < value.length) {
+    if (j >= raw.length) return null;
+    const char = raw[j];
+    if (
+      char === '\\' &&
+      ASCII_PUNCTUATION.test(raw[j + 1] ?? '') &&
+      value[i] === raw[j + 1]
+    ) {
+      offsets.push(j);
+      i += 1;
+      j += 2;
+      continue;
+    }
+    if (char === '&') {
+      const reference = decodeReference(raw, j);
+      if (reference && value.startsWith(reference.value, i)) {
+        for (let k = 0; k < reference.value.length; k += 1) offsets.push(j);
+        i += reference.value.length;
+        j += reference.length;
+        continue;
+      }
+    }
+    if (value[i] === char) {
+      offsets.push(j);
+      i += 1;
+      j += 1;
+      continue;
+    }
+    // Whitespace trimmed at line edges and blockquote markers on continuation
+    // lines are in the source but not in the value.
+    if (char === ' ' || char === '\t' || char === '>') {
+      j += 1;
+      continue;
+    }
+    return null;
+  }
+  return offsets;
+}
+
+// Whether the match at [start, end) in a text node was typed literally.
+// Markdown has already decoded `\@` and `&#64;` (and `@&#97;ll`) into the
+// value, and an escaped mention must stay text. A node that can't be traced
+// to its source never converts.
+function typedLiterally(
+  node: Text,
+  start: number,
+  end: number,
+  source: string
+): boolean {
+  const from = node.position?.start.offset;
+  const to = node.position?.end.offset;
+  if (from === undefined || to === undefined) return false;
+  const offsets = sourceOffsets(node.value, source.slice(from, to));
+  if (offsets === null) return false;
+  for (let k = start; k < end; k += 1) {
+    if (
+      offsets[k] !== offsets[start] + (k - start) ||
+      source[from + offsets[k]] !== node.value[k]
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function scanRun(atoms: RunAtom[], source: string, out: TextMentions[]): void {
   atoms.forEach((atom, index) => {
     if (atom.kind !== 'text') return;
     const before = adjacentChar(atoms, index, -1);
@@ -173,7 +267,11 @@ function scanRun(atoms: RunAtom[], out: TextMentions[]): void {
     )) {
       const start = (match.index ?? 0) - before.length;
       const end = start + match[0].length;
-      if (start >= 0 && end <= value.length) {
+      if (
+        start >= 0 &&
+        end <= value.length &&
+        typedLiterally(atom.node, start, end, source)
+      ) {
         matches.push({ token: match[1], start, end });
       }
     }
@@ -185,7 +283,7 @@ function scanRun(atoms: RunAtom[], out: TextMentions[]): void {
 
 // Every role-mention token in document order. Shared by the candidate scan and
 // the transform so a token one accepts is exactly a token the other sees.
-function findRoleMentions(tree: Node): TextMentions[] {
+function findRoleMentions(tree: Node, source: string): TextMentions[] {
   const found: TextMentions[] = [];
   const walk = (node: Node): void => {
     // Footnote definitions are dropped from the Story, so nothing in them is
@@ -199,7 +297,7 @@ function findRoleMentions(tree: Node): TextMentions[] {
         node as PhrasingParent,
         atoms
       );
-      scanRun(atoms, found);
+      scanRun(atoms, source, found);
       return;
     }
     for (const child of node.children as Node[]) walk(child);
@@ -211,10 +309,11 @@ function findRoleMentions(tree: Node): TextMentions[] {
 /**
  * The `@word` tokens a parsed tree would offer as role mentions, as typed and
  * de-duplicated case-insensitively (first spelling kept). Includes `all`.
+ * `source` is the Markdown the tree was parsed from.
  */
-export function collectRoleMentionTokens(tree: Node): string[] {
+export function collectRoleMentionTokens(tree: Node, source: string): string[] {
   const seen = new Map<string, string>();
-  for (const { matches } of findRoleMentions(tree)) {
+  for (const { matches } of findRoleMentions(tree, source)) {
     for (const { token } of matches) {
       const key = token.toLowerCase();
       if (!seen.has(key)) seen.set(key, token);
@@ -229,9 +328,10 @@ export function collectRoleMentionTokens(tree: Node): string[] {
  */
 export function transformRoleMentions(
   tree: Node,
-  roleIds: ReadonlySet<string>
+  roleIds: ReadonlySet<string>,
+  source: string
 ): void {
-  for (const { node, parent, matches } of findRoleMentions(tree)) {
+  for (const { node, parent, matches } of findRoleMentions(tree, source)) {
     const replacement: PhrasingContent[] = [];
     let lastIndex = 0;
     for (const { token, start, end } of matches) {

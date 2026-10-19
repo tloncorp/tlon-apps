@@ -3282,6 +3282,17 @@ describe('posts role mentions', () => {
     expectNoRoleLookup(context);
   });
 
+  it('sends an escaped \\@word literally with no refusal or lookup', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(['send', CHANNEL, 'ask \\@mods'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['ask @mods'] },
+    ]);
+    expectNoRoleLookup(context);
+  });
+
   it('sends a backticked @word literally with no lookup', async () => {
     const context = makeDeps();
     const exitCode = await run(

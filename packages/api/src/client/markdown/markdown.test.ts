@@ -1512,6 +1512,49 @@ describe('roleMentions option', () => {
       );
     });
 
+    it.each([
+      '\\@all',
+      '&#64;all',
+      '&#x40;all',
+      '&commat;all',
+      '@&#97;ll',
+      '@a&#108;l',
+    ])('leaves an escaped %s as text', (markdown) => {
+      expect(roleMentionCandidates(markdown)).toEqual([]);
+      expect(markdownToStory(markdown, options)).toEqual([
+        { inline: ['@all'] },
+      ]);
+    });
+
+    it('converts only the unescaped mention beside an escaped one', () => {
+      const markdown = 'see \\@all and @all';
+      expect(roleMentionCandidates(markdown)).toEqual(['all']);
+      expect(markdownToStory(markdown, options)).toEqual([
+        { inline: ['see @all and ', { sect: null }] },
+      ]);
+    });
+
+    it('still converts after an escape or a reference in the same text', () => {
+      expect(markdownToStory('a \\* b @admin', options)).toEqual([
+        { inline: ['a * b ', { sect: 'admin' }] },
+      ]);
+      expect(markdownToStory('&amp; @admin', options)).toEqual([
+        { inline: ['& ', { sect: 'admin' }] },
+      ]);
+      expect(markdownToStory('&#x1F600; @admin', options)).toEqual([
+        { inline: ['\u{1F600} ', { sect: 'admin' }] },
+      ]);
+    });
+
+    it('converts on continuation lines of quotes, lists and tables', () => {
+      expect(
+        sects(markdownToStory('> a\n> b @admin\n\n- x\n  y @all', options))
+      ).toEqual(['admin', null]);
+      expect(
+        roleMentionCandidates('| a |\n| - |\n| x \\| @admin |\n\nl1\r\nl2 @all')
+      ).toEqual(['admin', 'all']);
+    });
+
     it('keeps a trailing hyphen in the token', () => {
       // Role ids may end in a hyphen, so `@admin-` names `admin-`, not `admin`.
       expect(roleMentionCandidates('ping @admin-')).toEqual(['admin-']);

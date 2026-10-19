@@ -74,10 +74,11 @@ Pins and thread replies:
 Mentions:
   ~ship mentions a person; @role-id mentions a group role (the id, not its title,
   case-insensitive) and @all mentions every member. DMs take @all only. An unknown
-  @word is refused; wrap it in backticks to send it as text. Mentions notify only
-  in plain paragraph text, not inside bold, quotes, headings, lists or tables, and
-  edits never notify. An edit re-validates every @role against the group's current
-  roles, so an edit keeping a since-deleted role is refused.
+  @word is refused; wrap it in backticks or write \\@word to send it as text.
+  Mentions notify only in plain paragraph text, not inside bold, quotes, headings,
+  lists or tables, and edits never notify. An edit re-validates every @role
+  against the group's current roles, so an edit keeping a since-deleted role is
+  refused.
 
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"

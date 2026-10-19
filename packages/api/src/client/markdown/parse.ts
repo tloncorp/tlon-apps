@@ -60,7 +60,7 @@ export function markdownToStory(
 
   const tree = parseMarkdown(markdown);
   if (options?.roleMentions) {
-    transformRoleMentions(tree, options.roleMentions.roleIds);
+    transformRoleMentions(tree, options.roleMentions.roleIds, markdown);
   }
 
   return mdastToStory(tree.children);
@@ -75,5 +75,5 @@ export function markdownToStory(
  * its allow-list would leave as text.
  */
 export function roleMentionCandidates(markdown: string): string[] {
-  return collectRoleMentionTokens(parseMarkdown(markdown));
+  return collectRoleMentionTokens(parseMarkdown(markdown), markdown);
 }
