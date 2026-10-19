@@ -971,15 +971,17 @@
     ::
         [%v1 %cron @ @ @ ~]
       =/  bot  (slav %p i.t.t.path)
+      =*  job  i.t.t.t.path
       =/  count  (slav %ud i.t.t.t.t.path)
-      =/  =update:v1:sl  (le-cron-page bot i.t.t.t.path count ~)
+      =/  =update:v1:sl  (le-cron-page bot job count ~)
       ``steward-lens-update-1+!>(update)
     ::
         [%v1 %cron @ @ @ @ ~]
       =/  bot  (slav %p i.t.t.path)
+      =*  job  i.t.t.t.path
       =/  count  (slav %ud i.t.t.t.t.path)
       =/  before  (slav %da i.t.t.t.t.t.path)
-      =/  =update:v1:sl  (le-cron-page bot i.t.t.t.path count `before)
+      =/  =update:v1:sl  (le-cron-page bot job count `before)
       ``steward-lens-update-1+!>(update)
     ==
   ::
