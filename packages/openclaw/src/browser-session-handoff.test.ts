@@ -17,7 +17,8 @@ import {
 } from './browser-session-handoff.js';
 import { shellSplitCommand } from './tlon-tool-command.js';
 
-const watchHandoff = vi.fn().mockResolvedValue(undefined);
+const cancelWatch = vi.fn().mockResolvedValue(undefined);
+const watchHandoff = vi.fn().mockResolvedValue(cancelWatch);
 function runBrowserSessionHandoff(...args: Parameters<typeof runHandoff>) {
   return runHandoff(args[0], args[1], args[2], watchHandoff);
 }
@@ -109,11 +110,12 @@ describe('browser session handoff', () => {
     });
     expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
       'tlon',
-      ['browser', 'handoff', url],
+      ['browser', 'handoff', url, '--service-result'],
       config
     );
     expect(result).not.toContain(url);
     expect(result).toContain('sent');
+    expect(cancelWatch).not.toHaveBeenCalled();
   });
 
   it('delivers a dedicated approval card bound to the requested saved account', async () => {
@@ -130,7 +132,14 @@ describe('browser session handoff', () => {
     ).toEqual({ session_id: handle, action: 'prepare_form' });
     expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
       'tlon',
-      ['browser', 'approve-login', url, '--record', JSON.stringify(choice)],
+      [
+        'browser',
+        'approve-login',
+        url,
+        '--record',
+        JSON.stringify(choice),
+        '--service-result',
+      ],
       config
     );
   });
@@ -663,7 +672,7 @@ describe('browser session handoff', () => {
     expect(request.maxRedirects).toBe(0);
     expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
       'tlon',
-      ['browser', 'handoff', url],
+      ['browser', 'handoff', url, '--service-result'],
       config
     );
     expect(release).toHaveBeenCalledOnce();
@@ -682,7 +691,7 @@ describe('browser session handoff', () => {
       );
       expect(runBrowserHandoffCommand).toHaveBeenLastCalledWith(
         'tlon',
-        ['browser', 'handoff', url],
+        ['browser', 'handoff', url, '--service-result'],
         config
       );
     }
@@ -779,6 +788,11 @@ describe('browser session handoff', () => {
     ).rejects.toThrow(/^Could not send the secure browser form\.$/);
     expect(runBrowserHandoffCommand).toHaveBeenCalledOnce();
     expect(urbitFetch).toHaveBeenCalledOnce();
+    expect(cancelWatch).toHaveBeenCalledOnce();
+    runBrowserHandoffCommand.mockResolvedValue('sent');
+    await expect(
+      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+    ).resolves.toContain('sent');
   });
 });
 

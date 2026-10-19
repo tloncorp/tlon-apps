@@ -123,7 +123,7 @@ function browserCredentialHandoffBlob(
           context: {
             target: {
               type: 'screen',
-              screen: 'browserCredentialHandoff',
+              screen: 'browserSecureEntry',
               viewerUrl,
               ...(loginApproval ? { loginApproval } : {}),
             },
@@ -172,6 +172,14 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
     }
     if (!['handoff', 'share', 'approve-login'].includes(args[0]) || !args[1]) {
       throw usageError(BROWSER_HELP);
+    }
+
+    if (args[0] !== 'share') {
+      if (args.at(-1) !== '--service-result')
+        throw usageError(
+          'Secure entry requires service result delivery. Request a new card through the browser handoff tool.'
+        );
+      args = args.slice(0, -1);
     }
 
     if (

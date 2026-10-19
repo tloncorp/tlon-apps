@@ -340,7 +340,9 @@ export async function runBrowserSessionHandoff(
   binary: string,
   args: string[],
   config: OpenClawConfig,
-  watchHandoff?: (request: BrowserHandoffRequest) => Promise<void>
+  watchHandoff?: (
+    request: BrowserHandoffRequest
+  ) => Promise<() => Promise<void>>
 ): Promise<string> {
   if (
     args[0] === 'browser' &&
@@ -392,11 +394,10 @@ export async function runBrowserSessionHandoff(
     args[1] !== 'share',
     fields
   );
-  if (args[1] !== 'share')
-    await watchHandoff!({
-      browserSessionId: args[2],
-      viewerUrl,
-    });
+  const cancelWatch =
+    args[1] !== 'share'
+      ? await watchHandoff!({ browserSessionId: args[2], viewerUrl })
+      : undefined;
   try {
     await runBrowserHandoffCommand(
       binary,
@@ -405,6 +406,7 @@ export async function runBrowserSessionHandoff(
         args[1],
         viewerUrl,
         ...(loginRecord ? ['--record', JSON.stringify(loginRecord)] : []),
+        ...(args[1] !== 'share' ? ['--service-result'] : []),
       ],
       config
     );
@@ -415,6 +417,7 @@ export async function runBrowserSessionHandoff(
         : '. Wait for the secure-entry result before using this browser again. The service resumes this conversation after entry.')
     );
   } catch {
+    await cancelWatch?.();
     throw new Error(
       args[1] === 'share'
         ? 'Could not send the browser session card.'

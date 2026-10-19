@@ -424,7 +424,7 @@ describe('screen navigation target', () => {
   test('accepts saved-login approval identity and rejects malformed records', () => {
     const target = {
       type: 'screen',
-      screen: 'browserCredentialHandoff',
+      screen: 'browserSecureEntry',
       viewerUrl: 'https://browser-session.tlon.network/s/payload.signature',
     };
     for (const loginApproval of [
@@ -468,7 +468,7 @@ describe('screen navigation target', () => {
         entryWith(
           button({
             type: 'screen',
-            screen: 'browserCredentialHandoff',
+            screen: 'browserSecureEntry',
             viewerUrl:
               'https://browser-session-ovh1.tlon.network/s/payload.signature',
           })
@@ -480,7 +480,7 @@ describe('screen navigation target', () => {
         entryWith(
           button({
             type: 'screen',
-            screen: 'browserCredentialHandoff',
+            screen: 'browserSecureEntry',
           })
         )
       )

@@ -62,7 +62,7 @@ const browserHandoffEntry: A2UI.BlobEntry = {
                 context: {
                   target: {
                     type: 'screen',
-                    screen: 'browserCredentialHandoff',
+                    screen: 'browserSecureEntry',
                     viewerUrl:
                       'https://browser-session.tlon.network/s/private.signature',
                   },
@@ -110,12 +110,26 @@ test.each([
 test('does not let an invalid A2UI entry or escaped JSON bypass the handoff destination check', async () => {
   const blob = JSON.stringify([
     { ...browserHandoffEntry, version: 99 },
-  ]).replace('browserCredentialHandoff', '\\u0062rowserCredentialHandoff');
+  ]).replace('browserSecureEntry', '\\u0062rowserSecureEntry');
   await expect(
     sendPost({
       ...browserHandoffPost,
       channelId: 'chat/~zod/general',
       blob,
+    })
+  ).rejects.toThrow('one-to-one DM');
+  expect(pokeMock).not.toHaveBeenCalled();
+});
+
+test('keeps capabilities in unknown screen targets restricted to one-to-one DMs', async () => {
+  await expect(
+    sendPost({
+      ...browserHandoffPost,
+      channelId: 'chat/~zod/general',
+      blob: browserHandoffPost.blob!.replace(
+        'browserSecureEntry',
+        'unsupportedScreen'
+      ),
     })
   ).rejects.toThrow('one-to-one DM');
   expect(pokeMock).not.toHaveBeenCalled();
@@ -762,7 +776,7 @@ test('session sharing is a separate, valid card and cannot be posted to shared d
   );
   expect(A2UI.validateBlobEntry(card)).toBe(true);
   const blob = JSON.stringify([card]);
-  expect(blob).not.toContain('browserCredentialHandoff');
+  expect(blob).not.toContain('browserSecureEntry');
   for (const channelId of [
     'chat/~zod/general',
     'heap/~zod/gallery',

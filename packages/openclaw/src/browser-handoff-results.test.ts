@@ -167,9 +167,63 @@ describe('secure-entry result delivery', () => {
     f.readResult.mockRejectedValue(new Error('Browser is gone'));
     restarted.start();
     await restarted.poll();
+    expect(f.resume).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(6_000);
     expect(f.resume).toHaveBeenCalledTimes(2);
     expect(f.resume.mock.calls[0][0]).toEqual(f.resume.mock.calls[1][0]);
     expect(f.records.size).toBe(0);
+  });
+
+  it('backs off result delivery across expiry and caps the delay at five minutes', async () => {
+    const f = fixture();
+    await f.service.watch(f.request, f.ctx);
+    f.readResult.mockResolvedValue({ status: 'filled', submitted: false });
+    f.resume.mockRejectedValue(new Error('Gateway unavailable'));
+    f.service.start();
+    await f.service.poll();
+    for (const delay of [
+      5_000, 10_000, 20_000, 40_000, 80_000, 160_000, 300_000, 300_000,
+    ]) {
+      const attempts = f.resume.mock.calls.length;
+      const retryAt = f.records.get('browser-1')!.deliveryRetry!.nextAttemptAt;
+      expect(retryAt - Date.now()).toBe(delay);
+      vi.setSystemTime(retryAt - 1);
+      await f.service.poll();
+      expect(f.resume).toHaveBeenCalledTimes(attempts);
+      vi.setSystemTime(retryAt);
+      await f.service.poll();
+      expect(f.resume).toHaveBeenCalledTimes(attempts + 1);
+    }
+    f.resume.mockResolvedValue({ runId: 'accepted' });
+    vi.setSystemTime(f.records.get('browser-1')!.deliveryRetry!.nextAttemptAt);
+    await f.service.poll();
+    expect(f.records.size).toBe(0);
+    expect(
+      new Set(f.resume.mock.calls.map(([request]) => request.idempotencyKey))
+        .size
+    ).toBe(1);
+  });
+
+  it('releases a failed delivery watch so the same browser can receive another card', async () => {
+    const f = fixture();
+    const cancel = await f.service.watch(f.request, f.ctx);
+    await cancel();
+    expect(await f.service.isPending('browser-1')).toBe(false);
+    const nextToken = Buffer.from(
+      JSON.stringify({
+        exp: Math.floor(Date.now() / 1000) + 300,
+        form: 'next-form',
+      })
+    ).toString('base64url');
+    await f.service.watch(
+      {
+        ...f.request,
+        viewerUrl: `https://browser-session.tlon.network/s/${nextToken}.signature`,
+      },
+      f.ctx
+    );
+    await cancel();
+    expect(await f.service.isPending('browser-1')).toBe(true);
   });
 
   it.each([false, true])(

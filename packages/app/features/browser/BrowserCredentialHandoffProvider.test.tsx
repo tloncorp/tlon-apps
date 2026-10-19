@@ -18,12 +18,14 @@ import {
   useBrowserCredentialHandoff,
 } from './BrowserCredentialHandoffProvider';
 
-const { navigate, navigateToGroup, platform, openWindow } = vi.hoisted(() => ({
-  platform: { isWeb: false },
-  openWindow: vi.fn(),
-  navigate: vi.fn(),
-  navigateToGroup: vi.fn(),
-}));
+const { navigate, navigateToGroup, platform, openWindow, showToast } =
+  vi.hoisted(() => ({
+    platform: { isWeb: false },
+    showToast: vi.fn(),
+    openWindow: vi.fn(),
+    navigate: vi.fn(),
+    navigateToGroup: vi.fn(),
+  }));
 vi.mock('./browserCredentialHandoff', async (original) => {
   const actual = await original<typeof import('./browserCredentialHandoff')>();
   return {
@@ -32,6 +34,7 @@ vi.mock('./browserCredentialHandoff', async (original) => {
       actual.trustedBrowserViewerUrl(url),
   };
 });
+vi.mock('@tloncorp/ui', () => ({ useToast: () => showToast }));
 vi.mock('tamagui', () => ({
   get isWeb() {
     return platform.isWeb;
@@ -55,6 +58,7 @@ describe('browser handoff registry', () => {
   beforeEach(() => {
     platform.isWeb = false;
     navigate.mockClear();
+    showToast.mockClear();
     openWindow.mockClear();
     openWindow.mockReturnValue({
       opener: {},
@@ -151,6 +155,48 @@ describe('browser handoff registry', () => {
     act(() => renderer.unmount());
   });
 
+  it('shows a retryable error when a viewer popup is blocked', async () => {
+    platform.isWeb = true;
+    openWindow.mockReturnValue(null);
+    let navigateA2UI!: ReturnType<typeof useA2UINavigation>;
+    function Consumer() {
+      const navigateToTarget = useA2UINavigation();
+      useEffect(() => {
+        navigateA2UI = navigateToTarget;
+      }, [navigateToTarget]);
+      return null;
+    }
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <BrowserCredentialHandoffProvider>
+          <Consumer />
+        </BrowserCredentialHandoffProvider>
+      );
+    });
+    const target = {
+      type: 'screen',
+      screen: 'browserSession',
+      viewerUrl: 'https://browser-session.tlon.network/s/payload.signature',
+    } as const;
+    await expect(
+      navigateA2UI(target, { allowBrowserSession: true })
+    ).rejects.toThrow('Allow pop-ups');
+    expect(showToast).toHaveBeenCalledWith({
+      message: expect.stringContaining('allow pop-ups'),
+    });
+    openWindow.mockReturnValue({
+      opener: {},
+      document: { write: vi.fn() },
+      location: { replace: vi.fn() },
+      closed: false,
+    });
+    await expect(
+      navigateA2UI(target, { allowBrowserSession: true })
+    ).resolves.toBeUndefined();
+    act(() => renderer.unmount());
+  });
+
   beforeAll(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   });
@@ -175,7 +221,7 @@ describe('browser handoff registry', () => {
     expect(navigateToGroup).toHaveBeenCalledWith('~zod/example');
     const target = {
       type: 'screen',
-      screen: 'browserCredentialHandoff',
+      screen: 'browserSecureEntry',
       viewerUrl: 'https://browser-session.tlon.network/s/payload.signature',
     } as const;
     await expect(navigateA2UI(target)).resolves.toBeUndefined();
@@ -215,7 +261,7 @@ describe('browser handoff registry', () => {
 
       const target = {
         type: 'screen',
-        screen: 'browserCredentialHandoff',
+        screen: 'browserSecureEntry',
         viewerUrl,
         ...(loginApproval ? { loginApproval } : {}),
       } as const;

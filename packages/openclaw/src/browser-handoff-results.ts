@@ -56,6 +56,7 @@ type PendingHandoff = BrowserHandoffRequest & {
   sessionId: string;
   expiresAt: number;
   result?: CompletedResult;
+  deliveryRetry?: { attempts: number; nextAttemptAt: number };
 };
 
 function resultEndpoint(viewerUrl: string) {
@@ -164,12 +165,36 @@ export function createBrowserHandoffResults({
       await store.delete(key);
       return;
     }
-    await resume({
-      sessionKey: handoff.sessionKey,
-      message: resultMessage(handoff, result),
-      idempotencyKey: `tlon-browser-handoff:${handoff.id}`,
-      deliver: true,
-    });
+    if (
+      handoff.deliveryRetry &&
+      handoff.deliveryRetry.nextAttemptAt > Date.now()
+    )
+      return;
+    try {
+      await resume({
+        sessionKey: handoff.sessionKey,
+        message: resultMessage(handoff, result),
+        idempotencyKey: `tlon-browser-handoff:${handoff.id}`,
+        deliver: true,
+      });
+    } catch (error) {
+      if ((await store.lookup(key))?.id === handoff.id) {
+        const attempts = Math.min(
+          (handoff.deliveryRetry?.attempts ?? 0) + 1,
+          7
+        );
+        await store.register(key, {
+          ...handoff,
+          result,
+          deliveryRetry: {
+            attempts,
+            nextAttemptAt:
+              Date.now() + Math.min(5_000 * 2 ** (attempts - 1), 300_000),
+          },
+        });
+      }
+      throw error;
+    }
     await store.delete(key);
   }
 
@@ -236,6 +261,10 @@ export function createBrowserHandoffResults({
         throw new Error(
           'This browser is waiting for secure entry. Wait for its result.'
         );
+      return async () => {
+        if ((await store.lookup(request.browserSessionId))?.id === id)
+          await store.delete(request.browserSessionId);
+      };
     },
     async isPending(browserSessionId: string) {
       const handoff = await store.lookup(browserSessionId);

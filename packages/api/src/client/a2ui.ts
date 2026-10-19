@@ -66,7 +66,7 @@ const buttonVariantSchema = z.enum([
 ]);
 const screenNameSchema = z.enum([
   'botMcpSettings',
-  'browserCredentialHandoff',
+  'browserSecureEntry',
   'browserSession',
 ]);
 
@@ -126,9 +126,10 @@ const botMcpSettingsNavigationTargetSchema = z.object({
   screen: z.literal('botMcpSettings'),
   providerId: targetIdSchema.optional(),
 });
+// Secure entry resumes through service results; the card target identifies that protocol.
 const browserCredentialHandoffNavigationTargetSchema = z.object({
   type: z.literal('screen'),
-  screen: z.literal('browserCredentialHandoff'),
+  screen: z.literal('browserSecureEntry'),
   viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
   loginApproval: z
     .object({

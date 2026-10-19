@@ -2,6 +2,7 @@ import { getCanonicalPostId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
+import { useToast } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useOptionalBrowserCredentialHandoff } from '../features/browser/BrowserCredentialHandoffProvider';
@@ -64,6 +65,7 @@ function postFromTarget(
 
 export function useA2UINavigation() {
   const rootNavigation = useRootNavigation();
+  const showToast = useToast();
   const browserHandoff = useOptionalBrowserCredentialHandoff();
 
   const navigateToMessage = useCallback(
@@ -177,11 +179,21 @@ export function useA2UINavigation() {
               return;
             case 'browserSession':
               if (!options?.allowBrowserSession) return;
-              if (!browserHandoff)
-                throw new Error('Browser session viewer is unavailable.');
-              await browserHandoff.openViewer(target.viewerUrl);
+              try {
+                await (browserHandoff
+                  ? browserHandoff.openViewer(target.viewerUrl)
+                  : Promise.reject(
+                      new Error('Browser session viewer is unavailable.')
+                    ));
+              } catch (error) {
+                showToast({
+                  message:
+                    "Couldn't open the browser. Please try again and allow pop-ups if prompted.",
+                });
+                throw error;
+              }
               return;
-            case 'browserCredentialHandoff':
+            case 'browserSecureEntry':
               if (!options?.allowBrowserCredentialHandoff) {
                 logger.log('blocked untrusted browser target');
                 return;
@@ -202,6 +214,6 @@ export function useA2UINavigation() {
           }
       }
     },
-    [browserHandoff, navigateToMessage, rootNavigation]
+    [browserHandoff, navigateToMessage, rootNavigation, showToast]
   );
 }

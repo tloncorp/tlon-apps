@@ -441,7 +441,7 @@ export function StaticChatMessage({
         const target = action.event.context.target;
         if (target.type !== 'screen') return true;
         if (
-          target.screen === 'browserCredentialHandoff' ||
+          target.screen === 'browserSecureEntry' ||
           target.screen === 'browserSession'
         ) {
           return allowBrowserHandoff;

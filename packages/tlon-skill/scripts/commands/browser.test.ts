@@ -3,7 +3,16 @@ import { convertContent } from '@tloncorp/api/client/postContent';
 import { describe, expect, it } from 'bun:test';
 
 import type { PostSendInput, PostsApi } from './posts';
-import { type BrowserDeps, run } from './browser';
+import { type BrowserDeps, run as runCommand } from './browser';
+
+function run(args: string[], deps: BrowserDeps) {
+  return runCommand(
+    ['handoff', 'approve-login'].includes(args[0])
+      ? [...args, '--service-result']
+      : args,
+    deps
+  );
+}
 
 function makeDeps(ownerShip = '~owner') {
   const stdout: string[] = [];
@@ -33,6 +42,23 @@ function makeDeps(ownerShip = '~owner') {
 }
 
 describe('browser handoff', () => {
+  it.each(['handoff', 'approve-login'])(
+    'refuses %s without service-managed result delivery',
+    async (command) => {
+      const context = makeDeps();
+      expect(
+        await runCommand(
+          [command, 'https://browser-session.tlon.network/s/payload.signature'],
+          context.deps
+        )
+      ).toBe(1);
+      expect(context.sent).toEqual([]);
+      expect(context.stderr.join('')).toContain(
+        'requires service result delivery'
+      );
+    }
+  );
+
   it.each([
     { args: ['--help'] },
     { args: ['handoff', '--help'] },
@@ -193,6 +219,7 @@ describe('browser handoff', () => {
       storyMode: 'fallback',
     });
     const components = entry.messages[1].updateComponents.components;
+    expect(JSON.stringify(components)).toContain('browserSecureEntry');
     expect(components).not.toContainEqual(
       expect.objectContaining({ text: 'SECURE BROWSER HANDOFF' })
     );
