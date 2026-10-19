@@ -35,8 +35,8 @@ env:
     text: ${output.reliability.groupPattern}
     below: '^Pinned$'
 - longPressOn: ${output.reliability.groupPattern}
-- tapOn: '^Group info & settings$'
-- assertVisible: '^Group info & settings$'
+- tapOn: '^Workspace info & settings$'
+- assertVisible: '^Workspace info & settings$'
 - tapOn: '^Unpin$'
 - assertVisible: '^Pin$'
 - tapOn: '^Rename$'
@@ -74,32 +74,32 @@ env:
 - pressKey: Enter
 # Delete only this run's group, and verify cancellation before confirming.
 - longPressOn: ${output.reliability.group + ' renamed'}
-- tapOn: '^Group info & settings$'
+- tapOn: '^Workspace info & settings$'
 - scrollUntilVisible:
     element:
-      id: GroupLeaveAction-Delete group
+      id: GroupLeaveAction-Delete workspace
     direction: DOWN
     timeout: 5000
 - tapOn:
-    id: GroupLeaveAction-Delete group
+    id: GroupLeaveAction-Delete workspace
 - assertVisible: '^Delete ${output.reliability.group} renamed[?]$'
 - tapOn: '(?i)^Cancel$'
 - assertNotVisible: '^Delete ${output.reliability.group} renamed[?]$'
 - tapOn:
-    id: GroupLeaveAction-Delete group
+    id: GroupLeaveAction-Delete workspace
 - assertVisible: '^Delete ${output.reliability.group} renamed[?]$'
 - runFlow:
     when:
       platform: iOS
     commands:
       - tapOn:
-          text: '^Delete group$'
+          text: '^Delete workspace$'
           rightOf: '^Cancel$'
 - runFlow:
     when:
       platform: Android
     commands:
-      - tapOn: '(?i)^Delete group$'
+      - tapOn: '(?i)^Delete workspace$'
 - extendedWaitUntil:
     visible: '^Workspaces$'
     timeout: 5000

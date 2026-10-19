@@ -123,7 +123,7 @@ test('home sidebar mounts at the top with the Pinned section visible', async ({
     await expect(page.getByText('Home')).toBeVisible();
 
     // Setup: uniquely-named filler groups so we can assert on / clean up by
-    // exact title without colliding on duplicate "Untitled group" rows.
+    // exact title without colliding on duplicate "Untitled workspace" rows.
     for (const title of fillerTitles) {
       await createNamedGroup(page, title, registerForCleanup);
     }
@@ -138,7 +138,9 @@ test('home sidebar mounts at the top with the Pinned section visible', async ({
     // The Group info header must be present before toggleChatPin queries for
     // Pin/Unpin — without this wait, isVisible races against the screen mount
     // and reports false.
-    await expect(page.getByText('Group info')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Workspace info')).toBeVisible({
+      timeout: 10000,
+    });
     const pinStatus = await helpers.toggleChatPin(page);
     expect(pinStatus).toBe('pinned');
     await helpers.navigateBack(page);

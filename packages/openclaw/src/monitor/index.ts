@@ -1,6 +1,7 @@
 import {
   type PostBlobDataEntryAgentIntroRequest,
   type Story,
+  getGroup,
   readAll,
   readChannel,
   scryChangesSince,
@@ -110,6 +111,12 @@ import {
   getStewardAutomationReconciler,
   isStewardAutomationProjectionEligible,
 } from '../steward-automation-reconciliation.js';
+import {
+  type WorkspaceInstructionsRuntime,
+  createWorkspaceInstructionsRuntime,
+  publishWorkspaceInstructionsRuntime,
+  unpublishWorkspaceInstructionsRuntime,
+} from '../workspace-instructions.js';
 import {
   canonicalizeNest,
   normalizeShip,
@@ -944,6 +951,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // edits in this large pre-try region) would leave the shared slot
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
+  let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
     const contextLensConfig = account.contextLens;
@@ -1029,6 +1037,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // ownership rule in group-channels.ts.
     const discoveredNests = new Set<string>();
     const joinedChannels = createJoinedChannels();
+    workspaceInstructions = createWorkspaceInstructionsRuntime({
+      botShip: botShipName,
+      ownerShip: () =>
+        getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
+      channelToGroup,
+      fetchBlob: (flag) =>
+        inApiScope(() => getGroup(flag)).then((group) => group.blob ?? null),
+      getCron: getTlonCronService,
+      log: (msg) => runtime.log?.(msg),
+    });
+    publishWorkspaceInstructionsRuntime(workspaceInstructions);
     // Where onboarding stands in each DM: the group its last request named,
     // or that it has finished (or holds no request) and replies are just talk.
     const onboardingDmState = new OnboardingDmState();
@@ -4726,13 +4745,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
         // Check if we should respond:
         // 1. Direct mention always triggers response
-        // 2. Thread replies where we've participated - respond if relevant (let agent decide)
-        // 3. Owner blob-only message (image/file with no text from owner)
+        // 2. Thread replies where we've participated - respond if relevant (let
+        //    agent decide), except for the owner while owner-listen is off for
+        //    this channel (global toggle off or channel muted)
+        // 3. Owner blob-bearing message (image/file from owner), same owner-mute
+        //    exception as 2
         // 4. Owner command: owner's bare registered/core slash command in any
         //    watched chat channel (escape hatch; the popup inserts these bare).
         //    The chat/ constraint keeps heap/diary behavior unchanged.
-        // 5. Owner-listen: owner posts in an owner/bot-hosted channel and the
-        //    channel is not in the per-channel disabled list
+        // 5. Owner-listen: owner posts in an owner/bot-hosted channel, the
+        //    global toggle is on, and the channel is not in the per-channel
+        //    disabled list
         const inParticipatedThread = Boolean(
           isThreadReply && parentId && participatedThreads.has(parentId)
         );
@@ -4761,27 +4784,28 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // are owner-initiated no-mention engagement, and both trigger unions
         // (ContextLensTrigger, TlonAgentTurnTrigger) plus the run-kind mapping
         // already accept it without parallel edits.
-        const trigger: ContextLensTrigger = mentioned
-          ? 'mention'
-          : inParticipatedThread
-            ? 'thread'
-            : isOwnerBlob
-              ? 'owner-blob'
-              : engageDecision.reason === 'owner-owned' ||
-                  engageDecision.reason === 'owner-command'
-                ? 'owner-listen'
-                : 'unknown';
+        const trigger: ContextLensTrigger =
+          engageDecision.reason === 'mention'
+            ? 'mention'
+            : engageDecision.reason === 'thread'
+              ? 'thread'
+              : engageDecision.reason === 'owner-blob'
+                ? 'owner-blob'
+                : engageDecision.reason === 'owner-owned' ||
+                    engageDecision.reason === 'owner-command'
+                  ? 'owner-listen'
+                  : 'unknown';
 
         // Log why we're responding
         if (engageDecision.reason === 'owner-owned') {
           runtime.log?.(
             `[tlon] Owner ${senderShip} heard without mention in owned channel ${nest}`
           );
-        } else if (isOwnerBlob && !mentioned && !inParticipatedThread) {
+        } else if (engageDecision.reason === 'owner-blob') {
           runtime.log?.(
-            `[tlon] Responding to owner blob-only message in ${nest}`
+            `[tlon] Responding to owner blob-bearing message in ${nest}`
           );
-        } else if (inParticipatedThread && !mentioned) {
+        } else if (engageDecision.reason === 'thread') {
           runtime.log?.(
             `[tlon] Responding to thread we participated in (no mention): ${parentId}`
           );
@@ -6460,6 +6484,35 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         );
       }
 
+      // Group blob changes arrive only on /v3/groups (%groups keeps %blob
+      // off the older paths). Each fact carries the new blob, so the
+      // workspace instructions cache takes it in place; the cache's TTL
+      // covers facts missed while the subscription was down.
+      try {
+        await api.subscribe({
+          app: 'groups',
+          path: '/v3/groups',
+          event: (event: unknown) =>
+            workspaceInstructions?.handleGroupsResponse(event),
+          err: (error) => {
+            capturePluginError('groups_v3_subscription', error);
+            runtime.error?.(
+              `[tlon] Groups v3 subscription error: ${String(error)}`
+            );
+          },
+          quit: () => {
+            runtime.log?.(
+              '[tlon] Groups v3 quit received, SSE client will resubscribe'
+            );
+          },
+        });
+      } catch (err) {
+        capturePluginError('groups_v3_subscription', err);
+        runtime.log?.(
+          `[tlon] Groups v3 subscription failed (workspace config falls back to its cache TTL): ${String(err)}`
+        );
+      }
+
       // Subscribe to foreigns for auto-accepting group invites
       // Always subscribe so we can hot-reload the setting via settings store
       let groupInviteRunner: ReturnType<typeof createCatchUpRunner>;
@@ -6946,6 +6999,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // after the helper definitions). Anything that throws before the
     // inner finally can run hits this one. Idempotent via the helper.
     cleanupGatewayStatus();
+    if (workspaceInstructions) {
+      unpublishWorkspaceInstructionsRuntime(workspaceInstructions);
+    }
     // Remove the early abort listener so the host's signal does not
     // retain `cleanupGatewayStatus` (which transitively pins
     // `myApiClientParams.poke` and the SSE client) after the monitor
