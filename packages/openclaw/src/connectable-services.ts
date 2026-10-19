@@ -1,4 +1,5 @@
 import { readResponseWithLimit } from 'openclaw/plugin-sdk/response-limit-runtime';
+import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
 
 import { sharedSlot } from './shared-state.js';
@@ -28,6 +29,7 @@ type CatalogCache = {
 };
 
 const catalogCache = sharedSlot<CatalogCache>('connectableServices.catalog');
+const logger = createSubsystemLogger('tlon/connectable-services');
 
 export function resolveConnectableServicesUrl(
   env: NodeJS.ProcessEnv = process.env
@@ -109,16 +111,22 @@ export async function loadConnectableServices(
     );
     catalogCache.set({ url, services, expiresAt: now + CACHE_MS });
     return services;
-  } catch {
-    // Keep serving the last good list through a relay outage; without one,
-    // back off so every turn doesn't wait on a dead endpoint.
-    if (cached?.url === url && cached.services) return cached.services;
+  } catch (error) {
+    // Keep serving the last good list through a relay outage, and back off
+    // either way so every turn doesn't wait on a dead endpoint.
+    const services =
+      cached?.url === url && cached.services ? cached.services : null;
+    logger.warn('tlon.connectable_services.fetch_failed', {
+      url,
+      error: error instanceof Error ? error.message : String(error),
+      servingCachedList: Boolean(services),
+    });
     catalogCache.set({
       url,
-      services: null,
+      services,
       expiresAt: now + RETRY_AFTER_FAILURE_MS,
     });
-    return null;
+    return services;
   }
 }
 

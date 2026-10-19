@@ -104,7 +104,7 @@ describe('loadConnectableServices', () => {
     expect(fetchJson).toHaveBeenCalledWith(url);
   });
 
-  it('keeps the last good list when a refresh fails', async () => {
+  it('keeps the last good list and backs off when a refresh fails', async () => {
     let now = 0;
     const fetchJson = vi
       .fn<(url: string) => Promise<unknown>>()
@@ -116,6 +116,14 @@ describe('loadConnectableServices', () => {
     await load();
     now = 2 * 60 * 60_000;
     await expect(load()).resolves.toEqual(services);
+
+    // The failed refresh backs off instead of retrying on every turn.
+    now += 60_000;
+    await expect(load()).resolves.toEqual(services);
+    expect(fetchJson).toHaveBeenCalledTimes(2);
+    now += 5 * 60_000;
+    await load();
+    expect(fetchJson).toHaveBeenCalledTimes(3);
   });
 
   it('reports unknown, then backs off, when the list never loaded', async () => {
