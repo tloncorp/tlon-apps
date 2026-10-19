@@ -125,6 +125,16 @@ plugins:
             hooks:
                 allowConversationAccess: true
 
+# OpenClaw 2026.9.6+ defaults group silent replies to disallow. The plugin
+# deliberately dispatches unmentioned participated-thread and owner-listen
+# turns so the agent can decide not to answer; without this, a `NO_REPLY` on
+# those turns is replaced by a visible fallback message. Hosted bots get this
+# from tlawn.
+agents:
+    defaults:
+        silentReply:
+            group: 'allow'
+
 channels:
     tlon:
         enabled: true
