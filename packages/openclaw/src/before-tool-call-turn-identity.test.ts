@@ -426,7 +426,7 @@ describe('before_tool_call turn identity', () => {
         expect(text).toContain(
           ownerDefault
             ? 'Commands run as the owner by default'
-            : 'are not accepted on settings or browser'
+            : 'are not accepted on settings, browser or hooks'
         );
         expect(tlonTool()!.description).toContain(
           ownerDefault
@@ -450,6 +450,48 @@ describe('before_tool_call turn identity', () => {
     const actsAs = async (tool: TlonTool | undefined) =>
       (await tool!.execute('owner', { command: 'contacts self' })).content[0]
         .text;
+
+    it.each([
+      ['to another ship', withOwner('~nec'), false],
+      [
+        'with the owner unchanged',
+        withOwner('~zod', { dmAllowlist: ['~bus'] }),
+        true,
+      ],
+    ])(
+      'revokes a running owner-directed run when the owner changes: %s',
+      async (_label, reloaded, stillOwner) => {
+        const { beforeToolCall, reloadConfig } = registerEntry(
+          withOwner('~zod')
+        );
+        inbound('owner', 'run-1');
+        const ctx = { sessionKey: GROUP, runId: 'run-1' };
+        await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toBeUndefined();
+
+        reloadConfig(reloaded);
+        // Demoted like a run a non-owner message reached: the ex-owner's run
+        // keeps no owner-only tools, tlon included.
+        await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toEqual(
+          stillOwner
+            ? undefined
+            : {
+                block: true,
+                blockReason: formatOwnerOnlyToolBlockReason('tlon'),
+              }
+        );
+        // Records only move toward the bot: restoring the owner does not
+        // restore the run.
+        reloadConfig(withOwner('~zod'));
+        await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toEqual(
+          stillOwner
+            ? undefined
+            : {
+                block: true,
+                blockReason: formatOwnerOnlyToolBlockReason('tlon'),
+              }
+        );
+      }
+    );
 
     it.each([
       ['to another ship', withOwner('~nec'), '~nec'],

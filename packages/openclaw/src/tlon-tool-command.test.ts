@@ -462,7 +462,7 @@ describe('owner-by-default identity selection', () => {
         await execute('family', { command });
         const args = shellSplitCommand(command);
         expect(ranWith(runCommand)).toEqual(
-          family === 'settings' || family === 'browser'
+          family === 'settings' || family === 'browser' || family === 'hooks'
             ? args
             : ['--ship', '~owner', ...args]
         );
@@ -628,7 +628,6 @@ describe('owner-by-default identity selection', () => {
     it.each([
       'contacts update-profile --nickname x --help',
       'channels rename chat/~h/c "New" --help',
-      'hooks delete hook-1 --help',
       'groups leave ~h/g --help',
     ])('`%s` is a write, not help', async (command) => {
       const { execute, runCommand } = makeExecutor();
@@ -974,7 +973,7 @@ describe('owner-by-default identity selection', () => {
   });
 
   describe('Ran as echo', () => {
-    // One mutating op per owner write family; settings and browser are
+    // One mutating op per owner write family; settings, browser and hooks are
     // bot-only and covered below.
     it.each([
       'activity mute ~h/g',
@@ -984,7 +983,6 @@ describe('owner-by-default identity selection', () => {
       'dms react 0v1.abc 170.1 👍',
       'expose show chat/~h/c/170.1',
       'groups invite-link ~h/g',
-      'hooks add ~h/g hook.hoon',
       'notes note-publish notes/~h/b 12',
       'posts react chat/~h/c 170.1 👍',
       'posts forward chat/~h/c 170.1 chat/~h/d',
@@ -999,6 +997,7 @@ describe('owner-by-default identity selection', () => {
       '--self contacts update-profile --nickname x',
       'settings set showModelSig true',
       'browser share sess_abc',
+      'hooks add ~h/g hook.hoon',
     ])('ends `%s` with the bot line', async (command) => {
       const { execute } = makeExecutor({}, 'done');
       const result = await execute('echo', { command });
@@ -1100,7 +1099,7 @@ describe('model-facing identity guidance', () => {
     const identityClaim =
       /act(s)? as the (owner|bot)|runs? as the (owner|bot)|owner's (DMs|groups|activity)|--self/;
     for (const [name, entry] of Object.entries(catalog)) {
-      if (name === 'settings' || name === 'browser') {
+      if (name === 'settings' || name === 'browser' || name === 'hooks') {
         expect(entry.toolGuidance, name).toMatch(/runs? as the bot/);
         expect(entry.toolGuidance, name).not.toMatch(/owner|--self/);
       } else {
@@ -1254,13 +1253,14 @@ describe('owner default off (staged rollout)', () => {
     '--config x settings get',
     '--ship=~o browser share sess_1',
     '--config x help settings',
+    '--ship ~owner hooks add ~h/g hook.hoon',
   ])(
     'rejects credential flags on the always-bot family in `%s`',
     async (command) => {
       const { execute, runCommand } = makeExecutor();
       const result = await execute('bot-only', { command });
       expect(result.content[0].text).toBe(
-        'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted on settings or browser; these commands always run as this bot.'
+        'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted on settings, browser or hooks; these commands always run as this bot.'
       );
       expect(result.details).toMatchObject({ reason: 'credential_override' });
       expect(runCommand).not.toHaveBeenCalled();
@@ -2263,6 +2263,64 @@ describe('owner-hosted workspaces and channels with ownerDefault', () => {
         'Talk',
       ]);
     });
+  });
+});
+
+describe('hooks always act as the bot', () => {
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+  const BOT_ONLY_MESSAGE =
+    'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted on settings, browser or hooks; these commands always run as this bot.';
+  const CREDENTIAL_MESSAGE =
+    'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted. Commands run as the owner by default; add --self to run as this bot.';
+
+  function makeExecutor(ownerDefault: boolean) {
+    const runCommand = vi.fn(async (_args: string[]) => 'ok');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      ownerShip: '~owner',
+      botShip: '~bot',
+      ownerDefault,
+      env: { TLON_SKILL_DIR: '/srv/tlon-skill' } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+    });
+    return { execute, runCommand };
+  }
+
+  it.each([
+    ['hooks add ~h/g hook.hoon', ['hooks', 'add', '~h/g', 'hook.hoon']],
+    ['--self hooks add ~h/g hook.hoon', ['hooks', 'add', '~h/g', 'hook.hoon']],
+    ['hooks delete hook-1 --help', ['hooks', 'delete', 'hook-1', '--help']],
+  ])('runs `%s` as the bot in both flag states', async (command, expected) => {
+    for (const ownerDefault of [true, false]) {
+      const { execute, runCommand } = makeExecutor(ownerDefault);
+      await execute('hooks', { command });
+      expect(runCommand, String(ownerDefault)).toHaveBeenCalledWith(expected);
+    }
+  });
+
+  it('refuses credential flags on hooks in both flag states', async () => {
+    // As for settings and browser: with the flag on, every credential flag
+    // gets the owner-default wording.
+    for (const [ownerDefault, message] of [
+      [true, CREDENTIAL_MESSAGE],
+      [false, BOT_ONLY_MESSAGE],
+    ] as const) {
+      const { execute, runCommand } = makeExecutor(ownerDefault);
+      const result = await execute('hooks', {
+        command: '--ship ~owner hooks add ~h/g hook.hoon',
+      });
+      expect(result.content[0].text).toBe(message);
+      expect(result.details).toMatchObject({ reason: 'credential_override' });
+      expect(runCommand).not.toHaveBeenCalled();
+    }
+  });
+
+  it('says so in the identity guidance', () => {
+    expect(formatTlonToolDescription(true)).toContain(
+      'settings, browser and hooks always act as the bot'
+    );
+    expect(formatTlonToolHelp(true)).toContain('hooks: always this bot');
   });
 });
 

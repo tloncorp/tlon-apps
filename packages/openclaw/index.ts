@@ -1149,7 +1149,11 @@ export default defineBundledChannelEntry({
 
     api.on('before_tool_call', async (event, ctx) => {
       // Record the run before any decision below can return, vetoes included.
-      observeRun({ runId: ctx.runId, sessionKey: ctx.sessionKey });
+      observeRun({
+        runId: ctx.runId,
+        sessionKey: ctx.sessionKey,
+        ownerShip: liveAccount().ownerShip,
+      });
       const toolCallId = readToolCallId(event);
       // What the model meant, without the schema placeholders it fills in.
       const cronParams = isCronToolName(event.toolName)
@@ -1391,6 +1395,7 @@ export default defineBundledChannelEntry({
         (resolveTurnIdentity({
           runId: ctx.runId,
           sessionKey: ctx.sessionKey,
+          ownerShip: liveAccount().ownerShip,
         }) === 'bot' ||
           // The tool acts with this account's owner; a run answering a
           // message on another account must not borrow it.
@@ -1807,7 +1812,7 @@ export default defineBundledChannelEntry({
       await ensureCronContextLens(ctx);
     };
     api.on('agent_turn_prepare', async (_event, ctx) => {
-      observeRun(ctx);
+      observeRun({ ...ctx, ownerShip: liveAccount().ownerShip });
       beginCronSilenceObservation(ctx);
       beginTlonTurnSilenceObservation(ctx);
       // Cron has no active Tlon turn recorder, so its output trace stays nullable.
@@ -1817,7 +1822,7 @@ export default defineBundledChannelEntry({
       await onCronAgentHook(ctx);
     });
     api.on('model_call_started', async (_event, ctx) => {
-      observeRun(ctx);
+      observeRun({ ...ctx, ownerShip: liveAccount().ownerShip });
       beginCronSilenceObservation(ctx);
       beginTlonTurnSilenceObservation(ctx);
       await onCronAgentHook(ctx);
@@ -1833,7 +1838,7 @@ export default defineBundledChannelEntry({
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
       // Run snapshots, identity and publication claims outlive the attempt;
       // they expire by TTL (see turn-identity.ts).
-      observeRun(ctx);
+      observeRun({ ...ctx, ownerShip: liveAccount().ownerShip });
       if (!contextLensEnabled) {
         return;
       }
