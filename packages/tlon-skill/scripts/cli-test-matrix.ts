@@ -839,45 +839,50 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '--owner',
     '~zod',
   ]),
-  authRequiredCase('groups create-owned with an agent reaches auth', [
+  authRequiredCase('groups create-owned with --admin reaches auth', [
     'groups',
     'create-owned',
     'Projects',
-    '--owner',
-    '~sampel-palnet',
-    '--agent',
+    '--admin',
     '~pinser-botter-sampel-palnet',
   ]),
-  authRequiredCase(
-    'groups create-owned --agent as a description reaches auth',
-    [
-      'groups',
-      'create-owned',
-      'Projects',
-      '--owner',
-      '~sampel-palnet',
-      '--description',
-      '--agent',
-    ]
-  ),
+  authRequiredCase('groups create-owned --self reaches auth', [
+    'groups',
+    'create-owned',
+    'Projects',
+    '--admin',
+    '~sampel-palnet',
+    '--self',
+  ]),
   usageErrorCase(
-    'groups create-owned rejects a bare --agent',
-    ['groups', 'create-owned', 'Projects', '--owner', '~zod', '--agent'],
+    'groups create-owned rejects a missing admin',
+    ['groups', 'create-owned', 'Projects', '--description', 'Shared'],
     'Usage: tlon groups create-owned'
   ),
   usageErrorCase(
-    'groups create-owned rejects a flag as the agent',
-    [
-      'groups',
-      'create-owned',
-      'Projects',
-      '--owner',
-      '~zod',
-      '--agent',
-      '--description',
-    ],
+    'groups create-owned rejects a bare --admin',
+    ['groups', 'create-owned', 'Projects', '--admin'],
     'Usage: tlon groups create-owned'
   ),
+  usageErrorCase(
+    'groups create-owned rejects a flag as the admin',
+    ['groups', 'create-owned', 'Projects', '--admin', '--description'],
+    'Usage: tlon groups create-owned'
+  ),
+  authRequiredCase('channels create --self reaches auth', [
+    'channels',
+    'create',
+    '~sampel-palnet/team',
+    'Discussion',
+    '--self',
+  ]),
+  authRequiredCase('groups add-channel --self reaches auth', [
+    'groups',
+    'add-channel',
+    '~sampel-palnet/team',
+    'Discussion',
+    '--self',
+  ]),
   authRequiredCase('groups update title option-like value reaches auth', [
     'groups',
     'update',

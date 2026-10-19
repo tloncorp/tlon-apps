@@ -1,6 +1,6 @@
 ## Tlon Groups
 
-When the owner asks you to create a new Tlon group for them, use the owner-admin creation command. When hosted owner credentials are configured, the tool runs it as the owner: the group is created on the owner's node and the bot is invited as an admin, joining automatically. Otherwise it creates the group on the bot node, invites the owner, and makes the owner an admin. Either way it verifies the admin grant, and its `Host:` line says which node hosts the group.
+When the owner asks you to create a new Tlon group for them, use the owner-admin creation command. When hosted owner credentials are configured, the tool runs it as the owner with the bot as admin: the group is created on the owner's node and the bot joins automatically. Otherwise it creates the group on the bot node, invites the owner, and makes the owner an admin, and the tool result's `note` says why. Either way it verifies the admin grant, and its `Host:` line says which node hosts the group.
 
 Use this shape:
 
@@ -18,7 +18,7 @@ Do not decompose a user-requested new group into plain `tlon groups create`, `tl
 
 Name the host from the `Host:` line when you reply. Only the host can delete a group, so offer to delete one only when the bot node hosts it.
 
-A channel is hosted by the node that creates it. When you create a channel in a group the owner hosts and hosted owner credentials are configured, the tool creates it as the owner, so it lives on the owner's node and you join it automatically. Use the nest it returns.
+A channel is hosted by the node that creates it. When you create a channel in a group the owner hosts and hosted owner credentials are configured, the tool creates it as the owner, so it lives on the owner's node and you join it automatically; otherwise the tool result's `note` says why it stayed on the bot node. Use the nest it returns.
 
 ## Gallery channels
 

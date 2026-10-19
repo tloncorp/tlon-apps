@@ -6,7 +6,7 @@
  * Usage:
  *   npx ts-node scripts/groups.ts list
  *   npx ts-node scripts/groups.ts create "Group Name" [--description "..."]
- *   npx ts-node scripts/groups.ts create-owned "Group Name" --owner <ship> [--description "..."]
+ *   npx ts-node scripts/groups.ts create-owned "Group Name" --admin <ship> [--description "..."]
  *   npx ts-node scripts/groups.ts invite <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts info <group-id>
  *   npx ts-node scripts/groups.ts leave <group-id>
@@ -138,25 +138,9 @@ function generateGroupSlug(): string {
   return slug;
 }
 
-const CREATE_OWNED_VALUE_OPTIONS = new Set(['--owner', '--description']);
-
-/**
- * `--agent` as create-owned reads it: options follow the title, and each takes
- * the next token as its value, so `--description --agent` is a description
- * and not a bare --agent. The tlon tool adapters look for it the same way.
- */
-function findAgentOption(args: string[]): { present: boolean; value?: string } {
-  for (let i = 2; i < args.length; i += 1) {
-    if (args[i] === '--agent') return { present: true, value: args[i + 1] };
-    if (CREATE_OWNED_VALUE_OPTIONS.has(args[i])) i += 1;
-  }
-  return { present: false };
-}
-
-// `--agent` is optional for create-owned, but a bare flag is a usage error.
-function hasValidAgentOption(args: string[]): boolean {
-  const { present, value } = findAgentOption(args);
-  return !present || (value !== undefined && !value.startsWith('--'));
+// `--owner` is the legacy spelling of `--admin`; `--admin` wins when both appear.
+function getCreateOwnedAdmin(args: string[]): string | undefined {
+  return getOption(args, 'admin', 2) ?? getOption(args, 'owner', 2);
 }
 
 const GROUPS_HELP = `Usage: tlon groups <command>
@@ -166,7 +150,7 @@ The Tlon Messenger app calls groups "workspaces".
 Commands:
   list
   create "Group Name" [--description "..."]
-  create-owned "Group Name" --owner <ship> [--agent <ship>] [--description "..."]
+  create-owned "Group Name" --admin <ship> [--description "..."]
   invite <group-id> <ship> [<ship2> ...]
   info <group-id>
   invite-link <group-id> [--self]
@@ -210,7 +194,7 @@ Examples:
 const GROUPS_COMMAND_HELP: Record<string, string> = {
   list: `Usage: tlon groups list`,
   create: `Usage: tlon groups create "Group Name" [--description "..."]\nExample: tlon groups create "Projects" --description "Shared work"`,
-  'create-owned': `Usage: tlon groups create-owned "Group Name" --owner <ship> [--agent <ship>] [--description "..."]\nWithout --agent, the current ship hosts the group and makes the owner an admin. With --agent, run as the owner: the owner's ship hosts the group and makes the agent an admin.\nExample: tlon groups create-owned "Projects" --owner ~nec --description "Shared work"`,
+  'create-owned': `Usage: tlon groups create-owned "Group Name" --admin <ship> [--description "..."]\nCreates a group hosted by the current ship and makes --admin its admin. --owner is a legacy alias for --admin.\nExample: tlon groups create-owned "Projects" --admin ~nec --description "Shared work"`,
   invite: `Usage: tlon groups invite <group-id> <ship> [<ship2> ...]\nExample: tlon groups invite ~host/group-slug ~nec ~bud`,
   info: `Usage: tlon groups info <group-id>\nExample: tlon groups info ~host/group-slug`,
   'invite-link': INVITE_LINK_HELP,
@@ -267,13 +251,8 @@ function validateGroupsArgs(args: string[]): void {
     }
     case 'create-owned': {
       const title = args[1];
-      const owner = getOption(args, 'owner', 2);
-      if (
-        title === undefined ||
-        !owner ||
-        owner.startsWith('--') ||
-        !hasValidAgentOption(args)
-      ) {
+      const admin = getCreateOwnedAdmin(args);
+      if (title === undefined || !admin || admin.startsWith('--')) {
         printUsageAndExit(GROUPS_COMMAND_HELP['create-owned']);
       }
       return;
@@ -467,9 +446,6 @@ type CreateGroupWithChannelOptions = {
   memberIds?: string[];
 };
 
-/** Whose seat an admin grant is for, as the CLI names them in its output. */
-type SeatHolder = 'Owner' | 'Agent';
-
 type SeatAdminVerification =
   | { status: 'verified' }
   | { status: 'missing'; reason: string };
@@ -487,8 +463,7 @@ function hasSeat(
 
 async function getRawGroupWithSeat(
   groupId: string,
-  ship: string,
-  who: SeatHolder
+  ship: string
 ): Promise<RawGroupForAdminVerification> {
   let lastError: unknown;
 
@@ -509,14 +484,13 @@ async function getRawGroupWithSeat(
 
   const suffix = lastError ? `: ${lastError}` : '';
   throw new Error(
-    `${who} ${ship} was not created as an invited member seat in ${groupId}${suffix}`
+    `Admin ${ship} was not created as an invited member seat in ${groupId}${suffix}`
   );
 }
 
 async function getRawAdminVerification(
   groupId: string,
-  ship: string,
-  who: SeatHolder
+  ship: string
 ): Promise<SeatAdminVerification> {
   const rawGroup = await getRawGroupForAdminVerification(groupId);
 
@@ -535,7 +509,7 @@ async function getRawAdminVerification(
 
     return {
       status: 'missing',
-      reason: `${who} ${ship} is a member of ${groupId}, but does not have the "${ADMIN_ROLE_ID}" role.`,
+      reason: `Admin ${ship} is a member of ${groupId}, but does not have the "${ADMIN_ROLE_ID}" role.`,
     };
   }
 
@@ -548,13 +522,13 @@ async function getRawAdminVerification(
     if (pendingRoles.includes(ADMIN_ROLE_ID)) {
       return {
         status: 'missing',
-        reason: `${who} ${ship} has a pending invite for ${groupId} with the "${ADMIN_ROLE_ID}" role, but is not a group member seat yet.`,
+        reason: `Admin ${ship} has a pending invite for ${groupId} with the "${ADMIN_ROLE_ID}" role, but is not a group member seat yet.`,
       };
     }
 
     return {
       status: 'missing',
-      reason: `${who} ${ship} has a pending invite for ${groupId}, but not with the "${ADMIN_ROLE_ID}" role.`,
+      reason: `Admin ${ship} has a pending invite for ${groupId}, but not with the "${ADMIN_ROLE_ID}" role.`,
     };
   }
 
@@ -566,34 +540,32 @@ async function getRawAdminVerification(
   if (invite) {
     return {
       status: 'missing',
-      reason: `${who} ${ship} is invited to ${groupId}, but no pending "${ADMIN_ROLE_ID}" role assignment was found.`,
+      reason: `Admin ${ship} is invited to ${groupId}, but no pending "${ADMIN_ROLE_ID}" role assignment was found.`,
     };
   }
 
   return {
     status: 'missing',
-    reason: `${who} ${ship} was not found in members or pending invites for ${groupId}.`,
+    reason: `Admin ${ship} was not found in members or pending invites for ${groupId}.`,
   };
 }
 
-async function assignAdminRole(groupId: string, ship: string, who: SeatHolder) {
-  const rawGroup = await getRawGroupWithSeat(groupId, ship, who);
+async function assignAdminRole(groupId: string, ship: string) {
+  const rawGroup = await getRawGroupWithSeat(groupId, ship);
   const seat = getShipRecordValue(rawGroup.seats, ship, normalizeShip);
 
   if (seat?.roles?.includes(ADMIN_ROLE_ID)) {
-    console.log(`✅ ${who} already has "${ADMIN_ROLE_ID}" role.`);
+    console.log(`✅ Admin already has "${ADMIN_ROLE_ID}" role.`);
     return;
   }
 
-  console.log(
-    `Assigning ${who.toLowerCase()} ${ship} to "${ADMIN_ROLE_ID}" role...`
-  );
+  console.log(`Assigning admin ${ship} to "${ADMIN_ROLE_ID}" role...`);
   await addMembersToRole({
     groupId,
     roleId: ADMIN_ROLE_ID,
     ships: [ship],
   });
-  console.log(`✅ ${who} assigned to "${ADMIN_ROLE_ID}" role.`);
+  console.log(`✅ Admin assigned to "${ADMIN_ROLE_ID}" role.`);
 }
 
 async function getGroupWithRetry(groupId: string): Promise<Group> {
@@ -679,11 +651,7 @@ async function ensureAdminRole(groupId: string, group?: Group) {
   }
 }
 
-async function verifyAdmin(
-  groupId: string,
-  ship: string,
-  who: SeatHolder
-): Promise<void> {
+async function verifyAdmin(groupId: string, ship: string): Promise<void> {
   console.log(`Verifying ${ship} admin assignment in ${groupId}...`);
 
   let lastVerification: SeatAdminVerification | null = null;
@@ -691,9 +659,9 @@ async function verifyAdmin(
 
   for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
     try {
-      const rawVerification = await getRawAdminVerification(groupId, ship, who);
+      const rawVerification = await getRawAdminVerification(groupId, ship);
       if (rawVerification.status === 'verified') {
-        console.log(`✅ ${who} admin assignment verified.`);
+        console.log(`✅ Admin assignment verified.`);
         return;
       }
       lastVerification = rawVerification;
@@ -711,7 +679,7 @@ async function verifyAdmin(
   }
 
   throw new Error(
-    `Could not verify ${who.toLowerCase()} admin assignment for ${ship}: ${lastError}`
+    `Could not verify the admin assignment for ${ship}: ${lastError}`
   );
 }
 
@@ -977,34 +945,24 @@ async function createGroupWithChannel(
 }
 
 /**
- * Without `agent`, the acting ship hosts the group and invites `owner` as an
- * admin. With `agent`, the acting ship must be the owner: it hosts the group
- * itself, as the app's New Workspace does, and invites the agent as an admin.
- * A moon cannot create a group on its parent planet, so a bot reaches the
- * second path by running as its owner.
+ * Creates a group hosted by the current ship and makes `admin` its admin, as
+ * the app's New Workspace does with the user's bot. A moon cannot create a
+ * group on its parent planet, so a bot makes one for its owner by running
+ * this as the owner with itself as the admin.
  */
 async function createOwnedGroup(
   title: string,
-  owner: string,
-  description: string = '',
-  agent?: string
+  admin: string,
+  description: string = ''
 ) {
-  const ownerShip = normalizeShip(owner);
-  const agentShip = agent === undefined ? undefined : normalizeShip(agent);
-  if (agentShip !== undefined) {
-    const actingShip = await getCurrentShip();
-    if (actingShip.toLowerCase() !== ownerShip.toLowerCase()) {
-      throw new Error(
-        `--agent hosts the group on the owner's ship, so it must run as ${ownerShip}, not ${actingShip}.`
-      );
-    }
-    if (agentShip.toLowerCase() === ownerShip.toLowerCase()) {
-      throw new Error('--agent must name a ship other than the owner.');
-    }
+  const adminShip = normalizeShip(admin);
+  const host = await getCurrentShip();
+  if (adminShip.toLowerCase() === host.toLowerCase()) {
+    throw new Error(
+      `${host} runs this command, so it hosts the group already; name another ship with --admin.`
+    );
   }
 
-  const adminShip = agentShip ?? ownerShip;
-  const who: SeatHolder = agentShip === undefined ? 'Owner' : 'Agent';
   const { groupId, channelId, group } = await createGroupWithChannel(
     title,
     description,
@@ -1013,26 +971,31 @@ async function createOwnedGroup(
     }
   );
 
-  await ensureAdminRole(groupId, group);
-  await assignAdminRole(groupId, adminShip, who);
-  await verifyAdmin(groupId, adminShip, who);
+  try {
+    await ensureAdminRole(groupId, group);
+    await assignAdminRole(groupId, adminShip);
+    await verifyAdmin(groupId, adminShip);
+  } catch (err) {
+    // The group exists now. Name it, so a retry finishes the grant rather than
+    // creating a second group; a failed command's stdout does not reach the
+    // caller.
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Created ${groupId} (Ref: /1/group/${groupId}), but making ${adminShip} its admin failed: ${reason} Do not create it again; finish with: groups promote ${groupId} ${adminShip}`
+    );
+  }
 
   console.log(`✅ Owned group created successfully!`);
   console.log(`   ID: ${groupId}`);
   console.log(`   Title: ${title}`);
   console.log(`   Description: ${description || '(none)'}`);
   console.log(`   Host: ${getGroupHost(groupId)}`);
-  console.log(`   Owner: ${ownerShip}`);
-  if (agentShip !== undefined) {
-    console.log(
-      `   Agent: ${agentShip} (admin; joins when it accepts the owner's invite)`
-    );
-  }
+  console.log(`   Admin: ${adminShip} (invited; joins when it accepts)`);
   console.log(`   Channel: ${channelId}`);
   console.log(`   Ref: /1/group/${groupId}`);
   console.log(`   ${refShareHint('group')}`);
 
-  return { groupId, channelId, ownerShip };
+  return { groupId, channelId, adminShip };
 }
 
 // Invite ships to a group
@@ -1579,19 +1542,13 @@ async function main() {
 
     case 'create-owned': {
       const title = args[1];
-      const owner = getOption(args, 'owner', 2);
-      if (
-        title === undefined ||
-        !owner ||
-        owner.startsWith('--') ||
-        !hasValidAgentOption(args)
-      ) {
+      const admin = getCreateOwnedAdmin(args);
+      if (title === undefined || !admin || admin.startsWith('--')) {
         console.error(GROUPS_COMMAND_HELP['create-owned']);
         process.exit(1);
       }
       const description = getOption(args, 'description', 2) || '';
-      const agent = findAgentOption(args).value;
-      await createOwnedGroup(title, owner, description, agent);
+      await createOwnedGroup(title, admin, description);
       break;
     }
 

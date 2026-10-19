@@ -958,14 +958,13 @@ BOT_FLAG = "--bot"
 _BOT_FLAG_TOKEN = re.compile(r"(?<![\w-])--bot(?![\w-])")
 
 
-# `groups create-owned --agent` arrived later still, and a CLI without it
-# ignores the unknown option. Run as the owner, such a CLI would invite the
-# owner to its own group and leave the agent out, so the owner-hosted
-# workspace path probes for the option first and keeps the bot-hosted create
-# when it is missing.
-AGENT_OPTION_PROBE_ARGS = ("groups", "create-owned", "--help")
-AGENT_OPTION = "--agent"
-_AGENT_OPTION_TOKEN = re.compile(r"(?<![\w-])--agent(?![\w-])")
+# `groups create-owned --admin` arrived later still. A CLI without it knows
+# only --owner, which makes the named ship admin of a group hosted by whoever
+# runs it, so the owner-hosted workspace path probes for --admin first and
+# keeps the bot-hosted create when it is missing.
+ADMIN_OPTION_PROBE_ARGS = ("groups", "create-owned", "--help")
+ADMIN_OPTION = "--admin"
+_ADMIN_OPTION_TOKEN = re.compile(r"(?<![\w-])--admin(?![\w-])")
 
 
 def _is_bot_flag_token(arg: str) -> bool:
@@ -1054,16 +1053,16 @@ class TlonCLI:
                 )
             return supported
 
-    async def supports_agent_option(self) -> bool:
-        """Whether the installed CLI's ``groups create-owned`` takes ``--agent``.
+    async def supports_admin_option(self) -> bool:
+        """Whether the installed CLI's ``groups create-owned`` takes ``--admin``.
         Not cached: only the rare owner-hosted workspace path asks, and its
         caller builds a fresh TlonCLI each time anyway."""
         # Unobserved so a help invocation never lands in CLI telemetry.
         result = await self._run_unobserved(
-            AGENT_OPTION_PROBE_ARGS, timeout=BOT_FLAG_PROBE_TIMEOUT_SECONDS
+            ADMIN_OPTION_PROBE_ARGS, timeout=BOT_FLAG_PROBE_TIMEOUT_SECONDS
         )
         supported = bool(result.success) and bool(
-            _AGENT_OPTION_TOKEN.search(f"{result.stdout}\n{result.stderr}")
+            _ADMIN_OPTION_TOKEN.search(f"{result.stdout}\n{result.stderr}")
         )
         if not supported:
             logger.error(
@@ -1072,7 +1071,7 @@ class TlonCLI:
                 "bot node instead of the owner's. Rebuild the image with a tlon "
                 "CLI that has it.",
                 self.config.cli,
-                AGENT_OPTION,
+                ADMIN_OPTION,
                 result.returncode,
             )
         return supported

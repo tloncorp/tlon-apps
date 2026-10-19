@@ -685,9 +685,9 @@ describe('owner credential injection for invite-link, note publishing and notifi
 describe('owner-hosted workspaces for groups create-owned', () => {
   const SKILL_DIR = '/srv/tlon-skill';
   const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
-  const HELP_WITH_AGENT =
-    'Usage: tlon groups create-owned "Group Name" --owner <ship> [--agent <ship>] [--description "..."]';
-  const HELP_WITHOUT_AGENT =
+  const HELP_WITH_ADMIN =
+    'Usage: tlon groups create-owned "Group Name" --admin <ship> [--description "..."]';
+  const HELP_WITHOUT_ADMIN =
     'Usage: tlon groups create-owned "Group Name" --owner <ship> [--description "..."]';
 
   function makeExecutor(
@@ -699,7 +699,7 @@ describe('owner-hosted workspaces for groups create-owned', () => {
       help?: string;
     } = {}
   ) {
-    const { help = HELP_WITH_AGENT, ...deps } = overrides;
+    const { help = HELP_WITH_ADMIN, ...deps } = overrides;
     const runCommand = vi.fn(async (args: string[]) =>
       args.includes('--help') ? help : 'Owned group created successfully!'
     );
@@ -717,45 +717,72 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     return { execute, runCommand, logError };
   }
 
-  it('runs a create-owned for the owner as the owner, with the bot as agent', async () => {
+  it.each([
+    [
+      '--owner',
+      'groups create-owned Projects --owner owner --description Work',
+    ],
+    [
+      '--admin',
+      'groups create-owned Projects --admin ~owner --description Work',
+    ],
+  ])(
+    'runs a create-owned naming the owner as %s as the owner, with the bot as admin',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      const result = await execute('workspace', { command });
+
+      expect(runCommand).toHaveBeenCalledWith([
+        'groups',
+        'create-owned',
+        '--help',
+      ]);
+      expect(runCommand).toHaveBeenLastCalledWith([
+        '--ship',
+        '~owner',
+        'groups',
+        'create-owned',
+        'Projects',
+        '--admin',
+        '~pinser-botter-owner',
+        '--description',
+        'Work',
+      ]);
+      expect(result.content[0]?.text).not.toContain('Note:');
+    }
+  );
+
+  it('rewrites the admin in place, so an empty trailing description cannot take the bot', async () => {
     const { execute, runCommand } = makeExecutor();
 
-    const result = await execute('workspace', {
-      command: 'groups create-owned Projects --owner owner --description Work',
+    await execute('empty', {
+      command: 'groups create-owned Projects --owner ~owner --description ""',
     });
 
-    expect(runCommand).toHaveBeenCalledWith([
+    const [args] = runCommand.mock.lastCall as unknown as [string[]];
+    expect(args.slice(0, 7)).toEqual([
       '--ship',
       '~owner',
       'groups',
       'create-owned',
       'Projects',
-      '--owner',
-      'owner',
-      '--description',
-      'Work',
-      '--agent',
+      '--admin',
       '~pinser-botter-owner',
     ]);
-    expect(result.details).toBeUndefined();
+    expect(args.slice(7)[0]).toBe('--description');
+    expect(args.slice(8)).not.toContain('~pinser-botter-owner');
   });
 
-  it('keeps the bot-hosted workspace when the CLI predates --agent', async () => {
-    // An older CLI ignores --agent, so running it as the owner would leave
-    // the bot out of the workspace.
+  it('keeps the bot-hosted workspace, and says so, when the CLI predates --admin', async () => {
     const { execute, runCommand, logError } = makeExecutor({
-      help: HELP_WITHOUT_AGENT,
+      help: HELP_WITHOUT_ADMIN,
     });
 
-    await execute('old-cli', {
+    const result = await execute('old-cli', {
       command: 'groups create-owned Projects --owner ~owner',
     });
 
-    expect(runCommand).toHaveBeenCalledWith([
-      'groups',
-      'create-owned',
-      '--help',
-    ]);
     expect(runCommand).toHaveBeenLastCalledWith([
       'groups',
       'create-owned',
@@ -764,56 +791,39 @@ describe('owner-hosted workspaces for groups create-owned', () => {
       '~owner',
     ]);
     expect(logError).toHaveBeenCalledWith(
-      expect.stringContaining('does not take --agent')
+      expect.stringContaining('does not take --admin')
     );
+    expect(result.content[0]?.text).toContain('Note:');
+    expect(result.content[0]?.text).toContain('you host the workspace');
   });
 
-  it('reads --agent only in an option position, as the CLI does', async () => {
-    const { execute, runCommand } = makeExecutor();
+  it('keeps the bot-hosted workspace, and says so, without owner credentials', async () => {
+    for (const overrides of [
+      { env: {} as NodeJS.ProcessEnv },
+      { fileExists: () => false },
+    ]) {
+      const { execute, runCommand } = makeExecutor(overrides);
 
-    await execute('description', {
-      command:
-        'groups create-owned Projects --owner ~owner --description --agent',
-    });
+      const result = await execute('no-creds', {
+        command: 'groups create-owned Projects --owner ~owner',
+      });
 
-    expect(runCommand).toHaveBeenLastCalledWith([
-      '--ship',
-      '~owner',
-      'groups',
-      'create-owned',
-      'Projects',
-      '--owner',
-      '~owner',
-      '--description',
-      '--agent',
-      '--agent',
-      '~pinser-botter-owner',
-    ]);
-  });
-
-  it('reads --agent only after the title, as the CLI does', async () => {
-    const { execute, runCommand } = makeExecutor();
-
-    await execute('title', {
-      command: 'groups create-owned --agent --owner ~owner',
-    });
-
-    expect(runCommand).toHaveBeenCalledWith([
-      '--ship',
-      '~owner',
-      'groups',
-      'create-owned',
-      '--agent',
-      '--owner',
-      '~owner',
-      '--agent',
-      '~pinser-botter-owner',
-    ]);
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        '~owner',
+      ]);
+      expect(result.content[0]?.text).toContain(
+        "Your owner's credentials aren't available here"
+      );
+    }
   });
 
   it.each([
     ['another requester', 'groups create-owned Projects --owner ~someone'],
-    ['an explicit agent', 'groups create-owned P --owner ~owner --agent ~x'],
+    ['--self', 'groups create-owned Projects --admin ~owner --self'],
     ['-h', 'groups create-owned -h'],
     ['--help', 'groups create-owned P --owner ~owner --help'],
     [
@@ -828,49 +838,20 @@ describe('owner-hosted workspaces for groups create-owned', () => {
   ])('leaves the command untouched for %s', async (_label, command) => {
     const { execute, runCommand } = makeExecutor();
 
-    await execute('skip', { command });
+    const result = await execute('skip', { command });
 
     const [args] = runCommand.mock.calls[0] as unknown as [string[]];
     expect(args).toEqual(command.split(' '));
+    expect(result.content[0]?.text).not.toContain('Note:');
   });
 
-  it('keeps the bot-hosted workspace when owner credentials are not provisioned', async () => {
-    const noSkillDir = makeExecutor({ env: {} as NodeJS.ProcessEnv });
-    await noSkillDir.execute('no-dir', {
-      command: 'groups create-owned Projects --owner ~owner',
-    });
-    expect(noSkillDir.runCommand).toHaveBeenCalledWith([
-      'groups',
-      'create-owned',
-      'Projects',
-      '--owner',
-      '~owner',
-    ]);
-    expect(noSkillDir.logError).not.toHaveBeenCalled();
-
-    const noFile = makeExecutor({ fileExists: () => false });
-    await noFile.execute('no-file', {
-      command: 'groups create-owned Projects --owner ~owner',
-    });
-    expect(noFile.runCommand).toHaveBeenCalledWith([
-      'groups',
-      'create-owned',
-      'Projects',
-      '--owner',
-      '~owner',
-    ]);
-    expect(noFile.logError).toHaveBeenCalledWith(
-      expect.stringContaining(OWNER_CONFIG)
-    );
-  });
-
-  it('keeps the bot-hosted workspace when the bot is its own owner or unknown', async () => {
+  it('runs as written when the bot is its own owner or unknown', async () => {
     for (const botShip of ['~owner', undefined]) {
       const { execute, runCommand } = makeExecutor({ botShip });
       await execute('self', {
         command: 'groups create-owned Projects --owner ~owner',
       });
-      expect(runCommand).toHaveBeenCalledWith([
+      expect(runCommand).toHaveBeenLastCalledWith([
         'groups',
         'create-owned',
         'Projects',
@@ -919,13 +900,14 @@ describe("owner-hosted channels in the owner's groups", () => {
     async (_label, command) => {
       const { execute, runCommand } = makeExecutor();
 
-      await execute('channel', { command });
+      const result = await execute('channel', { command });
 
       expect(runCommand).toHaveBeenCalledWith([
         '--ship',
         '~owner',
         ...command.split(' '),
       ]);
+      expect(result.content[0]?.text).not.toContain('Note:');
     }
   );
 
@@ -935,6 +917,7 @@ describe("owner-hosted channels in the owner's groups", () => {
       "the bot's own group",
       'channels create ~pinser-botter-owner/team Discussion',
     ],
+    ['--self', 'channels create ~owner/team Discussion --self'],
     ['--help', 'channels create ~owner/team Discussion --help'],
     [
       'separate-value --ship',
@@ -957,12 +940,12 @@ describe("owner-hosted channels in the owner's groups", () => {
     expect(args).toEqual(command.split(' '));
   });
 
-  it("creates the channel on the bot's ship when owner credentials are not provisioned", async () => {
+  it("creates the channel on the bot's ship, and says so, without owner credentials", async () => {
     const { execute, runCommand, logError } = makeExecutor({
       fileExists: () => false,
     });
 
-    await execute('no-file', {
+    const result = await execute('no-file', {
       command: 'channels create ~owner/team Discussion',
     });
 
@@ -974,6 +957,9 @@ describe("owner-hosted channels in the owner's groups", () => {
     ]);
     expect(logError).toHaveBeenCalledWith(
       expect.stringContaining("Creating the channel on the bot's ship")
+    );
+    expect(result.content[0]?.text).toContain(
+      'this channel is hosted on your own ship'
     );
   });
 

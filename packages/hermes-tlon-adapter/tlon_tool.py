@@ -17,6 +17,7 @@ from typing import (
     Collection,
     Iterable,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
 )
@@ -1003,19 +1004,16 @@ def should_inject_owner_credentials(args: Sequence[str]) -> bool:
     )
 
 
-CREATE_OWNED_VALUE_OPTIONS = frozenset({"--owner", "--description"})
-
-
-def _has_create_owned_agent_option(command_args: Sequence[str]) -> bool:
-    """Whether ``--agent`` is one of create-owned's options, read as the CLI
-    reads them: options follow the title, and each takes the next token as its
-    value. A workspace titled "--agent", or described as "--agent", has none."""
-    i = 3
-    while i < len(command_args):
-        if command_args[i] == "--agent":
-            return True
-        i += 2 if command_args[i] in CREATE_OWNED_VALUE_OPTIONS else 1
-    return False
+def _create_owned_admin_index(command_args: Sequence[str]) -> int:
+    """Where create-owned's admin option sits, found as the CLI finds it:
+    ``--admin``, or its legacy alias ``--owner``, after the title, with
+    ``--admin`` winning when both carry a value. -1 when neither does."""
+    for option in ("--admin", "--owner"):
+        if option in command_args[3:]:
+            index = command_args.index(option, 3)
+            if index + 1 < len(command_args):
+                return index
+    return -1
 
 
 def should_create_workspace_on_owner(
@@ -1023,10 +1021,11 @@ def should_create_workspace_on_owner(
 ) -> bool:
     """The shared owner-workspace predicate — the OpenClaw plugin implements the
     same truth table. True iff the parsed subcommand is ``groups create-owned``
-    whose ``--owner`` is the configured owner, with no credential flag in either
-    form, no ``--agent``, and no help token. A moon cannot create a group on
-    its parent, so this is how a bot's workspace for its owner ends up hosted
-    on the owner's ship."""
+    whose admin is the configured owner, with no credential flag in either
+    form, no ``--self``, and no help token. create-owned is hosted by whoever
+    runs it, so the bot makes its owner's workspace on the owner's node by
+    running it as the owner with itself as the admin. A moon cannot create a
+    group on its parent."""
     owner = normalize_ship(owner_ship).lower()
     if not owner or _has_credential_flag(args):
         return False
@@ -1041,16 +1040,12 @@ def should_create_workspace_on_owner(
         return False
     if command_args[1].lower() != "create-owned":
         return False
-    if any(_is_help_arg(arg) for arg in command_args):
+    if any(arg == "--self" or _is_help_arg(arg) for arg in command_args):
         return False
-    if _has_create_owned_agent_option(command_args):
+    admin_index = _create_owned_admin_index(command_args)
+    if admin_index < 0:
         return False
-    if "--owner" not in command_args[3:]:
-        return False
-    owner_idx = command_args.index("--owner", 3)
-    if owner_idx + 1 >= len(command_args):
-        return False
-    return normalize_ship(command_args[owner_idx + 1]).lower() == owner
+    return normalize_ship(command_args[admin_index + 1]).lower() == owner
 
 
 CHANNEL_CREATE_COMMANDS = frozenset(
@@ -1061,9 +1056,10 @@ CHANNEL_CREATE_COMMANDS = frozenset(
 def should_create_channel_on_owner(args: Sequence[str], owner_ship: str) -> bool:
     """The shared owner-channel predicate — the OpenClaw plugin implements the
     same truth table. True iff the parsed subcommand creates a channel in a
-    group the configured owner hosts, with no credential flag in either form
-    and no help token. A channel is hosted by the ship that creates it, so run
-    as the bot — a non-host admin there — it would land on the bot node."""
+    group the configured owner hosts, with no credential flag in either form,
+    no ``--self``, and no help token. A channel is hosted by the ship that
+    creates it, so run as the bot — a non-host admin there — it would land on
+    the bot node."""
     owner = normalize_ship(owner_ship).lower()
     if not owner or _has_credential_flag(args):
         return False
@@ -1077,7 +1073,7 @@ def should_create_channel_on_owner(args: Sequence[str], owner_ship: str) -> bool
     operation = (command_args[0].lower(), command_args[1].lower())
     if operation not in CHANNEL_CREATE_COMMANDS:
         return False
-    if any(_is_help_arg(arg) for arg in command_args):
+    if any(arg == "--self" or _is_help_arg(arg) for arg in command_args):
         return False
     group_host = command_args[2].split("/", 1)[0]
     return bool(group_host) and normalize_ship(group_host).lower() == owner
@@ -1136,42 +1132,84 @@ def owner_invite_link_config(
     return owner_cfg, None
 
 
-def owner_channel_config(
-    cfg: TlonConfig, env: Mapping[str, str] | None = None
-) -> Optional[TlonConfig]:
-    """The owner config that creates a channel in the owner's group on the
-    owner node, or None to run it as written: a bot that is its own owner
-    already hosts it there, and without the owner triple a bot-hosted channel
-    still works."""
+class OwnerRouting(NamedTuple):
+    """A command routed to the owner, or the command as written plus a note for
+    the model saying why it stayed on the bot node and so who hosts the
+    result."""
+
+    cfg: TlonConfig
+    args: list[str]
+    note: Optional[str] = None
+
+
+def route_channel_to_owner(
+    cfg: TlonConfig, args: Sequence[str], env: Mapping[str, str] | None = None
+) -> OwnerRouting:
+    """Creates a channel in the owner's group as the owner. A bot that is its
+    own owner already hosts it there, and without the owner triple a
+    bot-hosted channel still works."""
     bot = normalize_ship(cfg.ship_name)
     owner = normalize_ship(cfg.owner_ship)
     if bot and bot.lower() == owner.lower():
-        return None
-    return _hosted_owner_config(cfg, env)
+        return OwnerRouting(cfg, list(args))
+    owner_cfg = _hosted_owner_config(cfg, env)
+    if owner_cfg is None:
+        return OwnerRouting(
+            cfg,
+            list(args),
+            "Your owner's credentials aren't available here, so this channel "
+            f"is hosted on your own node rather than {owner}'s.",
+        )
+    return OwnerRouting(owner_cfg, list(args))
 
 
-def owner_workspace_config(
-    cfg: TlonConfig, env: Mapping[str, str] | None = None
-) -> Optional[tuple[TlonConfig, str]]:
-    """The owner config and agent ship that run a create-owned as the owner, or
-    None to run it as written. Unlike invite-link, missing owner credentials
-    are not an error: a bot-hosted workspace is still a working one, it is all
-    a self-hosted bot can make, and the CLI output names its host."""
+async def route_workspace_to_owner(
+    cfg: TlonConfig,
+    args: Sequence[str],
+    runner: Optional[CommandRunner] = None,
+    env: Mapping[str, str] | None = None,
+) -> OwnerRouting:
+    """Runs a create-owned for the owner as the owner, with the admin pair
+    rewritten in place to ``--admin <bot>``. In place, because a trailing value
+    option whose value the splitter dropped would take an appended ship as its
+    value and leave the bot out. Unlike invite-link, missing owner credentials
+    are not an error: a bot-hosted workspace still works, and it is all a
+    self-hosted bot can make."""
     bot = normalize_ship(cfg.ship_name)
     owner = normalize_ship(cfg.owner_ship)
     if not bot or bot.lower() == owner.lower():
-        return None
+        return OwnerRouting(cfg, list(args))
+
+    fallback = (
+        f"so this ran on your own node: you host the workspace and {owner} "
+        "is its admin."
+    )
     owner_cfg = _hosted_owner_config(cfg, env)
     if owner_cfg is None:
-        return None
-    return owner_cfg, bot
+        return OwnerRouting(
+            cfg,
+            list(args),
+            f"Your owner's credentials aren't available here, {fallback}",
+        )
+    if not await TlonCLI(cfg, runner=runner).supports_admin_option():
+        return OwnerRouting(
+            cfg,
+            list(args),
+            f"The installed tlon CLI's create-owned has no --admin, {fallback}",
+        )
+
+    rewritten = [str(arg) for arg in args]
+    sub_idx = find_subcommand_index(rewritten)
+    admin_index = sub_idx + _create_owned_admin_index(rewritten[sub_idx:])
+    rewritten[admin_index : admin_index + 2] = ["--admin", bot]
+    return OwnerRouting(owner_cfg, rewritten)
 
 
 def _command_for_display(command: Sequence[str]) -> str:
     return " ".join(shlex.quote(str(part)) for part in command)
 
 
-def _tool_result(result: TlonSendResult) -> str:
+def _tool_result(result: TlonSendResult, note: Optional[str] = None) -> str:
     payload: dict[str, Any] = {
         "success": result.success,
         "command": _command_for_display(result.command),
@@ -1183,6 +1221,8 @@ def _tool_result(result: TlonSendResult) -> str:
         payload["message_id"] = result.message_id
     if result.error:
         payload["error"] = result.error
+    if note:
+        payload["note"] = note
     return _json(payload)
 
 
@@ -1228,23 +1268,18 @@ async def execute_tlon_tool(
             }
         )
 
+    routing_note: Optional[str] = None
     if should_inject_owner_credentials(args):
         owner_cfg, owner_error = owner_invite_link_config(cfg)
         if owner_error:
             return _json({"error": owner_error})
         cfg = owner_cfg
     elif should_create_workspace_on_owner(args, cfg.owner_ship):
-        owner_workspace = owner_workspace_config(cfg)
-        if (
-            owner_workspace is not None
-            and await TlonCLI(cfg, runner=runner).supports_agent_option()
-        ):
-            cfg, agent = owner_workspace
-            args = [*args, "--agent", agent]
+        cfg, args, routing_note = await route_workspace_to_owner(
+            cfg, args, runner=runner
+        )
     elif should_create_channel_on_owner(args, cfg.owner_ship):
-        owner_channel = owner_channel_config(cfg)
-        if owner_channel is not None:
-            cfg = owner_channel
+        cfg, args, routing_note = route_channel_to_owner(cfg, args)
 
     # Lazy import keeps this module importable standalone (no cycle at load).
     from .telemetry import cli_context, get_active_telemetry
@@ -1261,7 +1296,8 @@ async def execute_tlon_tool(
         conversation=_get_session_env("HERMES_SESSION_CHAT_ID", ""),
     ):
         return _tool_result(
-            await cli.run_command(args, timeout=media_command_timeout(args))
+            await cli.run_command(args, timeout=media_command_timeout(args)),
+            routing_note,
         )
 
 
