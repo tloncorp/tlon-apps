@@ -26,6 +26,10 @@ To share a group, post, or note as a card, follow the reference rules in the ski
 {"command":"activity mute ~host/group"}
 {"command":"activity unmute chat/~host/channel"}
 {"command":"activity volume chat/~host/channel soft"}
+{"command":"activity volume base soft"}
+{"command":"activity volume base"}
 ```
 
 Under the OpenClaw harness these run as the owner unless `--self` is given, changing the owner's notifications as seen in the owner's app; other harnesses run them as the current account (see the tool description). Change notifications only when asked. A thread is addressed by its channel and root post id. Report the level the command prints; if it says the change is not confirmed, say so instead of claiming success.
+
+`volume base` is the app-wide level under Settings → Notifications: `medium` (All DMs and workspace posts), `soft` (DMs, mentions, and replies only) or `hush` (Nothing). It covers push and in-app alerts; chats with their own level ignore it. Without a level it shows the current level. During TlonBot revival, the app may temporarily set base to hush; applying its staged restore level later can overwrite a CLI change.

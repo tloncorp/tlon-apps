@@ -1161,6 +1161,8 @@ describe('owner default off (staged rollout)', () => {
     'activity volume ~ten hush',
     'activity mark-read ~zod/book-club',
     'activity mark-read --all',
+    'activity volume base soft',
+    'activity volume base',
   ];
 
   it.each(LEGACY)(
@@ -2991,6 +2993,14 @@ describe('tlon tool telemetry summarizer', () => {
     expect(summarizeTlonCommand('activity unreads')).toMatchObject({
       summaryKey: 'activity.unreads',
       intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity volume base')).toMatchObject({
+      summaryKey: 'activity.volume',
+      intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity volume base soft')).toMatchObject({
+      summaryKey: 'activity.volume',
+      intent: 'write',
     });
   });
 
