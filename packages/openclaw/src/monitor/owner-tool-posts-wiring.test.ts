@@ -54,6 +54,9 @@ describe('owner tool posts in the channel firehose', () => {
       channelHandler.indexOf(live)
     );
     for (const later of [
+      // An owner --bot send has a bot-profile author; it must not mark the
+      // owner's ship as a bot for the process lifetime.
+      'knownBotShips.add(senderShip)',
       'campaign',
       'handleAgentOnboardingRequest(',
       'isOwnerListenSlashCommand(',
@@ -103,7 +106,7 @@ describe('owner tool posts in the chat firehose', () => {
     expect(live.indexOf('isOwner(senderShip)')).toBeGreaterThan(check);
   });
 
-  it('skips owner reactions the tool made and marks reaction dispatches', () => {
+  it('skips owner reactions and removals the tool made and marks reaction dispatches', () => {
     const reactions = between(
       chatHandler,
       "const dmAddReact = response?.['add-react'];",
@@ -111,12 +114,16 @@ describe('owner tool posts in the chat firehose', () => {
     );
     const check = reactions.indexOf('sharedOwnerToolPostLedger().match(');
     expect(check).toBeGreaterThan(-1);
-    // The hit returns before approvals and the reaction dispatch.
+    // Checked for add-react and del-react alike (no isAdd gate), with a
+    // removal record for del-react; a hit returns before approvals, the
+    // reaction dispatch and the removal's system event.
+    expect(reactions.slice(0, check)).toMatch(/if \(\s*reactAuthor &&\s*$/);
     expect(reactions.slice(check)).toMatch(
-      /^sharedOwnerToolPostLedger\(\)\.match\(\{[^}]*receivingShip: botShipName,[^}]*reaction: reactEmoji,\s*\}\)\s*\)\s*\{\s*runtime\.log\?\.\([^;]*\);\s*return;\s*\}/
+      /^sharedOwnerToolPostLedger\(\)\.match\(\{[^}]*receivingShip: botShipName,[^}]*\.\.\.\(isAdd\s*\?\s*\{ reaction: reactEmoji \}\s*:\s*\{ reactionRemoved: true as const \}\),\s*\}\)\s*\)\s*\{\s*runtime\.log\?\.\([^;]*\);\s*return;\s*\}/
     );
     expect(reactions.indexOf('emojiToApprovalAction(')).toBeGreaterThan(check);
     expect(reactions.indexOf('await processMessage({')).toBeGreaterThan(check);
+    expect(reactions.indexOf('enqueueSystemEvent(')).toBeGreaterThan(check);
     expect(reactions).toMatch(/trigger: 'reaction',\s*fromReaction: true,/);
   });
 });
@@ -181,6 +188,21 @@ describe('restart replay', () => {
     );
     expect(replay).toMatch(/await handleChannelsFirehose\(/);
     expect(replay).toMatch(/await handleChatFirehose\(/);
+  });
+});
+
+describe('conversation context', () => {
+  it('drops ledger hits from fetched channel and thread context', () => {
+    expect(monitorSource).toMatch(
+      /const threadContextHistory = withoutOwnerToolPosts\(\s*await fetchThreadContextHistory\([^)]*\),\s*groupChannel,\s*botShipName\s*\);/
+    );
+    expect(monitorSource).toMatch(
+      /const recentHistory = withoutOwnerToolPosts\(\s*await fetchChannelHistory\([^)]*\),\s*groupChannel,\s*botShipName\s*\);/
+    );
+    expect(
+      monitorSource.match(/await fetchThreadContextHistory\(/g)
+    ).toHaveLength(1);
+    expect(monitorSource.match(/await fetchChannelHistory\(/g)).toHaveLength(1);
   });
 });
 

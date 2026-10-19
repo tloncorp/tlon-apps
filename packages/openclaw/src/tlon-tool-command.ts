@@ -1055,6 +1055,10 @@ function firstParentId(commandArgs: string[]): string | undefined {
 }
 
 const OWNER_REACTION_OPERATIONS = new Set(['posts react', 'dms react']);
+const OWNER_REACTION_REMOVAL_OPERATIONS = new Set([
+  'posts unreact',
+  'dms unreact',
+]);
 
 /**
  * The ledger entry for an owner-credentialed write the monitor could see as
@@ -1089,6 +1093,14 @@ function ownerToolPostFor(
       target,
       postId: canonicalPostId(postId),
       reaction,
+    };
+  }
+  if (OWNER_REACTION_REMOVAL_OPERATIONS.has(operation) && postId) {
+    return {
+      ...base,
+      kind: 'unreact',
+      target,
+      postId: canonicalPostId(postId),
     };
   }
   return null;
@@ -1166,7 +1178,7 @@ type OwnerToolPostPlan =
 
 /**
  * Stamps an owner-credentialed send with the plugin's own `sent` and works out
- * the ledger entry for it (sends, edits and reactions), so the monitor can
+ * the ledger entry for it (sends, edits, reactions and reaction removals), so the monitor can
  * tell the bot's owner-authored writes from the owner's own.
  */
 async function planOwnerToolPost(

@@ -20,7 +20,6 @@ import {
   noteIdFromDeliveryMessageId,
   notesDeliveryMessageId,
 } from '../notes-delivery-state.js';
-import { sharedOwnerToolPostLedger } from '../owner-tool-posts.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
 import { isDmNest, normalizeShip } from '../targets.js';
@@ -56,6 +55,7 @@ import {
   type TlonHistoryEntry,
   fetchChannelHistory,
   fetchChannelHistoryOrThrow,
+  withoutOwnerToolPosts,
 } from './history.js';
 
 type AgentRequest =
@@ -514,19 +514,12 @@ export { isDmNest };
 function ownerRequestEntries(
   history: TlonHistoryEntry[],
   ownerShip: string,
-  channelNest: string
+  channelNest: string,
+  botShip: string
 ): Array<TlonHistoryEntry & { blob: string }> {
-  const ledger = sharedOwnerToolPostLedger();
-  return history.filter(
+  return withoutOwnerToolPosts(history, channelNest, botShip).filter(
     (entry): entry is TlonHistoryEntry & { blob: string } =>
-      entry.author === ownerShip &&
-      Boolean(entry.blob) &&
-      !ledger.match({
-        author: entry.author,
-        target: channelNest,
-        sent: entry.timestamp,
-        ...(entry.id ? { postId: entry.id } : {}),
-      })
+      entry.author === ownerShip && Boolean(entry.blob)
   );
 }
 
@@ -541,14 +534,19 @@ function ownerRequestEntries(
 export async function findOnboardingRequestInChannel(
   context: Pick<
     AgentOnboardingScanContext,
-    'api' | 'abortSignal' | 'channelNest' | 'ownerShip'
+    'api' | 'abortSignal' | 'botShip' | 'channelNest' | 'ownerShip'
   >,
   deps: Pick<AgentOnboardingDeps, 'fetchHistory'> = {}
 ): Promise<OnboardingRequestRef | undefined> {
   if (!context.ownerShip) return undefined;
   const history = await fetchOnboardingHistory(context, deps);
 
-  return ownerRequestEntries(history, context.ownerShip, context.channelNest)
+  return ownerRequestEntries(
+    history,
+    context.ownerShip,
+    context.channelNest,
+    context.botShip
+  )
     .map((entry) => ({
       timestamp: entry.timestamp,
       request: parseAgentOnboardingRequest(entry.blob),
@@ -745,7 +743,8 @@ export async function scanAgentOnboardingChannel(
   const ownerRequests = ownerRequestEntries(
     history,
     context.ownerShip,
-    context.channelNest
+    context.channelNest,
+    context.botShip
   )
     .map((entry) => ({
       entry,

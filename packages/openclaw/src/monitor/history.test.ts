@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { createOwnerToolPostLedger } from '../owner-tool-posts.js';
+
 import {
   type TlonHistoryEntry,
   buildThreadContextMessage,
@@ -14,6 +16,7 @@ import {
   parsePostPayload,
   renderHistoryContent,
   retainThreadContextMessages,
+  withoutOwnerToolPosts,
 } from './history.js';
 
 function makeEntry(
@@ -921,5 +924,51 @@ describe('buildThreadContextMessage', () => {
     );
     expect(result?.messageText).toContain('~zod: latest reply');
     expect(result?.messageText).toContain('[Current message]\nhello?');
+  });
+});
+
+describe('withoutOwnerToolPosts', () => {
+  const nest = 'chat/~h/c';
+  const ledger = () => {
+    const l = createOwnerToolPostLedger({ now: () => 0, store: new Map() });
+    l.reserve({
+      kind: 'send',
+      accountId: 'default',
+      author: '~owner',
+      target: nest,
+      sentAt: 1_000,
+    });
+    return l;
+  };
+
+  it('drops an owner post this bot sent with the tlon tool and keeps the rest', () => {
+    const toolPost = makeEntry({ author: '~owner', timestamp: 1_000, id: '9' });
+    const ownerPost = makeEntry({
+      author: '~owner',
+      timestamp: 2_000,
+      id: '8',
+    });
+    const otherPost = makeEntry({ author: '~zod', timestamp: 1_000, id: '7' });
+    expect(
+      withoutOwnerToolPosts(
+        [toolPost, ownerPost, otherPost],
+        nest,
+        '~bot',
+        ledger()
+      )
+    ).toEqual([ownerPost, otherPost]);
+    // The same post in another channel is ordinary owner history.
+    expect(
+      withoutOwnerToolPosts([toolPost], 'chat/~h/d', '~bot', ledger())
+    ).toEqual([toolPost]);
+  });
+
+  it('reads a thread reply whose author is a --bot profile object', () => {
+    const reply = makeEntry({
+      author: { ship: '~owner', nickname: 'Bot' } as unknown as string,
+      timestamp: 1_000,
+      id: '9',
+    });
+    expect(withoutOwnerToolPosts([reply], nest, '~bot', ledger())).toEqual([]);
   });
 });

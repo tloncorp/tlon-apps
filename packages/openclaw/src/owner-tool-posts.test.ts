@@ -69,12 +69,124 @@ describe('owner tool post ledger', () => {
     ).toBeNull();
   });
 
-  it('ignores the target when the author is known', () => {
+  it('requires the target when the author is known', () => {
     const { ledger } = makeLedger();
     ledger.reserve(send(T));
+    ledger.reserve({
+      kind: 'edit',
+      accountId: 'default',
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170141',
+    });
+    ledger.reserve({
+      kind: 'react',
+      accountId: 'default',
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170141',
+      reaction: '👍',
+    });
+    const here = { author: '~owner', target: 'chat/~h/c' };
+    const elsewhere = { author: '~owner', target: 'chat/~x/y' };
+    expect(ledger.match({ ...here, sent: T })).not.toBeNull();
+    expect(ledger.match({ ...elsewhere, sent: T })).toBeNull();
+    // Edits and reactions carry no timestamp: only the target tells the same
+    // post id in another channel apart.
+    expect(ledger.match({ ...here, postId: '170.141' })).toMatchObject({
+      kind: 'edit',
+    });
+    expect(ledger.match({ ...elsewhere, postId: '170.141' })).toBeNull();
     expect(
-      ledger.match({ author: '~owner', target: 'chat/~x/y', sent: T })
-    ).not.toBeNull();
+      ledger.match({ ...here, postId: '170.141', reaction: '👍' })
+    ).toMatchObject({ kind: 'react' });
+    expect(
+      ledger.match({ ...elsewhere, postId: '170.141', reaction: '👍' })
+    ).toBeNull();
+  });
+
+  it('matches a known-author one-to-one DM at the recipient bot, from its side', () => {
+    // Account A runs `dms react ~bus <id> 👍` as owner ~zod; ~bus is account
+    // B's bot. B's firehose names the DM by its partner, ~zod. (A DM to A's
+    // own bot is refused by checkOwnerSelfDm, so this is the only 1:1 case.)
+    const { ledger } = makeLedger();
+    const writId = `~bus/${formatSentAt(T)}`;
+    ledger.reserve({
+      kind: 'react',
+      accountId: 'a',
+      author: '~zod',
+      target: '~bus',
+      postId: canonicalPostId(writId),
+      reaction: '👍',
+    });
+    const atBus = {
+      author: '~zod',
+      target: '~zod',
+      receivingShip: '~bus',
+      postId: writId,
+      reaction: '👍',
+    };
+    expect(ledger.match(atBus)).toMatchObject({ kind: 'react' });
+    // The same writ id and reaction in the owner's DM with another bot.
+    expect(ledger.match({ ...atBus, receivingShip: '~nec' })).toBeNull();
+    // Or in a club with the same members.
+    expect(ledger.match({ ...atBus, target: '0v1.abc' })).toBeNull();
+  });
+
+  it('matches reaction removals only as removals, by author, target and post id', () => {
+    const { ledger } = makeLedger();
+    const writId = `~owner/${formatSentAt(T)}`;
+    // dms unreact 0v1.abc <writ>, and posts unreact chat/~h/c 170.141.
+    ledger.reserve({
+      kind: 'unreact',
+      accountId: 'default',
+      author: '~owner',
+      target: '0v1.abc',
+      postId: canonicalPostId(writId),
+    });
+    ledger.reserve({
+      kind: 'unreact',
+      accountId: 'default',
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170141',
+    });
+    const dm = {
+      author: '~owner',
+      target: '0v1.abc',
+      receivingShip: '~bot',
+      postId: writId,
+      reactionRemoved: true as const,
+    };
+    const channel = {
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170.141',
+      reactionRemoved: true as const,
+    };
+    expect(ledger.match(dm)).toMatchObject({ kind: 'unreact' });
+    expect(ledger.match(channel)).toMatchObject({ kind: 'unreact' });
+    expect(ledger.match({ ...dm, author: '~alice' })).toBeNull();
+    expect(ledger.match({ ...dm, target: '0v1.abd' })).toBeNull();
+    expect(ledger.match({ ...channel, target: 'chat/~h/d' })).toBeNull();
+    expect(ledger.match({ ...channel, postId: '170.142' })).toBeNull();
+    // A removal entry is not a reaction, and a reaction entry not a removal.
+    expect(ledger.match({ ...channel, reactionRemoved: undefined })).toBeNull();
+    expect(
+      ledger.match({ ...channel, reactionRemoved: undefined, reaction: '👍' })
+    ).toBeNull();
+    const reacted = makeLedger().ledger;
+    reacted.reserve({
+      kind: 'react',
+      accountId: 'default',
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170141',
+      reaction: ':grinning:',
+    });
+    reacted.reserve({ ...send(T), target: 'chat/~h/c' });
+    expect(reacted.match(channel)).toBeNull();
+    expect(reacted.match({ ...channel, sent: T })).toBeNull();
   });
 
   it('requires the canonical target when no author was recorded', () => {
@@ -264,9 +376,11 @@ describe('owner tool post ledger', () => {
         target: '~alice',
         postId: canonicalPostId(`~alice/${formatSentAt(T)}`),
         inboundId: `~alice/${formatSentAt(T)}`,
+        // Received by ~alice, whose firehose names the DM by the owner.
+        at: { target: '~owner', receivingShip: '~alice' },
       },
     ];
-    for (const { target, postId, inboundId } of cases) {
+    for (const { target, postId, inboundId, at } of cases) {
       const { ledger } = makeLedger();
       ledger.reserve({
         kind: 'react',
@@ -276,7 +390,12 @@ describe('owner tool post ledger', () => {
         postId,
         reaction: ':grinning:',
       });
-      const inbound = { author: '~owner', target, postId: inboundId };
+      const inbound = {
+        author: '~owner',
+        target,
+        postId: inboundId,
+        ...at,
+      };
       expect(
         ledger.match({ ...inbound, reaction: '😀' }),
         target
@@ -540,10 +659,12 @@ describe('inbound posts from firehose events', () => {
     expect(
       ledgerWith(send(T, { target: '0v1.abc' })).match(club)
     ).not.toBeNull();
-    const dm = chatInboundPost(writ({ ship: '~alice' }), '~owner', '~bot');
-    expect(dm).toMatchObject({ target: '~alice' });
-    expect(ledgerWith(send(T)).match(dm)).not.toBeNull();
-    expect(ledgerWith(send(T + 10)).match(dm)).toBeNull();
+    // A 1:1 DM is named by its partner; the entry names the recipient.
+    const dm = chatInboundPost(writ({ ship: '~owner' }), '~owner', '~bot');
+    expect(dm).toMatchObject({ target: '~owner', receivingShip: '~bot' });
+    expect(ledgerWith(send(T, { target: '~bot' })).match(dm)).not.toBeNull();
+    expect(ledgerWith(send(T, { target: '~alice' })).match(dm)).toBeNull();
+    expect(ledgerWith(send(T + 10, { target: '~bot' })).match(dm)).toBeNull();
   });
 
   it('reads a DM thread reply with and without its own id', () => {
@@ -563,8 +684,9 @@ describe('inbound posts from firehose events', () => {
       '~bot'
     );
     expect(withId).toMatchObject({ postId: replyId });
+    const club = { target: '0v1.abc' };
     // The writ id still matches when the ship's `sent` is off by more than 1.
-    expect(ledgerWith(send(T)).match(withId)).not.toBeNull();
+    expect(ledgerWith(send(T, club)).match(withId)).not.toBeNull();
     const withoutId = chatInboundPost(
       {
         whom: '0v1.abc',
@@ -580,7 +702,7 @@ describe('inbound posts from firehose events', () => {
       receivingShip: '~bot',
       sent: T,
     });
-    expect(ledgerWith(send(T)).match(withoutId)).not.toBeNull();
-    expect(ledgerWith(send(T + 10)).match(withoutId)).toBeNull();
+    expect(ledgerWith(send(T, club)).match(withoutId)).not.toBeNull();
+    expect(ledgerWith(send(T + 10, club)).match(withoutId)).toBeNull();
   });
 });

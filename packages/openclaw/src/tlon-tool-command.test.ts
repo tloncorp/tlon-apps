@@ -997,11 +997,11 @@ describe('owner-by-default identity selection', () => {
     const OWNER_POST_UNSTAMPED =
       "Blocked: the installed tlon CLI cannot timestamp posts send or reply, so it cannot post in the owner's name. Update the tlon skill, or add --self to post as this bot.";
     const owner = (extra: string[]) => ['--ship', '~owner', ...extra];
-    const sentBy = (sent: number) => ({
-      author: '~owner',
-      target: 'chat/~h/c',
-      sent,
-    });
+    const sentBy = (sent: number, target = 'chat/~h/c') =>
+      target.startsWith('~')
+        ? // A 1:1 DM, as the recipient bot's firehose names it.
+          { author: '~owner', target: '~owner', receivingShip: target, sent }
+        : { author: '~owner', target, sent };
 
     it.each([
       [
@@ -1096,7 +1096,7 @@ describe('owner-by-default identity selection', () => {
       const { execute, runCommand, ledger } = makeExecutor();
       await execute('stamp', { command });
       expect(ranWith(runCommand)).toEqual(owner(expected));
-      expect(ledger.match(sentBy(SENT_AT))).toMatchObject({
+      expect(ledger.match(sentBy(SENT_AT, expected[2]))).toMatchObject({
         kind: 'send',
         accountId: 'default',
         author: '~owner',
@@ -1146,7 +1146,7 @@ describe('owner-by-default identity selection', () => {
       await second.execute('two', { command: 'dms send 0v1.abc b' });
       expect(ranWith(first.runCommand)).toContain(M);
       expect(ranWith(second.runCommand)).toContain(String(SENT_AT + 1));
-      expect(ledger.match(sentBy(SENT_AT + 1))).toMatchObject({
+      expect(ledger.match(sentBy(SENT_AT + 1, '0v1.abc'))).toMatchObject({
         target: '0v1.abc',
       });
     });
@@ -1193,11 +1193,32 @@ describe('owner-by-default identity selection', () => {
     });
 
     it.each([
+      ['posts unreact chat/~h/c 170.1', 'chat/~h/c', '170.1'],
+      ['posts unreact chat/~h/c 170.2 --parent 170.1', 'chat/~h/c', '170.2'],
+      ['dms unreact 0v1.abc ~alice/170.1', '0v1.abc', '~alice/170.1'],
+    ])(
+      'records owner `%s` as a reaction removal',
+      async (command, target, postId) => {
+        const { execute, runCommand, ledger } = makeExecutor();
+        await execute('unreact', { command });
+        expect(ranWith(runCommand)).toEqual(owner(shellSplitCommand(command)));
+        const removal = {
+          author: '~owner',
+          target,
+          receivingShip: '~bot',
+          postId,
+          reactionRemoved: true as const,
+        };
+        expect(ledger.match(removal)).toMatchObject({ kind: 'unreact' });
+        expect(ledger.match({ ...removal, postId: '170.9' })).toBeNull();
+      }
+    );
+
+    it.each([
       ['--self posts send chat/~h/c hi', undefined],
       ['--self posts react chat/~h/c 170.1 👍', undefined],
       ['help posts send', undefined],
       ['posts send --help', undefined],
-      ['posts unreact chat/~h/c 170.1', undefined],
       ['posts send ~bot hi', 'owner_self_dm'],
       ['dms send ~alice hi', 'send_operation'],
     ])('neither stamps nor records `%s`', async (command, reason) => {

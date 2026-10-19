@@ -82,18 +82,22 @@ describe('findOnboardingRequestInChannel', () => {
     ).resolves.toBeUndefined();
   });
 
-  it("skips a request this bot posted in the owner's name", async () => {
+  it("skips a request a bot of this process posted in the owner's name", async () => {
+    // Another account's tool DMed this bot as the owner (a DM to that
+    // account's own bot is refused). This bot's DM nest is the owner, its
+    // partner; the entry names this bot, the recipient.
+    const bot = '~pinser-botter-ten';
     try {
       sharedOwnerToolPostLedger().reserve({
         kind: 'send',
-        accountId: 'default',
+        accountId: 'other',
         author: OWNER,
-        target: dmContext.channelNest,
+        target: bot,
         sentAt: 5,
       });
       await expect(
         findOnboardingRequestInChannel(
-          dmContext,
+          { ...dmContext, channelNest: OWNER, botShip: bot },
           withHistory([
             introEntry('~ten/older', OWNER, 1),
             introEntry('~ten/forged', OWNER, 5),

@@ -280,6 +280,7 @@ import {
   lookupCachedMessage,
   lookupOrFetchCachedChannelMessage,
   renderHistoryContent,
+  withoutOwnerToolPosts,
 } from './history.js';
 import { prepareChannelSummary } from './channel-summary.js';
 import {
@@ -3119,12 +3120,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // Fetch thread context when entering a thread for the first time
       if (isThreadReply && parentId && groupChannel) {
         try {
-          const threadContextHistory = await fetchThreadContextHistory(
-            api,
+          const threadContextHistory = withoutOwnerToolPosts(
+            await fetchThreadContextHistory(
+              api,
+              groupChannel,
+              parentId,
+              20,
+              runtime
+            ),
             groupChannel,
-            parentId,
-            20,
-            runtime
+            botShipName
           );
           if (threadContextHistory.length > 0) {
             contextLenses.recordContext(lens.lensId, {
@@ -3164,11 +3169,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // context about what the channel has been discussing.
       if (isGroup && groupChannel && !isThreadReply) {
         try {
-          const recentHistory = await fetchChannelHistory(
-            api,
+          const recentHistory = withoutOwnerToolPosts(
+            await fetchChannelHistory(api, groupChannel, 20, runtime),
             groupChannel,
-            20,
-            runtime
+            botShipName
           );
           if (recentHistory.length > 0) {
             contextLenses.recordContext(lens.lensId, {
@@ -4327,6 +4331,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             await findOnboardingRequestInChannel({
               api,
               abortSignal: opts.abortSignal,
+              botShip: botShipName,
               channelNest: nest,
               ownerShip: effectiveOwnerShip,
             })
@@ -4668,22 +4673,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           blob: content.blob ?? null,
         });
 
-        // Check if sender is a bot (BotProfile object has ship, nickname, avatar)
-        const authorRaw = content?.author;
-        const isSenderBot =
-          typeof authorRaw === 'object' &&
-          authorRaw !== null &&
-          'ship' in authorRaw;
-        if (isSenderBot) {
-          knownBotShips.add(senderShip);
-        }
-
         // Skip processing bot's own messages (but they're already cached above)
         if (senderShip === botShipName) {
           return;
         }
         // Owner-authored, but sent by this bot through the tlon tool: its own
         // action, so never a command, an engagement trigger or owner activity.
+        // Checked before knownBotShips: a --bot send carries a bot-profile
+        // author and would mark the owner's ship as a bot.
         const ownerToolPost = sharedOwnerToolPostLedger().match(
           channelInboundPost(nest, response, senderShip)
         );
@@ -4692,6 +4689,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             `[tlon] Ignoring an owner ${ownerToolPost.kind} this bot made with the tlon tool in ${nest}`
           );
           return;
+        }
+
+        // Check if sender is a bot (BotProfile object has ship, nickname, avatar)
+        const authorRaw = content?.author;
+        const isSenderBot =
+          typeof authorRaw === 'object' &&
+          authorRaw !== null &&
+          'ship' in authorRaw;
+        if (isSenderBot) {
+          knownBotShips.add(senderShip);
         }
 
         if (senderShip === effectiveOwnerShip) {
@@ -4714,6 +4721,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               await findOnboardingRequestInChannel({
                 api,
                 abortSignal: opts.abortSignal,
+                botShip: botShipName,
                 channelNest: nest,
                 ownerShip: effectiveOwnerShip,
               })
@@ -5192,18 +5200,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           );
           const reactEmoji = dmAddReact?.react ?? '';
           if (
-            isAdd &&
             reactAuthor &&
             sharedOwnerToolPostLedger().match({
               author: reactAuthor,
               target: whom,
               receivingShip: botShipName,
               postId: messageId,
-              reaction: reactEmoji,
+              // del-react names no reaction.
+              ...(isAdd
+                ? { reaction: reactEmoji }
+                : { reactionRemoved: true as const }),
             })
           ) {
             runtime.log?.(
-              '[tlon] Ignoring an owner reaction this bot made with the tlon tool in a DM'
+              `[tlon] Ignoring an owner reaction ${isAdd ? '' : 'removal '}this bot made with the tlon tool in a DM`
             );
             return;
           }
@@ -5480,6 +5490,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 await findOnboardingRequestInChannel({
                   api,
                   abortSignal: opts.abortSignal,
+                  botShip: botShipName,
                   channelNest: whom,
                   ownerShip: effectiveOwnerShip,
                 })

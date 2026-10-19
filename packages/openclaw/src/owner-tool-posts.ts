@@ -4,8 +4,8 @@ import { sharedMap, sharedSlot } from './shared-state.js';
 import { normalizeShip } from './targets.js';
 
 /**
- * Owner-credentialed posts, edits and reactions this process made through the
- * tlon tool. The monitor treats a match as this bot's own action: never a
+ * Owner-credentialed posts, edits, reactions and reaction removals this
+ * process made through the tlon tool. The monitor treats a match as this bot's own action: never a
  * command, never an engagement trigger, never owner activity. Matching uses
  * provenance only (author, the plugin-assigned `sent`, post ids, the reaction
  * the tool sent); message text is never read.
@@ -37,7 +37,7 @@ const SENT_TOLERANCE_MS = 1;
 
 type OwnerToolPostBase = {
   accountId: string;
-  /** null when the acting ship is not known; the target must then match. */
+  /** null when the acting ship is not known; the target still must match. */
   author: string | null;
   /** Nest, DM ship or club id, as the command named it. */
   target: string;
@@ -56,7 +56,8 @@ export type OwnerToolPost =
        * isShortcodeReaction); anything else must match exactly.
        */
       reaction: string;
-    });
+    })
+  | (OwnerToolPostBase & { kind: 'unreact'; postId: string });
 
 /** What the monitor knows about an inbound post, edit or reaction. */
 export type InboundPost = {
@@ -65,8 +66,8 @@ export type InboundPost = {
   target: string;
   /**
    * The ship whose monitor received it. A one-to-one DM's `target` is the
-   * partner, while a ledger entry names the recipient, so a wildcard-author
-   * entry addressed to a ship matches against this instead.
+   * partner, while a ledger entry names the recipient, so an entry addressed
+   * to a ship matches against this instead.
    */
   receivingShip?: string;
   sent?: number;
@@ -76,6 +77,8 @@ export type InboundPost = {
   parentId?: string;
   /** Set for a reaction, and only then. */
   reaction?: string;
+  /** Set for a reaction removal, which names no reaction, and only then. */
+  reactionRemoved?: true;
 };
 
 export type OwnerToolPostReservation = {
@@ -142,7 +145,7 @@ function isShipTarget(canonical: string): boolean {
   return canonical.startsWith('~') && !canonical.includes('/');
 }
 
-function wildcardTargetMatches(entryTarget: string, inbound: InboundPost) {
+function targetMatches(entryTarget: string, inbound: InboundPost) {
   const target = canonicalTarget(entryTarget);
   if (isShipTarget(target)) {
     // Only a one-to-one DM names its partner rather than its recipient; a
@@ -164,11 +167,26 @@ function sameParent(entryParent?: string, inboundParent?: string) {
 }
 
 function matchesEntry(post: OwnerToolPost, inbound: InboundPost): boolean {
-  const authorMatches =
-    post.author !== null
-      ? normalizeShip(post.author) === normalizeShip(inbound.author)
-      : wildcardTargetMatches(post.target, inbound);
-  if (!authorMatches) return false;
+  // The target is compared for a known author too: edit and reaction entries
+  // carry no timestamp, so the same post id elsewhere would otherwise match.
+  // A one-to-one DM with a known author reaches this only at another account
+  // of this process whose bot was the recipient: an owner DM to this bot
+  // itself is refused by checkOwnerSelfDm.
+  if (
+    post.author !== null &&
+    normalizeShip(post.author) !== normalizeShip(inbound.author)
+  ) {
+    return false;
+  }
+  if (!targetMatches(post.target, inbound)) return false;
+  if (post.kind === 'unreact') {
+    return (
+      inbound.reactionRemoved === true &&
+      inbound.postId !== undefined &&
+      canonicalPostId(inbound.postId) === post.postId
+    );
+  }
+  if (inbound.reactionRemoved) return false;
   if (post.kind === 'react') {
     return (
       inbound.reaction !== undefined &&
