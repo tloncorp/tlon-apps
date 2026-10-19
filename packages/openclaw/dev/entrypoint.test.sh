@@ -189,6 +189,9 @@ fi
 # plugin marks group messages as unmentioned. agents.defaults.silentReply
 # restores the earlier allow behaviour, mirroring the hosted config tlawn
 # writes.
+# OpenClaw 2026.9.33 also enables Tool Search when tools.toolSearch is unset,
+# advertising only tool_search/tool_describe/tool_call; the scripted fake
+# model calls tools by name, so tools.toolSearch is false.
 cat > "$CONFIG_DIR/openclaw.json" << EOF
 {
   "models": {
@@ -258,6 +261,7 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
   },
   "tools": {
     "allow": $OPENCLAW_CONFIG_TOOLS_ALLOW_JSON,
+    "toolSearch": false,
     "deny": [
       "apply_patch",
       "bash",
