@@ -251,6 +251,7 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
     new Set([
       'send',
       'reply',
+      'forward',
       'react',
       'unreact',
       'edit',
@@ -601,9 +602,23 @@ function boundaryIndex(args: string[], isBoundary: (arg: string) => boolean) {
 const isImageFlag = (arg: string) =>
   arg === '--image' || arg.startsWith('--image=');
 const isPostSendBoundary = (arg: string) =>
-  ['--blob', '--title', '--sent-at', '--bot'].includes(arg) || isImageFlag(arg);
+  [
+    '--blob',
+    '--title',
+    '--sent-at',
+    '--bot',
+    '--quote',
+    '--quote-parent',
+  ].includes(arg) || isImageFlag(arg);
 const isPostReplyBoundary = (arg: string) =>
-  ['--author', '--blob', '--sent-at', '--bot'].includes(arg);
+  [
+    '--author',
+    '--blob',
+    '--sent-at',
+    '--bot',
+    '--quote',
+    '--quote-parent',
+  ].includes(arg);
 const isDmSendBoundary = (arg: string) => arg === '--bot' || isImageFlag(arg);
 const isDmReplyBoundary = (arg: string) => arg === '--bot';
 
@@ -846,7 +861,8 @@ export function checkOwnerSelfDm(
   if (!bot) {
     return { message: BOT_SHIP_UNKNOWN_MESSAGE, reason: 'bot_ship_unknown' };
   }
-  const target = commandArgs[2];
+  // A forward names its target after the source post.
+  const target = commandArgs[commandArgs[1] === 'forward' ? 4 : 2];
   return target && normalizeShip(target) === bot
     ? {
         message: `Blocked: commands run as the owner cannot act in the owner's DM with this bot (${bot}). Reply to the owner with the message tool.`,
@@ -937,7 +953,7 @@ const OWNER_DEFAULT_IDENTITY_TABLE = [
   "  activity (incl. mute, unmute, volume): the owner's activity and notification levels; with --self, the bot's.",
   "  contacts self|list|add|remove|update|update-profile: the owner's profile and contact book; with --self, the bot's.",
   "  groups list|join|leave|accept-invite|reject-invite|request-invite, channels join|leave: the owner's membership; with --self, the bot's.",
-  '  posts send|reply to ~ship: a DM from the owner; with --self, from the bot (prefer message).',
+  '  posts send|reply|forward to ~ship: a DM from the owner; with --self, from the bot (prefer message).',
   "  posts react|unreact|edit|delete: as the owner (edit only the owner's posts); with --self, as the bot.",
   "  dms react|unreact|delete: in the owner's DMs; with --self, in the bot's.",
   "  hooks: hooks in the owner's groups; with --self, in channels the bot hosts.",
@@ -1806,7 +1822,10 @@ function summarizePostsOperation(
     args,
     new Set(['--title', '--image', '--content'])
   );
-  const channelKind = detectChannelKind(positionals[0]);
+  // A forward acts in its target, the third positional.
+  const channelKind = detectChannelKind(
+    positionals[operation === 'forward' ? 2 : 0]
+  );
   switch (operation) {
     case 'edit':
       return build('write', {

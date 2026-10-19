@@ -6,6 +6,7 @@ import {
   getChannelPosts as apiGetChannelPosts,
   getCurrentUserId as apiGetCurrentUserId,
   getPostWithReplies as apiGetPostWithReplies,
+  getTextContent,
   removeReaction as apiRemoveReaction,
   sendPost as apiSendPost,
   sendReply as apiSendReply,
@@ -79,6 +80,28 @@ function replyContentKey(content: unknown): string {
   }
 }
 
+// The plain text of a post's first paragraph, line breaks kept, from its stored
+// `content` (the JSON string `toPostData` built). The api's `textContent`
+// can't stand in: it joins paragraphs and line breaks with spaces.
+function quoteTextOf(content: unknown): string {
+  let story = content;
+  if (typeof content === 'string') {
+    try {
+      story = JSON.parse(content);
+    } catch {
+      return '';
+    }
+  }
+  if (!Array.isArray(story)) return '';
+  const paragraph = story.find(
+    (verse): verse is { inline: unknown[] } =>
+      verse !== null &&
+      typeof verse === 'object' &&
+      Array.isArray((verse as { inline?: unknown }).inline)
+  );
+  return paragraph ? getTextContent([paragraph] as Story) : '';
+}
+
 interface ReplyRecord {
   id: string;
   authorId: string;
@@ -94,12 +117,19 @@ export function toExistingThread(post: {
   id: string;
   authorId: string;
   isDeleted?: boolean | null;
+  sentAt?: number;
+  content?: unknown;
   replies?: ReplyRecord[] | null;
 }): ExistingThread {
   return {
     id: post.id,
     authorId: post.authorId,
     isDeleted: post.isDeleted,
+    sentAt: post.sentAt,
+    // A top-level post's `content` is built like a reply's, so the same key
+    // compares it with a sent story.
+    contentKey: replyContentKey(post.content ?? null),
+    quoteText: quoteTextOf(post.content ?? null),
     replies: (post.replies ?? []).map(
       (reply): ExistingReply => ({
         id: reply.id,
@@ -188,16 +218,24 @@ export function createPostsDeps(): PostsDeps {
           throw commandError(errorMessage(error));
         }
       },
-      // Thin lookup: the around-cursor query and exact-match/null-on-error
-      // logic live in the pure command module (fetchExistingPost).
-      getChannelPosts: (query: PostLookupQuery) => apiGetChannelPosts(query),
+      // Thin lookup: the query and exact-match/null-on-error logic live in
+      // the pure command module (fetchExistingPost, the new-post read-back).
+      getChannelPosts: async (query: PostLookupQuery) => {
+        const result = await apiGetChannelPosts(query);
+        return {
+          posts: result.posts.map((post) => ({
+            ...post,
+            contentKey: replyContentKey(post.content ?? null),
+          })),
+        };
+      },
       // Raw like getChannelPosts: the command decides what a failed read means.
       getPostWithReplies: async (query: PostThreadQuery) =>
         toExistingThread(
           await apiGetPostWithReplies({
             channelId: query.channelId,
             postId: query.postId,
-            authorId: apiGetCurrentUserId(),
+            authorId: query.authorId ?? apiGetCurrentUserId(),
           })
         ),
       deleteReply: async (input: ReplyDeleteInput) => {

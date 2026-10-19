@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
-import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from '../cli-utils';
+import {
+  DIARY_REMOVED,
+  NOTES_CHANNEL_CONTENT_UNSUPPORTED,
+  dmWritTime,
+} from '../cli-utils';
 import type { StoryVerse } from '../markdown';
 import { commandError } from './command';
 import {
@@ -3088,4 +3092,1214 @@ describe('posts unexpected errors', () => {
     expect(context.stdout()).toBe('');
     expect(context.stderr()).toBe('');
   });
+});
+
+// Quote and forward tests assert the PostSendInput/PostReplyInput handed to the
+// api; the poke envelope around them is built by the shared @tloncorp/api
+// sendPost/sendReply, which the app also calls.
+const SRC = 'chat/~nec/general';
+const S = '170.141.184.507.208.218.934.405.025.845.542.912.000';
+const S_UD = '170141184507208218934405025845542912000';
+const R = '170.141.184.507.208.300.000.000.000.000.000.000.000';
+const R_UD = '170141184507208300000000000000000000000';
+const TEAM = 'chat/~zod/team';
+const P = '170.141.184.507.300.000.000.000.000.000.000.000.000';
+const P_UD = '170141184507300000000000000000000000000';
+const SENT = 1700000000000;
+const NEW_ID = '170.141.184.507.400.000.000.000.000.000.000.000.000';
+const NEW_UD = '170141184507400000000000000000000000000';
+const CITE = {
+  block: { cite: { chan: { nest: SRC, where: `/msg/${S_UD}` } } },
+};
+const CITER = {
+  block: { cite: { chan: { nest: SRC, where: `/msg/${S_UD}/${R_UD}` } } },
+};
+const DM_TIME = dmWritTime(SENT);
+
+function source(over: Partial<ExistingThread> = {}): ExistingThread {
+  return { id: S, authorId: '~nec', replies: [], ...over };
+}
+
+function sourceReply(over: Partial<ExistingReply> = {}): ExistingReply {
+  return { id: R, authorId: '~nec', sentAt: 1, contentKey: '', ...over };
+}
+
+// What the read-back finds for a post this ship just sent with `content`.
+function sentPost(content: unknown, over: Partial<ExistingPost> = {}) {
+  return {
+    id: NEW_ID,
+    authorId: '~zod',
+    sentAt: SENT,
+    contentKey: contentKeyOf(content),
+    ...over,
+  };
+}
+
+function sentReply(content: unknown, over: Partial<ExistingReply> = {}) {
+  return {
+    id: NEW_ID,
+    authorId: '~zod',
+    sentAt: SENT,
+    contentKey: contentKeyOf(content),
+    ...over,
+  };
+}
+
+function channelReadBack(...posts: ExistingPost[]) {
+  return async () => ({ posts });
+}
+
+describe('posts quote', () => {
+  it('quotes a chat post before the text in a chat send', async () => {
+    const content = [CITE, { inline: ['Look at this'] }];
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost(content)),
+    });
+
+    const exitCode = await run(
+      ['send', TEAM, 'Look at this', '--quote', SRC, S],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stderr()).toBe('');
+    expect(context.stdout()).toBe(
+      `✓ Message sent\n  Ref: /1/chan/${TEAM}/msg/${NEW_UD}\n`
+    );
+    expect(context.calls.authenticateApps).toEqual([['channels']]);
+    expect(context.calls.getChannelState).toEqual([SRC, TEAM]);
+    expect(context.calls.getPostWithReplies).toEqual([
+      { channelId: SRC, postId: S },
+    ]);
+    expect(context.calls.sendPost).toEqual([
+      {
+        channelId: TEAM,
+        authorId: '~zod',
+        sentAt: SENT,
+        content,
+        blob: undefined,
+      },
+    ]);
+    expect(context.calls.getChannelPosts).toEqual([
+      { channelId: TEAM, mode: 'newest', count: 20, includeReplies: false },
+    ]);
+  });
+
+  it('quotes a reply source with /msg/<parent>/<reply> before the text in a thread reply', async () => {
+    const content = [CITER, { inline: ['Agreed'] }];
+    const context = makeDeps({
+      threads: [
+        source({ replies: [sourceReply()] }),
+        { id: P, authorId: '~zod', replies: [sentReply(content)] },
+      ],
+    });
+
+    const exitCode = await run(
+      ['reply', TEAM, P, 'Agreed', '--quote', SRC, R, '--quote-parent', S],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stderr()).toBe('');
+    expect(context.stdout()).toBe(
+      `✓ Reply sent\n  Ref: /1/chan/${TEAM}/msg/${P_UD}/${NEW_UD}\n`
+    );
+    expect(context.calls.sendReply).toEqual([
+      {
+        channelId: TEAM,
+        parentId: P,
+        parentAuthor: '~zod',
+        content,
+        sentAt: SENT,
+        authorId: '~zod',
+        blob: undefined,
+      },
+    ]);
+    expect(context.calls.getPostWithReplies).toEqual([
+      { channelId: SRC, postId: S },
+      { channelId: TEAM, postId: P },
+    ]);
+  });
+
+  it('puts the cite after the text in a gallery send', async () => {
+    const gallery = 'heap/~zod/gallery';
+    const content = [{ inline: ['Worth a look'] }, CITE];
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost(content)),
+    });
+
+    const exitCode = await run(
+      ['send', gallery, 'Worth a look', '--quote', SRC, S],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual(content);
+    expect(context.stdout()).toBe(
+      `✓ Message sent\n  Ref: /1/chan/${gallery}/msg/${NEW_UD}\n`
+    );
+  });
+
+  it('quotes a heap post, and leads with the cite in a thread reply to a gallery post', async () => {
+    const gallerySrc = 'heap/~nec/pics';
+    const cite = {
+      block: { cite: { chan: { nest: gallerySrc, where: `/msg/${S_UD}` } } },
+    };
+    const content = [cite, { inline: ['nice'] }];
+    const context = makeDeps({
+      threads: [
+        source(),
+        { id: P, authorId: '~zod', replies: [sentReply(content)] },
+      ],
+    });
+
+    const exitCode = await run(
+      ['reply', 'heap/~zod/gallery', P, 'nice', '--quote', gallerySrc, S],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendReply[0].content).toEqual(content);
+  });
+
+  it('puts the cite after the text in a DM send and confirms by the deterministic id', async () => {
+    const content = [{ inline: ['x'] }, CITE];
+    const context = makeDeps({
+      threads: [
+        source(),
+        {
+          id: DM_TIME,
+          authorId: '~zod',
+          contentKey: contentKeyOf(content),
+          replies: [],
+        },
+      ],
+    });
+
+    const exitCode = await run(
+      ['send', '~bus', 'x', '--quote', SRC, S],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stderr()).toBe('');
+    expect(context.stdout()).toBe(`✓ Message sent\n  ID: ~zod/${DM_TIME}\n`);
+    expect(context.calls.authenticateApps).toEqual([['chat', 'channels']]);
+    // Only the source is a channel; a DM target has no joined state.
+    expect(context.calls.getChannelState).toEqual([SRC]);
+    expect(context.calls.sendPost[0]).toMatchObject({
+      channelId: '~bus',
+      content,
+    });
+    expect(context.calls.getPostWithReplies[1]).toEqual({
+      channelId: '~bus',
+      postId: DM_TIME,
+      authorId: '~zod',
+    });
+  });
+
+  it('sends a quote with no message', async () => {
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost([CITE])),
+    });
+
+    const exitCode = await run(['send', TEAM, '--quote', SRC, S], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([CITE]);
+  });
+
+  it('uses undotted ids in the cite whether typed dotted or not', async () => {
+    for (const id of [S, S_UD]) {
+      const context = makeDeps({
+        threads: [source()],
+        getChannelPosts: channelReadBack(sentPost([CITE])),
+      });
+
+      expect(await run(['send', TEAM, '--quote', SRC, id], context.deps)).toBe(
+        0
+      );
+      const cite = context.calls.sendPost[0].content[0] as typeof CITE;
+      expect(cite.block.cite.chan.where).toMatch(/^\/msg\/\d+$/);
+      expect(cite.block.cite.chan.where).toBe(`/msg/${S_UD}`);
+      // The source read takes the dotted form either way.
+      expect(context.calls.getPostWithReplies[0].postId).toBe(S);
+    }
+  });
+
+  it('canonicalizes a host without ~ in the cite nest and the target', async () => {
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost([CITE])),
+    });
+
+    expect(
+      await run(
+        ['send', 'chat/zod/team', '--quote', 'chat/nec/general', S],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.calls.getChannelState).toEqual([SRC, TEAM]);
+    expect(context.calls.sendPost[0]).toMatchObject({
+      channelId: TEAM,
+      content: [CITE],
+    });
+  });
+
+  it('passes the other send options through with a quote', async () => {
+    const content = [{ inline: ['caption'] }, CITE];
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost(content)),
+    });
+
+    const exitCode = await run(
+      [
+        'send',
+        'heap/~zod/gallery',
+        'caption',
+        '--title',
+        'T',
+        '--quote',
+        SRC,
+        S,
+        '--blob',
+        '[]',
+        '--sent-at',
+        String(SENT),
+        '--bot',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost).toEqual([
+      {
+        channelId: 'heap/~zod/gallery',
+        authorId: '~zod',
+        sentAt: SENT,
+        content,
+        blob: '[]',
+        metadata: { title: 'T' },
+        botProfile: { nickname: null, avatar: null },
+      },
+    ]);
+    expect(context.calls.now).toBe(0);
+  });
+
+  it('sends a message that is only --help before --quote as literal text', async () => {
+    const content = [CITE, { inline: ['--help'] }];
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost(content)),
+    });
+
+    expect(
+      await run(['send', TEAM, '--help', '--quote', SRC, S], context.deps)
+    ).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual(content);
+  });
+});
+
+describe('posts quote source validation', () => {
+  it('refuses an unreadable source after one retry; a deleted post is unreadable', async () => {
+    const context = makeDeps({ threads: [new Error('scry 404')] });
+
+    expect(
+      await run(['send', TEAM, 'x', '--quote', SRC, S], context.deps)
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Could not read post ${S} in ${SRC}; nothing was sent.\n`
+    );
+    expect(context.calls.getPostWithReplies).toHaveLength(2);
+    expect(context.calls.sleep).toEqual([1500]);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a source read as a tombstone', async () => {
+    const context = makeDeps({ threads: [source({ isDeleted: true })] });
+
+    expect(
+      await run(['send', TEAM, 'x', '--quote', SRC, S], context.deps)
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Post ${S} in ${SRC} is deleted; nothing was sent.\n`
+    );
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a deleted reply source', async () => {
+    const context = makeDeps({
+      threads: [source({ replies: [sourceReply({ isDeleted: true })] })],
+    });
+
+    expect(
+      await run(
+        ['send', TEAM, 'x', '--quote', SRC, R, '--quote-parent', S],
+        context.deps
+      )
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Reply ${R} in ${SRC} is deleted; nothing was sent.\n`
+    );
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a reply source missing from its thread after one retry', async () => {
+    const context = makeDeps({ threads: [source()] });
+
+    expect(
+      await run(
+        ['send', TEAM, 'x', '--quote', SRC, R, '--quote-parent', S],
+        context.deps
+      )
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Could not read reply ${R} under ${S} in ${SRC}; nothing was sent.\n`
+    );
+    expect(context.calls.sleep).toEqual([1500]);
+  });
+
+  it('refuses a source in a channel this ship has not joined, before reading it', async () => {
+    const context = makeDeps({ channelStates: [{ joined: false }] });
+
+    expect(
+      await run(['send', TEAM, 'x', '--quote', SRC, S], context.deps)
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: ${SRC} is not a channel this ship has joined; join it first.\n`
+    );
+    expect(context.calls.getPostWithReplies).toEqual([]);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('reports a failed channel-state read', async () => {
+    const context = makeDeps({ channelStates: [new Error('scry failed')] });
+
+    expect(
+      await run(['send', TEAM, 'x', '--quote', SRC, S], context.deps)
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Could not read channel state for ${SRC}: scry failed\n`
+    );
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a channel target that is not joined, without sending', async () => {
+    const context = makeDeps({
+      threads: [source()],
+      channelStates: [
+        { joined: true, groupId: '~nec/g', order: [] },
+        { joined: false },
+      ],
+    });
+
+    expect(
+      await run(['send', TEAM, 'x', '--quote', SRC, S], context.deps)
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: ${TEAM} is not a channel this ship has joined; join it first.\n`
+    );
+    expect(context.calls.sendPost).toEqual([]);
+  });
+});
+
+describe('posts quote from a DM', () => {
+  const DM_SRC_ID = '170.141.184.507.500.000.000.000.000.000.000.000.000';
+
+  function dmSource(over: Partial<ExistingThread> = {}): ExistingThread {
+    return {
+      id: DM_SRC_ID,
+      authorId: '~bus',
+      quoteText: 'line one\nline two',
+      replies: [],
+      ...over,
+    };
+  }
+
+  it('quotes a DM source as a first-line blockquote and no cite', async () => {
+    const content = [
+      { inline: [{ blockquote: ['line one'] }] },
+      { inline: ['+1'] },
+    ];
+    const context = makeDeps({
+      threads: [dmSource()],
+      getChannelPosts: channelReadBack(sentPost(content)),
+    });
+
+    const exitCode = await run(
+      ['send', TEAM, '+1', '--quote', '~bus', `~bus/${DM_SRC_ID}`],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual(content);
+    expect(context.calls.authenticateApps).toEqual([['channels', 'chat']]);
+    // A DM has no joined state; only the target channel is checked.
+    expect(context.calls.getChannelState).toEqual([TEAM]);
+    expect(context.calls.getPostWithReplies[0]).toEqual({
+      channelId: '~bus',
+      postId: DM_SRC_ID,
+      authorId: '~bus',
+    });
+  });
+
+  it('quotes a DM post into another DM', async () => {
+    const content = [
+      { inline: [{ blockquote: ['line one'] }] },
+      { inline: ['fyi'] },
+    ];
+    const context = makeDeps({
+      threads: [
+        dmSource(),
+        {
+          id: DM_TIME,
+          authorId: '~zod',
+          contentKey: contentKeyOf(content),
+          replies: [],
+        },
+      ],
+    });
+
+    expect(
+      await run(
+        ['send', '~nec', 'fyi', '--quote', '~bus', `~bus/${DM_SRC_ID}`],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.stdout()).toBe(`✓ Message sent\n  ID: ~zod/${DM_TIME}\n`);
+    expect(context.calls.authenticateApps).toEqual([['chat']]);
+    expect(context.calls.getChannelState).toEqual([]);
+    expect(context.calls.sendPost[0]).toMatchObject({
+      channelId: '~nec',
+      content,
+    });
+  });
+
+  it('leads with the DM quote in a gallery send', async () => {
+    const content = [
+      { inline: [{ blockquote: ['line one'] }] },
+      { inline: ['caption'] },
+    ];
+    const context = makeDeps({
+      threads: [dmSource()],
+      getChannelPosts: channelReadBack(sentPost(content)),
+    });
+
+    expect(
+      await run(
+        ['send', 'heap/~zod/gallery', 'caption', '--quote', '~bus', DM_SRC_ID],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual(content);
+  });
+
+  it('tries the DM peer, then us, for a bare DM id; a failed read only moves on', async () => {
+    const content = [{ inline: [{ blockquote: ['line one'] }] }];
+    const context = makeDeps({
+      // The peer read rejects (a scry miss), ours succeeds.
+      threads: [new Error('scry 404'), dmSource({ authorId: '~zod' })],
+      getChannelPosts: channelReadBack(sentPost(content)),
+    });
+
+    expect(
+      await run(['send', TEAM, '--quote', '~bus', DM_SRC_ID], context.deps)
+    ).toBe(0);
+    expect(context.calls.getPostWithReplies).toEqual([
+      { channelId: '~bus', postId: DM_SRC_ID, authorId: '~bus' },
+      { channelId: '~bus', postId: DM_SRC_ID, authorId: '~zod' },
+    ]);
+    expect(context.calls.sleep).toEqual([]);
+  });
+
+  it('tries only us for a bare group-DM id, and the named author for ~author/<id>', async () => {
+    const content = [{ inline: [{ blockquote: ['line one'] }] }];
+    const bare = makeDeps({
+      threads: [dmSource()],
+      getChannelPosts: channelReadBack(sentPost(content)),
+    });
+    expect(
+      await run(['send', TEAM, '--quote', '0v4.abc', DM_SRC_ID], bare.deps)
+    ).toBe(0);
+    expect(bare.calls.getPostWithReplies[0]).toEqual({
+      channelId: '0v4.abc',
+      postId: DM_SRC_ID,
+      authorId: '~zod',
+    });
+
+    const named = makeDeps({
+      threads: [dmSource()],
+      getChannelPosts: channelReadBack(sentPost(content)),
+    });
+    expect(
+      await run(
+        ['send', TEAM, '--quote', '0v4.abc', `~nec/${DM_SRC_ID}`],
+        named.deps
+      )
+    ).toBe(0);
+    expect(named.calls.getPostWithReplies[0]).toEqual({
+      channelId: '0v4.abc',
+      postId: DM_SRC_ID,
+      authorId: '~nec',
+    });
+  });
+
+  it('refuses an unreadable DM source after every author and one retry', async () => {
+    const context = makeDeps({ threads: [new Error('scry 404')] });
+
+    expect(
+      await run(['send', TEAM, 'x', '--quote', '~bus', DM_SRC_ID], context.deps)
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Could not read post ${DM_SRC_ID} in ~bus; nothing was sent.\n`
+    );
+    expect(context.calls.getPostWithReplies).toHaveLength(4);
+    expect(context.calls.sleep).toEqual([1500]);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('names the author form for an unreadable group-DM source', async () => {
+    const context = makeDeps({ threads: [new Error('scry 404')] });
+
+    expect(
+      await run(
+        ['send', TEAM, 'x', '--quote', '0v4.abc', DM_SRC_ID],
+        context.deps
+      )
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Could not read post ${DM_SRC_ID} in 0v4.abc; nothing was sent. Another member's post in a group DM needs its author: ~author/${DM_SRC_ID}.\n`
+    );
+    expect(context.calls.getPostWithReplies).toHaveLength(2);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a DM source with no text, or a deleted one', async () => {
+    for (const [thread, message] of [
+      [
+        dmSource({ quoteText: '' }),
+        `Post ${DM_SRC_ID} in ~bus has no text to quote; nothing was sent.`,
+      ],
+      [
+        dmSource({ quoteText: '\n' }),
+        `Post ${DM_SRC_ID} in ~bus has no text to quote; nothing was sent.`,
+      ],
+      [
+        dmSource({ isDeleted: true }),
+        `Post ${DM_SRC_ID} in ~bus is deleted; nothing was sent.`,
+      ],
+    ] as const) {
+      const context = makeDeps({ threads: [thread] });
+      expect(
+        await run(
+          ['send', TEAM, 'x', '--quote', '~bus', DM_SRC_ID],
+          context.deps
+        )
+      ).toBe(1);
+      expect(context.stderr()).toBe(`Error: ${message}\n`);
+      expect(context.calls.sendPost).toEqual([]);
+    }
+  });
+
+  it('refuses --quote-parent with a DM source before auth', async () => {
+    const context = makeDeps();
+
+    expect(
+      await run(
+        ['send', TEAM, 'x', '--quote', '~bus', DM_SRC_ID, '--quote-parent', S],
+        context.deps
+      )
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      'Error: --quote-parent is for thread replies in group channels; ~bus is a DM.\n'
+    );
+    expectNoAuthOrApi(context);
+  });
+});
+
+describe('posts quote to DM targets', () => {
+  it('replies in a DM thread, reading back under the parent author', async () => {
+    const content = [CITE, { inline: ['ok'] }];
+    const context = makeDeps({
+      threads: [
+        source(),
+        { id: P, authorId: '~bus', replies: [sentReply(content)] },
+      ],
+    });
+
+    const exitCode = await run(
+      ['reply', '~bus', P, 'ok', '--quote', SRC, S],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe(`✓ Reply sent\n  ID: ~zod/${DM_TIME}\n`);
+    expect(context.calls.sendReply[0]).toMatchObject({
+      channelId: '~bus',
+      parentAuthor: '~bus',
+      content,
+    });
+    expect(context.calls.getPostWithReplies[1]).toEqual({
+      channelId: '~bus',
+      postId: P,
+      authorId: '~bus',
+    });
+  });
+
+  it('replies in a group-DM thread with an explicit parent author', async () => {
+    const content = [CITE, { inline: ['ok'] }];
+    const context = makeDeps({
+      threads: [
+        source(),
+        { id: P, authorId: '~nec', replies: [sentReply(content)] },
+      ],
+    });
+
+    expect(
+      await run(
+        ['reply', '0v4.abc', P, 'ok', '--author', '~nec', '--quote', SRC, S],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.calls.sendReply[0].parentAuthor).toBe('~nec');
+    expect(context.calls.getPostWithReplies[1]).toEqual({
+      channelId: '0v4.abc',
+      postId: P,
+      authorId: '~nec',
+    });
+  });
+
+  it('names the DM thread check, with its parent author, when unconfirmed', async () => {
+    const context = makeDeps({
+      threads: [source(), { id: P, authorId: '~nec', replies: [] }],
+    });
+
+    expect(
+      await run(
+        ['reply', '0v4.abc', P, 'ok', '--author', '~nec', '--quote', SRC, S],
+        context.deps
+      )
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Reply to 0v4.abc was sent but is not confirmed: no reply by ~zod with this sent time is in the thread yet. It may still arrive. Do not send it again; check first with \`messages post 0v4.abc ${P} --author ~nec\`\n`
+    );
+  });
+});
+
+describe('posts forward', () => {
+  it('forwards a chat post as a cite-only post', async () => {
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost([CITE])),
+    });
+
+    const exitCode = await run(['forward', SRC, S, TEAM], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stderr()).toBe('');
+    expect(context.stdout()).toBe(
+      `✓ Post forwarded\n  Ref: /1/chan/${TEAM}/msg/${NEW_UD}\n`
+    );
+    expect(context.calls.authenticateApps).toEqual([['channels']]);
+    expect(context.calls.getChannelState).toEqual([SRC, TEAM]);
+    expect(context.calls.sendPost).toEqual([
+      { channelId: TEAM, authorId: '~zod', sentAt: SENT, content: [CITE] },
+    ]);
+    for (const key of ['metadata', 'blob', 'botProfile']) {
+      expect(key in context.calls.sendPost[0]).toBe(false);
+    }
+  });
+
+  it('forwards a heap post to a heap channel', async () => {
+    const cite = {
+      block: {
+        cite: { chan: { nest: 'heap/~nec/pics', where: `/msg/${S_UD}` } },
+      },
+    };
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost([cite])),
+    });
+
+    expect(
+      await run(
+        ['forward', 'heap/~nec/pics', S, 'heap/~zod/gallery'],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.calls.sendPost[0]).toMatchObject({
+      channelId: 'heap/~zod/gallery',
+      content: [cite],
+    });
+  });
+
+  it('forwards a thread reply with --parent', async () => {
+    const context = makeDeps({
+      threads: [source({ replies: [sourceReply()] })],
+      getChannelPosts: channelReadBack(sentPost([CITER])),
+    });
+
+    expect(
+      await run(['forward', SRC, R, TEAM, '--parent', S], context.deps)
+    ).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([CITER]);
+  });
+
+  it('forwards to a DM', async () => {
+    const context = makeDeps({
+      threads: [
+        source(),
+        {
+          id: DM_TIME,
+          authorId: '~zod',
+          contentKey: contentKeyOf([CITE]),
+          replies: [],
+        },
+      ],
+    });
+
+    expect(await run(['forward', SRC, S, '~bus'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(`✓ Post forwarded\n  ID: ~zod/${DM_TIME}\n`);
+    expect(context.calls.authenticateApps).toEqual([['channels', 'chat']]);
+    expect(context.calls.getChannelState).toEqual([SRC]);
+    expect(context.calls.sendPost).toEqual([
+      { channelId: '~bus', authorId: '~zod', sentAt: SENT, content: [CITE] },
+    ]);
+  });
+
+  it('forwards to a group DM', async () => {
+    const context = makeDeps({
+      threads: [
+        source(),
+        {
+          id: DM_TIME,
+          authorId: '~zod',
+          contentKey: contentKeyOf([CITE]),
+          replies: [],
+        },
+      ],
+    });
+
+    expect(await run(['forward', SRC, S, '0v4.abc'], context.deps)).toBe(0);
+    expect(context.calls.sendPost[0].channelId).toBe('0v4.abc');
+    expect(context.calls.getPostWithReplies[1]).toEqual({
+      channelId: '0v4.abc',
+      postId: DM_TIME,
+      authorId: '~zod',
+    });
+  });
+
+  it('refuses a forward target channel that is not joined', async () => {
+    const context = makeDeps({
+      threads: [source()],
+      channelStates: [
+        { joined: true, groupId: '~nec/g', order: [] },
+        { joined: false },
+      ],
+    });
+
+    expect(await run(['forward', SRC, S, TEAM], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: ${TEAM} is not a channel this ship has joined; join it first.\n`
+    );
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('prints POSTS_COMMAND_HELP.forward for forward --help', async () => {
+    const context = makeDeps();
+
+    expect(await run(['forward', '--help'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(`${POSTS_COMMAND_HELP.forward}\n`);
+    expectNoAuthOrApi(context);
+  });
+});
+
+describe('posts quote and forward read-back', () => {
+  it("confirms a channel send by author, sent time and content, skipping another ship's post", async () => {
+    const content = [CITE, { inline: ['x'] }];
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(
+        sentPost(content, { id: '170.141.999', authorId: '~nec' }),
+        sentPost(content)
+      ),
+    });
+
+    expect(
+      await run(['send', TEAM, 'x', '--quote', SRC, S], context.deps)
+    ).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Message sent\n  Ref: /1/chan/${TEAM}/msg/${NEW_UD}\n`
+    );
+  });
+
+  it('reports sent-but-not-confirmed without inviting a resend', async () => {
+    const context = makeDeps({ threads: [source()] });
+
+    expect(
+      await run(['send', TEAM, 'x', '--quote', SRC, S], context.deps)
+    ).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Message to ${TEAM} was sent but is not confirmed: no post by ~zod with this sent time is among the channel's newest 20 posts yet. It may still arrive. Do not send it again; check first with \`messages channel ${TEAM} --limit 5\`\n`
+    );
+    expect(context.calls.getChannelPosts).toHaveLength(5);
+    expect(context.calls.sleep).toEqual([500, 500, 500, 500]);
+    expect(context.calls.sendPost).toHaveLength(1);
+  });
+
+  it('does not confirm our post with another sent time', async () => {
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost([CITE], { sentAt: SENT - 1 })),
+    });
+
+    expect(await run(['forward', SRC, S, TEAM], context.deps)).toBe(1);
+    expect(context.stderr()).toContain(
+      "was sent but is not confirmed: no post by ~zod with this sent time is among the channel's newest 20 posts yet."
+    );
+  });
+
+  it('reports a DM read-back with other content, or deleted, as not confirmed', async () => {
+    for (const [readBack, reason] of [
+      [
+        { contentKey: contentKeyOf([{ inline: ['changed'] }]) },
+        'the post shows different content (a channel hook may have changed it)',
+      ],
+      [
+        { contentKey: contentKeyOf([CITE]), isDeleted: true },
+        'the post is deleted',
+      ],
+    ] as const) {
+      const context = makeDeps({
+        threads: [
+          source(),
+          { id: DM_TIME, authorId: '~zod', replies: [], ...readBack },
+        ],
+      });
+
+      expect(await run(['forward', SRC, S, '~bus'], context.deps)).toBe(1);
+      expect(context.stderr()).toBe(
+        `Error: Forward to ~bus was sent but is not confirmed: ${reason}. It may still arrive. Do not send it again; check first with \`messages dm ~bus --limit 5\`\n`
+      );
+      expect(context.calls.sendPost).toHaveLength(1);
+    }
+  });
+
+  it('reports a contentKey mismatch as not confirmed', async () => {
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost([{ inline: ['changed'] }])),
+    });
+
+    expect(await run(['forward', SRC, S, TEAM], context.deps)).toBe(1);
+    expect(context.stderr()).toContain(
+      `Error: Forward to ${TEAM} was sent but is not confirmed: the post shows different content (a channel hook may have changed it).`
+    );
+  });
+
+  it('reports a deleted read-back as not confirmed', async () => {
+    const context = makeDeps({
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost([CITE], { isDeleted: true })),
+    });
+
+    expect(await run(['forward', SRC, S, TEAM], context.deps)).toBe(1);
+    expect(context.stderr()).toContain(
+      'was sent but is not confirmed: the post is deleted.'
+    );
+  });
+
+  it('confirms after a thrown read-back, and keeps the read error when it never recovers', async () => {
+    let reads = 0;
+    const recovered = makeDeps({
+      threads: [source()],
+      getChannelPosts: async () => {
+        reads += 1;
+        if (reads === 1) throw new Error('scry timeout');
+        return { posts: [sentPost([CITE])] };
+      },
+    });
+    expect(await run(['forward', SRC, S, TEAM], recovered.deps)).toBe(0);
+    expect(recovered.calls.sleep).toEqual([500]);
+
+    const failing = makeDeps({
+      threads: [source(), new Error('scry 404')],
+    });
+    expect(await run(['forward', SRC, S, '~bus'], failing.deps)).toBe(1);
+    expect(failing.stderr()).toBe(
+      `Error: Forward to ~bus was sent but is not confirmed: the DM could not be read back (scry 404). It may still arrive. Do not send it again; check first with \`messages dm ~bus --limit 5\`\n`
+    );
+  });
+
+  it('names the thread check for an unconfirmed channel reply', async () => {
+    const context = makeDeps({
+      threads: [source(), { id: P, authorId: '~zod', replies: [] }],
+    });
+
+    expect(
+      await run(['reply', TEAM, P, 'x', '--quote', SRC, S], context.deps)
+    ).toBe(1);
+    expect(context.stderr()).toContain(
+      `check first with \`messages post ${TEAM} ${P}\``
+    );
+  });
+
+  it('names messages channel for an unconfirmed group-DM send', async () => {
+    const context = makeDeps({ threads: [source(), new Error('scry 404')] });
+
+    expect(await run(['forward', SRC, S, '0v4.abc'], context.deps)).toBe(1);
+    expect(context.stderr()).toContain(
+      'check first with `messages channel 0v4.abc --limit 5`'
+    );
+  });
+});
+
+describe('posts quote and forward refusals before auth', () => {
+  const FORWARD_TARGET_REFUSAL = (target: string) =>
+    `Can't forward to ${target}: posts can be forwarded only to chat/ and heap/ channels, DMs (~ship) and group DMs (0v…).`;
+
+  const cases: Array<{ name: string; args: string[]; stderr: string }> = [
+    {
+      name: 'forward to a notes channel',
+      args: ['forward', SRC, S, 'notes/~zod/n'],
+      stderr: `Error: ${FORWARD_TARGET_REFUSAL('notes/~zod/n')}\n`,
+    },
+    {
+      name: 'forward to a buckets channel',
+      args: ['forward', SRC, S, 'buckets/~zod/b'],
+      stderr: `Error: ${FORWARD_TARGET_REFUSAL('buckets/~zod/b')}\n`,
+    },
+    {
+      name: 'forward to a notebook',
+      args: ['forward', SRC, S, 'diary/~zod/blog'],
+      stderr: `Error: ${DIARY_REMOVED}\n`,
+    },
+    {
+      name: 'forward from a notebook',
+      args: ['forward', 'diary/~zod/blog', S, TEAM],
+      stderr: `Error: ${DIARY_REMOVED}\n`,
+    },
+    {
+      name: 'forward from a notes channel to a notebook (notes wins)',
+      args: ['forward', 'notes/~zod/n', S, 'diary/~zod/blog'],
+      stderr: `Error: ${NOTES_CHANNEL_CONTENT_UNSUPPORTED}\n`,
+    },
+    {
+      name: 'quote into a notes channel from a notebook (notes wins)',
+      args: ['send', 'notes/~zod/n', 'x', '--quote', 'diary/~zod/blog', S],
+      stderr: `Error: ${NOTES_CHANNEL_CONTENT_UNSUPPORTED}\n`,
+    },
+    {
+      name: 'forward a DM post',
+      args: ['forward', '~bus', S, TEAM],
+      stderr:
+        'Error: Only posts in group chat/ and heap/ channels can be forwarded; ~bus is a DM.\n',
+    },
+    {
+      name: 'forward a notes-like non-group source',
+      args: ['forward', 'buckets/~zod/b', S, TEAM],
+      stderr:
+        'Error: Only posts in group chat/ and heap/ channels can be forwarded; buckets/~zod/b is not one.\n',
+    },
+    {
+      name: 'quote a notebook post',
+      args: ['send', TEAM, 'x', '--quote', 'diary/~zod/blog', S],
+      stderr: `Error: ${DIARY_REMOVED}\n`,
+    },
+    {
+      name: 'quote a notebook post in a reply',
+      args: ['reply', TEAM, P, 'x', '--quote', 'diary/~zod/blog', S],
+      stderr: `Error: ${DIARY_REMOVED}\n`,
+    },
+    {
+      name: 'a quoted send into a buckets channel',
+      args: ['send', 'buckets/~zod/files', 'hi', '--quote', SRC, S],
+      stderr: `Error: Can't quote into buckets/~zod/files: --quote is supported for chat/ and heap/ channels, DMs (~ship) and group DMs (0v…).\n`,
+    },
+    {
+      name: 'a quoted reply into a buckets channel',
+      args: ['reply', 'buckets/~zod/files', P, 'hi', '--quote', SRC, S],
+      stderr: `Error: Can't quote into buckets/~zod/files: --quote is supported for chat/ and heap/ channels, DMs (~ship) and group DMs (0v…).\n`,
+    },
+    {
+      name: 'a quoted send into a notebook (diary wins)',
+      args: ['send', 'diary/~zod/blog', 'hi', '--quote', SRC, S],
+      stderr: `Error: ${DIARY_REMOVED}\n`,
+    },
+    {
+      name: 'quote a notes post',
+      args: ['send', TEAM, 'x', '--quote', 'notes/~zod/n', S],
+      stderr:
+        'Error: --quote takes a post in a group chat/ or heap/ channel, a DM (~ship) or a group DM (0v…); notes/~zod/n is not one.\n',
+    },
+  ];
+
+  for (const { name, args, stderr } of cases) {
+    it(`refuses ${name}`, async () => {
+      const context = makeDeps();
+
+      expect(await run(args, context.deps)).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(stderr);
+      expectNoAuthOrApi(context);
+    });
+  }
+});
+
+describe('posts quote and forward usage errors', () => {
+  const send = POSTS_COMMAND_HELP.send;
+  const reply = POSTS_COMMAND_HELP.reply;
+  const forward = POSTS_COMMAND_HELP.forward;
+
+  const cases: Array<{ name: string; args: string[]; stderr: string }> = [
+    {
+      name: 'a missing quote post id',
+      args: ['send', TEAM, 'x', '--quote', SRC],
+      stderr: `${send}\n`,
+    },
+    {
+      name: 'a missing quote source',
+      args: ['send', TEAM, 'x', '--quote'],
+      stderr: `${send}\n`,
+    },
+    {
+      name: 'an option as the quote source',
+      args: ['send', TEAM, 'x', '--quote', '--bot', S],
+      stderr: `${send}\n`,
+    },
+    {
+      name: 'a duplicate --quote',
+      args: ['send', TEAM, 'x', '--quote', SRC, S, '--quote', SRC, S],
+      stderr: `${send}\n`,
+    },
+    {
+      name: 'a repeated --sent-at after --quote',
+      args: [
+        'send',
+        TEAM,
+        'x',
+        '--quote',
+        SRC,
+        S,
+        '--sent-at',
+        '1',
+        '--sent-at',
+        '2',
+      ],
+      stderr: `${send}\n`,
+    },
+    {
+      name: 'a missing --quote-parent value',
+      args: ['send', TEAM, 'x', '--quote', SRC, R, '--quote-parent'],
+      stderr: `${send}\n`,
+    },
+    {
+      name: 'a duplicate --quote-parent',
+      args: [
+        'reply',
+        TEAM,
+        P,
+        'x',
+        '--quote',
+        SRC,
+        R,
+        '--quote-parent',
+        S,
+        '--quote-parent',
+        S,
+      ],
+      stderr: `${reply}\n`,
+    },
+    {
+      name: '--quote-parent without --quote',
+      args: ['send', TEAM, 'x', '--quote-parent', S],
+      stderr: `Error: --quote-parent needs --quote\n\n${send}\n`,
+    },
+    {
+      name: '--quote with --image',
+      args: ['send', TEAM, '--image', 'https://x/y.png', '--quote', SRC, S],
+      stderr: `Error: --quote cannot be combined with --image\n\n${send}\n`,
+    },
+    {
+      name: 'text after the quote values',
+      args: ['send', TEAM, '--quote', SRC, S, 'trailing', 'text'],
+      stderr: `Error: Unexpected argument: trailing\n\n${send}\n`,
+    },
+    {
+      name: 'text after --quote-parent',
+      args: ['send', TEAM, '--quote', SRC, R, '--quote-parent', S, 'more'],
+      stderr: `Error: Unexpected argument: more\n\n${send}\n`,
+    },
+    {
+      name: 'a trailing --self',
+      args: ['send', TEAM, 'x', '--quote', SRC, S, '--self'],
+      stderr: `Error: Unexpected argument: --self\n\n${send}\n`,
+    },
+    {
+      name: 'a trailing credential-looking flag',
+      args: ['reply', TEAM, P, 'x', '--quote', SRC, S, '--code', 'abc'],
+      stderr: `Error: Unexpected argument: --code\n\n${reply}\n`,
+    },
+    {
+      name: 'a quote in the reply post-id slot',
+      args: ['reply', TEAM, '--quote', SRC, S],
+      stderr: `${reply}\n`,
+    },
+    {
+      name: 'a non-numeric quote post id',
+      args: ['send', TEAM, 'x', '--quote', SRC, 'abc'],
+      stderr: `${send}\n`,
+    },
+    {
+      name: 'a non-numeric reply parent with a quote',
+      args: ['reply', TEAM, 'abc', 'x', '--quote', SRC, S],
+      stderr: `${reply}\n`,
+    },
+    {
+      name: 'forward with a missing target',
+      args: ['forward', SRC, S],
+      stderr: `${forward}\n`,
+    },
+    {
+      name: 'forward with an unknown option',
+      args: ['forward', SRC, S, TEAM, '--bogus'],
+      stderr: `Error: Unexpected argument: --bogus\n\n${forward}\n`,
+    },
+    {
+      name: 'forward with --quote',
+      args: ['forward', SRC, S, TEAM, '--quote', SRC, S],
+      stderr: `Error: Unexpected argument: --quote\n\n${forward}\n`,
+    },
+    {
+      name: 'forward with an extra word',
+      args: ['forward', SRC, S, TEAM, 'extra'],
+      stderr: `Error: Unexpected argument: extra\n\n${forward}\n`,
+    },
+    {
+      name: 'forward with an option-like --parent value',
+      args: ['forward', SRC, S, TEAM, '--parent', '--x'],
+      stderr: `${forward}\n`,
+    },
+    {
+      name: 'forward with a non-numeric id',
+      args: ['forward', SRC, 'abc', TEAM],
+      stderr: `${forward}\n`,
+    },
+  ];
+
+  for (const { name, args, stderr } of cases) {
+    it(`rejects ${name} before auth`, async () => {
+      const context = makeDeps();
+
+      expect(await run(args, context.deps)).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(stderr);
+      expectNoAuthOrApi(context);
+    });
+  }
 });

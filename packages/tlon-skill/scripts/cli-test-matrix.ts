@@ -1124,6 +1124,158 @@ export const POSTS_PIN_AND_REPLY_CASES: CliCase[] = [
   ]),
 ];
 
+const QUOTE_SOURCE = ['--quote', 'chat/~host/other', '170.141'];
+
+export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
+  helpCase(
+    'posts forward --help',
+    ['posts', 'forward', '--help'],
+    'tlon posts forward'
+  ),
+  usageErrorCase(
+    'posts send --quote missing its post id',
+    ['posts', 'send', 'chat/~host/channel', 'hi', '--quote', 'chat/~host/o'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send duplicate --quote',
+    [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      'hi',
+      ...QUOTE_SOURCE,
+      ...QUOTE_SOURCE,
+    ],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send --quote-parent without --quote',
+    ['posts', 'send', 'chat/~host/channel', 'hi', '--quote-parent', '170.141'],
+    '--quote-parent needs --quote'
+  ),
+  usageErrorCase(
+    'posts send --quote with --image',
+    [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      '--image',
+      'https://x.test/y.png',
+      ...QUOTE_SOURCE,
+    ],
+    '--quote cannot be combined with --image'
+  ),
+  usageErrorCase(
+    'posts send rejects text after the quote values',
+    ['posts', 'send', 'chat/~host/channel', ...QUOTE_SOURCE, 'trailing'],
+    'Unexpected argument: trailing'
+  ),
+  usageErrorCase(
+    'posts reply rejects a trailing --self after the quote',
+    [
+      'posts',
+      'reply',
+      'chat/~host/channel',
+      '170.142',
+      'hi',
+      ...QUOTE_SOURCE,
+      '--self',
+    ],
+    'Unexpected argument: --self'
+  ),
+  usageErrorCase(
+    'posts send --quote non-numeric post id',
+    ['posts', 'send', 'chat/~host/channel', '--quote', 'chat/~host/o', 'abc'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts forward missing its target',
+    ['posts', 'forward', 'chat/~host/other', '170.141'],
+    'Usage: tlon posts forward'
+  ),
+  usageErrorCase(
+    'posts forward rejects an unknown option',
+    ['posts', 'forward', 'chat/~host/other', '170.141', '~zod', '--bogus'],
+    'Unexpected argument: --bogus'
+  ),
+  diaryRefusedCase('posts forward to a diary target refuses', [
+    'posts',
+    'forward',
+    'chat/~host/other',
+    '170.141',
+    'diary/~host/blog',
+  ]),
+  diaryRefusedCase('posts send --quote diary source refuses', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    'hi',
+    '--quote',
+    'diary/~host/blog',
+    '170.141',
+  ]),
+  notesContentRefusedCase(
+    'posts forward from notes to diary refuses as notes',
+    ['posts', 'forward', 'notes/~host/n', '170.141', 'diary/~host/blog']
+  ),
+  refusalCase(
+    'posts forward refuses a notes target before auth',
+    ['posts', 'forward', 'chat/~host/other', '170.141', 'notes/~host/n'],
+    "Can't forward to notes/~host/n: posts can be forwarded only to chat/ and heap/ channels, DMs (~ship) and group DMs (0v…)."
+  ),
+  refusalCase(
+    'posts forward refuses a buckets target before auth',
+    ['posts', 'forward', 'chat/~host/other', '170.141', 'buckets/~host/b'],
+    "Can't forward to buckets/~host/b: posts can be forwarded only to chat/ and heap/ channels, DMs (~ship) and group DMs (0v…)."
+  ),
+  refusalCase(
+    'posts send --quote refuses a buckets target before auth',
+    ['posts', 'send', 'buckets/~host/b', 'hi', ...QUOTE_SOURCE],
+    "Can't quote into buckets/~host/b: --quote is supported for chat/ and heap/ channels, DMs (~ship) and group DMs (0v…)."
+  ),
+  refusalCase(
+    'posts reply --quote refuses a buckets target before auth',
+    ['posts', 'reply', 'buckets/~host/b', '170.142', 'hi', ...QUOTE_SOURCE],
+    "Can't quote into buckets/~host/b: --quote is supported for chat/ and heap/ channels, DMs (~ship) and group DMs (0v…)."
+  ),
+  refusalCase(
+    'posts forward refuses a DM source before auth',
+    ['posts', 'forward', '~zod', '170.141', 'chat/~host/channel'],
+    'Only posts in group chat/ and heap/ channels can be forwarded; ~zod is a DM.'
+  ),
+  authRequiredCase('posts send --quote reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    'See this',
+    ...QUOTE_SOURCE,
+  ]),
+  authRequiredCase('posts reply --quote --quote-parent reaches auth', [
+    'posts',
+    'reply',
+    'chat/~host/channel',
+    '170.142',
+    ...QUOTE_SOURCE,
+    '--quote-parent',
+    '170.140',
+  ]),
+  authRequiredCase('posts forward to a nest reaches auth', [
+    'posts',
+    'forward',
+    'chat/~host/other',
+    '170.141',
+    'heap/~host/gallery',
+  ]),
+  authRequiredCase('posts forward to a ship reaches auth', [
+    'posts',
+    'forward',
+    'chat/~host/other',
+    '170.141',
+    '~zod',
+  ]),
+];
+
 // `--parent` on the four react/unreact commands (posts + dms families):
 // malformed values are rejected locally (an option-like value or a
 // duplicate flag), and a well-formed value reaches auth — exercising
@@ -2178,6 +2330,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...LITERAL_OPTION_LIKE_VALUE_CASES,
   ...POSTS_FAMILY_CASES,
   ...POSTS_PIN_AND_REPLY_CASES,
+  ...POSTS_QUOTE_FORWARD_CASES,
   ...REACTION_PARENT_CASES,
   ...NOTES_FAMILY_CASES,
   ...NOTES_CHANNEL_KIND_CASES,
@@ -2226,6 +2379,7 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
   { name: 'posts edit', args: ['posts', 'edit', '--help'] },
   { name: 'posts pin', args: ['posts', 'pin', '--help'] },
   { name: 'posts unpin', args: ['posts', 'unpin', '--help'] },
+  { name: 'posts forward', args: ['posts', 'forward', '--help'] },
   { name: 'notes status', args: ['notes', 'status', '--help'] },
   { name: 'notes request', args: ['notes', 'request', '--help'] },
   { name: 'notes list', args: ['notes', 'list', '--help'] },

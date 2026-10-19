@@ -9,14 +9,16 @@ import {
   DIARY_REMOVED,
   NOTES_CHANNEL_CONTENT_UNSUPPORTED,
   canonicalizeNest,
+  dmWritTime,
   formatPostId,
   isDiaryNest,
   isNotesNest,
   parseNest,
+  undottedPostId,
 } from '../cli-utils';
 import { imageFlagIndex, validatedImageFlag } from '../image-attach';
 import { type Story, type StoryVerse, markdownToStory } from '../markdown';
-import { defaultReplyParentAuthor } from '../post-targets';
+import { defaultReplyParentAuthor, isOneToOneDmTarget } from '../post-targets';
 import {
   type CommandDeps,
   commandError,
@@ -31,8 +33,9 @@ import {
 export const POSTS_HELP = `Usage: tlon posts <command>
 
 Commands:
-  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>] [--title <text>] [--bot]
-  reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship] [--blob <json>] [--bot]
+  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>] [--title <text>] [--quote <channel> <post-id>] [--bot]
+  reply <channel> <post-id> [message]      Reply to a channel post [--author ~ship] [--blob <json>] [--quote <channel> <post-id>] [--bot]
+  forward <channel> <post-id> <target>  Forward a post as a reference card [--parent <post-id>]
   react <channel> <post-id> <emoji>     React to a post with an emoji [--parent <post-id>]
   unreact <channel> <post-id>           Remove your reaction from a post [--parent <post-id>]
   edit <channel> <post-id> <message>    Edit a post's message text [--parent <post-id>]
@@ -49,6 +52,26 @@ Send options:
                        derives from it. Applies to send and reply.
   --bot                Author the message as a bot (renders the "Bot" tag).
                        Applies to send and reply.
+  --quote <channel> <post-id>
+                       Quote a post (send and reply; the message becomes
+                       optional). The source is a post in a joined group chat/
+                       or heap/ channel, a DM (~ship) or a group DM (0v...).
+  --quote-parent <post-id>
+                       The quoted post is a thread reply under this post
+                       (group channel sources only).
+
+Quotes and forwards:
+  A quoted channel post becomes a reference card, placed where the app puts
+  it; a quoted DM post becomes a "> " quote of its first line. In a
+  one-to-one DM the author is found automatically; another member's post in
+  a group DM needs its author: ~author/<post-id>.
+  forward sends only the reference card of a post in a joined group chat/ or
+  heap/ channel (--parent <post-id> for a thread reply) to a chat/ or heap/
+  channel, a DM or a group DM.
+  Quotes and forwards are read back: channel targets print a Ref, DM targets
+  an ID. If the output says "not confirmed", check before sending again.
+  A separate --quote or --quote-parent token is an option; to send it as
+  text, put it inside the message argument.
 
 Pins and thread replies:
   pin and unpin need a group admin or the channel's host ship and work in
@@ -68,6 +91,8 @@ Examples:
   tlon posts send chat/~host/channel "Look at this" --image https://storage.../tree.png
   tlon posts send heap/~host/gallery "A link or caption" --title "Gallery item"
   tlon posts reply chat/~host/channel 170.141... "Thread reply"
+  tlon posts send chat/~host/channel "See this" --quote chat/~host/other 170.141...
+  tlon posts forward chat/~host/other 170.141... ~sampel-palnet
   tlon posts edit chat/~host/channel 170.141... "Updated message"
   tlon posts pin chat/~host/channel 170.141...
   tlon posts delete chat/~host/channel 170.142... --parent 170.141...
@@ -76,9 +101,11 @@ Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] [--bot] (message optional with --image)',
+  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with --image or --quote)',
   reply:
-    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>] [--bot]',
+    'Usage: tlon posts reply <channel> <post-id> [message] [--author ~ship] [--blob <json>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with --quote)',
+  forward:
+    'Usage: tlon posts forward <src-channel> <src-id> <target> [--parent <src-parent-id>]',
   react:
     'Usage: tlon posts react <channel> <post-id> <emoji> [--parent <post-id>]',
   unreact: 'Usage: tlon posts unreact <channel> <post-id> [--parent <post-id>]',
@@ -104,6 +131,8 @@ const POST_REPLY_OPTION_FLAGS = [
   'author',
   'blob',
   'sent-at',
+  'quote',
+  'quote-parent',
   ...BOT_PROFILE_OPTION_FLAGS,
 ] as const;
 const POST_SEND_OPTION_FLAGS = [
@@ -111,8 +140,33 @@ const POST_SEND_OPTION_FLAGS = [
   'image',
   'title',
   'sent-at',
+  'quote',
+  'quote-parent',
   ...BOT_PROFILE_OPTION_FLAGS,
 ] as const;
+
+// How many values each option after the message takes. With --quote the
+// message is optional, so the whole suffix is checked against these: a stray
+// word or flag after the options would otherwise be dropped without a trace.
+// --image is absent because it can't be combined with --quote.
+const QUOTE_SUFFIX_ARITY = {
+  send: new Map([
+    ['--blob', 1],
+    ['--title', 1],
+    ['--sent-at', 1],
+    ['--bot', 0],
+    ['--quote', 2],
+    ['--quote-parent', 1],
+  ]),
+  reply: new Map([
+    ['--author', 1],
+    ['--blob', 1],
+    ['--sent-at', 1],
+    ['--bot', 0],
+    ['--quote', 2],
+    ['--quote-parent', 1],
+  ]),
+};
 
 export interface PostReactionInput {
   channelId: string;
@@ -181,8 +235,8 @@ export interface PostReplyInput {
 
 export interface PostLookupQuery {
   channelId: string;
-  cursor: string;
-  mode: 'around';
+  cursor?: string;
+  mode: 'around' | 'newest';
   count: number;
   includeReplies: boolean;
 }
@@ -198,6 +252,10 @@ export interface ExistingPost {
   // The bot author's nickname and avatar, when the read carried them.
   botProfile?: BotAuthorProfile | null;
   blob?: string | null;
+  authorId?: string;
+  // Comparable with `PostsDeps.contentKeyOf`, like `ExistingReply.contentKey`.
+  contentKey?: string;
+  isDeleted?: boolean | null;
 }
 
 export interface PostLookupResult {
@@ -207,6 +265,8 @@ export interface PostLookupResult {
 export interface PostThreadQuery {
   channelId: string;
   postId: string;
+  // DM posts are addressed by author and time; the runtime defaults to us.
+  authorId?: string;
 }
 
 export interface ExistingReply {
@@ -227,6 +287,10 @@ export interface ExistingThread {
   id: string;
   authorId: string;
   isDeleted?: boolean | null;
+  sentAt?: number;
+  contentKey?: string;
+  // The plain text of the post's first paragraph, line breaks kept.
+  quoteText?: string;
   replies: ExistingReply[];
 }
 
@@ -280,6 +344,13 @@ export interface PostsDeps extends CommandDeps {
   contentKeyOf: (story: Story) => string;
 }
 
+// A post to quote or forward. `parentId` is set for a thread reply.
+interface QuoteSource {
+  channelId: string;
+  postId: string;
+  parentId?: string;
+}
+
 type ParsedPostsArgs =
   | { kind: 'help'; help: string }
   | {
@@ -291,6 +362,7 @@ type ParsedPostsArgs =
       blob?: string;
       sentAt?: number;
       botProfile?: BotAuthorProfile;
+      quote?: QuoteSource;
     }
   | {
       kind: 'reply';
@@ -301,7 +373,9 @@ type ParsedPostsArgs =
       blob?: string;
       sentAt?: number;
       botProfile?: BotAuthorProfile;
+      quote?: QuoteSource;
     }
+  | { kind: 'forward'; source: QuoteSource; target: string }
   | {
       kind: 'react';
       channelId: string;
@@ -511,15 +585,25 @@ function isPostReplyMessageHelpLiteral(args: string[]): boolean {
 }
 
 // Send/reply may target a one-to-one DM or group DM, which is served by %chat
-// rather than %channels; everything else authenticates against %channels.
-function postTargetApps(
-  command: string,
-  target: string | undefined
-): PostAuthApp[] {
-  if ((command === 'send' || command === 'reply') && target) {
-    return isDmTarget(target) ? ['chat'] : ['channels'];
+// rather than %channels; everything else authenticates against %channels. A
+// quote or forward also reads its source, so it needs the source's app too.
+function postTargetApps(parsed: ParsedPostsArgs): PostAuthApp[] {
+  const appOf = (target: string): PostAuthApp =>
+    isDmTarget(target) ? 'chat' : 'channels';
+  let apps: PostAuthApp[];
+  switch (parsed.kind) {
+    case 'send':
+    case 'reply':
+      apps = [appOf(parsed.channelId)];
+      if (parsed.quote) apps.push(appOf(parsed.quote.channelId));
+      break;
+    case 'forward':
+      apps = ['channels', appOf(parsed.target)];
+      break;
+    default:
+      apps = ['channels'];
   }
-  return ['channels'];
+  return [...new Set(apps)];
 }
 
 function isDmTarget(target: string): boolean {
@@ -563,6 +647,151 @@ function threadReplyTarget(target: string): string {
     );
   }
   return canonicalizeNest(target);
+}
+
+function quoteSourceOperand(args: string[]): string | undefined {
+  const idx = args.indexOf('--quote');
+  return idx === -1 ? undefined : args[idx + 1];
+}
+
+// A bad id is refused before auth, so it can never become a dangling cite.
+function assertPostIds(ids: Array<string | undefined>, help: string): void {
+  for (const id of ids) {
+    if (id === undefined) continue;
+    try {
+      undottedPostId(id);
+    } catch {
+      throw usageError(help);
+    }
+  }
+}
+
+function canonicalQuoteSource(source: QuoteSource, help: string): QuoteSource {
+  const { channelId, parentId } = source;
+  if (isDmTarget(channelId)) {
+    // Quoting a DM thread reply would also need the parent's author.
+    if (parentId !== undefined) {
+      throw commandError(
+        `--quote-parent is for thread replies in group channels; ${channelId} is a DM.`
+      );
+    }
+  } else if (!isGroupChannelNest(channelId)) {
+    throw commandError(
+      `--quote takes a post in a group chat/ or heap/ channel, a DM (~ship) or a group DM (0v…); ${channelId} is not one.`
+    );
+  }
+  assertPostIds([source.postId, parentId], help);
+  return isDmTarget(channelId)
+    ? source
+    : { ...source, channelId: canonicalizeNest(channelId) };
+}
+
+// `--quote <channel> <post-id> [--quote-parent <post-id>]` on send and reply.
+// `operands` is how many positionals precede the message.
+function validatedQuote(
+  args: string[],
+  operands: number,
+  messageEnd: number,
+  arity: ReadonlyMap<string, number>,
+  help: string
+): QuoteSource | undefined {
+  const quoteIdx = args.indexOf('--quote');
+  if (quoteIdx === -1) {
+    if (args.includes('--quote-parent')) {
+      throw usageError('--quote-parent needs --quote', help);
+    }
+    return undefined;
+  }
+  // A --quote among the operands would leave a target or post id missing.
+  if (args.slice(1, operands + 1).some((operand) => operand.startsWith('--'))) {
+    throw usageError(help);
+  }
+  const seen = new Set<string>();
+  for (let idx = messageEnd; idx < args.length;) {
+    const flag = args[idx];
+    const count = arity.get(flag);
+    if (count === undefined) {
+      throw usageError(`Unexpected argument: ${flag}`, help);
+    }
+    const values = args.slice(idx + 1, idx + 1 + count);
+    if (
+      seen.has(flag) ||
+      values.length < count ||
+      values.some((value) => value.startsWith('--'))
+    ) {
+      throw usageError(help);
+    }
+    seen.add(flag);
+    idx += 1 + count;
+  }
+  const parentIdx = args.indexOf('--quote-parent');
+  return canonicalQuoteSource(
+    {
+      channelId: args[quoteIdx + 1],
+      postId: args[quoteIdx + 2],
+      ...(parentIdx === -1 ? {} : { parentId: args[parentIdx + 1] }),
+    },
+    help
+  );
+}
+
+// A quote or forward target is read back after the send, so a channel target
+// must be one that read can serve, canonicalized here (DM ids are not nests).
+function quoteTarget(target: string): string {
+  if (isDmTarget(target)) return target;
+  if (!isGroupChannelNest(target)) {
+    throw commandError(
+      `Can't quote into ${target}: --quote is supported for chat/ and heap/ channels, DMs (~ship) and group DMs (0v…).`
+    );
+  }
+  return canonicalizeNest(target);
+}
+
+function parseForward(args: string[]): ParsedPostsArgs {
+  const help = POSTS_COMMAND_HELP.forward;
+  const [, source, postId, target] = args;
+  if (
+    !source ||
+    !postId ||
+    !target ||
+    [source, postId, target].some((operand) => operand.startsWith('--'))
+  ) {
+    throw usageError(help);
+  }
+  const parentId = optionalReactionParent(args, help);
+  rejectStrayOptions(args, help);
+  const parentIdx = args.indexOf('--parent');
+  const extra = args.find(
+    (_, idx) => idx > 3 && idx !== parentIdx && idx !== parentIdx + 1
+  );
+  if (extra !== undefined) {
+    throw usageError(`Unexpected argument: ${extra}`, help);
+  }
+  if (isDmTarget(source)) {
+    throw commandError(
+      `Only posts in group chat/ and heap/ channels can be forwarded; ${source} is a DM.`
+    );
+  }
+  if (!isGroupChannelNest(source)) {
+    throw commandError(
+      `Only posts in group chat/ and heap/ channels can be forwarded; ${source} is not one.`
+    );
+  }
+  if (!isDmTarget(target) && !isGroupChannelNest(target)) {
+    throw commandError(
+      `Can't forward to ${target}: posts can be forwarded only to chat/ and heap/ channels, DMs (~ship) and group DMs (0v…).`
+    );
+  }
+  assertPostIds([postId, parentId], help);
+  return {
+    kind: 'forward',
+    source: {
+      channelId: canonicalizeNest(source),
+      postId,
+      ...(parentId === undefined ? {} : { parentId }),
+    },
+    target: quoteTarget(target),
+  };
 }
 
 // The host assigns a channel post's ID after the send returns, so no Ref can be
@@ -619,11 +848,36 @@ function parseArgs(args: string[]): ParsedPostsArgs {
     throw commandError(NOTES_CHANNEL_CONTENT_UNSUPPORTED);
   }
 
+  // The other nests a quote or forward names get the same diary refusal,
+  // after the first operand's (the tlon tool guard mirrors this order).
+  if (command === 'forward' && isDiaryNest(args[3])) {
+    throw commandError(DIARY_REMOVED);
+  }
+  if (
+    (command === 'send' || command === 'reply') &&
+    isDiaryNest(quoteSourceOperand(args))
+  ) {
+    throw commandError(DIARY_REMOVED);
+  }
+
   switch (command) {
     case 'send': {
+      if (args.includes('--quote') && imageFlagIndex(args) !== -1) {
+        throw usageError(
+          '--quote cannot be combined with --image',
+          POSTS_COMMAND_HELP.send
+        );
+      }
+      const quote = validatedQuote(
+        args,
+        1,
+        firstPostSendFlagIndex(args),
+        QUOTE_SUFFIX_ARITY.send,
+        POSTS_COMMAND_HELP.send
+      );
       const imageUrl = validatedImageFlag(args, POSTS_COMMAND_HELP.send);
       const message = getPostSendMessage(args);
-      if (!args[1] || (!message && !imageUrl)) {
+      if (!args[1] || (!message && !imageUrl && !quote)) {
         throw usageError(POSTS_COMMAND_HELP.send);
       }
       const blob = validatedBlobFlag(args);
@@ -638,21 +892,32 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       const botProfile = validatedBotProfile(args, POSTS_COMMAND_HELP.send);
       return {
         kind: 'send',
-        channelId: args[1],
+        channelId: quote ? quoteTarget(args[1]) : args[1],
         message,
         imageUrl,
         title,
         blob,
         sentAt,
         botProfile,
+        ...(quote ? { quote } : {}),
       };
     }
     case 'reply': {
+      const quote = validatedQuote(
+        args,
+        2,
+        firstPostReplyFlagIndex(args),
+        QUOTE_SUFFIX_ARITY.reply,
+        POSTS_COMMAND_HELP.reply
+      );
       const channelId = args[1];
       const postId = args[2];
       const message = getPostReplyMessage(args);
-      if (!channelId || !postId || !message) {
+      if (!channelId || !postId || (!message && !quote)) {
         throw usageError(POSTS_COMMAND_HELP.reply);
+      }
+      if (quote) {
+        assertPostIds([postId], POSTS_COMMAND_HELP.reply);
       }
       const authorIdx = args.indexOf('--author');
       if (authorIdx !== -1 && !args[authorIdx + 1]) {
@@ -664,15 +929,18 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       const botProfile = validatedBotProfile(args, POSTS_COMMAND_HELP.reply);
       return {
         kind: 'reply',
-        channelId,
+        channelId: quote ? quoteTarget(channelId) : channelId,
         postId,
         message,
         parentAuthor,
         blob,
         sentAt,
         botProfile,
+        ...(quote ? { quote } : {}),
       };
     }
+    case 'forward':
+      return parseForward(args);
     case 'react': {
       const [, channelId, postId, emoji] = args;
       if (!channelId || !postId || !emoji) {
@@ -831,66 +1099,71 @@ async function buildImageVerse(
   }
 }
 
-async function sendPost(
-  parsed: {
-    channelId: string;
-    message: string;
-    imageUrl?: string;
-    title?: string;
-    blob?: string;
-    sentAt?: number;
-    botProfile?: BotAuthorProfile;
-  },
+type SendArgs = Extract<ParsedPostsArgs, { kind: 'send' }>;
+type ReplyArgs = Extract<ParsedPostsArgs, { kind: 'reply' }>;
+type ForwardArgs = Extract<ParsedPostsArgs, { kind: 'forward' }>;
+
+// Image block first, caption after — matches how the apps compose
+// attachment posts.
+async function plainSendContent(
+  parsed: SendArgs,
   deps: PostsDeps
-): Promise<void> {
-  // Image block first, caption after — matches how the apps compose
-  // attachment posts.
+): Promise<Story> {
   const imageVerse = parsed.imageUrl
     ? await buildImageVerse(parsed.imageUrl, deps)
     : undefined;
-  const content: Story = [
+  return [
     ...(imageVerse ? [imageVerse] : []),
     ...(parsed.message ? markdownToStory(parsed.message) : []),
   ];
+}
 
+async function sendPost(
+  parsed: SendArgs,
+  content: Story,
+  deps: PostsDeps
+): Promise<number> {
+  const authorId = deps.getCurrentUserId();
+  const sentAt = parsed.sentAt ?? deps.now();
   await deps.postsApi.sendPost({
     channelId: parsed.channelId,
-    authorId: deps.getCurrentUserId(),
-    sentAt: parsed.sentAt ?? deps.now(),
+    authorId,
+    sentAt,
     content,
     blob: parsed.blob,
     ...(parsed.title ? { metadata: { title: parsed.title } } : {}),
     ...(parsed.botProfile ? { botProfile: parsed.botProfile } : {}),
   });
+  return sentAt;
 }
 
+// `contentOf` runs where a plain reply has always converted its markdown:
+// after the author and parent author, before the clock.
 async function sendReply(
-  parsed: {
-    channelId: string;
-    postId: string;
-    message: string;
-    parentAuthor?: string;
-    blob?: string;
-    sentAt?: number;
-    botProfile?: BotAuthorProfile;
-  },
+  parsed: ReplyArgs,
+  contentOf: () => Story,
   deps: PostsDeps
-): Promise<void> {
+): Promise<{ sentAt: number; parentAuthor: string }> {
   const authorId = deps.getCurrentUserId();
+  const parentId = formatPostId(parsed.postId);
+  const parentAuthor = defaultReplyParentAuthor(
+    parsed.channelId,
+    authorId,
+    parsed.parentAuthor
+  );
+  const content = contentOf();
+  const sentAt = parsed.sentAt ?? deps.now();
   await deps.postsApi.sendReply({
     channelId: parsed.channelId,
-    parentId: formatPostId(parsed.postId),
-    parentAuthor: defaultReplyParentAuthor(
-      parsed.channelId,
-      authorId,
-      parsed.parentAuthor
-    ),
-    content: markdownToStory(parsed.message),
-    sentAt: parsed.sentAt ?? deps.now(),
+    parentId,
+    parentAuthor,
+    content,
+    sentAt,
     authorId,
     blob: parsed.blob,
     ...(parsed.botProfile ? { botProfile: parsed.botProfile } : {}),
   });
+  return { sentAt, parentAuthor };
 }
 
 // A post the CLI just created is not necessarily readable yet: %channels
@@ -1049,41 +1322,56 @@ function sameBotProfile(a: BotAuthorProfile, b: BotAuthorProfile): boolean {
   return a.nickname === b.nickname && a.avatar === b.avatar;
 }
 
-type ReplyCheck = (observed: ExistingReply | undefined) => string | null;
+type Confirmation = { confirmed: true } | { confirmed: false; reason: string };
 
-// Poll the parent's replies until `check` passes (returns null). One raw read
-// per attempt; a thrown read is "not yet" and its message is kept, so a read
-// error can never be mistaken for the requested state.
-async function confirmReply(
-  channelId: string,
-  parentId: string,
-  replyId: string,
-  check: ReplyCheck,
+// Poll `read` until `check` passes (returns null). One raw read per attempt; a
+// thrown read is "not yet" and its message is kept, so a read error can never
+// be mistaken for the requested state.
+async function pollConfirm<T>(
+  read: () => Promise<T>,
+  check: (observed: T) => string | null,
+  describeReadError: (error: unknown) => string,
   deps: PostsDeps
-): Promise<{ confirmed: true } | { confirmed: false; reason: string }> {
-  let reason = 'the reply could not be read back';
+): Promise<Confirmation> {
+  let reason = '';
   for (let attempt = 1; attempt <= REPLY_CONFIRM_ATTEMPTS; attempt += 1) {
     try {
-      const thread = await deps.postsApi.getPostWithReplies({
-        channelId,
-        postId: parentId,
-      });
-      const observed = thread.replies.find(
-        (candidate) => formatPostId(candidate.id) === replyId
-      );
-      const failure = check(observed);
+      const failure = check(await read());
       if (failure === null) {
         return { confirmed: true };
       }
       reason = failure;
     } catch (error) {
-      reason = `the thread could not be read back (${errorMessage(error)})`;
+      reason = describeReadError(error);
     }
     if (attempt < REPLY_CONFIRM_ATTEMPTS) {
       await sleepFor(deps)(REPLY_CONFIRM_DELAY_MS);
     }
   }
   return { confirmed: false, reason };
+}
+
+type ReplyCheck = (observed: ExistingReply | undefined) => string | null;
+
+function confirmReply(
+  channelId: string,
+  parentId: string,
+  replyId: string,
+  check: ReplyCheck,
+  deps: PostsDeps
+): Promise<Confirmation> {
+  return pollConfirm(
+    async () =>
+      (
+        await deps.postsApi.getPostWithReplies({
+          channelId,
+          postId: parentId,
+        })
+      ).replies.find((candidate) => formatPostId(candidate.id) === replyId),
+    check,
+    (error) => `the thread could not be read back (${errorMessage(error)})`,
+    deps
+  );
 }
 
 async function editReply(
@@ -1236,6 +1524,324 @@ async function deleteReply(
 
 function notJoinedMessage(nest: string): string {
   return `${nest} is not a channel this ship has joined; join it first.`;
+}
+
+async function assertJoined(nest: string, deps: PostsDeps): Promise<void> {
+  const state = await readChannelState(nest, deps);
+  if (!state.joined) {
+    throw commandError(notJoinedMessage(nest));
+  }
+}
+
+// The cite the app writes for a channel post: `where` takes undotted ids.
+function chanCite(nest: string, postId: string, parentId?: string): StoryVerse {
+  const where = parentId
+    ? `/msg/${undottedPostId(parentId)}/${undottedPostId(postId)}`
+    : `/msg/${undottedPostId(postId)}`;
+  return { block: { cite: { chan: { nest, where } } } };
+}
+
+// A channel post is quoted as a reference card; a DM post, which has no card,
+// as a blockquote of its first line.
+interface QuoteVerse {
+  cite: boolean;
+  verse: StoryVerse;
+}
+
+async function readChannelQuote(
+  source: QuoteSource,
+  deps: PostsDeps
+): Promise<QuoteVerse> {
+  const nest = source.channelId;
+  // Reading the post needs local %channels state, and "join it first" says
+  // more than a failed read would.
+  await assertJoined(nest, deps);
+  if (source.parentId !== undefined) {
+    const pid = formatPostId(source.parentId);
+    const rid = formatPostId(source.postId);
+    const found = await fetchExistingReply(nest, pid, rid, deps);
+    if (!found) {
+      throw commandError(
+        `Could not read reply ${rid} under ${pid} in ${nest}; nothing was sent.`
+      );
+    }
+    if (found.reply.isDeleted) {
+      throw commandError(
+        `Reply ${rid} in ${nest} is deleted; nothing was sent.`
+      );
+    }
+  } else {
+    const id = formatPostId(source.postId);
+    // A deleted top-level post is not served at all, so it lands here too.
+    const thread = await lookWithRetry(
+      () => deps.postsApi.getPostWithReplies({ channelId: nest, postId: id }),
+      deps
+    );
+    if (!thread) {
+      throw commandError(
+        `Could not read post ${id} in ${nest}; nothing was sent.`
+      );
+    }
+    if (thread.isDeleted) {
+      throw commandError(`Post ${id} in ${nest} is deleted; nothing was sent.`);
+    }
+  }
+  return {
+    cite: true,
+    verse: chanCite(nest, source.postId, source.parentId),
+  };
+}
+
+async function readDmQuote(
+  source: QuoteSource,
+  deps: PostsDeps
+): Promise<QuoteVerse> {
+  const { channelId } = source;
+  const time = formatPostId(source.postId);
+  const slash = source.postId.indexOf('/');
+  const our = normalizeShip(deps.getCurrentUserId());
+  // A DM post is addressed by its author as well as its time. Without an
+  // explicit `~author/` the author is the peer or us in a one-to-one DM; in a
+  // group DM only our own posts can be found.
+  const authors =
+    slash > 0
+      ? [normalizeShip(source.postId.slice(0, slash))]
+      : isOneToOneDmTarget(channelId) && normalizeShip(channelId) !== our
+        ? [normalizeShip(channelId), our]
+        : [our];
+  const thread = await lookWithRetry(async () => {
+    for (const authorId of authors) {
+      try {
+        return await deps.postsApi.getPostWithReplies({
+          channelId,
+          postId: time,
+          authorId,
+        });
+      } catch {
+        // A miss rejects rather than returning null; try the next author.
+      }
+    }
+    return null;
+  }, deps);
+  if (!thread) {
+    // A one-to-one DM has already tried both possible authors.
+    const authorHint = isOneToOneDmTarget(channelId)
+      ? ''
+      : ` Another member's post in a group DM needs its author: ~author/${time}.`;
+    throw commandError(
+      `Could not read post ${time} in ${channelId}; nothing was sent.${authorHint}`
+    );
+  }
+  if (thread.isDeleted) {
+    throw commandError(
+      `Post ${time} in ${channelId} is deleted; nothing was sent.`
+    );
+  }
+  const firstLine = (thread.quoteText ?? '').split('\n')[0].trim();
+  if (!firstLine) {
+    throw commandError(
+      `Post ${time} in ${channelId} has no text to quote; nothing was sent.`
+    );
+  }
+  return { cite: false, verse: { inline: [{ blockquote: [firstLine] }] } };
+}
+
+function readQuoteSource(
+  source: QuoteSource,
+  deps: PostsDeps
+): Promise<QuoteVerse> {
+  return isDmTarget(source.channelId)
+    ? readDmQuote(source, deps)
+    : readChannelQuote(source, deps);
+}
+
+// Where the app puts a quote: a DM quote leads; a cite leads in a chat post and
+// in any thread reply (the thread composer is always the chat composer), and
+// follows the text in a gallery post or a DM.
+function withQuote(
+  kind: 'send' | 'reply',
+  target: string,
+  quote: QuoteVerse,
+  text: Story
+): Story {
+  const leads =
+    !quote.cite ||
+    kind === 'reply' ||
+    (!isDmTarget(target) && parseNest(target).kind === 'chat');
+  return leads ? [quote.verse, ...text] : [...text, quote.verse];
+}
+
+// The new post must be readable locally for the read-back to see it.
+async function assertJoinedTarget(
+  target: string,
+  deps: PostsDeps
+): Promise<void> {
+  if (!isDmTarget(target)) {
+    await assertJoined(target, deps);
+  }
+}
+
+interface SentPost {
+  verb: 'Message' | 'Reply' | 'Forward';
+  channelId: string;
+  sentAt: number;
+  content: Story;
+  parent?: { id: string; authorId: string };
+}
+
+interface ReadBackPost {
+  id: string;
+  isDeleted?: boolean | null;
+  contentKey?: string;
+}
+
+const NEW_POST_READ_BACK_COUNT = 20;
+
+// Find the post just sent, by its author and sent time, and check it shows
+// what was sent. Returns the line that names it: a Ref for a channel post, the
+// post's ID for a DM, which has no reference card.
+async function confirmSentPost(
+  sent: SentPost,
+  deps: PostsDeps
+): Promise<string> {
+  const nest = sent.channelId;
+  const dm = isDmTarget(nest);
+  const our = normalizeShip(deps.getCurrentUserId());
+  const expectedKey = deps.contentKeyOf(sent.content);
+  const isOurs = (post: { authorId?: string; sentAt?: number }) =>
+    normalizeShip(post.authorId ?? '') === our && post.sentAt === sent.sentAt;
+  const parent = sent.parent && {
+    ...sent.parent,
+    id: formatPostId(sent.parent.id),
+  };
+
+  let read: () => Promise<ReadBackPost | undefined>;
+  let missing: string;
+  let readSubject: string;
+  let recheck: string;
+  if (parent) {
+    read = async () =>
+      (
+        await deps.postsApi.getPostWithReplies({
+          channelId: nest,
+          postId: parent.id,
+          ...(dm ? { authorId: parent.authorId } : {}),
+        })
+      ).replies.find(isOurs);
+    missing = `no reply by ${our} with this sent time is in the thread yet`;
+    readSubject = dm ? 'DM' : 'thread';
+    recheck = dm
+      ? `messages post ${nest} ${parent.id} --author ${parent.authorId}`
+      : `messages post ${nest} ${parent.id}`;
+  } else if (dm) {
+    read = () =>
+      deps.postsApi.getPostWithReplies({
+        channelId: nest,
+        postId: dmWritTime(sent.sentAt),
+        authorId: our,
+      });
+    missing = 'the DM could not be read back';
+    readSubject = 'DM';
+    recheck = isOneToOneDmTarget(nest)
+      ? `messages dm ${nest} --limit 5`
+      : `messages channel ${nest} --limit 5`;
+  } else {
+    read = async () =>
+      (
+        await deps.postsApi.getChannelPosts({
+          channelId: nest,
+          mode: 'newest',
+          count: NEW_POST_READ_BACK_COUNT,
+          includeReplies: false,
+        })
+      ).posts.find(isOurs);
+    missing = `no post by ${our} with this sent time is among the channel's newest ${NEW_POST_READ_BACK_COUNT} posts yet`;
+    readSubject = 'channel';
+    recheck = `messages channel ${nest} --limit 5`;
+  }
+
+  let confirmedId = '';
+  const result = await pollConfirm(
+    read,
+    (post) => {
+      if (!post) return missing;
+      if (post.isDeleted) return 'the post is deleted';
+      if (post.contentKey !== expectedKey) {
+        return 'the post shows different content (a channel hook may have changed it)';
+      }
+      confirmedId = post.id;
+      return null;
+    },
+    (error) =>
+      `the ${readSubject} could not be read back (${errorMessage(error)})`,
+    deps
+  );
+  if (!result.confirmed) {
+    throw commandError(
+      `${sent.verb} to ${nest} was sent but is not confirmed: ${result.reason}. It may still arrive. Do not send it again; check first with \`${recheck}\``
+    );
+  }
+  if (dm) {
+    return `  ID: ${our}/${dmWritTime(sent.sentAt)}`;
+  }
+  const ids = parent ? [parent.id, confirmedId] : [confirmedId];
+  return `  Ref: /1/chan/${nest}/msg/${ids.map(undottedPostId).join('/')}`;
+}
+
+async function sendWithQuote(
+  parsed: SendArgs | ReplyArgs,
+  source: QuoteSource,
+  deps: PostsDeps
+): Promise<string> {
+  const text = parsed.message ? markdownToStory(parsed.message) : [];
+  const quote = await readQuoteSource(source, deps);
+  await assertJoinedTarget(parsed.channelId, deps);
+  const content = withQuote(parsed.kind, parsed.channelId, quote, text);
+  if (parsed.kind === 'reply') {
+    const { sentAt, parentAuthor } = await sendReply(
+      parsed,
+      () => content,
+      deps
+    );
+    return confirmSentPost(
+      {
+        verb: 'Reply',
+        channelId: parsed.channelId,
+        sentAt,
+        content,
+        parent: { id: parsed.postId, authorId: parentAuthor },
+      },
+      deps
+    );
+  }
+  const sentAt = await sendPost(parsed, content, deps);
+  return confirmSentPost(
+    { verb: 'Message', channelId: parsed.channelId, sentAt, content },
+    deps
+  );
+}
+
+// As the app forwards: the reference alone, with no text, metadata, blob or
+// bot profile.
+async function forwardPost(
+  parsed: ForwardArgs,
+  deps: PostsDeps
+): Promise<string> {
+  const quote = await readChannelQuote(parsed.source, deps);
+  await assertJoinedTarget(parsed.target, deps);
+  const content: Story = [quote.verse];
+  const authorId = deps.getCurrentUserId();
+  const sentAt = deps.now();
+  await deps.postsApi.sendPost({
+    channelId: parsed.target,
+    authorId,
+    sentAt,
+    content,
+  });
+  return confirmSentPost(
+    { verb: 'Forward', channelId: parsed.target, sentAt, content },
+    deps
+  );
 }
 
 async function readChannelState(
@@ -1405,19 +2011,39 @@ export async function run(args: string[], deps: PostsDeps): Promise<number> {
       return writeHelp(deps, parsed.help);
     }
 
-    await deps.authenticate(postTargetApps(parsed.kind, parsed.channelId));
+    await deps.authenticate(postTargetApps(parsed));
 
     switch (parsed.kind) {
-      case 'send':
-        await sendPost(parsed, deps);
+      case 'send': {
+        if (parsed.quote) {
+          const named = await sendWithQuote(parsed, parsed.quote, deps);
+          writeLine(deps.stdout, '✓ Message sent');
+          writeLine(deps.stdout, named);
+          return 0;
+        }
+        await sendPost(parsed, await plainSendContent(parsed, deps), deps);
         writeLine(deps.stdout, '✓ Message sent');
         writePostRefHint(parsed.channelId, deps);
         return 0;
-      case 'reply':
-        await sendReply(parsed, deps);
+      }
+      case 'reply': {
+        if (parsed.quote) {
+          const named = await sendWithQuote(parsed, parsed.quote, deps);
+          writeLine(deps.stdout, '✓ Reply sent');
+          writeLine(deps.stdout, named);
+          return 0;
+        }
+        await sendReply(parsed, () => markdownToStory(parsed.message), deps);
         writeLine(deps.stdout, '✓ Reply sent');
         writePostRefHint(parsed.channelId, deps, formatPostId(parsed.postId));
         return 0;
+      }
+      case 'forward': {
+        const named = await forwardPost(parsed, deps);
+        writeLine(deps.stdout, '✓ Post forwarded');
+        writeLine(deps.stdout, named);
+        return 0;
+      }
       case 'react':
         await reactToPost(parsed, deps);
         writeLine(deps.stdout, '✓ Reaction added');
