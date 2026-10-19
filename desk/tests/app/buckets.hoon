@@ -254,6 +254,36 @@
   :+  %finished  [code ~]
   `['application/json' [(met 3 body) body]]
 ::
+::  +iris-json: a broker answer under a status code, with the body given
+::  verbatim, for refusals whose exact shape is the point of the test.
+::
+++  iris-json
+  |=  [code=@ud body=@t]
+  ^-  sign-arvo
+  :+  %iris  %http-response
+  :+  %finished  [code ~]
+  `['application/json' [(met 3 body) body]]
+::
+::  +iris-cancelled: Iris gave up on the request, so what the broker did with
+::  it is unknown.
+::
+++  iris-cancelled
+  ^-  sign-arvo
+  [%iris %http-response [%cancel ~]]
+::
+::  +grant-call: open an upload and hand back the wire its grant rides,
+::  leaving the broker's answer to the test. The session id is `@uv`eny.bowl.
+::
+++  grant-call
+  |=  [rid=@uv name=@t]
+  =/  m  (mare ,wire)
+  ^-  form:m
+  ;<  ~  bind:m  (set-scry-gate genuine-scries)
+  ;<  caz=(list card)  bind:m
+    (ask rid [%bucket flag [%begin-upload ~ name 'application/pdf' 42 ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  (pure:m wire.push)
+::
 ::  +sync-for: the pair's sync record, for asserting revisions directly.
 ::
 ++  sync-for
@@ -342,6 +372,15 @@
     `!>(|=([who=ship =nest:bu] &))
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %buckets @ @ %can-write @ %noun ~] pax)  ~
   `!>(`(unit [admin=? roles=(set @tas)])`[~ [admin=| roles=(silt ~[%editor])]])
+::
+::  +uploader-scries: a remote writer the group allows, with %genuine ready
+::  for the broker call its upload makes.
+::
+++  uploader-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?^  got=(group-permission-scries pax)  got
+  (genuine-scries pax)
 ::
 ++  missing-group-permission-scries
   |=  pax=path
@@ -571,6 +610,210 @@
   %+  ex-equal
   !>([status.fil2 status.ses2 ~(wyt by entries.bs2) revision.bs2])
   !>([%ready %complete 1 1])
+::
+::  A grant the broker refuses binds nothing, so there is nothing to release
+::  and the session can only be cancelled -- whether the broker says to try
+::  again or not. What it said reaches the uploader verbatim: the code, its
+::  word on retrying, how long to wait and what that wait covers.
+::
+++  test-grant-refusal-cancels-retryable-or-not
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ::  rate limited: the broker asks for five seconds
+  ;<  grant=wire  b  (grant-call 0v1 'first.pdf')
+  ;<  refused=(list card)  b
+    %+  do-arvo  grant
+    %+  iris-json  429
+    '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":5000,"scope":"host"}'
+  ::  The answer is the only card: no reservation was issued, so no cancel
+  ::  goes to the broker.
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v1
+        [%error %unknown 'slow down' `['rate_limited' & `~s5 `'host']]
+    ==
+  ;<  sv=vase  b  get-save
+  =/  st=state-1:bu  !<(state-1:bu sv)
+  =/  ses=upload-session:bu  (~(got by sessions.st) seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses error.ses reservation.ses awaiting.ses])
+    !>([%cancelled `'slow down' ~ ~])
+  ::  quota exhausted: a refusal that will answer the same way next time
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v4321)))
+  ;<  grant2=wire  b  (grant-call 0v2 'second.pdf')
+  ;<  refused2=(list card)  b
+    %+  do-arvo  grant2
+    (iris-json 403 '{"code":"quota_exhausted","message":"no room","retryable":false}')
+  ;<  ~  b
+    %+  ex-cards  refused2
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'no room' `['quota_exhausted' | ~ ~]]
+    ==
+  ;<  sv2=vase  b  get-save
+  =/  st2=state-1:bu  !<(state-1:bu sv2)
+  =/  ses2=upload-session:bu  (~(got by sessions.st2) 0v4321)
+  %+  ex-equal
+    !>([status.ses2 error.ses2 reservation.ses2])
+  !>([%cancelled `'no room' ~])
+::
+::  Iris giving up on the call says nothing about what the broker did with
+::  it. It may have reserved, but we hold no id to release by, so the session
+::  is cancelled here and any reservation lapses at the window we sent. The
+::  uploader is told the outcome is unknown and worth asking about again.
+::
+++  test-grant-outcome-unknown-cancels-without-a-release
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  grant=wire  b  (grant-call 0v1 'lost.pdf')
+  ;<  refused=(list card)  b  (do-arvo grant iris-cancelled)
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v1
+        :*  %error  %unknown
+            'the storage request was cancelled'
+            `['outcome_unknown' & ~ ~]
+        ==
+    ==
+  ;<  sv=vase  b  get-save
+  =/  st=state-1:bu  !<(state-1:bu sv)
+  =/  ses=upload-session:bu  (~(got by sessions.st) seed)
+  %+  ex-equal
+    !>([status.ses error.ses reservation.ses])
+  !>([%cancelled `'the storage request was cancelled' ~])
+::
+::  A refusal the broker did not explain is still a refusal. With no body
+::  there is nothing to pass on but that storage refused; with a message and
+::  no code the message is passed on. Either way the code is 'unknown' and
+::  final, because nothing said another attempt could work.
+::
+++  test-grant-refused-without-a-readable-body
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  grant=wire  b  (grant-call 0v1 'bare.pdf')
+  ;<  refused=(list card)  b  (do-arvo grant (iris-status 503))
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v1
+        [%error %unknown 'storage refused the upload' `['unknown' | ~ ~]]
+    ==
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v4321)))
+  ;<  grant2=wire  b  (grant-call 0v2 'codeless.pdf')
+  ;<  refused2=(list card)  b
+    (do-arvo grant2 (iris-json 503 '{"message":"storage is down"}'))
+  ;<  ~  b
+    %+  ex-cards  refused2
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'storage is down' `['unknown' | ~ ~]]
+    ==
+  ;<  sv=vase  b  get-save
+  =/  st=state-1:bu  !<(state-1:bu sv)
+  %+  ex-equal
+    !>  :-  status:(~(got by sessions.st) seed)
+        status:(~(got by sessions.st) 0v4321)
+  !>([%cancelled %cancelled])
+::
+::  A 2xx grant that names a reservation but no URL cannot be acted on, yet
+::  the reservation it names holds quota. It is bound before the answer is
+::  judged, so failing the grant releases it at the broker rather than
+::  leaving it to lapse. The failure is this agent's own, so the answer
+::  carries no broker account. A 2xx that names no reservation has nothing
+::  to release.
+::
+++  test-grant-without-a-url-releases-the-reservation-it-bound
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  grant=wire  b  (grant-call 0v1 'urlless.pdf')
+  ;<  failed=(list card)  b
+    (do-arvo grant (iris-json 200 '{"reservationId":"res-9"}'))
+  ::  answered first, then released
+  ;<  ~  b
+    %+  ex-cards  failed
+    :~  %+  grant-fact  0v1
+        [%error %unknown 'storage returned no upload URL' ~]
+        (ex-iris /buckets/upload/(scot %uv seed)/cancel)
+    ==
+  =/  release=[=wire =request:http]  (only-iris failed)
+  ;<  ~  b
+    %+  ex-equal
+      !>(url.request.release)
+    !>('https://memex.tlon.network/v2/buckets/uploads/res-9/cancel')
+  ;<  sv=vase  b  get-save
+  =/  st=state-1:bu  !<(state-1:bu sv)
+  =/  ses=upload-session:bu  (~(got by sessions.st) seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses error.ses reservation.ses (~(get by reservations.st) 'res-9')])
+    !>([%cancelled `'storage returned no upload URL' `'res-9' `seed])
+  ::  nothing bound, nothing to release
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v4321)))
+  ;<  grant2=wire  b  (grant-call 0v2 'empty.pdf')
+  ;<  failed2=(list card)  b
+    (do-arvo grant2 (iris-json 200 '{"objectId":"nothing"}'))
+  ;<  ~  b
+    %+  ex-cards  failed2
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'storage returned no upload URL' ~]
+    ==
+  ;<  sv2=vase  b  get-save
+  =/  st2=state-1:bu  !<(state-1:bu sv2)
+  =/  ses2=upload-session:bu  (~(got by sessions.st2) 0v4321)
+  (ex-equal !>([status.ses2 reservation.ses2]) !>([%cancelled ~]))
+::
+::  A forwarded begin-upload is answered on the path the uploader's ship
+::  watches, and a refusal of its grant goes there too: the broker's answer
+::  arrives in a later event, so only the session knows whose request it was.
+::
+++  test-grant-refusal-answers-a-remote-uploader-on-its-path
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  *  b
+    (ask 0v0 [%create %project-files 'Project Files' group ~ (silt ~[%editor])])
+  ;<  ~  b  (set-scry-gate uploader-scries)
+  ;<  caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v6 [%bucket flag [%begin-upload ~ 'remote.pdf' 'application/pdf' 42 ~]]])
+  ;<  ~  b
+    %+  ex-cards  (answers caz)
+    :~  %-  ex-fact
+        :*  ~[/v1/request/~bus/0v6]
+            %buckets-req-response-2
+            !>(`req-response:bu`[0v6 [%pending ~]])
+        ==
+    ==
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  refused=(list card)  b
+    %+  do-arvo  wire.push
+    %+  iris-json  429
+    '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":5000,"scope":"host"}'
+  %+  ex-cards  refused
+  :~  %-  ex-fact
+      :*  ~[/v1/request/~bus/0v6]
+          %buckets-req-response-2
+          !>  ^-  req-response:bu
+          [0v6 [%error %unknown 'slow down' `['rate_limited' & `~s5 `'host']]]
+      ==
+  ==
 ::
 ::  A bucket or token we do not have is [~ ~], which Eyre serves as a 404.
 ::  A bare ~ is a 500, and clients treat only a 404 as absent.
