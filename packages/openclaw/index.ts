@@ -128,6 +128,10 @@ import {
   findTlonSubcommandIndex,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
+import {
+  recordTlonCallApproval,
+  takeTlonCallApproval,
+} from './src/tlon-call-approvals.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
 import {
   getRecordedRunRole,
@@ -1085,8 +1089,41 @@ export default defineBundledChannelEntry({
           env: process.env,
           fileExists: (path) => existsSync(path),
         });
-        const executeTlonTool = (id: string, params: { command: string }) =>
-          createTlonToolExecutor(executorDeps(liveAccount()))(id, params);
+        const executeTlonTool = async (
+          id: string,
+          params: { command: string }
+        ) => {
+          const approved = takeTlonCallApproval(id, params.command);
+          if (!approved) {
+            // No gate decision for this call: act as the bot, with credential
+            // flags rejected (ownerDefault with no owner configured).
+            api.logger.warn(
+              `[tlon] tlon call ${id} has no before_tool_call approval; running as the bot.`
+            );
+            return createTlonToolExecutor(
+              executorDeps({ ownerDefault: true, ownerShip: undefined })
+            )(id, params);
+          }
+          // Refuse rather than honor a stale approval: a reload between the
+          // gate and here changed who the owner is or whether commands act
+          // as the owner, and either config is one the operator has just
+          // replaced. Running with the approved one would act for an owner
+          // (or a default) no longer configured; running with the live one
+          // would act on a decision the gate never made.
+          const live = liveAccount();
+          if (
+            live.ownerDefault !== approved.ownerDefault ||
+            live.ownerShip !== approved.ownerShip
+          ) {
+            const message =
+              "the bot's owner configuration changed while this command was pending; nothing was run. Run it again.";
+            return {
+              content: [{ type: 'text' as const, text: `Error: ${message}` }],
+              details: { status: 'error', error: message },
+            };
+          }
+          return createTlonToolExecutor(executorDeps(approved))(id, params);
+        };
 
         return {
           name: 'tlon',
@@ -1148,11 +1185,14 @@ export default defineBundledChannelEntry({
     };
 
     api.on('before_tool_call', async (event, ctx) => {
+      // One read of the live config per call: the decision below and the
+      // approval handed to the executor use the same snapshot.
+      const live = liveAccount();
       // Record the run before any decision below can return, vetoes included.
       observeRun({
         runId: ctx.runId,
         sessionKey: ctx.sessionKey,
-        ownerShip: liveAccount().ownerShip,
+        ownerShip: live.ownerShip,
       });
       const toolCallId = readToolCallId(event);
       // What the model meant, without the schema placeholders it fills in.
@@ -1386,29 +1426,33 @@ export default defineBundledChannelEntry({
       api.logger.info(
         `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
-      // Only owner-default commands need the rewrite; with the flag off the
-      // bot is already the default.
       if (
         event.toolName === 'tlon' &&
-        typeof event.params.command === 'string' &&
-        liveAccount().ownerDefault &&
-        (resolveTurnIdentity({
-          runId: ctx.runId,
-          sessionKey: ctx.sessionKey,
-          ownerShip: liveAccount().ownerShip,
-        }) === 'bot' ||
-          // The tool acts with this account's owner; a run answering a
-          // message on another account must not borrow it.
-          (getRunAccountId(ctx.runId) ?? account.accountId) !==
-            account.accountId)
+        typeof event.params.command === 'string'
       ) {
+        // Only owner-default commands need the rewrite; with the flag off the
+        // bot is already the default.
+        const rewritesToBot =
+          live.ownerDefault &&
+          (resolveTurnIdentity({
+            runId: ctx.runId,
+            sessionKey: ctx.sessionKey,
+            ownerShip: live.ownerShip,
+          }) === 'bot' ||
+            // The tool acts with this account's owner; a run answering a
+            // message on another account must not borrow it.
+            (getRunAccountId(ctx.runId) ?? account.accountId) !==
+              account.accountId);
         // Not owner-directed: the call runs as the bot. Not a denial.
-        return {
-          params: {
-            ...event.params,
-            command: `--self ${event.params.command}`,
-          },
-        };
+        const command = rewritesToBot
+          ? `--self ${event.params.command}`
+          : event.params.command;
+        if (toolCallId) {
+          recordTlonCallApproval(toolCallId, command, live);
+        }
+        if (rewritesToBot) {
+          return { params: { ...event.params, command } };
+        }
       }
       return allowed();
     });

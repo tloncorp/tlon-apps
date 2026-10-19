@@ -11,11 +11,20 @@ import {
 } from './onboarding-tool-boundary.js';
 import { formatOwnerOnlyToolBlockReason } from './owner-only-tools.js';
 import { _testing as rolesTesting, setSessionRole } from './session-roles.js';
+import { _testing as approvalsTesting } from './tlon-call-approvals.js';
+import { runTlonCommand } from './tlon-command-runner.js';
 import {
   RUN_ACTIVE_TTL_MS,
   _testing as identityTesting,
   noteInboundDispatching,
 } from './turn-identity.js';
+
+// The bot's CLI never runs here; a call that reaches it records its argv.
+vi.mock('./tlon-command-runner.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./tlon-command-runner.js')>();
+  return { ...actual, runTlonCommand: vi.fn(async () => 'ran') };
+});
 
 vi.mock('./monitor/agent-onboarding.js', async (importOriginal) => {
   const actual =
@@ -25,7 +34,11 @@ vi.mock('./monitor/agent-onboarding.js', async (importOriginal) => {
 
 type Ctx = { sessionKey?: string; runId?: string };
 type BeforeToolCallHandler = (
-  event: { toolName: string; params: Record<string, unknown> },
+  event: {
+    toolName: string;
+    params: Record<string, unknown>;
+    toolCallId?: string;
+  },
   ctx: Ctx
 ) => Promise<unknown>;
 type AgentHook = (
@@ -124,13 +137,43 @@ describe('before_tool_call turn identity', () => {
     identityTesting.clearAll();
     boundaryTesting.clearAll();
     rolesTesting.clearAll();
+    approvalsTesting.clearAll();
+    vi.mocked(runTlonCommand).mockClear();
   });
 
   afterEach(() => {
     identityTesting.clearAll();
     boundaryTesting.clearAll();
     rolesTesting.clearAll();
+    approvalsTesting.clearAll();
   });
+
+  /**
+   * A tlon call as core makes it: the gate, then the tool's execute with the
+   * same call id and the params the gate returned.
+   */
+  async function callTlon(
+    harness: Pick<ReturnType<typeof registerEntry>, 'beforeToolCall'>,
+    tool: TlonTool | undefined,
+    command: string,
+    ctx: Ctx,
+    id: string,
+    betweenGateAndExecute: () => void = () => {}
+  ): Promise<string> {
+    const outcome = (await harness.beforeToolCall(
+      { toolName: 'tlon', params: { command }, toolCallId: id },
+      ctx
+    )) as { block?: boolean; params?: { command: string } } | undefined;
+    if (outcome?.block) return 'blocked';
+    betweenGateAndExecute();
+    const result = await tool!.execute(id, {
+      command: outcome?.params?.command ?? command,
+    });
+    return result.content[0].text;
+  }
+
+  const ranArgs = () =>
+    vi.mocked(runTlonCommand).mock.lastCall?.[1] as string[] | undefined;
 
   it('still vetoes a non-owner turn with the owner-only reason', async () => {
     const { beforeToolCall } = registerEntry();
@@ -421,8 +464,13 @@ describe('before_tool_call turn identity', () => {
           ownerDefault ? SELF_CALL : undefined
         );
         // The tool resolved before the reload executes with the new value too.
-        const text = (await before!.execute('reload', CREDENTIAL_SETTINGS))
-          .content[0].text;
+        const text = await callTlon(
+          { beforeToolCall },
+          before,
+          CREDENTIAL_SETTINGS.command,
+          CRON,
+          'reload'
+        );
         expect(text).toContain(
           ownerDefault
             ? 'Commands run as the owner by default'
@@ -447,9 +495,19 @@ describe('before_tool_call turn identity', () => {
     // No credential file exists for either owner here, so the executor's
     // fail-closed error names the owner it would act as without running the
     // CLI.
-    const actsAs = async (tool: TlonTool | undefined) =>
-      (await tool!.execute('owner', { command: 'contacts self' })).content[0]
-        .text;
+    let callCount = 0;
+    const actsAs = async (
+      harness: Pick<ReturnType<typeof registerEntry>, 'beforeToolCall'>,
+      tool: TlonTool | undefined,
+      runId: string
+    ) =>
+      callTlon(
+        harness,
+        tool,
+        'contacts self',
+        { sessionKey: GROUP, runId },
+        `owner-${(callCount += 1)}`
+      );
 
     it.each([
       ['to another ship', withOwner('~nec'), false],
@@ -507,7 +565,10 @@ describe('before_tool_call turn identity', () => {
           withOwner('~zod')
         );
         const before = tlonTool();
-        expect(await actsAs(before)).toContain('owner credentials for ~zod');
+        inbound('owner', 'run-0');
+        expect(await actsAs({ beforeToolCall }, before, 'run-0')).toContain(
+          'owner credentials for ~zod'
+        );
 
         reloadConfig(reloaded);
         inbound('owner', 'run-1');
@@ -515,10 +576,106 @@ describe('before_tool_call turn identity', () => {
           beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId: 'run-1' })
         ).resolves.toBeUndefined();
         for (const tool of [before, tlonTool()]) {
-          const text = await actsAs(tool);
+          const text = await actsAs({ beforeToolCall }, tool, 'run-1');
           expect(text).toContain(`owner credentials for ${expectedOwner}`);
           if (expectedOwner !== '~zod') expect(text).not.toContain('~zod');
         }
+      }
+    );
+  });
+
+  describe("the executor runs on the gate's approval for that call", () => {
+    const withOwner = (ownerShip: string, ownerDefault = true) => ({
+      channels: { tlon: { ownerDefault, ownerShip } },
+    });
+    const CHANGED =
+      "Error: the bot's owner configuration changed while this command was pending; nothing was run. Run it again.";
+
+    it.each([
+      ['the owner changes', withOwner('~zod'), withOwner('~nec')],
+      ['the flag turns on', withOwner('~zod', false), withOwner('~zod')],
+      ['the flag turns off', withOwner('~zod'), withOwner('~zod', false)],
+    ])(
+      'refuses a call when %s between the gate and the executor',
+      async (_label, initial, reloaded) => {
+        const harness = registerEntry(initial);
+        // Registration itself may call the CLI; only the tlon call counts.
+        vi.mocked(runTlonCommand).mockClear();
+        inbound('owner', 'run-1');
+        const text = await callTlon(
+          harness,
+          harness.tlonTool(),
+          'activity mute ~zod/g',
+          { sessionKey: GROUP, runId: 'run-1' },
+          'call-1',
+          () => harness.reloadConfig(reloaded)
+        );
+        expect(text).toBe(CHANGED);
+        expect(runTlonCommand).not.toHaveBeenCalled();
+      }
+    );
+
+    it('runs the call on the approved config when nothing changed', async () => {
+      const harness = registerEntry(withOwner('~zod'));
+      inbound('owner', 'run-1');
+      const text = await callTlon(
+        harness,
+        harness.tlonTool(),
+        'contacts self',
+        { sessionKey: GROUP, runId: 'run-1' },
+        'call-1',
+        () => harness.reloadConfig(withOwner('~zod'))
+      );
+      expect(text).toContain('owner credentials for ~zod');
+    });
+
+    it('takes each approval once', async () => {
+      const harness = registerEntry(withOwner('~zod'));
+      inbound('owner', 'run-1');
+      const tool = harness.tlonTool();
+      await callTlon(
+        harness,
+        tool,
+        'contacts self',
+        {
+          sessionKey: GROUP,
+          runId: 'run-1',
+        },
+        'call-1'
+      );
+      // A replay of the same call id without the gate runs as the bot.
+      await tool!.execute('call-1', { command: 'contacts self' });
+      expect(ranArgs()).toEqual(['contacts', 'self']);
+    });
+
+    it.each([
+      ['no gate call at all', undefined],
+      ['a gate call for another command', 'contacts list'],
+    ])(
+      'acts as the bot, with credential flags rejected, for %s',
+      async (_label, gatedCommand) => {
+        const harness = registerEntry(withOwner('~zod', false));
+        inbound('owner', 'run-1');
+        const tool = harness.tlonTool();
+        if (gatedCommand) {
+          await harness.beforeToolCall(
+            {
+              toolName: 'tlon',
+              params: { command: gatedCommand },
+              toolCallId: 'call-1',
+            },
+            { sessionKey: GROUP, runId: 'run-1' }
+          );
+        }
+        // A legacy owner operation with the flag off: owner when approved.
+        await tool!.execute('call-1', { command: 'activity mute ~zod/g' });
+        expect(ranArgs()).toEqual(['activity', 'mute', '~zod/g']);
+        const refused = await tool!.execute('call-2', {
+          command: '--config /x.json contacts self',
+        });
+        expect(refused.content[0].text).toContain(
+          'credential flags (--config, --ship, --url, --code, --cookie) are not accepted'
+        );
       }
     );
   });
