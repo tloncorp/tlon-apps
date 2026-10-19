@@ -32,7 +32,7 @@ The guide is `docs/feature-map/`. A support bot answers "how do I…" questions 
 ## Writing entries
 
 - Text in backticks is a claim that those exact characters are on screen. Copy it from the source at NEW, and make sure the file it comes from is in the entry's `src` line.
-- An entry for a feature behind a flag that is off by default carries `<!-- flag: name -->`, and no other entry talks about that feature. Do not add or remove a `flag:` line unless that flag's default changed between OLD and NEW.
+- An entry for a feature behind a flag that is off by default carries `<!-- flag: name -->`, and no other entry talks about that feature. Add or remove a `flag:` line only when whether the feature is gated changed between OLD and NEW: the flag's default changed, or the code moved the feature behind an off-by-default flag or out from behind one.
 - Write for the usual path, as the README's "Write for the usual path" says: what a typical person sees and does at NEW. Mention a condition only when it changes what that person sees or can do.
 - One change in the code often shows up in several entries, including ones that do not cite the changed file. When a diff changes a button, a row or who can do something, search the whole map for every entry that mentions it.
 - Write for someone who has never seen the code: no file paths, component names or code terms in the text.
