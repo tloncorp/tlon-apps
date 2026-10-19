@@ -38,7 +38,7 @@ test('returning to a group preserves the last selected channel instead of reopen
 
   await page.getByTestId('HomeNavIcon').click();
   await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible();
-  await page.getByTestId('GroupListItem-Untitled group-unpinned').click();
+  await page.getByTestId('GroupListItem-Untitled workspace-unpinned').click();
 
   await expect(page.getByTestId('MessageInput')).toBeVisible({
     timeout: 10_000,

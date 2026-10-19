@@ -1,0 +1,347 @@
+# Sealed. Run once with the guide, keys and grader frozen, and report only the total. Once anyone reads which questions failed, move these into core.yaml and write a new sealed set.
+
+- id: extra-photo-space
+  ask: "i'm an admin and our group needs a separate place for photos. how do i add one on my phone?"
+  kind: how-to
+  file: channels.md
+  entry: "Add a channel to a group"
+  must:
+    - "On the group's Channels screen, choose New, then New channel."
+    - "Enter a title, choose Gallery as the channel type, and tap Create channel."
+
+- id: channel-deleters
+  ask: "who can permanently delete a chat channel from a group?"
+  kind: who-can
+  file: channels.md
+  entry: "Delete a channel"
+  must:
+    - "Group admins or the channel's host can delete it."
+
+- id: host-exit-alone
+  ask: "my node runs this channel. can i leave it but keep it there for everyone else?"
+  kind: cannot
+  file: channels.md
+  entry: "Why the menu says Cannot leave channel"
+  must:
+    - "The channel's host cannot leave it while keeping the channel for others."
+  must_not:
+    - "Gives a Leave channel procedure for the host."
+
+- id: suggestion-dismiss-laptop
+  ask: "i'm on my laptop and there's a person suggested in my contacts that i don't want. how do i dismiss them?"
+  kind: desktop
+  file: contacts-and-profile.md
+  entry: "Add or dismiss a suggested contact"
+  must:
+    - "Open the suggested person's profile and click Clear Suggestion."
+  must_not:
+    - "Tells them to press and hold the suggestion to dismiss it."
+
+- id: copy-address-name
+  ask: "how do i copy someone's full name starting with ~ without typing it all out?"
+  kind: how-to
+  file: contacts-and-profile.md
+  entry: "Copy someone's ID, or your own"
+  must:
+    - "Open their profile and tap their name or ID to copy the ID."
+
+- id: last-seen-person
+  ask: "can i see when someone was last active in tlon?"
+  kind: cannot
+  file: contacts-and-profile.md
+  entry: "What's on someone's profile"
+  must:
+    - "The app does not show when someone was last active."
+  must_not:
+    - "Invents a last-seen timestamp on the profile."
+
+- id: browser-new-version
+  ask: "i use tlon on the website. how do i load a new version when it's ready?"
+  kind: desktop
+  file: desktop.md
+  entry: "Update the desktop app or the web app"
+  must:
+    - "Click the yellow starburst button in the left rail to reload into the new version."
+  must_not:
+    - "Says to use a manual check-for-updates button."
+
+- id: computer-bot-chat
+  ask: "i'm on a computer, where did the conversation with my bot go?"
+  kind: desktop
+  file: desktop.md
+  entry: "Find my bot's chat and its settings on desktop"
+  must:
+    - "Find the bot by name as a DM in Home or Messages."
+  must_not:
+    - "Tells them to open a Bot tab on desktop."
+
+- id: unknown-person-dm
+  ask: "someone gave me their ~ name but i've never talked to them here. how do i message them from my phone?"
+  kind: how-to
+  file: direct-messages.md
+  entry: "Message someone who isn't in my contacts"
+  must:
+    - "On Workspaces, tap the plus and choose New Message."
+    - "Enter their full ID in the search box and tap the result."
+
+- id: old-multiperson-members
+  ask: "where can i see the list of people in this old multi-person dm on my phone?"
+  kind: where
+  file: direct-messages.md
+  entry: "See who is in a group DM"
+  must:
+    - "Press and hold the group DM on Workspaces and open Members."
+
+- id: decline-stranger-chat
+  ask: "a stranger sent me a chat request. how do i turn it down without blocking them?"
+  kind: how-to
+  file: direct-messages.md
+  entry: "Accept, deny or block a DM from someone new"
+  must:
+    - "Open the DM invite on Workspaces and tap Deny."
+  must_not:
+    - "Tells them to tap Block."
+
+- id: gallery-words-only
+  ask: "how do i post just a few sentences in our photo gallery from my phone, without a picture?"
+  kind: how-to
+  file: galleries.md
+  entry: "Add a text post to a gallery"
+  must:
+    - "In the gallery, tap New, then Text."
+    - "Write the text and tap Post."
+
+- id: gallery-save-picture
+  ask: "how do i save a picture from the group's gallery onto my phone?"
+  kind: how-to
+  file: galleries.md
+  entry: "View a gallery picture full screen and save it"
+  must:
+    - "Open the post and tap its picture to open the full-screen viewer."
+    - "Tap the down arrow at the top to save it to the photo library."
+
+- id: gallery-removal-rights
+  ask: "who gets to delete a photo post from a group gallery?"
+  kind: who-can
+  file: galleries.md
+  entry: "Delete a gallery post"
+  must:
+    - "The post's author or a group admin can delete it."
+
+- id: pass-group-ownership
+  ask: "i'm done running this group. can i transfer ownership to a friend?"
+  kind: cannot
+  file: groups.md
+  entry: "Hand a group over to a different owner"
+  must:
+    - "The app cannot transfer a group to another owner or host."
+  must_not:
+    - "Claims assigning Admin transfers ownership."
+
+- id: member-kick-rights
+  ask: "can ordinary members kick someone out of a group, or who can?"
+  kind: who-can
+  file: groups.md
+  entry: "Remove someone from a group"
+  must:
+    - "Only group admins can remove someone from the group."
+
+- id: withdraw-group-invite
+  ask: "i'm an admin and invited the wrong person. they haven't joined yet. how do i take the invitation back on my phone?"
+  kind: how-to
+  file: groups.md
+  entry: "Cancel an invite that hasn't been accepted"
+  must:
+    - "Open Group info & settings, then Manage members, and select the person under Invited."
+    - "Tap Revoke Invite."
+
+- id: unlisted-emoji-reaction
+  ask: "on my phone how do i react to a message with an emoji that isn't one of the few showing?"
+  kind: how-to
+  file: message-actions.md
+  entry: "React to a message with an emoji"
+  must:
+    - "Press and hold the message and tap the down arrow at the end of the emoji row."
+    - "Scroll or search for the emoji and tap it."
+
+- id: quiet-one-conversation
+  ask: "this group thread already has replies and keeps pinging me. how do i mute just that thread on my phone?"
+  kind: how-to
+  file: message-actions.md
+  entry: "Mute or unmute a thread"
+  must:
+    - "Press and hold the message with replies or a reply inside the thread, then tap Mute thread."
+
+- id: relay-group-message
+  ask: "how do i forward a message from a group chat to a friend's dm on my phone?"
+  kind: how-to
+  file: message-actions.md
+  entry: "Forward a message to another chat"
+  must:
+    - "Press and hold the group-chat message and tap Forward."
+    - "Select the friend's DM and tap the Forward to button at the bottom."
+
+- id: computer-import-notes
+  ask: "i have a folder of markdown files on my computer. how do i bring it into a notebook?"
+  kind: desktop
+  file: notebooks.md
+  entry: "Import Markdown or text files into a notebook"
+  must:
+    - "Use the plus above the notebook list and choose Import folder, or drag the folder onto the main pane."
+  must_not:
+    - "Gives only the phone's New button as the desktop route."
+
+- id: nested-notes-folder
+  ask: "how do i make a folder inside another notebook folder on my phone?"
+  kind: how-to
+  file: notebooks.md
+  entry: "Create a folder, or a folder inside a folder"
+  must:
+    - "Open the parent folder and choose New then New folder, or press and hold the parent and choose New folder."
+    - "Enter the folder name and tap Add folder."
+
+- id: notebook-editor-rights
+  ask: "who can edit a notebook? is being able to read it enough?"
+  kind: who-can
+  file: notebooks.md
+  entry: "Who can edit a notebook, and can it be read-only?"
+  must:
+    - "Anyone with read access to a notebook also has edit access."
+
+- id: mentions-not-every-post
+  ask: "how do i make the app notify me for dms and replies or mentions, instead of every group post? i'm on my phone"
+  kind: how-to
+  file: notifications-and-activity.md
+  entry: "Choose what the whole app notifies you about"
+  must:
+    - "Open Settings, then Notifications, and choose DMs, mentions, and replies only."
+
+- id: find-mentioned-posts
+  ask: "where in the phone app can i find the posts that mention me?"
+  kind: where
+  file: notifications-and-activity.md
+  entry: "See what's new on the Activity tab"
+  must:
+    - "Open Activity using the bell in the tab bar and select Mentions."
+
+- id: clear-iphone-app-count
+  ask: "how do i clear the unread number on tlon's app icon on my iphone without opening every message?"
+  kind: how-to
+  file: notifications-and-activity.md
+  entry: "The number on the app icon"
+  must:
+    - "Use Mark all as read on the Activity tab."
+
+- id: storage-fields-in-app
+  ask: "can i enter my own file storage credentials somewhere inside tlon messenger?"
+  kind: cannot
+  file: settings-and-account.md
+  entry: "Use my own storage for pictures and files"
+  must:
+    - "The app has no screen for entering storage settings or credentials."
+  must_not:
+    - "Invents a storage settings screen in the app."
+
+- id: usage-sharing-off
+  ask: "how do i stop the app sending usage stats to tlon? i'm on my phone"
+  kind: how-to
+  file: settings-and-account.md
+  entry: "Stop sharing usage statistics with Tlon"
+  must:
+    - "Open Settings, then Privacy, and turn off Share Usage Statistics."
+
+- id: preview-backup-off
+  ask: "i don't want the app asking tlon's service for link previews. how do i switch that off on my phone?"
+  kind: how-to
+  file: settings-and-account.md
+  entry: "Stop link previews from using Tlon's service"
+  must:
+    - "Open Settings, then Privacy, and turn on Disable Tlon helpers."
+
+- id: same-provider-both
+  ask: "can my hosted bot keep both my openai api key and my chatgpt subscription connected at the same time?"
+  kind: cannot
+  file: tlonbot-in-the-app.md
+  entry: "Can I use an API key and a subscription for the same provider?"
+  must:
+    - "The bot cannot keep an API key and a subscription connected for the same provider at the same time."
+
+- id: remove-bot-service
+  ask: "i connected a service to my hosted bot but want to revoke it now. how on my phone?"
+  kind: how-to
+  file: tlonbot-in-the-app.md
+  entry: "Disconnect a service from my bot"
+  must:
+    - "Open Settings, then Connected services, select the service under Connected, and tap Disconnect."
+
+- id: rename-bot-computer
+  ask: "i have a hosted bot and i'm in the desktop app. how do i change its name?"
+  kind: desktop
+  file: tlonbot-in-the-app.md
+  entry: "Change my bot's name"
+  must:
+    - "Open Settings, then Bot Settings, to reach Tlon's bot settings web page."
+  must_not:
+    - "Gives Advanced then Identity as an in-app desktop path."
+
+- id: restore-unread-status
+  ask: "i read a chat but want to mark it unread again as a reminder. can i?"
+  kind: cannot
+  file: workspaces-list.md
+  entry: "Mark a chat or a whole group as read"
+  must:
+    - "The app cannot mark a chat as unread again."
+  must_not:
+    - "Invents a Mark as unread option."
+
+- id: admin-sections-view
+  ask: "on my phone our group's channels are sorted by latest activity. how do i see them in the sections the admins made?"
+  kind: how-to
+  file: workspaces-list.md
+  entry: "Sort a group's channels by recent activity or by arrangement"
+  must:
+    - "Press and hold the group on Workspaces, choose Sort channels, then Sort by arrangement."
+
+- id: group-code-entry-place
+  ask: "i don't have a hosted bot. where in the phone app do i enter a group code someone sent me?"
+  kind: where
+  file: workspaces-list.md
+  entry: "Join a group with a code"
+  must:
+    - "On Workspaces, tap the plus, then Join a group with a code (reference)."
+
+- id: draft-cross-device
+  ask: "can an unsent message i started on my phone show up ready to finish on my laptop?"
+  kind: cannot
+  file: writing-messages.md
+  entry: "Is the text I haven't sent saved?"
+  must:
+    - "Drafts stay on the device where they were typed and cannot sync from phone to desktop."
+
+- id: computer-drop-document
+  ask: "i'm on a computer. how do i send a pdf by dragging it into a chat?"
+  kind: desktop
+  file: writing-messages.md
+  entry: "Drag and drop or paste a file into a chat"
+  must:
+    - "Drag the file onto an open chat or thread to attach it, then press send."
+
+- id: ping-all-members
+  ask: "how do i tag everyone in a group chat at once on my phone?"
+  kind: how-to
+  file: writing-messages.md
+  entry: "Mention everyone, or everyone with a role"
+  must:
+    - "Type @ and start spelling All, then select the All entry from the suggestions and send the message."
+
+- id: group-message-route
+  ask: "when i send a group message does it go straight to every member's server?"
+  kind: concept
+  must:
+    - "A group message goes through the channel's host, which distributes it to members."
+
+- id: hosted-bot-shell
+  ask: "can my hosted tlonbot run shell commands for me?"
+  kind: concept
+  must:
+    - "Hosted Tlonbots have no shell."

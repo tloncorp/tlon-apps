@@ -74,6 +74,8 @@ beforeAll(async () => {
       const trackOnboardingStep = () => () => {};
       const randomUUID = () => 'uuid';
       const createAgentOnboardingReconciliationPresence = () => ({});
+      const markBootstrapComplete = () => {};
+      const enrollCampaign = () => {};
       const onboardingDiscoveryFlights = new Set();
       let drainingOnboardingDiscovery = false;
       ${sliceStatement('const unwatchedByLeave =')}

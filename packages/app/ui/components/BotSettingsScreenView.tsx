@@ -106,7 +106,7 @@ export function BotSettingsScreenView({
     if (!showUnavailableNotice) {
       return result;
     }
-    const notice = 'OAuth setup is unavailable for this ship.';
+    const notice = 'Service connections are unavailable for this account.';
     // With no providers to hang it under, the notice is all there is to show.
     return result.length > 0
       ? [{ ...result[0], footer: notice }, ...result.slice(1)]
@@ -121,7 +121,7 @@ export function BotSettingsScreenView({
 
   return (
     <SettingsListScreenView
-      title="Connect MCP"
+      title="Connect services"
       sections={sections}
       onBackPressed={onBackPressed}
       loading={initialLoading}

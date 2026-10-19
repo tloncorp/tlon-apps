@@ -1,10 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { convertContent, markdownToStory } from '@tloncorp/shared';
-import { Button, Icon, Text, useIsWindowNarrow, useToast } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
+import { Button, Text, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import {
-  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -14,14 +12,13 @@ import {
 } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Keyboard } from 'react-native';
-import { ScrollView, View, XStack, YStack } from 'tamagui';
+import { ScrollView, XStack, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { ActionSheet } from './ActionSheet';
+import { joinPromptFile, promptLabel, splitPromptFile } from './botPromptFiles';
 import { ControlledTextareaField } from './Form';
-import { ListItem } from './ListItem';
 import { NotebookContentRenderer } from './NotebookPost/NotebookPost';
-import { SettingsDivider, SettingsSection } from './SettingsSection';
 
 // One key for the whole ship-keyed map, which is what the endpoint returns.
 // Keying per bot made every visited profile fetch and cache another copy of
@@ -43,7 +40,7 @@ const promptTextByteLength = (text: string) =>
     ? new TextEncoder().encode(text).length
     : text.length;
 
-type BotSystemPrompt = { name: string; text: string };
+export type BotSystemPrompt = { name: string; text: string };
 
 const promptFilesForBot = (
   files: Record<string, Record<string, string>>,
@@ -74,7 +71,7 @@ export function useBotSystemPrompts(botShip: string) {
 // Known false on a desk below the prompts module, including one rolled back
 // to it. Its every prompts request is refused, but a snapshot cached while it
 // was supported never goes stale on its own, so readers gate on this too.
-function useDeskSupportsPrompts() {
+export function useDeskSupportsPrompts() {
   return useSyncExternalStore(
     api.onDeskSupportsStewardPromptsChange,
     api.getDeskSupportsStewardPromptsState
@@ -114,62 +111,13 @@ export function useIsOwnedBot(botShip: string) {
 }
 
 /**
- * A short human label for the known prompt files; unknown names fall back
- * to the raw file name so new gateway-exposed prompts still render.
+ * Keeps the cached prompt projection live while mounted, by following
+ * %steward's prompts feed. Every surface that shows prompts mounts it.
  */
-const PROMPT_LABELS: Record<string, string> = {
-  'AGENTS.md': 'Instructions',
-  'SOUL.md': 'Personality',
-  'TOOLS.md': 'Tools',
-  'IDENTITY.md': 'Identity',
-  'USER.md': 'About you',
-  'BOOTSTRAP.md': 'Bootstrap',
-};
-
-const PROMPT_DESCRIPTIONS: Record<string, string> = {
-  'AGENTS.md': 'Core instructions for how your bot behaves.',
-  'SOUL.md': "Your bot's personality and tone.",
-  'TOOLS.md': 'Guidance for the tools your bot can use.',
-  'IDENTITY.md': 'How your bot identifies itself.',
-  'USER.md': 'What your bot knows about you.',
-  'BOOTSTRAP.md': 'First-run setup instructions for your bot.',
-};
-
-const PROMPT_ORDER = [
-  'AGENTS.md',
-  'SOUL.md',
-  'IDENTITY.md',
-  'USER.md',
-  'TOOLS.md',
-  'BOOTSTRAP.md',
-];
-
-const promptOrder = new Map(
-  PROMPT_ORDER.map((name, index) => [name, index] as const)
-);
-/**
- * System prompt list + editor for an owned bot's profile screen. Reads the
- * prompt set mirrored into our own ship's %steward and edits via the
- * %steward relay — the ship stores the edit durably and the bot's gateway
- * applies it and restarts. Renders nothing when the ship (or the bot's
- * gateway) doesn't support prompt sync yet.
- */
-export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
+export function useStewardPromptsFeed(botShip: string) {
   const queryClient = useQueryClient();
   const currentUserId = useCurrentUserId();
-  const promptsQuery = useBotSystemPrompts(botShip);
-  // Hold the name, not the row: the feed can change or delete this prompt
-  // while the sheet is open, and a captured row would keep showing (and then
-  // save over) text that is no longer current.
-  // The bot is held too: the profile screen can be reused for another bot
-  // while the sheet is open, and a draft must only ever save to the bot it
-  // was written for.
-  const [editingTarget, setEditingTarget] = useState<{
-    bot: string;
-    name: string;
-    baseText: string;
-  } | null>(null);
-  // A desk upgrade can turn prompt support on while this profile is open,
+  // A desk upgrade can turn prompt support on while a prompt surface is open,
   // after the read and the watch were already refused. Resubscribing on a
   // change also refreshes the read, which nothing else would retry.
   const deskSupportsPrompts = useDeskSupportsPrompts();
@@ -259,99 +207,83 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
       }
     };
   }, [botShip, currentUserId, deskSupportsPrompts, queryClient]);
+}
 
-  const handleSaved = useCallback(() => {
+/**
+ * Refetches the prompt projection. A save only confirms the workspace write;
+ * the feed, or this read, supplies what the bot now runs on.
+ */
+export function useRefreshStewardPrompts() {
+  const queryClient = useQueryClient();
+  const currentUserId = useCurrentUserId();
+  return useCallback(() => {
     queryClient.invalidateQueries({ queryKey: promptsQueryKey(currentUserId) });
   }, [currentUserId, queryClient]);
+}
 
-  const handleCloseEditor = useCallback(() => {
-    setEditingTarget(null);
-  }, []);
+/**
+ * True when this bot has prompt files mirrored into our ship, which is what
+ * the profile's link to them waits on. Follows the feed while mounted, so the
+ * link, and the ownership signal read from the same cache, stay current.
+ */
+export function useHasBotPromptFiles(botShip: string) {
+  const promptsQuery = useBotSystemPrompts(botShip);
+  const deskSupportsPrompts = useDeskSupportsPrompts();
+  useStewardPromptsFeed(botShip);
+  return deskSupportsPrompts !== false && (promptsQuery.data?.length ?? 0) > 0;
+}
 
-  const prompts = deskSupportsPrompts === false ? undefined : promptsQuery.data;
-  if (!prompts || prompts.length === 0) {
-    return null;
-  }
-
-  // Resolved against the live query every render, so an edit or deletion
-  // arriving on the feed reaches the open sheet instead of being saved over.
-  const editing =
-    editingTarget === null || editingTarget.bot !== botShip
-      ? null
-      : (prompts.find((prompt) => prompt.name === editingTarget.name) ?? null);
-
-  const orderedPrompts = [...prompts].sort((a, b) => {
-    const aOrder = promptOrder.get(a.name) ?? Number.MAX_SAFE_INTEGER;
-    const bOrder = promptOrder.get(b.name) ?? Number.MAX_SAFE_INTEGER;
-    return aOrder - bOrder || a.name.localeCompare(b.name);
-  });
-
-  return (
-    <View paddingHorizontal="$xl" width="100%">
-      <SettingsSection
-        title="Bot behavior"
-        description="Saving a prompt briefly restarts your bot."
-      >
-        {orderedPrompts.map((prompt, index) => (
-          <Fragment key={prompt.name}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Edit ${PROMPT_LABELS[prompt.name] ?? prompt.name} prompt`}
-              onPress={() => {
-                setEditingTarget({
-                  bot: botShip,
-                  name: prompt.name,
-                  baseText: prompt.text,
-                });
-              }}
-              pressStyle={{ backgroundColor: '$secondaryBackground' }}
-            >
-              <ListItem
-                alignItems="center"
-                backgroundColor="$transparent"
-                paddingHorizontal="$xl"
-                paddingVertical="$m"
-              >
-                <ListItem.MainContent>
-                  <ListItem.Title>
-                    {PROMPT_LABELS[prompt.name] ?? prompt.name}
-                  </ListItem.Title>
-                  <ListItem.Subtitle numberOfLines={1}>
-                    {PROMPT_DESCRIPTIONS[prompt.name] ??
-                      'Additional instructions for your bot.'}
-                  </ListItem.Subtitle>
-                </ListItem.MainContent>
-                <XStack alignItems="center" gap="$m" flexShrink={0}>
-                  <Icon type="ChevronRight" size="$m" color="$tertiaryText" />
-                </XStack>
-              </ListItem>
-            </Pressable>
-            {index < orderedPrompts.length - 1 ? <SettingsDivider /> : null}
-          </Fragment>
-        ))}
-      </SettingsSection>
-      {editing ? (
-        <BotSystemPromptEditorSheet
-          botShip={botShip}
-          prompt={editing}
-          // Keyed by bot and name, never the text. Keying on the text
-          // remounted the sheet whenever the projection changed — including
-          // on the fact for the edit being saved — which reset `saving` and
-          // reopened the dismiss/double-submit race the guard exists to
-          // prevent.
-          key={`${botShip}/${editing.name}`}
-          changedElsewhere={
-            editingTarget !== null && editingTarget.baseText !== editing.text
+/**
+ * Saves one prompt file through %steward. The id a save of this exact text
+ * went out under is kept until the ship gives it a definite answer: a POST
+ * that reached %steward but lost its reply is resent under the same id, which
+ * the ship answers from its record instead of running the edit a second time.
+ */
+export function useStewardPromptSave(botShip: string, name: string) {
+  const unsettledRequestRef = useRef<{
+    requestId: string;
+    bot: string;
+    name: string;
+    text: string;
+  } | null>(null);
+  return useCallback(
+    async (text: string) => {
+      const unsettled = unsettledRequestRef.current;
+      const requestId =
+        unsettled?.bot === botShip &&
+        unsettled.name === name &&
+        unsettled.text === text
+          ? unsettled.requestId
+          : api.mintRequestId();
+      unsettledRequestRef.current = { requestId, bot: botShip, name, text };
+      try {
+        try {
+          await api.setStewardPrompt({ bot: botShip, name, text, requestId });
+        } catch (error) {
+          if (!(error instanceof api.StewardPromptPendingError)) {
+            throw error;
           }
-          onClose={handleCloseEditor}
-          onSaved={handleSaved}
-        />
-      ) : null}
-    </View>
+          await api.awaitStewardPromptRequest(error.requestId);
+        }
+        unsettledRequestRef.current = null;
+      } catch (error) {
+        // The ship's own answer settles the request: resending it would only
+        // replay that answer, so a retry gets a new id.
+        if (error instanceof api.StewardPromptEditError) {
+          unsettledRequestRef.current = null;
+        }
+        throw error;
+      }
+    },
+    [botShip, name]
   );
 }
 
-function BotSystemPromptEditorSheet({
+/**
+ * Edits the owner's additions to a prompt file: the text outside Tlon's
+ * managed blocks, which a save keeps as they are.
+ */
+export function BotSystemPromptEditorSheet({
   botShip,
   prompt,
   changedElsewhere,
@@ -366,16 +298,10 @@ function BotSystemPromptEditorSheet({
 }) {
   const showToast = useToast();
   const isWindowNarrow = useIsWindowNarrow();
+  const savePrompt = useStewardPromptSave(botShip, prompt.name);
   const [saving, setSaving] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
-  // The id a save of this exact text went out under, kept until the ship
-  // gives it a definite answer. A POST that reached %steward but lost its
-  // reply is resent under the same id, which the ship answers from its
-  // record instead of running the edit a second time.
-  const unsettledRequestRef = useRef<{
-    requestId: string;
-    text: string;
-  } | null>(null);
+  const editableText = splitPromptFile(prompt.text).additions;
   const {
     control,
     handleSubmit,
@@ -383,7 +309,7 @@ function BotSystemPromptEditorSheet({
     formState: { isDirty },
   } = useForm({
     mode: 'onChange',
-    defaultValues: { text: prompt.text },
+    defaultValues: { text: editableText },
   });
   // Rendered from the live form value rather than captured on toggle, so a
   // projection taken in below while previewing replaces what is shown.
@@ -413,8 +339,8 @@ function BotSystemPromptEditorSheet({
     if (saving || isDirty) {
       return;
     }
-    reset({ text: prompt.text });
-  }, [isDirty, prompt.text, reset, saving]);
+    reset({ text: editableText });
+  }, [editableText, isDirty, reset, saving]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -445,9 +371,12 @@ function BotSystemPromptEditorSheet({
       return;
     }
     handleSubmit(async ({ text }) => {
+      // Tlon's blocks come from the projection as it is now, so a refresh
+      // that landed while the sheet was open is kept rather than reverted.
+      const fileText = joinPromptFile(prompt.text, text);
       // %steward nacks oversized text; check up front for a real error
       // message instead of a failed poke.
-      if (promptTextByteLength(text) > MAX_PROMPT_BYTES) {
+      if (promptTextByteLength(fileText) > MAX_PROMPT_BYTES) {
         showToast({
           message: 'Prompt is too long. The limit is 64 KB.',
           duration: 3000,
@@ -455,26 +384,9 @@ function BotSystemPromptEditorSheet({
         return;
       }
       setSaving(true);
-      const unsettled = unsettledRequestRef.current;
-      const requestId =
-        unsettled?.text === text ? unsettled.requestId : api.mintRequestId();
-      unsettledRequestRef.current = { requestId, text };
       try {
-        try {
-          await api.setStewardPrompt({
-            bot: botShip,
-            name: prompt.name,
-            text,
-            requestId,
-          });
-        } catch (error) {
-          if (!(error instanceof api.StewardPromptPendingError)) {
-            throw error;
-          }
-          await api.awaitStewardPromptRequest(error.requestId);
-        }
-        unsettledRequestRef.current = null;
-        onSaved(prompt.name, text);
+        await savePrompt(fileText);
+        onSaved(prompt.name, fileText);
         showToast({
           message: 'Changes saved.',
           duration: 3000,
@@ -484,36 +396,32 @@ function BotSystemPromptEditorSheet({
         // mid-save guard still sees `saving` as true in this closure.
         Keyboard.dismiss();
         onClose();
-      } catch (error) {
-        // The ship's own answer settles the request: resending it would only
-        // replay that answer, so a retry gets a new id.
-        if (error instanceof api.StewardPromptEditError) {
-          unsettledRequestRef.current = null;
-        }
+      } catch {
         setSaving(false);
         showToast({ message: 'Failed to save prompt.', duration: 3000 });
       }
     })();
   }, [
-    botShip,
     handleSubmit,
     isDirty,
     onClose,
     onSaved,
     prompt.name,
+    prompt.text,
+    savePrompt,
     saving,
     showToast,
   ]);
 
-  const title = PROMPT_LABELS[prompt.name] ?? prompt.name;
+  const title = promptLabel(prompt.name);
   const editorHeight = isWindowNarrow ? 200 : 280;
   const statusMessage = saving
-    ? 'Saving and restarting your bot…'
+    ? 'Saving…'
     : changedElsewhere
       ? 'This prompt changed elsewhere. Showing the latest version.'
       : isDirty
         ? 'Unsaved changes'
-        : 'Saving briefly restarts your bot.';
+        : 'Your bot uses these from its next reply.';
 
   const saveButton = (
     <Button
@@ -575,8 +483,7 @@ function BotSystemPromptEditorSheet({
                 </Text>
               </XStack>
               <Text size="$label/m" color="$secondaryText">
-                {PROMPT_DESCRIPTIONS[prompt.name] ??
-                  'Additional instructions for your bot.'}
+                {"Added to Tlon's defaults and kept when Tlon updates them."}
               </Text>
             </YStack>
 
@@ -589,7 +496,7 @@ function BotSystemPromptEditorSheet({
                 gap="$l"
               >
                 <Text size="$label/m" color="$tertiaryText">
-                  Prompt
+                  Additions
                 </Text>
                 <Button
                   preset="secondary"
@@ -655,8 +562,8 @@ function BotSystemPromptEditorSheet({
                   name="text"
                   control={control}
                   inputProps={{
-                    accessibilityLabel: `${title} prompt`,
-                    placeholder: 'Write the prompt…',
+                    accessibilityLabel: `Additions to ${title}`,
+                    placeholder: 'Add your own instructions…',
                     multiline: true,
                     minHeight: editorHeight,
                     textAlignVertical: 'top',

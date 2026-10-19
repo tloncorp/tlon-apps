@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 const { urbitFetch, runBrowserHandoffCommand } = vi.hoisted(() => ({
   urbitFetch: vi.fn(),
@@ -10,10 +11,15 @@ vi.mock('./tlon-command-runner.js', async (original) => ({
   runBrowserHandoffCommand,
 }));
 
-import { runBrowserSessionHandoff } from './browser-session-handoff.js';
+import {
+  BROWSER_SESSION_HANDOFF_HELP,
+  runBrowserSessionHandoff,
+} from './browser-session-handoff.js';
+import { shellSplitCommand } from './tlon-tool-command.js';
 
 const handle = 'sess_MHKz9dQ1TjqLmA7vXpR2bw';
 const sessionId = '123e4567-e89b-42d3-a456-426614174000';
+const selectedArgs = ['browser', 'handoff', handle, '--fields', '["@e12"]'];
 const config = {
   channels: {
     tlon: {
@@ -36,7 +42,8 @@ const config = {
 
 function viewerUrl(
   audience = 'session-viewer',
-  expiresAt = Date.now() + 7_200_000
+  expiresAt = Date.now() + 7_200_000,
+  form?: string
 ) {
   const payload = Buffer.from(
     JSON.stringify({
@@ -44,6 +51,7 @@ function viewerUrl(
       aud: audience,
       sid: sessionId,
       exp: Math.floor(expiresAt / 1000),
+      ...(form ? { form } : {}),
     })
   ).toString('base64url');
   return `https://browser-session-ovh2.tlon.network/s/${payload}.${'a'.repeat(43)}?clipboardBridge=true`;
@@ -72,6 +80,288 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('browser session handoff', () => {
+  it('prepares selected refs and names and passes the bound capability privately to delivery', async () => {
+    const url = viewerUrl(
+      'session-viewer',
+      Date.now() + 300_000,
+      '223e4567-e89b-42d3-a456-426614174000'
+    );
+    reply({ session_id: handle, viewer_url: url });
+    const fields = ['@e12', { name: 'bm' }, { label: 'Birth year' }];
+    const result = await runBrowserSessionHandoff(
+      'tlon',
+      shellSplitCommand(
+        `browser handoff ${handle} --fields '${JSON.stringify(fields)}'`
+      ),
+      config
+    );
+    expect(
+      JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments
+    ).toEqual({
+      session_id: handle,
+      action: 'prepare_form',
+      fields,
+    });
+    expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
+      'tlon',
+      ['browser', 'handoff', url],
+      config
+    );
+    expect(result).not.toContain(url);
+    expect(result).toContain('sent');
+  });
+
+  it('refuses an unscoped capability for a selected-field request', async () => {
+    reply({ session_id: handle, viewer_url: viewerUrl() });
+    await expect(
+      runBrowserSessionHandoff(
+        'tlon',
+        ['browser', 'handoff', handle, '--fields', '["@e12"]'],
+        config
+      )
+    ).rejects.toThrow('browser service is unavailable');
+    expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+  });
+
+  it('preserves apostrophes and quotes in exact selectors through command parsing', async () => {
+    reply({
+      session_id: handle,
+      viewer_url: viewerUrl('session-viewer', Date.now() + 300_000, sessionId),
+    });
+    const fields = [
+      { label: `Cardholder's "legal" name` },
+      { name: "owner's_email" },
+    ];
+    const encoded = JSON.stringify(fields).replaceAll("'", String.raw`\u0027`);
+    await runBrowserSessionHandoff(
+      'tlon',
+      shellSplitCommand(`browser handoff ${handle} --fields '${encoded}'`),
+      config
+    );
+    expect(
+      JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments.fields
+    ).toEqual(fields);
+  });
+
+  it('accepts the label example from installed handoff help', async () => {
+    reply({
+      session_id: handle,
+      viewer_url: viewerUrl('session-viewer', Date.now() + 300_000, sessionId),
+    });
+    const example = BROWSER_SESSION_HANDOFF_HELP.match(
+      /browser handoff <session_id> --fields '\[\{"label":.*?\}\]'/
+    )?.[0];
+    expect(example).toBeDefined();
+    await runBrowserSessionHandoff(
+      'tlon',
+      shellSplitCommand(example!.replace('<session_id>', handle)),
+      config
+    );
+    expect(
+      JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments.fields
+    ).toEqual([{ label: "Owner's email address" }]);
+  });
+
+  it('accepts the model tool examples from the browser reference', async () => {
+    reply({
+      session_id: handle,
+      viewer_url: viewerUrl('session-viewer', Date.now() + 300_000, sessionId),
+    });
+    const reference = readFileSync(
+      new URL(
+        '../../tlon-skill/references/browser-handoff.md',
+        import.meta.url
+      ),
+      'utf8'
+    );
+    const examples = [...reference.matchAll(/```json\n([\s\S]*?)\n```/g)]
+      .map((match) => JSON.parse(match[1]).command as string)
+      .filter((command) => command.includes('--fields'));
+    expect(examples).toHaveLength(2);
+    for (const example of examples) {
+      await runBrowserSessionHandoff(
+        'tlon',
+        shellSplitCommand(example.replace('<session_id>', handle)),
+        config
+      );
+    }
+    expect(
+      urbitFetch.mock.calls.map(
+        ([request]) => JSON.parse(request.init.body).params.arguments.fields
+      )
+    ).toEqual([['@e12', '@e13'], [{ label: "Mother's maiden name" }]]);
+  });
+
+  it('allows preparation to finish after the read-only lookup timeout', async () => {
+    vi.useFakeTimers();
+    const release = vi.fn();
+    urbitFetch.mockImplementation(async ({ init, timeoutMs }) => {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(
+          () =>
+            reject(
+              Object.assign(new Error('timed out'), { name: 'TimeoutError' })
+            ),
+          timeoutMs
+        );
+        setTimeout(() => {
+          clearTimeout(timeout);
+          resolve();
+        }, 8_000);
+      });
+      return {
+        response: Response.json({
+          jsonrpc: '2.0',
+          id: JSON.parse(init.body).id,
+          result: {
+            structuredContent: {
+              session_id: handle,
+              viewer_url: viewerUrl(
+                'session-viewer',
+                Date.now() + 300_000,
+                sessionId
+              ),
+            },
+          },
+        }),
+        release,
+      };
+    });
+    const pending = runBrowserSessionHandoff('tlon', selectedArgs, config);
+    await vi.advanceTimersByTimeAsync(8_000);
+    await expect(pending).resolves.toContain('sent');
+    expect(urbitFetch).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ timeoutMs: 30_000 })
+    );
+    expect(release).toHaveBeenCalledOnce();
+    expect(runBrowserHandoffCommand).toHaveBeenCalledOnce();
+  });
+
+  it('gives preparation one thirty-second attempt without retrying a timeout', async () => {
+    vi.useFakeTimers();
+    urbitFetch.mockImplementation(async ({ timeoutMs }) => {
+      await new Promise((resolve) => setTimeout(resolve, timeoutMs));
+      throw Object.assign(new Error(`tenant-secret ${viewerUrl()}`), {
+        name: 'TimeoutError',
+      });
+    });
+    const start = Date.now();
+    const pending = expect(
+      runBrowserSessionHandoff('tlon', selectedArgs, config)
+    ).rejects.toThrow(
+      /^Could not prepare the selected fields because the browser service is temporarily unavailable or timed out\. Try again shortly\.$/
+    );
+    await vi.runAllTimersAsync();
+    await pending;
+    expect(Date.now() - start).toBe(30_000);
+    expect(urbitFetch).toHaveBeenCalledOnce();
+    expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+  });
+
+  it.each([408, 429, 500, 502, 503, 504])(
+    'does not retry preparation after HTTP %i',
+    async (status) => {
+      const release = vi.fn();
+      urbitFetch.mockResolvedValue({
+        response: new Response(`tenant-secret ${viewerUrl()}`, { status }),
+        release,
+      });
+      await expect(
+        runBrowserSessionHandoff('tlon', selectedArgs, config)
+      ).rejects.toThrow(
+        /^Could not prepare the selected fields because the browser service is temporarily unavailable or timed out\. Try again shortly\.$/
+      );
+      expect(urbitFetch).toHaveBeenCalledOnce();
+      expect(release).toHaveBeenCalledOnce();
+      expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['stale_ref', 'fresh browser snapshot'],
+    ['ref_not_found', 'fresh browser snapshot'],
+    ['invalid_argument', 'fresh browser snapshot'],
+    ['timeout', 'Try again shortly'],
+    ['rate_limited', 'Try again shortly'],
+    ['session_busy', 'Try again shortly'],
+    ['unauthorized', 'browser service is unavailable'],
+    ['forbidden', 'browser service is unavailable'],
+    ['steel_error', 'browser service is unavailable'],
+    ['steel_error', 'Try again shortly', { status: 503 }],
+    ['steel_error', 'browser service is unavailable', { status: 401 }],
+  ])(
+    'categorizes selected-field MCP errors by code %s',
+    async (code, guidance, details) => {
+      const release = reply(
+        { error: { code, details, message: `tenant-secret ${viewerUrl()}` } },
+        { isError: true }
+      );
+      const error = await runBrowserSessionHandoff(
+        'tlon',
+        selectedArgs,
+        config
+      ).catch((error: Error) => error);
+      expect(error).toBeInstanceOf(Error);
+      expect(String(error)).toContain(guidance);
+      expect(String(error)).not.toContain('tenant-secret');
+      expect(String(error)).not.toContain('https://');
+      expect(urbitFetch).toHaveBeenCalledOnce();
+      expect(release).toHaveBeenCalledOnce();
+      expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([400, 401, 403, 404, 409])(
+    'does not blame the selection for HTTP %i from the proxy',
+    async (status) => {
+      const release = vi.fn();
+      urbitFetch.mockResolvedValue({
+        response: new Response(`tenant-secret ${viewerUrl()}`, { status }),
+        release,
+      });
+      await expect(
+        runBrowserSessionHandoff('tlon', selectedArgs, config)
+      ).rejects.toThrow(
+        /^Could not prepare the selected fields because the browser service is unavailable\. Report the failure to the owner and check the browser service configuration\.$/
+      );
+      expect(urbitFetch).toHaveBeenCalledOnce();
+      expect(release).toHaveBeenCalledOnce();
+      expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    '[]',
+    '["input"]',
+    '[{"name":""}]',
+    '[{"name":"member","value":"secret"}]',
+    '[{"name":"member","label":"Member"}]',
+    'null',
+    'not-json',
+  ])(
+    'rejects invalid field selection %s before network access',
+    async (fields) => {
+      await expect(
+        runBrowserSessionHandoff(
+          'tlon',
+          ['browser', 'handoff', handle, '--fields', fields],
+          config
+        )
+      ).rejects.toThrow('Usage:');
+      expect(urbitFetch).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not accept field selectors for live sharing', async () => {
+    await expect(
+      runBrowserSessionHandoff(
+        'tlon',
+        ['browser', 'share', handle, '--fields', '["@e12"]'],
+        config
+      )
+    ).rejects.toThrow('Usage:');
+    expect(urbitFetch).not.toHaveBeenCalled();
+  });
   it('retries unavailable lookups with bounded exponential backoff and sends one card', async () => {
     vi.useFakeTimers();
     reply({ session_id: handle, viewer_url: viewerUrl() });
@@ -188,6 +478,8 @@ describe('browser session handoff', () => {
     async ({ args }) => {
       const result = await runBrowserSessionHandoff('tlon', args, config);
       expect(result).toContain('browser handoff <session_id>');
+      expect(result).toContain('--fields <JSON array>');
+      expect(result).toContain(String.raw`Owner\u0027s email address`);
       expect(result).not.toContain('<signed-viewer-url>');
       expect(urbitFetch).not.toHaveBeenCalled();
       expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
@@ -217,6 +509,12 @@ describe('browser session handoff', () => {
         ...connection,
       })
     ).rejects.toThrow('Could not resolve');
+    await expect(
+      runBrowserSessionHandoff('tlon', selectedArgs, {
+        channels: config.channels,
+        ...connection,
+      })
+    ).rejects.toThrow('browser service is unavailable');
     expect(urbitFetch).not.toHaveBeenCalled();
     expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
   });

@@ -4,6 +4,7 @@ export {
   useSettingsListHeaderColor,
   useSettingsListSurfaces,
 } from './settingsListSurfaces';
+export { useSettingsListColors } from './useSettingsListColors';
 export type {
   SettingsContextAction,
   SettingsListProps,

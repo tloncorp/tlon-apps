@@ -24,6 +24,7 @@ jest.mock('../App', () => {
 jest.mock('expo', () => ({ registerRootComponent: jest.fn() }));
 jest.mock('expo-dev-client', () => ({}));
 jest.mock('@tamagui/native/setup-teleport', () => ({}));
+jest.mock('@tamagui/native/setup-expo-linear-gradient', () => ({}));
 jest.mock('react-native-get-random-values', () => ({}));
 jest.mock('react-native-keyboard-controller', () => ({
   KeyboardProvider: ({ children }: { children: unknown }) => children,

@@ -119,7 +119,7 @@ Malicious actors could invite the bot to groups containing:
 | Direct ship mention (`~bot-ship`)                | ✅ Yes                     |
 | Nickname mention (`nimbus`)                      | ✅ Yes                     |
 | `@all` mention                                   | ❌ No                      |
-| Random message without mention                   | ❌ No                      |
+| Random message without mention                   | ❌ No (except owner-listen, threads the bot joined, and owner blob-bearing posts; see below) |
 | Partial ship match (`~bot-ship-extra`)           | ❌ No                      |
 | Substring nickname (`nimbusly`)                  | ❌ No                      |
 | Owner's bare registered slash command (`/pending`) | ✅ Yes (any watched `chat/` channel) |
@@ -139,6 +139,11 @@ and threads, regardless of the owner-listen toggle or per-channel mute list.
 This is the escape hatch that lets the Tlon client's slash-command popup —
 which inserts commands bare — work in group channels.
 
+Command escape hatches are the only unmentioned owner-message paths that
+bypass an owner-listen mute: generic owner commands in watched `chat/` channels only, and the
+`/owner-listen` handler in any owner- or bot-hosted channel (`chat/`, `heap/`,
+`diary/`), so the owner can always turn listening back on.
+
 Engagement is NOT authorization: command execution remains owner-only.
 
 - Sender must equal the configured owner (`isOwner`, `src/monitor/index.ts`).
@@ -148,8 +153,14 @@ Engagement is NOT authorization: command execution remains owner-only.
 - Non-owner bare commands are dropped at the engagement gate; if mentioned,
   core denies them at the authorization check.
 
-Heap (`heap/`) and diary (`diary/`) channels are unchanged: mention or
-owner-listen only.
+Heap (`heap/`) and diary (`diary/`) channels engage on a mention, a reply in
+a thread the bot has joined, an owner blob-bearing post, or owner-listen —
+but not on generic bare owner commands. When owner-listen is off for a
+channel (global toggle off or channel muted), the owner is mention-only
+there: unmentioned owner replies in joined threads and owner blob-bearing
+posts do not engage, only mentions do, plus `/owner-listen` in owner- or
+bot-hosted channels. Non-owner replies in joined
+threads still engage, subject to channel authorization.
 
 ---
 
@@ -375,7 +386,7 @@ try {
 
 **Principle:** Sensitive tools are owner-only. Non-owners cannot use them, enforced at the plugin level (not via prompt instructions).
 
-**Restricted tools:** `tlon`, `cron`, `read`.
+**Restricted tools:** `tlon`, `cron` (also under `automations`, its name on newer OpenClaw), `read`.
 
 | Scenario | Behavior |
 | -------- | -------- |

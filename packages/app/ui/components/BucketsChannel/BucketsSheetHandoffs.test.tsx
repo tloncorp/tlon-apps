@@ -61,6 +61,7 @@ vi.mock('../ActionSheet', async () => {
   };
 });
 vi.mock('../Badge', () => ({ Badge: () => null }));
+vi.mock('../ContactNameV2', () => ({ useContactName: (id: string) => id }));
 vi.mock('../Form', () => ({ TextInput: () => null }));
 vi.mock('../ListItem', async () => {
   const { ListItem } = await import('../../../test/sheetTestUtils');

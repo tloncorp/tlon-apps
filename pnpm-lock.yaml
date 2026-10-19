@@ -1097,7 +1097,7 @@ importers:
         specifier: workspace:^
         version: link:../api
       '@tloncorp/tlon-skill':
-        specifier: workspace:^0.8.0
+        specifier: workspace:^0.8.1
         version: link:../tlon-skill
       '@urbit/aura':
         specifier: ^3.0.0

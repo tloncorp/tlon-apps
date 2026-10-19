@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  channelCreatedLines,
   getOption,
   getRequiredOptionValue,
   hasOptionValue,
   isCommandHelpRequest,
   isDiaryNest,
+  isGroupFlag,
   isSubcommandHelpRequest,
   looksLikePositionalChannelKind,
   looksLikeRemovedPositionalChannelKind,
@@ -13,6 +15,34 @@ import {
 } from './cli-utils';
 
 describe('cli-utils', () => {
+  describe('isGroupFlag', () => {
+    it('accepts ~host/slug with a valid ship', () => {
+      expect(isGroupFlag('~zod/book-club')).toBe(true);
+      expect(isGroupFlag('~sampel-palnet/g2')).toBe(true);
+    });
+
+    it('rejects invalid ships, empty slugs and uppercase slugs', () => {
+      expect(isGroupFlag('~foo/x')).toBe(false);
+      expect(isGroupFlag('~zod/')).toBe(false);
+      expect(isGroupFlag('~zod/Bad')).toBe(false);
+      expect(isGroupFlag('zod/book-club')).toBe(false);
+    });
+  });
+
+  describe('channelCreatedLines', () => {
+    it('prints the nest and the group Ref, since channels have no card', () => {
+      expect(
+        channelCreatedLines('chat/~zod/abc', 'Discussion', '~zod/proj')
+      ).toEqual([
+        '   Nest: chat/~zod/abc',
+        '   Title: Discussion',
+        '   Group: ~zod/proj',
+        '   Ref: /1/group/~zod/proj',
+        '   Share: channels have no card yet; name the channel and its Nest, and include the group Ref path in a chat message to post a tappable group card.',
+      ]);
+    });
+  });
+
   describe('wantsHelp', () => {
     it('detects long help flag', () => {
       expect(wantsHelp(['add-channel', '--help'])).toBe(true);
