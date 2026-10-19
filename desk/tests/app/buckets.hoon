@@ -284,6 +284,41 @@
   =/  push=[=wire =request:http]  (only-iris caz)
   (pure:m wire.push)
 ::
+::  +retry-call: ask for another URL on a session and hand back the wire the
+::  retry rides, leaving the broker's answer to the test. The uploader is
+::  answered %pending, and the retry is the one broker call made.
+::
+++  retry-call
+  |=  [rid=@uv sid=@uv]
+  =/  m  (mare ,wire)
+  ^-  form:m
+  ;<  caz=(list card)  bind:m  (ask rid [%bucket flag [%retry-upload sid]])
+  ;<  ~  bind:m  (ex-cards (answers caz) ~[(grant-fact rid [%pending ~])])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  ~  bind:m
+    (ex-equal !>(wire.push) !>(/buckets/upload/(scot %uv sid)/retry))
+  (pure:m wire.push)
+::
+::  +retry-refused: a retry on the seed session, refused by the broker with
+::  its word that another attempt could work. Hands back the refusal's cards.
+::
+++  retry-refused
+  |=  rid=@uv
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  retry=wire  bind:m  (retry-call rid seed)
+  %+  do-arvo  retry
+  (iris-json 503 '{"code":"storage_unavailable","message":"signing is down","retryable":true}')
+::
+::  +saved-session: one session as the saved state holds it.
+::
+++  saved-session
+  |=  sid=@uv
+  =/  m  (mare ,upload-session:bu)
+  ^-  form:m
+  ;<  sv=vase  bind:m  get-save
+  (pure:m (~(got by sessions:!<(state-1:bu sv)) sid))
+::
 ::  +sync-for: the pair's sync record, for asserting revisions directly.
 ::
 ++  sync-for
@@ -814,6 +849,249 @@
           [0v6 [%error %unknown 'slow down' `['rate_limited' & `~s5 `'host']]]
       ==
   ==
+::
+::  A retry the broker refuses but says to repeat leaves the session as it
+::  was: pending, on the same reservation, with the refusal recorded on it
+::  and nothing sent to the broker. The next retry the uploader makes runs
+::  against that reservation, and a URL in hand clears the refusal.
+::
+++  test-retry-refusal-the-broker-says-to-repeat-keeps-the-session
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'flaky.pdf' 42)
+  ;<  refused=(list card)  b  (retry-refused 0v2)
+  ::  The answer is the only card: no cancel goes to the broker.
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'signing is down' `['storage_unavailable' & ~ ~]]
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses error.ses awaiting.ses])
+    !>([%pending `'res-1' `'signing is down' ~])
+  ::  Asked again, the same reservation is what the retry names.
+  ;<  retry=wire  b  (retry-call 0v3 seed)
+  ;<  granted=(list card)  b
+    (do-arvo retry (iris-grant 'res-1' 'https://storage.test/again'))
+  ;<  ~  b
+    %+  ex-cards  granted
+    :~  %+  grant-fact  0v3
+        :*  %upload  seed
+            id.entry.ses
+            'https://storage.test/again'
+            ~[['content-type' 'application/pdf']]
+            ~2026.1.1..04.00.00
+        ==
+    ==
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses2 reservation.ses2 error.ses2])
+  !>([%pending `'res-1' ~])
+::
+::  A retry refused for good ends the session, and because the reservation is
+::  bound it is released at the broker rather than left to lapse -- after the
+::  waiter is answered, so the uploader hears the refusal and not the
+::  release. The broker refuses to cancel a reservation that is no longer
+::  pending, and that refusal is the end of it: nobody is waiting and nothing
+::  cancels again.
+::
+++  test-retry-refused-for-good-releases-the-reservation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'exhausted.pdf' 42)
+  ;<  retry=wire  b  (retry-call 0v2 seed)
+  ;<  refused=(list card)  b
+    %+  do-arvo  retry
+    %+  iris-json  409
+    '{"code":"invalid_state","message":"upload retry limit reached","retryable":false}'
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'upload retry limit reached' `['invalid_state' | ~ ~]]
+        (ex-iris /buckets/upload/(scot %uv seed)/cancel)
+    ==
+  =/  release=[=wire =request:http]  (only-iris refused)
+  ;<  ~  b
+    %+  ex-equal
+      !>(url.request.release)
+    !>('https://memex.tlon.network/v2/buckets/uploads/res-1/cancel')
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses error.ses awaiting.ses])
+    !>([%cancelled `'res-1' `'upload retry limit reached' ~])
+  ::  The broker's answer to the release changes nothing and asks nothing.
+  ;<  settled=(list card)  b
+    %+  do-arvo  wire.release
+    %+  iris-json  409
+    '{"code":"invalid_state","message":"only pending uploads can be canceled","retryable":false}'
+  ;<  ~  b  (ex-cards settled ~)
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses2 reservation.ses2 error.ses2])
+  !>([%cancelled `'res-1' `'upload retry limit reached'])
+::
+::  Iris giving up on a retry says nothing about whether the broker signed a
+::  URL, and one it signed that nobody uses is harmless. So the session is
+::  kept for the uploader to ask again, and told the outcome is unknown.
+::
+++  test-retry-outcome-unknown-keeps-the-session
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'lost.pdf' 42)
+  ;<  retry=wire  b  (retry-call 0v2 seed)
+  ;<  refused=(list card)  b  (do-arvo retry iris-cancelled)
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        :*  %error  %unknown
+            'the storage request was cancelled'
+            `['outcome_unknown' & ~ ~]
+        ==
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses reservation.ses error.ses awaiting.ses])
+  !>([%pending `'res-1' `'the storage request was cancelled' ~])
+::
+::  A refusal that names a delay carries it to the uploader as a span, with
+::  what the delay covers, and the session waits with the uploader.
+::
+++  test-retry-rate-limited-keeps-the-session-and-says-how-long
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'eager.pdf' 42)
+  ;<  retry=wire  b  (retry-call 0v2 seed)
+  ;<  refused=(list card)  b
+    %+  do-arvo  retry
+    %+  iris-json  429
+    '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":5000,"scope":"host"}'
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'slow down' `['rate_limited' & `~s5 `'host']]
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses reservation.ses error.ses awaiting.ses])
+  !>([%pending `'res-1' `'slow down' ~])
+::
+::  A 2xx retry with no URL in it cannot be acted on any more than a grant
+::  without one, and here the reservation is already bound, so failing the
+::  session releases it at the broker. The failure is this agent's own, so
+::  the answer carries no broker account.
+::
+++  test-retry-without-a-url-releases-the-bound-reservation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'urlless.pdf' 42)
+  ;<  retry=wire  b  (retry-call 0v2 seed)
+  ;<  failed=(list card)  b
+    (do-arvo retry (iris-json 200 '{"objectId":"nothing"}'))
+  ;<  ~  b
+    %+  ex-cards  failed
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'storage returned no upload URL' ~]
+        (ex-iris /buckets/upload/(scot %uv seed)/cancel)
+    ==
+  =/  release=[=wire =request:http]  (only-iris failed)
+  ;<  ~  b
+    %+  ex-equal
+      !>(url.request.release)
+    !>('https://memex.tlon.network/v2/buckets/uploads/res-1/cancel')
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses reservation.ses error.ses awaiting.ses])
+  !>([%cancelled `'res-1' `'storage returned no upload URL' ~])
+::
+::  A session kept through a refusal is still the uploader's to drive: a
+::  further retry is accepted rather than refused as not pending, and a
+::  cancel withdraws it and releases the reservation as it always did.
+::
+++  test-retry-a-kept-session-can-still-be-retried-and-cancelled
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'stubborn.pdf' 42)
+  ;<  *  b  (retry-refused 0v2)
+  ::  +retry-call asserts the %pending answer and the retry on the wire.
+  ;<  retry=wire  b  (retry-call 0v3 seed)
+  ;<  *  b
+    %+  do-arvo  retry
+    (iris-json 503 '{"code":"storage_unavailable","message":"still down","retryable":true}')
+  ;<  withdrawn=(list card)  b
+    (ask 0v4 [%bucket flag [%cancel-upload seed 'giving up']])
+  ;<  ~  b
+    %+  ex-cards  withdrawn
+    :~  (ex-iris /buckets/upload/(scot %uv seed)/cancel)
+        (grant-fact 0v4 [%pending ~])
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses error.ses awaiting.ses])
+    !>([%cancelled `'res-1' `'giving up' `0v4])
+  =/  release=[=wire =request:http]  (only-iris withdrawn)
+  ;<  done=(list card)  b  (do-arvo wire.release iris-ok)
+  (ex-cards done ~[(grant-fact 0v4 [%ok ~])])
+::
+::  Keeping a session through a refusal does not keep it past its window. A
+::  kept session nobody retries lapses like any other pending one: the
+::  sweep cancels it at the broker and drops it.
+::
+++  test-retry-a-kept-session-still-lapses
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'forgotten.pdf' 42)
+  ;<  *  b  (retry-refused 0v2)
+  ::  Past the session window, with something else driving a prune.
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now ~2026.1.2, eny 0v9999)))
+  ;<  caz=(list card)  b
+    (ask 0v3 [%bucket flag [%begin-upload ~ 'later.pdf' 'application/pdf' 7 ~]])
+  =/  cancels=(list [=wire =request:http])
+    %+  murn  caz
+    |=  =card
+    ^-  (unit [wire request:http])
+    ?.  ?=([%pass * %arvo %i %request * *] card)  ~
+    ?.  =(/buckets/upload/(scot %uv seed)/cancel p.card)  ~
+    `[p.card request.q.card]
+  ;<  ~  b  (ex-equal !>((lent cancels)) !>(1))
+  ;<  ~  b
+    %+  ex-equal
+      !>(url.request:(head cancels))
+    !>('https://memex.tlon.network/v2/buckets/uploads/res-1/cancel')
+  ;<  sv=vase  b  get-save
+  =/  st=state-1:bu  !<(state-1:bu sv)
+  (ex-equal !>((~(has by sessions.st) seed)) !>(|))
 ::
 ::  A bucket or token we do not have is [~ ~], which Eyre serves as a 404.
 ::  A bare ~ is a 500, and clients treat only a 404 as absent.
