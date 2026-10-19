@@ -118,6 +118,7 @@ Commands:
   mute <target> [--self]                    Mute notifications for a DM, group, channel, or thread
   unmute <target> [--self]                  Remove a mute or custom level (back to the inherited default)
   volume <target> <level> [--self]          Set the notification level
+  volume base [medium|soft|hush] [--self]   Show or set the app-wide notification level (Settings → Notifications)
 
 Targets:
   ~ship                     a DM
@@ -126,7 +127,7 @@ Targets:
   chat/~host/name           a channel (chat/ or heap/)
   <channel> <post-id>       a thread, by its root post id
 
-Levels: loud, medium, soft, hush, default`;
+Levels: loud, medium, soft, hush, default (base takes medium, soft or hush)`;
 
 const OWNER_NOTE =
   'Harnesses with owner injection enabled run this as the owner unless --self or explicit credential flags are supplied; --self uses the current credentials.';
@@ -146,11 +147,14 @@ In the app: a chat's options → Chat/Channel/Group notifications; a thread's ro
 ${OWNER_NOTE}
 Example: tlon activity unmute chat/~host/general`,
   volume: `Usage: tlon activity volume <target> <level> [--self]
+       tlon activity volume base [medium|soft|hush] [--self]
 Levels: loud (all activity), medium (posts, mentions and replies), soft (mentions and replies), hush (nothing), default (clear the setting and follow the inherited default).
 DMs and group DMs take medium, hush or default, as in the app.
+base is the app-wide level from the app's Settings → Notifications, for push notifications and in-app alerts: medium (All DMs and workspace posts), soft (DMs, mentions, and replies only) or hush (Nothing). Without a level it shows the current one. Chats with their own level ignore base; Settings → Notifications lists group and channel exceptions, and activity unmute <target> returns one to the inherited level. During TlonBot revival, the app may temporarily set base to hush; applying its staged restore level later can overwrite a CLI change.
 In the app: a chat's options → Chat/Channel/Group notifications; Settings → Notifications lists group and channel exceptions.
 ${OWNER_NOTE}
-Example: tlon activity volume chat/~host/general soft`,
+Example: tlon activity volume chat/~host/general soft
+Example: tlon activity volume base soft`,
 };
 
 export const ACTIVITY_CONFIRM_ATTEMPTS = 5;
@@ -158,6 +162,21 @@ export const ACTIVITY_CONFIRM_DELAY_MS = 500;
 
 const VOLUME_COMMANDS: readonly string[] = ['mute', 'unmute', 'volume'];
 const LEVELS: readonly string[] = ['loud', 'medium', 'soft', 'hush', 'default'];
+const BASE_TARGET = 'base';
+const BASE_LEVELS: readonly string[] = ['medium', 'soft', 'hush'];
+export const BASE_LEVELS_MESSAGE =
+  'base takes medium, soft or hush (the app offers only these in Settings → Notifications)';
+// Titles from the app's Settings → Notifications menu
+// (NotificationLevelSelector.tsx), which command modules cannot import.
+// `default` gets the medium title, as the app normalises it.
+const BASE_LEVEL_TITLES: Record<NotificationLevel, string> = {
+  loud: 'All activity',
+  medium: 'All DMs and workspace posts',
+  default: 'All DMs and workspace posts',
+  soft: 'DMs, mentions, and replies only',
+  hush: 'Nothing',
+};
+const BASE_EXCEPTIONS_NOTE = 'Chats with their own level ignore base.';
 // The desk's `sym`: a lowercase letter, then lowercase letters, digits, `-`.
 const SLUG = /^[a-z][a-z0-9-]*$/;
 
@@ -171,7 +190,8 @@ export type VolumeTarget =
   | { kind: 'dm-club'; club: string }
   | { kind: 'group'; flag: string }
   | { kind: 'channel'; nest: string }
-  | { kind: 'thread'; nest: string; postId: string };
+  | { kind: 'thread'; nest: string; postId: string }
+  | { kind: 'base' };
 
 type RequestedLevel = SetLevel | 'default';
 
@@ -190,6 +210,7 @@ type ParsedActivityArgs =
   | { kind: 'activity'; command: ActivityBucketCommand; limit: number }
   | { kind: 'unreads' }
   | { kind: 'volume-help'; command: VolumeCommand }
+  | { kind: 'base-show' }
   | {
       kind: 'volume';
       command: VolumeCommand;
@@ -218,7 +239,10 @@ function isVolumeCommand(command: string): command is VolumeCommand {
   return VOLUME_COMMANDS.includes(command);
 }
 
-function parseChannelTarget(raw: string, help: string): VolumeTarget {
+function parseChannelTarget(
+  raw: string,
+  help: string
+): Extract<VolumeTarget, { kind: 'channel' }> {
   const invalid = () =>
     usageError(
       `Invalid channel: ${raw} (expected chat/~host/channel-slug or heap/~host/channel-slug)`,
@@ -250,7 +274,10 @@ function parseChannelTarget(raw: string, help: string): VolumeTarget {
 
 // Classified by the number of `/`; aura-validated, no case folding (the desk's
 // parsers are lowercase-only).
-function parseVolumeTarget(raw: string, help: string): VolumeTarget {
+function parseVolumeTarget(
+  raw: string,
+  help: string
+): Exclude<VolumeTarget, { kind: 'base' }> {
   const slashes = raw.split('/').length - 1;
   if (slashes === 0 && raw.startsWith('0v')) {
     if (!valid('uv', raw)) {
@@ -317,6 +344,29 @@ function parseVolumeArgs(
       throw usageError(`Unknown option: ${arg}`, help);
     }
     positionals.push(arg);
+  }
+
+  if (command === 'volume' && positionals[0] === BASE_TARGET) {
+    if (positionals.length === 1) return { kind: 'base-show' };
+    if (positionals.length > 2) {
+      throw usageError(`Unexpected argument: ${positionals[2]}`, help);
+    }
+    const raw = positionals[1];
+    if (raw === 'default' || raw === 'loud') {
+      throw usageError(BASE_LEVELS_MESSAGE, help);
+    }
+    if (!BASE_LEVELS.includes(raw)) {
+      throw usageError(
+        `Unknown level: ${raw}. Levels for base: medium, soft, hush`,
+        help
+      );
+    }
+    return {
+      kind: 'volume',
+      command,
+      target: { kind: 'base' },
+      level: raw as SetLevel,
+    };
   }
 
   const minimum = command === 'volume' ? 2 : 1;
@@ -535,6 +585,8 @@ function targetLabel(target: VolumeTarget): string {
       return `channel ${target.nest}`;
     case 'thread':
       return `thread ${target.postId} in ${target.nest}`;
+    case 'base':
+      return 'base notification level';
   }
 }
 
@@ -549,6 +601,8 @@ function targetWhere(target: VolumeTarget): string {
       return 'Channel options → Channel notifications';
     case 'thread':
       return "the root post's message menu → Mute thread / Unmute thread (shown once the post has replies)";
+    case 'base':
+      return 'Settings → Notifications';
   }
 }
 
@@ -640,6 +694,8 @@ async function resolveTarget(
         root: { id: target.postId, authorId: root.authorId },
       };
     }
+    case 'base':
+      return { source: { base: null }, label, where };
   }
 }
 
@@ -843,7 +899,11 @@ async function setVolume(
   const stored = settings[key] ?? null;
   if (sent && stored) {
     const inferred = deps.volume.levelOf(stored);
-    lines.push(`  Level: ${levelText(inferred, deps)}`);
+    lines.push(
+      request.target.kind === 'base'
+        ? `  Level: ${inferred} (${BASE_LEVEL_TITLES[inferred]})`
+        : `  Level: ${levelText(inferred, deps)}`
+    );
     if (inferred !== request.level) {
       lines.push(
         `  Note: The stored map infers ${inferred} because it also contains legacy entries; all requested entries were verified.`
@@ -859,8 +919,27 @@ async function setVolume(
       `  Level: default (follows ${inherited.label}: ${levelText(inherited.volume, deps)})`
     );
   }
+  if (request.target.kind === 'base') {
+    lines.push(`  ${BASE_EXCEPTIONS_NOTE}`);
+  }
   lines.push(`  In the app: ${resolved.where}`);
   writeLine(deps.stdout, lines.join('\n'));
+}
+
+async function showBaseLevel(deps: ActivityDeps): Promise<void> {
+  const settings = await deps.volumeApi.getVolumeSettings();
+  const stored = settings.base ?? null;
+  // A missing %base reads as the desk's bunt, default-volumes, which infers
+  // medium; the app shows medium too.
+  const level = stored ? deps.volume.levelOf(stored) : 'medium';
+  writeLine(
+    deps.stdout,
+    [
+      `Base notification level for ${deps.getCurrentUserId()}: ${level} (${BASE_LEVEL_TITLES[level]})`,
+      `  ${BASE_EXCEPTIONS_NOTE}`,
+      '  In the app: Settings → Notifications',
+    ].join('\n')
+  );
 }
 
 export async function run(args: string[], deps: ActivityDeps): Promise<number> {
@@ -875,7 +954,9 @@ export async function run(args: string[], deps: ActivityDeps): Promise<number> {
 
     await deps.authenticate();
 
-    if (parsed.kind === 'volume') {
+    if (parsed.kind === 'base-show') {
+      await showBaseLevel(deps);
+    } else if (parsed.kind === 'volume') {
       await setVolume(
         toRequest(parsed.command, parsed.target, parsed.level),
         deps

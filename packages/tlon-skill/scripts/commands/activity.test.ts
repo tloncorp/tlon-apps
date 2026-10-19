@@ -9,6 +9,7 @@ import {
   ACTIVITY_HELP,
   type ActivityDeps,
   type ActivityEvent,
+  BASE_LEVELS_MESSAGE,
   DM_THREAD_REFUSAL,
   NOTES_VOLUME_REFUSAL,
   type PokeOutcome,
@@ -17,7 +18,8 @@ import {
 } from './activity';
 import { commandError } from './command';
 
-// Volume deps that fail loudly: the read commands must never reach them.
+// Volume deps that fail loudly: the activity feed and unreads commands must
+// never reach them.
 function unusedVolumeDeps(): Pick<
   ActivityDeps,
   | 'volumeApi'
@@ -354,6 +356,7 @@ const HUSH: VolumeMap = {
 };
 
 const CHANNEL_SOURCE = { channel: { nest: NEST, group: GROUP } };
+const BASE_SOURCE = { base: null };
 const THREAD_SOURCE = {
   thread: {
     channel: NEST,
@@ -534,6 +537,9 @@ describe('activity mute / unmute / volume: payloads', () => {
       source: { dm: { club: CLUB } },
       volume: HUSH,
     },
+    { args: ['volume', 'base', 'medium'], source: BASE_SOURCE, volume: MEDIUM },
+    { args: ['volume', 'base', 'soft'], source: BASE_SOURCE, volume: SOFT },
+    { args: ['volume', 'base', 'hush'], source: BASE_SOURCE, volume: HUSH },
   ];
 
   for (const testCase of cases) {
@@ -633,6 +639,19 @@ describe('activity mute / unmute / volume: payloads', () => {
       expect(await run(args, context.deps)).toBe(0);
       expect(context.calls.pokes).toEqual(plain.calls.pokes);
       expect(context.stdout()).toBe(plain.stdout());
+    }
+  });
+
+  it('accepts --self with volume base', async () => {
+    for (const args of [
+      ['volume', '--self', 'base', 'soft'],
+      ['volume', 'base', 'soft', '--self'],
+    ]) {
+      const context = makeVolumeContext();
+      expect(await run(args, context.deps)).toBe(0);
+      expect(context.calls.pokes).toEqual([
+        { source: BASE_SOURCE, volume: SOFT },
+      ]);
     }
   });
 });
@@ -1196,6 +1215,151 @@ describe('activity mute / unmute / volume: output', () => {
   });
 });
 
+describe('activity volume base', () => {
+  // Base has no group, channel or root post to resolve or re-read.
+  const expectNoLookups = (calls: {
+    isJoinedGroup: string[];
+    getChannelState: string[];
+    findRootPost: Array<[string, string]>;
+  }) => {
+    expect(calls.isJoinedGroup).toEqual([]);
+    expect(calls.getChannelState).toEqual([]);
+    expect(calls.findRootPost).toEqual([]);
+  };
+
+  const baseLines = (level: string) =>
+    [
+      `Base notification level for ${ACTING}: ${level}`,
+      '  Chats with their own level ignore base.',
+      '  In the app: Settings → Notifications',
+      '',
+    ].join('\n');
+
+  it('confirms base on the third read after two stale ones', async () => {
+    const context = makeVolumeContext({
+      reads: [{}, { base: MEDIUM }, { base: SOFT }],
+    });
+
+    expect(await run(['volume', 'base', 'soft'], context.deps)).toBe(0);
+    expect(context.calls.reads).toBe(3);
+    expect(context.calls.sleeps).toEqual([500, 500]);
+  });
+
+  it('reports an unconfirmed base write after five reads', async () => {
+    const context = makeVolumeContext({
+      initial: { base: MEDIUM },
+      applyPoke: false,
+    });
+
+    expect(await run(['volume', 'base', 'soft'], context.deps)).toBe(1);
+    expect(context.calls.reads).toBe(5);
+    expect(context.stderr()).toContain(
+      'Setting base notification level to soft was sent but is not confirmed: the stored setting is medium.'
+    );
+  });
+
+  it('confirms an unacknowledged base write the read-back verifies', async () => {
+    const context = makeVolumeContext({
+      poke: { kind: 'ambiguous', message: 'timeout' },
+    });
+
+    expect(await run(['volume', 'base', 'hush'], context.deps)).toBe(0);
+    expect(context.stdout()).toStartWith(
+      '✓ Set base notification level to hush'
+    );
+  });
+
+  it('confirms a base write over a desk-seeded map with a contact key', async () => {
+    const context = makeVolumeContext({
+      initial: {
+        base: { ...MEDIUM, contact: { unreads: false, notify: false } },
+      },
+    });
+
+    expect(await run(['volume', 'base', 'hush'], context.deps)).toBe(0);
+    expect(context.stdout()).toContain('  Level: hush (Nothing)\n');
+  });
+
+  it('prints a set base level with the app label and exceptions note', async () => {
+    const context = makeVolumeContext();
+
+    expect(await run(['volume', 'base', 'soft'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      [
+        `✓ Set base notification level to soft for ${ACTING}`,
+        '  Level: soft (DMs, mentions, and replies only)',
+        '  Chats with their own level ignore base.',
+        '  In the app: Settings → Notifications',
+        '',
+      ].join('\n')
+    );
+    expectNoLookups(context.calls);
+  });
+
+  it('shows a stored base level without poking', async () => {
+    const context = makeVolumeContext({ initial: { base: SOFT } });
+
+    expect(await run(['volume', 'base'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      baseLines('soft (DMs, mentions, and replies only)')
+    );
+    expect(context.calls.pokes).toEqual([]);
+    expect(context.calls.reads).toBe(1);
+    expect(context.calls.authenticate).toBe(1);
+    expectNoLookups(context.calls);
+  });
+
+  it('shows a missing or null base level as medium', async () => {
+    for (const initial of [{}, { base: null }] as VolumeSettings[]) {
+      const context = makeVolumeContext({ initial });
+
+      expect(await run(['volume', 'base'], context.deps)).toBe(0);
+      expect(context.stdout()).toBe(
+        baseLines('medium (All DMs and workspace posts)')
+      );
+      expect(context.calls.pokes).toEqual([]);
+    }
+  });
+
+  it('shows a stored loud base level', async () => {
+    const context = makeVolumeContext({ initial: { base: LOUD } });
+
+    expect(await run(['volume', 'base'], context.deps)).toBe(0);
+    expect(context.stdout()).toContain('loud (All activity)');
+  });
+
+  it('shows the base level with --self', async () => {
+    const plain = makeVolumeContext({ initial: { base: HUSH } });
+    expect(await run(['volume', 'base'], plain.deps)).toBe(0);
+
+    const context = makeVolumeContext({ initial: { base: HUSH } });
+    expect(await run(['volume', 'base', '--self'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(plain.stdout());
+    expect(context.calls.pokes).toEqual([]);
+  });
+
+  it('reports an unreadable base level', async () => {
+    const context = makeVolumeContext({
+      reads: [commandError('scry 500')],
+    });
+
+    expect(await run(['volume', 'base'], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe('Error: scry 500\n');
+    expect(context.calls.pokes).toEqual([]);
+    expect(context.calls.reads).toBe(1);
+    expect(context.calls.sleeps).toEqual([]);
+  });
+
+  it('prints volume help for volume base --help', async () => {
+    const context = makeVolumeContext();
+
+    expect(await run(['volume', 'base', '--help'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(`${ACTIVITY_COMMAND_HELP.volume}\n`);
+    expect(context.calls.authenticate).toBe(0);
+  });
+});
+
 describe('activity mute / unmute / volume: arguments', () => {
   const channelHint =
     '(expected chat/~host/channel-slug or heap/~host/channel-slug)';
@@ -1272,6 +1436,26 @@ describe('activity mute / unmute / volume: arguments', () => {
       args: ['volume', NEST, ROOT_ID, 'soft', 'extra'],
       message: 'Unexpected argument: extra',
     },
+    { args: ['volume', 'base', 'default'], message: BASE_LEVELS_MESSAGE },
+    { args: ['volume', 'base', 'loud'], message: BASE_LEVELS_MESSAGE },
+    {
+      args: ['volume', 'base', 'bogus'],
+      message: 'Unknown level: bogus. Levels for base: medium, soft, hush',
+    },
+    {
+      args: ['volume', 'base', 'MEDIUM'],
+      message: 'Unknown level: MEDIUM. Levels for base: medium, soft, hush',
+    },
+    {
+      args: ['volume', 'base', 'soft', 'extra'],
+      message: 'Unexpected argument: extra',
+    },
+    { args: ['volume', 'base', '--bogus'], message: 'Unknown option: --bogus' },
+    ...(['mute', 'unmute'] as const).map((command) => ({
+      args: [command, 'base'],
+      message:
+        'Unrecognized target: base. Use ~ship, a group-DM id (0v...), ~host/group, chat/~host/name or heap/~host/name, or a channel and a post id for a thread',
+    })),
     { args: ['mute'], message: null },
     { args: ['unmute', '--self'], message: null },
     { args: ['volume', GROUP], message: null },

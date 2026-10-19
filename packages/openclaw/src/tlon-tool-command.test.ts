@@ -483,6 +483,8 @@ describe('owner credential injection for invite-link, note publishing and notifi
     'activity mute ~zod/book-club',
     'activity unmute chat/~nec/general 170.141',
     'activity volume ~ten hush',
+    'activity volume base soft',
+    'activity volume base',
   ];
 
   // --ship, not --config: ship-only resolution validates the file's ship and
