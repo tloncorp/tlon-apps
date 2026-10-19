@@ -2032,6 +2032,31 @@ class OwnerWorkspaceRoutingTests(unittest.TestCase):
                     ),
                 )
 
+    def test_keeps_a_description_that_a_superseded_owner_pair_swallowed(self):
+        cfg = _bot_config()
+
+        payload, calls = self._run(
+            "groups create-owned Projects --owner --description --admin ~someone",
+            cfg,
+            OWNER_ENV,
+        )
+
+        self.assertTrue(payload["success"])
+        argv, _run_env = calls[-1]
+        self.assertEqual(
+            argv,
+            (
+                "tlon-test",
+                "groups",
+                "create-owned",
+                "Projects",
+                "--owner",
+                "~someone",
+                "--description",
+                "--admin",
+            ),
+        )
+
     def test_keeps_the_admin_the_cli_would_choose_when_both_spellings_appear(self):
         cfg = _bot_config()
 

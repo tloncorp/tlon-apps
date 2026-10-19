@@ -640,8 +640,9 @@ function isCreateOwnedCommand(args: string[]): boolean {
  * takes `--owner` as its alias. For a create-owned run as written on the bot's
  * own credentials. A CLI reading only `--owner` takes the token after the
  * first one, even when that `--owner` is a description's value, so the admin
- * the CLI would have chosen goes first and every other admin or owner pair is
- * dropped.
+ * the CLI would have chosen goes first, then the description the CLI reads,
+ * and every other admin, owner or description pair is dropped. Other tokens
+ * stay, after them.
  */
 function withLegacyAdminSpelling(args: string[]): string[] {
   const subIdx = findTlonSubcommandIndex(args);
@@ -651,21 +652,15 @@ function withLegacyAdminSpelling(args: string[]): string[] {
 
   const rest: string[] = [];
   for (let i = 3; i < commandArgs.length; i += 1) {
-    const arg = commandArgs[i];
-    if (!CREATE_OWNED_VALUE_OPTIONS.has(arg)) {
-      rest.push(arg);
-      continue;
-    }
-    i += 1;
-    if (arg === '--description') {
-      rest.push(arg, ...commandArgs.slice(i, i + 1));
-    }
+    if (CREATE_OWNED_VALUE_OPTIONS.has(commandArgs[i])) i += 1;
+    else rest.push(commandArgs[i]);
   }
   return [
     ...args.slice(0, subIdx),
     ...commandArgs.slice(0, 3),
     '--owner',
     commandArgs[adminIndex + 1],
+    ...descriptionArgs(commandArgs),
     ...rest,
   ];
 }

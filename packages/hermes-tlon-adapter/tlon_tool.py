@@ -1053,8 +1053,9 @@ def _with_legacy_admin_spelling(args: Sequence[str]) -> list[str]:
     newer one takes ``--owner`` as its alias. For a create-owned run as written
     on the bot's credentials. A CLI reading only ``--owner`` takes the token
     after the first one, even when that ``--owner`` is a description's value,
-    so the admin the CLI would have chosen goes first and every other admin or
-    owner pair is dropped."""
+    so the admin the CLI would have chosen goes first, then the description
+    the CLI reads, and every other admin, owner or description pair is
+    dropped. Other tokens stay, after them."""
     all_args = [str(arg) for arg in args]
     sub_idx = find_subcommand_index(all_args)
     command_args = all_args[sub_idx:]
@@ -1065,19 +1066,17 @@ def _with_legacy_admin_spelling(args: Sequence[str]) -> list[str]:
     rest: list[str] = []
     i = 3
     while i < len(command_args):
-        arg = command_args[i]
-        if arg not in CREATE_OWNED_VALUE_OPTIONS:
-            rest.append(arg)
-            i += 1
+        if command_args[i] in CREATE_OWNED_VALUE_OPTIONS:
+            i += 2
             continue
-        if arg == "--description":
-            rest += [arg, *command_args[i + 1 : i + 2]]
-        i += 2
+        rest.append(command_args[i])
+        i += 1
     return [
         *all_args[:sub_idx],
         *command_args[:3],
         "--owner",
         command_args[admin_index + 1],
+        *_description_args(command_args),
         *rest,
     ]
 

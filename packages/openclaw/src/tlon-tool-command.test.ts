@@ -901,6 +901,25 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     }
   });
 
+  it('keeps a description that a superseded owner pair swallowed', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('hidden-description', {
+      command:
+        'groups create-owned Projects --owner --description --admin ~someone',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~someone',
+      '--description',
+      '--admin',
+    ]);
+  });
+
   it('keeps the admin the CLI would choose when both spellings appear', async () => {
     const { execute, runCommand } = makeExecutor();
 
