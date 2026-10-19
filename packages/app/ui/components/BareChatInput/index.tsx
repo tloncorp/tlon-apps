@@ -4,9 +4,11 @@ import {
   findBareChannelPaths,
   getBotUserIdForUser,
   getCurrentUserId,
+  getUneditableCites,
   isReferenceBoundary,
   replaceBareChannelPath,
   toContentReference,
+  uneditableCitesMessage,
 } from '@tloncorp/api';
 import { Story, pathToCite } from '@tloncorp/api/urbit';
 import {
@@ -15,6 +17,7 @@ import {
   REF_REGEX,
   createDevLogger,
   diaryMixedToJSON,
+  extractContentTypesFromPost,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -27,6 +30,7 @@ import {
   RawText,
   Text,
   useGlobalSearch,
+  useToast,
 } from '@tloncorp/ui';
 import {
   type ForwardedRef,
@@ -42,8 +46,10 @@ import {
 } from 'react';
 import {
   Keyboard,
+  type NativeSyntheticEvent,
   Platform,
   TextInput,
+  type TextInputSelectionChangeEventData,
   type TextLayoutEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,6 +65,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import { canAddAttachment } from '../../contexts/attachmentRules';
 import { useConversationComposerHeight } from '../../contexts/scroll';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
@@ -359,6 +366,10 @@ function BareChatInput(
   const controlledTextRef = useRef(controlledText);
   controlledTextRef.current = controlledText;
   const sendLookupPendingRef = useRef(false);
+  const pendingConversionsRef = useRef(new Set<Promise<void>>());
+  // Native caret position, so a conversion can leave it where the user was.
+  const nativeSelectionRef = useRef<number | null>(null);
+  const showToast = useToast();
   const [initialReferencePaths] = useState(() =>
     attachments.flatMap((attachment) =>
       attachment.type === 'reference' ? [attachment.path] : []
@@ -558,7 +569,7 @@ function BareChatInput(
 
   // Shows text set outside the input's own change event. Native renders the
   // text from children, so its buffer only needs clearing once nothing is left.
-  const syncNativeText = useCallback((text: string) => {
+  const syncNativeText = useCallback((text: string, cursor?: number) => {
     if (isWeb) {
       return;
     }
@@ -570,19 +581,20 @@ function BareChatInput(
       }, 0);
     } else {
       requestAnimationFrame(() => {
-        inputRef.current?.setSelection(text.length, text.length);
+        const at = cursor ?? text.length;
+        inputRef.current?.setSelection(at, at);
       });
     }
   }, []);
 
-  const attachChannelPath = useCallback(
-    (channelPath: BareChannelPath) => {
+  const channelPathAttachment = useCallback(
+    (channelPath: BareChannelPath): Attachment => {
       const [path, reference] = channelToContentReference(
         channelPath.channelId
       );
-      addAttachment({ type: 'reference', reference, path });
+      return { type: 'reference', reference, path };
     },
-    [addAttachment]
+    []
   );
 
   // A channel path becomes a card only for a channel we know. The lookup is
@@ -596,12 +608,16 @@ function BareChatInput(
         if (!channel) {
           continue;
         }
+        const attachment = channelPathAttachment(channelPath);
         const currentText = controlledTextRef.current;
         const nextText = replaceBareChannelPath(currentText, channelPath);
-        if (nextText === null) {
+        if (
+          nextText === null ||
+          !canAddAttachment(attachmentsRef.current, attachment).ok
+        ) {
           continue;
         }
-        attachChannelPath(channelPath);
+        addAttachment(attachment);
         controlledTextRef.current = nextText;
         setControlledText(nextText);
         const editPosition = firstDifference(currentText, nextText);
@@ -609,10 +625,21 @@ function BareChatInput(
         setMentions((current) =>
           shiftMentions(current, editPosition, delta, nextText)
         );
-        syncNativeText(nextText);
+        const cursor = nativeSelectionRef.current;
+        const nextCursor =
+          cursor == null
+            ? nextText.length
+            : Math.min(
+                nextText.length,
+                cursor >= editPosition - delta
+                  ? cursor + delta
+                  : Math.min(cursor, editPosition)
+              );
+        nativeSelectionRef.current = nextCursor;
+        syncNativeText(nextText, nextCursor);
       }
     },
-    [attachChannelPath, setMentions, syncNativeText]
+    [addAttachment, channelPathAttachment, setMentions, syncNativeText]
   );
 
   const lastProcessedRef = useRef('');
@@ -628,6 +655,13 @@ function BareChatInput(
     )?.selectionStart;
     return typeof selectionStart === 'number' ? selectionStart : undefined;
   }, []);
+
+  const handleSelectionChange = useCallback(
+    (event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+      nativeSelectionRef.current = event.nativeEvent.selection.end;
+    },
+    []
+  );
 
   const handlePasteFiles = useCallback(
     (files: PastedFile[]) => {
@@ -675,13 +709,18 @@ function BareChatInput(
         // A one-character change at the end may be a path still being typed
         // (`/gen` on the way to `/general`), so it waits for a delimiter;
         // a bulk insert such as a paste can convert at the end straight away.
-        convertChannelPaths(
+        const conversion = convertChannelPaths(
           findBareChannelPaths(textWithoutRefs, {
             includeLastWord: newText.length - oldText.length > 1,
           })
-        ).catch((e) => {
-          bareChatInputLogger.error('failed to convert channel paths', e);
-        });
+        )
+          .catch((e) => {
+            bareChatInputLogger.error('failed to convert channel paths', e);
+          })
+          .finally(() => {
+            pendingConversionsRef.current.delete(conversion);
+          });
+        pendingConversionsRef.current.add(conversion);
       } else if (!hasReference) {
         // if there's no reference to process, just update normally
         const cursorPos = getWebSelectionStart();
@@ -787,6 +826,32 @@ function BareChatInput(
       if (sendLookupPendingRef.current) {
         return;
       }
+      // The store refuses this edit too, but only after the composer has been
+      // cleared; refuse it here so the edited text survives.
+      if (isEdit && editingPost) {
+        const uneditableCites = getUneditableCites(
+          extractContentTypesFromPost(editingPost).story
+        );
+        if (uneditableCites.length > 0) {
+          showToast({
+            message: uneditableCitesMessage(uneditableCites),
+            duration: 2500,
+          });
+          setSendError(true);
+          return;
+        }
+      }
+      // A channel path earlier in the text may still be converting. Send once
+      // it has, from the render that carries the result.
+      if (pendingConversionsRef.current.size > 0) {
+        sendLookupPendingRef.current = true;
+        while (pendingConversionsRef.current.size > 0) {
+          await Promise.allSettled(pendingConversionsRef.current);
+        }
+        sendLookupPendingRef.current = false;
+        setQueuedSend({ isEdit: !!isEdit });
+        return;
+      }
       // Sending ends the typing, so a channel path left as the last word is
       // final and converts now. Only the last word: removing text earlier on
       // would shift the mention offsets that follow it.
@@ -798,7 +863,15 @@ function BareChatInput(
       const [channelPath] = lastWord
         ? findBareChannelPaths(lastWord[1], { includeLastWord: true })
         : [];
-      if (lastWord && channelPath) {
+      const channelAttachment = channelPath
+        ? channelPathAttachment(channelPath)
+        : null;
+      if (
+        lastWord &&
+        channelPath &&
+        channelAttachment &&
+        canAddAttachment(sendAttachments, channelAttachment).ok
+      ) {
         sendLookupPendingRef.current = true;
         lookedUpChannel = true;
         const channel = await db
@@ -807,19 +880,20 @@ function BareChatInput(
             sendLookupPendingRef.current = false;
           });
         if (channel) {
-          const [path, reference] = channelToContentReference(
-            channelPath.channelId
-          );
-          sendAttachments.push({ type: 'reference', reference, path });
+          sendAttachments.push(channelAttachment);
           text =
             text.slice(0, lastWord.index) +
             channelPath.leading +
             channelPath.trailing;
         }
       }
-      // Text typed while the lookup was pending isn't in this post; keep it.
+      // Text typed or attachments added while the lookup was pending aren't in
+      // this post; keep the composer as it is. Length, not identity: upload
+      // progress replaces attachment objects.
       const draftChanged =
-        lookedUpChannel && controlledTextRef.current !== sentText;
+        lookedUpChannel &&
+        (controlledTextRef.current !== sentText ||
+          attachmentsRef.current.length !== attachments.length);
 
       const jsonContent = textAndMentionsToContent(text, mentions);
       const inlines = JSONToInlines(jsonContent);
@@ -873,8 +947,10 @@ function BareChatInput(
         setControlledText('');
         setMentions([]);
       }
-      bareChatInputLogger.log('clearing attachments');
-      clearAttachments();
+      if (!draftChanged) {
+        bareChatInputLogger.log('clearing attachments');
+        clearAttachments();
+      }
       bareChatInputLogger.log('resetting input height');
       setInputHeight(initialHeight);
       setEditingPost?.(undefined);
@@ -918,6 +994,8 @@ function BareChatInput(
       resetSlashCommandMode,
       beginComposerSend,
       isSendCoordinated,
+      channelPathAttachment,
+      showToast,
     ]
   );
 
@@ -1542,6 +1620,7 @@ function BareChatInput(
             ref={inputRef}
             value={isWeb ? controlledText : undefined}
             onChangeText={handleTextChange}
+            onSelectionChange={isWeb ? undefined : handleSelectionChange}
             onChange={isWeb ? adjustTextInputSize : undefined}
             onLayout={isWeb ? adjustTextInputSize : undefined}
             onBlur={handleBlur}

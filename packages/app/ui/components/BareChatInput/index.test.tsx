@@ -30,30 +30,37 @@ const mocks = vi.hoisted(() => ({
   refRegex: /NEVER_A_REFERENCE/ as RegExp,
   channels: [] as string[],
   getChannel: vi.fn<[{ id: string }], Promise<{ id: string } | null>>(),
+  showToast: vi.fn(),
 }));
 
 vi.mock('@tloncorp/api', async () => {
   const {
     channelToContentReference,
     findBareChannelPaths,
+    getUneditableCites,
     isReferenceBoundary,
     replaceBareChannelPath,
     toContentReference,
+    uneditableCitesMessage,
   } = await import('@tloncorp/api/client/references');
   return {
     channelToContentReference,
     findBareChannelPaths,
+    getUneditableCites,
     isReferenceBoundary,
     replaceBareChannelPath,
     toContentReference,
+    uneditableCitesMessage,
   };
 });
 vi.mock('@tloncorp/api/urbit', async () => {
   const { pathToCite } = await import('@tloncorp/api/urbit/utils');
   return { pathToCite };
 });
-vi.mock('@tloncorp/shared', () => ({
+vi.mock('@tloncorp/shared', async () => ({
   ALL_MENTION_ID: 'all',
+  extractContentTypesFromPost: (await import('@tloncorp/api/client/utils'))
+    .extractContentTypesFromPost,
   get REF_REGEX() {
     return mocks.refRegex;
   },
@@ -77,6 +84,7 @@ vi.mock('@tloncorp/ui', () => ({
   RawText: 'RawText',
   Text: 'Text',
   useGlobalSearch: () => ({ setIsOpen: mocks.noop }),
+  useToast: () => mocks.showToast,
 }));
 vi.mock('react-native', () => ({
   Platform: {
@@ -989,3 +997,135 @@ test('text typed during the send lookup survives the send', async () => {
   expect(sendPostFromDraft).toHaveBeenCalledTimes(1);
   expect(inputText()).toBe('see /1/chan/chat/~zod/testX');
 });
+
+test('saving an edit of a post with an unknown cite keeps the edit', async () => {
+  mocks.platform = 'android';
+  mocks.hydrateEditPost.mockReturnValue({
+    story: [],
+    attachments: [],
+    isEmpty: false,
+  });
+  const sendPostFromDraft = vi.fn(async () => {});
+  const setEditingPost = vi.fn();
+  await mount({
+    ...draftStorage(),
+    editingPost: {
+      ...makeEditingPost(),
+      content: JSON.stringify([{ block: { cite: { future: {} } } }]),
+    },
+    setEditingPost,
+    sendPostFromDraft,
+  });
+  expect(inputText()).toBe('Edited post');
+
+  await act(async () => container().props.onPressEdit());
+
+  expect(sendPostFromDraft).not.toHaveBeenCalled();
+  expect(setEditingPost).not.toHaveBeenCalled();
+  expect(mocks.clearAttachments).not.toHaveBeenCalled();
+  expect(inputText()).toBe('Edited post');
+  expect(container().props.sendError).toBe(true);
+  expect(mocks.showToast).toHaveBeenCalledWith(
+    expect.objectContaining({ message: 'Upgrade your app to edit this post' })
+  );
+});
+
+test('sending waits for an earlier channel path still being looked up', async () => {
+  mocks.platform = 'android';
+  const sendPostFromDraft = vi.fn(async () => {});
+  await mountWithChannelPaths(['chat/~zod/test'], {
+    ...draftStorage(),
+    sendPostFromDraft,
+  });
+  let finishLookup!: () => void;
+  mocks.getChannel.mockImplementationOnce(
+    ({ id }) =>
+      new Promise((done) => {
+        finishLookup = () => done({ id });
+      })
+  );
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/test hello'));
+  await act(async () => container().props.onPressSend());
+  expect(sendPostFromDraft).not.toHaveBeenCalled();
+
+  await act(async () => finishLookup());
+
+  expect(sendPostFromDraft).toHaveBeenCalledTimes(1);
+  expect(sendPostFromDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ attachments: [channelLinkAttachment] }),
+    expect.anything()
+  );
+  expect(inputText()).toBe('');
+});
+
+test('sending leaves a channel path as text beside a video', async () => {
+  mocks.platform = 'android';
+  const video: Attachment = {
+    type: 'video',
+    localFile: 'file:///clip.mp4',
+    size: 1000,
+    mimeType: 'video/mp4',
+    name: 'clip.mp4',
+    width: 100,
+    height: 100,
+    duration: 1,
+    posterUri: 'file:///poster.jpg',
+  };
+  mocks.attachments = [video];
+  const sendPostFromDraft = vi.fn(async () => {});
+  await mountWithChannelPaths(['chat/~zod/test'], {
+    ...draftStorage(),
+    sendPostFromDraft,
+  });
+  await typeText('see /1/chan/chat/~zod/test');
+
+  await act(async () => container().props.onPressSend());
+
+  expect(sendPostFromDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ attachments: [video] }),
+    expect.anything()
+  );
+  expect(mocks.getChannel).not.toHaveBeenCalledWith({ id: 'chat/~zod/test' });
+});
+
+test('an attachment added during the send lookup survives the send', async () => {
+  const { sendPostFromDraft, finishLookup } = await typeAndHoldSendLookup();
+  await act(async () => {
+    container().props.onPressSend();
+  });
+  act(() => {
+    mocks.addAttachment(reference);
+  });
+  await act(async () => finishLookup());
+
+  expect(sendPostFromDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ attachments: [channelLinkAttachment] }),
+    expect.anything()
+  );
+  expect(mocks.clearAttachments).not.toHaveBeenCalled();
+  expect(mocks.attachments).toEqual([reference]);
+});
+
+test.each([
+  ['before', 'see  hello'.length, 'see /1/chan/chat/~zod/test hello'.length],
+  ['after', 3, 3],
+])(
+  'native keeps the caret where it was when a path %s it converts',
+  async (_where, expected, caret) => {
+    await mountWithChannelPaths();
+    act(() =>
+      input().props.onSelectionChange({
+        nativeEvent: { selection: { start: caret, end: caret } },
+      })
+    );
+    act(() => input().props.onChangeText('see /1/chan/chat/~zod/test hello'));
+    await settle();
+    act(() => frames.splice(0).forEach((callback) => callback(0)));
+
+    expect(inputText()).toBe('see  hello');
+    expect(mocks.input.setSelection).toHaveBeenLastCalledWith(
+      expected,
+      expected
+    );
+  }
+);
