@@ -229,6 +229,12 @@
     %+  expect-eq  !>(`(unit @dr)`~)
     !>  retry-after:(parse '{"code":"rate_limited","retryAfterMs":"5000"}' ~h1)
   ::
+    %+  expect-eq  !>(`(unit @dr)`~)
+    !>  retry-after:(parse '{"code":"rate_limited","retryAfterMs":-5000}' ~h1)
+  ::
+    %+  expect-eq  !>(`(unit @dr)``~h1)
+    !>  retry-after:(parse '{"code":"rate_limited","retryAfterMs":7200000}' ~h1)
+  ::
     %+  expect-eq  !>(|)
     !>  retryable:(parse '{"code":"quota_exceeded","retryable":"yes"}' ~h1)
   ::
@@ -247,6 +253,11 @@
       !>  ^-  [message=@t =broker-error:b]
       ['storage refused the upload' ['unknown' | ~ ~]]
     !>((broker-error:util (res 'not json at all') ~h1))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['storage refused the upload' ['unknown' | ~ ~]]
+    !>((broker-error:util [%finished [503 ~] ~] ~h1))
   ::
     %+  expect-eq
       !>  ^-  [message=@t =broker-error:b]
