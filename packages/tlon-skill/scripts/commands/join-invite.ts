@@ -55,7 +55,8 @@ export interface InviteGroupState {
   member: boolean;
   haveInvite: boolean;
   haveRequestedInvite: boolean;
-  // From the ship's foreign-group record; null when it has none.
+  // Always the preview stored in the ship's foreign-group record (null when
+  // it has none), never a fresh preview, so it can be stale.
   privacy: GroupPrivacy | null;
 }
 
@@ -380,11 +381,13 @@ export async function run(
     if (initial.state.member) return alreadyMember();
     if (initial.state.haveInvite) return await join(true);
 
-    // Previewed once, before the bite: the preview subscription can hang
-    // (the desk only answers when it has one), so an unanswered preview reads
-    // as unknown privacy rather than holding the command.
+    // Previewed at most once, before the bite: the preview subscription can
+    // hang (the desk only answers when it has one), so an unanswered preview
+    // reads as unknown privacy rather than holding the command. A stored
+    // "public" is refreshed too, since skipping the bite on a group that has
+    // since gone private would leave nothing to deliver the invite.
     let privacy = initial.state.privacy;
-    if (privacy === null) {
+    if (privacy === null || privacy === 'public') {
       const previewMs = Math.min(PREVIEW_TIMEOUT_MS, preBiteRemaining());
       const preview = await withinCap(deps, previewMs, () =>
         deps.getPreviewPrivacy(flag, previewMs)
@@ -463,13 +466,14 @@ export async function run(
     }
 
     // Secret or unknown (a denied preview is typical of secret groups): there
-    // is nothing to request, and delivery is unconfirmed. The plugin strips a
-    // leading --self before the CLI runs, so the command cannot tell which
-    // identity it ran as; the retry hint names both forms.
+    // is nothing to request, and delivery is unconfirmed. The retry is this
+    // same command: harnesses route invite redemption and a plain join to
+    // different identities, and an invite that has arrived is accepted
+    // without another bite.
     writeLine(
       deps.stdout,
       `The invite from ${inviter} to ${flag} has not arrived, and its delivery is unconfirmed (their ship may be offline, or invites may be disabled for the group). ` +
-        `Run \`tlon groups join ${flag}\` again later with the same identity (add a trailing --self if this ran as the bot) to accept the invite once it arrives.`
+        `Run \`tlon groups join --invite ${parsed.input}\` again later (with --self if you used it) to accept the invite once it arrives.`
     );
     return 0;
   } catch (error) {

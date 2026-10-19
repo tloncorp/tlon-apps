@@ -39,7 +39,7 @@ const NOT_ARRIVED =
   'The invite from ~nec did not arrive in time (their ship may be offline).';
 const PENDING_LINE =
   'The invite from ~nec to ~zod/test has not arrived, and its delivery is unconfirmed (their ship may be offline, or invites may be disabled for the group). ' +
-  'Run `tlon groups join ~zod/test` again later with the same identity (add a trailing --self if this ran as the bot) to accept the invite once it arrives.\n';
+  'Run `tlon groups join --invite https://invite.tlon.io/0v1.abcde` again later (with --self if you used it) to accept the invite once it arrives.\n';
 
 function state(overrides: Partial<InviteGroupState> = {}): GroupStateRead {
   return {
@@ -412,6 +412,7 @@ describe('join --invite ordering and metadata', () => {
     const result = await runWith(['--invite', LINK], {
       fields: { ...GROUP_FIELDS, invitedGroupId: '~zod/personal-invite-link' },
       states: [state({ privacy: 'public' })],
+      preview: async () => 'public',
     });
     expect(result.calls.getGroupState).toEqual(['~zod/personal-invite-link']);
     expect(result.calls.addContact).toEqual([]);
@@ -487,11 +488,38 @@ describe('join --invite group invites', () => {
       `Joining ${FLAG}. Sync may take a moment to show membership.\n`
     );
 
+    // A stored "public" is confirmed by one fresh preview first.
     const viaForeign = await runWith(['--invite', LINK], {
       states: [state({ privacy: 'public' })],
+      preview: async () => 'public',
     });
-    expect(viaForeign.calls.getPreviewPrivacy).toEqual([]);
+    expect(viaForeign.calls.getPreviewPrivacy).toEqual([[FLAG, 4_000]]);
     expect(viaForeign.calls.biteInvite).toEqual([]);
+    expect(viaForeign.calls.joinGroup).toEqual([{ flag: FLAG, at: 0 }]);
+  });
+
+  it('bites when a fresh preview contradicts a stored public one', async () => {
+    for (const fresh of ['private', 'secret'] as const) {
+      const result = await runWith(['--invite', LINK], {
+        states: [state({ privacy: 'public' }), state({ haveInvite: true })],
+        preview: async () => fresh,
+      });
+      expect(result.calls.getPreviewPrivacy).toHaveLength(1);
+      expect(result.calls.biteInvite).toEqual([[TOKEN, '~ten']]);
+      expect(result.out).toStartWith('Invite accepted;');
+    }
+  });
+
+  it('bites and polls when a stored public preview cannot be refreshed', async () => {
+    const result = await runWith(['--invite', LINK], {
+      states: [state({ privacy: 'public' }), state({ privacy: null })],
+      preview: () => never(),
+    });
+    expect(result.calls.getPreviewPrivacy).toHaveLength(1);
+    expect(result.calls.biteInvite).toHaveLength(1);
+    expect(result.calls.getGroupState.length).toBeGreaterThan(5);
+    expect(result.calls.joinGroup).toEqual([]);
+    expect(result.out).toBe(PENDING_LINE);
   });
 
   it('bites, polls, and accepts an invite that arrives', async () => {
@@ -836,6 +864,7 @@ describe('join --invite phase caps', () => {
   it('bounds the join poke after an invite is found', async () => {
     const result = await runWith(['--invite', LINK], {
       states: [state({ privacy: 'public' })],
+      preview: async () => 'public',
       joinGroup: () => never(),
     });
     expect(result.code).toBe(1);

@@ -487,6 +487,7 @@ const HELP_TOKENS = new Set(['-h', '--help']);
 // Keyed `<family> <op>` so the same op name in two families cannot collide.
 type OwnerCredentialCommand =
   | 'groups invite-link'
+  | 'groups join'
   | 'notes note-publish'
   | 'notes note-unpublish'
   | 'activity mute'
@@ -494,10 +495,20 @@ type OwnerCredentialCommand =
   | 'activity volume';
 
 const OWNER_CREDENTIAL_COMMANDS = new Map<string, readonly string[]>([
-  ['groups', ['invite-link']],
+  ['groups', ['invite-link', 'join']],
   ['notes', ['note-publish', 'note-unpublish']],
   ['activity', ['mute', 'unmute', 'volume']],
 ]);
+
+// Operations that run as the owner only in one form. A plain `groups join
+// <flag>` joins as the bot; redeeming an invite link with --invite joins the
+// person the link was shared with.
+const OWNER_CREDENTIAL_FORMS: Partial<
+  Record<OwnerCredentialCommand, (operands: string[]) => boolean>
+> = {
+  'groups join': (operands) =>
+    operands.some((arg) => arg === '--invite' || arg.startsWith('--invite=')),
+};
 
 const NOTIFICATION_SELF_HINT =
   "Add --self to change this bot's own notification settings instead.";
@@ -510,6 +521,11 @@ const OWNER_CREDENTIAL_WORDING: Record<
     noOwner: "Retrieving the owner's invite link",
     asShip: 'Retrieving the invite link as',
     selfHint: "Add --self to retrieve this bot's own invite link instead.",
+  },
+  'groups join': {
+    noOwner: 'Redeeming an invite as the owner',
+    asShip: 'Redeeming an invite as',
+    selfHint: "Add --self to redeem it for this bot's own account instead.",
   },
   'notes note-publish': {
     noOwner: 'Publishing a note as the owner',
@@ -541,10 +557,11 @@ const OWNER_CREDENTIAL_WORDING: Record<
 /**
  * The shared owner-injection predicate (the Hermes adapter implements the same
  * truth table for `groups invite-link` only): a bare `groups invite-link`,
- * `notes note-publish`, `notes note-unpublish` or `activity mute|unmute|volume`,
- * with no credential flag in either form, no `--self`, and no help token. Any
- * other command keeps the credential selection it was given, exactly as the
- * model wrote it.
+ * `groups join --invite`, `notes note-publish`, `notes note-unpublish` or
+ * `activity mute|unmute|volume`, with no credential flag in either form, no
+ * `--self`, and no help token. `groups join` without `--invite` is not an
+ * owner operation. Any other command keeps the credential selection it was
+ * given, exactly as the model wrote it.
  */
 function ownerCredentialCommand(args: string[]): OwnerCredentialCommand | null {
   if (hasCredentialOverride(args)) return null;
@@ -556,6 +573,8 @@ function ownerCredentialCommand(args: string[]): OwnerCredentialCommand | null {
   const op = commandArgs[1]?.toLowerCase() ?? '';
   if (!OWNER_CREDENTIAL_COMMANDS.get(family)?.includes(op)) return null;
   const operation = `${family} ${op}` as OwnerCredentialCommand;
+  const form = OWNER_CREDENTIAL_FORMS[operation];
+  if (form && !form(commandArgs.slice(2))) return null;
 
   return commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg))
     ? null

@@ -478,6 +478,7 @@ describe('owner credential injection for invite-link, note publishing and notifi
 
   const OWNER_COMMANDS = [
     'groups invite-link ~host/book-club',
+    'groups join --invite https://invite.tlon.io/0v1.abcde',
     'notes note-publish notes/~h/b 12',
     'notes note-unpublish notes/~h/b 12',
     'activity mute ~zod/book-club',
@@ -584,13 +585,21 @@ describe('owner credential injection for invite-link, note publishing and notifi
     [
       OWNER_COMMANDS[1],
       [
+        "Redeeming an invite as the owner requires a configured owner ship. Add --self to redeem it for this bot's own account instead.",
+        "Redeeming an invite as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to redeem it for this bot's own account instead.",
+        `Redeeming an invite as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to redeem it for this bot's own account instead.`,
+      ],
+    ],
+    [
+      OWNER_COMMANDS[2],
+      [
         "Publishing a note as the owner requires a configured owner ship. Add --self to publish from this bot's own ship instead.",
         "Publishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to publish from this bot's own ship instead.",
         `Publishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to publish from this bot's own ship instead.`,
       ],
     ],
     [
-      OWNER_COMMANDS[2],
+      OWNER_COMMANDS[3],
       [
         "Unpublishing a note as the owner requires a configured owner ship. Add --self to unpublish from this bot's own ship instead.",
         "Unpublishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to unpublish from this bot's own ship instead.",
@@ -598,7 +607,7 @@ describe('owner credential injection for invite-link, note publishing and notifi
       ],
     ],
     [
-      OWNER_COMMANDS[3],
+      OWNER_COMMANDS[4],
       [
         `Muting as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
         `Muting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
@@ -606,7 +615,7 @@ describe('owner credential injection for invite-link, note publishing and notifi
       ],
     ],
     [
-      OWNER_COMMANDS[4],
+      OWNER_COMMANDS[5],
       [
         `Unmuting as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
         `Unmuting as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
@@ -614,7 +623,7 @@ describe('owner credential injection for invite-link, note publishing and notifi
       ],
     ],
     [
-      OWNER_COMMANDS[5],
+      OWNER_COMMANDS[6],
       [
         `Changing a notification level as the owner requires a configured owner ship. ${ACTIVITY_HINT}`,
         `Changing a notification level as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. ${ACTIVITY_HINT}`,
@@ -655,6 +664,50 @@ describe('owner credential injection for invite-link, note publishing and notifi
       }
     }
   );
+
+  it('redeems an invite as the bot with --self, and joins plainly as the bot', async () => {
+    for (const command of [
+      'groups join --invite https://invite.tlon.io/0v1.abcde --self',
+      'groups join --self --invite=https://invite.tlon.io/0v1.abcde',
+      'groups join --invite https://invite.tlon.io/0v1.abcde --help',
+      'groups join ~zod/team',
+      'groups join ~zod/team --self',
+    ]) {
+      for (const overrides of PROVISIONING_FAILURES) {
+        const { execute, runCommand } = makeExecutor(overrides);
+
+        const result = await execute('bot', { command });
+
+        expect(result.details).toBeUndefined();
+        expectRanVerbatim(runCommand, command);
+      }
+    }
+  });
+
+  it('runs the --invite= form as the owner too', async () => {
+    const { execute, runCommand } = makeExecutor();
+    const command = 'groups join --invite=https://invite.tlon.io/0v1.abcde';
+
+    await execute('inject', { command });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      '--ship',
+      '~owner',
+      ...command.split(' '),
+    ]);
+  });
+
+  it('classifies invite redemption as a groups write', () => {
+    expect(
+      summarizeTlonCommand(
+        'groups join --invite https://invite.tlon.io/0v1.abcde'
+      )
+    ).toMatchObject({
+      subcommand: 'groups',
+      operation: 'join',
+      intent: 'write',
+    });
+  });
 
   it('never injects owner credentials for activity reads', async () => {
     const { execute, runCommand } = makeExecutor();
