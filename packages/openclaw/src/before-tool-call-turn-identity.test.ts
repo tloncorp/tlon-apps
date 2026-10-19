@@ -33,6 +33,16 @@ type AgentHook = (
   ctx: Ctx & { trigger?: string; messageProvider?: string; jobId?: string }
 ) => unknown;
 
+type TlonTool = {
+  name: string;
+  description: string;
+  execute: (
+    id: string,
+    params: { command: string }
+  ) => Promise<{ content: Array<{ text: string }> }>;
+};
+type ToolFactory = (ctx: { workspaceDir: string }) => TlonTool | null;
+
 /** Recording stand-in for the plugin api (see before-tool-call-cron.test.ts). */
 function registerEntry(
   config: Record<string, unknown> = {
@@ -40,10 +50,30 @@ function registerEntry(
   }
 ) {
   const hooks = new Map<string, unknown>();
+  const tools: ToolFactory[] = [];
+  // The registration snapshot is `api.config`; a reload changes only what
+  // `api.runtime.config.loadConfig()` returns.
+  let liveConfig = config;
+  const runtime: unknown = new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        if (prop === 'config') return { loadConfig: () => liveConfig };
+        if (prop === 'then' || typeof prop === 'symbol') return undefined;
+        return proxy;
+      },
+    }
+  );
   const proxy: unknown = new Proxy(() => undefined, {
     get(_target, prop) {
       if (prop === 'registrationMode') return 'full';
       if (prop === 'config') return config;
+      if (prop === 'runtime') return runtime;
+      if (prop === 'registerTool') {
+        return (factory: unknown) => {
+          if (typeof factory === 'function') tools.push(factory as ToolFactory);
+        };
+      }
       if (prop === 'on') {
         return (name: string, handler: unknown) => hooks.set(name, handler);
       }
@@ -55,6 +85,13 @@ function registerEntry(
   });
   entry.register(proxy as never);
   return {
+    reloadConfig: (next: Record<string, unknown>) => {
+      liveConfig = next;
+    },
+    tlonTool: () =>
+      tools
+        .map((factory) => factory({ workspaceDir: '/tmp' }))
+        .find((tool) => tool?.name === 'tlon'),
     beforeToolCall: hooks.get('before_tool_call') as BeforeToolCallHandler,
     prepare: hooks.get('agent_turn_prepare') as AgentHook,
     modelCallStarted: hooks.get('model_call_started') as AgentHook,
@@ -357,6 +394,47 @@ describe('before_tool_call turn identity', () => {
     await expect(
       beforeToolCall(TLON_CALL, { sessionKey: GROUP, runId: 'run-1' })
     ).resolves.toMatchObject({ block: true });
+  });
+
+  describe('a channels.tlon reload that flips ownerDefault', () => {
+    const ON = { channels: { tlon: { ownerDefault: true } } };
+    const OFF = { channels: { tlon: {} } };
+    const CRON = { sessionKey: 'agent:main:cron:job-1:run:1', runId: 'cron-1' };
+    // Rejected with the flag in both states, with a message that names the
+    // state, so the executor's reading is visible without running the CLI.
+    const CREDENTIAL_SETTINGS = { command: '--config /x.json settings get' };
+
+    it.each([
+      ['true to false', ON, OFF, false],
+      ['false to true', OFF, ON, true],
+    ])(
+      'takes effect without re-registering: %s',
+      async (_label, initial, reloaded, ownerDefault) => {
+        const { beforeToolCall, prepare, reloadConfig, tlonTool } =
+          registerEntry(initial);
+        inbound('owner', 'run-0');
+        await prepare({}, { ...CRON, trigger: 'cron' });
+        const before = tlonTool();
+        reloadConfig(reloaded);
+
+        await expect(beforeToolCall(TLON_CALL, CRON)).resolves.toEqual(
+          ownerDefault ? SELF_CALL : undefined
+        );
+        // The tool resolved before the reload executes with the new value too.
+        const text = (await before!.execute('reload', CREDENTIAL_SETTINGS))
+          .content[0].text;
+        expect(text).toContain(
+          ownerDefault
+            ? 'Commands run as the owner by default'
+            : 'are not accepted on settings or browser'
+        );
+        expect(tlonTool()!.description).toContain(
+          ownerDefault
+            ? 'Commands act as your owner by default'
+            : 'Commands act as this bot.'
+        );
+      }
+    );
   });
 
   it("never lends the tool's owner to a run answering another account's message", async () => {

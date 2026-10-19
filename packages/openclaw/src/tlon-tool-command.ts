@@ -341,8 +341,9 @@ export function findTlonSubcommandIndex(args: string[]): number {
  * token (the gate's rewrite is `--self tlon contacts …`; a model may write
  * `tlon --self contacts …`). Both are removed there. After the family, a
  * `--self` token is an ordinary argument (a title, a bio, a search query) and
- * is passed through untouched; only TRAILING_SELF_OPERATIONS, whose CLI
- * parsers accept a trailing `--self`, also read it as a bot request.
+ * is passed through untouched; only the operations in SELF_OPTION_POSITIONS,
+ * whose CLI parsers accept their own `--self`, also read it as a bot request
+ * where it is an option rather than a positional or an option's value.
  */
 export function normalizeTlonCommandArgs(args: string[]): {
   args: string[];
@@ -383,13 +384,7 @@ export function normalizeTlonCommandArgs(args: string[]): {
     break;
   }
   const rest = args.slice(index);
-  const operation = `${rest[0] ?? ''} ${rest[1] ?? ''}`.toLowerCase();
-  if (
-    TRAILING_SELF_OPERATIONS.has(operation) &&
-    rest.slice(2).includes(SELF_FLAG)
-  ) {
-    selfRequested = true;
-  }
+  if (hasOperationSelfFlag(rest)) selfRequested = true;
   return { args: [...prefix, ...rest], selfRequested, hasCredentialFlag };
 }
 
@@ -477,6 +472,7 @@ export type BlockedTlonOperation = {
     | 'credential_override'
     | 'owner_self_dm'
     | 'bot_ship_unknown'
+    | 'owner_workspace_unsupported'
     | 'runtime_settings_key'
     | 'reserved_automatic_provision'
     | 'reserved_provider_configuration';
@@ -816,17 +812,64 @@ const LEGACY_OWNER_OPERATIONS = new Set([
 ]);
 
 /**
- * Operations whose CLI parsers accept a trailing `--self`, so the plugin also
+ * Operations whose CLI parsers accept their own `--self`, so the plugin also
  * reads one after the operation as a bot request in both flag states: the
  * legacy owner operations, and the workspace and channel creates whose
- * owner-hosting (or, with the flag off, owner routing) it opts out of.
+ * owner-hosting (or, with the flag off, owner routing) it opts out of. For
+ * each, where its options start (index into `[family, operation, …]`) and
+ * which of them take the next token as a value, mirroring the CLI's parse:
+ *
+ * - The legacy operations take no value options, and their parsers consume a
+ *   `--self` token anywhere as the flag (`activity volume --self <target>
+ *   <level>` is valid), so every token after the operation is an option
+ *   position; none of their positionals (a flag, nest, id, target or level)
+ *   can be a literal `--self`.
+ * - create-owned: the title at 2, then `--admin`, `--owner` and
+ *   `--description` with values (getCreateOwnedAdmin in tlon-skill).
+ * - channels create, groups add-channel: the group at 2 and the title at 3,
+ *   then `--kind` and `--description` with values (getOption from 3).
  */
-const TRAILING_SELF_OPERATIONS = new Set([
-  ...LEGACY_OWNER_OPERATIONS,
-  'groups create-owned',
-  'channels create',
-  'groups add-channel',
+const NO_VALUE_OPTIONS: ReadonlySet<string> = new Set();
+const SELF_OPTION_POSITIONS = new Map<
+  string,
+  { start: number; valueOptions: ReadonlySet<string> }
+>([
+  ...[...LEGACY_OWNER_OPERATIONS].map(
+    (operation) =>
+      [operation, { start: 2, valueOptions: NO_VALUE_OPTIONS }] as const
+  ),
+  [
+    'groups create-owned',
+    {
+      start: 3,
+      valueOptions: new Set(['--admin', '--owner', '--description']),
+    },
+  ],
+  [
+    'channels create',
+    { start: 4, valueOptions: new Set(['--kind', '--description']) },
+  ],
+  [
+    'groups add-channel',
+    { start: 4, valueOptions: new Set(['--kind', '--description']) },
+  ],
 ]);
+
+/**
+ * Whether `[family, operation, …]` carries the operation's own `--self`
+ * option, read where the CLI reads options: not a positional, not a value.
+ */
+function hasOperationSelfFlag(commandArgs: string[]): boolean {
+  const operation =
+    `${commandArgs[0] ?? ''} ${commandArgs[1] ?? ''}`.toLowerCase();
+  const positions = SELF_OPTION_POSITIONS.get(operation);
+  if (!positions) return false;
+  for (let i = positions.start; i < commandArgs.length; i += 1) {
+    if (commandArgs[i] === SELF_FLAG) return true;
+    if (positions.valueOptions.has(commandArgs[i])) i += 1;
+  }
+  return false;
+}
 
 function resolveLegacyActingIdentity(
   commandArgs: string[],
@@ -1050,8 +1093,9 @@ function descriptionArgs(commandArgs: string[]): string[] {
 
 /**
  * The shared owner-workspace predicate (the Hermes adapter implements the same
- * truth table): a `groups create-owned` whose admin is the configured owner,
- * with no credential flag in either form, no `--self`, and no help token.
+ * truth table, except that it reads any `--self` token as the option): a `groups create-owned` whose admin is the configured owner,
+ * with no credential flag in either form, no `--self` option (a literal title
+ * or value of `--self` does not count), and no help token.
  * create-owned is hosted by whoever runs it, so the bot makes its owner's
  * workspace on the owner's ship by running it as the owner with itself as the
  * admin. A moon cannot create a group on its parent.
@@ -1068,7 +1112,10 @@ export function shouldCreateWorkspaceOnOwner(
   const commandArgs = args.slice(subIdx);
   if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
   if (commandArgs[1]?.toLowerCase() !== 'create-owned') return false;
-  if (commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg))) {
+  if (
+    hasOperationSelfFlag(commandArgs) ||
+    commandArgs.some((arg) => HELP_TOKENS.has(arg))
+  ) {
     return false;
   }
 
@@ -1085,8 +1132,8 @@ const CHANNEL_CREATE_COMMANDS: ReadonlyArray<readonly [string, string]> = [
 
 /**
  * The shared owner-channel predicate (the Hermes adapter implements the same
- * truth table): a channel create in a group the configured owner hosts, with
- * no credential flag in either form, no `--self`, and no help token. A channel
+ * truth table, except that it reads any `--self` token as the option): a channel create in a group the configured owner hosts, with
+ * no credential flag in either form, no `--self` option, and no help token. A channel
  * is hosted by the ship that creates it, so run as the bot — a non-host admin
  * there — it would land on the bot's ship instead of the owner's.
  */
@@ -1107,7 +1154,10 @@ export function shouldCreateChannelOnOwner(
   ) {
     return false;
   }
-  if (commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg))) {
+  if (
+    hasOperationSelfFlag(commandArgs) ||
+    commandArgs.some((arg) => HELP_TOKENS.has(arg))
+  ) {
     return false;
   }
 
@@ -1185,9 +1235,12 @@ async function routeCreateOwned(
     return { args: asWritten };
   }
 
-  const fallback = workspaceFallback(ownerShip);
+  const fallback = `so this ran on your own ship: you host the workspace and ${ownerShip} is its admin.`;
   if (!botShip) {
-    return { args: asWritten, note: botShipUnknownNote(fallback) };
+    return {
+      args: asWritten,
+      note: `This bot's ship isn't configured here, ${fallback}`,
+    };
   }
   if (!ownerCredentialsProvisioned(deps, ownerShip, 'the workspace')) {
     return {
@@ -1196,18 +1249,14 @@ async function routeCreateOwned(
     };
   }
   if (!(await cliSupportsAdminOption(deps))) {
-    return { args: asWritten, note: noAdminOptionNote(fallback) };
+    return {
+      args: asWritten,
+      note: `The installed tlon CLI's create-owned has no --admin, ${fallback}`,
+    };
   }
 
   return { args: ownerHostedWorkspace(args, ownerShip, botShip) };
 }
-
-const workspaceFallback = (ownerShip: string) =>
-  `so this ran on your own ship: you host the workspace and ${ownerShip} is its admin.`;
-const botShipUnknownNote = (fallback: string) =>
-  `This bot's ship isn't configured here, ${fallback}`;
-const noAdminOptionNote = (fallback: string) =>
-  `The installed tlon CLI's create-owned has no --admin, ${fallback}`;
 
 /**
  * Rebuilt from what the CLI would read: `--ship <owner>`, the title,
@@ -1231,6 +1280,11 @@ function ownerHostedWorkspace(
   ];
 }
 
+const OWNER_WORKSPACE_BOT_SHIP_UNKNOWN_MESSAGE =
+  "Blocked: this bot's own ship could not be determined, so the workspace cannot be hosted on the owner's ship; nothing was run. Add --self to create a bot-hosted group instead.";
+const OWNER_WORKSPACE_NO_ADMIN_OPTION_MESSAGE =
+  "Blocked: the installed tlon CLI cannot host this workspace on the owner's ship (create-owned has no --admin); nothing was run. Add --self to create a bot-hosted group instead.";
+
 /**
  * create-owned with `ownerDefault`: the identity is already chosen, so this
  * only fills in arguments. Run as the owner with the owner named as admin (the
@@ -1239,45 +1293,40 @@ function ownerHostedWorkspace(
  * naming itself makes a plain group, as with the flag off. Anything else runs
  * as written, with the admin spelled so any CLI reads it.
  *
- * Owner credentials are already provisioned (the identity check fails closed
- * first), so two fallbacks remain, both running as written on the bot's own
- * ship with a note: the bot's ship is unknown, so it cannot be named admin;
- * or the installed CLI's create-owned has no --admin, so run as the owner it
- * would make the owner its own admin.
+ * Unlike the flag-off routing, nothing falls back to the bot's ship. Owner
+ * credentials are already provisioned (the identity check fails closed
+ * first), and the two remaining cases are refused: the bot's ship is unknown,
+ * so it cannot be named admin; or the installed CLI's create-owned has no
+ * --admin, so run as the owner it would make the owner its own admin.
  */
 async function routeOwnerDefaultCreateOwned(
   command: string[],
   identity: TlonActingIdentity,
   deps: TlonToolExecutorDeps
-): Promise<OwnerRouting & { identity: TlonActingIdentity }> {
+): Promise<{ args: string[] } | { blocked: BlockedTlonOperation }> {
   const prefix = identity.actAs === 'owner' ? identity.prefix : [];
   const ownerShip = deps.ownerShip;
   const botShip = resolveBotShip(deps);
   if (botShip && botShip === ownerShip && namesOwnShipAdmin(command, botShip)) {
-    return { identity, args: [...prefix, ...asPlainCreate(command)] };
+    return { args: [...prefix, ...asPlainCreate(command)] };
   }
-  const asWritten = withLegacyAdminSpelling(command);
   if (
     identity.actAs !== 'owner' ||
     !shouldCreateWorkspaceOnOwner(command, ownerShip)
   ) {
-    return { identity, args: [...prefix, ...asWritten] };
+    return { args: [...prefix, ...withLegacyAdminSpelling(command)] };
   }
 
-  const asBot = (note: string) => ({
-    identity: { actAs: 'bot' } as const,
-    args: asWritten,
-    note,
+  const unsupported = (message: string) => ({
+    blocked: { message, reason: 'owner_workspace_unsupported' as const },
   });
-  const fallback = workspaceFallback(identity.ship);
-  if (!botShip) return asBot(botShipUnknownNote(fallback));
-  if (!(await cliSupportsAdminOption(deps))) {
-    return asBot(noAdminOptionNote(fallback));
+  if (!botShip) {
+    return unsupported(OWNER_WORKSPACE_BOT_SHIP_UNKNOWN_MESSAGE);
   }
-  return {
-    identity,
-    args: ownerHostedWorkspace(command, identity.ship, botShip),
-  };
+  if (!(await cliSupportsAdminOption(deps))) {
+    return unsupported(OWNER_WORKSPACE_NO_ADMIN_OPTION_MESSAGE);
+  }
+  return { args: ownerHostedWorkspace(command, identity.ship, botShip) };
 }
 
 function routeChannelToOwner(
@@ -1348,7 +1397,7 @@ export type TlonToolExecutorDeps = {
  */
 export function formatTlonIdentityGuidance(ownerDefault: boolean): string {
   return ownerDefault
-    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute and volume, where it also selects the bot. settings and browser always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
+    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute and volume, where --self as an option (not a title or an option\'s value) also selects the bot. settings and browser always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
     : 'Commands act as this bot. groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute and volume act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
 }
 
@@ -1594,7 +1643,6 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       // With the flag off, credential flags pass through in place.
       let runArgs =
         identity.actAs === 'owner' ? [...identity.prefix, ...command] : args;
-      let actingIdentity: TlonActingIdentity = identity;
       // Says where a command meant for the owner ran instead, so the model
       // can report the host. It asserts an outcome, so only a success gets it.
       let routingNote: string | undefined;
@@ -1603,11 +1651,15 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         // filled in. Channel creates need no routing: they already run as
         // the owner unless --self.
         if (isCreateOwnedCommand(command)) {
-          ({
-            args: runArgs,
-            identity: actingIdentity,
-            note: routingNote,
-          } = await routeOwnerDefaultCreateOwned(command, identity, deps));
+          const routed = await routeOwnerDefaultCreateOwned(
+            command,
+            identity,
+            deps
+          );
+          if ('blocked' in routed) {
+            return blockedResult(deps, routed.blocked, subcommand);
+          }
+          runArgs = routed.args;
         }
       } else if (isCreateOwnedCommand(args)) {
         ({ args: runArgs, note: routingNote } = await routeCreateOwned(
@@ -1632,7 +1684,7 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         isMutatingTlonCommand(summarizeKnownTlonCommand(command, false)) &&
         !output.trimStart().startsWith('Usage:');
       const text = echoes
-        ? `${output.replace(/\s+$/, '')}${output.trim() ? '\n' : ''}${formatActingIdentityEcho(actingIdentity, deps.botShip)}`
+        ? `${output.replace(/\s+$/, '')}${output.trim() ? '\n' : ''}${formatActingIdentityEcho(identity, deps.botShip)}`
         : output;
       return {
         content: [{ type: 'text' as const, text }],
