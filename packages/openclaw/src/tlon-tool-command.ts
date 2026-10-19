@@ -635,32 +635,39 @@ function isCreateOwnedCommand(args: string[]): boolean {
 }
 
 /**
- * The command with its admin spelled `--owner`, which every CLI reads: one
- * that predates `--admin` rejects it, and a newer one takes `--owner` as its
- * alias. For a create-owned run as written on the bot's own credentials.
- * `--admin` outranks `--owner`, but a CLI reading only `--owner` takes the
- * first, so every other admin or owner pair is dropped and the admin the CLI
- * would have chosen stays the admin.
+ * The command with its admin spelled `--owner` right after the title, which
+ * every CLI reads: one that predates `--admin` rejects it, and a newer one
+ * takes `--owner` as its alias. For a create-owned run as written on the bot's
+ * own credentials. A CLI reading only `--owner` takes the token after the
+ * first one, even when that `--owner` is a description's value, so the admin
+ * the CLI would have chosen goes first and every other admin or owner pair is
+ * dropped.
  */
 function withLegacyAdminSpelling(args: string[]): string[] {
   const subIdx = findTlonSubcommandIndex(args);
   const commandArgs = args.slice(subIdx);
   const adminIndex = createOwnedAdminIndex(commandArgs);
-  if (adminIndex < 0 || commandArgs[adminIndex] !== '--admin') return args;
+  if (adminIndex < 0) return args;
 
-  const legacy: string[] = [];
-  for (let i = 0; i < commandArgs.length; i += 1) {
+  const rest: string[] = [];
+  for (let i = 3; i < commandArgs.length; i += 1) {
     const arg = commandArgs[i];
-    if (i < 3 || !CREATE_OWNED_VALUE_OPTIONS.has(arg)) {
-      legacy.push(arg);
+    if (!CREATE_OWNED_VALUE_OPTIONS.has(arg)) {
+      rest.push(arg);
       continue;
     }
-    const value = commandArgs.slice(i + 1, i + 2);
     i += 1;
-    if (i - 1 === adminIndex) legacy.push('--owner', ...value);
-    else if (arg === '--description') legacy.push(arg, ...value);
+    if (arg === '--description') {
+      rest.push(arg, ...commandArgs.slice(i, i + 1));
+    }
   }
-  return [...args.slice(0, subIdx), ...legacy];
+  return [
+    ...args.slice(0, subIdx),
+    ...commandArgs.slice(0, 3),
+    '--owner',
+    commandArgs[adminIndex + 1],
+    ...rest,
+  ];
 }
 
 /**
@@ -798,6 +805,20 @@ function ownerCredentialsProvisioned(
 }
 
 /**
+ * The ship the CLI runs as: the one the plugin passes it, or else the one it
+ * reads from the environment when the plugin relies on env credentials. A
+ * config file named by TLON_CONFIG_FILE outranks those variables, and a
+ * cookie alone names no ship here, so either leaves it unknown.
+ */
+function resolveBotShip(deps: TlonToolExecutorDeps): string | undefined {
+  if (deps.botShip) return deps.botShip;
+  const env = deps.env ?? process.env;
+  if (env.TLON_CONFIG_FILE?.trim()) return undefined;
+  const ship = env.URBIT_SHIP?.trim() || env.TLON_SHIP?.trim();
+  return ship ? normalizeShip(ship) || undefined : undefined;
+}
+
+/**
  * Every create-owned goes through here. One for the configured owner runs as
  * the owner, rebuilt from what the CLI would read: `--ship <owner>`, the
  * title, `--admin <bot>`, then the description. Rebuilt rather than edited,
@@ -813,7 +834,7 @@ async function routeCreateOwned(
 ): Promise<OwnerRouting> {
   const asWritten = withLegacyAdminSpelling(args);
   const ownerShip = deps.ownerShip;
-  const botShip = deps.botShip;
+  const botShip = resolveBotShip(deps);
   // Checked before --self opts out of routing: run as itself or not, a bot
   // that is its own owner would name itself admin, which create-owned refuses.
   if (botShip && botShip === ownerShip && namesOwnShipAdmin(args, botShip)) {
@@ -822,9 +843,14 @@ async function routeCreateOwned(
   if (!ownerShip || !shouldCreateWorkspaceOnOwner(args, ownerShip)) {
     return { args: asWritten };
   }
-  if (!botShip) return { args: asWritten };
 
   const fallback = `so this ran on your own ship: you host the workspace and ${ownerShip} is its admin.`;
+  if (!botShip) {
+    return {
+      args: asWritten,
+      note: `This bot's ship isn't configured here, ${fallback}`,
+    };
+  }
   if (!ownerCredentialsProvisioned(deps, ownerShip, 'the workspace')) {
     return {
       args: asWritten,
@@ -858,7 +884,7 @@ function routeChannelToOwner(
   deps: TlonToolExecutorDeps
 ): OwnerRouting {
   const ownerShip = deps.ownerShip;
-  if (!ownerShip || deps.botShip === ownerShip) return { args };
+  if (!ownerShip || resolveBotShip(deps) === ownerShip) return { args };
   if (!ownerCredentialsProvisioned(deps, ownerShip, 'the channel')) {
     return {
       args,
@@ -899,7 +925,10 @@ export type TlonToolExecutorDeps = {
   logError?: (message: string) => void;
   /** Configured owner ship, already normalized to `~ship`. */
   ownerShip?: string;
-  /** This bot's own ship, already normalized to `~ship`. */
+  /**
+   * The ship whose credentials the plugin passes the CLI, already normalized
+   * to `~ship`. Unset when the CLI reads its credentials from the environment.
+   */
   botShip?: string;
   env?: NodeJS.ProcessEnv;
   fileExists?: (path: string) => boolean;

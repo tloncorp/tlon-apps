@@ -1045,7 +1045,7 @@ export default defineBundledChannelEntry({
           // attribute to the owner rather than the bot, and host a workspace
           // made for the owner on the owner's ship with the bot as its agent.
           ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
-          botShip: normalizeShip(account.ship ?? '') || undefined,
+          botShip: normalizeShip(credentials?.ship ?? '') || undefined,
           env: process.env,
           fileExists: (path) => existsSync(path),
         });

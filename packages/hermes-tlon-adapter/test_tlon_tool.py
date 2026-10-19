@@ -2002,6 +2002,36 @@ class OwnerWorkspaceRoutingTests(unittest.TestCase):
             ("tlon-test", "groups", "create-owned", "Projects", "--owner", "~someone"),
         )
 
+    def test_puts_the_admin_ahead_of_a_description_of_owner_when_run_as_written(
+        self,
+    ):
+        cfg = _bot_config()
+
+        for spelling in ("--admin", "--owner"):
+            with self.subTest(spelling=spelling):
+                payload, calls = self._run(
+                    f'groups create-owned Projects --description "--owner" '
+                    f"{spelling} ~someone",
+                    cfg,
+                    OWNER_ENV,
+                )
+
+                self.assertTrue(payload["success"])
+                argv, _run_env = calls[-1]
+                self.assertEqual(
+                    argv,
+                    (
+                        "tlon-test",
+                        "groups",
+                        "create-owned",
+                        "Projects",
+                        "--owner",
+                        "~someone",
+                        "--description",
+                        "--owner",
+                    ),
+                )
+
     def test_keeps_the_admin_the_cli_would_choose_when_both_spellings_appear(self):
         cfg = _bot_config()
 
