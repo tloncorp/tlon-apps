@@ -157,7 +157,7 @@
         %-  frond
         :-  'error'
         %-  pairs
-        :~  ['type' s+(scot %tas type.body.res)]
+        :~  ['type' s+(scot %tas action-error.body.res)]
             ['message' s+message.body.res]
         ==
       ==

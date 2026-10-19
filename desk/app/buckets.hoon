@@ -496,9 +496,18 @@
     ?.  ?=(%issue-bucket-read -.a-bucket.act)  ~
     `flag.act
   =.  pending  (~(put by pending) rid [host until token-for])
-  ::  Watch first, then poke. Cards are delivered in order, so a host that
-  ::  answers in the same event it is poked would publish the terminal fact
-  ::  before we are listening, and the request would sit until its timeout.
+  ::  Watch first, then poke. Within one event on one ship cards are
+  ::  delivered in order, so a host that answers in the same event it is
+  ::  poked would otherwise publish the terminal fact before we are
+  ::  listening, and the request would sit until its timeout.
+  ::
+  ::  FIXME: that order is not guaranteed across ames. Gall prefixes every
+  ::  %watch with a subscription nonce, so the watch and the poke travel on
+  ::  different ducts and therefore different ames flows, which are ordered
+  ::  only within themselves. A watch delayed past the poke means the host
+  ::  answers to nobody and the request sits until its timeout. The fix is
+  ::  to hold the action in `pending` and poke from the %watch-ack handler,
+  ::  at the cost of one round trip per remote request.
   =.  cor
     %-  emit
     :*  %pass  (req-watch-wire host rid)  %agent  [host %buckets]
@@ -524,9 +533,9 @@
   (respond rid paths body)
 ::
 ++  deny
-  |=  [rid=request-id:b paths=(list path) type=action-error:b msg=@t]
+  |=  [rid=request-id:b paths=(list path) err=action-error:b msg=@t]
   ^+  cor
-  (respond rid paths [%error type msg])
+  (respond rid paths [%error err msg])
 ::
 ::  +respond: emit an answer on the subscription paths, and complete a held
 ::  HTTP request if this one came in over Eyre.
@@ -1262,13 +1271,13 @@
     =.  up-core  (up-reservation-call %cancel ~)
     =.  cor  (answer [%pending ~])
     up-core
-  ::  +up-took: one broker answer about this session.
+  ::  +up-take: one broker answer about this session.
   ::
   ::  Every one of these has a client waiting on it, so there is no retry here
   ::  and no silent failure: the session either advances or the uploader is
   ::  told why it did not.
   ::
-  ++  up-took
+  ++  up-take
     |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
     ^+  up-core
     ?:  ?=(%cancel -.res)
@@ -1277,8 +1286,8 @@
     ?.  &((gte code 200) (lth code 300))
       (up-fail (broker-message:util res))
     ?-  kind
-        %grant   (up-took-grant res)
-        %retry   (up-took-grant res)
+        %grant   (up-take-grant res)
+        %retry   (up-take-grant res)
         %cancel  (up-answer [%ok ~])
     ::
         ::  The receipt is this call's answer, so publishing it here is the
@@ -1289,9 +1298,9 @@
       =.  up-core  (up-publish requested-by.ses)
       (up-answer [%ok ~])
     ==
-  ::  +up-took-grant: a signed PUT, from either a first grant or a retry.
+  ::  +up-take-grant: a signed PUT, from either a first grant or a retry.
   ::
-  ++  up-took-grant
+  ++  up-take-grant
     |=  res=client-response:iris
     ^+  up-core
     ?~  body=(broker-body:util res)
@@ -1406,7 +1415,7 @@
     %^  note  %warn
       ~[leaf+"buckets: broker answered about an upload we no longer hold"]
     ~[['session' s+(scot %uv sid)] ['call' s+(scot %tas kind)]]
-  up-abet:(up-took:(up-abed:up-core sid) kind res)
+  up-abet:(up-take:(up-abed:up-core sid) kind res)
 ::
 ::  +verify-receipt: does what landed match what we asked for.
 ::
@@ -2808,7 +2817,7 @@
       ::  way. Come back to it, unless the answer was that we may not read
       ::  this bucket at all, in which case stop serving what we hold.
       =?  cor  &(?=(%error -.body.res) ?=(^ token-for))
-        ?:  =(%not-authorized type.body.res)
+        ?:  =(%not-authorized action-error.body.res)
           (drop-read-token u.token-for)
         (retry-read-token u.token-for)
       (respond rid ~[/v1/requests] body.res)
