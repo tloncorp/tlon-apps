@@ -200,13 +200,85 @@
     (expect-eq !>(&) !>((broker-retryable:util [%cancel ~])))
   ==
 ::
-++  test-broker-message-falls-back-when-unreadable
+::  A refusal is parsed into what the uploader can act on. A cancelled
+::  request is an unknown outcome worth asking about again; a body we cannot
+::  read, or one with no code, is a refusal we know nothing more about.
+::
+++  test-broker-error-reads-the-broker-fields
+  =/  refusal=[message=@t =broker-error:b]
+    %+  broker-error:util
+      %-  res
+      '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":5000,"scope":"host"}'
+    ~h1
+  =/  expected=[message=@t =broker-error:b]
+    ['slow down' ['rate_limited' & `~s5 `'host']]
+  (expect-eq !>(expected) !>(refusal))
+::
+++  test-broker-error-clamps-retry-after-and-drops-nonsense
+  =/  parse
+    |=  [body=@t ceiling=@dr]
+    ^-  broker-error:b
+    broker-error:(broker-error:util (res body) ceiling)
   ;:  weld
-    %+  expect-eq  !>('nope')
-    !>((broker-message:util (res '{"message":"nope"}')))
+    %+  expect-eq  !>(`(unit @dr)``~m1)
+    !>  retry-after:(parse '{"code":"rate_limited","retryAfterMs":120000}' ~m1)
   ::
-    %+  expect-eq  !>('storage refused the upload')
-    !>((broker-message:util (res 'not json at all')))
+    %+  expect-eq  !>(`(unit @dr)`~)
+    !>  retry-after:(parse '{"code":"rate_limited","retryAfterMs":0}' ~h1)
+  ::
+    %+  expect-eq  !>(`(unit @dr)`~)
+    !>  retry-after:(parse '{"code":"rate_limited","retryAfterMs":"5000"}' ~h1)
+  ::
+    %+  expect-eq  !>(|)
+    !>  retryable:(parse '{"code":"quota_exceeded","retryable":"yes"}' ~h1)
+  ::
+    %+  expect-eq  !>(`(unit @t)`~)
+    !>  scope:(parse '{"code":"quota_exceeded","scope":3}' ~h1)
+  ==
+::
+++  test-broker-error-falls-back-when-unreadable
+  ;:  weld
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['nope' ['unknown' | ~ ~]]
+    !>((broker-error:util (res '{"message":"nope"}') ~h1))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['storage refused the upload' ['unknown' | ~ ~]]
+    !>((broker-error:util (res 'not json at all') ~h1))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['storage refused the upload' ['unknown' | ~ ~]]
+    !>((broker-error:util (res '{"code":7,"message":7}') ~h1))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['the storage request was cancelled' ['outcome_unknown' & ~ ~]]
+    !>((broker-error:util [%cancel ~] ~h1))
+  ==
+::
+::  A v1 answer lifts to v2 with no broker detail, and lowering drops only
+::  that, so every other arm survives the round trip untouched.
+::
+++  test-response-body-lifts-and-lowers
+  ;:  weld
+    %+  expect-eq
+      !>  ^-  response-body:v2:b
+      [%error %unknown 'nope' ~]
+    !>((response-body-1-to-2:util [%error %unknown 'nope']))
+  ::
+    %+  expect-eq
+      !>  ^-  response-body:v1:b
+      [%error %unknown 'nope']
+    !>  %-  response-body-2-to-1:util
+        [%error %unknown 'nope' `['rate_limited' & `~s5 ~]]
+  ::
+    %+  expect-eq
+      !>  ^-  response-body:v2:b
+      [%pending ~]
+    !>((response-body-1-to-2:util [%pending ~]))
   ==
 ::
 ++  test-broker-headers-keeps-only-well-formed-pairs

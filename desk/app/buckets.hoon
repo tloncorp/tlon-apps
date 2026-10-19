@@ -225,7 +225,8 @@
     ::  finish, since its answer goes to the same subscription either way.
     ?^  seen=(~(get by requests) request-id.cmd)
       ?~  result.u.seen  cor
-      (respond request-id.cmd ~[/v1/requests] u.result.u.seen)
+      %^  respond  request-id.cmd  ~[/v1/requests]
+      (response-body-1-to-2:util u.result.u.seen)
     =.  cor  (track-request request-id.cmd ~)
     (dispatch-local request-id.cmd act.cmd)
   ::
@@ -330,7 +331,8 @@
   ::  connection with no answer coming.
   ?^  seen=(~(get by requests) rid)
     ::  Already settled: answer from the record rather than running again.
-    ?^  result.u.seen  (give-response eyre-id [rid u.result.u.seen])
+    ?^  result.u.seen
+      (give-response eyre-id [rid (response-body-1-to-2:util u.result.u.seen)])
     ::  Still in flight: hold this connection open for the one answer instead
     ::  of starting a second attempt. The earlier connection is dropped, which
     ::  is why the caller retried, and only one can be answered anyway.
@@ -376,7 +378,7 @@
       (http-error eyre-id 404 'no such request')
     ?~  result.u.req
       (give-response eyre-id [p.got [%pending ~]])
-    (give-response eyre-id [p.got u.result.u.req])
+    (give-response eyre-id [p.got (response-body-1-to-2:util u.result.u.req)])
   ==
 ::
 ::  +request-authorized: Eyre validated a session cookie. Bots would want an
@@ -415,10 +417,10 @@
 ::
 ++  sweep-requests
   |=  now=@da
-  ^-  requests:b
+  ^-  requests:v1:b
   %-  malt
   %+  skip  ~(tap by requests)
-  |=  [rid=request-id:b req=incoming-request:b]
+  |=  [rid=request-id:b req=incoming-request:v1:b]
   ?~  final-at.req  |
   (gth now (add u.final-at.req request-grace))
 ::
@@ -535,7 +537,7 @@
 ++  deny
   |=  [rid=request-id:b paths=(list path) err=action-error:b msg=@t]
   ^+  cor
-  (respond rid paths [%error err msg])
+  (respond rid paths [%error err msg ~])
 ::
 ::  +respond: emit an answer on the subscription paths, and complete a held
 ::  HTTP request if this one came in over Eyre.
@@ -547,12 +549,13 @@
   |=  [rid=request-id:b paths=(list path) body=response-body:b]
   ^+  cor
   =/  res=req-response:b  [rid body]
-  =.  cor  (give [%fact paths buckets-req-response-1+!>(res)])
+  =/  old=req-response:v1:b  (req-response-2-to-1:util res)
+  =.  cor  (give [%fact paths buckets-req-response-1+!>(old)])
   ?:  ?=(%pending -.body)  cor
   ?~  req=(~(get by requests) rid)  cor
   =.  requests
     %+  ~(put by requests)  rid
-    u.req(result `body, final-at `now.bowl, http-id ~)
+    u.req(result `body.old, final-at `now.bowl, http-id ~)
   ?~  http-id.u.req  cor
   (give-response u.http-id.u.req res)
 ::
@@ -675,7 +678,7 @@
   ::  create, and demanding the original creator only turned a retry into a
   ::  crash.
   ?:  (~(has by spaces) flag)
-    =/  taken=_cor  (answer [%error %invalid-input 'that bucket name is taken'])
+    =/  taken=_cor  (answer [%error %invalid-input 'that bucket name is taken' ~])
     =/  sp=space:b  (~(got by spaces) flag)
     ?.  =(%pub net.sp)  taken
     ?~  state.sp  taken
@@ -837,7 +840,7 @@
     |=  [parent=(unit @ud) name=@t actor=ship]
     ^-  [(unit response-body:b) _se-core]
     ?.  (valid-parent:util st parent)
-      [`[%error %not-found 'no such parent folder'] se-core]
+      [`[%error %not-found 'no such parent folder' ~] se-core]
     =/  id=@ud  +(next-id)
     =.  next-id  id
     =/  ent=entry:b
@@ -850,7 +853,7 @@
     |=  [id=@ud name=@t actor=ship]
     ^-  [(unit response-body:b) _se-core]
     ?~  got=(~(get by entries.st) id)
-      [`[%error %not-found 'no such entry'] se-core]
+      [`[%error %not-found 'no such entry' ~] se-core]
     =/  ent=entry:b  u.got
     =.  ent  ent(name name, updated-by actor, updated-at now.bowl)
     =.  entries.st  (~(put by entries.st) id ent)
@@ -868,17 +871,17 @@
     |=  [id=@ud parent=(unit @ud) actor=ship]
     ^-  [(unit response-body:b) _se-core]
     ?.  (valid-parent:util st parent)
-      [`[%error %not-found 'no such parent folder'] se-core]
+      [`[%error %not-found 'no such parent folder' ~] se-core]
     ?~  got=(~(get by entries.st) id)
-      [`[%error %not-found 'no such entry'] se-core]
+      [`[%error %not-found 'no such entry' ~] se-core]
     =/  ent=entry:b  u.got
     ?:  ?&(?=(^ parent) =(u.parent id))
-      [`[%error %invalid-input 'an entry cannot contain itself'] se-core]
+      [`[%error %invalid-input 'an entry cannot contain itself' ~] se-core]
     ?:  ?&  ?=(%folder -.kind.ent)
             ?=(^ parent)
             (descendant:util st id u.parent)
         ==
-      [`[%error %invalid-input 'a folder cannot move inside itself'] se-core]
+      [`[%error %invalid-input 'a folder cannot move inside itself' ~] se-core]
     =.  ent  ent(parent parent, updated-by actor, updated-at now.bowl)
     =.  entries.st  (~(put by entries.st) id ent)
     [~ (se-update [%entry id [%update ent]] actor)]
@@ -888,10 +891,10 @@
     |=  [id=@ud recursive=? actor=ship]
     ^-  [(unit response-body:b) _se-core]
     ?.  (~(has by entries.st) id)
-      [`[%error %not-found 'no such entry'] se-core]
+      [`[%error %not-found 'no such entry' ~] se-core]
     =/  ids=(set @ud)  (descendants:util st id)
     ?.  ?|(recursive =(1 ~(wyt in ids)))
-      [`[%error %invalid-input 'folder is not empty'] se-core]
+      [`[%error %invalid-input 'folder is not empty' ~] se-core]
     =.  entries.st
       %-  ~(rep in ids)
       |=  [key=@ud acc=_entries.st]
@@ -986,13 +989,13 @@
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
   ?.  (valid-parent:util st parent)
-    (answer [%error %not-found 'no such parent folder'])
+    (answer [%error %not-found 'no such parent folder' ~])
   ?:  =(0 size)
-    (answer [%error %invalid-input 'file size must be greater than zero'])
+    (answer [%error %invalid-input 'file size must be greater than zero' ~])
   ?:  (gth size max-object-size)
-    (answer [%error %invalid-input 'file exceeds the maximum object size'])
+    (answer [%error %invalid-input 'file exceeds the maximum object size' ~])
   ?.  (valid-mime:util mime)
-    (answer [%error %invalid-input 'missing or malformed content type'])
+    (answer [%error %invalid-input 'missing or malformed content type' ~])
   =.  cor  prune-broker-authority
   =/  id=@ud  +(next-id)
   =.  next-id  id
@@ -1091,7 +1094,7 @@
     ^+  up-core
     =?  up-core  &(?=(^ awaiting.ses) !=(awaiting.ses rid))
       %-  up-answer
-      [%error %unknown 'superseded by another request on this upload']
+      [%error %unknown 'superseded by another request on this upload' ~]
     up-core(ses ses(awaiting rid))
   ::  +up-answer: give the held request its one terminal answer.
   ::
@@ -1119,7 +1122,7 @@
     ::  the waiter itself, and it would report "storage is unreachable" where
     ::  the reason this was given up for is the one that matters. Once the
     ::  waiter is answered that call has nothing left to say to it.
-    =.  up-core  (up-answer [%error %unknown why])
+    =.  up-core  (up-answer [%error %unknown why ~])
     =?  up-core  ?=(^ reservation.ses)  (up-reservation-call %cancel ~)
     up-core(gone &)
   ::  +up-authority: what we tell the broker about this upload.
@@ -1194,7 +1197,7 @@
       %^  note  %warn
         ~[leaf+"buckets: cannot reach storage, upload cancelled"]
       (log-bucket flag.ses)
-    (up-answer [%error %unknown 'this ship cannot reach storage yet'])
+    (up-answer [%error %unknown 'this ship cannot reach storage yet' ~])
   ::  +up-fail: the broker refused this call, or never made it.
   ::
   ++  up-fail
@@ -1205,7 +1208,7 @@
       %^  note  %warn
         ~[leaf+"buckets: upload failed at the broker"]
       (snoc (log-bucket flag.ses) ['reason' s+why])
-    (up-answer [%error %unknown why])
+    (up-answer [%error %unknown why ~])
   ::  +up-publish: move this session's entry into the manifest and broadcast
   ::  it. The session is retained as %complete so a repeated completion is a
   ::  no-op rather than a second entry.
@@ -1284,7 +1287,7 @@
       (up-fail 'the storage request was cancelled')
     =/  code=@ud  status-code.response-header.res
     ?.  &((gte code 200) (lth code 300))
-      (up-fail (broker-message:util res))
+      (up-fail message:(broker-error:util res upload-window))
     ?-  kind
         %grant   (up-take-grant res)
         %retry   (up-take-grant res)
@@ -1341,14 +1344,14 @@
   |=  [=flag:b sid=@uv actor=ship]
   ^-  (each upload-session:b response-body:b)
   ?~  got=(~(get by sessions) sid)
-    [%| %error %not-found 'no such upload session']
+    [%| %error %not-found 'no such upload session' ~]
   =/  ses=upload-session:b  u.got
   ?.  =(flag flag.ses)
-    [%| %error %not-found 'no such upload session']
+    [%| %error %not-found 'no such upload session' ~]
   ?.  =(requested-by.ses actor)
-    [%| %error %not-authorized 'not the uploader']
+    [%| %error %not-authorized 'not the uploader' ~]
   ?.  =(%pending status.ses)
-    [%| %error %invalid-input 'upload session is not pending']
+    [%| %error %invalid-input 'upload session is not pending' ~]
   [%& ses]
 ::
 ::  +finish-upload: the bytes are up, so settle the reservation and publish.
@@ -1539,7 +1542,7 @@
       ~[leaf+"buckets: no %genuine secret, reader sync deferred"]
     (log-bucket flag)
   ?~  rid  cor
-  (answer [%error %unknown 'this ship cannot reach storage yet'])
+  (answer [%error %unknown 'this ship cannot reach storage yet' ~])
 ::
 ::  +issue-delete-capability: mint a short-lived delete grant for one ready
 ::  file. Deletes stay per-object — they are destructive and unrecoverable.
@@ -1550,13 +1553,13 @@
   =.  cor  prune-broker-authority
   =/  st=bucket-state:b  (need-state flag)
   ?~  got=(~(get by entries.st) id)
-    (answer [%error %not-found 'no such entry'])
+    (answer [%error %not-found 'no such entry' ~])
   =/  ent=entry:b  u.got
   ?.  ?=(%file -.kind.ent)
-    (answer [%error %invalid-input 'entry is a folder'])
+    (answer [%error %invalid-input 'entry is a folder' ~])
   =/  fil=file:b  +.kind.ent
   ?.  =(%ready status.fil)
-    (answer [%error %invalid-input 'file is not ready'])
+    (answer [%error %invalid-input 'file is not ready' ~])
   =/  token=@t  (scot %uv `@uv`eny.bowl)
   =/  expiry=@da  (add now.bowl object-window)
   =.  object-capabilities
@@ -1824,8 +1827,8 @@
     =?  rd-core  !=(waiter awaiting.sync)
       %-  rd-answer
       ?:  ?=(%revoked -.want)
-        [%error %not-authorized 'access changed while the token was being issued']
-      [%error %unknown 'another request for this token overtook it']
+        [%error %not-authorized 'access changed while the token was being issued' ~]
+      [%error %unknown 'another request for this token overtook it' ~]
     =.  sync  [+(revision.sync) bid want till synced.sync | waiter]
     =.  rd-core  (emil (sync-cards ~[[key revision.sync bid want]]))
     ::  Unconditionally: one timer walks the whole owed set, and
@@ -1855,7 +1858,7 @@
       %^  note  %error
         ~[leaf+"buckets: broker refused a revoke, reader still has access"]
       (log-reader key)
-    (rd-answer [%error %unknown why])
+    (rd-answer [%error %unknown why ~])
   --
 ::
 ::  +answer-waiter: give a reader record's held request its one terminal
@@ -2008,7 +2011,7 @@
     ?.  ?=(%lapsed (reader-status:util sync now.bowl))  acc
     ?:  =(reader.key our.bowl)  (recover-local-reader:acc flag.key)
     %+  answer-waiter:acc  key
-    [%error %unknown 'storage did not take this grant before it lapsed']
+    [%error %unknown 'storage did not take this grant before it lapsed' ~]
   =/  wants  owed
   ?~  wants  cor
   =.  cor  (emil (sync-cards wants))
@@ -2796,7 +2799,8 @@
         %fact
       ?.  =(%buckets-req-response-1 p.cage.sign)  cor
       ?.  (request-live rid)  cor
-      =/  res=req-response:b  !<(req-response:b q.cage.sign)
+      =/  res=req-response:b
+        (req-response-1-to-2:util !<(req-response:v1:b q.cage.sign))
       ::  %pending is the host saying it is still working -- minting a read
       ::  token, say, while its push to the broker is in flight. Closing here
       ::  would drop the request and cancel its timeout, and the real answer
