@@ -483,10 +483,10 @@ if [ "${VERBOSE:-0}" = "1" ]; then
   ls -la /root/.openclaw/agents/test/ 2>/dev/null || true
 fi
 
-# Finish any offline state migrations before the gateway starts, as the
-# hosting entrypoint does; the gateway refuses to boot over unmigrated state.
-echo "==> Running openclaw doctor --fix..."
-openclaw doctor --fix --non-interactive || echo "==> WARN: openclaw doctor --fix exited $?"
+# No doctor --fix here (unlike the hosting entrypoint): this state is fresh,
+# and every core this image targets boots over it directly. On 2026.9.33 each
+# doctor pass re-captures the tlon plugin's dependency tree several times,
+# which alone outlasts the harness's gateway readiness timeout.
 
 # Exercise the same discovery path used to build the agent's available skills.
 # An npm package name in plugins.allow can load the channel via auto-enable
