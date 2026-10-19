@@ -319,7 +319,7 @@
       [%upload =upload-grant]
       [%token =read-token]
       [%pending ~]
-      [%error type=action-error message=@t]
+      [%error =action-error message=@t]
   ==
 ::
 ::  $upload-grant: where to PUT one file's bytes, and how.

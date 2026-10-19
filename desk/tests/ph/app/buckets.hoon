@@ -297,7 +297,7 @@
   ?:  ?=(%pending -.body.res)  $
   ?.  ?=(%error -.body.res)
     (ex-equal !>(`@tas`-.body.res) !>(%error))
-  (ex-not-equal !>(`@tas`type.body.res) !>(%not-authorized))
+  (ex-not-equal !>(`@tas`action-error.body.res) !>(%not-authorized))
 ::  +begin-and-grant: open an upload and answer its grant. Yields the session.
 ::
 ++  begin-and-grant
