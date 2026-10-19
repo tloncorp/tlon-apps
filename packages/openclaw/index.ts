@@ -147,6 +147,7 @@ import {
   recordTlonAgentRunTrace,
 } from './src/turn-recorder.js';
 import { resolveTlonAccount } from './src/types.js';
+import { handleWorkspaceBeforePromptBuild } from './src/workspace-instructions.js';
 import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
@@ -1053,11 +1054,13 @@ export default defineBundledChannelEntry({
           // With `ownerDefault`, commands act as this owner (`--ship <owner>`)
           // and the before_tool_call gate rewrites calls on turns the owner
           // did not direct to `--self`. Without it, only the legacy owner
-          // operations do.
+          // operations do, and a workspace made for the owner (or a channel in
+          // a group the owner hosts) is hosted on the owner's ship.
           ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
           ownerDefault: account.ownerDefault,
           // The ship the runner's own credentials act as, for the owner
-          // self-DM guard and the `Ran as` line.
+          // self-DM guard, the `Ran as` line and the admin of a workspace
+          // hosted on the owner's ship.
           botShip: resolveExecutionBotShip(credentials, process.env),
           env: process.env,
           fileExists: (path) => existsSync(path),
@@ -1485,6 +1488,20 @@ export default defineBundledChannelEntry({
             }
           );
         }
+      }
+    });
+
+    // ── Workspace instructions ─────────────────────────────────────────
+    // The monitor publishes the runtime; until it does, this is a no-op.
+    // Fail open: a failed read never blocks the turn.
+    api.on('before_prompt_build', async (_event, ctx) => {
+      try {
+        return await handleWorkspaceBeforePromptBuild(ctx);
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] workspace instructions failed: ${String(error)}`
+        );
+        return undefined;
       }
     });
 

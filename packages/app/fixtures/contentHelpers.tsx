@@ -146,6 +146,11 @@ export const block = {
     postId,
     replyId,
   }),
+  channelLinkReference: (channelId: string) => ({
+    type: 'reference',
+    referenceType: 'channelLink',
+    channelId,
+  }),
   groupReference: (groupId: string) => ({
     type: 'reference',
     referenceType: 'group',
