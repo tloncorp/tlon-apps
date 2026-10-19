@@ -68,10 +68,10 @@ const runnerSlot = sharedSlot<Runner>('cronBudget.runner');
 /** Hosted-only. The wrapper supplies an explicit signal, never inferred from a model name. */
 /**
  * Blocks model-forced runs of budget-held recurring jobs. Registered from the
- * entry's registerCapabilities (see registerAgentTurnHooks in index.ts):
- * OpenClaw 2026.9.x dispatches before_tool_call inside a turn from a per-turn
- * registry that never sees registerFull, so a guard registered only there is
- * inert. Reads only shared state, so it works from any registration.
+ * entry's registerCapabilities (see registerAgentTurnHooks in index.ts): a
+ * turn that loads the plugin in discovery mode never runs registerFull, so a
+ * guard registered only there is inert for that turn. Reads only shared
+ * state, so it works from any registration.
  */
 export function registerBudgetRunGuard(api: Pick<OpenClawPluginApi, 'on'>) {
   const paths = budgetHoldPaths();

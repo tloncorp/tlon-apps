@@ -899,24 +899,29 @@ function installTelemetryDiagnosticObservers(
 }
 
 // ── Agent-turn hooks ───────────────────────────────────────────────────
-// OpenClaw 2026.9.x runs each agent turn against a plugin registry it
-// prepares separately from the gateway's, in "discovery" registration mode.
-// The bundled channel entry helper skips registerFull in that mode and only
-// calls registerCapabilities, and hook dispatch inside a turn consults that
-// registry alone. Hooks that must observe or gate anything during a turn —
-// tool calls, cron attribution, session lifecycle, and the outbound sends a
-// turn makes through the message tool or streamed reply — therefore have to
-// be registered from registerCapabilities; registering them only in
-// registerFull leaves them on the gateway registry and invisible to every
-// turn (the owner-only tool gate was silently inert on 2026.9.4 for exactly
-// this reason). Gateway-lifetime hooks (gateway_start/stop, cron_changed)
-// stay in registerFull with the state they manage.
+// Hook dispatch inside an agent turn consults the turn's plugin registry.
+// On OpenClaw 2026.9.33 a gateway-hosted turn normally borrows the gateway's
+// own instance of this plugin and runs its full-mode registrations. When the
+// gateway lacks the plugin or configures it differently, or there is no
+// unambiguous gateway owner, the turn instead loads a separate instance in
+// "discovery" registration mode, where the bundled channel entry helper skips
+// registerFull and only calls registerCapabilities. Hooks that must observe
+// or gate anything during a turn — tool calls, cron attribution, session
+// lifecycle, and the outbound sends a turn makes through the message tool or
+// streamed reply — are therefore registered from registerCapabilities, which
+// both paths run (full mode calls it after registerFull). Registering them
+// only in registerFull left them invisible to every turn on 2026.9.4, which
+// always used a separate discovery registry (the owner-only tool gate was
+// silently inert there for exactly this reason). Gateway-lifetime hooks
+// (gateway_start/stop, cron_changed) stay in registerFull with the state they
+// manage.
 //
-// The per-turn registry loads this same module instance, so the hooks read
-// the state registerFull computed at gateway boot through agentTurnHookDeps.
-// In processes where registerFull never ran (CLI inspection, doctor) the
-// deps are absent: the owner-only gate still applies, and the lens, trace,
-// and cron-attribution extras are skipped.
+// The hooks read the state registerFull computed at gateway boot through
+// agentTurnHookDeps, a plain module-level variable. A borrowing turn shares
+// the gateway's module and sees it. A separately loaded instance is a fresh
+// module evaluation where registerFull never ran, as in CLI inspection or
+// doctor: the deps are absent, the owner-only gate still applies, and the
+// lens, trace, and cron-attribution extras are skipped.
 type AgentTurnHookDeps = {
   contextLensEnabled: boolean;
   logToolTraceContents: boolean;
@@ -1829,9 +1834,9 @@ export default defineBundledChannelEntry({
     });
 
     // registerAgentTurnHooks runs from registerCapabilities so its hooks also
-    // land in the per-turn plugin registries OpenClaw 2026.9.x prepares in
-    // discovery mode. Those hooks read the gateway-boot state computed above
-    // through this module-level slot.
+    // land in turn registries that load this plugin in discovery mode (see
+    // the Agent-turn hooks comment). Those hooks read the gateway-boot state
+    // computed above through this module-level variable.
     // Only the gateway's full registration owns this state; a tool-discovery
     // pass also runs registerFull, possibly against a prepared runtime's config
     // snapshot, and must not swap closures under hooks other registries hold.

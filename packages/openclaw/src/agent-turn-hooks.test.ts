@@ -5,13 +5,12 @@ import { formatOwnerOnlyToolBlockReason } from './owner-only-tools.js';
 import { setSessionRole } from './session-roles.js';
 
 /**
- * OpenClaw 2026.9.x dispatches hooks inside an agent turn from a per-turn
- * plugin registry loaded in "discovery" registration mode, where the bundled
- * channel entry helper calls registerCapabilities but never registerFull. A
- * hook registered only from registerFull is therefore invisible to every
- * turn. These tests pin the agent-turn hooks to registerCapabilities so a
- * refactor cannot quietly move them back (which silently disabled the
- * owner-only tool gate on 2026.9.4).
+ * An agent turn that loads this plugin in "discovery" registration mode (on
+ * 2026.9.4 every turn; on 2026.9.33 turns that cannot borrow the gateway's
+ * instance) gets registerCapabilities but never registerFull, so a hook
+ * registered only from registerFull is invisible to it. These tests pin the
+ * agent-turn hooks to registerCapabilities so a refactor cannot quietly move
+ * them back (which silently disabled the owner-only tool gate on 2026.9.4).
  */
 
 // Hook name -> handlers registered under it. reply_payload_sending carries

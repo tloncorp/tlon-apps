@@ -16,7 +16,7 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
-requested_core_version="${OPENCLAW_CORE_VERSION:-2026.9.4}"
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.9.33}"
 installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
 if [ "$installed_core_version" != "$requested_core_version" ]; then
   echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"
@@ -169,6 +169,10 @@ if ! printf '%s' "$TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES" | jq -e 'tonumber 
   exit 1
 fi
 
+# OpenClaw 2026.9.6+ disallows silent replies in groups by default, and this
+# plugin marks group messages as unmentioned. agents.defaults.silentReply
+# restores the earlier allow behaviour, mirroring the hosted config tlawn
+# writes.
 cat > "$CONFIG_DIR/openclaw.json" << EOF
 {
   "models": {
@@ -198,7 +202,8 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "model": {
         "primary": "${MODEL:-custom-proxy/tlon-test-scripted}"
       },
-      "heartbeat": { "every": "0m" }
+      "heartbeat": { "every": "0m" },
+      "silentReply": { "group": "allow" }
     },
     "list": [
       {
