@@ -67,6 +67,28 @@ export function createMentionRoleOptions(
   return [...roles, all];
 }
 
+// Moves the mentions at or after an edit by its length change, dropping any
+// the edit broke.
+export function shiftMentions(
+  mentions: Mention[],
+  editPosition: number,
+  delta: number,
+  newText: string
+): Mention[] {
+  return mentions
+    .map((mention) =>
+      mention.start >= editPosition
+        ? { ...mention, start: mention.start + delta, end: mention.end + delta }
+        : mention
+    )
+    .filter(
+      (mention) =>
+        mention.start >= 0 &&
+        mention.end <= newText.length &&
+        newText.slice(mention.start, mention.end) === mention.display
+    );
+}
+
 export const useMentions = ({
   chatId,
   roleOptions,
@@ -236,23 +258,12 @@ export const useMentions = ({
         explicitCursorPosition != null
           ? cursorPosition - (delta > 0 ? delta : 0)
           : (firstDiffIndex ?? cursorPosition);
-      const updatedMentions = mentions
-        .map((mention) => {
-          if (mention.start >= editPosition) {
-            return {
-              ...mention,
-              start: mention.start + delta,
-              end: mention.end + delta,
-            };
-          }
-          return mention;
-        })
-        .filter(
-          (mention) =>
-            mention.start >= 0 &&
-            mention.end <= newText.length &&
-            newText.slice(mention.start, mention.end) === mention.display
-        );
+      const updatedMentions = shiftMentions(
+        mentions,
+        editPosition,
+        delta,
+        newText
+      );
       if (
         updatedMentions.length !== mentions.length ||
         updatedMentions.some((m, i) => m.start !== mentions[i]?.start)

@@ -2,6 +2,7 @@ import * as api from '@tloncorp/api';
 import { poke, scry } from '@tloncorp/api';
 import { Attachment, ImageAttachment } from '@tloncorp/api/types/attachment';
 import { PostDataDraft } from '@tloncorp/api/types/post';
+import type { Story as urbitStory } from '@tloncorp/api/urbit';
 import * as $ from 'drizzle-orm';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,7 +21,10 @@ import {
   deleteFailedPost,
   deletePost,
   editPost,
+  editPostUsingDraft,
   finalizeAndSendPost,
+  forwardChannel,
+  forwardGroup,
   forwardPost,
   retrySendPost,
 } from './postActions';
@@ -1892,5 +1896,157 @@ describe('editing preserves authorship shape', () => {
     );
     const callSites = source.match(/\bapi\.editPost\(/g) ?? [];
     expect(callSites).toHaveLength(1);
+  });
+});
+
+describe('forwarding a reference', () => {
+  const SOURCE_CHANNEL = 'chat/~zod/source';
+  const NOTEBOOK_CHANNEL = 'diary/~zod/bulletin';
+
+  beforeEach(async () => {
+    await db.insertChannels([
+      db.buildChannel({ id: TEST_CHANNEL, type: 'chat' }),
+      db.buildChannel({
+        id: SOURCE_CHANNEL,
+        type: 'chat',
+        title: 'Source',
+      }),
+      db.buildChannel({ id: NOTEBOOK_CHANNEL, type: 'notebook' }),
+    ]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.mocked(poke).mockReset();
+    updateSession(null);
+  });
+
+  test('forwardChannel rejects when the destination channel is missing', async () => {
+    await expect(
+      forwardChannel({
+        sourceChannelId: SOURCE_CHANNEL,
+        channelId: 'chat/~zod/missing',
+      })
+    ).rejects.toThrow();
+  });
+
+  test('forwardChannel rejects when the source channel is missing', async () => {
+    await expect(
+      forwardChannel({
+        sourceChannelId: 'chat/~zod/missing',
+        channelId: TEST_CHANNEL,
+      })
+    ).rejects.toThrow();
+  });
+
+  test('forwardGroup rejects when the group is missing', async () => {
+    await expect(
+      forwardGroup({ groupId: '~zod/missing', channelId: TEST_CHANNEL })
+    ).rejects.toThrow();
+  });
+
+  test('forwardGroup rejects when the destination channel is missing', async () => {
+    await db.insertGroups({
+      groups: [
+        {
+          id: '~zod/group',
+          title: 'Group',
+          currentUserIsMember: true,
+          currentUserIsHost: false,
+          hostUserId: '~zod',
+        } as db.Group,
+      ],
+    });
+    await expect(
+      forwardGroup({ groupId: '~zod/group', channelId: 'chat/~zod/missing' })
+    ).rejects.toThrow();
+  });
+
+  test('forwardChannel posts a channel cite titled for a notebook', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    vi.mocked(poke).mockResolvedValue(0);
+
+    const forward = forwardChannel({
+      sourceChannelId: SOURCE_CHANNEL,
+      channelId: NOTEBOOK_CHANNEL,
+    });
+    await vi.runOnlyPendingTimersAsync();
+    await forward;
+
+    const posts = await getClient()!.query.posts.findMany({
+      where: (posts, { eq }) => eq(posts.channelId, NOTEBOOK_CHANNEL),
+    });
+    expect(posts).toHaveLength(1);
+    expect(posts[0].title).toBe('Source channel');
+    expect(JSON.parse(posts[0].content as string)).toEqual([
+      {
+        type: 'reference',
+        referenceType: 'channelLink',
+        channelId: SOURCE_CHANNEL,
+      },
+    ]);
+  });
+});
+
+describe('editing a post with a cite this build cannot edit', () => {
+  const EDIT_CHANNEL = 'chat/~zod/edits';
+  const unknownCite = { block: { cite: { future: { where: '/x' } } } };
+
+  beforeEach(async () => {
+    await db.insertChannels([
+      db.buildChannel({ id: EDIT_CHANNEL, type: 'chat' }),
+    ]);
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+  });
+
+  afterEach(() => {
+    vi.mocked(poke).mockReset();
+    updateSession(null);
+  });
+
+  async function seedPost() {
+    const channel = (await db.getChannel({ id: EDIT_CHANNEL }))!;
+    const post = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 1,
+      content: [unknownCite, { inline: ['original'] }] as urbitStory,
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [post] });
+    return (await fetchPost(post.id))!;
+  }
+
+  test('an edit that would drop the cite is refused and nothing is sent', async () => {
+    const post = await seedPost();
+
+    await expect(
+      editPostUsingDraft({
+        channelId: EDIT_CHANNEL,
+        content: ['edited'],
+        attachments: [],
+        channelType: 'chat',
+        replyToPostId: null,
+        isEdit: true,
+        editTargetPostId: post.id,
+      })
+    ).rejects.toThrow('Upgrade your app to edit this post');
+
+    expect(vi.mocked(poke)).not.toHaveBeenCalled();
+    expect((await fetchPost(post.id))!.content).toBe(post.content);
+  });
+
+  test('an edit that keeps the cite goes through', async () => {
+    const post = await seedPost();
+
+    await editPost({
+      post,
+      content: [unknownCite, { inline: ['edited'] }] as urbitStory,
+    });
+
+    expect(vi.mocked(poke)).toHaveBeenCalled();
   });
 });

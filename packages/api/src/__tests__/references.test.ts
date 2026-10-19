@@ -3,12 +3,17 @@ import { expect, test } from 'vitest';
 import {
   channelToContentReference,
   contentReferenceToCite,
+  findBareChannelPaths,
+  isReferenceBoundary,
   getChannelReferencePath,
   getNoteReferencePath,
+  getUneditableCites,
   noteToContentReference,
   postToContentReference,
   referenceLookupId,
+  replaceBareChannelPath,
   toContentReference,
+  uneditableCitesMessage,
 } from '../client/references';
 import type * as db from '../types/models';
 import { citeToPath, pathToCite } from '../urbit/utils';
@@ -132,10 +137,22 @@ test('toContentReference rejects a chan cite with an empty /msg/ path', () => {
   ).toBeNull();
 });
 
-test('toContentReference keeps a bare notes cite unparsed', () => {
+test('toContentReference parses a bare notes cite as a channel link', () => {
   expect(
     toContentReference({ chan: { nest: NOTES_CHANNEL_ID, where: '/' } })
-  ).toBeNull();
+  ).toEqual({
+    type: 'reference',
+    referenceType: 'channelLink',
+    channelId: NOTES_CHANNEL_ID,
+  });
+});
+
+test('citeToPath returns undefined for a cite kind it does not know', () => {
+  expect(
+    citeToPath({ future: { where: '/x' } } as unknown as Parameters<
+      typeof citeToPath
+    >[0])
+  ).toBeUndefined();
 });
 
 test('channelToContentReference round-trips through a cite', () => {
@@ -242,4 +259,89 @@ test.each<[string, Parameters<typeof toContentReference>[0], unknown]>([
   ],
 ])('toContentReference parses a %s cite', (_label, cite, expected) => {
   expect(toContentReference(cite)).toStrictEqual(expected);
+});
+
+test('findBareChannelPaths skips the last word unless told it is final', () => {
+  const text = 'see /1/chan/chat/~zod/general. and /1/chan/chat/~zod/gen';
+  expect(findBareChannelPaths(text, { includeLastWord: false })).toEqual([
+    {
+      index: 4,
+      token: '/1/chan/chat/~zod/general.',
+      channelId: 'chat/~zod/general',
+      leading: '',
+      trailing: '.',
+    },
+  ]);
+  expect(
+    findBareChannelPaths(text, { includeLastWord: true }).map(
+      (path) => path.channelId
+    )
+  ).toEqual(['chat/~zod/general', 'chat/~zod/gen']);
+});
+
+test('findBareChannelPaths ignores a path inside other text', () => {
+  expect(
+    findBareChannelPaths('https://example.com/1/chan/chat/~zod/general ', {
+      includeLastWord: true,
+    })
+  ).toEqual([]);
+});
+
+test('replaceBareChannelPath returns null once the word has changed', () => {
+  const [path] = findBareChannelPaths('/1/chan/chat/~zod/general. x', {
+    includeLastWord: false,
+  });
+  expect(replaceBareChannelPath('a /1/chan/chat/~zod/general. x', path)).toBe(
+    'a . x'
+  );
+  expect(
+    replaceBareChannelPath('a /1/chan/chat/~zod/generals. x', path)
+  ).toBeNull();
+});
+
+test('findBareChannelPaths accepts a path after opening punctuation', () => {
+  const text = 'see (/1/chan/chat/~zod/general) and "/1/chan/chat/~zod/ops" x';
+  const paths = findBareChannelPaths(text, { includeLastWord: false });
+  expect(paths.map(({ channelId, leading }) => [channelId, leading])).toEqual([
+    ['chat/~zod/general', '('],
+    ['chat/~zod/ops', '"'],
+  ]);
+  expect(replaceBareChannelPath(text, paths[0])).toBe(
+    'see () and "/1/chan/chat/~zod/ops" x'
+  );
+});
+
+test('replaceBareChannelPath removes the span it found, not an earlier copy', () => {
+  const text = 'a /1/chan/chat/~zod/general b /1/chan/chat/~zod/general c';
+  const [, second] = findBareChannelPaths(text, { includeLastWord: false });
+  expect(replaceBareChannelPath(text, second)).toBe(
+    'a /1/chan/chat/~zod/general b  c'
+  );
+});
+
+test('isReferenceBoundary accepts word starts and opening punctuation', () => {
+  const text = 'x (/1 "/1 \'/1 [/1 a/1 /1';
+  const starts = [...text.matchAll(/\/1/g)].map((match) =>
+    isReferenceBoundary(text, match.index)
+  );
+  expect(starts).toEqual([true, true, true, true, false, true]);
+});
+
+test('getUneditableCites finds cites that edit flows cannot rebuild', () => {
+  const unknown = { future: {} } as unknown as Parameters<typeof citeToPath>[0];
+  const bait = { bait: { group: '~zod/g', graph: '~zod/c', where: '/1' } };
+  const story = [
+    { inline: ['text'] },
+    { block: { cite: { chan: { nest: CHANNEL_ID, where: '/' } } } },
+    { block: { cite: bait } },
+    { block: { cite: unknown } },
+  ];
+  expect(getUneditableCites(story)).toEqual([bait, unknown]);
+  expect(uneditableCitesMessage([bait, unknown])).toBe(
+    'Upgrade your app to edit this post'
+  );
+  expect(uneditableCitesMessage([bait])).toBe(
+    "This post has a reference that can't be edited"
+  );
+  expect(getUneditableCites(null)).toEqual([]);
 });

@@ -1,6 +1,11 @@
 import * as api from '@tloncorp/api';
 import { toPostContent } from '@tloncorp/api';
+import {
+  getUneditableCites,
+  uneditableCitesMessage,
+} from '@tloncorp/api/client/references';
 import * as urbit from '@tloncorp/api/urbit';
+import { isEqual } from 'lodash';
 
 import { trackEvent } from '../../analytics';
 import * as db from '../../db';
@@ -567,6 +572,36 @@ export async function forwardPost({
   });
 }
 
+// Missing targets throw rather than return, so the forward sheet reports a
+// failure instead of a "Forwarded" toast for a post that was never sent.
+async function forwardReference({
+  path,
+  channelId,
+  notebookTitle,
+}: {
+  path: string;
+  channelId: string;
+  notebookTitle: string;
+}) {
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    throw new Error('Unable to find destination channel');
+  }
+
+  const urbitReference = urbit.pathToCite(path);
+  if (!urbitReference) {
+    throw new Error(`Unable to get a reference for ${path}`);
+  }
+
+  return sendFinalizedPost({
+    channelId: channel.id,
+    content: [{ block: { cite: urbitReference } }],
+    replyToPostId: null,
+    metadata:
+      channel.type === 'notebook' ? { title: notebookTitle } : undefined,
+  });
+}
+
 export async function forwardGroup({
   groupId,
   channelId,
@@ -580,38 +615,15 @@ export async function forwardGroup({
 
     const group = await db.getGroup({ id: groupId });
     if (!group) {
-      logger.trackError('Failed to forward group, unable to find original');
-      return;
+      throw new Error('Unable to find group to forward');
     }
 
-    const channel = await db.getChannel({ id: channelId });
-    if (!channel) {
-      logger.trackError('Failed to forward group, unable to find channel');
-      return;
-    }
-
-    const urbitReference = urbit.pathToCite(
-      logic.getGroupReferencePath(groupId)
-    );
-    if (!urbitReference) {
-      logger.trackError(
-        'Failed to forward group, unable to get reference path'
-      );
-      return;
-    }
-
-    return sendFinalizedPost({
-      channelId: channel.id,
-      content: [{ block: { cite: urbitReference } }],
-      replyToPostId: null,
-      metadata:
-        channel.type === 'notebook'
-          ? {
-              title: group.title
-                ? `${group.title} workspace`
-                : 'Forwarded workspace',
-            }
-          : undefined,
+    return await forwardReference({
+      path: logic.getGroupReferencePath(groupId),
+      channelId,
+      notebookTitle: group.title
+        ? `${group.title} workspace`
+        : 'Forwarded workspace',
     });
   } catch (error) {
     logger.trackError('Failed to forward group', error);
@@ -632,38 +644,15 @@ export async function forwardChannel({
 
     const sourceChannel = await db.getChannel({ id: sourceChannelId });
     if (!sourceChannel) {
-      logger.trackError('Failed to forward channel, unable to find original');
-      return;
+      throw new Error('Unable to find channel to forward');
     }
 
-    const channel = await db.getChannel({ id: channelId });
-    if (!channel) {
-      logger.trackError('Failed to forward channel, unable to find channel');
-      return;
-    }
-
-    const urbitReference = urbit.pathToCite(
-      logic.getChannelReferencePath(sourceChannelId)
-    );
-    if (!urbitReference) {
-      logger.trackError(
-        'Failed to forward channel, unable to get reference path'
-      );
-      return;
-    }
-
-    return sendFinalizedPost({
-      channelId: channel.id,
-      content: [{ block: { cite: urbitReference } }],
-      replyToPostId: null,
-      metadata:
-        channel.type === 'notebook'
-          ? {
-              title: sourceChannel.title
-                ? `${sourceChannel.title} channel`
-                : 'Forwarded channel',
-            }
-          : undefined,
+    return await forwardReference({
+      path: logic.getChannelReferencePath(sourceChannelId),
+      channelId,
+      notebookTitle: sourceChannel.title
+        ? `${sourceChannel.title} channel`
+        : 'Forwarded channel',
     });
   } catch (error) {
     logger.trackError('Failed to forward channel', error);
@@ -728,6 +717,18 @@ async function _editPost({
   );
 
   const optimisticPostData = buildOptimisticPostData();
+
+  // Refuse an edit that would drop a cite this build can't carry through the
+  // editors, rather than send the post without it.
+  const editedCites = optimisticPostData.content.flatMap((verse) =>
+    'block' in verse && 'cite' in verse.block ? [verse.block.cite] : []
+  );
+  const droppedCites = getUneditableCites(
+    logic.extractContentTypesFromPost(postBeforeEdit).story
+  ).filter((cite) => !editedCites.some((edited) => isEqual(edited, cite)));
+  if (droppedCites.length > 0) {
+    throw new Error(uneditableCitesMessage(droppedCites));
+  }
 
   // optimistic update
   const [contentForDb, flags] = toPostContent(optimisticPostData.content);

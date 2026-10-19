@@ -39,7 +39,7 @@ const mocks = vi.hoisted(() => ({
   noop: vi.fn(),
 }));
 
-vi.mock('@tloncorp/api', () => ({}));
+vi.mock('@tloncorp/api', () => ({ findBareChannelPaths: () => [] }));
 vi.mock('@tloncorp/api/urbit', () => ({ getChannelType: () => 'notebook' }));
 vi.mock('@tloncorp/shared', async () => ({
   Attachment: (await import('@tloncorp/api/types/attachment')).Attachment,

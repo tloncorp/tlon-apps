@@ -1,7 +1,9 @@
+import { getUneditableCites, uneditableCitesMessage } from '@tloncorp/api';
 import { Block, Inline, constructStory } from '@tloncorp/api/urbit';
 import {
   Attachment,
   createDevLogger,
+  extractContentTypesFromPost,
   markdownToStory,
   storyToContent,
   storyToMarkdown,
@@ -296,8 +298,23 @@ export function BigInput({
     isEmpty,
   ]);
 
+  const uneditableCites = useMemo(
+    () =>
+      editingPost
+        ? getUneditableCites(extractContentTypesFromPost(editingPost).story)
+        : [],
+    [editingPost]
+  );
+
   // Handle sending/editing the post
   const handleSend = useCallback(async () => {
+    if (uneditableCites.length > 0) {
+      showToast({
+        message: uneditableCitesMessage(uneditableCites),
+        duration: 2500,
+      });
+      return;
+    }
     setIsSending(true);
 
     let content: (Inline | Block)[];
@@ -412,6 +429,7 @@ export function BigInput({
     isMarkdownMode,
     markdownContent,
     showToast,
+    uneditableCites,
   ]);
 
   // Register the "Post" button in the header

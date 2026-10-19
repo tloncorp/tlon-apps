@@ -18,7 +18,11 @@ import { View, XStack, styled } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
 import { useNavigation } from '../../contexts/navigation';
-import { useChannelTitle, useGroupTitle } from '../../utils';
+import {
+  getChannelTypeIcon,
+  useChannelTitle,
+  useGroupTitle,
+} from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost/GalleryContentRenderer';
@@ -363,13 +367,7 @@ export function GroupReference({
 
 // Channel link reference (a whole channel, no post)
 
-const channelTypeIcons: Partial<Record<string, IconType>> = {
-  chat: 'ChannelTalk',
-  gallery: 'ChannelGalleries',
-  notebook: 'ChannelNotebooks',
-};
-
-export function ChannelLinkReferenceLoader({
+function ChannelLinkReferenceLoaderComponent({
   channelId,
   openOnPress = true,
   ...props
@@ -393,15 +391,19 @@ export function ChannelLinkReferenceLoader({
 
   return (
     <ChannelLinkReference
+      {...props}
       channelId={channelId}
       channel={channel}
       parentGroup={group}
       isLoading={isLoading}
       onPress={openOnPress && group && pressTarget ? handlePress : undefined}
-      {...props}
     />
   );
 }
+
+export const ChannelLinkReferenceLoader = React.memo(
+  ChannelLinkReferenceLoaderComponent
+) as typeof ChannelLinkReferenceLoaderComponent;
 
 export function ChannelLinkReference({
   channelId,
@@ -417,7 +419,7 @@ export function ChannelLinkReference({
 }) {
   const channelTitle = useChannelTitle(channel ?? null);
   const groupTitle = useGroupTitle(parentGroup);
-  const icon = channelTypeIcons[getChannelType(channelId)] ?? 'ChannelTalk';
+  const icon = getChannelTypeIcon(getChannelType(channelId));
   const title = channelTitle || channelId.split('/')[2] || channelId;
   const { testID, ...skeletonProps } = props;
 

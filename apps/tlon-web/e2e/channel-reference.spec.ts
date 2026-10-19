@@ -65,7 +65,7 @@ test.describe('Channel Reference', () => {
     await expect(zodPage.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
 
     // Step 5: ~ten (not a group member) sees the loaded channel card, not the
-    // upgrade fallback
+    // unparsed-reference fallback
     await tenPage.getByTestId('ChannelListItem-~zod').click();
     const tenCard = tenPage.getByTestId('ChannelLinkReference');
     await expect(tenCard.getByText('General', { exact: true })).toBeVisible({
@@ -73,7 +73,7 @@ test.describe('Channel Reference', () => {
     });
     await expect(tenCard.getByText('Channel', { exact: true })).toBeVisible();
     await expect(
-      tenPage.getByText('Upgrade your app to see this reference')
+      tenPage.getByText("This reference can't be shown")
     ).not.toBeVisible();
 
     // Step 5b: tapping the card as a non-member opens the group preview

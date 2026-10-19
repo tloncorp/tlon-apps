@@ -1,6 +1,11 @@
 import {
+  type BareChannelPath,
+  channelToContentReference,
+  findBareChannelPaths,
   getBotUserIdForUser,
   getCurrentUserId,
+  isReferenceBoundary,
+  replaceBareChannelPath,
   toContentReference,
 } from '@tloncorp/api';
 import { Story, pathToCite } from '@tloncorp/api/urbit';
@@ -75,6 +80,7 @@ import { type ChatDraft, toChatDraft } from './draft';
 import {
   MentionOption,
   createMentionRoleOptions,
+  shiftMentions,
   useMentions,
 } from './useMentions';
 import {
@@ -88,6 +94,14 @@ const MESSAGE_INPUT_CONTAINER_HEIGHT = 48;
 const MAX_NATIVE_INPUT_LINES = 5;
 
 const AUTOCORRECT_FLUSH_TIMEOUT_MS = 20;
+
+function firstDifference(a: string, b: string) {
+  let index = 0;
+  while (index < a.length && a[index] === b[index]) {
+    index += 1;
+  }
+  return index;
+}
 
 function normalizePreviewUrl(url: string) {
   try {
@@ -340,6 +354,11 @@ function BareChatInput(
     runAttachmentTask,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
+  // Async reference conversion must apply to the latest text, not the text
+  // its callback closed over.
+  const controlledTextRef = useRef(controlledText);
+  controlledTextRef.current = controlledText;
+  const sendLookupPendingRef = useRef(false);
   const [initialReferencePaths] = useState(() =>
     attachments.flatMap((attachment) =>
       attachment.type === 'reference' ? [attachment.path] : []
@@ -498,23 +517,23 @@ function BareChatInput(
     current.paths = paths;
   }, [attachments]);
   const prevUrlsRef = useRef<string[]>([]);
-
+  // Strips post, group and app references out of the text and attaches them.
+  // Channel paths are left in place: they need a lookup before they convert.
   const processReferences = useCallback(
     (text: string): string => {
-      const references = text.match(REF_REGEX);
-      if (!references) {
-        return text;
-      }
-
-      let newText = text;
-      references.forEach((ref) => {
+      const spans: { start: number; end: number }[] = [];
+      for (const match of text.matchAll(new RegExp(REF_REGEX.source, 'g'))) {
+        const ref = match[0];
+        if (!isReferenceBoundary(text, match.index)) {
+          continue;
+        }
         const cite = pathToCite(ref);
         if (!cite) {
-          return;
+          continue;
         }
         const reference = toContentReference(cite);
-        if (!reference) {
-          return;
+        if (!reference || reference.referenceType === 'channelLink') {
+          continue;
         }
 
         addAttachment({
@@ -523,12 +542,77 @@ function BareChatInput(
           path: ref,
         });
 
-        newText = newText.replace(ref, '');
-      });
+        spans.push({ start: match.index, end: match.index + ref.length });
+      }
 
-      return newText;
+      // Removed by position, last first, so a copy of the same path inside a
+      // URL earlier on is left alone.
+      return spans.reduceRight(
+        (newText, { start, end }) =>
+          newText.slice(0, start) + newText.slice(end),
+        text
+      );
     },
     [addAttachment]
+  );
+
+  // Shows text set outside the input's own change event. Native renders the
+  // text from children, so its buffer only needs clearing once nothing is left.
+  const syncNativeText = useCallback((text: string) => {
+    if (isWeb) {
+      return;
+    }
+    if (text === '') {
+      // .clear() uses mostRecentEventCount, which isn't updated until after
+      // onChangeText returns; a synchronous call would be rejected as stale.
+      setTimeout(() => {
+        inputRef.current?.clear();
+      }, 0);
+    } else {
+      requestAnimationFrame(() => {
+        inputRef.current?.setSelection(text.length, text.length);
+      });
+    }
+  }, []);
+
+  const attachChannelPath = useCallback(
+    (channelPath: BareChannelPath) => {
+      const [path, reference] = channelToContentReference(
+        channelPath.channelId
+      );
+      addAttachment({ type: 'reference', reference, path });
+    },
+    [addAttachment]
+  );
+
+  // A channel path becomes a card only for a channel we know. The lookup is
+  // async, so the result applies only if the path is still in the text, and
+  // to the text and mentions as they are by then. Later paths go first so an
+  // earlier removal can't shift their spans.
+  const convertChannelPaths = useCallback(
+    async (channelPaths: BareChannelPath[]) => {
+      for (const channelPath of [...channelPaths].reverse()) {
+        const channel = await db.getChannel({ id: channelPath.channelId });
+        if (!channel) {
+          continue;
+        }
+        const currentText = controlledTextRef.current;
+        const nextText = replaceBareChannelPath(currentText, channelPath);
+        if (nextText === null) {
+          continue;
+        }
+        attachChannelPath(channelPath);
+        controlledTextRef.current = nextText;
+        setControlledText(nextText);
+        const editPosition = firstDifference(currentText, nextText);
+        const delta = nextText.length - currentText.length;
+        setMentions((current) =>
+          shiftMentions(current, editPosition, delta, nextText)
+        );
+        syncNativeText(nextText);
+      }
+    },
+    [attachChannelPath, setMentions, syncNativeText]
   );
 
   const lastProcessedRef = useRef('');
@@ -564,12 +648,15 @@ function BareChatInput(
 
       bareChatInputLogger.log('text change', newText);
 
-      // Only process references if the text contains a reference and hasn't been processed before.
-      // This check prevents infinite loops on native platforms where we manually update
-      // the input's text value using setNativeProps after processing references.
-      // Without this guard, each manual text update would trigger another onChangeText,
-      // creating an endless cycle.
-      if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
+      // String#match resets the shared global regex, where .test would leave
+      // its lastIndex behind for the next change.
+      const hasReference = newText.match(REF_REGEX) != null;
+
+      // Only process references if the text contains a reference and hasn't
+      // been processed before. Rewriting the input's text after removing a
+      // reference can fire onChangeText again with the same text; this guard
+      // keeps that from looping.
+      if (hasReference && lastProcessedRef.current !== newText) {
         lastProcessedRef.current = newText;
         const textWithoutRefs = processReferences(newText);
         const cursorPos = getWebSelectionStart();
@@ -577,22 +664,28 @@ function BareChatInput(
           cursorPos != null
             ? Math.max(0, cursorPos - (newText.length - textWithoutRefs.length))
             : undefined;
+        controlledTextRef.current = textWithoutRefs;
         setControlledText(textWithoutRefs);
         handleMention(oldText, textWithoutRefs, adjustedCursorPos);
         handleSlashCommandInput(textWithoutRefs, adjustedCursorPos);
-
-        // Clear the native input's text after processing references.
-        // We defer with setTimeout because .clear() uses mostRecentEventCount
-        // internally, which isn't updated until after onChangeText returns.
-        // Calling it synchronously would use a stale event count that gets rejected.
-        if (!isWeb) {
-          setTimeout(() => {
-            inputRef.current?.clear();
-          }, 0);
+        if (textWithoutRefs !== newText) {
+          syncNativeText(textWithoutRefs);
         }
-      } else if (!REF_REGEX.test(newText)) {
+
+        // A one-character change at the end may be a path still being typed
+        // (`/gen` on the way to `/general`), so it waits for a delimiter;
+        // a bulk insert such as a paste can convert at the end straight away.
+        convertChannelPaths(
+          findBareChannelPaths(textWithoutRefs, {
+            includeLastWord: newText.length - oldText.length > 1,
+          })
+        ).catch((e) => {
+          bareChatInputLogger.error('failed to convert channel paths', e);
+        });
+      } else if (!hasReference) {
         // if there's no reference to process, just update normally
         const cursorPos = getWebSelectionStart();
+        controlledTextRef.current = newText;
         setControlledText(newText);
         handleMention(oldText, newText, cursorPos);
         handleSlashCommandInput(newText, cursorPos);
@@ -608,6 +701,8 @@ function BareChatInput(
       getWebSelectionStart,
       handleMention,
       handleSlashCommandInput,
+      syncNativeText,
+      convertChannelPaths,
     ]
   );
 
@@ -687,7 +782,46 @@ function BareChatInput(
 
   const sendMessage = useCallback(
     async (isEdit?: boolean) => {
-      const jsonContent = textAndMentionsToContent(controlledText, mentions);
+      // A second press while the channel lookup below is pending would send
+      // the same draft again.
+      if (sendLookupPendingRef.current) {
+        return;
+      }
+      // Sending ends the typing, so a channel path left as the last word is
+      // final and converts now. Only the last word: removing text earlier on
+      // would shift the mention offsets that follow it.
+      const sentText = controlledText;
+      let text = sentText;
+      const sendAttachments = [...attachments];
+      let lookedUpChannel = false;
+      const lastWord = /(\S+)\s*$/.exec(text);
+      const [channelPath] = lastWord
+        ? findBareChannelPaths(lastWord[1], { includeLastWord: true })
+        : [];
+      if (lastWord && channelPath) {
+        sendLookupPendingRef.current = true;
+        lookedUpChannel = true;
+        const channel = await db
+          .getChannel({ id: channelPath.channelId })
+          .finally(() => {
+            sendLookupPendingRef.current = false;
+          });
+        if (channel) {
+          const [path, reference] = channelToContentReference(
+            channelPath.channelId
+          );
+          sendAttachments.push({ type: 'reference', reference, path });
+          text =
+            text.slice(0, lastWord.index) +
+            channelPath.leading +
+            channelPath.trailing;
+        }
+      }
+      // Text typed while the lookup was pending isn't in this post; keep it.
+      const draftChanged =
+        lookedUpChannel && controlledTextRef.current !== sentText;
+
+      const jsonContent = textAndMentionsToContent(text, mentions);
       const inlines = JSONToInlines(jsonContent);
 
       const draft: domain.PostDataDraft = (() => {
@@ -696,7 +830,7 @@ function BareChatInput(
           content: inlines,
           // Unlike Gallery, Chat keeps every item from a multi-selection in
           // the same post.
-          attachments,
+          attachments: sendAttachments,
           image: image?.uri,
           channelType,
           replyToPostId: null,
@@ -733,9 +867,12 @@ function BareChatInput(
         }
       };
 
-      const draftClear = clearComposerDraft();
-      setControlledText('');
-      setMentions([]);
+      const draftClear = draftChanged ? undefined : clearComposerDraft();
+      if (!draftChanged) {
+        controlledTextRef.current = '';
+        setControlledText('');
+        setMentions([]);
+      }
       bareChatInputLogger.log('clearing attachments');
       clearAttachments();
       bareChatInputLogger.log('resetting input height');
