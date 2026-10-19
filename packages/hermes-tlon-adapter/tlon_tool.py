@@ -1050,13 +1050,32 @@ def _is_create_owned(args: Sequence[str]) -> bool:
 def _with_legacy_admin_spelling(args: Sequence[str]) -> list[str]:
     """The command with its admin spelled ``--owner``, which every CLI reads:
     one that predates ``--admin`` rejects it, and a newer one takes ``--owner``
-    as its alias. For a create-owned run as written on the bot's credentials."""
-    legacy = [str(arg) for arg in args]
-    sub_idx = find_subcommand_index(legacy)
-    admin_index = _create_owned_admin_index(legacy[sub_idx:])
-    if admin_index >= 0 and legacy[sub_idx + admin_index] == "--admin":
-        legacy[sub_idx + admin_index] = "--owner"
-    return legacy
+    as its alias. For a create-owned run as written on the bot's credentials.
+    ``--admin`` outranks ``--owner``, but a CLI reading only ``--owner`` takes
+    the first, so every other admin or owner pair is dropped and the admin the
+    CLI would have chosen stays the admin."""
+    all_args = [str(arg) for arg in args]
+    sub_idx = find_subcommand_index(all_args)
+    command_args = all_args[sub_idx:]
+    admin_index = _create_owned_admin_index(command_args)
+    if admin_index < 0 or command_args[admin_index] != "--admin":
+        return all_args
+
+    legacy: list[str] = []
+    i = 0
+    while i < len(command_args):
+        arg = command_args[i]
+        if i < 3 or arg not in CREATE_OWNED_VALUE_OPTIONS:
+            legacy.append(arg)
+            i += 1
+            continue
+        value = command_args[i + 1 : i + 2]
+        if i == admin_index:
+            legacy += ["--owner", *value]
+        elif arg == "--description":
+            legacy += [arg, *value]
+        i += 2
+    return [*all_args[:sub_idx], *legacy]
 
 
 def _as_plain_create(args: Sequence[str]) -> list[str]:

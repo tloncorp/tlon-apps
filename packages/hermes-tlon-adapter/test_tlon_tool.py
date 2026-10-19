@@ -2002,6 +2002,32 @@ class OwnerWorkspaceRoutingTests(unittest.TestCase):
             ("tlon-test", "groups", "create-owned", "Projects", "--owner", "~someone"),
         )
 
+    def test_keeps_the_admin_the_cli_would_choose_when_both_spellings_appear(self):
+        cfg = _bot_config()
+
+        payload, calls = self._run(
+            "groups create-owned Projects --owner ~alice --admin ~bob "
+            "--description Work",
+            cfg,
+            OWNER_ENV,
+        )
+
+        self.assertTrue(payload["success"])
+        argv, _run_env = calls[-1]
+        self.assertEqual(
+            argv,
+            (
+                "tlon-test",
+                "groups",
+                "create-owned",
+                "Projects",
+                "--owner",
+                "~bob",
+                "--description",
+                "Work",
+            ),
+        )
+
     def test_makes_a_plain_group_when_the_bot_is_its_own_owner(self):
         cfg = _bot_config(TLON_OWNER_SHIP="~bot")
 

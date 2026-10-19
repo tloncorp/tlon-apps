@@ -880,6 +880,25 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     }
   });
 
+  it('keeps the admin the CLI would choose when both spellings appear', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('both', {
+      command:
+        'groups create-owned Projects --owner ~alice --admin ~bob --description Work',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~bob',
+      '--description',
+      'Work',
+    ]);
+  });
+
   it('makes a plain group when the bot is its own owner', async () => {
     const { execute, runCommand } = makeExecutor({ botShip: '~owner' });
 

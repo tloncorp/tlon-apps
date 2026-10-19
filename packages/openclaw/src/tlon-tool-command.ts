@@ -638,14 +638,29 @@ function isCreateOwnedCommand(args: string[]): boolean {
  * The command with its admin spelled `--owner`, which every CLI reads: one
  * that predates `--admin` rejects it, and a newer one takes `--owner` as its
  * alias. For a create-owned run as written on the bot's own credentials.
+ * `--admin` outranks `--owner`, but a CLI reading only `--owner` takes the
+ * first, so every other admin or owner pair is dropped and the admin the CLI
+ * would have chosen stays the admin.
  */
 function withLegacyAdminSpelling(args: string[]): string[] {
   const subIdx = findTlonSubcommandIndex(args);
-  const adminIndex = createOwnedAdminIndex(args.slice(subIdx));
-  if (adminIndex < 0 || args[subIdx + adminIndex] !== '--admin') return args;
-  const legacy = [...args];
-  legacy[subIdx + adminIndex] = '--owner';
-  return legacy;
+  const commandArgs = args.slice(subIdx);
+  const adminIndex = createOwnedAdminIndex(commandArgs);
+  if (adminIndex < 0 || commandArgs[adminIndex] !== '--admin') return args;
+
+  const legacy: string[] = [];
+  for (let i = 0; i < commandArgs.length; i += 1) {
+    const arg = commandArgs[i];
+    if (i < 3 || !CREATE_OWNED_VALUE_OPTIONS.has(arg)) {
+      legacy.push(arg);
+      continue;
+    }
+    const value = commandArgs.slice(i + 1, i + 2);
+    i += 1;
+    if (i - 1 === adminIndex) legacy.push('--owner', ...value);
+    else if (arg === '--description') legacy.push(arg, ...value);
+  }
+  return [...args.slice(0, subIdx), ...legacy];
 }
 
 /**
