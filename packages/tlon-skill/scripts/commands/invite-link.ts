@@ -1,5 +1,4 @@
-import { valid } from '@urbit/aura';
-
+import { isGroupFlag } from '../cli-utils';
 import {
   type CommandDeps,
   commandError,
@@ -53,15 +52,6 @@ export interface InviteLinkDeps extends CommandDeps {
 export type ParsedInviteLinkArgs =
   | { kind: 'help' }
   | { kind: 'run'; flag: string; self: boolean };
-
-// Mirrors @tloncorp/api's whomIsFlag (value imports from @tloncorp/api are
-// forbidden in migrated command modules): ~ship/term with a valid patp ship.
-function isGroupFlag(value: string): boolean {
-  return (
-    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(value) &&
-    valid('p', value.split('/')[0])
-  );
-}
 
 export function parseInviteLinkArgs(args: string[]): ParsedInviteLinkArgs {
   let self = false;

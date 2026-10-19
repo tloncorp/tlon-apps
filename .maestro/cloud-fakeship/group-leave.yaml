@@ -10,18 +10,18 @@ env:
     direction: UP
     timeout: 30000
 - longPressOn: ${'Leave-' + MAESTRO_RUN_TAG}
-- tapOn: '^Group info & settings$'
+- tapOn: '^Workspace info & settings$'
 - scrollUntilVisible:
     element:
-      id: GroupLeaveAction-Leave group
+      id: GroupLeaveAction-Leave workspace
     direction: DOWN
     timeout: 5000
 - tapOn:
-    id: GroupLeaveAction-Leave group
+    id: GroupLeaveAction-Leave workspace
 - assertVisible: '^Leave Leave-.*[?]$'
-- assertVisible: '^You will no longer receive updates from this group\..*'
+- assertVisible: '^You will no longer receive updates from this workspace\..*'
 - tapOn:
-    text: '^Leave Group$'
+    text: '^Leave Workspace$'
     rightOf: '^Cancel$'
 - assertVisible:
     id: ScreenHeaderTitle

@@ -620,7 +620,7 @@ export function getDefaultVolumeOption(
   if ('channel' in source && group) {
     const groupVolume = settings[`group/${group}`];
     return {
-      label: groupVolume ? 'Use group default' : def,
+      label: groupVolume ? 'Use workspace default' : def,
       volume: groupVolume ? getLevelFromVolumeMap(groupVolume) : base,
     };
   }

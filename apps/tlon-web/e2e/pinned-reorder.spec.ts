@@ -45,7 +45,9 @@ async function pinNamedGroup(page: Page, title: string) {
     timeout: 10000,
   });
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({
+    timeout: 10000,
+  });
   const status = await helpers.toggleChatPin(page);
   expect(status).toBe('pinned');
   await helpers.navigateBack(page);
