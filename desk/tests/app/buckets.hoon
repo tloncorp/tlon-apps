@@ -78,8 +78,8 @@
 ::  +grant-fact: the single card a settled local action produces.
 ::
 ++  grant-fact
-  |=  [rid=@uv body=response-body:bu]
-  (ex-fact ~[/v1/requests] %buckets-req-response-1 !>(`req-response:bu`[rid body]))
+  |=  [rid=@uv body=response-body:v1:bu]
+  (ex-fact ~[/v1/requests] %buckets-req-response-1 !>(`req-response:v1:bu`[rid body]))
 ::
 ::  +genuine-scries: %buckets authenticates itself to the broker with the
 ::  secret %genuine holds, so anything that mints or revokes a token reads it.
@@ -796,7 +796,7 @@
     %+  ex-cards  (skim revoke-caz |=(car=card ?=([%give %fact *] car)))
     :~  %+  ex-fact  ~[/v1/request/~bus/0v9]
         :-  %buckets-req-response-1
-        !>  ^-  req-response:bu
+        !>  ^-  req-response:v1:bu
         :-  0v9
         [%error %not-authorized 'access changed while the token was being issued']
     ==
@@ -1286,7 +1286,7 @@
         /buckets/req/~sampel-palnet/0v4/watch
       [~sampel-palnet %buckets]
     :+  %fact  %buckets-req-response-1
-    !>(`req-response:bu`[0v4 [%pending ~]])
+    !>(`req-response:v1:bu`[0v4 [%pending ~]])
   ;<  ~  b  (ex-cards waiting ~)
   ::  then the real answer lands, and it settles
   =/  tok=read-token:bu  ['0v1.2345' (add ~2026.1.1 ~d1)]
@@ -1295,7 +1295,7 @@
         /buckets/req/~sampel-palnet/0v4/watch
       [~sampel-palnet %buckets]
     :+  %fact  %buckets-req-response-1
-    !>(`req-response:bu`[0v4 [%token tok]])
+    !>(`req-response:v1:bu`[0v4 [%token tok]])
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
   ;<  ~  b
@@ -1340,7 +1340,7 @@
         /buckets/req/~sampel-palnet/0v4/watch
       [~sampel-palnet %buckets]
     :+  %fact  %buckets-req-response-1
-    !>(`req-response:bu`[0v4 [%token tok]])
+    !>(`req-response:v1:bu`[0v4 [%token tok]])
   ::  now a folder rename is refused
   ;<  *  b  (ask 0v5 [%bucket flag [%entry 1 [%rename 'nope']]])
   ;<  caz=(list card)  b
@@ -1348,7 +1348,7 @@
         /buckets/req/~sampel-palnet/0v5/watch
       [~sampel-palnet %buckets]
     :+  %fact  %buckets-req-response-1
-    !>(`req-response:bu`[0v5 [%error %not-authorized 'not authorized for this bucket']])
+    !>(`req-response:v1:bu`[0v5 [%error %not-authorized 'not authorized for this bucket']])
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
   ::  the token is untouched, and no token timer was armed on its behalf
@@ -1422,7 +1422,7 @@
         [/buckets/reader-retry [%b %wait (add ~2026.1.1 ~m2)]]
         %+  ex-fact  ~[/v1/requests]
         :-  %buckets-req-response-1
-        !>  ^-  req-response:bu
+        !>  ^-  req-response:v1:bu
         [0v7 %error %unknown 'this ship cannot reach storage yet']
     ==
   ::  the secret appears and the retry timer sends what was owed
@@ -1720,7 +1720,7 @@
     ^-  (unit @uv)
     ?.  ?=([%give %fact *] card)  ~
     ?.  =(%buckets-req-response-1 p.cage.p.card)  ~
-    `request-id:!<(req-response:bu q.cage.p.card)
+    `request-id:!<(req-response:v1:bu q.cage.p.card)
   %+  ex-equal
     !>(answered)
   !>(~[(slav %uv rid)])
@@ -1846,7 +1846,7 @@
         /buckets/req/~sampel-palnet/0v7/watch
       [~sampel-palnet %buckets]
     :+  %fact  %buckets-req-response-1
-    !>(`req-response:bu`[0v7 [%token tok]])
+    !>(`req-response:v1:bu`[0v7 [%token tok]])
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
   ::  it lands on the bucket that asked, and the sibling still holds none
@@ -1940,7 +1940,7 @@
   :~  %-  ex-fact
       :*  ~[/v1/request/~bus/0v5]
           %buckets-req-response-1
-          !>(`req-response:bu`[0v5 [%error %not-authorized 'not authorized for this bucket']])
+          !>(`req-response:v1:bu`[0v5 [%error %not-authorized 'not authorized for this bucket']])
       ==
   ==
 ::

@@ -158,14 +158,39 @@
   ^-  (unit [@t @t])
   ?.  ?=([%a [%s *] [%s *] ~] json)  ~
   `[p.i.p.json p.i.t.p.json]
-::  +broker-message: what the broker said went wrong, if it said anything.
+::  +broker-error: the broker's account of a refused call, for the uploader.
 ::
-++  broker-message
-  |=  res=client-response:iris
-  ^-  @t
-  ?~  body=(broker-body res)  'storage refused the upload'
-  ?~  got=(~(get by u.body) 'message')  'storage refused the upload'
-  ?.(?=([%s *] u.got) 'storage refused the upload' p.u.got)
+::  A cancelled Iris request says nothing about what the broker did, so it
+::  is an unknown outcome worth asking about again. A body we cannot read,
+::  or one that names no code, is a refusal we know nothing more about, and
+::  not one to repeat. .retry-after is clamped to .ceiling: a wait past the
+::  upload window is one no session survives.
+::
+++  broker-error
+  |=  [res=client-response:iris ceiling=@dr]
+  ^-  [message=@t =broker-error:b]
+  =/  fallback=@t  'storage refused the upload'
+  ?:  ?=(%cancel -.res)
+    ['the storage request was cancelled' ['outcome_unknown' & ~ ~]]
+  ?~  body=(broker-body res)  [fallback ['unknown' | ~ ~]]
+  =/  message=@t
+    ?~  got=(~(get by u.body) 'message')  fallback
+    ?.(?=([%s *] u.got) fallback p.u.got)
+  ?~  code=(~(get by u.body) 'code')  [message ['unknown' | ~ ~]]
+  ?.  ?=([%s *] u.code)  [message ['unknown' | ~ ~]]
+  =/  retryable=?
+    ?~  got=(~(get by u.body) 'retryable')  |
+    ?.(?=([%b *] u.got) | p.u.got)
+  =/  retry-after=(unit @dr)
+    ?~  got=(~(get by u.body) 'retryAfterMs')  ~
+    ?.  ?=([%n *] u.got)  ~
+    ?~  ms=(rush p.u.got dim:ag)  ~
+    ?:  =(0 u.ms)  ~
+    `(min (div (mul u.ms ~s1) 1.000) ceiling)
+  =/  scope=(unit @t)
+    ?~  got=(~(get by u.body) 'scope')  ~
+    ?.(?=([%s *] u.got) ~ `p.u.got)
+  [message [p.u.code retryable retry-after scope]]
 ::  +broker-applied: whether the broker took the write, as it reported it.
 ::
 ::  The receipt says so outright, and inferring it from revisions instead gets
@@ -203,4 +228,32 @@
   ?~  got=(~(get by u.body) 'retryable')  &
   ?.  ?=([%b *] u.got)  &
   p.u.got
+::  +response-body-1-to-2: a v1 answer in the current shape. An error gains
+::  no broker detail, because whoever sent v1 had none to give.
+::
+++  response-body-1-to-2
+  |=  body=response-body:v1:b
+  ^-  response-body:v2:b
+  ?.  ?=(%error -.body)  body
+  [%error action-error.body message.body ~]
+::  +req-response-1-to-2: +response-body-1-to-2 under its request id.
+::
+++  req-response-1-to-2
+  |=  res=req-response:v1:b
+  ^-  req-response:v2:b
+  [request-id.res (response-body-1-to-2 body.res)]
+::  +response-body-2-to-1: the current shape as v1, which is what
+::  %buckets-req-response-1 carries. The broker detail is all v1 cannot say.
+::
+++  response-body-2-to-1
+  |=  body=response-body:v2:b
+  ^-  response-body:v1:b
+  ?.  ?=(%error -.body)  body
+  [%error action-error.body message.body]
+::  +req-response-2-to-1: +response-body-2-to-1 under its request id.
+::
+++  req-response-2-to-1
+  |=  res=req-response:v2:b
+  ^-  req-response:v1:b
+  [request-id.res (response-body-2-to-1 body.res)]
 --

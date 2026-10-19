@@ -157,8 +157,28 @@
         %-  frond
         :-  'error'
         %-  pairs
-        :~  ['type' s+(scot %tas action-error.body.res)]
-            ['message' s+message.body.res]
+        =/  common=(list [cord json])
+          :~  ['type' s+(scot %tas action-error.body.res)]
+              ['message' s+message.body.res]
+          ==
+        ::  The broker's fields appear only when the broker spoke: a client
+        ::  reading them absent knows nothing was said, not that a wait of
+        ::  zero was asked for.
+        =/  brk=(unit broker-error:b)  broker.body.res
+        ?~  brk  common
+        %+  weld  common
+        ^-  (list [cord json])
+        ;:  weld
+          ^-  (list [cord json])
+          ~[['code' s+code.u.brk] ['retryable' b+retryable.u.brk]]
+        ::
+          ^-  (list [cord json])
+          ?~  retry-after.u.brk  ~
+          ~[['retryAfterMs' (numb (div (mul u.retry-after.u.brk 1.000) ~s1))]]
+        ::
+          ^-  (list [cord json])
+          ?~  scope.u.brk  ~
+          ~[['scope' s+u.scope.u.brk]]
         ==
       ==
     %-  pairs
