@@ -1953,6 +1953,71 @@ export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
   },
 ];
 
+// `groups join --invite`: input validation happens locally, and every path
+// that would reach the invite service authenticates first, so the hermetic
+// env (no credentials) proves no request leaves before auth.
+export const JOIN_INVITE_CASES: CliCase[] = [
+  usageErrorCase(
+    'groups join --invite missing value',
+    ['groups', 'join', '--invite'],
+    'Usage: tlon groups join'
+  ),
+  usageErrorCase(
+    'groups join --invite rejects unknown host',
+    ['groups', 'join', '--invite', 'https://example.com/0v1.abcde'],
+    'Usage: tlon groups join'
+  ),
+  usageErrorCase(
+    'groups join rejects positional plus --invite',
+    ['groups', 'join', '~zod/test', '--invite', '0v1.abcde'],
+    'Usage: tlon groups join'
+  ),
+  refusalCase(
+    'groups join --invite DM link refuses',
+    ['groups', 'join', '--invite', 'https://invite.tlon.io/dm-~zod'],
+    'is a DM link'
+  ),
+  helpCase(
+    'groups join --invite --help',
+    ['groups', 'join', '--invite', '0v1.abcde', '--help'],
+    'tlon groups join --invite'
+  ),
+  authRequiredCase('groups join --invite link reaches auth', [
+    'groups',
+    'join',
+    '--invite',
+    'https://invite.tlon.io/0v1.abcde',
+  ]),
+  authRequiredCase('groups join --invite --self reaches auth', [
+    'groups',
+    'join',
+    '--invite',
+    'https://invite.tlon.io/0v1.abcde',
+    '--self',
+  ]),
+  authRequiredCase('groups join --invite flag reaches auth', [
+    'groups',
+    'join',
+    '--invite',
+    '~zod/test',
+  ]),
+  {
+    name: 'groups join --invite explicit --config is honored',
+    args: [
+      '--config',
+      '/nonexistent',
+      'groups',
+      'join',
+      '--invite',
+      'https://invite.tlon.io/0v1.abcde',
+    ],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Ship config not found'],
+    stderrExcludes: ['Usage:', ...STACK_PATTERNS],
+  },
+];
+
 // `activity mute|unmute|volume`: target, post-id and level validation and the
 // local refusals all happen before any credential lookup.
 function activityUsageCase(
@@ -2251,6 +2316,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NOTES_CONTENT_UNSUPPORTED_CASES,
   ...DIARY_REMOVED_CASES,
   ...INVITE_LINK_CREDENTIAL_CASES,
+  ...JOIN_INVITE_CASES,
   ...ACTIVITY_VOLUME_CASES,
   ...CHANNEL_MEMBERSHIP_CASES,
   ...GROUP_SECTION_CASES,
@@ -2271,6 +2337,10 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
     args: [family, '--help'],
   })),
   { name: 'groups invite-link', args: ['groups', 'invite-link', '--help'] },
+  {
+    name: 'groups join --invite',
+    args: ['groups', 'join', '--invite', 'x', '--help'],
+  },
   ...['mute', 'unmute', 'volume'].map((command) => ({
     name: `activity ${command}`,
     args: ['activity', command, '--help'],

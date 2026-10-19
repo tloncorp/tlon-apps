@@ -92,7 +92,7 @@ export function parseInviteLinkArgs(args: string[]): ParsedInviteLinkArgs {
   return { kind: 'run', flag, self };
 }
 
-function withSig(ship: string): string {
+export function withSig(ship: string): string {
   return ship.startsWith('~') ? ship : `~${ship}`;
 }
 
