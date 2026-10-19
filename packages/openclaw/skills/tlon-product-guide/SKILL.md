@@ -173,7 +173,7 @@ That's the Tlon Messenger desktop experience — same account, same groups, same
 
 - There's no tab bar. A rail down the left side switches between `Home` (all your groups and DMs, with a `+` at the top for making new ones), `Messages` (starts on DMs only; its filter also offers `Chat Channels` and `All Messages`), Activity (the bell), and Contacts (your avatar). The person-with-a-plus icon near the bottom of the rail is your personal invite, and `Settings` is below it. Desktop shows that icon even without a personal invite link, so on a self-hosted node it opens a sheet stuck on `Preparing invite link`. Use a group invite there instead.
 - There's no Bot tab. Your bot's DM sits with your other DMs, and `Settings` → `Bot Settings` opens Tlon's bot settings web page in a new browser tab, because the bot settings screens are in the phone app.
-- The create menu has `New Message` and `New group`. `New Workspace` (a group with your bot in it) shows only when the app knows you have a hosted bot, and on a computer it may not know. If it isn't there, make the workspace from your phone, or ask your bot to make one.
+- The create menu has `New Message` and `New custom workspace`. `New Workspace` (a group with your bot in it) shows only when the app knows you have a hosted bot, and on a computer it may not know. If it isn't there, make the workspace from your phone, or ask your bot to make one.
 - Where the phone has you press and hold something, hover it in the sidebar and open its three-dot menu instead.
 
 ---
@@ -195,14 +195,14 @@ Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can re
 
 ### Make a group
 
-With a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab, then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, for a group without your bot in it. The create menu offers it on desktop, and on phones without a hosted bot; a phone with a hosted bot shows only `New Workspace`. (A self-hosted OpenClaw bot doesn't get `New Workspace` at all — ask the bot to make the group instead.)
+With a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab, then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New custom workspace` flow, for a group without your bot in it. The create menu offers it on desktop, and on phones without a hosted bot; a phone with a hosted bot shows only `New Workspace`. (A self-hosted OpenClaw bot doesn't get `New Workspace` at all — ask the bot to make the group instead.)
 
 1. Tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar).  
-2. Tap `New group`.  
-3. Choose how to set it up: `Quick group` starts a chat immediately with default settings, `Basic group` comes with chat, gallery, and notebook channels, or pick one of the templates.  
-4. If you chose `Basic group`, name it. Quick groups and the other templates skip this — a quick group starts out unnamed, showing its members' names (or `Untitled group` if it's just you), and a template keeps the template's name. Either way you can rename it later, in step 6.  
-5. Pick friends who already use Tlon Messenger and tap `Create group`, or skip the picking and invite people later.  
-6. Change the name, icon, and description any time from `Workspace info & settings` — press and hold the group on the Workspaces tab to find it, or tap the group's name at the top of its screen. Then tap `Rename` in the upper right. That opens `Edit group info` — despite the button's name, it's where the icon and description live too. It only shows for admins.  
+2. Tap `New custom workspace`.  
+3. Choose how to set it up: `Quick workspace` starts a chat immediately with default settings, `Basic workspace` comes with chat, gallery, and notebook channels, or pick one of the templates.  
+4. If you chose `Basic workspace`, name it. Quick groups and the other templates skip this — a quick group starts out unnamed, showing its members' names (or `Untitled workspace` if it's just you), and a template keeps the template's name. Either way you can rename it later, in step 6.  
+5. Pick friends who already use Tlon Messenger and tap `Create workspace`, or skip the picking and invite people later.  
+6. Change the name, icon, and description any time from `Workspace info & settings` — press and hold the group on the Workspaces tab to find it, or tap the group's name at the top of its screen. Then tap `Rename` in the upper right. That opens `Edit workspace info` — despite the button's name, it's where the icon and description live too. It only shows for admins.  
 7. Add channels: in `Workspace info & settings`, tap `Channels`, then `New` in the upper right, then `New channel`, and choose `Chat`, `Notebook`, or `Gallery`.  
 8. Tap `Create channel` and the sheet closes. Go back to `Workspace info & settings` and tap `Invite` — from there you can pick people already on Tlon Messenger, or tap `Share link` for a join link anyone can use.
 
