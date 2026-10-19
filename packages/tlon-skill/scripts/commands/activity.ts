@@ -1062,9 +1062,11 @@ async function showBaseLevel(deps: ActivityDeps): Promise<void> {
 
 type UnreadSummary = GroupUnread | ChannelUnread;
 
-// How a source reads after the poke. `new-activity` needs an ack: an acked
-// read refreshes the summaries in the poke's own event, so newer activity
-// arrived after it. Without one, the read may never have applied.
+// How a source reads after the poke. Without an ack the read may never have
+// applied: a clear summary only counts when it was unread before, since a
+// summary cannot show thread replies that did not notify. `new-activity`
+// needs an ack too: an acked read refreshes the summaries in the poke's own
+// event, so newer activity arrived after it.
 type ReadState = 'cleared' | 'new-activity' | 'unconfirmed';
 
 function readState(
@@ -1072,7 +1074,11 @@ function readState(
   after: UnreadSummary | undefined,
   acked: boolean
 ): ReadState {
-  if (!after || !hasUnread(after)) return 'cleared';
+  if (!after || !hasUnread(after)) {
+    return acked || (before !== undefined && hasUnread(before))
+      ? 'cleared'
+      : 'unconfirmed';
+  }
   if (acked && after.updatedAt > (before?.updatedAt ?? 0)) {
     return 'new-activity';
   }
@@ -1175,18 +1181,22 @@ async function markRead(
   const acked = outcome.kind === 'acked';
   const pokeError = acked ? null : outcome.message;
 
-  // The last summary read; a read that shows none ends the loop as cleared.
+  // Unacknowledged, with nothing visible before: no read-back can show
+  // whether the read applied, so one successful read ends the loop.
+  const provable = acked || (before !== undefined && hasUnread(before));
   let after: UnreadSummary | undefined;
+  let read = false;
   let state: ReadState = 'unconfirmed';
   let lastReadError: string | null = null;
   for (let attempt = 1; attempt <= ACTIVITY_CONFIRM_ATTEMPTS; attempt += 1) {
     try {
       after = findSummary(await deps.readApi.getUnreads(), sent);
+      read = true;
       state = readState(before, after, acked);
     } catch (error) {
       lastReadError = errorMessage(error);
     }
-    if (state !== 'unconfirmed') break;
+    if (state !== 'unconfirmed' || (read && !provable)) break;
     if (attempt < ACTIVITY_CONFIRM_ATTEMPTS) {
       await deps.sleep(ACTIVITY_CONFIRM_DELAY_MS);
     }
@@ -1195,12 +1205,15 @@ async function markRead(
   const phrase = `Mark read of ${label}`;
   if (state === 'unconfirmed') {
     let reason = 'the unreads could not be read';
-    if (after) {
+    if (after && hasUnread(after)) {
       reason = `it still shows ${unreadText(after)}`;
       if (after.updatedAt > (before?.updatedAt ?? 0)) {
         reason +=
           ', and new activity arrived, so it is unknown whether the read applied';
       }
+    } else if (read) {
+      reason =
+        "the read was not acknowledged and a channel's summary cannot show thread-only unreads";
     }
     throw unconfirmedError(phrase, reason, pokeError, lastReadError);
   }
@@ -1347,6 +1360,20 @@ async function markAllRead(deps: ActivityDeps): Promise<void> {
     throw unconfirmedError(
       'Mark all read',
       'the unreads could not be read',
+      pokeError,
+      lastReadError
+    );
+  }
+  // Unacknowledged, with nothing visible before: an all-clear read-back
+  // cannot show whether the read applied.
+  if (
+    !acked &&
+    snapshotUnread.length === 0 &&
+    ![...results.values()].some((result) => result.state === 'unconfirmed')
+  ) {
+    throw unconfirmedError(
+      'Mark all read',
+      'the read was not acknowledged and summaries cannot show thread-only unreads',
       pokeError,
       lastReadError
     );

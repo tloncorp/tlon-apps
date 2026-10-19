@@ -1982,6 +1982,26 @@ describe('activity mark-read: read-back', () => {
     expect(context.calls.unreadReads).toBe(6);
   });
 
+  it('keeps an unacknowledged read with nothing visible before unconfirmed', async () => {
+    for (const snapshot of [NONE, unreads([channelSummary(NEST, 0)])]) {
+      const context = makeReadContext({
+        poke: {
+          kind: 'ambiguous',
+          message: 'Poke ack timed out after 30000ms',
+        },
+        unreads: [snapshot, NONE],
+      });
+
+      expect(await run(['mark-read', NEST], context.deps)).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(
+        `Error: Mark read of channel ${NEST} was sent but is not confirmed: the read was not acknowledged and a channel's summary cannot show thread-only unreads. ${RERUN} (poke error: Poke ack timed out after 30000ms)\n`
+      );
+      expect(context.calls.unreadReads).toBe(2);
+      expect(context.calls.sleeps).toEqual([]);
+    }
+  });
+
   it('confirms an unacknowledged read the read-back shows cleared', async () => {
     const context = makeReadContext({
       poke: { kind: 'ambiguous', message: 'Channel was reaped' },
@@ -2244,17 +2264,44 @@ describe('activity mark-read --all', () => {
     expect(context.calls.sleeps).toEqual([500, 500]);
   });
 
-  it('keeps a late source unconfirmed while the poke is ambiguous, then confirms it cleared', async () => {
+  it('keeps an unacknowledged read of an empty snapshot unconfirmed', async () => {
+    const context = makeReadContext({
+      poke: { kind: 'ambiguous', message: 'Channel was reaped' },
+      unreads: [unreads([channelSummary(NEST, 0)]), NONE],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Mark all read was sent but is not confirmed: the read was not acknowledged and summaries cannot show thread-only unreads. ${RERUN} (poke error: Channel was reaped)\n`
+    );
+    expect(context.calls.unreadReads).toBe(2);
+    expect(context.calls.sleeps).toEqual([]);
+  });
+
+  it('keeps a late source unconfirmed while the poke is ambiguous, and an empty snapshot unconfirmed once it clears', async () => {
     const context = makeReadContext({
       poke: { kind: 'ambiguous', message: 'Channel was reaped' },
       unreads: [NONE, unreads([dmSummary(AUTHOR, 1, 9)]), NONE],
     });
 
-    expect(await run(['mark-read', '--all'], context.deps)).toBe(0);
-    expect(context.stdout()).toBe(
-      `✓ Marked all read for ${ACTING} (no reported unreads)\n  In the app: ${ALL_WHERE}\n`
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Mark all read was sent but is not confirmed: the read was not acknowledged and summaries cannot show thread-only unreads. ${RERUN} (poke error: Channel was reaped)\n`
     );
     expect(context.calls.sleeps).toEqual([500]);
+  });
+
+  it('confirms an unacknowledged read whose visible unreads all cleared', async () => {
+    const context = makeReadContext({
+      poke: { kind: 'ambiguous', message: 'Channel was reaped' },
+      unreads: [snapshot, NONE],
+    });
+
+    expect(await run(['mark-read', '--all'], context.deps)).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Marked all read for ${ACTING}\n  Cleared: 2 channels, 1 DM, 1 group DM, 1 group\n  In the app: ${ALL_WHERE}\n`
+    );
   });
 
   it('keeps a persistent residual unconfirmed after five reads', async () => {
