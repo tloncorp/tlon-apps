@@ -1661,8 +1661,10 @@ export default defineBundledChannelEntry({
             notifyDiaryMigrationDiscovery(nest, api.config),
           logError: (message) => api.logger.warn(`[tlon] ${message}`),
           // Lets the executor run `groups invite-link` as the owner, so invites
-          // attribute to the owner rather than the bot.
+          // attribute to the owner rather than the bot, and host a workspace
+          // made for the owner on the owner's ship with the bot as its agent.
           ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
+          botShip: normalizeShip(credentials?.ship ?? '') || undefined,
           env: process.env,
           fileExists: (path) => existsSync(path),
         });

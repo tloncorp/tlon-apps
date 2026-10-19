@@ -10,12 +10,13 @@ import {
   type GatewayCronJob as PluginHookGatewayCronJob,
   getTlonCronService,
 } from '../../cron-telemetry.js';
+import { roleMentionScopeFor } from '../../role-mention-scope.js';
 import { sharedMap } from '../../shared-state.js';
 import type { TlonTelemetryClient } from '../../telemetry.js';
 import { listRunnableTlonAccountIds } from '../../types.js';
 import { captureTlonApiScope } from '../../urbit/api-client.js';
 import { type BotProfile, sendDm, sendChannelPost } from '../../urbit/send.js';
-import { markdownToStory } from '../../urbit/story.js';
+import { ALL_ONLY, markdownToStory } from '../../urbit/story.js';
 import {
   type CampaignTask,
   type CampaignState,
@@ -263,7 +264,7 @@ export function createLiveCampaign(deps: {
         );
         return post ? Number(post.sentAt) : undefined;
       }),
-    send: (text, key, conversation = deps.owner) =>
+    send: ({ text, personalized }, key, conversation = deps.owner) =>
       scope(async () => {
         deps.signal?.throwIfAborted();
         const blob = key
@@ -278,13 +279,28 @@ export function createLiveCampaign(deps: {
           botProfile: deps.botProfile(),
           blob,
         };
+        // Only the model's wording may mention roles; tips as written and
+        // acknowledgements are sent as literal text.
         if (conversation === deps.owner)
-          await sendDm({ ...profile, toShip: deps.owner, text });
+          await sendDm({
+            ...profile,
+            toShip: deps.owner,
+            text,
+            roleMentions: personalized ? ALL_ONLY : undefined,
+          });
         else
           await sendChannelPost({
             ...profile,
             nest: conversation,
-            story: markdownToStory(text),
+            story: markdownToStory(text, {
+              roleMentions: personalized
+                ? await roleMentionScopeFor(
+                    deps.accountId,
+                    { kind: 'channel', nest: conversation },
+                    text
+                  )
+                : undefined,
+            }),
           });
       }),
     report: (event) =>
