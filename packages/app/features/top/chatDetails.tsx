@@ -34,6 +34,10 @@ import {
 } from '../../ui';
 import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
 import {
+  WorkspaceInstructionsSheet,
+  hasWorkspaceInstructions,
+} from '../../ui/components/WorkspaceInstructionsSheet';
+import {
   channelSupportsNotifications,
   getChannelActionCapabilities,
   getChannelHost,
@@ -425,6 +429,21 @@ export function SettingsSection({
     }
   }, [group, onPressRoles]);
 
+  // Bots honor a workspace config only in groups their owner hosts, so
+  // only the host gets the editor.
+  const supportsInstructions =
+    store.useDeskSupportsStewardBots() === true &&
+    group?.hostUserId === currentUserId;
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const handlePressInstructions = useCallback(
+    () => setInstructionsOpen(true),
+    []
+  );
+  const handleCloseInstructions = useCallback(
+    () => setInstructionsOpen(false),
+    []
+  );
+
   const handlePressEditChannelPrivacy = useCallback(() => {
     if (channel?.groupId) {
       navigateToEditChannelPrivacy(channel.id, channel.groupId);
@@ -554,6 +573,17 @@ export function SettingsSection({
           disabled: !actionsEnabled,
           onPress: handlePressManageChannels,
         },
+        ...(supportsInstructions
+          ? [
+              {
+                title: 'Tlonbot instructions',
+                endValue: hasWorkspaceInstructions(group) ? 'On' : 'Off',
+                testID: 'GroupInstructions',
+                disabled: !actionsEnabled,
+                onPress: handlePressInstructions,
+              },
+            ]
+          : []),
         notificationAction,
         ...scheduledTasksActions,
       ];
@@ -588,6 +618,8 @@ export function SettingsSection({
     handlePressGroupPrivacy,
     handlePressRoles,
     handlePressManageChannels,
+    handlePressInstructions,
+    supportsInstructions,
     handlePressEditChannelPrivacy,
     groupRoles,
     showsScheduledTasks,
@@ -618,6 +650,12 @@ export function SettingsSection({
           />
         ))}
       </ActionSheet.ActionGroup>
+      {instructionsOpen && group ? (
+        <WorkspaceInstructionsSheet
+          group={group}
+          onClose={handleCloseInstructions}
+        />
+      ) : null}
     </View>
   );
 }
@@ -669,12 +707,12 @@ export function LeaveActionsSection({
 
   const chatTitle =
     entityType === 'group'
-      ? (groupTitle ?? 'group')
+      ? (groupTitle ?? 'workspace')
       : (channel?.title ?? 'channel');
 
   const handleLeaveWithConfirm = useCallback(async () => {
     if (entityType === 'group') {
-      const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
+      const message = `You will no longer receive updates from this workspace.\n\nWarning: Leaving this workspace will invalidate any invitations you've sent.`;
 
       if (isWeb) {
         const confirmed = window.confirm(`Leave ${chatTitle}?\n\n${message}`);
@@ -684,7 +722,11 @@ export function LeaveActionsSection({
       } else {
         Alert.alert(`Leave ${chatTitle}?`, message, [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Leave Group', style: 'destructive', onPress: leaveGroup },
+          {
+            text: 'Leave Workspace',
+            style: 'destructive',
+            onPress: leaveGroup,
+          },
         ]);
       }
     } else {
@@ -728,11 +770,11 @@ export function LeaveActionsSection({
   const leaveActions = createActionGroup(
     'negative',
     canLeave && {
-      title: entityType === 'group' ? 'Leave group' : 'Leave channel',
+      title: entityType === 'group' ? 'Leave workspace' : 'Leave channel',
       action: handleLeaveWithConfirm,
     },
     canDelete && {
-      title: entityType === 'group' ? 'Delete group' : 'Delete channel',
+      title: entityType === 'group' ? 'Delete workspace' : 'Delete channel',
       action: () => setShowDeleteDialog(true),
     }
   );
@@ -767,7 +809,9 @@ export function LeaveActionsSection({
         onOpenChange={setShowDeleteDialog}
         title={`Delete ${chatTitle}?`}
         description={deleteDescription}
-        confirmText={entityType === 'group' ? 'Delete group' : 'Delete channel'}
+        confirmText={
+          entityType === 'group' ? 'Delete workspace' : 'Delete channel'
+        }
         cancelText="Cancel"
         onConfirm={handleDelete}
         destructive

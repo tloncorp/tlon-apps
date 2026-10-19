@@ -14,7 +14,7 @@ appId: io.tlon.groups
 - assertVisible: 'Settings'
 - tapOn: 'Notification settings'
 - assertVisible: 'Notifications'
-- tapOn: 'All group activity'
+- tapOn: 'All workspace activity'
 - tapOn:
     id: 'HeaderBackButton'
 - tapOn: 'Blocked users'

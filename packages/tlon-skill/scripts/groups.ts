@@ -33,6 +33,11 @@
  *   npx ts-node scripts/groups.ts promote <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts demote <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
+ *   npx ts-node scripts/groups.ts add-section <group-id> "<title>"
+ *   npx ts-node scripts/groups.ts rename-section <group-id> <section> "<title>"
+ *   npx ts-node scripts/groups.ts delete-section <group-id> <section>
+ *   npx ts-node scripts/groups.ts move-channel <group-id> <channel-nest> --section <section> [--index N]
+ *   npx ts-node scripts/groups.ts order-sections <group-id> <section> [<section> ...]
  */
 import {
   acceptGroupJoin,
@@ -68,10 +73,12 @@ import {
   updateGroupRole,
 } from '@tloncorp/api';
 import type { Group } from '@tloncorp/api';
+import type { GroupNavSection } from '@tloncorp/api/types/groups';
 
 import { ensureClient, getCurrentShip, normalizeShip } from './api-client';
 import {
   assertKnownChannelKind,
+  canonicalizeNest,
   getOption,
   hasOptionValue,
   isHelpArg,
@@ -81,12 +88,21 @@ import {
   channelCreateUsage,
   printHelpAndExit,
   printUsageAndExit,
+  refShareHint,
+  refuseDiaryNest,
   refuseNotesChannelDescription,
   refuseRemovedChannelKind,
 } from './cli-utils';
 import {
+  addSection,
+  deleteSection,
+  isBlankTitle,
+  moveChannel,
+  orderSections,
+  renameSection,
+} from './commands/group-sections';
+import {
   type RawGroupForAdminVerification,
-  actingShipCanAdminister,
   getShipRecordValue,
   seatHasAdminRole,
   seatHasRole,
@@ -94,6 +110,14 @@ import {
   shipIsSeated,
 } from './commands/groups-verification';
 import { INVITE_LINK_HELP } from './commands/invite-link';
+import {
+  VERIFY_ATTEMPTS,
+  VERIFY_DELAY_MS,
+  assertActingShipCanAdminister,
+  getGroupHost,
+  getRawGroupForAdminVerification,
+} from './group-admin';
+import { createGroupSectionsDeps } from './group-sections-runtime';
 import { runInviteLinkCommand } from './invite-link-runtime';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
@@ -170,10 +194,18 @@ Commands:
   promote <group-id> <ship> [<ship2> ...]
   demote <group-id> <ship> [<ship2> ...]
   ${channelCreateUsage('add-channel')}
+  add-section <group-id> "<title>"
+  rename-section <group-id> <section> "<title>"
+  delete-section <group-id> <section>
+  move-channel <group-id> <channel-nest> --section <section> [--index N]
+  order-sections <group-id> <section> [<section> ...]
+
+A <section> is a section id or title; \`groups info\` lists them.
 
 Examples:
   tlon groups info ~host/group-slug
-  tlon groups add-channel ~host/group-slug "Projects" --kind chat`;
+  tlon groups add-channel ~host/group-slug "Projects" --kind chat
+  tlon groups move-channel ~host/group-slug chat/~host/general --section Archive`;
 
 const GROUPS_COMMAND_HELP: Record<string, string> = {
   list: `Usage: tlon groups list`,
@@ -206,6 +238,11 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
   promote: `Usage: tlon groups promote <group-id> <ship> [<ship2> ...]\nExample: tlon groups promote ~host/group-slug ~nec`,
   demote: `Usage: tlon groups demote <group-id> <ship> [<ship2> ...]\nExample: tlon groups demote ~host/group-slug ~nec`,
   'add-channel': `Usage: ${channelCreateUsage('tlon groups add-channel')}\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
+  'add-section': `Usage: tlon groups add-section <group-id> "<title>"\nAdds an empty channel section at the bottom of the group. Admin only.\nExample: tlon groups add-section ~host/group-slug "Archive"`,
+  'rename-section': `Usage: tlon groups rename-section <group-id> <section> "<title>"\n<section> is a section id or title. Admin only.\nExample: tlon groups rename-section ~host/group-slug Archive "Old stuff"`,
+  'delete-section': `Usage: tlon groups delete-section <group-id> <section>\nMoves the section's channels to the top of the default section, then deletes it. The default section can't be deleted. Each step is checked before the next, but this is not atomic: on a partial failure, run the command it prints. Admin only.\nExample: tlon groups delete-section ~host/group-slug Archive`,
+  'move-channel': `Usage: tlon groups move-channel <group-id> <channel-nest> --section <section> [--index N]\n--index is the channel's final 0-based position in the section; without it, the channel goes to the end (or stays put if it is already there). Admin only.\nExample: tlon groups move-channel ~host/group-slug chat/~host/general --section Archive --index 0`,
+  'order-sections': `Usage: tlon groups order-sections <group-id> <section> [<section> ...]\nList every section exactly once, default included, in the new order. Admin only.\nExample: tlon groups order-sections ~host/group-slug Archive default`,
 };
 
 function getGroupsHelp(command?: string) {
@@ -323,6 +360,52 @@ function validateGroupsArgs(args: string[]): void {
       }
       return;
     }
+    case 'add-section':
+    case 'rename-section': {
+      const title = command === 'add-section' ? args[2] : args[3];
+      if (!args[1] || (command === 'rename-section' && !args[2])) {
+        printUsageAndExit(GROUPS_COMMAND_HELP[command]);
+      }
+      if (title === undefined || isBlankTitle(title)) {
+        printUsageAndExit(
+          `Error: a non-blank section title is required\n${GROUPS_COMMAND_HELP[command]}`
+        );
+      }
+      return;
+    }
+    case 'delete-section': {
+      if (!args[1] || !args[2]) printUsageAndExit(GROUPS_COMMAND_HELP[command]);
+      return;
+    }
+    case 'order-sections': {
+      if (!args[1] || args.slice(2).length === 0) {
+        printUsageAndExit(GROUPS_COMMAND_HELP[command]);
+      }
+      return;
+    }
+    case 'move-channel': {
+      const help = GROUPS_COMMAND_HELP['move-channel'];
+      const section = getOption(args, 'section', 3);
+      if (!args[1] || !args[2] || args[2].startsWith('--')) {
+        printUsageAndExit(help);
+      }
+      if (!section || section.startsWith('--')) printUsageAndExit(help);
+      if (args.includes('--index', 3)) {
+        const index = getOption(args, 'index', 3);
+        if (index === undefined || !/^\d+$/.test(index)) {
+          printUsageAndExit(
+            `Error: --index requires a non-negative integer\n${help}`
+          );
+        }
+      }
+      refuseDiaryNest(args[2]);
+      try {
+        canonicalizeNest(args[2]);
+      } catch (error) {
+        printErrorAndExit(error);
+      }
+      return;
+    }
   }
 }
 
@@ -391,20 +474,8 @@ type SeatAdminVerification =
   | { status: 'verified' }
   | { status: 'missing'; reason: string };
 
-const VERIFY_ATTEMPTS = 5;
-const VERIFY_DELAY_MS = 500;
-
 function groupHasRole(group: Group, roleId: string): boolean {
   return (group.roles || []).some((role) => role.id === roleId);
-}
-
-async function getRawGroupForAdminVerification(
-  groupId: string
-): Promise<RawGroupForAdminVerification> {
-  return scry<RawGroupForAdminVerification>({
-    app: 'groups',
-    path: `/v2/ui/groups/${groupId}`,
-  });
 }
 
 function hasSeat(
@@ -644,66 +715,6 @@ async function verifyAdmin(
   );
 }
 
-// The host is the ship in the group flag (`~host/slug`). The backend treats it as
-// an admin unconditionally (`se-is-admin`), regardless of seats or roles.
-function getGroupHost(groupId: string): string {
-  return normalizeShip(groupId.split('/')[0]);
-}
-
-/**
- * Refuse an admin mutation up front when the acting ship can't perform it, instead
- * of firing a poke that a foreign host silently drops while the CLI reports success.
- *
- * A poke ack means "my ship forwarded this," not "the host applied it" — so this
- * reads the group's actual state and checks the acting ship is the host or an admin
- * before any mutation runs. `action` is the user-facing verb (e.g. "promote").
- *
- * Retries like the post-poke verification paths: on a foreign-hosted group the local
- * snapshot can lag a just-granted admin role, so a single stale read shouldn't hard
- * fail an action the host would now accept. The happy path returns on the first
- * attempt; only a (transient or genuine) rejection waits.
- */
-async function assertActingShipCanAdminister(
-  groupId: string,
-  action: string
-): Promise<void> {
-  const actingShip = normalizeShip(getCurrentUserId());
-  const hostShip = getGroupHost(groupId);
-
-  let lastReason: string | null = null;
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
-    try {
-      const rawGroup = await getRawGroupForAdminVerification(groupId);
-      const result = actingShipCanAdminister(
-        rawGroup,
-        actingShip,
-        hostShip,
-        normalizeShip
-      );
-      if (result.ok) {
-        return;
-      }
-      lastReason = result.reason;
-    } catch (err) {
-      lastError = err;
-    }
-
-    if (attempt < VERIFY_ATTEMPTS) {
-      await sleep(VERIFY_DELAY_MS);
-    }
-  }
-
-  if (lastReason) {
-    throw new Error(`Can't ${action} in ${groupId}: ${lastReason}`);
-  }
-
-  throw new Error(
-    `Can't ${action} in ${groupId}: could not read group state: ${lastError}`
-  );
-}
-
 /**
  * Scry-poll the group's actual state until every target ship satisfies `isSatisfied`,
  * or attempts are exhausted. One scry per attempt covers all ships — never poll per
@@ -850,6 +861,36 @@ async function getGroupInfo(groupId: string) {
     }
   }
 
+  const navSections: GroupNavSection[] = group.navSections ?? [];
+  const listed = new Set<string>();
+  if (navSections.length > 0) {
+    const channelTitles = new Map(
+      (group.channels ?? []).map((channel) => [channel.id, channel.title])
+    );
+    console.log('\n--- Sections ---');
+    for (const section of navSections) {
+      console.log(
+        `  ${section.title || section.sectionId} (${section.sectionId})`
+      );
+      // 0-based, matching `move-channel --index`.
+      (section.channels ?? []).forEach(({ channelId }, i) => {
+        if (!channelId) return;
+        listed.add(channelId);
+        const title = channelTitles.get(channelId) || channelId;
+        console.log(`    ${i}. ${title} (${channelId})`);
+      });
+    }
+  }
+  const unlisted = (group.channels ?? []).filter(
+    (channel) => !listed.has(channel.id)
+  );
+  if (unlisted.length > 0) {
+    console.log('\n--- Channels in no section ---');
+    for (const channel of unlisted) {
+      console.log(`  ${channel.title || channel.id} (${channel.id})`);
+    }
+  }
+
   if (group.pendingMembers && group.pendingMembers.length > 0) {
     console.log('\n--- Pending Invites ---');
     for (const member of group.pendingMembers) {
@@ -989,9 +1030,7 @@ async function createOwnedGroup(
   }
   console.log(`   Channel: ${channelId}`);
   console.log(`   Ref: /1/group/${groupId}`);
-  console.log(
-    `   Share: include the Ref path in a chat message to post a tappable group card.`
-  );
+  console.log(`   ${refShareHint('group')}`);
 
   return { groupId, channelId, ownerShip };
 }
@@ -1534,9 +1573,7 @@ async function main() {
       const description = getOption(args, 'description', 2) || '';
       const { groupId } = await createGroupWithChannel(title, description);
       console.log(`   Ref: /1/group/${groupId}`);
-      console.log(
-        `   Share: include the Ref path in a chat message to post a tappable group card.`
-      );
+      console.log(`   ${refShareHint('group')}`);
       break;
     }
 
@@ -1852,6 +1889,34 @@ async function main() {
       await addChannel(groupId, title, kind, description);
       break;
     }
+
+    case 'add-section':
+      await addSection(args[1], args[2], createGroupSectionsDeps());
+      break;
+
+    case 'rename-section':
+      await renameSection(args[1], args[2], args[3], createGroupSectionsDeps());
+      break;
+
+    case 'delete-section':
+      await deleteSection(args[1], args[2], createGroupSectionsDeps());
+      break;
+
+    case 'move-channel': {
+      const index = getOption(args, 'index', 3);
+      await moveChannel(
+        args[1],
+        canonicalizeNest(args[2]),
+        getOption(args, 'section', 3)!,
+        index === undefined ? undefined : Number(index),
+        createGroupSectionsDeps()
+      );
+      break;
+    }
+
+    case 'order-sections':
+      await orderSections(args[1], args.slice(2), createGroupSectionsDeps());
+      break;
 
     default:
       printUsageAndExit(GROUPS_HELP);

@@ -14,21 +14,21 @@ test('should handle group pinning/unpinning and forwarding', async ({
   await helpers.createGroup(page);
 
   // Handle welcome message if present
-  if (await page.getByText('Untitled group').first().isVisible()) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  if (await page.getByText('Untitled workspace').first().isVisible()) {
+    await expect(page.getByText('Welcome to your workspace!')).toBeVisible();
   }
 
   // Navigate back to Home and verify group creation
   await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
-    await page.getByText('Untitled group').first().click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
+    await page.getByText('Untitled workspace').first().click();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   // Open group settings
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Test pin functionality
   const pinStatus = await helpers.toggleChatPin(page);
@@ -39,7 +39,7 @@ test('should handle group pinning/unpinning and forwarding', async ({
   }
 
   // Return to group settings and toggle pin again
-  await page.getByText('Untitled group').first().click();
+  await page.getByText('Untitled workspace').first().click();
   await helpers.openGroupSettings(page);
   const unpinStatus = await helpers.toggleChatPin(page);
 
@@ -49,9 +49,9 @@ test('should handle group pinning/unpinning and forwarding', async ({
   }
 
   // Return to group settings for forwarding test
-  await page.getByText('Untitled group').first().click();
+  await page.getByText('Untitled workspace').first().click();
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Test forwarding group reference
   await helpers.forwardGroupReference(page, 'General');

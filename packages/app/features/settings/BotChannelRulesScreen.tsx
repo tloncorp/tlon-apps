@@ -237,7 +237,7 @@ export function BotChannelRulesScreen(props: Props) {
         sampleChannelKey
       );
       if (!groupFull) {
-        setJoinError('Could not find this group.');
+        setJoinError('Could not find this workspace.');
         return;
       }
       const groupKey = `${groupHost}/${groupName}`;
@@ -269,7 +269,9 @@ export function BotChannelRulesScreen(props: Props) {
           await sleep(JOIN_MEMBERSHIP_POLL_INTERVAL_MS);
         }
       } catch (error) {
-        setJoinError(getErrorMessage(error) ?? 'Failed to join this group.');
+        setJoinError(
+          getErrorMessage(error) ?? 'Failed to join this workspace.'
+        );
       } finally {
         setJoiningGroups((prev) => ({ ...prev, [groupKey]: false }));
       }
@@ -385,7 +387,7 @@ export function BotChannelRulesScreen(props: Props) {
       if (isDeparted) {
         groupRows.push({
           key: 'departed',
-          title: 'Tlonbot is no longer in this group',
+          title: 'Tlonbot is no longer in this workspace',
           subtitle: hasDraftRules
             ? 'Its rules here are paused. Join again to resume them.'
             : 'Its rules here will be removed when you apply.',
@@ -411,7 +413,7 @@ export function BotChannelRulesScreen(props: Props) {
       if (!isGroupMember) {
         groupRows.push({
           key: 'join',
-          title: isJoining ? 'Joining…' : 'Join group',
+          title: isJoining ? 'Joining…' : 'Join workspace',
           action: true,
           disabled: isJoining || !canJoinGroup,
           onPress: () =>
@@ -507,8 +509,8 @@ export function BotChannelRulesScreen(props: Props) {
         onOpenChange={(open) => {
           if (!open) setJoinTarget(null);
         }}
-        title={`Join ${joinTarget?.label ?? 'group'}?`}
-        description="This adds your Tlonbot to the group. After it joins, you can choose which channels it can respond in."
+        title={`Join ${joinTarget?.label ?? 'workspace'}?`}
+        description="This adds your Tlonbot to the workspace. After it joins, you can choose which channels it can respond in."
         confirmText="Join"
         onConfirm={() => {
           if (!joinTarget) return;

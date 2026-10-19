@@ -72,7 +72,18 @@ const UNKNOWN_SUBCOMMAND = 'unknown';
 const INVALID_OPERATION = 'invalid';
 
 const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
-  ['activity', new Set(['mentions', 'replies', 'all', 'unreads'])],
+  [
+    'activity',
+    new Set([
+      'mentions',
+      'replies',
+      'all',
+      'unreads',
+      'mute',
+      'unmute',
+      'volume',
+    ]),
+  ],
   ['browser', new Set(['handoff', 'share'])],
   [
     'buckets',
@@ -171,6 +182,11 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'promote',
       'demote',
       'add-channel',
+      'add-section',
+      'rename-section',
+      'delete-section',
+      'move-channel',
+      'order-sections',
     ]),
   ],
   [
@@ -208,6 +224,8 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'note-rename',
       'note-move',
       'note-delete',
+      'note-publish',
+      'note-unpublish',
       'history',
       'folders',
       'folder',
@@ -223,7 +241,19 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'notebook-delete',
     ]),
   ],
-  ['posts', new Set(['send', 'reply', 'react', 'unreact', 'edit', 'delete'])],
+  [
+    'posts',
+    new Set([
+      'send',
+      'reply',
+      'react',
+      'unreact',
+      'edit',
+      'delete',
+      'pin',
+      'unpin',
+    ]),
+  ],
   [
     'settings',
     new Set([
@@ -339,9 +369,65 @@ export type BlockedTlonOperation = {
     | 'diary_operation'
     | 'migration_operation'
     | 'send_operation'
-    | 'browser_account_override';
+    | 'browser_account_override'
+    | 'reserved_automatic_provision'
+    | 'reserved_provider_configuration';
   diaryNest?: string;
 };
+
+function containsAutomaticProvisionAction(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsAutomaticProvisionAction);
+  }
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (record.action && typeof record.action === 'object') {
+    const event = (record.action as { event?: unknown }).event;
+    if (
+      event &&
+      typeof event === 'object' &&
+      (event as { name?: unknown }).name === 'tlon.provisionAgent'
+    ) {
+      return true;
+    }
+  }
+  return Object.values(record).some(containsAutomaticProvisionAction);
+}
+
+function containsProviderConfigurationAction(value: unknown): boolean {
+  if (Array.isArray(value))
+    return value.some(containsProviderConfigurationAction);
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (
+    record.event &&
+    typeof record.event === 'object' &&
+    (record.event as { name?: unknown }).name === 'tlon.configureAgentProviders'
+  ) {
+    return true;
+  }
+  return Object.values(record).some(containsProviderConfigurationAction);
+}
+
+function hasReservedBlobContent(
+  args: string[],
+  containsReservedContent: (value: unknown) => boolean
+): boolean {
+  if (args[0]?.toLocaleLowerCase() !== 'posts') return false;
+  const blobs = args.flatMap((argument, index) => {
+    if (argument === '--blob') return args[index + 1] ? [args[index + 1]!] : [];
+    return argument.startsWith('--blob=')
+      ? [argument.slice('--blob='.length)]
+      : [];
+  });
+  return blobs.some((blob) => {
+    try {
+      return containsReservedContent(JSON.parse(blob));
+    } catch {
+      return false;
+    }
+  });
+}
 
 /**
  * Check blocked operations only after removing global credential flags.
@@ -360,6 +446,22 @@ export function checkBlockedTlonOperation(
   }
   const subIdx = findTlonSubcommandIndex(args);
   const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
+  if (hasReservedBlobContent(commandArgs, containsAutomaticProvisionAction)) {
+    return {
+      message:
+        'Blocked: automatic recurring-task provisioning may be posted only by the typed tlon_agent_task_plan tool.',
+      reason: 'reserved_automatic_provision',
+    };
+  }
+  if (
+    hasReservedBlobContent(commandArgs, containsProviderConfigurationAction)
+  ) {
+    return {
+      message:
+        'Blocked: provider access may be configured only by the verified onboarding coordinator.',
+      reason: 'reserved_provider_configuration',
+    };
+  }
   const migration = checkBlockedMigrationOperation(commandArgs);
   if (migration) {
     return {
@@ -382,26 +484,83 @@ export function checkBlockedTlonOperation(
 
 const HELP_TOKENS = new Set(['-h', '--help']);
 
+// Keyed `<family> <op>` so the same op name in two families cannot collide.
+type OwnerCredentialCommand =
+  | 'groups invite-link'
+  | 'notes note-publish'
+  | 'notes note-unpublish'
+  | 'activity mute'
+  | 'activity unmute'
+  | 'activity volume';
+
+const OWNER_CREDENTIAL_COMMANDS = new Map<string, readonly string[]>([
+  ['groups', ['invite-link']],
+  ['notes', ['note-publish', 'note-unpublish']],
+  ['activity', ['mute', 'unmute', 'volume']],
+]);
+
+const NOTIFICATION_SELF_HINT =
+  "Add --self to change this bot's own notification settings instead.";
+
+const OWNER_CREDENTIAL_WORDING: Record<
+  OwnerCredentialCommand,
+  { noOwner: string; asShip: string; selfHint: string }
+> = {
+  'groups invite-link': {
+    noOwner: "Retrieving the owner's invite link",
+    asShip: 'Retrieving the invite link as',
+    selfHint: "Add --self to retrieve this bot's own invite link instead.",
+  },
+  'notes note-publish': {
+    noOwner: 'Publishing a note as the owner',
+    asShip: 'Publishing a note as',
+    selfHint: "Add --self to publish from this bot's own ship instead.",
+  },
+  'notes note-unpublish': {
+    noOwner: 'Unpublishing a note as the owner',
+    asShip: 'Unpublishing a note as',
+    selfHint: "Add --self to unpublish from this bot's own ship instead.",
+  },
+  'activity mute': {
+    noOwner: 'Muting as the owner',
+    asShip: 'Muting as',
+    selfHint: NOTIFICATION_SELF_HINT,
+  },
+  'activity unmute': {
+    noOwner: 'Unmuting as the owner',
+    asShip: 'Unmuting as',
+    selfHint: NOTIFICATION_SELF_HINT,
+  },
+  'activity volume': {
+    noOwner: 'Changing a notification level as the owner',
+    asShip: 'Changing a notification level as',
+    selfHint: NOTIFICATION_SELF_HINT,
+  },
+};
+
 /**
  * The shared owner-injection predicate (the Hermes adapter implements the same
- * truth table): a bare `groups invite-link`, with no credential flag in either
- * form, no `--self`, and no help token. Anything else runs on the bot's own
- * credentials, exactly as the model wrote it.
+ * truth table for `groups invite-link` only): a bare `groups invite-link`,
+ * `notes note-publish`, `notes note-unpublish` or `activity mute|unmute|volume`,
+ * with no credential flag in either form, no `--self`, and no help token. Any
+ * other command keeps the credential selection it was given, exactly as the
+ * model wrote it.
  */
-export function shouldInjectOwnerCredentials(args: string[]): boolean {
-  if (hasCredentialOverride(args)) return false;
+function ownerCredentialCommand(args: string[]): OwnerCredentialCommand | null {
+  if (hasCredentialOverride(args)) return null;
 
   const subIdx = findTlonSubcommandIndex(args);
-  if (subIdx < 0) return false;
+  if (subIdx < 0) return null;
   const commandArgs = args.slice(subIdx);
-  if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
-  if (commandArgs[1]?.toLowerCase() !== 'invite-link') return false;
+  const family = commandArgs[0]?.toLowerCase() ?? '';
+  const op = commandArgs[1]?.toLowerCase() ?? '';
+  if (!OWNER_CREDENTIAL_COMMANDS.get(family)?.includes(op)) return null;
+  const operation = `${family} ${op}` as OwnerCredentialCommand;
 
-  return !commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg));
+  return commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg))
+    ? null
+    : operation;
 }
-
-const OWNER_INVITE_LINK_SELF_HINT =
-  "Add --self to retrieve this bot's own invite link instead.";
 
 /**
  * `--ship <owner>`, never `--config <path>`: ship-only resolution validates the
@@ -410,31 +569,27 @@ const OWNER_INVITE_LINK_SELF_HINT =
  * minting a bot-attributed link. Missing provisioning is a tool error for the
  * same reason — never a silent fall back to the bot's own credentials.
  */
-function ownerInviteLinkPrefixArgs(
-  deps: TlonToolExecutorDeps
+function ownerCredentialPrefixArgs(
+  deps: TlonToolExecutorDeps,
+  command: OwnerCredentialCommand
 ): string[] | { error: string } {
+  const { noOwner, asShip, selfHint } = OWNER_CREDENTIAL_WORDING[command];
   const ownerShip = deps.ownerShip?.trim();
   if (!ownerShip) {
     return {
-      error:
-        "Retrieving the owner's invite link requires a configured owner ship. " +
-        OWNER_INVITE_LINK_SELF_HINT,
+      error: `${noOwner} requires a configured owner ship. ${selfHint}`,
     };
   }
 
   const location = locateOwnerShipConfig(ownerShip, deps);
   if (location.kind === 'no-skill-dir') {
     return {
-      error:
-        `Retrieving the invite link as ${ownerShip} requires TLON_SKILL_DIR so the owner credential file can be located. ` +
-        OWNER_INVITE_LINK_SELF_HINT,
+      error: `${asShip} ${ownerShip} requires TLON_SKILL_DIR so the owner credential file can be located. ${selfHint}`,
     };
   }
   if (location.kind === 'no-config-file') {
     return {
-      error:
-        `Retrieving the invite link as ${ownerShip} requires owner credentials at ${location.configPath}. ` +
-        OWNER_INVITE_LINK_SELF_HINT,
+      error: `${asShip} ${ownerShip} requires owner credentials at ${location.configPath}. ${selfHint}`,
     };
   }
   return ['--ship', ownerShip];
@@ -713,8 +868,9 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       }
 
       let commandArgs = args;
-      if (shouldInjectOwnerCredentials(args)) {
-        const prefixArgs = ownerInviteLinkPrefixArgs(deps);
+      const ownerCommand = ownerCredentialCommand(args);
+      if (ownerCommand) {
+        const prefixArgs = ownerCredentialPrefixArgs(deps, ownerCommand);
         if (!Array.isArray(prefixArgs)) {
           return {
             content: [{ type: 'text' as const, text: prefixArgs.error }],
@@ -821,7 +977,12 @@ function summarizeKnownTlonCommand(
 
   switch (subcommand) {
     case 'activity':
-      return build('read');
+      // mute/unmute/volume change only the acting ship's own preferences.
+      return build(
+        operation === 'mute' || operation === 'unmute' || operation === 'volume'
+          ? 'write'
+          : 'read'
+      );
     case 'browser':
       return build('write');
     case 'buckets':
@@ -1248,6 +1409,8 @@ function summarizeNotesOperation(
     case 'migrate-plan':
       return build('read');
     case 'note-delete':
+    case 'note-publish':
+    case 'note-unpublish':
     case 'folder-delete':
     case 'notebook-delete':
       return build('admin');
@@ -1358,6 +1521,9 @@ function summarizePostsOperation(
         hasImage: hasFlag(args, '--image'),
         hasContent: hasFlag(args, '--content'),
       });
+    case 'pin':
+    case 'unpin':
+      return build('admin', { channelKind });
     default:
       return build('write', { channelKind });
   }

@@ -1300,6 +1300,14 @@ function isBotProfile(author: ub.Author): author is ub.BotProfile {
  * Normalize author to BotProfile if it's a pinser-botter ship.
  * This ensures bot authors are consistently represented as BotProfile objects.
  */
+// The bot author's nickname and avatar; the projection otherwise keeps only
+// `isBot`, and an edit resubmits the whole essay.
+function toBotProfile(author: ub.Author): db.Post['botProfile'] {
+  return isBotProfile(author)
+    ? { nickname: author.nickname ?? null, avatar: author.avatar ?? null }
+    : null;
+}
+
 function normalizeAuthor(author: ub.Author): ub.Author {
   if (typeof author === 'string' && isBotUserId(author)) {
     return {
@@ -1355,6 +1363,7 @@ export function toPostData(
       sentAt: getReceivedAtFromId(post.id),
       isDeleted: true,
       isBot,
+      botProfile: toBotProfile(author),
       deletedAt: post['deleted-at'],
       receivedAt: getReceivedAtFromId(post.id),
       sequenceNum: post.seq ? Number(post.seq) : null,
@@ -1422,6 +1431,7 @@ export function toPostData(
     authorId: getAuthorId(post.essay.author),
     isEdited: 'revision' in post && post.revision !== '0',
     isBot,
+    botProfile: toBotProfile(author),
     content: galleryImageLink
       ? JSON.stringify(galleryImageLinkContent)
       : JSON.stringify(content),
@@ -1522,6 +1532,7 @@ export function toPostReplyData(
       sentAt: getReceivedAtFromId(reply.id),
       isDeleted: true,
       isBot: isBotProfile(reply.author),
+      botProfile: toBotProfile(reply.author),
       deletedAt: reply['deleted-at'],
       receivedAt: getReceivedAtFromId(reply.id),
       sequenceNum: null,
@@ -1555,6 +1566,7 @@ export function toPostReplyData(
     authorId: getAuthorId(replyEssay.author),
     isEdited: !!reply.revision && reply.revision !== '0',
     isBot,
+    botProfile: toBotProfile(replyEssay.author),
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
     content: JSON.stringify(content),

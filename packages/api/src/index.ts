@@ -98,6 +98,7 @@ export {
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
+  type PostBlobDataEntryMetadata,
   type PostBlobDataEntryAgentIntroRequest,
   type PostBlobDataEntryAgentProvision,
   type PostBlobDataEntryAgentProviderConfig,

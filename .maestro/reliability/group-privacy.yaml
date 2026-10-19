@@ -9,26 +9,26 @@ env:
 - runFlow: subflows/create-group.yaml
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: '^Privacy$'
-- assertVisible: '^Group privacy$'
+- assertVisible: '^Workspace privacy$'
 - tapOn: '^Private$'
 - tapOn: '^Back$'
-- assertVisible: '^Private group with 1 member$'
+- assertVisible: '^Private workspace with 1 member$'
 - stopApp
 - launchApp
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.groupPattern}
-- assertVisible: '^Private group with 1 member$'
+- assertVisible: '^Private workspace with 1 member$'
 - tapOn: '^Privacy$'
 - tapOn: '^Public$'
 - tapOn: '^Back$'
-- assertVisible: '^Public group with 1 member$'
+- assertVisible: '^Public workspace with 1 member$'
 - tapOn: '^Privacy$'
 - tapOn: '^Secret$'
 - tapOn: '^Back$'
-- assertVisible: '^Secret group with 1 member$'
+- assertVisible: '^Secret workspace with 1 member$'
 - stopApp
 - launchApp
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.groupPattern}
-- assertVisible: '^Secret group with 1 member$'
+- assertVisible: '^Secret workspace with 1 member$'
 - runFlow: subflows/delete-fixture-group.yaml

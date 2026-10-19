@@ -27,7 +27,7 @@ import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
 import { BotBadge } from './BotBadge';
-import { BotSystemPromptsSection, useIsOwnedBot } from './BotSystemPrompts';
+import { useHasBotPromptFiles, useIsOwnedBot } from './BotSystemPrompts';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { ListItem } from './ListItem';
@@ -45,6 +45,8 @@ interface Props {
   /** Present on the owner's bot when it can show its scheduled tasks. */
   onPressScheduledTasks?: () => void;
   scheduledTaskCount?: number;
+  /** Shown only for a bot whose prompt files our ship mirrors. */
+  onPressPromptFiles?: () => void;
   onPressGroup: (group: db.Group) => void;
 }
 
@@ -53,6 +55,7 @@ export function UserProfileScreenView(props: Props) {
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
+  const hasPromptFiles = useHasBotPromptFiles(props.userId);
   const pinnedGroups = useMemo(() => {
     return (
       userContact?.pinnedGroups?.flatMap((g) => (g.group ? [g.group] : [])) ??
@@ -153,6 +156,19 @@ export function UserProfileScreenView(props: Props) {
           />
         ) : null}
 
+        {/* Data-gated rather than riding the hosted-bot check: our steward
+            only mirrors prompt files for bots that configured us as their
+            owner (including a self-owned bot on this very ship), so the
+            mirror is itself the ownership signal. */}
+        {props.onPressPromptFiles && hasPromptFiles ? (
+          <ProfileLinkItem
+            icon="ChannelNote"
+            title="Prompt files"
+            testID="BotPromptFilesButton"
+            onPress={props.onPressPromptFiles}
+          />
+        ) : null}
+
         {userContact?.status && (
           <StatusDisplay status={userContact?.status ?? ''} />
         )}
@@ -179,14 +195,6 @@ export function UserProfileScreenView(props: Props) {
             <StatusBlock status={sponsorStatus} label="Sponsor" />
           </View>
         </XStack>
-
-        {/* Data-gated rather than riding the hosted-bot check: our steward
-            only serves prompt sets for bots that configured us as their
-            owner (including a self-owned bot on this very ship, so no
-            own-profile guard here). Presence of prompt data is itself the
-            ownership signal — the section renders nothing for everyone
-            else. */}
-        <BotSystemPromptsSection botShip={props.userId} />
 
         <PinnedGroupsDisplay
           groups={pinnedGroups}

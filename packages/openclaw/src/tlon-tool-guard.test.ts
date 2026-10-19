@@ -251,6 +251,16 @@ describe('tlon tool guard', () => {
         cliRefusesDiary: false,
       },
       {
+        name: 'posts pin',
+        args: ['posts', 'pin', 'diary/~zod/log', '170.141'],
+        cliRefusesDiary: true,
+      },
+      {
+        name: 'posts unpin',
+        args: ['posts', 'unpin', 'diary/~zod/log', '170.141'],
+        cliRefusesDiary: true,
+      },
+      {
         name: 'known posts action with incidental missing argument',
         args: ['posts', 'react', 'diary/~zod/log', '170.141'],
         cliRefusesDiary: true,
