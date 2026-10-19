@@ -2,7 +2,7 @@
   "activity": {
     "summary": "Mentions, replies, unreads, and notification levels",
     "reference": "references/reading.md",
-    "toolGuidance": "Read activity; results are bounded. mute/unmute/volume change the owner's notification settings: change them only on request."
+    "toolGuidance": "Read activity; results are bounded. mute/unmute/volume change the owner's notification settings: change them only on request. volume base [medium|soft|hush] shows or sets the app-wide level (Settings → Notifications); chats with their own level ignore it."
   },
   "browser": {
     "summary": "Hosted-browser sharing and secure form handoff",

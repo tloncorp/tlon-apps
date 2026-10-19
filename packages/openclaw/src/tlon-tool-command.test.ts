@@ -483,6 +483,8 @@ describe('owner credential injection for invite-link, note publishing and notifi
     'activity mute ~zod/book-club',
     'activity unmute chat/~nec/general 170.141',
     'activity volume ~ten hush',
+    'activity volume base soft',
+    'activity volume base',
   ];
 
   // --ship, not --config: ship-only resolution validates the file's ship and
@@ -1878,6 +1880,14 @@ describe('tlon tool telemetry summarizer', () => {
     expect(summarizeTlonCommand('activity unreads')).toMatchObject({
       summaryKey: 'activity.unreads',
       intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity volume base')).toMatchObject({
+      summaryKey: 'activity.volume',
+      intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity volume base soft')).toMatchObject({
+      summaryKey: 'activity.volume',
+      intent: 'write',
     });
   });
 

@@ -1968,6 +1968,8 @@ function activityUsageCase(
 
 const DM_LEVELS_MESSAGE =
   'DMs take medium, hush or default (the app offers only these for DMs)';
+const BASE_MSG =
+  'base takes medium, soft or hush (the app offers only these in Settings → Notifications)';
 
 export const ACTIVITY_VOLUME_CASES: CliCase[] = [
   activityUsageCase(
@@ -1979,6 +1981,21 @@ export const ACTIVITY_VOLUME_CASES: CliCase[] = [
     'activity volume DM soft',
     ['volume', '~ten', 'soft'],
     DM_LEVELS_MESSAGE
+  ),
+  activityUsageCase(
+    'activity volume base default',
+    ['volume', 'base', 'default'],
+    BASE_MSG
+  ),
+  activityUsageCase(
+    'activity volume base loud',
+    ['volume', 'base', 'loud'],
+    BASE_MSG
+  ),
+  activityUsageCase(
+    'activity volume base unknown level',
+    ['volume', 'base', 'bogus'],
+    'Unknown level: bogus. Levels for base: medium, soft, hush'
   ),
   activityUsageCase(
     'activity mute invalid ship',
@@ -2042,6 +2059,17 @@ export const ACTIVITY_VOLUME_CASES: CliCase[] = [
     'volume',
     '~zod/book-club',
     'soft',
+  ]),
+  authRequiredCase('activity volume base reaches auth', [
+    'activity',
+    'volume',
+    'base',
+    'soft',
+  ]),
+  authRequiredCase('activity volume base show reaches auth', [
+    'activity',
+    'volume',
+    'base',
   ]),
   authRequiredCase('activity unmute thread reaches auth', [
     'activity',
