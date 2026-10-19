@@ -9,7 +9,12 @@ import { da, scot } from '@urbit/aura';
 
 import { reportReplyOutput } from '../telemetry.js';
 import { claimActiveTlonTurnOutput } from '../turn-recorder.js';
-import { type Story, createImageBlock, markdownToStory } from './story.js';
+import {
+  type RoleMentionScope,
+  type Story,
+  createImageBlock,
+  markdownToStory,
+} from './story.js';
 
 // --- Helpers ---
 
@@ -99,6 +104,8 @@ type SendTextParams = {
   replyToId?: string | null;
   parentAuthor?: string;
   botProfile?: BotProfile;
+  /** Opt in to `@all`/role conversion; only for model-authored text. */
+  roleMentions?: RoleMentionScope;
 };
 
 type SendStoryParams = {
@@ -111,8 +118,8 @@ type SendStoryParams = {
   botProfile?: BotProfile;
 };
 
-export async function sendDm(params: SendTextParams) {
-  const story: Story = markdownToStory(params.text);
+export async function sendDm({ roleMentions, ...params }: SendTextParams) {
+  const story: Story = markdownToStory(params.text, { roleMentions });
   return sendDmWithStory({ ...params, story });
 }
 
@@ -260,13 +267,14 @@ export function buildMediaText(
  */
 export function buildMediaStory(
   text: string | undefined,
-  media: { url: string; isImage: boolean } | undefined
+  media: { url: string; isImage: boolean } | undefined,
+  options: { roleMentions?: RoleMentionScope } = {}
 ): Story {
   const story: Story = [];
   const cleanText = text?.trim() ?? '';
 
   if (cleanText) {
-    story.push(...markdownToStory(cleanText));
+    story.push(...markdownToStory(cleanText, options));
   }
 
   if (media) {

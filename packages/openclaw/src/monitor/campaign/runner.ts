@@ -34,6 +34,11 @@ export type CampaignEvent = {
   step?: StepId;
   reason?: string;
 };
+/**
+ * A message to send. `personalized` marks wording the model wrote, which
+ * may mention roles; tips as written and acknowledgements stay literal.
+ */
+export type CampaignMessage = { text: string; personalized: boolean };
 export type CampaignDeps = {
   owner: string;
   config: () => CampaignConfig;
@@ -52,7 +57,11 @@ export type CampaignDeps = {
     key: string,
     destination?: string
   ) => Promise<number | undefined>;
-  send: (text: string, key?: string, destination?: string) => Promise<void>;
+  send: (
+    message: CampaignMessage,
+    key?: string,
+    destination?: string
+  ) => Promise<void>;
   report: (event: CampaignEvent) => void;
   error: (error: unknown) => void;
   now?: () => number;
@@ -203,15 +212,23 @@ export function createCampaign(deps: CampaignDeps) {
         }
         await fillContext(store, state);
         const destination = await resolveDestination();
-        let text = renderTip(decision.step, state, task, copy);
+        let message: CampaignMessage = {
+          text: renderTip(decision.step, state, task, copy),
+          personalized: false,
+        };
         let sentAt = await deps.readMarker(key, destination);
         if (sentAt === undefined) {
           try {
-            text = withOptOut(
-              await tailor(decision.step, state, task, text),
+            const tailored = await tailor(
+              decision.step,
               state,
-              copy
+              task,
+              message.text
             );
+            message = {
+              text: withOptOut(tailored.text, state, copy),
+              personalized: tailored.personalized,
+            };
           } catch (error) {
             deps.error(error);
           }
@@ -247,17 +264,25 @@ export function createCampaign(deps: CampaignDeps) {
           )
             return;
           if (JSON.stringify(freshTask) !== JSON.stringify(task))
-            text = renderTip(decision.step, state, freshTask, copy);
+            message = {
+              text: renderTip(decision.step, state, freshTask, copy),
+              personalized: false,
+            };
           if (optedOut || stopped || deps.signal?.aborted) return;
           try {
-            await deps.send(text, key, destination);
+            await deps.send(message, key, destination);
             sentAt = now();
           } catch (error) {
             sentAt = await deps.readMarker(key, destination);
             if (sentAt === undefined) throw error;
           }
         }
-        state.sent.push({ step: decision.step, at: sentAt, text, destination });
+        state.sent.push({
+          step: decision.step,
+          at: sentAt,
+          text: message.text,
+          destination,
+        });
         await store.save(state);
         report(state, 'sent', { step: decision.step });
         return;
@@ -275,13 +300,14 @@ export function createCampaign(deps: CampaignDeps) {
     state: CampaignState,
     task: CampaignTask | undefined,
     usual: string
-  ): Promise<string> {
+  ): Promise<CampaignMessage> {
+    const asWritten = (text: string) => ({ text, personalized: false });
     // The opt-out line is added to whatever is sent; the model is told to
     // leave it out, so it should not see it in the tip either.
     const text = usual.replace(`\n\n${copy.optOut}`, '');
     const ownership = renderOwnershipTip(step, state, task, copy);
     if (ownership) {
-      if (!hasOwnerContext(state, task)) return ownership;
+      if (!hasOwnerContext(state, task)) return asWritten(ownership);
       const reworded = await deps.personalize?.({
         step,
         state,
@@ -289,11 +315,14 @@ export function createCampaign(deps: CampaignDeps) {
         text: ownership,
         gated: true,
       });
-      if (reworded) return reworded;
+      if (reworded) return { text: reworded, personalized: true };
       // No verdict, so nothing vouches for it: the usual tip, as written.
-      if (reworded !== null) return usual;
+      if (reworded !== null) return asWritten(usual);
     }
-    return (await deps.personalize?.({ step, state, task, text })) ?? usual;
+    const rewritten = await deps.personalize?.({ step, state, task, text });
+    return rewritten == null
+      ? asWritten(usual)
+      : { text: rewritten, personalized: true };
   }
   function check(): Promise<void> {
     flight ??= tick()
@@ -370,11 +399,12 @@ export function createCampaign(deps: CampaignDeps) {
       optedOut = true;
       const saved = await persistOptOut();
       try {
-        await deps.send(
-          saved
+        await deps.send({
+          text: saved
             ? 'I’ve stopped the onboarding tips. Your scheduled tasks are unchanged.'
-            : 'I’ve paused these tips here, but couldn’t save that preference. Please send /stop-tips again when the bot is back online. Your scheduled tasks are unchanged.'
-        );
+            : 'I’ve paused these tips here, but couldn’t save that preference. Please send /stop-tips again when the bot is back online. Your scheduled tasks are unchanged.',
+          personalized: false,
+        });
       } catch (error) {
         deps.error(error);
       }
