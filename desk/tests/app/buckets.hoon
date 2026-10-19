@@ -64,13 +64,13 @@
   ==
 ::
 ++  state-for
-  |=  [st=state-0:bu =flag:bu]
+  |=  [st=state-1:bu =flag:bu]
   ^-  bucket-state:bu
   =/  sp=space:bu  (~(got by spaces.st) flag)
   (need state.sp)
 ::
 ++  only-session
-  |=  st=state-0:bu
+  |=  st=state-1:bu
   ^-  upload-session:bu
   =/  sessions=(list upload-session:bu)  ~(val by sessions.st)
   ?~(sessions !! i.sessions)
@@ -78,8 +78,8 @@
 ::  +grant-fact: the single card a settled local action produces.
 ::
 ++  grant-fact
-  |=  [rid=@uv body=response-body:v1:bu]
-  (ex-fact ~[/v1/requests] %buckets-req-response-1 !>(`req-response:v1:bu`[rid body]))
+  |=  [rid=@uv body=response-body:bu]
+  (ex-fact ~[/v1/requests] %buckets-req-response-2 !>(`req-response:bu`[rid body]))
 ::
 ::  +genuine-scries: %buckets authenticates itself to the broker with the
 ::  secret %genuine holds, so anything that mints or revokes a token reads it.
@@ -138,7 +138,7 @@
 ::  +granted-count: pairs currently holding a grant, whatever their sync state.
 ::
 ++  granted-count
-  |=  st=state-0:bu
+  |=  st=state-1:bu
   ^-  @ud
   %-  lent
   %+  skim  ~(val by readers.st)
@@ -147,7 +147,7 @@
 ::  +owed-count: pairs the broker has not caught up with.
 ::
 ++  owed-count
-  |=  st=state-0:bu
+  |=  st=state-1:bu
   ^-  @ud
   %-  lent
   %+  skim  ~(val by readers.st)
@@ -257,7 +257,7 @@
 ::  +sync-for: the pair's sync record, for asserting revisions directly.
 ::
 ++  sync-for
-  |=  [st=state-0:bu reader=@p]
+  |=  [st=state-1:bu reader=@p]
   ^-  reader-sync:bu
   (~(got by readers.st) [flag reader])
 ::
@@ -286,7 +286,7 @@
   |=  caz=(list card)
   ^-  (list card)
   %+  skim  caz
-  |=(=card ?=([%give %fact * %buckets-req-response-1 *] card))
+  |=(=card ?=([%give %fact * %buckets-req-response-2 *] card))
 ::
 ::  +secretless-scries: the group is there, but %genuine has not initialised.
 ::  A real state on a fresh ship, and the one place a mint is answered in the
@@ -403,7 +403,7 @@
         ==
     ==
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  bs=bucket-state:bu  (state-for st flag)
   =/  ses=upload-session:bu  (only-session st)
   %+  ex-equal
@@ -433,24 +433,24 @@
   ;<  ~  b
     %+  ex-cards  caz
     :~  %+  grant-fact  0v8
-        [%error %invalid-input 'file size must be greater than zero']
+        [%error %invalid-input 'file size must be greater than zero' ~]
     ==
   ;<  caz2=(list card)  b
     (ask 0v9 [%bucket flag [%begin-upload ~ 'bad.pdf' 'pdf' 42 ~]])
   ;<  ~  b
     %+  ex-cards  caz2
     :~  %+  grant-fact  0v9
-        [%error %invalid-input 'missing or malformed content type']
+        [%error %invalid-input 'missing or malformed content type' ~]
     ==
   ;<  caz3=(list card)  b
     (ask 0v10 [%bucket flag [%begin-upload `99 'orphan.pdf' 'application/pdf' 42 ~]])
   ;<  ~  b
     %+  ex-cards  caz3
     :~  %+  grant-fact  0v10
-        [%error %not-found 'no such parent folder']
+        [%error %not-found 'no such parent folder' ~]
     ==
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   (ex-equal !>([~(wyt by sessions.st) next-id.st]) !>([0 1]))
 ::
 ::  A pending upload is absent from the manifest until the object lands, then
@@ -471,7 +471,7 @@
   =/  push=[=wire =request:http]  (only-iris caz)
   ;<  *  b  (do-arvo wire.push (iris-grant 'res-a' 'https://storage.test/put'))
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  bs=bucket-state:bu  (state-for st flag)
   =/  ses=upload-session:bu  (only-session st)
   ::  the folder is published, the pending file is not
@@ -481,7 +481,7 @@
   =/  done=[=wire =request:http]  (only-iris fin)
   ;<  *  b  (do-arvo wire.done (iris-object object-key.fil 2.048 'image/png'))
   ;<  sv2=vase  b  get-save
-  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  st2=state-1:bu  !<(state-1:bu sv2)
   =/  bs2=bucket-state:bu  (state-for st2 flag)
   =/  ent=entry:bu  (~(got by entries.bs2) id.entry.ses)
   =/  fil2=file:bu  (file-of ent)
@@ -508,7 +508,7 @@
   ;<  ~  b  create
   ;<  *  b  (begun 0v1 'private.pdf' 42)
   ;<  sv=vase  b  get-save
-  =/  ses=upload-session:bu  (only-session !<(state-0:bu sv))
+  =/  ses=upload-session:bu  (only-session !<(state-1:bu sv))
   ::  Quota is reserved before the first byte moves, so withdrawing has to
   ::  reach the broker or the space stays held until the reservation lapses.
   ;<  caz=(list card)  b
@@ -519,7 +519,7 @@
   ::  The session stops issuing URLs whether or not the broker is reachable
   ::  to hear about it, so it is already cancelled here.
   ;<  mid=vase  b  get-save
-  =/  cancelled=upload-session:bu  (only-session !<(state-0:bu mid))
+  =/  cancelled=upload-session:bu  (only-session !<(state-1:bu mid))
   ;<  ~  b  (ex-equal !>(status.cancelled) !>(%cancelled))
   ;<  done=(list card)  b  (do-arvo wire.push iris-ok)
   %+  ex-cards  done
@@ -541,7 +541,7 @@
     (ex-equal !>(wire.push) !>(/buckets/upload/(scot %uv seed)/grant))
   ;<  *  b  (do-arvo wire.push (iris-grant 'res-1' 'https://storage.test/put'))
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  ses=upload-session:bu  (only-session st)
   =/  fil=file:bu  (file-of entry.ses)
   ::  The reservation is what the broker told us, not something it proposed
@@ -563,7 +563,7 @@
     (ex-equal !>(wire.done) !>(/buckets/upload/(scot %uv id.ses)/complete))
   ;<  *  b  (do-arvo wire.done (iris-object object-key.fil 42 'application/pdf'))
   ;<  sv2=vase  b  get-save
-  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  st2=state-1:bu  !<(state-1:bu sv2)
   =/  bs2=bucket-state:bu  (state-for st2 flag)
   =/  ent2=entry:bu  (~(got by entries.bs2) id.entry.ses)
   =/  fil2=file:bu  (file-of ent2)
@@ -600,7 +600,7 @@
   ;<  ~  b  create
   ;<  *  b  (begun 0v1 'private.pdf' 42)
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  ses=upload-session:bu  (only-session st)
   =/  fil=file:bu  (file-of entry.ses)
   ;<  fin=(list card)  b  (ask 0v9 [%bucket flag [%finish-upload id.ses]])
@@ -707,7 +707,7 @@
   =/  push=[=wire =request:http]  (only-iris mint-caz)
   ;<  *  b  (do-arvo wire.push (iris-status 404))
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   ::  a 404 is a refusal like any other now
   ::  a second reader, so the mint is fresh rather than the one just kept,
   ::  against a broker that refuses it outright
@@ -719,7 +719,7 @@
   =/  retry=[=wire =request:http]  (only-iris again-caz)
   ;<  *  b  (do-arvo wire.retry (iris-status 500))
   ;<  sv2=vase  b  get-save
-  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  st2=state-1:bu  !<(state-1:bu sv2)
   ::  nothing served either way, and both pairs still owed
   %+  ex-equal
     !>  :*  (~(has by read-tokens.st) flag)
@@ -742,7 +742,7 @@
   ;<  ~  b  create
   ;<  *  b  (ask 0v1 [%bucket flag [%create-folder ~ 'Launch']])
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  bs=bucket-state:bu  (state-for st flag)
   =/  folder=@ud
     =/  ents  ~(tap by entries.bs)
@@ -755,12 +755,12 @@
   ;<  *  b
     (ask 0v3 [%bucket flag [%begin-upload ~ 'outside.pdf' 'application/pdf' 9 ~]])
   ;<  sv2=vase  b  get-save
-  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  st2=state-1:bu  !<(state-1:bu sv2)
   =/  before=@ud  ~(wyt by sessions.st2)
   ::  deleting the folder recursively takes the upload inside it, not the other
   ;<  *  b  (ask 0v5 [%bucket flag [%entry folder [%delete &]]])
   ;<  sv3=vase  b  get-save
-  =/  st3=state-0:bu  !<(state-0:bu sv3)
+  =/  st3=state-1:bu  !<(state-1:bu sv3)
   =/  survivors=(list @t)
     %+  turn  ~(val by sessions.st3)
     |=(ses=upload-session:bu name.entry.ses)
@@ -795,15 +795,15 @@
   ;<  ~  b
     %+  ex-cards  (skim revoke-caz |=(car=card ?=([%give %fact *] car)))
     :~  %+  ex-fact  ~[/v1/request/~bus/0v9]
-        :-  %buckets-req-response-1
-        !>  ^-  req-response:v1:bu
+        :-  %buckets-req-response-2
+        !>  ^-  req-response:bu
         :-  0v9
-        [%error %not-authorized 'access changed while the token was being issued']
+        [%error %not-authorized 'access changed while the token was being issued' ~]
     ==
   ::  the stale grant ack arrives afterwards and resurrects nothing
   ;<  *  b  (do-arvo wire.grant iris-ok)
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   (ex-equal !>((granted-count st)) !>(0))
 ::
 ::  A retry of a dropped POST reuses its request id, and must not run the
@@ -821,11 +821,11 @@
     '{"requestId":"0v30","action":{"type":"create-folder","flag":{"host":"~sampel-palnet","name":"project-files"},"name":"Launch"}}'
   ;<  *  b  (http-post & body)
   ;<  sv=vase  b  get-save
-  =/  before=@ud  ~(wyt by entries:(state-for !<(state-0:bu sv) flag))
+  =/  before=@ud  ~(wyt by entries:(state-for !<(state-1:bu sv) flag))
   ::  the same id again, once the first has settled
   ;<  again=(list card)  b  (http-post & body)
   ;<  sv2=vase  b  get-save
-  =/  after=@ud  ~(wyt by entries:(state-for !<(state-0:bu sv2) flag))
+  =/  after=@ud  ~(wyt by entries:(state-for !<(state-1:bu sv2) flag))
   ::  one folder, and the retry still gets an answer
   =/  answered=?  ?=(^ (skim again |=(car=card ?=([%give %fact *] car))))
   (ex-equal !>([before after answered]) !>([1 1 %.y]))
@@ -847,7 +847,7 @@
   =/  first=[=wire =request:http]  (only-iris caz)
   ;<  *  b  (do-arvo wire.first (iris-refusal 503 &))
   ;<  sv=vase  b  get-save
-  =/  owed-after-503=@ud  (owed-count !<(state-0:bu sv))
+  =/  owed-after-503=@ud  (owed-count !<(state-1:bu sv))
   ::  a validation refusal does not
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v4141)))
   ;<  caz2=(list card)  b
@@ -857,7 +857,7 @@
   =/  second=[=wire =request:http]  (only-iris caz2)
   ;<  denied=(list card)  b  (do-arvo wire.second (iris-refusal 400 |))
   ;<  sv2=vase  b  get-save
-  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  st2=state-1:bu  !<(state-1:bu sv2)
   ::  the rejected pair is no longer owed, and its asker was told
   =/  answered=?
     ?=(^ (skim denied |=(car=card ?=([%give %fact *] car))))
@@ -894,7 +894,7 @@
     %+  do-poke  %buckets-command-1
     !>(`command:bu`[0v21 [%bucket flag [%issue-bucket-read ~]]])
   ;<  sv=vase  b  get-save
-  =/  sync=reader-sync:bu  (sync-for !<(state-0:bu sv) ~bus)
+  =/  sync=reader-sync:bu  (sync-for !<(state-1:bu sv) ~bus)
   ::  grant, revoke, grant -- each strictly above the last
   %+  ex-equal
     !>([revision.sync -.desired.sync])
@@ -916,7 +916,7 @@
   ;<  first=(list card)  b  (do-arvo wire.push iris-ok)
   ;<  again=(list card)  b  (do-arvo wire.push iris-ok)
   ;<  sv=vase  b  get-save
-  =/  sync=reader-sync:bu  (sync-for !<(state-0:bu sv) ~sampel-palnet)
+  =/  sync=reader-sync:bu  (sync-for !<(state-1:bu sv) ~sampel-palnet)
   ::  the second delivery answers nobody and changes nothing
   ;<  ~  b  (ex-cards again ~)
   %+  ex-equal
@@ -945,7 +945,7 @@
   ;<  resent=(list card)  b  (do-arvo wire.push (iris-revision 200 41))
   =/  retry=[=wire =request:http]  (only-iris resent)
   ;<  sv=vase  b  get-save
-  =/  sync=reader-sync:bu  (sync-for !<(state-0:bu sv) ~sampel-palnet)
+  =/  sync=reader-sync:bu  (sync-for !<(state-1:bu sv) ~sampel-palnet)
   ::  we jump past it and say the same thing again at a revision that wins
   %+  ex-equal
     !>([revision.sync wire.retry])
@@ -967,7 +967,7 @@
   =/  push=[=wire =request:http]  (only-iris caz)
   ;<  refused=(list card)  b  (do-arvo wire.push (iris-revision 400 1))
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  sync=reader-sync:bu  (sync-for st ~sampel-palnet)
   ::  nothing was confirmed, nothing is servable, nobody was told otherwise
   %+  ex-equal
@@ -1012,7 +1012,7 @@
     [%fact %group-response-1 !>(group-changed)]
   =/  revoke=[=wire =request:http]  (only-iris caz)
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  kicked=(list ship)
     %+  murn  caz
     |=(car=card ?.(?=([%give %kick * ^] car) ~ ship.p.car))
@@ -1054,7 +1054,7 @@
   ::  the broker fails it, so the pair stays owed and a retry is armed
   ;<  *  b  (do-arvo wire.revoke (iris-status 503))
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   ;<  ~  b  (ex-equal !>((owed-count st)) !>(1))
   ::  the retry timer re-sends the same revision, and a 2xx settles it
   ;<  retried=(list card)  b
@@ -1062,7 +1062,7 @@
   =/  again=[=wire =request:http]  (only-iris retried)
   ;<  *  b  (do-arvo wire.again iris-ok)
   ;<  sv2=vase  b  get-save
-  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  st2=state-1:bu  !<(state-1:bu sv2)
   %+  ex-equal
     !>  :*  wire.again
             method.request.again
@@ -1091,7 +1091,7 @@
   =/  push=[=wire =request:http]  (only-iris mint-caz)
   ;<  *  b  (do-arvo wire.push iris-ok)
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   ::  then it loses read access
   ;<  ~  b  (set-scry-gate revoked-scries)
   ;<  caz=(list card)  b
@@ -1101,7 +1101,7 @@
     [%fact %group-response-1 !>(group-changed)]
   =/  revoke=[=wire =request:http]  (only-iris caz)
   ;<  sv2=vase  b  get-save
-  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  st2=state-1:bu  !<(state-1:bu sv2)
   =/  kicks=(list card)
     %+  skim  caz
     |=(car=card ?=([%give %kick *] car))
@@ -1135,7 +1135,7 @@
   =/  push=[=wire =request:http]  (only-iris mint-caz)
   ;<  *  b  (do-arvo wire.push iris-ok)
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  minted=@ud  (granted-count st)
   ::  the reader is subscribed, and then loses read access
   ;<  ~  b
@@ -1156,7 +1156,7 @@
     [%fact %group-response-1 !>(group-changed)]
   =/  revoke=[=wire =request:http]  (only-iris kick-caz)
   ;<  sv2=vase  b  get-save
-  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  st2=state-1:bu  !<(state-1:bu sv2)
   =/  kicked=(list ship)
     %+  murn  kick-caz
     |=  car=card
@@ -1192,7 +1192,7 @@
   ;<  ~  b  create
   ;<  *  b  (begun 0v1 'huge.iso' 42)
   ;<  sv=vase  b  get-save
-  =/  ses=upload-session:bu  (only-session !<(state-0:bu sv))
+  =/  ses=upload-session:bu  (only-session !<(state-1:bu sv))
   ;<  ~  b  (ex-equal !>(reservation.ses) !>(`'res-1'))
   ::  Past the session window, with something else driving a prune.
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(now ~2026.1.2, eny 0v9999)))
@@ -1208,7 +1208,7 @@
   ;<  ~  b  (ex-equal !>((lent cancels)) !>(1))
   ::  And the lapsed session is gone from our own state either way.
   ;<  after=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu after)
+  =/  st=state-1:bu  !<(state-1:bu after)
   (ex-equal !>((~(has by sessions.st) id.ses)) !>(|))
 ::
 ++  test-expired-authority-is-pruned
@@ -1222,7 +1222,7 @@
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(now ~2026.1.2, eny 0v9999)))
   ;<  *  b  (ask 0v2 [%bucket flag [%begin-upload ~ 'later.pdf' 'application/pdf' 7 ~]])
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   %+  ex-equal
   !>  :*  (~(has by sessions.st) seed)
           (~(has by reservations.st) 'res-1')
@@ -1285,8 +1285,8 @@
     %^    do-agent
         /buckets/req/~sampel-palnet/0v4/watch
       [~sampel-palnet %buckets]
-    :+  %fact  %buckets-req-response-1
-    !>(`req-response:v1:bu`[0v4 [%pending ~]])
+    :+  %fact  %buckets-req-response-2
+    !>(`req-response:bu`[0v4 [%pending ~]])
   ;<  ~  b  (ex-cards waiting ~)
   ::  then the real answer lands, and it settles
   =/  tok=read-token:bu  ['0v1.2345' (add ~2026.1.1 ~d1)]
@@ -1294,10 +1294,10 @@
     %^    do-agent
         /buckets/req/~sampel-palnet/0v4/watch
       [~sampel-palnet %buckets]
-    :+  %fact  %buckets-req-response-1
-    !>(`req-response:v1:bu`[0v4 [%token tok]])
+    :+  %fact  %buckets-req-response-2
+    !>(`req-response:bu`[0v4 [%token tok]])
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   ;<  ~  b
     %+  ex-equal
       !>((~(get by read-tokens.st) flag))
@@ -1339,8 +1339,8 @@
     %^    do-agent
         /buckets/req/~sampel-palnet/0v4/watch
       [~sampel-palnet %buckets]
-    :+  %fact  %buckets-req-response-1
-    !>(`req-response:v1:bu`[0v4 [%token tok]])
+    :+  %fact  %buckets-req-response-2
+    !>(`req-response:bu`[0v4 [%token tok]])
   ::  now a folder rename is refused
   ;<  *  b  (ask 0v5 [%bucket flag [%entry 1 [%rename 'nope']]])
   ;<  caz=(list card)  b
@@ -1350,7 +1350,7 @@
     :+  %fact  %buckets-req-response-1
     !>(`req-response:v1:bu`[0v5 [%error %not-authorized 'not authorized for this bucket']])
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   ::  the token is untouched, and no token timer was armed on its behalf
   =/  token-timers=(list card)
     %+  skim  caz
@@ -1421,9 +1421,9 @@
         %-  ex-arvo
         [/buckets/reader-retry [%b %wait (add ~2026.1.1 ~m2)]]
         %+  ex-fact  ~[/v1/requests]
-        :-  %buckets-req-response-1
-        !>  ^-  req-response:v1:bu
-        [0v7 %error %unknown 'this ship cannot reach storage yet']
+        :-  %buckets-req-response-2
+        !>  ^-  req-response:bu
+        [0v7 %error %unknown 'this ship cannot reach storage yet' ~]
     ==
   ::  the secret appears and the retry timer sends what was owed
   ;<  ~  b  (set-scry-gate genuine-scries)
@@ -1432,7 +1432,7 @@
   ;<  landed=(list card)  b  (do-arvo wire.push iris-ok)
   ::  the grant is installed, but nobody is answered a second time
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   %+  ex-equal
     !>([(granted-count st) (lent (answers landed))])
   !>([1 0])
@@ -1453,12 +1453,12 @@
   =/  push=[=wire =request:http]  (only-iris caz)
   ;<  *  b  (do-arvo wire.push iris-ok)
   ;<  sv=vase  b  get-save
-  =/  before=@ud  ~(wyt by readers:!<(state-0:bu sv))
+  =/  before=@ud  ~(wyt by readers:!<(state-1:bu sv))
   ::  read-window later, the grant it confirmed has lapsed
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(now (add ~2026.1.1 ~d1), eny 0v7777)))
   ;<  *  b  (ask 0v9 [%bucket flag [%issue-bucket-read ~]])
   ;<  after=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu after)
+  =/  st=state-1:bu  !<(state-1:bu after)
   ::  the lapsed row is gone; what replaced it is a fresh mint at revision 1
   =/  sync=reader-sync:bu  (sync-for st ~sampel-palnet)
   %+  ex-equal
@@ -1478,11 +1478,11 @@
   ;<  ~  b  create
   ;<  *  b  (ask 0v11 [%bucket flag [%create-folder ~ 'notes']])
   ;<  sv=vase  b  get-save
-  =/  first=@ud  ~(wyt by entries:(state-for !<(state-0:bu sv) flag))
+  =/  first=@ud  ~(wyt by entries:(state-for !<(state-1:bu sv) flag))
   ::  the same id again, as a caller that lost our answer would send it
   ;<  again=(list card)  b  (ask 0v11 [%bucket flag [%create-folder ~ 'notes']])
   ;<  after=vase  b  get-save
-  =/  second=@ud  ~(wyt by entries:(state-for !<(state-0:bu after) flag))
+  =/  second=@ud  ~(wyt by entries:(state-for !<(state-1:bu after) flag))
   ::  no second folder, and the stored result is replayed rather than remade
   %+  ex-equal
     !>([first second (lent (answers again))])
@@ -1539,7 +1539,7 @@
   ;<  resent=(list card)  b  (do-arvo wire.push (iris-receipt 1 |))
   =/  retry=[=wire =request:http]  (only-iris resent)
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  sync=reader-sync:bu  (sync-for st ~sampel-palnet)
   ::  we go above what it kept rather than settling, and nothing is servable
   ::  until it says it took one
@@ -1568,7 +1568,7 @@
   =/  push=[=wire =request:http]  (only-iris caz)
   ;<  settled=(list card)  b  (do-arvo wire.push (iris-receipt 1 &))
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  sync=reader-sync:bu  (sync-for st ~sampel-palnet)
   %+  ex-equal
     !>([revision.sync synced.sync (lent (skim settled |=(c=card ?=([%pass * %arvo %i *] c))))])
@@ -1588,7 +1588,7 @@
   ;<  ~  b  create
   ;<  *  b  (ask 0v1 [%bucket flag [%set-writers (silt `(list @tas)`~[%editors %moderators])]])
   ;<  sv=vase  b  get-save
-  =/  before=(set @tas)  writers:(state-for !<(state-0:bu sv) flag)
+  =/  before=(set @tas)  writers:(state-for !<(state-1:bu sv) flag)
   ::  %groups says the moderators role is gone
   ;<  *  b
     %^    do-agent
@@ -1596,7 +1596,7 @@
       [~sampel-palnet %groups]
     [%fact %group-response-1 !>((role-deleted (silt `(list @tas)`~[%moderators])))]
   ;<  after=vase  b  get-save
-  =/  kept=(set @tas)  writers:(state-for !<(state-0:bu after) flag)
+  =/  kept=(set @tas)  writers:(state-for !<(state-1:bu after) flag)
   %+  ex-equal
     !>([before kept])
   !>([(silt `(list @tas)`~[%editors %moderators]) (silt `(list @tas)`~[%editors])])
@@ -1624,7 +1624,7 @@
     [%fact %group-response-1 !>(`r-groups:v9:gv`[group %create whole])]
   ;<  after=vase  b  get-save
   %+  ex-equal
-    !>(writers:(state-for !<(state-0:bu after) flag))
+    !>(writers:(state-for !<(state-1:bu after) flag))
   !>((silt `(list @tas)`~[%editors]))
 ::
 ::  A record that lapsed while still owed used to be stranded: +owed skipped
@@ -1670,7 +1670,7 @@
   ::  the broker keeps failing in a way worth retrying, and never takes it
   ;<  *  b  (do-arvo wire.revoke (iris-refusal 503 &))
   ;<  sv=vase  b  get-save
-  =/  mid=reader-sync:bu  (sync-for !<(state-0:bu sv) ~bus)
+  =/  mid=reader-sync:bu  (sync-for !<(state-1:bu sv) ~bus)
   ::  owed, unanswerable, and nobody waiting: the shape that used to persist
   ;<  ~  b
     %+  ex-equal
@@ -1681,7 +1681,7 @@
   ;<  ~  b  (set-scry-gate reader-scries)
   ;<  *  b  (ask 0v5 [%bucket flag [%issue-bucket-read ~]])
   ;<  after=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu after)
+  =/  st=state-1:bu  !<(state-1:bu after)
   ::  the stranded revoke is gone; only our own fresh mint remains
   %+  ex-equal
     !>([~(wyt by readers.st) (~(has by readers.st) [flag ~bus])])
@@ -1719,8 +1719,8 @@
     |=  =card
     ^-  (unit @uv)
     ?.  ?=([%give %fact *] card)  ~
-    ?.  =(%buckets-req-response-1 p.cage.p.card)  ~
-    `request-id:!<(req-response:v1:bu q.cage.p.card)
+    ?.  =(%buckets-req-response-2 p.cage.p.card)  ~
+    `request-id:!<(req-response:bu q.cage.p.card)
   %+  ex-equal
     !>(answered)
   !>(~[(slav %uv rid)])
@@ -1807,8 +1807,8 @@
   =/  push=[=wire =request:http]  (only-iris caz)
   ;<  ~  b
     %+  ex-equal
-      !>  :*  broker-base:!<(state-0:bu before)
-              broker-base:!<(state-0:bu still)
+      !>  :*  broker-base:!<(state-1:bu before)
+              broker-base:!<(state-1:bu still)
               url.request.push
           ==
     !>  :*  'https://memex.tlon.network/v2/buckets'
@@ -1819,7 +1819,7 @@
   ;<  *  b  (do-poke %noun !>([%set-broker-base `(unit @t)`~]))
   ;<  sv=vase  b  get-save
   %+  ex-equal
-    !>(broker-base:!<(state-0:bu sv))
+    !>(broker-base:!<(state-1:bu sv))
   !>('https://memex.tlon.network/v2/buckets')
 ::
 ::  Read tokens are bucket-scoped, so a token answer has to be filed under the
@@ -1848,7 +1848,7 @@
     :+  %fact  %buckets-req-response-1
     !>(`req-response:v1:bu`[0v7 [%token tok]])
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   ::  it lands on the bucket that asked, and the sibling still holds none
   %+  ex-equal
     !>  :-  (~(get by read-tokens.st) other)
@@ -1892,7 +1892,7 @@
   ::  Nothing is applied and nothing is forwarded to our own clients.
   ;<  ~  b  (ex-cards caz ~)
   ;<  sv=vase  b  get-save
-  =/  saved=state-0:bu  !<(state-0:bu sv)
+  =/  saved=state-1:bu  !<(state-1:bu sv)
   =/  sp=space:bu  (~(got by spaces.saved) flag)
   %+  ex-equal  !>(state.sp)  !>(~)
 ::
@@ -1918,7 +1918,7 @@
         ==
     ==
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   (ex-equal !>((~(has by spaces.st) flag)) !>(%.y))
 ::
 ::  A member without a writer role is refused with a typed error rather than
@@ -1939,8 +1939,8 @@
   %+  ex-cards  caz
   :~  %-  ex-fact
       :*  ~[/v1/request/~bus/0v5]
-          %buckets-req-response-1
-          !>(`req-response:v1:bu`[0v5 [%error %not-authorized 'not authorized for this bucket']])
+          %buckets-req-response-2
+          !>(`req-response:bu`[0v5 [%error %not-authorized 'not authorized for this bucket' ~]])
       ==
   ==
 ::
@@ -1960,7 +1960,7 @@
     %+  do-poke  %buckets-command-1
     !>(`command:bu`[0v6 [%bucket flag [%create-folder ~ 'Launch']]])
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  bs=bucket-state:bu  (state-for st flag)
   (ex-equal !>([~(wyt by entries.bs) revision.bs]) !>([1 1]))
 ::
@@ -2012,7 +2012,7 @@
     (ask 0v1 [%create %project-files 'Project Files' moon-group ~ ~])
   %+  ex-cards  caz
   :~  %+  grant-fact  0v1
-      [%error %invalid-input 'only a planet may host a bucket']
+      [%error %invalid-input 'only a planet may host a bucket' ~]
   ==
 ::
 ::  The authoritative group host accepts a live remote admin, owns the Bucket,
@@ -2030,7 +2030,7 @@
     %+  do-poke  %buckets-command-1
     !>(`command:bu`[0v1 [%create %project-files 'Project Files' group ~ ~]])
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  bs=bucket-state:bu  (state-for st flag)
   %+  ex-equal
   !>([created-by.bucket.bs updated-by.bucket.bs group.bs])
@@ -2055,7 +2055,7 @@
   ;<  ~  b
     %+  ex-cards  caz
     :~  %+  grant-fact  0v1
-        [%error %invalid-input 'that bucket name is taken']
+        [%error %invalid-input 'that bucket name is taken' ~]
     ==
   ::  Identical, but from another admin. .actor is not part of the comparison,
   ::  so this is the idempotent path and re-registers rather than erroring.
@@ -2071,7 +2071,7 @@
     :~  (ex-fact-paths ~[/v1])
     ==
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   =/  bs=bucket-state:bu  (state-for st flag)
   ::  One Bucket, and the collision did not overwrite its title.
   %+  ex-equal
@@ -2116,7 +2116,7 @@
   ;<  *  b  ((do-as ~bus) (do-poke %buckets-command-1 !>(cmd)))
   ;<  *  b  ((do-as ~bus) (do-poke %buckets-command-1 !>(cmd)))
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  st=state-1:bu  !<(state-1:bu sv)
   (ex-equal !>([next-id.st ~(wyt by spaces.st)]) !>([1 1]))
 ::
 ::  +on-load must round-trip the persisted state unchanged. A cast failure
@@ -2180,7 +2180,7 @@
   ;<  ~  b  create
   ;<  *  b  (begun 0v1 'private.pdf' 42)
   ;<  sv=vase  b  get-save
-  =/  ses=upload-session:bu  (only-session !<(state-0:bu sv))
+  =/  ses=upload-session:bu  (only-session !<(state-1:bu sv))
   =/  sid=@t  (scot %uv id.ses)
   =/  verb
     |=  [rid=@t type=@t]
@@ -2217,7 +2217,7 @@
   ::  held request — same body, two deliveries.
   %+  ex-cards  caz
   :~  %+  grant-fact  0v5
-      [%error %invalid-input 'only a planet may host a bucket']
+      [%error %invalid-input 'only a planet may host a bucket' ~]
       (http-header 200 'application/json')
       (ex-fact-paths [/http-response/eyre-0]~)
       (ex-card [%give %kick [/http-response/eyre-0]~ ~])

@@ -496,13 +496,28 @@
 ::
 +$  space  [=net state=(unit bucket-state) pending-group=(unit flag)]
 ::
-::  Persisted state. %buckets has never run on a live ship, so there is
-::  nothing to migrate from — this is version 0. A future change adds
-::  $state-1 plus a +state-0-to-1 arm chained from +on-load; never mutate a
-::  numbered mold in place.
+::  Persisted state. Each version is its own mold, lifted by a +state-N-to-M
+::  arm chained from +on-load; never mutate a numbered mold in place.
 ::
 +$  state-0
   $:  %0
+      broker-base=@t
+      spaces=(map flag space)
+      next-id=@ud
+      sessions=(map @uv upload-session)
+      object-capabilities=(map @t object-capability)
+      read-tokens=(map flag read-token)
+      readers=(map reader-key reader-sync)
+      reservations=(map @t @uv)
+      pending=(map request-id [host=ship until=@da token-for=(unit flag)])
+      ::  .requests holds v1 answers: this mold predates $broker-error.
+      requests=requests:v1
+  ==
+::  $state-1: as $state-0, with .requests holding v2 answers, so a stored
+::  refusal keeps the broker's account of it.
+::
++$  state-1
+  $:  %1
       ::  .broker-base is where this ship's storage broker lives. Ship
       ::  configuration rather than bucket data: a ship has no environment to
       ::  read, so pointing a host at a test broker is a poke, and the default
@@ -525,14 +540,12 @@
       ::  whether this request's failure has anything to do with tokens at
       ::  all, so that a refused folder rename does not discard one.
       pending=(map request-id [host=ship until=@da token-for=(unit flag)])
-      ::  .requests holds v1 answers: this mold predates $broker-error, and
-      ::  a numbered mold is never changed in place.
-      requests=requests:v1
+      =requests
   ==
 ::  $versioned-state: every persisted shape +on-load may be handed.
 ::
-+$  versioned-state  $%(state-0)
++$  versioned-state  $%(state-0 state-1)
 ::  $state: the current persisted shape.
 ::
-+$  state  state-0
++$  state  state-1
 --

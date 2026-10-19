@@ -253,9 +253,9 @@
   ;<  ~  bind:m  (memex-answer bucket-host num.put 200 (applied-json 1))
   ::  and the token arrives, rather than the %pending that preceded it
   |-
-  ;<  res=req-response:v1:b  bind:m
+  ;<  res=req-response:b  bind:m
     %^    wait-for-app-fact-value
-        req-response:v1:b
+        req-response:b
       /host/buckets/v1/requests
     [bucket-host %buckets]
   ?:  ?=(%pending -.body.res)  $
@@ -289,9 +289,9 @@
     [0v22 [%bucket the-bucket [%issue-bucket-read ~]]]
   ::  the overtaken one is told, and told it is a race rather than a refusal
   |-
-  ;<  res=req-response:v1:b  bind:m
+  ;<  res=req-response:b  bind:m
     %^    wait-for-app-fact-value
-        req-response:v1:b
+        req-response:b
       /host/buckets/v1/requests
     [bucket-host %buckets]
   ?:  ?=(%pending -.body.res)  $
@@ -311,9 +311,9 @@
     [rid [%bucket the-bucket [%begin-upload ~ name 'text/markdown' 12 ~]]]
   ;<  ask=[num=@ud =request:http]  bind:m  (memex-take bucket-host grant-url)
   ;<  ~  bind:m  (memex-answer bucket-host num.ask 200 (grant-json 'res-a'))
-  ;<  granted=req-response:v1:b  bind:m
+  ;<  granted=req-response:b  bind:m
     %^    wait-for-app-fact-value
-        req-response:v1:b
+        req-response:b
       /host/buckets/v1/requests
     [bucket-host %buckets]
   ?.  ?=(%upload -.body.granted)
@@ -353,9 +353,9 @@
     ^-  command:b
     [0v11 [%bucket the-bucket [%cancel-upload session 'changed my mind']]]
   ::  the displaced waiter is told, rather than left to hang
-  ;<  first=req-response:v1:b  bind:m
+  ;<  first=req-response:b  bind:m
     %^    wait-for-app-fact-value
-        req-response:v1:b
+        req-response:b
       /host/buckets/v1/requests
     [bucket-host %buckets]
   (ex-equal !>(?=(%error -.body.first)) !>(&))
@@ -415,9 +415,9 @@
   =/  object=@t  (object-of request.ask)
   ;<  ~  bind:m  (memex-answer bucket-host num.ask 200 (grant-json 'res-a'))
   ::  which comes back to the uploader as the signed PUT
-  ;<  granted=req-response:v1:b  bind:m
+  ;<  granted=req-response:b  bind:m
     %^    wait-for-app-fact-value
-        req-response:v1:b
+        req-response:b
       /host/buckets/v1/requests
     [bucket-host %buckets]
   ?.  ?=(%upload -.body.granted)

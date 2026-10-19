@@ -242,18 +242,4 @@
   |=  res=req-response:v1:b
   ^-  req-response:v2:b
   [request-id.res (response-body-1-to-2 body.res)]
-::  +response-body-2-to-1: the current shape as v1, which is what
-::  %buckets-req-response-1 carries. The broker detail is all v1 cannot say.
-::
-++  response-body-2-to-1
-  |=  body=response-body:v2:b
-  ^-  response-body:v1:b
-  ?.  ?=(%error -.body)  body
-  [%error action-error.body message.body]
-::  +req-response-2-to-1: +response-body-2-to-1 under its request id.
-::
-++  req-response-2-to-1
-  |=  res=req-response:v2:b
-  ^-  req-response:v1:b
-  [request-id.res (response-body-2-to-1 body.res)]
 --

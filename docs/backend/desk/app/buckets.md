@@ -33,7 +33,7 @@ Files transition from `%pending` to `%ready` or `%failed`. Upload sessions indep
 
 Alongside the buckets, the agent keeps host-private maps that never appear in snapshots or Ames updates: upload sessions, minted object capabilities, this ship's own read tokens, revocations the broker has not yet confirmed, broker-reservation bindings, and the in-flight and recently-settled client requests.
 
-State is a single `%0`. It has never shipped, so there are no migrations; a mold change means adding `%1` and a `+state-0-to-1` arm rather than editing `%0` in place.
+State is at `%1`; `+state-0-to-1` lifts the stored request answers, which gained the broker's account of a refusal. A mold change means adding the next version and its lift arm rather than editing a numbered mold in place.
 
 ## Actions
 
@@ -59,6 +59,10 @@ The outer type carries identity, the inner one carries only the verb: `%create` 
 `.readers` on `%create` is passed straight to `%groups` and is not retained, so creating over an existing Bucket is not a way to change its ACL.
 
 Answers are a `$response-body`: `%ok`, `%grant` for a per-object token, `%token` for a bucket read token, `%error` with a typed reason, or `%pending`. `%pending` is not terminal -- it means the host is still working, and the real answer arrives on the same request id.
+
+An `%error` the storage broker caused also carries the broker's own account of it: `code`, `retryable`, `retryAfterMs` (clamped to the upload window) and `scope`, present in the JSON only when the broker spoke. An error this agent raised itself carries none, and an Iris cancel or a body the agent cannot read is reported as `outcome_unknown` (retryable) or `unknown` (final) respectively. The `type` stays `unknown` for every broker failure; the client decides what to do from the broker fields.
+
+Answers travel under `%buckets-req-response-2`, on the local `/v1/requests` path and the per-request path a remote uploader subscribes to alike. A subscriber accepts both `-2` and the older `-1`, lifting the latter with no broker fields; the host cannot tell which a subscriber understands, so an un-upgraded subscriber on an upgraded host drops `-2` and times out after two minutes with the generic "host did not answer" error until it upgrades. An upgraded subscriber on an older host keeps working.
 
 Subscriber agents forward actions to the host with the noun-only `%buckets-command-1` mark, subscribing to the answer path _before_ poking so a host that answers in the same event cannot publish before the requester is listening. The host derives the actor from the Gall bowl and re-authorizes the command.
 
@@ -92,7 +96,7 @@ Because the POST is held open across the terminal answer, a client needs no corr
 | `/x/v1/broker/<read\|delete>/<cap>/<obj>` | `%json`                   | The verdict on one object capability, for Pioneer     |
 | `/u/joined/<host>/<name>`                 | `%loob`                   | Whether the local agent has the Bucket                |
 | `/v1`                                     | `%buckets-response-1`     | Initial snapshots and all local replica updates       |
-| `/v1/requests`                            | `%buckets-req-response-1` | Answers to actions submitted by this ship's clients   |
+| `/v1/requests`                            | `%buckets-req-response-2` | Answers to actions submitted by this ship's clients   |
 | `/v1/buckets/<host>/<name>/updates`       | `%buckets-response-1`     | Host-authorized snapshot followed by manifest updates |
 
 Every scry answers a mark that grows to `json`, because clients read them over Eyre; `%noun` does not, and a peek returning it answers 500.
@@ -115,11 +119,24 @@ The Bucket's host is the only party that talks to Memex about an upload. It alre
 
 `%retry-upload` asks Memex for another URL against the same reservation, which is what its retry budget is for; opening a fresh session instead would strand the first reservation holding quota. `%cancel-upload` cancels at Memex as well as locally, because quota is reserved before the first byte moves and would otherwise stay held until the reservation lapsed. Both are the uploader's to send and neither is the client's to make directly.
 
-A grant that arrives without a reservation is refused rather than handed on. Finish and cancel both call storage against the reservation, so passing that URL to the client would take the bytes with no way left to settle or release them -- the entry could never publish and the quota would sit until it lapsed. The check is made against the session after binding, so a retry answering against the reservation already held need not repeat it.
+A grant that arrives without a reservation is refused rather than handed on. Finish and cancel both call storage against the reservation, so passing that URL to the client would take the bytes with no way left to settle or release them -- the entry could never publish and the quota would sit until it lapsed. The check is made against the session after binding, so a retry answering against the reservation already held need not repeat it. The reservation is bound before anything else about the grant is judged, so one the broker did issue on an otherwise unusable answer is released when the grant is failed rather than held until it lapses.
 
 The headers must reach the PUT exactly as given. They are part of what the URL is signed over, so a dropped one -- or the same one under different capitalisation -- fails as a signature mismatch rather than as anything legible.
 
-Nothing about an upload is retried in the background. A client is sitting in front of a progress bar, so a failure it can act on beats a silent retry it cannot see; a broker call that fails settles the session and tells the uploader why. Replay is keyed on the host's own session id, so a host that retries its own grant call gets the reservation it already has rather than a second one.
+Nothing about an upload is retried in the background. A client is sitting in front of a progress bar, so a failure it can act on beats a silent retry it cannot see; the client is the retrier, and the host's job is to pass the broker's verdict on and to leave the session in a state the retry can use. What a refusal does to the session depends on the call, because each leaves the reservation somewhere different:
+
+| Call     | Retryable                                                                                    | Final                                                        | Outcome unknown (Iris cancel) |
+| -------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------- |
+| grant    | Session cancelled. Nothing is bound, so there is no id to release by; the client begins anew | Session cancelled                                            | Session cancelled             |
+| retry    | Session kept pending with its reservation; the client sends `%retry-upload` again            | Session cancelled and the reservation released at the broker | Kept pending, as retryable    |
+| complete | Kept pending; the bytes may be in storage, and cancelling would orphan a charged object      | Session cancelled and the reservation released at the broker | Kept pending, as retryable    |
+| cancel   | The session was already cancelled before the call; the error is passed on                    | Answered `%ok`, since the reservation is settled either way  | As retryable                  |
+
+A kept session records the broker's message in `error` and is still bounded by its window: one nobody retries is cancelled at the broker by the expiry sweep like any other lapsed session. A refused cancel is never cancelled again. Two quota leaks are accepted: a cancel the broker refused or never answered, and a grant whose answer never arrived, hold quota until Memex lapses the reservation at the session window.
+
+A `%finish-upload` naming a session that is already complete is answered `%ok` without a broker call: the uploader lost the receipt, not the upload, and the entry is already in the manifest.
+
+Replay is keyed on the host's own session id, so a host that retries its own grant call gets the reservation it already has rather than a second one.
 
 **Every verb a client can send has to be in the JSON decoder.** The typed examples poke a vase straight into the agent and skip it entirely, so a verb wired everywhere except `lib/buckets/json.hoon` passes the whole suite and fails against a real client. `+test-http-decodes-every-session-verb` is the guard.
 
