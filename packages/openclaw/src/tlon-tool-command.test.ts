@@ -1853,6 +1853,123 @@ describe('owner-hosted workspaces and channels with ownerDefault', () => {
     });
 
     it.each([
+      // create-owned: the title, and each option's value.
+      ['groups create-owned "--self" --admin ~owner', false],
+      ['groups create-owned X --description "--self" --admin ~owner', false],
+      ['groups create-owned X --admin --self', false],
+      ['groups create-owned X --owner --self', false],
+      ['groups create-owned X --description Work --self --admin ~owner', true],
+      // channel creates: the group, the title, and each option's value.
+      ['channels create ~owner/team "--self"', false],
+      ['channels create "--self" Talk', false],
+      ['channels create ~owner/team Talk --description "--self"', false],
+      ['channels create ~owner/team Talk --kind --self', false],
+      ['channels create ~owner/team Talk --kind chat --self', true],
+      ['groups add-channel ~owner/team "--self"', false],
+      ['groups add-channel ~owner/team Talk --description "--self"', false],
+      ['groups add-channel ~owner/team Talk --self --kind chat', true],
+      // The legacy operations' parsers read --self anywhere as the flag.
+      ['activity volume --self ~zod/g soft', true],
+      ['notes note-publish notes/~h/b --self 12', true],
+      ['groups invite-link ~h/g --self', true],
+    ])('reads `%s` as a bot request: %s', (command, expected) => {
+      expect(
+        normalizeTlonCommandArgs(shellSplitCommand(command)).selfRequested
+      ).toBe(expected);
+    });
+
+    it.each([
+      [
+        'groups create-owned "--self" --admin ~owner',
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'create-owned',
+          '--self',
+          '--admin',
+          BOT,
+        ],
+        // Flag off routes it to the owner the same way.
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'create-owned',
+          '--self',
+          '--admin',
+          BOT,
+        ],
+      ],
+      [
+        'groups create-owned Projects --description "--self" --admin ~owner',
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'create-owned',
+          'Projects',
+          '--admin',
+          BOT,
+          '--description',
+          '--self',
+        ],
+        // Flag off routes it to the owner the same way.
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'create-owned',
+          'Projects',
+          '--admin',
+          BOT,
+          '--description',
+          '--self',
+        ],
+      ],
+      [
+        'channels create ~owner/team "--self"',
+        ['--ship', '~owner', 'channels', 'create', '~owner/team', '--self'],
+        ['--ship', '~owner', 'channels', 'create', '~owner/team', '--self'],
+      ],
+      [
+        'groups add-channel ~owner/team Talk --description "--self"',
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'add-channel',
+          '~owner/team',
+          'Talk',
+          '--description',
+          '--self',
+        ],
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'add-channel',
+          '~owner/team',
+          'Talk',
+          '--description',
+          '--self',
+        ],
+      ],
+    ])(
+      'keeps a literal --self from switching identity: `%s`',
+      async (command, flagOn, flagOff) => {
+        for (const [ownerDefault, expected] of [
+          [true, flagOn],
+          [false, flagOff],
+        ] as const) {
+          const { execute, ran } = makeExecutor({ ownerDefault });
+          await execute('literal', { command });
+          expect(ran(), String(ownerDefault)).toEqual(expected);
+        }
+      }
+    );
+
+    it.each([
       [
         'groups create-owned X --admin ~owner --self',
         ['groups', 'create-owned', 'X', '--owner', '~owner', '--self'],
@@ -1963,30 +2080,44 @@ describe('owner-hosted workspaces and channels with ownerDefault', () => {
       expect(runCommand).toHaveBeenCalledTimes(1);
     });
 
-    it('falls back to the bot, and says so, when the CLI predates --admin', async () => {
-      const { execute, ran } = makeExecutor({ help: HELP_WITHOUT_ADMIN });
-      const result = await execute('old-cli', {
-        command: 'groups create-owned Projects --admin ~owner',
-      });
-      expect(ran()).toEqual([
-        'groups',
-        'create-owned',
-        'Projects',
-        '--owner',
-        '~owner',
-      ]);
-      expect(result.content[0].text).toContain(
-        "Note: The installed tlon CLI's create-owned has no --admin"
-      );
-      expect(result.content[0].text).toMatch(
-        new RegExp(`Ran as ${BOT} \\(bot\\)\\.$`)
-      );
-    });
+    it.each([
+      [
+        'the CLI predates --admin',
+        { help: HELP_WITHOUT_ADMIN },
+        "Blocked: the installed tlon CLI cannot host this workspace on the owner's ship (create-owned has no --admin); nothing was run. Add --self to create a bot-hosted group instead.",
+      ],
+      [
+        "the bot's ship is unknown",
+        { botShip: undefined },
+        "Blocked: this bot's own ship could not be determined, so the workspace cannot be hosted on the owner's ship; nothing was run. Add --self to create a bot-hosted group instead.",
+      ],
+    ])(
+      'refuses, with no fallback to the bot, when %s',
+      async (_label, overrides, message) => {
+        const { execute, runCommand } = makeExecutor(overrides);
+        const result = await execute('unsupported', {
+          command: 'groups create-owned Projects --admin ~owner',
+        });
+        expect(result.content[0].text).toBe(message);
+        expect(result.details).toEqual({
+          status: 'blocked',
+          blocked: true,
+          reason: 'owner_workspace_unsupported',
+        });
+        // At most the --admin probe ran; never the create.
+        for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+          expect(args).toContain('--help');
+        }
+      }
+    );
 
-    it("falls back to the bot, and says so, when the bot's ship is unknown", async () => {
-      const { execute, ran } = makeExecutor({ botShip: undefined });
-      const result = await execute('unknown', {
-        command: 'groups create-owned Projects --admin ~owner',
+    it('still lets --self make the bot-hosted group in those cases', async () => {
+      const { execute, ran } = makeExecutor({
+        help: HELP_WITHOUT_ADMIN,
+        botShip: undefined,
+      });
+      await execute('self', {
+        command: '--self groups create-owned Projects --admin ~owner',
       });
       expect(ran()).toEqual([
         'groups',
@@ -1995,10 +2126,6 @@ describe('owner-hosted workspaces and channels with ownerDefault', () => {
         '--owner',
         '~owner',
       ]);
-      expect(result.content[0].text).toContain(
-        "Note: This bot's ship isn't configured here"
-      );
-      expect(result.content[0].text).toMatch(/Ran as this bot\.$/);
     });
 
     it('fails closed, with no fallback, when the owner is unprovisioned', async () => {

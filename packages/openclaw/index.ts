@@ -123,6 +123,7 @@ import {
 } from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
+  type TlonToolExecutorDeps,
   formatTlonToolDescription,
   findTlonSubcommandIndex,
   summarizeTlonCommand,
@@ -1035,10 +1036,21 @@ export default defineBundledChannelEntry({
       );
     }
 
+    // The staged-rollout flag is read from the live runtime config, not the
+    // registration snapshot: a channels.tlon reload restarts monitors without
+    // re-running registerFull, and an operator rollback must take effect
+    // without a gateway restart.
+    const liveOwnerDefault = () =>
+      resolveTlonAccount(api.runtime.config.loadConfig()).ownerDefault;
+
     // Tool factories receive the active agent workspace, including cron runs.
+    // Core calls the factory each time it resolves tools, and its descriptor
+    // cache is keyed on the runtime config, so the description follows a
+    // reload; execution reads the flag again on every call.
     api.registerTool(
       (ctx) => {
-        const executeTlonTool = createTlonToolExecutor({
+        const ownerDefault = liveOwnerDefault();
+        const executorDeps: Omit<TlonToolExecutorDeps, 'ownerDefault'> = {
           runCommand: (args) =>
             args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
               ? runBrowserSessionHandoff(tlonBinary, args, api.config)
@@ -1057,19 +1069,23 @@ export default defineBundledChannelEntry({
           // operations do, and a workspace made for the owner (or a channel in
           // a group the owner hosts) is hosted on the owner's ship.
           ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
-          ownerDefault: account.ownerDefault,
           // The ship the runner's own credentials act as, for the owner
           // self-DM guard, the `Ran as` line and the admin of a workspace
           // hosted on the owner's ship.
           botShip: resolveExecutionBotShip(credentials, process.env),
           env: process.env,
           fileExists: (path) => existsSync(path),
-        });
+        };
+        const executeTlonTool = (id: string, params: { command: string }) =>
+          createTlonToolExecutor({
+            ...executorDeps,
+            ownerDefault: liveOwnerDefault(),
+          })(id, params);
 
         return {
           name: 'tlon',
           label: 'Tlon CLI',
-          description: formatTlonToolDescription(account.ownerDefault),
+          description: formatTlonToolDescription(ownerDefault),
           parameters: {
             type: 'object',
             properties: {
@@ -1363,9 +1379,9 @@ export default defineBundledChannelEntry({
       // Only owner-default commands need the rewrite; with the flag off the
       // bot is already the default.
       if (
-        account.ownerDefault &&
         event.toolName === 'tlon' &&
         typeof event.params.command === 'string' &&
+        liveOwnerDefault() &&
         (resolveTurnIdentity({
           runId: ctx.runId,
           sessionKey: ctx.sessionKey,
