@@ -31,6 +31,10 @@ export function BrowserSecureSelect({
         focusable
         preset="outline"
         size="large"
+        labelNumberOfLines={0}
+        height="auto"
+        minHeight={56}
+        paddingVertical="$xl"
         centered={false}
         borderColor="$border"
         trailingIcon="ChevronDown"
@@ -78,6 +82,10 @@ export function BrowserSecureSelect({
                   key={option.value}
                   preset="minimal"
                   size="large"
+                  labelNumberOfLines={0}
+                  height="auto"
+                  minHeight={56}
+                  paddingVertical="$xl"
                   centered={false}
                   label={option.label}
                   trailingIcon={
