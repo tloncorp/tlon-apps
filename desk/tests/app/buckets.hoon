@@ -343,6 +343,22 @@
   =/  fil=file:bu  (file-of entry.ses)
   (iris-object object-key.fil size.fil mime.fil)
 ::
+::  +cancel-call: withdraw from a session and hand back the wire the cancel
+::  rides, leaving the broker's answer to the test. The uploader is answered
+::  %pending, and the cancel is the one broker call made.
+::
+++  cancel-call
+  |=  [rid=@uv sid=@uv reason=@t]
+  =/  m  (mare ,wire)
+  ^-  form:m
+  ;<  caz=(list card)  bind:m
+    (ask rid [%bucket flag [%cancel-upload sid reason]])
+  ;<  ~  bind:m  (ex-cards (answers caz) ~[(grant-fact rid [%pending ~])])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  ~  bind:m
+    (ex-equal !>(wire.push) !>(/buckets/upload/(scot %uv sid)/cancel))
+  (pure:m wire.push)
+::
 ::  +entry-fact: the broadcast that puts one entry in the manifest.
 ::
 ++  entry-fact
@@ -1385,6 +1401,121 @@
       ==
   ==
 ::
+::  A cancel is recorded before the broker is asked, so a refusal of it has
+::  nothing left to undo. A refusal the broker says to repeat is passed on
+::  as the error it is, and nothing cancels again: not this agent, since the
+::  reservation is the broker's to lapse, and not the uploader, since the
+::  session is no longer pending. The session keeps the uploader's own
+::  reason; the broker's message is not written over it. A final refusal
+::  means the reservation is settled whichever way, so the uploader is told
+::  ok and nothing more.
+::
+++  test-cancel-refusal-passes-on-a-retryable-and-settles-a-final
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'first.pdf' 42)
+  ;<  cancel=wire  b  (cancel-call 0v2 seed 'connection lost')
+  ;<  refused=(list card)  b
+    %+  do-arvo  cancel
+    %+  iris-json  503
+    '{"code":"storage_unavailable","message":"cancel is down","retryable":true}'
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'cancel is down' `['storage_unavailable' & ~ ~]]
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses error.ses awaiting.ses])
+    !>([%cancelled `'res-1' `'connection lost' ~])
+  ::  Nothing the uploader asks can reach the broker through it again.
+  ;<  withdrawn=(list card)  b
+    (ask 0v3 [%bucket flag [%cancel-upload seed 'once more']])
+  ;<  ~  b
+    %+  ex-cards  withdrawn
+    ~[(grant-fact 0v3 [%error %invalid-input 'upload session is not pending' ~])]
+  ;<  retried=(list card)  b  (ask 0v4 [%bucket flag [%retry-upload seed]])
+  ;<  ~  b
+    %+  ex-cards  retried
+    ~[(grant-fact 0v4 [%error %invalid-input 'upload session is not pending' ~])]
+  ;<  finished=(list card)  b  (ask 0v5 [%bucket flag [%finish-upload seed]])
+  ;<  ~  b
+    %+  ex-cards  finished
+    ~[(grant-fact 0v5 [%error %invalid-input 'upload session is not pending' ~])]
+  ::  A second session, whose cancel the broker refuses for good.
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v4321)))
+  ;<  grant=wire  b  (grant-call 0v6 'second.pdf')
+  ;<  *  b  (do-arvo grant (iris-grant 'res-2' 'https://storage.test/put-2'))
+  ;<  cancel2=wire  b  (cancel-call 0v7 0v4321 'tab closed')
+  ;<  settled=(list card)  b
+    %+  do-arvo  cancel2
+    %+  iris-json  409
+    '{"code":"invalid_state","message":"only pending uploads can be canceled","retryable":false}'
+  ;<  ~  b  (ex-cards settled ~[(grant-fact 0v7 [%ok ~])])
+  ;<  ses2=upload-session:bu  b  (saved-session 0v4321)
+  %+  ex-equal
+    !>([status.ses2 reservation.ses2 error.ses2 awaiting.ses2])
+  !>([%cancelled `'res-2' `'tab closed' ~])
+::
+::  Iris giving up on a cancel says nothing about whether the broker released
+::  the reservation. The uploader is told the outcome is unknown, as for any
+::  call, but nothing asks again: the session is already cancelled, and any
+::  quota it still holds lapses with the reservation.
+::
+++  test-cancel-outcome-unknown-is-passed-on-and-not-repeated
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'lost.pdf' 42)
+  ;<  cancel=wire  b  (cancel-call 0v2 seed 'connection lost')
+  ;<  lost=(list card)  b  (do-arvo cancel iris-cancelled)
+  ;<  ~  b
+    %+  ex-cards  lost
+    :~  %+  grant-fact  0v2
+        :*  %error  %unknown
+            'the storage request was cancelled'
+            `['outcome_unknown' & ~ ~]
+        ==
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses reservation.ses error.ses awaiting.ses])
+  !>([%cancelled `'res-1' `'connection lost' ~])
+::
+::  A cancel that lands while the grant is still in flight has no reservation
+::  to release, so it is answered ok at once, with no broker call. The
+::  grant's own waiter is answered too, as superseded, rather than left
+::  polling %pending for an answer the cancel has made moot.
+::
+++  test-cancel-before-a-grant-answers-ok-without-a-broker-call
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (grant-call 0v1 'early.pdf')
+  ;<  withdrawn=(list card)  b
+    (ask 0v2 [%bucket flag [%cancel-upload seed 'changed my mind']])
+  ;<  ~  b
+    %+  ex-cards  withdrawn
+    :~  %+  grant-fact  0v1
+        [%error %unknown 'superseded by another request on this upload' ~]
+        (grant-fact 0v2 [%ok ~])
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses reservation.ses error.ses])
+  !>([%cancelled ~ `'changed my mind'])
+::
 ::  A bucket or token we do not have is [~ ~], which Eyre serves as a 404.
 ::  A bare ~ is a 500, and clients treat only a 404 as absent.
 ::
@@ -2130,6 +2261,97 @@
           [%b %wait (sub expires-at.tok ~h1)]
       ==
       (grant-fact 0v4 [%token tok])
+  ==
+::
+::  A host answers under whichever answer mark it has. One that predates the
+::  broker detail sends -1, and that settles the request like any other,
+::  relayed to the local client in the current shape with no detail to give.
+::  One that sends -2 has its detail relayed intact. A mark that is neither
+::  is not an answer: it is dropped, and the request stays open, its timeout
+::  armed, for the answer still to come.
+::
+++  test-answer-from-a-host-is-taken-under-either-mark
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  act=action:bu  [%bucket flag [%create-folder ~ 'Launch']]
+  =/  detail=broker-error:bu  ['rate_limited' & `~s5 `'host']
+  ;<  ~  b  (setup-as ~bus)
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+  ;<  *  b  (ask 0v4 act)
+  ;<  *  b  (ask 0v5 act)
+  ;<  *  b  (ask 0v6 act)
+  ;<  old=(list card)  b
+    %^    do-agent
+        /buckets/req/~sampel-palnet/0v4/watch
+      [~sampel-palnet %buckets]
+    :+  %fact  %buckets-req-response-1
+    !>(`req-response:v1:bu`[0v4 [%error %not-authorized 'not authorized for this bucket']])
+  ;<  ~  b
+    %+  ex-cards  old
+    :~  %-  ex-task
+        :*  /buckets/req/~sampel-palnet/0v4/watch
+            [~sampel-palnet %buckets]
+            [%leave ~]
+        ==
+        %-  ex-arvo
+        :*  /buckets/req/~sampel-palnet/0v4/wake
+            [%b %rest (add ~2026.1.1 ~m2)]
+        ==
+        (grant-fact 0v4 [%error %not-authorized 'not authorized for this bucket' ~])
+    ==
+  ;<  new=(list card)  b
+    %^    do-agent
+        /buckets/req/~sampel-palnet/0v5/watch
+      [~sampel-palnet %buckets]
+    :+  %fact  %buckets-req-response-2
+    !>(`req-response:bu`[0v5 [%error %unknown 'slow down' `detail]])
+  ;<  ~  b
+    %+  ex-cards  new
+    :~  %-  ex-task
+        :*  /buckets/req/~sampel-palnet/0v5/watch
+            [~sampel-palnet %buckets]
+            [%leave ~]
+        ==
+        %-  ex-arvo
+        :*  /buckets/req/~sampel-palnet/0v5/wake
+            [%b %rest (add ~2026.1.1 ~m2)]
+        ==
+        (grant-fact 0v5 [%error %unknown 'slow down' `detail])
+    ==
+  ;<  dropped=(list card)  b
+    %^    do-agent
+        /buckets/req/~sampel-palnet/0v6/watch
+      [~sampel-palnet %buckets]
+    :+  %fact  %buckets-req-response-3
+    !>([0v6 %ok ~])
+  ;<  ~  b  (ex-cards dropped ~)
+  ;<  sv=vase  b  get-save
+  =/  st=state-1:bu  !<(state-1:bu sv)
+  ;<  ~  b
+    %+  ex-equal
+      !>((~(get by pending.st) 0v6))
+    !>(`[~sampel-palnet (add ~2026.1.1 ~m2) ~])
+  ::  Still open, so the answer that does come settles it.
+  ;<  late=(list card)  b
+    %^    do-agent
+        /buckets/req/~sampel-palnet/0v6/watch
+      [~sampel-palnet %buckets]
+    :+  %fact  %buckets-req-response-2
+    !>(`req-response:bu`[0v6 [%ok ~]])
+  %+  ex-cards  late
+  :~  %-  ex-task
+      :*  /buckets/req/~sampel-palnet/0v6/watch
+          [~sampel-palnet %buckets]
+          [%leave ~]
+      ==
+      %-  ex-arvo
+      :*  /buckets/req/~sampel-palnet/0v6/wake
+          [%b %rest (add ~2026.1.1 ~m2)]
+      ==
+      (grant-fact 0v6 [%ok ~])
   ==
 ::
 ::  A refused action that has nothing to do with tokens must leave ours alone.
@@ -2948,6 +3170,46 @@
   ;<  *  b  (do-load buckets-agent `before)
   ;<  after=vase  b  get-save
   (ex-equal after before)
+::
+::  A persisted %0 state is lifted to %1 on load. Its stored answers gain
+::  the broker's account of a refusal, which none of them had to give: a
+::  stored error carries none, a stored ok is as it was, and every other
+::  field is carried over untouched.
+::
+++  test-load-lifts-a-version-0-state
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  sv=vase  b  get-save
+  =/  st=state-1:bu  !<(state-1:bu sv)
+  =/  refused=incoming-request:v1:bu
+    [0v7 ~ `[%error %not-found 'no such bucket'] `~2025.12.31]
+  =/  granted=incoming-request:v1:bu
+    [0v8 ~ `[%ok ~] `~2025.12.31]
+  =/  old=state-0:bu
+    :*  %0
+        broker-base.st
+        spaces.st
+        next-id.st
+        sessions.st
+        object-capabilities.st
+        read-tokens.st
+        readers.st
+        reservations.st
+        pending.st
+        (~(gas by *requests:v1:bu) ~[[0v7 refused] [0v8 granted]])
+    ==
+  ;<  *  b  (do-load buckets-agent `!>(old))
+  ;<  after=vase  b  get-save
+  =/  lifted=requests:bu
+    %-  ~(gas by *requests:bu)
+    :~  [0v7 [0v7 ~ `[%error %not-found 'no such bucket' ~] `~2025.12.31]]
+        [0v8 [0v8 ~ `[%ok ~] `~2025.12.31]]
+    ==
+  (ex-equal !>(!<(state-1:bu after)) !>(st(requests lifted)))
 ::  +http-post: submit an action over the Eyre surface.
 ::
 ++  http-post
