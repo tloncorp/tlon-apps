@@ -818,7 +818,17 @@ async function setVolume(
 ): Promise<void> {
   const resolved = await resolveTarget(request.target, deps);
   const { source, label } = resolved;
-  const sent = request.level ? deps.volume.mapForLevel(request.level) : null;
+  // Base writes also reset `contact`: old app versions wrote full base maps
+  // (the desk's %loud template notifies on it) and %adjust merges, so a
+  // stale `contact` would otherwise survive every level change unverified.
+  const sent = request.level
+    ? request.target.kind === 'base'
+      ? {
+          ...deps.volume.mapForLevel(request.level),
+          contact: { unreads: false, notify: false },
+        }
+      : deps.volume.mapForLevel(request.level)
+    : null;
 
   const outcome = await deps.volumeApi.adjustVolumeSetting(source, sent);
   if (outcome.kind === 'nacked') {

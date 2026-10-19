@@ -826,13 +826,23 @@ function summarizeKnownTlonCommand(
   }
 
   switch (subcommand) {
-    case 'activity':
-      // mute/unmute/volume change only the acting ship's own preferences.
+    case 'activity': {
+      // mute/unmute/volume change only the acting ship's own preferences;
+      // `volume base` without a level only shows the base level.
+      const positionals = remainder.filter((arg) => !arg.startsWith('-'));
+      const showsBase =
+        operation === 'volume' &&
+        positionals.length === 1 &&
+        positionals[0].toLowerCase() === 'base';
       return build(
-        operation === 'mute' || operation === 'unmute' || operation === 'volume'
+        (operation === 'mute' ||
+          operation === 'unmute' ||
+          operation === 'volume') &&
+          !showsBase
           ? 'write'
           : 'read'
       );
+    }
     case 'browser':
       return build('write');
     case 'buckets':

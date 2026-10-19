@@ -357,6 +357,11 @@ const HUSH: VolumeMap = {
 
 const CHANNEL_SOURCE = { channel: { nest: NEST, group: GROUP } };
 const BASE_SOURCE = { base: null };
+// Base writes also clear `contact`, as the desk's default and hush templates do.
+const baseMap = (map: VolumeMap): VolumeMap => ({
+  ...map,
+  contact: { unreads: false, notify: false },
+});
 const THREAD_SOURCE = {
   thread: {
     channel: NEST,
@@ -537,9 +542,21 @@ describe('activity mute / unmute / volume: payloads', () => {
       source: { dm: { club: CLUB } },
       volume: HUSH,
     },
-    { args: ['volume', 'base', 'medium'], source: BASE_SOURCE, volume: MEDIUM },
-    { args: ['volume', 'base', 'soft'], source: BASE_SOURCE, volume: SOFT },
-    { args: ['volume', 'base', 'hush'], source: BASE_SOURCE, volume: HUSH },
+    {
+      args: ['volume', 'base', 'medium'],
+      source: BASE_SOURCE,
+      volume: baseMap(MEDIUM),
+    },
+    {
+      args: ['volume', 'base', 'soft'],
+      source: BASE_SOURCE,
+      volume: baseMap(SOFT),
+    },
+    {
+      args: ['volume', 'base', 'hush'],
+      source: BASE_SOURCE,
+      volume: baseMap(HUSH),
+    },
   ];
 
   for (const testCase of cases) {
@@ -650,7 +667,7 @@ describe('activity mute / unmute / volume: payloads', () => {
       const context = makeVolumeContext();
       expect(await run(args, context.deps)).toBe(0);
       expect(context.calls.pokes).toEqual([
-        { source: BASE_SOURCE, volume: SOFT },
+        { source: BASE_SOURCE, volume: baseMap(SOFT) },
       ]);
     }
   });
@@ -1237,7 +1254,7 @@ describe('activity volume base', () => {
 
   it('confirms base on the third read after two stale ones', async () => {
     const context = makeVolumeContext({
-      reads: [{}, { base: MEDIUM }, { base: SOFT }],
+      reads: [{}, { base: MEDIUM }, { base: baseMap(SOFT) }],
     });
 
     expect(await run(['volume', 'base', 'soft'], context.deps)).toBe(0);
@@ -1267,6 +1284,32 @@ describe('activity volume base', () => {
     expect(context.stdout()).toStartWith(
       '✓ Set base notification level to hush'
     );
+  });
+
+  it('clears a legacy loud contact entry when setting base', async () => {
+    const context = makeVolumeContext({
+      initial: {
+        base: { ...LOUD, contact: { unreads: true, notify: true } },
+      },
+    });
+
+    expect(await run(['volume', 'base', 'hush'], context.deps)).toBe(0);
+    expect(context.calls.pokes).toEqual([
+      { source: BASE_SOURCE, volume: baseMap(HUSH) },
+    ]);
+    expect(context.store.base?.contact).toEqual({
+      unreads: false,
+      notify: false,
+    });
+    expect(context.stdout()).toContain('  Level: hush (Nothing)\n');
+  });
+
+  it('infers each base level from the map it sends', () => {
+    for (const level of ['medium', 'soft', 'hush'] as const) {
+      expect(
+        volumeHelpers.levelOf(baseMap(volumeHelpers.mapForLevel(level)))
+      ).toBe(level);
+    }
   });
 
   it('confirms a base write over a desk-seeded map with a contact key', async () => {

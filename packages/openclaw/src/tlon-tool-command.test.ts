@@ -1358,6 +1358,14 @@ describe('tlon tool telemetry summarizer', () => {
       summaryKey: 'activity.unreads',
       intent: 'read',
     });
+    expect(summarizeTlonCommand('activity volume base')).toMatchObject({
+      summaryKey: 'activity.volume',
+      intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity volume base soft')).toMatchObject({
+      summaryKey: 'activity.volume',
+      intent: 'write',
+    });
   });
 
   it('classifies post pins as channel admin operations', () => {
