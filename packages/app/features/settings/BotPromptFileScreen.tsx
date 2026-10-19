@@ -253,7 +253,9 @@ export function BotPromptFileScreen(props: Props) {
         subtitle={
           access?.kind === 'unmanaged'
             ? "This file is missing Tlon's defaults, so you can't edit it here. They come back the next time your bot restarts."
-            : 'Read-only. Tlon keeps this file up to date so your bot keeps working.'
+            : access?.kind === 'read-only' && access.keptBy === 'bot'
+              ? 'Read-only. Your bot keeps this file up to date as it learns.'
+              : 'Read-only. Tlon keeps this file up to date so your bot keeps working.'
         }
       >
         <PromptText

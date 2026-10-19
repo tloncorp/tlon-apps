@@ -25,6 +25,23 @@
 ::            pokes cross-ship. explicit and ship-class-agnostic; an empty
 ::            set means only local pokes are accepted.
 ::
++$  state-6
+  $:  %6
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=state:v1:sg
+      automation=state:v1:sa
+      prompts=state:v1:sp
+  ==
++$  versioned-state
+  $%(state-0 state-1 state-2 state-3 state-4 state-5 state-6)
+::  Persisted shapes used only by +on-load migrations. state-5 has the
+::  current shape under the tag that predates MEMORY.md on the prompts
+::  allowlist; state-4 is the shape before the prompt-file projection;
+::  gateway-1 has the notification latch and interaction timestamp, and
+::  gateway-0 omits them.
+::
 +$  state-5
   $:  %5
       owner=(unit ship)
@@ -34,11 +51,6 @@
       automation=state:v1:sa
       prompts=state:v1:sp
   ==
-+$  versioned-state  $%(state-0 state-1 state-2 state-3 state-4 state-5)
-::  Persisted shapes used only by +on-load migrations. state-4 is the shape
-::  before the prompt-file projection; gateway-1 has the notification latch
-::  and interaction timestamp, and gateway-0 omits them.
-::
 +$  state-4
   $:  %4
       owner=(unit ship)
@@ -109,7 +121,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-5
+=|  state-6
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -195,14 +207,21 @@
   |=  =vase
   ^+  cor
   =+  !<(old=versioned-state vase)
+  ::  only a %5 owner can have dropped mirror snapshots for carrying
+  ::  MEMORY.md: earlier shapes had no mirror, and anything they migrate
+  ::  into is subscribed fresh by +reconcile
+  ::
+  =/  from-5  ?=(%5 -.old)
   =?  cor  ?=(%0 -.old)  (seed-migrated-liveness old)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
-  ?>  ?=(%5 -.old)
+  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  ?>  ?=(%6 -.old)
   =.  state  old
+  =?  cor  from-5  po-rewatch-mirrors:po-core
   reconcile
 ::  +reconcile: restore what state cannot carry, on init and on every
 ::  load. subscriptions and timers live outside it: a suspended agent's
@@ -265,6 +284,13 @@
   ^-  state-5
   =,  automation.old
   [%5 owner.old bots.old lens.old gateway.old [tasks requests pending *@da] *state:v1:sp]
+::  %5 → %6: the prompts allowlist gains MEMORY.md. the shape is
+::  unchanged; the tag marks the owners whose mirrors +load must
+::  re-watch (+po-rewatch-mirrors)
+++  state-5-to-6
+  |=  old=state-5
+  ^-  state-6
+  [%6 +.old]
 ::  a %0 bot's gateway registered before the liveness claim existed, and
 ::  heartbeats only advertise on an up transition: seed the claim from the
 ::  migrated status, or an already-up gateway stays unknown until its next
@@ -2106,10 +2132,18 @@
     ^-  log-data:v1:lg
     ~['requestId'^s+(scot %uv rid) key^s+(scot %p who)]
   ::
+  ::  the six prompt files Tlon's sync writes, and MEMORY.md, the notes the
+  ::  bot keeps for itself. served at /x/v1/prompts/names so a harness can
+  ::  ask before it projects: a name off this list fails the whole
+  ::  projection, and a harness newer than its desk must leave it out
+  ::
   ++  po-prompt-names
-    ^~  %-  silt
+    ^~
+    %-  silt
     ^-  (list @t)
-    ~['AGENTS.md' 'SOUL.md' 'TOOLS.md' 'IDENTITY.md' 'USER.md' 'BOOTSTRAP.md']
+    :~  'AGENTS.md'  'SOUL.md'  'TOOLS.md'  'IDENTITY.md'  'USER.md'
+        'BOOTSTRAP.md'  'MEMORY.md'
+    ==
   ::
   ++  po-valid-edit
     |=  =edit:v1:sp
@@ -2118,7 +2152,7 @@
         (~(has in po-prompt-names) name.edit)
     ==
   ::
-  ::  every file allowlisted and within the per-file cap. with six names
+  ::  every file allowlisted and within the per-file cap. with seven names
   ::  that also bounds the whole map, so there is no separate total cap
   ::
   ++  po-valid-files
@@ -2374,6 +2408,8 @@
     ?+  path  [~ ~]
         [%v1 %files ~]
       ``steward-prompts-files-1+!>(files.prompts.state)
+        [%v1 %names ~]
+      ``steward-prompts-names-1+!>(po-prompt-names)
     ==
   ::  edit loop: client → owner → bot → harness, with the response
   ::  walking back the same way. steward never touches the file map on
@@ -2400,6 +2436,23 @@
     =/  retry  (~(get by rewatch.prompts.state.cor) bot)
     ?:  &(?=(^ retry) (gth wake.u.retry now.bowl))  cor
     (po-trust-bot:po-core:cor bot)
+  ::
+  ::  the %5 allowlist lacked MEMORY.md, so a %5 owner dropped every
+  ::  snapshot from a bot that projected it. a bot mirrored before that
+  ::  recovers on its own once a later delta lands; one trusted after it
+  ::  never got an entry, and no delta creates one. leave and re-watch
+  ::  each live mirror on the upgrade, so the bot replays its snapshot
+  ::  under the widened allowlist. a mirror with no wire is +po-reconcile's
+  ::
+  ++  po-rewatch-mirrors
+    ^+  cor
+    %+  roll  ~(tap in bots.state)
+    |=  [bot=ship =_cor]
+    ?:  =(bot our.bowl)  cor
+    =/  =wire  /prompts/files/(scot %p bot)
+    ?.  (~(has by wex.bowl) [wire bot %steward])  cor
+    =.  cor  (emit:cor %pass wire %agent [bot %steward] %leave ~)
+    (emit:cor (po-watch-card:po-core:cor bot))
   ::
   ::  an edit may only be relayed to a bot this ship manages: the local
   ::  ship, or one in the trusted set. without this a client could drive
@@ -2933,8 +2986,8 @@
   ::  a wrapper over the poke: same decode, same arm, but an invalid
   ::  projection is a 400 rather than a crash. the cap only bounds the
   ::  read before decoding: sized from the per-file caps at JSON's worst
-  ::  escape (six bytes per control character, about 2.3 MiB for six full
-  ::  files), so every projection the poke accepts also fits here
+  ::  escape (six bytes per control character, about 2.7 MiB for seven
+  ::  full files), so every projection the poke accepts also fits here
   ::
   ++  po-handle-http-project
     |=  [eyre-id=@ta =inbound-request:eyre]
