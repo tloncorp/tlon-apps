@@ -17,7 +17,10 @@ RUN echo "[tlon-e2e-build] openclaw-core-version=${OPENCLAW_CORE_VERSION}"
 # baking it here keeps container startup off the npm registry. The install
 # ledger lives in ~/.openclaw/plugins/, which entrypoint.test.sh's config
 # rewrite does not touch.
-RUN openclaw plugins install @openclaw/brave-plugin
+# Pinned to OPENCLAW_CORE_VERSION: an unversioned install resolves clawhub's
+# newest plugin build, which can require a plugin API newer than this image's
+# OpenClaw core exposes and fail the install.
+RUN openclaw plugins install "@openclaw/brave-plugin@${OPENCLAW_CORE_VERSION}"
 
 # Create workspace
 WORKDIR /workspace

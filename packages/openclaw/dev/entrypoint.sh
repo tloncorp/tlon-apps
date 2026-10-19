@@ -205,7 +205,10 @@ fi
 # production; gateway config validation will surface it.
 if [ -n "$BRAVE_API_KEY" ]; then
   echo "==> Ensuring Brave web-search plugin is installed..."
-  openclaw plugins install @openclaw/brave-plugin \
+  # Pinned to OPENCLAW_CORE_VERSION (set at image build time): an unversioned
+  # install resolves clawhub's newest plugin build, which can require a
+  # plugin API newer than this image's OpenClaw core exposes and fail.
+  openclaw plugins install "@openclaw/brave-plugin@${OPENCLAW_CORE_VERSION:-2026.9.33}" \
     || echo "WARN: brave plugin install failed; web_search may be unavailable"
 fi
 
