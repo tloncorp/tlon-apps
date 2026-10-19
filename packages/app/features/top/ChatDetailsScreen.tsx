@@ -12,6 +12,7 @@ import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
+  ForwardChannelSheetProvider,
   ForwardGroupSheetProvider,
   InviteUsersSheet,
   ListItem,
@@ -69,29 +70,31 @@ export function ChatDetailsScreen(props: Props) {
 
   return (
     <ForwardGroupSheetProvider>
-      <ChatOptionsProvider
-        key={`${chatType}-${chatId}`}
-        initialChat={{
-          type: chatType,
-          id: chatId,
-        }}
-        onPressInvite={handleInvitePressed}
-        {...useChatSettingsNavigation()}
-      >
-        <ChatDetailsScreenView />
-        {!isWindowNarrow && (
-          <InviteUsersSheet
-            open={inviteSheetGroup !== null}
-            onOpenChange={(open) => {
-              if (!open) {
-                setInviteSheetGroup(null);
-              }
-            }}
-            groupId={inviteSheetGroup ?? undefined}
-            onInviteComplete={() => setInviteSheetGroup(null)}
-          />
-        )}
-      </ChatOptionsProvider>
+      <ForwardChannelSheetProvider>
+        <ChatOptionsProvider
+          key={`${chatType}-${chatId}`}
+          initialChat={{
+            type: chatType,
+            id: chatId,
+          }}
+          onPressInvite={handleInvitePressed}
+          {...useChatSettingsNavigation()}
+        >
+          <ChatDetailsScreenView />
+          {!isWindowNarrow && (
+            <InviteUsersSheet
+              open={inviteSheetGroup !== null}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setInviteSheetGroup(null);
+                }
+              }}
+              groupId={inviteSheetGroup ?? undefined}
+              onInviteComplete={() => setInviteSheetGroup(null)}
+            />
+          )}
+        </ChatOptionsProvider>
+      </ForwardChannelSheetProvider>
     </ForwardGroupSheetProvider>
   );
 }

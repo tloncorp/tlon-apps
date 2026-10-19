@@ -1,7 +1,9 @@
 // Shared components for ChatDetailsScreen and ChannelDetailsScreen
 import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import * as Clipboard from 'expo-clipboard';
 import { capitalize } from 'lodash';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
@@ -29,8 +31,10 @@ import {
   pluralize,
   useChatOptions,
   useCurrentUserId,
+  useForwardChannelSheet,
   useGroupTitle,
   useIsAdmin,
+  useToast,
 } from '../../ui';
 import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
 import {
@@ -336,7 +340,21 @@ export function ChannelQuickActions({
   canInvite?: boolean;
 }) {
   const { togglePinned, onPressInvite } = useChatOptions();
+  const forwardChannelSheet = useForwardChannelSheet();
+  const toast = useToast();
   const isPinned = channel?.pin;
+  // DMs have no nest, so only group channels can be referenced. Notebook
+  // cites aren't rendered as cards yet and would show "Upgrade your app".
+  const canReference = !!channel.groupId && channel.type !== 'notes';
+
+  const handleForwardChannel = useCallback(() => {
+    forwardChannelSheet.open(channel);
+  }, [forwardChannelSheet, channel]);
+
+  const handleCopyChannelLink = useCallback(async () => {
+    await Clipboard.setStringAsync(logic.getChannelReferencePath(channel.id));
+    toast({ message: 'Copied!', duration: 1500 });
+  }, [channel.id, toast]);
 
   return (
     <ScrollView
@@ -358,6 +376,20 @@ export function ChannelQuickActions({
         onPress={togglePinned}
         testID={`ChannelQuickAction-${isPinned ? 'Unpin' : 'Pin'}`}
       />
+      {canReference && (
+        <>
+          <ProfileButton
+            title="Forward reference"
+            onPress={handleForwardChannel}
+            testID="ChannelQuickAction-Forward reference"
+          />
+          <ProfileButton
+            title="Copy link to channel"
+            onPress={handleCopyChannelLink}
+            testID="ChannelQuickAction-Copy link to channel"
+          />
+        </>
+      )}
     </ScrollView>
   );
 }
