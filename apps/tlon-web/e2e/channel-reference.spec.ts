@@ -79,12 +79,14 @@ test.describe('Channel Reference', () => {
     // Step 5b: tapping the card as a non-member opens the group preview
     // Use force click to bypass opacity animation on reference frame
     await tenCard.click({ force: true });
-    await expect(tenPage.getByTestId('ActionButton-Join group')).toBeVisible({
+    await expect(
+      tenPage.getByTestId('ActionButton-Join workspace')
+    ).toBeVisible({
       timeout: 10000,
     });
     await tenPage.keyboard.press('Escape');
     await expect(
-      tenPage.getByTestId('ActionButton-Join group')
+      tenPage.getByTestId('ActionButton-Join workspace')
     ).not.toBeVisible({ timeout: 5000 });
 
     // Step 6: ~zod (a member) taps the card in the DM and lands in General
