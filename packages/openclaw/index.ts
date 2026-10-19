@@ -1113,6 +1113,9 @@ export default defineBundledChannelEntry({
           botShip: resolveExecutionBotShip(credentials, process.env),
           env: process.env,
           fileExists: (path) => existsSync(path),
+          // Owner sends are recorded under the account whose credentials
+          // the tool runs with.
+          accountId: account.accountId,
         });
         const executeTlonTool = async (
           id: string,

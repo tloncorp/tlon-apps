@@ -20,6 +20,7 @@ import {
   noteIdFromDeliveryMessageId,
   notesDeliveryMessageId,
 } from '../notes-delivery-state.js';
+import { sharedOwnerToolPostLedger } from '../owner-tool-posts.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
 import { isDmNest, normalizeShip } from '../targets.js';
@@ -507,6 +508,29 @@ export async function agentOnboardingCronChannelNest(
 export { isDmNest };
 
 /**
+ * Owner-authored request blobs, minus posts this bot itself made in the
+ * owner's name with the tlon tool: those are the bot's actions, not requests.
+ */
+function ownerRequestEntries(
+  history: TlonHistoryEntry[],
+  ownerShip: string,
+  channelNest: string
+): Array<TlonHistoryEntry & { blob: string }> {
+  const ledger = sharedOwnerToolPostLedger();
+  return history.filter(
+    (entry): entry is TlonHistoryEntry & { blob: string } =>
+      entry.author === ownerShip &&
+      Boolean(entry.blob) &&
+      !ledger.match({
+        author: entry.author,
+        target: channelNest,
+        sent: entry.timestamp,
+        ...(entry.id ? { postId: entry.id } : {}),
+      })
+  );
+}
+
+/**
  * The group a DM's onboarding belongs to.
  *
  * A group channel's nest names its group; a DM's does not. The app posts its
@@ -524,8 +548,7 @@ export async function findOnboardingRequestInChannel(
   if (!context.ownerShip) return undefined;
   const history = await fetchOnboardingHistory(context, deps);
 
-  return history
-    .filter((entry) => entry.author === context.ownerShip && entry.blob)
+  return ownerRequestEntries(history, context.ownerShip, context.channelNest)
     .map((entry) => ({
       timestamp: entry.timestamp,
       request: parseAgentOnboardingRequest(entry.blob),
@@ -719,8 +742,11 @@ export async function scanAgentOnboardingChannel(
   if (!context.ownerShip || !context.groupId) return false;
   const history = await fetchOnboardingHistory(context, deps);
   context.abortSignal?.throwIfAborted();
-  const ownerRequests = history
-    .filter((entry) => entry.author === context.ownerShip && entry.blob)
+  const ownerRequests = ownerRequestEntries(
+    history,
+    context.ownerShip,
+    context.channelNest
+  )
     .map((entry) => ({
       entry,
       request: parseAgentOnboardingRequest(entry.blob),

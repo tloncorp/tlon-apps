@@ -1,3 +1,5 @@
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+
 import { normalizeShip } from '../targets.js';
 
 export interface ParsedCite {
@@ -731,4 +733,72 @@ export function resolveCommandBody(input: {
   return input.isGroup
     ? stripBotMentionOutsidePlaceholders(text, input.botShipName)
     : text;
+}
+
+/**
+ * What the command-text fields carry for an input that is never a command.
+ * Leaving the fields out does not work: core falls back from BodyForCommands
+ * to CommandBody, RawBody and finally Body (with the envelope stripped), so an
+ * absent field hands the reaction text to the command parser anyway. An empty
+ * string fails too: inline directives fall back to the agent body when the
+ * command source is empty. This value is non-empty, parses as no command or
+ * directive, and strips to nothing.
+ */
+export const NON_COMMAND_BODY = '[reaction]';
+
+/**
+ * The command-facing fields of an inbound dispatch. A reaction is never
+ * command input (the owner's reactions include ones the model made with the
+ * owner's tlon tool), and core authorizes commands from more than
+ * CommandAuthorized (commands.allowFrom, plugin commands without sender auth),
+ * so a reaction carries no command text at all and an explicit message turn.
+ * Its text still reaches the model through BodyForAgent.
+ */
+export function inboundCommandFields(
+  input:
+    | { fromReaction: true }
+    | {
+        fromReaction: false;
+        rawBody: string;
+        commandBody: string;
+        commandAuthorized: boolean;
+      }
+) {
+  if (input.fromReaction) {
+    return {
+      RawBody: NON_COMMAND_BODY,
+      CommandBody: NON_COMMAND_BODY,
+      BodyForCommands: NON_COMMAND_BODY,
+      CommandAuthorized: false,
+      CommandTurn: {
+        kind: 'normal' as const,
+        source: 'message' as const,
+        authorized: false,
+      },
+    };
+  }
+  return {
+    RawBody: input.rawBody,
+    CommandBody: input.commandBody,
+    CommandAuthorized: input.commandAuthorized,
+    CommandSource: 'text' as const,
+  };
+}
+
+/**
+ * The config a reaction dispatch runs under. Core runs an inline /help,
+ * /commands, /whoami or /id found anywhere in the agent body for any sender
+ * matched by commands.allowFrom, whatever CommandAuthorized says, and it
+ * reads that list from the dispatch config (the provider key, else "*").
+ * An empty list on both keys authorizes no sender, so no inline command runs
+ * from a reaction.
+ */
+export function reactionDispatchConfig(cfg: OpenClawConfig): OpenClawConfig {
+  return {
+    ...cfg,
+    commands: {
+      ...cfg.commands,
+      allowFrom: { ...cfg.commands?.allowFrom, '*': [], tlon: [] },
+    },
+  };
 }

@@ -7,6 +7,10 @@ import {
   setCronServiceAccessor,
 } from '../cron-telemetry.js';
 import {
+  _testing as ownerToolPostsTesting,
+  sharedOwnerToolPostLedger,
+} from '../owner-tool-posts.js';
+import {
   type AgentOnboardingRunRecord,
   claimAgentOnboardingRun,
   clearAgentOnboardingRunFallbackForTesting,
@@ -1059,6 +1063,45 @@ describe('agent onboarding requests', () => {
       expect.objectContaining({ campaignVersion: 1, timezone: 'Etc/UTC' }),
       1
     );
+  });
+
+  it("skips an intro request this bot posted in the owner's name", async () => {
+    const sendPost = successfulSendPost();
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+      isFirstGroup: true,
+    });
+    const history = [
+      { author: '~ten', content: 'hi', timestamp: 1_000, blob: introBlob },
+    ];
+    const scan = () =>
+      scanAgentOnboardingChannel(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+        },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      );
+    try {
+      sharedOwnerToolPostLedger().reserve({
+        kind: 'send',
+        accountId: 'default',
+        author: '~ten',
+        target: 'chat/~ten/general',
+        sentAt: 1_000,
+      });
+      await expect(scan()).resolves.toBe(false);
+      expect(sendPost).not.toHaveBeenCalled();
+    } finally {
+      ownerToolPostsTesting.clear();
+    }
+    await expect(scan()).resolves.toBe(true);
+    expect(sendPost).toHaveBeenCalledOnce();
   });
 
   it('shows thinking while a later-group greeting is reconciled', async () => {

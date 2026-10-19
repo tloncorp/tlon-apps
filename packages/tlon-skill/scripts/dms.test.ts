@@ -368,6 +368,7 @@ describe('dms bot author flags', () => {
         'hi',
         undefined,
         { nickname: null, avatar: null },
+        undefined,
         deps as never
       )
     ).toEqual({ success: true });
@@ -377,6 +378,7 @@ describe('dms bot author flags', () => {
         '~pen/170.141',
         'hi',
         { nickname: null, avatar: null },
+        undefined,
         deps as never
       )
     ).toEqual({ success: true });
@@ -404,12 +406,14 @@ describe('dms bot author flags', () => {
       'hi',
       undefined,
       undefined,
+      undefined,
       deps as never
     );
     await dms.replyToClub(
       '0v5.abcde',
       '~pen/170.141',
       'hi',
+      undefined,
       undefined,
       deps as never
     );
@@ -522,5 +526,139 @@ describe('dms run', () => {
 
     expect('botProfile' in posts[0]).toBe(false);
     expect('botProfile' in replies[0]).toBe(false);
+  });
+
+  it('stamps a group DM send and reply with --sent-at', async () => {
+    const { posts } = await runDms(
+      ['send', '0v5.abcde', 'hello', '--sent-at', '1234'],
+      makeRunDeps()
+    );
+    expect(posts).toEqual([
+      {
+        channelId: '0v5.abcde',
+        authorId: '~bot',
+        sentAt: 1234,
+        content: [{ inline: ['hello'] }],
+      },
+    ]);
+
+    const { replies } = await runDms(
+      [
+        'reply',
+        '0v5.abcde',
+        '~pen/170.141',
+        'hi',
+        '--sent-at',
+        '1234',
+        '--bot',
+      ],
+      makeRunDeps()
+    );
+    expect(replies).toEqual([
+      {
+        channelId: '0v5.abcde',
+        parentId: '170.141',
+        parentAuthor: '~pen',
+        authorId: '~bot',
+        sentAt: 1234,
+        content: [{ inline: ['hi'] }],
+        botProfile: { nickname: null, avatar: null },
+      },
+    ]);
+  });
+
+  it.each([
+    { args: ['send', '0v5.abcde', 'hello', '--bot', '--sent-at', '99'] },
+    { args: ['send', '0v5.abcde', 'hello', '--sent-at', '99', '--bot'] },
+    {
+      args: [
+        'reply',
+        '0v5.abcde',
+        '~pen/170.141',
+        'hello',
+        '--bot',
+        '--sent-at',
+        '99',
+      ],
+    },
+    {
+      args: [
+        'reply',
+        '0v5.abcde',
+        '~pen/170.141',
+        'hello',
+        '--sent-at',
+        '99',
+        '--bot',
+      ],
+    },
+  ])('reads --sent-at and --bot in either order: $args', async ({ args }) => {
+    const { posts, replies } = await runDms([...args], makeRunDeps());
+    const [payload] = args[0] === 'send' ? posts : replies;
+    expect(payload).toMatchObject({
+      sentAt: 99,
+      content: [{ inline: ['hello'] }],
+      botProfile: { nickname: null, avatar: null },
+    });
+  });
+
+  it('keeps the current time without --sent-at', async () => {
+    const before = Date.now();
+    const { posts } = await runDms(
+      ['send', '0v5.abcde', 'hello'],
+      makeRunDeps()
+    );
+    expect(posts[0].sentAt).toBeGreaterThanOrEqual(before);
+  });
+
+  it('ends the reply message at --sent-at', async () => {
+    const dms = await loadDms();
+    expect(
+      dms.getDmReplyMessage(['reply', '0v1', '~a/1', 'hi', '--sent-at', '5'])
+    ).toBe('hi');
+    expect(
+      dms.getDmSendMessage(['send', '0v1', 'hi', 'there', '--sent-at', '5'])
+    ).toBe('hi there');
+  });
+
+  it.each([
+    { args: ['send', '0v5.abcde', 'hi', '--sent-at', 'nope'] },
+    { args: ['send', '0v5.abcde', 'hi', '--sent-at', '0'] },
+    { args: ['send', '0v5.abcde', 'hi', '--sent-at'] },
+    { args: ['reply', '0v5.abcde', '~pen/170.141', 'hi', '--sent-at', 'nope'] },
+    { args: ['reply', '0v5.abcde', '~pen/170.141', 'hi', '--sent-at', '0'] },
+    { args: ['reply', '0v5.abcde', '~pen/170.141', 'hi', '--sent-at'] },
+  ])('rejects a bad --sent-at as a usage error: $args', async ({ args }) => {
+    const dms = await loadDms();
+    expectUsageExit(() => dms.validateDmsArgs([...args]));
+  });
+
+  it('lists --sent-at in the send and reply help', async () => {
+    const dms = await loadDms();
+    const originalExit = process.exit;
+    const originalLog = console.log;
+    const lines: string[] = [];
+    process.exit = (() => {
+      throw new Error('exit');
+    }) as typeof process.exit;
+    console.log = (line: string) => {
+      lines.push(line);
+    };
+    try {
+      for (const command of ['send', 'reply']) {
+        await dms
+          .run([command, '--help'], makeRunDeps() as never)
+          .catch(() => {});
+      }
+    } finally {
+      process.exit = originalExit;
+      console.log = originalLog;
+    }
+    expect(lines.join('\n')).toContain(
+      'Usage: tlon dms send <club-id> [message] [--image <url>] [--sent-at <ms>] [--bot]'
+    );
+    expect(lines.join('\n')).toContain(
+      'Usage: tlon dms reply <club-id> <post-id> <message> [--sent-at <ms>] [--bot]'
+    );
   });
 });

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import catalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
 import { ALLOWED_TLON_COMMANDS } from './tlon-tool-guard.js';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   DiaryMigrationDiscoveryNotifier,
@@ -11,6 +11,11 @@ import {
 import type { ApprovalCommandBridge } from './monitor/command-bridge.js';
 import { removeBridge, setBridge } from './monitor/command-bridge.js';
 import {
+  OWNER_TOOL_POST_LIMIT,
+  createOwnerToolPostLedger,
+} from './owner-tool-posts.js';
+import {
+  _testing,
   checkBlockedTlonOperation,
   createTlonToolExecutor,
   formatTlonToolDescription,
@@ -35,6 +40,29 @@ function makeDiscoveryBridge(
     getChannelTitle: () => 'Field Notes',
   } as ApprovalCommandBridge;
 }
+
+// The plugin's --sent-at for owner sends, at the harness's frozen clock.
+const SENT_AT = 1_700_000_000_000;
+const M = String(SENT_AT);
+const SENT_AT_PROBES = [
+  ['posts', 'send', '--help'],
+  ['dms', 'send', '--help'],
+];
+const PROBE_HELP: Record<string, string> = {
+  posts:
+    'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] [--bot] (message optional with --image)',
+  dms: 'Usage: tlon dms send <club-id> [message] [--image <url>] [--sent-at <ms>] [--bot] (message optional with --image)',
+};
+
+function isSentAtProbe(args: string[]) {
+  return SENT_AT_PROBES.some(
+    (probe) => JSON.stringify(probe) === JSON.stringify(args)
+  );
+}
+
+beforeEach(() => {
+  _testing.clearSentAtSupport();
+});
 
 function beforeImmediate<T>(promise: Promise<T>) {
   return Promise.race([
@@ -399,10 +427,18 @@ describe('owner-by-default identity selection', () => {
 
   function makeExecutor(
     overrides: Partial<Parameters<typeof createTlonToolExecutor>[0]> = {},
-    output = 'ok'
+    output = 'ok',
+    // null answers a probe-shaped call (`help posts send`) with `output`.
+    probeHelp: Record<string, string> | null = PROBE_HELP
   ) {
-    const runCommand = vi.fn(async (_args: string[]) => output);
+    const runCommand = vi.fn(async (args: string[]) =>
+      probeHelp && isSentAtProbe(args) ? probeHelp[args[0]] : output
+    );
     const logError = vi.fn();
+    const ledger = createOwnerToolPostLedger({
+      now: () => SENT_AT,
+      store: new Map(),
+    });
     const execute = createTlonToolExecutor({
       runCommand,
       logError,
@@ -412,9 +448,11 @@ describe('owner-by-default identity selection', () => {
       botShip: '~bot',
       env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
       fileExists: (path: string) => path === OWNER_CONFIG,
+      accountId: 'default',
+      ownerToolPosts: ledger,
       ...overrides,
     });
-    return { execute, runCommand, logError };
+    return { execute, runCommand, logError, ledger };
   }
 
   const unprovisioned = {
@@ -422,9 +460,14 @@ describe('owner-by-default identity selection', () => {
     dir: { env: {} as NodeJS.ProcessEnv },
   };
 
+  /** The one command run, after any --sent-at capability probes. */
   function ranWith(runCommand: ReturnType<typeof makeExecutor>['runCommand']) {
-    expect(runCommand).toHaveBeenCalledTimes(1);
-    return runCommand.mock.calls[0][0];
+    const calls = runCommand.mock.calls.map(([args]) => args);
+    expect(calls.length).toBeGreaterThan(0);
+    for (const probe of calls.slice(0, -1)) {
+      expect(isSentAtProbe(probe)).toBe(true);
+    }
+    return calls[calls.length - 1];
   }
 
   describe('injection', () => {
@@ -494,7 +537,10 @@ describe('owner-by-default identity selection', () => {
         ['contacts', 'update-profile', '--bio', '--self', '--status', 'ok'],
       ],
       ['contacts self --self', ['contacts', 'self', '--self']],
-      ['posts send chat/~h/c --self', ['posts', 'send', 'chat/~h/c', '--self']],
+      [
+        'posts send chat/~h/c --self',
+        ['posts', 'send', 'chat/~h/c', '--self', '--sent-at', M],
+      ],
     ])(
       'keeps a --self after the command as a literal argument: `%s`',
       async (command, expected) => {
@@ -613,7 +659,8 @@ describe('owner-by-default identity selection', () => {
       async (command, expected) => {
         const { execute, runCommand } = makeExecutor(
           unprovisioned.file,
-          'Usage'
+          'Usage',
+          null
         );
         const result = await execute('help', { command });
         expect(result.details).toBeUndefined();
@@ -641,18 +688,19 @@ describe('owner-by-default identity selection', () => {
     });
 
     it.each([
-      'posts send ~alice --help',
-      'posts reply chat/~h/c 170.1 -h',
-      'posts edit chat/~h/c 170.1 --help',
-      'dms send 0v1.abc --help',
-      'dms reply 0v1.abc 170.1 -h',
-    ])('treats message text in `%s` as content', async (command) => {
+      ['posts send ~alice --help', ['--sent-at', M]],
+      ['posts reply chat/~h/c 170.1 -h', ['--sent-at', M]],
+      ['posts edit chat/~h/c 170.1 --help', []],
+      ['dms send 0v1.abc --help', ['--sent-at', M]],
+      ['dms reply 0v1.abc 170.1 -h', ['--sent-at', M]],
+    ])('treats message text in `%s` as content', async (command, stamp) => {
       const { execute, runCommand } = makeExecutor();
       const result = await execute('content', { command });
       expect(ranWith(runCommand)).toEqual([
         '--ship',
         '~owner',
         ...shellSplitCommand(command),
+        ...stamp,
       ]);
       expect(result.content[0].text).toBe('ok\nRan as ~owner (owner).');
     });
@@ -901,6 +949,14 @@ describe('owner-by-default identity selection', () => {
           });
           expect(result.details).toMatchObject({ reason: 'send_operation' });
           expect(runCommand).not.toHaveBeenCalled();
+          // Only an owner-default send gets the owner's-name alternative.
+          if (prefix) {
+            expect(result.content[0].text).not.toContain('posts send <ship>');
+          } else {
+            expect(result.content[0].text).toContain(
+              "To send it in the owner's name instead, use posts send <ship> <text> (posts reply for a reply), after confirming with the owner unless they asked explicitly."
+            );
+          }
         }
       }
     );
@@ -932,6 +988,427 @@ describe('owner-by-default identity selection', () => {
         await execute('unknown-bot', { command });
         expect(runCommand).toHaveBeenCalledOnce();
       }
+    });
+  });
+
+  describe('owner post provenance', () => {
+    const OWNER_DM_UNSTAMPED =
+      "Blocked: the installed tlon CLI cannot timestamp group DM sends, so it cannot send one in the owner's name. Update the tlon skill, or add --self to send it as this bot.";
+    const OWNER_POST_UNSTAMPED =
+      "Blocked: the installed tlon CLI cannot timestamp posts send or reply, so it cannot post in the owner's name. Update the tlon skill, or add --self to post as this bot.";
+    const owner = (extra: string[]) => ['--ship', '~owner', ...extra];
+    const sentBy = (sent: number) => ({
+      author: '~owner',
+      target: 'chat/~h/c',
+      sent,
+    });
+
+    it.each([
+      [
+        'posts send chat/~h/c hi',
+        ['posts', 'send', 'chat/~h/c', 'hi', '--sent-at', M],
+      ],
+      [
+        'posts send heap/~h/c hi there --title T',
+        [
+          'posts',
+          'send',
+          'heap/~h/c',
+          'hi',
+          'there',
+          '--sent-at',
+          M,
+          '--title',
+          'T',
+        ],
+      ],
+      [
+        'posts reply chat/~h/c 170.1 hi --author ~x',
+        [
+          'posts',
+          'reply',
+          'chat/~h/c',
+          '170.1',
+          'hi',
+          '--sent-at',
+          M,
+          '--author',
+          '~x',
+        ],
+      ],
+      [
+        'dms send 0v1.abc hi --bot',
+        ['dms', 'send', '0v1.abc', 'hi', '--sent-at', M, '--bot'],
+      ],
+      [
+        'dms reply 0v1.abc ~a/170.1 hi',
+        ['dms', 'reply', '0v1.abc', '~a/170.1', 'hi', '--sent-at', M],
+      ],
+      [
+        'posts send ~alice hi',
+        ['posts', 'send', '~alice', 'hi', '--sent-at', M],
+      ],
+      [
+        'posts send chat/~h/c --image https://x/a.png',
+        [
+          'posts',
+          'send',
+          'chat/~h/c',
+          '--sent-at',
+          M,
+          '--image',
+          'https://x/a.png',
+        ],
+      ],
+      [
+        'posts send chat/~h/c hi --image=https://x/a.png',
+        [
+          'posts',
+          'send',
+          'chat/~h/c',
+          'hi',
+          '--sent-at',
+          M,
+          '--image=https://x/a.png',
+        ],
+      ],
+      [
+        'posts send chat/~h/c "say --sent-at 5" --bot',
+        [
+          'posts',
+          'send',
+          'chat/~h/c',
+          'say --sent-at 5',
+          '--sent-at',
+          M,
+          '--bot',
+        ],
+      ],
+      [
+        'posts send chat/~h/c hi --sent-at=5',
+        ['posts', 'send', 'chat/~h/c', 'hi', '--sent-at=5', '--sent-at', M],
+      ],
+      [
+        'posts send chat/~h/c hi --bot=x',
+        ['posts', 'send', 'chat/~h/c', 'hi', '--bot=x', '--sent-at', M],
+      ],
+    ])('stamps and records owner `%s`', async (command, expected) => {
+      const { execute, runCommand, ledger } = makeExecutor();
+      await execute('stamp', { command });
+      expect(ranWith(runCommand)).toEqual(owner(expected));
+      expect(ledger.match(sentBy(SENT_AT))).toMatchObject({
+        kind: 'send',
+        accountId: 'default',
+        author: '~owner',
+        target: expected[2],
+      });
+    });
+
+    it('overrides a model-supplied --sent-at, which then never matches', async () => {
+      const { execute, runCommand, ledger } = makeExecutor();
+      await execute('override', {
+        command: 'posts send chat/~h/c hi --sent-at 5',
+      });
+      expect(ranWith(runCommand)).toEqual(
+        owner(['posts', 'send', 'chat/~h/c', 'hi', '--sent-at', M])
+      );
+      expect(ledger.match(sentBy(5))).toBeNull();
+      expect(ledger.match(sentBy(SENT_AT))).not.toBeNull();
+    });
+
+    it.each([
+      [
+        'posts send chat/~h/c hi --sent-at --bot',
+        ['posts', 'send', 'chat/~h/c', 'hi', '--sent-at', M, '--bot'],
+      ],
+      [
+        'posts send chat/~h/c hi --sent-at',
+        ['posts', 'send', 'chat/~h/c', 'hi', '--sent-at', M],
+      ],
+      [
+        'posts send chat/~h/c hi --sent-at 5 --sent-at 6',
+        ['posts', 'send', 'chat/~h/c', 'hi', '--sent-at', M, '--sent-at', '6'],
+      ],
+    ])('fills a malformed --sent-at in `%s`', async (command, expected) => {
+      const { execute, runCommand } = makeExecutor();
+      await execute('override', { command });
+      expect(ranWith(runCommand)).toEqual(owner(expected));
+    });
+
+    it('gives each owner send its own time, across executors', async () => {
+      const ledger = createOwnerToolPostLedger({
+        now: () => SENT_AT,
+        store: new Map(),
+      });
+      const first = makeExecutor({ ownerToolPosts: ledger });
+      const second = makeExecutor({ ownerToolPosts: ledger });
+      await first.execute('one', { command: 'posts send chat/~h/c a' });
+      await second.execute('two', { command: 'dms send 0v1.abc b' });
+      expect(ranWith(first.runCommand)).toContain(M);
+      expect(ranWith(second.runCommand)).toContain(String(SENT_AT + 1));
+      expect(ledger.match(sentBy(SENT_AT + 1))).toMatchObject({
+        target: '0v1.abc',
+      });
+    });
+
+    it('records an owner edit by post id and parent, without stamping it', async () => {
+      const { execute, runCommand, ledger } = makeExecutor();
+      await execute('edit', {
+        command: 'posts edit chat/~h/c 170.141 new text',
+      });
+      expect(ranWith(runCommand)).toEqual(
+        owner(['posts', 'edit', 'chat/~h/c', '170.141', 'new', 'text'])
+      );
+      expect(
+        ledger.match({
+          author: '~owner',
+          target: 'chat/~h/c',
+          postId: '170141',
+        })
+      ).toMatchObject({ kind: 'edit' });
+
+      const reply = makeExecutor();
+      await reply.execute('edit', {
+        command: 'posts edit chat/~h/c 170.2 hi --parent 170.1',
+      });
+      const edited = { author: '~owner', target: 'chat/~h/c', postId: '170.2' };
+      expect(
+        reply.ledger.match({ ...edited, parentId: '170.1' })
+      ).not.toBeNull();
+      expect(reply.ledger.match({ ...edited, parentId: '170.9' })).toBeNull();
+    });
+
+    it.each([
+      ['posts react chat/~h/c 170.1 👍', 'chat/~h/c', '170.1'],
+      ['dms react 0v1.abc ~alice/170.1 👍', '0v1.abc', '~alice/170.1'],
+    ])('records owner `%s` as a reaction', async (command, target, postId) => {
+      const { execute, runCommand, ledger } = makeExecutor();
+      await execute('react', { command });
+      expect(ranWith(runCommand)).toEqual(owner(shellSplitCommand(command)));
+      const reaction = { author: '~owner', target, postId };
+      expect(ledger.match({ ...reaction, reaction: '👍' })).toMatchObject({
+        kind: 'react',
+      });
+      expect(ledger.match({ ...reaction, reaction: '👎' })).toBeNull();
+    });
+
+    it.each([
+      ['--self posts send chat/~h/c hi', undefined],
+      ['--self posts react chat/~h/c 170.1 👍', undefined],
+      ['help posts send', undefined],
+      ['posts send --help', undefined],
+      ['posts unreact chat/~h/c 170.1', undefined],
+      ['posts send ~bot hi', 'owner_self_dm'],
+      ['dms send ~alice hi', 'send_operation'],
+    ])('neither stamps nor records `%s`', async (command, reason) => {
+      const { execute, runCommand, ledger } = makeExecutor();
+      const result = await execute('plain', { command });
+      if (reason) {
+        expect(result.details).toMatchObject({ reason });
+        expect(runCommand).not.toHaveBeenCalled();
+      } else {
+        expect(ranWith(runCommand)).not.toContain('--sent-at');
+      }
+      expect(ledger.match(sentBy(SENT_AT))).toBeNull();
+      expect(
+        ledger.match({
+          author: '~owner',
+          target: 'chat/~h/c',
+          postId: '170.1',
+          reaction: '👍',
+        })
+      ).toBeNull();
+    });
+
+    it('records before running, and keeps the entry when the run fails', async () => {
+      const { execute, ledger } = makeExecutor({
+        runCommand: vi.fn(async (args: string[]) => {
+          if (isSentAtProbe(args)) return PROBE_HELP[args[0]];
+          expect(ledger.match(sentBy(SENT_AT))).not.toBeNull();
+          throw new Error('tlon command timed out after 45000ms');
+        }),
+      });
+      const result = await execute('fail', {
+        command: 'posts send chat/~h/c hi',
+      });
+      expect(result.details).toMatchObject({ status: 'error' });
+      expect(ledger.match(sentBy(SENT_AT))).not.toBeNull();
+    });
+
+    it('refuses owner writes once the ledger is full, and a failed run frees a slot', async () => {
+      const ledger = createOwnerToolPostLedger({
+        now: () => SENT_AT,
+        store: new Map(),
+      });
+      for (let i = 0; i < OWNER_TOOL_POST_LIMIT - 1; i += 1) {
+        ledger.reserve({
+          kind: 'send',
+          accountId: 'default',
+          author: '~owner',
+          target: 'chat/~h/c',
+          sentAt: i + 1,
+        });
+      }
+      const failing = makeExecutor({
+        ownerToolPosts: ledger,
+        runCommand: vi.fn(async (args: string[]) => {
+          if (isSentAtProbe(args)) return PROBE_HELP[args[0]];
+          throw new Error('boom');
+        }),
+      });
+      await failing.execute('fail', { command: 'posts send chat/~h/c a' });
+      const { execute, runCommand } = makeExecutor({ ownerToolPosts: ledger });
+      await execute('last', { command: 'posts send chat/~h/c b' });
+      expect(ranWith(runCommand)).toContain('b');
+
+      runCommand.mockClear();
+      for (const command of [
+        'posts send chat/~h/c c',
+        'posts react chat/~h/c 170.1 👍',
+      ]) {
+        const result = await execute('full', { command });
+        expect(result.content[0].text).toBe(
+          'Blocked: owner-action tracking is full. Entries are retained for six hours; retry after older entries expire, or add --self.'
+        );
+        expect(result.details).toMatchObject({
+          reason: 'owner_post_ledger_full',
+        });
+      }
+      expect(runCommand.mock.calls.filter(([a]) => !isSentAtProbe(a))).toEqual(
+        []
+      );
+      await execute('self', { command: '--self posts send chat/~h/c d' });
+      expect(ranWith(runCommand)).toEqual(['posts', 'send', 'chat/~h/c', 'd']);
+    });
+
+    it.each([
+      ['dms send 0v1.abc hi', 'dms', OWNER_DM_UNSTAMPED, 'owner_dm_unstamped'],
+      [
+        'dms reply 0v1.abc ~a/1 hi',
+        'dms',
+        OWNER_DM_UNSTAMPED,
+        'owner_dm_unstamped',
+      ],
+      [
+        'posts send chat/~h/c hi',
+        'posts',
+        OWNER_POST_UNSTAMPED,
+        'owner_post_unstamped',
+      ],
+      [
+        'posts reply chat/~h/c 170.1 hi',
+        'posts',
+        OWNER_POST_UNSTAMPED,
+        'owner_post_unstamped',
+      ],
+    ])(
+      'refuses owner `%s` when the CLI cannot stamp it',
+      async (command, family, message, reason) => {
+        const { execute, runCommand, ledger } = makeExecutor({}, 'ok', {
+          ...PROBE_HELP,
+          [family]: `Usage: tlon ${family} send <target> [message] [--bot]`,
+        });
+        const result = await execute('old-cli', { command });
+        expect(result.content[0].text).toBe(message);
+        expect(result.details).toMatchObject({ reason });
+        expect(runCommand.mock.calls).toEqual([[[family, 'send', '--help']]]);
+        expect(ledger.match(sentBy(SENT_AT))).toBeNull();
+
+        await execute('self', { command: `--self ${command}` });
+        expect(ranWith(runCommand)).toEqual(shellSplitCommand(command));
+      }
+    );
+
+    it('refuses as unverified when the probe fails, and probes again next send', async () => {
+      let probeWorks = false;
+      const runCommand = vi.fn(async (args: string[]) => {
+        if (!isSentAtProbe(args)) return 'ok';
+        if (!probeWorks) throw new Error('spawn tlon ENOENT');
+        return PROBE_HELP[args[0]];
+      });
+      const { execute, ledger } = makeExecutor({ runCommand });
+      const refused = await execute('probe', {
+        command: 'dms send 0v1.abc hi',
+      });
+      expect(refused.content[0].text).toBe(
+        "Blocked: the installed tlon CLI could not be checked for timestamp support, so nothing was sent in the owner's name. Retry; the check runs again on the next send. Or add --self to send it as this bot."
+      );
+      expect(refused.details).toMatchObject({
+        reason: 'owner_send_unverified',
+      });
+      expect(ledger.match(sentBy(SENT_AT))).toBeNull();
+      probeWorks = true;
+      await execute('probe', { command: 'dms send 0v1.abc hi' });
+      await execute('probe', { command: 'dms send 0v1.abc again' });
+      expect(
+        runCommand.mock.calls.filter(([a]) => isSentAtProbe(a))
+      ).toHaveLength(2);
+      expect(runCommand.mock.calls.at(-1)?.[0]).toContain('again');
+    });
+
+    it('does not cache an unsupported CLI, and probes again next send', async () => {
+      const { execute, runCommand } = makeExecutor({}, 'ok', {
+        ...PROBE_HELP,
+        dms: 'Usage: tlon dms send <club-id> [message] [--bot]',
+      });
+      for (const text of ['one', 'two']) {
+        const result = await execute('old-cli', {
+          command: `dms send 0v1.abc ${text}`,
+        });
+        expect(result.details).toMatchObject({ reason: 'owner_dm_unstamped' });
+      }
+      expect(runCommand.mock.calls).toEqual([
+        [['dms', 'send', '--help']],
+        [['dms', 'send', '--help']],
+      ]);
+    });
+
+    it('shares one probe between concurrent first sends', async () => {
+      let answer: (help: string) => void = () => {};
+      const runCommand = vi.fn((args: string[]) =>
+        isSentAtProbe(args)
+          ? new Promise<string>((resolve) => {
+              answer = resolve;
+            })
+          : Promise.resolve('ok')
+      );
+      const { execute } = makeExecutor({ runCommand });
+      const first = execute('a', { command: 'posts send chat/~h/c a' });
+      const second = execute('b', { command: 'posts send chat/~h/c b' });
+      await vi.waitFor(() => expect(runCommand).toHaveBeenCalled());
+      answer(PROBE_HELP.posts);
+      await Promise.all([first, second]);
+      expect(
+        runCommand.mock.calls.filter(([a]) => isSentAtProbe(a))
+      ).toHaveLength(1);
+      expect(
+        runCommand.mock.calls.filter(([a]) => !isSentAtProbe(a))
+      ).toHaveLength(2);
+    });
+
+    it('refuses an onboarding request blob as the owner, but not as the bot', async () => {
+      const blob = JSON.stringify([
+        { type: 'tlon-agent-intro-request', groupId: '~h/g' },
+      ]);
+      const command = `posts send chat/~h/c hi --blob '${blob}'`;
+      const { execute, runCommand } = makeExecutor();
+      const result = await execute('blob', { command });
+      expect(result.content[0].text).toBe(
+        'Blocked: agent onboarding requests cannot be posted through owner-credentialed tool calls; only the Tlon app sends them.'
+      );
+      expect(result.details).toMatchObject({
+        reason: 'reserved_onboarding_request',
+      });
+      expect(runCommand).not.toHaveBeenCalled();
+
+      await execute('blob', { command: `--self ${command}` });
+      expect(ranWith(runCommand)).toEqual(shellSplitCommand(command));
+
+      const other = makeExecutor();
+      await other.execute('blob', {
+        command: `posts send chat/~h/c hi --blob '${JSON.stringify([{ type: 'a2ui' }])}'`,
+      });
+      expect(ranWith(other.runCommand)).toContain('--sent-at');
     });
   });
 
@@ -989,10 +1466,12 @@ describe('owner-by-default identity selection', () => {
       'channels join chat/~h/c',
       'contacts update-profile --nickname x',
       'dms react 0v1.abc 170.1 👍',
+      'dms send 0v1.abc hi',
       'expose show chat/~h/c/170.1',
       'groups invite-link ~h/g',
       'notes note-publish notes/~h/b 12',
       'posts react chat/~h/c 170.1 👍',
+      'posts send ~alice hi',
       'upload https://example.com/a.png',
     ])('ends owner `%s` with the owner line', async (command) => {
       const { execute } = makeExecutor({}, 'done\n');
@@ -1090,6 +1569,22 @@ describe('model-facing identity guidance', () => {
       for (const marker of ['Owner or bot:', 'Put --self before the command']) {
         if (ownerDefault) expect(help).toContain(marker);
         else expect(help).not.toContain(marker);
+      }
+      for (const marker of [
+        'When run as the owner, posts send|reply',
+        'look exactly like something the owner typed',
+        '"handle this" is not',
+      ]) {
+        for (const text of [description, help]) {
+          if (ownerDefault) expect(text).toContain(marker);
+          else expect(text).not.toContain(marker);
+        }
+      }
+      if (ownerDefault) {
+        expect(help).toContain(
+          "posts send|reply to ~ship: a DM in the owner's name"
+        );
+        expect(help).not.toContain('(prefer message)');
       }
       const execute = createTlonToolExecutor({
         runCommand: vi.fn(),
@@ -1216,6 +1711,85 @@ describe('owner default off (staged rollout)', () => {
       `Error: owner credentials for ~owner are not provisioned (expected ${OWNER_CONFIG}); nothing was run. Add --self only if the bot's own account is what was asked for.`
     );
     expect(runCommand).not.toHaveBeenCalled();
+  });
+
+  describe('owner post provenance with model-supplied credentials', () => {
+    function withLedger() {
+      const ledger = createOwnerToolPostLedger({
+        now: () => SENT_AT,
+        store: new Map(),
+      });
+      const runCommand = vi.fn(async (args: string[]) =>
+        isSentAtProbe(args) ? PROBE_HELP[args[0]] : 'ok'
+      );
+      return {
+        ...makeExecutor({ ownerToolPosts: ledger, runCommand }),
+        ledger,
+        runCommand,
+      };
+    }
+    const lastRun = (runCommand: ReturnType<typeof vi.fn>) =>
+      runCommand.mock.calls.at(-1)?.[0];
+
+    it.each([
+      [
+        '--config /tmp/owner.json posts send chat/~h/c hi',
+        ['--config', '/tmp/owner.json'],
+      ],
+      [
+        '--ship ~zod --url u --code c posts send chat/~h/c hi',
+        ['--ship', '~zod', '--url', 'u', '--code', 'c'],
+      ],
+    ])(
+      'stamps `%s` and records it with no author, matched by target',
+      async (command, prefix) => {
+        const { execute, runCommand, ledger } = withLedger();
+        await execute('creds', { command });
+        expect(lastRun(runCommand)).toEqual([
+          ...prefix,
+          'posts',
+          'send',
+          'chat/~h/c',
+          'hi',
+          '--sent-at',
+          M,
+        ]);
+        expect(
+          ledger.match({
+            author: '~anyone',
+            target: 'chat/~h/c',
+            sent: SENT_AT,
+          })
+        ).toMatchObject({ author: null, target: 'chat/~h/c' });
+        expect(
+          ledger.match({
+            author: '~anyone',
+            target: 'chat/~h/d',
+            sent: SENT_AT,
+          })
+        ).toBeNull();
+      }
+    );
+
+    it('neither stamps nor records a plain send as the bot', async () => {
+      const { execute, runCommand, ledger } = withLedger();
+      await execute('bot', { command: 'posts send chat/~h/c hi' });
+      expect(runCommand.mock.calls).toEqual([
+        [['posts', 'send', 'chat/~h/c', 'hi']],
+      ]);
+      expect(
+        ledger.match({ author: '~bot', target: 'chat/~h/c', sent: SENT_AT })
+      ).toBeNull();
+    });
+
+    it('adds no owner-name hint to a refused ship-targeted dms send', async () => {
+      const { execute } = withLedger();
+      const result = await execute('redirect', {
+        command: 'dms send ~alice hi',
+      });
+      expect(result.details).toMatchObject({ reason: 'send_operation' });
+      expect(result.content[0].text).not.toContain('posts send <ship>');
+    });
   });
 
   it('keeps the self-DM guard for model-supplied credentials', async () => {

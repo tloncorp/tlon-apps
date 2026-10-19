@@ -1,5 +1,13 @@
 import commandCatalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
 import { locateOwnerShipConfig } from './owner-ship-config.js';
+import {
+  type OwnerToolPost,
+  type OwnerToolPostLedger,
+  type OwnerToolPostReservation,
+  canonicalPostId,
+  sharedOwnerToolPostLedger,
+} from './owner-tool-posts.js';
+import { sharedMap } from './shared-state.js';
 import { normalizeShip } from './targets.js';
 import {
   ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
@@ -477,6 +485,11 @@ export type BlockedTlonOperation = {
     | 'credential_override'
     | 'owner_self_dm'
     | 'bot_ship_unknown'
+    | 'owner_post_unstamped'
+    | 'owner_dm_unstamped'
+    | 'owner_send_unverified'
+    | 'owner_post_ledger_full'
+    | 'reserved_onboarding_request'
     | 'owner_workspace_unsupported'
     | 'runtime_settings_key'
     | 'reserved_automatic_provision'
@@ -606,8 +619,10 @@ const isPostSendBoundary = (arg: string) =>
   ['--blob', '--title', '--sent-at', '--bot'].includes(arg) || isImageFlag(arg);
 const isPostReplyBoundary = (arg: string) =>
   ['--author', '--blob', '--sent-at', '--bot'].includes(arg);
-const isDmSendBoundary = (arg: string) => arg === '--bot' || isImageFlag(arg);
-const isDmReplyBoundary = (arg: string) => arg === '--bot';
+const isDmSendBoundary = (arg: string) =>
+  arg === '--bot' || arg === '--sent-at' || isImageFlag(arg);
+const isDmReplyBoundary = (arg: string) =>
+  arg === '--bot' || arg === '--sent-at';
 
 function isPostsMessageHelpLiteral(rest: string[]): boolean {
   const [operation, first, second] = rest;
@@ -943,6 +958,261 @@ export function checkOwnerSelfDm(
         reason: 'owner_self_dm',
       }
     : null;
+}
+
+// The request types the monitor's onboarding reads from owner-authored blobs
+// (parseAgentOnboardingRequest in monitor/agent-onboarding.ts). Only the Tlon
+// app posts them; one sent in the owner's name would drive onboarding.
+export const AGENT_ONBOARDING_REQUEST_TYPES: ReadonlySet<string> = new Set([
+  'tlon-agent-intro-request',
+  'tlon-agent-provider-config',
+  'tlon-agent-provision',
+]);
+
+function containsAgentOnboardingRequest(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsAgentOnboardingRequest);
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.type === 'string' &&
+    AGENT_ONBOARDING_REQUEST_TYPES.has(record.type)
+  ) {
+    return true;
+  }
+  return Object.values(record).some(containsAgentOnboardingRequest);
+}
+
+/** Owner-credentialed posts may not carry an onboarding request blob. */
+export function checkOwnerReservedBlob(
+  commandArgs: string[],
+  ownerCredentialed: boolean
+): BlockedTlonOperation | null {
+  return ownerCredentialed &&
+    hasReservedBlobContent(commandArgs, containsAgentOnboardingRequest)
+    ? {
+        message:
+          'Blocked: agent onboarding requests cannot be posted through owner-credentialed tool calls; only the Tlon app sends them.',
+        reason: 'reserved_onboarding_request',
+      }
+    : null;
+}
+
+/**
+ * The sends the plugin timestamps when they run as the owner: where the
+ * CLI's message slice starts (in its own argument coordinates) and the
+ * boundary that ends it.
+ */
+const OWNER_TIMESTAMPED_SENDS = new Map<
+  string,
+  { messageStart: number; isBoundary: (arg: string) => boolean }
+>([
+  ['posts send', { messageStart: 2, isBoundary: isPostSendBoundary }],
+  ['posts reply', { messageStart: 3, isBoundary: isPostReplyBoundary }],
+  ['dms send', { messageStart: 2, isBoundary: isDmSendBoundary }],
+  ['dms reply', { messageStart: 3, isBoundary: isDmReplyBoundary }],
+]);
+
+/**
+ * `[family, op, …]` carrying the plugin's `--sent-at <stamp>`, or null for an
+ * operation the plugin does not timestamp. The CLI reads the first
+ * `--sent-at`, so a model-supplied one is overwritten in place; otherwise the
+ * pair goes at the message boundary, which leaves the message slice as it was.
+ */
+export function withOwnerSentAt(
+  commandArgs: string[],
+  stamp: number
+): string[] | null {
+  const send = OWNER_TIMESTAMPED_SENDS.get(
+    `${commandArgs[0] ?? ''} ${commandArgs[1] ?? ''}`
+  );
+  if (!send) return null;
+  const rest = commandArgs.slice(1);
+  const value = String(stamp);
+  const existing = rest.indexOf('--sent-at');
+  if (existing !== -1) {
+    const next = rest[existing + 1];
+    if (next !== undefined && !next.startsWith('--')) {
+      rest[existing + 1] = value;
+    } else {
+      rest.splice(existing + 1, 0, value);
+    }
+  } else {
+    const at = Math.max(
+      boundaryIndex(rest, send.isBoundary),
+      send.messageStart
+    );
+    rest.splice(Math.min(at, rest.length), 0, '--sent-at', value);
+  }
+  return [commandArgs[0], ...rest];
+}
+
+/** The first `--parent` value in the CLI's own arguments, as the CLI reads it. */
+function firstParentId(commandArgs: string[]): string | undefined {
+  const rest = commandArgs.slice(1);
+  const index = rest.indexOf('--parent');
+  const value = index === -1 ? undefined : rest[index + 1];
+  return value && !value.startsWith('--') ? canonicalPostId(value) : undefined;
+}
+
+const OWNER_REACTION_OPERATIONS = new Set(['posts react', 'dms react']);
+
+/**
+ * The ledger entry for an owner-credentialed write the monitor could see as
+ * an owner message or reaction, or null for every other operation.
+ */
+function ownerToolPostFor(
+  commandArgs: string[],
+  base: { accountId: string; author: string | null },
+  stamp: number | null
+): OwnerToolPost | null {
+  const operation = `${commandArgs[0] ?? ''} ${commandArgs[1] ?? ''}`;
+  const target = commandArgs[2] ?? '';
+  const postId = commandArgs[3];
+  if (stamp !== null) {
+    return { ...base, kind: 'send', target, sentAt: stamp };
+  }
+  if (operation === 'posts edit' && postId) {
+    const parentId = firstParentId(commandArgs);
+    return {
+      ...base,
+      kind: 'edit',
+      target,
+      postId: canonicalPostId(postId),
+      ...(parentId ? { parentId } : {}),
+    };
+  }
+  const reaction = commandArgs[4];
+  if (OWNER_REACTION_OPERATIONS.has(operation) && postId && reaction) {
+    return {
+      ...base,
+      kind: 'react',
+      target,
+      postId: canonicalPostId(postId),
+      reaction,
+    };
+  }
+  return null;
+}
+
+const OWNER_POST_UNSTAMPED_MESSAGE =
+  "Blocked: the installed tlon CLI cannot timestamp posts send or reply, so it cannot post in the owner's name. Update the tlon skill, or add --self to post as this bot.";
+const OWNER_DM_UNSTAMPED_MESSAGE =
+  "Blocked: the installed tlon CLI cannot timestamp group DM sends, so it cannot send one in the owner's name. Update the tlon skill, or add --self to send it as this bot.";
+const OWNER_DM_SEND_HINT =
+  " To send it in the owner's name instead, use posts send <ship> <text> (posts reply for a reply), after confirming with the owner unless they asked explicitly.";
+const OWNER_SEND_UNVERIFIED_MESSAGE =
+  "Blocked: the installed tlon CLI could not be checked for timestamp support, so nothing was sent in the owner's name. Retry; the check runs again on the next send. Or add --self to send it as this bot.";
+const OWNER_POST_LEDGER_FULL_MESSAGE =
+  'Blocked: owner-action tracking is full. Entries are retained for six hours; retry after older entries expire, or add --self.';
+
+const SENT_AT_TOKEN = /(?<![\w-])--sent-at(?![\w-])/;
+type SentAtSupport = 'supported' | 'unsupported';
+// One probe per family, shared by concurrent first sends. Only support is
+// kept: an unsupported or failed probe is forgotten, so a CLI that gains
+// --sent-at is picked up on the next send, and one that has it does not lose it.
+const sentAtSupport = sharedMap<string, Promise<SentAtSupport>>(
+  'tlonTool.sentAtSupport'
+);
+
+export const _testing = {
+  clearSentAtSupport: () => sentAtSupport.clear(),
+};
+
+/**
+ * Whether the installed CLI's `<family> send` takes --sent-at. The runner can
+ * fall back to a `tlon` on PATH, and an older one would post the flag and the
+ * timestamp as message text. 'unverified' when the probe itself failed.
+ */
+async function cliSentAtSupport(
+  family: string,
+  deps: TlonToolExecutorDeps
+): Promise<SentAtSupport | 'unverified'> {
+  let probe = sentAtSupport.get(family);
+  if (!probe) {
+    const started = deps
+      .runCommand([family, 'send', '--help'])
+      .then(
+        (help): SentAtSupport =>
+          SENT_AT_TOKEN.test(help) ? 'supported' : 'unsupported'
+      );
+    probe = started;
+    sentAtSupport.set(family, started);
+    const forget = () => {
+      if (sentAtSupport.get(family) === started) sentAtSupport.delete(family);
+    };
+    started.then((support) => {
+      if (support !== 'supported') forget();
+    }, forget);
+  }
+  try {
+    const support = await probe;
+    if (support === 'unsupported') {
+      deps.logError?.(
+        `Refusing owner ${family} sends: the installed tlon CLI's ${family} send does not take --sent-at.`
+      );
+    }
+    return support;
+  } catch (error) {
+    deps.logError?.(
+      `Refusing an owner ${family} send: could not check the tlon CLI for --sent-at: ${String(error)}`
+    );
+    return 'unverified';
+  }
+}
+
+type OwnerToolPostPlan =
+  | { command: string[]; post: OwnerToolPost | null }
+  | { blocked: BlockedTlonOperation };
+
+/**
+ * Stamps an owner-credentialed send with the plugin's own `sent` and works out
+ * the ledger entry for it (sends, edits and reactions), so the monitor can
+ * tell the bot's owner-authored writes from the owner's own.
+ */
+async function planOwnerToolPost(
+  commandArgs: string[],
+  author: string | null,
+  ledger: OwnerToolPostLedger,
+  deps: TlonToolExecutorDeps
+): Promise<OwnerToolPostPlan> {
+  const base = { accountId: deps.accountId ?? 'default', author };
+  const family = commandArgs[0] ?? '';
+  const send = OWNER_TIMESTAMPED_SENDS.get(`${family} ${commandArgs[1] ?? ''}`);
+  // Without its positionals the CLI stops at a usage error and sends nothing.
+  if (!send || commandArgs.length - 1 < send.messageStart) {
+    return {
+      command: commandArgs,
+      post: ownerToolPostFor(commandArgs, base, null),
+    };
+  }
+  const support = await cliSentAtSupport(family, deps);
+  if (support === 'unverified') {
+    return {
+      blocked: {
+        message: OWNER_SEND_UNVERIFIED_MESSAGE,
+        reason: 'owner_send_unverified',
+      },
+    };
+  }
+  if (support === 'unsupported') {
+    return {
+      blocked:
+        family === 'dms'
+          ? {
+              message: OWNER_DM_UNSTAMPED_MESSAGE,
+              reason: 'owner_dm_unstamped',
+            }
+          : {
+              message: OWNER_POST_UNSTAMPED_MESSAGE,
+              reason: 'owner_post_unstamped',
+            },
+    };
+  }
+  const stamp = ledger.allocateSentAt();
+  return {
+    command: withOwnerSentAt(commandArgs, stamp)!,
+    post: ownerToolPostFor(commandArgs, base, stamp),
+  };
 }
 
 // Keys the runtime owns: who can reach the bot and pending owner consent.
@@ -1407,6 +1677,10 @@ export type TlonToolExecutorDeps = {
   botShip?: string;
   env?: NodeJS.ProcessEnv;
   fileExists?: (path: string) => boolean;
+  /** The account whose credentials the tool runs with, for the ledger. */
+  accountId?: string;
+  /** Defaults to the process-wide ledger the monitor reads. */
+  ownerToolPosts?: OwnerToolPostLedger;
   /**
    * The run the gate approved as an owner run has since lost owner identity
    * (a non-owner message or `sessions_send` demoted it): a command that would
@@ -1426,7 +1700,7 @@ export type TlonToolExecutorDeps = {
  */
 export function formatTlonIdentityGuidance(ownerDefault: boolean): string {
   return ownerDefault
-    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings, browser and hooks always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
+    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. When run as the owner, posts send|reply and dms send|reply post in the owner\'s name and look exactly like something the owner typed (--bot adds only a Bot tag); your own voice is the message tool. Before sending in the owner\'s name, confirm with the owner unless their instruction was explicit ("tell ~x I\'m late" is explicit; "handle this" is not). A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings, browser and hooks always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
     : 'Commands act as this bot. groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
 }
 
@@ -1437,7 +1711,7 @@ const OWNER_DEFAULT_IDENTITY_TABLE = [
   "  activity (incl. mute, unmute, volume, mark-read): the owner's activity, notification levels and read state; with --self, the bot's.",
   "  contacts self|list|add|remove|update|update-profile: the owner's profile and contact book; with --self, the bot's.",
   "  groups list|join|leave|accept-invite|reject-invite|request-invite, channels join|leave: the owner's membership; with --self, the bot's.",
-  '  posts send|reply to ~ship: a DM from the owner; with --self, from the bot (prefer message).',
+  "  posts send|reply to ~ship: a DM in the owner's name, as if the owner typed it; use message for your own DMs.",
   "  posts react|unreact|edit|delete: as the owner (edit only the owner's posts); with --self, as the bot.",
   "  dms react|unreact|delete: in the owner's DMs; with --self, in the bot's.",
   '  hooks: always this bot (hooks in channels the bot hosts or administers).',
@@ -1616,6 +1890,13 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
               );
             });
         }
+        if (
+          blocked.reason === 'send_operation' &&
+          deps.ownerDefault &&
+          !normalized.selfRequested
+        ) {
+          blocked.message += OWNER_DM_SEND_HINT;
+        }
         return blockedResult(deps, blocked, subcommand);
       }
 
@@ -1671,14 +1952,50 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       const guarded = isHelp
         ? null
         : (checkOwnerSelfDm(command, ownerCredentialed, deps.botShip) ??
+          checkOwnerReservedBlob(command, ownerCredentialed) ??
           checkRuntimeSettingsKey(command));
       if (guarded) {
         return blockedResult(deps, guarded, subcommand);
       }
 
+      // Owner-credentialed writes the monitor would see as the owner's own
+      // are stamped and recorded before they run. Model-supplied credentials
+      // (flag off) do not prove whose post it is, so the entry then names no
+      // author and is matched by its target.
+      let sentCommand = command;
+      let reservation: OwnerToolPostReservation | null = null;
+      if (ownerCredentialed && !isHelp) {
+        const ledger = deps.ownerToolPosts ?? sharedOwnerToolPostLedger();
+        const plan = await planOwnerToolPost(
+          command,
+          identity.actAs === 'owner' ? identity.ship : null,
+          ledger,
+          deps
+        );
+        if ('blocked' in plan) {
+          return blockedResult(deps, plan.blocked, subcommand);
+        }
+        if (plan.post) {
+          reservation = ledger.reserve(plan.post);
+          if (!reservation) {
+            return blockedResult(
+              deps,
+              {
+                message: OWNER_POST_LEDGER_FULL_MESSAGE,
+                reason: 'owner_post_ledger_full',
+              },
+              subcommand
+            );
+          }
+        }
+        sentCommand = plan.command;
+      }
+
       // With the flag off, credential flags pass through in place.
       let runArgs =
-        identity.actAs === 'owner' ? [...identity.prefix, ...command] : args;
+        identity.actAs === 'owner'
+          ? [...identity.prefix, ...sentCommand]
+          : [...args.slice(0, subIdx), ...sentCommand];
       // Says where a command meant for the owner ran instead, so the model
       // can report the host. It asserts an outcome, so only a success gets it.
       let routingNote: string | undefined;
@@ -1713,7 +2030,14 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         ));
       }
 
-      const output = withNote(await deps.runCommand(runArgs), routingNote);
+      let ran: string;
+      try {
+        ran = await deps.runCommand(runArgs);
+      } catch (error) {
+        reservation?.release();
+        throw error;
+      }
+      const output = withNote(ran, routingNote);
       const echoes =
         deps.ownerDefault &&
         !isHelp &&
