@@ -123,7 +123,7 @@ function buildAgentChoiceBlob(input: ResolvedAgentChoiceToolParams) {
                   label,
                 })),
                 submitLabel: 'Continue',
-                freeTextPlaceholder: 'Write your own…',
+                freeTextPlaceholder: 'Something else…',
                 action: {
                   event: {
                     name: 'tlon.sendMessage',

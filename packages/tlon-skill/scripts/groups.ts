@@ -6,7 +6,7 @@
  * Usage:
  *   npx ts-node scripts/groups.ts list
  *   npx ts-node scripts/groups.ts create "Group Name" [--description "..."]
- *   npx ts-node scripts/groups.ts create-owned "Group Name" --owner <ship> [--description "..."]
+ *   npx ts-node scripts/groups.ts create-owned "Group Name" --admin <ship> [--description "..."]
  *   npx ts-node scripts/groups.ts invite <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts info <group-id>
  *   npx ts-node scripts/groups.ts leave <group-id>
@@ -138,6 +138,31 @@ function generateGroupSlug(): string {
   return slug;
 }
 
+const CREATE_OWNED_VALUE_OPTIONS = new Set([
+  '--admin',
+  '--owner',
+  '--description',
+]);
+
+/**
+ * create-owned's admin ship. Its options follow the title and each takes the
+ * next token as its value, so a description of "--admin" is not an option;
+ * `--admin` wins over its legacy alias `--owner`. When the options read that
+ * way name no admin, the first `--owner` value anywhere still counts, as it
+ * did before `--admin` existed. The tlon tool adapters find it the same way.
+ */
+function getCreateOwnedAdmin(args: string[]): string | undefined {
+  let admin: string | undefined;
+  let owner: string | undefined;
+  for (let i = 2; i < args.length; i += 1) {
+    if (!CREATE_OWNED_VALUE_OPTIONS.has(args[i])) continue;
+    if (args[i] === '--admin') admin ??= args[i + 1];
+    if (args[i] === '--owner') owner ??= args[i + 1];
+    i += 1;
+  }
+  return admin ?? owner ?? getOption(args, 'owner', 2);
+}
+
 const GROUPS_HELP = `Usage: tlon groups <command>
 
 The Tlon Messenger app calls groups "workspaces".
@@ -145,7 +170,7 @@ The Tlon Messenger app calls groups "workspaces".
 Commands:
   list
   create "Group Name" [--description "..."]
-  create-owned "Group Name" --owner <ship> [--description "..."]
+  create-owned "Group Name" --admin <ship> [--description "..."]
   invite <group-id> <ship> [<ship2> ...]
   info <group-id>
   invite-link <group-id> [--self]
@@ -189,7 +214,7 @@ Examples:
 const GROUPS_COMMAND_HELP: Record<string, string> = {
   list: `Usage: tlon groups list`,
   create: `Usage: tlon groups create "Group Name" [--description "..."]\nExample: tlon groups create "Projects" --description "Shared work"`,
-  'create-owned': `Usage: tlon groups create-owned "Group Name" --owner <ship> [--description "..."]\nExample: tlon groups create-owned "Projects" --owner ~nec --description "Shared work"`,
+  'create-owned': `Usage: tlon groups create-owned "Group Name" --admin <ship> [--description "..."]\nCreates a group hosted by the current ship and makes --admin its admin. --owner is a legacy alias for --admin.\nExample: tlon groups create-owned "Projects" --admin ~nec --description "Shared work"`,
   invite: `Usage: tlon groups invite <group-id> <ship> [<ship2> ...]\nExample: tlon groups invite ~host/group-slug ~nec ~bud`,
   info: `Usage: tlon groups info <group-id>\nExample: tlon groups info ~host/group-slug`,
   'invite-link': INVITE_LINK_HELP,
@@ -246,8 +271,8 @@ function validateGroupsArgs(args: string[]): void {
     }
     case 'create-owned': {
       const title = args[1];
-      const owner = getOption(args, 'owner', 2);
-      if (title === undefined || !owner || owner.startsWith('--')) {
+      const admin = getCreateOwnedAdmin(args);
+      if (title === undefined || !admin || admin.startsWith('--')) {
         printUsageAndExit(GROUPS_COMMAND_HELP['create-owned']);
       }
       return;
@@ -441,7 +466,7 @@ type CreateGroupWithChannelOptions = {
   memberIds?: string[];
 };
 
-type OwnerAdminVerification =
+type SeatAdminVerification =
   | { status: 'verified' }
   | { status: 'missing'; reason: string };
 
@@ -449,25 +474,23 @@ function groupHasRole(group: Group, roleId: string): boolean {
   return (group.roles || []).some((role) => role.id === roleId);
 }
 
-function hasOwnerSeat(
+function hasSeat(
   rawGroup: RawGroupForAdminVerification,
-  ownerShip: string
+  ship: string
 ): boolean {
-  return (
-    getShipRecordValue(rawGroup.seats, ownerShip, normalizeShip) !== undefined
-  );
+  return getShipRecordValue(rawGroup.seats, ship, normalizeShip) !== undefined;
 }
 
-async function getRawGroupWithOwnerSeat(
+async function getRawGroupWithSeat(
   groupId: string,
-  ownerShip: string
+  ship: string
 ): Promise<RawGroupForAdminVerification> {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
     try {
       const rawGroup = await getRawGroupForAdminVerification(groupId);
-      if (hasOwnerSeat(rawGroup, ownerShip)) {
+      if (hasSeat(rawGroup, ship)) {
         return rawGroup;
       }
     } catch (err) {
@@ -481,14 +504,14 @@ async function getRawGroupWithOwnerSeat(
 
   const suffix = lastError ? `: ${lastError}` : '';
   throw new Error(
-    `Owner ${ownerShip} was not created as an invited member seat in ${groupId}${suffix}`
+    `Admin ${ship} was not created as an invited member seat in ${groupId}${suffix}`
   );
 }
 
-async function getRawOwnerAdminVerification(
+async function getRawAdminVerification(
   groupId: string,
-  ownerShip: string
-): Promise<OwnerAdminVerification> {
+  ship: string
+): Promise<SeatAdminVerification> {
   const rawGroup = await getRawGroupForAdminVerification(groupId);
 
   if (!rawGroup.admins?.includes(ADMIN_ROLE_ID)) {
@@ -498,79 +521,71 @@ async function getRawOwnerAdminVerification(
     };
   }
 
-  const ownerSeat = getShipRecordValue(
-    rawGroup.seats,
-    ownerShip,
-    normalizeShip
-  );
-  if (ownerSeat) {
-    if (ownerSeat.roles?.includes(ADMIN_ROLE_ID)) {
+  const seat = getShipRecordValue(rawGroup.seats, ship, normalizeShip);
+  if (seat) {
+    if (seat.roles?.includes(ADMIN_ROLE_ID)) {
       return { status: 'verified' };
     }
 
     return {
       status: 'missing',
-      reason: `Owner ${ownerShip} is a member of ${groupId}, but does not have the "${ADMIN_ROLE_ID}" role.`,
+      reason: `Admin ${ship} is a member of ${groupId}, but does not have the "${ADMIN_ROLE_ID}" role.`,
     };
   }
 
   const pendingRoles = getShipRecordValue(
     rawGroup.admissions?.pending,
-    ownerShip,
+    ship,
     normalizeShip
   );
   if (pendingRoles) {
     if (pendingRoles.includes(ADMIN_ROLE_ID)) {
       return {
         status: 'missing',
-        reason: `Owner ${ownerShip} has a pending invite for ${groupId} with the "${ADMIN_ROLE_ID}" role, but is not a group member seat yet.`,
+        reason: `Admin ${ship} has a pending invite for ${groupId} with the "${ADMIN_ROLE_ID}" role, but is not a group member seat yet.`,
       };
     }
 
     return {
       status: 'missing',
-      reason: `Owner ${ownerShip} has a pending invite for ${groupId}, but not with the "${ADMIN_ROLE_ID}" role.`,
+      reason: `Admin ${ship} has a pending invite for ${groupId}, but not with the "${ADMIN_ROLE_ID}" role.`,
     };
   }
 
-  const ownerInvite = getShipRecordValue(
+  const invite = getShipRecordValue(
     rawGroup.admissions?.invited,
-    ownerShip,
+    ship,
     normalizeShip
   );
-  if (ownerInvite) {
+  if (invite) {
     return {
       status: 'missing',
-      reason: `Owner ${ownerShip} is invited to ${groupId}, but no pending "${ADMIN_ROLE_ID}" role assignment was found.`,
+      reason: `Admin ${ship} is invited to ${groupId}, but no pending "${ADMIN_ROLE_ID}" role assignment was found.`,
     };
   }
 
   return {
     status: 'missing',
-    reason: `Owner ${ownerShip} was not found in members or pending invites for ${groupId}.`,
+    reason: `Admin ${ship} was not found in members or pending invites for ${groupId}.`,
   };
 }
 
-async function assignOwnerAdminRole(groupId: string, ownerShip: string) {
-  const rawGroup = await getRawGroupWithOwnerSeat(groupId, ownerShip);
-  const ownerSeat = getShipRecordValue(
-    rawGroup.seats,
-    ownerShip,
-    normalizeShip
-  );
+async function assignAdminRole(groupId: string, ship: string) {
+  const rawGroup = await getRawGroupWithSeat(groupId, ship);
+  const seat = getShipRecordValue(rawGroup.seats, ship, normalizeShip);
 
-  if (ownerSeat?.roles?.includes(ADMIN_ROLE_ID)) {
-    console.log(`✅ Owner already has "${ADMIN_ROLE_ID}" role.`);
+  if (seat?.roles?.includes(ADMIN_ROLE_ID)) {
+    console.log(`✅ Admin already has "${ADMIN_ROLE_ID}" role.`);
     return;
   }
 
-  console.log(`Assigning owner ${ownerShip} to "${ADMIN_ROLE_ID}" role...`);
+  console.log(`Assigning admin ${ship} to "${ADMIN_ROLE_ID}" role...`);
   await addMembersToRole({
     groupId,
     roleId: ADMIN_ROLE_ID,
-    ships: [ownerShip],
+    ships: [ship],
   });
-  console.log(`✅ Owner assigned to "${ADMIN_ROLE_ID}" role.`);
+  console.log(`✅ Admin assigned to "${ADMIN_ROLE_ID}" role.`);
 }
 
 async function getGroupWithRetry(groupId: string): Promise<Group> {
@@ -656,23 +671,17 @@ async function ensureAdminRole(groupId: string, group?: Group) {
   }
 }
 
-async function verifyOwnerAdmin(
-  groupId: string,
-  ownerShip: string
-): Promise<void> {
-  console.log(`Verifying ${ownerShip} admin assignment in ${groupId}...`);
+async function verifyAdmin(groupId: string, ship: string): Promise<void> {
+  console.log(`Verifying ${ship} admin assignment in ${groupId}...`);
 
-  let lastVerification: OwnerAdminVerification | null = null;
+  let lastVerification: SeatAdminVerification | null = null;
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
     try {
-      const rawVerification = await getRawOwnerAdminVerification(
-        groupId,
-        ownerShip
-      );
+      const rawVerification = await getRawAdminVerification(groupId, ship);
       if (rawVerification.status === 'verified') {
-        console.log(`✅ Owner admin assignment verified.`);
+        console.log(`✅ Admin assignment verified.`);
         return;
       }
       lastVerification = rawVerification;
@@ -690,7 +699,7 @@ async function verifyOwnerAdmin(
   }
 
   throw new Error(
-    `Could not verify owner admin assignment for ${ownerShip}: ${lastError}`
+    `Could not verify the admin assignment for ${ship}: ${lastError}`
   );
 }
 
@@ -955,34 +964,58 @@ async function createGroupWithChannel(
   return { groupId, channelId, group: createdGroup };
 }
 
+/**
+ * Creates a group hosted by the current ship and makes `admin` its admin, as
+ * the app's New Workspace does with the user's bot. A moon cannot create a
+ * group on its parent planet, so a bot makes one for its owner by running
+ * this as the owner with itself as the admin.
+ */
 async function createOwnedGroup(
   title: string,
-  owner: string,
+  admin: string,
   description: string = ''
 ) {
-  const ownerShip = normalizeShip(owner);
+  const adminShip = normalizeShip(admin);
+  const host = await getCurrentShip();
+  if (adminShip.toLowerCase() === host.toLowerCase()) {
+    throw new Error(
+      `${host} runs this command, so it hosts the group already; name another ship with --admin.`
+    );
+  }
+
   const { groupId, channelId, group } = await createGroupWithChannel(
     title,
     description,
     {
-      memberIds: [ownerShip],
+      memberIds: [adminShip],
     }
   );
 
-  await ensureAdminRole(groupId, group);
-  await assignOwnerAdminRole(groupId, ownerShip);
-  await verifyOwnerAdmin(groupId, ownerShip);
+  try {
+    await ensureAdminRole(groupId, group);
+    await assignAdminRole(groupId, adminShip);
+    await verifyAdmin(groupId, adminShip);
+  } catch (err) {
+    // The group exists now. Name it, so the grant is finished rather than a
+    // second group created; a failed command's stdout does not reach the
+    // caller. Only the host can finish it: the admin may be the one asking.
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Created ${groupId} (Ref: /1/group/${groupId}), but making ${adminShip} its admin failed: ${reason} The group exists, so do not create it again. Its host, ${host}, can finish the grant with: groups promote ${groupId} ${adminShip}`
+    );
+  }
 
   console.log(`✅ Owned group created successfully!`);
   console.log(`   ID: ${groupId}`);
   console.log(`   Title: ${title}`);
   console.log(`   Description: ${description || '(none)'}`);
-  console.log(`   Owner: ${ownerShip}`);
+  console.log(`   Host: ${getGroupHost(groupId)}`);
+  console.log(`   Admin: ${adminShip} (invited; joins when it accepts)`);
   console.log(`   Channel: ${channelId}`);
   console.log(`   Ref: /1/group/${groupId}`);
   console.log(`   ${refShareHint('group')}`);
 
-  return { groupId, channelId, ownerShip };
+  return { groupId, channelId, adminShip };
 }
 
 // Invite ships to a group
@@ -1529,13 +1562,13 @@ async function main() {
 
     case 'create-owned': {
       const title = args[1];
-      const owner = getOption(args, 'owner', 2);
-      if (title === undefined || !owner || owner.startsWith('--')) {
+      const admin = getCreateOwnedAdmin(args);
+      if (title === undefined || !admin || admin.startsWith('--')) {
         console.error(GROUPS_COMMAND_HELP['create-owned']);
         process.exit(1);
       }
       const description = getOption(args, 'description', 2) || '';
-      await createOwnedGroup(title, owner, description);
+      await createOwnedGroup(title, admin, description);
       break;
     }
 

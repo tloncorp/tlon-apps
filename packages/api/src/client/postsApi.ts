@@ -43,7 +43,11 @@ import {
 } from './apiUtils';
 import { postHasBrowserHandoff } from './content-helpers';
 import { PlaintextPreviewConfig, getTextContent } from './postContent';
-import { referenceLookupId } from './references';
+import {
+  contentReferenceToCite,
+  referenceLookupId,
+  toContentReference,
+} from './references';
 import {
   channels,
   chat,
@@ -53,6 +57,8 @@ import {
   scryRequest,
 } from './requests';
 import { subscribeOnce } from './urbit';
+
+export { contentReferenceToCite, toContentReference } from './references';
 
 const logger = createDevLogger('postsApi', false);
 
@@ -1628,7 +1634,10 @@ export function toPostContent(story?: ub.Story): PostContentAndFlags {
       if (reference) {
         if (reference.referenceType === 'app') {
           flags.hasAppReference = true;
-        } else if (reference.referenceType === 'channel') {
+        } else if (
+          reference.referenceType === 'channel' ||
+          reference.referenceType === 'channelLink'
+        ) {
           flags.hasChannelReference = true;
         } else if (reference.referenceType === 'group') {
           flags.hasGroupReference = true;
@@ -1655,92 +1664,6 @@ export function toUrbitStory(content: PostContent): Story {
     }
     return item;
   });
-}
-
-export function toContentReference(cite: ub.Cite): ContentReference | null {
-  if ('chan' in cite) {
-    const channelId = cite.chan.nest;
-    // notes channels cite individual notes as /note/<id>, where the id
-    // may be dot-grouped urbit-style (1.234)
-    if (channelId.startsWith('notes/')) {
-      const noteMatch = cite.chan.where.match(/^\/note\/(\d[\d.]*)/);
-      if (!noteMatch) {
-        console.error('found invalid notes ref', cite);
-        return null;
-      }
-      return {
-        type: 'reference',
-        referenceType: 'note',
-        channelId,
-        noteId: noteMatch[1].replace(/\./g, ''),
-      };
-    }
-    // I've seen these forms of reference path:
-    // /msg/170141184506828851385935487131294105600
-    // /msg/170141184506312077223314290444316180480/170141184506312235291442423303751335936
-    // /msg/~sogrum-savluc/170.141.184.505.979.681.243.072.382.329.337.971.474
-    const messageIdRegex = /\/([0-9\.]+(?=[$\/]?))/g;
-    const [postId, replyId] = Array.from(
-      cite.chan.where.matchAll(messageIdRegex)
-    ).map((m) => {
-      return m[1].replace(/\./g, '');
-    });
-    if (!postId) {
-      console.error('found invalid ref', cite);
-      return null;
-    }
-    return {
-      type: 'reference',
-      referenceType: 'channel',
-      channelId,
-      postId: formatUd(postId),
-      replyId: replyId ? formatUd(replyId) : undefined,
-    };
-  } else if ('group' in cite) {
-    return { type: 'reference', referenceType: 'group', groupId: cite.group };
-  } else if ('desk' in cite) {
-    const parts = cite.desk.flag.split('/');
-    const userId = parts[0];
-    const appId = parts[1];
-    if (!userId || !appId) {
-      console.error('found invalid ref', cite);
-      return null;
-    }
-    return { type: 'reference', referenceType: 'app', userId, appId };
-  }
-  return null;
-}
-
-export function contentReferenceToCite(reference: ContentReference): ub.Cite {
-  if (reference.referenceType === 'channel') {
-    return {
-      chan: {
-        nest: reference.channelId,
-        where: `/msg/${reference.postId}${
-          reference.replyId ? '/' + reference.replyId : ''
-        }`,
-      },
-    };
-  } else if (reference.referenceType === 'group') {
-    return {
-      group: reference.groupId,
-    };
-  } else if (reference.referenceType === 'app') {
-    return {
-      desk: {
-        flag: `${reference.userId}/${reference.appId}`,
-        where: '',
-      },
-    };
-  } else if (reference.referenceType === 'note') {
-    return {
-      chan: {
-        nest: reference.channelId,
-        where: `/note/${reference.noteId}`,
-      },
-    };
-  }
-  throw new Error('invalid reference');
 }
 
 function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
