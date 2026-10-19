@@ -259,21 +259,15 @@
     !>((broker-error:util [%cancel ~] ~h1))
   ==
 ::
-::  A v1 answer lifts to v2 with no broker detail, and lowering drops only
-::  that, so every other arm survives the round trip untouched.
+::  A v1 answer lifts to v2 with no broker detail; every other arm is
+::  untouched.
 ::
-++  test-response-body-lifts-and-lowers
+++  test-response-body-lifts
   ;:  weld
     %+  expect-eq
       !>  ^-  response-body:v2:b
       [%error %unknown 'nope' ~]
     !>((response-body-1-to-2:util [%error %unknown 'nope']))
-  ::
-    %+  expect-eq
-      !>  ^-  response-body:v1:b
-      [%error %unknown 'nope']
-    !>  %-  response-body-2-to-1:util
-        [%error %unknown 'nope' `['rate_limited' & `~s5 ~]]
   ::
     %+  expect-eq
       !>  ^-  response-body:v2:b
