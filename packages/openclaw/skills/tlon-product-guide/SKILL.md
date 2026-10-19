@@ -202,9 +202,9 @@ With a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab,
 3. Choose how to set it up: `Quick group` starts a chat immediately with default settings, `Basic group` comes with chat, gallery, and notebook channels, or pick one of the templates.  
 4. If you chose `Basic group`, name it. Quick groups and the other templates skip this — a quick group starts out unnamed, showing its members' names (or `Untitled group` if it's just you), and a template keeps the template's name. Either way you can rename it later, in step 6.  
 5. Pick friends who already use Tlon Messenger and tap `Create group`, or skip the picking and invite people later.  
-6. Change the name, icon, and description any time from `Group info & settings` — press and hold the group on the Workspaces tab to find it, or tap the group's name at the top of its screen. Then tap `Rename` in the upper right. That opens `Edit group info` — despite the button's name, it's where the icon and description live too. It only shows for admins.  
-7. Add channels: in `Group info & settings`, tap `Channels`, then `New` in the upper right, then `New channel`, and choose `Chat`, `Notebook`, or `Gallery`.  
-8. Tap `Create channel` and the sheet closes. Go back to `Group info & settings` and tap `Invite` — from there you can pick people already on Tlon Messenger, or tap `Share link` for a join link anyone can use.
+6. Change the name, icon, and description any time from `Workspace info & settings` — press and hold the group on the Workspaces tab to find it, or tap the group's name at the top of its screen. Then tap `Rename` in the upper right. That opens `Edit group info` — despite the button's name, it's where the icon and description live too. It only shows for admins.  
+7. Add channels: in `Workspace info & settings`, tap `Channels`, then `New` in the upper right, then `New channel`, and choose `Chat`, `Notebook`, or `Gallery`.  
+8. Tap `Create channel` and the sheet closes. Go back to `Workspace info & settings` and tap `Invite` — from there you can pick people already on Tlon Messenger, or tap `Share link` for a join link anyone can use.
 
 ### Finding groups to join
 
@@ -214,7 +214,7 @@ There's no directory of groups to browse. When someone is looking for groups, po
 
 To bring people into your group, use an invite link: `Invite people` → `Share link`. That works for anyone, including people not on Tlon yet. A code is for someone already on Tlon.
 
-A group code is the group's ID, `~host/group-name`. Anyone in a group can copy it: `Group info & settings` → `Copy group ID`. To join with one, tap the plus icon, then `Join a group with a code (reference)`, and paste it. That button is on desktop and on phones without a Tlonbot. A phone with a bot has no code box: ask someone in the group for an invite link, or to send you the group itself (`Forward reference` in group info), then tap it in the chat to open a preview and join. Asking your bot to join a group adds the bot, not you.
+A group code is the group's ID, `~host/group-name`. Anyone in a group can copy it: `Workspace info & settings` → `Copy workspace ID`. To join with one, tap the plus icon, then `Join a workspace with a code (reference)`, and paste it. That button is on desktop and on phones without a Tlonbot. A phone with a bot has no code box: ask someone in the group for an invite link, or to send you the group itself (`Forward reference` in group info), then tap it in the chat to open a preview and join. Asking your bot to join a group adds the bot, not you.
 
 A code isn't an invite link. Invite links come from `Invite people` → `Share link`, and someone new to Tlon pastes one on the `Have an invite?` screen when signing up.
 
@@ -222,7 +222,7 @@ A code isn't an invite link. Invite links come from `Invite people` → `Share l
 
 The person who created a group owns it. Their node hosts the group and controls its roles, channels, and updates, which other members' nodes follow.
 
-Channels can be gated with permissions. Admins control read and write settings per channel and can assign member roles with specific access levels. To adjust: in `Group info & settings`, tap `Channels`, tap the three-dot icon next to the channel, then `Permissions`, and configure which roles can read or write. (Inside a group with several channels, pressing and holding a channel and picking `Channel info & settings` gets you to the same `Permissions` row.)
+Channels can be gated with permissions. Admins control read and write settings per channel and can assign member roles with specific access levels. To adjust: in `Workspace info & settings`, tap `Channels`, tap the three-dot icon next to the channel, then `Permissions`, and configure which roles can read or write. (Inside a group with several channels, pressing and holding a channel and picking `Channel info & settings` gets you to the same `Permissions` row.)
 
 Notebooks are the exception. They don't support separate read and write permissions — a role that can read a notebook can also edit it. Say so before an admin grants what they think is read-only access.
 
@@ -238,7 +238,7 @@ To send a DM: on the Workspaces tab, tap the plus icon at the top right, tap `Ne
 
 ### Mute a chat
 
-Long-press a chat in your list, tap `Chat notifications` (for a DM), `Group notifications` (for a group) or `Channel notifications` (for one channel in a group), and choose `Nothing`. That works for your bot's DM too. To silence the whole app instead, use your phone's notification settings.
+Long-press a chat in your list, tap `Chat notifications` (for a DM), `Workspace notifications` (for a group) or `Channel notifications` (for one channel in a group), and choose `Nothing`. That works for your bot's DM too. To silence the whole app instead, use your phone's notification settings.
 
 ---
 
@@ -346,7 +346,7 @@ Bot behavior:
 
 - `/owner-listen all on|off` — the global switch for whether it responds to you without a direct mention. This is the form to use in a DM.  
 - `/owner-listen on|off <channel-nest>` — same thing for one owned channel. Sent inside a channel without a nest, they apply to that channel; from a DM without a channel, they only print usage.  
-- Muting makes the bot mention-only for you in that channel, including threads it has already joined; an `@mention` still gets through, as do bare slash commands in chat channels and `/owner-listen` in any channel you or the bot host. Global off does the same everywhere.  
+- Muting makes the bot mention-only for you in that channel, including threads it has already joined; an @-mention still gets through, as do bare slash commands in chat channels and `/owner-listen` in any channel you or the bot host. Global off does the same everywhere.  
 - `/owner-listen list` — show the global setting and every muted channel. Safe from a DM.  
 - `/owner-listen status <channel-nest>` — the setting for one channel. Like on/off, it needs a channel; bare `status` in a DM only prints usage. `/owner-listen all` on its own gives the global answer.  
 - Some bots go further here — any channel they watch rather than only ones you host, a whole group at once, or `/owner-listen default all` to make listening the default everywhere. Worth suggesting if someone wants broader coverage than the forms above give them.  
