@@ -818,6 +818,17 @@ describe('owner-hosted workspaces for groups create-owned', () => {
     expect(result.content[0]?.text).toContain('you host the workspace');
   });
 
+  it('adds no hosting note when the command fails', async () => {
+    const { execute, runCommand } = makeExecutor({ fileExists: () => false });
+    runCommand.mockRejectedValueOnce(new Error('ship unreachable'));
+
+    const result = await execute('failed', {
+      command: 'groups create-owned Projects --owner ~owner',
+    });
+
+    expect(result.content[0]?.text).toBe('Error: ship unreachable');
+  });
+
   it('keeps the bot-hosted workspace, and says so, without owner credentials', async () => {
     for (const overrides of [
       { env: {} as NodeJS.ProcessEnv },

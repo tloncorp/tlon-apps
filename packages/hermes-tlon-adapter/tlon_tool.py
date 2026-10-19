@@ -1305,7 +1305,9 @@ def _tool_result(result: TlonSendResult, note: Optional[str] = None) -> str:
         payload["message_id"] = result.message_id
     if result.error:
         payload["error"] = result.error
-    if note:
+    # The note says where a command meant for the owner ran instead. It
+    # asserts an outcome, so only a success gets it.
+    if note and result.success:
         payload["note"] = note
     return _json(payload)
 

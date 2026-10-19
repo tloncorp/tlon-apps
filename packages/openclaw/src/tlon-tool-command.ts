@@ -894,7 +894,6 @@ function withNote(text: string, note: string | undefined): string {
 
 export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
   return async function execute(_id: string, params: { command: string }) {
-    let routingNote: string | undefined;
     try {
       let args = shellSplitCommand(params.command);
       const discoveryIndex = findTlonSubcommandIndex(args);
@@ -997,6 +996,9 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       }
 
       let commandArgs = args;
+      // Says where a command meant for the owner ran instead, so the model
+      // can report the host. It asserts an outcome, so only a success gets it.
+      let routingNote: string | undefined;
       const ownerCommand = ownerCredentialCommand(args);
       if (ownerCommand) {
         const prefixArgs = ownerCredentialPrefixArgs(deps, ownerCommand);
@@ -1029,12 +1031,7 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: withNote(`Error: ${message}`, routingNote),
-          },
-        ],
+        content: [{ type: 'text' as const, text: `Error: ${message}` }],
         details: { status: 'error', error: message },
       };
     }

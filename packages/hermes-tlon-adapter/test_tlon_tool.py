@@ -2071,6 +2071,31 @@ class OwnerWorkspaceRoutingTests(unittest.TestCase):
         )
         self.assertEqual(run_env["TLON_SHIP"], OWNER_SHIP)
 
+    def test_adds_no_hosting_note_when_the_command_fails(self):
+        cfg = _bot_config()
+        env = {key: "" for key in OWNER_ENV}
+        calls = []
+
+        async def failing_runner(argv, run_env, timeout, _on_deadline):
+            calls.append(tuple(argv))
+            return tlon_api.TlonProcessResult(
+                returncode=1, stdout="", stderr="ship unreachable\n"
+            )
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": "groups create-owned Projects --owner ~owner"},
+                config=cfg,
+                runner=failing_runner,
+            )
+
+        with patch.dict(os.environ, env, clear=False):
+            payload = json.loads(asyncio.run(run()))
+
+        self.assertFalse(payload["success"])
+        self.assertNotIn("note", payload)
+        self.assertEqual(len(calls), 1)
+
     def test_leaves_self_and_other_requesters_on_bot_credentials(self):
         cfg = _bot_config()
 
