@@ -100,7 +100,7 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   ) {
     return (
       <Text size="$label/l">
-        Only administrators may invite people to this group.
+        Only administrators may invite people to this workspace.
       </Text>
     );
   }

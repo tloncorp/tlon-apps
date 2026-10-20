@@ -20,7 +20,7 @@ Attachments: the emulator has no photos (`adb push` one, then `am broadcast -a a
 
 Backgrounding, when the ticket or the variation calls for it: `agent-device home --session <name>` on either device; back with `xcrun simctl launch <udid> <bundle id>` on iOS and `adb -s <serial> shell am start -n <bundle id>/io.tlon.landscape.MainActivity` on Android. On an EAS device, `eas-device.mjs home` and back with `eas-device.mjs open <bundle id>`. A system activity over the app is `adb shell am start -a android.settings.INPUT_METHOD_SETTINGS`, which has no EAS equivalent.
 
-Making a throwaway group: Home `Add a chat` → `New group` → `Basic group` (a chat, a gallery and a notebook channel) → name → `Next` → `Create group`; on iOS the group-type cards and those two buttons are `[other]` nodes that a ref does not press, so use coordinates from a screenshot. Refs come back from a `--settle` diff as `@eN~sNNN`; use that full form, a bare `@eN` is refused after the tree changed.
+Making a throwaway group: Home `Add a chat` → `New custom workspace` → `Basic workspace` (a chat, a gallery and a notebook channel) → name → `Next` → `Create workspace`; on iOS the workspace-type cards and those two buttons are `[other]` nodes that a ref does not press, so use coordinates from a screenshot. Refs come back from a `--settle` diff as `@eN~sNNN`; use that full form, a bare `@eN` is refused after the tree changed.
 
 When a label is too long for the screen, read the text (`agent-device snapshot`) rather than trusting the picture.
 

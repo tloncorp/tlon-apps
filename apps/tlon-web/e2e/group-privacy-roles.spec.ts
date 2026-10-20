@@ -12,16 +12,16 @@ test('should handle group privacy and role management', async ({ zodPage }) => {
   await helpers.createGroup(page);
 
   // Handle welcome message if present
-  if (await page.getByText('Untitled group').first().isVisible()) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  if (await page.getByText('Untitled workspace').first().isVisible()) {
+    await expect(page.getByText('Welcome to your workspace!')).toBeVisible();
   }
 
   // Navigate back to Home and verify group creation
   await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
-    await page.getByText('Untitled group').first().click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
+    await page.getByText('Untitled workspace').first().click();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   // Open group settings
@@ -37,7 +37,7 @@ test('should handle group privacy and role management', async ({ zodPage }) => {
 
   // Test role management
   await page.getByTestId('GroupRoles').click();
-  await expect(page.getByText('Group Roles')).toBeVisible();
+  await expect(page.getByText('Workspace Roles')).toBeVisible();
   await expect(page.getByTestId('GroupRole-Admin')).toBeVisible();
 
   // Create new role
@@ -69,6 +69,6 @@ test('should handle group privacy and role management', async ({ zodPage }) => {
   await page.waitForTimeout(2000);
 
   // Verify we're back on the Group Roles screen and the role still exists
-  await expect(page.getByText('Group Roles')).toBeVisible();
+  await expect(page.getByText('Workspace Roles')).toBeVisible();
   await expect(page.getByTestId('GroupRole-Testing role')).toBeVisible();
 });

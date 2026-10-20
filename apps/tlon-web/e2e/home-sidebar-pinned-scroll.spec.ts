@@ -123,7 +123,7 @@ test('home sidebar mounts at the top with the Pinned section visible', async ({
     await expect(page.getByText('Home')).toBeVisible();
 
     // Setup: uniquely-named filler groups so we can assert on / clean up by
-    // exact title without colliding on duplicate "Untitled group" rows.
+    // exact title without colliding on duplicate "Untitled workspace" rows.
     for (const title of fillerTitles) {
       await createNamedGroup(page, title, registerForCleanup);
     }

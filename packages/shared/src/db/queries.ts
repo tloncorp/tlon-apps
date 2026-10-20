@@ -2773,6 +2773,58 @@ export const getBucket = createReadQuery(
   ['buckets', 'bucketEntries']
 );
 
+export interface BucketCounts {
+  fileCount: number;
+  folderCount: number;
+}
+
+// Counts every held Bucket at once, as getNotesCountsByNotebook does for
+// notebooks: the channel list needs a count per Buckets channel. Only files
+// that have finished uploading count -- a pending or failed entry is not a
+// file anyone can open. Every Bucket we hold a manifest for gets an entry,
+// zeroes included, so callers can tell an empty Bucket from one that hasn't
+// arrived yet. One statement, so a snapshot's delete-then-reinsert in
+// replaceBucketEntries can't land between two separate counts.
+export const getBucketCountsByChannel = createReadQuery(
+  'getBucketCountsByChannel',
+  async (ctx: QueryCtx): Promise<Record<string, BucketCounts>> => {
+    const rows = await ctx.db
+      .select({
+        channelId: $buckets.channelId,
+        fileCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($bucketEntries)
+          .where(
+            and(
+              eq($bucketEntries.channelId, $buckets.channelId),
+              eq($bucketEntries.kind, 'file'),
+              eq($bucketEntries.status, 'ready')
+            )
+          )}`,
+        folderCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($bucketEntries)
+          .where(
+            and(
+              eq($bucketEntries.channelId, $buckets.channelId),
+              eq($bucketEntries.kind, 'folder')
+            )
+          )}`,
+      })
+      .from($buckets);
+
+    const counts: Record<string, BucketCounts> = {};
+    for (const row of rows) {
+      counts[row.channelId] = {
+        fileCount: row.fileCount,
+        folderCount: row.folderCount,
+      };
+    }
+    return counts;
+  },
+  ['buckets', 'bucketEntries']
+);
+
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
   async (channelsInit: Omit<ChannelInit, 'order'>[], ctx: QueryCtx) => {
@@ -5054,35 +5106,32 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
   );
 
   const uniqueChannels = new Set(posts.map((p) => p.channelId)).size;
+  let recovered = false;
   await perfTime(
     'insertPostsBatch.total',
     async () => {
-      await perfTime(
-        'insertPostsBatch.insertPosts',
-        () =>
-          ctx.db
-            .insert($posts)
-            .values(
-              posts.map((p) => ({
-                ...p,
-                groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
-              }))
-            )
-            .onConflictDoUpdate({
-              target: $posts.id,
-              set: conflictUpdateSetAll($posts, ['hidden']),
-            })
-            .onConflictDoUpdate({
-              target: [
-                $posts.authorId,
-                $posts.channelId,
-                $posts.sentAt,
-                $posts.sequenceNum,
-              ],
-              set: conflictUpdateSetAll($posts, ['hidden']),
-            }),
-        { count: posts.length, channels: uniqueChannels }
-      );
+      try {
+        await perfTime(
+          'insertPostsBatch.insertPosts',
+          () => upsertPosts(posts, ctx),
+          { count: posts.length, channels: uniqueChannels }
+        );
+      } catch (e) {
+        if (!isPostsUniqueViolation(e)) throw e;
+        logger.trackError('insertPostsBatch unique violation', {
+          channelKinds: [
+            ...new Set(posts.map((p) => channelKind(p.channelId))),
+          ],
+          batchSize: posts.length,
+          replyCount: posts.filter((p) => p.type === 'reply').length,
+          topLevelCount: posts.filter((p) => p.type !== 'reply').length,
+          distinctAuthors: new Set(posts.map((p) => p.authorId)).size,
+        });
+        await perfTime('insertPostsBatch.replaceStaleCacheIdHolders', () =>
+          replaceStaleCacheIdHolders(posts, ctx)
+        );
+        recovered = true;
+      }
 
       // A sync can carry an older server copy before a timed-out edit lands.
       // Keep the retry marker until the incoming post matches that edit.
@@ -5136,7 +5185,13 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
       logger.log('inserted posts');
       await perfTime(
         'insertPostsBatch.setLastPosts',
-        () => setLastPosts(posts, ctx),
+        () =>
+          recovered
+            ? reconcileLastPosts(
+                [...new Set(posts.map((p) => p.channelId))],
+                ctx
+              )
+            : setLastPosts(posts, ctx),
         { channels: uniqueChannels }
       );
       logger.log('set last posts');
@@ -5153,6 +5208,100 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     },
     { count: posts.length, channels: uniqueChannels }
   );
+}
+
+function upsertPosts(posts: Post[], ctx: QueryCtx) {
+  return ctx.db
+    .insert($posts)
+    .values(
+      posts.map((p) => ({
+        ...p,
+        groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
+      }))
+    )
+    .onConflictDoUpdate({
+      target: $posts.id,
+      set: conflictUpdateSetAll($posts, ['hidden']),
+    })
+    .onConflictDoUpdate({
+      target: [
+        $posts.authorId,
+        $posts.channelId,
+        $posts.sentAt,
+        $posts.sequenceNum,
+      ],
+      set: conflictUpdateSetAll($posts, ['hidden']),
+    });
+}
+
+// When an incoming row matches one row by id and a different row by cache_id,
+// the upsert takes the id clause and that update collides with the second row,
+// aborting the statement — and every later sync of the same window. The other
+// row may be stored or inserted earlier in the same batch, so recover row by
+// row: the server copy is authoritative, so drop the other holder of the
+// cache_id and retry that row once. SQLite's default ABORT undoes only the
+// failed statement, so the enclosing transaction is still usable. Rows with a
+// NULL sequence number can't collide (the index treats NULLs as distinct).
+// A deleted row's `hidden` flag is not carried over because the server
+// re-applies hidden posts on the next sync.
+async function replaceStaleCacheIdHolders(posts: Post[], ctx: QueryCtx) {
+  for (const post of posts) {
+    try {
+      await upsertPosts([post], ctx);
+      continue;
+    } catch (e) {
+      if (!isPostsUniqueViolation(e) || post.sequenceNum == null) throw e;
+    }
+    await ctx.db
+      .delete($posts)
+      .where(
+        and(
+          eq($posts.channelId, post.channelId),
+          eq($posts.authorId, post.authorId),
+          eq($posts.sentAt, post.sentAt),
+          eq($posts.sequenceNum, post.sequenceNum),
+          ne($posts.id, post.id)
+        )
+      );
+    await upsertPosts([post], ctx);
+  }
+}
+
+// After recovery, rows from the batch may have been deleted or renamed by the
+// cache_id clause, so the batch can't drive the monotonic update. Clear
+// pointers to rows that no longer exist (the recompute skips channels left
+// with only replies), then rebuild channel and group previews from local rows.
+async function reconcileLastPosts(channelIds: string[], ctx: QueryCtx) {
+  await ctx.db
+    .update($channels)
+    .set({ lastPostId: null, lastPostAt: null })
+    .where(
+      and(
+        inArray($channels.id, channelIds),
+        isNotNull($channels.lastPostId),
+        notInArray(
+          $channels.lastPostId,
+          ctx.db.select({ id: $posts.id }).from($posts)
+        )
+      )
+    );
+  await setLastPosts(null, ctx, channelIds);
+}
+
+function isPostsUniqueViolation(e: unknown) {
+  const message = e instanceof Error ? e.message : String(e);
+  return (
+    message.includes('UNIQUE constraint failed') && message.includes('posts.')
+  );
+}
+
+function channelKind(channelId: string) {
+  if (channelId.startsWith('~')) return 'dm';
+  if (channelId.startsWith('0v')) return 'club';
+  const prefix = channelId.split('/')[0];
+  return ['chat', 'diary', 'heap', 'notes', 'buckets'].includes(prefix)
+    ? prefix
+    : 'other';
 }
 
 async function deleteReplacedCachedPosts(replacers: Post[], ctx: QueryCtx) {

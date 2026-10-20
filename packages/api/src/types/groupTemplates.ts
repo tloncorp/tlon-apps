@@ -23,7 +23,7 @@ export const groupTemplates = [
     id: 'book-club',
     title: 'Book Club',
     subtitle: 'Discuss your latest reads',
-    description: 'A group for discussing books and literature',
+    description: 'A workspace for discussing books and literature',
     icon: '📚',
     channels: [
       {
@@ -47,7 +47,7 @@ export const groupTemplates = [
     id: 'cooking-club',
     title: 'Cooking Club',
     subtitle: 'Share recipes and cooking tips',
-    description: 'A group for food lovers and home cooks',
+    description: 'A workspace for food lovers and home cooks',
     icon: '🍳',
     channels: [
       {
@@ -71,7 +71,7 @@ export const groupTemplates = [
     id: 'music',
     title: 'Music',
     subtitle: 'Share and discover new tunes',
-    description: 'A group for music lovers and audiophiles',
+    description: 'A workspace for music lovers and audiophiles',
     icon: '🎵',
     channels: [
       {
@@ -95,7 +95,7 @@ export const groupTemplates = [
     id: 'running-club',
     title: 'Running Club',
     subtitle: 'Track your runs and stay motivated',
-    description: 'A group for runners of all levels',
+    description: 'A workspace for runners of all levels',
     icon: '🏃',
     channels: [
       {
@@ -119,7 +119,7 @@ export const groupTemplates = [
     id: 'cinema-club',
     title: 'Cinema Club',
     subtitle: 'Discuss and review films',
-    description: 'A group for movie enthusiasts and film buffs',
+    description: 'A workspace for movie enthusiasts and film buffs',
     icon: '🎬',
     channels: [
       {
@@ -143,7 +143,7 @@ export const groupTemplates = [
     id: 'garden-club',
     title: 'Garden Club',
     subtitle: 'Grow together',
-    description: 'A group for gardeners and plant enthusiasts',
+    description: 'A workspace for gardeners and plant enthusiasts',
     icon: '🌱',
     channels: [
       {
@@ -168,9 +168,9 @@ export const groupTemplates = [
 // Basic group template used for custom group creation
 export const basicGroupTemplate = {
   id: 'basic-group',
-  title: 'Basic Group',
-  subtitle: 'A basic group with essential channels',
-  description: 'A basic group with essential channels',
+  title: 'Basic Workspace',
+  subtitle: 'A basic workspace with essential channels',
+  description: 'A basic workspace with essential channels',
   icon: '✨',
   channels: [
     {

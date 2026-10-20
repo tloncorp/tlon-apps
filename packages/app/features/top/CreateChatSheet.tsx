@@ -120,10 +120,10 @@ const CHAT_TYPE_CONFIG = {
     actionDescription: 'Create a private chat with one other person',
   },
   group: {
-    title: 'New group',
+    title: 'New workspace',
     subtitle: 'Select contacts to invite',
-    actionTitle: 'New group',
-    actionDescription: 'Create a customizable group chat',
+    actionTitle: 'New custom workspace',
+    actionDescription: 'Create a customizable workspace',
   },
   agent: {
     title: 'New Workspace',
@@ -132,9 +132,9 @@ const CHAT_TYPE_CONFIG = {
     actionDescription: 'Start a new chat with your Tlonbot',
   },
   joinGroup: {
-    title: 'Join a group',
-    subtitle: 'Join a group chat with a code (reference)',
-    actionTitle: 'Join a group with a code (reference)',
+    title: 'Join a workspace',
+    subtitle: 'Join a workspace with a code (reference)',
+    actionTitle: 'Join a workspace with a code (reference)',
     actionDescription: 'Join with a code (reference)',
   },
 } as const;
@@ -208,7 +208,7 @@ const JoinGroupByIdPane = ({ open, close }: JoinGroupByIdPaneProps) => {
               alignItems="center"
               padding="$l"
             >
-              <Text>Group not found</Text>
+              <Text>Workspace not found</Text>
             </View>
           ) : (
             <View
@@ -217,7 +217,7 @@ const JoinGroupByIdPane = ({ open, close }: JoinGroupByIdPaneProps) => {
               alignItems="center"
               padding="$l"
             >
-              <Text>Group not found</Text>
+              <Text>Workspace not found</Text>
             </View>
           )}
         </View>
@@ -226,7 +226,7 @@ const JoinGroupByIdPane = ({ open, close }: JoinGroupByIdPaneProps) => {
           accent={
             groupCode ? (isCodeValid ? 'positive' : 'negative') : undefined
           }
-          placeholder="Enter group code"
+          placeholder="Enter workspace code"
           onChangeText={setGroupCode}
           value={groupCode}
           spellCheck={false}
@@ -309,7 +309,7 @@ const CreateChatFormContent = ({
             marginTop="$l"
             onPress={onCreateGroup}
             loading={isCreating}
-            label={isCreating ? '' : 'Create group'}
+            label={isCreating ? '' : 'Create workspace'}
             centered
           />
         )}
@@ -801,7 +801,7 @@ function useCreateChat() {
                   setCreateChatError(
                     error instanceof Error
                       ? error.message
-                      : 'The Tlonbot group could not finish setup.'
+                      : 'The Tlonbot workspace could not finish setup.'
                   );
                   void retryLaterAgentGroupFurnishing({
                     agentShipId: AGENT_SHIP_OVERRIDE || undefined,

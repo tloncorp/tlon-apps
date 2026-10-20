@@ -15,9 +15,9 @@ test('should create, verify, and delete a group', async ({ zodPage }) => {
   // Navigate back to Home and verify group creation
   await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group')).toBeVisible();
-    await page.getByText('Untitled group').click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText('Untitled workspace')).toBeVisible();
+    await page.getByText('Untitled workspace').click();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   // Open the overflow menu and access group settings
@@ -35,5 +35,5 @@ test('should create, verify, and delete a group', async ({ zodPage }) => {
 
   // Verify we're back at Home and group is deleted
   await expect(page.getByText('Home')).toBeVisible();
-  await expect(page.getByText('Untitled group')).not.toBeVisible();
+  await expect(page.getByText('Untitled workspace')).not.toBeVisible();
 });

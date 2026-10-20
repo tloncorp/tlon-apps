@@ -141,9 +141,11 @@ export type RootStackParamList = {
   };
   BotPermissionsSettings: undefined;
   BotIdentitySettings: undefined;
+  /** The bot defaults to the user's hosted bot. */
+  BotPromptFiles: { botShip?: string } | undefined;
+  BotPromptFile: { name: string; botShip?: string };
   BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
   BotModels: undefined;
-  BotConnections: undefined;
   ScheduledTasks: {
     botShip: string;
     /** Narrows the list to the tasks that post into this group. */
@@ -271,6 +273,8 @@ export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
     | 'UserProfile'
     | 'ScheduledTasks'
     | 'ScheduledTaskEditor'
+    | 'BotPromptFiles'
+    | 'BotPromptFile'
     | 'EditProfile'
     | 'Attestation'
   >;
@@ -281,6 +285,8 @@ export type ActivityDrawerParamList = Pick<
   | 'UserProfile'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'EditProfile'
 > & {
   // Drawer-only placeholder shown before an activity item is selected.
@@ -303,9 +309,10 @@ export type SettingsDrawerParamList = Pick<
   | 'BotChannelRuleSettings'
   | 'BotPermissionsSettings'
   | 'BotIdentitySettings'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'BotProviderListSettings'
   | 'BotModels'
-  | 'BotConnections'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
   | 'BlockedUsers'
@@ -343,6 +350,8 @@ export type ChannelStackParamList = {
   UserProfile: RootStackParamList['UserProfile'];
   ScheduledTasks: RootStackParamList['ScheduledTasks'];
   ScheduledTaskEditor: RootStackParamList['ScheduledTaskEditor'];
+  BotPromptFiles: RootStackParamList['BotPromptFiles'];
+  BotPromptFile: RootStackParamList['BotPromptFile'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
   ChannelMeta: RootStackParamList['ChannelMeta'];
@@ -362,6 +371,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'UserProfile'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'

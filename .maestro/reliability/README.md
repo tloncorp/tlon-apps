@@ -61,19 +61,19 @@ Two things about the current app shape are worth knowing before editing a flow:
   measured 17.7s on a Pixel 7a, against the 10s allowed before; and a row left
   at the bottom edge can hand the tap meant for it to the tab bar behind.
 
-**Known gap — the ten group-fixture journeys fail on an account with an
-agent.** `subflows/create-group.yaml` builds its fixture through the create
-sheet's "New group" action, and that action is not offered on a phone whose
-account has an agent: a Workspace is what the flow is for on mobile now. A
-Workspace is also not shaped like the template group these journeys expect --
-it arrives titled "My agent group" with a single chat channel called "General",
-gains a notes channel called "Updates" only when it is the account's first, and
-never gets a Gallery -- so rebuilding the fixture from one means renaming the
-group, renaming its channel and creating the missing ones, against a group
-furnished over the network by the bot. That is tracked in TLON-6632, which
-records the full shape of the problem. Until it lands, chat, channels, gallery, history, links, message-actions,
-notebook, relaunch, search and home-groups are expected to fail on
-`~batbet-litnec`; settings and profile, which create nothing, still pass.
+**The group fixture comes from a deep link, not the create sheet.**
+`subflows/create-group.yaml` opens
+`<scheme>://e2e/group?op=create-template&template=basic-group&title=<title>`,
+where `<scheme>` is the installed app's scheme (`MAESTRO_APP_ID`), which
+creates the basic-group template -- `Chat`, `Gallery` and `Notebook` --
+under the run's fixture title, opens it as the create sheet would, and reports
+`PASS: created <title>` (or `FAIL: <reason>`) in an alert the subflow
+dismisses. That is the same group on an account with an agent and one without;
+the create sheet's "New custom workspace" action, which the subflow used to
+tap, is not offered once the account has an agent. The link is handled only by
+a build made with `AUTOMATED_TEST=true` -- the `e2e` and `local-testing` EAS
+profiles -- and is ignored by any other build, where these journeys fail
+waiting for the alert.
 
 Do not run concurrent profile/settings journeys against the same account. These
 tests create private groups and posts that remain on the ship; only the

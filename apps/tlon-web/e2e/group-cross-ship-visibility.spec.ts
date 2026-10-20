@@ -89,7 +89,7 @@ test('should show group info, channel, and role changes to invited user', async 
   await helpers.openGroupSettings(tenPage);
 
   await tenPage.getByTestId('GroupRoles').click();
-  await expect(tenPage.getByText('Group Roles')).toBeVisible();
+  await expect(tenPage.getByText('Workspace Roles')).toBeVisible();
   await expect(tenPage.getByTestId('GroupRole-Admin')).toBeVisible();
   await expect(tenPage.getByTestId('GroupRole-Test Role')).toBeVisible();
   await expect(

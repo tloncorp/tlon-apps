@@ -503,7 +503,7 @@ export function JoinRequestNotice(params: {
           </NoticeActions>
         }
       >
-        Review people waiting to join this group.
+        Review people waiting to join this workspace.
       </NoticeCard>
     );
   }
@@ -598,7 +598,7 @@ export function NonHostAdminChannelNotice({
     'expanded'
   );
   const title = bucketHostedByGroup
-    ? "Hosted on the group host's node"
+    ? "Hosted on the workspace host's node"
     : 'Hosted on your node';
 
   if (presentation === 'compact') {
@@ -608,8 +608,8 @@ export function NonHostAdminChannelNotice({
   return (
     <NoticeCard icon="Info" title={title} horizontalInset={false}>
       {bucketHostedByGroup
-        ? "This Bucket will be hosted by the group host and will use the group host's storage."
-        : 'This channel will run independently from the group host.'}
+        ? "This Bucket will be hosted by the workspace host and will use the workspace host's storage."
+        : 'This channel will run independently from the workspace host.'}
     </NoticeCard>
   );
 }

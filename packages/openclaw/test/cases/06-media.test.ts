@@ -204,7 +204,7 @@ describe('media', () => {
           if (!p.images?.length || !p.images[0]?.src) {
             continue;
           }
-          return { src: p.images[0].src };
+          return { src: p.images[0].src, sequence: p.sequenceNum ?? -1 };
         }
         return undefined;
       },
@@ -220,6 +220,35 @@ describe('media', () => {
     // so equality here means the upload did NOT happen.
     expect(result.src).toBeDefined();
     expect(result.src).not.toBe(SOURCE_IMAGE_URL);
+
+    // The script closes with a text turn after the tool call, and prompt()
+    // returns on the first new bot post, which can be the image itself. Wait
+    // for that closing post here: otherwise the next test takes its baseline
+    // before it lands and reads it as its own response.
+    await waitFor(
+      async () => {
+        const posts = await fixtures.userState.channelPosts(
+          fixtures.botShip,
+          30
+        );
+        const closed = (posts ?? []).some((post) => {
+          const p = post as {
+            authorId?: string;
+            sequenceNum?: number | null;
+            textContent?: string | null;
+          };
+          return (
+            p.authorId === fixtures.botShip &&
+            isPostNewerThanSequence(p, result.sequence) &&
+            (p.textContent ?? '').trim() === 'Image sent.'
+          );
+        });
+        return closed ? true : undefined;
+      },
+      30_000,
+      undefined,
+      'closing text after the image DM'
+    );
   });
 
   test('local path fails loudly and posts nothing (storage-independent)', async () => {

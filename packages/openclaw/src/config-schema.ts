@@ -129,10 +129,16 @@ export const TlonAccountSchema = z.object({
   contextLens: TlonContextLensSchema.optional(),
   // Owner-listen: in channels hosted by the owner or the bot itself, engage
   // on owner messages without requiring an @-mention. Default: enabled.
+  // Off makes the owner mention-only in every watched channel (threads and
+  // attachments included); bare owner slash commands still work in chat/
+  // channels, and /owner-listen in any owner- or bot-hosted channel.
   ownerListenEnabled: z.boolean().optional(),
   // Channels (chat/heap/diary nests) opted out of owner-listen even when the
   // global toggle is on. Owner messages in these channels still require an
-  // @-mention to engage the bot.
+  // @-mention to engage the bot — including replies in threads the bot has
+  // already joined and posts carrying an attachment; the owner's bare slash
+  // commands still work in chat/ channels, and /owner-listen in owner- or
+  // bot-hosted ones.
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
 });
 
@@ -168,6 +174,18 @@ export const TlonConfigSchema = z.object({
   // Opt-in hosted-only re-engagement nudges; absent/false keeps the
   // scheduler off even when ownerShip is configured.
   reengagement: TlonReengagementSchema.optional(),
+  onboardingCampaign: z
+    .object({
+      enabled: z.boolean().optional(),
+      enrollAfter: z.iso.datetime().optional(),
+      testing: z
+        .object({
+          intervalMinutes: z.number().int().min(15).max(1440).optional(),
+          ignoreLocalDeliveryWindow: z.boolean().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
   // Hosted BOOT.md catch-up, gated on authenticated connection readiness.
   // The generic boot-md hook must be disabled when this is enabled.
   restartCatchup: z.object({ enabled: z.boolean().optional() }).optional(),
@@ -176,10 +194,16 @@ export const TlonConfigSchema = z.object({
   nudgeActiveHours: TlonNudgeActiveHoursSchema.optional(),
   // Owner-listen: in channels hosted by the owner or the bot itself, engage
   // on owner messages without requiring an @-mention. Default: enabled.
+  // Off makes the owner mention-only in every watched channel (threads and
+  // attachments included); bare owner slash commands still work in chat/
+  // channels, and /owner-listen in any owner- or bot-hosted channel.
   ownerListenEnabled: z.boolean().optional(),
   // Channels (chat/heap/diary nests) opted out of owner-listen even when the
   // global toggle is on. Owner messages in these channels still require an
-  // @-mention to engage the bot.
+  // @-mention to engage the bot — including replies in threads the bot has
+  // already joined and posts carrying an attachment; the owner's bare slash
+  // commands still work in chat/ channels, and /owner-listen in owner- or
+  // bot-hosted ones.
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
 });
 
