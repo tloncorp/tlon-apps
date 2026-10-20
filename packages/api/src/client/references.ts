@@ -50,7 +50,7 @@ export function isReferenceBoundary(text: string, index: number): boolean {
 // so trailing punctuation (`see /1/chan/chat/~zod/general.`) is prose, not
 // part of the nest.
 const BARE_CHANNEL_PATH_REGEX =
-  /^([("'[]*)\/1\/chan\/([a-z]+\/~[a-z-]+\/[a-z][a-z0-9-]*)\/?([.,;:!?'")\]]*)$/;
+  /^([("'[]*)\/1\/chan\/([a-z][a-z0-9-]*\/~[a-z-]+\/[a-z][a-z0-9-]*)\/?([.,;:!?'")\]]*)$/;
 
 export type BareChannelPath = {
   // Where the whitespace-delimited word holding the path starts.

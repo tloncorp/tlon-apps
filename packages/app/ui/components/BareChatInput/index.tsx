@@ -607,7 +607,9 @@ function BareChatInput(
         ) {
           continue;
         }
-        addAttachment(attachment);
+        if (!addAttachment(attachment)) {
+          continue;
+        }
         controlledTextRef.current = nextText;
         setControlledText(nextText);
         const editPosition = firstDifference(currentText, nextText);

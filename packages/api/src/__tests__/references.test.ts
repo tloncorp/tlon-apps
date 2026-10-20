@@ -287,6 +287,15 @@ test('findBareChannelPaths ignores a path inside other text', () => {
   ).toEqual([]);
 });
 
+test('findBareChannelPaths accepts any @tas channel kind', () => {
+  expect(
+    findBareChannelPaths(
+      '/1/chan/chat2/~zod/general /1/chan/my-app/~zod/general /1/chan/2chat/~zod/general',
+      { includeLastWord: true }
+    ).map((path) => path.channelId)
+  ).toEqual(['chat2/~zod/general', 'my-app/~zod/general']);
+});
+
 test('replaceBareChannelPath returns null once the word has changed', () => {
   const [path] = findBareChannelPaths('/1/chan/chat/~zod/general. x', {
     includeLastWord: false,

@@ -1046,6 +1046,16 @@ test('a typed channel path stays text beside a video', async () => {
   expect(inputText()).toBe('see /1/chan/chat/~zod/test ');
 });
 
+test('a channel path stays text when the provider refuses the card', async () => {
+  await mountWithChannelPaths();
+  mocks.addAttachment.mockImplementationOnce(() => false);
+  await typeText('see /1/chan/chat/~zod/test ');
+
+  expect(mocks.addAttachment).toHaveBeenCalledTimes(1);
+  expect(mocks.attachments).toEqual([]);
+  expect(inputText()).toBe('see /1/chan/chat/~zod/test ');
+});
+
 test.each([
   ['before', 'see  hello'.length, 'see /1/chan/chat/~zod/test hello'.length],
   ['after', 3, 3],
