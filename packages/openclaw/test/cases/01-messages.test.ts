@@ -377,8 +377,8 @@ describe('messages', () => {
     }
 
     // The owner asks from their DM about a post in a group channel. OpenClaw
-    // core only lets a non-bundled plugin's message-tool react/delete touch
-    // the current conversation, so this cross-conversation request goes
+    // core only lets a plugin's message-tool react/delete touch the exact
+    // current conversation, so this cross-conversation request goes
     // through the tlon CLI (as the plugin's message-tool hints instruct).
     // This harness runs with TLON_OWNER_DEFAULT=true, so tlon commands act as
     // the owner by default; the test's intent is the BOT reacting

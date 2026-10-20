@@ -13,6 +13,7 @@ import {
 } from './cron-budget-hold.js';
 import { createBudgetHoldObserver } from './cron-budget-observability.js';
 import { getTlonCronService } from './cron-telemetry.js';
+import { isCronToolName } from './cron-tool-args-guard.js';
 import { buildCreditIncreaseCard } from './credit-increase-request.js';
 import { normalizeShip } from './targets.js';
 import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
@@ -65,7 +66,6 @@ type Runner = {
 };
 const runnerSlot = sharedSlot<Runner>('cronBudget.runner');
 
-/** Hosted-only. The wrapper supplies an explicit signal, never inferred from a model name. */
 /**
  * Blocks model-forced runs of budget-held recurring jobs. Registered from the
  * entry's registerCapabilities (see registerAgentTurnHooks in index.ts): a
@@ -78,12 +78,8 @@ export function registerBudgetRunGuard(api: Pick<OpenClawPluginApi, 'on'>) {
   if (!paths) return;
 
   api.on('before_tool_call', async (event) => {
-    // 2026.9.x advertises the scheduler tool as `automations`; `cron` is the
-    // legacy name it still accepts on inbound calls.
-    if (
-      (event.toolName !== 'automations' && event.toolName !== 'cron') ||
-      event.params.action !== 'run'
-    ) {
+    // Covers both scheduler tool names (`automations` and legacy `cron`).
+    if (!isCronToolName(event.toolName) || event.params.action !== 'run') {
       return;
     }
     const id = event.params.jobId ?? event.params.id;
@@ -112,7 +108,11 @@ export function registerBudgetRunGuard(api: Pick<OpenClawPluginApi, 'on'>) {
   });
 }
 
-/** Gateway-lifetime budget hold machinery; registered from registerFull. */
+/**
+ * Gateway-lifetime budget hold machinery; registered from registerFull.
+ * Hosted-only. The wrapper supplies an explicit signal, never inferred from a
+ * model name.
+ */
 export function registerBudgetHoldHooks(
   api: Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>
 ) {

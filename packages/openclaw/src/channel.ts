@@ -183,8 +183,10 @@ export const tlonPlugin = createChatChannelPlugin({
       targetResolver: {
         looksLikeId: (target) => Boolean(parseTlonTarget(target)),
         hint: formatTargetHint(),
-        resolveTarget: async ({ input, normalized }) => {
-          const parsed = parseTlonTarget(normalized) ?? parseTlonTarget(input);
+        // The host passes `normalized` from normalizeTarget above, so it is
+        // already the canonical ship or nest whenever the raw input parses.
+        resolveTarget: async ({ normalized }) => {
+          const parsed = parseTlonTarget(normalized);
           if (!parsed) {
             return null;
           }
@@ -193,7 +195,7 @@ export const tlonPlugin = createChatChannelPlugin({
             to,
             kind: parsed.kind === 'dm' ? 'user' : 'group',
             display: to,
-            source: to === normalized ? 'normalized' : 'directory',
+            source: 'normalized',
           };
         },
       },

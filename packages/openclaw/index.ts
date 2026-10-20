@@ -2035,8 +2035,7 @@ export default defineBundledChannelEntry({
     // Only the gateway's full registration owns this state; a tool-discovery
     // pass also runs registerFull, possibly against a prepared runtime's config
     // snapshot, and must not swap closures under hooks other registries hold.
-    const registrationMode = (api as { registrationMode?: string })
-      .registrationMode;
+    const registrationMode = api.registrationMode;
     if (registrationMode === undefined || registrationMode === 'full') {
       agentTurnHookDepsSlot.set({
         contextLensEnabled,
