@@ -1,6 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -137,24 +138,48 @@ export function useNowOnFocus() {
 export function useStartTestRun(botShip: string) {
   return useCallback(
     async (taskId: string) => {
+      const requestedAt = Date.now();
+      trackEvent(AnalyticsEvent.TlonbotTaskTestRunRequested);
       try {
-        const { lensId } = await api.testAutomation({
-          bot: botShip,
-          id: taskId,
+        const lensId = await startTestRun(botShip, taskId);
+        trackEvent(AnalyticsEvent.TlonbotTaskTestRunStarted, {
+          durationMs: Date.now() - requestedAt,
         });
         return lensId;
       } catch (error) {
-        // The owner's ship gives the bot 20 seconds; a busy bot may still be
-        // listing its jobs. Its answer lands on the request.
-        if (error instanceof api.StewardAutomationPendingError) {
-          const { lensId } = await api.awaitAutomationRequest(error.requestId, {
-            attempts: 15,
-          });
-          if (lensId) return lensId;
-        }
+        trackEvent(AnalyticsEvent.TlonbotTaskTestRunFailed, {
+          durationMs: Date.now() - requestedAt,
+          errorType: testRunErrorType(error),
+        });
         throw error;
       }
     },
     [botShip]
   );
+}
+
+async function startTestRun(botShip: string, taskId: string) {
+  try {
+    const { lensId } = await api.testAutomation({ bot: botShip, id: taskId });
+    return lensId;
+  } catch (error) {
+    // The owner's ship gives the bot 20 seconds; a busy bot may still be
+    // listing its jobs. Its answer lands on the request.
+    if (error instanceof api.StewardAutomationPendingError) {
+      const { lensId } = await api.awaitAutomationRequest(error.requestId, {
+        attempts: 15,
+      });
+      if (lensId) return lensId;
+    }
+    throw error;
+  }
+}
+
+// The kind of failure, never its message: an error's text can quote the
+// task.
+function testRunErrorType(error: unknown): string {
+  if (error && typeof error === 'object' && 'errorType' in error) {
+    return String(error.errorType);
+  }
+  return error instanceof Error ? error.name : 'unknown';
 }
