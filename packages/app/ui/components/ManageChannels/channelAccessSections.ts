@@ -1,6 +1,7 @@
 import type * as db from '@tloncorp/shared/db';
 import { notesPermissionsCompatActive } from '@tloncorp/shared/logic/notesPermissionsCompat';
 
+import { sortGroupRoles } from '../../utils/groupUtils';
 import type {
   SettingsRowModel,
   SettingsSectionModel,
@@ -46,7 +47,7 @@ export function channelAccessSections({
         : 'No access'
       : ['No access', 'Can view', 'Can post'][level];
 
-  const roles = groupRoles
+  const roles = sortGroupRoles(groupRoles)
     .filter((role) => role.id && role.id !== 'admin')
     .map((role) => ({ id: role.id!, title: role.title ?? 'Unknown role' }));
 

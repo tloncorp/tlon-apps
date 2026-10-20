@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
+import { sortGroupRoles } from '../ui/utils/groupUtils';
 import { useCurrentUserId } from './useCurrentUser';
 
 export const useGroupContext = ({ groupId }: { groupId: string }) => {
@@ -32,16 +33,8 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     return group?.members ?? [];
   }, [group?.members]);
 
-  // The ship sends roles in no fixed order, so they're sorted for every
-  // list to show them alike: admin first, then by title.
   const groupRoles = useMemo(() => {
-    return [...(group?.roles ?? [])].sort(
-      (a, b) =>
-        Number(b.id === 'admin') - Number(a.id === 'admin') ||
-        (a.title ?? '').localeCompare(b.title ?? '', undefined, {
-          sensitivity: 'base',
-        })
-    );
+    return sortGroupRoles(group?.roles ?? []);
   }, [group?.roles]);
 
   const groupChannels = useMemo(() => {
