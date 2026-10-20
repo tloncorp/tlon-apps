@@ -3251,7 +3251,7 @@
     (ex-cards caz ~[(ex-local-response started) (ex-req-leave ~dev)])
   ;<  req=incoming-request:v1:au  bind:m  got-request
   ;<  ~  bind:m  (ex-equal !>(result.req) !>(`started))
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>(tasks.automation.st) !>(*(map ship tasks:v1:au)))
 ::
 ::  ----------------------------------------------------------
