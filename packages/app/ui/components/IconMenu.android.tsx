@@ -9,6 +9,7 @@ import { Pressable } from '@tloncorp/ui';
 import { useState } from 'react';
 
 import type { IconMenuProps } from './IconMenu.types';
+import { useSettingsListColors } from './SettingsList/useSettingsListColors';
 
 /** Opens a Material menu of what can be done to an image, from any content. */
 export function IconMenu({
@@ -18,8 +19,10 @@ export function IconMenu({
   testID,
 }: IconMenuProps) {
   const [open, setOpen] = useState(false);
+  // In the app's theme, which may not be the phone's.
+  const colors = useSettingsListColors();
   return (
-    <Host matchContents>
+    <Host matchContents colorScheme={colors.colorScheme}>
       <DropdownMenu expanded={open} onDismissRequest={() => setOpen(false)}>
         <DropdownMenu.Trigger>
           <RNHostView matchContents>
@@ -43,7 +46,13 @@ export function IconMenu({
               }}
             >
               <DropdownMenuItem.Text>
-                <Text>{item.title}</Text>
+                <Text
+                  color={
+                    item.destructive ? colors.negative : colors.primaryText
+                  }
+                >
+                  {item.title}
+                </Text>
               </DropdownMenuItem.Text>
             </DropdownMenuItem>
           ))}

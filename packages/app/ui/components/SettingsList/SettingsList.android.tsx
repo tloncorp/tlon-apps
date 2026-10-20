@@ -31,7 +31,7 @@ import {
 } from '@expo/ui/jetpack-compose/modifiers';
 import { Icon } from '@tloncorp/ui';
 import { Fragment, useCallback, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { type LayoutChangeEvent, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -46,6 +46,7 @@ import {
   useSettingsListColors,
 } from './useSettingsListColors';
 
+const listSidePadding = 16;
 const cardShape = Shapes.RoundedCorner(16);
 const pillShape = Shapes.RoundedCorner(50);
 
@@ -58,79 +59,91 @@ export function SettingsList({ sections }: SettingsListProps) {
   // clearance already allows for it.
   const onTabScreen = useTopLevelTabBarClearance() > 0;
   const { bottom: systemBarInset } = useSafeAreaInsets();
+  // A hosted section is only as wide as its own content, so it is given the
+  // column's width to center or wrap within, as it would on the other
+  // platforms.
+  const [width, setWidth] = useState<number>();
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width),
+    []
+  );
+  const elementWidth =
+    width === undefined ? undefined : width - listSidePadding * 2;
 
   return (
-    <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
-      <LazyColumn
-        verticalArrangement={{ spacedBy: 24 }}
-        contentPadding={{
-          start: 16,
-          end: 16,
-          top: 16,
-          bottom: bottomContentInset + (onTabScreen ? 0 : systemBarInset),
-        }}
-        // The list makes room for the keyboard itself, so a field it scrolls
-        // into view, or the results of a search from the navigation bar, end up
-        // above the keyboard rather than behind it.
-        modifiers={[background(colors.page), imePadding()]}
-      >
-        {sections.map((section) =>
-          section.element ? (
-            <RNHostView key={section.key} matchContents>
-              <View>{section.element}</View>
-            </RNHostView>
-          ) : (
-            <Column
-              key={section.key}
-              verticalArrangement={{ spacedBy: 8 }}
-              modifiers={[fillMaxWidth()]}
-            >
-              {section.title ? (
-                <Text
-                  color={colors.secondaryText}
-                  style={{ fontSize: 14, fontWeight: '500' }}
-                  modifiers={[padding(4, 0, 4, 0)]}
-                >
-                  {section.title}
-                </Text>
-              ) : null}
+    <View style={{ flex: 1 }} onLayout={handleLayout}>
+      <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
+        <LazyColumn
+          verticalArrangement={{ spacedBy: 24 }}
+          contentPadding={{
+            start: listSidePadding,
+            end: listSidePadding,
+            top: 16,
+            bottom: bottomContentInset + (onTabScreen ? 0 : systemBarInset),
+          }}
+          // The list makes room for the keyboard itself, so a field it scrolls
+          // into view, or the results of a search from the navigation bar, end up
+          // above the keyboard rather than behind it.
+          modifiers={[background(colors.page), imePadding()]}
+        >
+          {sections.map((section) =>
+            section.element ? (
+              <RNHostView key={section.key} matchContents>
+                <View style={{ width: elementWidth }}>{section.element}</View>
+              </RNHostView>
+            ) : (
               <Column
-                modifiers={[
-                  fillMaxWidth(),
-                  clip(cardShape),
-                  background(colors.row),
-                ]}
+                key={section.key}
+                verticalArrangement={{ spacedBy: 8 }}
+                modifiers={[fillMaxWidth()]}
               >
-                {section.rows.map((row, index) => (
-                  <Fragment key={row.key}>
-                    {index > 0 ? (
-                      <Box
-                        modifiers={[
-                          padding(16, 0, 0, 0),
-                          fillMaxWidth(),
-                          height(1),
-                          background(colors.separator),
-                        ]}
-                      />
-                    ) : null}
-                    <SettingsRow row={row} colors={colors} />
-                  </Fragment>
-                ))}
-              </Column>
-              {section.footer ? (
-                <Text
-                  color={colors.secondaryText}
-                  style={{ fontSize: 13 }}
-                  modifiers={[padding(4, 0, 4, 0)]}
+                {section.title ? (
+                  <Text
+                    color={colors.secondaryText}
+                    style={{ fontSize: 14, fontWeight: '500' }}
+                    modifiers={[padding(4, 0, 4, 0)]}
+                  >
+                    {section.title}
+                  </Text>
+                ) : null}
+                <Column
+                  modifiers={[
+                    fillMaxWidth(),
+                    clip(cardShape),
+                    background(colors.row),
+                  ]}
                 >
-                  {section.footer}
-                </Text>
-              ) : null}
-            </Column>
-          )
-        )}
-      </LazyColumn>
-    </Host>
+                  {section.rows.map((row, index) => (
+                    <Fragment key={row.key}>
+                      {index > 0 ? (
+                        <Box
+                          modifiers={[
+                            padding(16, 0, 0, 0),
+                            fillMaxWidth(),
+                            height(1),
+                            background(colors.separator),
+                          ]}
+                        />
+                      ) : null}
+                      <SettingsRow row={row} colors={colors} />
+                    </Fragment>
+                  ))}
+                </Column>
+                {section.footer ? (
+                  <Text
+                    color={colors.secondaryText}
+                    style={{ fontSize: 13 }}
+                    modifiers={[padding(4, 0, 4, 0)]}
+                  >
+                    {section.footer}
+                  </Text>
+                ) : null}
+              </Column>
+            )
+          )}
+        </LazyColumn>
+      </Host>
+    </View>
   );
 }
 
@@ -168,10 +181,12 @@ function PlainRow({
   const pickedTitle = picker?.options.find(
     (option) => option.value === picker.value
   )?.title;
-  // Material shows a setting's value as the line under its title.
-  const supporting = [row.subtitle, row.value ?? pickedTitle]
-    .filter(Boolean)
-    .join(' · ');
+  // Material shows a setting's value as the line under its title. A row that
+  // already has a line there, like a role and its description, ends with the
+  // value instead.
+  const value = row.value ?? pickedTitle;
+  const supporting = row.subtitle ?? value;
+  const trailingValue = row.subtitle ? value : undefined;
   const isChoice = row.selected !== undefined;
 
   const content = (
@@ -237,6 +252,11 @@ function PlainRow({
           </Text>
         ) : null}
       </Column>
+      {trailingValue ? (
+        <Text color={colors.secondaryText} style={{ fontSize: 16 }}>
+          {trailingValue}
+        </Text>
+      ) : null}
       {row.pending ? (
         <Pill
           text="Pending"
