@@ -47,7 +47,7 @@ export function buildProviderRows(
 }
 
 const FEATURED_PROVIDER_ORDER = new Map(
-  ['gmail', 'google-calendar', 'notion', 'github'].map((id, index) => [
+  ['google-gmail', 'google-calendar', 'notion', 'github'].map((id, index) => [
     id,
     index,
   ])

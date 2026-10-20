@@ -55,9 +55,9 @@
     "toolGuidance": "Use workspace files; note-publish makes a note public, so publish only on request; owner-confirmed migration writes are unavailable."
   },
   "posts": {
-    "summary": "Post reactions, edits, deletes, and pins",
+    "summary": "Post quotes, forwards, reactions, edits, deletes, and pins",
     "reference": "references/reading.md",
-    "toolGuidance": "Send/reply through message; `posts edit` parses ~ship, @role-id and @all like a send but notifies nobody; do not manage deprecated diary posts."
+    "toolGuidance": "Send/reply through message; to quote or forward an existing post use posts send|reply --quote or posts forward; `posts edit` parses ~ship, @role-id and @all like a send but notifies nobody; do not manage deprecated diary posts."
   },
   "settings": {
     "summary": "OpenClaw Tlon settings",

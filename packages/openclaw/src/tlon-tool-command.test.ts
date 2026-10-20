@@ -20,6 +20,7 @@ import {
   createTlonToolExecutor,
   formatTlonToolDescription,
   formatTlonToolHelp,
+  isMutatingTlonCommand,
   normalizeTlonCommandArgs,
   redactTlonCommand,
   shellSplitCommand,
@@ -688,19 +689,35 @@ describe('owner-by-default identity selection', () => {
     });
 
     it.each([
-      ['posts send ~alice --help', ['--sent-at', M]],
-      ['posts reply chat/~h/c 170.1 -h', ['--sent-at', M]],
-      ['posts edit chat/~h/c 170.1 --help', []],
-      ['dms send 0v1.abc --help', ['--sent-at', M]],
-      ['dms reply 0v1.abc 170.1 -h', ['--sent-at', M]],
-    ])('treats message text in `%s` as content', async (command, stamp) => {
+      ['posts send ~alice --help', `posts send ~alice --help --sent-at ${M}`],
+      [
+        'posts reply chat/~h/c 170.1 -h',
+        `posts reply chat/~h/c 170.1 -h --sent-at ${M}`,
+      ],
+      [
+        'posts edit chat/~h/c 170.1 --help',
+        'posts edit chat/~h/c 170.1 --help',
+      ],
+      [
+        'posts send chat/~h/c --help --quote chat/~h/d 170.1',
+        `posts send chat/~h/c --help --sent-at ${M} --quote chat/~h/d 170.1`,
+      ],
+      [
+        'posts reply chat/~h/c 170.1 -h --quote chat/~h/d 170.2 --quote-parent 170.1',
+        `posts reply chat/~h/c 170.1 -h --sent-at ${M} --quote chat/~h/d 170.2 --quote-parent 170.1`,
+      ],
+      ['dms send 0v1.abc --help', `dms send 0v1.abc --help --sent-at ${M}`],
+      [
+        'dms reply 0v1.abc 170.1 -h',
+        `dms reply 0v1.abc 170.1 -h --sent-at ${M}`,
+      ],
+    ])('treats message text in `%s` as content', async (command, sent) => {
       const { execute, runCommand } = makeExecutor();
       const result = await execute('content', { command });
       expect(ranWith(runCommand)).toEqual([
         '--ship',
         '~owner',
-        ...shellSplitCommand(command),
-        ...stamp,
+        ...shellSplitCommand(sent),
       ]);
       expect(result.content[0].text).toBe('ok\nRan as ~owner (owner).');
     });
@@ -905,6 +922,7 @@ describe('owner-by-default identity selection', () => {
       'posts delete ~bot 170.1',
       'posts pin ~bot 170.1',
       'posts unpin ~bot 170.1',
+      'posts forward chat/~h/c 170.1 ~bot',
       // Ship-targeted dms send/reply are redirected to message first.
       'dms react ~bot 170.1 👍',
       'dms unreact ~bot 170.1 👍',
@@ -961,14 +979,15 @@ describe('owner-by-default identity selection', () => {
       }
     );
 
-    it.each(['posts send ~alice hi', 'posts send chat/~bot/general hi'])(
-      'runs owner `%s`',
-      async (command) => {
-        const { execute, runCommand } = makeExecutor();
-        await execute('post', { command });
-        expect(ranWith(runCommand).slice(0, 2)).toEqual(['--ship', '~owner']);
-      }
-    );
+    it.each([
+      'posts send ~alice hi',
+      'posts send chat/~bot/general hi',
+      'posts forward chat/~h/c 170.1 ~alice',
+    ])('runs owner `%s`', async (command) => {
+      const { execute, runCommand } = makeExecutor();
+      await execute('post', { command });
+      expect(ranWith(runCommand).slice(0, 2)).toEqual(['--ship', '~owner']);
+    });
 
     it('refuses owner posts/dms when the bot ship is unknown', async () => {
       for (const command of [
@@ -1091,6 +1110,50 @@ describe('owner-by-default identity selection', () => {
       [
         'posts send chat/~h/c hi --bot=x',
         ['posts', 'send', 'chat/~h/c', 'hi', '--bot=x', '--sent-at', M],
+      ],
+      [
+        'posts send chat/~h/c hi --quote chat/~h/d 170.1',
+        [
+          'posts',
+          'send',
+          'chat/~h/c',
+          'hi',
+          '--sent-at',
+          M,
+          '--quote',
+          'chat/~h/d',
+          '170.1',
+        ],
+      ],
+      [
+        'posts send ~alice --quote chat/~h/d 170.1',
+        [
+          'posts',
+          'send',
+          '~alice',
+          '--sent-at',
+          M,
+          '--quote',
+          'chat/~h/d',
+          '170.1',
+        ],
+      ],
+      [
+        'posts reply chat/~h/c 170.1 hi --quote chat/~h/d 170.2 --quote-parent 170.3',
+        [
+          'posts',
+          'reply',
+          'chat/~h/c',
+          '170.1',
+          'hi',
+          '--sent-at',
+          M,
+          '--quote',
+          'chat/~h/d',
+          '170.2',
+          '--quote-parent',
+          '170.3',
+        ],
       ],
     ])('stamps and records owner `%s`', async (command, expected) => {
       const { execute, runCommand, ledger } = makeExecutor();
@@ -1265,6 +1328,8 @@ describe('owner-by-default identity selection', () => {
       ['--self posts react chat/~h/c 170.1 👍', undefined],
       ['help posts send', undefined],
       ['posts send --help', undefined],
+      // The CLI's forward takes no --sent-at, so it cannot be stamped.
+      ['posts forward chat/~h/d 170.1 chat/~h/c', undefined],
       ['posts send ~bot hi', 'owner_self_dm'],
       ['dms send ~alice hi', 'send_operation'],
     ])('neither stamps nor records `%s`', async (command, reason) => {
@@ -1573,6 +1638,7 @@ describe('owner-by-default identity selection', () => {
       'notes note-publish notes/~h/b 12',
       'posts react chat/~h/c 170.1 👍',
       'posts send ~alice hi',
+      'posts forward chat/~h/c 170.1 chat/~h/d',
       'upload https://example.com/a.png',
     ])('ends owner `%s` with the owner line', async (command) => {
       const { execute } = makeExecutor({}, 'done\n');
@@ -1683,7 +1749,7 @@ describe('model-facing identity guidance', () => {
       }
       if (ownerDefault) {
         expect(help).toContain(
-          "posts send|reply to ~ship: a DM in the owner's name"
+          "posts send|reply|forward to ~ship: a DM in the owner's name"
         );
         expect(help).not.toContain('(prefer message)');
       }
@@ -3421,6 +3487,7 @@ const documentedActionOperations = {
   posts: [
     'send',
     'reply',
+    'forward',
     'react',
     'unreact',
     'edit',
@@ -3807,6 +3874,26 @@ describe('tlon tool telemetry summarizer', () => {
         channelKind: 'chat',
         isKnownSubcommand: true,
       });
+      expect(JSON.stringify(summary)).not.toContain('quiet-launch');
+      expect(JSON.stringify(summary)).not.toContain('170.141');
+    }
+  });
+
+  it('classifies posts forward as a mutating write in its target channel', () => {
+    for (const [command, channelKind] of [
+      ['posts forward chat/~zod/quiet-launch 170.141 heap/~zod/d', 'heap'],
+      ['posts forward heap/~zod/quiet-launch 170.141 chat/~zod/d', 'chat'],
+    ] as const) {
+      const summary = summarizeTlonCommand(command);
+
+      expect(summary).toMatchObject({
+        summaryKey: 'posts.forward',
+        operation: 'forward',
+        intent: 'write',
+        channelKind,
+        isKnownSubcommand: true,
+      });
+      expect(isMutatingTlonCommand(summary)).toBe(true);
       expect(JSON.stringify(summary)).not.toContain('quiet-launch');
       expect(JSON.stringify(summary)).not.toContain('170.141');
     }
