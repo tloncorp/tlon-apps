@@ -296,7 +296,7 @@ Tlonbots excel at recurring tasks, called crons. Set one once, then forget about
 
 When changing or cancelling recurring work, the bot should reconcile every cron job that implements the same request, including related or duplicate declarations. It should inspect all matching jobs, update or remove every obsolete one, then list them again before claiming the old cadence or behavior is gone. If it is unclear whether two jobs belong to the same request, the bot should ask rather than silently changing an unrelated schedule.
 
-Reminders arrive in your DM with the bot and notify you like any other message from it, unless you've muted that chat. Other recurring tasks post each run to the Updates notebook in your Tlonbot group.
+When the bot sets a task up from chat, reminders arrive in your DM with the bot and notify you like any other message from it, unless you've muted that chat, and other recurring tasks post each run to the Updates notebook in your Tlonbot group. A task made or changed in the app's scheduled task editor posts wherever its `Posts to` says.
 
 ### Connected services (MCP)
 
@@ -378,7 +378,7 @@ Self-hosting means no included model, subscription screens, or bot settings in t
 
 ### Guardrails
 
-Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the system prompt can't be modified, and the bot has no shell and can only write files inside its own workspace. It can read PDFs, text files, and CSVs you send it; spreadsheets and Office documents have to be exported first. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
+Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the base system prompt can't be modified (the owner can still edit the bot's instructions, personality and other prompt files under `Bot behavior` on its profile), and the bot has no shell and can only write files inside its own workspace. It can read PDFs, text files, and CSVs you send it; spreadsheets and Office documents have to be exported first. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
 
 ### Self-hosting your bot
 
