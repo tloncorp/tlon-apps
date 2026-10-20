@@ -219,7 +219,7 @@
   ::  MEMORY.md: earlier shapes had no mirror, and anything they migrate
   ::  into is subscribed fresh by +reconcile
   ::
-  =?  cor  from-5  po-rewatch-mirrors:po-core
+  =?  cor  from-5  po-refresh-prompts:po-core
   reconcile
 ::  +reconcile: restore what state cannot carry, on init and on every
 ::  load. subscriptions and timers live outside it: a suspended agent's
@@ -2440,13 +2440,17 @@
     ?:  &(?=(^ retry) (gth wake.u.retry now.bowl))  cor
     (po-trust-bot:po-core:cor bot)
   ::
-  ::  leave and re-watch every live mirror, so each bot replays its
-  ::  snapshot: for a load after which this ship accepts more than it
-  ::  did, since a snapshot it dropped left no entry, and no delta
+  ::  for a load after which this ship accepts more than it did. kick the
+  ::  local harness feed: a harness reads the names scry only when it
+  ::  projects, and its watch survives a load, so its re-watch is what
+  ::  projects the workspace again under the wider allowlist. then leave
+  ::  and re-watch every live mirror, so each bot replays its snapshot: a
+  ::  snapshot dropped under the old rules left no entry, and no delta
   ::  creates one. a mirror with no wire is +po-reconcile's
   ::
-  ++  po-rewatch-mirrors
+  ++  po-refresh-prompts
     ^+  cor
+    =.  cor  (give %kick ~[po-harness-path] ~)
     %+  roll  ~(tap in bots.state)
     |=  [bot=ship =_cor]
     ?:  =(bot our.bowl)  cor

@@ -1543,12 +1543,14 @@
   ;<  caz=(list card)  bind:m  (do-load agent ~)
   (ex-cards caz ~[ex-eyre-connect (ex-files-watch peer)])
 ::
-::  a %5 owner dropped every mirror snapshot that carried MEMORY.md, so
-::  the upgrade into %6 leaves and re-watches each live mirror for a fresh
-::  one. a nacked mirror has no wire, and is left to its retry. the state
-::  itself only changes tag
+::  a %5 ship accepted no MEMORY.md: as a bot its harness projected
+::  without it and only projects again when its watch goes live, and as an
+::  owner it dropped every mirror snapshot that carried it. so the upgrade
+::  into %6 kicks the harness feed and leaves and re-watches each live
+::  mirror for a fresh snapshot. a nacked mirror has no wire, and is left
+::  to its retry. the state itself only changes tag
 ::
-++  test-migrate-state-5-rewatches-live-mirrors
+++  test-migrate-state-5-refreshes-harness-and-mirrors
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -1557,7 +1559,8 @@
   ;<  caz=(list card)  bind:m  (do-load agent `!>([%5 +.st]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-task /prompts/files/(scot %p peer) [peer %steward] %leave ~)
+    :~  (ex-card %give %kick ~[harness-path] ~)
+        (ex-task /prompts/files/(scot %p peer) [peer %steward] %leave ~)
         (ex-files-watch peer)
         ex-eyre-connect
     ==
@@ -1566,7 +1569,7 @@
   ;<  *  bind:m  (do-bot-sign peer [%watch-ack `~[leaf+"denied"]])
   ;<  st=state-6  bind:m  got-state
   ;<  caz=(list card)  bind:m  (do-load agent `!>([%5 +.st]))
-  (ex-cards caz ~[ex-eyre-connect])
+  (ex-cards caz ~[(ex-card %give %kick ~[harness-path] ~) ex-eyre-connect])
 ::
 ::  upgrading into %5 must subscribe the bots already trusted: prompt
 ::  watches are otherwise only created by %trust-bot
