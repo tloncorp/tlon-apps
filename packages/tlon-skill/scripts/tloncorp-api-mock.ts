@@ -22,15 +22,24 @@
  * posts, invites), the notes runtimes (notesV1, notes et al.), and
  * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
  * enableGroup, BadResponseError), `activity-runtime.ts`
- * (getInitialActivity, getGroupAndChannelUnreads, getTextContent),
- * `group-sections-runtime.ts` (poke), and `channels.ts` (createChannel and
- * the other channel-management calls).
+ * (getInitialActivity, getGroupAndChannelUnreads, getTextContent,
+ * adjustVolumeSetting, getVolumeSettings, setActivitySupportsReactions,
+ * setActivitySupportsNotes, getGroups, getChannelPosts, readChannel,
+ * activityAction, poke),
+ * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
+ * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent), and
+ * `channels.ts` (createChannel and the other channel-management calls).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 // The real broker client, by subpath, which the root mock below does not
 // intercept. It has no dependencies but fetch, so tests keep exercising the
 // real request and error mapping against a stubbed fetch.
 import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
+// The real content projection, by subpath: the posts runtime's read-back
+// comparison must be tested against what the api actually produces.
+import { toPostContent as realToPostContent } from '@tloncorp/api/client/postsApi';
+// The real plain-text conversion: the posts runtime quotes DM text with it.
+import { getTextContent as realGetTextContent } from '@tloncorp/api/client/postContent';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -117,11 +126,27 @@ export const mockedNotes = Object.fromEntries(
 >;
 
 export const mockedGetChannelPosts = {
-  impl: async (..._args: unknown[]) => ({
+  impl: async (..._args: unknown[]): Promise<unknown> => ({
     posts: [],
     older: null,
     totalPosts: 0,
   }),
+};
+
+export const mockedGetPostWithReplies = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedEditPost = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedDeleteReply = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedSetOrder = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
 export const mockedScry = {
@@ -134,6 +159,32 @@ export const mockedPoke = {
 
 export const mockedGetGroups = {
   impl: async (..._args: unknown[]): Promise<unknown> => [],
+};
+
+/**
+ * The activity volume surface: reassign per test. The two flags record the
+ * values the runtime last set, so a test can read them from inside a call.
+ */
+export const mockedVolume = {
+  adjustVolumeSetting: async (..._args: unknown[]): Promise<unknown> =>
+    undefined,
+  getVolumeSettings: async (..._args: unknown[]): Promise<unknown> => ({}),
+  supportsReactions: false,
+  supportsNotes: false,
+};
+
+/**
+ * The activity read surface: reassign per test. Read the flags from
+ * `mockedVolume` inside a call to see what the runtime set before it.
+ */
+export const mockedActivityRead = {
+  readChannel: async (..._args: unknown[]): Promise<unknown> => undefined,
+  getGroupAndChannelUnreads: async (): Promise<unknown> => ({
+    baseUnread: null,
+    groupUnreads: [],
+    channelUnreads: [],
+    threadActivity: [],
+  }),
 };
 
 export const mockedGetGroup = {
@@ -243,6 +294,13 @@ mock.module('@tloncorp/api', () => ({
   sendReply: async () => undefined,
   batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
   getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
+  // posts-runtime.ts value imports
+  editPost: (...args: unknown[]) => mockedEditPost.impl(...args),
+  getPostWithReplies: (...args: unknown[]) =>
+    mockedGetPostWithReplies.impl(...args),
+  deleteReply: (...args: unknown[]) => mockedDeleteReply.impl(...args),
+  setOrder: (...args: unknown[]) => mockedSetOrder.impl(...args),
+  toPostContent: realToPostContent,
   toUrbitStory: (content: unknown) => content ?? [],
   updateChannel: async () => undefined,
   // notes runtime value imports
@@ -283,13 +341,27 @@ mock.module('@tloncorp/api', () => ({
   // activity runtime value imports (formatter tests call the pure helpers
   // directly, so these are load-time placeholders)
   getInitialActivity: async () => ({ events: [], relevantUnreads: {} }),
-  getGroupAndChannelUnreads: async () => ({
-    baseUnread: null,
-    groupUnreads: [],
-    channelUnreads: [],
-    threadActivity: [],
+  getGroupAndChannelUnreads: () =>
+    mockedActivityRead.getGroupAndChannelUnreads(),
+  readChannel: (...args: unknown[]) => mockedActivityRead.readChannel(...args),
+  // The mark follows the flag, so a poke records the flag state it was built
+  // under.
+  activityAction: (json: unknown) => ({
+    app: 'activity',
+    mark: mockedVolume.supportsNotes ? 'activity-action-2' : 'activity-action',
+    json,
   }),
-  getTextContent: () => '',
+  getTextContent: realGetTextContent,
+  adjustVolumeSetting: (...args: unknown[]) =>
+    mockedVolume.adjustVolumeSetting(...args),
+  getVolumeSettings: (...args: unknown[]) =>
+    mockedVolume.getVolumeSettings(...args),
+  setActivitySupportsReactions: (value: boolean) => {
+    mockedVolume.supportsReactions = value;
+  },
+  setActivitySupportsNotes: (value: boolean) => {
+    mockedVolume.supportsNotes = value;
+  },
   // channels.ts value imports (only createChannel is an assertion target;
   // the rest are load-time placeholders)
   createChannel: (...args: unknown[]) => mockedCreateChannel.impl(...args),

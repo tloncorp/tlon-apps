@@ -138,7 +138,7 @@ Notes: `Post` stays greyed out until there is both a title and body text. Once a
 
 Phone: open the post and tap `Edit` at the top right, change the title, header image or body, then tap `Save`. Or press and hold the post in the channel's list and tap `Edit post`. To delete, press and hold it and tap `Delete post`, then confirm.
 Desktop: hover the post in the list and open the three-dot menu at its top right.
-Who: the post's author. Group admins can edit and delete anyone's Bulletin post; for them the menu items start with "Admin:".
+Who: the post's author. Group admins can edit and delete anyone's Bulletin post; on someone else's post their menu items start with "Admin:".
 Notes: deleting can't be undone.
 
 ## Comment on a Bulletin post

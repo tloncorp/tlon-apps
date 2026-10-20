@@ -123,6 +123,11 @@ describe('tlonPlugin agent tools', () => {
     ]);
   });
 
+  it('adds the connectable services lookup on hosted bots', () => {
+    vi.stubEnv('PIONEER_ENV', 'prod');
+    expect(toolNames()).toContain('tlon_connectable_services');
+  });
+
   it('adds set_timezone only when the hosted wrapper names its file', () => {
     vi.stubEnv('TLON_OWNER_TIMEZONE_FILE', '/pier/.openclaw/tz.json');
     expect(toolNames()).toContain('set_timezone');

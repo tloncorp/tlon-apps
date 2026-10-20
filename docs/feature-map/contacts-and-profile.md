@@ -6,7 +6,7 @@ Finding, adding, inviting and blocking people, looking at someone's profile, and
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/features/top/ContactsScreen.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx, packages/app/ui/components/Activity/ActivityScreenView.tsx -->
 <!-- covers: route:Contacts -->
 
-Phone: open the Settings tab and tap `Contacts`. It says `People you know and invite` underneath. There is no Contacts tab in the tab bar.
+Phone: open the Settings tab and tap `Contacts`. There is no Contacts tab in the tab bar.
 Desktop: click your own avatar in the left rail. Your contacts are listed in the sidebar, and a profile opens beside them.
 Notes: you are always first in the list, marked `You`, followed by your contacts. Below them there can be a `Suggested from %pals and DMs` section and, on the phone, a `From your address book` section. Tap a contact or a suggestion to open their profile. When the Activity tab is empty, the phone also shows a `View Contacts` button there.
 
@@ -14,7 +14,7 @@ Notes: you are always first in the list, marked `You`, followed by your contacts
 <!-- src: packages/app/features/contacts/AddContactsScreen.tsx, packages/app/ui/components/AddContactsView.tsx, packages/app/ui/components/ContactBook.tsx, packages/app/ui/hooks/contactSorters.ts, packages/app/features/top/ContactsScreen.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx -->
 <!-- covers: route:AddContacts -->
 
-Phone: open the Settings tab, tap `Contacts`, then tap the plus icon at the top left. In the `Filter by nickname, @p` box, type the start of the person's nickname or ID. Tap each person you want so they are checked, then tap the button at the bottom, which reads "Add 1 contact" or similar.
+Phone: open the Settings tab, tap `Contacts`, then tap the plus icon at the top right. In the `Filter by nickname, @p` box, type the start of the person's nickname or ID. Tap each person you want so they are checked, then tap the button at the bottom, which reads "Add 1 contact" or similar.
 Desktop: click your avatar in the left rail, then the plus icon at the top of the Contacts sidebar.
 Notes: search covers people the app already has a profile for. To add anyone else, type their full ID (it starts with ~) and they appear as a result. People who are already contacts show a blue check and can't be unticked here.
 
@@ -110,7 +110,7 @@ Notes: `Pending` means the check has not finished yet, and it can take a moment 
 Phone: look for a small `Bot` badge beside the name, on the profile and on messages. The badge reads `Bot · Offline` when the bot is reported offline. On the profile of your own bot there is also a `Bot settings` row, which opens its settings.
 Desktop: `Bot settings` shows only on hosted accounts that have a DM with their bot, and it opens Tlon's bot settings page in a new browser tab.
 Who: `Bot settings` is only on your own bot's profile, never on someone else's bot.
-Notes: apart from that, a bot's profile works like a person's, with the same `Message`, `Add Contact` and `Block` buttons.
+Notes: apart from that, a bot's profile works like a person's, with the same `Message`, `Add Contact` and `Block` buttons. Your own bot has no `Block` button.
 
 ## Check how someone's phone or X account was verified
 <!-- src: packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/app/ui/components/Profile/HiddenPhoneDisplay.tsx, packages/app/ui/components/AttestationSheet.tsx, packages/app/ui/components/AttestationPane.tsx -->
@@ -130,7 +130,7 @@ Notes: there is no confirmation. It happens on the tap. You can't block yourself
 Notes: in chats you both belong to, their messages are replaced with `Message from a blocked user.` and a `Show anyway` link, so you can still read one if you choose. Gallery and notebook posts read `Post from a blocked user.` Chat previews in your list read `(Post from blocked user)`. `Message` disappears from their profile, and they stop appearing when you type @ to mention someone. The app does not remove them from your contacts or from any group you share. To take someone out of a group, an admin has to remove them there.
 
 ## Unblock someone or see who you've blocked
-<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/BlockedUsersScreen.tsx, packages/app/ui/components/BlockedContactsWidget.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/shared/src/store/blockingActions.ts, packages/app/navigation/desktop/SettingsNavigator.tsx -->
+<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/BlockedUsersScreen.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/shared/src/store/blockingActions.ts, packages/app/navigation/desktop/SettingsNavigator.tsx -->
 <!-- covers: route:BlockedUsers -->
 
 Phone: open the Settings tab and tap `Blocked users`. Everyone you have blocked is listed with an `Unblock` badge. Tap a person, then confirm with `Unblock`.
@@ -140,7 +140,7 @@ Notes: an empty list reads `No blocked users`. You can also unblock from the per
 ## Find your own profile
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/ui/components/ContactsScreenView.tsx -->
 
-Phone: open the Settings tab and tap `Your profile`. It is the first row under `App`.
+Phone: open the Settings tab and tap `Your profile`. It is the first row, above your bot's rows if you have one.
 Desktop: click your avatar in the left rail. Your own profile is what opens. In the Contacts sidebar you are the first row, marked `You`.
 Notes: desktop's Settings sidebar has no profile row. On the phone you can also reach your profile by tapping the `You` row at the top of your contacts list.
 
@@ -162,47 +162,47 @@ Notes: `Default avatar color` sets the colour of the avatar you get when you hav
 ## Set your status quickly
 <!-- src: packages/app/features/settings/SettingsScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/ProfileStatusSheet.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx -->
 
-Phone: on the Settings tab, press and hold `Your profile`. A sheet opens with a box labelled `Update your status`. Type up to 50 characters and tap the arrow button.
+Phone: on the Settings tab, press and hold your profile row at the top. On an iPhone a menu opens; tap `Set status`. On Android the sheet opens straight away. It is headed `Update your status`. Type up to 50 characters and tap the arrow button.
 Desktop: there is no shortcut. Edit your profile and change `Status` there.
 Notes: people see your status under your name in their contacts list and in a `Status` block on your profile. To clear it, save an empty status.
 
 ## Pin groups to your profile
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/FavoriteGroupsDisplay.tsx, packages/app/ui/components/GroupSelectorSheet.tsx, packages/app/ui/components/UserProfileScreenView.tsx -->
 
-Phone: open the Settings tab, tap `Your profile`, then the pencil icon at the top right. Under `Pinned groups`, tap `Add a group`, tap the groups you want, and tap `Save` on the sheet. To take one off, tap the X beside it.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Pinned groups`, tap `Add a group`, tap the groups you want, and tap `Save` on the sheet. To take one off, tap the X beside it.
 Desktop: click your avatar in the left rail, then the pencil icon, and use the same `Pinned groups` box.
 Notes: you can pin up to 5. Only groups you are a member of can be pinned, and secret groups can't be. Changes here apply straight away, without the `Save` at the top of the screen. People who open your profile see the groups as tiles and can tap one to preview it.
 
 ## Change your ID or username
-<!-- src: packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/UserProfileScreenView.tsx -->
+<!-- src: packages/app/ui/components/UserProfileScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/shared/src/store/contactActions.ts, packages/app/ui/components/ContactBook.tsx, packages/app/ui/hooks/contactSorters.ts -->
 <!-- absent: change username -->
 
-Notes: you can't. Your ID, the name that starts with ~, belongs to your node, and the profile editor has no field for it. What you can change is your `Nickname`, which people see in place of the ID. To copy your ID, open your own profile and tap your name. The app shows `Copied!`.
+Notes: you can't. Your ID, the name that starts with ~, stays tied to your node, and the profile editor has no field for changing it. Your profile nickname is editable display information that other people normally see with your ID still available on your profile and when copied. A contact can separately set a private nickname for you without changing your profile. Contact search accepts the start of a nickname or ID; entering a valid full ID also creates a selectable result even when that person is not already in the local contact list.
 
 ## Verify your phone number
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/EditProfile/EditAttestationsDisplay.tsx, packages/app/features/profile/AttestationScreen.tsx, packages/app/ui/components/PhoneAttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx -->
 <!-- covers: route:Attestation -->
 
-Phone: open the Settings tab, tap `Your profile`, then the pencil icon at the top right. Under `Connected Accounts`, tap `Phone`. Enter your number and tap `Connect Phone Number`. Then type the 6-digit code sent to that number. It submits by itself.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected Accounts`, tap `Phone`. Enter your number and tap `Connect Phone Number`. Then type the 6-digit code sent to that number. It submits by itself.
 Desktop: click your avatar in the left rail, then the pencil icon, and use the same rows.
 Notes: your profile then shows a `Phone` tile with a check mark. The number itself is hidden from everyone else. A number can be attached to one account only. If you mistyped it, tap `Wrong phone number?` and start again. The row reads `In Progress` until the code is confirmed, then `Verified`.
 
 ## Verify your X (Twitter) account
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/EditProfile/EditAttestationsDisplay.tsx, packages/app/features/profile/AttestationScreen.tsx, packages/app/ui/components/TwtitterAttestationPane.tsx, packages/app/ui/components/AttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx -->
 
-Phone: open the Settings tab, tap `Your profile`, then the pencil icon at the top right. Under `Connected Accounts`, tap `𝕏 Account`. Type your handle in `Handle` and tap `Submit`. The app shows a post for you to copy. Post it from that X account, paste the link to the post into `Attesting Post`, and tap `Submit`.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected Accounts`, tap `𝕏 Account`. Type your handle in `Handle` and tap `Submit`. The app shows a post for you to copy. Post it from that X account, paste the link to the post into `Attesting Post`, and tap `Submit`.
 Notes: protected X accounts are not supported. The post text includes your personal invite link if you have one. `Wrong account?` starts over. Afterwards your profile shows an `𝕏 Account` tile with your handle, and anyone can tap it for `View 𝕏 Post` and `View 𝕏 Account`. A handle can be attached to one account only.
 
 ## Remove a verified phone number or X account
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/EditProfile/EditAttestationsDisplay.tsx, packages/app/ui/components/AttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/shared/src/store/lanyardActions.ts -->
 
-Phone: open the Settings tab, tap `Your profile`, then the pencil icon at the top right. Under `Connected Accounts`, tap `Phone` or `𝕏 Account`, then tap `Revoke` at the bottom.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected Accounts`, tap `Phone` or `𝕏 Account`, then tap `Revoke` at the bottom.
 Notes: you can also tap the tile on your own profile. It opens the same details with `Revoke` at the bottom. Once revoked, the tile comes off your profile, and you can verify a different number or handle the same way you did the first. `Revoke` is only shown to the owner of the account.
 
 ## Control who can find you by phone number
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/PrivacyScreen.tsx, packages/app/ui/components/PhoneAttestationPane.tsx, packages/shared/src/store/lanyardActions.ts -->
 
-Phone: open the Settings tab, tap `Privacy`, and use the `Phone number discovery` switch.
+Phone: open the Settings tab and tap `Privacy`, and use the `Phone number discovery` switch.
 Who: the switch only appears once you have a verified phone number on your profile.
 Notes: it starts switched on when you verify. While it is on, friends who already have your phone number can find you on Tlon Messenger. Switch it off and they can't find you that way. Either way, your number is never shown on your profile.
 

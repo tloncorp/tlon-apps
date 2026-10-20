@@ -1,5 +1,8 @@
 import type { Story } from '@tloncorp/api';
-import { markdownToStory as apiMarkdownToStory } from '@tloncorp/api/client/markdown';
+import {
+  markdownToStory as apiMarkdownToStory,
+  roleMentionCandidates,
+} from '@tloncorp/api/client/markdown';
 
 import { commandError } from './commands/command';
 
@@ -174,8 +177,17 @@ function hasNonHttpImageBlock(story: Story): boolean {
 // decoder has no image arm — so an image alongside text fails mark conversion
 // and the whole poke is rejected. A standalone image line converts to a block
 // verse and is fine.
-export function markdownToStory(markdown: string): Story {
-  const story: Story = apiMarkdownToStory(markdown);
+//
+// With `mentions`, `@all` and `@<id>` for ids in `roleIds` become %sect
+// mentions; without it every `@word` stays text.
+export function markdownToStory(
+  markdown: string,
+  mentions?: { roleIds: ReadonlySet<string> }
+): Story {
+  const story: Story = apiMarkdownToStory(
+    markdown,
+    mentions ? { roleMentions: mentions } : undefined
+  );
   if (hasImageInInlinePosition(story)) {
     throw commandError(
       'images inside a text line are not supported by the backend; put the image on its own line or use --image'
@@ -192,4 +204,43 @@ export function markdownToStory(markdown: string): Story {
     );
   }
   return story;
+}
+
+// Mentions where no group roles exist (DMs and clubs): `@all` only.
+export const NO_ROLES: ReadonlySet<string> = new Set();
+
+// The typed `@word` tokens in `markdown` that `roleIds` would leave as text:
+// not `@all`, not a known role id. Code and link text never count.
+export function unknownRoleMentions(
+  markdown: string,
+  roleIds: ReadonlySet<string>
+): string[] {
+  return roleMentionCandidates(markdown).filter((token) => {
+    const id = token.toLowerCase();
+    return id !== 'all' && !roleIds.has(id);
+  });
+}
+
+function mentionList(tokens: string[]): string {
+  return tokens.map((token) => `@${token}`).join(', ');
+}
+
+function backtickHint(tokens: string[]): string {
+  return `To send @${tokens[0]} as plain text, wrap it in backticks: \`@${tokens[0]}\`.`;
+}
+
+export function groupRoleMentionError(
+  nest: string,
+  groupId: string,
+  roleIds: ReadonlySet<string>,
+  unknown: string[]
+): string {
+  const s = unknown.length > 1 ? 's' : '';
+  const ids = roleIds.size > 0 ? mentionList([...roleIds].sort()) : 'none';
+  return `Unknown role mention${s} ${mentionList(unknown)} in ${nest}. Role ids in group ${groupId}: ${ids}; @all mentions every member. Use the role id, not its title. ${backtickHint(unknown)} If the role was just created, retry in a moment.`;
+}
+
+export function dmRoleMentionError(target: string, unknown: string[]): string {
+  const s = unknown.length > 1 ? 's' : '';
+  return `Unknown role mention${s} ${mentionList(unknown)}: ${target} is a DM, and roles exist only in group channels, so only @all is available here. ${backtickHint(unknown)}`;
 }

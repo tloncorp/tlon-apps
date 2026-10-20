@@ -48,7 +48,9 @@ export function resolveOwnerOnlyToolBlock(
 ): OwnerOnlyToolDecision {
   const ownerOnly = OWNER_ONLY_TOOLS.has(toolName);
   // Only an explicit non-owner ('user') role blocks. Owner sessions and
-  // internal sessions (heartbeat, cron, subagents — no stored role) pass.
+  // internal sessions (heartbeat, cron, subagents — no stored role) pass;
+  // a passing `tlon` call still runs as the bot unless the turn is
+  // owner-directed (turn-identity.ts).
   const blocked = ownerOnly && role === 'user';
   return blocked
     ? { ownerOnly, blocked, reason: formatOwnerOnlyToolBlockReason(toolName) }

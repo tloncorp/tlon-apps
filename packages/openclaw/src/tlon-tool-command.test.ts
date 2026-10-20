@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import catalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
 import { ALLOWED_TLON_COMMANDS } from './tlon-tool-guard.js';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
@@ -12,6 +13,12 @@ import { removeBridge, setBridge } from './monitor/command-bridge.js';
 import {
   checkBlockedTlonOperation,
   createTlonToolExecutor,
+  formatTlonToolDescription,
+  formatTlonToolHelp,
+  isMutatingTlonCommand,
+  normalizeTlonCommandArgs,
+  redactTlonCommand,
+  shellSplitCommand,
   summarizeTlonCommand,
 } from './tlon-tool-command.js';
 
@@ -78,7 +85,7 @@ describe('tlon tool execution', () => {
   it.each([
     'notes note-create notes/~zod/blog root "Title" --stdin',
     'notes note-update notes/~zod/blog 1 --stdin',
-    '--config /tmp/owner.json notes note-update notes/~zod/blog 1 --stdin',
+    '--self notes note-update notes/~zod/blog 1 --stdin',
     'upload --stdin -t image/png',
   ])('rejects unsupported input before spawning: %s', async (command) => {
     const runCommand = vi.fn();
@@ -105,66 +112,6 @@ describe('tlon tool execution', () => {
     });
     expect((await execute('help', { command })).details).toBeUndefined();
     expect(runCommand).toHaveBeenCalledOnce();
-  });
-
-  describe('browser handoff credential binding', () => {
-    it.each(
-      ['--config', '--ship', '--url', '--code', '--cookie']
-        .flatMap((flag) => [
-          `${flag} private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
-          `${flag}=private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
-          `browser handoff https://browser-session.tlon.network/s/private.signature ${flag}=private-value`,
-        ])
-        .flatMap((command) => [
-          command,
-          command.replace('browser handoff', 'browser share'),
-        ])
-    )(
-      'rejects an override without executing or logging the capability (%s)',
-      async (command) => {
-        const runCommand = vi.fn();
-        const logError = vi.fn();
-        const execute = createTlonToolExecutor({
-          runCommand,
-          logError,
-          notifyDiaryMigrationDiscovery: vi.fn(),
-        });
-        const result = await execute('handoff', { command });
-        expect(runCommand).not.toHaveBeenCalled();
-        expect(result.details).toMatchObject({
-          status: 'blocked',
-          reason: 'browser_account_override',
-        });
-        expect(JSON.stringify([result, logError.mock.calls])).not.toContain(
-          'private-value'
-        );
-        expect(JSON.stringify([result, logError.mock.calls])).not.toContain(
-          'private.signature'
-        );
-      }
-    );
-
-    it('runs a handoff without overrides and leaves ordinary credential overrides available', async () => {
-      const runCommand = vi.fn().mockResolvedValue('ok');
-      const execute = createTlonToolExecutor({
-        runCommand,
-        notifyDiaryMigrationDiscovery: vi.fn(),
-      });
-      await execute('handoff', {
-        command:
-          'browser handoff https://browser-session.tlon.network/s/payload.signature',
-      });
-      await execute('read', {
-        command: '--config /tmp/other.json contacts self',
-      });
-      expect(runCommand).toHaveBeenCalledTimes(2);
-      expect(runCommand).toHaveBeenLastCalledWith([
-        '--config',
-        '/tmp/other.json',
-        'contacts',
-        'self',
-      ]);
-    });
   });
 
   it('returns a local diary refusal before discovery delivery settles and preserves notifier deduplication', async () => {
@@ -238,7 +185,7 @@ describe('tlon tool execution', () => {
     // The owner gate logs its denials; this one used to be silent, so an
     // operator could not see a model repeatedly attempting a destructive
     // migration. The raw command is deliberately excluded — it can carry
-    // --config/--code credential flags.
+    // message text and other arguments.
     const logError = vi.fn();
     const execute = createTlonToolExecutor({
       runCommand: vi.fn(async () => 'unexpected CLI invocation'),
@@ -248,7 +195,7 @@ describe('tlon tool execution', () => {
 
     await execute('blocked-logging', {
       command:
-        'notes migrate-apply diary/~bot/logged-block --yes --code sampel-ticlyt-migfun-falmel',
+        'notes migrate-apply diary/~bot/logged-block --yes sampel-ticlyt-migfun-falmel',
     });
 
     const logged = logError.mock.calls.map((call) => String(call[0]));
@@ -444,185 +391,1997 @@ describe('tlon tool execution', () => {
   });
 });
 
-describe('owner credential injection for invite-link and note publishing', () => {
+describe('owner-by-default identity selection', () => {
   const SKILL_DIR = '/srv/tlon-skill';
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+  const UNPROVISIONED_FILE = `Error: owner credentials for ~owner are not provisioned (expected ${OWNER_CONFIG}); nothing was run. Add --self only if the bot's own account is what was asked for.`;
+  const UNPROVISIONED_DIR =
+    "Error: owner credentials for ~owner are not provisioned (TLON_SKILL_DIR is not set); nothing was run. Add --self only if the bot's own account is what was asked for.";
+
+  function makeExecutor(
+    overrides: Partial<Parameters<typeof createTlonToolExecutor>[0]> = {},
+    output = 'ok'
+  ) {
+    const runCommand = vi.fn(async (_args: string[]) => output);
+    const logError = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand,
+      logError,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      ownerShip: '~owner',
+      ownerDefault: true,
+      botShip: '~bot',
+      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...overrides,
+    });
+    return { execute, runCommand, logError };
+  }
+
+  const unprovisioned = {
+    file: { fileExists: () => false },
+    dir: { env: {} as NodeJS.ProcessEnv },
+  };
+
+  function ranWith(runCommand: ReturnType<typeof makeExecutor>['runCommand']) {
+    expect(runCommand).toHaveBeenCalledTimes(1);
+    return runCommand.mock.calls[0][0];
+  }
+
+  describe('injection', () => {
+    // One valid command per runnable family.
+    const FAMILY_COMMANDS: Record<string, string> = {
+      activity: 'activity mentions --limit 5',
+      browser: 'browser share sess_abc',
+      buckets: 'buckets list ~h/g',
+      channels: 'channels groups',
+      contacts: 'contacts self',
+      dms: 'dms react ~alice 170.1 👍',
+      expose: 'expose list',
+      groups: 'groups list',
+      hooks: 'hooks list',
+      messages: 'messages dm ~alice',
+      notes: 'notes list',
+      posts: 'posts react chat/~h/c 170.1 👍',
+      settings: 'settings get',
+      upload: 'upload https://example.com/a.png',
+    };
+
+    it('covers every runnable family', () => {
+      expect(Object.keys(FAMILY_COMMANDS).sort()).toEqual(
+        ALLOWED_TLON_COMMANDS.filter(
+          (name) => !['help', 'version', 'notebook'].includes(name)
+        ).sort()
+      );
+    });
+
+    it.each(Object.entries(FAMILY_COMMANDS))(
+      'selects the identity for %s',
+      async (family, command) => {
+        const { execute, runCommand } = makeExecutor();
+        await execute('family', { command });
+        const args = shellSplitCommand(command);
+        expect(ranWith(runCommand)).toEqual(
+          family === 'settings' || family === 'browser' || family === 'hooks'
+            ? args
+            : ['--ship', '~owner', ...args]
+        );
+      }
+    );
+
+    it('keeps the notebook command blocked', async () => {
+      const { execute, runCommand } = makeExecutor();
+      const result = await execute('notebook', { command: 'notebook ~h/g' });
+      expect(result.details).toMatchObject({ reason: 'diary_operation' });
+      expect(runCommand).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      '--self contacts self',
+      'tlon --self contacts self',
+      '--self tlon contacts self',
+    ])(
+      'runs `%s` as the bot with neither --self nor tlon reaching argv',
+      async (command) => {
+        const { execute, runCommand } = makeExecutor();
+        await execute('self', { command });
+        expect(ranWith(runCommand)).toEqual(['contacts', 'self']);
+      }
+    );
+
+    it.each([
+      [
+        'contacts update-profile --bio "--self" --status ok',
+        ['contacts', 'update-profile', '--bio', '--self', '--status', 'ok'],
+      ],
+      ['contacts self --self', ['contacts', 'self', '--self']],
+      ['posts send chat/~h/c --self', ['posts', 'send', 'chat/~h/c', '--self']],
+    ])(
+      'keeps a --self after the command as a literal argument: `%s`',
+      async (command, expected) => {
+        const { execute, runCommand } = makeExecutor();
+        await execute('literal', { command });
+        expect(ranWith(runCommand)).toEqual(['--ship', '~owner', ...expected]);
+      }
+    );
+
+    it("reads a legacy command's own trailing --self as a bot request", async () => {
+      const { execute, runCommand } = makeExecutor();
+      await execute('legacy', { command: 'groups invite-link ~h/g --self' });
+      expect(ranWith(runCommand)).toEqual([
+        'groups',
+        'invite-link',
+        '~h/g',
+        '--self',
+      ]);
+    });
+
+    it('accepts a leading tlon token for owner commands', async () => {
+      const { execute, runCommand } = makeExecutor();
+      await execute('tlon', { command: 'tlon contacts self' });
+      expect(ranWith(runCommand)).toEqual([
+        '--ship',
+        '~owner',
+        'contacts',
+        'self',
+      ]);
+    });
+
+    it.each([
+      ['no-config-file', unprovisioned.file, UNPROVISIONED_FILE],
+      ['no-skill-dir', unprovisioned.dir, UNPROVISIONED_DIR],
+    ] as const)(
+      'refuses owner reads and writes when the owner is unprovisioned (%s)',
+      async (_label, overrides, text) => {
+        for (const command of [
+          'contacts self',
+          'contacts update-profile --nickname x',
+        ]) {
+          const { execute, runCommand } = makeExecutor(overrides);
+          const result = await execute('unprovisioned', { command });
+          expect(result.content[0].text).toBe(text);
+          expect(result.details).toEqual({
+            status: 'error',
+            error: text.replace(/^Error: /, ''),
+          });
+          expect(runCommand).not.toHaveBeenCalled();
+        }
+      }
+    );
+
+    it.each([
+      ['help notes', ['notes', '--help']],
+      ['version', ['--version']],
+      ['settings get', ['settings', 'get']],
+      ['browser share sess_abc', ['browser', 'share', 'sess_abc']],
+      ['--self contacts self', ['contacts', 'self']],
+    ])(
+      'still runs `%s` as the bot when the owner is unprovisioned',
+      async (command, expected) => {
+        const { execute, runCommand } = makeExecutor(unprovisioned.file);
+        const result = await execute('bot', { command });
+        expect(result.details).toBeUndefined();
+        expect(ranWith(runCommand)).toEqual(expected);
+      }
+    );
+
+    it('runs as the bot when no owner is configured', async () => {
+      const { execute, runCommand } = makeExecutor({ ownerShip: undefined });
+      const result = await execute('no-owner', {
+        command: 'contacts update-profile --nickname x',
+      });
+      expect(ranWith(runCommand)).toEqual([
+        'contacts',
+        'update-profile',
+        '--nickname',
+        'x',
+      ]);
+      expect(result.content[0].text).toBe('ok\nRan as ~bot (bot).');
+    });
+  });
+
+  describe('help classification', () => {
+    it.each([
+      ['help notes', ['notes', '--help']],
+      ['help posts send', ['posts', 'send', '--help']],
+      ['help upload', ['upload', '--help']],
+      ['notes --help', ['notes', '--help']],
+      [
+        'contacts update-profile --help',
+        ['contacts', 'update-profile', '--help'],
+      ],
+      ['channels create -h', ['channels', 'create', '-h']],
+      ['hooks add --help', ['hooks', 'add', '--help']],
+      ['groups create --help', ['groups', 'create', '--help']],
+      ['groups invite-link ~h/g -h', ['groups', 'invite-link', '~h/g', '-h']],
+      ['activity mute ~h/g --help', ['activity', 'mute', '~h/g', '--help']],
+      [
+        'buckets upload ~h/g a.png --help',
+        ['buckets', 'upload', '~h/g', 'a.png', '--help'],
+      ],
+      ['upload a.png --help', ['upload', 'a.png', '--help']],
+      [
+        'expose show chat/~h/c --help',
+        ['expose', 'show', 'chat/~h/c', '--help'],
+      ],
+      [
+        'posts send ~alice hi --bot --help',
+        ['posts', 'send', '~alice', 'hi', '--bot', '--help'],
+      ],
+      ['messages dm ~alice --help', ['messages', 'dm', '~alice', '--help']],
+    ])(
+      '`%s` is help: bot, no preflight, no echo',
+      async (command, expected) => {
+        const { execute, runCommand } = makeExecutor(
+          unprovisioned.file,
+          'Usage'
+        );
+        const result = await execute('help', { command });
+        expect(result.details).toBeUndefined();
+        expect(result.content[0].text).toBe('Usage');
+        expect(ranWith(runCommand)).toEqual(expected);
+      }
+    );
+
+    // The CLI shows these families' operation help only for exactly
+    // `<op> <help>`; anything longer runs the operation.
+    it.each([
+      'contacts update-profile --nickname x --help',
+      'channels rename chat/~h/c "New" --help',
+      'groups leave ~h/g --help',
+    ])('`%s` is a write, not help', async (command) => {
+      const { execute, runCommand } = makeExecutor();
+      const result = await execute('write', { command });
+      expect(ranWith(runCommand).slice(0, 2)).toEqual(['--ship', '~owner']);
+      expect(result.content[0].text).toBe('ok\nRan as ~owner (owner).');
+
+      const blocked = makeExecutor(unprovisioned.file);
+      const refused = await blocked.execute('write', { command });
+      expect(refused.content[0].text).toBe(UNPROVISIONED_FILE);
+      expect(blocked.runCommand).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      'posts send ~alice --help',
+      'posts reply chat/~h/c 170.1 -h',
+      'posts edit chat/~h/c 170.1 --help',
+      'posts send chat/~h/c --help --quote chat/~h/d 170.1',
+      'posts reply chat/~h/c 170.1 -h --quote chat/~h/d 170.2 --quote-parent 170.1',
+      'dms send 0v1.abc --help',
+      'dms reply 0v1.abc 170.1 -h',
+    ])('treats message text in `%s` as content', async (command) => {
+      const { execute, runCommand } = makeExecutor();
+      const result = await execute('content', { command });
+      expect(ranWith(runCommand)).toEqual([
+        '--ship',
+        '~owner',
+        ...shellSplitCommand(command),
+      ]);
+      expect(result.content[0].text).toBe('ok\nRan as ~owner (owner).');
+    });
+
+    it('treats a literal search query as a read, not help', async () => {
+      const { execute, runCommand } = makeExecutor();
+      const result = await execute('search', {
+        command: 'messages search --help --channel chat/~h/c',
+      });
+      expect(ranWith(runCommand).slice(0, 2)).toEqual(['--ship', '~owner']);
+      expect(result.content[0].text).toBe('ok');
+    });
+
+    it.each([
+      'help posts send ~alice hi',
+      'help posts bogus',
+      'help frobnicate',
+      'help upload now',
+      'help --help',
+    ])('rejects invalid discovery `%s`', async (command) => {
+      const { execute, runCommand } = makeExecutor();
+      const result = await execute('discovery', { command });
+      expect(result.content[0].text).toBe(
+        'Error: help takes a command and an optional operation, for example help posts send.'
+      );
+      expect(result.details).toMatchObject({ status: 'error' });
+      expect(runCommand).not.toHaveBeenCalled();
+    });
+  });
+
+  it.each([
+    '--config /owner.json help posts send ~bot hi',
+    '--config /owner.json --help',
+  ])('rejects credential-prefixed discovery `%s`', async (command) => {
+    const { execute, runCommand } = makeExecutor();
+    const result = await execute('discovery', { command });
+    expect(result.details).toMatchObject({ reason: 'credential_override' });
+    expect(runCommand).not.toHaveBeenCalled();
+  });
+
+  it('keeps the owner-default wording for --config x settings get', async () => {
+    const { execute, runCommand } = makeExecutor();
+    const result = await execute('bot-only', {
+      command: '--config x settings get',
+    });
+    expect(result.content[0].text).toBe(
+      'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted. Commands run as the owner by default; add --self to run as this bot.'
+    );
+    expect(runCommand).not.toHaveBeenCalled();
+  });
+
+  describe('credential flag rejection', () => {
+    const FLAGS = ['--config', '--ship', '--url', '--code', '--cookie'];
+    const COMMANDS = [
+      'contacts self',
+      'contacts update-profile --nickname x',
+      'browser share sess_abc',
+    ];
+    const cases = FLAGS.flatMap((flag) =>
+      [`${flag} private-value`, `${flag}=private-value`].flatMap((option) =>
+        // Only the global prefix carries credentials, as in the CLI.
+        COMMANDS.flatMap((command) => [
+          `${option} ${command}`,
+          `tlon ${option} ${command}`,
+        ])
+      )
+    );
+
+    it.each([
+      [
+        'contacts update-profile --bio "--ship" --status ok',
+        ['contacts', 'update-profile', '--bio', '--ship', '--status', 'ok'],
+      ],
+      ['contacts self --config=x', ['contacts', 'self', '--config=x']],
+    ])(
+      'passes a credential spelling after the command through as a literal: `%s`',
+      async (command, expected) => {
+        const { execute, runCommand } = makeExecutor();
+        const result = await execute('literal', { command });
+        expect(result.details).not.toMatchObject({
+          reason: 'credential_override',
+        });
+        expect(runCommand.mock.calls[0][0]).toEqual([
+          '--ship',
+          '~owner',
+          ...expected,
+        ]);
+        expect(redactTlonCommand(command)).toBe(command);
+      }
+    );
+
+    it.each(cases)('rejects `%s`', async (command) => {
+      const { execute, runCommand, logError } = makeExecutor();
+      const result = await execute('credential', { command });
+      expect(runCommand).not.toHaveBeenCalled();
+      expect(result.content[0].text).toBe(
+        'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted. Commands run as the owner by default; add --self to run as this bot.'
+      );
+      expect(result.details).toEqual({
+        status: 'blocked',
+        blocked: true,
+        reason: 'credential_override',
+      });
+      expect(JSON.stringify([result, logError.mock.calls])).not.toContain(
+        'private-value'
+      );
+      expect(logError.mock.calls.map(([line]) => line)).toEqual([
+        `Blocked tlon tool operation: reason=credential_override subcommand=${command.includes('browser') ? 'browser' : 'contacts'}`,
+      ]);
+    });
+  });
+
+  describe('redaction', () => {
+    it.each([
+      ['--code private-value contacts self', '--code [REDACTED] contacts self'],
+      ['TLON browser handoff sess_private', 'browser handoff [REDACTED]'],
+      [
+        'Tlon --code private-value browser share sess_private',
+        'browser share [REDACTED]',
+      ],
+      [
+        'tlon --config private-value contacts self',
+        'tlon --config [REDACTED] contacts self',
+      ],
+      [
+        '--code --cookie secret-cookie-value contacts self',
+        '--code --cookie [REDACTED] contacts self',
+      ],
+      [
+        '--code --ship=~x --url secret-url-value contacts self',
+        '--code --ship=[REDACTED] --url [REDACTED] contacts self',
+      ],
+      ['--code=private-value contacts self', '--code=[REDACTED] contacts self'],
+      [
+        '--cookie "urbauth=private-value" contacts self',
+        '--cookie [REDACTED] contacts self',
+      ],
+      [
+        '--cookie=private-value contacts self',
+        '--cookie=[REDACTED] contacts self',
+      ],
+      ['browser --self share sess_private', 'browser share [REDACTED]'],
+      ['tlon browser share sess_private', 'browser share [REDACTED]'],
+      [
+        '--self tlon browser handoff sess_private',
+        'browser handoff [REDACTED]',
+      ],
+      [
+        '--code private-value browser share sess_private',
+        'browser share [REDACTED]',
+      ],
+      ['--self contacts self', '--self contacts self'],
+      [
+        '--verbose --code private-value contacts self',
+        '--verbose --code [REDACTED] contacts self',
+      ],
+      [
+        '--code private-value --verbose --ship ~private contacts self',
+        '--code [REDACTED] --verbose --ship [REDACTED] contacts self',
+      ],
+    ])('redacts `%s`', (command, expected) => {
+      const redacted = redactTlonCommand(command);
+      expect(redacted).toBe(expected);
+      expect(redacted).not.toContain('private');
+    });
+
+    it('keeps a --verbose after the command family literal', () => {
+      const command = 'posts send chat/~zod/x --verbose --code abc';
+      expect(redactTlonCommand(command)).toBe(command);
+    });
+  });
+
+  describe('summaries', () => {
+    it.each([
+      ['--self contacts self', 'contacts.self', 'read'],
+      [
+        '--self contacts update-profile --nickname x',
+        'contacts.update-profile',
+        'write',
+      ],
+      ['--self tlon --help', 'help.show', 'utility'],
+      ['tlon --self contacts self', 'contacts.self', 'read'],
+      ['contacts sync ~zod', 'contacts.sync', 'write'],
+      ['settings get', 'settings.get', 'read'],
+      ['settings set showModelSig true', 'settings.set', 'config'],
+      ['hooks init my-hook', 'hooks.init', 'utility'],
+    ])('summarizes `%s` as %s (%s)', (command, summaryKey, intent) => {
+      expect(summarizeTlonCommand(command)).toMatchObject({
+        summaryKey,
+        intent,
+      });
+    });
+  });
+
+  describe('owner self-DM guard', () => {
+    const SELF_DM_OPERATIONS = [
+      'posts send ~bot hi',
+      'posts reply ~bot 170.1 hi',
+      'posts react ~bot 170.1 👍',
+      'posts unreact ~bot 170.1 👍',
+      'posts edit ~bot 170.1 hi',
+      'posts delete ~bot 170.1',
+      'posts pin ~bot 170.1',
+      'posts unpin ~bot 170.1',
+      'posts forward chat/~h/c 170.1 ~bot',
+      // Ship-targeted dms send/reply are redirected to message first.
+      'dms react ~bot 170.1 👍',
+      'dms unreact ~bot 170.1 👍',
+      'dms delete ~bot 170.1',
+      'dms accept ~bot',
+      'dms decline ~BOT',
+    ];
+
+    it.each(SELF_DM_OPERATIONS)('blocks owner `%s`', async (command) => {
+      const { execute, runCommand } = makeExecutor();
+      const result = await execute('self-dm', { command });
+      expect(result.content[0].text).toBe(
+        "Blocked: commands run as the owner cannot act in the owner's DM with this bot (~bot). Reply to the owner with the message tool."
+      );
+      expect(result.details).toMatchObject({ reason: 'owner_self_dm' });
+      expect(runCommand).not.toHaveBeenCalled();
+    });
+
+    it.each(
+      SELF_DM_OPERATIONS.filter((command) =>
+        command.startsWith('posts')
+      ).concat([
+        'dms react ~bot 170.1 👍',
+        'dms unreact ~bot 170.1 👍',
+        'dms delete ~bot 170.1',
+        'dms accept ~bot',
+        'dms decline ~bot',
+      ])
+    )('runs `%s` with --self', async (command) => {
+      const { execute, runCommand } = makeExecutor();
+      await execute('self-dm', { command: `--self ${command}` });
+      expect(ranWith(runCommand)).toEqual(shellSplitCommand(command));
+    });
+
+    it.each(['dms send ~alice hi', 'dms reply ~alice 170.1 hi'])(
+      'keeps redirecting `%s` to message, with or without --self',
+      async (command) => {
+        for (const prefix of ['', '--self ']) {
+          const { execute, runCommand } = makeExecutor();
+          const result = await execute('redirect', {
+            command: prefix + command,
+          });
+          expect(result.details).toMatchObject({ reason: 'send_operation' });
+          expect(runCommand).not.toHaveBeenCalled();
+        }
+      }
+    );
+
+    it.each([
+      'posts send ~alice hi',
+      'posts send chat/~bot/general hi',
+      'posts forward chat/~h/c 170.1 ~alice',
+    ])('runs owner `%s`', async (command) => {
+      const { execute, runCommand } = makeExecutor();
+      await execute('post', { command });
+      expect(ranWith(runCommand).slice(0, 2)).toEqual(['--ship', '~owner']);
+    });
+
+    it('refuses owner posts/dms when the bot ship is unknown', async () => {
+      for (const command of [
+        'posts send ~alice hi',
+        'dms react 0v1.abc 170.1 👍',
+      ]) {
+        const { execute, runCommand } = makeExecutor({ botShip: undefined });
+        const result = await execute('unknown-bot', { command });
+        expect(result.content[0].text).toBe(
+          "Blocked: this bot's own ship could not be determined, so owner posts/dms commands are refused. Add --self to act as the bot."
+        );
+        expect(result.details).toMatchObject({ reason: 'bot_ship_unknown' });
+        expect(runCommand).not.toHaveBeenCalled();
+      }
+      for (const command of ['--self posts send ~alice hi', 'contacts self']) {
+        const { execute, runCommand } = makeExecutor({ botShip: undefined });
+        await execute('unknown-bot', { command });
+        expect(runCommand).toHaveBeenCalledOnce();
+      }
+    });
+  });
+
+  describe('runtime-owned settings keys', () => {
+    const TAILS: Record<string, string> = {
+      dmAllowlist: ' Use settings allow-dm or remove-dm.',
+      defaultAuthorizedShips:
+        ' Use settings authorize-ship or deauthorize-ship.',
+      groupChannels: ' Use settings allow-channel or remove-channel.',
+      channelRules: ' Use settings open-channel, restrict-channel or set-rule.',
+      ownerShip: " It is set in the bot's configuration by its operator.",
+      pendingApprovals:
+        ' Approvals are answered by the owner, by reaction or /allow.',
+    };
+
+    it.each(
+      Object.entries(TAILS).flatMap(([key, tail]) =>
+        ['set', 'delete', 'del'].map(
+          (operation) =>
+            [
+              `settings ${operation} ${key}${operation === 'set' ? ' []' : ''}`,
+              key,
+              tail,
+            ] as const
+        )
+      )
+    )('blocks `%s`', async (command, key, tail) => {
+      const { execute, runCommand } = makeExecutor();
+      const result = await execute('settings', { command });
+      expect(result.content[0].text).toBe(
+        `Blocked: settings key '${key}' controls who can reach this bot and cannot be set or deleted through the tlon tool.${tail}`
+      );
+      expect(result.details).toMatchObject({ reason: 'runtime_settings_key' });
+      expect(runCommand).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      'settings set groupInviteAllowlist ["~zod"]',
+      'settings set bootstrapComplete true',
+      'settings allow-dm ~zod',
+      'settings set ownerShip --help',
+    ])('runs `%s`', async (command) => {
+      const { execute, runCommand } = makeExecutor();
+      await execute('settings', { command });
+      expect(runCommand).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('Ran as echo', () => {
+    // One mutating op per owner write family; settings, browser and hooks are
+    // bot-only and covered below.
+    it.each([
+      'activity mute ~h/g',
+      'buckets mkdir ~h/g docs',
+      'channels join chat/~h/c',
+      'contacts update-profile --nickname x',
+      'dms react 0v1.abc 170.1 👍',
+      'expose show chat/~h/c/170.1',
+      'groups invite-link ~h/g',
+      'notes note-publish notes/~h/b 12',
+      'posts react chat/~h/c 170.1 👍',
+      'posts forward chat/~h/c 170.1 chat/~h/d',
+      'upload https://example.com/a.png',
+    ])('ends owner `%s` with the owner line', async (command) => {
+      const { execute } = makeExecutor({}, 'done\n');
+      const result = await execute('echo', { command });
+      expect(result.content[0].text).toBe('done\nRan as ~owner (owner).');
+    });
+
+    it.each([
+      '--self contacts update-profile --nickname x',
+      'settings set showModelSig true',
+      'browser share sess_abc',
+      'hooks add ~h/g hook.hoon',
+    ])('ends `%s` with the bot line', async (command) => {
+      const { execute } = makeExecutor({}, 'done');
+      const result = await execute('echo', { command });
+      expect(result.content[0].text).toBe('done\nRan as ~bot (bot).');
+    });
+
+    it('falls back when the bot ship is unknown', async () => {
+      const { execute } = makeExecutor({ botShip: undefined }, 'done');
+      const result = await execute('echo', {
+        command: '--self contacts update-profile --nickname x',
+      });
+      expect(result.content[0].text).toBe('done\nRan as this bot.');
+    });
+
+    it.each([
+      'activity unreads',
+      'contacts list',
+      'settings get',
+      'messages dm ~a',
+    ])('does not echo the read `%s`', async (command) => {
+      const { execute } = makeExecutor({}, 'data');
+      const result = await execute('read', { command });
+      expect(result.content[0].text).toBe('data');
+    });
+
+    it('does not echo usage output or a failed run', async () => {
+      const usage = makeExecutor({}, 'Usage: tlon contacts update-profile');
+      const result = await usage.execute('usage', {
+        command: 'contacts update-profile',
+      });
+      expect(result.content[0].text).toBe(
+        'Usage: tlon contacts update-profile'
+      );
+
+      const failing = makeExecutor({
+        runCommand: vi.fn(async () => {
+          throw new Error('poke failed');
+        }),
+      });
+      const failed = await failing.execute('failed', {
+        command: 'contacts update-profile --nickname x',
+      });
+      expect(failed.content[0].text).toBe('Error: poke failed');
+    });
+  });
+
+  it('keeps the per-command owner plumbing deleted', () => {
+    const source = readFileSync(
+      new URL('./tlon-tool-command.ts', import.meta.url),
+      'utf8'
+    );
+    expect(source).not.toMatch(/OWNER_CREDENTIAL_(COMMANDS|WORDING)|selfHint/);
+  });
+});
+describe('model-facing identity guidance', () => {
+  const ON = 'Commands act as your owner by default';
+  const OFF = 'Commands act as this bot.';
+
+  it.each([
+    [true, ON, OFF],
+    [false, OFF, ON],
+  ])(
+    'describes the identity for ownerDefault=%s',
+    async (ownerDefault, expected, absent) => {
+      const description = formatTlonToolDescription(ownerDefault);
+      const help = formatTlonToolHelp(ownerDefault);
+      for (const text of [description, help]) {
+        expect(text).toContain(expected);
+        expect(text).not.toContain(absent);
+      }
+      expect(description).toContain(
+        'use groups commands and groups create-owned'
+      );
+      for (const marker of [
+        'groups create-owned "Name" --admin <your ship>',
+        '--self groups create-owned "Name" --admin <owner>',
+      ]) {
+        if (ownerDefault) expect(description).toContain(marker);
+        else expect(description).not.toContain(marker);
+      }
+      expect(description).toContain('mark-read');
+      expect(help).toContain('mark-read');
+      for (const marker of ['Owner or bot:', 'Put --self before the command']) {
+        if (ownerDefault) expect(help).toContain(marker);
+        else expect(help).not.toContain(marker);
+      }
+      const execute = createTlonToolExecutor({
+        runCommand: vi.fn(),
+        notifyDiaryMigrationDiscovery: vi.fn(),
+        ownerDefault,
+      });
+      expect((await execute('help', { command: 'help' })).content[0].text).toBe(
+        help
+      );
+    }
+  );
+
+  it('limits catalog identity claims to the always-bot families', () => {
+    const identityClaim =
+      /act(s)? as the (owner|bot)|runs? as the (owner|bot)|owner's (DMs|groups|activity)|--self/;
+    for (const [name, entry] of Object.entries(catalog)) {
+      if (name === 'settings' || name === 'browser' || name === 'hooks') {
+        expect(entry.toolGuidance, name).toMatch(/runs? as the bot/);
+        expect(entry.toolGuidance, name).not.toMatch(/owner|--self/);
+      } else {
+        expect(entry.toolGuidance, name).not.toMatch(identityClaim);
+      }
+    }
+  });
+});
+
+describe('owner default off (staged rollout)', () => {
   const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
 
   function makeExecutor(
-    overrides: {
-      ownerShip?: string;
-      env?: NodeJS.ProcessEnv;
-      fileExists?: (path: string) => boolean;
-    } = {}
+    overrides: Partial<Parameters<typeof createTlonToolExecutor>[0]> = {}
   ) {
-    const runCommand = vi.fn(async () => 'https://invite.tlon.io/0vabc');
+    const runCommand = vi.fn(async (_args: string[]) => 'ok');
     const execute = createTlonToolExecutor({
       runCommand,
       notifyDiaryMigrationDiscovery: vi.fn(async () => true),
       ownerShip: '~owner',
-      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      botShip: '~bot',
+      env: { TLON_SKILL_DIR: '/srv/tlon-skill' } as NodeJS.ProcessEnv,
       fileExists: (path: string) => path === OWNER_CONFIG,
       ...overrides,
     });
     return { execute, runCommand };
   }
 
-  function expectRanVerbatim(
-    runCommand: ReturnType<typeof makeExecutor>['runCommand'],
-    command: string
-  ) {
-    expect(runCommand).toHaveBeenCalledTimes(1);
-    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
-    expect(args, command).toEqual(command.split(' '));
-  }
+  it('runs a bare write as the bot, without an echo', async () => {
+    const { execute, runCommand } = makeExecutor();
+    const result = await execute('off', {
+      command: 'contacts update-profile --nickname x',
+    });
+    expect(runCommand).toHaveBeenCalledWith([
+      'contacts',
+      'update-profile',
+      '--nickname',
+      'x',
+    ]);
+    expect(result.content[0].text).toBe('ok');
+  });
 
-  const OWNER_COMMANDS = [
+  it('strips --self as a no-op', async () => {
+    const { execute, runCommand } = makeExecutor();
+    await execute('off', { command: '--self contacts self' });
+    expect(runCommand).toHaveBeenCalledWith(['contacts', 'self']);
+  });
+
+  it.each([
+    ['--config /tmp/x.json contacts self'],
+    ['contacts self --ship=~zod'],
+  ])('passes credential flags through unchanged: %s', async (command) => {
+    const { execute, runCommand } = makeExecutor();
+    const result = await execute('off', { command });
+    expect(result.details).toBeUndefined();
+    expect(runCommand).toHaveBeenCalledWith(shellSplitCommand(command));
+  });
+
+  const LEGACY = [
     'groups invite-link ~host/book-club',
     'notes note-publish notes/~h/b 12',
     'notes note-unpublish notes/~h/b 12',
+    'activity mute ~zod/book-club',
+    'activity unmute chat/~nec/general 170.141',
+    'activity volume ~ten hush',
+    'activity mark-read ~zod/book-club',
+    'activity mark-read ~ten',
+    'activity mark-read --all',
+    'activity volume base soft',
+    'activity volume base',
   ];
 
-  // --ship, not --config: ship-only resolution validates the file's ship and
-  // cookie against the owner, so a stale owner-named file cannot mint a
-  // bot-attributed link or publish as the bot.
-  it.each(OWNER_COMMANDS)(
-    'runs a bare `%s` as the owner via --ship',
+  it.each(LEGACY)(
+    'runs the legacy owner operation `%s` as the owner',
     async (command) => {
       const { execute, runCommand } = makeExecutor();
+      const result = await execute('legacy', { command });
+      expect(runCommand).toHaveBeenCalledWith([
+        '--ship',
+        '~owner',
+        ...command.split(' '),
+      ]);
+      expect(result.content[0].text).toBe('ok');
+    }
+  );
 
-      const result = await execute('inject', { command });
+  it.each(LEGACY)(
+    'honors --self and credential flags on `%s`',
+    async (command) => {
+      for (const variant of [
+        `${command} --self`,
+        `--config /tmp/x.json ${command}`,
+      ]) {
+        const { execute, runCommand } = makeExecutor();
+        await execute('legacy', { command: variant });
+        // The legacy commands' own parsers accept a trailing --self.
+        expect(runCommand).toHaveBeenCalledWith(shellSplitCommand(variant));
+      }
+    }
+  );
+
+  const PROVISIONING_FAILURES: Array<
+    [Parameters<typeof makeExecutor>[0], string]
+  > = [
+    [
+      { ownerShip: undefined },
+      'the owner are not provisioned (no owner ship is configured)',
+    ],
+    [
+      { env: {} as NodeJS.ProcessEnv },
+      '~owner are not provisioned (TLON_SKILL_DIR is not set)',
+    ],
+    [
+      { fileExists: () => false },
+      `~owner are not provisioned (expected ${OWNER_CONFIG})`,
+    ],
+  ];
+
+  it.each([
+    'groups invite-link ~host/book-club',
+    'activity mark-read ~ten',
+    'activity mark-read --all',
+  ])(
+    'errors on the legacy operation `%s` when the owner is unprovisioned',
+    async (command) => {
+      for (const [overrides, detail] of PROVISIONING_FAILURES) {
+        const { execute, runCommand } = makeExecutor(overrides);
+        const result = await execute('legacy', { command });
+        expect(result.content[0].text).toBe(
+          `Error: owner credentials for ${detail}; nothing was run. Add --self only if the bot's own account is what was asked for.`
+        );
+        expect(result.details).toMatchObject({ status: 'error' });
+        expect(runCommand).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  // An opt-out short-circuits before provisioning is consulted.
+  it.each([
+    'activity mute ~zod/book-club --self',
+    'activity mark-read ~ten --self',
+    'activity mark-read --all --self',
+    '--ship=~other notes note-publish notes/~h/b 12',
+  ])(
+    'honors the opt-out in `%s` despite missing provisioning',
+    async (command) => {
+      for (const [overrides] of PROVISIONING_FAILURES) {
+        const { execute, runCommand } = makeExecutor(overrides);
+        const result = await execute('opt-out', { command });
+        expect(result.details).toBeUndefined();
+        expect(runCommand).toHaveBeenCalledWith(shellSplitCommand(command));
+        expect(runCommand).toHaveBeenCalledTimes(1);
+      }
+    }
+  );
+
+  it('keeps the self-DM guard for model-supplied credentials', async () => {
+    const { execute, runCommand } = makeExecutor();
+    const result = await execute('guard', {
+      command: '--config /tmp/owner.json posts send ~bot hi',
+    });
+    expect(result.details).toMatchObject({ reason: 'owner_self_dm' });
+    expect(runCommand).not.toHaveBeenCalled();
+  });
+
+  it('finds discovery after credential flags, so the guards still apply', async () => {
+    const { execute, runCommand } = makeExecutor();
+    const blocked = await execute('discovery', {
+      command: '--config /owner.json help posts send ~bot hi',
+    });
+    expect(blocked.content[0].text).toBe(
+      'Error: help takes a command and an optional operation, for example help posts send.'
+    );
+    expect(runCommand).not.toHaveBeenCalled();
+
+    const literal = await execute('discovery', {
+      command: '--config /owner.json posts send ~bot hi --help',
+    });
+    expect(literal.details).toMatchObject({ reason: 'owner_self_dm' });
+    expect(runCommand).not.toHaveBeenCalled();
+
+    const help = await execute('discovery', {
+      command: '--config /owner.json --help',
+    });
+    expect(help.content[0].text).toContain('Tlon tool — command discovery');
+    expect(runCommand).not.toHaveBeenCalled();
+
+    await execute('discovery', { command: '--config /owner.json help notes' });
+    expect(runCommand).toHaveBeenCalledWith([
+      '--config',
+      '/owner.json',
+      'notes',
+      '--help',
+    ]);
+  });
+
+  it.each([
+    '--config x settings get',
+    '--ship=~o browser share sess_1',
+    '--config x help settings',
+    '--ship ~owner hooks add ~h/g hook.hoon',
+  ])(
+    'rejects credential flags on the always-bot family in `%s`',
+    async (command) => {
+      const { execute, runCommand } = makeExecutor();
+      const result = await execute('bot-only', { command });
+      expect(result.content[0].text).toBe(
+        'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted on settings, browser or hooks; these commands always run as this bot.'
+      );
+      expect(result.details).toMatchObject({ reason: 'credential_override' });
+      expect(runCommand).not.toHaveBeenCalled();
+    }
+  );
+
+  it('still runs plain settings get as the bot', async () => {
+    const { execute, runCommand } = makeExecutor();
+    await execute('bot-only', { command: 'settings get' });
+    expect(runCommand).toHaveBeenCalledWith(['settings', 'get']);
+  });
+
+  it('keeps the runtime settings-key guard', async () => {
+    const { execute, runCommand } = makeExecutor();
+    const result = await execute('guard', {
+      command: 'settings set pendingApprovals []',
+    });
+    expect(result.details).toMatchObject({ reason: 'runtime_settings_key' });
+    expect(runCommand).not.toHaveBeenCalled();
+  });
+});
+
+describe('owner-hosted workspaces for groups create-owned', () => {
+  const SKILL_DIR = '/srv/tlon-skill';
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+  const HELP_WITH_ADMIN =
+    'Usage: tlon groups create-owned "Group Name" --admin <ship> [--description "..."]';
+  const HELP_WITHOUT_ADMIN =
+    'Usage: tlon groups create-owned "Group Name" --owner <ship> [--description "..."]';
+
+  function makeExecutor(
+    overrides: {
+      ownerShip?: string;
+      botShip?: string;
+      env?: NodeJS.ProcessEnv;
+      fileExists?: (path: string) => boolean;
+      help?: string;
+    } = {}
+  ) {
+    const { help = HELP_WITH_ADMIN, ...deps } = overrides;
+    const runCommand = vi.fn(async (args: string[]) =>
+      args.includes('--help') ? help : 'Owned group created successfully!'
+    );
+    const logError = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      logError,
+      ownerShip: '~owner',
+      botShip: '~pinser-botter-owner',
+      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...deps,
+    });
+    return { execute, runCommand, logError };
+  }
+
+  it.each([
+    [
+      'a description of --admin',
+      'groups create-owned Projects --description --admin --owner owner',
+      '--admin',
+    ],
+    [
+      'the legacy description --owner form',
+      'groups create-owned Projects --description --owner owner',
+      '--owner',
+    ],
+  ])(
+    'rebuilds the owner run with the bot as admin, past %s',
+    async (_label, command, description) => {
+      const { execute, runCommand } = makeExecutor();
+
+      await execute('description', { command });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        '--ship',
+        '~owner',
+        'groups',
+        'create-owned',
+        'Projects',
+        '--admin',
+        '~pinser-botter-owner',
+        '--description',
+        description,
+      ]);
+    }
+  );
+
+  it.each([
+    [
+      '--owner',
+      'groups create-owned Projects --owner owner --description Work',
+    ],
+    [
+      '--admin',
+      'groups create-owned Projects --admin ~owner --description Work',
+    ],
+  ])(
+    'runs a create-owned naming the owner as %s as the owner, with the bot as admin',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      const result = await execute('workspace', { command });
+
+      expect(runCommand).toHaveBeenCalledWith([
+        'groups',
+        'create-owned',
+        '--help',
+      ]);
+      expect(runCommand).toHaveBeenLastCalledWith([
+        '--ship',
+        '~owner',
+        'groups',
+        'create-owned',
+        'Projects',
+        '--admin',
+        '~pinser-botter-owner',
+        '--description',
+        'Work',
+      ]);
+      expect(result.content[0]?.text).not.toContain('Note:');
+    }
+  );
+
+  it('names the bot as admin ahead of an empty description, so it cannot become one', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('empty', {
+      command: 'groups create-owned Projects --owner ~owner --description ""',
+    });
+
+    const [args] = runCommand.mock.lastCall as unknown as [string[]];
+    expect(args.slice(0, 7)).toEqual([
+      '--ship',
+      '~owner',
+      'groups',
+      'create-owned',
+      'Projects',
+      '--admin',
+      '~pinser-botter-owner',
+    ]);
+    expect(args.slice(7)).not.toContain('~pinser-botter-owner');
+  });
+
+  it('keeps the bot-hosted workspace, and says so, when the CLI predates --admin', async () => {
+    const { execute, runCommand, logError } = makeExecutor({
+      help: HELP_WITHOUT_ADMIN,
+    });
+
+    const result = await execute('old-cli', {
+      command: 'groups create-owned Projects --admin ~owner',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~owner',
+    ]);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('does not take --admin')
+    );
+    expect(result.content[0]?.text).toContain('Note:');
+    expect(result.content[0]?.text).toContain('you host the workspace');
+  });
+
+  it('adds no hosting note when the command fails', async () => {
+    const { execute, runCommand } = makeExecutor({ fileExists: () => false });
+    runCommand.mockRejectedValueOnce(new Error('ship unreachable'));
+
+    const result = await execute('failed', {
+      command: 'groups create-owned Projects --owner ~owner',
+    });
+
+    expect(result.content[0]?.text).toBe('Error: ship unreachable');
+  });
+
+  it('keeps the bot-hosted workspace, and says so, without owner credentials', async () => {
+    for (const overrides of [
+      { env: {} as NodeJS.ProcessEnv },
+      { fileExists: () => false },
+    ]) {
+      const { execute, runCommand } = makeExecutor(overrides);
+
+      const result = await execute('no-creds', {
+        command: 'groups create-owned Projects --admin ~owner',
+      });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        '~owner',
+      ]);
+      expect(result.content[0]?.text).toContain(
+        "Your owner's credentials aren't available here"
+      );
+    }
+  });
+
+  it.each([
+    ['another requester', 'groups create-owned Projects --owner ~someone'],
+    ['--self', 'groups create-owned Projects --owner ~owner --self'],
+    ['-h', 'groups create-owned -h'],
+    ['--help', 'groups create-owned P --owner ~owner --help'],
+    [
+      'separate-value --ship',
+      '--ship ~bot groups create-owned P --owner ~owner',
+    ],
+    [
+      '=-form --config',
+      '--config=/x.json groups create-owned P --owner ~owner',
+    ],
+    ['plain create', 'groups create P --owner ~owner'],
+  ])('leaves the command untouched for %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    const result = await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+    expect(result.content[0]?.text).not.toContain('Note:');
+  });
+
+  it('spells the admin --owner for any create-owned run as written', async () => {
+    for (const command of [
+      'groups create-owned Projects --admin ~someone',
+      'groups create-owned Projects --admin ~owner --self',
+    ]) {
+      const { execute, runCommand } = makeExecutor();
+
+      await execute('legacy', { command });
+
+      const [args] = runCommand.mock.lastCall as unknown as [string[]];
+      expect(args).toEqual(command.replace('--admin', '--owner').split(' '));
+    }
+  });
+
+  it('keeps a description that a superseded owner pair swallowed', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('hidden-description', {
+      command:
+        'groups create-owned Projects --owner --description --admin ~someone',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~someone',
+      '--description',
+      '--admin',
+    ]);
+  });
+
+  it('keeps the admin the CLI would choose when both spellings appear', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('both', {
+      command:
+        'groups create-owned Projects --owner ~alice --admin ~bob --description Work',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~bob',
+      '--description',
+      'Work',
+    ]);
+  });
+
+  it.each([
+    ['', 'groups create-owned Projects --admin ~owner --description Work'],
+    [
+      ' with --self',
+      'groups create-owned Projects --admin ~owner --description Work --self',
+    ],
+  ])(
+    'makes a plain group when the bot is its own owner%s',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor({ botShip: '~owner' });
+
+      await execute('self', { command });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create',
+        'Projects',
+        '--description',
+        'Work',
+      ]);
+    }
+  );
+
+  it.each([
+    ['URBIT_SHIP', { URBIT_SHIP: 'owner' }],
+    ['TLON_SHIP', { TLON_SHIP: '~owner' }],
+  ])(
+    'makes a plain group when the bot is its own owner by %s',
+    async (_label, shipEnv) => {
+      const { execute, runCommand } = makeExecutor({
+        botShip: undefined,
+        env: { TLON_SKILL_DIR: SKILL_DIR, ...shipEnv } as NodeJS.ProcessEnv,
+      });
+
+      await execute('env-self', {
+        command: 'groups create-owned Projects --admin ~owner',
+      });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create',
+        'Projects',
+      ]);
+    }
+  );
+
+  it('runs as the owner with the bot named by the environment as admin', async () => {
+    const { execute, runCommand } = makeExecutor({
+      botShip: undefined,
+      env: {
+        TLON_SKILL_DIR: SKILL_DIR,
+        URBIT_SHIP: '~pinser-botter-owner',
+      } as NodeJS.ProcessEnv,
+    });
+
+    await execute('env-bot', {
+      command: 'groups create-owned Projects --admin ~owner',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      '--ship',
+      '~owner',
+      'groups',
+      'create-owned',
+      'Projects',
+      '--admin',
+      '~pinser-botter-owner',
+    ]);
+  });
+
+  it.each([
+    ['nothing names it', { TLON_SKILL_DIR: SKILL_DIR }],
+    [
+      'TLON_CONFIG_FILE outranks URBIT_SHIP',
+      {
+        TLON_SKILL_DIR: SKILL_DIR,
+        TLON_CONFIG_FILE: '/srv/bot.json',
+        URBIT_SHIP: '~owner',
+      },
+    ],
+  ])(
+    'runs as written, and says so, when the bot ship is unknown: %s',
+    async (_label, env) => {
+      const { execute, runCommand } = makeExecutor({
+        botShip: undefined,
+        env: env as NodeJS.ProcessEnv,
+      });
+
+      const result = await execute('unknown', {
+        command: 'groups create-owned Projects --owner ~owner',
+      });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        '~owner',
+      ]);
+      expect(result.content[0]?.text).toContain(
+        "This bot's ship isn't configured here"
+      );
+    }
+  );
+
+  it.each([
+    [
+      '--admin',
+      'groups create-owned Projects --description "--owner" --admin ~someone',
+    ],
+    [
+      '--owner',
+      'groups create-owned Projects --description "--owner" --owner ~someone',
+    ],
+  ])(
+    'puts the admin ahead of a description of --owner when run as written with %s',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      await execute('legacy-order', { command });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        '~someone',
+        '--description',
+        '--owner',
+      ]);
+    }
+  );
+});
+
+describe("owner-hosted channels in the owner's groups", () => {
+  const SKILL_DIR = '/srv/tlon-skill';
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+
+  function makeExecutor(
+    overrides: {
+      ownerShip?: string;
+      botShip?: string;
+      env?: NodeJS.ProcessEnv;
+      fileExists?: (path: string) => boolean;
+    } = {}
+  ) {
+    const runCommand = vi.fn(async () => 'Channel created!');
+    const logError = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      logError,
+      ownerShip: '~owner',
+      botShip: '~pinser-botter-owner',
+      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...overrides,
+    });
+    return { execute, runCommand, logError };
+  }
+
+  it.each([
+    ['channels create', 'channels create ~owner/team Discussion --kind chat'],
+    [
+      'groups add-channel',
+      'groups add-channel owner/team Research --kind notes',
+    ],
+  ])(
+    'runs %s in an owner-hosted group as the owner',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      const result = await execute('channel', { command });
 
       expect(runCommand).toHaveBeenCalledWith([
         '--ship',
         '~owner',
         ...command.split(' '),
       ]);
-      expect(result.details).toBeUndefined();
+      expect(result.content[0]?.text).not.toContain('Note:');
     }
   );
 
-  // The opt-out parse is the same for every owner command, so one
-  // representative command covers them all.
-  const OPT_OUT_BASE = 'notes note-publish notes/~h/b 12';
-  // Mirrors CREDENTIAL_FLAGS_WITH_VALUE in tlon-tool-command.ts (not exported);
-  // keep the two in sync.
-  const CREDENTIAL_FLAGS = [
-    '--config',
-    '--url',
-    '--ship',
-    '--code',
-    '--cookie',
-  ];
-  const OPT_OUTS: Array<[string, string[]]> = [
+  it.each([
+    ['another host', 'channels create ~someone/team Discussion'],
     [
-      '--self before and after positionals',
-      ['notes note-publish --self notes/~h/b 12', `${OPT_OUT_BASE} --self`],
+      "the bot's own group",
+      'channels create ~pinser-botter-owner/team Discussion',
     ],
-    ['help tokens', ['notes note-publish -h', 'notes note-publish --help']],
+    ['--self', 'channels create ~owner/team Discussion --self'],
+    ['--help', 'channels create ~owner/team Discussion --help'],
     [
-      'separate-value credential flags',
-      CREDENTIAL_FLAGS.map((flag) => `${flag} x ${OPT_OUT_BASE}`),
+      'separate-value --ship',
+      '--ship ~bot channels create ~owner/team Discussion',
     ],
     [
-      '=-form credential flags',
-      CREDENTIAL_FLAGS.map((flag) => `${flag}=x ${OPT_OUT_BASE}`),
+      '=-form --config',
+      '--config=/x.json channels create ~owner/team Discussion',
     ],
-  ];
-
-  it.each(OPT_OUTS)(
-    'leaves the command untouched with %s',
-    async (_label, commands) => {
-      for (const command of commands) {
-        const { execute, runCommand } = makeExecutor();
-        await execute('skip', { command });
-        expectRanVerbatim(runCommand, command);
-      }
-    }
-  );
-
-  it('leaves other subcommands untouched', async () => {
+    [
+      'another channels operation',
+      'channels update chat/~owner/abc --title New',
+    ],
+  ])('leaves the command untouched for %s', async (_label, command) => {
     const { execute, runCommand } = makeExecutor();
-    const commands = [
-      'groups info ~host/book-club',
-      'groups list',
-      'contacts self',
-      'notes note notes/~h/b 12',
-      'notes note-delete notes/~h/b 12',
-      'notes list',
-    ];
 
-    for (const command of commands) {
-      await execute('other', { command });
+    await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+  });
+
+  it("creates the channel on the bot's ship, and says so, without owner credentials", async () => {
+    const { execute, runCommand, logError } = makeExecutor({
+      fileExists: () => false,
+    });
+
+    const result = await execute('no-file', {
+      command: 'channels create ~owner/team Discussion',
+    });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      'channels',
+      'create',
+      '~owner/team',
+      'Discussion',
+    ]);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining("Creating the channel on the bot's ship")
+    );
+    expect(result.content[0]?.text).toContain(
+      'this channel is hosted on your own ship'
+    );
+  });
+
+  it.each([
+    ['configured', { botShip: '~owner' }],
+    [
+      'read from the environment',
+      {
+        botShip: undefined,
+        env: {
+          TLON_SKILL_DIR: SKILL_DIR,
+          URBIT_SHIP: 'owner',
+        } as NodeJS.ProcessEnv,
+      },
+    ],
+  ])(
+    'runs as written when the bot is its own owner, %s',
+    async (_label, overrides) => {
+      const { execute, runCommand } = makeExecutor(overrides);
+
+      await execute('self', {
+        command: 'channels create ~owner/team Discussion',
+      });
+
+      expect(runCommand).toHaveBeenCalledWith([
+        'channels',
+        'create',
+        '~owner/team',
+        'Discussion',
+      ]);
     }
+  );
+});
 
-    expect(runCommand).toHaveBeenCalledTimes(commands.length);
-    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
-      expect(args).not.toContain('--ship');
+describe('owner-hosted workspaces and channels with ownerDefault', () => {
+  const SKILL_DIR = '/srv/tlon-skill';
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+  const HELP_WITH_ADMIN =
+    'Usage: tlon groups create-owned "Group Name" --admin <ship> [--description "..."]';
+  const HELP_WITHOUT_ADMIN =
+    'Usage: tlon groups create-owned "Group Name" --owner <ship> [--description "..."]';
+  const BOT = '~pinser-botter-owner';
+
+  function makeExecutor(
+    overrides: {
+      ownerDefault?: boolean;
+      botShip?: string;
+      env?: NodeJS.ProcessEnv;
+      fileExists?: (path: string) => boolean;
+      help?: string;
+    } = {}
+  ) {
+    const { help = HELP_WITH_ADMIN, ...deps } = overrides;
+    const runCommand = vi.fn(async (args: string[]) =>
+      args.includes('--help') ? help : 'Created.'
+    );
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      ownerShip: '~owner',
+      botShip: BOT,
+      ownerDefault: true,
+      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...deps,
+    });
+    const ran = () =>
+      (runCommand.mock.lastCall as unknown as [string[]] | undefined)?.[0];
+    return { execute, runCommand, ran };
+  }
+
+  describe('a trailing --self', () => {
+    it.each([
+      'groups create-owned X --admin ~owner --self',
+      'channels create ~owner/team Talk --self',
+      'groups add-channel ~owner/team Talk --self',
+      'groups join --invite https://invite.tlon.io/0v1.abcde --self',
+      'groups join ~zod/team --self',
+      'activity mark-read ~ten --self',
+    ])('is a bot request on `%s`', (command) => {
+      expect(
+        normalizeTlonCommandArgs(shellSplitCommand(command)).selfRequested
+      ).toBe(true);
+    });
+
+    it('leaves a plain groups join to the default identity', async () => {
+      for (const [ownerDefault, expected] of [
+        [true, ['--ship', '~owner', 'groups', 'join', '~zod/team']],
+        [false, ['groups', 'join', '~zod/team']],
+      ] as const) {
+        const { execute, ran } = makeExecutor({ ownerDefault });
+        await execute('join', { command: 'groups join ~zod/team' });
+        expect(ran(), String(ownerDefault)).toEqual(expected);
+      }
+    });
+
+    it('echoes the owner for activity mark-read with the flag on', async () => {
+      const { execute, ran } = makeExecutor();
+      const result = await execute('mark-read', {
+        command: 'activity mark-read ~ten',
+      });
+      expect(ran()).toEqual([
+        '--ship',
+        '~owner',
+        'activity',
+        'mark-read',
+        '~ten',
+      ]);
+      expect(result.content[0].text).toBe('Created.\nRan as ~owner (owner).');
+    });
+
+    it('stays literal on other group operations', () => {
+      expect(
+        normalizeTlonCommandArgs(
+          shellSplitCommand('groups create X --description --self')
+        ).selfRequested
+      ).toBe(false);
+    });
+
+    it.each([
+      // create-owned: the title, and each option's value.
+      ['groups create-owned "--self" --admin ~owner', false],
+      ['groups create-owned X --description "--self" --admin ~owner', false],
+      ['groups create-owned X --admin --self', false],
+      ['groups create-owned X --owner --self', false],
+      ['groups create-owned X --description Work --self --admin ~owner', true],
+      // channel creates: the group, the title, and each option's value.
+      ['channels create ~owner/team "--self"', false],
+      ['channels create "--self" Talk', false],
+      ['channels create ~owner/team Talk --description "--self"', false],
+      ['channels create ~owner/team Talk --kind --self', false],
+      ['channels create ~owner/team Talk --kind chat --self', true],
+      ['groups add-channel ~owner/team "--self"', false],
+      ['groups add-channel ~owner/team Talk --description "--self"', false],
+      ['groups add-channel ~owner/team Talk --self --kind chat', true],
+      // The legacy operations' parsers read --self anywhere as the flag.
+      ['activity volume --self ~zod/g soft', true],
+      ['notes note-publish notes/~h/b --self 12', true],
+      ['groups invite-link ~h/g --self', true],
+      ['activity mark-read --self --all', true],
+      // groups join: the optional group flag, and --invite's value.
+      ['groups join --invite "--self"', false],
+      ['groups join ~zod/team', false],
+      ['groups join --self', true],
+    ])('reads `%s` as a bot request: %s', (command, expected) => {
+      expect(
+        normalizeTlonCommandArgs(shellSplitCommand(command)).selfRequested
+      ).toBe(expected);
+    });
+
+    it.each([
+      [
+        'groups create-owned "--self" --admin ~owner',
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'create-owned',
+          '--self',
+          '--admin',
+          BOT,
+        ],
+        // Flag off routes it to the owner the same way.
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'create-owned',
+          '--self',
+          '--admin',
+          BOT,
+        ],
+      ],
+      [
+        'groups create-owned Projects --description "--self" --admin ~owner',
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'create-owned',
+          'Projects',
+          '--admin',
+          BOT,
+          '--description',
+          '--self',
+        ],
+        // Flag off routes it to the owner the same way.
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'create-owned',
+          'Projects',
+          '--admin',
+          BOT,
+          '--description',
+          '--self',
+        ],
+      ],
+      [
+        'channels create ~owner/team "--self"',
+        ['--ship', '~owner', 'channels', 'create', '~owner/team', '--self'],
+        ['--ship', '~owner', 'channels', 'create', '~owner/team', '--self'],
+      ],
+      [
+        'groups add-channel ~owner/team Talk --description "--self"',
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'add-channel',
+          '~owner/team',
+          'Talk',
+          '--description',
+          '--self',
+        ],
+        [
+          '--ship',
+          '~owner',
+          'groups',
+          'add-channel',
+          '~owner/team',
+          'Talk',
+          '--description',
+          '--self',
+        ],
+      ],
+    ])(
+      'keeps a literal --self from switching identity: `%s`',
+      async (command, flagOn, flagOff) => {
+        for (const [ownerDefault, expected] of [
+          [true, flagOn],
+          [false, flagOff],
+        ] as const) {
+          const { execute, ran } = makeExecutor({ ownerDefault });
+          await execute('literal', { command });
+          expect(ran(), String(ownerDefault)).toEqual(expected);
+        }
+      }
+    );
+
+    it.each([
+      [
+        'groups create-owned X --admin ~owner --self',
+        ['groups', 'create-owned', 'X', '--owner', '~owner', '--self'],
+      ],
+      [
+        'channels create ~owner/team Talk --self',
+        ['channels', 'create', '~owner/team', 'Talk', '--self'],
+      ],
+      [
+        'groups add-channel ~owner/team Talk --self',
+        ['groups', 'add-channel', '~owner/team', 'Talk', '--self'],
+      ],
+      [
+        'groups join --invite https://invite.tlon.io/0v1.abcde --self',
+        [
+          'groups',
+          'join',
+          '--invite',
+          'https://invite.tlon.io/0v1.abcde',
+          '--self',
+        ],
+      ],
+      [
+        'activity mark-read ~ten --self',
+        ['activity', 'mark-read', '~ten', '--self'],
+      ],
+    ])(
+      'runs `%s` as the bot in both flag states',
+      async (command, expected) => {
+        for (const ownerDefault of [true, false]) {
+          const { execute, ran } = makeExecutor({ ownerDefault });
+          const result = await execute('self', { command });
+          expect(ran(), String(ownerDefault)).toEqual(expected);
+          expect(result.content[0].text).not.toContain('Note:');
+          if (ownerDefault) {
+            expect(result.content[0].text).toContain(`Ran as ${BOT} (bot).`);
+          }
+        }
+      }
+    );
+
+    it.each([
+      [
+        '--self groups create-owned X --admin ~owner',
+        ['groups', 'create-owned', 'X', '--owner', '~owner'],
+      ],
+      [
+        '--self channels create ~owner/team Talk',
+        ['channels', 'create', '~owner/team', 'Talk'],
+      ],
+    ])(
+      'opts out of owner routing with a leading --self, flag off: `%s`',
+      async (command, expected) => {
+        const { execute, ran } = makeExecutor({ ownerDefault: false });
+        await execute('self', { command });
+        expect(ran()).toEqual(expected);
+      }
+    );
+  });
+
+  describe('groups create-owned', () => {
+    it.each([
+      [
+        '--admin',
+        'groups create-owned Projects --admin ~owner --description Work',
+      ],
+      [
+        '--owner',
+        'groups create-owned Projects --owner owner --description Work',
+      ],
+    ])(
+      'rebuilds a workspace naming the owner with %s, the bot as admin',
+      async (_label, command) => {
+        const { execute, ran } = makeExecutor();
+        const result = await execute('owner', { command });
+        expect(ran()).toEqual([
+          '--ship',
+          '~owner',
+          'groups',
+          'create-owned',
+          'Projects',
+          '--admin',
+          BOT,
+          '--description',
+          'Work',
+        ]);
+        expect(result.content[0].text).toBe('Created.\nRan as ~owner (owner).');
+      }
+    );
+
+    it('runs a workspace for someone else as the owner, as written', async () => {
+      const { execute, ran } = makeExecutor();
+      await execute('other', {
+        command: 'groups create-owned Projects --admin ~someone',
+      });
+      expect(ran()).toEqual([
+        '--ship',
+        '~owner',
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        '~someone',
+      ]);
+    });
+
+    it('runs the bot named as admin as the owner, as written', async () => {
+      const { execute, ran, runCommand } = makeExecutor();
+      await execute('bot-admin', {
+        command: `groups create-owned Projects --admin ${BOT}`,
+      });
+      expect(ran()).toEqual([
+        '--ship',
+        '~owner',
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        BOT,
+      ]);
+      // No rebuild, so no --admin probe.
+      expect(runCommand).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      [
+        'the CLI predates --admin',
+        { help: HELP_WITHOUT_ADMIN },
+        "Blocked: the installed tlon CLI cannot host this workspace on the owner's ship (create-owned has no --admin); nothing was run. Add --self to create a bot-hosted group instead.",
+      ],
+      [
+        "the bot's ship is unknown",
+        { botShip: undefined },
+        "Blocked: this bot's own ship could not be determined, so the workspace cannot be hosted on the owner's ship; nothing was run. Add --self to create a bot-hosted group instead.",
+      ],
+    ])(
+      'refuses, with no fallback to the bot, when %s',
+      async (_label, overrides, message) => {
+        const { execute, runCommand } = makeExecutor(overrides);
+        const result = await execute('unsupported', {
+          command: 'groups create-owned Projects --admin ~owner',
+        });
+        expect(result.content[0].text).toBe(message);
+        expect(result.details).toEqual({
+          status: 'blocked',
+          blocked: true,
+          reason: 'owner_workspace_unsupported',
+        });
+        // At most the --admin probe ran; never the create.
+        for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+          expect(args).toContain('--help');
+        }
+      }
+    );
+
+    it('still lets --self make the bot-hosted group in those cases', async () => {
+      const { execute, ran } = makeExecutor({
+        help: HELP_WITHOUT_ADMIN,
+        botShip: undefined,
+      });
+      await execute('self', {
+        command: '--self groups create-owned Projects --admin ~owner',
+      });
+      expect(ran()).toEqual([
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        '~owner',
+      ]);
+    });
+
+    it('fails closed, with no fallback, when the owner is unprovisioned', async () => {
+      const { execute, runCommand } = makeExecutor({ fileExists: () => false });
+      const result = await execute('unprovisioned', {
+        command: 'groups create-owned Projects --admin ~owner',
+      });
+      expect(result.content[0].text).toContain(
+        'owner credentials for ~owner are not provisioned'
+      );
+      expect(runCommand).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [
+        'as the owner',
+        'groups create-owned Projects --admin ~owner --description Work',
+        ['--ship', '~owner'],
+      ],
+      [
+        'with --self',
+        '--self groups create-owned Projects --admin ~owner --description Work',
+        [],
+      ],
+    ])(
+      'makes a plain group when the bot is its own owner, %s',
+      async (_label, command, prefix) => {
+        const { execute, ran } = makeExecutor({ botShip: '~owner' });
+        await execute('self-owned', { command });
+        expect(ran()).toEqual([
+          ...prefix,
+          'groups',
+          'create',
+          'Projects',
+          '--description',
+          'Work',
+        ]);
+      }
+    );
+  });
+
+  describe('channel creates', () => {
+    it.each([
+      'channels create ~owner/team Talk --kind chat',
+      'groups add-channel ~owner/team Talk --kind notes',
+    ])('run as the owner by identity alone: `%s`', async (command) => {
+      const { execute, runCommand } = makeExecutor();
+      const result = await execute('channel', { command });
+      expect(runCommand).toHaveBeenCalledTimes(1);
+      expect(runCommand).toHaveBeenCalledWith([
+        '--ship',
+        '~owner',
+        ...command.split(' '),
+      ]);
+      expect(result.content[0].text).not.toContain('Note:');
+    });
+
+    it('fail closed, with no fallback note, when the owner is unprovisioned', async () => {
+      const { execute, runCommand } = makeExecutor({ fileExists: () => false });
+      const result = await execute('channel', {
+        command: 'channels create ~owner/team Talk',
+      });
+      expect(result.content[0].text).toContain('are not provisioned');
+      expect(result.content[0].text).not.toContain('Note:');
+      expect(runCommand).not.toHaveBeenCalled();
+    });
+
+    it('add no --ship of their own when the bot is its own owner', async () => {
+      const { execute, ran } = makeExecutor({ botShip: '~owner' });
+      await execute('channel', { command: 'channels create ~owner/team Talk' });
+      expect(ran()).toEqual([
+        '--ship',
+        '~owner',
+        'channels',
+        'create',
+        '~owner/team',
+        'Talk',
+      ]);
+    });
+  });
+});
+
+describe('hooks always act as the bot', () => {
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+  const BOT_ONLY_MESSAGE =
+    'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted on settings, browser or hooks; these commands always run as this bot.';
+  const CREDENTIAL_MESSAGE =
+    'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted. Commands run as the owner by default; add --self to run as this bot.';
+
+  function makeExecutor(ownerDefault: boolean) {
+    const runCommand = vi.fn(async (_args: string[]) => 'ok');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      ownerShip: '~owner',
+      botShip: '~bot',
+      ownerDefault,
+      env: { TLON_SKILL_DIR: '/srv/tlon-skill' } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+    });
+    return { execute, runCommand };
+  }
+
+  it.each([
+    ['hooks add ~h/g hook.hoon', ['hooks', 'add', '~h/g', 'hook.hoon']],
+    ['--self hooks add ~h/g hook.hoon', ['hooks', 'add', '~h/g', 'hook.hoon']],
+    ['hooks delete hook-1 --help', ['hooks', 'delete', 'hook-1', '--help']],
+  ])('runs `%s` as the bot in both flag states', async (command, expected) => {
+    for (const ownerDefault of [true, false]) {
+      const { execute, runCommand } = makeExecutor(ownerDefault);
+      await execute('hooks', { command });
+      expect(runCommand, String(ownerDefault)).toHaveBeenCalledWith(expected);
     }
   });
 
-  const PROVISIONING_FAILURES: Array<Parameters<typeof makeExecutor>[0]> = [
-    { ownerShip: undefined },
-    { env: {} as NodeJS.ProcessEnv },
-    { fileExists: () => false },
-  ];
-
-  it.each([
-    [
-      OWNER_COMMANDS[0],
-      [
-        "Retrieving the owner's invite link requires a configured owner ship. Add --self to retrieve this bot's own invite link instead.",
-        "Retrieving the invite link as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to retrieve this bot's own invite link instead.",
-        `Retrieving the invite link as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to retrieve this bot's own invite link instead.`,
-      ],
-    ],
-    [
-      OWNER_COMMANDS[1],
-      [
-        "Publishing a note as the owner requires a configured owner ship. Add --self to publish from this bot's own ship instead.",
-        "Publishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to publish from this bot's own ship instead.",
-        `Publishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to publish from this bot's own ship instead.`,
-      ],
-    ],
-    [
-      OWNER_COMMANDS[2],
-      [
-        "Unpublishing a note as the owner requires a configured owner ship. Add --self to unpublish from this bot's own ship instead.",
-        "Unpublishing a note as ~owner requires TLON_SKILL_DIR so the owner credential file can be located. Add --self to unpublish from this bot's own ship instead.",
-        `Unpublishing a note as ~owner requires owner credentials at ${OWNER_CONFIG}. Add --self to unpublish from this bot's own ship instead.`,
-      ],
-    ],
-  ])(
-    'errors on `%s` instead of silently using bot credentials when provisioning is missing',
-    async (command, texts) => {
-      for (const [index, overrides] of PROVISIONING_FAILURES.entries()) {
-        const { execute, runCommand } = makeExecutor(overrides);
-
-        const result = await execute('missing', { command });
-
-        expect(result.content[0]?.text).toBe(texts[index]);
-        expect(result.details).toEqual({ error: true });
-        expect(runCommand).not.toHaveBeenCalled();
-      }
+  it('refuses credential flags on hooks in both flag states', async () => {
+    // As for settings and browser: with the flag on, every credential flag
+    // gets the owner-default wording.
+    for (const [ownerDefault, message] of [
+      [true, CREDENTIAL_MESSAGE],
+      [false, BOT_ONLY_MESSAGE],
+    ] as const) {
+      const { execute, runCommand } = makeExecutor(ownerDefault);
+      const result = await execute('hooks', {
+        command: '--ship ~owner hooks add ~h/g hook.hoon',
+      });
+      expect(result.content[0].text).toBe(message);
+      expect(result.details).toMatchObject({ reason: 'credential_override' });
+      expect(runCommand).not.toHaveBeenCalled();
     }
-  );
+  });
 
-  // An opt-out short-circuits before provisioning is consulted. The two
-  // commands hit the two opt-out exits: the credential-override check and the
-  // --self/help check.
-  it.each([`${OPT_OUT_BASE} --self`, `--ship=~other ${OPT_OUT_BASE}`])(
-    'honors the opt-out in `%s` despite missing provisioning',
-    async (command) => {
-      for (const overrides of PROVISIONING_FAILURES) {
-        const { execute, runCommand } = makeExecutor(overrides);
-
-        const result = await execute('opt-out', { command });
-
-        expect(result.details).toBeUndefined();
-        expectRanVerbatim(runCommand, command);
-      }
-    }
-  );
+  it('says so in the identity guidance', () => {
+    expect(formatTlonToolDescription(true)).toContain(
+      'settings, browser and hooks always act as the bot'
+    );
+    expect(formatTlonToolHelp(true)).toContain('hooks: always this bot');
+  });
 });
 
 describe('checkBlockedTlonOperation', () => {
@@ -817,7 +2576,15 @@ describe('checkBlockedTlonOperation', () => {
 });
 
 const documentedActionOperations = {
-  activity: ['mentions', 'replies', 'all', 'unreads'],
+  activity: [
+    'mentions',
+    'replies',
+    'all',
+    'unreads',
+    'mute',
+    'unmute',
+    'volume',
+  ],
   browser: ['handoff', 'share'],
   buckets: [
     'list',
@@ -943,7 +2710,17 @@ const documentedActionOperations = {
     'migrate-apply',
     'notebook-delete',
   ],
-  posts: ['send', 'reply', 'react', 'unreact', 'edit', 'delete'],
+  posts: [
+    'send',
+    'reply',
+    'forward',
+    'react',
+    'unreact',
+    'edit',
+    'delete',
+    'pin',
+    'unpin',
+  ],
   settings: [
     'get',
     'set',
@@ -1262,6 +3039,90 @@ describe('tlon tool telemetry summarizer', () => {
     });
 
     expect(JSON.stringify(summary)).not.toContain('Project Notes');
+  });
+
+  it('classifies notification changes as writes without leaking targets', () => {
+    for (const operation of ['mute', 'unmute', 'volume']) {
+      const summary = summarizeTlonCommand(
+        `activity ${operation} ~zod/secret-group --self`
+      );
+
+      expect(summary).toMatchObject({
+        summaryKey: `activity.${operation}`,
+        operation,
+        intent: 'write',
+        isKnownSubcommand: true,
+      });
+      expect(JSON.stringify(summary)).not.toContain('secret-group');
+    }
+    expect(summarizeTlonCommand('activity unreads')).toMatchObject({
+      summaryKey: 'activity.unreads',
+      intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity volume base')).toMatchObject({
+      summaryKey: 'activity.volume',
+      intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity volume base soft')).toMatchObject({
+      summaryKey: 'activity.volume',
+      intent: 'write',
+    });
+  });
+
+  it('classifies mark-read as a write without leaking targets', () => {
+    const summary = summarizeTlonCommand(
+      'activity mark-read ~zod/secret-group --self'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'activity.mark-read',
+      operation: 'mark-read',
+      intent: 'write',
+      isKnownSubcommand: true,
+    });
+    expect(JSON.stringify(summary)).not.toContain('secret-group');
+    expect(summarizeTlonCommand('activity mark-read --all')).toMatchObject({
+      summaryKey: 'activity.mark-read',
+      intent: 'write',
+    });
+  });
+
+  it('classifies post pins as channel admin operations', () => {
+    for (const operation of ['pin', 'unpin']) {
+      const summary = summarizeTlonCommand(
+        `posts ${operation} chat/~zod/quiet-launch 170.141`
+      );
+
+      expect(summary).toMatchObject({
+        summaryKey: `posts.${operation}`,
+        operation,
+        intent: 'admin',
+        channelKind: 'chat',
+        isKnownSubcommand: true,
+      });
+      expect(JSON.stringify(summary)).not.toContain('quiet-launch');
+      expect(JSON.stringify(summary)).not.toContain('170.141');
+    }
+  });
+
+  it('classifies posts forward as a mutating write in its target channel', () => {
+    for (const [command, channelKind] of [
+      ['posts forward chat/~zod/quiet-launch 170.141 heap/~zod/d', 'heap'],
+      ['posts forward heap/~zod/quiet-launch 170.141 chat/~zod/d', 'chat'],
+    ] as const) {
+      const summary = summarizeTlonCommand(command);
+
+      expect(summary).toMatchObject({
+        summaryKey: 'posts.forward',
+        operation: 'forward',
+        intent: 'write',
+        channelKind,
+        isKnownSubcommand: true,
+      });
+      expect(isMutatingTlonCommand(summary)).toBe(true);
+      expect(JSON.stringify(summary)).not.toContain('quiet-launch');
+      expect(JSON.stringify(summary)).not.toContain('170.141');
+    }
   });
 
   it('classifies section commands as group admin operations', () => {

@@ -16,11 +16,19 @@ const validSetup: AgentServiceSetupToolParams = {
   providerId: 'google-drive',
 };
 
+const noCatalog = async () => null;
+const catalog = async () => [
+  { id: 'github', name: 'GitHub' },
+  { id: 'google-calendar', name: 'Google Calendar' },
+  { id: 'google-drive', name: 'Google Drive' },
+];
+
 describe('agent service setup tool', () => {
   it('builds a recovery card for the furnished first-run bot DM', async () => {
     const execute = createAgentServiceSetupToolExecutor({
       postSetup: vi.fn(async () => '{}'),
       assertCurrent: vi.fn(),
+      listServices: noCatalog,
     });
     expect(
       (await execute('dm-setup', { ...validSetup, target: '~ten' })).details
@@ -40,6 +48,7 @@ describe('agent service setup tool', () => {
     await createAgentServiceSetupToolExecutor({
       postSetup,
       assertCurrent: vi.fn(),
+      listServices: noCatalog,
     })('setup', validSetup);
     const entry = JSON.parse(postSetup.mock.calls[0]![0].blob)[0];
 
@@ -98,6 +107,7 @@ describe('agent service setup tool', () => {
     const execute = createAgentServiceSetupToolExecutor({
       postSetup,
       assertCurrent: vi.fn(),
+      listServices: noCatalog,
     });
 
     const result = await execute('call-1', validSetup);
@@ -119,6 +129,7 @@ describe('agent service setup tool', () => {
       assertCurrent: vi.fn(() => {
         throw new SupersededTurnError();
       }),
+      listServices: noCatalog,
     });
 
     const result = await execute('stale-setup', validSetup);
@@ -132,6 +143,7 @@ describe('agent service setup tool', () => {
     const execute = createAgentServiceSetupToolExecutor({
       postSetup,
       assertCurrent: vi.fn(),
+      listServices: noCatalog,
     });
 
     for (const params of [
@@ -142,5 +154,48 @@ describe('agent service setup tool', () => {
       expect(result.details).toEqual({ error: true });
     }
     expect(postSetup).not.toHaveBeenCalled();
+  });
+
+  it('refuses a service the owner cannot connect and names the ones they can', async () => {
+    const postSetup = vi.fn(async () => 'unexpected');
+    const result = await createAgentServiceSetupToolExecutor({
+      postSetup,
+      assertCurrent: vi.fn(),
+      listServices: catalog,
+    })('call-asana', { ...validSetup, providerId: 'asana' });
+
+    expect(result.details).toEqual({ error: true });
+    expect(result.content[0]!.text).toContain(
+      '"asana" is not a service the owner can connect.'
+    );
+    expect(result.content[0]!.text).toContain(
+      'GitHub (github), Google Calendar (google-calendar), Google Drive (google-drive).'
+    );
+    expect(postSetup).not.toHaveBeenCalled();
+  });
+
+  it("opens the service's real id when the model names it by display name", async () => {
+    const postSetup = vi.fn(async () => '{}');
+    await createAgentServiceSetupToolExecutor({
+      postSetup,
+      assertCurrent: vi.fn(),
+      listServices: catalog,
+    })('call-calendar', { ...validSetup, providerId: 'Google Calendar' });
+
+    expect(postSetup.mock.calls[0]![0].blob).toContain(
+      '"providerId":"google-calendar"'
+    );
+  });
+
+  it('still posts the card when the service list cannot be loaded', async () => {
+    const postSetup = vi.fn(async () => '{}');
+    const result = await createAgentServiceSetupToolExecutor({
+      postSetup,
+      assertCurrent: vi.fn(),
+      listServices: noCatalog,
+    })('call-offline', { ...validSetup, providerId: 'asana' });
+
+    expect(result.details).toBeUndefined();
+    expect(postSetup.mock.calls[0]![0].blob).toContain('"providerId":"asana"');
   });
 });

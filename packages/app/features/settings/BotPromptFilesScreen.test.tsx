@@ -55,6 +55,7 @@ beforeEach(() => {
     data: [
       { name: 'TOOLS.md', text: managed('tools') },
       { name: 'SOUL.md', text: `Call me Captain.\n${managed('soul')}` },
+      { name: 'MEMORY.md', text: `${managed('memory')}\nLearned.\n` },
       { name: 'IDENTITY.md', text: managed('identity') },
       { name: 'AGENTS.md', text: managed('agents') },
     ],
@@ -94,6 +95,7 @@ describe('BotPromptFilesScreen', () => {
       ['Instructions', 'Read-only'],
       ['Personality', 'Customized'],
       ['Identity', undefined],
+      ['Memory', 'Read-only'],
       ['Tools', 'Read-only'],
     ]);
 
@@ -104,6 +106,20 @@ describe('BotPromptFilesScreen', () => {
       name: 'SOUL.md',
       botShip: '~bot',
     });
+  });
+
+  it('says the bot keeps its own memory only when memory is shared', async () => {
+    const withMemory = await render();
+    expect(view(withMemory).sections[0].footer).toContain(
+      'Your bot keeps its own memory.'
+    );
+
+    mocks.query = {
+      ...mocks.query,
+      data: mocks.query.data?.filter((file) => file.name !== 'MEMORY.md'),
+    };
+    const withoutMemory = await render();
+    expect(view(withoutMemory).sections[0].footer).not.toContain('memory');
   });
 
   it("lists the files of the bot it was opened for, as from that bot's profile", async () => {

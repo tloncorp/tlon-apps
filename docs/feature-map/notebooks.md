@@ -166,7 +166,7 @@ Notes: `Post` stays greyed out until there is both a title and body text. Once a
 
 Phone: open the post and tap `Edit` at the top right, change the title, header image or body, then tap `Save`. Or press and hold the post in the channel's list and tap `Edit post`. To delete, press and hold it and tap `Delete post`, then confirm.
 Desktop: hover the post in the list and open the three-dot menu at its top right.
-Who: the post's author. Group admins can edit and delete anyone's Bulletin post; for them the menu items start with "Admin:".
+Who: the post's author. Group admins can edit and delete anyone's Bulletin post; on someone else's post their menu items start with "Admin:".
 Notes: deleting can't be undone.
 
 ## Comment on a Bulletin post
@@ -192,5 +192,5 @@ Notes: unlike a chat message, a Bulletin post has no `Quote`, `Copy message text
 
 Phone: with this turned on, a new Bulletin post opens as a plain text box that reads `Write your content in Markdown...`. To go back to the usual editor, tap the floating button at the bottom right, then `Switch to Rich Text`. In the usual editor, the formatting bar gains a Markdown button at its left end that switches back.
 Desktop: `Switch to Rich Text` sits in a bar above the body.
-Who: off by default. The switch, `Enable Markdown mode for notebook posts`, is under `Experimental features` in Settings and is only listed for Tlon staff.
+Who: off by default. The switch, `Markdown notebooks`, is under `Experimental features` in Settings and is only listed for Tlon staff.
 Notes: despite its name it changes Bulletin posts only. Notebook notes are always Markdown. Editing an existing post starts in the usual editor.
