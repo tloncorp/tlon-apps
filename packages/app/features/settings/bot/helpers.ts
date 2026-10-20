@@ -22,7 +22,7 @@ import {
 
 const LEGACY_BASIC_DEFAULT_MODELS = new Set([
   'minimax/minimax-m3',
-  'openai/gpt-5.6-luna',
+  'openai/gpt-6-luna',
 ]);
 
 export type ChannelRuleDraft = {

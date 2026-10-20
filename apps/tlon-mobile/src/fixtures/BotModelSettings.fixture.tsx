@@ -118,11 +118,18 @@ function seedFixtureData({
   provider?: 'basic' | 'openrouter';
 }) {
   const selectedModel =
-    provider === 'basic' ? 'openai/gpt-6-luna' : 'anthropic/claude-sonnet-4.5';
+    provider === 'basic'
+      ? 'openai/gpt-5.6-luna'
+      : 'anthropic/claude-sonnet-4.5';
   const providerConfig: TlawnProviderConfigInfo = {
     // A key in either case, so a Basic bot's model list offers OpenRouter too.
     keys: { openrouter: 'fixture-key-never-sent' },
     defaultKeys: provider === 'basic' ? { basic: { key: 'included' } } : {},
+    // What hosting reports behind Basic (`tlonDefaultModels` in ylem).
+    defaultModels: {
+      primaryModel: 'openai/gpt-5.6-luna',
+      fallbackModels: ['z-ai/glm-5.3-flash:nitro'],
+    },
     models: [
       {
         provider,

@@ -358,7 +358,7 @@ Bot behavior:
 
 ### Models and API keys
 
-Hosted accounts include a model for free, with $5 a month of included credits. Tlon picks that model and can change it; today it's OpenAI's GPT-6 Luna. The phone app still lists the option as `Basic (GPT-5.6 Luna)`, and the bot settings web page as "Tlon Default". Both mean the included model; the version in the phone app's label is out of date. To choose another, open `Models` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`):
+Hosted accounts include a model for free, with $5 a month of included credits. Tlon picks that model and changes it from time to time, so take its name from your runtime context, not from this guide. The phone app lists the option as Basic followed by the model's name, such as "Basic (GPT-5.6 Luna)", and the bot settings web page as "Tlon Default". Both mean the included model. To choose another, open `Models` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`):
 
 - `Default model` is what the bot uses. Pick a provider, then a model. Only providers you've connected are listed.  
 - `Fallback models` are what it switches to if the default fails.

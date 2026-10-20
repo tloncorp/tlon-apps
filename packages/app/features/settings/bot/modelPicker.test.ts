@@ -174,7 +174,7 @@ describe('buildDefaultModelSections', () => {
         .sections.filter((section) => section.title === 'Included with Tlon')
         .flatMap((section) => titles(section.rows));
 
-    const label = 'Basic (GPT-6 Luna)';
+    const label = 'Basic (GPT-5.6 Luna)';
     expect(tlonTitles('luna')).toEqual([label]);
     expect(tlonTitles(BASIC_DEFAULT_MODEL)).toEqual([label]);
     expect(tlonTitles('newer-id', 'openai/some-newer-id')).toEqual([label]);

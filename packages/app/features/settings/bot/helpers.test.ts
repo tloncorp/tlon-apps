@@ -527,7 +527,7 @@ describe('channel model overrides', () => {
     expect(entries).toEqual([
       {
         provider: 'basic',
-        model: 'openai/gpt-6-luna',
+        model: 'openai/gpt-5.6-luna',
         channels: ['chat/~zod/general'],
       },
     ]);
@@ -545,7 +545,7 @@ describe('channel model overrides', () => {
     expect(entries).toEqual([
       {
         provider: 'basic',
-        model: 'openai/gpt-6-luna',
+        model: 'openai/gpt-5.6-luna',
         channels: ['chat/~zod/general'],
       },
     ]);
@@ -596,7 +596,7 @@ describe('included model name', () => {
         models: [{ provider: 'basic', model: 'openai/gpt-7-luna' }],
       })
     ).toBe('openai/gpt-7-luna');
-    expect(getBasicModelLabel(undefined)).toBe('Basic (GPT-6 Luna)');
+    expect(getBasicModelLabel(undefined)).toBe('Basic (GPT-5.6 Luna)');
   });
 });
 
@@ -700,12 +700,12 @@ describe('toBackendModel', () => {
   it('persists basic as its own provider and pins the model to the default', () => {
     expect(toBackendModel('basic', '')).toEqual({
       provider: 'basic',
-      model: 'openai/gpt-6-luna',
+      model: 'openai/gpt-5.6-luna',
     });
     // a stale/leftover model on a Basic pick is ignored
     expect(toBackendModel('basic', 'anthropic/claude-1')).toEqual({
       provider: 'basic',
-      model: 'openai/gpt-6-luna',
+      model: 'openai/gpt-5.6-luna',
     });
   });
 

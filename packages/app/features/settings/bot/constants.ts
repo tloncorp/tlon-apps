@@ -9,7 +9,7 @@ import type {
 // from that report. BASIC_DEFAULT_MODEL is only assumed until it arrives.
 export const BASIC_PROVIDER_LABEL = 'Basic';
 export const BASIC_PROVIDER_ID = 'basic';
-export const BASIC_DEFAULT_MODEL = 'openai/gpt-6-luna';
+export const BASIC_DEFAULT_MODEL = 'openai/gpt-5.6-luna';
 
 /** The model hosting runs behind Basic, as it last reported it. */
 export const getIncludedModelId = (config?: TlawnProviderConfigInfo): string =>
@@ -19,7 +19,7 @@ export const getIncludedModelId = (config?: TlawnProviderConfigInfo): string =>
   BASIC_DEFAULT_MODEL;
 
 /**
- * A model id as people know the model: "openai/gpt-6-luna" is "GPT-6 Luna",
+ * A model id as people know the model: "openai/gpt-5.6-luna" is "GPT-5.6 Luna",
  * as OpenRouter names it. An id of any other shape is shown as sent, which can
  * look plain but never names the wrong model.
  */
