@@ -3159,6 +3159,84 @@ function channelReadBack(...posts: ExistingPost[]) {
   return async () => ({ posts });
 }
 
+// The caption of a quote goes through the same mention parsing as a plain
+// send, checked against the target's group, not the source's.
+describe('posts quote mentions', () => {
+  const SOURCE_GROUP = '~nec/source-group';
+  const TARGET_GROUP = '~zod/target-group';
+  // Reads in order: the target (role check), the source, the target again.
+  const channelStates = [
+    { joined: true, groupId: TARGET_GROUP, order: [] },
+    { joined: true, groupId: SOURCE_GROUP, order: [] },
+    { joined: true, groupId: TARGET_GROUP, order: [] },
+  ];
+  const content = [CITE, { inline: ['hi ', { sect: 'admin' }] }];
+
+  const cases = [
+    {
+      name: 'send',
+      args: (caption: string) => ['send', TEAM, caption, '--quote', SRC, S],
+      stdout: `✓ Message sent\n  Ref: /1/chan/${TEAM}/msg/${NEW_UD}\n`,
+      threads: [source()],
+      getChannelPosts: channelReadBack(sentPost(content)),
+      sent: (context: ReturnType<typeof makeDeps>) =>
+        context.calls.sendPost.map((input) => input.content),
+    },
+    {
+      name: 'reply',
+      args: (caption: string) => ['reply', TEAM, P, caption, '--quote', SRC, S],
+      stdout: `✓ Reply sent\n  Ref: /1/chan/${TEAM}/msg/${P_UD}/${NEW_UD}\n`,
+      threads: [
+        source(),
+        { id: P, authorId: '~zod', replies: [sentReply(content)] },
+      ],
+      getChannelPosts: undefined,
+      sent: (context: ReturnType<typeof makeDeps>) =>
+        context.calls.sendReply.map((input) => input.content),
+    },
+  ];
+
+  for (const c of cases) {
+    it(`${c.name} --quote parses a target-group role in the caption`, async () => {
+      const context = makeDeps({
+        channelStates,
+        threads: c.threads,
+        getChannelPosts: c.getChannelPosts,
+        groupRoleIds: ['admin'],
+      });
+
+      const exitCode = await run(c.args('hi @admin'), context.deps);
+
+      expect(exitCode).toBe(0);
+      expect(context.stderr()).toBe('');
+      expect(context.stdout()).toBe(c.stdout);
+      expect(c.sent(context)).toEqual([content]);
+      expect(context.calls.getChannelState).toEqual([TEAM, SRC, TEAM]);
+      expect(context.calls.getGroupRoleIds).toEqual([TARGET_GROUP]);
+    });
+
+    it(`${c.name} --quote refuses an unknown role before reading the source`, async () => {
+      const context = makeDeps({
+        channelStates,
+        threads: c.threads,
+        groupRoleIds: ['admin'],
+      });
+
+      const exitCode = await run(c.args('hi @nope'), context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toContain(
+        `Unknown role mention @nope in ${TEAM}. Role ids in group ${TARGET_GROUP}: @admin;`
+      );
+      expect(context.calls.getGroupRoleIds).toEqual([TARGET_GROUP]);
+      expect(context.calls.getPostWithReplies).toEqual([]);
+      expect(context.calls.sendPost).toEqual([]);
+      expect(context.calls.sendReply).toEqual([]);
+    });
+  }
+});
+
 describe('posts quote', () => {
   it('quotes a chat post before the text in a chat send', async () => {
     const content = [CITE, { inline: ['Look at this'] }];
