@@ -422,14 +422,16 @@ export const ALL_ONLY: RoleMentionScope = { roleIds: new Set() };
 
 /**
  * Mirrors the role-mention rule the tlon CLI applies: a case-insensitive id
- * (matched lowercased), no letter or digit before `@` (emails, `abc@foo`),
- * and no letter, digit, `_` or `-` after the token (`@admin_team`,
- * `@all-_x`), so a partial word never converts. The api's markdown parser
- * carries the same rule in its own regex; OpenClaw cannot import it at
- * runtime.
+ * (matched lowercased), no letter, digit or backslash before `@` (emails,
+ * `abc@foo`, an escaped `\@all`), and no letter, digit, `_` or `-` after
+ * the token (`@admin_team`, `@all-_x`), so a partial word never converts.
+ * The api's markdown parser carries the same rule in its own regex, where
+ * `\@` is an escape that yields a literal `@`; this parser does no escape
+ * handling, so the backslash stays visible, but the mention is suppressed
+ * either way. OpenClaw cannot import the api's regex at runtime.
  */
 const ROLE_MENTION_TOKEN =
-  /(?<![A-Za-z0-9])@([A-Za-z][A-Za-z0-9-]*)(?![A-Za-z0-9_-])/g;
+  /(?<![A-Za-z0-9\\])@([A-Za-z][A-Za-z0-9-]*)(?![A-Za-z0-9_-])/g;
 
 /**
  * The lowercase `@tokens` in raw text other than `all`: the role ids a
@@ -550,7 +552,7 @@ function applyRoleMentionsToInlines(
     leaf.kind === 'text'
       ? convertText(
           leaf.text,
-          neighbourJoins(leaves, i, -1, /[A-Za-z0-9]/),
+          neighbourJoins(leaves, i, -1, /[A-Za-z0-9\\]/),
           neighbourJoins(leaves, i, 1, /[A-Za-z0-9_-]/),
           marks,
           roleIds
