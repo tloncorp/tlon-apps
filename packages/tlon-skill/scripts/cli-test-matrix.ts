@@ -1298,6 +1298,19 @@ export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
     ['posts', 'forward', 'chat/~host/other', '170.141', '~zod', '--bogus'],
     'Unexpected argument: --bogus'
   ),
+  usageErrorCase(
+    'posts forward rejects a non-numeric --sent-at',
+    [
+      'posts',
+      'forward',
+      'chat/~host/other',
+      '170.141',
+      '~zod',
+      '--sent-at',
+      'x',
+    ],
+    'Usage: tlon posts forward'
+  ),
   diaryRefusedCase('posts forward to a diary target refuses', [
     'posts',
     'forward',
@@ -1372,6 +1385,15 @@ export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
     'chat/~host/other',
     '170.141',
     '~zod',
+  ]),
+  authRequiredCase('posts forward --sent-at reaches auth', [
+    'posts',
+    'forward',
+    'chat/~host/other',
+    '170.141',
+    '~zod',
+    '--sent-at',
+    '1234',
   ]),
 ];
 

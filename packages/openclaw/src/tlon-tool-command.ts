@@ -1032,7 +1032,8 @@ export function checkOwnerReservedBlob(
 /**
  * The sends the plugin timestamps when they run as the owner: where the
  * CLI's message slice starts (in its own argument coordinates) and the
- * boundary that ends it.
+ * boundary that ends it. A forward has no message: its stamp goes last, after
+ * the three positionals and any `--parent` pair.
  */
 const OWNER_TIMESTAMPED_SENDS = new Map<
   string,
@@ -1040,6 +1041,7 @@ const OWNER_TIMESTAMPED_SENDS = new Map<
 >([
   ['posts send', { messageStart: 2, isBoundary: isPostSendBoundary }],
   ['posts reply', { messageStart: 3, isBoundary: isPostReplyBoundary }],
+  ['posts forward', { messageStart: 4, isBoundary: () => false }],
   ['dms send', { messageStart: 2, isBoundary: isDmSendBoundary }],
   ['dms reply', { messageStart: 3, isBoundary: isDmReplyBoundary }],
 ]);
@@ -1102,7 +1104,8 @@ function ownerToolPostFor(
   stamp: number | null
 ): OwnerToolPost | null {
   const operation = `${commandArgs[0] ?? ''} ${commandArgs[1] ?? ''}`;
-  const target = commandArgs[2] ?? '';
+  // A forward names its target after the source post.
+  const target = commandArgs[operation === 'posts forward' ? 4 : 2] ?? '';
   const postId = commandArgs[3];
   if (stamp !== null) {
     return { ...base, kind: 'send', target, sentAt: stamp };
@@ -1147,7 +1150,7 @@ function ownerToolPostFor(
 }
 
 const OWNER_POST_UNSTAMPED_MESSAGE =
-  "Blocked: the installed tlon CLI cannot timestamp posts send or reply, so it cannot post in the owner's name. Update the tlon skill, or add --self to post as this bot.";
+  "Blocked: the installed tlon CLI cannot timestamp posts send, reply or forward, so it cannot post in the owner's name. Update the tlon skill, or add --self to post as this bot.";
 const OWNER_DM_UNSTAMPED_MESSAGE =
   "Blocked: the installed tlon CLI cannot timestamp group DM sends, so it cannot send one in the owner's name. Update the tlon skill, or add --self to send it as this bot.";
 const OWNER_DM_SEND_HINT =
@@ -1159,7 +1162,8 @@ const OWNER_POST_LEDGER_FULL_MESSAGE =
 
 const SENT_AT_TOKEN = /(?<![\w-])--sent-at(?![\w-])/;
 type SentAtSupport = 'supported' | 'unsupported';
-// One probe per family, shared by concurrent first sends. Only support is
+// One probe per family, and one for posts forward (which gained --sent-at
+// after send), shared by concurrent first sends. Only support is
 // kept: an unsupported or failed probe is forgotten, so a CLI that gains
 // --sent-at is picked up on the next send, and one that has it does not lose it.
 const sentAtSupport = sharedMap<string, Promise<SentAtSupport>>(
@@ -1171,26 +1175,28 @@ export const _testing = {
 };
 
 /**
- * Whether the installed CLI's `<family> send` takes --sent-at. The runner can
- * fall back to a `tlon` on PATH, and an older one would post the flag and the
- * timestamp as message text. 'unverified' when the probe itself failed.
+ * Whether the installed CLI's `<family> <operation>` takes --sent-at. The
+ * runner can fall back to a `tlon` on PATH, and an older one would post the
+ * flag and the timestamp as message text. 'unverified' when the probe itself failed.
  */
 async function cliSentAtSupport(
   family: string,
+  operation: string,
   deps: TlonToolExecutorDeps
 ): Promise<SentAtSupport | 'unverified'> {
-  let probe = sentAtSupport.get(family);
+  const key = `${family} ${operation}`;
+  let probe = sentAtSupport.get(key);
   if (!probe) {
     const started = deps
-      .runCommand([family, 'send', '--help'])
+      .runCommand([family, operation, '--help'])
       .then(
         (help): SentAtSupport =>
           SENT_AT_TOKEN.test(help) ? 'supported' : 'unsupported'
       );
     probe = started;
-    sentAtSupport.set(family, started);
+    sentAtSupport.set(key, started);
     const forget = () => {
-      if (sentAtSupport.get(family) === started) sentAtSupport.delete(family);
+      if (sentAtSupport.get(key) === started) sentAtSupport.delete(key);
     };
     started.then((support) => {
       if (support !== 'supported') forget();
@@ -1200,13 +1206,13 @@ async function cliSentAtSupport(
     const support = await probe;
     if (support === 'unsupported') {
       deps.logError?.(
-        `Refusing owner ${family} sends: the installed tlon CLI's ${family} send does not take --sent-at.`
+        `Refusing owner ${family} sends: the installed tlon CLI's ${key} does not take --sent-at.`
       );
     }
     return support;
   } catch (error) {
     deps.logError?.(
-      `Refusing an owner ${family} send: could not check the tlon CLI for --sent-at: ${String(error)}`
+      `Refusing an owner ${family} send: could not check the tlon CLI's ${key} for --sent-at: ${String(error)}`
     );
     return 'unverified';
   }
@@ -1222,10 +1228,15 @@ async function ownerSendSupport(
   deps: TlonToolExecutorDeps
 ): Promise<SentAtSupport | 'unverified' | null> {
   const family = commandArgs[0] ?? '';
-  const send = OWNER_TIMESTAMPED_SENDS.get(`${family} ${commandArgs[1] ?? ''}`);
+  const operation = commandArgs[1] ?? '';
+  const send = OWNER_TIMESTAMPED_SENDS.get(`${family} ${operation}`);
   // Without its positionals the CLI stops at a usage error and sends nothing.
   if (!send || commandArgs.length - 1 < send.messageStart) return null;
-  return cliSentAtSupport(family, deps);
+  return cliSentAtSupport(
+    family,
+    operation === 'forward' ? 'forward' : 'send',
+    deps
+  );
 }
 
 /**
@@ -1764,7 +1775,7 @@ export type TlonToolExecutorDeps = {
  */
 export function formatTlonIdentityGuidance(ownerDefault: boolean): string {
   return ownerDefault
-    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. When run as the owner, posts send|reply and dms send|reply post in the owner\'s name and look exactly like something the owner typed (--bot adds only a Bot tag); your own voice is the message tool. Before sending in the owner\'s name, confirm with the owner unless their instruction was explicit ("tell ~x I\'m late" is explicit; "handle this" is not). A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings, browser and hooks always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
+    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. When run as the owner, posts send|reply|forward and dms send|reply post in the owner\'s name and look exactly like something the owner typed (--bot adds only a Bot tag); your own voice is the message tool. Before sending in the owner\'s name, confirm with the owner unless their instruction was explicit ("tell ~x I\'m late" is explicit; "handle this" is not). A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings, browser and hooks always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
     : 'Commands act as this bot. groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
 }
 

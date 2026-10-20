@@ -3997,6 +3997,51 @@ describe('posts forward', () => {
     expect(context.calls.sendPost).toEqual([]);
   });
 
+  it('sends a forward at --sent-at, not the clock, and confirms it', async () => {
+    const context = makeDeps({
+      now: 999,
+      threads: [source({ replies: [sourceReply()] })],
+      getChannelPosts: channelReadBack(sentPost([CITER])),
+    });
+
+    expect(
+      await run(
+        ['forward', SRC, R, TEAM, '--sent-at', String(SENT), '--parent', S],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.stdout()).toBe(
+      `✓ Post forwarded\n  Ref: /1/chan/${TEAM}/msg/${NEW_UD}\n`
+    );
+    expect(context.calls.sendPost).toEqual([
+      { channelId: TEAM, authorId: '~zod', sentAt: SENT, content: [CITER] },
+    ]);
+  });
+
+  it('forwards to a DM at --sent-at, and reads it back by that time', async () => {
+    const context = makeDeps({
+      now: 999,
+      threads: [
+        source(),
+        {
+          id: DM_TIME,
+          authorId: '~zod',
+          contentKey: contentKeyOf([CITE]),
+          replies: [],
+        },
+      ],
+    });
+
+    expect(
+      await run(
+        ['forward', SRC, S, '~bus', '--sent-at', String(SENT)],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.stdout()).toBe(`✓ Post forwarded\n  ID: ~zod/${DM_TIME}\n`);
+    expect(context.calls.sendPost[0].sentAt).toBe(SENT);
+  });
+
   it('prints POSTS_COMMAND_HELP.forward for forward --help', async () => {
     const context = makeDeps();
 
@@ -4372,6 +4417,36 @@ describe('posts quote and forward usage errors', () => {
       name: 'forward with an option-like --parent value',
       args: ['forward', SRC, S, TEAM, '--parent', '--x'],
       stderr: `${forward}\n`,
+    },
+    {
+      name: 'forward with a missing --sent-at value',
+      args: ['forward', SRC, S, TEAM, '--sent-at'],
+      stderr: `${forward}\n`,
+    },
+    {
+      name: 'forward with a non-numeric --sent-at',
+      args: ['forward', SRC, S, TEAM, '--sent-at', 'nope'],
+      stderr: `${forward}\n`,
+    },
+    {
+      name: 'forward with a non-positive --sent-at',
+      args: ['forward', SRC, S, TEAM, '--sent-at', '0'],
+      stderr: `${forward}\n`,
+    },
+    {
+      name: 'forward with an option as the --sent-at value',
+      args: ['forward', SRC, S, TEAM, '--sent-at', '--parent', S],
+      stderr: `${forward}\n`,
+    },
+    {
+      name: 'forward with a repeated --sent-at',
+      args: ['forward', SRC, S, TEAM, '--sent-at', '5', '--sent-at', '6'],
+      stderr: `Error: Unexpected argument: --sent-at\n\n${forward}\n`,
+    },
+    {
+      name: 'forward with --sent-at=<ms>',
+      args: ['forward', SRC, S, TEAM, '--sent-at=5'],
+      stderr: `Error: Unexpected argument: --sent-at=5\n\n${forward}\n`,
     },
     {
       name: 'forward with a non-numeric id',

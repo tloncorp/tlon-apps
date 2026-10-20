@@ -47,6 +47,7 @@ const SENT_AT = 1_700_000_000_000;
 const M = String(SENT_AT);
 const SENT_AT_PROBES = [
   ['posts', 'send', '--help'],
+  ['posts', 'forward', '--help'],
   ['dms', 'send', '--help'],
 ];
 const PROBE_HELP: Record<string, string> = {
@@ -1014,7 +1015,7 @@ describe('owner-by-default identity selection', () => {
     const OWNER_DM_UNSTAMPED =
       "Blocked: the installed tlon CLI cannot timestamp group DM sends, so it cannot send one in the owner's name. Update the tlon skill, or add --self to send it as this bot.";
     const OWNER_POST_UNSTAMPED =
-      "Blocked: the installed tlon CLI cannot timestamp posts send or reply, so it cannot post in the owner's name. Update the tlon skill, or add --self to post as this bot.";
+      "Blocked: the installed tlon CLI cannot timestamp posts send, reply or forward, so it cannot post in the owner's name. Update the tlon skill, or add --self to post as this bot.";
     const owner = (extra: string[]) => ['--ship', '~owner', ...extra];
     const sentBy = (sent: number, target = 'chat/~h/c') =>
       target.startsWith('~')
@@ -1165,6 +1166,64 @@ describe('owner-by-default identity selection', () => {
         author: '~owner',
         target: expected[2],
       });
+    });
+
+    it.each([
+      [
+        'posts forward chat/~h/d 170.1 chat/~h/c',
+        ['posts', 'forward', 'chat/~h/d', '170.1', 'chat/~h/c', '--sent-at', M],
+      ],
+      [
+        'posts forward chat/~h/d 170.1 chat/~h/c --parent 170.0',
+        [
+          'posts',
+          'forward',
+          'chat/~h/d',
+          '170.1',
+          'chat/~h/c',
+          '--parent',
+          '170.0',
+          '--sent-at',
+          M,
+        ],
+      ],
+      [
+        'posts forward chat/~h/d 170.1 ~alice',
+        ['posts', 'forward', 'chat/~h/d', '170.1', '~alice', '--sent-at', M],
+      ],
+    ])('stamps and records owner `%s`', async (command, expected) => {
+      const { execute, runCommand, ledger } = makeExecutor();
+      await execute('forward', { command });
+      expect(ranWith(runCommand)).toEqual(owner(expected));
+      // Recorded against the forward's target, never its source.
+      expect(ledger.match(sentBy(SENT_AT, expected[4]))).toMatchObject({
+        kind: 'send',
+        author: '~owner',
+        target: expected[4],
+      });
+      expect(ledger.match(sentBy(SENT_AT, 'chat/~h/d'))).toBeNull();
+    });
+
+    it('probes posts forward on its own, so a CLI with only send --sent-at refuses a forward', async () => {
+      const runCommand = vi.fn(async (args: string[]) => {
+        if (args[1] === 'forward' && args[2] === '--help') {
+          return 'Usage: tlon posts forward <src-channel> <src-id> <target> [--parent <src-parent-id>]';
+        }
+        return isSentAtProbe(args) ? PROBE_HELP[args[0]] : 'ok';
+      });
+      const { execute, ledger } = makeExecutor({ runCommand });
+      await execute('send', { command: 'posts send chat/~h/c hi' });
+      const result = await execute('forward', {
+        command: 'posts forward chat/~h/d 170.1 chat/~h/e',
+      });
+      expect(result.content[0].text).toBe(OWNER_POST_UNSTAMPED);
+      expect(result.details).toMatchObject({ reason: 'owner_post_unstamped' });
+      expect(runCommand.mock.calls.map(([args]) => args)).toEqual([
+        ['posts', 'send', '--help'],
+        owner(['posts', 'send', 'chat/~h/c', 'hi', '--sent-at', M]),
+        ['posts', 'forward', '--help'],
+      ]);
+      expect(ledger.match(sentBy(SENT_AT, 'chat/~h/e'))).toBeNull();
     });
 
     it('overrides a model-supplied --sent-at, which then never matches', async () => {
@@ -1328,8 +1387,7 @@ describe('owner-by-default identity selection', () => {
       ['--self posts react chat/~h/c 170.1 👍', undefined],
       ['help posts send', undefined],
       ['posts send --help', undefined],
-      // The CLI's forward takes no --sent-at, so it cannot be stamped.
-      ['posts forward chat/~h/d 170.1 chat/~h/c', undefined],
+      ['--self posts forward chat/~h/d 170.1 chat/~h/c', undefined],
       ['posts send ~bot hi', 'owner_self_dm'],
       ['dms send ~alice hi', 'send_operation'],
     ])('neither stamps nor records `%s`', async (command, reason) => {
@@ -1738,7 +1796,7 @@ describe('model-facing identity guidance', () => {
         else expect(help).not.toContain(marker);
       }
       for (const marker of [
-        'When run as the owner, posts send|reply',
+        'When run as the owner, posts send|reply|forward and dms send|reply',
         'look exactly like something the owner typed',
         '"handle this" is not',
       ]) {
