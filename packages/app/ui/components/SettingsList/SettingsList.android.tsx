@@ -395,9 +395,12 @@ function TextFieldRow({
         ...(row.disabled ? [alpha(0.5)] : []),
       ]}
     >
-      {isEmpty && field.placeholder ? (
+      {/* Stays mounted and only empties, since adding or removing a view
+          ahead of the field remounts the field, which drops focus and closes
+          the keyboard after the first letter typed into an empty field. */}
+      {field.placeholder ? (
         <Text color={colors.tertiaryText} style={{ fontSize: 16 }}>
-          {field.placeholder}
+          {isEmpty ? field.placeholder : ''}
         </Text>
       ) : null}
       <BasicTextField
