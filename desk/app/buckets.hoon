@@ -218,14 +218,20 @@
       readers.old
       reservations.old
       pending.old
-      %-  ~(run by requests.old)
-      |=  req=incoming-request:v1:b
-      ^-  incoming-request:b
-      :*  request-id.req
-          http-id.req
-          (bind result.req response-body-1-to-2:util)
-          final-at.req
-      ==
+      (requests-0-to-1 requests.old)
+  ==
+::  +requests-0-to-1: each stored answer lifted to the current shape.
+::
+++  requests-0-to-1
+  |=  old=requests:v1:b
+  ^-  requests:b
+  %-  ~(run by old)
+  |=  req=incoming-request:v1:b
+  ^-  incoming-request:b
+  :*  request-id.req
+      http-id.req
+      (bind result.req response-body-1-to-2:util)
+      final-at.req
   ==
 ::
 ++  poke
@@ -1380,9 +1386,11 @@
       ?~  body  ~
       ?~  got=(~(get by u.body) 'reservationId')  ~
       ?.(?=([%s *] u.got) ~ `p.u.got)
-    =?  ses  ?=(^ reservation)  ses(reservation reservation)
-    =?  reservations  ?=(^ reservation)
-      (~(put by reservations) u.reservation id.ses)
+    =?  up-core  ?=(^ reservation)
+      %_  up-core
+        ses           ses(reservation reservation)
+        reservations  (~(put by reservations) u.reservation id.ses)
+      ==
     ?~  body
       (up-fail 'storage returned an unreadable grant' ~)
     ?~  url=(~(get by u.body) 'uploadUrl')
