@@ -411,6 +411,20 @@ function hasCredentialValue(args: string[], index: number): boolean {
   );
 }
 
+/** The ship a credential prefix's `--ship` names, which the CLI acts as. */
+function credentialPrefixShip(prefix: string[]): string | null {
+  let ship: string | null = null;
+  for (let index = 0; index < prefix.length; index += 1) {
+    const arg = prefix[index];
+    if (arg.startsWith('--ship=')) {
+      ship = arg.slice('--ship='.length);
+    } else if (arg === '--ship' && hasCredentialValue(prefix, index)) {
+      ship = prefix[index + 1];
+    }
+  }
+  return ship ? normalizeShip(ship) || null : null;
+}
+
 export function isBrowserHandoffCommand(args: string[]): boolean {
   // Redaction errs toward hiding: a `--self` anywhere does not shield a
   // browser capability from it.
@@ -1075,6 +1089,11 @@ function ownerToolPostFor(
   if (stamp !== null) {
     return { ...base, kind: 'send', target, sentAt: stamp };
   }
+  // Without a sent time to pin it, an entry with no author would match every
+  // ship's identical edit or reaction; flag-off credentials carry no
+  // owner-input guarantee anyway, so none is recorded.
+  if (base.author === null) return null;
+
   if (operation === 'posts edit' && postId) {
     const parentId = firstParentId(commandArgs);
     return {
@@ -1972,15 +1991,17 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
 
       // Owner-credentialed writes the monitor would see as the owner's own
       // are stamped and recorded before they run. Model-supplied credentials
-      // (flag off) do not prove whose post it is, so the entry then names no
-      // author and is matched by its target.
+      // (flag off) name the acting ship only through `--ship`; without it only
+      // a send is recorded, with no author, matched by target and sent time.
       let sentCommand = command;
       let reservation: OwnerToolPostReservation | null = null;
       if (ownerCredentialed && !isHelp) {
         const ledger = deps.ownerToolPosts ?? sharedOwnerToolPostLedger();
         const plan = await planOwnerToolPost(
           command,
-          identity.actAs === 'owner' ? identity.ship : null,
+          identity.actAs === 'owner'
+            ? identity.ship
+            : credentialPrefixShip(args.slice(0, subIdx)),
           ledger,
           deps
         );

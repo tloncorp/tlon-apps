@@ -1752,43 +1752,82 @@ describe('owner default off (staged rollout)', () => {
     const lastRun = (runCommand: ReturnType<typeof vi.fn>) =>
       runCommand.mock.calls.at(-1)?.[0];
 
+    it('stamps a --config send and records it with no author, matched by target', async () => {
+      const { execute, runCommand, ledger } = withLedger();
+      await execute('creds', {
+        command: '--config /tmp/owner.json posts send chat/~h/c hi',
+      });
+      expect(lastRun(runCommand)).toEqual([
+        '--config',
+        '/tmp/owner.json',
+        'posts',
+        'send',
+        'chat/~h/c',
+        'hi',
+        '--sent-at',
+        M,
+      ]);
+      expect(
+        ledger.match({ author: '~anyone', target: 'chat/~h/c', sent: SENT_AT })
+      ).toMatchObject({ author: null, target: 'chat/~h/c' });
+      expect(
+        ledger.match({ author: '~anyone', target: 'chat/~h/d', sent: SENT_AT })
+      ).toBeNull();
+    });
+
+    it('stamps a --ship send and records that ship as the author', async () => {
+      const { execute, runCommand, ledger } = withLedger();
+      await execute('creds', {
+        command: '--ship ~zod --url u --code c posts send chat/~h/c hi',
+      });
+      expect(lastRun(runCommand)).toEqual([
+        '--ship',
+        '~zod',
+        '--url',
+        'u',
+        '--code',
+        'c',
+        'posts',
+        'send',
+        'chat/~h/c',
+        'hi',
+        '--sent-at',
+        M,
+      ]);
+      expect(
+        ledger.match({ author: '~zod', target: 'chat/~h/c', sent: SENT_AT })
+      ).toMatchObject({ author: '~zod', target: 'chat/~h/c' });
+      expect(
+        ledger.match({ author: '~bus', target: 'chat/~h/c', sent: SENT_AT })
+      ).toBeNull();
+    });
+
+    it('records a --ship reaction under that ship, matching only its reaction', async () => {
+      const { execute, ledger } = withLedger();
+      await execute('creds', {
+        command: '--ship=bus --url u --code c posts react chat/~h/c 170.1 👍',
+      });
+      const reaction = { target: 'chat/~h/c', postId: '1701', reaction: '👍' };
+      expect(ledger.match({ ...reaction, author: '~bus' })).toMatchObject({
+        kind: 'react',
+        author: '~bus',
+      });
+      expect(ledger.match({ ...reaction, author: '~zod' })).toBeNull();
+    });
+
     it.each([
-      [
-        '--config /tmp/owner.json posts send chat/~h/c hi',
-        ['--config', '/tmp/owner.json'],
-      ],
-      [
-        '--ship ~zod --url u --code c posts send chat/~h/c hi',
-        ['--ship', '~zod', '--url', 'u', '--code', 'c'],
-      ],
+      '--config /tmp/owner.json posts react chat/~h/c 170.1 👍',
+      '--url u --cookie c posts react chat/~h/c 170.1 👍',
+      '--config /tmp/owner.json posts edit chat/~h/c 170.1 hi',
+      '--config /tmp/owner.json posts unreact chat/~h/c 170.1',
     ])(
-      'stamps `%s` and records it with no author, matched by target',
-      async (command, prefix) => {
-        const { execute, runCommand, ledger } = withLedger();
+      'runs `%s` but records nothing: the acting ship is unknown',
+      async (command) => {
+        const { execute, ledger, runCommand } = withLedger();
+        const reserve = vi.spyOn(ledger, 'reserve');
         await execute('creds', { command });
-        expect(lastRun(runCommand)).toEqual([
-          ...prefix,
-          'posts',
-          'send',
-          'chat/~h/c',
-          'hi',
-          '--sent-at',
-          M,
-        ]);
-        expect(
-          ledger.match({
-            author: '~anyone',
-            target: 'chat/~h/c',
-            sent: SENT_AT,
-          })
-        ).toMatchObject({ author: null, target: 'chat/~h/c' });
-        expect(
-          ledger.match({
-            author: '~anyone',
-            target: 'chat/~h/d',
-            sent: SENT_AT,
-          })
-        ).toBeNull();
+        expect(lastRun(runCommand)).toEqual(command.split(' '));
+        expect(reserve).not.toHaveBeenCalled();
       }
     );
 

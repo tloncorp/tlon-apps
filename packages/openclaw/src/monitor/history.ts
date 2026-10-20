@@ -21,6 +21,8 @@ export type TlonHistoryEntry = {
   timestamp: number;
   sequenceNum?: number;
   id?: string;
+  /** The thread's top-level post, on a reply from fetchThreadHistory. */
+  parentId?: string;
   blob?: string | null;
   parsedBlobData?: ClientPostBlobData | null;
 };
@@ -72,6 +74,7 @@ export function withoutOwnerToolPosts<T extends TlonHistoryEntry>(
         receivingShip,
         sent: entry.timestamp,
         ...(entry.id ? { postId: entry.id } : {}),
+        ...(entry.parentId ? { parentId: entry.parentId } : {}),
       })
   );
 }
@@ -491,6 +494,7 @@ export async function fetchThreadHistory(
           content: extractMessageText(memo?.content || []),
           timestamp: memo?.sent || Date.now(),
           id: seal?.id || item.id,
+          parentId,
           blob: memo?.blob ?? null,
         } as TlonHistoryEntry;
       })
@@ -520,6 +524,7 @@ export async function fetchThreadHistory(
             content: extractMessageText(reply.memo?.content || []),
             timestamp: reply.memo?.sent || Date.now(),
             id: reply.seal?.id,
+            parentId,
             blob: reply.memo?.blob ?? null,
           }))
           .filter((msg: TlonHistoryEntry) => msg.content || msg.blob);

@@ -207,6 +207,48 @@ describe('owner tool post ledger', () => {
     ).toBeNull();
   });
 
+  it('matches no edit, reaction or removal without an author, but still a send', () => {
+    const { ledger } = makeLedger();
+    const base = {
+      accountId: 'default',
+      author: null,
+      target: 'chat/~h/c',
+      postId: '170141',
+    };
+    ledger.reserve({ ...base, kind: 'react', reaction: '👍' });
+    ledger.reserve({ ...base, kind: 'unreact' });
+    ledger.reserve({ ...base, kind: 'edit' });
+    for (const author of ['~zod', '~bus', '~owner']) {
+      const inbound = { author, target: 'chat/~h/c', postId: '170141' };
+      expect(ledger.match({ ...inbound, reaction: '👍' })).toBeNull();
+      expect(ledger.match({ ...inbound, reactionRemoved: true })).toBeNull();
+      expect(ledger.match(inbound)).toBeNull();
+    }
+    ledger.reserve(send(T, { author: null }));
+    expect(
+      ledger.match({ author: '~zod', target: 'chat/~h/c', sent: T })
+    ).toMatchObject({ kind: 'send', author: null });
+  });
+
+  it('keeps the channel name case-sensitive when comparing nests', () => {
+    const { ledger } = makeLedger();
+    ledger.reserve({
+      kind: 'react',
+      accountId: 'default',
+      author: '~owner',
+      target: 'chat/~zod/General',
+      postId: '170141',
+      reaction: '👍',
+    });
+    const inbound = { author: '~owner', postId: '170141', reaction: '👍' };
+    expect(
+      ledger.match({ ...inbound, target: 'chat/~zod/general' })
+    ).toBeNull();
+    expect(
+      ledger.match({ ...inbound, target: 'CHAT/~ZOD/General' })
+    ).not.toBeNull();
+  });
+
   it('matches a wildcard-author DM to a ship at the receiving bot, not the partner', () => {
     // Account A (bot ~nec) ran `--config /b-owner.json posts send ~bus
     // "/restart"`: the author is unverified, the target is the recipient.
@@ -573,6 +615,7 @@ describe('owner tool post ledger', () => {
     expect(canonicalPostId('170.141.184')).toBe('170141184');
     expect(canonicalPostId('170141184')).toBe('170141184');
     expect(canonicalTarget('Chat/zod/c')).toBe('chat/~zod/c');
+    expect(canonicalTarget('CHAT/~ZOD/General')).toBe('chat/~zod/General');
     expect(canonicalTarget('zod')).toBe('~zod');
     expect(canonicalTarget('0V1.ABC')).toBe('0v1.abc');
   });

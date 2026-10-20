@@ -37,7 +37,10 @@ const SENT_TOLERANCE_MS = 1;
 
 type OwnerToolPostBase = {
   accountId: string;
-  /** null when the acting ship is not known; the target still must match. */
+  /**
+   * null when the acting ship is not known; the target still must match.
+   * Only a send, which its `sentAt` pins down, matches with no author.
+   */
   author: string | null;
   /** Nest, DM ship or club id, as the command named it. */
   target: string;
@@ -113,15 +116,18 @@ export function canonicalPostId(id: string): string {
   return id.slice(id.indexOf('/') + 1).replace(/\./g, '');
 }
 
-/** Nest, ship or club id in one spelling, for comparing targets. */
+/**
+ * Nest, ship or club id in one spelling, for comparing targets. A nest's
+ * channel name is case-sensitive and kept as given (see canonicalizeNest).
+ */
 export function canonicalTarget(target: string): string {
-  const trimmed = target.trim().toLowerCase();
-  if (trimmed.startsWith('0v')) return trimmed;
+  const trimmed = target.trim();
   const parts = trimmed.split('/');
   if (parts.length === 3) {
-    return `${parts[0]}/${normalizeShip(parts[1])}/${parts[2]}`;
+    return `${parts[0].toLowerCase()}/${normalizeShip(parts[1])}/${parts[2]}`;
   }
-  return normalizeShip(trimmed);
+  const lower = trimmed.toLowerCase();
+  return lower.startsWith('0v') ? lower : normalizeShip(lower);
 }
 
 /**
@@ -173,8 +179,9 @@ function matchesEntry(post: OwnerToolPost, inbound: InboundPost): boolean {
   // of this process whose bot was the recipient: an owner DM to this bot
   // itself is refused by checkOwnerSelfDm.
   if (
-    post.author !== null &&
-    normalizeShip(post.author) !== normalizeShip(inbound.author)
+    post.author === null
+      ? post.kind !== 'send'
+      : normalizeShip(post.author) !== normalizeShip(inbound.author)
   ) {
     return false;
   }

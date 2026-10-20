@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createOwnerToolPostLedger } from '../owner-tool-posts.js';
+import {
+  canonicalPostId,
+  createOwnerToolPostLedger,
+} from '../owner-tool-posts.js';
 
 import {
   type TlonHistoryEntry,
@@ -10,6 +13,7 @@ import {
   fetchChannelHistoryOrThrow,
   fetchParentPostAuthor,
   fetchParentPostHistoryEntry,
+  fetchThreadContextHistory,
   getChannelHistory,
   lookupCachedMessage,
   lookupOrFetchCachedChannelMessage,
@@ -961,6 +965,86 @@ describe('withoutOwnerToolPosts', () => {
     expect(
       withoutOwnerToolPosts([toolPost], 'chat/~h/d', '~bot', ledger())
     ).toEqual([toolPost]);
+  });
+
+  it('drops a reply the bot edited in a thread, not a top-level post with its id', async () => {
+    const edited = createOwnerToolPostLedger({
+      now: () => 0,
+      store: new Map(),
+    });
+    edited.reserve({
+      kind: 'edit',
+      accountId: 'default',
+      author: '~owner',
+      target: nest,
+      postId: '200',
+      parentId: '100',
+    });
+    const content = [{ inline: ['text'] }];
+    const scry = vi.fn(async (path: string) =>
+      path.includes('/replies/')
+        ? [
+            {
+              memo: { author: '~owner', content, sent: 2 },
+              seal: { id: '200' },
+            },
+          ]
+        : { essay: { author: '~zod', content, sent: 1 }, seal: { id: '100' } }
+    );
+    const thread = await fetchThreadContextHistory({ scry }, nest, '100');
+    expect(thread.map((entry) => entry.id)).toEqual(['100', '200']);
+    expect(
+      withoutOwnerToolPosts(thread, nest, '~bot', edited).map(
+        (entry) => entry.id
+      )
+    ).toEqual(['100']);
+    const topLevel = makeEntry({ author: '~owner', id: '200' });
+    expect(withoutOwnerToolPosts([topLevel], nest, '~bot', edited)).toEqual([
+      topLevel,
+    ]);
+  });
+
+  it('drops a reply the bot edited in a thread fetched by the fallback path', async () => {
+    const parent = '170.141.184.506.000.000.000.000.000.000.000.001';
+    const reply = '170.141.184.506.000.000.000.000.000.000.000.002';
+    const edited = createOwnerToolPostLedger({
+      now: () => 0,
+      store: new Map(),
+    });
+    edited.reserve({
+      kind: 'edit',
+      accountId: 'default',
+      author: '~owner',
+      target: nest,
+      postId: canonicalPostId(reply),
+      parentId: canonicalPostId(parent),
+    });
+    const content = [{ inline: ['text'] }];
+    const scry = vi.fn(async (path: string) => {
+      if (path.includes('/replies/')) throw new Error('no replies scry');
+      if (path.includes('/posts/post/id/')) {
+        return {
+          seal: { meta: { replyCount: 1 } },
+          replies: [
+            {
+              memo: { author: '~owner', content, sent: 2 },
+              seal: { id: reply },
+            },
+          ],
+        };
+      }
+      return {
+        essay: { author: '~zod', content, sent: 1 },
+        seal: { id: parent },
+      };
+    });
+    const thread = await fetchThreadContextHistory({ scry }, nest, parent);
+    expect(thread.map((entry) => entry.id)).toEqual([parent, reply]);
+    expect(
+      withoutOwnerToolPosts(thread, nest, '~bot', edited).map(
+        (entry) => entry.id
+      )
+    ).toEqual([parent]);
   });
 
   it('reads a thread reply whose author is a --bot profile object', () => {
