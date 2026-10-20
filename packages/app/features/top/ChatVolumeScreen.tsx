@@ -98,7 +98,7 @@ function ChatVolumeScreenView({
           context === 'dm'
             ? 'Choose whether this chat notifies you.'
             : chatType === 'group'
-              ? 'Choose what in this group notifies you. A channel can have its own setting too.'
+              ? 'Choose what in this workspace notifies you. A channel can have its own setting too.'
               : 'Choose what in this channel notifies you.',
         rows: [
           {
@@ -106,7 +106,7 @@ function ChatVolumeScreenView({
             title: 'Default',
             subtitle:
               chatType === 'channel' && channel?.groupId
-                ? 'Follows the group'
+                ? 'Follows the workspace'
                 : 'Follows your notification settings',
             selected: isDefault,
             onPress: () => {

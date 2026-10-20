@@ -15,12 +15,17 @@ import {
   GroupMemberProfileSheet,
   useChatOptions,
   useCurrentUserId,
+  useForwardChannelSheet,
   useForwardGroupSheet,
   useGroupTitle,
   useIsAdmin,
   useToast,
 } from '../../ui';
 import { ChatDetailsScreenView } from '../../ui/components/ChatDetailsScreenView';
+import {
+  WorkspaceInstructionsSheet,
+  hasWorkspaceInstructions,
+} from '../../ui/components/WorkspaceInstructionsSheet';
 import {
   destinationForChannel,
   tasksPostingTo,
@@ -69,6 +74,7 @@ export function ChatDetailsView({
   } = useChatSettingsNavigation();
   const { navigation, resetToDm } = useRootNavigation();
   const forwardGroupSheet = useForwardGroupSheet();
+  const forwardChannelSheet = useForwardChannelSheet();
   const toast = useToast();
 
   const currentUserId = useCurrentUserId();
@@ -79,9 +85,15 @@ export function ChatDetailsView({
   const { groupRoles, deleteGroup } = useGroupContext({
     groupId: group?.id ?? '',
   });
-  const groupTitle = useGroupTitle(group) ?? 'group';
+  const groupTitle = useGroupTitle(group) ?? 'workspace';
   const scheduledTasks = useScheduledTasksHere({ chatType, channel, group });
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
+  // Bots honor a workspace config only in groups their owner hosts, so
+  // only the host gets the editor.
+  const supportsInstructions =
+    store.useDeskSupportsStewardBots() === true &&
+    group?.hostUserId === currentUserId;
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
 
   const handlePressProfile = useCallback(
     (contactId: string) => {
@@ -110,6 +122,23 @@ export function ChatDetailsView({
     }
   }, [copyText, group]);
 
+  // DMs have no nest, so only group channels can be referenced. Notebook
+  // cites aren't rendered as cards yet and would show "Upgrade your app".
+  const canReference =
+    chatType === 'channel' && !!channel?.groupId && channel.type !== 'notes';
+
+  const handleForwardChannel = useCallback(() => {
+    if (channel) {
+      forwardChannelSheet.open(channel);
+    }
+  }, [forwardChannelSheet, channel]);
+
+  const handleCopyChannelLink = useCallback(() => {
+    if (channel) {
+      copyText(logic.getChannelReferencePath(channel.id));
+    }
+  }, [copyText, channel]);
+
   const handlePressNotifications = useCallback(() => {
     if (chatType === 'group' && group) {
       onPressChatVolume({ type: 'group', id: group.id, groupId: group.id });
@@ -127,7 +156,7 @@ export function ChatDetailsView({
       await leaveChannel();
       return;
     }
-    const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
+    const message = `You will no longer receive updates from this workspace.\n\nWarning: Leaving this workspace will invalidate any invitations you've sent.`;
     if (isWeb) {
       if (window.confirm(`Leave ${groupTitle}?\n\n${message}`)) {
         await leaveGroup();
@@ -135,7 +164,11 @@ export function ChatDetailsView({
     } else {
       Alert.alert(`Leave ${groupTitle}?`, message, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Leave Group', style: 'destructive', onPress: leaveGroup },
+        {
+          text: 'Leave Workspace',
+          style: 'destructive',
+          onPress: leaveGroup,
+        },
       ]);
     }
   }, [chatType, groupTitle, leaveGroup, leaveChannel]);
@@ -190,10 +223,20 @@ export function ChatDetailsView({
       onTogglePinned={togglePinned}
       onForward={handleForward}
       onCopyGroupId={handleCopyGroupId}
+      onForwardChannel={canReference ? handleForwardChannel : undefined}
+      onCopyChannelLink={canReference ? handleCopyChannelLink : undefined}
       onCopyText={copyText}
       onPressPrivacy={() => group && onPressGroupPrivacy(group.id, true)}
       onPressRoles={() => group && onPressRoles(group.id, true)}
       onPressChannels={() => group && onPressManageChannels(group.id, true)}
+      instructions={
+        supportsInstructions && group
+          ? hasWorkspaceInstructions(group)
+            ? 'On'
+            : 'Off'
+          : undefined
+      }
+      onPressInstructions={() => setInstructionsOpen(true)}
       onPressNotifications={handlePressNotifications}
       onPressScheduledTasks={scheduledTasks.open}
       onPressChannelPermissions={() =>
@@ -214,6 +257,12 @@ export function ChatDetailsView({
           onDismiss={() => setSelectedContact(null)}
           groupId={group.id}
           onPressGoToProfile={handlePressProfile}
+        />
+      ) : null}
+      {instructionsOpen && group ? (
+        <WorkspaceInstructionsSheet
+          group={group}
+          onClose={() => setInstructionsOpen(false)}
         />
       ) : null}
     </ChatDetailsScreenView>

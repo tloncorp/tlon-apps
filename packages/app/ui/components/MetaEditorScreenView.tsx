@@ -55,7 +55,7 @@ function MetaEditorForm({
 
   const group = chat && logic.isGroup(chat) ? chat : null;
   const channel = chat && !group ? (chat as db.Channel) : null;
-  const label = group ? 'group' : 'chat';
+  const label = group ? 'workspace' : 'chat';
   const hostReachable =
     !hostStatus || (hostStatus.complete && hostStatus.status === 'yes');
   // A picked image is a local file until its upload finishes.
@@ -141,8 +141,8 @@ function MetaEditorForm({
       footer: hostReachable
         ? undefined
         : hostStatus?.complete
-          ? 'The group’s host is offline, so changes can’t be saved right now.'
-          : 'Checking the connection to the group’s host…',
+          ? 'The workspace’s host is offline, so changes can’t be saved right now.'
+          : 'Checking the connection to the workspace’s host…',
       rows: [
         {
           key: 'description',

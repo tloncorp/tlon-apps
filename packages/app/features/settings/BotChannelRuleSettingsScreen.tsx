@@ -360,9 +360,9 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     {
       key: 'enable',
       footer: groupDeparted
-        ? 'Tlonbot is no longer in this group, so this channel is paused. Join again from Channel rules to resume it.'
+        ? 'Tlonbot is no longer in this workspace, so this channel is paused. Join again from Channel rules to resume it.'
         : !groupJoined
-          ? 'Join this group to enable Tlonbot in this channel.'
+          ? 'Join this workspace to enable Tlonbot in this channel.'
           : undefined,
       rows: [
         {

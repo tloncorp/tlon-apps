@@ -465,7 +465,7 @@ export function ManageChannelsSheets({
         actions={[
           {
             title: 'New channel',
-            description: 'Create a new channel in this group',
+            description: 'Create a new channel in this workspace',
             action: () => {
               state.setShowNewMenu(false);
               state.setShowCreateChannel(true);

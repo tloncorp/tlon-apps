@@ -80,7 +80,7 @@ export function GroupPrivacyScreen(props: Props) {
 
   return (
     <SettingsListScreenView
-      title="Group privacy"
+      title="Workspace privacy"
       sections={sections}
       loading={!group}
       onBackPressed={handleGoBack}

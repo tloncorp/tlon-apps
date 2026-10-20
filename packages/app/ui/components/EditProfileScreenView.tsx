@@ -265,7 +265,7 @@ function EditProfileForm({
           },
           {
             key: 'pinned',
-            title: 'Pinned groups',
+            title: 'Pinned workspaces',
             footer: `Shown on your profile, up to ${maxPinnedGroups}.`,
             rows: [
               ...pinned.groups.map(
@@ -283,7 +283,9 @@ function EditProfileForm({
               {
                 key: 'add',
                 title:
-                  pinned.groups.length > 0 ? 'Choose groups' : 'Add a group',
+                  pinned.groups.length > 0
+                    ? 'Choose workspaces'
+                    : 'Add a workspace',
                 action: true,
                 onPress: pinned.openSelector,
                 testID: 'ProfilePinnedGroupsAdd',
@@ -320,7 +322,7 @@ function EditProfileForm({
             ? [
                 {
                   key: 'pinned',
-                  title: 'Pinned groups',
+                  title: 'Pinned workspaces',
                   rows: pinned.groups.map(groupRow),
                 },
               ]
@@ -357,11 +359,11 @@ function EditProfileForm({
         selected={pinned.groups.map((g) => g.id)}
         onSelect={pinned.toggle}
         onClose={() => pinned.setSelectorOpen(false)}
-        title="Pinned groups"
+        title="Pinned workspaces"
         subtitle={
           pinned.groups.length >= maxPinnedGroups
-            ? `No more groups can be selected (max ${maxPinnedGroups})`
-            : `Choose up to ${maxPinnedGroups - pinned.groups.length} more groups`
+            ? `No more workspaces can be selected (max ${maxPinnedGroups})`
+            : `Choose up to ${maxPinnedGroups - pinned.groups.length} more workspaces`
         }
       />
       <ConfirmDialog
@@ -434,7 +436,7 @@ function usePinnedGroups(contact: db.Contact | null | undefined) {
 function groupRow(group: db.Group): SettingsRowModel {
   return {
     key: group.id,
-    title: group.title || 'Untitled group',
+    title: group.title || 'Untitled workspace',
     leading: {
       kind: 'element',
       render: ({ size }) => (

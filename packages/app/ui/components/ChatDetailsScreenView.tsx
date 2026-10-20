@@ -57,11 +57,18 @@ export interface ChatDetailsScreenViewProps {
   onTogglePinned: () => void;
   onForward: () => void;
   onCopyGroupId: () => void;
+  /** Forwards a reference to the channel. Left out, there is no such action. */
+  onForwardChannel?: () => void;
+  /** Copies a link to the channel. Left out, there is no such action. */
+  onCopyChannelLink?: () => void;
   /** Copies a description or someone's ID, and says so. */
   onCopyText: (text: string) => void;
   onPressPrivacy: () => void;
   onPressRoles: () => void;
   onPressChannels: () => void;
+  /** Whether the workspace has Tlonbot instructions. Left out, no row. */
+  instructions?: 'On' | 'Off';
+  onPressInstructions?: () => void;
   onPressNotifications: () => void;
   onPressScheduledTasks: () => void;
   onPressChannelPermissions: () => void;
@@ -100,10 +107,14 @@ export function ChatDetailsScreenView({
   onTogglePinned,
   onForward,
   onCopyGroupId,
+  onForwardChannel,
+  onCopyChannelLink,
   onCopyText,
   onPressPrivacy,
   onPressRoles,
   onPressChannels,
+  instructions,
+  onPressInstructions,
   onPressNotifications,
   onPressScheduledTasks,
   onPressChannelPermissions,
@@ -118,7 +129,7 @@ export function ChatDetailsScreenView({
   const isWindowNarrow = useIsWindowNarrow();
   const contactIndex = useContactIndex();
   const { disableNicknames } = useCalm();
-  const groupTitle = useGroupTitle(group) ?? 'group';
+  const groupTitle = useGroupTitle(group) ?? 'workspace';
   const chatTitle = useChatTitle(channel, group);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
@@ -174,6 +185,19 @@ export function ChatDetailsScreenView({
           // Short enough that the row ends on a whole pill on a phone.
           { title: 'Forward', id: 'Forward reference', onPress: onForward },
           { title: 'Copy ID', id: 'Copy group ID', onPress: onCopyGroupId }
+        );
+      } else if (onForwardChannel && onCopyChannelLink) {
+        quickActions.push(
+          {
+            title: 'Forward',
+            id: 'Forward reference',
+            onPress: onForwardChannel,
+          },
+          {
+            title: 'Copy link',
+            id: 'Copy link to channel',
+            onPress: onCopyChannelLink,
+          }
         );
       }
     }
@@ -316,6 +340,18 @@ export function ChatDetailsScreenView({
               onPress: onPressChannels,
               testID: 'GroupChannels',
             },
+            ...(instructions && onPressInstructions
+              ? [
+                  {
+                    key: 'instructions',
+                    title: 'Tlonbot instructions',
+                    value: instructions,
+                    disabled: !actionsEnabled,
+                    onPress: onPressInstructions,
+                    testID: 'GroupInstructions',
+                  },
+                ]
+              : []),
           ]
         : [
             {
@@ -419,7 +455,7 @@ export function ChatDetailsScreenView({
       });
     }
 
-    const noun = chatType === 'group' ? 'group' : 'channel';
+    const noun = chatType === 'group' ? 'workspace' : 'channel';
     const leaveRows: SettingsRowModel[] = [
       ...(canLeave
         ? [
@@ -456,8 +492,8 @@ export function ChatDetailsScreenView({
             footer:
               currentUserIsAdmin && !actionsEnabled
                 ? hostStatus.complete
-                  ? 'The group’s host is offline, so these settings can’t be changed right now.'
-                  : 'Checking the connection to the group’s host…'
+                  ? 'The workspace’s host is offline, so these settings can’t be changed right now.'
+                  : 'Checking the connection to the workspace’s host…'
                 : undefined,
             rows: [...adminRows, ...notificationRows, ...scheduledTaskRows],
           }
@@ -493,10 +529,13 @@ export function ChatDetailsScreenView({
     groupTitle,
     hasSettings,
     hostStatus,
+    instructions,
     isGroupChannel,
+    onCopyChannelLink,
     onCopyGroupId,
     onCopyText,
     onForward,
+    onForwardChannel,
     onLeave,
     onMarkRead,
     onMessageContact,
@@ -504,6 +543,7 @@ export function ChatDetailsScreenView({
     onPressChannelPermissions,
     onPressChannels,
     onPressEdit,
+    onPressInstructions,
     onPressInvite,
     onPressMember,
     onPressNotifications,
@@ -518,7 +558,7 @@ export function ChatDetailsScreenView({
   ]);
 
   const screenTitle =
-    chatType === 'group' ? 'Group info & settings' : 'Channel info';
+    chatType === 'group' ? 'Workspace info & settings' : 'Channel info';
 
   return (
     <SettingsListScreenView
@@ -553,7 +593,9 @@ export function ChatDetailsScreenView({
             ? 'This action cannot be undone.'
             : channelCapabilities.deleteDescription
         }
-        confirmText={chatType === 'group' ? 'Delete group' : 'Delete channel'}
+        confirmText={
+          chatType === 'group' ? 'Delete workspace' : 'Delete channel'
+        }
         cancelText="Cancel"
         onConfirm={onDelete}
         destructive
@@ -690,7 +732,7 @@ function getGroupSubtitle(group: db.Group | null | undefined) {
   }
   const memberCount = getGroupMemberCount(group);
   return [
-    group.privacy ? `${capitalize(group.privacy)} group` : 'Group',
+    group.privacy ? `${capitalize(group.privacy)} workspace` : 'Workspace',
     memberCount
       ? `with ${memberCount} ${pluralize(memberCount, 'member')}`
       : null,
@@ -716,7 +758,7 @@ function getChannelSubtitle(
         return undefined;
       }
       if (group.channels?.length === 1) {
-        return `Group with ${getGroupMemberCount(group)} members`;
+        return `Workspace with ${getGroupMemberCount(group)} members`;
       }
       return channel.type === 'buckets'
         ? `Bucket in ${groupTitle}`

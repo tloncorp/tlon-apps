@@ -158,7 +158,7 @@ export function channelAccessSections({
   return [
     {
       key: 'everyone',
-      footer: 'All members of the group, with or without a role.',
+      footer: 'All members of the workspace, with or without a role.',
       rows: [
         {
           key: 'everyone',

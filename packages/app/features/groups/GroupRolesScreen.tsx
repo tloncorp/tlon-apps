@@ -50,7 +50,7 @@ export function GroupRolesScreen({ navigation, route }: Props) {
           {
             key: 'members',
             title: 'Members',
-            subtitle: 'All group members',
+            subtitle: 'All workspace members',
             value: String(groupMembers.length),
             onPress: () =>
               navigation.navigate('GroupMembers', { groupId, fromChatDetails }),
@@ -64,7 +64,7 @@ export function GroupRolesScreen({ navigation, route }: Props) {
 
   return (
     <SettingsListScreenView
-      title="Group roles"
+      title="Workspace roles"
       sections={sections}
       onBackPressed={handleGoBack}
       showsBackOnWideWindows
