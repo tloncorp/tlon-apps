@@ -101,7 +101,7 @@ function createRecordingApi(config: Record<string, unknown> = {}): {
           {
             get(_runtimeTarget, runtimeProp) {
               if (runtimeProp === 'config') {
-                return { loadConfig: () => config };
+                return { current: () => config };
               }
               if (runtimeProp === 'then' || typeof runtimeProp === 'symbol') {
                 return undefined;

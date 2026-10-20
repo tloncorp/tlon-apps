@@ -21,7 +21,7 @@ on:
 
 defaults:
   tools:
-    node: "22.22.0"
+    node: "24.16.0"
 jobs:
   assess:
     if: ${{ inputs.phase == 'assess' }}
