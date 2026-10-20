@@ -119,6 +119,7 @@ describe('invite provider metadata', () => {
             inviterUserId: '~nec',
             invitedGroupId: '~zod/test',
             invitedGroupTitle: 'Test',
+            inviterNickname: 'Nec',
             invitedGroupDeleted: deleted,
           },
         })
@@ -131,7 +132,6 @@ describe('invite provider metadata', () => {
           inviteType: 'group',
           inviterUserId: '~nec',
           invitedGroupId: '~zod/test',
-          invitedGroupTitle: 'Test',
           ...(expected === undefined ? {} : { invitedGroupDeleted: expected }),
         },
       });

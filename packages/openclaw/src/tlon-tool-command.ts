@@ -504,12 +504,32 @@ const OWNER_CREDENTIAL_COMMANDS = new Map<string, readonly string[]>([
 
 // Operations that run as the owner only in one form. A plain `groups join
 // <flag>` joins as the bot; redeeming an invite link with --invite joins the
-// person the link was shared with.
+// person the link was shared with. Only exactly one well-formed --invite (the
+// CLI's own rules) routes to the owner; anything else runs as written, so the
+// CLI reports its usage error.
 const OWNER_CREDENTIAL_FORMS: Partial<
   Record<OwnerCredentialCommand, (operands: string[]) => boolean>
 > = {
-  'groups join': (operands) =>
-    operands.some((arg) => arg === '--invite' || arg.startsWith('--invite=')),
+  'groups join': (operands) => {
+    let invites = 0;
+    for (let i = 0; i < operands.length; i++) {
+      const arg = operands[i];
+      let value: string | undefined;
+      if (arg === '--invite') {
+        value = operands[i + 1];
+        i += 1;
+      } else if (arg.startsWith('--invite=')) {
+        value = arg.slice('--invite='.length);
+      } else {
+        continue;
+      }
+      if (value === undefined || value.startsWith('-') || !value.trim()) {
+        return false;
+      }
+      invites += 1;
+    }
+    return invites === 1;
+  },
 };
 
 const NOTIFICATION_SELF_HINT =

@@ -51,8 +51,6 @@ const STRING_FIELDS = [
   'inviterUserId',
   'inviteType',
   'invitedGroupId',
-  'invitedGroupTitle',
-  'inviterNickname',
 ] as const;
 
 // Only the fields the CLI reads are validated, and only they are kept. %bait

@@ -698,6 +698,30 @@ describe('owner credential injection for invite-link, note publishing, notificat
     }
   });
 
+  it('runs a missing, malformed or repeated --invite verbatim, for the CLI usage error', async () => {
+    for (const command of [
+      'groups join --invite',
+      'groups join --invite=',
+      'groups join --invite= --invite 0v1.abcde',
+      'groups join --invite 0v1.abcde --invite 0v1.abcde',
+      'groups join --invite 0v1.abcde --invite=',
+    ]) {
+      for (const overrides of [{}, ...PROVISIONING_FAILURES]) {
+        const fileExists = vi.fn(overrides.fileExists ?? (() => true));
+        const { execute, runCommand } = makeExecutor({
+          ...overrides,
+          fileExists,
+        });
+
+        const result = await execute('usage', { command });
+
+        expect(result.details).toBeUndefined();
+        expectRanVerbatim(runCommand, command);
+        expect(fileExists).not.toHaveBeenCalled();
+      }
+    }
+  });
+
   it('runs the --invite= form as the owner too', async () => {
     const { execute, runCommand } = makeExecutor();
     const command = 'groups join --invite=https://invite.tlon.io/0v1.abcde';

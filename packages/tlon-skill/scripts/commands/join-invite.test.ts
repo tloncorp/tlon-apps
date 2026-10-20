@@ -24,13 +24,11 @@ const GROUP_FIELDS: InviteMetadataFields = {
   inviteType: 'group',
   inviterUserId: '~nec',
   invitedGroupId: FLAG,
-  invitedGroupTitle: 'Test',
 };
 
 const PERSONAL_FIELDS: InviteMetadataFields = {
   inviteType: 'user',
   inviterUserId: '~nec',
-  inviterNickname: 'Nec',
   invitedGroupId: '~zod/personal-invite-link',
 };
 
@@ -74,8 +72,8 @@ interface Options {
   fields?: InviteMetadataFields;
   metadata?: (clock: Clock) => Promise<InviteMetadataResult>;
   bite?: (clock: Clock) => Promise<InviteBiteResult>;
-  // One entry per state read (the initial getGroupState, then each
-  // getForeignState poll); the last one repeats.
+  // One entry per getGroupState read (the initial one, then each poll); the
+  // last one repeats.
   states?: Array<GroupStateRead | 'hang'>;
   preview?: (clock: Clock) => Promise<GroupPrivacy | null>;
   joinGroup?: () => Promise<void>;
@@ -95,7 +93,6 @@ function makeDeps(options: Options = {}) {
     fetchInviteMetadata: [] as string[],
     biteInvite: [] as Array<[string, string]>,
     getGroupState: [] as string[],
-    getForeignState: [] as string[],
     getPreviewPrivacy: [] as Array<[string, number]>,
     joinGroup: [] as Array<{ flag: string; at: number }>,
     requestInvite: [] as Array<{ flag: string; at: number }>,
@@ -147,11 +144,6 @@ function makeDeps(options: Options = {}) {
     getGroupState: async (flag) => {
       calls.getGroupState.push(flag);
       sequence.push('getGroupState');
-      return nextState();
-    },
-    getForeignState: async (flag) => {
-      calls.getForeignState.push(flag);
-      sequence.push('getForeignState');
       return nextState();
     },
     getPreviewPrivacy: async (flag, timeoutMs) => {
@@ -489,17 +481,13 @@ describe('join --invite personal invites', () => {
     expect(result.calls.biteInvite).toEqual([]);
     expect(result.calls.getGroupState).toEqual([]);
     expect(result.out).toBe(
-      'Personal invite from ~nec (Nec); added ~nec as a contact.\n'
+      'Personal invite from ~nec; added ~nec as a contact.\n'
     );
     expect(result.err).toBe('Personal invite from ~nec as ~ten\n');
   });
 
-  it('needs no group id, and omits a missing nickname', async () => {
-    const absent = without(
-      PERSONAL_FIELDS,
-      'invitedGroupId',
-      'inviterNickname'
-    );
+  it('needs no group id', async () => {
+    const absent = without(PERSONAL_FIELDS, 'invitedGroupId');
     for (const fields of [absent, { ...absent, invitedGroupId: '' }]) {
       const result = await runWith(['--invite', LINK], { fields });
       expect(result.code).toBe(0);
@@ -519,7 +507,7 @@ describe('join --invite group invites', () => {
     expect(result.out).toBe(`Already a member of ${FLAG}.\n`);
     expect(result.calls.biteInvite).toEqual([]);
     expect(result.calls.joinGroup).toEqual([]);
-    expect(result.err).toBe(`Invite from ~nec for ${FLAG} "Test" as ~ten\n`);
+    expect(result.err).toBe(`Invite from ~nec for ${FLAG} as ~ten\n`);
   });
 
   it('accepts an invite already held, without biting', async () => {
@@ -555,9 +543,7 @@ describe('join --invite group invites', () => {
     expect(viaPreview.out).toBe(
       `Joining ${FLAG}. Sync may take a moment to show membership.\n`
     );
-    expect(viaPreview.err).toBe(
-      `Invite from ~nec for ${FLAG} "Test" as ~ten\n`
-    );
+    expect(viaPreview.err).toBe(`Invite from ~nec for ${FLAG} as ~ten\n`);
 
     // A stored "public" is confirmed by one fresh preview first.
     const viaForeign = await runWith(['--invite', LINK], {
@@ -566,7 +552,7 @@ describe('join --invite group invites', () => {
     });
     expect(viaForeign.calls.getPreviewPrivacy).toEqual([[FLAG, 4_000]]);
     expect(viaForeign.calls.biteInvite).toEqual([[TOKEN, '~ten']]);
-    expect(viaForeign.calls.getForeignState).toEqual([]);
+    expect(viaForeign.calls.getGroupState).toHaveLength(1);
     expect(viaForeign.calls.joinGroup).toEqual([{ flag: FLAG, at: 0 }]);
   });
 
@@ -590,7 +576,7 @@ describe('join --invite group invites', () => {
       });
       expect(result.code).toBe(0);
       expect(result.calls.joinGroup).toEqual([{ flag: FLAG, at }]);
-      expect(result.calls.getForeignState).toEqual([]);
+      expect(result.calls.getGroupState).toHaveLength(1);
       expect(result.err).toContain(
         `Could not notify ~nec's ship of the invite (${reason}); joining anyway.\n`
       );
@@ -612,6 +598,34 @@ describe('join --invite group invites', () => {
     }
   });
 
+  it('joins a group a fresh preview shows public despite a stored secret or private one', async () => {
+    for (const stored of ['secret', 'private'] as const) {
+      const result = await runWith(['--invite', LINK], {
+        states: [state({ privacy: stored })],
+        preview: async () => 'public',
+      });
+      expect(result.code).toBe(0);
+      expect(result.calls.getPreviewPrivacy).toEqual([[FLAG, 4_000]]);
+      expect(result.calls.biteInvite).toEqual([[TOKEN, '~ten']]);
+      expect(result.calls.getGroupState).toHaveLength(1);
+      expect(result.calls.requestInvite).toEqual([]);
+      expect(result.calls.joinGroup).toEqual([{ flag: FLAG, at: 0 }]);
+    }
+  });
+
+  it('keeps a stored private preview that cannot be refreshed: requests an invite at the deadline', async () => {
+    const result = await runWith(['--invite', LINK], {
+      preview: () => never(),
+    });
+    expect(result.calls.getPreviewPrivacy).toHaveLength(1);
+    expect(result.calls.biteInvite).toEqual([[TOKEN, '~ten']]);
+    expect(result.calls.joinGroup).toEqual([]);
+    expect(result.calls.requestInvite).toEqual([{ flag: FLAG, at: 25_000 }]);
+    expect(result.out).toBe(
+      `${NOT_ARRIVED} Requested an invite to ${FLAG} instead.\n`
+    );
+  });
+
   it('keeps a stored public preview that cannot be refreshed: bites, then joins at once', async () => {
     const result = await runWith(['--invite', LINK], {
       states: [state({ privacy: 'public' }), state({ privacy: 'public' })],
@@ -619,7 +633,7 @@ describe('join --invite group invites', () => {
     });
     expect(result.calls.getPreviewPrivacy).toHaveLength(1);
     expect(result.calls.biteInvite).toEqual([[TOKEN, '~ten']]);
-    expect(result.calls.getForeignState).toEqual([]);
+    expect(result.calls.getGroupState).toHaveLength(1);
     expect(result.calls.joinGroup).toEqual([{ flag: FLAG, at: 4_000 }]);
     expect(result.out).toBe(
       `Joining ${FLAG}. Sync may take a moment to show membership.\n`
@@ -636,10 +650,11 @@ describe('join --invite group invites', () => {
       'authenticate',
       'fetchInviteMetadata',
       'getGroupState',
+      'getPreviewPrivacy',
       'biteInvite',
-      'getForeignState',
+      'getGroupState',
       'sleep(1000)',
-      'getForeignState',
+      'getGroupState',
       'joinGroup',
     ]);
     expect(result.calls.biteInvite).toEqual([[TOKEN, '~ten']]);
@@ -649,6 +664,24 @@ describe('join --invite group invites', () => {
     expect(result.err).toContain(
       "Asking ~nec's ship to send the invite; waiting up to 25s...\n"
     );
+  });
+
+  it('stops polling as joined when the invite is accepted elsewhere', async () => {
+    // The foreign record goes away mid-poll, then membership appears.
+    const result = await runWith(['--invite', LINK], {
+      states: [
+        state(),
+        state(),
+        state({ privacy: null }),
+        state({ member: true, privacy: null }),
+      ],
+    });
+    expect(result.code).toBe(0);
+    expect(result.calls.getGroupState).toHaveLength(4);
+    expect(result.calls.joinGroup).toEqual([]);
+    expect(result.calls.requestInvite).toEqual([]);
+    expect(result.clock.now).toBe(2_000);
+    expect(result.out).toBe(`Already a member of ${FLAG}.\n`);
   });
 
   it('requests an invite to a private group once the wait runs out', async () => {
@@ -715,7 +748,7 @@ describe('join --invite group invites', () => {
     const result = await runWith(['--invite', LINK], {
       states: [state({ privacy: null })],
     });
-    expect(result.calls.getForeignState.length).toBeGreaterThan(5);
+    expect(result.calls.getGroupState.length).toBeGreaterThan(5);
     expect(result.calls.getPreviewPrivacy).toHaveLength(1);
   });
 
@@ -728,7 +761,6 @@ describe('join --invite group invites', () => {
       `Error: Invite link not found (revoked or unknown): ${TOKEN}\n`
     );
     expect(result.calls.getGroupState).toHaveLength(1);
-    expect(result.calls.getForeignState).toEqual([]);
   });
 
   it('surfaces a failed initial state read without biting', async () => {
@@ -802,7 +834,7 @@ describe('join --invite group invites', () => {
     const result = await runWith(['--invite', LINK], {
       states: [state({ privacy: 'private' }), state({ privacy: 'secret' })],
     });
-    expect(result.calls.getForeignState.length).toBeGreaterThan(5);
+    expect(result.calls.getGroupState.length).toBeGreaterThan(5);
     expect(result.calls.requestInvite).toEqual([]);
     expect(result.out).toBe(PENDING_LINE);
   });

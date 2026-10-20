@@ -73,8 +73,6 @@ export interface InviteMetadataFields {
   inviterUserId?: string;
   inviteType?: string;
   invitedGroupId?: string;
-  invitedGroupTitle?: string;
-  inviterNickname?: string;
   invitedGroupDeleted?: boolean;
 }
 
@@ -100,13 +98,11 @@ export interface JoinInviteDeps extends CommandDeps {
   joinExistingFlag: (flag: string) => Promise<void>;
   fetchInviteMetadata: (token: string) => Promise<InviteMetadataResult>;
   biteInvite: (token: string, ship: string) => Promise<InviteBiteResult>;
-  /** Membership, then the foreign-group record: the initial read. */
-  getGroupState: (flag: string) => Promise<GroupStateRead>;
   /**
-   * The foreign-group record alone, for polling. Membership cannot appear
-   * without a join poke, so `member` is always false here.
+   * Membership, then the foreign-group record: the initial read and every
+   * poll. Both are per-flag scries.
    */
-  getForeignState: (flag: string) => Promise<GroupStateRead>;
+  getGroupState: (flag: string) => Promise<GroupStateRead>;
   getPreviewPrivacy: (
     flag: string,
     timeoutMs: number
@@ -244,8 +240,8 @@ function notFoundError(token: string) {
 }
 
 type InviteDetails =
-  | { kind: 'personal'; inviter: string; nickname: string | null }
-  | { kind: 'group'; inviter: string; flag: string; title: string | null };
+  | { kind: 'personal'; inviter: string }
+  | { kind: 'group'; inviter: string; flag: string };
 
 // Mirrors the app's validation (getMetadataFromInviteToken). Personal invites
 // are told apart by inviteType alone: %reel stamps invitedGroupId on every
@@ -261,13 +257,7 @@ function readInviteDetails(
   }
   const inviter = withSig(inviterId);
 
-  if (fields.inviteType === 'user') {
-    return {
-      kind: 'personal',
-      inviter,
-      nickname: fields.inviterNickname || null,
-    };
-  }
+  if (fields.inviteType === 'user') return { kind: 'personal', inviter };
 
   const flag = fields.invitedGroupId;
   if (!flag) {
@@ -281,12 +271,7 @@ function readInviteDetails(
   if (fields.invitedGroupDeleted) {
     throw commandError(`The group for this invite (${flag}) has been deleted.`);
   }
-  return {
-    kind: 'group',
-    inviter,
-    flag,
-    title: fields.invitedGroupTitle || null,
-  };
+  return { kind: 'group', inviter, flag };
 }
 
 type Capped<T> = { done: true; value: T } | { done: false };
@@ -396,19 +381,17 @@ export async function run(
         `adding ${invite.inviter} as a contact`,
         () => deps.addContact(invite.inviter)
       );
-      const nickname = invite.nickname ? ` (${invite.nickname})` : '';
       writeLine(
         deps.stdout,
-        `Personal invite from ${invite.inviter}${nickname}; added ${invite.inviter} as a contact.`
+        `Personal invite from ${invite.inviter}; added ${invite.inviter} as a contact.`
       );
       return 0;
     }
 
     const { flag, inviter } = invite;
-    const title = invite.title ? ` "${invite.title}"` : '';
     writeLine(
       deps.stderr,
-      `Invite from ${inviter} for ${flag}${title} as ${actingShip}`
+      `Invite from ${inviter} for ${flag} as ${actingShip}`
     );
 
     const join = async (accepted: boolean) => {
@@ -435,17 +418,15 @@ export async function run(
 
     // Previewed at most once, before the bite: the preview subscription can
     // hang (the desk only answers when it has one), so an unanswered preview
-    // falls back to the stored privacy rather than holding the command. A
-    // stored "public" is refreshed too: a group since made private needs the
-    // invite waited for, not an immediate join.
+    // falls back to the stored privacy rather than holding the command. Any
+    // stored privacy can be stale: a group since made private needs the
+    // invite waited for, and one since made public can be joined at once.
     let privacy = initial.state.privacy;
-    if (privacy === null || privacy === 'public') {
-      const previewMs = Math.min(PREVIEW_TIMEOUT_MS, preBiteRemaining());
-      const preview = await withinCap(deps, previewMs, () =>
-        deps.getPreviewPrivacy(flag, previewMs)
-      );
-      if (preview.done && preview.value !== null) privacy = preview.value;
-    }
+    const previewMs = Math.min(PREVIEW_TIMEOUT_MS, preBiteRemaining());
+    const preview = await withinCap(deps, previewMs, () =>
+      deps.getPreviewPrivacy(flag, previewMs)
+    );
+    if (preview.done && preview.value !== null) privacy = preview.value;
 
     if (preBiteRemaining() <= 0) throw commandError(BUDGET_EXHAUSTED_MESSAGE);
     const bite = () =>
@@ -492,14 +473,17 @@ export async function run(
     // At the deadline, "requested" and privacy reflect the last read that
     // succeeded; a failed read says nothing either way, and neither does a
     // record without a preview (which the preview watch itself creates).
+    // Membership is read too: the invite can be accepted from the app while
+    // this waits, and the joined group's foreign record then goes away.
     let requested = initial.state.haveRequestedInvite;
     while (deadline - deps.now() > 0) {
       const read = await withinCap(deps, deadline - deps.now(), () =>
-        deps.getForeignState(flag)
+        deps.getGroupState(flag)
       );
       if (!read.done) break;
       if (read.value.ok) {
         const { state } = read.value;
+        if (state.member) return alreadyMember();
         if (state.haveInvite) return await join(true);
         requested = state.haveRequestedInvite;
         // Only the timeout decision uses this. A stored preview can be stale

@@ -120,6 +120,22 @@ function previewPath(flag: string): string {
   return groupRequests.gangPreview.path.replace(/\{[^}]+\}/, flag);
 }
 
+const GROUP_PRIVACIES: readonly unknown[] = ['public', 'private', 'secret'];
+
+// extractGroupPrivacy reads an empty answer as secret and a shapeless one as
+// public; either is unknown here, so the stored privacy stands.
+function previewPrivacy(result: unknown): GroupPrivacy | null {
+  if (!result || typeof result !== 'object') return null;
+  const preview = result as Record<string, unknown>;
+  if ('privacy' in preview) {
+    return GROUP_PRIVACIES.includes(preview.privacy)
+      ? (preview.privacy as GroupPrivacy)
+      : null;
+  }
+  if (typeof preview.secret !== 'boolean') return null;
+  return extractGroupPrivacy(result as GroupPreview);
+}
+
 // The desk answers a preview watch only when it has a preview, so the
 // subscription can hang indefinitely. subscribeOnce arms its own timeout (and
 // unsubscribes, tolerating failure) only once the channel PUT lands; the race
@@ -135,7 +151,7 @@ async function readPreviewPrivacy(
     { app: groupRequests.gangPreview.agent, path: previewPath(flag) },
     timeoutMs
   ).then(
-    (result) => extractGroupPrivacy(result),
+    (result) => previewPrivacy(result),
     () => null
   );
   const expired = new Promise<null>((resolve) => {
@@ -172,7 +188,6 @@ export function createJoinInviteDeps(local: JoinInviteLocal): JoinInviteDeps {
     fetchInviteMetadata: (token) => getProvider().getMetadata(token),
     biteInvite: (token, ship) => getProvider().bite(token, ship),
     getGroupState: (flag) => readGroupState(flag, actingShip()),
-    getForeignState: (flag) => readForeignState(flag, actingShip()),
     getPreviewPrivacy: readPreviewPrivacy,
     joinGroup: async (flag) => {
       await joinGroup(flag);

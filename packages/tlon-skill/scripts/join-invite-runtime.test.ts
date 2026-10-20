@@ -195,47 +195,19 @@ describe('join-invite runtime group state', () => {
     });
   });
 
-  it('polls only the foreign record, never membership', async () => {
-    let groupReads = 0;
-    mockedGetGroup.impl = async () => {
-      groupReads += 1;
-      return { currentUserIsMember: true };
-    };
-    const scries: unknown[] = [];
-    mockedScry.impl = async (...args: unknown[]) => {
-      scries.push(args[0]);
-      return foreign();
-    };
-
-    const read = await createJoinInviteDeps(LOCAL).getForeignState(FLAG);
-
-    expect(groupReads).toBe(0);
-    expect(scries).toEqual([{ app: 'groups', path: FOREIGN_PATH }]);
-    expect(read).toMatchObject({
-      ok: true,
-      state: { member: false, privacy: 'private' },
-    });
-  });
-
   it('ignores revoked invites and reads a preview-less record as unknown privacy', async () => {
     mockedScry.impl = async () =>
       foreign({ invites: [invite(false)], lookup: 'error', preview: null });
 
-    const deps = createJoinInviteDeps(LOCAL);
-    for (const read of [
-      await deps.getGroupState(FLAG),
-      await deps.getForeignState(FLAG),
-    ]) {
-      expect(read).toEqual({
-        ok: true,
-        state: {
-          member: false,
-          haveInvite: false,
-          haveRequestedInvite: false,
-          privacy: null,
-        },
-      });
-    }
+    expect(await createJoinInviteDeps(LOCAL).getGroupState(FLAG)).toEqual({
+      ok: true,
+      state: {
+        member: false,
+        haveInvite: false,
+        haveRequestedInvite: false,
+        privacy: null,
+      },
+    });
   });
 
   it('reads a 404 from the record scry, wrapped or raw, as no record', async () => {
@@ -247,7 +219,7 @@ describe('join-invite runtime group state', () => {
         throw error;
       };
 
-      const read = await createJoinInviteDeps(LOCAL).getForeignState(FLAG);
+      const read = await createJoinInviteDeps(LOCAL).getGroupState(FLAG);
 
       expect(read).toEqual({
         ok: true,
@@ -299,7 +271,7 @@ describe('join-invite runtime group state', () => {
         throw error;
       };
       expect(
-        await createJoinInviteDeps(LOCAL).getForeignState(FLAG)
+        await createJoinInviteDeps(LOCAL).getGroupState(FLAG)
       ).toMatchObject({ ok: false });
     }
 
@@ -378,6 +350,10 @@ describe('join-invite runtime privacy from the foreign record', () => {
       reads += 1;
       return reads === 1 ? foreign() : foreign({ preview: null });
     };
+    // The fresh preview goes unanswered, as subscribeOnce reports a timeout.
+    mockedSubscribeOnce.impl = async () => {
+      throw 'timeout';
+    };
     const requested: unknown[] = [];
     mockedRequestGroupInvitation.impl = async (...args: unknown[]) => {
       requested.push(args[0]);
@@ -408,6 +384,30 @@ describe('join-invite runtime preview', () => {
     expect(subscribeCalls).toEqual([
       [{ app: 'groups', path: `/gangs/${FLAG}/preview` }, 4_000],
     ]);
+  });
+
+  it('reads an empty or malformed answer as unknown', async () => {
+    for (const answer of [
+      undefined,
+      null,
+      {},
+      { privacy: 'open' },
+      { flag: FLAG, meta: META },
+    ]) {
+      mockedSubscribeOnce.impl = async () => answer;
+      expect(
+        await createJoinInviteDeps(LOCAL).getPreviewPrivacy(FLAG, 4_000)
+      ).toBeNull();
+    }
+    mockedSubscribeOnce.impl = async () => ({
+      flag: FLAG,
+      meta: META,
+      cordon: { shut: { pending: [], ask: [] } },
+      secret: false,
+    });
+    expect(
+      await createJoinInviteDeps(LOCAL).getPreviewPrivacy(FLAG, 4_000)
+    ).toBe('private');
   });
 
   it('reads a never-landing subscription as unknown at the timeout', async () => {
