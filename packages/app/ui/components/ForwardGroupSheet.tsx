@@ -59,8 +59,8 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
     isOpen,
     onClose: () => handleOpenChange(false),
     onForwardToChannel: handleForwardToChannel,
-    successMessage: (channelTitle) => `Forwarded group to ${channelTitle}`,
-    failureMessage: 'Failed to forward group',
+    successMessage: (channelTitle) => `Forwarded workspace to ${channelTitle}`,
+    failureMessage: 'Failed to forward workspace',
   });
 
   const shownGroup = useLastForwarded(group);
@@ -75,7 +75,7 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
         onOpenChange={handleOpenChange}
         onNativeDismissed={onNativeDismissed}
         keepMounted={keepMounted}
-        title="Forward group"
+        title="Forward workspace"
         subtitle={groupTitle ?? undefined}
         icon={
           shownGroup ? <ListItem.GroupIcon model={shownGroup} /> : undefined

@@ -8,12 +8,18 @@
  * `event.error`, the owner "silent failure" notice) keep only its first line,
  * capped at 400 / 200 chars — keep it one line and within the cap below.
  */
+import { CRON_TOOL_NAMES } from './cron-tool-args-guard.js';
 import type { SenderRole } from './session-roles.js';
 
 export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'tlon',
-  'cron',
+  // The scheduler under every name core gives it, so a rename cannot open it
+  // to non-owners.
+  ...CRON_TOOL_NAMES,
   'read',
+  'tlon_agent_choice',
+  'tlon_agent_task_plan',
+  'tlon_agent_service_setup',
 ]);
 
 /** Longest first line the TLON-6361 owner notice shows untruncated. */
@@ -21,8 +27,8 @@ export const OWNER_ONLY_BLOCK_REASON_MAX_CHARS = 200;
 
 export function formatOwnerOnlyToolBlockReason(toolName: string): string {
   return (
-    `Blocked by policy: the ${toolName} tool is owner-only and this requester is not the owner. ` +
-    'Tell them you cannot do this for them; do not retry for them, and do not blame a reload, outage, or missing tool.'
+    `Blocked by policy: the ${toolName} tool is owner-only; they're not the owner. ` +
+    'Tell them you cannot do this for them; do not retry for them; do not blame a reload, outage, or missing tool.'
   );
 }
 

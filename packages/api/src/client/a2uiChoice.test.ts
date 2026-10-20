@@ -240,6 +240,8 @@ describe('McpConnect validation', () => {
 describe('SmallChoice validation', () => {
   test('accepts a well-formed pill group, with or without a prefix', () => {
     expect(valid(smallChoice())).toBe(true);
+    expect(valid(smallChoice({ selectionMode: 'single' }))).toBe(true);
+    expect(valid(smallChoice({ selectionMode: 'multiple' }))).toBe(true);
     expect(valid(smallChoice({ action: sendAction('Topics:') }))).toBe(true);
     expect(valid(smallChoice({ action: provisionAction() }))).toBe(true);
     expect(valid(smallChoice({ action: provisionAction([]) }))).toBe(true);
@@ -283,6 +285,7 @@ describe('SmallChoice validation', () => {
     ],
     ['missing submit label', { submitLabel: undefined }],
     ['blank submit label', { submitLabel: '  ' }],
+    ['unknown selection mode', { selectionMode: 'at-least-two' }],
     // A selection must submit its structured reply; navigating would throw
     // away what the user picked.
     ['a navigate action', { action: navigateAction }],

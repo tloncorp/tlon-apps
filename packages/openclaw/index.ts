@@ -10,7 +10,14 @@ import {
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
+import { cleanCronToolArgs } from './src/cron-tool-args.js';
+import { modelPrivacyNote } from './src/model-privacy-context.js';
 import { registerTlonCommands } from './src/commands-registry.js';
+import { notifyCampaignCronChanged } from './src/monitor/campaign/live.js';
+import {
+  campaignStoreForDirectory,
+  setCampaignStore,
+} from './src/monitor/campaign/store.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
 import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
@@ -47,6 +54,20 @@ import {
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
+import {
+  recordSuccessfulAgentOnboardingSurface,
+  suppressReplyAfterSuccessfulAgentOnboardingSurface,
+} from './src/agent-task-plan-reply-delivery.js';
+import {
+  bindTlonServiceSetupCall,
+  claimTlonChoiceCall,
+  claimTlonTaskPlanCall,
+  clearTlonSessionRunSurface,
+  getTlonSessionRunSurface,
+  getTlonSessionSurface,
+  managedCronJobIdOf,
+  onboardingToolBlockReason,
+} from './src/onboarding-tool-boundary.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { registerBudgetHoldHooks } from './src/cron-budget-runtime.js';
 import { registerRestartCatchupHooks } from './src/restart-catchup.js';
@@ -121,6 +142,7 @@ import {
   recordTlonAgentRunTrace,
 } from './src/turn-recorder.js';
 import { resolveTlonAccount } from './src/types.js';
+import { handleWorkspaceBeforePromptBuild } from './src/workspace-instructions.js';
 import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
@@ -909,6 +931,17 @@ export default defineBundledChannelEntry({
       );
     }
 
+    try {
+      setCampaignStore(
+        campaignStoreForDirectory(api.runtime.state.resolveStateDir())
+      );
+    } catch (error) {
+      setCampaignStore(null);
+      api.logger.warn(
+        `[tlon] campaign disabled without durable state: ${String(error)}`
+      );
+    }
+
     // ── Gateway-status liveness integration ───────────────────
     //
     // registerFull is NOT a once-per-process call: OpenClaw invokes it once
@@ -1031,8 +1064,10 @@ export default defineBundledChannelEntry({
             notifyDiaryMigrationDiscovery(nest, api.config),
           logError: (message) => api.logger.warn(`[tlon] ${message}`),
           // Lets the executor run `groups invite-link` as the owner, so invites
-          // attribute to the owner rather than the bot.
+          // attribute to the owner rather than the bot, and host a workspace
+          // made for the owner on the owner's ship with the bot as its agent.
           ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
+          botShip: normalizeShip(credentials?.ship ?? '') || undefined,
           env: process.env,
           fileExists: (path) => existsSync(path),
         });
@@ -1105,7 +1140,14 @@ export default defineBundledChannelEntry({
 
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
-      const role = getSessionRole(ctx.sessionKey ?? '');
+      // What the model meant, without the schema placeholders it fills in.
+      const cronParams = isCronToolName(event.toolName)
+        ? cleanCronToolArgs(event.params)
+        : undefined;
+      const allowed = () => (cronParams ? { params: cronParams } : undefined);
+      const runSurface = getTlonSessionRunSurface(ctx.runId);
+      const role =
+        runSurface?.senderRole ?? getSessionRole(ctx.sessionKey ?? '');
       const ownerOnlyDecision = resolveOwnerOnlyToolBlock(
         event.toolName,
         role,
@@ -1155,24 +1197,86 @@ export default defineBundledChannelEntry({
         !blocksNonOwner &&
         !!browserSessionId &&
         (await browserHandoffs.isPending(browserSessionId));
+      const sessionSurface = getTlonSessionSurface(ctx.sessionKey);
+      // Changing or removing a job during first-run setup is fine unless it
+      // is the onboarding task; only the job list can say which it is.
+      const managedCronJobId =
+        sessionSurface?.bootstrapComplete === false &&
+        isCronToolName(event.toolName)
+          ? managedCronJobIdOf(cronParams ?? event.params)
+          : undefined;
+      const onboardingBoundaryReason = onboardingToolBlockReason(
+        event.toolName,
+        cronParams ?? event.params,
+        sessionSurface,
+        runSurface,
+        managedCronJobId
+          ? {
+              onboardingJob: await isAgentOnboardingCronJob(
+                managedCronJobId
+              ).catch(() => true),
+            }
+          : undefined
+      );
+      const choiceClaimReason =
+        !blocksNonOwner &&
+        !blocksOnboardingMcp &&
+        !onboardingBoundaryReason &&
+        event.toolName === 'tlon_agent_choice'
+          ? claimTlonChoiceCall({
+              toolCallId,
+              runId: ctx.runId,
+              sessionKey: ctx.sessionKey,
+            })
+          : undefined;
+      const taskPlanClaimReason =
+        !blocksNonOwner &&
+        !blocksOnboardingMcp &&
+        !onboardingBoundaryReason &&
+        event.toolName === 'tlon_agent_task_plan'
+          ? claimTlonTaskPlanCall({
+              toolCallId,
+              runId: ctx.runId,
+              sessionKey: ctx.sessionKey,
+            })
+          : undefined;
+      const effectiveOnboardingBoundaryReason =
+        onboardingBoundaryReason ?? choiceClaimReason ?? taskPlanClaimReason;
+      const blocksOnboardingBoundary = Boolean(
+        effectiveOnboardingBoundaryReason
+      );
       const blocksPolicy =
         blocksNonOwner ||
         blocksOnboardingMcp ||
-        tlonAppBrowser.blocked ||
-        blocksBrowserHandoff;
+        blocksOnboardingBoundary ||
+        blocksBrowserHandoff ||
+        tlonAppBrowser.blocked;
       // Decided here, with the other block decisions, so the trace and the
-      // allowed/blocked logs below all describe the same outcome.
+      // allowed/blocked logs below all describe the same outcome. The guard
+      // reads the cleaned call: cleaning drops the empty fallbacks list and
+      // bestEffort the model fills in, so it only blocks the spellings
+      // cleaning leaves as sent. Blocked, the model's usual call went into
+      // dozens of retries on a real gateway, changing the values but not
+      // dropping the fields.
       const forbiddenCronArgs =
         !blocksPolicy && cronArgsGuardEnabled && isCronToolName(event.toolName)
-          ? findForbiddenCronArgs(event.toolName, event.params)
+          ? findForbiddenCronArgs(event.toolName, cronParams ?? event.params)
           : [];
       const blocksCronArgs = forbiddenCronArgs.length > 0;
       const isBlocked = blocksPolicy || blocksCronArgs;
+      if (!isBlocked && event.toolName === 'tlon_agent_service_setup') {
+        bindTlonServiceSetupCall({
+          toolCallId,
+          runId: ctx.runId,
+          sessionKey: ctx.sessionKey,
+        });
+      }
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
         : blocksCronArgs
           ? CRON_ARGS_BLOCK_REASON
-          : (ownerOnlyDecision.reason ??
+          : (effectiveOnboardingBoundaryReason ??
+            ownerOnlyDecision.reason ??
             (blocksBrowserHandoff
               ? 'This browser is waiting for secure entry. Stop browser tool calls and wait for the service result; it resumes this conversation.'
               : tlonAppBrowser.reason));
@@ -1236,7 +1340,7 @@ export default defineBundledChannelEntry({
       }
 
       if (!isOwnerOnlyTool && !isBlocked) {
-        return undefined;
+        return allowed();
       }
 
       if (isBlocked) {
@@ -1247,11 +1351,13 @@ export default defineBundledChannelEntry({
         } else {
           const blockCause = blocksOnboardingMcp
             ? 'outside onboarding MCP policy'
-            : blocksNonOwner
-              ? 'for non-owner'
-              : 'targeting the Tlon app in the hosted browser';
+            : blocksOnboardingBoundary
+              ? 'outside the onboarding tool boundary'
+              : blocksNonOwner
+                ? 'for non-owner'
+                : 'targeting the Tlon app in the hosted browser';
           api.logger.warn(
-            `[tlon] Blocked ${event.toolName} tool ${blockCause}. Session: ${ctx.sessionKey}, Role: ${role}`
+            `[tlon] Blocked ${event.toolName} tool ${blockCause}. Session: ${ctx.sessionKey}, Role: ${role}, Reason: ${blockReason}`
           );
         }
         recordBlockedToolCallInLens(
@@ -1269,7 +1375,7 @@ export default defineBundledChannelEntry({
       api.logger.info(
         `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
-      return undefined;
+      return allowed();
     });
 
     const browserLoginApprovals = createBrowserLoginApprovalHandler(
@@ -1286,6 +1392,7 @@ export default defineBundledChannelEntry({
     );
 
     api.on('after_tool_call', async (event, ctx) => {
+      recordSuccessfulAgentOnboardingSurface(event, ctx);
       try {
         await browserLoginApprovals.handle(event, ctx);
       } catch {
@@ -1325,6 +1432,7 @@ export default defineBundledChannelEntry({
       }
       recordActiveTlonTurnToolCall({
         toolName: event.toolName,
+        result: event.result,
         errorMessage:
           typeof event.error === 'string' && event.error.trim()
             ? event.error
@@ -1399,9 +1507,32 @@ export default defineBundledChannelEntry({
       }
     });
 
+    // ── Workspace instructions ─────────────────────────────────────────
+    // The monitor publishes the runtime; until it does, this is a no-op.
+    // Fail open: a failed read never blocks the turn.
+    api.on('before_prompt_build', async (_event, ctx) => {
+      try {
+        return await handleWorkspaceBeforePromptBuild(ctx);
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] workspace instructions failed: ${String(error)}`
+        );
+        return undefined;
+      }
+    });
+
     // ── Session lifecycle / watchdog telemetry ─────────────────────────
     // These hooks are global to OpenClaw, so telemetry.ts filters them through
     // session keys remembered from Tlon inbound replies before emitting.
+    api.on('before_prompt_build', (_event, ctx) => {
+      const note = modelPrivacyNote(
+        api.runtime.config.loadConfig(),
+        ctx.modelProviderId,
+        ctx.modelId
+      );
+      return note ? { appendSystemContext: note } : undefined;
+    });
+
     api.on('session_start', (event, ctx) => {
       safeTelemetryObserver({
         logger: api.logger,
@@ -1464,6 +1595,7 @@ export default defineBundledChannelEntry({
     });
 
     api.on('cron_changed', async (event, ctx) => {
+      notifyCampaignCronChanged(event);
       try {
         await handleCronChangedEvent(event, ctx);
       } catch (error) {
@@ -1509,6 +1641,10 @@ export default defineBundledChannelEntry({
     // answer. Terminal provider failures are not marked as fallback notices
     // and continue through the normal delivery path.
     api.on('reply_payload_sending', suppressTlonFallbackNotice);
+    api.on(
+      'reply_payload_sending',
+      suppressReplyAfterSuccessfulAgentOnboardingSurface
+    );
 
     // ── Route diagnostics ───────────────────────────────────────────────
     // Fires for every outbound send OpenClaw routes — the primary streamed
@@ -1688,6 +1824,7 @@ export default defineBundledChannelEntry({
       recordCronSilenceOutput(event, ctx);
       recordTlonTurnSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
+      clearTlonSessionRunSurface(ctx.runId);
       if (!contextLensEnabled) {
         return;
       }

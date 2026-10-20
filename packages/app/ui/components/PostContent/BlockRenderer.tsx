@@ -992,11 +992,15 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
   // swallowed by the vertical FlatList that wraps each chat message —
   // RN's stock ScrollView shares the JS responder system with the parent and
   // loses the gesture race; the GH version uses native gesture recognizers.
+  // On web the scrollbar is the only cue that a wide table continues past the
+  // edge; base.css keys on the testID to keep it drawn under overlay
+  // scrollbars too.
   return (
     <GHScrollView
       horizontal
+      testID="TableScrollView"
       style={{ width: '100%', maxWidth: '100%' }}
-      showsHorizontalScrollIndicator={false}
+      showsHorizontalScrollIndicator={Platform.OS === 'web'}
       onLayout={(event) => {
         const width = Math.ceil(event.nativeEvent.layout.width);
         setViewportWidth((current) => (current === width ? current : width));

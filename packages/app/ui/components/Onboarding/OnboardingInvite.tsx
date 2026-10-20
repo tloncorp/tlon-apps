@@ -111,7 +111,7 @@ function GroupInvite({
         />
         <ListItem.MainContent>
           <ListItem.Title>
-            {groupShim.title ? `Join ${groupShim.title}` : `Join a Groupchat`}
+            {groupShim.title ? `Join ${groupShim.title}` : `Join a workspace`}
           </ListItem.Title>
           <ListItem.Subtitle>
             Invited by {getDisplayName(inviter)}

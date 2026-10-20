@@ -47,9 +47,11 @@ appId: ${MAESTRO_APP_ID}
       # Both back buttons have to be listed. A navigation-placement header
       # renders `screen-header-back` (ScreenHeader.tsx) but a custom header
       # renders `HeaderBackButton` (ScreenHeader.BackButton), and a warm run
-      # can restore either -- User Profile is the second kind. Matching only
-      # the first left those screens unwindable: the bar was covered, so the
+      # can restore either -- User Profile is now the first kind. Matching
+      # only one left the other kind unwindable: the bar was covered, so the
       # readiness wait timed out before the loop could tap anything.
+      # This id-based unwind is Android-only: on iOS a native header item
+      # exposes only its "Back" label, which is what the iOS branch matches.
       - extendedWaitUntil:
           visible:
             id: '.*(navigation_bar_item_icon_view|screen-header-back|HeaderBackButton)'

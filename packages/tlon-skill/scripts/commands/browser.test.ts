@@ -28,6 +28,11 @@ function makeDeps(ownerShip = '~owner') {
     },
     sendReply: async () => {},
     getChannelPosts: async () => ({ posts: [] }),
+    getPostWithReplies: async () => {
+      throw new Error('not used by browser handoff');
+    },
+    deleteReply: async () => {},
+    setOrder: async () => {},
   };
   const deps: BrowserDeps = {
     stdout: (text) => stdout.push(text),

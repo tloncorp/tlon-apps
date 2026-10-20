@@ -90,7 +90,7 @@ export function ScheduledTasksScreen({ navigation, route }: Props) {
         channelId
           ? (channelTitle ?? 'this channel')
           : groupId
-            ? (groupTitle ?? 'this group')
+            ? (groupTitle ?? 'this workspace')
             : undefined
       }
       onBack={goBack}

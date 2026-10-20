@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ALL_ONLY } from './urbit/story.js';
+
 const getNotebook = vi.fn();
 const createNote = vi.fn();
 const listNotes = vi.fn();
@@ -45,7 +47,8 @@ vi.mock('./urbit/send.js', () => ({
   })),
 }));
 
-vi.mock('./urbit/story.js', () => ({
+vi.mock('./urbit/story.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./urbit/story.js')>()),
   markdownToStory: vi.fn(() => [{ inline: ['text'] }]),
 }));
 
@@ -318,6 +321,149 @@ describe('sendMedia', () => {
         outputMessageId: '~zod/123',
       })
     );
+  });
+});
+
+describe('role mentions', () => {
+  let tlonRuntimeOutbound: typeof import('./channel.runtime.js').tlonRuntimeOutbound;
+  let sendDmWithStory: ReturnType<typeof vi.fn>;
+  let sendChannelPost: ReturnType<typeof vi.fn>;
+  let buildMediaStory: ReturnType<typeof vi.fn>;
+  let roleIdsForNest: ReturnType<typeof vi.fn>;
+  let unpublish: () => void;
+
+  const ctx = {
+    cfg: {} as never,
+    accountId: 'secondary',
+    replyToId: null,
+    threadId: null,
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
+      configured: true,
+      ship: '~zod',
+      url: 'http://localhost:8080',
+      code: 'lit',
+      allowPrivateNetwork: false,
+      contextLens: { enabled: false },
+    });
+    getActiveForegroundContextLensForConversation.mockReturnValue(null);
+    ({ tlonRuntimeOutbound } = await import('./channel.runtime.js'));
+    ({ sendDmWithStory, sendChannelPost, buildMediaStory } =
+      (await import('./urbit/send.js')) as never);
+    const story = await import('./urbit/story.js');
+    const actual = await vi.importActual<typeof story>('./urbit/story.js');
+    vi.mocked(story.markdownToStory).mockImplementation(actual.markdownToStory);
+    const scope = await import('./role-mention-scope.js');
+    roleIdsForNest = vi.fn(async () => new Set(['admin']));
+    const resolver = { roleIdsForNest };
+    scope.publishRoleMentionResolver('secondary', resolver);
+    unpublish = () => scope.unpublishRoleMentionResolver('secondary', resolver);
+  });
+
+  afterEach(async () => {
+    unpublish();
+    // Back to the stub the other suites expect.
+    vi.mocked((await import('./urbit/story.js')).markdownToStory).mockReset();
+    vi.restoreAllMocks();
+  });
+
+  it('sendText to a channel converts a known role and passes through unknown', async () => {
+    await tlonRuntimeOutbound.sendText({
+      ...ctx,
+      to: 'chat/~zod/general',
+      text: 'ping @admin and @mods',
+    });
+    expect(roleIdsForNest).toHaveBeenCalledExactlyOnceWith('chat/~zod/general');
+    expect(sendChannelPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        story: [{ inline: ['ping ', { sect: 'admin' }, ' and @mods'] }],
+      })
+    );
+  });
+
+  it('sendText to a DM converts @all only', async () => {
+    await tlonRuntimeOutbound.sendText({
+      ...ctx,
+      to: '~nec',
+      text: '@all and @admin',
+    });
+    expect(roleIdsForNest).not.toHaveBeenCalled();
+    expect(sendDmWithStory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        story: [{ inline: [{ sect: null }, ' and @admin'] }],
+      })
+    );
+  });
+
+  it('sendText without @ performs no role lookup', async () => {
+    await tlonRuntimeOutbound.sendText({
+      ...ctx,
+      to: 'chat/~zod/general',
+      text: 'plain words',
+    });
+    expect(roleIdsForNest).not.toHaveBeenCalled();
+    expect(sendChannelPost).toHaveBeenCalledWith(
+      expect.objectContaining({ story: [{ inline: ['plain words'] }] })
+    );
+  });
+
+  it('sendText to a notebook does no role lookup', async () => {
+    getNotebook.mockResolvedValue({ rootFolderId: 17 });
+    createNote.mockResolvedValue({ id: 42, title: 'Notes' });
+    listNotes.mockResolvedValue([]);
+    await tlonRuntimeOutbound.sendText({
+      ...ctx,
+      to: 'notes/~zod/book',
+      text: '# Notes\n\nping @admin and @all',
+    });
+    expect(createNote).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'ping @admin and @all' })
+    );
+    expect(roleIdsForNest).not.toHaveBeenCalled();
+  });
+
+  it('sendMedia passes the channel scope for a caption', async () => {
+    const media = { url: 'https://example.com/img.png', isImage: true };
+    prepareOutboundMedia.mockResolvedValue(media);
+    await tlonRuntimeOutbound.sendMedia({
+      ...ctx,
+      to: 'chat/~zod/general',
+      text: 'look @admin',
+      mediaUrl: media.url,
+    });
+    expect(buildMediaStory).toHaveBeenCalledExactlyOnceWith(
+      'look @admin',
+      media,
+      { roleMentions: { roleIds: new Set(['admin']) } }
+    );
+  });
+
+  it('sendMedia without a caption or to a DM does no lookup', async () => {
+    const media = { url: 'https://example.com/img.png', isImage: true };
+    prepareOutboundMedia.mockResolvedValue(media);
+    await tlonRuntimeOutbound.sendMedia({
+      ...ctx,
+      to: 'chat/~zod/general',
+      text: undefined as never,
+      mediaUrl: media.url,
+    });
+    await tlonRuntimeOutbound.sendMedia({
+      ...ctx,
+      to: '~nec',
+      text: 'look @admin',
+      mediaUrl: media.url,
+    });
+    expect(roleIdsForNest).not.toHaveBeenCalled();
+    expect(buildMediaStory).toHaveBeenNthCalledWith(1, undefined, media, {
+      roleMentions: ALL_ONLY,
+    });
+    expect(buildMediaStory).toHaveBeenNthCalledWith(2, 'look @admin', media, {
+      roleMentions: ALL_ONLY,
+    });
   });
 });
 

@@ -11,3 +11,10 @@ export function isA2UISendMessageActionConsumed(
   // state from arbitrary prose is brittle; structured receipts own that job.
   return expected.length > 0 && expected === sentMessageText?.trim();
 }
+
+export function shouldDismissKeyboardForChoice(
+  canSend: boolean,
+  isConsumed: boolean
+) {
+  return canSend && !isConsumed;
+}

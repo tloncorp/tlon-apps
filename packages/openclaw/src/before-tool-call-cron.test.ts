@@ -9,6 +9,11 @@ import {
   scheduleBackgroundContextLensFinalization,
 } from './context-lens.js';
 import { CRON_ARGS_BLOCK_REASON } from './cron-tool-args-guard.js';
+import { isAgentOnboardingCronJob } from './monitor/agent-onboarding.js';
+import {
+  _testing as boundaryTesting,
+  setTlonSessionSurface,
+} from './onboarding-tool-boundary.js';
 import { formatOwnerOnlyToolBlockReason } from './owner-only-tools.js';
 import { _testing, setSessionRole } from './session-roles.js';
 
@@ -35,6 +40,12 @@ vi.mock('./context-lens-events.js', async (importOriginal) => {
     ...actual,
     publishContextLensEvent: vi.fn(),
   };
+});
+
+vi.mock('./monitor/agent-onboarding.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./monitor/agent-onboarding.js')>();
+  return { ...actual, isAgentOnboardingCronJob: vi.fn(async () => false) };
 });
 
 type BeforeToolCallResult =
@@ -169,11 +180,14 @@ function beforeToolTracePayloads(logs: string[]): Record<string, unknown>[] {
     });
 }
 
+// The flat spelling core also accepts. Cleaning leaves it as sent, so the
+// guard still has to catch it.
 const DIRTY_ADD = {
   toolName: 'cron',
   params: {
     action: 'add',
-    job: { name: 'daily', payload: { fallbacks: [] } },
+    name: 'daily',
+    payload: { fallbacks: [] },
   },
 };
 
@@ -181,7 +195,26 @@ const DIRTY_AUTOMATIONS_ADD = {
   toolName: 'automations',
   params: {
     action: 'add',
-    job: { name: 'daily', payload: { fallbacks: [] } },
+    name: 'daily',
+    payload: { fallbacks: [] },
+  },
+};
+
+// The shape the model sends: the tool's nested job, with the placeholders.
+const DIRTY_NESTED_ADD = {
+  toolName: 'cron',
+  params: {
+    action: 'add',
+    job: {
+      name: 'daily',
+      payload: { kind: 'agentTurn', message: 'summarize', fallbacks: [] },
+      delivery: {
+        mode: 'announce',
+        channel: 'tlon',
+        to: '~zod',
+        bestEffort: true,
+      },
+    },
   },
 };
 
@@ -189,7 +222,10 @@ const CLEAN_ADD = {
   toolName: 'cron',
   params: {
     action: 'add',
-    job: { name: 'daily', payload: { prompt: 'summarize' } },
+    job: {
+      name: 'daily',
+      payload: { kind: 'agentTurn', message: 'summarize' },
+    },
   },
 };
 
@@ -218,7 +254,7 @@ describe('before_tool_call cron args guard', () => {
     });
     expect(cronArgsBlockedLogs(logs)).toHaveLength(1);
     expect(cronArgsBlockedLogs(logs)[0]).toContain(
-      'job.payload.fallbacks=empty-fallbacks'
+      'payload.fallbacks=empty-fallbacks'
     );
   });
 
@@ -232,7 +268,7 @@ describe('before_tool_call cron args guard', () => {
     });
     expect(cronArgsBlockedLogs(logs)).toHaveLength(1);
     expect(cronArgsBlockedLogs(logs)[0]).toContain(
-      'job.payload.fallbacks=empty-fallbacks'
+      'payload.fallbacks=empty-fallbacks'
     );
   });
 
@@ -270,7 +306,7 @@ describe('before_tool_call cron args guard', () => {
     const { handler, logs } = registerEntry();
     await expect(
       handler(CLEAN_ADD, { sessionKey: OWNER_SESSION })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ params: CLEAN_ADD.params });
     const payloads = beforeToolTracePayloads(logs);
     expect(payloads).toHaveLength(1);
     expect(payloads[0]?.blocked).toBe(false);
@@ -314,11 +350,28 @@ describe('before_tool_call cron args guard', () => {
     );
   });
 
+  it('cleans an allowed add under the automations name too', async () => {
+    const { handler } = registerEntry();
+    await expect(
+      handler(
+        {
+          toolName: 'automations',
+          params: {
+            action: 'add',
+            agentId: '',
+            job: { ...CLEAN_ADD.params.job, sessionTarget: '' },
+          },
+        },
+        { sessionKey: OWNER_SESSION }
+      )
+    ).resolves.toEqual({ params: CLEAN_ADD.params });
+  });
+
   it('allows an owner cron add without the forbidden arguments', async () => {
     const { handler, logs } = registerEntry();
     await expect(
       handler(CLEAN_ADD, { sessionKey: OWNER_SESSION })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ params: CLEAN_ADD.params });
     expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
   });
 
@@ -332,6 +385,24 @@ describe('before_tool_call cron args guard', () => {
     });
     expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
   });
+
+  it.each([
+    ['a dirty', DIRTY_AUTOMATIONS_ADD],
+    ['a clean', { ...CLEAN_ADD, toolName: 'automations' }],
+  ])(
+    'blocks %s non-owner call under the automations name',
+    async (_name, call) => {
+      const { handler, logs } = registerEntry();
+      await expect(
+        handler(call, { sessionKey: USER_SESSION })
+      ).resolves.toEqual({
+        block: true,
+        blockReason: formatOwnerOnlyToolBlockReason('automations'),
+      });
+      expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
+      expect(allowedLogs(logs)).toHaveLength(0);
+    }
+  );
 
   it('traces a non-owner cron call with the owner-only reason, not the guard reason', async () => {
     vi.stubEnv('TEST_LIVE_TOOL_TRACE_CONTENTS', '1');
@@ -352,7 +423,26 @@ describe('before_tool_call cron args guard', () => {
     expect(allowedLogs(logs)).toHaveLength(0);
   });
 
-  it('allows the forbidden arguments when the guard is disabled', async () => {
+  it("cleans the model's usual add instead of blocking it", async () => {
+    const { handler, logs } = registerEntry();
+    // Blocked, the model retried with the same fields dozens of times on a
+    // real gateway; cleaned, the job is made on the first call.
+    await expect(
+      handler(DIRTY_NESTED_ADD, { sessionKey: OWNER_SESSION })
+    ).resolves.toEqual({
+      params: {
+        action: 'add',
+        job: {
+          name: 'daily',
+          payload: { kind: 'agentTurn', message: 'summarize' },
+          delivery: { mode: 'announce', channel: 'tlon', to: '~zod' },
+        },
+      },
+    });
+    expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
+  });
+
+  it('does not block the forbidden arguments when the guard is disabled', async () => {
     vi.stubEnv('TLON_CRON_ARGS_GUARD', '0');
     const { handler, logs } = registerEntry();
     await expect(
@@ -498,4 +588,73 @@ it('puts approval delivery failure into the originating conversation without lea
     )
   ).toBe(true);
   expect(logs.join('\n')).not.toContain('private-token');
+});
+
+describe('before_tool_call cron during first-run setup', () => {
+  const ctx = { sessionKey: OWNER_SESSION };
+  const reschedule = {
+    action: 'update',
+    jobId: 'reminder-1',
+    patch: { schedule: { kind: 'cron', expr: '0 8 * * *' } },
+  };
+
+  beforeEach(() => {
+    _testing.clearAll();
+    boundaryTesting.clearAll();
+    setSessionRole(OWNER_SESSION, 'owner');
+    setTlonSessionSurface(OWNER_SESSION, {
+      kind: 'direct',
+      channelNest: '~sampel-palnet',
+      requestedOnboardingGroupId: '~sampel-palnet/home',
+      bootstrapComplete: false,
+    });
+    vi.mocked(isAgentOnboardingCronJob).mockClear();
+  });
+
+  afterEach(() => {
+    _testing.clearAll();
+    boundaryTesting.clearAll();
+  });
+
+  it('lets the owner change or remove a reminder they just made', async () => {
+    const { handler } = registerEntry();
+    await expect(
+      handler({ toolName: 'cron', params: reschedule }, ctx)
+    ).resolves.toEqual({ params: reschedule });
+    await expect(
+      handler(
+        { toolName: 'cron', params: { action: 'remove', jobId: 'reminder-1' } },
+        ctx
+      )
+    ).resolves.toBeUndefined();
+    expect(isAgentOnboardingCronJob).toHaveBeenCalledWith('reminder-1');
+  });
+
+  it('still keeps the onboarding task closed', async () => {
+    vi.mocked(isAgentOnboardingCronJob).mockResolvedValue(true);
+    const { handler } = registerEntry();
+    await expect(
+      handler(
+        {
+          toolName: 'cron',
+          params: { action: 'remove', jobId: 'onboarding-1' },
+        },
+        ctx
+      )
+    ).resolves.toMatchObject({
+      block: true,
+      blockReason: expect.stringContaining('typed task-plan coordinator'),
+    });
+    vi.mocked(isAgentOnboardingCronJob).mockResolvedValue(false);
+  });
+
+  it('stays closed when the job cannot be looked up', async () => {
+    vi.mocked(isAgentOnboardingCronJob).mockRejectedValueOnce(
+      new Error('cron unavailable')
+    );
+    const { handler } = registerEntry();
+    await expect(
+      handler({ toolName: 'cron', params: reschedule }, ctx)
+    ).resolves.toMatchObject({ block: true });
+  });
 });
