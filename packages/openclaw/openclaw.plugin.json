@@ -192,6 +192,10 @@
                   "type": "string",
                   "minLength": 1
                 },
+                "ownerDefault": {
+                  "not": {},
+                  "description": "Not allowed per account: set ownerDefault on the root Tlon channel config."
+                },
                 "reactionLevel": {
                   "type": "string",
                   "enum": [
@@ -327,6 +331,9 @@
           "ownerShip": {
             "type": "string",
             "minLength": 1
+          },
+          "ownerDefault": {
+            "type": "boolean"
           },
           "reactionLevel": {
             "type": "string",

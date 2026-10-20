@@ -49,6 +49,13 @@ import {
 import { getTlonCronService, scheduleCronSnapshot } from '../cron-telemetry.js';
 import type { RestartCatchupConnection } from '../restart-catchup.js';
 import {
+  type RoleMentionResolver,
+  createRoleMentionResolver,
+  publishRoleMentionResolver,
+  roleMentionScopeFor,
+  unpublishRoleMentionResolver,
+} from '../role-mention-scope.js';
+import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
 } from '../effective-owner.js';
@@ -89,6 +96,7 @@ import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
 import { OWNER_ONLY_TOOLS } from '../owner-only-tools.js';
 import { setSessionRole } from '../session-roles.js';
+import { noteInboundDispatching } from '../turn-identity.js';
 import {
   DM_INVITE_PREVIEW,
   type TlonSettingsStore,
@@ -168,7 +176,7 @@ import {
   sendDm,
 } from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
-import { markdownToStory } from '../urbit/story.js';
+import { ALL_ONLY, markdownToStory } from '../urbit/story.js';
 import {
   formatTlonVersionIdentity,
   getTlonVersionIdentity,
@@ -952,6 +960,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
   let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
+  let roleMentionResolver: RoleMentionResolver | null = null;
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
     const contextLensConfig = account.contextLens;
@@ -1048,6 +1057,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       log: (msg) => runtime.log?.(msg),
     });
     publishWorkspaceInstructionsRuntime(workspaceInstructions);
+    roleMentionResolver = createRoleMentionResolver({
+      channelToGroup,
+      refreshChannelGroups,
+      fetchRoleIds: (flag) =>
+        inApiScope(() => getGroup(flag)).then((group) =>
+          (group.roles ?? []).map((role) => role.id)
+        ),
+      log: (msg) => runtime.log?.(msg),
+    });
+    publishRoleMentionResolver(account.accountId, roleMentionResolver);
     // Where onboarding stands in each DM: the group its last request named,
     // or that it has finished (or holds no request) and replies are just talk.
     const onboardingDmState = new OnboardingDmState();
@@ -3531,7 +3550,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const dispatchTimeoutMs = resolveDispatchTimeoutMs(account.lifecycle);
       const compactionObservationTimeoutMs =
         resolveCompactionObservationTimeoutMs(cfg);
-      rememberTlonSessionRunSurface(runId, route.sessionKey, { senderRole });
+      // Before dispatch: a non-owner message must taint the owner runs on
+      // these sessions before core can steer it into one of them.
+      noteInboundDispatching({
+        sessionKeys: lensSessionKeys,
+        role: senderRole,
+        ...(route.accountId ? { accountId: route.accountId } : {}),
+      });
+      rememberTlonSessionRunSurface(runId, route.sessionKey, {
+        senderRole,
+        ...(route.accountId ? { accountId: route.accountId } : {}),
+      });
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,
         runId,
@@ -3838,6 +3867,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                             buildContextLensReferenceBlobField(lens.lensId)
                           );
                           if (isGroup && groupChannel) {
+                            // Resolved here, ahead of the delivery callback,
+                            // so a role lookup is not timed as the send.
+                            const story = markdownToStory(replyText, {
+                              roleMentions: await roleMentionScopeFor(
+                                account.accountId,
+                                { kind: 'channel', nest: groupChannel },
+                                replyText
+                              ),
+                            });
                             // Send to any channel type (chat, heap, diary) using the nest directly
                             const result = await observeActiveTlonTurnDelivery(
                               () =>
@@ -3845,7 +3883,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                                   botProfile: getBotProfile(),
                                   fromShip: botShipName,
                                   nest: groupChannel,
-                                  story: markdownToStory(replyText),
+                                  story,
                                   replyToId: deliverParentId ?? undefined,
                                   blob: replyBlob,
                                 })
@@ -3866,6 +3904,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                                   fromShip: botShipName,
                                   toShip: senderShip,
                                   text: replyText,
+                                  roleMentions: ALL_ONLY,
                                   replyToId: deliverParentId
                                     ? String(deliverParentId)
                                     : undefined,
@@ -5552,6 +5591,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ),
           poke: api.poke.bind(api),
           requestJson: api.requestJson.bind(api),
+          scry: api.scry.bind(api),
           logger: {
             log: (message) => runtime.log?.(message),
             warn: (message) => runtime.error?.(message),
@@ -7001,6 +7041,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     cleanupGatewayStatus();
     if (workspaceInstructions) {
       unpublishWorkspaceInstructionsRuntime(workspaceInstructions);
+    }
+    if (roleMentionResolver) {
+      unpublishRoleMentionResolver(account.accountId, roleMentionResolver);
     }
     // Remove the early abort listener so the host's signal does not
     // retain `cleanupGatewayStatus` (which transitively pins

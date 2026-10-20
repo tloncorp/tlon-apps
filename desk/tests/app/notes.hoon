@@ -1887,6 +1887,70 @@
   ?:  (~(has by folders.notebook-state.u.entry) 4)
     |+['leaf folder still present after recursive DELETE']~
   &+[~ s2]
+::  +test-rest-ids-above-999
+::
+::  clients send path ids as plain decimal ("1165"); slaw %ud only takes the
+::  dot-grouped literal ("1.165") from 1000 up, so every write on a note or
+::  folder past id 999 used to 400. Bump next-id past 1000, then PUT/GET by
+::  plain id, and GET history by the dot-grouped id (non-trailing segment,
+::  so apat doesn't split it off as an extension). The body PUT archives
+::  'orig-1165' as the one revision, so a history lookup that resolved to
+::  any other note (e.g. 1) would come back empty and fail.
+::
+++  test-rest-ids-above-999
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'BigIds'])
+  =/  f=flag:n  (nb-flag our.bowl 'BigIds' 1)
+  ;<  sv0=vase  b  get-save
+  =/  s0=state-15:n  !<(state-15:n sv0)
+  ;<  *  b  (do-load notes-agent `!>(s0(next-id 1.163)))
+  ::  folder 1.164 under root 2, note 1.165 under root
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'sub']])
+  ;<  *  b  (poke-a [%notebook f [%create-note 2 'old' 'orig-1165']])
+  =/  key=@t  ?~(api-key.s0 '' u.api-key.s0)
+  =/  hdr=(list [@t @t])  ~[['x-api-key' key]]
+  =/  base=@t  (crip "/notes/~/v1/notebooks/{<`@p`our.bowl>}/{(trip name.f)}")
+  ;<  *  b
+    (http-req-v1 %'PUT' hdr (cat 3 base '/notes/1165') '{"title":"new","folder":1164}')
+  ;<  *  b
+    (http-req-v1 %'PUT' hdr (cat 3 base '/folders/1164') '{"folderName":"sub2"}')
+  ;<  *  b
+    (http-req-v1 %'PUT' hdr (cat 3 base '/notes/1165') '{"body":"next-1165"}')
+  ;<  get-caz=(list card)  b  (http-get-v1 hdr (cat 3 base '/notes/1165'))
+  ;<  hist-caz=(list card)  b
+    (http-get-v1 hdr (cat 3 base '/notes/1.165/history'))
+  ;<  svu=vase  b  get-save
+  =/  su=state-15:n  !<(state-15:n svu)
+  |=  s2=state
+  ?~  api-key.s0  |+['no api-key']~
+  ?~  entry=(~(get by books.su) f)  |+['notebook gone']~
+  ?~  note=(~(get by notes.notebook-state.u.entry) 1.165)
+    |+['note 1.165 not created']~
+  ?.  =('new' title.u.note)
+    |+~[(crip "PUT /notes/1165 didn't rename: {<title.u.note>}")]
+  ?.  =(1.164 folder-id.u.note)
+    |+~[(crip "PUT /notes/1165 didn't move: folder={<folder-id.u.note>}")]
+  ?~  fld=(~(get by folders.notebook-state.u.entry) 1.164)
+    |+['folder 1.164 not created']~
+  ?.  =('sub2' name.u.fld)
+    |+~[(crip "PUT /folders/1164 didn't rename: {<name.u.fld>}")]
+  ?.  =((http-status get-caz) `200)
+    |+~[(crip "GET /notes/1165 not 200: {<(http-status get-caz)>}")]
+  ?.  =((http-status hist-caz) `200)
+    |+~[(crip "GET /notes/1.165/history not 200: {<(http-status hist-caz)>}")]
+  ?~  bod=(http-body hist-caz)  |+['history: no body']~
+  ?~  jon=(de:json:html u.bod)  |+['history: body not json']~
+  =/  hist=(list @t)
+    %.  u.jon
+    (ar:dejs:format (ot:dejs:format ~[['bodyMd' so:dejs:format]]))
+  ?.  =(~['orig-1165'] hist)
+    |+~[(crip "GET /notes/1.165/history: expected [orig-1165], got {<hist>}")]
+  &+[~ s2]
 ::  +test-v1-regenerate-returns-key
 ::
 ::  %regenerate-api-key must finalize with the new key in an %api-key body.

@@ -1,6 +1,6 @@
 import type { ChannelOutboundSessionRouteParams } from 'openclaw/plugin-sdk/core';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { tlonPlugin } from './channel.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
@@ -103,17 +103,33 @@ describe('tlonPlugin messaging surface (explicit-target wiring)', () => {
 });
 
 describe('tlonPlugin agent tools', () => {
-  it('exposes the onboarding choice, plan, and service recovery tools through the channel', () => {
-    expect(typeof tlonPlugin.agentTools).toBe('function');
+  const toolNames = () => {
     if (typeof tlonPlugin.agentTools !== 'function') {
-      return;
+      throw new Error('agentTools is not a function');
     }
+    return tlonPlugin.agentTools({ cfg }).map((tool) => tool.name);
+  };
 
-    const tools = tlonPlugin.agentTools({ cfg });
-    expect(tools.map((tool) => tool.name)).toEqual([
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('exposes the onboarding tools through the channel', () => {
+    vi.stubEnv('TLON_OWNER_TIMEZONE_FILE', '');
+    expect(toolNames()).toEqual([
       'tlon_agent_choice',
       'tlon_agent_task_plan',
       'tlon_agent_service_setup',
     ]);
+  });
+
+  it('adds the connectable services lookup on hosted bots', () => {
+    vi.stubEnv('PIONEER_ENV', 'prod');
+    expect(toolNames()).toContain('tlon_connectable_services');
+  });
+
+  it('adds set_timezone only when the hosted wrapper names its file', () => {
+    vi.stubEnv('TLON_OWNER_TIMEZONE_FILE', '/pier/.openclaw/tz.json');
+    expect(toolNames()).toContain('set_timezone');
   });
 });
