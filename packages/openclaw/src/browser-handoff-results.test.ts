@@ -1,3 +1,7 @@
+import {
+  type LookupFn,
+  SsrFBlockedError,
+} from 'openclaw/plugin-sdk/ssrf-runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -5,6 +9,10 @@ import {
   createBrowserHandoffResults,
   readBrowserHandoffResult,
 } from './browser-handoff-results.js';
+
+import { urbitFetch } from './urbit/fetch.js';
+
+vi.mock('./urbit/fetch.js', () => ({ urbitFetch: vi.fn() }));
 
 type Dependencies = Parameters<typeof createBrowserHandoffResults>[0];
 type Handoff = NonNullable<
@@ -81,7 +89,10 @@ function fixture() {
   };
 }
 
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.mocked(urbitFetch).mockReset();
+});
 afterEach(async () => {
   await Promise.all(services.splice(0).map((service) => service.stop()));
   vi.useRealTimers();
@@ -161,6 +172,7 @@ describe('secure-entry result delivery', () => {
     f.service.start();
     await f.service.poll();
     expect(f.records.get('browser-1')?.result?.status).toBe('filled');
+    expect(await f.service.isPending('browser-1')).toBe(true);
     await f.service.stop();
     const restarted = createBrowserHandoffResults(f.deps);
     services.push(restarted);
@@ -168,7 +180,9 @@ describe('secure-entry result delivery', () => {
     restarted.start();
     await restarted.poll();
     expect(f.resume).toHaveBeenCalledTimes(1);
+    expect(await restarted.isPending('browser-1')).toBe(true);
     await vi.advanceTimersByTimeAsync(6_000);
+    expect(await restarted.isPending('browser-1')).toBe(false);
     expect(f.resume).toHaveBeenCalledTimes(2);
     expect(f.resume.mock.calls[0][0]).toEqual(f.resume.mock.calls[1][0]);
     expect(f.records.size).toBe(0);
@@ -280,9 +294,20 @@ describe('secure-entry result delivery', () => {
 });
 
 describe('service result transport', () => {
-  it('accepts only fixed status metadata and never forwards credential values or error text', async () => {
+  function respond(response: Response) {
+    const release = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(urbitFetch).mockResolvedValue({
+      response,
+      release,
+      finalUrl:
+        'https://browser-session.tlon.network/credential-result/payload.signature',
+    });
+    return release;
+  }
+
+  it('accepts only fixed status metadata through a pinned, deny-private-network request', async () => {
     const f = fixture();
-    const fetcher = vi.fn().mockResolvedValue(
+    const release = respond(
       Response.json({
         status: 'filled',
         submitted: true,
@@ -290,51 +315,98 @@ describe('service result transport', () => {
         error: 'private',
       })
     );
-    vi.stubGlobal('fetch', fetcher);
+    const signal = new AbortController().signal;
     await expect(
-      readBrowserHandoffResult(
-        f.request.viewerUrl,
-        new AbortController().signal
-      )
+      readBrowserHandoffResult(f.request.viewerUrl, signal)
     ).resolves.toEqual({ status: 'filled', submitted: true });
-    expect(fetcher.mock.calls[0][0].pathname).toContain('/credential-result/');
-    expect(fetcher.mock.calls[0][1]).toMatchObject({
-      redirect: 'error',
-      credentials: 'omit',
+    expect(urbitFetch).toHaveBeenCalledExactlyOnceWith({
+      baseUrl: new URL(f.request.viewerUrl).origin,
+      path: expect.stringMatching(/^\/credential-result\//),
+      init: {
+        redirect: 'error',
+        credentials: 'omit',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+      },
+      ssrfPolicy: { allowPrivateNetwork: false },
+      pinDns: true,
+      maxRedirects: 0,
+      timeoutMs: 5_000,
+      signal,
     });
+    expect(release).toHaveBeenCalledOnce();
   });
+
   it.each([
     'http://browser-session.tlon.network',
     'https://evil.test',
     'https://browser-session.tlon.network:444',
     'https://user@browser-session.tlon.network',
   ])('rejects an untrusted result origin: %s', async (origin) => {
-    const fetcher = vi.fn();
-    vi.stubGlobal('fetch', fetcher);
     await expect(
       readBrowserHandoffResult(
         `${origin}/s/payload.signature`,
         new AbortController().signal
       )
     ).rejects.toThrow();
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(urbitFetch).not.toHaveBeenCalled();
   });
-  it.each([401, 404])(
-    'reports an unavailable handoff for HTTP %s',
-    async (status) => {
-      const f = fixture();
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue(Response.json({}, { status }))
+
+  it.each(['127.0.0.1', '10.0.0.1', '169.254.169.254', '::1'])(
+    'blocks a trusted hostname resolving to %s before making an HTTP request',
+    async (address) => {
+      const actual =
+        await vi.importActual<typeof import('./urbit/fetch.js')>(
+          './urbit/fetch.js'
+        );
+      const fetchImpl = vi.fn();
+      const lookupFn = (async () => [
+        { address, family: address.includes(':') ? 6 : 4 },
+      ]) as unknown as LookupFn;
+      vi.mocked(urbitFetch).mockImplementation((options) =>
+        actual.urbitFetch({ ...options, lookupFn, fetchImpl })
       );
       await expect(
         readBrowserHandoffResult(
-          f.request.viewerUrl,
+          fixture().request.viewerUrl,
+          new AbortController().signal
+        )
+      ).rejects.toBeInstanceOf(SsrFBlockedError);
+      expect(fetchImpl).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([401, 404])(
+    'releases an unavailable handoff response for HTTP %s',
+    async (status) => {
+      const release = respond(Response.json({}, { status }));
+      await expect(
+        readBrowserHandoffResult(
+          fixture().request.viewerUrl,
           new AbortController().signal
         )
       ).resolves.toEqual({ status: 'failed' });
+      expect(release).toHaveBeenCalledOnce();
     }
   );
+
+  it.each([
+    { name: 'HTTP error', response: () => new Response('', { status: 500 }) },
+    { name: 'invalid JSON', response: () => new Response('{') },
+    {
+      name: 'invalid result',
+      response: () => Response.json({ status: 'unknown' }),
+    },
+  ])('releases the response after $name', async ({ response }) => {
+    const release = respond(response());
+    await expect(
+      readBrowserHandoffResult(
+        fixture().request.viewerUrl,
+        new AbortController().signal
+      )
+    ).rejects.toThrow();
+    expect(release).toHaveBeenCalledOnce();
+  });
 });
 
 it.each(['browser_act', 'browser_browser_act'])(

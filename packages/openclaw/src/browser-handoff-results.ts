@@ -5,6 +5,7 @@ import type { PluginStateKeyedStore } from 'openclaw/plugin-sdk/plugin-state-run
 import { z } from 'zod';
 
 import { sharedSlot } from './shared-state.js';
+import { urbitFetch } from './urbit/fetch.js';
 
 const resultSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('pending') }),
@@ -79,17 +80,30 @@ export async function readBrowserHandoffResult(
   viewerUrl: string,
   signal: AbortSignal
 ): Promise<BrowserResult> {
-  const response = await fetch(resultEndpoint(viewerUrl), {
-    signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
-    redirect: 'error',
-    cache: 'no-store',
-    credentials: 'omit',
-    referrerPolicy: 'no-referrer',
+  const url = resultEndpoint(viewerUrl);
+  const { response, release } = await urbitFetch({
+    baseUrl: url.origin,
+    path: url.pathname,
+    init: {
+      redirect: 'error',
+      cache: 'no-store',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+    },
+    ssrfPolicy: { allowPrivateNetwork: false },
+    pinDns: true,
+    maxRedirects: 0,
+    timeoutMs: 5_000,
+    signal,
   });
-  if (response.status === 401 || response.status === 404)
-    return { status: 'failed' };
-  if (!response.ok) throw new Error('Secure-entry result is unavailable.');
-  return resultSchema.parse(await response.json());
+  try {
+    if (response.status === 401 || response.status === 404)
+      return { status: 'failed' };
+    if (!response.ok) throw new Error('Secure-entry result is unavailable.');
+    return resultSchema.parse(await response.json());
+  } finally {
+    await release();
+  }
 }
 
 function resultMessage(handoff: PendingHandoff, result: CompletedResult) {
@@ -267,8 +281,7 @@ export function createBrowserHandoffResults({
       };
     },
     async isPending(browserSessionId: string) {
-      const handoff = await store.lookup(browserSessionId);
-      return !!handoff && !handoff.result;
+      return !!(await store.lookup(browserSessionId));
     },
     start() {
       if (controller && !controller.signal.aborted) return;

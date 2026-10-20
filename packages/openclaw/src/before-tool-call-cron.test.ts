@@ -59,6 +59,8 @@ type BeforeToolCallHandler = (
 
 const OWNER_SESSION = 'tlon:dm:~sampel-palnet';
 const USER_SESSION = 'tlon:dm:~zod';
+const handoffRecords = new Map<string, unknown>();
+beforeEach(() => handoffRecords.clear());
 
 /**
  * Config that turns Context Lens recording on: the routes reader goes live once
@@ -109,6 +111,11 @@ function createRecordingApi(config: Record<string, unknown> = {}): {
         });
       }
 
+      if (prop === 'openKeyedStore') {
+        return () => ({
+          lookup: async (key: string) => handoffRecords.get(key),
+        });
+      }
       if (prop === 'enqueueSystemEvent') {
         return (message: string, options: { sessionKey: string }) => {
           logs.push(`system:${options.sessionKey}:${message}`);
@@ -551,6 +558,45 @@ it('blocks non-owner saved login and shared browser access before dispatch', asy
       blockReason: expect.stringContaining('owner-only'),
     });
   }
+});
+
+it('blocks browser use and fresh approval cards until a stored result is delivered', async () => {
+  setSessionRole(OWNER_SESSION, 'owner');
+  vi.mocked(runBrowserSessionHandoff).mockClear();
+  const { handler, hooks } = registerEntry();
+  const after = hooks.get('after_tool_call') as (
+    event: unknown,
+    ctx: { sessionKey: string }
+  ) => Promise<void>;
+  const ctx = { sessionKey: OWNER_SESSION };
+  const event = {
+    toolName: 'mcp__call',
+    params: {
+      name: 'browser_browser_login',
+      arguments: { session_id: 'blocked-browser', action: 'use' },
+    },
+    result: {
+      details: {
+        structuredContent: {
+          session_id: 'blocked-browser',
+          login: { status: 'approval_required' },
+        },
+      },
+    },
+  };
+  handoffRecords.set('blocked-browser', {
+    result: { status: 'filled', submitted: true },
+  });
+  await expect(handler(event, ctx)).resolves.toMatchObject({
+    block: true,
+    blockReason: expect.stringContaining('waiting for secure entry'),
+  });
+  await after(event, ctx);
+  expect(runBrowserSessionHandoff).not.toHaveBeenCalled();
+  handoffRecords.delete('blocked-browser');
+  await expect(handler(event, ctx)).resolves.toBeUndefined();
+  await after(event, ctx);
+  expect(runBrowserSessionHandoff).toHaveBeenCalledOnce();
 });
 
 it('puts approval delivery failure into the originating conversation without leaking upstream errors', async () => {
