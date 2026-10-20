@@ -69,10 +69,10 @@ WORKDIR /workspace
 RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
     printf "%s\n" \
-        "https://bootstrap.urbit.org/rube-zod36.tgz zod.tgz" \
+        "https://bootstrap.urbit.org/rube-zod38.tgz zod.tgz" \
         "https://bootstrap.urbit.org/rube-bus9.tgz bus.tgz" \
-        "https://bootstrap.urbit.org/rube-ten36.tgz ten.tgz" \
-        "https://bootstrap.urbit.org/rube-mug36.tgz mug.tgz" \
+        "https://bootstrap.urbit.org/rube-ten38.tgz ten.tgz" \
+        "https://bootstrap.urbit.org/rube-mug38.tgz mug.tgz" \
         "https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz urbit.tgz" \
     | xargs -P 5 -n 2 sh -c 'curl -fSL -o "$1" "$0" || exit 255' && \
     echo "All downloads complete, extracting..." && \

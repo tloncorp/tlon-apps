@@ -30,6 +30,7 @@ import {
   useOpenScheduledTasks,
   useScheduledTasksEntry,
 } from '../automations/useScheduledTasksEntry';
+import { useOpenBotPromptFiles } from '../settings/useOpenBotPromptFiles';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
@@ -117,6 +118,11 @@ export function UserProfileScreen({ route, navigation }: Props) {
     () => openScheduledTasks({ botShip: scheduledTasks.botShip }),
     [openScheduledTasks, scheduledTasks.botShip]
   );
+  const openBotPromptFiles = useOpenBotPromptFiles();
+  const handlePressPromptFiles = useCallback(
+    () => openBotPromptFiles(userId),
+    [openBotPromptFiles, userId]
+  );
 
   const isHostedUser = isWeb ? getCurrentUserIsHostedSafely() : false;
   const hasExpectedBotDm = useHasExpectedBotDm(
@@ -194,6 +200,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
                 canOpenScheduledTasks ? handlePressScheduledTasks : undefined
               }
               scheduledTaskCount={scheduledTasks.count}
+              onPressPromptFiles={handlePressPromptFiles}
               onPressGroup={handlePressGroup}
             />
           </View>

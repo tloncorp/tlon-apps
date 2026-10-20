@@ -10,7 +10,7 @@ env:
     direction: DOWN
     timeout: 30000
 - longPressOn: ${'RevokeInvite-' + MAESTRO_RUN_TAG}
-- tapOn: '^Group info & settings$'
+- tapOn: '^Workspace info & settings$'
 - tapOn: '^Manage members$'
 - assertVisible:
     id: ScreenHeaderTitle

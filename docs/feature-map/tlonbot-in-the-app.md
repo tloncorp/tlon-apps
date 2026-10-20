@@ -91,13 +91,13 @@ Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot 
 Who: hosted accounts with a Tlonbot.
 Notes: if the default model fails, the bot tries these in order. The order is the order you added them; you can't drag to reorder. On the included Basic model with none chosen, the row reads `Managed by Tlon`.
 
-## Turn on zero data retention
+## Turn zero data retention on or off
 <!-- src: packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/features/settings/BotModelSettingsScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 
-Phone: on the Settings tab, tap your bot's `Models` row, then switch on `Zero data retention` under `Default model` and `Fallback models`, then apply.
+Phone: on the Settings tab, tap your bot's `Models` row, then use the `Zero data retention` switch under `Default model` and `Fallback models`, then apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot. The switch only shows while the default model is the included Basic model with a model chosen.
-Notes: the app describes it as `Zero data retention avoids model providers that retain data. It may use your included credits faster.` With OpenRouter, the same switch is a `Zero data retention` row at the top of the OpenRouter section in the model picker, where it narrows the list to models tagged `ZDR`.
+Notes: it is on by default, but the owner may run without it. The app describes it as `Zero data retention avoids model providers that retain data. It may use your included credits faster.` Requests still reach a model provider, just one that keeps nothing. Leaving Basic and coming back turns it off. With OpenRouter, the same switch is a `Zero data retention` row at the top of the OpenRouter section in the model picker, where it narrows the list to models tagged `ZDR`; switch it off to see the rest. It doesn't cover subscriptions, other providers' keys or a per-channel model.
 
 ## Add an API key for a model provider
 <!-- src: packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/BotApiKeySettingsScreen.tsx, packages/app/features/settings/bot/constants.ts, packages/app/features/settings/bot/helpers.ts, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->

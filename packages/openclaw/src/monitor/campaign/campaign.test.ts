@@ -556,7 +556,7 @@ describe('ticket conversation flow', () => {
     const h = harness(state(), { context });
     await h.campaign.check();
     expect(h.deps.send).toHaveBeenCalledWith(
-      expect.stringContaining('architecture'),
+      { text: expect.stringContaining('architecture'), personalized: false },
       'campaign-v1-useful-request',
       '~ten'
     );
@@ -591,7 +591,10 @@ describe('ticket conversation flow', () => {
     h.advance(MINUTE);
     await h.campaign.check();
     expect(h.deps.send).toHaveBeenCalledWith(
-      expect.stringContaining('Architecture digest'),
+      {
+        text: expect.stringContaining('Architecture digest'),
+        personalized: false,
+      },
       'campaign-v1-task-feedback',
       '~ten'
     );
@@ -610,7 +613,10 @@ describe('ticket conversation flow', () => {
     });
     await h.campaign.check();
     expect(h.deps.send).toHaveBeenCalledWith(
-      expect.stringContaining('Something went wrong with the last run'),
+      {
+        text: expect.stringContaining('Something went wrong with the last run'),
+        personalized: false,
+      },
       'campaign-v1-task-feedback',
       '~ten'
     );
@@ -771,9 +777,10 @@ it('honors an opt-out while the store is temporarily unavailable', async () => {
   expect(await h.campaign.inboundInConversation('/stop-tips', '~ten')).toBe(
     true
   );
-  expect(h.deps.send).toHaveBeenLastCalledWith(
-    expect.stringContaining('couldn’t save that preference')
-  );
+  expect(h.deps.send).toHaveBeenLastCalledWith({
+    text: expect.stringContaining('couldn’t save that preference'),
+    personalized: false,
+  });
 });
 
 it('applies closing copy after successful task feedback', () => {
@@ -914,7 +921,7 @@ it('personalizes only a due unmarked tip and appends opt-out in code', async () 
   h.advance(DAY);
   await h.campaign.check();
   expect(h.deps.send).toHaveBeenCalledWith(
-    expect.stringContaining('Friday meetings'),
+    { text: expect.stringContaining('Friday meetings'), personalized: true },
     'campaign-v1-useful-request',
     '~ten'
   );
@@ -996,6 +1003,27 @@ it('abandons task feedback when the selected task disappears during inference', 
 
   expect(h.deps.send).not.toHaveBeenCalled();
   expect(h.read().sent).toEqual([]);
+});
+it('sends a tip re-rendered after inference as written, not as personalized', async () => {
+  let task = {
+    id: 'task',
+    name: 'Digest',
+    enabled: true,
+    deliveredAt: enrolledAt + DAY - MINUTE,
+  };
+  const h = harness(state(), {
+    task: async () => task,
+    personalize: async () => {
+      task = { ...task, name: 'Weekly digest' };
+      return 'How is your digest working, @admin?';
+    },
+  });
+  await h.campaign.check();
+  expect(h.deps.send).toHaveBeenCalledWith(
+    { text: expect.stringContaining('Weekly digest'), personalized: false },
+    'campaign-v1-task-feedback',
+    '~ten'
+  );
 });
 
 it('describes the onboarding task instead of quoting its internal job name', () => {
@@ -1090,10 +1118,12 @@ describe('ownership tips for an owner without a task', () => {
       'recurring-help',
       'closing',
     ]);
-    expect(vi.mocked(h.deps.send).mock.calls.map(([text]) => text)).toEqual([
-      TIP_COPY['useful-request'],
-      TIP_COPY.ownership,
-      TIP_COPY.closingModelChoice,
+    expect(
+      vi.mocked(h.deps.send).mock.calls.map(([message]) => message)
+    ).toEqual([
+      { text: TIP_COPY['useful-request'], personalized: false },
+      { text: TIP_COPY.ownership, personalized: false },
+      { text: TIP_COPY.closingModelChoice, personalized: false },
     ]);
     // Only day one, the usual tip, is offered for rewording.
     expect(personalize).toHaveBeenCalledTimes(1);
@@ -1116,7 +1146,10 @@ describe('ownership tips for an owner without a task', () => {
       expect.objectContaining({ gated: true, text: TIP_COPY.ownership })
     );
     expect(h.deps.send).toHaveBeenCalledWith(
-      'Your garden notes live on your own node. Want the short version?',
+      {
+        text: 'Your garden notes live on your own node. Want the short version?',
+        personalized: true,
+      },
       'campaign-v1-recurring-help',
       '~ten'
     );
@@ -1139,7 +1172,10 @@ describe('ownership tips for an owner without a task', () => {
     await first.campaign.check();
     expect(personalize.mock.calls[0][0].text).toBe(TIP_COPY.ownership);
     expect(first.deps.send).toHaveBeenCalledWith(
-      `A reworded ownership tip.\n\n${TIP_COPY.optOut}`,
+      {
+        text: `A reworded ownership tip.\n\n${TIP_COPY.optOut}`,
+        personalized: true,
+      },
       'campaign-v1-recurring-help',
       '~ten'
     );
@@ -1149,7 +1185,10 @@ describe('ownership tips for an owner without a task', () => {
     await usual.campaign.check();
     expect(personalize.mock.calls[1][0].text).not.toContain(TIP_COPY.optOut);
     expect(usual.deps.send).toHaveBeenCalledWith(
-      `A reworded usual tip.\n\n${TIP_COPY.optOut}`,
+      {
+        text: `A reworded usual tip.\n\n${TIP_COPY.optOut}`,
+        personalized: true,
+      },
       'campaign-v1-useful-request',
       '~ten'
     );
@@ -1168,7 +1207,10 @@ describe('ownership tips for an owner without a task', () => {
     );
     expect(personalize.mock.calls[1][0].gated).toBeUndefined();
     expect(h.deps.send).toHaveBeenCalledWith(
-      'Each Sunday I could find one planting idea.',
+      {
+        text: 'Each Sunday I could find one planting idea.',
+        personalized: true,
+      },
       'campaign-v1-recurring-help',
       '~ten'
     );
@@ -1191,7 +1233,7 @@ describe('ownership tips for an owner without a task', () => {
       await h.campaign.check();
       expect(spy).toHaveBeenCalledTimes(1);
       expect(h.deps.send).toHaveBeenCalledWith(
-        TIP_COPY['recurring-help'],
+        { text: TIP_COPY['recurring-help'], personalized: false },
         'campaign-v1-recurring-help',
         '~ten'
       );

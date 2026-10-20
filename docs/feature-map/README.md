@@ -35,7 +35,9 @@ Notes: pinned chats move to a `Pinned` section at the top.
   the repo root. Every entry needs one.
 - Text in backticks is a claim that those exact characters are on screen. The
   check looks for each one in the entry's cited files. Use backticks only for
-  literal on-screen text and for slash commands.
+  literal on-screen text and for slash commands. A button that is only an
+  icon is described by its shape, even when the code gives it a name for
+  screen readers; the check cannot tell the two apart.
 - Describe icons by shape ("the three-dot icon"). Put text the app builds at
   runtime in plain quotes, not backticks.
 
@@ -52,6 +54,16 @@ Keep an entry under about 120 words. No file paths, component names or code
 terms in the text. Follow the wording rules at the top of
 `packages/openclaw/skills/tlon-product-guide/SKILL.md`: "Tlon Messenger", "node", and the phone's
 tab names (Bot, Workspaces, Activity, Settings).
+
+### Write for the usual path
+
+An entry says what a typical person sees and does in the store build. Mention
+a condition only when it changes what that person sees or can do: who gets a
+button, a limit people hit, a step that differs between iPhone and Android.
+Leave out loading states, rare error paths and what the code does underneath.
+A sentence is wrong when it would send a typical person the wrong way, not when
+some rare case differs. Reviewers, people or agents, hold entries to the same
+bar.
 
 ## Other anchors
 
@@ -107,7 +119,9 @@ PR. `.github/workflows/feature-map-update.yml` checks daily for a store build
 newer than the one in `release.json`. When there is one it runs
 `scripts/feature-map-update.sh`, which has a coding agent do the steps below
 and a second agent check the first, then opens a PR with both agents' reports.
-A person reviews and merges it; nothing here merges itself. The agents'
+A person reviews and merges it; nothing here merges itself. While one update
+PR is open, the daily run does nothing, even if a newer build is tagged; the
+first run after it merges catches up to the newest build. The agents'
 instructions are in `agent/`.
 
 To run it yourself, from a clean checkout:
