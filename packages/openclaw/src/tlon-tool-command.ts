@@ -939,6 +939,8 @@ const BOT_CREDENTIAL_FLAG_MESSAGE =
   'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted; this command runs as this bot.';
 const OWNER_IDENTITY_LOST_MESSAGE =
   'Error: this run lost owner identity while the command was pending; nothing was run. Run it again.';
+export const OWNER_CONFIG_CHANGED_MESSAGE =
+  "the bot's owner configuration changed while this command was pending; nothing was run. Run it again.";
 const BOT_ONLY_CREDENTIAL_FLAG_MESSAGE =
   'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted on settings, browser or hooks; these commands always run as this bot.';
 const INVALID_DISCOVERY_MESSAGE =
@@ -1094,14 +1096,15 @@ function ownerToolPostFor(
   // owner-input guarantee anyway, so none is recorded.
   if (base.author === null) return null;
 
+  const parentId = firstParentId(commandArgs);
+  const parent = parentId ? { parentId } : {};
   if (operation === 'posts edit' && postId) {
-    const parentId = firstParentId(commandArgs);
     return {
       ...base,
       kind: 'edit',
       target,
       postId: canonicalPostId(postId),
-      ...(parentId ? { parentId } : {}),
+      ...parent,
     };
   }
   const reaction = commandArgs[4];
@@ -1112,6 +1115,7 @@ function ownerToolPostFor(
       target,
       postId: canonicalPostId(postId),
       reaction,
+      ...parent,
     };
   }
   if (OWNER_REACTION_REMOVAL_OPERATIONS.has(operation) && postId) {
@@ -1120,6 +1124,7 @@ function ownerToolPostFor(
       kind: 'unreact',
       target,
       postId: canonicalPostId(postId),
+      ...parent,
     };
   }
   return null;
@@ -1195,28 +1200,38 @@ type OwnerToolPostPlan =
   | { command: string[]; post: OwnerToolPost | null }
   | { blocked: BlockedTlonOperation };
 
+/** cliSentAtSupport for a send the plugin timestamps, else null. */
+async function ownerSendSupport(
+  commandArgs: string[],
+  deps: TlonToolExecutorDeps
+): Promise<SentAtSupport | 'unverified' | null> {
+  const family = commandArgs[0] ?? '';
+  const send = OWNER_TIMESTAMPED_SENDS.get(`${family} ${commandArgs[1] ?? ''}`);
+  // Without its positionals the CLI stops at a usage error and sends nothing.
+  if (!send || commandArgs.length - 1 < send.messageStart) return null;
+  return cliSentAtSupport(family, deps);
+}
+
 /**
  * Stamps an owner-credentialed send with the plugin's own `sent` and works out
  * the ledger entry for it (sends, edits, reactions and reaction removals), so the monitor can
  * tell the bot's owner-authored writes from the owner's own.
  */
-async function planOwnerToolPost(
+function planOwnerToolPost(
   commandArgs: string[],
   author: string | null,
   ledger: OwnerToolPostLedger,
-  deps: TlonToolExecutorDeps
-): Promise<OwnerToolPostPlan> {
+  deps: TlonToolExecutorDeps,
+  support: SentAtSupport | 'unverified' | null
+): OwnerToolPostPlan {
   const base = { accountId: deps.accountId ?? 'default', author };
   const family = commandArgs[0] ?? '';
-  const send = OWNER_TIMESTAMPED_SENDS.get(`${family} ${commandArgs[1] ?? ''}`);
-  // Without its positionals the CLI stops at a usage error and sends nothing.
-  if (!send || commandArgs.length - 1 < send.messageStart) {
+  if (support === null) {
     return {
       command: commandArgs,
       post: ownerToolPostFor(commandArgs, base, null),
     };
   }
-  const support = await cliSentAtSupport(family, deps);
   if (support === 'unverified') {
     return {
       blocked: {
@@ -1717,7 +1732,9 @@ export type TlonToolExecutorDeps = {
    * (a non-owner message or `sessions_send` demoted it): a command that would
    * act as the owner is refused.
    */
-  ownerIdentityLost?: boolean;
+  ownerIdentityLost?: () => boolean;
+  /** The owner config the gate approved against has since been replaced. */
+  ownerConfigChanged?: () => boolean;
   /**
    * Reject credential flags with the flag off too: a call with no gate
    * approval runs as the bot only.
@@ -1973,9 +1990,6 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       if ('error' in identity) {
         return errorResult(identity.error);
       }
-      if (identity.actAs === 'owner' && deps.ownerIdentityLost) {
-        return errorResult(OWNER_IDENTITY_LOST_MESSAGE);
-      }
 
       // Model-supplied credentials (allowed only with the flag off) are as
       // owner-capable as the owner prefix.
@@ -1985,6 +1999,18 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         : (checkOwnerSelfDm(command, ownerCredentialed, deps.botShip) ??
           checkOwnerReservedBlob(command, ownerCredentialed) ??
           checkRuntimeSettingsKey(command));
+      // The --sent-at probe can wait on a CLI spawn: it settles before the
+      // identity and config checks, not between them and the run.
+      const sendSupport =
+        ownerCredentialed && !isHelp && !guarded
+          ? await ownerSendSupport(command, deps)
+          : null;
+      if (deps.ownerConfigChanged?.()) {
+        return errorResult(`Error: ${OWNER_CONFIG_CHANGED_MESSAGE}`);
+      }
+      if (identity.actAs === 'owner' && deps.ownerIdentityLost?.()) {
+        return errorResult(OWNER_IDENTITY_LOST_MESSAGE);
+      }
       if (guarded) {
         return blockedResult(deps, guarded, subcommand);
       }
@@ -1997,13 +2023,14 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       let reservation: OwnerToolPostReservation | null = null;
       if (ownerCredentialed && !isHelp) {
         const ledger = deps.ownerToolPosts ?? sharedOwnerToolPostLedger();
-        const plan = await planOwnerToolPost(
+        const plan = planOwnerToolPost(
           command,
           identity.actAs === 'owner'
             ? identity.ship
             : credentialPrefixShip(args.slice(0, subIdx)),
           ledger,
-          deps
+          deps,
+          sendSupport
         );
         if ('blocked' in plan) {
           return blockedResult(deps, plan.blocked, subcommand);

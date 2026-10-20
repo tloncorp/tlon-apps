@@ -5,6 +5,7 @@ import {
   OWNER_TOOL_POST_LIMIT,
   OWNER_TOOL_POST_TTL_MS,
   type OwnerToolPost,
+  SHORTCODE_MATCH_WINDOW_MS,
   _testing,
   canonicalPostId,
   canonicalTarget,
@@ -515,6 +516,81 @@ describe('owner tool post ledger', () => {
       expect(ledger.match({ ...inbound, reaction }), reaction).not.toBeNull();
       expect(ledger.match({ ...inbound, reaction: '👍' }), reaction).toBeNull();
     }
+  });
+
+  it('matches any reaction for a :shortcode: entry only within the shortcode window', () => {
+    const { ledger, advance } = makeLedger();
+    const entry = {
+      kind: 'react' as const,
+      accountId: 'default',
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170141',
+    };
+    ledger.reserve({ ...entry, reaction: ':eyes:' });
+    ledger.reserve({ ...entry, postId: '170142', reaction: '👍' });
+    const inbound = {
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170.141',
+    };
+    advance(SHORTCODE_MATCH_WINDOW_MS);
+    expect(ledger.match({ ...inbound, reaction: '👀' })).not.toBeNull();
+    expect(ledger.match({ ...inbound, reaction: '🎉' })).not.toBeNull();
+    advance(1);
+    expect(ledger.match({ ...inbound, reaction: '👀' })).toBeNull();
+    expect(ledger.match({ ...inbound, reaction: '🎉' })).toBeNull();
+    // A Unicode entry still matches exactly for the whole TTL.
+    advance(OWNER_TOOL_POST_TTL_MS - SHORTCODE_MATCH_WINDOW_MS - 2);
+    const unicode = { ...inbound, postId: '170.142' };
+    expect(ledger.match({ ...unicode, reaction: '👍' })).not.toBeNull();
+    expect(ledger.match({ ...unicode, reaction: '👎' })).toBeNull();
+  });
+
+  it('matches a reply reaction and its removal only under the recorded parent', () => {
+    const { ledger } = makeLedger();
+    const entry = {
+      accountId: 'default',
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '1702',
+    };
+    ledger.reserve({ ...entry, kind: 'react', reaction: '👍' });
+    ledger.reserve({
+      ...entry,
+      kind: 'react',
+      postId: '1703',
+      parentId: '1701',
+      reaction: '👍',
+    });
+    ledger.reserve({
+      ...entry,
+      kind: 'unreact',
+      postId: '1704',
+      parentId: '1701',
+    });
+    const inbound = { author: '~owner', target: 'chat/~h/c', reaction: '👍' };
+    // Top-level on both sides.
+    expect(ledger.match({ ...inbound, postId: '170.2' })).not.toBeNull();
+    expect(
+      ledger.match({ ...inbound, postId: '170.2', parentId: '170.1' })
+    ).toBeNull();
+    expect(
+      ledger.match({ ...inbound, postId: '170.3', parentId: '170.1' })
+    ).not.toBeNull();
+    expect(
+      ledger.match({ ...inbound, postId: '170.3', parentId: '170.9' })
+    ).toBeNull();
+    expect(ledger.match({ ...inbound, postId: '170.3' })).toBeNull();
+    const removal = {
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170.4',
+      reactionRemoved: true as const,
+    };
+    expect(ledger.match({ ...removal, parentId: '170.1' })).not.toBeNull();
+    expect(ledger.match({ ...removal, parentId: '170.9' })).toBeNull();
+    expect(ledger.match(removal)).toBeNull();
   });
 
   it('keeps entries for the TTL, which outlasts restart replay', () => {

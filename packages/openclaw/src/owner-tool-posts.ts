@@ -31,6 +31,12 @@ export const OWNER_TOOL_POST_TTL_MS = 6 * 60 * 60_000;
  * entries, further owner writes are refused instead.
  */
 export const OWNER_TOOL_POST_LIMIT = 500;
+/**
+ * How long after it is recorded a shortcode reaction entry matches any
+ * reaction: the desk rewrites the shortcode to Unicode, so the string cannot
+ * be compared, and the tool's own reaction arrives within seconds.
+ */
+export const SHORTCODE_MATCH_WINDOW_MS = 30_000;
 // The ship stores `sent` as @da and re-emits it in ms; depending on rounding
 // the value that comes back can be one below the one sent.
 const SENT_TOLERANCE_MS = 1;
@@ -52,15 +58,21 @@ export type OwnerToolPost =
   | (OwnerToolPostBase & {
       kind: 'react';
       postId: string;
+      parentId?: string;
       /**
        * As the command gave it. The desk converts a recognized `:shortcode:`
        * to its Unicode emoji before the reaction reaches the firehose, so a
-       * shortcode entry matches on author and post alone (see
-       * isShortcodeReaction); anything else must match exactly.
+       * shortcode entry matches on author and post alone, and only within
+       * SHORTCODE_MATCH_WINDOW_MS (see isShortcodeReaction); anything else
+       * must match exactly.
        */
       reaction: string;
     })
-  | (OwnerToolPostBase & { kind: 'unreact'; postId: string });
+  | (OwnerToolPostBase & {
+      kind: 'unreact';
+      postId: string;
+      parentId?: string;
+    });
 
 /** What the monitor knows about an inbound post, edit or reaction. */
 export type InboundPost = {
@@ -172,7 +184,11 @@ function sameParent(entryParent?: string, inboundParent?: string) {
   return canonicalPostId(inboundParent) === entryParent;
 }
 
-function matchesEntry(post: OwnerToolPost, inbound: InboundPost): boolean {
+function matchesEntry(
+  post: OwnerToolPost,
+  inbound: InboundPost,
+  age: number
+): boolean {
   // The target is compared for a known author too: edit and reaction entries
   // carry no timestamp, so the same post id elsewhere would otherwise match.
   // A one-to-one DM with a known author reaches this only at another account
@@ -190,7 +206,8 @@ function matchesEntry(post: OwnerToolPost, inbound: InboundPost): boolean {
     return (
       inbound.reactionRemoved === true &&
       inbound.postId !== undefined &&
-      canonicalPostId(inbound.postId) === post.postId
+      canonicalPostId(inbound.postId) === post.postId &&
+      sameParent(post.parentId, inbound.parentId)
     );
   }
   if (inbound.reactionRemoved) return false;
@@ -199,7 +216,10 @@ function matchesEntry(post: OwnerToolPost, inbound: InboundPost): boolean {
       inbound.reaction !== undefined &&
       inbound.postId !== undefined &&
       canonicalPostId(inbound.postId) === post.postId &&
-      (isShortcodeReaction(post.reaction) || inbound.reaction === post.reaction)
+      sameParent(post.parentId, inbound.parentId) &&
+      (isShortcodeReaction(post.reaction)
+        ? age <= SHORTCODE_MATCH_WINDOW_MS
+        : inbound.reaction === post.reaction)
     );
   }
   if (inbound.reaction !== undefined) return false;
@@ -280,7 +300,10 @@ export function createOwnerToolPostLedger(
       for (const entries of store.values()) {
         for (let i = entries.length - 1; i >= 0; i -= 1) {
           const entry = entries[i];
-          if (live(entry, at) && matchesEntry(entry.post, inbound)) {
+          if (
+            live(entry, at) &&
+            matchesEntry(entry.post, inbound, at - entry.recordedAt)
+          ) {
             return entry.post;
           }
         }

@@ -1179,26 +1179,70 @@ describe('owner-by-default identity selection', () => {
     });
 
     it.each([
-      ['posts react chat/~h/c 170.1 👍', 'chat/~h/c', '170.1'],
-      ['dms react 0v1.abc ~alice/170.1 👍', '0v1.abc', '~alice/170.1'],
-    ])('records owner `%s` as a reaction', async (command, target, postId) => {
-      const { execute, runCommand, ledger } = makeExecutor();
-      await execute('react', { command });
-      expect(ranWith(runCommand)).toEqual(owner(shellSplitCommand(command)));
-      const reaction = { author: '~owner', target, postId };
-      expect(ledger.match({ ...reaction, reaction: '👍' })).toMatchObject({
-        kind: 'react',
-      });
-      expect(ledger.match({ ...reaction, reaction: '👎' })).toBeNull();
-    });
+      ['posts react chat/~h/c 170.1 👍', 'chat/~h/c', '170.1', undefined],
+      [
+        'posts react chat/~h/c 170.2 👍 --parent 170.1',
+        'chat/~h/c',
+        '170.2',
+        '170.1',
+      ],
+      [
+        'dms react 0v1.abc ~alice/170.1 👍',
+        '0v1.abc',
+        '~alice/170.1',
+        undefined,
+      ],
+      [
+        'dms react 0v1.abc ~alice/170.2 👍 --parent ~alice/170.1',
+        '0v1.abc',
+        '~alice/170.2',
+        '~alice/170.1',
+      ],
+    ])(
+      'records owner `%s` as a reaction',
+      async (command, target, postId, parentId) => {
+        const { execute, runCommand, ledger } = makeExecutor();
+        await execute('react', { command });
+        expect(ranWith(runCommand)).toEqual(owner(shellSplitCommand(command)));
+        const reaction = {
+          author: '~owner',
+          target,
+          postId,
+          ...(parentId ? { parentId } : {}),
+        };
+        expect(ledger.match({ ...reaction, reaction: '👍' })).toMatchObject({
+          kind: 'react',
+        });
+        expect(ledger.match({ ...reaction, reaction: '👎' })).toBeNull();
+        expect(
+          ledger.match({ ...reaction, parentId: '170.9', reaction: '👍' })
+        ).toBeNull();
+      }
+    );
 
     it.each([
-      ['posts unreact chat/~h/c 170.1', 'chat/~h/c', '170.1'],
-      ['posts unreact chat/~h/c 170.2 --parent 170.1', 'chat/~h/c', '170.2'],
-      ['dms unreact 0v1.abc ~alice/170.1', '0v1.abc', '~alice/170.1'],
+      ['posts unreact chat/~h/c 170.1', 'chat/~h/c', '170.1', undefined],
+      [
+        'posts unreact chat/~h/c 170.2 --parent 170.1',
+        'chat/~h/c',
+        '170.2',
+        '170.1',
+      ],
+      [
+        'dms unreact 0v1.abc ~alice/170.1',
+        '0v1.abc',
+        '~alice/170.1',
+        undefined,
+      ],
+      [
+        'dms unreact 0v1.abc ~alice/170.2 --parent ~alice/170.1',
+        '0v1.abc',
+        '~alice/170.2',
+        '~alice/170.1',
+      ],
     ])(
       'records owner `%s` as a reaction removal',
-      async (command, target, postId) => {
+      async (command, target, postId, parentId) => {
         const { execute, runCommand, ledger } = makeExecutor();
         await execute('unreact', { command });
         expect(ranWith(runCommand)).toEqual(owner(shellSplitCommand(command)));
@@ -1207,10 +1251,12 @@ describe('owner-by-default identity selection', () => {
           target,
           receivingShip: '~bot',
           postId,
+          ...(parentId ? { parentId } : {}),
           reactionRemoved: true as const,
         };
         expect(ledger.match(removal)).toMatchObject({ kind: 'unreact' });
         expect(ledger.match({ ...removal, postId: '170.9' })).toBeNull();
+        expect(ledger.match({ ...removal, parentId: '170.9' })).toBeNull();
       }
     );
 
@@ -1383,6 +1429,40 @@ describe('owner-by-default identity selection', () => {
         [['dms', 'send', '--help']],
       ]);
     });
+
+    it.each([
+      [
+        'loses owner identity',
+        'ownerIdentityLost' as const,
+        'Error: this run lost owner identity while the command was pending; nothing was run. Run it again.',
+      ],
+      [
+        'has its owner config replaced',
+        'ownerConfigChanged' as const,
+        "Error: the bot's owner configuration changed while this command was pending; nothing was run. Run it again.",
+      ],
+    ])(
+      'refuses an owner send whose run %s while the CLI probe is pending',
+      async (_label, check, message) => {
+        let stale = false;
+        const runCommand = vi.fn(async (args: string[]) => {
+          if (!isSentAtProbe(args)) return 'ok';
+          await new Promise((resolve) => setImmediate(resolve));
+          stale = true;
+          return PROBE_HELP[args[0]];
+        });
+        const { execute, ledger } = makeExecutor({
+          runCommand,
+          [check]: () => stale,
+        });
+        const result = await execute('pending', {
+          command: 'posts send chat/~h/c hi',
+        });
+        expect(result.content[0].text).toBe(message);
+        expect(runCommand.mock.calls).toEqual([[['posts', 'send', '--help']]]);
+        expect(ledger.match(sentBy(SENT_AT))).toBeNull();
+      }
+    );
 
     it('shares one probe between concurrent first sends', async () => {
       let answer: (help: string) => void = () => {};

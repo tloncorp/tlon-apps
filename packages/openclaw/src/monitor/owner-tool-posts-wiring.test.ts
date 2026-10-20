@@ -78,6 +78,11 @@ describe('owner tool posts in the channel firehose', () => {
     expect(reactions.slice(check)).toMatch(
       /^[^]*?reaction: reactEmoji,[^]*?return;/
     );
+    // A reply reaction carries its thread's top-level post, which a reply
+    // reaction entry is recorded under.
+    expect(reactions.slice(check)).toMatch(
+      /^sharedOwnerToolPostLedger\(\)\.match\(\{[^}]*postId,\s*\.\.\.\(rootPostId \? \{ parentId: rootPostId \} : \{\}\),/
+    );
     expect(reactions.indexOf('await handleChannelReaction(')).toBeGreaterThan(
       check
     );
@@ -192,6 +197,13 @@ describe('restart replay', () => {
 });
 
 describe('conversation context', () => {
+  it('drops ledger hits from the channel summary history', () => {
+    expect(monitorSource).toMatch(
+      /loadHistory: async \(\) =>\s*withoutOwnerToolPosts\(\s*await getChannelHistory\(api, groupChannel, 50, runtime\),\s*groupChannel,\s*botShipName\s*\),/
+    );
+    expect(monitorSource.match(/getChannelHistory\(/g)).toHaveLength(1);
+  });
+
   it('drops ledger hits from fetched channel and thread context', () => {
     expect(monitorSource).toMatch(
       /const threadContextHistory = withoutOwnerToolPosts\(\s*await fetchThreadContextHistory\([^)]*\),\s*groupChannel,\s*botShipName\s*\);/

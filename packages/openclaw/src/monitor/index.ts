@@ -3226,7 +3226,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               blob: buildContextLensReferenceBlobField(lens.lensId),
             }),
           dispatchStartTime: preparationStartTime,
-          loadHistory: () => getChannelHistory(api, groupChannel, 50, runtime),
+          loadHistory: async () =>
+            withoutOwnerToolPosts(
+              await getChannelHistory(api, groupChannel, 50, runtime),
+              groupChannel,
+              botShipName
+            ),
           onHistory: (history) => {
             contextLenses.recordContext(lens.lensId, {
               channelMessages: history.length,
@@ -4545,6 +4550,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   author: ship,
                   target: nest,
                   postId,
+                  ...(rootPostId ? { parentId: rootPostId } : {}),
                   reaction: reactEmoji,
                 })
               ) {
