@@ -63,8 +63,7 @@ export type BareChannelPath = {
 
 // Channel paths standing as their own whitespace-delimited words, optionally
 // wrapped in punctuation. The last word may still be mid-typing, so it counts
-// only when the caller knows the text arrived in bulk (a paste) or is final
-// (a send).
+// only when the caller knows the text arrived in bulk (a paste).
 export function findBareChannelPaths(
   text: string,
   { includeLastWord }: { includeLastWord: boolean }

@@ -4,7 +4,6 @@ import {
   findBareChannelPaths,
   getBotUserIdForUser,
   getCurrentUserId,
-  getUneditableCites,
   isReferenceBoundary,
   replaceBareChannelPath,
   toContentReference,
@@ -365,8 +364,6 @@ function BareChatInput(
   // its callback closed over.
   const controlledTextRef = useRef(controlledText);
   controlledTextRef.current = controlledText;
-  const sendLookupPendingRef = useRef(false);
-  const pendingConversionsRef = useRef(new Set<Promise<void>>());
   // Native caret position, so a conversion can leave it where the user was.
   const nativeSelectionRef = useRef<number | null>(null);
   const showToast = useToast();
@@ -587,16 +584,6 @@ function BareChatInput(
     }
   }, []);
 
-  const channelPathAttachment = useCallback(
-    (channelPath: BareChannelPath): Attachment => {
-      const [path, reference] = channelToContentReference(
-        channelPath.channelId
-      );
-      return { type: 'reference', reference, path };
-    },
-    []
-  );
-
   // A channel path becomes a card only for a channel we know. The lookup is
   // async, so the result applies only if the path is still in the text, and
   // to the text and mentions as they are by then. Later paths go first so an
@@ -608,7 +595,10 @@ function BareChatInput(
         if (!channel) {
           continue;
         }
-        const attachment = channelPathAttachment(channelPath);
+        const [path, reference] = channelToContentReference(
+          channelPath.channelId
+        );
+        const attachment: Attachment = { type: 'reference', reference, path };
         const currentText = controlledTextRef.current;
         const nextText = replaceBareChannelPath(currentText, channelPath);
         if (
@@ -639,7 +629,7 @@ function BareChatInput(
         syncNativeText(nextText, nextCursor);
       }
     },
-    [addAttachment, channelPathAttachment, setMentions, syncNativeText]
+    [addAttachment, setMentions, syncNativeText]
   );
 
   const lastProcessedRef = useRef('');
@@ -709,18 +699,13 @@ function BareChatInput(
         // A one-character change at the end may be a path still being typed
         // (`/gen` on the way to `/general`), so it waits for a delimiter;
         // a bulk insert such as a paste can convert at the end straight away.
-        const conversion = convertChannelPaths(
+        convertChannelPaths(
           findBareChannelPaths(textWithoutRefs, {
             includeLastWord: newText.length - oldText.length > 1,
           })
-        )
-          .catch((e) => {
-            bareChatInputLogger.error('failed to convert channel paths', e);
-          })
-          .finally(() => {
-            pendingConversionsRef.current.delete(conversion);
-          });
-        pendingConversionsRef.current.add(conversion);
+        ).catch((e) => {
+          bareChatInputLogger.error('failed to convert channel paths', e);
+        });
       } else if (!hasReference) {
         // if there's no reference to process, just update normally
         const cursorPos = getWebSelectionStart();
@@ -821,17 +806,14 @@ function BareChatInput(
 
   const sendMessage = useCallback(
     async (isEdit?: boolean) => {
-      // A second press while the channel lookup below is pending would send
-      // the same draft again.
-      if (sendLookupPendingRef.current) {
-        return;
-      }
-      // The store refuses this edit too, but only after the composer has been
-      // cleared; refuse it here so the edited text survives.
+      // Chat rebuilds an edited post's references only from the ones stored
+      // parsed, so any cite still stored raw (including one an older build
+      // couldn't parse) would be dropped. Refuse before the composer clears so
+      // the edited text survives.
       if (isEdit && editingPost) {
-        const uneditableCites = getUneditableCites(
-          extractContentTypesFromPost(editingPost).story
-        );
+        const uneditableCites = extractContentTypesFromPost(
+          editingPost
+        ).blocks.flatMap((block) => ('cite' in block ? [block.cite] : []));
         if (uneditableCites.length > 0) {
           showToast({
             message: uneditableCitesMessage(uneditableCites),
@@ -841,61 +823,7 @@ function BareChatInput(
           return;
         }
       }
-      // A channel path earlier in the text may still be converting. Send once
-      // it has, from the render that carries the result.
-      if (pendingConversionsRef.current.size > 0) {
-        sendLookupPendingRef.current = true;
-        while (pendingConversionsRef.current.size > 0) {
-          await Promise.allSettled(pendingConversionsRef.current);
-        }
-        sendLookupPendingRef.current = false;
-        setQueuedSend({ isEdit: !!isEdit });
-        return;
-      }
-      // Sending ends the typing, so a channel path left as the last word is
-      // final and converts now. Only the last word: removing text earlier on
-      // would shift the mention offsets that follow it.
-      const sentText = controlledText;
-      let text = sentText;
-      const sendAttachments = [...attachments];
-      let lookedUpChannel = false;
-      const lastWord = /(\S+)\s*$/.exec(text);
-      const [channelPath] = lastWord
-        ? findBareChannelPaths(lastWord[1], { includeLastWord: true })
-        : [];
-      const channelAttachment = channelPath
-        ? channelPathAttachment(channelPath)
-        : null;
-      if (
-        lastWord &&
-        channelPath &&
-        channelAttachment &&
-        canAddAttachment(sendAttachments, channelAttachment).ok
-      ) {
-        sendLookupPendingRef.current = true;
-        lookedUpChannel = true;
-        const channel = await db
-          .getChannel({ id: channelPath.channelId })
-          .finally(() => {
-            sendLookupPendingRef.current = false;
-          });
-        if (channel) {
-          sendAttachments.push(channelAttachment);
-          text =
-            text.slice(0, lastWord.index) +
-            channelPath.leading +
-            channelPath.trailing;
-        }
-      }
-      // Text typed or attachments added while the lookup was pending aren't in
-      // this post; keep the composer as it is. Length, not identity: upload
-      // progress replaces attachment objects.
-      const draftChanged =
-        lookedUpChannel &&
-        (controlledTextRef.current !== sentText ||
-          attachmentsRef.current.length !== attachments.length);
-
-      const jsonContent = textAndMentionsToContent(text, mentions);
+      const jsonContent = textAndMentionsToContent(controlledText, mentions);
       const inlines = JSONToInlines(jsonContent);
 
       const draft: domain.PostDataDraft = (() => {
@@ -904,7 +832,7 @@ function BareChatInput(
           content: inlines,
           // Unlike Gallery, Chat keeps every item from a multi-selection in
           // the same post.
-          attachments: sendAttachments,
+          attachments,
           image: image?.uri,
           channelType,
           replyToPostId: null,
@@ -941,16 +869,12 @@ function BareChatInput(
         }
       };
 
-      const draftClear = draftChanged ? undefined : clearComposerDraft();
-      if (!draftChanged) {
-        controlledTextRef.current = '';
-        setControlledText('');
-        setMentions([]);
-      }
-      if (!draftChanged) {
-        bareChatInputLogger.log('clearing attachments');
-        clearAttachments();
-      }
+      const draftClear = clearComposerDraft();
+      controlledTextRef.current = '';
+      setControlledText('');
+      setMentions([]);
+      bareChatInputLogger.log('clearing attachments');
+      clearAttachments();
       bareChatInputLogger.log('resetting input height');
       setInputHeight(initialHeight);
       setEditingPost?.(undefined);
@@ -994,7 +918,6 @@ function BareChatInput(
       resetSlashCommandMode,
       beginComposerSend,
       isSendCoordinated,
-      channelPathAttachment,
       showToast,
     ]
   );

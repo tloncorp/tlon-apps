@@ -41,7 +41,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@tloncorp/api', () => ({
   findBareChannelPaths: () => [],
-  getUneditableCites: () => [],
 }));
 vi.mock('@tloncorp/api/urbit', () => ({ getChannelType: () => 'notebook' }));
 vi.mock('@tloncorp/shared', async () => ({
@@ -53,7 +52,7 @@ vi.mock('@tloncorp/shared', async () => ({
   ALL_MENTION_ID: 'all',
   REF_REGEX: /NEVER_A_REFERENCE/,
   createDevLogger: () => ({ log: mocks.noop, error: mocks.noop }),
-  extractContentTypesFromPost: () => ({ story: [] }),
+  extractContentTypesFromPost: () => ({ blocks: [] }),
   getMd5: (uri: string) => uri,
   Transcription: {
     setupTranscriptionIfNeeded: async () => ({ canTranscribe: true }),
