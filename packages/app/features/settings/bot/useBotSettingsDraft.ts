@@ -154,6 +154,15 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
     ) {
       return;
     }
+    if (
+      draft.pending.browserService &&
+      !queries.browserServiceQuery.data?.supported
+    ) {
+      setApplyError(
+        'Browser service selection is available for OpenClaw bots.'
+      );
+      return;
+    }
     const nextValues = draft.draft;
     // Screen-level validation can be bypassed (hardware back, drawer
     // navigation), so re-check the invariants that would silently persist a

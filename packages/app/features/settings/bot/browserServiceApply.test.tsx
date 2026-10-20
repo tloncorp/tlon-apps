@@ -51,9 +51,10 @@ const chatConfig = {
 let renderer: ReactTestRenderer | undefined;
 let apply: ReturnType<typeof useApplyBotSettings>;
 
-async function mount() {
+async function mount(supported = true) {
   const queries = {
     ship: 'sampel-palnet',
+    browserServiceQuery: { data: { browserService: 'steel', supported } },
     providerConfig,
     providerConfigQuery: {
       refetch: vi
@@ -125,6 +126,17 @@ describe('browser service settings apply', () => {
       'kernel'
     );
     expect(apply.hasChanges).toBe(false);
+  });
+
+  it('refuses a staged browser change for an unsupported runtime', async () => {
+    selectKernel();
+    await mount(false);
+    await act(async () => {
+      await apply.applyChanges();
+    });
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(mocks.reload).not.toHaveBeenCalled();
+    expect(apply.applyError).toContain('available for OpenClaw bots');
   });
 
   it('does not restart or commit a failed save', async () => {

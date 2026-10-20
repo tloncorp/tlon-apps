@@ -72,6 +72,7 @@ export type TlawnBrowserService = 'steel' | 'kernel';
 
 export interface TlawnBrowserServiceInfo {
   browserService: TlawnBrowserService;
+  supported: boolean;
 }
 
 export interface TlawnProviderConfigInfo {

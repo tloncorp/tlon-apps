@@ -560,10 +560,13 @@ describe('per-bot browser service', () => {
   it('loads only the ship-scoped browser setting', async () => {
     const fetchMock = vi
       .fn()
-      .mockImplementation(() => respond({ browserService: 'kernel' }));
+      .mockImplementation(() =>
+        respond({ browserService: 'kernel', supported: true })
+      );
     vi.stubGlobal('fetch', fetchMock);
     await expect(getTlawnBrowserService('~sampel-palnet')).resolves.toEqual({
       browserService: 'kernel',
+      supported: true,
     });
     expect(fetchMock).toHaveBeenCalledWith(
       'https://hosting.test/v1/tlawn/ships/sampel-palnet/browser-service',
@@ -578,6 +581,7 @@ describe('per-bot browser service', () => {
     );
     await expect(getTlawnBrowserService('zod')).resolves.toEqual({
       browserService: 'steel',
+      supported: false,
     });
   });
 
@@ -597,17 +601,44 @@ describe('per-bot browser service', () => {
   it('sends only the selected service, preserving keys and models on the server', async () => {
     const fetchMock = vi
       .fn()
-      .mockImplementation(() => respond({ browserService: 'kernel' }));
+      .mockImplementation(() =>
+        respond({ browserService: 'kernel', supported: true })
+      );
     vi.stubGlobal('fetch', fetchMock);
     await expect(
       setTlawnBrowserService('~sampel-palnet', 'kernel')
-    ).resolves.toEqual({ browserService: 'kernel' });
+    ).resolves.toEqual({ browserService: 'kernel', supported: true });
     expect(fetchMock).toHaveBeenCalledWith(
       'https://hosting.test/v1/tlawn/ships/sampel-palnet/browser-service',
       expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify({ browserService: 'kernel' }),
       })
+    );
+  });
+
+  it('keeps older backends and unsupported runtimes disabled', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => respond({ browserService: 'steel' }))
+    );
+    await expect(getTlawnBrowserService('zod')).resolves.toEqual({
+      browserService: 'steel',
+      supported: false,
+    });
+  });
+
+  it('rejects a malformed runtime capability', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(() =>
+          respond({ browserService: 'steel', supported: 'true' })
+        )
+    );
+    await expect(getTlawnBrowserService('zod')).rejects.toThrow(
+      'Invalid browser service response'
     );
   });
 
