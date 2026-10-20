@@ -7,16 +7,18 @@ import { normalizeShip } from './targets.js';
  * Owner-credentialed posts, edits, reactions and reaction removals this
  * process made through the tlon tool. The monitor treats a match as this bot's own action: never a
  * command, never an engagement trigger, never owner activity. Matching uses
- * provenance only (author, the plugin-assigned `sent`, post ids, the reaction
- * the tool sent); message text is never read.
+ * provenance (author, the plugin-assigned `sent`, post ids, the reaction the
+ * tool sent); message text is read only to resolve an edit entry.
  *
  * In memory only, process-wide via sharedMap: an in-process monitor restart
  * keeps it, a gateway restart loses it. The window that leaves open is a
  * restart between the tool's send and the monitor handling the post, with
  * restart replay then re-delivering it to an empty ledger.
  *
- * Top-level post edits are recorded although the monitor does not read
- * `r-post.essay` today, so a future reader of edits is already covered.
+ * Live channel edits arrive as `r-post.set.essay` or
+ * `r-reply.set.reply-essay`, but the monitor drops ids it has already
+ * processed before the ledger sees them, so an edit of a post it tracked
+ * resolves (see the edit entry) on the first history pass that shows it.
  */
 
 /**
@@ -58,7 +60,23 @@ type OwnerToolPostBase = {
 
 export type OwnerToolPost =
   | (OwnerToolPostBase & { kind: 'send'; sentAt: number })
-  | (OwnerToolPostBase & { kind: 'edit'; postId: string; parentId?: string })
+  | (OwnerToolPostBase & {
+      /**
+       * Matches on author, target, post and parent until it matches an
+       * inbound whose rendered text is exactly `editText`, which can happen
+       * only for plain text (see PLAIN_EDIT_TEXT). That resolves it:
+       * afterwards it matches only that text, so a later edit of the post by
+       * hand reads as the owner's. Any other edit (formatting, mentions,
+       * links, URLs or `www.` words, quotes, headings, code, several lines,
+       * extra spaces) never resolves and keeps matching by keys. A manual
+       * edit to exactly the same text is indistinguishable.
+       */
+      kind: 'edit';
+      postId: string;
+      parentId?: string;
+      /** The message the command set, as the tool was given it. */
+      editText: string;
+    })
   | (OwnerToolPostBase & {
       kind: 'react';
       postId: string;
@@ -99,6 +117,8 @@ export type InboundPost = {
   reaction?: string;
   /** Set for a reaction removal, which names no reaction, and only then. */
   reactionRemoved?: true;
+  /** The rendered text of a post, which resolves an edit entry. */
+  text?: string;
 };
 
 export type OwnerToolPostReservation = {
@@ -122,6 +142,8 @@ type StoredEntry = {
   post: OwnerToolPost;
   /** For a shortcode reaction: the reactions it matched in the window. */
   seen: Set<string>;
+  /** For an edit: the text it resolved to. */
+  text?: string;
   recordedAt: number;
   holdsSlot: boolean;
 };
@@ -192,11 +214,21 @@ function sameParent(entryParent?: string, inboundParent?: string) {
   return canonicalPostId(inboundParent) === entryParent;
 }
 
+/**
+ * Single-space-separated words with no markdown-significant character: the
+ * CLI's markdown conversion keeps it as one text run, so it renders as
+ * itself. `@` is excluded too, since the CLI may turn `@word` into a mention,
+ * and so are `:`, `/` and a leading `www.`, which an autolink needs.
+ */
+const PLAIN_EDIT_TEXT =
+  /^(?!www\.)[^\s*_`~#>[\]()!\\|@:/]+(?: (?!www\.)[^\s*_`~#>[\]()!\\|@:/]+)*$/i;
+
 function matchesEntry(
   post: OwnerToolPost,
   inbound: InboundPost,
   age: number,
-  seen: ReadonlySet<string>
+  seen: ReadonlySet<string>,
+  resolvedText: string | undefined
 ): boolean {
   // The target is compared for a known author too: edit and reaction entries
   // carry no timestamp, so the same post id elsewhere would otherwise match.
@@ -236,7 +268,8 @@ function matchesEntry(
     return (
       inbound.postId !== undefined &&
       canonicalPostId(inbound.postId) === post.postId &&
-      sameParent(post.parentId, inbound.parentId)
+      sameParent(post.parentId, inbound.parentId) &&
+      (resolvedText === undefined || inbound.text === resolvedText)
     );
   }
   if (
@@ -314,8 +347,9 @@ export function createOwnerToolPostLedger(
       // Every account's entries: a second account's monitor with the same
       // owner sees the same owner-authored post. A different owner never
       // matches, because the author differs. The scan continues past the
-      // first hit so every shortcode entry it matches records the reaction:
-      // another account's entry for the same post may outlive the hit.
+      // first hit so every shortcode or edit entry it matches records the
+      // reaction or text: another account's entry for the same post may
+      // outlive the hit.
       let hit: OwnerToolPost | null = null;
       for (const entries of store.values()) {
         for (let i = entries.length - 1; i >= 0; i -= 1) {
@@ -326,7 +360,8 @@ export function createOwnerToolPostLedger(
               entry.post,
               inbound,
               at - entry.recordedAt,
-              entry.seen
+              entry.seen,
+              entry.text
             )
           ) {
             continue;
@@ -338,6 +373,15 @@ export function createOwnerToolPostLedger(
             isShortcodeReaction(entry.post.reaction)
           ) {
             entry.seen.add(inbound.reaction);
+          }
+          if (
+            entry.post.kind === 'edit' &&
+            entry.text === undefined &&
+            inbound.text !== undefined &&
+            PLAIN_EDIT_TEXT.test(entry.post.editText) &&
+            inbound.text === entry.post.editText
+          ) {
+            entry.text = inbound.text;
           }
         }
       }
@@ -374,7 +418,8 @@ type ChannelPostResponse = {
 export function channelInboundPost(
   nest: string,
   response: unknown,
-  author: string
+  author: string,
+  text?: string
 ): InboundPost | null {
   const post = (response as ChannelPostResponse | null)?.post;
   const reply = post?.['r-post']?.reply;
@@ -388,6 +433,7 @@ export function channelInboundPost(
     ...(typeof content.sent === 'number' ? { sent: content.sent } : {}),
     ...(postId ? { postId } : {}),
     ...(replyEssay && post?.id ? { parentId: post.id } : {}),
+    ...(text !== undefined ? { text } : {}),
   };
 }
 

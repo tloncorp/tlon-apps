@@ -1287,7 +1287,7 @@ describe('owner-by-default identity selection', () => {
           target: 'chat/~h/c',
           postId: '170141',
         })
-      ).toMatchObject({ kind: 'edit' });
+      ).toMatchObject({ kind: 'edit', editText: 'new text' });
 
       const reply = makeExecutor();
       await reply.execute('edit', {
@@ -1296,7 +1296,7 @@ describe('owner-by-default identity selection', () => {
       const edited = { author: '~owner', target: 'chat/~h/c', postId: '170.2' };
       expect(
         reply.ledger.match({ ...edited, parentId: '170.1' })
-      ).not.toBeNull();
+      ).toMatchObject({ editText: 'hi' });
       expect(reply.ledger.match({ ...edited, parentId: '170.9' })).toBeNull();
     });
 

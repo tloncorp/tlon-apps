@@ -75,6 +75,7 @@ export function withoutOwnerToolPosts<T extends TlonHistoryEntry>(
         sent: entry.timestamp,
         ...(entry.id ? { postId: entry.id } : {}),
         ...(entry.parentId ? { parentId: entry.parentId } : {}),
+        text: entry.content,
       })
   );
 }

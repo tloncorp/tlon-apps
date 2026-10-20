@@ -974,6 +974,7 @@ describe('withoutOwnerToolPosts', () => {
     });
     edited.reserve({
       kind: 'edit',
+      editText: 'tool edit',
       accountId: 'default',
       author: '~owner',
       target: nest,
@@ -1013,6 +1014,7 @@ describe('withoutOwnerToolPosts', () => {
     });
     edited.reserve({
       kind: 'edit',
+      editText: 'tool edit',
       accountId: 'default',
       author: '~owner',
       target: nest,
@@ -1045,6 +1047,36 @@ describe('withoutOwnerToolPosts', () => {
         (entry) => entry.id
       )
     ).toEqual([parent]);
+  });
+
+  it('drops a reply the bot edited even after a pass showed the pre-edit text, and keeps a later manual edit', () => {
+    const edited = createOwnerToolPostLedger({
+      now: () => 0,
+      store: new Map(),
+    });
+    edited.reserve({
+      kind: 'edit',
+      editText: 'tool edit',
+      accountId: 'default',
+      author: '~owner',
+      target: nest,
+      postId: '200',
+      parentId: '100',
+    });
+    const toolEdit = makeEntry({
+      author: '~owner',
+      content: 'tool edit',
+      id: '200',
+      parentId: '100',
+    });
+    const preEdit = { ...toolEdit, content: 'original words' };
+    expect(withoutOwnerToolPosts([preEdit], nest, '~bot', edited)).toEqual([]);
+    expect(withoutOwnerToolPosts([toolEdit], nest, '~bot', edited)).toEqual([]);
+    expect(withoutOwnerToolPosts([toolEdit], nest, '~bot', edited)).toEqual([]);
+    const manualEdit = { ...toolEdit, content: 'manual edit' };
+    expect(withoutOwnerToolPosts([manualEdit], nest, '~bot', edited)).toEqual([
+      manualEdit,
+    ]);
   });
 
   it('reads a thread reply whose author is a --bot profile object', () => {

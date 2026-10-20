@@ -44,7 +44,7 @@ describe('owner tool posts in the channel firehose', () => {
 
   it('returns on a ledger hit before any owner, command or engagement handling', () => {
     const check = live.indexOf(
-      'sharedOwnerToolPostLedger().match(\n          channelInboundPost(nest, response, senderShip)\n        );'
+      'sharedOwnerToolPostLedger().match(\n          channelInboundPost(nest, response, senderShip, rawText)\n        );'
     );
     expect(check).toBeGreaterThan(-1);
     expect(live.slice(check)).toMatch(

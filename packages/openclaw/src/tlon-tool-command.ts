@@ -1088,6 +1088,19 @@ function firstParentId(commandArgs: string[]): string | undefined {
   return value && !value.startsWith('--') ? canonicalPostId(value) : undefined;
 }
 
+/** The message `posts edit` sets, sliced as the CLI's getPostEditMessage does. */
+function ownerEditText(commandArgs: string[]): string {
+  const rest = commandArgs.slice(1);
+  const parentIdx = rest.indexOf('--parent');
+  return rest
+    .slice(3)
+    .filter(
+      (_, i) =>
+        parentIdx === -1 || (i + 3 !== parentIdx && i + 3 !== parentIdx + 1)
+    )
+    .join(' ');
+}
+
 const OWNER_REACTION_OPERATIONS = new Set(['posts react', 'dms react']);
 const OWNER_REACTION_REMOVAL_OPERATIONS = new Set([
   'posts unreact',
@@ -1124,6 +1137,7 @@ function ownerToolPostFor(
       target,
       postId: canonicalPostId(postId),
       ...parent,
+      editText: ownerEditText(commandArgs),
     };
   }
   const reaction = commandArgs[4];

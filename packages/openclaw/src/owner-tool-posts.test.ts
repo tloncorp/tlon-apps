@@ -1,6 +1,8 @@
+import { markdownToStory } from '@tloncorp/api/client/markdown';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { RESTART_REPLAY_WINDOW_MS } from './monitor/restart-replay.js';
+import { extractMessageText } from './monitor/utils.js';
 import {
   OWNER_TOOL_POST_LIMIT,
   OWNER_TOOL_POST_TTL_MS,
@@ -75,6 +77,7 @@ describe('owner tool post ledger', () => {
     ledger.reserve(send(T));
     ledger.reserve({
       kind: 'edit',
+      editText: 'tool edit',
       accountId: 'default',
       author: '~owner',
       target: 'chat/~h/c',
@@ -96,6 +99,7 @@ describe('owner tool post ledger', () => {
     // post id in another channel apart.
     expect(ledger.match({ ...here, postId: '170.141' })).toMatchObject({
       kind: 'edit',
+      editText: 'tool edit',
     });
     expect(ledger.match({ ...elsewhere, postId: '170.141' })).toBeNull();
     expect(
@@ -218,7 +222,7 @@ describe('owner tool post ledger', () => {
     };
     ledger.reserve({ ...base, kind: 'react', reaction: '👍' });
     ledger.reserve({ ...base, kind: 'unreact' });
-    ledger.reserve({ ...base, kind: 'edit' });
+    ledger.reserve({ ...base, kind: 'edit', editText: 'tool edit' });
     for (const author of ['~zod', '~bus', '~owner']) {
       const inbound = { author, target: 'chat/~h/c', postId: '170141' };
       expect(ledger.match({ ...inbound, reaction: '👍' })).toBeNull();
@@ -343,6 +347,7 @@ describe('owner tool post ledger', () => {
     const { ledger } = makeLedger();
     ledger.reserve({
       kind: 'edit',
+      editText: 'tool edit',
       accountId: 'default',
       author: '~owner',
       target: 'chat/~h/c',
@@ -350,6 +355,7 @@ describe('owner tool post ledger', () => {
     });
     ledger.reserve({
       kind: 'edit',
+      editText: 'tool edit',
       accountId: 'default',
       author: '~owner',
       target: 'chat/~h/c',
@@ -383,6 +389,125 @@ describe('owner tool post ledger', () => {
     expect(
       ledger.match({ author: '~owner', target: 'chat/~h/c', postId: '170.2' })
     ).toBeNull();
+  });
+
+  it('resolves an edit only on the text it set, so pre-edit text does not and a later manual edit is the owner’s', () => {
+    const { ledger, advance } = makeLedger();
+    ledger.reserve({
+      kind: 'edit',
+      editText: 'tool edit',
+      accountId: 'default',
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170141',
+    });
+    const inbound = {
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170.141',
+    };
+    expect(ledger.match(inbound)).not.toBeNull();
+    // A history pass or stale cache before the edit lands shows the original.
+    expect(ledger.match({ ...inbound, text: 'original words' })).not.toBeNull();
+    expect(ledger.match({ ...inbound, text: 'tool edit' })).not.toBeNull();
+    expect(ledger.match({ ...inbound, text: 'manual edit' })).toBeNull();
+    expect(ledger.match({ ...inbound, text: 'original words' })).toBeNull();
+    expect(ledger.match(inbound)).toBeNull();
+    advance(OWNER_TOOL_POST_TTL_MS);
+    expect(ledger.match({ ...inbound, text: 'tool edit' })).not.toBeNull();
+    advance(1);
+    expect(ledger.match({ ...inbound, text: 'tool edit' })).toBeNull();
+  });
+
+  const editedPost = {
+    author: '~owner',
+    target: 'chat/~h/c',
+    postId: '170.141',
+  };
+  const reserveEdit = (editText: string) => {
+    const { ledger } = makeLedger();
+    ledger.reserve({
+      kind: 'edit',
+      editText,
+      accountId: 'default',
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170141',
+    });
+    return ledger;
+  };
+  const rendered = (editText: string) =>
+    extractMessageText(markdownToStory(editText));
+
+  it('resolves a plain-text edit on its rendering, which is the text itself', () => {
+    const ledger = reserveEdit('hi there, 10.00');
+    expect(rendered('hi there, 10.00')).toBe('hi there, 10.00');
+    expect(
+      ledger.match({ ...editedPost, text: 'hi there, 1000' })
+    ).not.toBeNull();
+    expect(
+      ledger.match({ ...editedPost, text: rendered('hi there, 10.00') })
+    ).not.toBeNull();
+    expect(ledger.match({ ...editedPost, text: 'hi there, 1000' })).toBeNull();
+  });
+
+  it('resolves a plain edit with periods and digits', () => {
+    const ledger = reserveEdit('version 1.2 shipped.');
+    expect(rendered('version 1.2 shipped.')).toBe('version 1.2 shipped.');
+    expect(
+      ledger.match({ ...editedPost, text: rendered('version 1.2 shipped.') })
+    ).not.toBeNull();
+    expect(ledger.match({ ...editedPost, text: 'version 1.3' })).toBeNull();
+  });
+
+  it('does not resolve on text that differs only in punctuation', () => {
+    const ledger = reserveEdit('Deploy now.');
+    expect(ledger.match({ ...editedPost, text: 'Deploy now?' })).not.toBeNull();
+    expect(ledger.match({ ...editedPost, text: 'Deploy now.' })).not.toBeNull();
+    expect(ledger.match({ ...editedPost, text: 'Deploy now?' })).toBeNull();
+  });
+
+  it.each([
+    ['    hi', 'hi'],
+    ['**hi** there', 'hi there'],
+    ['> hi', 'hi'],
+    ['# hi', 'hi'],
+    ['[hi](https://x.y)', 'hi'],
+    ['https://x.y', 'x.y'],
+    ['see www.x.y now', 'see now'],
+    ['hi  there', 'hi there'],
+    ['hi\nthere', 'hi there'],
+    [' hi', 'hi'],
+    ['@all hi', 'all hi'],
+    [' ', ''],
+  ])(
+    'never resolves the non-plain edit %j, which keeps matching by keys',
+    (editText, stale) => {
+      const ledger = reserveEdit(editText);
+      for (const text of [stale, rendered(editText), editText, 'anything']) {
+        expect(ledger.match({ ...editedPost, text })).not.toBeNull();
+      }
+    }
+  );
+
+  it('resolves every account’s edit entry it matches, not only the first', () => {
+    const { ledger } = makeLedger();
+    const entry = {
+      kind: 'edit' as const,
+      editText: 'tool edit',
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170141',
+    };
+    ledger.reserve({ ...entry, accountId: 'a' });
+    ledger.reserve({ ...entry, accountId: 'b' });
+    const inbound = {
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170.141',
+    };
+    expect(ledger.match({ ...inbound, text: 'tool edit' })).not.toBeNull();
+    expect(ledger.match({ ...inbound, text: 'manual edit' })).toBeNull();
   });
 
   it('matches reactions only as reactions, by post id and reaction', () => {
@@ -824,9 +949,16 @@ describe('inbound posts from firehose events', () => {
       parentId: '170.1',
     });
     expect(ledgerWith(send(T)).match(inbound)).not.toBeNull();
-    const edited = channelInboundPost('chat/~h/c', reply(T - 99_999), '~owner');
+    const edited = channelInboundPost(
+      'chat/~h/c',
+      reply(T - 99_999),
+      '~owner',
+      'tool edit'
+    );
+    expect(edited?.text).toBe('tool edit');
     const editLedger = ledgerWith({
       kind: 'edit',
+      editText: 'tool edit',
       accountId: 'default',
       author: '~owner',
       target: 'chat/~h/c',
@@ -836,6 +968,16 @@ describe('inbound posts from firehose events', () => {
     expect(editLedger.match(edited)).not.toBeNull();
     expect(
       editLedger.match(channelInboundPost('chat/~h/c', reply(T), '~alice'))
+    ).toBeNull();
+    expect(
+      editLedger.match(
+        channelInboundPost(
+          'chat/~h/c',
+          reply(T - 99_999),
+          '~owner',
+          'manual edit'
+        )
+      )
     ).toBeNull();
   });
 

@@ -4688,7 +4688,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // Checked before knownBotShips: a --bot send carries a bot-profile
         // author and would mark the owner's ship as a bot.
         const ownerToolPost = sharedOwnerToolPostLedger().match(
-          channelInboundPost(nest, response, senderShip)
+          channelInboundPost(nest, response, senderShip, rawText)
         );
         if (ownerToolPost) {
           runtime.log?.(
