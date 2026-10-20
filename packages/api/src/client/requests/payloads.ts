@@ -43,6 +43,7 @@ export interface PokePayloads {
       service: string;
       address: string;
       binding: string;
+      caps?: string[];
     };
   };
   'presence-action-1': ub.PresenceAction;

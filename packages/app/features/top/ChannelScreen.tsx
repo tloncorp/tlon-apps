@@ -43,6 +43,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
+import { postCursorFor } from './channelCursor';
 import { shouldAutoLoadOlderPosts } from './channelPagination';
 import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
@@ -314,7 +315,11 @@ export default function ChannelScreen(props: Props) {
   const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
   const includeDeletedPosts =
     channelConfiguration?.includeDeletedPosts && showDeleteMarkers;
-  const requestedCursor = selectedPostId || unreadCursor;
+  const requestedCursor = postCursorFor(
+    currentChannelId,
+    selectedPostId,
+    unreadCursor
+  );
   const { data: cursorPost } = store.usePostWithRelations(
     requestedCursor ? { id: requestedCursor } : null
   );

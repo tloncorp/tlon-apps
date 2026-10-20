@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Story } from '../../urbit/channel';
 import { convertContent } from '../postContent';
 import { parseGroupMentions } from './groupMentionPlugin';
-import { markdownToStory } from './parse';
+import { markdownToStory, roleMentionCandidates } from './parse';
 import {
   blockToMarkdown,
   inlinesToMarkdown,
@@ -1049,13 +1049,11 @@ describe('Story to Markdown to Story structural round trips', () => {
     ]);
   });
 
-  // KNOWN LIMITATION, pinned deliberately. `%sect` now survives Story → Markdown
-  // as `@all` / `@role` text (previously it was deleted outright), but the
-  // Markdown parser does not install the group-mention plugin, so it returns as
-  // plain text rather than a `%sect` inline. Installing that plugin would make
-  // every isolated `@word` in ordinary prose a role mention across the whole
-  // app, which nothing in this change needs. If that trade is revisited, the
-  // narrow fix is an allowed-role-ID option supplied by each caller.
+  // Pinned deliberately. `%sect` survives Story → Markdown as `@all` / `@role`
+  // text, but by default the parser returns it as plain text rather than a
+  // `%sect` inline: converting every isolated `@word` in ordinary prose would
+  // turn it into a role mention across the whole app. Callers opt in with
+  // `roleMentions`; see the 'roleMentions option' tests.
   it.each([
     {
       name: 'null sect',
@@ -1246,5 +1244,395 @@ describe('blockToMarkdown', () => {
 
   it('converts Rule', () => {
     expect(blockToMarkdown({ rule: null })).toBe('---');
+  });
+});
+
+describe('roleMentions option', () => {
+  const roles = (...ids: string[]) => ({
+    roleMentions: { roleIds: new Set(ids) },
+  });
+  const NO_ROLES = roles();
+  // Every `%sect` in a story, wherever it is nested.
+  const sects = (story: Story) =>
+    [...JSON.stringify(story).matchAll(/"sect":(null|"[^"]*")/g)].map(
+      (match) => JSON.parse(match[1]) as string | null
+    );
+
+  it('converts an allowed role to a sect inline', () => {
+    expect(markdownToStory('ping @admin', roles('admin'))).toEqual([
+      { inline: ['ping ', { sect: 'admin' }] },
+    ]);
+  });
+
+  it('converts @all to sect null with an empty allow-list', () => {
+    expect(markdownToStory('see @all', NO_ROLES)).toEqual([
+      { inline: ['see ', { sect: null }] },
+    ]);
+  });
+
+  it('leaves a role outside the allow-list as text', () => {
+    expect(markdownToStory('@mods', roles('admin'))).toEqual([
+      { inline: ['@mods'] },
+    ]);
+  });
+
+  it('normalizes case', () => {
+    expect(markdownToStory('@Admin and @ALL', roles('admin'))).toEqual([
+      { inline: [{ sect: 'admin' }, ' and ', { sect: null }] },
+    ]);
+  });
+
+  it('mixes ship and role mentions', () => {
+    expect(
+      markdownToStory('hey ~sampel-palnet and @Admin, see @all', roles('admin'))
+    ).toEqual([
+      {
+        inline: [
+          'hey ',
+          { ship: '~sampel-palnet' },
+          ' and ',
+          { sect: 'admin' },
+          ', see ',
+          { sect: null },
+        ],
+      },
+    ]);
+  });
+
+  it('leaves inline code, fenced code, link labels, autolinks and emails alone', () => {
+    const options = roles('admin');
+    expect(markdownToStory('use `@admin`', options)).toEqual([
+      { inline: ['use ', { 'inline-code': '@admin' }] },
+    ]);
+    expect(markdownToStory('```\n@admin\n```', options)).toEqual([
+      { block: { code: { code: '@admin', lang: 'text' } } },
+    ]);
+    for (const label of ['@admin', '@ALL', '**@all**']) {
+      expect(markdownToStory(`[${label}](https://x)`, options)).toEqual([
+        {
+          inline: [
+            {
+              link: {
+                href: 'https://x',
+                content: label.replaceAll('*', ''),
+              },
+            },
+          ],
+        },
+      ]);
+    }
+    for (const autolink of ['<https://x.io/@all>', 'https://x.io/@all']) {
+      expect(markdownToStory(autolink, options)).toEqual([
+        {
+          inline: [
+            {
+              link: { href: 'https://x.io/@all', content: 'https://x.io/@all' },
+            },
+          ],
+        },
+      ]);
+    }
+    expect(
+      sects(markdownToStory('mail a@admin.io or b@all.io', options))
+    ).toEqual([]);
+  });
+
+  it('converts inside bold, italics, strike, quotes, lists, tasks and headings', () => {
+    const options = roles('admin');
+    expect(markdownToStory('**@admin** _@all_ ~~@admin~~', options)).toEqual([
+      {
+        inline: [
+          { bold: [{ sect: 'admin' }] },
+          ' ',
+          { italics: [{ sect: null }] },
+          ' ',
+          { strike: [{ sect: 'admin' }] },
+        ],
+      },
+    ]);
+    expect(markdownToStory('> hi @admin', options)).toEqual([
+      { inline: [{ blockquote: ['hi ', { sect: 'admin' }] }] },
+    ]);
+    expect(markdownToStory('## @all here', options)).toEqual([
+      { block: { header: { tag: 'h2', content: [{ sect: null }, ' here'] } } },
+    ]);
+    expect(markdownToStory('- a @admin\n  - b @all', options)).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [
+                {
+                  list: {
+                    type: 'unordered',
+                    contents: ['a ', { sect: 'admin' }],
+                    items: [{ item: ['b ', { sect: null }] }],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+    expect(markdownToStory('- [ ] ask @admin', options)).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'tasklist',
+              contents: [],
+              items: [
+                {
+                  item: [
+                    {
+                      task: {
+                        checked: false,
+                        content: ['ask ', { sect: 'admin' }],
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
+  it('without the option, @all and @admin stay text', () => {
+    expect(markdownToStory('ping @admin and @all')).toEqual([
+      { inline: ['ping @admin and @all'] },
+    ]);
+  });
+
+  // Default output, pinned literally: the option is opt-in and must not
+  // change what the app's callers get.
+  it.each([
+    {
+      name: 'links',
+      markdown: '[@ALL](https://x) and <https://x.io/@admin>',
+      story: [
+        {
+          inline: [
+            { link: { href: 'https://x', content: '@ALL' } },
+            ' and ',
+            {
+              link: {
+                href: 'https://x.io/@admin',
+                content: 'https://x.io/@admin',
+              },
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'tables',
+      markdown: '| a | b |\n| - | - |\n| @Admin | `@all` |',
+      story: [
+        {
+          inline: ['| a   | b   |\n| ------ | ------ |\n| @Admin | `@all` |'],
+        },
+      ],
+    },
+    {
+      name: 'tasks',
+      markdown: '- [x] @all done',
+      story: [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  {
+                    item: [{ task: { checked: true, content: ['@all done'] } }],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
+    },
+    {
+      name: 'mixed formatting',
+      markdown: '**@admin** _~zod_ @all `@x`',
+      story: [
+        {
+          inline: [
+            { bold: ['@admin'] },
+            ' ',
+            { italics: [{ ship: '~zod' }] },
+            ' @all ',
+            { 'inline-code': '@x' },
+          ],
+        },
+      ],
+    },
+  ])('leaves default output unchanged for $name', ({ markdown, story }) => {
+    expect(markdownToStory(markdown)).toEqual(story);
+  });
+
+  describe('boundaries', () => {
+    // `admin` and `admin-team` are both allowed, so a token that converts to
+    // neither was rejected by the boundary rule rather than the allow-list.
+    const options = roles('admin', 'admin-team');
+
+    it.each([
+      { markdown: '@all-_team', sect: [] },
+      { markdown: '@admin-team_more', sect: [] },
+      { markdown: '@admin__team__', sect: [] },
+      { markdown: '@all__team__', sect: [] },
+      { markdown: '~zod@all', sect: [] },
+      { markdown: '**~zod**@all', sect: [] },
+      { markdown: '**hello!**@all', sect: [null] },
+      // A following formatted sibling or ship mention ends the token too.
+      { markdown: '@admin**team**', sect: [] },
+      { markdown: '**@admin**~zod', sect: [] },
+    ])('$markdown converts $sect', ({ markdown, sect }) => {
+      expect(sects(markdownToStory(markdown, options))).toEqual(sect);
+      expect(roleMentionCandidates(markdown)).toEqual(
+        sect.length > 0 ? ['all'] : []
+      );
+      // An independent token that does trigger a lookup changes nothing
+      // about the boundary decision.
+      const withOther = `${markdown} and @admin`;
+      expect(sects(markdownToStory(withOther, options))).toEqual([
+        ...sect,
+        'admin',
+      ]);
+      expect(roleMentionCandidates(withOther)).toEqual(
+        sect.length > 0 ? ['all', 'admin'] : ['admin']
+      );
+    });
+
+    it.each([
+      '\\@all',
+      '&#64;all',
+      '&#x40;all',
+      '&commat;all',
+      '@&#97;ll',
+      '@a&#108;l',
+    ])('leaves an escaped %s as text', (markdown) => {
+      expect(roleMentionCandidates(markdown)).toEqual([]);
+      expect(markdownToStory(markdown, options)).toEqual([
+        { inline: ['@all'] },
+      ]);
+    });
+
+    it('converts only the unescaped mention beside an escaped one', () => {
+      const markdown = 'see \\@all and @all';
+      expect(roleMentionCandidates(markdown)).toEqual(['all']);
+      expect(markdownToStory(markdown, options)).toEqual([
+        { inline: ['see @all and ', { sect: null }] },
+      ]);
+    });
+
+    it('still converts after an escape or a reference in the same text', () => {
+      expect(markdownToStory('a \\* b @admin', options)).toEqual([
+        { inline: ['a * b ', { sect: 'admin' }] },
+      ]);
+      expect(markdownToStory('&amp; @admin', options)).toEqual([
+        { inline: ['& ', { sect: 'admin' }] },
+      ]);
+      expect(markdownToStory('&#x1F600; @admin', options)).toEqual([
+        { inline: ['\u{1F600} ', { sect: 'admin' }] },
+      ]);
+    });
+
+    it('converts on continuation lines of quotes, lists and tables', () => {
+      expect(
+        sects(markdownToStory('> a\n> b @admin\n\n- x\n  y @all', options))
+      ).toEqual(['admin', null]);
+      expect(
+        roleMentionCandidates('| a |\n| - |\n| x \\| @admin |\n\nl1\r\nl2 @all')
+      ).toEqual(['admin', 'all']);
+    });
+
+    it('keeps a trailing hyphen in the token', () => {
+      // Role ids may end in a hyphen, so `@admin-` names `admin-`, not `admin`.
+      expect(roleMentionCandidates('ping @admin-')).toEqual(['admin-']);
+      expect(markdownToStory('ping @admin-', roles('admin'))).toEqual([
+        { inline: ['ping @admin-'] },
+      ]);
+      expect(markdownToStory('ping @admin-', roles('admin-'))).toEqual([
+        { inline: ['ping ', { sect: 'admin-' }] },
+      ]);
+    });
+
+    it('reads an outside token after a formatted link label', () => {
+      const markdown = '[**@label**](https://x)@foo';
+      expect(roleMentionCandidates(markdown)).toEqual(['foo']);
+      expect(markdownToStory(markdown, roles('label', 'foo'))).toEqual([
+        {
+          inline: [
+            { link: { href: 'https://x', content: '@label' } },
+            { sect: 'foo' },
+          ],
+        },
+      ]);
+    });
+  });
+});
+
+describe('roleMentionCandidates', () => {
+  it('returns the tokens as typed', () => {
+    expect(
+      roleMentionCandidates('hi @Admin and @types/node, mail a@b.co')
+    ).toEqual(['Admin', 'types']);
+  });
+
+  it('de-duplicates case-insensitively, keeping the first spelling', () => {
+    expect(roleMentionCandidates('@Mods @mods @ALL @MODS @all')).toEqual([
+      'Mods',
+      'ALL',
+    ]);
+  });
+
+  it('returns nothing for text without a token, or for blank text', () => {
+    expect(roleMentionCandidates('plain ~zod text')).toEqual([]);
+    expect(roleMentionCandidates('')).toEqual([]);
+  });
+
+  it('skips code, links and footnote definitions', () => {
+    expect(
+      roleMentionCandidates(
+        '`@a` [@b](https://x) <https://x/@c>\n\n```\n@d\n```\n\n[^1]: @e'
+      )
+    ).toEqual([]);
+  });
+
+  it('finds tokens inside task items', () => {
+    expect(roleMentionCandidates('- [ ] ask @mods')).toEqual(['mods']);
+  });
+
+  it('agrees with the transform on protected table cells', () => {
+    const markdown =
+      '| a | b |\n| - | - |\n| `@types/node` | [@mods](https://x) |';
+    expect(roleMentionCandidates(markdown)).toEqual([]);
+    // Allowing the protected tokens converts nothing either.
+    expect(
+      markdownToStory(markdown, {
+        roleMentions: { roleIds: new Set(['types', 'mods']) },
+      })
+    ).toEqual(markdownToStory(markdown));
+  });
+
+  it('finds a table-cell token that the transform also sees', () => {
+    const markdown = '| a |\n| - |\n| @Admin |';
+    expect(roleMentionCandidates(markdown)).toEqual(['Admin']);
+    // Tables reach the Story as text, so an allowed role is normalized to
+    // its id there rather than becoming a sect.
+    expect(
+      markdownToStory(markdown, {
+        roleMentions: { roleIds: new Set(['admin']) },
+      })
+    ).toEqual([{ inline: ['| a   |\n| ------ |\n| @admin |'] }]);
   });
 });

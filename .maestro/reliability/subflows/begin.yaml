@@ -27,7 +27,24 @@ appId: ${MAESTRO_APP_ID}
 - runFlow: settings-tab.yaml
 - tapOn:
     id: SettingsProfileRow
+# The ship name alone does not prove the profile opened: without a nickname it
+# is also the title of the Settings row just tapped. The avatar id is on the
+# profile only, and unlike the header title cannot be spoofed by a nickname.
+- assertVisible:
+    id: ProfileAvatar
 - assertVisible: ${output.reliability.shipPattern}
-- tapOn:
-    id: HeaderBackButton
+# The profile's back button is a native header item. iOS exposes it by its
+# accessibility label only, with no id; Android matches it by id, as in
+# to-tab-root.yaml.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: '^Back$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: '.*(screen-header-back|HeaderBackButton)'
 - runFlow: workspaces-tab.yaml

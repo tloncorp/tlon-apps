@@ -44,8 +44,8 @@ export type BotSettingsNavigate = (
     | 'BotMcpSettings'
     | 'BotPermissionsSettings'
     | 'BotIdentitySettings'
+    | 'BotPromptFiles'
     | 'BotModels'
-    | 'BotConnections'
     | 'ScheduledTasks',
   params?: Record<string, unknown>
 ) => void;
@@ -70,7 +70,6 @@ export type BotSettingsSectionModels = {
   /** The bot's card: the bot itself, then a summary row per area. */
   overview: SettingsSectionModel[];
   models: SettingsSectionModel[];
-  connections: SettingsSectionModel[];
 };
 
 function countLabel(count: number, singular: string) {
@@ -79,8 +78,8 @@ function countLabel(count: number, singular: string) {
 
 /**
  * The bot's settings as list sections. The Settings tab and the standalone bot
- * screen show the overview card; the Models and Connections screens it opens
- * show the detail sections.
+ * screen show the overview card; the Models screen it opens shows the model
+ * and provider sections.
  */
 export function useBotSettingsSectionModels(
   hub: BotSettingsHub,
@@ -135,11 +134,7 @@ export function useBotSettingsSectionModels(
   const remembered = summary?.ship === queries.ship ? summary : null;
   const connectionsState = getConnectionsSummaryState({
     botReady: queries.botReady,
-    queries: [
-      queries.providerConfigQuery,
-      queries.oauthStatusQuery,
-      queries.llmAuthStatusQuery,
-    ],
+    queries: [queries.oauthStatusQuery],
   });
   const connectionsSettled = connectionsState === 'settled';
   const subscriptionStatus = getSubscriptionStatusState(
@@ -149,18 +144,10 @@ export function useBotSettingsSectionModels(
   const liveModelsValue =
     draft.model.model ||
     (draft.model.provider ? providerLabel(draft.model.provider) : undefined);
-  const liveConnectionsValue = useMemo(() => {
-    const parts = [
-      connectedSubscriptionCount > 0
-        ? countLabel(connectedSubscriptionCount, 'subscription')
-        : null,
-      apiKeyCount > 0 ? countLabel(apiKeyCount, 'API key') : null,
-      connectedServicesCount > 0
-        ? countLabel(connectedServicesCount, 'service')
-        : null,
-    ].filter((part): part is string => part !== null);
-    return parts.length > 0 ? parts.join(', ') : 'None';
-  }, [apiKeyCount, connectedServicesCount, connectedSubscriptionCount]);
+  const liveConnectionsValue =
+    connectedServicesCount > 0
+      ? countLabel(connectedServicesCount, 'service')
+      : 'None';
 
   const modelsValue = settingsReady ? liveModelsValue : remembered?.models;
   const connectionsValue = connectionsSettled
@@ -326,7 +313,7 @@ export function useBotSettingsSectionModels(
               key: 'connections',
               title: 'Connections',
               value: connectionsValue,
-              onPress: () => navigate('BotConnections'),
+              onPress: () => navigate('BotMcpSettings'),
               testID: 'BotConnectionsRow',
             },
             {
@@ -355,6 +342,14 @@ export function useBotSettingsSectionModels(
                   },
                 ]
               : []),
+            // The prompt files come from our own ship, not hosting, so the row
+            // is there even while the hosted settings load.
+            {
+              key: 'advanced',
+              title: 'Advanced',
+              onPress: () => navigate('BotPromptFiles'),
+              testID: 'BotAdvancedRow',
+            },
           ],
         },
       ],
@@ -366,10 +361,8 @@ export function useBotSettingsSectionModels(
             : undefined,
           rows: modelRows,
         },
-      ],
-      connections: [
         {
-          key: 'bot-connections',
+          key: 'bot-providers',
           rows: [
             {
               key: 'subscriptions',
@@ -395,15 +388,6 @@ export function useBotSettingsSectionModels(
               onPress: () =>
                 navigate('BotProviderListSettings', { kind: 'apiKeys' }),
             },
-            {
-              key: 'connected-services',
-              title: 'Connected services',
-              value:
-                (queries.oauthProvidersQuery.data?.length ?? 0) === 0
-                  ? 'Unavailable'
-                  : `${connectedServicesCount} connected`,
-              onPress: () => navigate('BotMcpSettings'),
-            },
           ],
         },
       ],
@@ -415,7 +399,6 @@ export function useBotSettingsSectionModels(
     botShip,
     renderBotAvatar,
     commitDraft,
-    connectedServicesCount,
     connectedSubscriptionCount,
     connectionsValue,
     controlsReadOnly,
@@ -428,8 +411,6 @@ export function useBotSettingsSectionModels(
     navigate,
     pending,
     queries.botReady,
-    queries.llmAuthStatusQuery.data,
-    queries.oauthProvidersQuery.data,
     queries.providerConfig,
     queries.providerConfigQuery.isSuccess,
     scheduledTaskCount,

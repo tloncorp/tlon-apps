@@ -96,7 +96,7 @@ describe('agent choice tool', () => {
                   id: 'choices',
                   component: 'SmallChoice',
                   selectionMode: 'single',
-                  freeTextPlaceholder: 'Write your own…',
+                  freeTextPlaceholder: 'Something else…',
                   options: [
                     { id: 'choice-1', label: 'New products' },
                     { id: 'choice-2', label: 'Design patterns' },

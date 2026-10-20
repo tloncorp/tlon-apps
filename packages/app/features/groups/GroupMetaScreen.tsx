@@ -96,7 +96,7 @@ export function GroupMetaScreen(props: Props) {
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
       <MetaEditorScreenView
         chat={group}
-        title={'Edit group info'}
+        title={'Edit workspace info'}
         goBack={handleGoBack}
         onSubmit={handleSubmit}
         currentUserId={currentUserId}
@@ -105,9 +105,9 @@ export function GroupMetaScreen(props: Props) {
           <ConfirmDialog
             open={showDeleteDialog}
             onOpenChange={setShowDeleteDialog}
-            title={`Delete ${title ?? 'This group'}?`}
+            title={`Delete ${title ?? 'This workspace'}?`}
             description="This action cannot be undone."
-            confirmText="Delete group"
+            confirmText="Delete workspace"
             cancelText="Cancel"
             onConfirm={handleDeleteGroup}
             destructive

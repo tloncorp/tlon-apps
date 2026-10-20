@@ -4,7 +4,10 @@ import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from '../cli-utils';
 import type { StoryVerse } from '../markdown';
 import { commandError } from './command';
 import {
+  type ChannelState,
   type ExistingPost,
+  type ExistingReply,
+  type ExistingThread,
   POSTS_COMMAND_HELP,
   POSTS_HELP,
   POSTS_REACT_HELP,
@@ -17,7 +20,9 @@ import {
   type PostReactionRemoveInput,
   type PostReplyInput,
   type PostSendInput,
+  type PostThreadQuery,
   type PostsDeps,
+  type ReplyDeleteInput,
   run,
 } from './posts';
 
@@ -37,7 +42,35 @@ interface MakeDepsOptions {
   sendReply?: (input: PostReplyInput) => Promise<void>;
   getChannelPosts?: (query: PostLookupQuery) => Promise<PostLookupResult>;
   buildImageVerse?: (url: string) => Promise<StoryVerse>;
+  // Successive reads return successive entries (the last one repeats); an
+  // Error entry is thrown.
+  channelStates?: Array<ChannelState | Error>;
+  threads?: Array<ExistingThread | Error>;
+  assertCanAdminister?: (
+    groupId: string,
+    action: string,
+    nest: string
+  ) => Promise<void>;
+  setOrder?: (channelId: string, order: string[]) => Promise<void>;
+  deleteReply?: (input: ReplyDeleteInput) => Promise<void>;
+  // The group's role ids, or an Error to throw.
+  groupRoleIds?: string[] | Error;
 }
+
+function sequence<T>(entries: Array<T | Error> | undefined, fallback: () => T) {
+  let index = 0;
+  return (): T => {
+    if (!entries || entries.length === 0) return fallback();
+    const entry = entries[Math.min(index, entries.length - 1)];
+    index += 1;
+    if (entry instanceof Error) throw entry;
+    return entry;
+  };
+}
+
+// The read-back compares content keys; tests use the story's JSON, which is
+// what a test thread's `contentKey` is built from.
+const contentKeyOf = (story: unknown) => JSON.stringify(story);
 
 function makeDeps(options: MakeDepsOptions = {}) {
   const stdout: string[] = [];
@@ -55,8 +88,22 @@ function makeDeps(options: MakeDepsOptions = {}) {
     sendPost: [] as PostSendInput[],
     sendReply: [] as PostReplyInput[],
     getChannelPosts: [] as PostLookupQuery[],
+    getChannelState: [] as string[],
+    getGroupRoleIds: [] as string[],
+    assertCanAdminister: [] as Array<[string, string]>,
+    getPostWithReplies: [] as PostThreadQuery[],
+    deleteReply: [] as ReplyDeleteInput[],
+    setOrder: [] as Array<[string, string[]]>,
+    sleep: [] as number[],
     order: [] as string[],
   };
+  const nextChannelState = sequence<ChannelState>(
+    options.channelStates,
+    () => ({ joined: true, groupId: '~host/group', order: [] })
+  );
+  const nextThread = sequence<ExistingThread>(options.threads, () => {
+    throw new Error('no thread');
+  });
 
   const deps: PostsDeps = {
     stdout: (text) => stdout.push(text),
@@ -119,9 +166,43 @@ function makeDeps(options: MakeDepsOptions = {}) {
         calls.order.push('getChannelPosts');
         return (await options.getChannelPosts?.(query)) ?? { posts: [] };
       },
+      getPostWithReplies: async (query) => {
+        calls.getPostWithReplies.push(query);
+        calls.order.push('getPostWithReplies');
+        return nextThread();
+      },
+      deleteReply: async (input) => {
+        calls.deleteReply.push(input);
+        calls.order.push('deleteReply');
+        await options.deleteReply?.(input);
+      },
+      setOrder: async (channelId, order) => {
+        calls.setOrder.push([channelId, order]);
+        calls.order.push('setOrder');
+        await options.setOrder?.(channelId, order);
+      },
     },
-    // The edit path sleeps between lookup attempts; tests must not.
-    sleep: async () => {},
+    getChannelState: async (nest) => {
+      calls.getChannelState.push(nest);
+      calls.order.push('getChannelState');
+      return nextChannelState();
+    },
+    getGroupRoleIds: async (groupId) => {
+      calls.getGroupRoleIds.push(groupId);
+      calls.order.push('getGroupRoleIds');
+      if (options.groupRoleIds instanceof Error) throw options.groupRoleIds;
+      return options.groupRoleIds ?? [];
+    },
+    assertCanAdminister: async (groupId, action, nest) => {
+      calls.assertCanAdminister.push([groupId, action]);
+      calls.order.push('assertCanAdminister');
+      await options.assertCanAdminister?.(groupId, action, nest);
+    },
+    contentKeyOf,
+    // Lookups and read-backs sleep between attempts; tests record, not wait.
+    sleep: async (ms) => {
+      calls.sleep.push(ms);
+    },
   };
 
   return {
@@ -143,6 +224,12 @@ function expectNoAuthOrApi(context: ReturnType<typeof makeDeps>) {
   expect(context.calls.sendReply).toEqual([]);
   expect(context.calls.getChannelPosts).toEqual([]);
   expect(context.calls.buildImageVerse).toEqual([]);
+  expect(context.calls.getChannelState).toEqual([]);
+  expect(context.calls.getGroupRoleIds).toEqual([]);
+  expect(context.calls.assertCanAdminister).toEqual([]);
+  expect(context.calls.getPostWithReplies).toEqual([]);
+  expect(context.calls.deleteReply).toEqual([]);
+  expect(context.calls.setOrder).toEqual([]);
 }
 
 describe('posts command help and shell', () => {
@@ -329,7 +416,9 @@ describe('posts send', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(context.stdout()).toBe('✓ Message sent\n');
+    expect(context.stdout()).toBe(
+      '✓ Message sent\n  Share: the host assigns the post ID, so none is returned here; find its ID with `messages channel chat/~host/channel --limit 5`, then put /1/chan/chat/~host/channel/msg/<id> in your reply to post a tappable card.\n'
+    );
     expect(context.stderr()).toBe('');
     expect(context.calls.authenticateApps).toEqual([['channels']]);
     expect(context.calls.sendPost).toEqual([
@@ -709,7 +798,9 @@ describe('posts reply', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(context.stdout()).toBe('✓ Reply sent\n');
+    expect(context.stdout()).toBe(
+      "✓ Reply sent\n  Share: the host assigns the post ID, so none is returned here; find the reply's ID with `messages post chat/~host/channel 170.141.184`, then put /1/chan/chat/~host/channel/msg/170.141.184/<id> in your reply to post a tappable card.\n"
+    );
     expect(context.calls.authenticateApps).toEqual([['channels']]);
     expect(context.calls.sendReply).toEqual([
       {
@@ -793,6 +884,8 @@ describe('posts reply', () => {
 
     expect(context.calls.authenticateApps).toEqual([['chat']]);
     expect(context.calls.sendReply[0].parentAuthor).toBe('~sampel-palnet');
+    // DMs have no reference card, so no share hint.
+    expect(context.stdout()).toBe('✓ Reply sent\n');
   });
 
   it('routes facade failures through the shared command-error path', async () => {
@@ -1108,6 +1201,23 @@ describe('posts react', () => {
     expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
     expectNoAuthOrApi(context);
   });
+
+  it('rejects an unconsumed option token before auth', async () => {
+    for (const stray of ['--parent=170141', '--bogus']) {
+      const context = makeDeps({ currentUserId: '~nec' });
+      const exitCode = await run(
+        ['react', 'chat/~host/channel', '170142', '🔥', stray],
+        context.deps
+      );
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(
+        `Error: Unexpected argument: ${stray}\n\n${POSTS_COMMAND_HELP.react}\n`
+      );
+      expectNoAuthOrApi(context);
+    }
+  });
 });
 
 describe('posts unreact', () => {
@@ -1238,6 +1348,23 @@ describe('posts unreact', () => {
     expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
     expectNoAuthOrApi(context);
   });
+
+  it('rejects an unconsumed option token before auth', async () => {
+    for (const stray of ['--parent=170141', '--bogus']) {
+      const context = makeDeps({ currentUserId: '~nec' });
+      const exitCode = await run(
+        ['unreact', 'chat/~host/channel', '170142', stray],
+        context.deps
+      );
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(
+        `Error: Unexpected argument: ${stray}\n\n${POSTS_COMMAND_HELP.unreact}\n`
+      );
+      expectNoAuthOrApi(context);
+    }
+  });
 });
 
 describe('posts delete', () => {
@@ -1317,11 +1444,43 @@ describe('posts delete', () => {
     expect(exitCode).toBe(1);
     expect(context.stderr()).toBe('Error: delete failed\n');
   });
+
+  it('rejects an unconsumed option token before auth', async () => {
+    for (const stray of ['--parent=170141', '--bogus']) {
+      const context = makeDeps({ currentUserId: '~nec' });
+      const exitCode = await run(
+        ['delete', 'chat/~host/channel', '170142', stray],
+        context.deps
+      );
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(
+        `Error: Unexpected argument: ${stray}\n\n${POSTS_COMMAND_HELP.delete}\n`
+      );
+      expectNoAuthOrApi(context);
+    }
+  });
+
+  it('rejects a stray option after a consumed --parent before auth', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['delete', 'chat/~host/channel', '170142', '--parent', '170141', '--x'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Unexpected argument: --x\n\n${POSTS_COMMAND_HELP.delete}\n`
+    );
+    expectNoAuthOrApi(context);
+  });
 });
 
 describe('posts edit', () => {
   const existing: ExistingPost = {
     id: '170.141.184',
+    sentAt: 1111,
     title: 'Old Title',
     image: 'https://example.com/old.jpg',
     description: 'old description',
@@ -1338,8 +1497,9 @@ describe('posts edit', () => {
   // anything *else* about edit need the lookup to succeed.
   const READABLE_POST: ExistingPost = {
     id: '170.141.184',
+    sentAt: 1111,
     isBot: false,
-  } as ExistingPost;
+  };
   const lookupSucceeds = () => withExistingPost(READABLE_POST);
 
   it('fails missing channel/post id before auth or API work', async () => {
@@ -1459,7 +1619,10 @@ describe('posts edit', () => {
     expect(payload.channelId).toBe('chat/~host/channel');
     expect(payload.postId).toBe('170.141.184');
     expect(payload.authorId).toBe('~nec');
-    expect(payload.sentAt).toBe(1234);
+    // The existing post's sent time, not the clock: %edit stores it as given.
+    expect(payload.sentAt).toBe(1111);
+    expect(context.calls.now).toBe(0);
+    expect('blob' in payload).toBe(false);
     expect(payload.metadata).toEqual({
       title: 'Old Title',
       image: 'https://example.com/old.jpg',
@@ -1544,6 +1707,27 @@ describe('posts edit', () => {
     });
   });
 
+  it("carries a bot post's nickname and avatar through the edit unchanged", async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...existing,
+        isBot: true,
+        botProfile: { nickname: 'Botty', avatar: 'https://x.test/botty.png' },
+      }),
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].botProfile).toEqual({
+      nickname: 'Botty',
+      avatar: 'https://x.test/botty.png',
+    });
+  });
+
   it('leaves a human-authored post bare-authored on edit', async () => {
     for (const post of [
       { ...existing, isBot: false },
@@ -1572,7 +1756,9 @@ describe('posts edit', () => {
         attempt += 1;
         return attempt === 1
           ? { posts: [] }
-          : { posts: [{ id: '170.141.184', isBot: true } as ExistingPost] };
+          : {
+              posts: [{ id: '170.141.184', sentAt: 1111, isBot: true }],
+            };
       },
     });
 
@@ -1618,18 +1804,38 @@ describe('posts edit', () => {
     expect(context.calls.editPost[0].content).toEqual([{ inline: ['--help'] }]);
   });
 
-  it('passes the injected clock through to the editPost payload', async () => {
+  it("preserves the existing post's sentAt and blob", async () => {
+    const blob = '[{"type":"file","version":1,"fileUri":"https://x/f.pdf"}]';
     const context = makeDeps({
       now: 999,
-      getChannelPosts: lookupSucceeds(),
+      getChannelPosts: withExistingPost({ ...existing, sentAt: 111, blob }),
     });
 
-    await run(
+    const exitCode = await run(
       ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
       context.deps
     );
 
-    expect(context.calls.editPost[0].sentAt).toBe(999);
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].sentAt).toBe(111);
+    expect(context.calls.editPost[0].blob).toBe(blob);
+    expect(context.calls.now).toBe(0);
+  });
+
+  it('sends no blob when the existing post has none, and never the reply path', async () => {
+    for (const post of [existing, { ...existing, blob: null }]) {
+      const context = makeDeps({ getChannelPosts: withExistingPost(post) });
+
+      const exitCode = await run(
+        ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+        context.deps
+      );
+
+      expect(exitCode).toBe(0);
+      expect('blob' in context.calls.editPost[0]).toBe(false);
+      expect('parentId' in context.calls.editPost[0]).toBe(false);
+      expect(context.calls.getPostWithReplies).toEqual([]);
+    }
   });
 
   it('routes facade failures through the shared command-error path', async () => {
@@ -1647,6 +1853,1175 @@ describe('posts edit', () => {
 
     expect(exitCode).toBe(1);
     expect(context.stderr()).toBe('Error: edit failed\n');
+  });
+});
+
+const NEST = 'chat/~host/channel';
+const GROUP = '~host/group';
+const X = '170.141.184.507';
+const Y = '170.141.184.508';
+const Z = '170.141.184.509';
+const W = '170.141.184.510';
+
+function joined(order: string[], groupId = GROUP): ChannelState {
+  return { joined: true, groupId, order };
+}
+
+function topLevel(id = X, over: Partial<ExistingThread> = {}): ExistingThread {
+  return { id, authorId: '~host', replies: [], ...over };
+}
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+describe('posts pin', () => {
+  it('passes the channel nest to the admin check', async () => {
+    const seen: string[] = [];
+    const context = makeDeps({
+      channelStates: [joined([Y, Z]), joined([Y, Z]), joined([X, Y, Z])],
+      threads: [topLevel()],
+      assertCanAdminister: async (_groupId, _action, nest) => {
+        seen.push(nest);
+      },
+    });
+
+    expect(await run(['pin', 'chat/host/channel', X], context.deps)).toBe(0);
+    expect(seen).toEqual([NEST]);
+  });
+
+  it('pins after the admin check, a target read and a fresh read, keeping the old pin second', async () => {
+    const context = makeDeps({
+      channelStates: [joined([Y, Z]), joined([Y, Z]), joined([X, Y, Z])],
+      threads: [topLevel()],
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Post pinned\n');
+    expect(context.stderr()).toBe('');
+    expect(context.calls.order).toEqual([
+      'authenticate',
+      'getChannelState',
+      'assertCanAdminister',
+      'getPostWithReplies',
+      'getChannelState',
+      'setOrder',
+      'getChannelState',
+    ]);
+    expect(context.calls.authenticateApps).toEqual([['channels']]);
+    expect(context.calls.assertCanAdminister).toEqual([[GROUP, 'pin posts']]);
+    expect(context.calls.getPostWithReplies).toEqual([
+      { channelId: NEST, postId: X },
+    ]);
+    expect(context.calls.setOrder).toEqual([[NEST, [X, Y, Z]]]);
+    expect(context.calls.sleep).toEqual([]);
+  });
+
+  it('writes [X] as the first pin in a channel with an empty order', async () => {
+    const context = makeDeps({
+      channelStates: [joined([]), joined([]), joined([X])],
+      threads: [topLevel()],
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Post pinned\n');
+    expect(context.calls.setOrder).toEqual([[NEST, [X]]]);
+  });
+
+  it('moves an already-arranged post to the front without duplicating it', async () => {
+    const context = makeDeps({
+      channelStates: [joined([Y, X, Z]), joined([Y, X, Z]), joined([X, Y, Z])],
+      threads: [topLevel()],
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.setOrder).toEqual([[NEST, [X, Y, Z]]]);
+  });
+
+  it('succeeds without a write when the post is already pinned, after the admin check', async () => {
+    const context = makeDeps({
+      channelStates: [joined([X, Y]), joined([X, Y])],
+      threads: [topLevel()],
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Post already pinned\n');
+    expect(context.calls.assertCanAdminister).toEqual([[GROUP, 'pin posts']]);
+    expect(context.calls.setOrder).toEqual([]);
+  });
+
+  it('composes the write from the fresh read, not the first snapshot', async () => {
+    const context = makeDeps({
+      channelStates: [joined([Y]), joined([W, Y]), joined([X, W, Y])],
+      threads: [topLevel()],
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.setOrder).toEqual([[NEST, [X, W, Y]]]);
+  });
+
+  it('decides "already pinned" on the fresh read, not the first snapshot', async () => {
+    const context = makeDeps({
+      channelStates: [joined([X]), joined([Y]), joined([X, Y])],
+      threads: [topLevel()],
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Post pinned\n');
+    expect(context.calls.setOrder).toEqual([[NEST, [X, Y]]]);
+  });
+
+  it('refuses when the channel was left or re-grouped while checking', async () => {
+    for (const fresh of [
+      { joined: false } as ChannelState,
+      joined([Y], '~other/group'),
+    ]) {
+      const context = makeDeps({
+        channelStates: [joined([Y]), fresh],
+        threads: [topLevel()],
+      });
+
+      const exitCode = await run(['pin', NEST, X], context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toBe(
+        `Error: Channel state for ${NEST} changed while checking; nothing changed. Retry.\n`
+      );
+      expect(context.calls.setOrder).toEqual([]);
+    }
+  });
+
+  it('reports a non-admin refusal with no target read and no write', async () => {
+    const context = makeDeps({
+      channelStates: [joined([Y])],
+      assertCanAdminister: async () => {
+        throw commandError(
+          "Can't pin posts in ~host/group: you (~zod) are not an admin of this group."
+        );
+      },
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain(
+      "Can't pin posts in ~host/group: you (~zod) are not an admin"
+    );
+    expect(context.calls.getPostWithReplies).toEqual([]);
+    expect(context.calls.setOrder).toEqual([]);
+  });
+
+  it('reports a silent host rejection as unconfirmed after five read-backs and four sleeps', async () => {
+    const context = makeDeps({
+      channelStates: [joined([Y])],
+      threads: [topLevel()],
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Pin of ${X} in ${NEST} was sent but is not confirmed: the channel order is now [${Y}], expected [${X}, ${Y}]. The channel host may have refused it, or another change landed at the same time.\n`
+    );
+    expect(context.calls.setOrder).toEqual([[NEST, [X, Y]]]);
+    // 2 reads before the write, 5 after.
+    expect(context.calls.getChannelState).toHaveLength(7);
+    expect(context.calls.sleep).toEqual([500, 500, 500, 500]);
+  });
+
+  it('confirms when the host update arrives on a later read-back', async () => {
+    const context = makeDeps({
+      channelStates: [joined([Y]), joined([Y]), joined([Y]), joined([X, Y])],
+      threads: [topLevel()],
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Post pinned\n');
+    expect(context.calls.sleep).toEqual([500]);
+  });
+
+  it('never confirms on a read error, an unjoined channel or a partial order', async () => {
+    const cases: Array<{ readBack: ChannelState | Error; observed: string }> = [
+      {
+        readBack: new Error('scry 500'),
+        observed: 'unreadable, expected',
+      },
+      {
+        readBack: { joined: false },
+        observed: 'unreadable (the channel is not joined)',
+      },
+      { readBack: joined([X]), observed: `[${X}], expected` },
+    ];
+    for (const { readBack, observed } of cases) {
+      const context = makeDeps({
+        channelStates: [joined([Y]), joined([Y]), readBack],
+        threads: [topLevel()],
+      });
+
+      const exitCode = await run(['pin', NEST, X], context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toContain('was sent but is not confirmed');
+      expect(context.stderr()).toContain(observed);
+      if (readBack instanceof Error) {
+        expect(context.stderr()).toContain('(last read error: scry 500)');
+      } else {
+        expect(context.stderr()).not.toContain('last read error');
+      }
+    }
+  });
+
+  it('does not confirm the exact order read back under a different group', async () => {
+    const context = makeDeps({
+      channelStates: [joined([Y]), joined([Y]), joined([X, Y], '~other/group')],
+      threads: [topLevel()],
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain(
+      `the channel order is now [${X}, ${Y}] under group ~other/group`
+    );
+  });
+
+  it('surfaces a setOrder failure without reading back', async () => {
+    const context = makeDeps({
+      channelStates: [joined([Y])],
+      threads: [topLevel()],
+      setOrder: async () => {
+        throw commandError('poke failed');
+      },
+    });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe('Error: poke failed\n');
+    expect(context.calls.getChannelState).toHaveLength(2);
+  });
+
+  it('refuses an unjoined channel before the admin check', async () => {
+    const context = makeDeps({ channelStates: [{ joined: false }] });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: ${NEST} is not a channel this ship has joined; join it first.\n`
+    );
+    expect(context.calls.assertCanAdminister).toEqual([]);
+  });
+
+  it('reports a failed channel-state read', async () => {
+    const context = makeDeps({ channelStates: [new Error('scry 500')] });
+
+    const exitCode = await run(['pin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Could not read channel state for ${NEST}: scry 500\n`
+    );
+  });
+
+  it('refuses a target it cannot read, or a deleted one, without writing', async () => {
+    for (const threads of [
+      [new Error('not found')],
+      [topLevel(X, { isDeleted: true })],
+    ]) {
+      const context = makeDeps({ channelStates: [joined([Y])], threads });
+
+      const exitCode = await run(['pin', NEST, X], context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toBe(
+        `Error: Could not read post ${X} in ${NEST}; only an existing top-level post can be pinned.\n`
+      );
+      expect(context.calls.setOrder).toEqual([]);
+    }
+    // An unreadable target is looked up twice, with one retry delay.
+    const missing = makeDeps({
+      channelStates: [joined([Y])],
+      threads: [new Error('not found')],
+    });
+    await run(['pin', NEST, X], missing.deps);
+    expect(missing.calls.getPostWithReplies).toHaveLength(2);
+    expect(missing.calls.sleep).toEqual([1500]);
+  });
+
+  it('canonicalizes undotted scry ids before comparing and writing', async () => {
+    const undotted = (id: string) => id.replace(/\./g, '');
+    const context = makeDeps({
+      channelStates: [
+        joined([undotted(Y), undotted(X)]),
+        joined([undotted(Y), undotted(X)]),
+        joined([undotted(X), undotted(Y)]),
+      ],
+      threads: [topLevel()],
+    });
+
+    const exitCode = await run(['pin', NEST, undotted(X)], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.getPostWithReplies).toEqual([
+      { channelId: NEST, postId: X },
+    ]);
+    expect(context.calls.setOrder).toEqual([[NEST, [X, Y]]]);
+  });
+
+  it('does not write until the admin check resolves', async () => {
+    const gate = deferred();
+    const context = makeDeps({
+      channelStates: [joined([Y]), joined([Y]), joined([X, Y])],
+      threads: [topLevel()],
+      assertCanAdminister: () => gate.promise,
+    });
+
+    const pending = run(['pin', NEST, X], context.deps);
+    await Bun.sleep(5);
+    expect(context.calls.order.at(-1)).toBe('assertCanAdminister');
+    expect(context.calls.setOrder).toEqual([]);
+    gate.resolve();
+
+    expect(await pending).toBe(0);
+    expect(context.calls.setOrder).toEqual([[NEST, [X, Y]]]);
+  });
+
+  it('prints no confirmation until the read-back resolves', async () => {
+    const gate = deferred();
+    const context = makeDeps({
+      channelStates: [joined([Y]), joined([Y]), joined([X, Y])],
+      threads: [topLevel()],
+    });
+    const read = context.deps.getChannelState;
+    context.deps.getChannelState = async (nest) => {
+      if (context.calls.setOrder.length > 0) await gate.promise;
+      return read(nest);
+    };
+
+    let settled = false;
+    const pending = run(['pin', NEST, X], context.deps).finally(() => {
+      settled = true;
+    });
+    await Bun.sleep(5);
+    expect(context.calls.setOrder).toHaveLength(1);
+    expect(context.stdout()).toBe('');
+    expect(settled).toBe(false);
+    gate.resolve();
+
+    expect(await pending).toBe(0);
+    expect(context.stdout()).toBe('✓ Post pinned\n');
+  });
+});
+
+describe('posts unpin', () => {
+  it('drops the pin and names the post that resurfaces', async () => {
+    const context = makeDeps({
+      channelStates: [joined([X, Y]), joined([X, Y]), joined([Y])],
+    });
+
+    const exitCode = await run(['unpin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe(`✓ Post unpinned\n  Now pinned: ${Y}\n`);
+    expect(context.calls.order).toEqual([
+      'authenticate',
+      'getChannelState',
+      'assertCanAdminister',
+      'getChannelState',
+      'setOrder',
+      'getChannelState',
+    ]);
+    expect(context.calls.assertCanAdminister).toEqual([[GROUP, 'unpin posts']]);
+    expect(context.calls.setOrder).toEqual([[NEST, [Y]]]);
+    expect(context.calls.getPostWithReplies).toEqual([]);
+  });
+
+  it('prints no "Now pinned" line when nothing resurfaces', async () => {
+    const context = makeDeps({
+      channelStates: [joined([X]), joined([X]), joined([])],
+    });
+
+    const exitCode = await run(['unpin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Post unpinned\n');
+    expect(context.calls.setOrder).toEqual([[NEST, []]]);
+  });
+
+  it('refuses when nothing or another post is pinned, without writing', async () => {
+    const cases: Array<[string[], string]> = [
+      [
+        [],
+        `Post ${X} is not pinned in ${NEST}: nothing is pinned. Nothing changed.`,
+      ],
+      [[Y, X], `Post ${X} is not pinned in ${NEST}: ${Y} is. Nothing changed.`],
+    ];
+    for (const [order, message] of cases) {
+      const context = makeDeps({ channelStates: [joined(order)] });
+
+      const exitCode = await run(['unpin', NEST, X], context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toBe(`Error: ${message}\n`);
+      expect(context.calls.setOrder).toEqual([]);
+    }
+  });
+
+  it('reports a rejected unpin as unconfirmed when another post still leads', async () => {
+    const context = makeDeps({
+      channelStates: [joined([X, Y]), joined([X, Y]), joined([Y, X])],
+    });
+
+    const exitCode = await run(['unpin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain(
+      `Unpin of ${X} in ${NEST} was sent but is not confirmed: the channel order is now [${Y}, ${X}], expected [${Y}]`
+    );
+    expect(context.calls.sleep).toEqual([500, 500, 500, 500]);
+  });
+
+  it('decides on the fresh read, not the first snapshot', async () => {
+    const context = makeDeps({
+      channelStates: [joined([X, Y]), joined([Y, X])],
+    });
+
+    const exitCode = await run(['unpin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain(`${Y} is. Nothing changed.`);
+    expect(context.calls.setOrder).toEqual([]);
+  });
+
+  it('confirms a delayed exact state', async () => {
+    const context = makeDeps({
+      channelStates: [
+        joined([X, Y]),
+        joined([X, Y]),
+        joined([X, Y]),
+        joined([Y]),
+      ],
+    });
+
+    const exitCode = await run(['unpin', NEST, X], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sleep).toEqual([500]);
+  });
+});
+
+describe('posts pin and thread-reply targets', () => {
+  const P = '170.141.184.500';
+  const R = '170.141.184.501';
+
+  it('refuses DM targets before auth', async () => {
+    for (const target of ['~bus', '0v1.abc']) {
+      const cases: Array<[string[], string]> = [
+        [
+          ['pin', target, X],
+          `Pins are for group channels (chat/ or heap/); ${target} is a DM.`,
+        ],
+        [
+          ['unpin', target, X],
+          `Pins are for group channels (chat/ or heap/); ${target} is a DM.`,
+        ],
+        [
+          ['edit', target, R, 'text', '--parent', P],
+          `Editing or deleting a thread reply is supported in group channels only; ${target} is a DM.`,
+        ],
+        [
+          ['delete', target, R, '--parent', P],
+          `Editing or deleting a thread reply is supported in group channels only; ${target} is a DM.`,
+        ],
+      ];
+      for (const [args, message] of cases) {
+        const context = makeDeps();
+        const exitCode = await run(args, context.deps);
+
+        expect(exitCode).toBe(1);
+        expect(context.stdout()).toBe('');
+        expect(context.stderr()).toBe(`Error: ${message}\n`);
+        expectNoAuthOrApi(context);
+      }
+    }
+  });
+
+  it('refuses non-group nests before auth, keeping the diary and notes messages', async () => {
+    for (const target of ['buckets/~host/files', 'chat/~host']) {
+      const cases: Array<[string[], string]> = [
+        [
+          ['pin', target, X],
+          `Pins are for group chat/ and heap/ channels; ${target} is not one.`,
+        ],
+        [
+          ['unpin', target, X],
+          `Pins are for group chat/ and heap/ channels; ${target} is not one.`,
+        ],
+        [
+          ['edit', target, R, 'text', '--parent', P],
+          `Thread replies can be edited or deleted only in group chat/ and heap/ channels; ${target} is not one.`,
+        ],
+        [
+          ['delete', target, R, '--parent', P],
+          `Thread replies can be edited or deleted only in group chat/ and heap/ channels; ${target} is not one.`,
+        ],
+      ];
+      for (const [args, message] of cases) {
+        const context = makeDeps();
+        const exitCode = await run(args, context.deps);
+
+        expect(exitCode).toBe(1);
+        expect(context.stderr()).toBe(`Error: ${message}\n`);
+        expectNoAuthOrApi(context);
+      }
+    }
+    for (const [nest, message] of [
+      ['diary/~host/blog', DIARY_REMOVED],
+      ['notes/~host/blog', NOTES_CHANNEL_CONTENT_UNSUPPORTED],
+    ]) {
+      for (const args of [
+        ['pin', nest, X],
+        ['unpin', nest, X],
+        ['edit', nest, R, 'text', '--parent', P],
+        ['delete', nest, R, '--parent', P],
+      ]) {
+        const context = makeDeps();
+        const exitCode = await run(args, context.deps);
+
+        expect(exitCode).toBe(1);
+        expect(context.stderr()).toBe(`Error: ${message}\n`);
+        expectNoAuthOrApi(context);
+      }
+    }
+  });
+
+  it('rejects malformed pin, edit --parent and delete --parent invocations before auth', async () => {
+    const cases: Array<[string[], string]> = [
+      [['pin', NEST], POSTS_COMMAND_HELP.pin],
+      [['unpin', NEST], POSTS_COMMAND_HELP.unpin],
+      [['pin', NEST, '--x'], POSTS_COMMAND_HELP.pin],
+      [['pin', '--x', X], POSTS_COMMAND_HELP.pin],
+      [['edit', NEST, R, 'text', '--parent'], POSTS_COMMAND_HELP.edit],
+      [
+        ['edit', NEST, R, 'text', '--parent', P, '--parent', P],
+        POSTS_COMMAND_HELP.edit,
+      ],
+      [['edit', NEST, R, 'text', '--parent', '--x'], POSTS_COMMAND_HELP.edit],
+      [['edit', NEST, '--parent', P, 'text'], POSTS_COMMAND_HELP.edit],
+      [['edit', NEST, R, '--parent', P], POSTS_COMMAND_HELP.edit],
+      [['delete', NEST, '--parent', P], POSTS_COMMAND_HELP.delete],
+      [['delete', NEST, R, '--parent'], POSTS_COMMAND_HELP.delete],
+    ];
+    for (const [args, help] of cases) {
+      const context = makeDeps();
+      const exitCode = await run(args, context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(`${help}\n`);
+      expectNoAuthOrApi(context);
+    }
+  });
+
+  it('rejects an extra pin/unpin token, including --parent, before auth', async () => {
+    for (const command of ['pin', 'unpin'] as const) {
+      for (const extra of ['more', '--parent']) {
+        const context = makeDeps();
+        const exitCode = await run([command, NEST, X, extra, P], context.deps);
+
+        expect(exitCode).toBe(1);
+        expect(context.stderr()).toBe(
+          `Error: Unexpected argument: ${extra}\n\n${POSTS_COMMAND_HELP[command]}\n`
+        );
+        expectNoAuthOrApi(context);
+      }
+    }
+  });
+
+  it('canonicalizes a host without ~ for pin and edit --parent', async () => {
+    const pin = makeDeps({
+      channelStates: [joined([]), joined([]), joined([X])],
+      threads: [topLevel()],
+    });
+    expect(await run(['pin', 'chat/host/channel', X], pin.deps)).toBe(0);
+    expect(pin.calls.getChannelState).toEqual([NEST, NEST, NEST]);
+    expect(pin.calls.getPostWithReplies[0].channelId).toBe(NEST);
+    expect(pin.calls.setOrder[0][0]).toBe(NEST);
+
+    const original: ExistingReply = {
+      id: R,
+      authorId: '~zod',
+      sentAt: 1,
+      contentKey: '[]',
+    };
+    const edited = {
+      ...original,
+      contentKey: contentKeyOf([{ inline: ['t'] }]),
+    };
+    const edit = makeDeps({
+      threads: [
+        { id: P, authorId: '~host', replies: [original] },
+        { id: P, authorId: '~host', replies: [edited] },
+      ],
+    });
+    expect(
+      await run(['edit', 'chat/host/channel', R, 't', '--parent', P], edit.deps)
+    ).toBe(0);
+    expect(edit.calls.getPostWithReplies.map((q) => q.channelId)).toEqual([
+      NEST,
+      NEST,
+    ]);
+    expect(edit.calls.editPost[0].channelId).toBe(NEST);
+  });
+});
+
+describe('posts edit --parent (thread reply)', () => {
+  const P = '170.141.184.500';
+  const R = '170.141.184.501';
+  const OLD_KEY = contentKeyOf([{ inline: ['old text'] }]);
+  const NEW_KEY = contentKeyOf([{ inline: ['new text'] }]);
+
+  function reply(over: Partial<ExistingReply> = {}): ExistingReply {
+    return {
+      id: R,
+      authorId: '~zod',
+      sentAt: 4242,
+      contentKey: OLD_KEY,
+      ...over,
+    };
+  }
+
+  function thread(...replies: ExistingReply[]): ExistingThread {
+    return { id: P, authorId: '~host', replies };
+  }
+
+  it('edits the reply under its parent, preserving sentAt and blob, then confirms', async () => {
+    const original = reply({ blob: '[{"type":"x"}]' });
+    const context = makeDeps({
+      now: 999,
+      threads: [thread(original), thread({ ...original, contentKey: NEW_KEY })],
+    });
+
+    const exitCode = await run(
+      ['edit', NEST, R, 'new', 'text', '--parent', P],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Reply edited\n');
+    expect(context.stderr()).toBe('');
+    expect(context.calls.getPostWithReplies).toEqual([
+      { channelId: NEST, postId: P },
+      { channelId: NEST, postId: P },
+    ]);
+    expect(context.calls.editPost).toEqual([
+      {
+        channelId: NEST,
+        postId: R,
+        parentId: P,
+        authorId: '~zod',
+        sentAt: 4242,
+        content: [{ inline: ['new text'] }],
+        blob: '[{"type":"x"}]',
+      },
+    ]);
+    expect(context.calls.now).toBe(0);
+    expect(context.calls.getChannelPosts).toEqual([]);
+    expect(context.calls.assertCanAdminister).toEqual([]);
+  });
+
+  it('keeps --parent out of the text wherever it appears', async () => {
+    const context = makeDeps({
+      threads: [thread(reply()), thread(reply({ contentKey: NEW_KEY }))],
+    });
+
+    const exitCode = await run(
+      ['edit', NEST, R, '--parent', P, 'new', 'text'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].content).toEqual([
+      { inline: ['new text'] },
+    ]);
+  });
+
+  it('keeps the Bot tag on a bot reply and invents none on a human reply', async () => {
+    const bot = makeDeps({
+      threads: [
+        thread(reply({ isBot: true })),
+        thread(reply({ isBot: true, contentKey: NEW_KEY })),
+      ],
+    });
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], bot.deps)
+    ).toBe(0);
+    expect(bot.calls.editPost[0].botProfile).toEqual({
+      nickname: null,
+      avatar: null,
+    });
+
+    const human = makeDeps({
+      threads: [thread(reply()), thread(reply({ contentKey: NEW_KEY }))],
+    });
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], human.deps)
+    ).toBe(0);
+    expect('botProfile' in human.calls.editPost[0]).toBe(false);
+    expect('blob' in human.calls.editPost[0]).toBe(false);
+    expect('metadata' in human.calls.editPost[0]).toBe(false);
+  });
+
+  it("carries a bot reply's nickname and avatar through the edit unchanged", async () => {
+    const profile = { nickname: 'Botty', avatar: 'https://x.test/botty.png' };
+    const context = makeDeps({
+      threads: [
+        thread(reply({ isBot: true, botProfile: profile })),
+        thread(
+          reply({ isBot: true, botProfile: profile, contentKey: NEW_KEY })
+        ),
+      ],
+    });
+
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], context.deps)
+    ).toBe(0);
+    expect(context.calls.editPost[0].botProfile).toEqual(profile);
+  });
+
+  it("refuses to edit another author's reply, and normalizes ship names", async () => {
+    const other = makeDeps({ threads: [thread(reply({ authorId: '~nec' }))] });
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], other.deps)
+    ).toBe(1);
+    expect(other.stderr()).toBe(
+      `Error: Can't edit reply ${R} in ${NEST}: it was written by ~nec, not this ship (~zod). Only a reply's author can edit it.\n`
+    );
+    expect(other.calls.editPost).toEqual([]);
+
+    const own = makeDeps({
+      currentUserId: '~zod',
+      threads: [
+        thread(reply({ authorId: 'zod' })),
+        thread(reply({ authorId: 'zod', contentKey: NEW_KEY })),
+      ],
+    });
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], own.deps)
+    ).toBe(0);
+  });
+
+  it('retries a missing reply once, then refuses; a reply found on the retry proceeds', async () => {
+    const missing = makeDeps({ threads: [thread()] });
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], missing.deps)
+    ).toBe(1);
+    expect(missing.stderr()).toBe(
+      `Error: Could not read reply ${R} under ${P} in ${NEST} to preserve its authorship; it may not be readable yet. Retry the edit.\n`
+    );
+    expect(missing.calls.getPostWithReplies).toHaveLength(2);
+    expect(missing.calls.sleep).toEqual([1500]);
+    expect(missing.calls.editPost).toEqual([]);
+
+    const late = makeDeps({
+      threads: [
+        thread(),
+        thread(reply()),
+        thread(reply({ contentKey: NEW_KEY })),
+      ],
+    });
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], late.deps)
+    ).toBe(0);
+    expect(late.calls.editPost).toHaveLength(1);
+  });
+
+  it('refuses to edit a deleted reply', async () => {
+    const context = makeDeps({ threads: [thread(reply({ isDeleted: true }))] });
+
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], context.deps)
+    ).toBe(1);
+    expect(context.stderr()).toBe(
+      `Error: Reply ${R} in ${NEST} is deleted; nothing to edit.\n`
+    );
+    expect(context.calls.editPost).toEqual([]);
+  });
+
+  it('reports a silently rejected edit as unconfirmed, mentioning hooks', async () => {
+    const context = makeDeps({ threads: [thread(reply())] });
+
+    const exitCode = await run(
+      ['edit', NEST, R, 'new text', '--parent', P],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Edit of reply ${R} in ${NEST} was sent but is not confirmed: the reply does not show the new content. The channel host may have refused it (for example, this ship may no longer be allowed to write in the channel), or a channel hook may have accepted it but transformed the content.\n`
+    );
+    expect(context.calls.editPost).toHaveLength(1);
+    expect(context.calls.getPostWithReplies).toHaveLength(6);
+    expect(context.calls.sleep).toEqual([500, 500, 500, 500]);
+  });
+
+  it('never confirms on a read error or a reply that turned into a tombstone', async () => {
+    const failing = makeDeps({
+      threads: [thread(reply()), new Error('scry 500')],
+    });
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], failing.deps)
+    ).toBe(1);
+    expect(failing.stderr()).toContain(
+      'not confirmed: the thread could not be read back (scry 500)'
+    );
+
+    const deleted = makeDeps({
+      threads: [thread(reply()), thread(reply({ isDeleted: true }))],
+    });
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], deleted.deps)
+    ).toBe(1);
+    expect(deleted.stderr()).toContain(
+      'not confirmed: the reply is now deleted'
+    );
+  });
+
+  it('does not confirm matching content when a preserved field changed', async () => {
+    const original = reply({
+      blob: 'b1',
+      isBot: true,
+      botProfile: { nickname: 'Botty', avatar: null },
+    });
+    const cases: Array<[Partial<ExistingReply>, string]> = [
+      [{ sentAt: 1 }, "the reply's sent time changed"],
+      [{ blob: 'b2' }, "the reply's attachment data changed"],
+      [{ blob: null }, "the reply's attachment data changed"],
+      [{ isBot: false }, "the reply's Bot authorship changed"],
+      [
+        { botProfile: { nickname: 'Other', avatar: null } },
+        "the reply's bot nickname or avatar changed",
+      ],
+      [
+        { botProfile: { nickname: 'Botty', avatar: 'https://x.test/b.png' } },
+        "the reply's bot nickname or avatar changed",
+      ],
+    ];
+    for (const [change, reason] of cases) {
+      const context = makeDeps({
+        threads: [
+          thread(original),
+          thread({ ...original, contentKey: NEW_KEY, ...change }),
+        ],
+      });
+
+      expect(
+        await run(['edit', NEST, R, 'new text', '--parent', P], context.deps)
+      ).toBe(1);
+      expect(context.stderr()).toContain(`not confirmed: ${reason}`);
+    }
+  });
+
+  it('confirms once a later read-back shows the edit', async () => {
+    const context = makeDeps({
+      threads: [
+        thread(reply()),
+        thread(reply()),
+        new Error('blip'),
+        thread(reply({ contentKey: NEW_KEY })),
+      ],
+    });
+
+    expect(
+      await run(['edit', NEST, R, 'new text', '--parent', P], context.deps)
+    ).toBe(0);
+    expect(context.calls.getPostWithReplies).toHaveLength(4);
+    expect(context.calls.sleep).toEqual([500, 500]);
+  });
+
+  it('formats undotted parent and reply ids', async () => {
+    const context = makeDeps({
+      threads: [thread(reply()), thread(reply({ contentKey: NEW_KEY }))],
+    });
+
+    expect(
+      await run(
+        ['edit', NEST, '170141184501', 'new text', '--parent', '170141184500'],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.calls.getPostWithReplies[0].postId).toBe(P);
+    expect(context.calls.editPost[0].postId).toBe(R);
+    expect(context.calls.editPost[0].parentId).toBe(P);
+  });
+});
+
+describe('posts delete --parent (thread reply)', () => {
+  const P = '170.141.184.500';
+  const R = '170.141.184.501';
+
+  function reply(over: Partial<ExistingReply> = {}): ExistingReply {
+    return { id: R, authorId: '~zod', sentAt: 4242, contentKey: '[]', ...over };
+  }
+
+  function thread(...replies: ExistingReply[]): ExistingThread {
+    return { id: P, authorId: '~host', replies };
+  }
+
+  it('deletes its own reply under the parent and confirms the tombstone', async () => {
+    const context = makeDeps({
+      threads: [thread(reply()), thread(reply({ isDeleted: true }))],
+    });
+
+    const exitCode = await run(
+      ['delete', NEST, R, '--parent', P],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Reply deleted\n');
+    expect(context.calls.deleteReply).toEqual([
+      {
+        channelId: NEST,
+        parentId: P,
+        parentAuthorId: '~host',
+        postId: R,
+        authorId: '~zod',
+      },
+    ]);
+    expect(context.calls.deletePost).toEqual([]);
+    expect(context.calls.assertCanAdminister).toEqual([]);
+    expect(context.calls.getChannelState).toEqual([]);
+  });
+
+  it("checks admin before deleting another member's reply", async () => {
+    const context = makeDeps({
+      channelStates: [joined([])],
+      threads: [
+        thread(reply({ authorId: '~nec' })),
+        thread(reply({ authorId: '~nec', isDeleted: true })),
+      ],
+    });
+
+    const exitCode = await run(
+      ['delete', NEST, R, '--parent', P],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.order).toEqual([
+      'authenticate',
+      'getPostWithReplies',
+      'getCurrentUserId',
+      'getChannelState',
+      'assertCanAdminister',
+      'deleteReply',
+      'getPostWithReplies',
+    ]);
+    expect(context.calls.assertCanAdminister).toEqual([
+      [GROUP, "delete other members' replies"],
+    ]);
+    expect(context.calls.deleteReply[0].authorId).toBe('~nec');
+  });
+
+  it("refuses another member's reply when not an admin or not joined", async () => {
+    const nonAdmin = makeDeps({
+      channelStates: [joined([])],
+      threads: [thread(reply({ authorId: '~nec' }))],
+      assertCanAdminister: async () => {
+        throw commandError(
+          "Can't delete other members' replies in ~host/group"
+        );
+      },
+    });
+    expect(await run(['delete', NEST, R, '--parent', P], nonAdmin.deps)).toBe(
+      1
+    );
+    expect(nonAdmin.stderr()).toContain("Can't delete other members' replies");
+    expect(nonAdmin.calls.deleteReply).toEqual([]);
+
+    const unjoined = makeDeps({
+      channelStates: [{ joined: false }],
+      threads: [thread(reply({ authorId: '~nec' }))],
+    });
+    expect(await run(['delete', NEST, R, '--parent', P], unjoined.deps)).toBe(
+      1
+    );
+    expect(unjoined.stderr()).toContain(
+      'is not a channel this ship has joined'
+    );
+    expect(unjoined.calls.assertCanAdminister).toEqual([]);
+    expect(unjoined.calls.deleteReply).toEqual([]);
+  });
+
+  it('refuses an unreadable reply instead of reporting a false success', async () => {
+    const context = makeDeps({ threads: [thread()] });
+
+    const exitCode = await run(
+      ['delete', NEST, R, '--parent', P],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Could not read reply ${R} under ${P} in ${NEST}; nothing was deleted.\n`
+    );
+    expect(context.calls.deleteReply).toEqual([]);
+    expect(context.calls.deletePost).toEqual([]);
+  });
+
+  it('reports an already-deleted reply without writing', async () => {
+    const context = makeDeps({ threads: [thread(reply({ isDeleted: true }))] });
+
+    const exitCode = await run(
+      ['delete', NEST, R, '--parent', P],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Reply already deleted\n');
+    expect(context.calls.deleteReply).toEqual([]);
+  });
+
+  it('reports a silently rejected delete as unconfirmed', async () => {
+    const context = makeDeps({ threads: [thread(reply())] });
+
+    const exitCode = await run(
+      ['delete', NEST, R, '--parent', P],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      `Error: Delete of reply ${R} in ${NEST} was sent but is not confirmed: the reply is still live. The channel host may have refused it.\n`
+    );
+    expect(context.calls.getPostWithReplies).toHaveLength(6);
+    expect(context.calls.sleep).toEqual([500, 500, 500, 500]);
+  });
+
+  it('never treats a vanished reply or a read error as deleted', async () => {
+    for (const [readBack, reason] of [
+      [thread(), 'the reply is no longer listed in the thread'],
+      [new Error('scry 500'), 'the thread could not be read back (scry 500)'],
+    ] as const) {
+      const context = makeDeps({ threads: [thread(reply()), readBack] });
+
+      expect(await run(['delete', NEST, R, '--parent', P], context.deps)).toBe(
+        1
+      );
+      expect(context.stderr()).toContain(`not confirmed: ${reason}`);
+    }
+  });
+
+  it('confirms a tombstone that appears on a later read-back', async () => {
+    const context = makeDeps({
+      threads: [
+        thread(reply()),
+        thread(reply()),
+        thread(reply({ isDeleted: true })),
+      ],
+    });
+
+    expect(await run(['delete', NEST, R, '--parent', P], context.deps)).toBe(0);
+    expect(context.calls.sleep).toEqual([500]);
+  });
+
+  it('surfaces a deleteReply failure without reading back', async () => {
+    const context = makeDeps({
+      threads: [thread(reply())],
+      deleteReply: async () => {
+        throw commandError('poke failed');
+      },
+    });
+
+    expect(await run(['delete', NEST, R, '--parent', P], context.deps)).toBe(1);
+    expect(context.stderr()).toBe('Error: poke failed\n');
+    expect(context.calls.getPostWithReplies).toHaveLength(1);
+  });
+
+  it('keeps delete without --parent on the top-level path', async () => {
+    const context = makeDeps();
+
+    expect(await run(['delete', NEST, R], context.deps)).toBe(0);
+    expect(context.stdout()).toBe('✓ Post deleted\n');
+    expect(context.calls.deletePost).toHaveLength(1);
+    expect(context.calls.getPostWithReplies).toEqual([]);
+    expect(context.calls.deleteReply).toEqual([]);
+  });
+
+  it("does not delete another member's reply until the admin check resolves", async () => {
+    const gate = deferred();
+    const context = makeDeps({
+      channelStates: [joined([])],
+      threads: [
+        thread(reply({ authorId: '~nec' })),
+        thread(reply({ authorId: '~nec', isDeleted: true })),
+      ],
+      assertCanAdminister: () => gate.promise,
+    });
+
+    const pending = run(['delete', NEST, R, '--parent', P], context.deps);
+    await Bun.sleep(5);
+    expect(context.calls.order.at(-1)).toBe('assertCanAdminister');
+    expect(context.calls.deleteReply).toEqual([]);
+    gate.resolve();
+
+    expect(await pending).toBe(0);
+    expect(context.calls.deleteReply).toHaveLength(1);
+  });
+
+  it('prints no confirmation until the tombstone read-back resolves', async () => {
+    const gate = deferred();
+    const context = makeDeps({
+      threads: [thread(reply()), thread(reply({ isDeleted: true }))],
+    });
+    const read = context.deps.postsApi.getPostWithReplies;
+    context.deps.postsApi.getPostWithReplies = async (query) => {
+      if (context.calls.deleteReply.length > 0) await gate.promise;
+      return read(query);
+    };
+
+    let settled = false;
+    const pending = run(
+      ['delete', NEST, R, '--parent', P],
+      context.deps
+    ).finally(() => {
+      settled = true;
+    });
+    await Bun.sleep(5);
+    expect(context.calls.deleteReply).toHaveLength(1);
+    expect(context.stdout()).toBe('');
+    expect(settled).toBe(false);
+    gate.resolve();
+
+    expect(await pending).toBe(0);
+    expect(context.stdout()).toBe('✓ Reply deleted\n');
   });
 });
 
@@ -1722,5 +3097,398 @@ describe('posts unexpected errors', () => {
 
     expect(context.stdout()).toBe('');
     expect(context.stderr()).toBe('');
+  });
+});
+
+describe('posts role mentions', () => {
+  const CHANNEL = 'chat/~host/channel';
+  const GROUP = '~host/group';
+  const ROLES = ['admin', 'moderators'];
+
+  function expectNoRoleLookup(context: ReturnType<typeof makeDeps>) {
+    expect(context.calls.getChannelState).toEqual([]);
+    expect(context.calls.getGroupRoleIds).toEqual([]);
+  }
+
+  it('sends a role mention as a literal sect inline', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(['send', CHANNEL, 'hi @admin'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['hi ', { sect: 'admin' }] },
+    ]);
+    expect(context.calls.getChannelState).toEqual([CHANNEL]);
+    expect(context.calls.getGroupRoleIds).toEqual([GROUP]);
+  });
+
+  it('sends @all as sect null without a role lookup', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(['send', CHANNEL, 'see @ALL'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['see ', { sect: null }] },
+    ]);
+    expectNoRoleLookup(context);
+  });
+
+  it('sends a ship and a role mention in one message', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(
+      ['send', CHANNEL, 'hey ~sampel-palnet and @Admin, see @all'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      {
+        inline: [
+          'hey ',
+          { ship: '~sampel-palnet' },
+          ' and ',
+          { sect: 'admin' },
+          ', see ',
+          { sect: null },
+        ],
+      },
+    ]);
+  });
+
+  it('normalizes @Admin to the role id', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    await run(['send', CHANNEL, '**@Admin**'], context.deps);
+
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: [{ bold: [{ sect: 'admin' }] }] },
+    ]);
+  });
+
+  it("refuses an unknown role and lists the group's role ids", async () => {
+    const context = makeDeps({ groupRoleIds: ['moderators', 'admin'] });
+    const exitCode = await run(
+      ['send', 'chat/host/channel', 'ping @mods and @admin'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      'Error: Unknown role mention @mods in chat/~host/channel. Role ids in group ~host/group: @admin, @moderators; @all mentions every member. Use the role id, not its title. To send @mods as plain text, wrap it in backticks: `@mods`. If the role was just created, retry in a moment.\n'
+    );
+    expect(context.calls.getChannelState).toEqual([CHANNEL]);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('lists several unknown tokens once each, in typed spelling', async () => {
+    const context = makeDeps({ groupRoleIds: [] });
+    const exitCode = await run(
+      ['send', CHANNEL, '@Mods @here @mods @all'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(
+      'Error: Unknown role mentions @Mods, @here in chat/~host/channel. Role ids in group ~host/group: none; @all mentions every member. Use the role id, not its title. To send @Mods as plain text, wrap it in backticks: `@Mods`. If the role was just created, retry in a moment.\n'
+    );
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a role title that is not its id', async () => {
+    const context = makeDeps({ groupRoleIds: ['mods'] });
+    const exitCode = await run(
+      ['send', CHANNEL, 'ping @moderators'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain(
+      'Unknown role mention @moderators in chat/~host/channel. Role ids in group ~host/group: @mods;'
+    );
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses before fetching an image', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(
+      ['send', CHANNEL, 'see @mods', '--image', 'https://x/y.png'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.buildImageVerse).toEqual([]);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('sends a role-bearing image caption after the role check', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(
+      ['send', CHANNEL, 'see @admin', '--image', 'https://x/y.png'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      IMAGE_VERSE,
+      { inline: ['see ', { sect: 'admin' }] },
+    ]);
+    expect(context.calls.order).toEqual([
+      'authenticate',
+      'getChannelState',
+      'getGroupRoleIds',
+      'buildImageVerse',
+      'getCurrentUserId',
+      'now',
+      'sendPost',
+    ]);
+  });
+
+  it('refuses an unknown role in a task item or a nested heading', async () => {
+    for (const message of ['- [ ] ping @mods', '> ## ping @mods']) {
+      const context = makeDeps({ groupRoleIds: ROLES });
+      const exitCode = await run(['send', CHANNEL, message], context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toContain('Unknown role mention @mods in');
+      expect(context.calls.sendPost).toEqual([]);
+    }
+  });
+
+  it('reads a trailing hyphen as part of the role id', async () => {
+    const refused = makeDeps({ groupRoleIds: ROLES });
+    expect(await run(['send', CHANNEL, 'hi @admin-'], refused.deps)).toBe(1);
+    expect(refused.stderr()).toContain('Unknown role mention @admin- in');
+
+    const sent = makeDeps({ groupRoleIds: ['admin-'] });
+    expect(await run(['send', CHANNEL, 'hi @admin-'], sent.deps)).toBe(0);
+    expect(sent.calls.sendPost[0].content).toEqual([
+      { inline: ['hi ', { sect: 'admin-' }] },
+    ]);
+  });
+
+  it('sends code and links in a table cell with no lookup', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      [
+        'send',
+        CHANNEL,
+        '| pkg | docs |\n| - | - |\n| `@types/node` | [@mods](https://x) |',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost).toHaveLength(1);
+    expectNoRoleLookup(context);
+  });
+
+  it('sends an escaped \\@word literally with no refusal or lookup', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(['send', CHANNEL, 'ask \\@mods'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['ask @mods'] },
+    ]);
+    expectNoRoleLookup(context);
+  });
+
+  it('sends a backticked @word literally with no lookup', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', CHANNEL, 'use `@types/node`'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['use ', { 'inline-code': '@types/node' }] },
+    ]);
+    expectNoRoleLookup(context);
+  });
+
+  it('does no role lookup for text without @', async () => {
+    const context = makeDeps();
+    await run(['send', CHANNEL, 'plain'], context.deps);
+
+    expect(context.calls.sendPost).toHaveLength(1);
+    expectNoRoleLookup(context);
+  });
+
+  it('posts send to a DM: @all converts, a named role is refused', async () => {
+    for (const target of ['~sampel-palnet', '0v5.abcde']) {
+      const allContext = makeDeps();
+      expect(await run(['send', target, 'hi @all'], allContext.deps)).toBe(0);
+      expect(allContext.calls.sendPost[0].content).toEqual([
+        { inline: ['hi ', { sect: null }] },
+      ]);
+
+      const context = makeDeps({ groupRoleIds: ROLES });
+      const exitCode = await run(['send', target, 'hi @admin'], context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toBe(
+        `Error: Unknown role mention @admin: ${target} is a DM, and roles exist only in group channels, so only @all is available here. To send @admin as plain text, wrap it in backticks: \`@admin\`.\n`
+      );
+      expect(context.calls.sendPost).toEqual([]);
+      expectNoRoleLookup(context);
+    }
+  });
+
+  it('posts reply to a DM refuses a named role', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(
+      ['reply', '~sampel-palnet', '170.141', 'hi @admin'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain('~sampel-palnet is a DM');
+    expect(context.calls.sendReply).toEqual([]);
+    expectNoRoleLookup(context);
+  });
+
+  it('refuses role mentions in an unjoined channel', async () => {
+    const context = makeDeps({ channelStates: [{ joined: false }] });
+    const exitCode = await run(['send', CHANNEL, 'hi @admin'], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(
+      'Error: Cannot check role mentions: chat/~host/channel is not a channel this ship has joined; join it first.\n'
+    );
+    expect(context.calls.getGroupRoleIds).toEqual([]);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('reports channel-state and role-read failures', async () => {
+    const stateFails = makeDeps({ channelStates: [new Error('scry 500')] });
+    expect(await run(['send', CHANNEL, 'hi @admin'], stateFails.deps)).toBe(1);
+    expect(stateFails.stderr()).toBe(
+      'Error: Could not read channel state for chat/~host/channel: scry 500\n'
+    );
+
+    const rolesFail = makeDeps({ groupRoleIds: new Error('scry 404') });
+    expect(await run(['send', CHANNEL, 'hi @admin'], rolesFail.deps)).toBe(1);
+    expect(rolesFail.stderr()).toBe(
+      'Error: Could not read roles for group ~host/group to check role mentions: scry 404\n'
+    );
+    expect(rolesFail.calls.sendPost).toEqual([]);
+  });
+
+  it('reply sends a role mention', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(
+      ['reply', CHANNEL, '170.141', 'cc @moderators'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendReply[0].content).toEqual([
+      { inline: ['cc ', { sect: 'moderators' }] },
+    ]);
+  });
+
+  describe('edits', () => {
+    const lookupSucceeds = async (): Promise<PostLookupResult> => ({
+      posts: [{ id: '170.141.184', sentAt: 1111, isBot: false }],
+    });
+
+    it('edit parses role mentions like send', async () => {
+      const context = makeDeps({
+        groupRoleIds: ROLES,
+        getChannelPosts: lookupSucceeds,
+      });
+      const exitCode = await run(
+        ['edit', CHANNEL, '170.141.184', 'now @admin'],
+        context.deps
+      );
+
+      expect(exitCode).toBe(0);
+      expect(context.calls.editPost[0].content).toEqual([
+        { inline: ['now ', { sect: 'admin' }] },
+      ]);
+    });
+
+    it('edit refuses an unknown role', async () => {
+      const context = makeDeps({
+        groupRoleIds: ROLES,
+        getChannelPosts: lookupSucceeds,
+      });
+      const exitCode = await run(
+        ['edit', CHANNEL, '170.141.184', 'now @mods'],
+        context.deps
+      );
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toContain('Unknown role mention @mods');
+      expect(context.calls.editPost).toEqual([]);
+    });
+
+    it('edit refuses a role the group has since deleted', async () => {
+      // The post was sent while `@oldrole` existed; the edit re-validates.
+      const context = makeDeps({
+        groupRoleIds: ['admin'],
+        getChannelPosts: lookupSucceeds,
+      });
+      const exitCode = await run(
+        ['edit', CHANNEL, '170.141.184', 'hi @oldrole'],
+        context.deps
+      );
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toContain('Unknown role mention @oldrole');
+      expect(context.calls.editPost).toEqual([]);
+    });
+
+    const P = '170.141.184.500';
+    const R = '170.141.184.501';
+    const original: ExistingReply = {
+      id: R,
+      authorId: '~zod',
+      sentAt: 4242,
+      contentKey: contentKeyOf([{ inline: ['old'] }]),
+    };
+    const thread = (reply: ExistingReply): ExistingThread => ({
+      id: P,
+      authorId: '~host',
+      replies: [reply],
+    });
+
+    it('edit --parent refuses an unknown or since-deleted role', async () => {
+      for (const message of ['now @mods', 'still @oldrole']) {
+        const context = makeDeps({
+          groupRoleIds: ROLES,
+          threads: [thread(original)],
+        });
+        const exitCode = await run(
+          ['edit', CHANNEL, R, message, '--parent', P],
+          context.deps
+        );
+
+        expect(exitCode).toBe(1);
+        expect(context.stderr()).toContain('Unknown role mention @');
+        expect(context.calls.editPost).toEqual([]);
+      }
+    });
+
+    it('edit --parent with a role mention confirms the read-back', async () => {
+      const content = [{ inline: ['now ', { sect: 'admin' }] }];
+      const context = makeDeps({
+        groupRoleIds: ROLES,
+        threads: [
+          thread(original),
+          thread({ ...original, contentKey: contentKeyOf(content) }),
+        ],
+      });
+
+      const exitCode = await run(
+        ['edit', CHANNEL, R, 'now @admin', '--parent', P],
+        context.deps
+      );
+
+      expect(exitCode).toBe(0);
+      expect(context.stdout()).toBe('✓ Reply edited\n');
+      expect(context.calls.editPost[0].content).toEqual(content);
+    });
   });
 });

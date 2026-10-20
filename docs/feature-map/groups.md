@@ -94,7 +94,7 @@ Notes: in a group with several channels, the name at the top of an open channel 
 <!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/chatDetails.tsx -->
 <!-- covers: route:GroupSettings -->
 
-Phone: every member sees, from the top: the group's icon and name with a line like "Secret group with 4 members"; a row of buttons (`Invite` if you're allowed to invite, `Mark read` when something is unread, `Pin` or `Unpin`, `Forward reference`, `Copy group ID`); the `Description` if one is set; the connection to the group's host; `Notifications`; the first five members; and `Leave group`.
+Phone: every member sees, from the top: the group's icon and name with a line like "Secret group with 4 members"; a row of buttons (`Invite` if you're allowed to invite, `Mark read` when something is unread, `Pin` or `Unpin`, `Forward reference`, `Copy group ID`); the `Description` if one is set; the connection to the group's host; `Notifications`; `Scheduled tasks` with a count, when your bot has tasks posting to the group or could post there; the first five members; and `Leave group`.
 Who: admins also get `Rename` at the top right, the rows `Privacy`, `Roles` and `Channels`, and `Manage members` under the member list. The group's host gets `Delete group` in place of `Leave group`.
 Notes: `Privacy`, `Roles` and `Channels` each show their current value or count and open their own screen.
 
@@ -117,7 +117,7 @@ Notes: people in that chat can tap the reference to open the group's preview. Th
 
 Phone: open `Group info & settings` and tap `Rename` at the top right. On `Edit group info`, change the `Name`, tap `Change icon image` to choose a picture, or edit the `Description`. Tap `Save`.
 Who: admins, while the group's host can be reached.
-Notes: `Rename` is the usual way in, and it covers the icon and description too. In a new group chat with no messages yet, an admin also sees `Edit group`, which opens the same screen. The name can be up to 30 characters and the description up to 300. To remove an icon, tap the icon button and choose `Clear`. If the button says `Storage not configured`, image uploads aren't set up yet. Groups have no cover image setting.
+Notes: `Rename` is the usual way in, and it covers the icon and description too. In a new group with a single channel and no messages yet, an admin also sees `Edit group`, which opens the same screen. In a group with more channels that button reads `Edit channel` and edits the channel instead. The name can be up to 30 characters and the description up to 300. To remove an icon, tap the icon button and choose `Clear`. If the button says `Storage not configured`, image uploads aren't set up yet. Groups have no cover image setting.
 
 ## Change a group's privacy
 <!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/GroupPrivacyScreen.tsx, packages/shared/src/store/groupActions.ts -->

@@ -155,13 +155,6 @@ export function useBotSettingsQueries() {
       getLLMAuthStatusRefetchInterval(query.state.data),
   });
 
-  const oauthProvidersQuery = useQuery({
-    queryKey: mcpProviderQueryKeys.providers,
-    queryFn: () => api.getTlawnOAuthProviders(),
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  });
-
   return {
     ship,
     hostingUserId,
@@ -176,7 +169,6 @@ export function useBotSettingsQueries() {
     moon,
     moonChannelsQuery,
     oauthStatusQuery,
-    oauthProvidersQuery,
     llmAuthStatusQuery,
   };
 }
