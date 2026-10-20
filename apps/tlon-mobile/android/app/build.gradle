@@ -206,7 +206,7 @@ android {
             manifestPlaceholders["crashlyticsAutoCollectionEnabled"] = "true"
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
             firebaseCrashlytics {
                 // Symbolize native crash frames inside third-party .so files. With
