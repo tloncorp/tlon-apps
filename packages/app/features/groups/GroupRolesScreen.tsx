@@ -51,7 +51,12 @@ export function GroupRolesScreen({ navigation, route }: Props) {
             key: 'members',
             title: 'Members',
             subtitle: 'All workspace members',
-            value: String(groupMembers.length),
+            // Counts who has joined, as the info screen does; people only
+            // invited so far aren't members yet.
+            value: String(
+              groupMembers.filter((member) => member.status !== 'invited')
+                .length
+            ),
             onPress: () =>
               navigation.navigate('GroupMembers', { groupId, fromChatDetails }),
             testID: 'GroupRole-Members',

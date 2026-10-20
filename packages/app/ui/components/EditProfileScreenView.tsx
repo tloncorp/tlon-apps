@@ -484,6 +484,7 @@ function attestationRow(
 
 const dotSize = 24;
 const dotFrame = dotSize + 6;
+const dotGap = 2;
 
 /**
  * The default avatar's color, as a row of dots under the avatar. It only shows
@@ -505,9 +506,10 @@ function AvatarColorDots({
           ? 'Avatar color, shown when you have no photo'
           : 'Avatar color'}
       </Text>
+      {/* Close enough for all ten to fit one line on a 360-point phone. */}
       <XStack
         justifyContent="center"
-        gap={6}
+        gap={dotGap}
         flexWrap="wrap"
         opacity={hasPhoto ? 0.4 : 1}
       >

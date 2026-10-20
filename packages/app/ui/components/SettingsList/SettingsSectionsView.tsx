@@ -89,7 +89,14 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
       testID={row.toggle || row.picker ? undefined : unwrappedTestID}
     >
       <SettingsRowLeading row={row} />
-      <ListItem.MainContent>
+      {/* Grows past the usual row height, so a wrapped title keeps its
+          last lines and the More under it. */}
+      <ListItem.MainContent
+        height="auto"
+        minHeight="$4xl"
+        justifyContent="center"
+        gap="$xs"
+      >
         <ListItem.Title
           // Wraps like the native lists, unless a value shares the row.
           numberOfLines={row.expanded ? undefined : row.value ? 1 : 3}
@@ -104,7 +111,9 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
           {row.title}
         </ListItem.Title>
         {row.subtitle ? (
-          <ListItem.Subtitle>{row.subtitle}</ListItem.Subtitle>
+          <ListItem.Subtitle numberOfLines={2}>
+            {row.subtitle}
+          </ListItem.Subtitle>
         ) : null}
         {row.expanded === false ? (
           <ListItem.Subtitle color="$positiveActionText">

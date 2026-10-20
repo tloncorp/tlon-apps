@@ -100,6 +100,9 @@ export function ChannelItem({
   );
 }
 
+/** What the default section is called; its stored title is "Sectionless". */
+export const defaultSectionTitle = 'No section';
+
 export function SectionHeader({
   section,
   index,
@@ -127,7 +130,7 @@ export function SectionHeader({
       testID={`NavSection-${section.title}`}
     >
       <Text paddingLeft="$l" fontSize="$s" color="$secondaryText">
-        {section.title}
+        {isDefault ? defaultSectionTitle : section.title}
       </Text>
       <XStack gap="$s" alignItems="center">
         {!isDefault && !isEditMode && (

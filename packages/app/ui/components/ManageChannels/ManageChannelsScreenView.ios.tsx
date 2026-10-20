@@ -15,6 +15,7 @@ import {
 import {
   ManageChannelsScreenViewProps,
   ManageChannelsSheets,
+  defaultSectionTitle,
   useManageChannelsState,
 } from './ManageChannelsShared';
 
@@ -156,7 +157,7 @@ export function ManageChannelsScreenView({
         // The default bucket only needs naming beside real sections.
         title: isDefault
           ? groupNavSectionsWithChannels.length > 1
-            ? 'No section'
+            ? defaultSectionTitle
             : undefined
           : (navSection.title ?? undefined),
         titleMenu,

@@ -119,7 +119,7 @@ appId: io.tlon.groups
 - assertVisible: 'Manage channels'
 - assertVisible:
     text: 'General'
-    below: 'Sectionless'
+    below: 'No section'
 - tapOn: 'New Channel'
 - waitForAnimationToEnd:
     timeout: 5000

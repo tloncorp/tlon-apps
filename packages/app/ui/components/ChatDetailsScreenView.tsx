@@ -33,6 +33,7 @@ import {
   type SettingsSectionModel,
   SettingsListScreenView,
   contactSettingsRow,
+  useSettingsListSurfaces,
 } from './SettingsList';
 import { ProfileButton } from './UserProfileScreenView';
 
@@ -562,8 +563,9 @@ export function ChatDetailsScreenView({
 
   return (
     <SettingsListScreenView
-      // The name leads the screen itself on a phone, so the bar stays clear.
-      title={Platform.OS === 'web' ? screenTitle : ''}
+      // The name leads the screen itself on a phone, or a phone-sized window,
+      // so the bar stays clear.
+      title={Platform.OS === 'web' && !isWindowNarrow ? screenTitle : ''}
       scrolledTitle={{ title, offset: chatHeroNameHeight }}
       headerTestID="ChatDetailsHeader"
       sections={sections}
@@ -630,6 +632,11 @@ function ChatDetailsHero({
   testIDPrefix: string;
 }) {
   const titleSize = title.length > longTitleLength ? 'compact' : 'full';
+  // The actions are drawn like the list's cards: in the card color, which
+  // stands off the page on native, and outlined on the web, where cards
+  // share the page's color.
+  const { card } = useSettingsListSurfaces();
+  const pillBorder = Platform.OS === 'web' ? '$border' : card;
   return (
     <YStack paddingTop="$l">
       <XStack
@@ -673,6 +680,8 @@ function ChatDetailsHero({
               title={action.title}
               onPress={action.onPress}
               testID={`${testIDPrefix}-${action.id ?? action.title}`}
+              backgroundColor={card}
+              borderColor={pillBorder}
             />
           ))}
         </ScrollView>

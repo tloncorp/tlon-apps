@@ -32,8 +32,16 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     return group?.members ?? [];
   }, [group?.members]);
 
+  // The ship sends roles in no fixed order, so they're sorted for every
+  // list to show them alike: admin first, then by title.
   const groupRoles = useMemo(() => {
-    return group?.roles ?? [];
+    return [...(group?.roles ?? [])].sort(
+      (a, b) =>
+        Number(b.id === 'admin') - Number(a.id === 'admin') ||
+        (a.title ?? '').localeCompare(b.title ?? '', undefined, {
+          sensitivity: 'base',
+        })
+    );
   }, [group?.roles]);
 
   const groupChannels = useMemo(() => {
