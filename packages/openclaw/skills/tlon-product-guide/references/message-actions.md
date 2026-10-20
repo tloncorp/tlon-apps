@@ -69,6 +69,17 @@ Phone: press and hold the message and tap `Copy link to message`. On a Gallery o
 Desktop: hover the message, open its three-dot menu and pick the same item.
 Notes: what gets copied is an in-app reference, not a web address, so it will not open in a browser. Paste it into a message box in Tlon Messenger and it turns into an embedded preview of the original that people can tap to jump to it. Messages in DMs and group DMs have no link to copy.
 
+## Copy only part of a message
+
+Phone: press and hold the message and tap `Select text`. Drag the handles over the part you want and copy it. `Copy all text` at the bottom of that sheet takes the lot.
+Notes: `Select text` is on the phone only, and only for messages that contain text in group chats, DMs and group DMs.
+
+## Copy the link to a photo or file in a message
+
+Phone: press and hold the message and tap `Copy link to file`. If the message holds more than one, it reads `Copy links to files` and copies them one per line.
+Desktop: hover the message, open its three-dot menu and pick the same item.
+Notes: this copies the web address where the uploaded image, video, voice memo or file is stored. It only appears on messages that have one, in group chats, DMs, group DMs and Galleries. It works without a connection.
+
 ## Edit a message
 
 Phone: press and hold your own message and tap `Edit message`. Its text loads into the message box; change it, then tap the check mark to save or the X to cancel.

@@ -5583,6 +5583,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ),
           poke: api.poke.bind(api),
           requestJson: api.requestJson.bind(api),
+          scry: api.scry.bind(api),
           logger: {
             log: (message) => runtime.log?.(message),
             warn: (message) => runtime.error?.(message),

@@ -3,9 +3,10 @@
 /-  s=steward, pr=steward-prompts, au=steward-automation, l=steward-lens, g=steward-gateway
 /+  *test-agent, pj=steward-prompts-json
 /=  agent  /app/steward
+/=  names-mark  /mar/steward/prompts/names-1
 |%
-+$  state-5
-  $:  %5
++$  state-6
+  $:  %6
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:l
@@ -55,10 +56,10 @@
   ;<  ~  bind:m  (trust peer)
   (pure:m ~)
 ++  got-state
-  =/  m  (mare ,state-5)
+  =/  m  (mare ,state-6)
   ^-  form:m
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  (pure:m !<(state-5 !<(vase q.res)))
+  (pure:m !<(state-6 !<(vase q.res)))
 ++  rid  ^-  request-id:v1:pr  `@uv`0x1234.5678
 ++  edit-set  ^-  edit:v1:pr  [%set 'SOUL.md' 'new text']
 ++  updated  ^-  outcome:v1:pr  [%updated 'SOUL.md']
@@ -96,7 +97,7 @@
 ++  do-cleanup-wake
   =/  m  (mare ,(list card))
   ^-  form:m
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (do-arvo /prompts/cleanup/(scot %da sweep.prompts.st) [%behn %wake ~])
 ++  response-fact
   |=  body=response-body:v1:pr
@@ -150,7 +151,7 @@
   |=  bot=ship
   =/  m  (mare ,(list card))
   ^-  form:m
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   =/  wake=@da  wake:(~(got by rewatch.prompts.st) bot)
   (do-arvo /prompts/rewatch/(scot %p bot)/(scot %da wake) [%behn %wake ~])
 ++  do-bot-sign
@@ -164,17 +165,17 @@
 ++  got-request
   =/  m  (mare ,incoming-request:v1:pr)
   ^-  form:m
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (pure:m (~(got by requests.prompts.st) rid))
 ++  got-requests
   =/  m  (mare ,requests:v1:pr)
   ^-  form:m
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (pure:m requests.prompts.st)
 ++  got-pending
   =/  m  (mare ,pending:v1:pr)
   ^-  form:m
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (pure:m pending.prompts.st)
 ++  advance-clock
   |=  by=@dr
@@ -469,7 +470,7 @@
           !>(`update:v1:pr`[%files (my ~[[~dev files]])])
       ==
     (ex-http 'eyre-1' 200 'application/json' '{"projected":true}')
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(get by files.prompts.st) ~dev)) !>(`files))
 ::
 ::  an invalid projection is a 400, not the poke's crash, and stores nothing
@@ -481,7 +482,7 @@
   ;<  ~  bind:m  setup
   ;<  caz=(list card)  bind:m
     %+  do-http  'eyre-1'
-    (http-request & %'POST' project-url `(project-post-body (my ~[['MEMORY.md' 'x']])))
+    (http-request & %'POST' project-url `(project-post-body (my ~[['NOTES.md' 'x']])))
   ;<  ~  bind:m
     %+  ex-cards  caz
     (ex-http 'eyre-1' 400 'text/plain' 'unsupported file or oversized text')
@@ -493,7 +494,7 @@
     (do-http 'eyre-3' (http-request & %'GET' project-url ~))
   ;<  ~  bind:m
     (ex-cards caz (ex-http 'eyre-3' 405 'text/plain' 'method not allowed'))
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>(files.prompts.st) !>(*(map ship prompts:v1:pr)))
 ::
 ::  a cross-site form can send only text/plain, urlencoded or multipart, so
@@ -847,7 +848,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  *  bind:m  (project *prompts:v1:pr)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(get by files.prompts.st) ~dev)) !>(`*prompts:v1:pr))
 ::
 ++  test-project-replaces-and-unchanged-is-silent
@@ -861,7 +862,7 @@
   ;<  caz=(list card)  bind:m  (project *prompts:v1:pr)
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-fact ~[/v1/prompts/files] %steward-prompts-update-1 !>(`update:v1:pr`[%del ~dev 'SOUL.md']))])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(get by files.prompts.st) ~dev)) !>(`*prompts:v1:pr))
 ::
 ++  test-project-is-local-only
@@ -881,6 +882,57 @@
   %-  ex-fail
   (project (my ~[['../secret' 'text']]))
 ::
+::  MEMORY.md, which Tlon seeds and the bot grows, is allowlisted beside the
+::  six files whose contents are Tlon's: a projection may carry it by poke
+::  or by route
+::
+++  with-memory
+  ^-  prompts:v1:pr
+  (my ~[['SOUL.md' 'original'] ['MEMORY.md' 'learned']])
+++  test-project-accepts-memory
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (project with-memory)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-update [%files (my ~[[~dev with-memory]])])])
+  =/  more  (~(put by with-memory) 'MEMORY.md' 'more')
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-1'
+    (http-request & %'POST' project-url `(project-post-body more))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    %+  weld  ~[(ex-update [%set ~dev 'MEMORY.md' 'more'])]
+    (ex-http 'eyre-1' 200 'application/json' '{"projected":true}')
+  ;<  st=state-6  bind:m  got-state
+  (ex-equal !>((~(get by files.prompts.st) ~dev)) !>(`more))
+::
+::  the names scry is how a harness learns what this desk accepts before
+::  it projects: a name off the list would fail the whole projection
+::
+++  test-names-scry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts/names)
+  ;<  ~  bind:m  (ex-equal !>(p.res) !>(%steward-prompts-names-1))
+  ;<  ~  bind:m
+    %+  ex-equal  q.res
+    !>  ^-  (set @t)
+    %-  silt
+    ^-  (list @t)
+    :~  'AGENTS.md'  'SOUL.md'  'TOOLS.md'  'IDENTITY.md'  'USER.md'
+        'BOOTSTRAP.md'  'MEMORY.md'
+    ==
+  ::  the JSON a harness reads: an array of the names, in text order
+  ::
+  %+  ex-equal
+    !>  %-  en:json:html
+    json:grow:~(. names-mark (silt ~['SOUL.md' 'AGENTS.md']))
+  !>('["AGENTS.md","SOUL.md"]')
+::
 ++  test-edit-and-finalize-leave-projection-untouched
   %-  eval-mare
   =/  m  (mare ,~)
@@ -891,7 +943,7 @@
   ;<  *  bind:m  (do-watch harness-path)
   ;<  *  bind:m  ((do-as peer) (do-command edit-set))
   ;<  *  bind:m  (do-finalize updated)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(got by files.prompts.st) ~dev)) !>(files))
 ::
 ++  test-mirror-applies-only-wire-ship
@@ -903,7 +955,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot peer]))
   ;<  *  bind:m  (bot-update [%files (my ~[[peer files] [~zod files]])])
   ;<  *  bind:m  (bot-update [%set ~zod 'SOUL.md' 'forged'])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>(files.prompts.st) !>((my ~[[peer files]])))
 ::
 ++  test-untrust-removes-mirror-and-ignores-late-fact
@@ -924,7 +976,7 @@
       [%fact %steward-prompts-update-1 !>(`update:v1:pr`[%files (my ~[[peer files]])])]
     ==
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>(files.prompts.st) !>(*(map ship prompts:v1:pr)))
 ::
 ++  files-path  ^-  path  /v1/prompts/files
@@ -1016,7 +1068,7 @@
   ;<  ~  bind:m  (ex-cards caz ~[(ex-update [%del peer 'USER.md'])])
   ;<  caz=(list card)  bind:m  (bot-update [%files ~])
   ;<  ~  bind:m  (ex-cards caz ~[(ex-update [%gone peer])])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>(files.prompts.st) !>(*(map ship prompts:v1:pr)))
 ::
 ::  a %gone from the bot passes through like the other deltas
@@ -1037,7 +1089,7 @@
   ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (bot-update [%files (my ~[[peer files]])])
   ;<  caz=(list card)  bind:m  (untrust peer)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   ;<  ~  bind:m
     (ex-equal !>((~(has by files.prompts.st) peer)) !>(|))
   %+  ex-cards  caz
@@ -1080,8 +1132,26 @@
   ;<  *  bind:m  (bot-update [%files (my ~[[peer files]])])
   ;<  caz=(list card)  bind:m  (bot-update [%set peer '../secret' 'x'])
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>(files.prompts.st) !>((my ~[[peer files]])))
+::
+::  a mirrored snapshot or delta carrying MEMORY.md is accepted and
+::  republished like any other
+::
+++  test-mirror-accepts-memory
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  caz=(list card)  bind:m
+    (bot-update [%files (my ~[[peer with-memory]])])
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-update [%files (my ~[[peer with-memory]])])])
+  ;<  caz=(list card)  bind:m  (bot-update [%set peer 'MEMORY.md' 'more'])
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-update [%set peer 'MEMORY.md' 'more'])])
+  ;<  st=state-6  bind:m  got-state
+  %+  ex-equal  !>((~(get by files.prompts.st) peer))
+  !>(`(~(put by with-memory) 'MEMORY.md' 'more'))
 ::
 ++  test-finalized-command-does-not-replay
   %-  eval-mare
@@ -1157,7 +1227,7 @@
   =/  old
     [%1 `peer (sy ~[~zod]) *state:v1:l +:*state:v1:g]
   ;<  *  bind:m  (do-load agent `!>(old))
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`peer))
   ;<  ~  bind:m  (ex-equal !>(bots.st) !>((sy ~[~zod])))
   ::  the slice arrives empty; only its sweep is armed
@@ -1170,10 +1240,10 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  *  bind:m  (project files)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   ;<  caz=(list card)  bind:m  (do-load agent `!>(st))
   ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])
-  ;<  after=state-5  bind:m  got-state
+  ;<  after=state-6  bind:m  got-state
   (ex-equal !>(st) !>(after))
 ::
 ++  test-finalize-rejects-pending
@@ -1283,7 +1353,7 @@
   ;<  caz=(list card)  bind:m
     (do-bot-sign peer [%watch-ack `~[leaf+"denied"]])
   ;<  ~  bind:m  (ex-cards caz ~[(ex-rewatch-timer peer (add ~2024.1.1 ~m1))])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>((~(get by files.prompts.st) peer)) !>(`files))
 ::
 ::  the upgrade race: the owner reached the prompts module first, so the
@@ -1310,7 +1380,7 @@
   ;<  caz=(list card)  bind:m  (do-rewatch-wake peer)
   ;<  ~  bind:m  (ex-cards caz ~[(ex-files-watch peer)])
   ;<  *  bind:m  (do-bot-sign peer [%watch-ack ~])
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>(rewatch.prompts.st) !>(*(map ship [attempt=@ud wake=@da])))
 ::
 ::  an untrusted bot is never retried, and a retry that fires after an
@@ -1327,7 +1397,7 @@
   ;<  ~  bind:m  (advance-clock ~m1)
   ;<  caz=(list card)  bind:m  (do-rewatch-wake-at peer (add ~2024.1.1 ~m1))
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>(rewatch.prompts.st) !>(*(map ship [attempt=@ud wake=@da])))
 ::
 ::  a %trust-bot re-poke during the backoff watches again, and that
@@ -1473,6 +1543,34 @@
   ;<  caz=(list card)  bind:m  (do-load agent ~)
   (ex-cards caz ~[ex-eyre-connect (ex-files-watch peer)])
 ::
+::  a %5 ship accepted no MEMORY.md: as a bot its harness projected
+::  without it and only projects again when its watch goes live, and as an
+::  owner it dropped every mirror snapshot that carried it. so the upgrade
+::  into %6 kicks the harness feed and leaves and re-watches each live
+::  mirror for a fresh snapshot. a nacked mirror has no wire, and is left
+::  to its retry. the state itself only changes tag
+::
+++  test-migrate-state-5-refreshes-harness-and-mirrors
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  st=state-6  bind:m  got-state
+  ;<  caz=(list card)  bind:m  (do-load agent `!>([%5 +.st]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-card %give %kick ~[harness-path] ~)
+        (ex-task /prompts/files/(scot %p peer) [peer %steward] %leave ~)
+        (ex-files-watch peer)
+        ex-eyre-connect
+    ==
+  ;<  after=state-6  bind:m  got-state
+  ;<  ~  bind:m  (ex-equal !>(after) !>(st))
+  ;<  *  bind:m  (do-bot-sign peer [%watch-ack `~[leaf+"denied"]])
+  ;<  st=state-6  bind:m  got-state
+  ;<  caz=(list card)  bind:m  (do-load agent `!>([%5 +.st]))
+  (ex-cards caz ~[(ex-card %give %kick ~[harness-path] ~) ex-eyre-connect])
+::
 ::  upgrading into %5 must subscribe the bots already trusted: prompt
 ::  watches are otherwise only created by %trust-bot
 ::
@@ -1496,7 +1594,7 @@
         (ex-cleanup-timer ~2024.1.1)
         (ex-files-watch peer)
     ==
-  ;<  st=state-5  bind:m  got-state
+  ;<  st=state-6  bind:m  got-state
   (ex-equal !>(bots.st) !>((sy ~[peer ~dev])))
 ::
 ::  a kick on the per-request watch while the edit is in flight re-watches,
