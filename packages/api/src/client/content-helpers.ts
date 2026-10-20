@@ -632,21 +632,6 @@ function definePostBlobDataEntrySchema<
   });
 }
 
-function safeParseArrayWithFallback<
-  ItemSchema extends z.ZodTypeAny,
-  InputElement,
-  Fallback,
->(
-  itemSchema: ItemSchema,
-  fallback: (failed: InputElement) => Fallback,
-  data: InputElement[]
-): Array<z.infer<ItemSchema> | Fallback> {
-  return data.map((entry) => {
-    const parsed = itemSchema.safeParse(entry);
-    return parsed.success ? parsed.data : fallback(entry);
-  });
-}
-
 const postBlobSizeSchema = z
   .number()
   .finite()
@@ -710,6 +695,17 @@ export const PostBlobDataEntryVideoSchema = definePostBlobDataEntrySchema(
 
 export type PostBlobDataEntryVideo = z.infer<
   typeof PostBlobDataEntryVideoSchema
+>;
+
+/** Optional namespaced context. Consumers validate only payloads they understand. */
+export const PostBlobDataEntryMetadataSchema = definePostBlobDataEntrySchema(
+  'metadata',
+  1,
+  { data: z.record(z.unknown()) }
+);
+
+export type PostBlobDataEntryMetadata = z.infer<
+  typeof PostBlobDataEntryMetadataSchema
 >;
 
 export const PostBlobDataEntryContextLensSchema = definePostBlobDataEntrySchema(
@@ -826,6 +822,7 @@ const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
+  PostBlobDataEntryMetadataSchema,
   PostBlobDataEntryContextLensSchema,
   PostBlobDataEntryAgentIntroRequestSchema,
   PostBlobDataEntryAgentProvisionSchema,
@@ -974,17 +971,27 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
     return [{ type: 'unknown' }];
   }
 
-  return safeParseArrayWithFallback(
-    PostBlobDataEntrySchema,
-    (entry) => {
-      // Unknown types and versions are expected when clients support different schemas.
-      logger.warn('Failed to parse PostBlobDataEntry', {
-        entry: redactPostBlobForLogging(entry),
-      });
-      return { type: 'unknown' } as const;
-    },
-    arr
-  );
+  return arr.flatMap((entry): ClientPostBlobData => {
+    const parsed = PostBlobDataEntrySchema.safeParse(entry);
+    if (parsed.success) {
+      return [parsed.data];
+    }
+    // Metadata is optional context, never missing display content. This also
+    // applies to malformed entries and container versions we do not understand.
+    if (
+      entry !== null &&
+      typeof entry === 'object' &&
+      'type' in entry &&
+      entry.type === 'metadata'
+    ) {
+      return [];
+    }
+    // Unknown content still needs the renderer's upgrade notice.
+    logger.warn('Failed to parse PostBlobDataEntry', {
+      entry: redactPostBlobForLogging(entry),
+    });
+    return [{ type: 'unknown' }];
+  });
 }
 
 /** Find the first validated entry of a given type in a post blob. */

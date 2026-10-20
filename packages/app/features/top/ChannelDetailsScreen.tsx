@@ -53,7 +53,7 @@ export function ChannelDetailsScreenView({
   const canInvite =
     (currentUserIsAdmin && actionsEnabled) || group?.privacy === 'public';
 
-  const groupTitle = useGroupTitle(group) ?? 'group';
+  const groupTitle = useGroupTitle(group) ?? 'workspace';
   const title = useChatTitle(channel, group);
   const insets = useSafeAreaInsets();
 

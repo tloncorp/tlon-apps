@@ -104,7 +104,7 @@ export const ChatList = React.memo(function ChatListComponent({
   // The testIDs below fall back with `||`, not `??`: a quick group is created
   // with an empty-string title (see `createDefaultGroup`), which `??` would
   // keep, collapsing the testID to `ChatListItem--unpinned` while the row still
-  // renders as 'Untitled group'. Keep the group fallback in step with the
+  // renders as 'Untitled workspace'. Keep the group fallback in step with the
   // rendered title and with `GroupListItem`.
   const renderChat = useCallback(
     (item: db.Chat) => {
@@ -125,7 +125,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             hoverStyle={listItemHoverStyle}
-            testID={`ChatListItem-${item.group.title || 'Untitled group'}-${item.pin ? 'pinned' : 'unpinned'}`}
+            testID={`ChatListItem-${item.group.title || 'Untitled workspace'}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
       } else {

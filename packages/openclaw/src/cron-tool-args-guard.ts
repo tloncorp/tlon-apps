@@ -23,10 +23,13 @@ export interface ForbiddenCronArg {
 const GUARDED_CRON_ACTIONS = new Set(['add', 'update']);
 const GUARD_DISABLED_VALUES = new Set(['0', 'false', 'off']);
 const MAX_DEPTH = 16;
-const CRON_TOOL_NAMES = new Set(['cron', 'automations']);
-
 // OpenClaw 2026.9.x advertises the scheduler tool as `automations`; `cron` is
 // the legacy name it still accepts on inbound calls (and the only name on 2026.7.1).
+export const CRON_TOOL_NAMES: ReadonlySet<string> = new Set([
+  'cron',
+  'automations',
+]);
+
 export function isCronToolName(toolName: string): boolean {
   return CRON_TOOL_NAMES.has(toolName);
 }

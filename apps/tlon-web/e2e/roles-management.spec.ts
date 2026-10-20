@@ -12,8 +12,8 @@ test('should prevent Admin role from being edited', async ({ zodPage }) => {
   await helpers.createGroup(page);
 
   // Handle welcome message if present
-  if (await page.getByText('Welcome to your group!').isVisible()) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  if (await page.getByText('Welcome to your workspace!').isVisible()) {
+    await expect(page.getByText('Welcome to your workspace!')).toBeVisible();
   }
 
   // Navigate back to Home and verify group creation
@@ -24,9 +24,9 @@ test('should prevent Admin role from being edited', async ({ zodPage }) => {
   }
 
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
-    await page.getByText('Untitled group').first().click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
+    await page.getByText('Untitled workspace').first().click();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   // Open group settings and navigate to Roles
@@ -79,8 +79,8 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await helpers.createGroup(page);
 
   // Handle welcome message if present
-  if (await page.getByText('Welcome to your group!').isVisible()) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  if (await page.getByText('Welcome to your workspace!').isVisible()) {
+    await expect(page.getByText('Welcome to your workspace!')).toBeVisible();
   }
 
   // Navigate back to Home and verify group creation
@@ -91,9 +91,9 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   }
 
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
-    await page.getByText('Untitled group').first().click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
+    await page.getByText('Untitled workspace').first().click();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   // Open group settings and navigate to Roles
@@ -293,8 +293,8 @@ test('should persist role permissions after save and reopen', async ({
   await helpers.createGroup(page);
 
   // Handle welcome message if present
-  if (await page.getByText('Welcome to your group!').isVisible()) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  if (await page.getByText('Welcome to your workspace!').isVisible()) {
+    await expect(page.getByText('Welcome to your workspace!')).toBeVisible();
   }
 
   // Navigate back to Home and verify group creation
@@ -305,9 +305,9 @@ test('should persist role permissions after save and reopen', async ({
   }
 
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
-    await page.getByText('Untitled group').first().click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
+    await page.getByText('Untitled workspace').first().click();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   // Open group settings and create a role

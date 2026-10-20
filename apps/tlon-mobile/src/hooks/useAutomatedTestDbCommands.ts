@@ -1,13 +1,21 @@
+import { groupTemplatesById } from '@tloncorp/api/types/groupTemplates';
 import { AUTOMATED_TEST } from '@tloncorp/app/lib/envVars';
 import {
   REQUIRED_SENTINEL_TABLES,
   ensureDbReady,
 } from '@tloncorp/app/lib/nativeDb';
+import { useRootNavigation } from '@tloncorp/app/navigation/utils';
 import { createDevLogger } from '@tloncorp/shared';
 import { client } from '@tloncorp/shared/db/client';
+import * as store from '@tloncorp/shared/store';
 import { sql } from 'drizzle-orm';
 import { useEffect, useRef } from 'react';
 import { Alert, Linking } from 'react-native';
+
+import {
+  E2eGroupCommandParse,
+  parseE2eGroupCommand,
+} from '../lib/automatedTestGroupCommand';
 
 const logger = createDevLogger('e2eDbCommands', false);
 const E2E_DB_HOST = 'e2e';
@@ -79,8 +87,57 @@ async function e2eAssertTableState(
   }
 }
 
+async function runE2eGroupCommand(
+  url: string,
+  parsed: E2eGroupCommandParse,
+  navigateToGroup: (groupId: string) => Promise<void>
+) {
+  if (!parsed.ok) {
+    logger.error('rejected automated test group command', url, parsed.error);
+    Alert.alert('E2E Group', `FAIL: ${parsed.error}`);
+    return;
+  }
+
+  const { command } = parsed;
+  logger.log('running automated test group command', command);
+  try {
+    const group = await store.createGroupFromTemplate({
+      templateId: command.templateId,
+      title: command.title,
+    });
+    // createGroupFromTemplate tolerates a failed %notes channel and returns a
+    // partial group; a fixture missing a template channel must not PASS.
+    const created = group.channels?.length ?? 0;
+    const expected = groupTemplatesById[command.templateId].channels.length;
+    if (created !== expected) {
+      logger.error(
+        'automated test group command created a partial group',
+        command,
+        { created, expected }
+      );
+      Alert.alert(
+        'E2E Group',
+        `FAIL: created ${created} of ${expected} template channels`
+      );
+      return;
+    }
+    // Land where the create sheet lands, so journeys start from the same
+    // screen whichever way their fixture was made.
+    await navigateToGroup(group.id);
+    logger.log('automated test group command complete', command);
+    Alert.alert('E2E Group', `PASS: created ${command.title}`);
+  } catch (error) {
+    logger.error('automated test group command failed', command, error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    Alert.alert('E2E Group', `FAIL: ${errorMessage}`);
+  }
+}
+
 export function useAutomatedTestDbCommands() {
   const processedUrls = useRef(new Set<string>());
+  const { navigateToGroup } = useRootNavigation();
+  const navigateToGroupRef = useRef(navigateToGroup);
+  navigateToGroupRef.current = navigateToGroup;
 
   useEffect(() => {
     if (!AUTOMATED_TEST) {
@@ -89,6 +146,15 @@ export function useAutomatedTestDbCommands() {
 
     const handleUrl = async (url: string) => {
       if (processedUrls.current.has(url)) {
+        return;
+      }
+
+      const groupCommand = parseE2eGroupCommand(url);
+      if (groupCommand) {
+        processedUrls.current.add(url);
+        await runE2eGroupCommand(url, groupCommand, (groupId) =>
+          navigateToGroupRef.current(groupId)
+        );
         return;
       }
 

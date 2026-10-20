@@ -1,10 +1,12 @@
 import { Picker } from '@react-native-picker/picker';
 import type * as db from '@tloncorp/shared/db';
-import { Button } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
-import { XStack } from 'tamagui';
+import { Button, Icon, Text, desktopTypeStyles } from '@tloncorp/ui';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { Platform, type TextStyle } from 'react-native';
+import { XStack, getConfig, getTokenValue, useTheme } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
+import { InputFrame } from './Form';
 import type { ForwardChannelChat } from './ForwardChannelSelector';
 import { ForwardToChannelSheet } from './ForwardToChannelSheet';
 import { SettingsListScreenView } from './SettingsList';
@@ -23,6 +25,9 @@ import {
 import { useForwardToChannelSheet } from './useForwardToChannelSheet';
 
 export type { IdentifiedAutomationTask } from './scheduledTaskSections';
+
+// On a wide window these screens keep to the column a profile uses.
+const COLUMN_WIDTH = 600;
 
 export function ScheduledTasksScreenView({
   available,
@@ -67,6 +72,7 @@ export function ScheduledTasksScreenView({
       // Reached from a profile as well as from Settings, so a wide window
       // has nothing beside it to go back to.
       showsBackOnWideWindows
+      maxWidth={COLUMN_WIDTH}
       rightActions={[
         {
           id: 'new-scheduled-task',
@@ -117,6 +123,7 @@ export function ScheduledTasksNotice({
       ]}
       onBackPressed={onBack}
       showsBackOnWideWindows
+      maxWidth={COLUMN_WIDTH}
     />
   );
 }
@@ -226,6 +233,7 @@ export function RecurringTaskEditorView({
       })}
       onBackPressed={onBack}
       showsBackOnWideWindows
+      maxWidth={COLUMN_WIDTH}
       rightActions={[
         {
           id: 'save-scheduled-task',
@@ -285,67 +293,184 @@ function TimePickerSheet({
     }
   }, [open, hour, minute, period]);
 
+  const isWeb = Platform.OS === 'web';
+  const done = () => {
+    onChange(selection);
+    onOpenChange(false);
+  };
+  const columns = (
+    <>
+      <TimeColumn
+        label="Hour"
+        value={selection.hour}
+        onValueChange={(next) =>
+          setSelection((current) => ({ ...current, hour: Number(next) }))
+        }
+      >
+        {HOURS.map((option) => (
+          <Picker.Item key={option} label={`${option}`} value={option} />
+        ))}
+      </TimeColumn>
+      {isWeb ? (
+        <Text size="$label/xl" aria-hidden>
+          :
+        </Text>
+      ) : null}
+      <TimeColumn
+        label="Minute"
+        value={selection.minute}
+        onValueChange={(next) =>
+          setSelection((current) => ({ ...current, minute: Number(next) }))
+        }
+      >
+        {MINUTES.map((option) => (
+          <Picker.Item
+            key={option}
+            label={option.toString().padStart(2, '0')}
+            value={option}
+          />
+        ))}
+      </TimeColumn>
+      <TimeColumn
+        label="AM or PM"
+        value={selection.period}
+        onValueChange={(next) =>
+          setSelection((current) => ({
+            ...current,
+            period: next as TimeSelection['period'],
+          }))
+        }
+      >
+        <Picker.Item label="AM" value="AM" />
+        <Picker.Item label="PM" value="PM" />
+      </TimeColumn>
+    </>
+  );
+
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      modal
+      dialogContentProps={isWeb ? { width: 420 } : undefined}
+    >
       <ActionSheet.SimpleHeader title="Time" />
-      <ActionSheet.Content paddingHorizontal="$xl" paddingBottom="$2xl">
-        <XStack height={190} alignItems="center">
-          <Picker
-            accessibilityLabel="Hour"
-            selectedValue={selection.hour}
-            onValueChange={(next) =>
-              setSelection((current) => ({ ...current, hour: Number(next) }))
-            }
-            style={{ flex: 1 }}
-          >
-            {HOURS.map((option) => (
-              <Picker.Item key={option} label={`${option}`} value={option} />
-            ))}
-          </Picker>
-          <Picker
-            accessibilityLabel="Minute"
-            selectedValue={selection.minute}
-            onValueChange={(next) =>
-              setSelection((current) => ({
-                ...current,
-                minute: Number(next),
-              }))
-            }
-            style={{ flex: 1 }}
-          >
-            {MINUTES.map((option) => (
-              <Picker.Item
-                key={option}
-                label={option.toString().padStart(2, '0')}
-                value={option}
+      {isWeb ? (
+        <ActionSheet.Content>
+          <ActionSheet.FormBlock>
+            <XStack alignItems="center" gap="$s">
+              {columns}
+            </XStack>
+          </ActionSheet.FormBlock>
+          <ActionSheet.FormBlock>
+            <XStack alignItems="center" gap="$m" justifyContent="flex-end">
+              <Button
+                label="Cancel"
+                preset="minimal"
+                onPress={() => onOpenChange(false)}
               />
-            ))}
-          </Picker>
-          <Picker
-            accessibilityLabel="AM or PM"
-            selectedValue={selection.period}
-            onValueChange={(next) =>
-              setSelection((current) => ({
-                ...current,
-                period: next as TimeSelection['period'],
-              }))
-            }
-            style={{ flex: 1 }}
-          >
-            <Picker.Item label="AM" value="AM" />
-            <Picker.Item label="PM" value="PM" />
-          </Picker>
-        </XStack>
-        <Button
-          preset="primary"
-          label="Done"
-          centered
-          onPress={() => {
-            onChange(selection);
-            onOpenChange(false);
-          }}
-        />
-      </ActionSheet.Content>
+              <Button label="Done" preset="primary" onPress={done} />
+            </XStack>
+          </ActionSheet.FormBlock>
+        </ActionSheet.Content>
+      ) : (
+        <ActionSheet.Content paddingHorizontal="$xl" paddingBottom="$2xl">
+          <XStack height={190} alignItems="center">
+            {columns}
+          </XStack>
+          <Button preset="primary" label="Done" centered onPress={done} />
+        </ActionSheet.Content>
+      )}
     </ActionSheet>
+  );
+}
+
+type TimeColumnProps = {
+  label: string;
+  value: string | number;
+  onValueChange: (value: string | number) => void;
+  children: ReactNode;
+};
+
+/**
+ * One part of the time. Natively a wheel; on web the picker is a bare
+ * `<select>`, so it is drawn in a text field's frame with its own chevron
+ * rather than left to each browser's styling.
+ */
+function TimeColumn(props: TimeColumnProps) {
+  return Platform.OS === 'web' ? (
+    <WebTimeColumn {...props} />
+  ) : (
+    <Picker
+      accessibilityLabel={props.label}
+      selectedValue={props.value}
+      onValueChange={props.onValueChange}
+      style={{ flex: 1 }}
+    >
+      {props.children}
+    </Picker>
+  );
+}
+
+// Drops the browser's own select arrow and focus ring. React Native's style
+// types do not list these CSS properties; react-native-web passes them on.
+const bareSelectStyle = {
+  appearance: 'none',
+  outlineStyle: 'none',
+} as unknown as TextStyle;
+
+function WebTimeColumn({
+  label,
+  value,
+  onValueChange,
+  children,
+}: TimeColumnProps) {
+  const theme = useTheme();
+  // The frame clips the select's own focus ring, so the frame shows focus.
+  const [focused, setFocused] = useState(false);
+  return (
+    <InputFrame
+      flex={1}
+      position="relative"
+      paddingLeft={0}
+      paddingRight={0}
+      borderColor={focused ? '$positiveActionText' : '$border'}
+    >
+      <Picker
+        accessibilityLabel={label}
+        selectedValue={value}
+        onValueChange={onValueChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={[
+          {
+            flex: 1,
+            alignSelf: 'stretch',
+            borderWidth: 0,
+            // The open list of options takes these too, so it follows the app's
+            // theme rather than the system's.
+            backgroundColor: theme.background.val,
+            color: theme.primaryText.val,
+            fontFamily: String(getConfig().fonts.body?.family),
+            fontSize: desktopTypeStyles['$label/xl'].fontSize,
+            paddingLeft: getTokenValue('$xl', 'space'),
+            // Clears the chevron.
+            paddingRight: 36,
+            cursor: 'pointer',
+          },
+          bareSelectStyle,
+        ]}
+      >
+        {children}
+      </Picker>
+      <Icon
+        type="ChevronDown"
+        size="$s"
+        color="$tertiaryText"
+        position="absolute"
+        right="$l"
+        pointerEvents="none"
+      />
+    </InputFrame>
   );
 }

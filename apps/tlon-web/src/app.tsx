@@ -119,7 +119,11 @@ function checkIfLoggedIn() {
 function getFriendlyName(routeName: string) {
   const friendlyNames: Record<string, string> = {
     ChatList: 'Home',
-    GroupSettings: 'Group Settings',
+    GroupSettings: 'Workspace Settings',
+    GroupChannels: 'Workspace Channels',
+    GroupMeta: 'Workspace Info',
+    GroupMembers: 'Workspace Members',
+    GroupRoles: 'Workspace Roles',
     ChannelSearch: 'Search',
     ChatDetails: 'Chat Details',
     UserProfile: 'Profile',
@@ -235,7 +239,7 @@ function AppRoutes() {
         if (groupData?.title) {
           return `${groupData.title}`;
         }
-        return 'Group Channels';
+        return 'Workspace Channels';
       }
 
       // For channel routes

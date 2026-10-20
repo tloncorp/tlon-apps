@@ -4,11 +4,12 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+import { startAgentGroupNavigationLockFailsafe } from '../../../../hooks/useAgentGroupOnboardingLock';
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
 import { getDefaultBotName } from '../botName';
-import { TlonBotSetupPaneView } from '../TlonBotSetupPaneView';
+import { MeetYourBotPane } from '../MeetYourBot/MeetYourBotPane';
 import { resolveLandingChannelId } from './landingChannel';
 import { PromiseTimeoutError, withTimeout } from './promiseTimeout';
 
@@ -18,10 +19,9 @@ const wait = (ms: number) =>
 const LANDING_CONSUMPTION_TIMEOUT_MS = 10_000;
 const FURNISH_ATTEMPT_TIMEOUT_MS = 30_000;
 const BOT_NAME_SYNC_TIMEOUT_MS = 8_000;
-const HANDOFF_MESSAGES = [
-  'Your Tlonbot is ready. Finishing the chat setup now.',
-  'Opening your private Tlonbot group.',
-];
+// Well inside the lock's 30 second failsafe, so it never lapses while the
+// slides are up.
+const LOCK_KEEPALIVE_MS = 10_000;
 
 async function waitForLandingConsumption(isCancelled: () => boolean) {
   const deadline = Date.now() + LANDING_CONSUMPTION_TIMEOUT_MS;
@@ -124,7 +124,34 @@ export function AgentOnboardingSequence(props: {
   fallback: React.ReactNode;
 }) {
   const [useFallback, setUseFallback] = useState(false);
+  const [ready, setReady] = useState(false);
   const completedRef = useRef(false);
+  // Set once the chat is ready behind the cover; the user's tap on
+  // "Start chatting" runs it to reveal the chat.
+  const revealRef = useRef<(() => void) | null>(null);
+  const keepLockArmedRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopKeepingLockArmed = () => {
+    if (keepLockArmedRef.current) clearInterval(keepLockArmedRef.current);
+    keepLockArmedRef.current = null;
+  };
+  const rearmLock = (groupId: string) =>
+    startAgentGroupNavigationLockFailsafe(groupId).catch((error) =>
+      logger.trackError('Failed to re-arm the navigation lock', {
+        error,
+        groupId,
+      })
+    );
+  // From the moment the chat is built behind the cover until it is revealed,
+  // keep the lock armed so notification and deep-link handlers keep waiting
+  // rather than moving the hidden navigator somewhere else.
+  const keepLockArmed = (groupId: string) => {
+    stopKeepingLockArmed();
+    void rearmLock(groupId);
+    keepLockArmedRef.current = setInterval(
+      () => void rearmLock(groupId),
+      LOCK_KEEPALIVE_MS
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -261,6 +288,7 @@ export function AgentOnboardingSequence(props: {
             throw error;
           }
           landedInAgentChat = true;
+          if (activeGroupId) keepLockArmed(activeGroupId);
           // Keep the cover until the bot is visibly joined and the admin grant
           // request has been accepted. Its read-back verification can continue
           // after the already-mounted conversation becomes visible.
@@ -282,21 +310,32 @@ export function AgentOnboardingSequence(props: {
             });
           });
           completedRef.current = true;
-          logger.trackEvent(AnalyticsEvent.AgentOnboardingChatOpened, {
-            groupId: activeGroupId,
-            channelId: activeChannelId,
-          });
-          props.onCompleted();
-          void store
-            .completeWayfindingSplash({
-              showBotMentionHint: false,
-            })
-            .catch((error) => {
-              logger.trackError(
-                'Failed to persist agent onboarding completion',
-                error
-              );
+          const groupId = activeGroupId;
+          const channelId = activeChannelId;
+          revealRef.current = () => {
+            stopKeepingLockArmed();
+            logger.trackEvent(AnalyticsEvent.AgentOnboardingChatOpened, {
+              groupId,
+              channelId,
             });
+            const reveal = () => {
+              props.onCompleted();
+              void store
+                .completeWayfindingSplash({
+                  showBotMentionHint: false,
+                })
+                .catch((error) => {
+                  logger.trackError(
+                    'Failed to persist agent onboarding completion',
+                    error
+                  );
+                });
+            };
+            // Give the user a full lock window from the moment the chat shows.
+            if (!groupId) return reveal();
+            void rearmLock(groupId).finally(reveal);
+          };
+          if (!cancelled) setReady(true);
           return;
         } catch (error) {
           lastError = error;
@@ -309,6 +348,7 @@ export function AgentOnboardingSequence(props: {
           error: lastError,
           groupId: activeGroupId,
         });
+        stopKeepingLockArmed();
         if (activeGroupId) await clearNavigationLock(activeGroupId);
         if (landedInAgentChat && activeGroupId && activeChannelId) {
           await db.agentOnboardingLanding.setValue({
@@ -325,17 +365,21 @@ export function AgentOnboardingSequence(props: {
 
     return () => {
       cancelled = true;
+      stopKeepingLockArmed();
     };
     // The bridge must run once for this splash mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleStartChatting = useCallback(() => {
+    const reveal = revealRef.current;
+    revealRef.current = null;
+    reveal?.();
+  }, []);
+
   if (useFallback) return <>{props.fallback}</>;
 
   return (
-    <TlonBotSetupPaneView
-      title="Opening your Tlonbot chat..."
-      messages={HANDOFF_MESSAGES}
-    />
+    <MeetYourBotPane ready={ready} onStartChatting={handleStartChatting} />
   );
 }

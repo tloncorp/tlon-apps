@@ -1,11 +1,13 @@
 import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import {
   configurationFromChannel,
+  formatBucketContents,
   formatNotesChannelSubtitle,
   notesNotebookFlagFromChannelId,
 } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import {
+  useBucketCounts,
   useMemberRoles,
   useNotesCountsByNotebook,
   useWarmNotesNotebookSnapshot,
@@ -185,6 +187,22 @@ export function useNotesChannelSubtitle(
   );
 }
 
+// A Bucket has no posts either, so its rows and header summarize the files
+// in it the same way. Null for anything that isn't a Bucket, and for one
+// whose manifest hasn't arrived -- which includes every Bucket this ship
+// can't open, since only the %buckets subscription writes one.
+export function useBucketsChannelSubtitle(
+  channel: db.Channel | null
+): string | null {
+  const { data: counts } = useBucketCounts({
+    channelId: channel?.type === 'buckets' ? channel.id : null,
+  });
+  return useMemo(
+    () => (counts ? formatBucketContents(counts) : null),
+    [counts]
+  );
+}
+
 export function getGroupTitle(
   group: db.Group,
   disableNicknames: boolean
@@ -193,7 +211,7 @@ export function getGroupTitle(
   const havePermission = group.haveInvite || group.joinStatus === 'joining';
 
   if (group?.privacy === 'secret' && nonMember && !havePermission) {
-    return 'Secret Group';
+    return 'Secret Workspace';
   }
 
   if (group?.title && group?.title !== '') {
@@ -207,12 +225,12 @@ export function getGroupTitle(
     );
   } else if (nonMember) {
     if (group?.members?.length === 1) {
-      return `New group by ${getChannelMemberName(group?.members[0], disableNicknames)}`;
+      return `New workspace by ${getChannelMemberName(group?.members[0], disableNicknames)}`;
     } else {
-      return 'New group';
+      return 'New workspace';
     }
   } else {
-    return 'Untitled group';
+    return 'Untitled workspace';
   }
 }
 

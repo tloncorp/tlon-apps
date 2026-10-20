@@ -120,8 +120,8 @@ export const GroupChannelsScreenView = React.memo(
       }
       const memberCount = group ? getGroupMemberCount(group) : 0;
       const privacy = group?.privacy
-        ? `${capitalize(group.privacy)} group`
-        : 'Group';
+        ? `${capitalize(group.privacy)} workspace`
+        : 'Workspace';
 
       if (memberCount > 0) {
         return `${privacy} with ${memberCount} ${pluralize(memberCount, 'member')}`;
@@ -346,12 +346,12 @@ export const GroupChannelsScreenView = React.memo(
             padding="$m"
           >
             <Text color="$primaryText" fontSize="$m" textAlign="center">
-              No channels available in this group yet.
+              No channels available in this workspace yet.
             </Text>
             <Text color="$primaryText" fontSize="$m" textAlign="center">
               {isGroupAdmin
                 ? 'Create a channel to get started.'
-                : 'The group host can create channels or grant you access to existing ones.'}
+                : 'The workspace host can create channels or grant you access to existing ones.'}
             </Text>
           </YStack>
         ) : (

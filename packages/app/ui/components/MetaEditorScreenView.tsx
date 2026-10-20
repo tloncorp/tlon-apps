@@ -45,7 +45,7 @@ export function MetaEditorScreenView({
     enabled: isGroup,
   });
 
-  const label = isGroup ? 'group' : 'channel';
+  const label = isGroup ? 'workspace' : 'channel';
 
   const isPersonalGroup = useMemo(() => {
     if (isGroup) {
