@@ -39,6 +39,13 @@ import {
 } from './agent-task-plan-tool.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
 import {
+  connectableServicesToolMetadata,
+  connectableServicesToolParameters,
+  createConnectableServicesToolExecutor,
+  loadConnectableServices,
+  resolveConnectableServicesUrl,
+} from './connectable-services.js';
+import {
   assertTlonChoiceCallCurrent,
   assertTlonServiceSetupCallCurrent,
   finishTlonChoiceCall,
@@ -241,10 +248,15 @@ export const tlonPlugin = createChatChannelPlugin({
         postChoice: ({ target, fallbackQuestion, blob }) =>
           postSurface(target, fallbackQuestion, blob),
       });
+      const listServices = () => loadConnectableServices();
       const executeServiceSetup = createAgentServiceSetupToolExecutor({
         assertCurrent: assertTlonServiceSetupCallCurrent,
         postSetup: ({ target, fallbackMessage, blob }) =>
           postSurface(target, fallbackMessage, blob),
+        listServices,
+      });
+      const executeConnectableServices = createConnectableServicesToolExecutor({
+        listServices,
       });
       const executeTaskPlan = createAgentTaskPlanToolExecutor({
         getEvidence: getTlonTaskPlanEvidence,
@@ -282,6 +294,16 @@ export const tlonPlugin = createChatChannelPlugin({
           execute: (id, params) =>
             executeServiceSetup(id, params as AgentServiceSetupToolParams),
         },
+        // Only hosted bots have a Connected services screen to answer from.
+        ...(resolveConnectableServicesUrl()
+          ? [
+              {
+                ...connectableServicesToolMetadata,
+                parameters: connectableServicesToolParameters,
+                execute: () => executeConnectableServices(),
+              },
+            ]
+          : []),
       ];
     },
     agentPrompt: {

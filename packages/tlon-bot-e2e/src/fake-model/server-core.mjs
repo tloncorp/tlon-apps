@@ -264,8 +264,11 @@ async function handleChatCompletion(state, req, res) {
     return;
   }
 
-  state.callCounts.set(key, n + 1);
-  const step = steps[n];
+  // A hold delays the response that follows it, within this same request.
+  const holdMs = steps[n].kind === 'hold' ? steps[n].ms : 0;
+  const index = steps[n].kind === 'hold' ? n + 1 : n;
+  state.callCounts.set(key, index + 1);
+  const step = steps[index];
   const scripted =
     step.kind === 'tool_call'
       ? toolCallResponse({ name: step.name, args: step.args })
@@ -273,9 +276,12 @@ async function handleChatCompletion(state, req, res) {
   recordScriptedResponse(callRecord, scripted);
 
   console.log(
-    `[fake-model] POST /v1/chat/completions key="${key}"${streamFlag} -> 200 step ${n + 1}/${steps.length} (${step.kind}) [${provenance}]`
+    `[fake-model] POST /v1/chat/completions key="${key}"${streamFlag} -> 200 step ${index + 1}/${steps.length} (${step.kind}${holdMs ? `, held ${holdMs}ms` : ''}) [${provenance}]`
   );
 
+  if (holdMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, holdMs));
+  }
   respondScripted(res, body, scripted);
 }
 
@@ -379,8 +385,19 @@ function validateScript(key, steps, extra, allowedAuxiliaryCalls) {
       ) {
         return `step ${i}: tool_call step requires object 'args'`;
       }
+    } else if (step.kind === 'hold') {
+      if (
+        typeof step.ms !== 'number' ||
+        !Number.isInteger(step.ms) ||
+        step.ms < 0
+      ) {
+        return `step ${i}: hold step requires a non-negative integer 'ms'`;
+      }
+      if (i === steps.length - 1 || steps[i + 1]?.kind === 'hold') {
+        return `step ${i}: hold step must be followed by a text or tool_call step`;
+      }
     } else {
-      return `step ${i}: unknown kind "${step.kind}" (expected "text" or "tool_call")`;
+      return `step ${i}: unknown kind "${step.kind}" (expected "text", "tool_call" or "hold")`;
     }
   }
   return null;

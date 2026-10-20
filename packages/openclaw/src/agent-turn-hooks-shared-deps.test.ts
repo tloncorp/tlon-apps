@@ -29,6 +29,7 @@ function createApi(registrationMode: string): {
     get(_target, prop) {
       if (prop === 'registrationMode') return registrationMode;
       if (prop === 'config') return {};
+      if (prop === 'runtime') return { config: { current: () => ({}) } };
       if (prop === 'on') {
         return (name: string, handler: Handler) => {
           hooks.set(name, handler);

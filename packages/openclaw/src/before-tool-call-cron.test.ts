@@ -94,6 +94,23 @@ function createRecordingApi(config: Record<string, unknown> = {}): {
       if (prop === 'config') {
         return config;
       }
+      // The live config the hooks read per call (`api.runtime.config`).
+      if (prop === 'runtime') {
+        return new Proxy(
+          {},
+          {
+            get(_runtimeTarget, runtimeProp) {
+              if (runtimeProp === 'config') {
+                return { current: () => config };
+              }
+              if (runtimeProp === 'then' || typeof runtimeProp === 'symbol') {
+                return undefined;
+              }
+              return proxy;
+            },
+          }
+        );
+      }
       if (prop === 'on') {
         return (name: string, handler: unknown) => {
           hooks.set(name, handler);

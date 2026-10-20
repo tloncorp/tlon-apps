@@ -59,6 +59,40 @@ export function workspaceSkillBinaryPath(packageDir: string): string {
   return path.join(packageDir, 'dev', 'tlon-skill-workspace-bin', 'tlon');
 }
 
+const DEFAULT_OPENCLAW_CORE_VERSION = '2026.9.33';
+
+/**
+ * The selected OpenClaw core and whether it is expected to prewarm, for
+ * 08-gateway-status. Mirrors the legacy test/run.sh mapping: known cores imply
+ * the expectation, and any other core must carry an explicit
+ * TEST_EXPECT_OPENCLAW_PREWARM so a missing core marker never silently becomes
+ * a smoke test.
+ */
+export function openClawCoreTestEnv(env: NodeJS.ProcessEnv = process.env): {
+  TEST_OPENCLAW_CORE_VERSION: string;
+  TEST_EXPECT_OPENCLAW_PREWARM: string;
+} {
+  const version = env.OPENCLAW_CORE_VERSION || DEFAULT_OPENCLAW_CORE_VERSION;
+  const known: Record<string, string> = {
+    '2026.5.28': '0',
+    '2026.6.11': '1',
+    '2026.7.1': '1',
+    // 2026.9.x dropped the plugin prewarm log marker; see 08-gateway-status.
+    '2026.9.4': '0',
+    '2026.9.33': '0',
+  };
+  const explicit = env.TEST_EXPECT_OPENCLAW_PREWARM;
+  if (!explicit && !(version in known)) {
+    throw new Error(
+      `TEST_EXPECT_OPENCLAW_PREWARM must be explicit for OpenClaw ${version}`
+    );
+  }
+  return {
+    TEST_OPENCLAW_CORE_VERSION: version,
+    TEST_EXPECT_OPENCLAW_PREWARM: explicit || known[version],
+  };
+}
+
 export const openclawDriver: BotDriver = {
   name: 'openclaw',
 
@@ -264,6 +298,13 @@ export const openclawDriver: BotDriver = {
         TLON_SHIP: seed.endpoints.ships.zod.ship,
         TLON_CODE: seed.endpoints.ships.zod.code,
         TLON_OWNER_SHIP: seed.endpoints.ships.ten.ship,
+        // Commands act as the owner by default; the entrypoint writes the
+        // owner's credential file from these.
+        TLON_OWNER_URL: seed.endpoints.ships.ten.containerUrl,
+        TLON_OWNER_CODE: seed.endpoints.ships.ten.code,
+        // The suite exercises owner-default commands (off by default in
+        // production for staged rollout).
+        TLON_OWNER_DEFAULT: 'true',
         TLON_DM_ALLOWLIST: seed.endpoints.ships.ten.ship,
         FAKE_MODEL_BASE_URL: seed.endpoints.fakeModel.containerOpenAiBaseUrl,
         MODEL: 'custom-proxy/tlon-test-scripted',
@@ -291,6 +332,9 @@ export const openclawDriver: BotDriver = {
         ...(localTlonbot
           ? { TLONBOT_DIR: localTlonbot, TEST_TLONBOT_MOUNTED: '1' }
           : {}),
+        ...(process.env.OPENCLAW_CORE_VERSION
+          ? { OPENCLAW_CORE_VERSION: process.env.OPENCLAW_CORE_VERSION }
+          : {}),
         ...(process.env.FAKE_SHIP_CACHE_DIR
           ? { FAKE_SHIP_CACHE_DIR: process.env.FAKE_SHIP_CACHE_DIR }
           : {}),
@@ -314,6 +358,7 @@ export const openclawDriver: BotDriver = {
         TEST_LIVE_TOOL_TRACE_CONTENTS: liveToolTraceContents ?? '0',
         ...(localTlonbot ? { TEST_TLONBOT_MOUNTED: '1' } : {}),
         ...pickOptionalEnvForPartition(seed, OPTIONAL_TEST_ENV_KEYS),
+        ...openClawCoreTestEnv(),
       },
     };
   },
@@ -391,6 +436,8 @@ export const openclawDriver: BotDriver = {
         },
       };
     },
+
+    botSelfPrefix: '--self ',
 
     readOrAdmin(command, finalText = 'OpenClaw completed the tlon command.') {
       return {

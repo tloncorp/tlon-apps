@@ -49,7 +49,8 @@ function makeApi(registrationMode?: string) {
       debug: vi.fn(),
     },
     config: {},
-    runtime: {},
+    // The live config the owner-default checks read on every call.
+    runtime: { config: { current: () => ({}) } },
   };
   return { api, registered };
 }

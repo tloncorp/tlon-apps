@@ -1,5 +1,6 @@
 import {
   type PostContent,
+  activityAction,
   adjustVolumeSetting,
   getChannelPosts,
   getCurrentUserId,
@@ -8,6 +9,8 @@ import {
   getInitialActivity,
   getTextContent,
   getVolumeSettings,
+  poke,
+  readChannel,
   setActivitySupportsNotes,
   setActivitySupportsReactions,
 } from '@tloncorp/api';
@@ -28,6 +31,7 @@ import type {
   ActivityDeps,
   ActivityEvent,
   ActivityFormatter,
+  MarkReadTarget,
   PokeOutcome,
   RootPost,
   VolumeHelpers,
@@ -178,6 +182,14 @@ function enableCurrentActivityEndpoints(): void {
   setActivitySupportsNotes(true);
 }
 
+// eyre reports a nack as its `err` value, not an Error; anything thrown as an
+// Error (reaped channel, ack timeout, transport) is ambiguous.
+function classifyPokeError(error: unknown): PokeOutcome {
+  return error instanceof Error
+    ? { kind: 'ambiguous', message: error.message }
+    : { kind: 'nacked', message: String(error) };
+}
+
 export async function adjustVolume(
   source: Source,
   volume: VolumeMap | null
@@ -187,11 +199,69 @@ export async function adjustVolume(
     await adjustVolumeSetting(source, volume);
     return { kind: 'acked' };
   } catch (error) {
-    // eyre reports a nack as its `err` value, not an Error; anything thrown
-    // as an Error (reaped channel, ack timeout, transport) is ambiguous.
-    return error instanceof Error
-      ? { kind: 'ambiguous', message: error.message }
-      : { kind: 'nacked', message: String(error) };
+    return classifyPokeError(error);
+  }
+}
+
+// Group and base reads send the payload readGroup/readAll build, but once:
+// their backOff retry would outlast the harness's CLI timeout after an ack
+// timeout and resend a poke the ship may already have taken. The read-back
+// settles an ambiguous outcome instead.
+function pokeDeepRead(source: Source): Promise<unknown> {
+  return poke(
+    activityAction({
+      read: { source, action: { all: { time: null, deep: true } } },
+    })
+  );
+}
+
+export async function markRead(target: MarkReadTarget): Promise<PokeOutcome> {
+  enableCurrentActivityEndpoints();
+  try {
+    switch (target.kind) {
+      case 'dm-ship':
+        await readChannel({
+          channelId: target.ship,
+          channelType: 'dm',
+          deep: true,
+        });
+        break;
+      case 'dm-club':
+        await readChannel({
+          channelId: target.club,
+          channelType: 'groupDm',
+          deep: true,
+        });
+        break;
+      case 'channel':
+        await readChannel({
+          channelId: target.nest,
+          channelType: target.nest.startsWith('heap/') ? 'gallery' : 'chat',
+          groupId: target.groupId,
+          deep: true,
+        });
+        break;
+      case 'group':
+        await pokeDeepRead({ group: target.flag });
+        break;
+      case 'all':
+        await pokeDeepRead({ base: null });
+        break;
+    }
+    return { kind: 'acked' };
+  } catch (error) {
+    return classifyPokeError(error);
+  }
+}
+
+// /v6/activity carries notebook sources; without the flags the api falls back
+// to /v4, which drops them.
+export async function readUnreads() {
+  enableCurrentActivityEndpoints();
+  try {
+    return await getGroupAndChannelUnreads();
+  } catch (error) {
+    throw commandError(errorMessage(error));
   }
 }
 
@@ -268,6 +338,10 @@ export function createActivityDeps(): ActivityDeps {
       getVolumeSettings: readVolumeSettings,
     },
     volume: volumeHelpers,
+    readApi: {
+      markRead,
+      getUnreads: readUnreads,
+    },
     isJoinedGroup,
     getChannelState,
     findRootPost,
