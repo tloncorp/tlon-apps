@@ -6,17 +6,25 @@ import {
   normalizeMimeType,
 } from 'openclaw/plugin-sdk/media-mime';
 import {
-  loadOutboundMediaFromUrl,
-  type OutboundMediaLoadOptions,
-} from 'openclaw/plugin-sdk/outbound-media';
-import { readResponseWithLimit } from 'openclaw/plugin-sdk/response-limit-runtime';
+  buildOutboundMediaLoadOptions,
+  readResponseWithLimit,
+} from 'openclaw/plugin-sdk/media-runtime';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
+import { loadWebMedia } from 'openclaw/plugin-sdk/web-media';
 
 import { tlonMediaUserAgent } from '../version.js';
 import { getDefaultSsrFPolicy } from './context.js';
 
 const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
 const FETCH_DEADLINE_MS = 30_000;
+
+// OpenClaw 2026.9.33 ships openclaw/plugin-sdk/outbound-media without type
+// declarations. Its loadOutboundMediaFromUrl is loadWebMedia over
+// buildOutboundMediaLoadOptions, both of which the SDK declares, so local
+// attachments load through those directly.
+type OutboundMediaLoadOptions = NonNullable<
+  Parameters<typeof buildOutboundMediaLoadOptions>[0]
+>;
 
 const HTTPS_ONLY_ERROR = 'Only https media URLs are supported.';
 const USERINFO_ERROR =
@@ -218,12 +226,12 @@ export async function prepareOutboundMedia(
           'Local attachments require TLON_HOSTING=1. Upload with `tlon upload <path>` and send the returned https URL.'
         );
       }
-      const media = await loadOutboundMediaFromUrl(
+      const media = await loadWebMedia(
         normalizeMediaUrl(mediaUrl),
-        {
+        buildOutboundMediaLoadOptions({
           ...options,
           maxBytes: MAX_MEDIA_BYTES,
-        }
+        })
       ).catch(() => {
         throw new Error(
           'Could not read local media from the allowed directories.'

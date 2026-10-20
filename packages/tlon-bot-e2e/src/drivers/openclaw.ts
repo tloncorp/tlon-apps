@@ -44,7 +44,7 @@ const LEGACY_OPENCLAW_TOOLS = [
   'web_search',
   'image_search',
   'read',
-  'cron',
+  'automations',
   'tlon',
   'message',
 ] as const;
@@ -59,7 +59,7 @@ export function workspaceSkillBinaryPath(packageDir: string): string {
   return path.join(packageDir, 'dev', 'tlon-skill-workspace-bin', 'tlon');
 }
 
-const DEFAULT_OPENCLAW_CORE_VERSION = '2026.5.28';
+const DEFAULT_OPENCLAW_CORE_VERSION = '2026.9.33';
 
 /**
  * The selected OpenClaw core and whether it is expected to prewarm, for
@@ -77,6 +77,9 @@ export function openClawCoreTestEnv(env: NodeJS.ProcessEnv = process.env): {
     '2026.5.28': '0',
     '2026.6.11': '1',
     '2026.7.1': '1',
+    // 2026.9.x dropped the plugin prewarm log marker; see 08-gateway-status.
+    '2026.9.4': '0',
+    '2026.9.33': '0',
   };
   const explicit = env.TEST_EXPECT_OPENCLAW_PREWARM;
   if (!explicit && !(version in known)) {
@@ -468,7 +471,7 @@ export const openclawDriver: BotDriver = {
         steps: [
           {
             kind: 'tool_call',
-            name: 'cron',
+            name: 'automations',
             args: {
               action: 'add',
               job: {
@@ -488,7 +491,7 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: finalText },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          advertisedTools: { exact: ['message', 'tlon', 'automations'] },
           expectedCallCount: 2,
           toolEffectOnly: true,
         },
@@ -901,7 +904,7 @@ function openClawToolsForCapability(
   capability: RuntimeCapability
 ): readonly string[] {
   if (capability === 'cron') {
-    return ['cron'];
+    return ['automations'];
   }
   if (capability === 'image_search') {
     return ['image_search'];

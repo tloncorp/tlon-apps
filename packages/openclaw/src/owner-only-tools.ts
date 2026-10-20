@@ -20,6 +20,7 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'tlon_agent_choice',
   'tlon_agent_task_plan',
   'tlon_agent_service_setup',
+  'set_timezone',
 ]);
 
 /** Longest first line the TLON-6361 owner notice shows untruncated. */
