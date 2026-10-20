@@ -9,6 +9,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import * as schema from '../db/schema';
 import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
+import { perfRefresh } from '../perfLog';
 import { syncContacts, syncGroup, syncInitData } from '../store/sync';
 import {
   getInitializedClient,
@@ -2462,6 +2463,277 @@ test('insertPosts: keeps cached posts when no matching real post arrives', async
   expect(cachedPosts.length).toBe(2);
   expect(realPosts.length).toBe(1);
   expect(realPosts[0].id).toBe('real-post-different');
+});
+
+describe('insertPosts: cache_id collisions', () => {
+  const channelId = 'chat/~zod/cache-id';
+  const authorId = '~zod';
+
+  function makePost(
+    id: string,
+    sentAt: number,
+    sequenceNum: number,
+    overrides: Partial<Post> = {}
+  ): Post {
+    return {
+      id,
+      type: 'chat',
+      channelId,
+      authorId,
+      sentAt,
+      receivedAt: sentAt,
+      sequenceNum,
+      content: JSON.stringify([{ inline: [id] }]),
+      syncedAt: Date.now(),
+      ...overrides,
+    };
+  }
+
+  async function storedPosts() {
+    const client = getClient();
+    if (!client) throw new Error('test db not initialized');
+    return client.query.posts.findMany({
+      where: $.eq(schema.posts.channelId, channelId),
+      orderBy: $.asc(schema.posts.id),
+    });
+  }
+
+  function uniqueViolationReports(capture: ReturnType<typeof vi.fn>) {
+    return capture.mock.calls.filter(
+      ([event, props]) =>
+        event === 'app_error' &&
+        props?.errorTitle === 'insertPostsBatch unique violation'
+    );
+  }
+
+  // perfTime reports through console.log when perf logging is on.
+  async function perfLabels(run: () => Promise<unknown>) {
+    const g = globalThis as { __TLON_PERF__?: boolean };
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    g.__TLON_PERF__ = true;
+    perfRefresh();
+    try {
+      await run();
+      return log.mock.calls
+        .map(([line]) => line)
+        .filter((line) => typeof line === 'string' && line.startsWith('[perf]'))
+        .map((line: string) => line.split(' ')[1]);
+    } finally {
+      delete g.__TLON_PERF__;
+      perfRefresh();
+      log.mockRestore();
+    }
+  }
+
+  test('an id match plus a cache_id match on another row replaces the stale row', async () => {
+    const capture = vi.fn();
+    useDebugStore.getState().initializeErrorLogger({ capture });
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await queries.insertChannelPosts({
+      posts: [makePost('post-i', 1000, 1), makePost('post-j', 2000, 2)],
+    });
+
+    const labels = await perfLabels(() =>
+      queries.insertChannelPosts({ posts: [makePost('post-i', 2000, 2)] })
+    );
+
+    expect(labels).toContain('insertPostsBatch.replaceStaleCacheIdHolders');
+    const rows = await storedPosts();
+    expect(rows.map((r) => [r.id, r.sentAt, r.sequenceNum])).toEqual([
+      ['post-i', 2000, 2],
+    ]);
+    await vi.waitFor(() =>
+      expect(uniqueViolationReports(capture)).toHaveLength(1)
+    );
+    expect(uniqueViolationReports(capture)[0][1]).toMatchObject({
+      channelKinds: ['chat'],
+      batchSize: 1,
+      replyCount: 0,
+      topLevelCount: 1,
+      distinctAuthors: 1,
+    });
+  });
+
+  test('a replaced stale row does not pass on its hidden flag', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await queries.insertChannelPosts({
+      posts: [makePost('post-a', 1000, 1), makePost('post-b', 2000, 2)],
+    });
+    await queries.updatePost({ id: 'post-b', hidden: true });
+
+    await queries.insertChannelPosts({ posts: [makePost('post-a', 2000, 2)] });
+
+    // Accepted: the server re-applies hidden posts on the next sync.
+    const rows = await storedPosts();
+    expect(rows.map((r) => [r.id, r.hidden])).toEqual([['post-a', false]]);
+  });
+
+  test('replacing the channel preview row repoints lastPostId', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await queries.insertChannelPosts({
+      posts: [makePost('post-a', 1000, 1), makePost('post-b', 2000, 2)],
+    });
+    await queries.updateChannel({
+      id: channelId,
+      lastPostId: 'post-b',
+      lastPostAt: 2000,
+    });
+
+    await queries.insertChannelPosts({ posts: [makePost('post-a', 2000, 2)] });
+
+    expect((await storedPosts()).map((r) => r.id)).toEqual(['post-a']);
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostId).toBe('post-a');
+    expect(channel!.lastPostAt).toBe(2000);
+  });
+
+  test('re-inserting an unchanged post deletes nothing', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await queries.insertChannelPosts({
+      posts: [makePost('post-i', 1000, 1), makePost('post-j', 2000, 2)],
+    });
+    const labels = await perfLabels(() =>
+      queries.insertChannelPosts({ posts: [makePost('post-i', 1000, 1)] })
+    );
+
+    expect(labels).toContain('insertPostsBatch.insertPosts');
+    expect(labels).not.toContain('insertPostsBatch.replaceStaleCacheIdHolders');
+    const rows = await storedPosts();
+    expect(rows.map((r) => [r.id, r.sentAt, r.sequenceNum])).toEqual([
+      ['post-i', 1000, 1],
+      ['post-j', 2000, 2],
+    ]);
+  });
+
+  test('two incoming rows sharing a cache_id collapse to the later one', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+
+    await queries.insertChannelPosts({
+      posts: [makePost('post-x', 3000, 3), makePost('post-y', 3000, 3)],
+    });
+
+    const rows = await storedPosts();
+    expect(rows.map((r) => r.id)).toEqual(['post-y']);
+  });
+
+  test('a collision with a row inserted earlier in the same batch recovers', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await queries.insertChannelPosts({ posts: [makePost('post-a', 1000, 1)] });
+
+    await queries.insertChannelPosts({
+      posts: [makePost('post-b', 2000, 2), makePost('post-a', 2000, 2)],
+    });
+
+    const rows = await storedPosts();
+    expect(rows.map((r) => [r.id, r.sentAt, r.sequenceNum])).toEqual([
+      ['post-a', 2000, 2],
+    ]);
+  });
+
+  async function insertGroupChannel() {
+    const groupId = '~zod/cache-id-group';
+    await queries.insertGroups({
+      groups: [
+        {
+          id: groupId,
+          currentUserIsMember: true,
+          currentUserIsHost: false,
+          hostUserId: '~zod',
+        } as unknown as Parameters<
+          typeof queries.insertGroups
+        >[0]['groups'][number],
+      ],
+    });
+    await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+    return groupId;
+  }
+
+  test('a replaced row newer than the survivor does not become the preview', async () => {
+    const groupId = await insertGroupChannel();
+    await queries.insertChannelPosts({ posts: [makePost('post-a', 1000, 1)] });
+
+    await queries.insertChannelPosts({
+      posts: [
+        makePost('post-b', 2000, 2, { receivedAt: 3000 }),
+        makePost('post-a', 2000, 2, { receivedAt: 1000 }),
+      ],
+    });
+
+    expect((await storedPosts()).map((r) => r.id)).toEqual(['post-a']);
+    const channel = await queries.getChannel({ id: channelId });
+    expect([channel!.lastPostId, channel!.lastPostAt]).toEqual([
+      'post-a',
+      1000,
+    ]);
+    const group = await queries.getGroup({ id: groupId });
+    expect([group!.lastPostId, group!.lastPostAt]).toEqual(['post-a', 1000]);
+  });
+
+  test('a batch row renamed by a later cache_id match does not become the preview', async () => {
+    const groupId = await insertGroupChannel();
+    await queries.insertChannelPosts({
+      posts: [makePost('post-a', 1000, 1), makePost('post-b', 2000, 2)],
+    });
+
+    await queries.insertChannelPosts({
+      posts: [
+        makePost('post-a', 2000, 2, { receivedAt: 1000 }),
+        makePost('post-c', 2000, 2, { receivedAt: 500 }),
+      ],
+    });
+
+    expect((await storedPosts()).map((r) => r.id)).toEqual(['post-c']);
+    const channel = await queries.getChannel({ id: channelId });
+    expect([channel!.lastPostId, channel!.lastPostAt]).toEqual(['post-c', 500]);
+    const group = await queries.getGroup({ id: groupId });
+    expect([group!.lastPostId, group!.lastPostAt]).toEqual(['post-c', 500]);
+  });
+
+  test('replacing the preview row falls back to the newest remaining post', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await queries.insertChannelPosts({
+      posts: [
+        makePost('post-a', 1000, 1),
+        makePost('post-c', 1500, 3),
+        makePost('post-b', 2000, 2),
+      ],
+    });
+
+    await queries.insertChannelPosts({
+      posts: [makePost('post-a', 2000, 2, { receivedAt: 1000 })],
+    });
+
+    expect((await storedPosts()).map((r) => r.id)).toEqual([
+      'post-a',
+      'post-c',
+    ]);
+    const channel = await queries.getChannel({ id: channelId });
+    expect([channel!.lastPostId, channel!.lastPostAt]).toEqual([
+      'post-c',
+      1500,
+    ]);
+  });
+
+  test('replacing the only top-level row clears a channel left with replies', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const reply = { type: 'reply' as const, parentId: 'absent-parent' };
+    await queries.insertChannelPosts({
+      posts: [makePost('post-a', 1000, 0, reply), makePost('post-b', 2000, 0)],
+    });
+    await queries.updateChannel({
+      id: channelId,
+      lastPostId: 'post-b',
+      lastPostAt: 2000,
+    });
+
+    await queries.insertChannelPosts({
+      posts: [makePost('post-a', 2000, 0, reply)],
+    });
+
+    expect((await storedPosts()).map((r) => r.id)).toEqual(['post-a']);
+    const channel = await queries.getChannel({ id: channelId });
+    expect([channel!.lastPostId, channel!.lastPostAt]).toEqual([null, null]);
+  });
 });
 
 async function seedFailedEdit(id: string) {

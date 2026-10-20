@@ -1769,6 +1769,7 @@ describe('owner default off (staged rollout)', () => {
     'activity unmute chat/~nec/general 170.141',
     'activity volume ~ten hush',
     'activity mark-read ~zod/book-club',
+    'activity mark-read ~ten',
     'activity mark-read --all',
     'activity volume base soft',
     'activity volume base',
@@ -1803,16 +1804,60 @@ describe('owner default off (staged rollout)', () => {
     }
   );
 
-  it('errors on a legacy operation when the owner is unprovisioned', async () => {
-    const { execute, runCommand } = makeExecutor({ fileExists: () => false });
-    const result = await execute('legacy', {
-      command: 'groups invite-link ~host/book-club',
-    });
-    expect(result.content[0].text).toBe(
-      `Error: owner credentials for ~owner are not provisioned (expected ${OWNER_CONFIG}); nothing was run. Add --self only if the bot's own account is what was asked for.`
-    );
-    expect(runCommand).not.toHaveBeenCalled();
-  });
+  const PROVISIONING_FAILURES: Array<
+    [Parameters<typeof makeExecutor>[0], string]
+  > = [
+    [
+      { ownerShip: undefined },
+      'the owner are not provisioned (no owner ship is configured)',
+    ],
+    [
+      { env: {} as NodeJS.ProcessEnv },
+      '~owner are not provisioned (TLON_SKILL_DIR is not set)',
+    ],
+    [
+      { fileExists: () => false },
+      `~owner are not provisioned (expected ${OWNER_CONFIG})`,
+    ],
+  ];
+
+  it.each([
+    'groups invite-link ~host/book-club',
+    'activity mark-read ~ten',
+    'activity mark-read --all',
+  ])(
+    'errors on the legacy operation `%s` when the owner is unprovisioned',
+    async (command) => {
+      for (const [overrides, detail] of PROVISIONING_FAILURES) {
+        const { execute, runCommand } = makeExecutor(overrides);
+        const result = await execute('legacy', { command });
+        expect(result.content[0].text).toBe(
+          `Error: owner credentials for ${detail}; nothing was run. Add --self only if the bot's own account is what was asked for.`
+        );
+        expect(result.details).toMatchObject({ status: 'error' });
+        expect(runCommand).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  // An opt-out short-circuits before provisioning is consulted.
+  it.each([
+    'activity mute ~zod/book-club --self',
+    'activity mark-read ~ten --self',
+    'activity mark-read --all --self',
+    '--ship=~other notes note-publish notes/~h/b 12',
+  ])(
+    'honors the opt-out in `%s` despite missing provisioning',
+    async (command) => {
+      for (const [overrides] of PROVISIONING_FAILURES) {
+        const { execute, runCommand } = makeExecutor(overrides);
+        const result = await execute('opt-out', { command });
+        expect(result.details).toBeUndefined();
+        expect(runCommand).toHaveBeenCalledWith(shellSplitCommand(command));
+        expect(runCommand).toHaveBeenCalledTimes(1);
+      }
+    }
+  );
 
   describe('owner post provenance with model-supplied credentials', () => {
     function withLedger() {
@@ -3727,6 +3772,24 @@ describe('tlon tool telemetry summarizer', () => {
     });
     expect(summarizeTlonCommand('activity volume base soft')).toMatchObject({
       summaryKey: 'activity.volume',
+      intent: 'write',
+    });
+  });
+
+  it('classifies mark-read as a write without leaking targets', () => {
+    const summary = summarizeTlonCommand(
+      'activity mark-read ~zod/secret-group --self'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'activity.mark-read',
+      operation: 'mark-read',
+      intent: 'write',
+      isKnownSubcommand: true,
+    });
+    expect(JSON.stringify(summary)).not.toContain('secret-group');
+    expect(summarizeTlonCommand('activity mark-read --all')).toMatchObject({
+      summaryKey: 'activity.mark-read',
       intent: 'write',
     });
   });
