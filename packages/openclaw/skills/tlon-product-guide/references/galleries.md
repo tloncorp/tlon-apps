@@ -50,6 +50,12 @@ Phone: in the grid, press and hold the post's tile. `Forward` lets you send the 
 Desktop: hover the tile and click the three-dot button that appears at its top right.
 Notes: these options are on the tile in the grid, not on the opened post. There is no system share sheet for gallery posts.
 
+## Copy the web address of the picture or file in a gallery post
+
+Phone: in the grid, press and hold the post's tile and tap `Copy link to file`.
+Desktop: hover the tile, click its three-dot button and pick the same item.
+Notes: it only shows when the post holds an uploaded picture, video, file or voice memo.
+
 ## Edit a gallery post
 
 Phone: open the post and tap `Edit` at the top right, or press and hold its tile in the grid and tap `Edit post`. Make the change and tap `Save`.

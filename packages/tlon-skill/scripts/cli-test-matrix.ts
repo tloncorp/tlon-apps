@@ -839,6 +839,73 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '--owner',
     '~zod',
   ]),
+  authRequiredCase('groups create-owned with --admin reaches auth', [
+    'groups',
+    'create-owned',
+    'Projects',
+    '--admin',
+    '~pinser-botter-sampel-palnet',
+  ]),
+  authRequiredCase('groups create-owned --self reaches auth', [
+    'groups',
+    'create-owned',
+    'Projects',
+    '--admin',
+    '~sampel-palnet',
+    '--self',
+  ]),
+  authRequiredCase(
+    'groups create-owned --admin as a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--admin',
+      '--owner',
+      '~sampel-palnet',
+    ]
+  ),
+  authRequiredCase(
+    'groups create-owned legacy --owner after a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--owner',
+      '~sampel-palnet',
+    ]
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a missing admin',
+    ['groups', 'create-owned', 'Projects', '--description', 'Shared'],
+    'Usage: tlon groups create-owned'
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a bare --admin',
+    ['groups', 'create-owned', 'Projects', '--admin'],
+    'Usage: tlon groups create-owned'
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a flag as the admin',
+    ['groups', 'create-owned', 'Projects', '--admin', '--description'],
+    'Usage: tlon groups create-owned'
+  ),
+  authRequiredCase('channels create --self reaches auth', [
+    'channels',
+    'create',
+    '~sampel-palnet/team',
+    'Discussion',
+    '--self',
+  ]),
+  authRequiredCase('groups add-channel --self reaches auth', [
+    'groups',
+    'add-channel',
+    '~sampel-palnet/team',
+    'Discussion',
+    '--self',
+  ]),
   authRequiredCase('groups update title option-like value reaches auth', [
     'groups',
     'update',
@@ -1901,6 +1968,8 @@ function activityUsageCase(
 
 const DM_LEVELS_MESSAGE =
   'DMs take medium, hush or default (the app offers only these for DMs)';
+const BASE_MSG =
+  'base takes medium, soft or hush (the app offers only these in Settings → Notifications)';
 
 export const ACTIVITY_VOLUME_CASES: CliCase[] = [
   activityUsageCase(
@@ -1912,6 +1981,21 @@ export const ACTIVITY_VOLUME_CASES: CliCase[] = [
     'activity volume DM soft',
     ['volume', '~ten', 'soft'],
     DM_LEVELS_MESSAGE
+  ),
+  activityUsageCase(
+    'activity volume base default',
+    ['volume', 'base', 'default'],
+    BASE_MSG
+  ),
+  activityUsageCase(
+    'activity volume base loud',
+    ['volume', 'base', 'loud'],
+    BASE_MSG
+  ),
+  activityUsageCase(
+    'activity volume base unknown level',
+    ['volume', 'base', 'bogus'],
+    'Unknown level: bogus. Levels for base: medium, soft, hush'
   ),
   activityUsageCase(
     'activity mute invalid ship',
@@ -1975,6 +2059,17 @@ export const ACTIVITY_VOLUME_CASES: CliCase[] = [
     'volume',
     '~zod/book-club',
     'soft',
+  ]),
+  authRequiredCase('activity volume base reaches auth', [
+    'activity',
+    'volume',
+    'base',
+    'soft',
+  ]),
+  authRequiredCase('activity volume base show reaches auth', [
+    'activity',
+    'volume',
+    'base',
   ]),
   authRequiredCase('activity unmute thread reaches auth', [
     'activity',

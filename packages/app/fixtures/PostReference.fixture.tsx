@@ -4,11 +4,17 @@ import { ScrollView } from 'react-native';
 
 import { View } from '../ui';
 import {
+  ChannelLinkReference,
   GroupReference,
   PostReference,
 } from '../ui/components/ContentReference';
 import { FixtureWrapper } from './FixtureWrapper';
-import { createFakePost, group } from './fakeData';
+import {
+  createFakePost,
+  group,
+  tlonLocalBulletinBoard,
+  tlonLocalIntros,
+} from './fakeData';
 
 const fakePost = createFakePost();
 
@@ -73,6 +79,22 @@ function RefList(props: {
         );
       })}
       <GroupReference data={props.hasData ? group : null} {...props} />
+      {[tlonLocalIntros, tlonLocalBulletinBoard].map((channel) => (
+        <ChannelLinkReference
+          key={channel.id}
+          channelId={channel.id}
+          channel={props.hasData ? channel : null}
+          parentGroup={props.hasData ? group : null}
+          {...props}
+        />
+      ))}
+      <ChannelLinkReference
+        channelId={tlonLocalIntros.id}
+        channel={props.hasData ? tlonLocalIntros : null}
+        parentGroup={props.hasData ? group : null}
+        contentSize="$s"
+        {...props}
+      />
     </Wrapper>
   );
 }

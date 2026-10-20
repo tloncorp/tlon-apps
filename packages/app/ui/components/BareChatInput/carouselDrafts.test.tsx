@@ -211,6 +211,9 @@ vi.mock('../../../hooks/useUserActivity', () => ({
 vi.mock('../../../hooks/useChannelNavigation', () => ({
   useChannelNavigation: () => ({ navigateToRef: mocks.noop }),
 }));
+vi.mock('../../../navigation/utils', () => ({
+  useRootNavigation: () => ({ navigateToChannel: mocks.noop }),
+}));
 vi.mock('../../contexts/appDataContext', () => ({
   useCurrentUserId: () => '~zod',
 }));

@@ -1,6 +1,7 @@
 import { appendToPostBlob, parsePostBlob } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { ALL_ONLY } from '../../urbit/story.js';
 import { DAY, type CampaignState } from './model.js';
 import {
   createLiveCampaign,
@@ -17,8 +18,13 @@ const mock = vi.hoisted(() => ({
   scoped: vi.fn(),
   group: vi.fn(),
   sendChannel: vi.fn(),
+  personalize: vi.fn(),
+  scopeFor: vi.fn(),
 }));
-vi.mock('./personalize.js', () => ({ personalizeTip: async () => undefined }));
+vi.mock('./personalize.js', () => ({ personalizeTip: mock.personalize }));
+vi.mock('../../role-mention-scope.js', () => ({
+  roleMentionScopeFor: mock.scopeFor,
+}));
 vi.mock('@tloncorp/api', async (original) => ({
   ...(await original<typeof import('@tloncorp/api')>()),
   getChannelPosts: mock.posts,
@@ -81,6 +87,8 @@ beforeEach(() => {
   mock.posts.mockResolvedValue({ posts: [] });
   mock.send.mockResolvedValue({ messageId: '~zod/123', sentAt: now });
   mock.list.mockResolvedValue([]);
+  mock.personalize.mockResolvedValue(undefined);
+  mock.scopeFor.mockResolvedValue({ roleIds: new Set(['admin']) });
   campaign = createLiveCampaign({
     accountId: 'default',
     owner: '~ten',
@@ -166,6 +174,44 @@ it('sends a marked DM to the owner through the captured account scope', async ()
     key: 'campaign-v1-useful-request',
   });
   expect(mock.scoped).toHaveBeenCalled();
+  // A tip as written never gains role mentions.
+  expect(mock.send.mock.calls[0][0].roleMentions).toBeUndefined();
+});
+it('lets a personalized DM tip mention @all only', async () => {
+  mock.personalize.mockResolvedValue('Ping @all or @admin about it.');
+  await campaign.check();
+  expect(mock.send).toHaveBeenCalledWith(
+    expect.objectContaining({
+      text: expect.stringContaining('Ping @all or @admin'),
+      roleMentions: ALL_ONLY,
+    })
+  );
+  expect(mock.scopeFor).not.toHaveBeenCalled();
+});
+it('resolves the channel scope for a personalized tip only', async () => {
+  row.groupId = '~zod/setup';
+  row.channelId = 'chat/~zod/setup';
+  mock.personalize.mockResolvedValue('Ask @admin.');
+  await campaign.check();
+  expect(mock.scopeFor).toHaveBeenCalledWith(
+    'default',
+    { kind: 'channel', nest: 'chat/~zod/setup' },
+    expect.stringContaining('Ask @admin.')
+  );
+  expect(mock.sendChannel.mock.calls[0][0].story[0]).toEqual({
+    inline: ['Ask ', { sect: 'admin' }, '.'],
+  });
+
+  // The deterministic tip that follows stays literal, with no lookup.
+  mock.personalize.mockResolvedValue(undefined);
+  mock.scopeFor.mockClear();
+  vi.setSystemTime(now + DAY);
+  await campaign.check();
+  expect(mock.sendChannel).toHaveBeenCalledTimes(2);
+  expect(mock.scopeFor).not.toHaveBeenCalled();
+  expect(JSON.stringify(mock.sendChannel.mock.calls[1][0].story)).not.toContain(
+    'sect'
+  );
 });
 it('recovers only a marker authored by the bot in the owner DM', async () => {
   const blob = appendToPostBlob(undefined, {

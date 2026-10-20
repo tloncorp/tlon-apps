@@ -483,6 +483,8 @@ describe('owner credential injection for invite-link, note publishing and notifi
     'activity mute ~zod/book-club',
     'activity unmute chat/~nec/general 170.141',
     'activity volume ~ten hush',
+    'activity volume base soft',
+    'activity volume base',
   ];
 
   // --ship, not --config: ship-only resolution validates the file's ship and
@@ -680,6 +682,529 @@ describe('owner credential injection for invite-link, note publishing and notifi
       expect(args).not.toContain('--ship');
     }
   });
+});
+
+describe('owner-hosted workspaces for groups create-owned', () => {
+  const SKILL_DIR = '/srv/tlon-skill';
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+  const HELP_WITH_ADMIN =
+    'Usage: tlon groups create-owned "Group Name" --admin <ship> [--description "..."]';
+  const HELP_WITHOUT_ADMIN =
+    'Usage: tlon groups create-owned "Group Name" --owner <ship> [--description "..."]';
+
+  function makeExecutor(
+    overrides: {
+      ownerShip?: string;
+      botShip?: string;
+      env?: NodeJS.ProcessEnv;
+      fileExists?: (path: string) => boolean;
+      help?: string;
+    } = {}
+  ) {
+    const { help = HELP_WITH_ADMIN, ...deps } = overrides;
+    const runCommand = vi.fn(async (args: string[]) =>
+      args.includes('--help') ? help : 'Owned group created successfully!'
+    );
+    const logError = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      logError,
+      ownerShip: '~owner',
+      botShip: '~pinser-botter-owner',
+      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...deps,
+    });
+    return { execute, runCommand, logError };
+  }
+
+  it.each([
+    [
+      'a description of --admin',
+      'groups create-owned Projects --description --admin --owner owner',
+      '--admin',
+    ],
+    [
+      'the legacy description --owner form',
+      'groups create-owned Projects --description --owner owner',
+      '--owner',
+    ],
+  ])(
+    'rebuilds the owner run with the bot as admin, past %s',
+    async (_label, command, description) => {
+      const { execute, runCommand } = makeExecutor();
+
+      await execute('description', { command });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        '--ship',
+        '~owner',
+        'groups',
+        'create-owned',
+        'Projects',
+        '--admin',
+        '~pinser-botter-owner',
+        '--description',
+        description,
+      ]);
+    }
+  );
+
+  it.each([
+    [
+      '--owner',
+      'groups create-owned Projects --owner owner --description Work',
+    ],
+    [
+      '--admin',
+      'groups create-owned Projects --admin ~owner --description Work',
+    ],
+  ])(
+    'runs a create-owned naming the owner as %s as the owner, with the bot as admin',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      const result = await execute('workspace', { command });
+
+      expect(runCommand).toHaveBeenCalledWith([
+        'groups',
+        'create-owned',
+        '--help',
+      ]);
+      expect(runCommand).toHaveBeenLastCalledWith([
+        '--ship',
+        '~owner',
+        'groups',
+        'create-owned',
+        'Projects',
+        '--admin',
+        '~pinser-botter-owner',
+        '--description',
+        'Work',
+      ]);
+      expect(result.content[0]?.text).not.toContain('Note:');
+    }
+  );
+
+  it('names the bot as admin ahead of an empty description, so it cannot become one', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('empty', {
+      command: 'groups create-owned Projects --owner ~owner --description ""',
+    });
+
+    const [args] = runCommand.mock.lastCall as unknown as [string[]];
+    expect(args.slice(0, 7)).toEqual([
+      '--ship',
+      '~owner',
+      'groups',
+      'create-owned',
+      'Projects',
+      '--admin',
+      '~pinser-botter-owner',
+    ]);
+    expect(args.slice(7)).not.toContain('~pinser-botter-owner');
+  });
+
+  it('keeps the bot-hosted workspace, and says so, when the CLI predates --admin', async () => {
+    const { execute, runCommand, logError } = makeExecutor({
+      help: HELP_WITHOUT_ADMIN,
+    });
+
+    const result = await execute('old-cli', {
+      command: 'groups create-owned Projects --admin ~owner',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~owner',
+    ]);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('does not take --admin')
+    );
+    expect(result.content[0]?.text).toContain('Note:');
+    expect(result.content[0]?.text).toContain('you host the workspace');
+  });
+
+  it('adds no hosting note when the command fails', async () => {
+    const { execute, runCommand } = makeExecutor({ fileExists: () => false });
+    runCommand.mockRejectedValueOnce(new Error('ship unreachable'));
+
+    const result = await execute('failed', {
+      command: 'groups create-owned Projects --owner ~owner',
+    });
+
+    expect(result.content[0]?.text).toBe('Error: ship unreachable');
+  });
+
+  it('keeps the bot-hosted workspace, and says so, without owner credentials', async () => {
+    for (const overrides of [
+      { env: {} as NodeJS.ProcessEnv },
+      { fileExists: () => false },
+    ]) {
+      const { execute, runCommand } = makeExecutor(overrides);
+
+      const result = await execute('no-creds', {
+        command: 'groups create-owned Projects --admin ~owner',
+      });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        '~owner',
+      ]);
+      expect(result.content[0]?.text).toContain(
+        "Your owner's credentials aren't available here"
+      );
+    }
+  });
+
+  it.each([
+    ['another requester', 'groups create-owned Projects --owner ~someone'],
+    ['--self', 'groups create-owned Projects --owner ~owner --self'],
+    ['-h', 'groups create-owned -h'],
+    ['--help', 'groups create-owned P --owner ~owner --help'],
+    [
+      'separate-value --ship',
+      '--ship ~bot groups create-owned P --owner ~owner',
+    ],
+    [
+      '=-form --config',
+      '--config=/x.json groups create-owned P --owner ~owner',
+    ],
+    ['plain create', 'groups create P --owner ~owner'],
+  ])('leaves the command untouched for %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    const result = await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+    expect(result.content[0]?.text).not.toContain('Note:');
+  });
+
+  it('spells the admin --owner for any create-owned run as written', async () => {
+    for (const command of [
+      'groups create-owned Projects --admin ~someone',
+      'groups create-owned Projects --admin ~owner --self',
+    ]) {
+      const { execute, runCommand } = makeExecutor();
+
+      await execute('legacy', { command });
+
+      const [args] = runCommand.mock.lastCall as unknown as [string[]];
+      expect(args).toEqual(command.replace('--admin', '--owner').split(' '));
+    }
+  });
+
+  it('keeps a description that a superseded owner pair swallowed', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('hidden-description', {
+      command:
+        'groups create-owned Projects --owner --description --admin ~someone',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~someone',
+      '--description',
+      '--admin',
+    ]);
+  });
+
+  it('keeps the admin the CLI would choose when both spellings appear', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('both', {
+      command:
+        'groups create-owned Projects --owner ~alice --admin ~bob --description Work',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      'groups',
+      'create-owned',
+      'Projects',
+      '--owner',
+      '~bob',
+      '--description',
+      'Work',
+    ]);
+  });
+
+  it.each([
+    ['', 'groups create-owned Projects --admin ~owner --description Work'],
+    [
+      ' with --self',
+      'groups create-owned Projects --admin ~owner --description Work --self',
+    ],
+  ])(
+    'makes a plain group when the bot is its own owner%s',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor({ botShip: '~owner' });
+
+      await execute('self', { command });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create',
+        'Projects',
+        '--description',
+        'Work',
+      ]);
+    }
+  );
+
+  it.each([
+    ['URBIT_SHIP', { URBIT_SHIP: 'owner' }],
+    ['TLON_SHIP', { TLON_SHIP: '~owner' }],
+  ])(
+    'makes a plain group when the bot is its own owner by %s',
+    async (_label, shipEnv) => {
+      const { execute, runCommand } = makeExecutor({
+        botShip: undefined,
+        env: { TLON_SKILL_DIR: SKILL_DIR, ...shipEnv } as NodeJS.ProcessEnv,
+      });
+
+      await execute('env-self', {
+        command: 'groups create-owned Projects --admin ~owner',
+      });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create',
+        'Projects',
+      ]);
+    }
+  );
+
+  it('runs as the owner with the bot named by the environment as admin', async () => {
+    const { execute, runCommand } = makeExecutor({
+      botShip: undefined,
+      env: {
+        TLON_SKILL_DIR: SKILL_DIR,
+        URBIT_SHIP: '~pinser-botter-owner',
+      } as NodeJS.ProcessEnv,
+    });
+
+    await execute('env-bot', {
+      command: 'groups create-owned Projects --admin ~owner',
+    });
+
+    expect(runCommand).toHaveBeenLastCalledWith([
+      '--ship',
+      '~owner',
+      'groups',
+      'create-owned',
+      'Projects',
+      '--admin',
+      '~pinser-botter-owner',
+    ]);
+  });
+
+  it.each([
+    ['nothing names it', { TLON_SKILL_DIR: SKILL_DIR }],
+    [
+      'TLON_CONFIG_FILE outranks URBIT_SHIP',
+      {
+        TLON_SKILL_DIR: SKILL_DIR,
+        TLON_CONFIG_FILE: '/srv/bot.json',
+        URBIT_SHIP: '~owner',
+      },
+    ],
+  ])(
+    'runs as written, and says so, when the bot ship is unknown: %s',
+    async (_label, env) => {
+      const { execute, runCommand } = makeExecutor({
+        botShip: undefined,
+        env: env as NodeJS.ProcessEnv,
+      });
+
+      const result = await execute('unknown', {
+        command: 'groups create-owned Projects --owner ~owner',
+      });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        '~owner',
+      ]);
+      expect(result.content[0]?.text).toContain(
+        "This bot's ship isn't configured here"
+      );
+    }
+  );
+
+  it.each([
+    [
+      '--admin',
+      'groups create-owned Projects --description "--owner" --admin ~someone',
+    ],
+    [
+      '--owner',
+      'groups create-owned Projects --description "--owner" --owner ~someone',
+    ],
+  ])(
+    'puts the admin ahead of a description of --owner when run as written with %s',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      await execute('legacy-order', { command });
+
+      expect(runCommand).toHaveBeenLastCalledWith([
+        'groups',
+        'create-owned',
+        'Projects',
+        '--owner',
+        '~someone',
+        '--description',
+        '--owner',
+      ]);
+    }
+  );
+});
+
+describe("owner-hosted channels in the owner's groups", () => {
+  const SKILL_DIR = '/srv/tlon-skill';
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+
+  function makeExecutor(
+    overrides: {
+      ownerShip?: string;
+      botShip?: string;
+      env?: NodeJS.ProcessEnv;
+      fileExists?: (path: string) => boolean;
+    } = {}
+  ) {
+    const runCommand = vi.fn(async () => 'Channel created!');
+    const logError = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      logError,
+      ownerShip: '~owner',
+      botShip: '~pinser-botter-owner',
+      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...overrides,
+    });
+    return { execute, runCommand, logError };
+  }
+
+  it.each([
+    ['channels create', 'channels create ~owner/team Discussion --kind chat'],
+    [
+      'groups add-channel',
+      'groups add-channel owner/team Research --kind notes',
+    ],
+  ])(
+    'runs %s in an owner-hosted group as the owner',
+    async (_label, command) => {
+      const { execute, runCommand } = makeExecutor();
+
+      const result = await execute('channel', { command });
+
+      expect(runCommand).toHaveBeenCalledWith([
+        '--ship',
+        '~owner',
+        ...command.split(' '),
+      ]);
+      expect(result.content[0]?.text).not.toContain('Note:');
+    }
+  );
+
+  it.each([
+    ['another host', 'channels create ~someone/team Discussion'],
+    [
+      "the bot's own group",
+      'channels create ~pinser-botter-owner/team Discussion',
+    ],
+    ['--self', 'channels create ~owner/team Discussion --self'],
+    ['--help', 'channels create ~owner/team Discussion --help'],
+    [
+      'separate-value --ship',
+      '--ship ~bot channels create ~owner/team Discussion',
+    ],
+    [
+      '=-form --config',
+      '--config=/x.json channels create ~owner/team Discussion',
+    ],
+    [
+      'another channels operation',
+      'channels update chat/~owner/abc --title New',
+    ],
+  ])('leaves the command untouched for %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+  });
+
+  it("creates the channel on the bot's ship, and says so, without owner credentials", async () => {
+    const { execute, runCommand, logError } = makeExecutor({
+      fileExists: () => false,
+    });
+
+    const result = await execute('no-file', {
+      command: 'channels create ~owner/team Discussion',
+    });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      'channels',
+      'create',
+      '~owner/team',
+      'Discussion',
+    ]);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining("Creating the channel on the bot's ship")
+    );
+    expect(result.content[0]?.text).toContain(
+      'this channel is hosted on your own ship'
+    );
+  });
+
+  it.each([
+    ['configured', { botShip: '~owner' }],
+    [
+      'read from the environment',
+      {
+        botShip: undefined,
+        env: {
+          TLON_SKILL_DIR: SKILL_DIR,
+          URBIT_SHIP: 'owner',
+        } as NodeJS.ProcessEnv,
+      },
+    ],
+  ])(
+    'runs as written when the bot is its own owner, %s',
+    async (_label, overrides) => {
+      const { execute, runCommand } = makeExecutor(overrides);
+
+      await execute('self', {
+        command: 'channels create ~owner/team Discussion',
+      });
+
+      expect(runCommand).toHaveBeenCalledWith([
+        'channels',
+        'create',
+        '~owner/team',
+        'Discussion',
+      ]);
+    }
+  );
 });
 
 describe('checkBlockedTlonOperation', () => {
@@ -1355,6 +1880,14 @@ describe('tlon tool telemetry summarizer', () => {
     expect(summarizeTlonCommand('activity unreads')).toMatchObject({
       summaryKey: 'activity.unreads',
       intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity volume base')).toMatchObject({
+      summaryKey: 'activity.volume',
+      intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity volume base soft')).toMatchObject({
+      summaryKey: 'activity.volume',
+      intent: 'write',
     });
   });
 
