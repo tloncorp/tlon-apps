@@ -741,6 +741,51 @@ describe('context lens registry', () => {
     });
   });
 
+  it('gives a cron run its own lens, apart from other work on its session', () => {
+    const sessionKey = 'agent:main:main-cron-beside-other-work';
+    // A heartbeat's lens, still bound in its idle window.
+    const heartbeat = ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'internal',
+      trigger: 'tool',
+    });
+    try {
+      const run = ensureBackgroundContextLensForSession(sessionKey, {
+        runKind: 'cron',
+        trigger: 'cron',
+        cron: { jobId: 'job-beside' },
+      });
+      expect(run?.created).toBe(true);
+      expect(run?.superseded?.lensId).toBe(heartbeat?.lens.lensId);
+      expect(run?.superseded?.cron).toBeUndefined();
+      expect(
+        recordCronRunOutcome({ jobId: 'job-beside', outcome: { status: 'ok' } })
+          ?.lensId
+      ).toBe(run?.lens.lensId);
+    } finally {
+      finalizeBackgroundContextLensForSession(sessionKey);
+    }
+
+    // A conversation holding the session is never stamped as the run.
+    const registry = createContextLensRegistry();
+    const talkKey = 'agent:main:main-cron-beside-talk';
+    const talk = registry.create({
+      messageId: 'message-talk',
+      chatType: 'dm',
+      sessionKey: talkKey,
+    });
+    bindContextLensToSession(talkKey, registry, talk.lensId);
+    try {
+      ensureBackgroundContextLensForSession(talkKey, {
+        runKind: 'cron',
+        trigger: 'cron',
+        cron: { jobId: 'job-beside-talk' },
+      });
+      expect(registry.get(talk.lensId)?.cron).toBeUndefined();
+    } finally {
+      unbindContextLensFromSession(talkKey, talk.lensId);
+    }
+  });
+
   it('never stamps a send with a test run', async () => {
     const scheduled = ensureBackgroundContextLensForSession(
       'session-send-scheduled',

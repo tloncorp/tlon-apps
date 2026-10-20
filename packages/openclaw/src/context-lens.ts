@@ -1061,17 +1061,24 @@ export function ensureBackgroundContextLensForSession(
   // another before the first one's verdict arrives. A different job, or
   // another run of the same one, gets a lens of its own: the one before it
   // is finished here, and its verdict still finds it as its job's last run.
-  const boundCron = resolved
-    ? resolved.binding.registry.get(resolved.binding.lensId)?.cron
+  // So does other background work still bound there, such as a heartbeat in
+  // its idle window; only a lens the tool hook opened for this cron session
+  // is the run's own.
+  const boundLens = resolved
+    ? resolved.binding.registry.get(resolved.binding.lensId)
     : undefined;
+  const boundCron = boundLens?.cron;
   const anotherRun =
     resolved &&
+    resolved.binding.background &&
     input.cron &&
-    boundCron &&
-    (boundCron.jobId !== input.cron.jobId ||
-      (input.runId !== undefined &&
-        resolved.binding.cronRunId !== undefined &&
-        input.runId !== resolved.binding.cronRunId));
+    boundLens &&
+    (boundCron
+      ? boundCron.jobId !== input.cron.jobId ||
+        (input.runId !== undefined &&
+          resolved.binding.cronRunId !== undefined &&
+          input.runId !== resolved.binding.cronRunId)
+      : boundLens.runKind !== 'cron');
   const superseded = anotherRun
     ? (finishBackgroundContextLens(resolved.binding.lensId, {
         status: 'completed',
@@ -1086,8 +1093,9 @@ export function ensureBackgroundContextLensForSession(
       activeLensesBySession.set(resolved.key, cleared);
     }
     const current = existing.registry.get(existing.lensId);
+    // A conversation's lens stays the conversation's.
     const attributed =
-      current && input.cron && !current.cron
+      current && input.cron && !current.cron && current.runKind === 'cron'
         ? existing.registry.update(existing.lensId, { cron: input.cron })
         : current;
     // A test run's lens never waits for a scheduled verdict, though later
@@ -1099,7 +1107,7 @@ export function ensureBackgroundContextLensForSession(
         input.runSessionId,
       ]);
     }
-    if (input.runId && input.cron && !existing.cronRunId) {
+    if (input.runId && attributed?.cron && !existing.cronRunId) {
       const bound = activeLensesBySession.get(resolved.key);
       if (bound) {
         activeLensesBySession.set(resolved.key, {
