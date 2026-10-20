@@ -680,6 +680,7 @@ function isSearchQueryHelpLiteral(rest: string[]): boolean {
  * | -------------------------------------------- | ------------------------------------------------------------------------ |
  * | contacts, channels, hooks, groups            | `<op>` is a help token, or the arguments are exactly `<op> <help>`       |
  * | groups invite-link                           | as groups, or any help token after `invite-link`                         |
+ * | groups join --invite                         | as groups, or any help token after `join` when an `--invite` is present  |
  * | activity, browser, settings, upload          | any help token                                                           |
  * | buckets, notes, expose                       | `<op>` is a help token, or any help token after `<op>`                   |
  * | posts                                        | as buckets, except inside `send`/`reply`/`edit` message text (content)   |
@@ -707,7 +708,12 @@ export function isTlonHelpInvocation(commandArgs: string[]): boolean {
       return (
         operationHelp ||
         exactOperationHelp ||
-        (rest[0] === 'invite-link' && anyHelpToken(rest.slice(1)))
+        (rest[0] === 'invite-link' && anyHelpToken(rest.slice(1))) ||
+        (rest[0] === 'join' &&
+          rest
+            .slice(1)
+            .some((arg) => arg === '--invite' || arg.startsWith('--invite=')) &&
+          anyHelpToken(rest.slice(1)))
       );
     case 'activity':
     case 'browser':

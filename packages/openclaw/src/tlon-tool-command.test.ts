@@ -623,6 +623,34 @@ describe('owner-by-default identity selection', () => {
       }
     );
 
+    // An invite join prints its help for a help token anywhere, before any
+    // credential lookup.
+    it.each([
+      'groups join --invite 0v1.abcde --help',
+      'groups join --invite 0v1.abcde -h',
+      'groups join --invite=0v1.abcde -h',
+      'groups join --help',
+    ])('`%s` is help under every provisioning failure', async (command) => {
+      for (const overrides of [
+        { ownerShip: undefined },
+        unprovisioned.dir,
+        unprovisioned.file,
+      ]) {
+        const fileExists = vi.fn(
+          'fileExists' in overrides ? overrides.fileExists : () => true
+        );
+        const { execute, runCommand } = makeExecutor(
+          { ...overrides, fileExists },
+          'Usage'
+        );
+        const result = await execute('help', { command });
+        expect(result.details).toBeUndefined();
+        expect(result.content[0].text).toBe('Usage');
+        expect(ranWith(runCommand)).toEqual(shellSplitCommand(command));
+        expect(fileExists).not.toHaveBeenCalled();
+      }
+    });
+
     // The CLI shows these families' operation help only for exactly
     // `<op> <help>`; anything longer runs the operation.
     it.each([
@@ -1196,6 +1224,7 @@ describe('owner default off (staged rollout)', () => {
         '~owner',
         ...command.split(' '),
       ]);
+      expect(result.details).toBeUndefined();
       expect(result.content[0].text).toBe('ok');
     }
   );
