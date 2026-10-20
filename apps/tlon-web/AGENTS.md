@@ -29,11 +29,11 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   **IMPORTANT**: Always stop the `pnpm e2e:playwright-dev` script before running `pnpm e2e:test` or other e2e commands to avoid port conflicts
 -   **MCP Server Debugging Workflow (DEFAULT - RECOMMENDED):**
 
-    1. **Run `./start-playwright-dev.sh` to start environment in background** - this will start the dev environment and return when ready
+    1. **Run `./start-playwright-dev.sh` from the repository root to start environment in background** - this will start the dev environment and return when ready
     2. Use Playwright MCP server tools to navigate and debug while environment runs in background
     3. **Stop the environment when done** using one of:
         - `kill [PID]` - Graceful shutdown (PID shown in script output)
-        - `./stop-playwright-dev.sh` - Comprehensive cleanup that ensures all processes are stopped
+        - `./stop-playwright-dev.sh` (repository root) - Comprehensive cleanup that ensures all processes are stopped
         - `./stop-playwright-dev.sh --clean-logs` - Also removes log files
 
     **Alternative (Manual Terminal Management):**
@@ -134,7 +134,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 
 -   **Personal invite links create contacts automatically** - visiting `inviteToken=${token}` URLs adds the token owner as a contact
 -   **Contact relationships are asymmetric** - ~ten having ~zod as contact doesn't mean ~zod has ~ten
--   **Always clean up contacts** - any test creating contacts must remove them: `await page.getByText('Remove contact').click()`
+-   **Always clean up contacts** - `performCleanup()` doesn't remove contacts, so a test creating them must remove them itself: `await page.getByText('Remove contact').click()`
 -   **Check both ships** - when debugging contact issues, check both sides of the relationship
 
 **Test Pollution Debugging Strategy:**
@@ -247,8 +247,9 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   A flaky or failing test is treated as an application bug: flag fixes that
     add retries, `try/catch`, conditional fallbacks or `waitForTimeout` to make
     a test pass, and ask for the root cause instead.
--   New persistent state a test creates (contacts, DMs, profile fields, group
-    invites) needs cleanup in `performCleanup()` in `e2e/test-fixtures.ts`, on
-    every participating ship, not in the test body.
+-   New persistent state a test creates (DMs, profile fields, group invites)
+    needs cleanup in `performCleanup()` in `e2e/test-fixtures.ts`, on every
+    participating ship, not in the test body. Contacts are the exception: the
+    fixture doesn't remove them yet, so the test does.
 -   Do not flag long timeouts (10–15s) on cross-ship assertions; sync between
     ships is slow by nature.

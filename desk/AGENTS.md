@@ -56,10 +56,10 @@ correcting. Where the two differ, this file wins:
   named agent + module + version, `%steward-gateway-action-1`).
   `lib/rail.hoon` is generated from all desk marks
   (`*=groups=/lib/rail/hoon +groups!rail`); regenerate it when adding a mark.
-- `lib/discipline.hoon` wraps groups, channels, channels-server, chat and
-  presence. Its `strict-marks` list holds marks whose type is checked on every reload (a changed
-  type crashes `+on-load`), and maps each watch/scry path to the marks it may
-  emit. Discipline is about mark *types*; `lib/negotiate.hoon` is about
+- `lib/discipline.hoon` wraps groups, channels, channels-server and chat
+  (`%presence` is not wrapped yet). Its `strict-marks` list holds marks whose
+  type is checked on every reload (a changed type crashes `+on-load`), and
+  maps each watch/scry path to the marks it may emit. Discipline is about mark *types*; `lib/negotiate.hoon` is about
   *protocol versions* between ships. They are different mechanisms.
 - **Strict marks stay strict.** A mark that was ever strict and is used
   outside the agent (by the client, or another ship) is never relaxed. A new
