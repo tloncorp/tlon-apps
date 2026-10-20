@@ -1258,6 +1258,7 @@ describe('owner default off (staged rollout)', () => {
         const result = await execute('opt-out', { command });
         expect(result.details).toBeUndefined();
         expect(runCommand).toHaveBeenCalledWith(shellSplitCommand(command));
+        expect(runCommand).toHaveBeenCalledTimes(1);
       }
     }
   );
