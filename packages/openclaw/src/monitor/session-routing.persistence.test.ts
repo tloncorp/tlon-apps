@@ -1,11 +1,11 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadSessionStore } from 'openclaw/plugin-sdk/config-runtime';
 import { recordInboundSession } from 'openclaw/plugin-sdk/conversation-runtime';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import type { ResolvedAgentRoute } from 'openclaw/plugin-sdk/routing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { getSessionEntry } from 'openclaw/plugin-sdk/session-store-runtime';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   buildTlonInboundRouteRecord,
@@ -14,8 +14,8 @@ import {
 
 // Proves the durable route written by buildTlonInboundRouteRecord + the real
 // SDK `recordInboundSession` lands under `lastRouteSessionKey` where the
-// delivery consumer reads it — i.e. a later route-dependent send resolves Tlon
-// instead of falling back to webchat.
+// SQLite-backed delivery consumer reads it — i.e. a later route-dependent send
+// resolves Tlon instead of falling back to webchat.
 
 function makeRoute(
   overrides: Partial<ResolvedAgentRoute> = {}
@@ -24,8 +24,8 @@ function makeRoute(
     agentId: 'default',
     channel: 'tlon',
     accountId: 'default',
-    sessionKey: 'tlon:main',
-    mainSessionKey: 'tlon:main',
+    sessionKey: 'agent:default:main',
+    mainSessionKey: 'agent:default:main',
     lastRoutePolicy: 'main',
     matchedBy: 'default',
     ...overrides,
@@ -39,12 +39,24 @@ let storePath: string;
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'tlon-route-'));
-  storePath = join(dir, 'sessions.json');
+  vi.stubEnv('OPENCLAW_STATE_DIR', dir);
+  storePath = join(dir, 'agents', 'default', 'agent', 'openclaw-agent.sqlite');
+  mkdirSync(join(dir, 'agents', 'default', 'agent'), { recursive: true });
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   rmSync(dir, { recursive: true, force: true });
 });
+
+function readEntry(sessionKey: string) {
+  return getSessionEntry({
+    agentId: 'default',
+    storePath,
+    sessionKey,
+    readConsistency: 'latest',
+  });
+}
 
 async function persist(record: ReturnType<typeof buildTlonInboundRouteRecord>) {
   const tasks: Array<Promise<unknown>> = [];
@@ -81,19 +93,19 @@ describe('Tlon route persistence (real SDK store)', () => {
 
     await persist(record);
 
-    const entry = loadSessionStore(storePath)[record.lastRouteSessionKey];
+    const entry = readEntry(record.lastRouteSessionKey);
     expect(entry).toBeDefined();
-    expect(entry?.deliveryContext?.channel).toBe('tlon');
-    expect(entry?.deliveryContext?.to).toBe('tlon:~zod');
-    expect(entry?.lastChannel).toBe('tlon');
-    expect(entry?.lastTo).toBe('tlon:~zod');
+    expect(entry?.delivery?.route.channel).toBe('tlon');
+    expect(entry?.delivery?.route.target.to).toBe('tlon:~zod');
+    expect(entry?.delivery?.context.channel).toBe('tlon');
+    expect(entry?.delivery?.context.to).toBe('tlon:~zod');
   });
 
   it('persists a group/channel route under a session-specific key', async () => {
     const record = buildTlonInboundRouteRecord({
       cfg,
       route: makeRoute({
-        sessionKey: 'tlon:group:chat/~host/general',
+        sessionKey: 'agent:default:tlon:group:chat/~host/general',
         lastRoutePolicy: 'session',
       }),
       isGroup: true,
@@ -103,10 +115,10 @@ describe('Tlon route persistence (real SDK store)', () => {
 
     await persist(record);
 
-    const entry = loadSessionStore(storePath)[record.lastRouteSessionKey];
+    const entry = readEntry(record.lastRouteSessionKey);
     expect(entry).toBeDefined();
-    expect(entry?.lastChannel).toBe('tlon');
-    expect(entry?.lastTo).toBe('tlon:chat/~host/general');
+    expect(entry?.delivery?.route.channel).toBe('tlon');
+    expect(entry?.delivery?.route.target.to).toBe('tlon:chat/~host/general');
   });
 
   it('clears stale thread state when a later unthreaded route is recorded', async () => {
@@ -119,7 +131,7 @@ describe('Tlon route persistence (real SDK store)', () => {
     });
     await persist(threaded);
     expect(
-      loadSessionStore(storePath)[threaded.lastRouteSessionKey]?.lastThreadId
+      readEntry(threaded.lastRouteSessionKey)?.delivery?.route.thread?.id
     ).toBe('thread-1');
 
     const unthreaded = buildTlonInboundRouteRecord({
@@ -130,7 +142,7 @@ describe('Tlon route persistence (real SDK store)', () => {
     });
     await persist(unthreaded);
     expect(
-      loadSessionStore(storePath)[unthreaded.lastRouteSessionKey]?.lastThreadId
+      readEntry(unthreaded.lastRouteSessionKey)?.delivery?.route.thread
     ).toBeUndefined();
   });
 
@@ -152,18 +164,19 @@ describe('Tlon route persistence (real SDK store)', () => {
       cfg,
       route: makeRoute(),
       ctxPayload: {
-        SessionKey: 'tlon:main',
+        SessionKey: 'agent:default:main',
         Provider: 'tlon',
         OriginatingChannel: 'tlon',
         OriginatingTo: 'tlon:~zod',
         ChatType: 'direct',
         SenderId: '~zod',
       } as never,
-      ctxSessionKey: 'tlon:main',
+      ctxSessionKey: 'agent:default:main',
       isGroup: false,
       senderShip: '~zod',
       dispatch: async () => {
-        lastToAtDispatch = loadSessionStore(storePath)['tlon:main']?.lastTo;
+        lastToAtDispatch =
+          readEntry('agent:default:main')?.delivery?.context.to;
         return 'dispatched';
       },
     });
@@ -183,7 +196,7 @@ describe('Tlon route persistence (real SDK store)', () => {
       effectiveOwnerShip: '~zod',
     });
     await persist(owner);
-    expect(loadSessionStore(storePath)[owner.lastRouteSessionKey]?.lastTo).toBe(
+    expect(readEntry(owner.lastRouteSessionKey)?.delivery?.context.to).toBe(
       'tlon:~zod'
     );
 
@@ -225,9 +238,9 @@ describe('Tlon route persistence (real SDK store)', () => {
     });
 
     // Route unchanged, and the skip was observable rather than silent.
-    expect(
-      loadSessionStore(storePath)[intruder.lastRouteSessionKey]?.lastTo
-    ).toBe('tlon:~zod');
+    expect(readEntry(intruder.lastRouteSessionKey)?.delivery?.context.to).toBe(
+      'tlon:~zod'
+    );
     expect(skips).toEqual([
       { ownerRecipient: '~zod', senderRecipient: '~nec' },
     ]);

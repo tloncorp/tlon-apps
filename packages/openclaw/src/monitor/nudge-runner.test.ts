@@ -982,19 +982,20 @@ describe('integration test config', () => {
     expect(compact).toContain('"reengagement":{"enabled":true}');
   });
 
-  it('dev/entrypoint.test.sh does NOT configure a legacy agents.defaults.heartbeat block', () => {
+  it('dev/entrypoint.test.sh disables the core agents.defaults.heartbeat', () => {
     // The generated CI `openclaw.json` must not co-enable the legacy
     // LLM heartbeat alongside the plugin-driven scheduler. Both would
     // race to send owner DMs on each inactivity cycle, making the
     // integration path nondeterministic and defeating the purpose of
-    // migrating to the plugin scheduler.
+    // migrating to the plugin scheduler. OpenClaw 2026.9.x runs a
+    // heartbeat even when none is configured, so the harness must turn
+    // it off explicitly; the only heartbeat block allowed is `0m`.
     const entrypoint = readEntrypoint();
     const compact = entrypoint.replace(/\s+/g, '');
 
-    // The heredoc is a static JSON literal; a substring check on the
-    // heartbeat key is sufficient to catch a regression that re-adds it
-    // anywhere in the generated config.
-    expect(compact).not.toContain('"heartbeat":{');
+    // The heredoc is a static JSON literal, so substring checks suffice.
+    const blocks = compact.match(/"heartbeat":\{[^}]*\}/g) ?? [];
+    expect(blocks).toEqual(['"heartbeat":{"every":"0m"}']);
   });
 
   it('dev/entrypoint.test.sh does not copy HEARTBEAT.md into the integration workspace', () => {
