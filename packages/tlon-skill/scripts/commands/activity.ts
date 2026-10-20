@@ -148,7 +148,7 @@ Targets:
 Levels: loud, medium, soft, hush, default (base takes medium, soft or hush)`;
 
 const OWNER_NOTE =
-  'Harnesses with owner injection enabled run this as the owner unless --self or explicit credential flags are supplied; --self uses the current credentials.';
+  'Bot harnesses that act for an owner run this as the owner unless --self is given; on the command line --self is accepted and uses the current credentials.';
 
 type VolumeCommand = 'mute' | 'unmute' | 'volume';
 type TargetCommand = VolumeCommand | 'mark-read';
