@@ -172,8 +172,6 @@ What it does:
   iOS alone decides when it runs, and checks for the `fetch` background mode
   instead of `processing`.
 - Android: the default interval becomes 20 minutes.
-- iOS: logs registration, submission and cancellation with a `tlonDebug:`
-  prefix.
 
 The mobile package lists `expo-background-task` in `buildFromSource` on both
 platforms, so the patched sources are compiled instead of the prebuilt
