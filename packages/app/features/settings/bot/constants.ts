@@ -15,6 +15,7 @@ export const EMPTY_PROVIDER_CONFIG: TlawnProviderConfigInfo = {
   keys: {},
   models: [],
   defaultKeys: {},
+  browserService: 'steel',
 };
 
 export type ProviderOption = {

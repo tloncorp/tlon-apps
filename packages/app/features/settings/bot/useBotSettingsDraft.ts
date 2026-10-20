@@ -70,6 +70,7 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
     configQuery,
     nicknameQuery,
     providerConfigQuery,
+    browserServiceQuery,
   } = queries;
   const ready = Boolean(
     ship &&
@@ -92,6 +93,7 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
     if (!ready) return;
     syncServerValues(ship, {
       nickname: nicknameQuery.data ?? '',
+      browserService: browserServiceQuery.data?.browserService ?? 'steel',
       model: getModelFormValues(providerConfig),
       chat: toChatFormValues(configQuery.data, providerConfig),
     });
@@ -102,8 +104,25 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
     providerConfig,
     configQuery.data,
     nicknameQuery.data,
+    browserServiceQuery.data,
     hasLocalChanges,
   ]);
+
+  useEffect(() => {
+    const browserService = browserServiceQuery.data?.browserService;
+    if (!ready || !browserService) return;
+    const current = useBotSettingsDraftStore.getState();
+    // This independent query may settle after another section is being edited.
+    // Adopt its value only when routing itself is untouched, without replacing
+    // the user's draft in the other sections.
+    if (
+      current.scopeKey === ship &&
+      !getPendingFields(current.baseline, current.draft).browserService &&
+      current.baseline.browserService !== browserService
+    ) {
+      current.commitSection({ browserService });
+    }
+  }, [ready, ship, browserServiceQuery.data]);
 
   return ready;
 }
@@ -496,7 +515,27 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           chat: savedChat,
         };
       };
-      if (chatConfigDirty) {
+      if (draft.pending.browserService) {
+        steps.push({
+          run: async () => {
+            // Persist just routing, so concurrent model/key edits survive.
+            // Keep the draft pending if restart fails; retrying the PUT is safe.
+            const saved = await api.setTlawnBrowserService(
+              queries.ship,
+              nextValues.browserService
+            );
+            const chatPatch = chatConfigDirty
+              ? await chatConfigStep()
+              : (await api.reloadBot(queries.ship), {});
+            mutations.queryClient.setQueryData(
+              ['tlonbot', 'browser-service', queries.ship],
+              saved
+            );
+            return { ...chatPatch, browserService: saved.browserService };
+          },
+          commit: { browserService: nextValues.browserService },
+        });
+      } else if (chatConfigDirty) {
         steps.push({ run: chatConfigStep, commit: { chat: nextValues.chat } });
       }
 

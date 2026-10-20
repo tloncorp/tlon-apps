@@ -13,6 +13,8 @@ import {
 } from '../types';
 import type {
   HostingHeartBeatCode,
+  TlawnBrowserService,
+  TlawnBrowserServiceInfo,
   TlawnBotInfo,
   TlawnChannelGroups,
   TlawnChatConfigInfo,
@@ -33,6 +35,8 @@ import type {
 
 export type {
   HostingHeartBeatCode,
+  TlawnBrowserService,
+  TlawnBrowserServiceInfo,
   TlawnBotInfo,
   TlawnChannelGroupEntry,
   TlawnChannelGroups,
@@ -441,6 +445,45 @@ const parseTlawnLLMAuthStatus = (value: unknown): TlawnLLMAuthStatus => {
 
 function normalizeTlawnShipId(ship: string) {
   return encodeURIComponent(ship.replace(/^~/, ''));
+}
+
+// Browser routing is per ship. Never use the sidecar provider-config endpoint
+// here: that snapshot contains unmasked provider credentials.
+const parseTlawnBrowserService = (value: unknown): TlawnBrowserServiceInfo => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Invalid browser service response.');
+  }
+  const selected = (value as Record<string, unknown>).browserService;
+  if (selected === undefined) return { browserService: 'steel' };
+  if (selected !== 'steel' && selected !== 'kernel') {
+    throw new Error('Invalid browser service response.');
+  }
+  return { browserService: selected };
+};
+
+export async function getTlawnBrowserService(
+  ship: string
+): Promise<TlawnBrowserServiceInfo> {
+  return parseTlawnBrowserService(
+    await hostingFetch<Record<string, unknown>>(
+      `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/browser-service`
+    )
+  );
+}
+
+export async function setTlawnBrowserService(
+  ship: string,
+  browserService: TlawnBrowserService
+): Promise<TlawnBrowserServiceInfo> {
+  if (browserService !== 'steel' && browserService !== 'kernel') {
+    throw new Error('Invalid browser service selection.');
+  }
+  return parseTlawnBrowserService(
+    await hostingFetch<Record<string, unknown>>(
+      `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/browser-service`,
+      jsonInit('PUT', { browserService })
+    )
+  );
 }
 
 // --- Tlawn (bot) user-level endpoints ---

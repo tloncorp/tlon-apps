@@ -68,10 +68,17 @@ export enum HostedNodeStatus {
 
 export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
 
+export type TlawnBrowserService = 'steel' | 'kernel';
+
+export interface TlawnBrowserServiceInfo {
+  browserService: TlawnBrowserService;
+}
+
 export interface TlawnProviderConfigInfo {
   keys: Record<string, string>;
   models: TlawnModelEntry[];
   defaultKeys: Record<string, { key: string; id?: string }>;
+  browserService?: TlawnBrowserService;
 }
 
 export interface TlawnModelEntry {

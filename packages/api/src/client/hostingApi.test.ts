@@ -8,6 +8,8 @@ import {
   disconnectTlawnLLMAuth,
   getHostingHeartBeat,
   getTlawnBotInfo,
+  getTlawnBrowserService,
+  setTlawnBrowserService,
   getTlawnLLMAuthFlow,
   getTlawnLLMAuthStatus,
   getTlawnNickname,
@@ -539,5 +541,82 @@ describe('hosting error reporting', () => {
       'An unknown error has occurred. (404 Not Found)'
     );
     expect(rejection.details).toMatchObject({ status: 404 });
+  });
+});
+
+describe('per-bot browser service', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('tlonEnv', { API_URL: 'https://hosting.test' });
+    configureHostingSessionStore({
+      authToken: {
+        getValue: async () => 'session=abc; HttpOnly;',
+        setValue: async () => undefined,
+      },
+    });
+  });
+
+  it('loads only the ship-scoped browser setting', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => respond({ browserService: 'kernel' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(getTlawnBrowserService('~sampel-palnet')).resolves.toEqual({
+      browserService: 'kernel',
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://hosting.test/v1/tlawn/ships/sampel-palnet/browser-service',
+      expect.anything()
+    );
+  });
+
+  it('defaults an absent selection to Steel', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => respond({}))
+    );
+    await expect(getTlawnBrowserService('zod')).resolves.toEqual({
+      browserService: 'steel',
+    });
+  });
+
+  it.each(['browserbase', null, 42])(
+    'rejects an invalid server selection: %s',
+    async (browserService) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation(() => respond({ browserService }))
+      );
+      await expect(getTlawnBrowserService('zod')).rejects.toThrow(
+        'Invalid browser service response'
+      );
+    }
+  );
+
+  it('sends only the selected service, preserving keys and models on the server', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => respond({ browserService: 'kernel' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      setTlawnBrowserService('~sampel-palnet', 'kernel')
+    ).resolves.toEqual({ browserService: 'kernel' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://hosting.test/v1/tlawn/ships/sampel-palnet/browser-service',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ browserService: 'kernel' }),
+      })
+    );
+  });
+
+  it('rejects unknown outgoing selections before making a request', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      setTlawnBrowserService('zod', 'typo' as 'steel')
+    ).rejects.toThrow('Invalid browser service selection');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
