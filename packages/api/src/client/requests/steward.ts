@@ -88,14 +88,14 @@ export const steward = {
     kind: 'scry',
     agent: 'steward',
     path: '/v1/lens/cron/{bot}/{job}/{count}',
-    since: '12.4.0',
+    since: '12.5.0',
     guardedBy: 'deskSupportsTaskRuns',
   },
   lensCronPageBefore: {
     kind: 'scry',
     agent: 'steward',
     path: '/v1/lens/cron/{bot}/{job}/{count}/{before}',
-    since: '12.4.0',
+    since: '12.5.0',
     guardedBy: 'deskSupportsTaskRuns',
   },
   action: {
