@@ -171,9 +171,6 @@ importers:
       '@react-native-firebase/crashlytics':
         specifier: ^24.0.0
         version: 24.1.1(@react-native-firebase/app@24.1.1(@react-native-async-storage/async-storage@2.2.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)))(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))
-      '@react-native-firebase/perf':
-        specifier: ^24.0.0
-        version: 24.1.1(@react-native-firebase/app@24.1.1(@react-native-async-storage/async-storage@2.2.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)))(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))
       '@react-native-picker/picker':
         specifier: ^2.11.4
         version: 2.11.4(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -4448,15 +4445,6 @@ packages:
 
   '@react-native-firebase/crashlytics@24.1.1':
     resolution: {integrity: sha512-ZCUfWLjejcI/YJtXa6eYR1uGbIMSsC2IhiMVb/qUI9BhG4Rh2BhkQNmpAz2sgtpz+UhjFCJ5pcFV7ez6303iLg==}
-    peerDependencies:
-      '@react-native-firebase/app': 24.1.1
-      expo: '>=47.0.0'
-    peerDependenciesMeta:
-      expo:
-        optional: true
-
-  '@react-native-firebase/perf@24.1.1':
-    resolution: {integrity: sha512-GxATdeAwgz/7nW08S/vQl0F07EWkMTwPAuAnFN3VZfiXzVIOqrDhgYfHGDaTJtI0n3j9z7Vttk68ZGFVE3LsCw==}
     peerDependencies:
       '@react-native-firebase/app': 24.1.1
       expo: '>=47.0.0'
@@ -17847,12 +17835,6 @@ snapshots:
     dependencies:
       '@react-native-firebase/app': 24.1.1(@react-native-async-storage/async-storage@2.2.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)))(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       stacktrace-js: 2.0.2
-    optionalDependencies:
-      expo: 57.0.26(ce190d4e93323ec8c151615fd878b5e9)
-
-  '@react-native-firebase/perf@24.1.1(@react-native-firebase/app@24.1.1(@react-native-async-storage/async-storage@2.2.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)))(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))':
-    dependencies:
-      '@react-native-firebase/app': 24.1.1(@react-native-async-storage/async-storage@2.2.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)))(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
     optionalDependencies:
       expo: 57.0.26(ce190d4e93323ec8c151615fd878b5e9)
 
