@@ -35,11 +35,28 @@ describe('OpenAI subscription auth state', () => {
         '92C3-D94VL',
         async () => {
           events.push('copy');
+          return true;
         },
         () => events.push('feedback')
       )
     ).toBe(true);
     expect(events).toEqual(['copy', 'feedback']);
+  });
+
+  it('skips success feedback when the platform refuses the copy', async () => {
+    const events: string[] = [];
+
+    expect(
+      await copyOpenAIUserCode(
+        '92C3-D94VL',
+        async () => {
+          events.push('copy');
+          return false;
+        },
+        () => events.push('feedback')
+      )
+    ).toBe(false);
+    expect(events).toEqual(['copy']);
   });
 
   it('does nothing when no user code is available', async () => {
@@ -50,6 +67,7 @@ describe('OpenAI subscription auth state', () => {
         undefined,
         async () => {
           events.push('copy');
+          return true;
         },
         () => events.push('feedback')
       )

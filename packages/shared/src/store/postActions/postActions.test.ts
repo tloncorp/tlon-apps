@@ -2006,14 +2006,16 @@ describe('editing a post with a cite this build cannot edit', () => {
     updateSession(null);
   });
 
-  async function seedPost() {
+  async function seedPost(
+    content = [unknownCite, { inline: ['original'] }] as urbitStory
+  ) {
     const channel = (await db.getChannel({ id: EDIT_CHANNEL }))!;
     const post = db.buildPost({
       authorId: '~zod',
       author: null,
       channel,
       sequenceNum: 1,
-      content: [unknownCite, { inline: ['original'] }] as urbitStory,
+      content,
       deliveryStatus: 'sent',
     });
     await db.insertChannelPosts({ posts: [post] });
@@ -2045,6 +2047,39 @@ describe('editing a post with a cite this build cannot edit', () => {
     await editPost({
       post,
       content: [unknownCite, { inline: ['edited'] }] as urbitStory,
+    });
+
+    expect(vi.mocked(poke)).toHaveBeenCalled();
+  });
+
+  test('an edit that keeps only one of two copies of the cite is refused', async () => {
+    const post = await seedPost([
+      unknownCite,
+      unknownCite,
+      { inline: ['original'] },
+    ] as urbitStory);
+
+    await expect(
+      editPost({
+        post,
+        content: [unknownCite, { inline: ['edited'] }] as urbitStory,
+      })
+    ).rejects.toThrow('Upgrade your app to edit this post');
+
+    expect(vi.mocked(poke)).not.toHaveBeenCalled();
+    expect((await fetchPost(post.id))!.content).toBe(post.content);
+  });
+
+  test('an edit that keeps both copies of the cite goes through', async () => {
+    const post = await seedPost([
+      unknownCite,
+      unknownCite,
+      { inline: ['original'] },
+    ] as urbitStory);
+
+    await editPost({
+      post,
+      content: [unknownCite, unknownCite, { inline: ['edited'] }] as urbitStory,
     });
 
     expect(vi.mocked(poke)).toHaveBeenCalled();

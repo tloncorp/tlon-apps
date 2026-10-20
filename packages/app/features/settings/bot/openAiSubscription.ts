@@ -33,11 +33,11 @@ export const canDismissOpenAIAuth = (
 
 export async function copyOpenAIUserCode(
   code: string | undefined,
-  copy: () => Promise<unknown>,
+  copy: () => Promise<boolean>,
   onCopied: () => void
 ): Promise<boolean> {
   if (!code) return false;
-  await copy();
+  if (!(await copy())) return false;
   onCopied();
   return true;
 }
