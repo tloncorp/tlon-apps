@@ -7,7 +7,7 @@
  *   tlon [options] <command> <subcommand> [args...]
  *
  * Commands:
- *   activity     Activity/notifications (mentions, replies, all, unreads, mute, unmute, volume)
+ *   activity     Activity/notifications (mentions, replies, all, unreads, mute, unmute, volume, mark-read)
  *   browser      Hosted browser handoff operations
  *   buckets      Shared %buckets file channels
  *   channels     Channel listing and management
@@ -84,7 +84,7 @@ Examples:
   tlon contacts list
   tlon messages dm ~sampel-palnet --limit 10
   tlon groups create "My Group" --description "A cool group"
-  tlon groups create-owned "My Group" --owner ~zod
+  tlon groups create-owned "My Group" --admin ~zod
   tlon groups join ~host/group-slug
   tlon posts react chat/~host/channel 170.141.184... 👍
   tlon --config ~/ships/zod.json contacts self

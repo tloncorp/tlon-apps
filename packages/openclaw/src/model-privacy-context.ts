@@ -34,5 +34,7 @@ export function modelPrivacyNote(
     : `Data retention: zero data retention is off for ${provider}/${model}, ` +
         'the model you are running now. OpenRouter routes each request to a ' +
         'company serving the model, which may keep it under its own policy. ' +
-        'On a hosted account the owner can turn it on in settings.';
+        "That can be the owner's choice: some models are only served by " +
+        'companies that keep data. On a hosted account the owner sets it in ' +
+        'settings.';
 }

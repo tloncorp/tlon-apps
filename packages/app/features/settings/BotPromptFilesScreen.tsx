@@ -18,6 +18,7 @@ import {
 import {
   promptDescription,
   promptFileAccess,
+  promptFileKeeper,
   promptLabel,
   sortPromptFiles,
 } from '../../ui/components/botPromptFiles';
@@ -89,12 +90,16 @@ export function BotPromptFilesScreen(props: Props) {
         },
       ];
     }
+    const botKept = prompts.some(
+      (prompt) => promptFileKeeper(prompt.name) === 'bot'
+    );
     return [
       {
         key: 'prompt-files',
         title: 'Prompt files',
-        footer:
-          'Tlon keeps these files up to date so your bot keeps working. You can add to some of them.',
+        footer: botKept
+          ? 'Tlon keeps these files up to date so your bot keeps working. Your bot keeps its own memory. You can add to some of them.'
+          : 'Tlon keeps these files up to date so your bot keeps working. You can add to some of them.',
         rows: sortPromptFiles(prompts).map((prompt) => {
           const access = promptFileAccess(prompt.name, prompt.text);
           return {

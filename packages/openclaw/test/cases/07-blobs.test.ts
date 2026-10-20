@@ -17,12 +17,19 @@
  *   ~ten = test user (configured as ownerShip)
  */
 import type { Story } from '@tloncorp/api';
-import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from 'vitest';
 
 import {
   type TestFixtures,
   getFixtures,
-  getGatewayRestartPreflight,
+  waitForRuntimeIdle,
   registerEngagingTurn,
   requireFixtureGroup,
   waitFor,
@@ -42,25 +49,17 @@ describe('blobs', () => {
     // the fake model then would clear the script and its allowExtraCalls
     // allowance out from under the active run, recreating the 400 error path
     // this file guards against (TLON-6287). Wait for the runtime to go idle
-    // before resetting. Skipped in dev mode (run-dev.sh), which sets no
-    // TEST_COMPOSE_FILE and never runs the gateway-status reload sequence.
-    const composeFile = process.env.TEST_COMPOSE_FILE ?? '';
-    if (composeFile) {
-      const deadline = Date.now() + 15_000;
-      let preflight = getGatewayRestartPreflight(composeFile, 10_000);
-      while (preflight.counts.totalActive > 0 && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        preflight = getGatewayRestartPreflight(composeFile, 10_000);
-      }
-      if (preflight.counts.totalActive > 0) {
-        throw new Error(
-          `Runtime not idle before fake-model reset — prior test's run still ` +
-            `active: ${JSON.stringify(preflight.counts)} (${preflight.summary})`
-        );
-      }
-    }
+    // before resetting.
+    await waitForRuntimeIdle(
+      "before fake-model reset — prior test's run still active",
+      15_000
+    );
     await fakeModel.reset();
   });
+
+  // A leaked run fails here, in the test that leaked it, instead of in
+  // 08-gateway-status's idle preflight.
+  afterEach(() => waitForRuntimeIdle('after the test'));
 
   // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -296,6 +295,9 @@ describe('blobs', () => {
       fixtures.userShip,
       parentMarker
     );
+    // Let the parent's run finish first: on core 2026.5.28 a reply queued
+    // behind an active run on the same session strands both replies.
+    await waitForRuntimeIdle('before the thread reply');
 
     await fixtures.userState.sendReply({
       channelId: nest,

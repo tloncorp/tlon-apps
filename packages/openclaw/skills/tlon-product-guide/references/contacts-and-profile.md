@@ -4,13 +4,13 @@ Finding, adding, inviting and blocking people, looking at someone's profile, and
 
 ## Find your contacts list
 
-Phone: open the Settings tab and tap `Contacts`. It says `People you know and invite` underneath. There is no Contacts tab in the tab bar.
+Phone: open the Settings tab and tap `Contacts`. There is no Contacts tab in the tab bar.
 Desktop: click your own avatar in the left rail. Your contacts are listed in the sidebar, and a profile opens beside them.
 Notes: you are always first in the list, marked `You`, followed by your contacts. Below them there can be a `Suggested from %pals and DMs` section and, on the phone, a `From your address book` section. Tap a contact or a suggestion to open their profile. When the Activity tab is empty, the phone also shows a `View Contacts` button there.
 
 ## Add a contact by nickname or ID
 
-Phone: open the Settings tab, tap `Contacts`, then tap the plus icon at the top left. In the `Filter by nickname, @p` box, type the start of the person's nickname or ID. Tap each person you want so they are checked, then tap the button at the bottom, which reads "Add 1 contact" or similar.
+Phone: open the Settings tab, tap `Contacts`, then tap the plus icon at the top right. In the `Filter by nickname, @p` box, type the start of the person's nickname or ID. Tap each person you want so they are checked, then tap the button at the bottom, which reads "Add 1 contact" or similar.
 Desktop: click your avatar in the left rail, then the plus icon at the top of the Contacts sidebar.
 Notes: search covers people the app already has a profile for. To add anyone else, type their full ID (it starts with ~) and they appear as a result. People who are already contacts show a blue check and can't be unticked here.
 
@@ -88,7 +88,7 @@ Notes: `Pending` means the check has not finished yet, and it can take a moment 
 Phone: look for a small `Bot` badge beside the name, on the profile and on messages. The badge reads `Bot · Offline` when the bot is reported offline. On the profile of your own bot there is also a `Bot settings` row, which opens its settings.
 Desktop: `Bot settings` shows only on hosted accounts that have a DM with their bot, and it opens Tlon's bot settings page in a new browser tab.
 Who: `Bot settings` is only on your own bot's profile, never on someone else's bot.
-Notes: apart from that, a bot's profile works like a person's, with the same `Message`, `Add Contact` and `Block` buttons.
+Notes: apart from that, a bot's profile works like a person's, with the same `Message`, `Add Contact` and `Block` buttons. Your own bot has no `Block` button.
 
 ## Check how someone's phone or X account was verified
 
@@ -112,7 +112,7 @@ Notes: an empty list reads `No blocked users`. You can also unblock from the per
 
 ## Find your own profile
 
-Phone: open the Settings tab and tap `Your profile`. It is the first row under `App`.
+Phone: open the Settings tab and tap `Your profile`. It is the first row, above your bot's rows if you have one.
 Desktop: click your avatar in the left rail. Your own profile is what opens. In the Contacts sidebar you are the first row, marked `You`.
 Notes: desktop's Settings sidebar has no profile row. On the phone you can also reach your profile by tapping the `You` row at the top of your contacts list.
 
@@ -130,7 +130,7 @@ Notes: `Default avatar color` sets the colour of the avatar you get when you hav
 
 ## Set your status quickly
 
-Phone: on the Settings tab, press and hold `Your profile`. A sheet opens with a box labelled `Update your status`. Type up to 50 characters and tap the arrow button.
+Phone: on the Settings tab, press and hold your profile row at the top. On an iPhone a menu opens; tap `Set status`. On Android the sheet opens straight away. It is headed `Update your status`. Type up to 50 characters and tap the arrow button.
 Desktop: there is no shortcut. Edit your profile and change `Status` there.
 Notes: people see your status under your name in their contacts list and in a `Status` block on your profile. To clear it, save an empty status.
 

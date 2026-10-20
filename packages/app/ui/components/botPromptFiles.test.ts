@@ -4,6 +4,7 @@ import {
   joinPromptFile,
   promptDisplayText,
   promptFileAccess,
+  promptFileKeeper,
   splitPromptFile,
 } from './botPromptFiles';
 
@@ -142,8 +143,20 @@ describe('promptFileAccess', () => {
       'USER.md',
       'NEW.md',
     ]) {
-      expect(promptFileAccess(name, fresh)).toEqual({ kind: 'read-only' });
+      expect(promptFileAccess(name, fresh)).toEqual({
+        kind: 'read-only',
+        keptBy: 'tlon',
+      });
     }
+  });
+
+  it("keeps the bot's memory read-only, as the bot's own to write", () => {
+    expect(promptFileAccess('MEMORY.md', 'Learned.\n')).toEqual({
+      kind: 'read-only',
+      keptBy: 'bot',
+    });
+    expect(promptFileKeeper('MEMORY.md')).toBe('bot');
+    expect(promptFileKeeper('SOUL.md')).toBe('tlon');
   });
 
   it('lets the owner add to personality and identity', () => {
@@ -153,6 +166,13 @@ describe('promptFileAccess', () => {
         additions: 'Mine.',
       });
     }
+  });
+
+  it('counts whitespace alone as nothing added', () => {
+    expect(promptFileAccess('SOUL.md', `   \n${block}\n`)).toEqual({
+      kind: 'additions',
+      additions: '',
+    });
   });
 
   it('withholds editing from a file the sync will replace whole', () => {

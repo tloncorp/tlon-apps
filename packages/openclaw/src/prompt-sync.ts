@@ -19,6 +19,10 @@ import { normalizeShip } from './targets.js';
 import { resolveTlonAccount } from './types.js';
 import { UrbitHttpError } from './urbit/errors.js';
 
+/**
+ * The workspace files %steward mirrors: the six whose contents are Tlon's,
+ * and MEMORY.md, which Tlon seeds and the bot grows.
+ */
 export const PROMPT_FILE_NAMES = [
   'AGENTS.md',
   'SOUL.md',
@@ -26,9 +30,38 @@ export const PROMPT_FILE_NAMES = [
   'IDENTITY.md',
   'USER.md',
   'BOOTSTRAP.md',
+  'MEMORY.md',
 ] as const;
 
 export type PromptFileName = (typeof PROMPT_FILE_NAMES)[number];
+
+/**
+ * What a desk predating the names scry accepts. It validates a projection
+ * all-or-nothing, so one carrying MEMORY.md would lose it the other six too.
+ */
+export const LEGACY_PROMPT_FILE_NAMES: readonly PromptFileName[] = [
+  'AGENTS.md',
+  'SOUL.md',
+  'TOOLS.md',
+  'IDENTITY.md',
+  'USER.md',
+  'BOOTSTRAP.md',
+];
+/**
+ * The names the bot's desk accepts in a projection, as a JSON array. Read
+ * before every projection; a 404 is a desk that predates it.
+ */
+export const STEWARD_PROMPTS_NAMES_SCRY_PATH = '/steward/v1/prompts/names.json';
+/**
+ * Files the bot grows itself. One over the cap is left out of the projection
+ * rather than failing it: the six have Tlon's contents, and one of those over
+ * the cap is a fault worth surfacing, while memory, seeded by Tlon, grows as
+ * the bot learns, and OpenClaw itself reads no more than its bootstrapMaxChars
+ * of it.
+ */
+const BOT_WRITTEN_PROMPT_FILES: ReadonlySet<PromptFileName> = new Set([
+  'MEMORY.md',
+]);
 
 /** Must match %steward's per-file cap. */
 export const MAX_PROMPT_BYTES = 65_536;
@@ -121,6 +154,13 @@ function isWithinSizeLimit(text: string): boolean {
   return Buffer.byteLength(text, 'utf8') <= MAX_PROMPT_BYTES;
 }
 
+class PromptTooLargeError extends Error {
+  constructor() {
+    super(`exceeds ${MAX_PROMPT_BYTES} byte limit`);
+    this.name = 'PromptTooLargeError';
+  }
+}
+
 /**
  * Only one account may project prompts. Accounts usually resolve to the same
  * agent workspace, and two monitors writing one workspace would race each
@@ -195,7 +235,7 @@ async function readPromptFile(filePath: string): Promise<string | null> {
       throw new Error('not a regular file');
     }
     if (info.size > MAX_PROMPT_BYTES) {
-      throw new Error(`exceeds ${MAX_PROMPT_BYTES} byte limit`);
+      throw new PromptTooLargeError();
     }
     // The stat is only an early out: a file can grow after it, and readFile
     // would buffer it to EOF. Read at most one byte past the cap instead.
@@ -212,7 +252,7 @@ async function readPromptFile(filePath: string): Promise<string | null> {
       length += bytesRead;
     }
     if (length > MAX_PROMPT_BYTES) {
-      throw new Error(`exceeds ${MAX_PROMPT_BYTES} byte limit`);
+      throw new PromptTooLargeError();
     }
     return buffer.toString('utf8', 0, length);
   } finally {
@@ -220,11 +260,20 @@ async function readPromptFile(filePath: string): Promise<string | null> {
   }
 }
 
+export type WorkspacePrompts = {
+  prompts: Record<string, string>;
+  /** Bot-written files over the cap, left out so the rest still projects. */
+  omitted: { name: PromptFileName; reason: string }[];
+};
+
+/** The workspace files among `names`, which is what the ship accepts. */
 export async function readWorkspacePrompts(
-  workspaceDir: string
-): Promise<Record<string, string>> {
+  workspaceDir: string,
+  names: readonly PromptFileName[] = PROMPT_FILE_NAMES
+): Promise<WorkspacePrompts> {
   const prompts: Record<string, string> = {};
-  for (const name of PROMPT_FILE_NAMES) {
+  const omitted: WorkspacePrompts['omitted'] = [];
+  for (const name of names) {
     try {
       const text = await readPromptFile(path.join(workspaceDir, name));
       if (text !== null) {
@@ -234,10 +283,17 @@ export async function readWorkspacePrompts(
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         continue;
       }
+      if (
+        BOT_WRITTEN_PROMPT_FILES.has(name) &&
+        error instanceof PromptTooLargeError
+      ) {
+        omitted.push({ name, reason: error.message });
+        continue;
+      }
       throw new Error(`cannot read ${name}: ${String(error)}`);
     }
   }
-  return prompts;
+  return { prompts, omitted };
 }
 
 /** Atomically replace an allowlisted workspace file. */
@@ -300,6 +356,8 @@ export function createPromptSync(opts: {
   workspaceDir: string;
   poke: Poke;
   requestJson: RequestJson;
+  /** Read a ship scry by path; a non-2xx answer throws `UrbitHttpError`. */
+  scry: (path: string) => Promise<unknown>;
   logger: Logger;
   /** Injectable so the watcher behavior can be tested without open handles. */
   watchWorkspace?: WatchWorkspace;
@@ -427,13 +485,57 @@ export function createPromptSync(opts: {
     configured = true;
   };
 
+  // Which names the ship accepts is asked, not assumed: the desk validates a
+  // projection all-or-nothing, so one carrying a name it lacks would stop
+  // every file mirroring. A desk predating the scry answers 404 and accepts
+  // the legacy six. Names the ship lists but this harness does not know are
+  // left alone; it reads only files it knows the shape of.
+  let legacyNoted = false;
+  const readAcceptedNames = async (): Promise<readonly PromptFileName[]> => {
+    let listed: unknown;
+    try {
+      listed = await opts.scry(STEWARD_PROMPTS_NAMES_SCRY_PATH);
+    } catch (error) {
+      if (!(error instanceof UrbitHttpError && error.status === 404)) {
+        throw error;
+      }
+      if (!legacyNoted) {
+        legacyNoted = true;
+        opts.logger.log(
+          '[tlon] Ship predates the prompt names scry; projecting the legacy six files'
+        );
+      }
+      return LEGACY_PROMPT_FILE_NAMES;
+    }
+    legacyNoted = false;
+    // Not retried: a ship answers the same way every time, and the legacy
+    // six are accepted by every desk that serves the module at all.
+    if (!Array.isArray(listed)) {
+      opts.logger.warn(
+        '[tlon] Prompt names scry did not return an array; projecting the legacy six files'
+      );
+      return LEGACY_PROMPT_FILE_NAMES;
+    }
+    return PROMPT_FILE_NAMES.filter((name) => listed.includes(name));
+  };
+
   const publish = async (reason: string) => {
+    let names: readonly PromptFileName[] = LEGACY_PROMPT_FILE_NAMES;
+    await withRetry(`Prompt names read (${reason})`, async () => {
+      names = await readAcceptedNames();
+    });
     // The read stays outside the retry on purpose. An oversized or symlinked
     // file fails the same way every time, and looping on it would hold
     // startup and every later owner edit behind one bad file. Only the
     // request is a network step worth retrying, and a 4xx from it (an
     // invalid projection) is terminal like any other.
-    const prompts = await readWorkspacePrompts(opts.workspaceDir);
+    const { prompts, omitted } = await readWorkspacePrompts(
+      opts.workspaceDir,
+      names
+    );
+    for (const { name, reason: why } of omitted) {
+      opts.logger.warn(`[tlon] Left ${name} out of the projection: ${why}`);
+    }
     await withRetry(`Prompt projection (${reason})`, async () => {
       await opts.requestJson(STEWARD_PROMPTS_PROJECT_PATH, 'POST', {
         project: prompts,

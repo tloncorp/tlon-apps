@@ -39,6 +39,13 @@ import {
 } from './agent-task-plan-tool.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
 import {
+  connectableServicesToolMetadata,
+  connectableServicesToolParameters,
+  createConnectableServicesToolExecutor,
+  loadConnectableServices,
+  resolveConnectableServicesUrl,
+} from './connectable-services.js';
+import {
   assertTlonChoiceCallCurrent,
   assertTlonServiceSetupCallCurrent,
   finishTlonChoiceCall,
@@ -233,10 +240,15 @@ export const tlonPlugin = createChatChannelPlugin({
         postChoice: ({ target, fallbackQuestion, blob }) =>
           postSurface(target, fallbackQuestion, blob),
       });
+      const listServices = () => loadConnectableServices();
       const executeServiceSetup = createAgentServiceSetupToolExecutor({
         assertCurrent: assertTlonServiceSetupCallCurrent,
         postSetup: ({ target, fallbackMessage, blob }) =>
           postSurface(target, fallbackMessage, blob),
+        listServices,
+      });
+      const executeConnectableServices = createConnectableServicesToolExecutor({
+        listServices,
       });
       const executeTaskPlan = createAgentTaskPlanToolExecutor({
         getEvidence: getTlonTaskPlanEvidence,
@@ -274,6 +286,16 @@ export const tlonPlugin = createChatChannelPlugin({
           execute: (id, params) =>
             executeServiceSetup(id, params as AgentServiceSetupToolParams),
         },
+        // Only hosted bots have a Connected services screen to answer from.
+        ...(resolveConnectableServicesUrl()
+          ? [
+              {
+                ...connectableServicesToolMetadata,
+                parameters: connectableServicesToolParameters,
+                execute: () => executeConnectableServices(),
+              },
+            ]
+          : []),
       ];
     },
     agentPrompt: {
@@ -294,9 +316,10 @@ export const tlonPlugin = createChatChannelPlugin({
           '- For image posts, include media=<imageUrl> with an optional message=<caption>',
           '- To react to a gallery comment: use action=react, to=heap/~host/name, messageId=<commentId>, parentId=<postId>, emoji=<emoji>',
           '',
-          'IMPORTANT: media= accepts a public https URL only (normally the URL returned by `tlon upload`).',
-          'Local file paths are NOT accepted on this channel (unlike other channels) — upload the file first, then pass the returned https URL.',
+          'media= accepts a public https URL. With TLON_HOSTING enabled, local files in the allowed media directories are uploaded automatically; otherwise upload with `tlon upload` first.',
           'Media that cannot be fetched will fail the send — never claim an image was delivered unless the tool call succeeded.',
+          '',
+          "Mentions: ~ship mentions a person; @role-id (the id shown when reading, e.g. @admin) mentions a group role and @all every member; DMs support @all only. An @word that is not a role of the channel's group is sent as plain text. Mentions notify only in plain text (not inside bold, quotes or headings). Use @all only when asked.",
           '',
           'When you act in another channel (a note, a post, a new group or channel, a cron job that posts elsewhere), include the returned Ref: path in your reply here. A bare reference path on its own line renders as a card; do not wrap it in a link or bold. The messageId a send returns is not the post ID — read the ID back before referencing a post: `tlon messages channel <nest>` for /1/chan/<nest>/msg/<id>, or `tlon messages post <nest> <parent>` for a thread reply at /1/chan/<nest>/msg/<parent>/<id>.'
         );
