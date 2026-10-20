@@ -34,13 +34,9 @@
       automation=state:v1:sa
       prompts=state:v1:sp
   ==
-+$  versioned-state
-  $%(state-0 state-1 state-2 state-3 state-4 state-5 state-6)
-::  Persisted shapes used only by +on-load migrations. state-5 has the
-::  current shape under the tag that predates MEMORY.md on the prompts
-::  allowlist; state-4 is the shape before the prompt-file projection;
-::  gateway-1 has the notification latch and interaction timestamp, and
-::  gateway-0 omits them.
+::  Persisted shapes used only by +on-load migrations. state-4 is the shape
+::  before the prompt-file projection; gateway-1 has the notification latch
+::  and interaction timestamp, and gateway-0 omits them.
 ::
 +$  state-5
   $:  %5
@@ -114,6 +110,8 @@
       reply-cooldown=@dr
       active-window=@dr
   ==
++$  versioned-state
+  $%(state-0 state-1 state-2 state-3 state-4 state-5 state-6)
 ::  default cap on first install. conservative against the per-run ceiling:
 ::  3.000 runs * 512KB worst-case = ~1.5GB per bot, while typical runs are far
 ::  smaller. ships wanting more or less can poke %steward-lens-action-1
@@ -207,10 +205,6 @@
   |=  =vase
   ^+  cor
   =+  !<(old=versioned-state vase)
-  ::  only a %5 owner can have dropped mirror snapshots for carrying
-  ::  MEMORY.md: earlier shapes had no mirror, and anything they migrate
-  ::  into is subscribed fresh by +reconcile
-  ::
   =/  from-5  ?=(%5 -.old)
   =?  cor  ?=(%0 -.old)  (seed-migrated-liveness old)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
@@ -221,6 +215,10 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   ?>  ?=(%6 -.old)
   =.  state  old
+  ::  only a %5 owner can have dropped mirror snapshots for carrying
+  ::  MEMORY.md: earlier shapes had no mirror, and anything they migrate
+  ::  into is subscribed fresh by +reconcile
+  ::
   =?  cor  from-5  po-rewatch-mirrors:po-core
   reconcile
 ::  +reconcile: restore what state cannot carry, on init and on every
@@ -284,9 +282,8 @@
   ^-  state-5
   =,  automation.old
   [%5 owner.old bots.old lens.old gateway.old [tasks requests pending *@da] *state:v1:sp]
-::  %5 → %6: the prompts allowlist gains MEMORY.md. the shape is
-::  unchanged; the tag marks the owners whose mirrors +load must
-::  re-watch (+po-rewatch-mirrors)
+::  %5 -> %6: the prompts allowlist gains MEMORY.md. the shape is
+::  unchanged.
 ++  state-5-to-6
   |=  old=state-5
   ^-  state-6
@@ -2141,8 +2138,13 @@
     ^~
     %-  silt
     ^-  (list @t)
-    :~  'AGENTS.md'  'SOUL.md'  'TOOLS.md'  'IDENTITY.md'  'USER.md'
-        'BOOTSTRAP.md'  'MEMORY.md'
+    :~  'AGENTS.md'
+        'SOUL.md'
+        'TOOLS.md'
+        'IDENTITY.md'
+        'USER.md'
+        'BOOTSTRAP.md'
+        'MEMORY.md'
     ==
   ::
   ++  po-valid-edit
@@ -2152,8 +2154,9 @@
         (~(has in po-prompt-names) name.edit)
     ==
   ::
-  ::  every file allowlisted and within the per-file cap. with seven names
-  ::  that also bounds the whole map, so there is no separate total cap
+  ::  every file allowlisted and within the per-file cap. with fixed set of
+  ::  names that also bounds the whole map, so there is no separate total
+  ::  cap
   ::
   ++  po-valid-files
     |=  files=prompts:v1:sp
@@ -2437,12 +2440,10 @@
     ?:  &(?=(^ retry) (gth wake.u.retry now.bowl))  cor
     (po-trust-bot:po-core:cor bot)
   ::
-  ::  the %5 allowlist lacked MEMORY.md, so a %5 owner dropped every
-  ::  snapshot from a bot that projected it. a bot mirrored before that
-  ::  recovers on its own once a later delta lands; one trusted after it
-  ::  never got an entry, and no delta creates one. leave and re-watch
-  ::  each live mirror on the upgrade, so the bot replays its snapshot
-  ::  under the widened allowlist. a mirror with no wire is +po-reconcile's
+  ::  leave and re-watch every live mirror, so each bot replays its
+  ::  snapshot: for a load after which this ship accepts more than it
+  ::  did, since a snapshot it dropped left no entry, and no delta
+  ::  creates one. a mirror with no wire is +po-reconcile's
   ::
   ++  po-rewatch-mirrors
     ^+  cor
