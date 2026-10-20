@@ -59,16 +59,15 @@ export function SettingsList({ sections }: SettingsListProps) {
   // clearance already allows for it.
   const onTabScreen = useTopLevelTabBarClearance() > 0;
   const { bottom: systemBarInset } = useSafeAreaInsets();
-  // A hosted section is only as wide as its own content, so it is given the
-  // column's width to center or wrap within, as it would on the other
-  // platforms.
+  // A hosted section is otherwise only as wide as its own content. It gets the
+  // list's full width, as on iOS, and Compose centers anything wider than
+  // the padded column, so the section runs edge to edge and lays out its own
+  // margins.
   const [width, setWidth] = useState<number>();
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width),
     []
   );
-  const elementWidth =
-    width === undefined ? undefined : width - listSidePadding * 2;
 
   return (
     <View style={{ flex: 1 }} onLayout={handleLayout}>
@@ -89,7 +88,7 @@ export function SettingsList({ sections }: SettingsListProps) {
           {sections.map((section) =>
             section.element ? (
               <RNHostView key={section.key} matchContents>
-                <View style={{ width: elementWidth }}>{section.element}</View>
+                <View style={{ width }}>{section.element}</View>
               </RNHostView>
             ) : (
               <Column
@@ -113,7 +112,7 @@ export function SettingsList({ sections }: SettingsListProps) {
                     background(colors.row),
                   ]}
                 >
-                  {section.rows.map((row, index) => (
+                  {section.rows.map((row, index, rows) => (
                     <Fragment key={row.key}>
                       {index > 0 ? (
                         <HorizontalDivider
@@ -122,7 +121,11 @@ export function SettingsList({ sections }: SettingsListProps) {
                           modifiers={[padding(16, 0, 0, 0)]}
                         />
                       ) : null}
-                      <SettingsRow row={row} colors={colors} />
+                      <SettingsRow
+                        row={row}
+                        colors={colors}
+                        valueTrails={valuesTrail(rows)}
+                      />
                     </Fragment>
                   ))}
                 </Column>
@@ -144,25 +147,40 @@ export function SettingsList({ sections }: SettingsListProps) {
   );
 }
 
+/**
+ * Material shows a setting's value as the line under its title. Once a row in
+ * a card already has a line there, like a role and its description, every row
+ * in that card ends with its value instead, so the card reads one way.
+ */
+function valuesTrail(rows: SettingsRowModel[]) {
+  return rows.some(
+    (row) => row.subtitle && (row.value !== undefined || row.picker)
+  );
+}
+
 function SettingsRow({
   row,
   colors,
+  valueTrails,
 }: {
   row: SettingsRowModel;
   colors: SettingsListColors;
+  valueTrails: boolean;
 }) {
   if (row.textField) {
     return <TextFieldRow row={row} colors={colors} />;
   }
-  return <PlainRow row={row} colors={colors} />;
+  return <PlainRow row={row} colors={colors} valueTrails={valueTrails} />;
 }
 
 function PlainRow({
   row,
   colors,
+  valueTrails,
 }: {
   row: SettingsRowModel;
   colors: SettingsListColors;
+  valueTrails: boolean;
 }) {
   // Long-press actions, or a picker's choices on a tap, open a menu anchored
   // to the row.
@@ -178,12 +196,9 @@ function PlainRow({
   const pickedTitle = picker?.options.find(
     (option) => option.value === picker.value
   )?.title;
-  // Material shows a setting's value as the line under its title. A row that
-  // already has a line there, like a role and its description, ends with the
-  // value instead.
   const value = row.value ?? pickedTitle;
-  const supporting = row.subtitle ?? value;
-  const trailingValue = row.subtitle ? value : undefined;
+  const supporting = valueTrails ? row.subtitle : (row.subtitle ?? value);
+  const trailingValue = valueTrails ? value : undefined;
   const isChoice = row.selected !== undefined;
 
   const content = (
