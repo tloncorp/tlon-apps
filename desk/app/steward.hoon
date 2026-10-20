@@ -2129,10 +2129,10 @@
     ^-  log-data:v1:lg
     ~['requestId'^s+(scot %uv rid) key^s+(scot %p who)]
   ::
-  ::  the six prompt files Tlon's sync writes, and MEMORY.md, the notes the
-  ::  bot keeps for itself. served at /x/v1/prompts/names so a harness can
-  ::  ask before it projects: a name off this list fails the whole
-  ::  projection, and a harness newer than its desk must leave it out
+  ::  the six prompt files whose contents are Tlon's, and MEMORY.md, which
+  ::  Tlon seeds and the bot grows. served at /x/v1/prompts/names so a
+  ::  harness can ask before it projects: a name off this list fails the
+  ::  whole projection, and a harness newer than its desk must leave it out
   ::
   ++  po-prompt-names
     ^~

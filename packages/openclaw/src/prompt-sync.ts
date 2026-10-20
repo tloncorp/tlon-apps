@@ -20,8 +20,8 @@ import { resolveTlonAccount } from './types.js';
 import { UrbitHttpError } from './urbit/errors.js';
 
 /**
- * The workspace files %steward mirrors: the six Tlon's prompt sync writes,
- * and MEMORY.md, the notes the bot keeps for itself.
+ * The workspace files %steward mirrors: the six whose contents are Tlon's,
+ * and MEMORY.md, which Tlon seeds and the bot grows.
  */
 export const PROMPT_FILE_NAMES = [
   'AGENTS.md',
@@ -53,10 +53,11 @@ export const LEGACY_PROMPT_FILE_NAMES: readonly PromptFileName[] = [
  */
 export const STEWARD_PROMPTS_NAMES_SCRY_PATH = '/steward/v1/prompts/names.json';
 /**
- * Files the bot writes itself. One over the cap is left out of the projection
- * rather than failing it: the six are Tlon's, and one of those over the cap is
- * a fault worth surfacing, while memory grows as the bot learns, and OpenClaw
- * itself reads no more than its bootstrapMaxChars of it.
+ * Files the bot grows itself. One over the cap is left out of the projection
+ * rather than failing it: the six have Tlon's contents, and one of those over
+ * the cap is a fault worth surfacing, while memory, seeded by Tlon, grows as
+ * the bot learns, and OpenClaw itself reads no more than its bootstrapMaxChars
+ * of it.
  */
 const BOT_WRITTEN_PROMPT_FILES: ReadonlySet<PromptFileName> = new Set([
   'MEMORY.md',

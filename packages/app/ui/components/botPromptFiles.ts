@@ -39,7 +39,7 @@ const PROMPT_ORDER = [
 
 /**
  * Who keeps a file current. Tlon's prompt sync rewrites its files on every
- * gateway start; the bot writes its memory itself, as it learns.
+ * gateway start; it seeds memory too, but the bot grows it as it learns.
  */
 export type PromptFileKeeper = 'tlon' | 'bot';
 

@@ -2172,8 +2172,9 @@
   ;<  after=state-6  bind:m  got-state
   (ex-equal !>(after) !>(before))
 ::
-::  %4 is what develop runs: every populated slice crosses into %5
-::  unchanged, and the new sweep times are armed rather than carried
+::  %4 was the last shape before the prompts module: every populated slice
+::  crosses into the current state unchanged, and the new sweep times are
+::  armed rather than carried
 ::
 ++  test-migration-state-4-preserves-all-slices
   %-  eval-mare

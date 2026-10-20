@@ -882,8 +882,9 @@
   %-  ex-fail
   (project (my ~[['../secret' 'text']]))
 ::
-::  MEMORY.md, the bot's own notes, is allowlisted beside the six files
-::  Tlon's sync writes: a projection may carry it by poke or by route
+::  MEMORY.md, which Tlon seeds and the bot grows, is allowlisted beside the
+::  six files whose contents are Tlon's: a projection may carry it by poke
+::  or by route
 ::
 ++  with-memory
   ^-  prompts:v1:pr

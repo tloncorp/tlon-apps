@@ -279,7 +279,7 @@ These triggers repair missed changes when a later complete operation succeeds, b
 
 ## module: prompts
 
-`%steward` keeps a projection of the workspace prompt files OpenClaw owns: the six Tlon's prompt sync writes, `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `USER.md` and `BOOTSTRAP.md`, and `MEMORY.md`, the notes the bot keeps for itself. The OpenClaw workspace is authoritative. Steward keeps the last accepted projection and never changes its file map itself for an edit: an edit goes to the harness, the harness writes the file, and the change becomes visible when the harness projects again.
+`%steward` keeps a projection of the workspace prompt files OpenClaw owns: the six whose contents are Tlon's, `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `USER.md` and `BOOTSTRAP.md`, and `MEMORY.md`, which Tlon seeds and the bot grows. The OpenClaw workspace is authoritative. Steward keeps the last accepted projection and never changes its file map itself for an edit: an edit goes to the harness, the harness writes the file, and the change becomes visible when the harness projects again.
 
 ### pokes are canonical, HTTP wraps them
 
@@ -289,7 +289,7 @@ Every operation is a poke first. Each HTTP route is there to give a client what 
 
 The local harness projects its complete allowlisted file map with `%project`, by poke or by `POST /steward/~/v1/prompts/project`. A projection is all-or-nothing: every name must be on the allowlist and every file at most 64 KiB, or none of it is stored (the poke crashes, the route answers 400). An identical re-projection is silent. The first projection creates the `our` entry and goes out as a full `%files` snapshot, since entry creation cannot be said as file deltas; later ones go out as `%set`/`%del` deltas. An empty projection is present: it means "synced, no files", where an absent entry means "never synced".
 
-The allowlist is served at `/x/v1/prompts/names`, so a harness asks before it projects: a desk whose list lacks a name would refuse a projection carrying it, every file included. A desk predating the scry answers 404, which the harness reads as the six names before `MEMORY.md`. `MEMORY.md` shares the 64 KiB cap. It is the bot's own and grows as the bot learns, so the harness leaves an oversized one out of its projection, with a log line, rather than lose the other six to it; OpenClaw itself reads no more than its `bootstrapMaxChars` of the file.
+The allowlist is served at `/x/v1/prompts/names`, so a harness asks before it projects: a desk whose list lacks a name would refuse a projection carrying it, every file included. A desk predating the scry answers 404, which the harness reads as the six names before `MEMORY.md`. `MEMORY.md` shares the 64 KiB cap. Tlon seeds it but the bot grows it as it learns, so the harness leaves an oversized one out of its projection, with a log line, rather than lose the other six to it; OpenClaw itself reads no more than its `bootstrapMaxChars` of the file.
 
 ### owner-side mirroring
 
