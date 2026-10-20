@@ -53,6 +53,13 @@ import {
   finishTlonTaskPlanCall,
   getTlonTaskPlanEvidence,
 } from './onboarding-tool-boundary.js';
+import {
+  OWNER_TIMEZONE_FILE_ENV,
+  type OwnerTimezoneToolParams,
+  createOwnerTimezoneToolExecutor,
+  ownerTimezoneToolMetadata,
+  ownerTimezoneToolParameters,
+} from './owner-timezone-tool.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import {
   applyTlonSetupConfig,
@@ -250,6 +257,11 @@ export const tlonPlugin = createChatChannelPlugin({
       const executeConnectableServices = createConnectableServicesToolExecutor({
         listServices,
       });
+      // Only the hosted wrapper applies the file, so only it gets the tool.
+      const ownerTimezoneFile = process.env[OWNER_TIMEZONE_FILE_ENV]?.trim();
+      const executeSetTimezone = ownerTimezoneFile
+        ? createOwnerTimezoneToolExecutor({ path: ownerTimezoneFile })
+        : null;
       const executeTaskPlan = createAgentTaskPlanToolExecutor({
         getEvidence: getTlonTaskPlanEvidence,
         assertCurrent: assertTlonTaskPlanCallCurrent,
@@ -293,6 +305,16 @@ export const tlonPlugin = createChatChannelPlugin({
                 ...connectableServicesToolMetadata,
                 parameters: connectableServicesToolParameters,
                 execute: () => executeConnectableServices(),
+              },
+            ]
+          : []),
+        ...(executeSetTimezone
+          ? [
+              {
+                ...ownerTimezoneToolMetadata,
+                parameters: ownerTimezoneToolParameters,
+                execute: (id: string, params: unknown) =>
+                  executeSetTimezone(id, params as OwnerTimezoneToolParams),
               },
             ]
           : []),
