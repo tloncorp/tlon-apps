@@ -378,7 +378,7 @@ Self-hosting means no included model, subscription screens, or bot settings in t
 
 ### Guardrails
 
-Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the base system prompt can't be modified (the owner can still edit the bot's instructions, personality and other prompt files under `Bot behavior` on its profile), and the bot has no shell and can only write files inside its own workspace. It can read PDFs, text files, and CSVs you send it; spreadsheets and Office documents have to be exported first. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
+Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the base system prompt can't be modified (the owner can still add their own instructions to the bot's prompt files from its profile), and the bot has no shell and can only write files inside its own workspace. It can read PDFs, text files, and CSVs you send it; spreadsheets and Office documents have to be exported first. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
 
 ### Self-hosting your bot
 
