@@ -329,6 +329,7 @@ export const tlonPlugin = createChatChannelPlugin({
           '',
           'On Tlon, action=react and action=delete only work on messages in the current conversation.',
           '- To react, unreact, or delete in any other conversation, use the tlon tool instead: `tlon posts react|unreact|delete <channel> <postId> ...` for channels, `tlon dms react|unreact|delete ~ship <postId> ...` for DMs.',
+          '- If your account runs commands as the owner by default, put --self before the command family, e.g. `--self posts react <channel> <postId> ...`, to act as this bot instead.',
           '- If a reaction or delete call returns an error, say it failed; never claim it succeeded.',
           '',
           "Mentions: ~ship mentions a person; @role-id (the id shown when reading, e.g. @admin) mentions a group role and @all every member; DMs support @all only. An @word that is not a role of the channel's group is sent as plain text. Mentions notify only in plain text (not inside bold, quotes or headings). Use @all only when asked.",

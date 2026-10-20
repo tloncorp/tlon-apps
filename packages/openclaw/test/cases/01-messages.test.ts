@@ -380,6 +380,11 @@ describe('messages', () => {
     // core only lets a non-bundled plugin's message-tool react/delete touch
     // the current conversation, so this cross-conversation request goes
     // through the tlon CLI (as the plugin's message-tool hints instruct).
+    // This harness runs with TLON_OWNER_DEFAULT=true, so tlon commands act as
+    // the owner by default; the test's intent is the BOT reacting
+    // cross-conversation, so the scripted commands carry `--self` (global-
+    // option position, before the command family) to select the bot — the
+    // actor `waitForBotReaction` checks for below.
     // Only the resulting channel state is asserted.
     test('adds then removes a reaction on a channel post from the owner DM', async () => {
       requireFixtureGroup(fixtures);
@@ -396,7 +401,7 @@ describe('messages', () => {
           kind: 'tool_call',
           name: 'tlon',
           args: {
-            command: `posts react ${target} ${parent.id} "${emoji}"`,
+            command: `--self posts react ${target} ${parent.id} "${emoji}"`,
           },
         },
         { kind: 'text', content: 'Reacted.' },
@@ -415,7 +420,7 @@ describe('messages', () => {
         {
           kind: 'tool_call',
           name: 'tlon',
-          args: { command: `posts unreact ${target} ${parent.id}` },
+          args: { command: `--self posts unreact ${target} ${parent.id}` },
         },
         { kind: 'text', content: 'Reaction removed.' },
         { kind: 'text', content: 'Reaction removed.' },
