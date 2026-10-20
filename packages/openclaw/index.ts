@@ -1046,13 +1046,38 @@ export default defineBundledChannelEntry({
     // re-running registerFull, and an operator rollback or owner change must
     // take effect without a gateway restart. The bot's own credentials stay
     // as registered.
+    // `ownerDefault` is the effective flag: on only with an owner to act as.
+    // Set without an owner, every command runs as the bot, exactly as with
+    // the flag off, and the tool says so.
+    let warnedOwnerlessDefault = false;
     const liveAccount = () => {
       const live = resolveTlonAccount(api.runtime.config.loadConfig());
-      return {
-        ownerDefault: live.ownerDefault,
-        ownerShip: normalizeShip(live.ownerShip ?? '') || undefined,
-      };
+      const ownerShip = normalizeShip(live.ownerShip ?? '') || undefined;
+      const ownerless = live.ownerDefault && !ownerShip;
+      if (ownerless && !warnedOwnerlessDefault) {
+        api.logger.warn(
+          '[tlon] ownerDefault is enabled but no ownerShip is configured; commands run as the bot.'
+        );
+      }
+      warnedOwnerlessDefault = ownerless;
+      return { ownerDefault: live.ownerDefault && !ownerless, ownerShip };
     };
+    liveAccount();
+
+    // Whether the gate lets a run's tlon calls act as the owner. The executor
+    // re-checks the same predicate just before the CLI runs.
+    const isOwnerRun = (
+      run: { runId?: string; sessionKey?: string },
+      ownerShip: string | undefined
+    ) =>
+      resolveTurnIdentity({
+        runId: run.runId,
+        sessionKey: run.sessionKey,
+        ownerShip,
+      }) === 'owner' &&
+      // The tool acts with this account's owner; a run answering a message on
+      // another account must not borrow it.
+      (getRunAccountId(run.runId) ?? account.accountId) === account.accountId;
 
     // Tool factories receive the active agent workspace, including cron runs.
     // Core calls the factory each time it resolves tools, and its descriptor
@@ -1096,13 +1121,14 @@ export default defineBundledChannelEntry({
           const approved = takeTlonCallApproval(id, params.command);
           if (!approved) {
             // No gate decision for this call: act as the bot, with credential
-            // flags rejected (ownerDefault with no owner configured).
+            // flags rejected.
             api.logger.warn(
               `[tlon] tlon call ${id} has no before_tool_call approval; running as the bot.`
             );
-            return createTlonToolExecutor(
-              executorDeps({ ownerDefault: true, ownerShip: undefined })
-            )(id, params);
+            return createTlonToolExecutor({
+              ...executorDeps({ ownerDefault: false, ownerShip: undefined }),
+              rejectCredentialFlags: true,
+            })(id, params);
           }
           // Refuse rather than honor a stale approval: a reload between the
           // gate and here changed who the owner is or whether commands act
@@ -1122,7 +1148,16 @@ export default defineBundledChannelEntry({
               details: { status: 'error', error: message },
             };
           }
-          return createTlonToolExecutor(executorDeps(approved))(id, params);
+          // A non-owner message or sessions_send may have demoted the run
+          // since the gate; the executor refuses a command that would still
+          // act as the owner (a rerun goes through the gate and gets --self).
+          const ownerIdentityLost =
+            approved.ownerRun !== undefined &&
+            !isOwnerRun(approved.ownerRun, live.ownerShip);
+          return createTlonToolExecutor({
+            ...executorDeps(approved),
+            ownerIdentityLost,
+          })(id, params);
         };
 
         return {
@@ -1432,23 +1467,18 @@ export default defineBundledChannelEntry({
       ) {
         // Only owner-default commands need the rewrite; with the flag off the
         // bot is already the default.
-        const rewritesToBot =
-          live.ownerDefault &&
-          (resolveTurnIdentity({
-            runId: ctx.runId,
-            sessionKey: ctx.sessionKey,
-            ownerShip: live.ownerShip,
-          }) === 'bot' ||
-            // The tool acts with this account's owner; a run answering a
-            // message on another account must not borrow it.
-            (getRunAccountId(ctx.runId) ?? account.accountId) !==
-              account.accountId);
+        const run = { runId: ctx.runId, sessionKey: ctx.sessionKey };
+        const ownerRun = live.ownerDefault && isOwnerRun(run, live.ownerShip);
+        const rewritesToBot = live.ownerDefault && !ownerRun;
         // Not owner-directed: the call runs as the bot. Not a denial.
         const command = rewritesToBot
           ? `--self ${event.params.command}`
           : event.params.command;
         if (toolCallId) {
-          recordTlonCallApproval(toolCallId, command, live);
+          recordTlonCallApproval(toolCallId, command, {
+            ...live,
+            ...(ownerRun ? { ownerRun: run } : {}),
+          });
         }
         if (rewritesToBot) {
           return { params: { ...event.params, command } };

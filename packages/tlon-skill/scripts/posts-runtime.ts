@@ -5,6 +5,7 @@ import {
   editPost as apiEditPost,
   getChannelPosts as apiGetChannelPosts,
   getCurrentUserId as apiGetCurrentUserId,
+  getGroup as apiGetGroup,
   getPostWithReplies as apiGetPostWithReplies,
   getTextContent,
   removeReaction as apiRemoveReaction,
@@ -155,6 +156,9 @@ export function createPostsDeps(): PostsDeps {
     now: () => Date.now(),
     buildImageVerse: (url: string) => fetchImageVerse(url),
     getChannelState,
+    // Raw: the command words a failed read.
+    getGroupRoleIds: async (groupId: string) =>
+      ((await apiGetGroup(groupId)).roles ?? []).map((role) => role.id),
     assertCanAdminister: async (
       groupId: string,
       action: string,

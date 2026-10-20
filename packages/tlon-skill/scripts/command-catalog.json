@@ -1,8 +1,8 @@
 {
   "activity": {
-    "summary": "Mentions, replies, unreads, and notification levels",
+    "summary": "Mentions, replies, unreads, marking read, and notification levels",
     "reference": "references/reading.md",
-    "toolGuidance": "Read activity; results are bounded. Change notifications only on request. volume base [medium|soft|hush] shows or sets the app-wide level (Settings → Notifications); chats with their own level ignore it."
+    "toolGuidance": "Read activity; results are bounded. Change notifications only on request. volume base [medium|soft|hush] shows or sets the app-wide level (Settings → Notifications); chats with their own level ignore it. mark-read <target>|--all marks chats read (no undo): only on explicit request."
   },
   "browser": {
     "summary": "Hosted-browser sharing and secure form handoff",
@@ -57,7 +57,7 @@
   "posts": {
     "summary": "Post quotes, forwards, reactions, edits, deletes, and pins",
     "reference": "references/reading.md",
-    "toolGuidance": "Send/reply through message; to quote or forward an existing post use posts send|reply --quote or posts forward; do not manage deprecated diary posts."
+    "toolGuidance": "Send/reply through message; to quote or forward an existing post use posts send|reply --quote or posts forward; `posts edit` parses ~ship, @role-id and @all like a send but notifies nobody; do not manage deprecated diary posts."
   },
   "settings": {
     "summary": "OpenClaw Tlon settings",

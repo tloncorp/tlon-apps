@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import entry from '../index.js';
@@ -16,6 +19,7 @@ import { runTlonCommand } from './tlon-command-runner.js';
 import {
   RUN_ACTIVE_TTL_MS,
   _testing as identityTesting,
+  noteCrossSessionSend,
   noteInboundDispatching,
 } from './turn-identity.js';
 
@@ -59,8 +63,9 @@ type ToolFactory = (ctx: { workspaceDir: string }) => TlonTool | null;
 /** Recording stand-in for the plugin api (see before-tool-call-cron.test.ts). */
 function registerEntry(
   config: Record<string, unknown> = {
-    channels: { tlon: { ownerDefault: true } },
-  }
+    channels: { tlon: { ownerDefault: true, ownerShip: '~zod' } },
+  },
+  warn?: (message: string) => void
 ) {
   const hooks = new Map<string, unknown>();
   const tools: ToolFactory[] = [];
@@ -82,6 +87,12 @@ function registerEntry(
       if (prop === 'registrationMode') return 'full';
       if (prop === 'config') return config;
       if (prop === 'runtime') return runtime;
+      if (prop === 'logger' && warn) {
+        return new Proxy(
+          {},
+          { get: (_t, level) => (level === 'warn' ? warn : () => undefined) }
+        );
+      }
       if (prop === 'registerTool') {
         return (factory: unknown) => {
           if (typeof factory === 'function') tools.push(factory as ToolFactory);
@@ -440,7 +451,9 @@ describe('before_tool_call turn identity', () => {
   });
 
   describe('a channels.tlon reload that flips ownerDefault', () => {
-    const ON = { channels: { tlon: { ownerDefault: true } } };
+    const ON = {
+      channels: { tlon: { ownerDefault: true, ownerShip: '~zod' } },
+    };
     const OFF = { channels: { tlon: {} } };
     const CRON = { sessionKey: 'agent:main:cron:job-1:run:1', runId: 'cron-1' };
     // Rejected with the flag in both states, with a message that names the
@@ -667,17 +680,157 @@ describe('before_tool_call turn identity', () => {
             { sessionKey: GROUP, runId: 'run-1' }
           );
         }
-        // A legacy owner operation with the flag off: owner when approved.
-        await tool!.execute('call-1', { command: 'activity mute ~zod/g' });
-        expect(ranArgs()).toEqual(['activity', 'mute', '~zod/g']);
+        vi.mocked(runTlonCommand).mockClear();
+        await tool!.execute('call-1', { command: 'contacts self' });
+        expect(ranArgs()).toEqual(['contacts', 'self']);
+        // A legacy owner operation, owner when approved, has no owner here.
+        const legacy = await tool!.execute('call-1', {
+          command: 'activity mute ~zod/g',
+        });
+        expect(legacy.content[0].text).toContain('no owner ship is configured');
+        expect(runTlonCommand).toHaveBeenCalledTimes(1);
         const refused = await tool!.execute('call-2', {
           command: '--config /x.json contacts self',
         });
         expect(refused.content[0].text).toContain(
           'credential flags (--config, --ship, --url, --code, --cookie) are not accepted'
         );
+        const help = await tool!.execute('call-3', { command: 'help' });
+        expect(help.content[0].text).toContain('Commands act as this bot.');
+        expect(help.content[0].text).not.toContain('Owner or bot:');
       }
     );
+  });
+
+  describe('a run demoted between the gate and the executor', () => {
+    const OWNER = {
+      channels: { tlon: { ownerDefault: true, ownerShip: '~zod' } },
+    };
+    const LOST =
+      'Error: this run lost owner identity while the command was pending; nothing was run. Run it again.';
+    const ctx = { sessionKey: GROUP, runId: 'run-1' };
+    // A provisioned owner, so an owner call reaches the CLI.
+    let skillDir: string;
+    beforeEach(() => {
+      skillDir = mkdtempSync(join(tmpdir(), 'tlon-skill-'));
+      mkdirSync(join(skillDir, 'ships'));
+      writeFileSync(join(skillDir, 'ships', 'zod.json'), '{}');
+      vi.stubEnv('TLON_SKILL_DIR', skillDir);
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      rmSync(skillDir, { recursive: true, force: true });
+    });
+
+    it.each([
+      ['a non-owner inbound message', () => inbound('user', 'run-2')],
+      [
+        'a sessions_send into its session',
+        () => noteCrossSessionSend({ sessionKey: GROUP }, 'sender'),
+      ],
+    ])('refuses an owner call after %s', async (_label, demote) => {
+      const harness = registerEntry(OWNER);
+      vi.mocked(runTlonCommand).mockClear();
+      inbound('owner', 'run-1');
+      const text = await callTlon(
+        harness,
+        harness.tlonTool(),
+        'contacts self',
+        ctx,
+        'call-1',
+        demote
+      );
+      expect(text).toBe(LOST);
+      expect(runTlonCommand).not.toHaveBeenCalled();
+    });
+
+    it('runs an unchanged owner run as the owner', async () => {
+      const harness = registerEntry(OWNER);
+      vi.mocked(runTlonCommand).mockClear();
+      inbound('owner', 'run-1');
+      await callTlon(harness, harness.tlonTool(), 'contacts self', ctx, 'c-1');
+      expect(ranArgs()).toEqual(['--ship', '~zod', 'contacts', 'self']);
+    });
+
+    it('runs a call the gate already sent as the bot', async () => {
+      const harness = registerEntry(OWNER);
+      vi.mocked(runTlonCommand).mockClear();
+      const cron = { sessionKey: 'agent:main:cron:j:run:1', runId: 'cron-1' };
+      await harness.prepare({}, { ...cron, trigger: 'cron', jobId: 'j' });
+      await callTlon(
+        harness,
+        harness.tlonTool(),
+        'contacts self',
+        cron,
+        'c-1',
+        () => noteCrossSessionSend({ sessionKey: cron.sessionKey }, 'sender')
+      );
+      expect(ranArgs()).toEqual(['contacts', 'self']);
+    });
+
+    it("runs an owner run's --self call after a demotion", async () => {
+      const harness = registerEntry(OWNER);
+      vi.mocked(runTlonCommand).mockClear();
+      inbound('owner', 'run-1');
+      await callTlon(
+        harness,
+        harness.tlonTool(),
+        '--self contacts self',
+        ctx,
+        'c-1',
+        () => inbound('user', 'run-2')
+      );
+      expect(ranArgs()).toEqual(['contacts', 'self']);
+    });
+  });
+
+  describe('ownerDefault without an ownerShip', () => {
+    const OWNERLESS = { channels: { tlon: { ownerDefault: true } } };
+    const WARNING =
+      '[tlon] ownerDefault is enabled but no ownerShip is configured; commands run as the bot.';
+
+    it('behaves like the flag off and warns once', async () => {
+      const warn = vi.fn();
+      const harness = registerEntry(OWNERLESS, warn);
+      vi.mocked(runTlonCommand).mockClear();
+      const tool = harness.tlonTool();
+      expect(tool!.description).toContain('Commands act as this bot.');
+      expect(tool!.description).not.toContain('Commands act as your owner');
+      inbound('owner', 'run-1');
+      const ctx = { sessionKey: GROUP, runId: 'run-1' };
+      // No --self rewrite: the bot is already the default.
+      await expect(
+        harness.beforeToolCall(TLON_CALL, ctx)
+      ).resolves.toBeUndefined();
+      await callTlon(harness, tool, 'contacts self', ctx, 'c-1');
+      expect(ranArgs()).toEqual(['contacts', 'self']);
+      // The legacy owner operations still need an owner, as with the flag off.
+      const legacy = await callTlon(
+        harness,
+        tool,
+        'activity mute ~zod/g',
+        ctx,
+        'c-2'
+      );
+      expect(legacy).toContain('no owner ship is configured');
+      expect(runTlonCommand).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls.filter(([m]) => m === WARNING)).toHaveLength(1);
+    });
+
+    it('warns again after a reload that sets an owner and clears it', async () => {
+      const warn = vi.fn();
+      const harness = registerEntry(OWNERLESS, warn);
+      harness.tlonTool();
+      harness.reloadConfig({
+        channels: { tlon: { ownerDefault: true, ownerShip: '~zod' } },
+      });
+      expect(harness.tlonTool()!.description).toContain(
+        'Commands act as your owner by default'
+      );
+      harness.reloadConfig(OWNERLESS);
+      harness.tlonTool();
+      expect(warn.mock.calls.filter(([m]) => m === WARNING)).toHaveLength(2);
+    });
   });
 
   it("never lends the tool's owner to a run answering another account's message", async () => {

@@ -17,6 +17,12 @@ import { sharedMap } from './shared-state.js';
 export type TlonCallApproval = {
   ownerDefault: boolean;
   ownerShip: string | undefined;
+  /**
+   * The run the gate let act as the owner (no `--self` rewrite), for the
+   * executor to re-check just before the CLI runs; absent when the call was
+   * not an owner run.
+   */
+  ownerRun?: { runId?: string; sessionKey?: string };
 };
 
 /**
@@ -67,7 +73,11 @@ export function takeTlonCallApproval(
   const entry = approvals.get(key);
   if (!entry) return undefined;
   approvals.delete(key);
-  return { ownerDefault: entry.ownerDefault, ownerShip: entry.ownerShip };
+  return {
+    ownerDefault: entry.ownerDefault,
+    ownerShip: entry.ownerShip,
+    ...(entry.ownerRun ? { ownerRun: entry.ownerRun } : {}),
+  };
 }
 
 export const _testing = {

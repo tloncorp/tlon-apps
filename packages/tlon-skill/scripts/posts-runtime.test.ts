@@ -7,15 +7,18 @@ import { createPostsDeps } from './posts-runtime';
 import {
   mockedDeleteReply,
   mockedGetChannelPosts,
+  mockedGetGroup,
   mockedGetPostWithReplies,
   mockedScry,
   mockedSetOrder,
 } from './tloncorp-api-mock';
 
 const defaultGetChannelPosts = mockedGetChannelPosts.impl;
+const originalGetGroup = mockedGetGroup.impl;
 
 afterEach(() => {
   mockedGetChannelPosts.impl = defaultGetChannelPosts;
+  mockedGetGroup.impl = originalGetGroup;
   mockedGetPostWithReplies.impl = async () => undefined;
   mockedDeleteReply.impl = async () => undefined;
   mockedSetOrder.impl = async () => undefined;
@@ -312,6 +315,33 @@ describe('createPostsDeps().contentKeyOf', () => {
     expect(thread.replies[0].contentKey).toBe(deps.contentKeyOf(story));
   });
 
+  it('matches the read-back of a story with role mentions', async () => {
+    const story = markdownToStory('hi @admin and @all', {
+      roleIds: new Set(['admin']),
+    });
+    mockedGetPostWithReplies.impl = async () => ({
+      id: '1',
+      authorId: '~host',
+      replies: [
+        {
+          id: '2',
+          authorId: '~zod',
+          sentAt: 1,
+          content: JSON.stringify([
+            { inline: ['hi ', { sect: 'admin' }, ' and ', { sect: null }] },
+          ]),
+        },
+      ],
+    });
+    const deps = createPostsDeps();
+    const thread = await deps.postsApi.getPostWithReplies({
+      channelId: 'chat/~host/channel',
+      postId: '1',
+    });
+
+    expect(thread.replies[0].contentKey).toBe(deps.contentKeyOf(story));
+  });
+
   it('distinguishes a changed image URL or text', () => {
     const deps = createPostsDeps();
     const base = deps.contentKeyOf(
@@ -454,5 +484,42 @@ describe('createPostsDeps() error mapping', () => {
     } finally {
       helper.mockRestore();
     }
+  });
+});
+
+describe('createPostsDeps().getGroupRoleIds', () => {
+  it('maps getGroup roles to ids', async () => {
+    const requested: unknown[] = [];
+    mockedGetGroup.impl = async (...args: unknown[]) => {
+      requested.push(args[0]);
+      return {
+        roles: [
+          { id: 'admin', title: 'Admins' },
+          { id: 'moderators', title: 'Mods' },
+        ],
+      };
+    };
+
+    expect(await createPostsDeps().getGroupRoleIds('~host/group')).toEqual([
+      'admin',
+      'moderators',
+    ]);
+    expect(requested).toEqual(['~host/group']);
+  });
+
+  it('returns no ids for a group without roles', async () => {
+    mockedGetGroup.impl = async () => ({});
+
+    expect(await createPostsDeps().getGroupRoleIds('~host/group')).toEqual([]);
+  });
+
+  it('passes a read failure through raw for the command to word', async () => {
+    mockedGetGroup.impl = async () => {
+      throw new Error('scry 404');
+    };
+
+    await expect(
+      createPostsDeps().getGroupRoleIds('~host/group')
+    ).rejects.toThrow('scry 404');
   });
 });
