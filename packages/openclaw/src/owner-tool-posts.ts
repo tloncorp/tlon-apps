@@ -28,13 +28,17 @@ import { normalizeShip } from './targets.js';
 export const OWNER_TOOL_POST_TTL_MS = 6 * 60 * 60_000;
 /**
  * Unresolved provenance is never evicted: once an account has this many live
- * entries, further owner writes are refused instead.
+ * entries, further owner writes are refused instead. Released entries make
+ * room for new ones, oldest first.
  */
 export const OWNER_TOOL_POST_LIMIT = 500;
 /**
  * How long after it is recorded a shortcode reaction entry matches any
- * reaction: the desk rewrites the shortcode to Unicode, so the string cannot
- * be compared, and the tool's own reaction arrives within seconds.
+ * reaction: the desk rewrites the shortcode to Unicode, which this plugin
+ * cannot predict, and the tool's own reaction arrives within seconds. Every
+ * reaction matched in the window is taken as the tool's and keeps matching
+ * exactly until the entry expires, since channel reaction snapshots replay it
+ * on every later change to the post.
  */
 export const SHORTCODE_MATCH_WINDOW_MS = 30_000;
 // The ship stores `sent` as @da and re-emits it in ms; depending on rounding
@@ -62,9 +66,10 @@ export type OwnerToolPost =
       /**
        * As the command gave it. The desk converts a recognized `:shortcode:`
        * to its Unicode emoji before the reaction reaches the firehose, so a
-       * shortcode entry matches on author and post alone, and only within
-       * SHORTCODE_MATCH_WINDOW_MS (see isShortcodeReaction); anything else
-       * must match exactly.
+       * shortcode entry matches on author and post alone within
+       * SHORTCODE_MATCH_WINDOW_MS, and afterwards only the reactions it
+       * matched then (see isShortcodeReaction); anything else must match
+       * exactly.
        */
       reaction: string;
     })
@@ -99,7 +104,8 @@ export type InboundPost = {
 export type OwnerToolPostReservation = {
   /**
    * The run failed: free the capacity slot. The entry stays matchable until
-   * it expires, since a failed run may still have reached the ship.
+   * it expires, since a failed run may still have reached the ship, unless
+   * the account needs its room first (see OWNER_TOOL_POST_LIMIT).
    */
   release(): void;
 };
@@ -114,6 +120,8 @@ export type OwnerToolPostLedger = {
 
 type StoredEntry = {
   post: OwnerToolPost;
+  /** For a shortcode reaction: the reactions it matched in the window. */
+  seen: Set<string>;
   recordedAt: number;
   holdsSlot: boolean;
 };
@@ -187,7 +195,8 @@ function sameParent(entryParent?: string, inboundParent?: string) {
 function matchesEntry(
   post: OwnerToolPost,
   inbound: InboundPost,
-  age: number
+  age: number,
+  seen: ReadonlySet<string>
 ): boolean {
   // The target is compared for a known author too: edit and reaction entries
   // carry no timestamp, so the same post id elsewhere would otherwise match.
@@ -217,9 +226,9 @@ function matchesEntry(
       inbound.postId !== undefined &&
       canonicalPostId(inbound.postId) === post.postId &&
       sameParent(post.parentId, inbound.parentId) &&
-      (isShortcodeReaction(post.reaction)
-        ? age <= SHORTCODE_MATCH_WINDOW_MS
-        : inbound.reaction === post.reaction)
+      (inbound.reaction === post.reaction ||
+        (isShortcodeReaction(post.reaction) &&
+          (age <= SHORTCODE_MATCH_WINDOW_MS || seen.has(inbound.reaction))))
     );
   }
   if (inbound.reaction !== undefined) return false;
@@ -273,7 +282,7 @@ export function createOwnerToolPostLedger(
     },
     reserve(post) {
       const at = now();
-      const entries = (store.get(post.accountId) ?? []).filter((entry) =>
+      let entries = (store.get(post.accountId) ?? []).filter((entry) =>
         live(entry, at)
       );
       store.set(post.accountId, entries);
@@ -283,7 +292,15 @@ export function createOwnerToolPostLedger(
       ) {
         return null;
       }
-      const entry: StoredEntry = { post, recordedAt: at, holdsSlot: true };
+      let excess = entries.length + 1 - OWNER_TOOL_POST_LIMIT;
+      entries = entries.filter((entry) => entry.holdsSlot || excess-- <= 0);
+      store.set(post.accountId, entries);
+      const entry: StoredEntry = {
+        post,
+        seen: new Set(),
+        recordedAt: at,
+        holdsSlot: true,
+      };
       entries.push(entry);
       return {
         release() {
@@ -296,19 +313,35 @@ export function createOwnerToolPostLedger(
       const at = now();
       // Every account's entries: a second account's monitor with the same
       // owner sees the same owner-authored post. A different owner never
-      // matches, because the author differs.
+      // matches, because the author differs. The scan continues past the
+      // first hit so every shortcode entry it matches records the reaction:
+      // another account's entry for the same post may outlive the hit.
+      let hit: OwnerToolPost | null = null;
       for (const entries of store.values()) {
         for (let i = entries.length - 1; i >= 0; i -= 1) {
           const entry = entries[i];
           if (
-            live(entry, at) &&
-            matchesEntry(entry.post, inbound, at - entry.recordedAt)
+            !live(entry, at) ||
+            !matchesEntry(
+              entry.post,
+              inbound,
+              at - entry.recordedAt,
+              entry.seen
+            )
           ) {
-            return entry.post;
+            continue;
+          }
+          hit ??= entry.post;
+          if (
+            entry.post.kind === 'react' &&
+            inbound.reaction !== undefined &&
+            isShortcodeReaction(entry.post.reaction)
+          ) {
+            entry.seen.add(inbound.reaction);
           }
         }
       }
-      return null;
+      return hit;
     },
   };
 }

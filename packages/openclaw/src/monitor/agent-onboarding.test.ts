@@ -944,6 +944,75 @@ describe('agent onboarding requests', () => {
       )
     ).toContain('superseded');
   });
+  it('does not read a tool-authored owner post as a newer owner answer', async () => {
+    const automaticProvision = {
+      ...provision,
+      interviewStartMessageId: 'owner-start',
+      interviewMessageId: 'owner-answer',
+    };
+    const requestBlob = appendToPostBlob(
+      appendToPostBlob(undefined, automaticProvision),
+      {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        surfaceId: 'agent-task-plan-test',
+        componentId: 'auto-provision',
+        sourcePostId: 'plan-post',
+        values: ['Create'],
+      }
+    );
+    const history = [
+      { author: '~ten', id: 'owner-start', content: 'a', timestamp: 1_000 },
+      { author: '~ten', id: 'owner-answer', content: 'b', timestamp: 2_000 },
+      { author: '~bot', id: 'plan-post', content: 'plan', timestamp: 3_000 },
+      { author: '~ten', id: 'tool-post', content: 'c', timestamp: 3_500 },
+      {
+        author: '~ten',
+        id: 'request-post',
+        content: '',
+        timestamp: 4_000,
+        blob: requestBlob,
+      },
+    ];
+    const handle = async () => {
+      const { cron } = provisionCronHarness();
+      const sendPost = successfulSendPost();
+      await expect(
+        handleAgentOnboardingRequest(
+          requestContext({ blob: requestBlob }),
+          provisionDeps(cron, {
+            fetchHistory: vi.fn(async () => history),
+            sendPost,
+          })
+        )
+      ).resolves.toBe(true);
+      return {
+        cron,
+        rejected: JSON.stringify(sendPost.mock.calls).includes(
+          `provision-rejected:${automaticProvision.provisionId}`
+        ),
+      };
+    };
+    try {
+      sharedOwnerToolPostLedger().reserve({
+        kind: 'send',
+        accountId: 'default',
+        author: '~ten',
+        target: 'chat/~ten/group/general',
+        sentAt: 3_500,
+      });
+      const toolPost = await handle();
+      expect(toolPost.rejected).toBe(false);
+      expect(toolPost.cron.add).toHaveBeenCalledOnce();
+    } finally {
+      ownerToolPostsTesting.clear();
+    }
+    clearAgentOnboardingRuntime();
+    const ownerPost = await handle();
+    expect(ownerPost.rejected).toBe(true);
+    expect(ownerPost.cron.add).not.toHaveBeenCalled();
+  });
+
   it('posts a durable recovery message when automatic evidence is rejected', async () => {
     const automaticProvision = {
       ...provision,

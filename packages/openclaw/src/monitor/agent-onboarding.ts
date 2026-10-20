@@ -705,7 +705,7 @@ async function rejectUnverifiableAutomaticPlan(
   includePostRequestAnswers = false
 ): Promise<boolean> {
   const reason = validateAutomaticPlanEvidence(
-    history,
+    withoutOwnerToolPosts(history, context.channelNest, context.botShip),
     context.ownerShip!,
     context.botShip,
     request,

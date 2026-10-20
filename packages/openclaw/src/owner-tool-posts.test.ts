@@ -534,10 +534,7 @@ describe('owner tool post ledger', () => {
       target: 'chat/~h/c',
       postId: '170.141',
     };
-    advance(SHORTCODE_MATCH_WINDOW_MS);
-    expect(ledger.match({ ...inbound, reaction: '👀' })).not.toBeNull();
-    expect(ledger.match({ ...inbound, reaction: '🎉' })).not.toBeNull();
-    advance(1);
+    advance(SHORTCODE_MATCH_WINDOW_MS + 1);
     expect(ledger.match({ ...inbound, reaction: '👀' })).toBeNull();
     expect(ledger.match({ ...inbound, reaction: '🎉' })).toBeNull();
     // A Unicode entry still matches exactly for the whole TTL.
@@ -545,6 +542,63 @@ describe('owner tool post ledger', () => {
     const unicode = { ...inbound, postId: '170.142' };
     expect(ledger.match({ ...unicode, reaction: '👍' })).not.toBeNull();
     expect(ledger.match({ ...unicode, reaction: '👎' })).toBeNull();
+  });
+
+  it('keeps matching every reaction a :shortcode: entry matched in the window, for the TTL', () => {
+    const { ledger, advance } = makeLedger();
+    const entry = {
+      kind: 'react' as const,
+      accountId: 'default',
+      author: '~owner',
+      target: 'chat/~h/c',
+      reaction: ':eyes:',
+    };
+    ledger.reserve({ ...entry, postId: '170141' });
+    ledger.reserve({ ...entry, postId: '170142' });
+    const inbound = {
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170.141',
+    };
+    // The owner's own 👍 lands before the tool's 👀; neither is known to be
+    // the tool's rendering, so both are kept.
+    advance(10_000);
+    expect(ledger.match({ ...inbound, reaction: '👍' })).not.toBeNull();
+    advance(1_000);
+    expect(ledger.match({ ...inbound, reaction: '👀' })).not.toBeNull();
+    advance(OWNER_TOOL_POST_TTL_MS - 11_000 - 1);
+    expect(ledger.match({ ...inbound, reaction: '👀' })).not.toBeNull();
+    expect(ledger.match({ ...inbound, reaction: '👍' })).not.toBeNull();
+    expect(ledger.match({ ...inbound, reaction: '🎉' })).toBeNull();
+    // An entry that saw nothing in the window matches only its literal form.
+    const unseen = { ...inbound, postId: '170.142' };
+    expect(ledger.match({ ...unseen, reaction: '👀' })).toBeNull();
+    expect(ledger.match({ ...unseen, reaction: ':eyes:' })).not.toBeNull();
+  });
+
+  it('records a :shortcode: match into every account entry it matches, not only the first', () => {
+    const { ledger, advance } = makeLedger();
+    const entry = {
+      kind: 'react' as const,
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170141',
+      reaction: ':eyes:',
+    };
+    const inbound = {
+      author: '~owner',
+      target: 'chat/~h/c',
+      postId: '170.141',
+      reaction: '👀',
+    };
+    ledger.reserve({ ...entry, accountId: 'a' });
+    expect(ledger.match(inbound)).not.toBeNull();
+    advance(60 * 60_000);
+    ledger.reserve({ ...entry, accountId: 'b' });
+    // Account a's entry matches this too; b's must still record it.
+    expect(ledger.match(inbound)).not.toBeNull();
+    advance(OWNER_TOOL_POST_TTL_MS - 60 * 60_000 + 1);
+    expect(ledger.match(inbound)).not.toBeNull();
   });
 
   it('matches a reply reaction and its removal only under the recorded parent', () => {
@@ -634,6 +688,36 @@ describe('owner tool post ledger', () => {
     expect(
       ledger.match({ author: '~owner', target: 'chat/~h/c', sent: T })
     ).not.toBeNull();
+  });
+
+  it('drops the oldest released entries to stay within the limit, never a slot holder', () => {
+    const { ledger } = makeLedger();
+    const reservations = Array.from({ length: OWNER_TOOL_POST_LIMIT }, (_, i) =>
+      ledger.reserve(send(T + 10 * i))
+    );
+    for (const reservation of reservations.slice(0, 10)) {
+      reservation!.release();
+    }
+    for (let i = 0; i < 3; i += 1) {
+      expect(ledger.reserve(send(T + 10_000 + i))).not.toBeNull();
+    }
+    const matches = (sent: number) =>
+      ledger.match({ author: '~owner', target: 'chat/~h/c', sent }) !== null;
+    // The first ten were released: the three oldest made room, the rest still match.
+    for (let i = 0; i < 3; i += 1)
+      expect(matches(T + 10 * i), `${i}`).toBe(false);
+    for (let i = 3; i < 10; i += 1)
+      expect(matches(T + 10 * i), `${i}`).toBe(true);
+    for (let i = 10; i < OWNER_TOOL_POST_LIMIT; i += 1) {
+      expect(matches(T + 10 * i), `${i}`).toBe(true);
+    }
+    for (let i = 3; i < 10; i += 1) {
+      expect(ledger.reserve(send(T + 20_000 + i))).not.toBeNull();
+    }
+    expect(ledger.reserve(send(T + 30_000))).toBeNull();
+    for (let i = 10; i < OWNER_TOOL_POST_LIMIT; i += 1) {
+      expect(matches(T + 10 * i), `${i}`).toBe(true);
+    }
   });
 
   it('normalizes ships on both sides of the author compare', () => {
