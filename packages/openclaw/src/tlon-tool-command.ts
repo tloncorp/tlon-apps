@@ -82,6 +82,7 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'mute',
       'unmute',
       'volume',
+      'mark-read',
     ]),
   ],
   ['browser', new Set(['handoff', 'share'])],
@@ -492,12 +493,13 @@ type OwnerCredentialCommand =
   | 'notes note-unpublish'
   | 'activity mute'
   | 'activity unmute'
-  | 'activity volume';
+  | 'activity volume'
+  | 'activity mark-read';
 
 const OWNER_CREDENTIAL_COMMANDS = new Map<string, readonly string[]>([
   ['groups', ['invite-link', 'join']],
   ['notes', ['note-publish', 'note-unpublish']],
-  ['activity', ['mute', 'unmute', 'volume']],
+  ['activity', ['mute', 'unmute', 'volume', 'mark-read']],
 ]);
 
 // Operations that run as the owner only in one form. A plain `groups join
@@ -552,15 +554,20 @@ const OWNER_CREDENTIAL_WORDING: Record<
     asShip: 'Changing a notification level as',
     selfHint: NOTIFICATION_SELF_HINT,
   },
+  'activity mark-read': {
+    noOwner: 'Marking as read as the owner',
+    asShip: 'Marking as read as',
+    selfHint: "Add --self to mark this bot's own chats read instead.",
+  },
 };
 
 /**
  * The shared owner-injection predicate (the Hermes adapter implements the same
  * truth table for `groups invite-link` only): a bare `groups invite-link`,
  * `groups join --invite`, `notes note-publish`, `notes note-unpublish` or
- * `activity mute|unmute|volume`, with no credential flag in either form, no
- * `--self`, and no help token. `groups join` without `--invite` is not an
- * owner operation. Any other command keeps the credential selection it was
+ * `activity mute|unmute|volume|mark-read`, with no credential flag in either
+ * form, no `--self`, and no help token. `groups join` without `--invite` is not
+ * an owner operation. Any other command keeps the credential selection it was
  * given, exactly as the model wrote it.
  */
 function ownerCredentialCommand(args: string[]): OwnerCredentialCommand | null {
@@ -1189,13 +1196,25 @@ function summarizeKnownTlonCommand(
   }
 
   switch (subcommand) {
-    case 'activity':
-      // mute/unmute/volume change only the acting ship's own preferences.
+    case 'activity': {
+      // mute/unmute/volume change only the acting ship's own preferences and
+      // mark-read its own read state; `volume base` without a level only
+      // shows the base level.
+      const positionals = remainder.filter((arg) => !arg.startsWith('-'));
+      const showsBase =
+        operation === 'volume' &&
+        positionals.length === 1 &&
+        positionals[0].toLowerCase() === 'base';
       return build(
-        operation === 'mute' || operation === 'unmute' || operation === 'volume'
+        (operation === 'mute' ||
+          operation === 'unmute' ||
+          operation === 'volume' ||
+          operation === 'mark-read') &&
+          !showsBase
           ? 'write'
           : 'read'
       );
+    }
     case 'browser':
       return build('write');
     case 'buckets':

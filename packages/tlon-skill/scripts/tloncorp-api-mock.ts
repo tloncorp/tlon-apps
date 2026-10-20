@@ -24,7 +24,8 @@
  * enableGroup, BadResponseError), `activity-runtime.ts`
  * (getInitialActivity, getGroupAndChannelUnreads, getTextContent,
  * adjustVolumeSetting, getVolumeSettings, setActivitySupportsReactions,
- * setActivitySupportsNotes, getGroups, getChannelPosts),
+ * setActivitySupportsNotes, getGroups, getChannelPosts, readChannel,
+ * activityAction, poke),
  * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
  * getPostWithReplies, deleteReply, setOrder, toPostContent),
  * `join-invite-runtime.ts` (getGroup, scry, subscribeOnce, joinGroup,
@@ -173,6 +174,20 @@ export const mockedVolume = {
   getVolumeSettings: async (..._args: unknown[]): Promise<unknown> => ({}),
   supportsReactions: false,
   supportsNotes: false,
+};
+
+/**
+ * The activity read surface: reassign per test. Read the flags from
+ * `mockedVolume` inside a call to see what the runtime set before it.
+ */
+export const mockedActivityRead = {
+  readChannel: async (..._args: unknown[]): Promise<unknown> => undefined,
+  getGroupAndChannelUnreads: async (): Promise<unknown> => ({
+    baseUnread: null,
+    groupUnreads: [],
+    channelUnreads: [],
+    threadActivity: [],
+  }),
 };
 
 export const mockedGetGroup = {
@@ -346,11 +361,15 @@ mock.module('@tloncorp/api', () => ({
   // activity runtime value imports (formatter tests call the pure helpers
   // directly, so these are load-time placeholders)
   getInitialActivity: async () => ({ events: [], relevantUnreads: {} }),
-  getGroupAndChannelUnreads: async () => ({
-    baseUnread: null,
-    groupUnreads: [],
-    channelUnreads: [],
-    threadActivity: [],
+  getGroupAndChannelUnreads: () =>
+    mockedActivityRead.getGroupAndChannelUnreads(),
+  readChannel: (...args: unknown[]) => mockedActivityRead.readChannel(...args),
+  // The mark follows the flag, so a poke records the flag state it was built
+  // under.
+  activityAction: (json: unknown) => ({
+    app: 'activity',
+    mark: mockedVolume.supportsNotes ? 'activity-action-2' : 'activity-action',
+    json,
   }),
   getTextContent: () => '',
   adjustVolumeSetting: (...args: unknown[]) =>

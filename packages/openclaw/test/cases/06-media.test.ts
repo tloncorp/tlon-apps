@@ -11,8 +11,8 @@ import { fakeModel } from '../support/fake-model/client.js';
 const SOURCE_IMAGE_URL =
   'https://storage.googleapis.com/tlon-test-ci-shared/test-images/openclaw-image.png';
 
-const LOCAL_MEDIA_ERROR_TEXT =
-  'Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>`) and resend with the returned https URL.';
+const LOCAL_MEDIA_ERROR =
+  /Local attachments require TLON_HOSTING=1|Could not read local media/;
 
 // Poke mark verified against fakezod — see plan §1b.
 // JSON keys must be kebab-case (storage-json/hoon), not camelCase.
@@ -204,7 +204,7 @@ describe('media', () => {
           if (!p.images?.length || !p.images[0]?.src) {
             continue;
           }
-          return { src: p.images[0].src };
+          return { src: p.images[0].src, sequence: p.sequenceNum ?? -1 };
         }
         return undefined;
       },
@@ -220,9 +220,38 @@ describe('media', () => {
     // so equality here means the upload did NOT happen.
     expect(result.src).toBeDefined();
     expect(result.src).not.toBe(SOURCE_IMAGE_URL);
+
+    // The script closes with a text turn after the tool call, and prompt()
+    // returns on the first new bot post, which can be the image itself. Wait
+    // for that closing post here: otherwise the next test takes its baseline
+    // before it lands and reads it as its own response.
+    await waitFor(
+      async () => {
+        const posts = await fixtures.userState.channelPosts(
+          fixtures.botShip,
+          30
+        );
+        const closed = (posts ?? []).some((post) => {
+          const p = post as {
+            authorId?: string;
+            sequenceNum?: number | null;
+            textContent?: string | null;
+          };
+          return (
+            p.authorId === fixtures.botShip &&
+            isPostNewerThanSequence(p, result.sequence) &&
+            (p.textContent ?? '').trim() === 'Image sent.'
+          );
+        });
+        return closed ? true : undefined;
+      },
+      30_000,
+      undefined,
+      'closing text after the image DM'
+    );
   });
 
-  test('local path fails loudly and posts nothing (storage-independent)', async () => {
+  test('disallowed local path fails loudly and posts nothing (storage-independent)', async () => {
     const token = `it-localmedia-${Date.now().toString(36)}`;
     const key = 'media-local-path-reject';
     const localPath = `/pier/secret-${token}.png`;
@@ -265,8 +294,7 @@ describe('media', () => {
     const followUpWithToolResult = calls.find((call) =>
       call.messages?.some(
         (msg) =>
-          msg.role === 'tool' &&
-          msg.content?.text?.includes(LOCAL_MEDIA_ERROR_TEXT)
+          msg.role === 'tool' && LOCAL_MEDIA_ERROR.test(msg.content?.text ?? '')
       )
     );
     expect(followUpWithToolResult).toBeDefined();

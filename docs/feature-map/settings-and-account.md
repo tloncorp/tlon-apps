@@ -6,7 +6,7 @@ What every row on the Settings tab does (appearance, privacy, app info, bug repo
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx -->
 <!-- covers: route:Settings -->
 
-Phone: tap the gear in the tab bar. Under `App` the rows are, in order: `Your profile`, `Contacts`, `Notifications`, `Appearance`, `Manage Tlon account`, `Privacy`, `Blocked users`, `App info`, `Tlon Messenger on the Web`, `Report a bug`, `Experimental features` and `Log out`.
+Phone: tap the gear in the tab bar. The rows run down one list, with no section headings: `Your profile` first, then your bot's rows if you have one, then `Contacts`, `Manage Tlon account`, `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug`, `Experimental features` and `Tlon Messenger on the Web`. `Log out` sits on its own at the bottom.
 Desktop: click the gear at the bottom of the left rail. The list is shorter: `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug` and `Experimental features`. Each opens in the pane beside the list.
 Notes: `Notifications` and `Appearance` show their current choice under the name. `Your profile` opens your profile, `Contacts` your contact list, `Notifications` your notification level, and `Blocked users` the people you've blocked. `Manage Tlon account` and `Tlon Messenger on the Web` only show on hosted accounts.
 
@@ -14,12 +14,12 @@ Notes: `Notifications` and `Appearance` show their current choice under the name
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, apps/tlon-web/src/logic/useMedia.ts -->
 
 Who: `Manage Tlon account` and `Tlon Messenger on the Web` are for accounts Tlon hosts, and neither shows in the desktop layout. A self-hosted node gets neither.
-Notes: with a hosted Tlonbot, the phone puts the bot's own settings (`Models`, `Connections` and more) above `App`. If the app can't use your hosted login just then, for example because it has expired, you get a single `Bot Settings` row instead. On desktop a hosted bot always gets the single `Bot Settings` row, which opens the bot's settings in a new browser tab. No hosted bot means no bot rows at all. Desktop also leaves out `Your profile`, `Contacts` and `Log out`. A browser window under 768 pixels wide gets the phone layout instead, which still has no `Log out`.
+Notes: with a hosted Tlonbot, the phone puts the bot's own rows (`Models`, `Connections`, `Permissions` and more) between `Your profile` and the rest. If the app can't use your hosted login just then, for example because it has expired, you get a single `Bot Settings` row instead, with a `Scheduled tasks` row under it when the app can show your bot's tasks. On desktop a hosted bot always gets the single `Bot Settings` row, which opens the bot's settings in a new browser tab. No hosted bot means no bot rows at all. Desktop also leaves out `Your profile`, `Contacts` and `Log out`. A browser window under 768 pixels wide gets the phone layout instead, which still has no `Log out`.
 
 ## Set my status from the Settings tab
 <!-- src: packages/app/features/settings/SettingsScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/ProfileStatusSheet.tsx -->
 
-Phone: on the Settings tab, press and hold `Your profile`. A sheet opens with an `Update your status` box. Type up to 50 characters and tap the arrow button to save.
+Phone: on the Settings tab, press and hold your profile row at the top. On an iPhone a menu opens; tap `Set status`. On Android the sheet opens straight away. It is headed `Update your status`. Type up to 50 characters and tap the arrow button to save.
 Notes: this is a phone shortcut. Desktop's Settings has no `Your profile` row.
 
 ## Change the theme or turn on dark mode
@@ -38,10 +38,10 @@ Desktop: the gear in the left rail, then `Appearance`.
 Notes: when it's on, a deleted message leaves a marker where it used to be (`Show a placeholder for deleted messages`). It starts off.
 
 ## Find the app version or my node's software version
-<!-- src: packages/app/features/settings/AppInfoScreen.tsx, packages/app/ui/components/AppSetting.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
+<!-- src: packages/app/features/settings/AppInfoScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 <!-- covers: route:AppInfo -->
 
-Phone: Settings tab, then `App info`. It lists `Build version`, `Notify provider`, `Notify service`, `Desk version`, `Desk source`, `Desk hash` and `Permitted Scheduler ID`. Tap a row to copy its value; the copy icon turns into a checkmark.
+Phone: Settings tab, then `App info`. It lists `Build version`, `Notify provider`, `Notify service`, `Desk version`, `Desk source`, `Desk hash` and `Permitted Scheduler ID`. Tap a row to copy its value.
 Desktop: the gear in the left rail, then `App info`.
 Notes: `Build version` is the app's build on this phone. The three `Desk` rows describe the Tlon Messenger software installed on your node: its version, where it gets updates from, and its hash. If they can't be read you see `Cannot load app info settings`. Your node's name is not on this screen, and there is no clear-cache or reset button.
 
@@ -109,7 +109,7 @@ Notes: logging out is not deleting. `Log out` only clears the app on that phone.
 <!-- src: packages/app/features/settings/UserBugReportScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 <!-- covers: route:WompWomp -->
 
-Phone: Settings tab, then `Report a bug`. If you like, type what happened in `Additional notes` (the box says `What went wrong?`, 300 characters at most), then tap `Send Report`. You'll see `Bug report sent`.
+Phone: Settings tab, then `Report a bug`. If you like, type what happened in the box that says `What went wrong?` (300 characters at most), then tap `Send` in the top bar. You'll see `Bug report sent`.
 Desktop: the gear in the left rail, then `Report a bug`.
 Notes: the screen says diagnostic information is attached automatically. What you type is kept on the phone and is not part of the report, so the team learns that something went wrong, not what. To explain it, email support@tlon.io. A report is one-way: nothing more happens in the app, so use it to flag a problem, not to ask a question.
 
@@ -129,16 +129,16 @@ Notes: if the phone has no mail app, the links show `No mail app found` with the
 <!-- src: packages/app/features/settings/FeatureFlagScreen.tsx, packages/app/ui/components/FeatureFlagScreenView.tsx, packages/app/lib/featureFlags.ts, packages/app/ui/components/SettingsScreenView.tsx -->
 <!-- covers: route:FeatureFlags -->
 
-Phone: Settings tab, then `Experimental features`. Flip the switch beside the one you want: `Enable collecting and reporting performance data` or `Enable Buckets channels`. Below the switches are two text boxes, `Context lens gateway URL` and `Context lens gateway token`.
+Phone: Settings tab, then `Experimental features`. Flip the switch beside the one you want: `Performance reporting`, `Buckets channels` or `Markdown notebooks`. Below the switches are two text boxes, `Context lens gateway URL` and `Context lens gateway token`.
 Desktop: the gear in the left rail, then `Experimental features`.
-Who: everyone can open the screen. `Enable Markdown mode for notebook posts` is only listed for Tlon staff.
+Who: everyone can open the screen. `Markdown notebooks` is only listed for Tlon staff.
 Notes: every switch starts off. They are saved on the device you set them on, not to your node, so set them again on each device.
 
 ## Turn performance data reporting on or off
 <!-- src: packages/app/lib/featureFlags.ts, packages/app/utils/perf.tsx, apps/tlon-mobile/src/App.main.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/PrivacyScreen.tsx -->
 <!-- covers: flag:instrumentationEnabled -->
 
-Phone: Settings tab, then `Experimental features`, then the switch `Enable collecting and reporting performance data`.
+Phone: Settings tab, then `Experimental features`, then the switch `Performance reporting`.
 Notes: it starts off. While it's on, the phone app measures how long things take and reports those measurements. It is separate from `Share Usage Statistics` on the Privacy screen. The switch is also listed on desktop, but only the phone app collects this data.
 
 ## Log out

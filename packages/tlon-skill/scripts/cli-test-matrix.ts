@@ -2046,6 +2046,8 @@ function activityUsageCase(
 
 const DM_LEVELS_MESSAGE =
   'DMs take medium, hush or default (the app offers only these for DMs)';
+const BASE_MSG =
+  'base takes medium, soft or hush (the app offers only these in Settings → Notifications)';
 
 export const ACTIVITY_VOLUME_CASES: CliCase[] = [
   activityUsageCase(
@@ -2057,6 +2059,21 @@ export const ACTIVITY_VOLUME_CASES: CliCase[] = [
     'activity volume DM soft',
     ['volume', '~ten', 'soft'],
     DM_LEVELS_MESSAGE
+  ),
+  activityUsageCase(
+    'activity volume base default',
+    ['volume', 'base', 'default'],
+    BASE_MSG
+  ),
+  activityUsageCase(
+    'activity volume base loud',
+    ['volume', 'base', 'loud'],
+    BASE_MSG
+  ),
+  activityUsageCase(
+    'activity volume base unknown level',
+    ['volume', 'base', 'bogus'],
+    'Unknown level: bogus. Levels for base: medium, soft, hush'
   ),
   activityUsageCase(
     'activity mute invalid ship',
@@ -2121,6 +2138,17 @@ export const ACTIVITY_VOLUME_CASES: CliCase[] = [
     '~zod/book-club',
     'soft',
   ]),
+  authRequiredCase('activity volume base reaches auth', [
+    'activity',
+    'volume',
+    'base',
+    'soft',
+  ]),
+  authRequiredCase('activity volume base show reaches auth', [
+    'activity',
+    'volume',
+    'base',
+  ]),
   authRequiredCase('activity unmute thread reaches auth', [
     'activity',
     'unmute',
@@ -2130,6 +2158,80 @@ export const ACTIVITY_VOLUME_CASES: CliCase[] = [
   {
     name: 'activity mute explicit --config beats owner routing',
     args: ['--config', '/nonexistent', 'activity', 'mute', '~ten'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Ship config not found'],
+    stderrExcludes: ['Usage:', ...STACK_PATTERNS],
+  },
+];
+
+// `activity mark-read`: the same pre-auth target validation, plus its own
+// post-id and --all checks.
+export const ACTIVITY_MARK_READ_CASES: CliCase[] = [
+  activityUsageCase(
+    'activity mark-read with a post id',
+    ['mark-read', 'chat/~nec/general', '170.141'],
+    'Unexpected argument: 170.141. mark-read takes no post id; marking a channel or DM read also reads its threads'
+  ),
+  activityUsageCase(
+    'activity mark-read --all with a target',
+    ['mark-read', '--all', '~zod/book-club'],
+    '--all takes no target'
+  ),
+  activityUsageCase(
+    'activity mark-read base',
+    ['mark-read', 'base'],
+    'Unrecognized target: base. Use ~ship, a group-DM id (0v...), ~host/group, chat/~host/name or heap/~host/name'
+  ),
+  activityUsageCase(
+    'activity mark-read invalid ship',
+    ['mark-read', '~foo'],
+    'Invalid ship: ~foo (expected a ship such as ~sampel-palnet)'
+  ),
+  activityUsageCase(
+    'activity mark-read unknown option',
+    ['mark-read', '--force'],
+    'Unknown option: --force'
+  ),
+  usageErrorCase(
+    'activity mark-read no target',
+    ['activity', 'mark-read'],
+    'Usage: tlon activity mark-read'
+  ),
+  helpCase(
+    'activity mark-read --help',
+    ['activity', 'mark-read', '--help'],
+    'tlon activity mark-read'
+  ),
+  refusalCase(
+    'activity mark-read refuses a notes channel',
+    ['activity', 'mark-read', 'notes/~zod/blog'],
+    'Marking a notes channel read is not supported'
+  ),
+  diaryRefusedCase('activity mark-read refuses a diary channel', [
+    'activity',
+    'mark-read',
+    'diary/~zod/blog',
+  ]),
+  authRequiredCase('activity mark-read reaches auth', [
+    'activity',
+    'mark-read',
+    '~ten',
+  ]),
+  authRequiredCase('activity mark-read --self reaches auth', [
+    'activity',
+    'mark-read',
+    '~zod/book-club',
+    '--self',
+  ]),
+  authRequiredCase('activity mark-read --all reaches auth', [
+    'activity',
+    'mark-read',
+    '--all',
+  ]),
+  {
+    name: 'activity mark-read explicit --config beats owner routing',
+    args: ['--config', '/nonexistent', 'activity', 'mark-read', '--all'],
     expectedExitCode: 1,
     stdout: '',
     stderrIncludes: ['Ship config not found'],
@@ -2331,6 +2433,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...INVITE_LINK_CREDENTIAL_CASES,
   ...JOIN_INVITE_CASES,
   ...ACTIVITY_VOLUME_CASES,
+  ...ACTIVITY_MARK_READ_CASES,
   ...CHANNEL_MEMBERSHIP_CASES,
   ...GROUP_SECTION_CASES,
 ];

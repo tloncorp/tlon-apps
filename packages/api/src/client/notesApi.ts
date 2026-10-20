@@ -945,6 +945,10 @@ async function searchNotesV1({
   return normalizeSearchPageV1(res);
 }
 
+// Note and folder ids go into HTTP paths as plain decimal, never formatUd:
+// the agent's URL parser splits a trailing ".165" off the last segment as a
+// file extension, so "/notes/1.165" would address note 1. The agent accepts
+// plain decimal ids of any size (+parse-ud in app/notes.hoon).
 async function getNoteV1({
   flag,
   noteId,
