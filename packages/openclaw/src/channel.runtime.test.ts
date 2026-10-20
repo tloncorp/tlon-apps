@@ -146,9 +146,9 @@ describe('sendMedia', () => {
     vi.restoreAllMocks();
   });
 
-  it('rejects on local path and does not post', async () => {
+  it('rejects disallowed local media and does not post', async () => {
     prepareOutboundMedia.mockRejectedValue(
-      new Error('Local file paths are not supported on this channel')
+      new Error('Could not read local media from the allowed directories.')
     );
     const { startTlonAgentTurn } = await import('./turn-recorder.js');
     const recordDispatchAttempted = vi.fn();
@@ -181,7 +181,7 @@ describe('sendMedia', () => {
           mediaUrl: '/pier/secret.png',
         })
       )
-    ).rejects.toThrow('Local file paths are not supported');
+    ).rejects.toThrow('Could not read local media');
 
     expect(sendDm).not.toHaveBeenCalled();
     expect(sendDmWithStory).not.toHaveBeenCalled();
@@ -232,6 +232,34 @@ describe('sendMedia', () => {
         accountId: 'secondary',
         ship: 'zod',
       })
+    );
+  });
+
+  it('passes local media access to the uploader and posts the uploaded URL', async () => {
+    const mediaLocalRoots = ['/pier/bot/.openclaw/media'];
+    const mediaReadFile = vi.fn();
+    const mediaUrl = `${mediaLocalRoots[0]}/cat.png`;
+    prepareOutboundMedia.mockResolvedValue({
+      url: 'https://storage.example.com/cat.png',
+      isImage: true,
+    });
+    await tlonRuntimeOutbound.sendMedia({
+      ...baseCtx,
+      mediaUrl,
+      mediaLocalRoots,
+      mediaReadFile,
+    });
+    expect(prepareOutboundMedia).toHaveBeenCalledWith(mediaUrl, {
+      mediaAccess: undefined,
+      mediaLocalRoots,
+      mediaReadFile,
+    });
+    expect(sendDmWithStory).toHaveBeenCalledOnce();
+    const { buildMediaStory } = await import('./urbit/send.js');
+    expect(buildMediaStory).toHaveBeenCalledWith(
+      baseCtx.text,
+      { url: 'https://storage.example.com/cat.png', isImage: true },
+      expect.any(Object)
     );
   });
 

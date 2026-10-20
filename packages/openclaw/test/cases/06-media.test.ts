@@ -11,8 +11,8 @@ import { fakeModel } from '../support/fake-model/client.js';
 const SOURCE_IMAGE_URL =
   'https://storage.googleapis.com/tlon-test-ci-shared/test-images/openclaw-image.png';
 
-const LOCAL_MEDIA_ERROR_TEXT =
-  'Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>`) and resend with the returned https URL.';
+const LOCAL_MEDIA_ERROR =
+  /Local attachments require TLON_HOSTING=1|Could not read local media/;
 
 // Poke mark verified against fakezod — see plan §1b.
 // JSON keys must be kebab-case (storage-json/hoon), not camelCase.
@@ -222,7 +222,7 @@ describe('media', () => {
     expect(result.src).not.toBe(SOURCE_IMAGE_URL);
   });
 
-  test('local path fails loudly and posts nothing (storage-independent)', async () => {
+  test('disallowed local path fails loudly and posts nothing (storage-independent)', async () => {
     const token = `it-localmedia-${Date.now().toString(36)}`;
     const key = 'media-local-path-reject';
     const localPath = `/pier/secret-${token}.png`;
@@ -265,8 +265,7 @@ describe('media', () => {
     const followUpWithToolResult = calls.find((call) =>
       call.messages?.some(
         (msg) =>
-          msg.role === 'tool' &&
-          msg.content?.text?.includes(LOCAL_MEDIA_ERROR_TEXT)
+          msg.role === 'tool' && LOCAL_MEDIA_ERROR.test(msg.content?.text ?? '')
       )
     );
     expect(followUpWithToolResult).toBeDefined();
