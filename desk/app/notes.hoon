@@ -2089,7 +2089,8 @@
   ::
   ++  se-member-join
     ^+  se-core
-    ?<  =(our.bowl src.bowl)
+    ?:  =(our.bowl src.bowl)
+      ~|(host-cannot-join+flag !!)
     ::  Access check — one of three cases:
     ::    non-group private: src must already be in the members map
     ::    non-group public:  anyone is welcome — no check needed
@@ -2112,7 +2113,8 @@
   ::
   ++  se-member-leave
     ^+  se-core
-    ?<  =(our.bowl src.bowl)
+    ?:  =(our.bowl src.bowl)
+      ~|(host-cannot-leave+flag !!)
     =.  members.notebook-state
       (~(del by members.notebook-state) src.bowl)
     (se-update [%member-left src.bowl])
