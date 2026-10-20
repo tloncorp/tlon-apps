@@ -120,6 +120,17 @@ export const TlonAccountSchema = z.object({
   autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
   // Owner ship for approval system
   ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
+  // Root-only: the tlon tool is registered once for the default account, so a
+  // per-account value could not take effect. Rejected here rather than ignored.
+  ownerDefault: z
+    .never({
+      error:
+        'ownerDefault is set on the root Tlon channel config, not per account',
+    })
+    .describe(
+      'Not allowed per account: set ownerDefault on the root Tlon channel config.'
+    )
+    .optional(),
   // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
   reactionLevel: ReactionLevelSchema.optional(),
   // Rate limiting for bot-to-bot responses
@@ -164,6 +175,8 @@ export const TlonConfigSchema = z.object({
   autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
   // Owner ship for approval system
   ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
+  // Staged rollout: tlon tool commands act as the owner by default (off: the bot)
+  ownerDefault: z.boolean().optional(),
   // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
   reactionLevel: ReactionLevelSchema.optional(),
   // Rate limiting for bot-to-bot responses

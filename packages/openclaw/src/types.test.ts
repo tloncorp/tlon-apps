@@ -280,3 +280,22 @@ describe('resolveTlonAccount contextLens', () => {
     });
   });
 });
+
+describe('resolveTlonAccount ownerDefault', () => {
+  it('reads only the root value, for every account', () => {
+    const config = {
+      channels: {
+        tlon: {
+          ownerDefault: true,
+          accounts: { second: { ownerDefault: false } },
+        },
+      },
+    } as unknown as OpenClawConfig;
+    expect(resolveTlonAccount(config).ownerDefault).toBe(true);
+    expect(resolveTlonAccount(config, 'second').ownerDefault).toBe(true);
+    expect(
+      resolveTlonAccount({ channels: { tlon: {} } } as OpenClawConfig)
+        .ownerDefault
+    ).toBe(false);
+  });
+});

@@ -62,7 +62,6 @@ import {
   bindTlonServiceSetupCall,
   claimTlonChoiceCall,
   claimTlonTaskPlanCall,
-  clearTlonSessionRunSurface,
   getTlonSessionRunSurface,
   getTlonSessionSurface,
   managedCronJobIdOf,
@@ -118,13 +117,29 @@ import {
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
-import { runTlonCommand } from './src/tlon-command-runner.js';
+import {
+  resolveExecutionBotShip,
+  runTlonCommand,
+} from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
+  type TlonToolExecutorDeps,
+  formatTlonToolDescription,
   findTlonSubcommandIndex,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
+import {
+  recordTlonCallApproval,
+  takeTlonCallApproval,
+} from './src/tlon-call-approvals.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
+import {
+  getRecordedRunRole,
+  getRunAccountId,
+  noteCrossSessionSend,
+  observeRun,
+  resolveTurnIdentity,
+} from './src/turn-identity.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
@@ -1025,42 +1040,130 @@ export default defineBundledChannelEntry({
       );
     }
 
+    // The staged-rollout flag and the owner ship are read from the live
+    // runtime config, not the registration snapshot: a channels.tlon reload
+    // restarts monitors (which then authorize the new owner) without
+    // re-running registerFull, and an operator rollback or owner change must
+    // take effect without a gateway restart. The bot's own credentials stay
+    // as registered.
+    // `ownerDefault` is the effective flag: on only with an owner to act as.
+    // Set without an owner, every command runs as the bot, exactly as with
+    // the flag off, and the tool says so.
+    let warnedOwnerlessDefault = false;
+    const liveAccount = () => {
+      const live = resolveTlonAccount(api.runtime.config.loadConfig());
+      const ownerShip = normalizeShip(live.ownerShip ?? '') || undefined;
+      const ownerless = live.ownerDefault && !ownerShip;
+      if (ownerless && !warnedOwnerlessDefault) {
+        api.logger.warn(
+          '[tlon] ownerDefault is enabled but no ownerShip is configured; commands run as the bot.'
+        );
+      }
+      warnedOwnerlessDefault = ownerless;
+      return { ownerDefault: live.ownerDefault && !ownerless, ownerShip };
+    };
+    liveAccount();
+
+    // Whether the gate lets a run's tlon calls act as the owner. The executor
+    // re-checks the same predicate just before the CLI runs.
+    const isOwnerRun = (
+      run: { runId?: string; sessionKey?: string },
+      ownerShip: string | undefined
+    ) =>
+      resolveTurnIdentity({
+        runId: run.runId,
+        sessionKey: run.sessionKey,
+        ownerShip,
+      }) === 'owner' &&
+      // The tool acts with this account's owner; a run answering a message on
+      // another account must not borrow it.
+      (getRunAccountId(run.runId) ?? account.accountId) === account.accountId;
+
     // Tool factories receive the active agent workspace, including cron runs.
+    // Core calls the factory each time it resolves tools, and its descriptor
+    // cache is keyed on the runtime config, so the description follows a
+    // reload; execution reads the live account again on every call.
     api.registerTool(
       (ctx) => {
-        const executeTlonTool = createTlonToolExecutor({
+        const executorDeps = ({
+          ownerDefault,
+          ownerShip,
+        }: ReturnType<typeof liveAccount>): TlonToolExecutorDeps => ({
           runCommand: (args) =>
             args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
               ? runBrowserSessionHandoff(tlonBinary, args, api.config)
               : runTlonCommand(tlonBinary, args, credentials, {
                   timeoutMs: toolTimeoutMs,
                   cwd: ctx.workspaceDir,
-                  ownerShip:
-                    normalizeShip(account.ownerShip ?? '') || undefined,
+                  ownerShip,
                 }),
           notifyDiaryMigrationDiscovery: (nest) =>
             notifyDiaryMigrationDiscovery(nest, api.config),
           logError: (message) => api.logger.warn(`[tlon] ${message}`),
-          // Lets the executor run `groups invite-link` as the owner, so invites
-          // attribute to the owner rather than the bot, and host a workspace
-          // made for the owner on the owner's ship with the bot as its agent.
-          ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
-          botShip: normalizeShip(credentials?.ship ?? '') || undefined,
+          // With `ownerDefault`, commands act as this owner (`--ship <owner>`)
+          // and the before_tool_call gate rewrites calls on turns the owner
+          // did not direct to `--self`. Without it, only the legacy owner
+          // operations do, and a workspace made for the owner (or a channel in
+          // a group the owner hosts) is hosted on the owner's ship.
+          ownerShip,
+          ownerDefault,
+          // The ship the runner's own credentials act as, for the owner
+          // self-DM guard, the `Ran as` line and the admin of a workspace
+          // hosted on the owner's ship.
+          botShip: resolveExecutionBotShip(credentials, process.env),
           env: process.env,
           fileExists: (path) => existsSync(path),
         });
+        const executeTlonTool = async (
+          id: string,
+          params: { command: string }
+        ) => {
+          const approved = takeTlonCallApproval(id, params.command);
+          if (!approved) {
+            // No gate decision for this call: act as the bot, with credential
+            // flags rejected.
+            api.logger.warn(
+              `[tlon] tlon call ${id} has no before_tool_call approval; running as the bot.`
+            );
+            return createTlonToolExecutor({
+              ...executorDeps({ ownerDefault: false, ownerShip: undefined }),
+              rejectCredentialFlags: true,
+            })(id, params);
+          }
+          // Refuse rather than honor a stale approval: a reload between the
+          // gate and here changed who the owner is or whether commands act
+          // as the owner, and either config is one the operator has just
+          // replaced. Running with the approved one would act for an owner
+          // (or a default) no longer configured; running with the live one
+          // would act on a decision the gate never made.
+          const live = liveAccount();
+          if (
+            live.ownerDefault !== approved.ownerDefault ||
+            live.ownerShip !== approved.ownerShip
+          ) {
+            const message =
+              "the bot's owner configuration changed while this command was pending; nothing was run. Run it again.";
+            return {
+              content: [{ type: 'text' as const, text: `Error: ${message}` }],
+              details: { status: 'error', error: message },
+            };
+          }
+          // A non-owner message or sessions_send may have demoted the run
+          // since the gate; the executor refuses a command that would still
+          // act as the owner (a rerun goes through the gate and gets --self).
+          const ownerIdentityLost =
+            approved.ownerRun !== undefined &&
+            !isOwnerRun(approved.ownerRun, live.ownerShip);
+          return createTlonToolExecutor({
+            ...executorDeps(approved),
+            ownerIdentityLost,
+          })(id, params);
+        };
 
         return {
           name: 'tlon',
           label: 'Tlon CLI',
-          description:
-            'Read Tlon data and manage Tlon workspaces (groups), channels, notes, shared Bucket files, contacts, and settings. ' +
-            'In Tlon requests, "workspace" means a group; use groups commands and groups create-owned to create one for a user. Explicit requests about files or paths refer to the agent workspace directory. ' +
-            'Read the tlon skill at its available-skills location for the task workflow. Use command "help" or "help <command> [operation]" to discover exact syntax. ' +
-            'Pass arguments only, without a leading tlon executable. Relative files use the active agent workspace; shell expansion, pipes, redirections, and stdin are unavailable. ' +
-            'Use message for ordinary sends/replies. To share a hosted browser for viewing or control, use browser share <session_id> to send a rich browser-session link card; never send raw or labeled browser-session links in ordinary messages. For secure browser input, use browser handoff <session_id> --fields <JSON array> with current snapshot refs when the owner should fill only selected controls; omit --fields for automatic discovery of the visible form. Use help browser for syntax and quoting examples. Both browser commands take the sess_ handle from browser_session_create, never a viewer URL. Legacy diary migrations require the owner’s /migrate command. ' +
-            'Never use a browser to operate Tlon itself: if neither this tool nor message can do what was asked, say your Tlon tools do not support it yet and, where the Tlon app offers it, that the user can do it there. ' +
-            'Verify the result and report any unresolved failure before ending the turn.',
+          description: formatTlonToolDescription(liveAccount().ownerDefault),
           parameters: {
             type: 'object',
             properties: {
@@ -1117,6 +1220,15 @@ export default defineBundledChannelEntry({
     };
 
     api.on('before_tool_call', async (event, ctx) => {
+      // One read of the live config per call: the decision below and the
+      // approval handed to the executor use the same snapshot.
+      const live = liveAccount();
+      // Record the run before any decision below can return, vetoes included.
+      observeRun({
+        runId: ctx.runId,
+        sessionKey: ctx.sessionKey,
+        ownerShip: live.ownerShip,
+      });
       const toolCallId = readToolCallId(event);
       // What the model meant, without the schema placeholders it fills in.
       const cronParams = isCronToolName(event.toolName)
@@ -1124,8 +1236,14 @@ export default defineBundledChannelEntry({
         : undefined;
       const allowed = () => (cronParams ? { params: cronParams } : undefined);
       const runSurface = getTlonSessionRunSurface(ctx.runId);
+      // A seen run keeps the role recorded at its first sight (the answered
+      // message's sender, else the session's role then); only a call with no
+      // runId reads the session's current role.
+      const recordedRole = getRecordedRunRole(ctx.runId);
       const role =
-        runSurface?.senderRole ?? getSessionRole(ctx.sessionKey ?? '');
+        recordedRole !== undefined
+          ? (recordedRole ?? undefined)
+          : (runSurface?.senderRole ?? getSessionRole(ctx.sessionKey ?? ''));
       const ownerOnlyDecision = resolveOwnerOnlyToolBlock(event.toolName, role);
       const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
       const blocksNonOwner = ownerOnlyDecision.blocked;
@@ -1303,6 +1421,11 @@ export default defineBundledChannelEntry({
       }
 
       if (!isOwnerOnlyTool && !isBlocked) {
+        if (event.toolName === 'sessions_send') {
+          // Injected input bypasses the monitor; treat it like a non-owner
+          // message on the target.
+          noteCrossSessionSend(event.params, ctx.runId);
+        }
         return allowed();
       }
 
@@ -1338,6 +1461,29 @@ export default defineBundledChannelEntry({
       api.logger.info(
         `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
+      if (
+        event.toolName === 'tlon' &&
+        typeof event.params.command === 'string'
+      ) {
+        // Only owner-default commands need the rewrite; with the flag off the
+        // bot is already the default.
+        const run = { runId: ctx.runId, sessionKey: ctx.sessionKey };
+        const ownerRun = live.ownerDefault && isOwnerRun(run, live.ownerShip);
+        const rewritesToBot = live.ownerDefault && !ownerRun;
+        // Not owner-directed: the call runs as the bot. Not a denial.
+        const command = rewritesToBot
+          ? `--self ${event.params.command}`
+          : event.params.command;
+        if (toolCallId) {
+          recordTlonCallApproval(toolCallId, command, {
+            ...live,
+            ...(ownerRun ? { ownerRun: run } : {}),
+          });
+        }
+        if (rewritesToBot) {
+          return { params: { ...event.params, command } };
+        }
+      }
       return allowed();
     });
 
@@ -1740,6 +1886,7 @@ export default defineBundledChannelEntry({
       await ensureCronContextLens(ctx);
     };
     api.on('agent_turn_prepare', async (_event, ctx) => {
+      observeRun({ ...ctx, ownerShip: liveAccount().ownerShip });
       beginCronSilenceObservation(ctx);
       beginTlonTurnSilenceObservation(ctx);
       // Cron has no active Tlon turn recorder, so its output trace stays nullable.
@@ -1749,6 +1896,7 @@ export default defineBundledChannelEntry({
       await onCronAgentHook(ctx);
     });
     api.on('model_call_started', async (_event, ctx) => {
+      observeRun({ ...ctx, ownerShip: liveAccount().ownerShip });
       beginCronSilenceObservation(ctx);
       beginTlonTurnSilenceObservation(ctx);
       await onCronAgentHook(ctx);
@@ -1762,7 +1910,9 @@ export default defineBundledChannelEntry({
       recordCronSilenceOutput(event, ctx);
       recordTlonTurnSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
-      clearTlonSessionRunSurface(ctx.runId);
+      // Run snapshots, identity and publication claims outlive the attempt;
+      // they expire by TTL (see turn-identity.ts).
+      observeRun({ ...ctx, ownerShip: liveAccount().ownerShip });
       if (!contextLensEnabled) {
         return;
       }

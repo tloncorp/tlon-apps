@@ -1,5 +1,7 @@
 # Channel hooks
 
+Hook commands always run as the bot: hooks go in channels the bot hosts or administers, never on the owner's ship.
+
 Use this reference for channel event hooks or existing hook configuration. Hooks are Hoon programs tied to the deployed desk's types, not arbitrary shell commands or general gateway jobs.
 
 ```json
