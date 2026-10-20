@@ -81,7 +81,7 @@ export const emptyBudgetHoldState = (): BudgetHoldState => ({
 // A `stream` job is long-lived and fires on every batch of its command's
 // output, so it spends credit like a timed schedule. `at` and `on-exit` fire
 // once and stay outside the hold.
-const RECURRING_SCHEDULE_KINDS = new Set(['cron', 'every', 'stream']);
+export const RECURRING_SCHEDULE_KINDS = new Set(['cron', 'every', 'stream']);
 
 export function isRecurringJob(job: BudgetCronJob): boolean {
   return RECURRING_SCHEDULE_KINDS.has(job.schedule?.kind ?? '');

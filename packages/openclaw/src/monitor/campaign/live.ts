@@ -5,6 +5,7 @@ import {
   parsePostBlob,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+import { RECURRING_SCHEDULE_KINDS } from '../../cron-budget-hold.js';
 import {
   type CronChangedEvent as PluginHookCronChangedEvent,
   type GatewayCronJob as PluginHookGatewayCronJob,
@@ -71,7 +72,7 @@ export function notifyCampaignCronChanged(event: PluginHookCronChangedEvent) {
 
 export function isUserRecurringTask(job: PluginHookGatewayCronJob): boolean {
   return (
-    (job.schedule?.kind === 'cron' || job.schedule?.kind === 'every') &&
+    RECURRING_SCHEDULE_KINDS.has(job.schedule?.kind ?? '') &&
     job.payload?.kind !== 'heartbeat' &&
     !job.description?.startsWith('tlon-internal:')
   );
