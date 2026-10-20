@@ -1,6 +1,6 @@
 ---
 name: pr-review-loop
-description: Use after opening or marking ready a pull request in tlon-apps, to follow its review to the end without a human relaying comments -- wait for each Codex/CI/human review round, triage findings ruthlessly, fix what matters, reply to the rest, push, and repeat until the PR is clean, then hand it to a human reviewer. Works for any PR (desk, packages, apps), not only mobile.
+description: Use after opening or marking ready a pull request in tlon-apps, as the agent that wrote the change and in its own context (this is not a fresh-eyes reviewer), to follow its review to the end without a human relaying comments -- wait for each Codex/CI/human review round, triage findings ruthlessly, fix what matters, reply to the rest, push, and repeat until the PR is clean, then hand it to a human reviewer. Works for any PR (desk, packages, apps), not only mobile.
 ---
 
 # PR review loop

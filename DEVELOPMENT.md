@@ -94,6 +94,8 @@ Several `package.json` scripts use Unix shell tools (`rm -rf`, `cp -R`, `mkdir -
     ```
     Open a fresh terminal so the env var is loaded. Do **not** rely on bare `bash` on PATH — on Windows it usually resolves to `C:\Windows\System32\bash.exe` (WSL), which runs scripts inside Linux with the wrong filesystem view.
 
+Each `CLAUDE.md` is a symlink to the `AGENTS.md` beside it. Git for Windows checks symlinks out as one-line text files unless symlinks are enabled, which also needs Developer Mode (or an elevated shell). Clone with `git clone -c core.symlinks=true …`, or in an existing clone run `git config core.symlinks true` and then `git checkout -- CLAUDE.md '**/CLAUDE.md'`.
+
 Also: use the pinned Node version (`.nvmrc` → 22.22.0). Node 24+ has no prebuilt binaries for `better-sqlite3@11.x` and will fall back to compiling via node-gyp, which needs VS Build Tools + Windows SDK installed.
 
 ## Husky
