@@ -22,6 +22,17 @@ History and activity responses are bounded. A short or empty page does not prove
 
 To share a group, post, or note as a card, follow the reference rules in the skill's "Identity, delivery, and completion" section.
 
+## Mark chats read
+
+```json
+{"command":"activity mark-read ~ship"}
+{"command":"activity mark-read chat/~host/channel"}
+{"command":"activity mark-read ~host/group"}
+{"command":"activity mark-read --all"}
+```
+
+Mark read only when the owner explicitly asks: OpenClaw runs these as the configured owner unless `--self` or explicit credential flags are supplied, so they clear the owner's badges in the owner's app, and there is no undo. A group includes all its channels; a channel or DM includes its threads; `--all` includes group invites. A clear channel or group summary proves the posts and notifying replies are clear; the deep read also clears thread replies that did not notify, which the summary cannot show. Report what the command prints: "new activity arrived after the read" is not a failure, and "not confirmed" must be reported as such. A timeout means the outcome is unknown, not that the read failed: after one, the command confirms only unreads it saw clear, and reports "not confirmed" when nothing was visibly unread before, since summaries cannot show thread-only unreads. Rerunning is safe. Notes channels: mark their group read.
+
 ## Mute or change notification levels
 
 ```json

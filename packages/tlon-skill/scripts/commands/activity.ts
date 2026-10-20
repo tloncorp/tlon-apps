@@ -58,13 +58,28 @@ export interface ActivityFormatter {
 // An explicit level; `default` (clear the setting) is handled separately.
 export type SetLevel = 'loud' | 'medium' | 'soft' | 'hush';
 
-// How a volume poke settled. A nack (eyre's `err`, a non-Error rejection) is
+// How an activity poke settled. A nack (eyre's `err`, a non-Error rejection) is
 // definitive for the acting ship's own %activity; any Error (channel reaped,
 // ack timeout, transport) leaves it unknown whether the ship applied it.
 export type PokeOutcome =
   | { kind: 'acked' }
   | { kind: 'nacked'; message: string }
   | { kind: 'ambiguous'; message: string };
+
+// What a read is sent for: a channel carries the group its source names.
+export type MarkReadTarget =
+  | { kind: 'dm-ship'; ship: string }
+  | { kind: 'dm-club'; club: string }
+  | { kind: 'group'; flag: string }
+  | { kind: 'channel'; nest: string; groupId: string }
+  | { kind: 'all' };
+
+export interface ReadApi {
+  // A deep read of the target, sent once.
+  markRead: (target: MarkReadTarget) => Promise<PokeOutcome>;
+  // The current per-source summaries (the runtime selects /v6/activity).
+  getUnreads: () => Promise<ActivityInit>;
+}
 
 export interface VolumeApi {
   adjustVolumeSetting: (
@@ -100,6 +115,7 @@ export interface ActivityDeps extends CommandDeps {
   format: ActivityFormatter;
   volumeApi: VolumeApi;
   volume: VolumeHelpers;
+  readApi: ReadApi;
   isJoinedGroup: (flag: string) => Promise<boolean>;
   getChannelState: (nest: string) => Promise<ChannelState>;
   // The top-level post `id` in `nest`, or null when there is none.
@@ -119,6 +135,8 @@ Commands:
   unmute <target> [--self]                  Remove a mute or custom level (back to the inherited default)
   volume <target> <level> [--self]          Set the notification level
   volume base [medium|soft|hush] [--self]   Show or set the app-wide notification level (Settings → Notifications)
+  mark-read <target> [--self]               Mark a DM, group DM, group or channel read (threads included)
+  mark-read --all [--self]                  Mark everything read, as the Activity tab's Mark all as read does
 
 Targets:
   ~ship                     a DM
@@ -133,8 +151,9 @@ const OWNER_NOTE =
   'Harnesses with owner injection enabled run this as the owner unless --self or explicit credential flags are supplied; --self uses the current credentials.';
 
 type VolumeCommand = 'mute' | 'unmute' | 'volume';
+type TargetCommand = VolumeCommand | 'mark-read';
 
-export const ACTIVITY_COMMAND_HELP: Record<VolumeCommand, string> = {
+export const ACTIVITY_COMMAND_HELP: Record<TargetCommand, string> = {
   mute: `Usage: tlon activity mute <target> [--self]
 Mutes notifications the way the app does: a DM, group DM or channel goes to hush (nothing notifies); a group or thread goes to soft (only mentions and replies notify).
 In the app: a chat's options → Chat/Channel/Group notifications; a thread's root post menu → Mute thread (shown once the post has replies).
@@ -155,6 +174,14 @@ In the app: a chat's options → Chat/Channel/Group notifications; Settings → 
 ${OWNER_NOTE}
 Example: tlon activity volume chat/~host/general soft
 Example: tlon activity volume base soft`,
+  'mark-read': `Usage: tlon activity mark-read <target> [--self]
+       tlon activity mark-read --all [--self]
+Marks a chat read the way the app does: a DM, group DM or channel with its threads, or a group with all its channels. --all marks everything read, group invites included, and counts what it cleared by kind (a group's channels are counted as channels too). There is no undo; mark read only when asked.
+In the app: Workspaces tab → press and hold a chat → Mark as read (a group: Mark all as read); Activity tab → ⋯ → Mark all as read.
+${OWNER_NOTE}
+Targets: ~ship | 0v... | ~host/group | chat/~host/name | heap/~host/name (no post ids; for a notes channel, mark its group read)
+Example: tlon activity mark-read ~host/book-club
+Example: tlon activity mark-read --all`,
 };
 
 export const ACTIVITY_CONFIRM_ATTEMPTS = 5;
@@ -184,6 +211,11 @@ export const NOTES_VOLUME_REFUSAL =
   'Notification levels for notes channels are not supported by this command yet; change them in the app (Channel options → Channel notifications).';
 export const DM_THREAD_REFUSAL =
   'Thread notification settings are supported for group channel threads only; to mute the conversation, run: activity mute <ship-or-club>';
+export const NOTES_MARK_READ_REFUSAL =
+  'Marking a notes channel read is not supported by this command yet; mark its group read (activity mark-read ~host/group) or use the app (press and hold the channel → Mark as read).';
+export const MARK_READ_POST_ID_MESSAGE =
+  'mark-read takes no post id; marking a channel or DM read also reads its threads';
+export const MARK_READ_ALL_WITH_TARGET = '--all takes no target';
 
 export type VolumeTarget =
   | { kind: 'dm-ship'; ship: string }
@@ -192,6 +224,9 @@ export type VolumeTarget =
   | { kind: 'channel'; nest: string }
   | { kind: 'thread'; nest: string; postId: string }
   | { kind: 'base' };
+
+// A single-token target: no base, and no thread (which takes a post id).
+type SingleTokenTarget = Exclude<VolumeTarget, { kind: 'base' | 'thread' }>;
 
 type RequestedLevel = SetLevel | 'default';
 
@@ -209,14 +244,15 @@ type ParsedActivityArgs =
   | { kind: 'help' }
   | { kind: 'activity'; command: ActivityBucketCommand; limit: number }
   | { kind: 'unreads' }
-  | { kind: 'volume-help'; command: VolumeCommand }
+  | { kind: 'volume-help'; command: TargetCommand }
   | { kind: 'base-show' }
   | {
       kind: 'volume';
       command: VolumeCommand;
       target: VolumeTarget;
       level: RequestedLevel | null;
-    };
+    }
+  | { kind: 'mark-read'; target: SingleTokenTarget | { kind: 'all' } };
 
 function isActivityBucketCommand(
   command: string
@@ -239,9 +275,27 @@ function isVolumeCommand(command: string): command is VolumeCommand {
   return VOLUME_COMMANDS.includes(command);
 }
 
+interface TargetMessages {
+  notesRefusal: string;
+  unrecognized: (raw: string) => string;
+}
+
+const VOLUME_TARGET_MESSAGES: TargetMessages = {
+  notesRefusal: NOTES_VOLUME_REFUSAL,
+  unrecognized: (raw) =>
+    `Unrecognized target: ${raw}. Use ~ship, a group-DM id (0v...), ~host/group, chat/~host/name or heap/~host/name, or a channel and a post id for a thread`,
+};
+
+const MARK_READ_TARGET_MESSAGES: TargetMessages = {
+  notesRefusal: NOTES_MARK_READ_REFUSAL,
+  unrecognized: (raw) =>
+    `Unrecognized target: ${raw}. Use ~ship, a group-DM id (0v...), ~host/group, chat/~host/name or heap/~host/name`,
+};
+
 function parseChannelTarget(
   raw: string,
-  help: string
+  help: string,
+  notesRefusal: string
 ): Extract<VolumeTarget, { kind: 'channel' }> {
   const invalid = () =>
     usageError(
@@ -258,7 +312,7 @@ function parseChannelTarget(
     throw commandError(DIARY_REMOVED);
   }
   if (parts.kind === 'notes') {
-    throw commandError(NOTES_VOLUME_REFUSAL);
+    throw commandError(notesRefusal);
   }
   if (parts.kind !== 'chat' && parts.kind !== 'heap') {
     throw usageError(
@@ -276,8 +330,9 @@ function parseChannelTarget(
 // parsers are lowercase-only).
 function parseVolumeTarget(
   raw: string,
-  help: string
-): Exclude<VolumeTarget, { kind: 'base' }> {
+  help: string,
+  messages: TargetMessages = VOLUME_TARGET_MESSAGES
+): SingleTokenTarget {
   const slashes = raw.split('/').length - 1;
   if (slashes === 0 && raw.startsWith('0v')) {
     if (!valid('uv', raw)) {
@@ -307,12 +362,9 @@ function parseVolumeTarget(
     return { kind: 'group', flag: raw };
   }
   if (slashes === 2) {
-    return parseChannelTarget(raw, help);
+    return parseChannelTarget(raw, help, messages.notesRefusal);
   }
-  throw usageError(
-    `Unrecognized target: ${raw}. Use ~ship, a group-DM id (0v...), ~host/group, chat/~host/name or heap/~host/name, or a channel and a post id for a thread`,
-    help
-  );
+  throw usageError(messages.unrecognized(raw), help);
 }
 
 // Validated before formatPostId, which silently regroups malformed input.
@@ -389,7 +441,10 @@ function parseVolumeArgs(
     level = raw as RequestedLevel;
   }
 
-  let target = parseVolumeTarget(positionals[0], help);
+  let target: Exclude<VolumeTarget, { kind: 'base' }> = parseVolumeTarget(
+    positionals[0],
+    help
+  );
   if (positionals.length === 2) {
     const postId = parseRootPostId(positionals[1], help);
     if (target.kind === 'group') {
@@ -417,6 +472,47 @@ function parseVolumeArgs(
   return { kind: 'volume', command, target, level };
 }
 
+function parseMarkReadArgs(rest: string[]): ParsedActivityArgs {
+  const help = ACTIVITY_COMMAND_HELP['mark-read'];
+  if (rest.some(isHelpArg)) {
+    return { kind: 'volume-help', command: 'mark-read' };
+  }
+
+  let all = false;
+  const positionals: string[] = [];
+  for (const arg of rest) {
+    if (arg === '--self') continue;
+    if (arg === '--all') {
+      all = true;
+      continue;
+    }
+    if (arg.startsWith('-')) {
+      throw usageError(`Unknown option: ${arg}`, help);
+    }
+    positionals.push(arg);
+  }
+
+  if (all) {
+    if (positionals.length > 0) {
+      throw usageError(MARK_READ_ALL_WITH_TARGET, help);
+    }
+    return { kind: 'mark-read', target: { kind: 'all' } };
+  }
+  if (positionals.length === 0) {
+    throw usageError(help);
+  }
+  if (positionals.length > 1) {
+    throw usageError(
+      `Unexpected argument: ${positionals[1]}. ${MARK_READ_POST_ID_MESSAGE}`,
+      help
+    );
+  }
+  return {
+    kind: 'mark-read',
+    target: parseVolumeTarget(positionals[0], help, MARK_READ_TARGET_MESSAGES),
+  };
+}
+
 function parseArgs(args: string[]): ParsedActivityArgs {
   const command = args[0];
 
@@ -430,6 +526,10 @@ function parseArgs(args: string[]): ParsedActivityArgs {
 
   if (isVolumeCommand(command)) {
     return parseVolumeArgs(command, args.slice(1));
+  }
+
+  if (command === 'mark-read') {
+    return parseMarkReadArgs(args.slice(1));
   }
 
   if (!isActivityCommand(command)) {
@@ -535,6 +635,11 @@ async function showUnreads(deps: ActivityDeps): Promise<void> {
   }
 }
 
+interface ResolvedChannel {
+  nest: string;
+  groupId: string;
+}
+
 // A target resolved to the exact source noun the app would send. Channel and
 // thread sources carry the group (and a thread its root author), which the
 // stored settings key omits, so those are re-read before confirming.
@@ -542,7 +647,7 @@ interface ResolvedTarget {
   source: Source;
   label: string;
   where: string;
-  channel?: { nest: string; groupId: string };
+  channel?: ResolvedChannel;
   root?: { id: string; authorId: string };
 }
 
@@ -609,7 +714,7 @@ function targetWhere(target: VolumeTarget): string {
 async function resolveChannel(
   nest: string,
   deps: ActivityDeps
-): Promise<{ nest: string; groupId: string }> {
+): Promise<ResolvedChannel> {
   let state: ChannelState;
   try {
     state = await deps.getChannelState(nest);
@@ -759,7 +864,8 @@ function mapDiffs(sent: VolumeMap, stored: VolumeMap): string[] {
 // not, or null when nothing changed.
 async function recheckIdentity(
   resolved: ResolvedTarget,
-  deps: ActivityDeps
+  deps: ActivityDeps,
+  during = 'while the setting was applied, so it may not take effect'
 ): Promise<string | null> {
   if (!resolved.channel) return null;
   const { nest, groupId } = resolved.channel;
@@ -773,7 +879,7 @@ async function recheckIdentity(
     return `${nest} is no longer joined`;
   }
   if (state.groupId !== groupId) {
-    return `the channel's group changed from ${groupId} to ${state.groupId} while the setting was applied, so it may not take effect`;
+    return `the channel's group changed from ${groupId} to ${state.groupId} ${during}`;
   }
   if (!resolved.root) return null;
   const { id, authorId } = resolved.root;
@@ -787,14 +893,13 @@ async function recheckIdentity(
     return `root post ${id} is no longer found`;
   }
   if (root.authorId !== authorId) {
-    return `the root post's author changed from ${authorId} to ${root.authorId} while the setting was applied, so it may not take effect`;
+    return `the root post's author changed from ${authorId} to ${root.authorId} ${during}`;
   }
   return null;
 }
 
 function unconfirmedError(
-  request: VolumeRequest,
-  label: string,
+  phrase: string,
   reason: string,
   pokeError: string | null,
   lastReadError: string | null
@@ -804,7 +909,7 @@ function unconfirmedError(
     ? ` (last read error: ${lastReadError})`
     : '';
   return commandError(
-    `${verbPhrase(request, label)} was sent but is not confirmed: ${reason}. Running the command again is safe.${pokeSuffix}${readSuffix}`
+    `${phrase} was sent but is not confirmed: ${reason}. Running the command again is safe.${pokeSuffix}${readSuffix}`
   );
 }
 
@@ -880,8 +985,7 @@ async function setVolume(
       observed = `still ${deps.volume.levelOf(stored as VolumeMap)}`;
     }
     throw unconfirmedError(
-      request,
-      label,
+      verbPhrase(request, label),
       `the stored setting is ${observed}`,
       pokeError,
       lastReadError
@@ -892,8 +996,7 @@ async function setVolume(
   // written under another group or root author: same key, different noun.
   if (sent && ambiguous && resolved.channel) {
     throw unconfirmedError(
-      request,
-      label,
+      verbPhrase(request, label),
       `the stored entry matches, but the poke was not acknowledged and the entry cannot be told apart from an older one for this ${resolved.root ? 'thread under another group or root author' : 'channel under another group'}`,
       pokeError,
       null
@@ -902,7 +1005,12 @@ async function setVolume(
 
   const changed = await recheckIdentity(resolved, deps);
   if (changed) {
-    throw unconfirmedError(request, label, changed, pokeError, null);
+    throw unconfirmedError(
+      verbPhrase(request, label),
+      changed,
+      pokeError,
+      null
+    );
   }
 
   const lines = [confirmedHeader(request, label, deps.getCurrentUserId())];
@@ -952,6 +1060,388 @@ async function showBaseLevel(deps: ActivityDeps): Promise<void> {
   );
 }
 
+type UnreadSummary = GroupUnread | ChannelUnread;
+
+// How a source reads after the poke. Without an ack the read may never have
+// applied: a clear summary only counts when it was unread before, since a
+// summary cannot show thread replies that did not notify. `new-activity`
+// needs an ack too: an acked read refreshes the summaries in the poke's own
+// event, so newer activity arrived after it.
+type ReadState = 'cleared' | 'new-activity' | 'unconfirmed';
+
+function readState(
+  before: UnreadSummary | undefined,
+  after: UnreadSummary | undefined,
+  acked: boolean
+): ReadState {
+  if (!after || !hasUnread(after)) {
+    return acked || (before !== undefined && hasUnread(before))
+      ? 'cleared'
+      : 'unconfirmed';
+  }
+  if (acked && after.updatedAt > (before?.updatedAt ?? 0)) {
+    return 'new-activity';
+  }
+  return 'unconfirmed';
+}
+
+function plural(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+function unreadText(summary: UnreadSummary): string {
+  const count = summary.count ?? 0;
+  return count > 0 ? plural(count, 'unread', 'unreads') : 'a notification';
+}
+
+function clearedText(before: UnreadSummary | undefined): string {
+  if (!before || !hasUnread(before)) return 'no reported unreads';
+  const count = before.count ?? 0;
+  return count > 0
+    ? `cleared ${plural(count, 'unread', 'unreads')}`
+    : 'cleared its notification';
+}
+
+function markReadWhere(target: SingleTokenTarget | { kind: 'all' }): string {
+  switch (target.kind) {
+    case 'dm-ship':
+    case 'dm-club':
+      return 'Workspaces tab → press and hold the chat → Mark as read';
+    case 'channel':
+      return 'open its group → press and hold the channel → Mark as read';
+    case 'group':
+      return 'Workspaces tab → press and hold the group → Mark all as read';
+    case 'all':
+      return 'Activity tab → ⋯ → Mark all as read';
+  }
+}
+
+function toMarkReadTarget(
+  target: SingleTokenTarget,
+  resolved: ResolvedTarget
+): MarkReadTarget {
+  if (target.kind !== 'channel') return target;
+  // resolveTarget sets `channel` for every channel target.
+  const { nest, groupId } = resolved.channel as ResolvedChannel;
+  return { kind: 'channel', nest, groupId };
+}
+
+// The summary keys omit a channel's group, so a channel matches by nest alone.
+function findSummary(
+  init: ActivityInit,
+  target: MarkReadTarget
+): UnreadSummary | undefined {
+  switch (target.kind) {
+    case 'dm-ship':
+    case 'dm-club': {
+      const id = target.kind === 'dm-ship' ? target.ship : target.club;
+      return init.channelUnreads.find(
+        (summary) => summary.type === 'dm' && summary.channelId === id
+      );
+    }
+    case 'group':
+      return init.groupUnreads.find(
+        (summary) => summary.groupId === target.flag
+      );
+    case 'channel':
+      return init.channelUnreads.find(
+        (summary) =>
+          summary.type === 'channel' && summary.channelId === target.nest
+      );
+    case 'all':
+      return undefined;
+  }
+}
+
+async function readSnapshot(deps: ActivityDeps): Promise<ActivityInit> {
+  try {
+    return await deps.readApi.getUnreads();
+  } catch (error) {
+    throw commandError(
+      `Could not read unreads: ${errorMessage(error)}; nothing changed.`
+    );
+  }
+}
+
+async function markRead(
+  target: SingleTokenTarget,
+  deps: ActivityDeps
+): Promise<void> {
+  const resolved = await resolveTarget(target, deps);
+  const { label } = resolved;
+  const sent = toMarkReadTarget(target, resolved);
+  const before = findSummary(await readSnapshot(deps), sent);
+
+  // Sent even when the snapshot shows nothing: a channel's summary omits
+  // thread replies that did not notify, and a repeated read is harmless.
+  const outcome = await deps.readApi.markRead(sent);
+  if (outcome.kind === 'nacked') {
+    throw commandError(`Could not mark ${label} read: ${outcome.message}`);
+  }
+  const acked = outcome.kind === 'acked';
+  const pokeError = acked ? null : outcome.message;
+
+  // Unacknowledged, with nothing visible before: no read-back can show
+  // whether the read applied, so one successful read ends the loop.
+  const provable = acked || (before !== undefined && hasUnread(before));
+  let after: UnreadSummary | undefined;
+  let read = false;
+  let state: ReadState = 'unconfirmed';
+  let lastReadError: string | null = null;
+  for (let attempt = 1; attempt <= ACTIVITY_CONFIRM_ATTEMPTS; attempt += 1) {
+    try {
+      after = findSummary(await deps.readApi.getUnreads(), sent);
+      read = true;
+      state = readState(before, after, acked);
+    } catch (error) {
+      lastReadError = errorMessage(error);
+    }
+    if (state !== 'unconfirmed' || (read && !provable)) break;
+    if (attempt < ACTIVITY_CONFIRM_ATTEMPTS) {
+      await deps.sleep(ACTIVITY_CONFIRM_DELAY_MS);
+    }
+  }
+
+  const phrase = `Mark read of ${label}`;
+  // A read sent under a group the channel no longer belongs to is an acked
+  // no-op on the desk, and the summary key omits the group, so a cleared or
+  // newer summary only counts if the group is unchanged; when the unreads
+  // remain, the group change is the likelier cause.
+  const changed = await recheckIdentity(
+    resolved,
+    deps,
+    'while the read was sent, so the read may not have applied'
+  );
+  if (state === 'unconfirmed') {
+    let reason = 'the unreads could not be read';
+    if (after && hasUnread(after)) {
+      reason = `it still shows ${unreadText(after)}`;
+      if (after.updatedAt > (before?.updatedAt ?? 0)) {
+        reason +=
+          ', and new activity arrived, so it is unknown whether the read applied';
+      }
+    } else if (read) {
+      reason =
+        'the read was not acknowledged and its summary cannot show thread-only unreads';
+    }
+    throw unconfirmedError(phrase, changed ?? reason, pokeError, lastReadError);
+  }
+  if (changed) {
+    throw unconfirmedError(phrase, changed, pokeError, null);
+  }
+
+  const ship = deps.getCurrentUserId();
+  const header =
+    state === 'new-activity' && after
+      ? `✓ Marked ${label} read for ${ship}; new activity arrived after the read (${unreadText(after)} now)`
+      : `✓ Marked ${label} read for ${ship} (${clearedText(before)})`;
+  writeLine(
+    deps.stdout,
+    [header, `  In the app: ${markReadWhere(target)}`].join('\n')
+  );
+}
+
+type SourceKind = 'channel' | 'dm' | 'club' | 'group';
+
+interface SourceUnread {
+  kind: SourceKind;
+  label: string;
+  summary: UnreadSummary;
+}
+
+const SOURCE_KIND_NOUNS: Array<[SourceKind, string, string]> = [
+  ['channel', 'channel', 'channels'],
+  ['dm', 'DM', 'DMs'],
+  ['club', 'group DM', 'group DMs'],
+  ['group', 'group', 'groups'],
+];
+
+// At most this many residual sources are named; the rest are counted.
+const RESIDUAL_LIST_LIMIT = 20;
+
+// Every channel, DM and group summary (notebooks are channels under notes/),
+// keyed by source; the base summary only aggregates them.
+function unreadsBySource(init: ActivityInit): Map<string, SourceUnread> {
+  const sources = new Map<string, SourceUnread>();
+  for (const summary of init.channelUnreads) {
+    const id = summary.channelId;
+    if (summary.type === 'channel') {
+      sources.set(`channel/${id}`, {
+        kind: 'channel',
+        label: targetLabel({ kind: 'channel', nest: id }),
+        summary,
+      });
+    } else if (id.startsWith('0v')) {
+      sources.set(`club/${id}`, {
+        kind: 'club',
+        label: targetLabel({ kind: 'dm-club', club: id }),
+        summary,
+      });
+    } else {
+      sources.set(`ship/${id}`, {
+        kind: 'dm',
+        label: targetLabel({ kind: 'dm-ship', ship: id }),
+        summary,
+      });
+    }
+  }
+  for (const summary of init.groupUnreads) {
+    sources.set(`group/${summary.groupId}`, {
+      kind: 'group',
+      label: targetLabel({ kind: 'group', flag: summary.groupId }),
+      summary,
+    });
+  }
+  return sources;
+}
+
+interface SourceResult {
+  state: ReadState;
+  source: SourceUnread;
+}
+
+function bounded(items: string[]): { shown: string[]; more: number } {
+  return {
+    shown: items.slice(0, RESIDUAL_LIST_LIMIT),
+    more: Math.max(0, items.length - RESIDUAL_LIST_LIMIT),
+  };
+}
+
+async function markAllRead(deps: ActivityDeps): Promise<void> {
+  const before = unreadsBySource(await readSnapshot(deps));
+  const snapshotUnread = [...before]
+    .filter(([, source]) => hasUnread(source.summary))
+    .map(([key]) => key);
+
+  const outcome = await deps.readApi.markRead({ kind: 'all' });
+  if (outcome.kind === 'nacked') {
+    throw commandError(`Could not mark everything read: ${outcome.message}`);
+  }
+  const acked = outcome.kind === 'acked';
+  const pokeError = acked ? null : outcome.message;
+
+  // Sources unread in the snapshot or now: a source that appears only after
+  // the poke is new activity when acked, and unconfirmed otherwise.
+  let results: Map<string, SourceResult> | null = null;
+  let lastReadError: string | null = null;
+  for (let attempt = 1; attempt <= ACTIVITY_CONFIRM_ATTEMPTS; attempt += 1) {
+    try {
+      const after = unreadsBySource(await deps.readApi.getUnreads());
+      const keys = new Set(snapshotUnread);
+      for (const [key, source] of after) {
+        if (hasUnread(source.summary)) keys.add(key);
+      }
+      const next = new Map<string, SourceResult>();
+      for (const key of keys) {
+        const was = before.get(key);
+        const now = after.get(key);
+        next.set(key, {
+          state: readState(was?.summary, now?.summary, acked),
+          // Every key comes from one of the two maps.
+          source: (now ?? was) as SourceUnread,
+        });
+      }
+      results = next;
+    } catch (error) {
+      lastReadError = errorMessage(error);
+    }
+    if (
+      results &&
+      ![...results.values()].some((result) => result.state === 'unconfirmed')
+    ) {
+      break;
+    }
+    if (attempt < ACTIVITY_CONFIRM_ATTEMPTS) {
+      await deps.sleep(ACTIVITY_CONFIRM_DELAY_MS);
+    }
+  }
+
+  if (!results) {
+    throw unconfirmedError(
+      'Mark all read',
+      'the unreads could not be read',
+      pokeError,
+      lastReadError
+    );
+  }
+  // Unacknowledged, with nothing visible before: an all-clear read-back
+  // cannot show whether the read applied.
+  if (
+    !acked &&
+    snapshotUnread.length === 0 &&
+    ![...results.values()].some((result) => result.state === 'unconfirmed')
+  ) {
+    throw unconfirmedError(
+      'Mark all read',
+      'the read was not acknowledged and summaries cannot show thread-only unreads',
+      pokeError,
+      lastReadError
+    );
+  }
+  const byState = (state: ReadState) =>
+    [...results.values()].filter((result) => result.state === state);
+
+  const unconfirmed = byState('unconfirmed');
+  if (unconfirmed.length > 0) {
+    const { shown, more } = bounded(
+      unconfirmed.map(
+        ({ source }) => `${source.label} (${unreadText(source.summary)})`
+      )
+    );
+    const count =
+      unconfirmed.length === 1
+        ? '1 source still shows unreads'
+        : `${unconfirmed.length} sources still show unreads`;
+    throw unconfirmedError(
+      'Mark all read',
+      `${count}: ${shown.join(', ')}${more > 0 ? `, and ${more} more` : ''}`,
+      pokeError,
+      lastReadError
+    );
+  }
+
+  // Only sources unread in the snapshot and clear now count as cleared; one
+  // that shows new activity is listed below instead.
+  const cleared = new Map<SourceKind, number>();
+  for (const key of snapshotUnread) {
+    const result = results.get(key);
+    if (result?.state === 'cleared') {
+      cleared.set(
+        result.source.kind,
+        (cleared.get(result.source.kind) ?? 0) + 1
+      );
+    }
+  }
+  const clearedParts = SOURCE_KIND_NOUNS.filter(([kind]) =>
+    cleared.has(kind)
+  ).map(([kind, one, many]) => plural(cleared.get(kind) ?? 0, one, many));
+
+  const ship = deps.getCurrentUserId();
+  const lines = [
+    snapshotUnread.length === 0
+      ? `✓ Marked all read for ${ship} (no reported unreads)`
+      : `✓ Marked all read for ${ship}`,
+  ];
+  if (clearedParts.length > 0) {
+    lines.push(`  Cleared: ${clearedParts.join(', ')}`);
+  }
+  const fresh = byState('new-activity');
+  if (fresh.length > 0) {
+    const { shown, more } = bounded(
+      fresh.map(
+        ({ source }) => `${source.label}: ${unreadText(source.summary)}`
+      )
+    );
+    lines.push(
+      `  New activity arrived after the read in ${plural(fresh.length, 'source', 'sources')}:`,
+      ...shown.map((line) => `    ${line}`)
+    );
+    if (more > 0) lines.push(`    and ${more} more`);
+  }
+  lines.push(`  In the app: ${markReadWhere({ kind: 'all' })}`);
+  writeLine(deps.stdout, lines.join('\n'));
+}
+
 export async function run(args: string[], deps: ActivityDeps): Promise<number> {
   try {
     const parsed = parseArgs(args);
@@ -966,6 +1456,12 @@ export async function run(args: string[], deps: ActivityDeps): Promise<number> {
 
     if (parsed.kind === 'base-show') {
       await showBaseLevel(deps);
+    } else if (parsed.kind === 'mark-read') {
+      if (parsed.target.kind === 'all') {
+        await markAllRead(deps);
+      } else {
+        await markRead(parsed.target, deps);
+      }
     } else if (parsed.kind === 'volume') {
       await setVolume(
         toRequest(parsed.command, parsed.target, parsed.level),
