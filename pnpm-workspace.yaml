@@ -52,6 +52,7 @@ patchedDependencies:
   '@op-engineering/op-sqlite@15.2.5': patches/@op-engineering__op-sqlite@15.2.5.patch
   react-native-branch@5.9.2: patches/react-native-branch@5.9.2.patch
   '@react-native-cookies/cookies@6.2.1': patches/@react-native-cookies__cookies@6.2.1.patch
+  expo-modules-core@58.0.20: patches/expo-modules-core@58.0.20.patch
 
 allowUnusedPatches: false
 

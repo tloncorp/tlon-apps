@@ -191,6 +191,35 @@ Removal:
 Drop the patch if expo-background-task gains options for the request type and
 start date, or if we stop relying on frequent background refresh.
 
+## expo-modules-core@58.0.20
+
+Local patch:
+`patches/expo-modules-core@58.0.20.patch`
+
+Why:
+`build/ts-declarations/global.js`, which `build/index.js` imports for its side
+effects, imports `EventEmitter`, `NativeModule`, `SharedObject` and `SharedRef`
+from sibling files that hold only type declarations and compile to empty
+modules. Metro and Rollup accept that, but esbuild does not: Vite's dev-server
+dependency pre-bundling fails with "No matching export", so `vite` (and the web
+E2E tests that run it) cannot serve the app. Production `vite build` is
+unaffected.
+
+What it does:
+Makes the runtime `global.js` an empty module. The imports it drops never had a
+runtime value, so no platform behaves differently.
+
+Upstream:
+- none filed; 58.0.23 still ships the same `global.js`
+
+Validation:
+- `vite --force` in `apps/tlon-web` pre-bundles dependencies with no
+  "No matching export" errors, and the web E2E tests load the app.
+
+Removal:
+Drop the patch once expo-modules-core emits type-only imports (or no imports)
+in `build/ts-declarations/global.js`.
+
 ## @10play/tentap-editor@0.5.21
 
 Why:
