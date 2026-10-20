@@ -510,6 +510,35 @@ describe('dms run', () => {
     ]);
   });
 
+  it('attaches exactly one --image, as before posts send took several', async () => {
+    const fetched: string[] = [];
+    const deps = {
+      ...makeRunDeps(),
+      fetchImageVerse: async (url: string) => {
+        fetched.push(url);
+        return { block: { image: { src: url } } };
+      },
+    };
+    const { posts } = await runDms(
+      [
+        'send',
+        '0v5.abcde',
+        'hi',
+        '--image',
+        'https://x/a.png',
+        '--image',
+        'https://x/b.png',
+      ],
+      deps
+    );
+
+    expect(fetched).toEqual(['https://x/a.png']);
+    expect(posts[0].content).toEqual([
+      { block: { image: { src: 'https://x/a.png' } } },
+      { inline: ['hi'] },
+    ]);
+  });
+
   it('omits botProfile from a plain send and reply', async () => {
     const { posts } = await runDms(
       ['send', '0v5.abcde', 'hello'],

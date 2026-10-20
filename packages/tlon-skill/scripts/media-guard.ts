@@ -22,8 +22,9 @@
  * override that hands back only the validated address being attempted. The
  * connection is therefore pinned to that address while SNI and certificate
  * identity are still verified against the hostname, and the HTTP/1.1 framing
- * is the runtime's rather than ours. Requests are GET only, with
- * `Connection: close` and `Accept-Encoding: identity`. Bun 1.3.4's
+ * is the runtime's rather than ours. Requests are GET (media bodies) or HEAD
+ * (attachment probes, `probeGuardedMedia`), with `Connection: close` and
+ * `Accept-Encoding: identity`. Bun 1.3.4's
  * `node:https` could not be used this way: with a custom `lookup` it
  * substituted the resolved address into its internal fetch and verified the
  * peer certificate against that address instead of the hostname (every hop
@@ -51,8 +52,11 @@ import net from 'node:net';
 import { commandError } from './commands/command';
 import { CLI_VERSION } from './version';
 
-export const LOCAL_MEDIA_ERROR =
-  'Local file paths are not supported for --image — upload the file first (e.g. `tlon upload <path>`) and pass the returned https URL.';
+/** The local-path refusal, naming the flag that carried the path. */
+export function localMediaError(flag = '--image'): string {
+  return `Local file paths are not supported for ${flag} — upload the file first (e.g. \`tlon upload <path>\`) and pass the returned https URL.`;
+}
+export const LOCAL_MEDIA_ERROR = localMediaError();
 export const HTTPS_ONLY_ERROR = 'Only https media URLs are supported.';
 export const USERINFO_ERROR =
   'Media URLs with embedded credentials are not supported.';
@@ -188,6 +192,24 @@ export interface GuardedFetchOptions {
   /** Test seam: throttle-retry sleeper. Defaults to a `setTimeout` promise. */
   sleep?: (ms: number) => Promise<void>;
 }
+
+/**
+ * Options for a headers-only probe: the fetch options without the body cap.
+ */
+export type GuardedProbeOptions = Omit<GuardedFetchOptions, 'maxBytes'>;
+
+/**
+ * What a headers-only probe learned. `size` is `-1` when the length is
+ * unknown (absent, unparsable, or describing an encoded body), matching the
+ * app's upload flows.
+ */
+export interface MediaProbe {
+  mimeType?: string;
+  size: number;
+}
+
+/** The guard's request options; `maxBytes` is required for GET only. */
+type GuardedRequestOptions = GuardedProbeOptions & { maxBytes?: number };
 
 export interface GuardedFetchResult {
   bytes: Uint8Array;
@@ -392,6 +414,28 @@ function fetchFailed(): Error {
 }
 
 /**
+ * The host-policy class of failure: a hop the guard refuses to make at all
+ * (scheme, embedded credentials, denied hostname, disallowed resolved
+ * address). A fixed text — the fetch error, or the userinfo error for
+ * credentials — and a mark that lets a caller that tolerates network
+ * failures still treat these as fatal.
+ */
+function policyRejected(message = FETCH_FAILED_ERROR): Error {
+  const error: Error & { mediaPolicyRejection?: true } = commandError(message);
+  error.mediaPolicyRejection = true;
+  return error;
+}
+
+/** True for a refusal by the guard's host policy, as opposed to a failure. */
+export function isMediaPolicyRejection(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { mediaPolicyRejection?: unknown }).mediaPolicyRejection === true
+  );
+}
+
+/**
  * Wait before the single throttle retry, from a `Retry-After` header.
  * Only a delay we can understand is honored: delta-seconds, or an exact
  * IMF-fixdate (the form `Date#toUTCString` produces; the round-trip check
@@ -431,10 +475,18 @@ function throttledError(status: 429 | 503): Error {
   );
 }
 
+type RequestMethod = 'GET' | 'HEAD';
+
 type HopOutcome =
   | { kind: 'redirect'; location: string }
   | { kind: 'throttled'; status: 429 | 503; retryAfter: string | undefined }
-  | { kind: 'body'; bytes: Uint8Array; contentType: string | undefined };
+  | { kind: 'body'; bytes: Uint8Array; contentType: string | undefined }
+  | {
+      kind: 'head';
+      contentType: string | undefined;
+      contentLength: string | undefined;
+      contentEncoding: string | undefined;
+    };
 
 /**
  * Fail-closed Content-Encoding rule: absent or `identity` proceeds; every
@@ -464,7 +516,7 @@ function consumeBody(
   source: BodySource,
   contentType: string | undefined,
   contentEncoding: string | undefined,
-  options: GuardedFetchOptions,
+  maxBytes: number,
   succeed: (outcome: HopOutcome) => void,
   fail: () => void
 ): void {
@@ -492,7 +544,7 @@ function consumeBody(
     }
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     receivedBytes += buffer.byteLength;
-    if (receivedBytes > options.maxBytes) {
+    if (receivedBytes > maxBytes) {
       failClosed();
       return;
     }
@@ -532,7 +584,8 @@ function consumeBody(
 function attemptPinnedRequest(
   target: URL,
   address: ResolvedAddress,
-  options: GuardedFetchOptions,
+  method: RequestMethod,
+  options: GuardedRequestOptions,
   deadlineAt: number
 ): Promise<HopOutcome> {
   return new Promise<HopOutcome>((resolve, reject) => {
@@ -568,7 +621,7 @@ function attemptPinnedRequest(
       host: target.hostname,
       port: target.port || (isHttps ? 443 : 80),
       path: `${target.pathname || '/'}${target.search || ''}`,
-      method: 'GET',
+      method,
       agent: false,
       lookup: lookup as unknown as http.RequestOptions['lookup'],
       headers: {
@@ -663,11 +716,21 @@ function attemptPinnedRequest(
         fail();
         return;
       }
+      if (method === 'HEAD') {
+        response.resume(); // a HEAD response has no body to read
+        succeed({
+          kind: 'head',
+          contentType: response.headers['content-type'],
+          contentLength: response.headers['content-length'],
+          contentEncoding: response.headers['content-encoding'],
+        });
+        return;
+      }
       consumeBody(
         response,
         response.headers['content-type'],
         response.headers['content-encoding'],
-        options,
+        options.maxBytes ?? 0,
         succeed,
         fail
       );
@@ -699,7 +762,8 @@ function attemptPinnedRequest(
 async function requestPinnedHop(
   target: URL,
   addresses: ResolvedAddress[],
-  options: GuardedFetchOptions,
+  method: RequestMethod,
+  options: GuardedRequestOptions,
   deadlineAt: number
 ): Promise<HopOutcome> {
   for (const address of addresses) {
@@ -707,7 +771,13 @@ async function requestPinnedHop(
       break;
     }
     try {
-      return await attemptPinnedRequest(target, address, options, deadlineAt);
+      return await attemptPinnedRequest(
+        target,
+        address,
+        method,
+        options,
+        deadlineAt
+      );
     } catch (error) {
       if ((error as { retryNextAddress?: boolean }).retryNextAddress) {
         continue;
@@ -721,19 +791,18 @@ async function requestPinnedHop(
 const defaultSleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+type FinalOutcome = Extract<HopOutcome, { kind: 'body' } | { kind: 'head' }>;
+
 /**
- * Fetch a canonical media URL under the SSRF guard. Throws a fixed command
- * error on any failure: `FETCH_RATE_LIMITED_ERROR` (429) or
- * `FETCH_UNAVAILABLE_ERROR` (503) when a hop is throttled and at most one
- * retry — taken only when the requested delay is understood, at most
- * THROTTLE_MAX_WAIT_MS, and fits the remaining deadline — did not succeed;
- * `FETCH_FAILED_ERROR` for everything else. Underlying errors are discarded (leak invariant: no caller
- * text or resolved addresses in errors/logs).
+ * The guarded redirect/throttle loop shared by GET and HEAD. Host-policy
+ * refusals throw `policyRejected()`; every other failure throws
+ * `fetchFailed()` (or a throttle error).
  */
-export async function fetchGuardedMedia(
+async function guardedRequest(
   canonicalUrl: string,
-  options: GuardedFetchOptions
-): Promise<GuardedFetchResult> {
+  method: RequestMethod,
+  options: GuardedRequestOptions
+): Promise<{ outcome: FinalOutcome; finalUrl: string }> {
   const maxRedirects = options.maxRedirects ?? 3;
   const requireHttps = options.requireHttps ?? false;
   const resolveHost = options.resolveHost ?? defaultResolveHost;
@@ -757,7 +826,11 @@ export async function fetchGuardedMedia(
       target.protocol !== 'https:' &&
       (target.protocol !== 'http:' || requireHttps)
     ) {
-      throw fetchFailed();
+      throw policyRejected();
+    }
+    // A redirect can carry credentials the initial classification never saw.
+    if (target.username || target.password) {
+      throw policyRejected(USERINFO_ERROR);
     }
     if (visited.has(currentUrl)) {
       throw fetchFailed(); // redirect loop
@@ -765,7 +838,7 @@ export async function fetchGuardedMedia(
     visited.add(currentUrl);
 
     if (isDeniedHostname(target.hostname)) {
-      throw fetchFailed();
+      throw policyRejected();
     }
 
     // The deadline covers DNS too: a slow resolver must surface the fixed
@@ -797,13 +870,19 @@ export async function fetchGuardedMedia(
     }
     for (const entry of addresses) {
       if (!allowAddress(entry.address)) {
-        throw fetchFailed();
+        throw policyRejected();
       }
     }
 
     let outcome: HopOutcome;
     try {
-      outcome = await requestPinnedHop(target, addresses, options, deadlineAt);
+      outcome = await requestPinnedHop(
+        target,
+        addresses,
+        method,
+        options,
+        deadlineAt
+      );
     } catch {
       throw fetchFailed();
     }
@@ -824,6 +903,7 @@ export async function fetchGuardedMedia(
         outcome = await requestPinnedHop(
           target,
           addresses,
+          method,
           options,
           deadlineAt
         );
@@ -852,10 +932,88 @@ export async function fetchGuardedMedia(
       continue;
     }
 
+    return { outcome, finalUrl: currentUrl };
+  }
+}
+
+/**
+ * Fetch a canonical media URL under the SSRF guard. Throws a fixed command
+ * error on any failure: `FETCH_RATE_LIMITED_ERROR` (429) or
+ * `FETCH_UNAVAILABLE_ERROR` (503) when a hop is throttled and at most one
+ * retry — taken only when the requested delay is understood, at most
+ * THROTTLE_MAX_WAIT_MS, and fits the remaining deadline — did not succeed;
+ * `FETCH_FAILED_ERROR` for everything else. Underlying errors are discarded (leak invariant: no caller
+ * text or resolved addresses in errors/logs).
+ */
+export async function fetchGuardedMedia(
+  canonicalUrl: string,
+  options: GuardedFetchOptions
+): Promise<GuardedFetchResult> {
+  const { outcome, finalUrl } = await guardedRequest(
+    canonicalUrl,
+    'GET',
+    options
+  );
+  if (outcome.kind !== 'body') {
+    throw fetchFailed();
+  }
+  return {
+    bytes: outcome.bytes,
+    finalUrl,
+    contentType: outcome.contentType,
+  };
+}
+
+function probedSize(
+  contentLength: string | undefined,
+  contentEncoding: string | undefined
+): number {
+  // An encoded body's length is not the file's size.
+  if (!encodingIsIdentity(contentEncoding)) {
+    return -1;
+  }
+  const raw = (contentLength ?? '').trim();
+  if (!/^\d+$/.test(raw)) {
+    return -1;
+  }
+  const size = Number(raw);
+  return Number.isSafeInteger(size) ? size : -1;
+}
+
+function probedMimeType(contentType: string | undefined): string | undefined {
+  const mime = (contentType ?? '').split(';')[0].trim().toLowerCase();
+  return mime || undefined;
+}
+
+/**
+ * A headers-only (HEAD) request under the same guard as `fetchGuardedMedia`:
+ * per-hop scheme/host/address policy, resolve-once DNS pinning, TLS identity
+ * against the hostname, the redirect cap, the throttle rule and the
+ * deadline. No body is read.
+ *
+ * A host-policy refusal (`isMediaPolicyRejection`) is thrown — the URL must
+ * not be posted. Any other failure (DNS, connection, non-2xx, throttling,
+ * timeout) is soft: the result is `{ size: -1 }` with no MIME type, so the
+ * caller can attach the URL with unknown metadata.
+ */
+export async function probeGuardedMedia(
+  canonicalUrl: string,
+  options: GuardedProbeOptions
+): Promise<MediaProbe> {
+  try {
+    const { outcome } = await guardedRequest(canonicalUrl, 'HEAD', options);
+    if (outcome.kind !== 'head') {
+      return { size: -1 };
+    }
+    const mimeType = probedMimeType(outcome.contentType);
     return {
-      bytes: outcome.bytes,
-      finalUrl: currentUrl,
-      contentType: outcome.contentType,
+      ...(mimeType ? { mimeType } : {}),
+      size: probedSize(outcome.contentLength, outcome.contentEncoding),
     };
+  } catch (error) {
+    if (isMediaPolicyRejection(error)) {
+      throw error;
+    }
+    return { size: -1 };
   }
 }

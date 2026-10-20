@@ -14,8 +14,9 @@ import { getVideoViewerId } from '../../utils/mediaViewer';
 
 type VideoPreviewProps = ComponentProps<typeof View> & {
   video: {
-    width: number;
-    height: number;
+    // Unknown dimensions (undefined) size the video from its container.
+    width?: number;
+    height?: number;
     src: string;
     alt?: string;
     duration?: number;
@@ -118,7 +119,14 @@ export function VideoPreview({
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const durationLabel = makePrettyDurationFromSeconds(video.duration);
-  const aspectRatio = video.height > 0 ? video.width / video.height : 1;
+  const knownSize =
+    video.width != null &&
+    video.height != null &&
+    video.width > 0 &&
+    video.height > 0
+      ? { width: video.width, height: video.height }
+      : null;
+  const aspectRatio = knownSize ? knownSize.width / knownSize.height : 1;
   const constrainedSize = resolveConstrainedVideoSize({
     maxWidth,
     maxHeight,
@@ -127,8 +135,8 @@ export function VideoPreview({
   const viewerId = getVideoViewerId(video.src, video.posterUri);
   const shouldFillMedia = constrainedSize != null || explicitHeight != null;
   const naturalMaxWidth =
-    !shouldFillMedia && maxWidth == null && video.width > 0
-      ? video.width
+    !shouldFillMedia && maxWidth == null && knownSize
+      ? knownSize.width
       : undefined;
   const mediaSizeProps = shouldFillMedia
     ? { height: '100%' as const }

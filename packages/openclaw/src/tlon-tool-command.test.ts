@@ -608,6 +608,12 @@ describe('owner-by-default identity selection', () => {
         'posts send ~alice hi --bot --help',
         ['posts', 'send', '~alice', 'hi', '--bot', '--help'],
       ],
+      ...(['--file', '--video', '--link'] as const).map(
+        (flag): [string, string[]] => [
+          `posts send heap/~h/g ${flag} https://x/a --help`,
+          ['posts', 'send', 'heap/~h/g', flag, 'https://x/a', '--help'],
+        ]
+      ),
       ['messages dm ~alice --help', ['messages', 'dm', '~alice', '--help']],
     ])(
       '`%s` is help: bot, no preflight, no echo',
@@ -646,6 +652,9 @@ describe('owner-by-default identity selection', () => {
       'posts reply chat/~h/c 170.1 -h',
       'posts edit chat/~h/c 170.1 --help',
       'posts send chat/~h/c --help --quote chat/~h/d 170.1',
+      'posts send chat/~h/c --help --file https://x/f.pdf',
+      'posts send chat/~h/c --help --video https://x/v.mp4',
+      'posts send heap/~h/g --help --link https://x.com',
       'posts reply chat/~h/c 170.1 -h --quote chat/~h/d 170.2 --quote-parent 170.1',
       'dms send 0v1.abc --help',
       'dms reply 0v1.abc 170.1 -h',
@@ -659,6 +668,24 @@ describe('owner-by-default identity selection', () => {
       ]);
       expect(result.content[0].text).toBe('ok\nRan as ~owner (owner).');
     });
+
+    it.each([
+      'posts send chat/~h/c caption --file https://x/f.pdf --sent-at 1700000000000',
+      'posts send chat/~h/c --video https://x/v.mp4 --bot',
+      'posts send heap/~h/g --link https://x.com --title Site',
+    ])(
+      'runs the attachment send `%s` as the owner, args intact',
+      async (command) => {
+        const { execute, runCommand } = makeExecutor();
+        const result = await execute('attach', { command });
+        expect(ranWith(runCommand)).toEqual([
+          '--ship',
+          '~owner',
+          ...shellSplitCommand(command),
+        ]);
+        expect(result.content[0].text).toBe('ok\nRan as ~owner (owner).');
+      }
+    );
 
     it('treats a literal search query as a read, not help', async () => {
       const { execute, runCommand } = makeExecutor();
@@ -3102,6 +3129,35 @@ describe('tlon tool telemetry summarizer', () => {
       });
       expect(JSON.stringify(summary)).not.toContain('quiet-launch');
       expect(JSON.stringify(summary)).not.toContain('170.141');
+    }
+  });
+
+  it('classifies attachment sends by their channel, never echoing the URL', () => {
+    for (const [command, channelKind] of [
+      [
+        'posts send heap/~zod/quiet-launch --file https://cdn.example.com/s.pdf',
+        'heap',
+      ],
+      [
+        'posts send chat/~zod/quiet-launch hi --video https://cdn.example.com/s.mp4',
+        'chat',
+      ],
+      [
+        'posts send heap/~zod/quiet-launch --link https://cdn.example.com/s',
+        'heap',
+      ],
+    ] as const) {
+      const summary = summarizeTlonCommand(command);
+
+      expect(summary).toMatchObject({
+        summaryKey: 'posts.send',
+        operation: 'send',
+        intent: 'write',
+        channelKind,
+        isKnownSubcommand: true,
+      });
+      expect(JSON.stringify(summary)).not.toContain('quiet-launch');
+      expect(JSON.stringify(summary)).not.toContain('cdn.example.com');
     }
   });
 

@@ -86,3 +86,30 @@ test('convertContent keeps distinct blob and story videos when src differs', () 
     'https://cdn.example.com/story.mp4',
   ]);
 });
+
+test.each([
+  ['missing', {}, undefined],
+  ['partial (width only)', { width: 640 }, undefined],
+  ['partial (height only)', { height: 480 }, undefined],
+  ['zero', { width: 0, height: 480 }, undefined],
+  ['known', { width: 640, height: 480 }, { width: 640, height: 480 }],
+])(
+  'convertContent treats %s blob video dimensions as known only when both are positive',
+  (_name, dims, expected) => {
+    const blob = JSON.stringify([
+      {
+        type: 'video',
+        version: 1,
+        fileUri: 'https://cdn.example.com/clip.mp4',
+        size: -1,
+        ...dims,
+      },
+    ]);
+
+    const [block] = convertContent([], blob);
+    expect(block.type).toBe('video');
+    if (block.type !== 'video') return;
+    expect(block.video.width).toBe(expected?.width);
+    expect(block.video.height).toBe(expected?.height);
+  }
+);
