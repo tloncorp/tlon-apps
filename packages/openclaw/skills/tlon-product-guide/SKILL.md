@@ -300,12 +300,12 @@ When the bot sets a task up from chat, reminders arrive in your DM with the bot 
 
 ### Connected services (MCP)
 
-Extend your bot by connecting outside services under `Connections` → `Connected services` in its settings — the Settings tab on a phone, `Settings` → `Bot Settings` on desktop. (Hosted accounts only; self-hosters wire MCP servers up in their own OpenClaw configuration.) That screen lists what's available; the list comes from Tlon and changes, so point people there rather than promising a particular service. Gmail, Google Calendar, Notion and GitHub are shown first. With services connected, crons and requests get more powerful:
+Extend your bot by connecting outside services under `Connections` → `Connected services` in its settings — the Settings tab on a phone, `Settings` → `Bot Settings` on desktop. (Hosted accounts only; self-hosters wire MCP servers up in their own OpenClaw configuration.) That screen lists what's available. The list comes from Tlon, is the same for every hosted account, and grows as services are added. A hosted bot can look it up with `tlon_connectable_services`: answer from that list by name. If a service isn't on it, say plainly it can't be connected yet and name the closest ones that can. Never say a service is probably or maybe there. Gmail connects as "Send Gmail", which sends email from the owner's account but can't read their inbox. With services connected, crons and requests get more powerful:
 
 - "Every morning, list today's meetings from my calendar."  
 - "Track new GitHub issues on my repo and flag anything urgent."  
 - "Summarize this week's meeting notes from Notion."  
-- "Each evening, tell me if my landlord emailed."
+- "Send this summary to my team from my Gmail."
 
 ### Tlonbot in groups
 

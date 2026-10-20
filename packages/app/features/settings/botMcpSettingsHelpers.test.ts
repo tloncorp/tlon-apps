@@ -49,10 +49,14 @@ describe('buildProviderRows', () => {
       prioritizeMcpMenuProviders([
         { displayName: 'A', id: 'a', status: 'not-connected' },
         { displayName: 'B', id: 'b', status: 'connected' },
-        { displayName: 'Gmail', id: 'gmail', status: 'not-connected' },
+        {
+          displayName: 'Send Gmail',
+          id: 'google-gmail',
+          status: 'not-connected',
+        },
         { displayName: 'D', id: 'd', status: 'connected' },
       ]).map((provider) => provider.id)
-    ).toEqual(['b', 'd', 'gmail', 'a']);
+    ).toEqual(['b', 'd', 'google-gmail', 'a']);
   });
 
   it('prioritizes the four common preview providers', () => {
@@ -66,9 +70,19 @@ describe('buildProviderRows', () => {
           id: 'google-calendar',
           status: 'not-connected',
         },
-        { displayName: 'Gmail', id: 'gmail', status: 'not-connected' },
+        {
+          displayName: 'Send Gmail',
+          id: 'google-gmail',
+          status: 'not-connected',
+        },
       ]).map((provider) => provider.id)
-    ).toEqual(['gmail', 'google-calendar', 'notion', 'github', 'linear']);
+    ).toEqual([
+      'google-gmail',
+      'google-calendar',
+      'notion',
+      'github',
+      'linear',
+    ]);
   });
 
   it('keeps every connected provider available in the bounded menu', () => {
