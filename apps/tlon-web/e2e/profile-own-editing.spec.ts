@@ -35,7 +35,7 @@ test('should allow users to edit their own profile', async ({ zodSetup }) => {
     .fill('Zod Testing bio');
 
   // Try to add a group (but close since we don't have any groups in test)
-  await zodPage.getByText('Add a group').click();
+  await zodPage.getByText('Add a workspace').click();
   await zodPage.getByTestId('CloseFavoriteGroupSelectorSheet').click();
 
   // Save changes

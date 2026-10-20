@@ -1,5 +1,6 @@
 import commandCatalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
 import { locateOwnerShipConfig } from './owner-ship-config.js';
+import { normalizeShip } from './targets.js';
 import {
   ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
   checkBlockedDiaryOperation,
@@ -71,7 +72,19 @@ const UNKNOWN_SUBCOMMAND = 'unknown';
 const INVALID_OPERATION = 'invalid';
 
 const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
-  ['activity', new Set(['mentions', 'replies', 'all', 'unreads'])],
+  [
+    'activity',
+    new Set([
+      'mentions',
+      'replies',
+      'all',
+      'unreads',
+      'mute',
+      'unmute',
+      'volume',
+      'mark-read',
+    ]),
+  ],
   ['browser', new Set(['handoff', 'share'])],
   [
     'buckets',
@@ -170,6 +183,11 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'promote',
       'demote',
       'add-channel',
+      'add-section',
+      'rename-section',
+      'delete-section',
+      'move-channel',
+      'order-sections',
     ]),
   ],
   [
@@ -207,6 +225,8 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'note-rename',
       'note-move',
       'note-delete',
+      'note-publish',
+      'note-unpublish',
       'history',
       'folders',
       'folder',
@@ -222,7 +242,19 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'notebook-delete',
     ]),
   ],
-  ['posts', new Set(['send', 'reply', 'react', 'unreact', 'edit', 'delete'])],
+  [
+    'posts',
+    new Set([
+      'send',
+      'reply',
+      'react',
+      'unreact',
+      'edit',
+      'delete',
+      'pin',
+      'unpin',
+    ]),
+  ],
   [
     'settings',
     new Set([
@@ -338,9 +370,65 @@ export type BlockedTlonOperation = {
     | 'diary_operation'
     | 'migration_operation'
     | 'send_operation'
-    | 'browser_account_override';
+    | 'browser_account_override'
+    | 'reserved_automatic_provision'
+    | 'reserved_provider_configuration';
   diaryNest?: string;
 };
+
+function containsAutomaticProvisionAction(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsAutomaticProvisionAction);
+  }
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (record.action && typeof record.action === 'object') {
+    const event = (record.action as { event?: unknown }).event;
+    if (
+      event &&
+      typeof event === 'object' &&
+      (event as { name?: unknown }).name === 'tlon.provisionAgent'
+    ) {
+      return true;
+    }
+  }
+  return Object.values(record).some(containsAutomaticProvisionAction);
+}
+
+function containsProviderConfigurationAction(value: unknown): boolean {
+  if (Array.isArray(value))
+    return value.some(containsProviderConfigurationAction);
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (
+    record.event &&
+    typeof record.event === 'object' &&
+    (record.event as { name?: unknown }).name === 'tlon.configureAgentProviders'
+  ) {
+    return true;
+  }
+  return Object.values(record).some(containsProviderConfigurationAction);
+}
+
+function hasReservedBlobContent(
+  args: string[],
+  containsReservedContent: (value: unknown) => boolean
+): boolean {
+  if (args[0]?.toLocaleLowerCase() !== 'posts') return false;
+  const blobs = args.flatMap((argument, index) => {
+    if (argument === '--blob') return args[index + 1] ? [args[index + 1]!] : [];
+    return argument.startsWith('--blob=')
+      ? [argument.slice('--blob='.length)]
+      : [];
+  });
+  return blobs.some((blob) => {
+    try {
+      return containsReservedContent(JSON.parse(blob));
+    } catch {
+      return false;
+    }
+  });
+}
 
 /**
  * Check blocked operations only after removing global credential flags.
@@ -359,6 +447,22 @@ export function checkBlockedTlonOperation(
   }
   const subIdx = findTlonSubcommandIndex(args);
   const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
+  if (hasReservedBlobContent(commandArgs, containsAutomaticProvisionAction)) {
+    return {
+      message:
+        'Blocked: automatic recurring-task provisioning may be posted only by the typed tlon_agent_task_plan tool.',
+      reason: 'reserved_automatic_provision',
+    };
+  }
+  if (
+    hasReservedBlobContent(commandArgs, containsProviderConfigurationAction)
+  ) {
+    return {
+      message:
+        'Blocked: provider access may be configured only by the verified onboarding coordinator.',
+      reason: 'reserved_provider_configuration',
+    };
+  }
   const migration = checkBlockedMigrationOperation(commandArgs);
   if (migration) {
     return {
@@ -381,26 +485,89 @@ export function checkBlockedTlonOperation(
 
 const HELP_TOKENS = new Set(['-h', '--help']);
 
+// Keyed `<family> <op>` so the same op name in two families cannot collide.
+type OwnerCredentialCommand =
+  | 'groups invite-link'
+  | 'notes note-publish'
+  | 'notes note-unpublish'
+  | 'activity mute'
+  | 'activity unmute'
+  | 'activity volume'
+  | 'activity mark-read';
+
+const OWNER_CREDENTIAL_COMMANDS = new Map<string, readonly string[]>([
+  ['groups', ['invite-link']],
+  ['notes', ['note-publish', 'note-unpublish']],
+  ['activity', ['mute', 'unmute', 'volume', 'mark-read']],
+]);
+
+const NOTIFICATION_SELF_HINT =
+  "Add --self to change this bot's own notification settings instead.";
+
+const OWNER_CREDENTIAL_WORDING: Record<
+  OwnerCredentialCommand,
+  { noOwner: string; asShip: string; selfHint: string }
+> = {
+  'groups invite-link': {
+    noOwner: "Retrieving the owner's invite link",
+    asShip: 'Retrieving the invite link as',
+    selfHint: "Add --self to retrieve this bot's own invite link instead.",
+  },
+  'notes note-publish': {
+    noOwner: 'Publishing a note as the owner',
+    asShip: 'Publishing a note as',
+    selfHint: "Add --self to publish from this bot's own ship instead.",
+  },
+  'notes note-unpublish': {
+    noOwner: 'Unpublishing a note as the owner',
+    asShip: 'Unpublishing a note as',
+    selfHint: "Add --self to unpublish from this bot's own ship instead.",
+  },
+  'activity mute': {
+    noOwner: 'Muting as the owner',
+    asShip: 'Muting as',
+    selfHint: NOTIFICATION_SELF_HINT,
+  },
+  'activity unmute': {
+    noOwner: 'Unmuting as the owner',
+    asShip: 'Unmuting as',
+    selfHint: NOTIFICATION_SELF_HINT,
+  },
+  'activity volume': {
+    noOwner: 'Changing a notification level as the owner',
+    asShip: 'Changing a notification level as',
+    selfHint: NOTIFICATION_SELF_HINT,
+  },
+  'activity mark-read': {
+    noOwner: 'Marking as read as the owner',
+    asShip: 'Marking as read as',
+    selfHint: "Add --self to mark this bot's own chats read instead.",
+  },
+};
+
 /**
  * The shared owner-injection predicate (the Hermes adapter implements the same
- * truth table): a bare `groups invite-link`, with no credential flag in either
- * form, no `--self`, and no help token. Anything else runs on the bot's own
- * credentials, exactly as the model wrote it.
+ * truth table for `groups invite-link` only): a bare `groups invite-link`,
+ * `notes note-publish`, `notes note-unpublish` or
+ * `activity mute|unmute|volume|mark-read`, with no credential flag in either
+ * form, no `--self`, and no help token. Any other command keeps the credential
+ * selection it was given, exactly as the model wrote it.
  */
-export function shouldInjectOwnerCredentials(args: string[]): boolean {
-  if (hasCredentialOverride(args)) return false;
+function ownerCredentialCommand(args: string[]): OwnerCredentialCommand | null {
+  if (hasCredentialOverride(args)) return null;
 
   const subIdx = findTlonSubcommandIndex(args);
-  if (subIdx < 0) return false;
+  if (subIdx < 0) return null;
   const commandArgs = args.slice(subIdx);
-  if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
-  if (commandArgs[1]?.toLowerCase() !== 'invite-link') return false;
+  const family = commandArgs[0]?.toLowerCase() ?? '';
+  const op = commandArgs[1]?.toLowerCase() ?? '';
+  if (!OWNER_CREDENTIAL_COMMANDS.get(family)?.includes(op)) return null;
+  const operation = `${family} ${op}` as OwnerCredentialCommand;
 
-  return !commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg));
+  return commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg))
+    ? null
+    : operation;
 }
-
-const OWNER_INVITE_LINK_SELF_HINT =
-  "Add --self to retrieve this bot's own invite link instead.";
 
 /**
  * `--ship <owner>`, never `--config <path>`: ship-only resolution validates the
@@ -409,34 +576,349 @@ const OWNER_INVITE_LINK_SELF_HINT =
  * minting a bot-attributed link. Missing provisioning is a tool error for the
  * same reason — never a silent fall back to the bot's own credentials.
  */
-function ownerInviteLinkPrefixArgs(
-  deps: TlonToolExecutorDeps
+function ownerCredentialPrefixArgs(
+  deps: TlonToolExecutorDeps,
+  command: OwnerCredentialCommand
 ): string[] | { error: string } {
+  const { noOwner, asShip, selfHint } = OWNER_CREDENTIAL_WORDING[command];
   const ownerShip = deps.ownerShip?.trim();
   if (!ownerShip) {
     return {
-      error:
-        "Retrieving the owner's invite link requires a configured owner ship. " +
-        OWNER_INVITE_LINK_SELF_HINT,
+      error: `${noOwner} requires a configured owner ship. ${selfHint}`,
     };
   }
 
   const location = locateOwnerShipConfig(ownerShip, deps);
   if (location.kind === 'no-skill-dir') {
     return {
-      error:
-        `Retrieving the invite link as ${ownerShip} requires TLON_SKILL_DIR so the owner credential file can be located. ` +
-        OWNER_INVITE_LINK_SELF_HINT,
+      error: `${asShip} ${ownerShip} requires TLON_SKILL_DIR so the owner credential file can be located. ${selfHint}`,
     };
   }
   if (location.kind === 'no-config-file') {
     return {
-      error:
-        `Retrieving the invite link as ${ownerShip} requires owner credentials at ${location.configPath}. ` +
-        OWNER_INVITE_LINK_SELF_HINT,
+      error: `${asShip} ${ownerShip} requires owner credentials at ${location.configPath}. ${selfHint}`,
     };
   }
   return ['--ship', ownerShip];
+}
+
+const CREATE_OWNED_VALUE_OPTIONS = new Set([
+  '--admin',
+  '--owner',
+  '--description',
+]);
+
+/**
+ * Where create-owned's admin option sits in `commandArgs`, found as the CLI
+ * finds it: options follow the title and each takes the next token as its
+ * value, and `--admin` wins over its legacy alias `--owner`. When the options
+ * read that way name no admin, the first `--owner` anywhere still counts, as
+ * it did before `--admin` existed. -1 when there is none.
+ */
+function createOwnedAdminIndex(commandArgs: string[]): number {
+  let admin = -1;
+  let owner = -1;
+  for (let i = 3; i < commandArgs.length; i += 1) {
+    if (!CREATE_OWNED_VALUE_OPTIONS.has(commandArgs[i])) continue;
+    if (commandArgs[i + 1] !== undefined) {
+      if (commandArgs[i] === '--admin' && admin < 0) admin = i;
+      if (commandArgs[i] === '--owner' && owner < 0) owner = i;
+    }
+    i += 1;
+  }
+  if (admin >= 0) return admin;
+  if (owner >= 0) return owner;
+  const legacy = commandArgs.indexOf('--owner', 3);
+  return legacy >= 0 && commandArgs[legacy + 1] !== undefined ? legacy : -1;
+}
+
+function isCreateOwnedCommand(args: string[]): boolean {
+  const subIdx = findTlonSubcommandIndex(args);
+  return (
+    subIdx >= 0 &&
+    args[subIdx]?.toLowerCase() === 'groups' &&
+    args[subIdx + 1]?.toLowerCase() === 'create-owned'
+  );
+}
+
+/**
+ * The command with its admin spelled `--owner` right after the title, which
+ * every CLI reads: one that predates `--admin` rejects it, and a newer one
+ * takes `--owner` as its alias. For a create-owned run as written on the bot's
+ * own credentials. A CLI reading only `--owner` takes the token after the
+ * first one, even when that `--owner` is a description's value, so the admin
+ * the CLI would have chosen goes first, then the description the CLI reads,
+ * and every other admin, owner or description pair is dropped. Other tokens
+ * stay, after them.
+ */
+function withLegacyAdminSpelling(args: string[]): string[] {
+  const subIdx = findTlonSubcommandIndex(args);
+  const commandArgs = args.slice(subIdx);
+  const adminIndex = createOwnedAdminIndex(commandArgs);
+  if (adminIndex < 0) return args;
+
+  const rest: string[] = [];
+  for (let i = 3; i < commandArgs.length; i += 1) {
+    if (CREATE_OWNED_VALUE_OPTIONS.has(commandArgs[i])) i += 1;
+    else rest.push(commandArgs[i]);
+  }
+  return [
+    ...args.slice(0, subIdx),
+    ...commandArgs.slice(0, 3),
+    '--owner',
+    commandArgs[adminIndex + 1],
+    ...descriptionArgs(commandArgs),
+    ...rest,
+  ];
+}
+
+/**
+ * Whether a create-owned run on the bot's own credentials names the bot as
+ * its admin. A credential flag or a help token leaves the command as written.
+ */
+function namesOwnShipAdmin(args: string[], botShip: string): boolean {
+  if (hasCredentialOverride(args)) return false;
+  const subIdx = findTlonSubcommandIndex(args);
+  const commandArgs = args.slice(subIdx);
+  if (commandArgs.some((arg) => HELP_TOKENS.has(arg))) return false;
+  const adminIndex = createOwnedAdminIndex(commandArgs);
+  return (
+    adminIndex >= 0 && normalizeShip(commandArgs[adminIndex + 1]) === botShip
+  );
+}
+
+/**
+ * A bot that is its own owner already hosts what it makes, and create-owned
+ * refuses an admin who is the host, so its "workspace for the owner" is a
+ * plain create with the same title and description.
+ */
+function asPlainCreate(args: string[]): string[] {
+  const subIdx = findTlonSubcommandIndex(args);
+  const commandArgs = args.slice(subIdx);
+  return [
+    ...args.slice(0, subIdx),
+    commandArgs[0],
+    'create',
+    commandArgs[2],
+    ...descriptionArgs(commandArgs),
+  ];
+}
+
+/**
+ * create-owned's description as the CLI reads it, the token after the first
+ * `--description`, as an option pair to rebuild a command with.
+ */
+function descriptionArgs(commandArgs: string[]): string[] {
+  const index = commandArgs.indexOf('--description', 3);
+  const description = index >= 0 ? commandArgs[index + 1] : undefined;
+  return description !== undefined ? ['--description', description] : [];
+}
+
+/**
+ * The shared owner-workspace predicate (the Hermes adapter implements the same
+ * truth table): a `groups create-owned` whose admin is the configured owner,
+ * with no credential flag in either form, no `--self`, and no help token.
+ * create-owned is hosted by whoever runs it, so the bot makes its owner's
+ * workspace on the owner's ship by running it as the owner with itself as the
+ * admin. A moon cannot create a group on its parent.
+ */
+export function shouldCreateWorkspaceOnOwner(
+  args: string[],
+  ownerShip: string | undefined
+): boolean {
+  if (!ownerShip) return false;
+  if (hasCredentialOverride(args)) return false;
+
+  const subIdx = findTlonSubcommandIndex(args);
+  if (subIdx < 0) return false;
+  const commandArgs = args.slice(subIdx);
+  if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
+  if (commandArgs[1]?.toLowerCase() !== 'create-owned') return false;
+  if (commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg))) {
+    return false;
+  }
+
+  const adminIndex = createOwnedAdminIndex(commandArgs);
+  return (
+    adminIndex >= 0 && normalizeShip(commandArgs[adminIndex + 1]) === ownerShip
+  );
+}
+
+const CHANNEL_CREATE_COMMANDS: ReadonlyArray<readonly [string, string]> = [
+  ['channels', 'create'],
+  ['groups', 'add-channel'],
+];
+
+/**
+ * The shared owner-channel predicate (the Hermes adapter implements the same
+ * truth table): a channel create in a group the configured owner hosts, with
+ * no credential flag in either form, no `--self`, and no help token. A channel
+ * is hosted by the ship that creates it, so run as the bot — a non-host admin
+ * there — it would land on the bot's ship instead of the owner's.
+ */
+export function shouldCreateChannelOnOwner(
+  args: string[],
+  ownerShip: string | undefined
+): boolean {
+  if (!ownerShip) return false;
+  if (hasCredentialOverride(args)) return false;
+
+  const subIdx = findTlonSubcommandIndex(args);
+  if (subIdx < 0) return false;
+  const commandArgs = args.slice(subIdx);
+  const command = commandArgs[0]?.toLowerCase();
+  const operation = commandArgs[1]?.toLowerCase();
+  if (
+    !CHANNEL_CREATE_COMMANDS.some(([c, o]) => c === command && o === operation)
+  ) {
+    return false;
+  }
+  if (commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg))) {
+    return false;
+  }
+
+  const groupHost = commandArgs[2]?.split('/')[0];
+  return !!groupHost && normalizeShip(groupHost) === ownerShip;
+}
+
+/**
+ * A command routed to the owner, or the command as written plus a note for the
+ * model saying why it stayed on the bot's ship and so who hosts the result.
+ */
+type OwnerRouting = { args: string[]; note?: string };
+
+/**
+ * Whether the owner's hosted credentials are provisioned. A missing file is
+ * logged rather than an error: what the bot makes on its own ship still works,
+ * and it is all a self-hosted bot can make.
+ */
+function ownerCredentialsProvisioned(
+  deps: TlonToolExecutorDeps,
+  ownerShip: string,
+  what: string
+): boolean {
+  const location = locateOwnerShipConfig(ownerShip, deps);
+  if (location.kind === 'no-config-file') {
+    deps.logError?.(
+      `Creating ${what} on the bot's ship: owner credentials are missing at ${location.configPath}.`
+    );
+  }
+  return location.kind === 'found';
+}
+
+/**
+ * The ship the CLI runs as: the one the plugin passes it, or else the one it
+ * reads from the environment when the plugin relies on env credentials. A
+ * config file named by TLON_CONFIG_FILE outranks those variables, and a
+ * cookie alone names no ship here, so either leaves it unknown.
+ */
+function resolveBotShip(deps: TlonToolExecutorDeps): string | undefined {
+  if (deps.botShip) return deps.botShip;
+  const env = deps.env ?? process.env;
+  if (env.TLON_CONFIG_FILE?.trim()) return undefined;
+  const ship = env.URBIT_SHIP?.trim() || env.TLON_SHIP?.trim();
+  return ship ? normalizeShip(ship) || undefined : undefined;
+}
+
+/**
+ * Every create-owned goes through here. One for the configured owner runs as
+ * the owner, rebuilt from what the CLI would read: `--ship <owner>`, the
+ * title, `--admin <bot>`, then the description. Rebuilt rather than edited,
+ * because a description's value can be an option name (a legacy `--description
+ * --owner <ship>`, or an empty description the splitter dropped), and an
+ * edited or appended admin would then be read as the description. Anything
+ * else runs as written, with the admin spelled so any CLI reads it, and a
+ * note when it was meant for the owner but stayed on the bot.
+ */
+async function routeCreateOwned(
+  args: string[],
+  deps: TlonToolExecutorDeps
+): Promise<OwnerRouting> {
+  const asWritten = withLegacyAdminSpelling(args);
+  const ownerShip = deps.ownerShip;
+  const botShip = resolveBotShip(deps);
+  // Checked before --self opts out of routing: run as itself or not, a bot
+  // that is its own owner would name itself admin, which create-owned refuses.
+  if (botShip && botShip === ownerShip && namesOwnShipAdmin(args, botShip)) {
+    return { args: asPlainCreate(args) };
+  }
+  if (!ownerShip || !shouldCreateWorkspaceOnOwner(args, ownerShip)) {
+    return { args: asWritten };
+  }
+
+  const fallback = `so this ran on your own ship: you host the workspace and ${ownerShip} is its admin.`;
+  if (!botShip) {
+    return {
+      args: asWritten,
+      note: `This bot's ship isn't configured here, ${fallback}`,
+    };
+  }
+  if (!ownerCredentialsProvisioned(deps, ownerShip, 'the workspace')) {
+    return {
+      args: asWritten,
+      note: `Your owner's credentials aren't available here, ${fallback}`,
+    };
+  }
+  if (!(await cliSupportsAdminOption(deps))) {
+    return {
+      args: asWritten,
+      note: `The installed tlon CLI's create-owned has no --admin, ${fallback}`,
+    };
+  }
+
+  const subIdx = findTlonSubcommandIndex(args);
+  const commandArgs = args.slice(subIdx);
+  return {
+    args: [
+      '--ship',
+      ownerShip,
+      ...args.slice(0, subIdx),
+      ...commandArgs.slice(0, 3),
+      '--admin',
+      botShip,
+      ...descriptionArgs(commandArgs),
+    ],
+  };
+}
+
+function routeChannelToOwner(
+  args: string[],
+  deps: TlonToolExecutorDeps
+): OwnerRouting {
+  const ownerShip = deps.ownerShip;
+  if (!ownerShip || resolveBotShip(deps) === ownerShip) return { args };
+  if (!ownerCredentialsProvisioned(deps, ownerShip, 'the channel')) {
+    return {
+      args,
+      note: `Your owner's credentials aren't available here, so this channel is hosted on your own ship rather than ${ownerShip}'s.`,
+    };
+  }
+  return { args: ['--ship', ownerShip, ...args] };
+}
+
+const ADMIN_OPTION_PROBE_ARGS = ['groups', 'create-owned', '--help'];
+const ADMIN_OPTION_TOKEN = /(?<![\w-])--admin(?![\w-])/;
+
+/**
+ * Whether the installed CLI's create-owned takes --admin. An older one has
+ * only --owner, which it hosts on the ship that runs it with the named ship as
+ * admin; run as the owner with the owner named, that is no workspace for the
+ * bot at all. The Hermes adapter probes the same way.
+ */
+async function cliSupportsAdminOption(
+  deps: TlonToolExecutorDeps
+): Promise<boolean> {
+  let help = '';
+  try {
+    help = await deps.runCommand(ADMIN_OPTION_PROBE_ARGS);
+  } catch {
+    // A probe that did not run says nothing about support.
+  }
+  if (ADMIN_OPTION_TOKEN.test(help)) return true;
+  deps.logError?.(
+    "Creating the workspace on the bot's ship: the installed tlon CLI's groups create-owned does not take --admin."
+  );
+  return false;
 }
 
 export type TlonToolExecutorDeps = {
@@ -445,6 +927,11 @@ export type TlonToolExecutorDeps = {
   logError?: (message: string) => void;
   /** Configured owner ship, already normalized to `~ship`. */
   ownerShip?: string;
+  /**
+   * The ship whose credentials the plugin passes the CLI, already normalized
+   * to `~ship`. Unset when the CLI reads its credentials from the environment.
+   */
+  botShip?: string;
   env?: NodeJS.ProcessEnv;
   fileExists?: (path: string) => boolean;
 };
@@ -465,6 +952,10 @@ export function formatTlonToolHelp(): string {
     '',
     ...commands,
   ].join('\n');
+}
+
+function withNote(text: string, note: string | undefined): string {
+  return note ? `${text}\n\nNote: ${note}` : text;
 }
 
 export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
@@ -571,8 +1062,12 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       }
 
       let commandArgs = args;
-      if (shouldInjectOwnerCredentials(args)) {
-        const prefixArgs = ownerInviteLinkPrefixArgs(deps);
+      // Says where a command meant for the owner ran instead, so the model
+      // can report the host. It asserts an outcome, so only a success gets it.
+      let routingNote: string | undefined;
+      const ownerCommand = ownerCredentialCommand(args);
+      if (ownerCommand) {
+        const prefixArgs = ownerCredentialPrefixArgs(deps, ownerCommand);
         if (!Array.isArray(prefixArgs)) {
           return {
             content: [{ type: 'text' as const, text: prefixArgs.error }],
@@ -580,11 +1075,23 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
           };
         }
         commandArgs = [...prefixArgs, ...args];
+      } else if (isCreateOwnedCommand(args)) {
+        ({ args: commandArgs, note: routingNote } = await routeCreateOwned(
+          args,
+          deps
+        ));
+      } else if (shouldCreateChannelOnOwner(args, deps.ownerShip)) {
+        ({ args: commandArgs, note: routingNote } = routeChannelToOwner(
+          args,
+          deps
+        ));
       }
 
       const output = await deps.runCommand(commandArgs);
       return {
-        content: [{ type: 'text' as const, text: output }],
+        content: [
+          { type: 'text' as const, text: withNote(output, routingNote) },
+        ],
         details: undefined,
       };
     } catch (error: unknown) {
@@ -670,8 +1177,25 @@ function summarizeKnownTlonCommand(
   }
 
   switch (subcommand) {
-    case 'activity':
-      return build('read');
+    case 'activity': {
+      // mute/unmute/volume change only the acting ship's own preferences and
+      // mark-read its own read state; `volume base` without a level only
+      // shows the base level.
+      const positionals = remainder.filter((arg) => !arg.startsWith('-'));
+      const showsBase =
+        operation === 'volume' &&
+        positionals.length === 1 &&
+        positionals[0].toLowerCase() === 'base';
+      return build(
+        (operation === 'mute' ||
+          operation === 'unmute' ||
+          operation === 'volume' ||
+          operation === 'mark-read') &&
+          !showsBase
+          ? 'write'
+          : 'read'
+      );
+    }
     case 'browser':
       return build('write');
     case 'buckets':
@@ -1098,6 +1622,8 @@ function summarizeNotesOperation(
     case 'migrate-plan':
       return build('read');
     case 'note-delete':
+    case 'note-publish':
+    case 'note-unpublish':
     case 'folder-delete':
     case 'notebook-delete':
       return build('admin');
@@ -1208,6 +1734,9 @@ function summarizePostsOperation(
         hasImage: hasFlag(args, '--image'),
         hasContent: hasFlag(args, '--content'),
       });
+    case 'pin':
+    case 'unpin':
+      return build('admin', { channelKind });
     default:
       return build('write', { channelKind });
   }

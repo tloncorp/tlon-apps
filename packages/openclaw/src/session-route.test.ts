@@ -1,6 +1,6 @@
 import type { ChannelOutboundSessionRouteParams } from 'openclaw/plugin-sdk/core';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { tlonPlugin } from './channel.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
@@ -99,5 +99,36 @@ describe('tlonPlugin messaging surface (explicit-target wiring)', () => {
 
   it('wires resolveOutboundSessionRoute', () => {
     expect(typeof messaging?.resolveOutboundSessionRoute).toBe('function');
+  });
+});
+
+describe('tlonPlugin agent tools', () => {
+  it('exposes the onboarding choice, plan, and service recovery tools through the channel', () => {
+    expect(typeof tlonPlugin.agentTools).toBe('function');
+    if (typeof tlonPlugin.agentTools !== 'function') {
+      return;
+    }
+
+    const tools = tlonPlugin.agentTools({ cfg });
+    expect(tools.map((tool) => tool.name)).toEqual([
+      'tlon_agent_choice',
+      'tlon_agent_task_plan',
+      'tlon_agent_service_setup',
+    ]);
+  });
+
+  it('adds the connectable services lookup on hosted bots', () => {
+    if (typeof tlonPlugin.agentTools !== 'function') {
+      return;
+    }
+    vi.stubEnv('PIONEER_ENV', 'prod');
+    try {
+      const tools = tlonPlugin.agentTools({ cfg });
+      expect(tools.map((tool) => tool.name)).toContain(
+        'tlon_connectable_services'
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

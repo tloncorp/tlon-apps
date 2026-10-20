@@ -7,7 +7,11 @@ import { useCallback } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { ChatOptionsProvider, ForwardGroupSheetProvider } from '../../ui';
+import {
+  ChatOptionsProvider,
+  ForwardChannelSheetProvider,
+  ForwardGroupSheetProvider,
+} from '../../ui';
 import { ChannelDetailsScreenView } from '../top/ChannelDetailsScreen';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'ChannelInfo'>;
@@ -50,18 +54,20 @@ export function ChannelInfoScreen(props: Props) {
 
   return (
     <ForwardGroupSheetProvider>
-      <ChatOptionsProvider
-        key={`${chatType}-${chatId}`}
-        initialChat={{ type: chatType, id: chatId }}
-        {...useChatSettingsNavigation()}
-      >
-        <ChannelDetailsScreenView
-          onGoBack={handleGoBack}
-          onEditChannelMeta={handleEditChannelMeta}
-          onEditChannelPrivacy={handleEditChannelPrivacy}
-          onAfterDeleteChannel={handleAfterDeleteChannel}
-        />
-      </ChatOptionsProvider>
+      <ForwardChannelSheetProvider>
+        <ChatOptionsProvider
+          key={`${chatType}-${chatId}`}
+          initialChat={{ type: chatType, id: chatId }}
+          {...useChatSettingsNavigation()}
+        >
+          <ChannelDetailsScreenView
+            onGoBack={handleGoBack}
+            onEditChannelMeta={handleEditChannelMeta}
+            onEditChannelPrivacy={handleEditChannelPrivacy}
+            onAfterDeleteChannel={handleAfterDeleteChannel}
+          />
+        </ChatOptionsProvider>
+      </ForwardChannelSheetProvider>
     </ForwardGroupSheetProvider>
   );
 }

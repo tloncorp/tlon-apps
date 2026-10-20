@@ -67,8 +67,8 @@ test('Members row appears in GroupRolesScreen', async ({ zodPage }) => {
   await helpers.createGroup(page);
 
   // Handle welcome message if present
-  if (await page.getByText('Welcome to your group!').isVisible()) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  if (await page.getByText('Welcome to your workspace!').isVisible()) {
+    await expect(page.getByText('Welcome to your workspace!')).toBeVisible();
   }
 
   // Navigate back to Home and re-enter group
@@ -79,14 +79,14 @@ test('Members row appears in GroupRolesScreen', async ({ zodPage }) => {
   }
 
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
-    await page.getByText('Untitled group').first().click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
+    await page.getByText('Untitled workspace').first().click();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   // Open group settings and navigate to Roles
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
   await page.getByTestId('GroupRoles').click();
 
   // Verify Members row is visible

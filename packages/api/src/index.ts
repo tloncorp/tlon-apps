@@ -48,6 +48,7 @@ export type {
 export * from './urbit/buckets';
 export type {
   AppReference,
+  ChannelLinkReference,
   ChannelReference,
   ContentReference,
   GroupReference,
@@ -98,6 +99,7 @@ export {
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
+  type PostBlobDataEntryMetadata,
   type PostBlobDataEntryAgentIntroRequest,
   type PostBlobDataEntryAgentProvision,
   type PostBlobDataEntryAgentProviderConfig,

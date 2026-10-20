@@ -11,10 +11,12 @@ On accounts with a hosted Tlonbot, the app’s `New Workspace` action creates a 
 ## Create a workspace for a user
 
 ```json
-{"command":"groups create-owned \"Project\" --owner ~requester"}
+{"command":"groups create-owned \"Project\" --admin ~requester"}
 ```
 
-Use the actual requester's verified ship identity. This invites them and makes them an admin. Plain `groups create` creates a group under the current ship; it is not the default for a user-requested group. Do not report success until the owner invitation/admin step has succeeded.
+`create-owned` makes a group hosted by the ship that runs it and makes the `--admin` ship its admin (`--owner` is a legacy alias for `--admin`). Use the actual requester's verified ship identity. Plain `groups create` gives the group no admin besides its host; it is not the default for a user-requested group. Do not report success until the admin step has succeeded. If it fails after the group exists, the error names the group and its host: do not create it again. If you are the host, finish with the `groups promote` it suggests; otherwise ask the host to make the admin an admin in the app.
+
+When the requester is your owner and the runtime holds the owner's hosted credentials, the tool runs this as the owner with you as the admin: the owner's ship hosts the workspace, and you join automatically. Otherwise your own ship hosts it and the tool result says why. The output's `Host:` line says which; name the host when you reply. A workspace hosted by your owner appears in your `groups list` once you have joined it.
 
 Share the returned `Ref:` path in the reply so Tlon can render the group card.
 
@@ -25,9 +27,24 @@ Share the returned `Ref:` path in the reply so Tlon can render the group card.
 {"command":"channels create ~host/group \"Research\" --kind notes"}
 ```
 
+The output gives the new channel's `Nest:` and its group's `Ref:`. Channels have no card yet: in your reply, name the channel, give its nest, and share the group `Ref:` path.
+
 Description is supported for chat/heap, not notes. For notebooks, continue with [notes.md](notes.md); for shared files, use [buckets.md](buckets.md). Inspect `help channels create` for kind-specific flags.
 
+A channel is hosted by the ship that creates it. In a group your owner hosts, when the runtime holds the owner's hosted credentials, the tool creates the channel as the owner, so it lives on the owner's node and you join it automatically; otherwise it stays on your ship and the tool result says why. Use the nest it returns, whose host part names the host.
+
 To leave a single channel, use `channels leave <nest>`; `groups leave` leaves the whole workspace and all its channels. `channels join` does not check read access: it can report "Joined" while messages remain unavailable to an account without access.
+
+## Sections and channel order
+
+Read section ids, titles and 0-based channel positions from `groups info <group-flag>` first; commands accept a section id or its title. All section commands are admin only and refuse up front otherwise.
+
+```json
+{"command":"groups add-section ~host/group \"Archive\""}
+{"command":"groups move-channel ~host/group chat/~host/general --section Archive --index 0"}
+```
+
+`add-section` puts the new section at the bottom; `rename-section <group-flag> <section> "<new title>"` changes only its title. `move-channel --index N` is the channel's final 0-based position; without it, the channel goes to the end of the section, unless it is already assigned to and listed in that section, in which case nothing changes. `order-sections` must list every section exactly once, `default` included. The `default` section cannot be deleted; `delete-section` first moves the section's channels to the top of `default`, keeping their order. Multi-step commands check each step but are not atomic: on a partial failure, follow the printed recovery instructions exactly, and do not re-run `add-section` unless told to.
 
 ## Membership and permissions
 

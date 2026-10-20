@@ -35,7 +35,7 @@ env:
 - assertVisible: ${output.reliability.groupSwipePreviewPattern}
 - longPressOn:
     id: ${'ChatListItem-SwipeGroup-' + MAESTRO_RUN_TAG + '-unpinned'}
-- assertVisible: '^Group notifications$'
+- assertVisible: '^Workspace notifications$'
 - assertNotVisible: '^Mark all as read$'
 - swipe:
     direction: DOWN

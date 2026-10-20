@@ -280,6 +280,7 @@ const smallChoiceSchema = z.object({
     .max(LIMITS.maxSmallChoiceOptions)
     .refine((options) => uniqueBy(options, (option) => option.id))
     .refine((options) => uniqueBy(options, (option) => option.label)),
+  selectionMode: z.enum(['single', 'multiple']).optional(),
   submitLabel: nonEmptyString(LIMITS.maxPillLabelLength),
   freeTextPlaceholder: nonEmptyString(LIMITS.maxPillLabelLength).optional(),
   action: smallChoiceActionSchema,
@@ -408,7 +409,7 @@ export namespace A2UI {
   export type Message = CreateSurfaceMessage | UpdateComponentsMessage;
   export type BlobEntry = {
     type: 'a2ui';
-    version: 1;
+    version: 1 | 2;
     messages: Message[];
     recipe?: unknown;
     storyMode?: 'fallback';
@@ -442,7 +443,7 @@ function validateEnvelope(
   if (
     !isPlainObject(entry) ||
     entry.type !== 'a2ui' ||
-    entry.version !== 1 ||
+    (entry.version !== 1 && entry.version !== 2) ||
     !Array.isArray(entry.messages)
   ) {
     return null;
@@ -676,7 +677,7 @@ function validateParsedBlobEntry(
 const blobEntryShapeSchema: z.ZodType<A2UI.BlobEntry> = z
   .object({
     type: z.literal('a2ui'),
-    version: z.literal(1),
+    version: z.union([z.literal(1), z.literal(2)]),
     messages: z.array(z.any()),
     recipe: z.any().optional(),
     storyMode: z.literal('fallback').optional(),

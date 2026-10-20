@@ -7,7 +7,7 @@
  *   tlon [options] <command> <subcommand> [args...]
  *
  * Commands:
- *   activity     Activity/notifications (mentions, replies, all, unreads)
+ *   activity     Activity/notifications (mentions, replies, all, unreads, mute, unmute, volume, mark-read)
  *   browser      Hosted browser handoff operations
  *   buckets      Shared %buckets file channels
  *   channels     Channel listing and management
@@ -16,7 +16,7 @@
  *   groups       Group management
  *   messages     Message history and search (dm, channel, history, search, context, post)
  *   notes        %notes notebook operations
- *   posts        Post reactions, edits, deletes
+ *   posts        Post reactions, edits, deletes, pins
  *   settings     OpenClaw settings management
  */
 import { createActivityDeps } from './activity-runtime';
@@ -84,7 +84,7 @@ Examples:
   tlon contacts list
   tlon messages dm ~sampel-palnet --limit 10
   tlon groups create "My Group" --description "A cool group"
-  tlon groups create-owned "My Group" --owner ~zod
+  tlon groups create-owned "My Group" --admin ~zod
   tlon groups join ~host/group-slug
   tlon posts react chat/~host/channel 170.141.184... 👍
   tlon --config ~/ships/zod.json contacts self
@@ -92,7 +92,9 @@ Examples:
   tlon --url https://zod.tlon.network --ship ~zod --code abcd-efgh-ijkl-mnop contacts self
 
 Hosted browser login (use the Tlon tool, not a shell command):
-  {"command": "browser handoff <session_id>"}
+  ${JSON.stringify({ command: 'browser handoff <session_id> --fields \'["@e12","@e13"]\'' })}
+  Use current snapshot refs to select the controls the owner should fill.
+  Omit --fields for automatic discovery of the visible form.
   Pass the sess_ handle from browser_session_create. The plugin resolves the
   signed viewer link; never copy or construct one in a model tool call.
 `);

@@ -12,6 +12,7 @@ import {
   View,
 } from '../ui';
 import { PresentationalCarouselPostScreenContent } from '../ui/components/PostScreenView';
+import { AttachmentDraftsProvider } from '../ui/contexts/attachment';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   createFakePosts,
@@ -122,25 +123,27 @@ export default {
         >
           <Text>Header</Text>
         </View>
-        <PresentationalCarouselPostScreenContent
-          {...{
-            flex: 1,
-            width: '100%',
-            initialPostIndex: 2,
-            channel: data.channel,
-            posts: data.posts,
-            fetchNewerPage,
-            fetchOlderPage,
-            channelContext: {
-              group: data.channel.group || null,
-              editingPost: undefined,
-              setEditingPost: undefined,
-              negotiationMatch: true,
-              onPressRetry: undefined,
-              onPressDelete: noop,
-            },
-          }}
-        />
+        <AttachmentDraftsProvider canUpload={false} uploadAsset={noop}>
+          <PresentationalCarouselPostScreenContent
+            {...{
+              flex: 1,
+              width: '100%',
+              initialPostIndex: 2,
+              channel: data.channel,
+              posts: data.posts,
+              fetchNewerPage,
+              fetchOlderPage,
+              channelContext: {
+                group: data.channel.group || null,
+                editingPost: undefined,
+                setEditingPost: undefined,
+                negotiationMatch: true,
+                onPressRetry: undefined,
+                onPressDelete: noop,
+              },
+            }}
+          />
+        </AttachmentDraftsProvider>
         {pendingAction.mountControl()}
       </FixtureWrapper>
     );

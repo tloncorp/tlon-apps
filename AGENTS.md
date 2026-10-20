@@ -147,6 +147,25 @@ should read the `SKILL.md` by path when the task matches.
 - `pr-review-loop`: follow a PR's review rounds (Codex, CI, humans) to a clean
   state without a person relaying comments, then request a human reviewer.
 
+## Feature map
+
+`docs/feature-map/` describes how to do each thing in the app, one file per
+area. Tlonbot answers "how do I…" questions from it, so a stale entry sends a
+real person looking for a button that isn't there. Read
+`docs/feature-map/README.md` before editing it.
+
+- The map describes the app at one store build, named in
+  `docs/feature-map/release.json`, not `develop`. A UI change on develop does
+  not need a map edit. The map is brought up to date once per store build; the
+  README's "Updating for a new store build" has the steps.
+- `node scripts/feature-map.mjs check` compares the map with that build's
+  source. CI runs it when the map, its script or the guide changes.
+- To fix a wrong entry between builds, edit it in `docs/feature-map/`, make
+  sure it is true for the store build rather than for develop, then run
+  `node scripts/feature-map.mjs publish`.
+- Never edit `packages/openclaw/skills/tlon-product-guide/references/` by
+  hand. `publish` writes it from the map, and CI fails when the two differ.
+
 ## Pull requests and commits
 
 - Fill in `.github/pull_request_template.md` explicitly (Summary / Changes /
@@ -253,4 +272,21 @@ Do not flag:
   enforce; generic "add tests" requests that don't name the regression a test
   would catch.
 - Style preferences not written down in an `AGENTS.md`.
+- A missing feature-map edit for an app change on develop. The map follows
+  store builds, not develop.
 - Anything an area's `AGENTS.md` lists under "Do not flag".
+
+Feature map changes: CI checks that every label an entry quotes exists in the
+store build's source, but not behavior, so that part is for review.
+
+- Read each changed entry against the source at the store build's commit,
+  using the files in its `<!-- src: … -->` line, not against develop. Flag an
+  entry that describes something only develop has.
+- A PR that changes `release.json` moves the map to a new store build. Also
+  check the entries that
+  `node scripts/feature-map.mjs affected --since <old commit> --until <new tag>`
+  lists: their code changed between the two builds, whether or not their text
+  did.
+- Flag a hand edit under
+  `packages/openclaw/skills/tlon-product-guide/references/`; `publish` writes
+  those files.

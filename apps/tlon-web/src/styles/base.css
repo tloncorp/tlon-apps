@@ -35,6 +35,15 @@
     background: revert;
     border-radius: revert;
   }
+
+  /* Overlay scrollbars (macOS with a trackpad) stay hidden until you scroll,
+     so a wide table looks clipped. The ::-webkit-scrollbar style above is
+     drawn at rest, but Chromium ignores it while scrollbar-width or
+     scrollbar-color is set, so hand these back to it. */
+  [data-testid='TableScrollView'] {
+    scrollbar-color: auto;
+    scrollbar-width: auto;
+  }
 }
 
 textarea[data-testid='BotSystemPromptEditor'],
