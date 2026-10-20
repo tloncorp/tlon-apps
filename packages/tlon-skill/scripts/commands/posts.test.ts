@@ -53,6 +53,8 @@ interface MakeDepsOptions {
   ) => Promise<void>;
   setOrder?: (channelId: string, order: string[]) => Promise<void>;
   deleteReply?: (input: ReplyDeleteInput) => Promise<void>;
+  // The group's role ids, or an Error to throw.
+  groupRoleIds?: string[] | Error;
 }
 
 function sequence<T>(entries: Array<T | Error> | undefined, fallback: () => T) {
@@ -87,6 +89,7 @@ function makeDeps(options: MakeDepsOptions = {}) {
     sendReply: [] as PostReplyInput[],
     getChannelPosts: [] as PostLookupQuery[],
     getChannelState: [] as string[],
+    getGroupRoleIds: [] as string[],
     assertCanAdminister: [] as Array<[string, string]>,
     getPostWithReplies: [] as PostThreadQuery[],
     deleteReply: [] as ReplyDeleteInput[],
@@ -184,6 +187,12 @@ function makeDeps(options: MakeDepsOptions = {}) {
       calls.order.push('getChannelState');
       return nextChannelState();
     },
+    getGroupRoleIds: async (groupId) => {
+      calls.getGroupRoleIds.push(groupId);
+      calls.order.push('getGroupRoleIds');
+      if (options.groupRoleIds instanceof Error) throw options.groupRoleIds;
+      return options.groupRoleIds ?? [];
+    },
     assertCanAdminister: async (groupId, action, nest) => {
       calls.assertCanAdminister.push([groupId, action]);
       calls.order.push('assertCanAdminister');
@@ -216,6 +225,7 @@ function expectNoAuthOrApi(context: ReturnType<typeof makeDeps>) {
   expect(context.calls.getChannelPosts).toEqual([]);
   expect(context.calls.buildImageVerse).toEqual([]);
   expect(context.calls.getChannelState).toEqual([]);
+  expect(context.calls.getGroupRoleIds).toEqual([]);
   expect(context.calls.assertCanAdminister).toEqual([]);
   expect(context.calls.getPostWithReplies).toEqual([]);
   expect(context.calls.deleteReply).toEqual([]);
@@ -3087,5 +3097,398 @@ describe('posts unexpected errors', () => {
 
     expect(context.stdout()).toBe('');
     expect(context.stderr()).toBe('');
+  });
+});
+
+describe('posts role mentions', () => {
+  const CHANNEL = 'chat/~host/channel';
+  const GROUP = '~host/group';
+  const ROLES = ['admin', 'moderators'];
+
+  function expectNoRoleLookup(context: ReturnType<typeof makeDeps>) {
+    expect(context.calls.getChannelState).toEqual([]);
+    expect(context.calls.getGroupRoleIds).toEqual([]);
+  }
+
+  it('sends a role mention as a literal sect inline', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(['send', CHANNEL, 'hi @admin'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['hi ', { sect: 'admin' }] },
+    ]);
+    expect(context.calls.getChannelState).toEqual([CHANNEL]);
+    expect(context.calls.getGroupRoleIds).toEqual([GROUP]);
+  });
+
+  it('sends @all as sect null without a role lookup', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(['send', CHANNEL, 'see @ALL'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['see ', { sect: null }] },
+    ]);
+    expectNoRoleLookup(context);
+  });
+
+  it('sends a ship and a role mention in one message', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(
+      ['send', CHANNEL, 'hey ~sampel-palnet and @Admin, see @all'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      {
+        inline: [
+          'hey ',
+          { ship: '~sampel-palnet' },
+          ' and ',
+          { sect: 'admin' },
+          ', see ',
+          { sect: null },
+        ],
+      },
+    ]);
+  });
+
+  it('normalizes @Admin to the role id', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    await run(['send', CHANNEL, '**@Admin**'], context.deps);
+
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: [{ bold: [{ sect: 'admin' }] }] },
+    ]);
+  });
+
+  it("refuses an unknown role and lists the group's role ids", async () => {
+    const context = makeDeps({ groupRoleIds: ['moderators', 'admin'] });
+    const exitCode = await run(
+      ['send', 'chat/host/channel', 'ping @mods and @admin'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(
+      'Error: Unknown role mention @mods in chat/~host/channel. Role ids in group ~host/group: @admin, @moderators; @all mentions every member. Use the role id, not its title. To send @mods as plain text, wrap it in backticks: `@mods`. If the role was just created, retry in a moment.\n'
+    );
+    expect(context.calls.getChannelState).toEqual([CHANNEL]);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('lists several unknown tokens once each, in typed spelling', async () => {
+    const context = makeDeps({ groupRoleIds: [] });
+    const exitCode = await run(
+      ['send', CHANNEL, '@Mods @here @mods @all'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(
+      'Error: Unknown role mentions @Mods, @here in chat/~host/channel. Role ids in group ~host/group: none; @all mentions every member. Use the role id, not its title. To send @Mods as plain text, wrap it in backticks: `@Mods`. If the role was just created, retry in a moment.\n'
+    );
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a role title that is not its id', async () => {
+    const context = makeDeps({ groupRoleIds: ['mods'] });
+    const exitCode = await run(
+      ['send', CHANNEL, 'ping @moderators'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain(
+      'Unknown role mention @moderators in chat/~host/channel. Role ids in group ~host/group: @mods;'
+    );
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses before fetching an image', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(
+      ['send', CHANNEL, 'see @mods', '--image', 'https://x/y.png'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.buildImageVerse).toEqual([]);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('sends a role-bearing image caption after the role check', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(
+      ['send', CHANNEL, 'see @admin', '--image', 'https://x/y.png'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      IMAGE_VERSE,
+      { inline: ['see ', { sect: 'admin' }] },
+    ]);
+    expect(context.calls.order).toEqual([
+      'authenticate',
+      'getChannelState',
+      'getGroupRoleIds',
+      'buildImageVerse',
+      'getCurrentUserId',
+      'now',
+      'sendPost',
+    ]);
+  });
+
+  it('refuses an unknown role in a task item or a nested heading', async () => {
+    for (const message of ['- [ ] ping @mods', '> ## ping @mods']) {
+      const context = makeDeps({ groupRoleIds: ROLES });
+      const exitCode = await run(['send', CHANNEL, message], context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toContain('Unknown role mention @mods in');
+      expect(context.calls.sendPost).toEqual([]);
+    }
+  });
+
+  it('reads a trailing hyphen as part of the role id', async () => {
+    const refused = makeDeps({ groupRoleIds: ROLES });
+    expect(await run(['send', CHANNEL, 'hi @admin-'], refused.deps)).toBe(1);
+    expect(refused.stderr()).toContain('Unknown role mention @admin- in');
+
+    const sent = makeDeps({ groupRoleIds: ['admin-'] });
+    expect(await run(['send', CHANNEL, 'hi @admin-'], sent.deps)).toBe(0);
+    expect(sent.calls.sendPost[0].content).toEqual([
+      { inline: ['hi ', { sect: 'admin-' }] },
+    ]);
+  });
+
+  it('sends code and links in a table cell with no lookup', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      [
+        'send',
+        CHANNEL,
+        '| pkg | docs |\n| - | - |\n| `@types/node` | [@mods](https://x) |',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost).toHaveLength(1);
+    expectNoRoleLookup(context);
+  });
+
+  it('sends an escaped \\@word literally with no refusal or lookup', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(['send', CHANNEL, 'ask \\@mods'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['ask @mods'] },
+    ]);
+    expectNoRoleLookup(context);
+  });
+
+  it('sends a backticked @word literally with no lookup', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', CHANNEL, 'use `@types/node`'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['use ', { 'inline-code': '@types/node' }] },
+    ]);
+    expectNoRoleLookup(context);
+  });
+
+  it('does no role lookup for text without @', async () => {
+    const context = makeDeps();
+    await run(['send', CHANNEL, 'plain'], context.deps);
+
+    expect(context.calls.sendPost).toHaveLength(1);
+    expectNoRoleLookup(context);
+  });
+
+  it('posts send to a DM: @all converts, a named role is refused', async () => {
+    for (const target of ['~sampel-palnet', '0v5.abcde']) {
+      const allContext = makeDeps();
+      expect(await run(['send', target, 'hi @all'], allContext.deps)).toBe(0);
+      expect(allContext.calls.sendPost[0].content).toEqual([
+        { inline: ['hi ', { sect: null }] },
+      ]);
+
+      const context = makeDeps({ groupRoleIds: ROLES });
+      const exitCode = await run(['send', target, 'hi @admin'], context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toBe(
+        `Error: Unknown role mention @admin: ${target} is a DM, and roles exist only in group channels, so only @all is available here. To send @admin as plain text, wrap it in backticks: \`@admin\`.\n`
+      );
+      expect(context.calls.sendPost).toEqual([]);
+      expectNoRoleLookup(context);
+    }
+  });
+
+  it('posts reply to a DM refuses a named role', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(
+      ['reply', '~sampel-palnet', '170.141', 'hi @admin'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain('~sampel-palnet is a DM');
+    expect(context.calls.sendReply).toEqual([]);
+    expectNoRoleLookup(context);
+  });
+
+  it('refuses role mentions in an unjoined channel', async () => {
+    const context = makeDeps({ channelStates: [{ joined: false }] });
+    const exitCode = await run(['send', CHANNEL, 'hi @admin'], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(
+      'Error: Cannot check role mentions: chat/~host/channel is not a channel this ship has joined; join it first.\n'
+    );
+    expect(context.calls.getGroupRoleIds).toEqual([]);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('reports channel-state and role-read failures', async () => {
+    const stateFails = makeDeps({ channelStates: [new Error('scry 500')] });
+    expect(await run(['send', CHANNEL, 'hi @admin'], stateFails.deps)).toBe(1);
+    expect(stateFails.stderr()).toBe(
+      'Error: Could not read channel state for chat/~host/channel: scry 500\n'
+    );
+
+    const rolesFail = makeDeps({ groupRoleIds: new Error('scry 404') });
+    expect(await run(['send', CHANNEL, 'hi @admin'], rolesFail.deps)).toBe(1);
+    expect(rolesFail.stderr()).toBe(
+      'Error: Could not read roles for group ~host/group to check role mentions: scry 404\n'
+    );
+    expect(rolesFail.calls.sendPost).toEqual([]);
+  });
+
+  it('reply sends a role mention', async () => {
+    const context = makeDeps({ groupRoleIds: ROLES });
+    const exitCode = await run(
+      ['reply', CHANNEL, '170.141', 'cc @moderators'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendReply[0].content).toEqual([
+      { inline: ['cc ', { sect: 'moderators' }] },
+    ]);
+  });
+
+  describe('edits', () => {
+    const lookupSucceeds = async (): Promise<PostLookupResult> => ({
+      posts: [{ id: '170.141.184', sentAt: 1111, isBot: false }],
+    });
+
+    it('edit parses role mentions like send', async () => {
+      const context = makeDeps({
+        groupRoleIds: ROLES,
+        getChannelPosts: lookupSucceeds,
+      });
+      const exitCode = await run(
+        ['edit', CHANNEL, '170.141.184', 'now @admin'],
+        context.deps
+      );
+
+      expect(exitCode).toBe(0);
+      expect(context.calls.editPost[0].content).toEqual([
+        { inline: ['now ', { sect: 'admin' }] },
+      ]);
+    });
+
+    it('edit refuses an unknown role', async () => {
+      const context = makeDeps({
+        groupRoleIds: ROLES,
+        getChannelPosts: lookupSucceeds,
+      });
+      const exitCode = await run(
+        ['edit', CHANNEL, '170.141.184', 'now @mods'],
+        context.deps
+      );
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toContain('Unknown role mention @mods');
+      expect(context.calls.editPost).toEqual([]);
+    });
+
+    it('edit refuses a role the group has since deleted', async () => {
+      // The post was sent while `@oldrole` existed; the edit re-validates.
+      const context = makeDeps({
+        groupRoleIds: ['admin'],
+        getChannelPosts: lookupSucceeds,
+      });
+      const exitCode = await run(
+        ['edit', CHANNEL, '170.141.184', 'hi @oldrole'],
+        context.deps
+      );
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toContain('Unknown role mention @oldrole');
+      expect(context.calls.editPost).toEqual([]);
+    });
+
+    const P = '170.141.184.500';
+    const R = '170.141.184.501';
+    const original: ExistingReply = {
+      id: R,
+      authorId: '~zod',
+      sentAt: 4242,
+      contentKey: contentKeyOf([{ inline: ['old'] }]),
+    };
+    const thread = (reply: ExistingReply): ExistingThread => ({
+      id: P,
+      authorId: '~host',
+      replies: [reply],
+    });
+
+    it('edit --parent refuses an unknown or since-deleted role', async () => {
+      for (const message of ['now @mods', 'still @oldrole']) {
+        const context = makeDeps({
+          groupRoleIds: ROLES,
+          threads: [thread(original)],
+        });
+        const exitCode = await run(
+          ['edit', CHANNEL, R, message, '--parent', P],
+          context.deps
+        );
+
+        expect(exitCode).toBe(1);
+        expect(context.stderr()).toContain('Unknown role mention @');
+        expect(context.calls.editPost).toEqual([]);
+      }
+    });
+
+    it('edit --parent with a role mention confirms the read-back', async () => {
+      const content = [{ inline: ['now ', { sect: 'admin' }] }];
+      const context = makeDeps({
+        groupRoleIds: ROLES,
+        threads: [
+          thread(original),
+          thread({ ...original, contentKey: contentKeyOf(content) }),
+        ],
+      });
+
+      const exitCode = await run(
+        ['edit', CHANNEL, R, 'now @admin', '--parent', P],
+        context.deps
+      );
+
+      expect(exitCode).toBe(0);
+      expect(context.stdout()).toBe('✓ Reply edited\n');
+      expect(context.calls.editPost[0].content).toEqual(content);
+    });
   });
 });
