@@ -1,6 +1,6 @@
 ---
 name: pr-review-loop
-description: Use after opening or marking ready a pull request in tlon-apps, as the agent that wrote the change and in its own context (this is not a fresh-eyes reviewer), to follow its review to the end without a human relaying comments -- wait for each Codex/CI/human review round, triage findings ruthlessly, fix what matters, reply to the rest, push, and repeat until the PR is clean, then hand it to a human reviewer. Works for any PR (desk, packages, apps), not only mobile.
+description: Use after opening or marking ready a pull request in tlon-apps, as the agent that wrote the change and in its own context (findings are triaged by a fresh-context subagent; this is not a reviewer of its own), to follow its review to the end without a human relaying comments -- wait for each Codex/CI/human review round, triage findings ruthlessly, fix what matters, reply to the rest, push, and repeat until the PR is clean, then hand it to a human reviewer. Works for any PR (desk, packages, apps), not only mobile.
 ---
 
 # PR review loop
@@ -44,7 +44,23 @@ Codex only reviews ready (non-draft) pull requests, and reviews every push.
 
 1. **Collect** the round's items. Keep a running list of every thread printed
    so far and what you did with it.
-2. **Triage all of them before touching code.** For each finding decide:
+2. **Triage all of them before touching code, in a fresh context.** The author
+   is the wrong judge of its own code, so hand the round's findings to one
+   subagent (Claude Code's Agent tool, or your harness's equivalent). Give it
+   the PR number, each finding verbatim with its `path`, `line` and
+   `commentId`, and the questions below, and nothing else: not your diagnosis,
+   your plan or why you wrote the code that way. It reads the diff
+   (`gh pr diff <number>`), the code and the `AGENTS.md` files itself, and
+   returns per finding a verdict, the concrete trigger (for a fix) and a
+   one-line reason. Without subagents, triage yourself and say so in the
+   report.
+
+   Act on its verdicts. You may overrule one only with a reason you could
+   defend in the thread, such as a fact about the change it could not see;
+   list every overrule in the report. This step is new, so the report is how
+   we learn whether it helps.
+
+   The questions, for each finding:
    - *Is it reachable?* Trace it against the real code path and the other
      side's real contract (the desk's marks and scries, the db schema, the
      platform split). Name the concrete input or sequence that triggers it. If
@@ -129,6 +145,7 @@ the name. Do not tag the PR's author.
 ## Report
 
 Per round, briefly: what was fixed and how it simplified the code (with the
-commit), what was declined and why (one line each), anything escalated, and
+commit), what was declined and why (one line each), triage verdicts you
+overruled and why, anything escalated, and
 any root cause that looks architectural and worth discussing. At the end: the
 final state (clean, escalated, timed out) and who you tagged.
