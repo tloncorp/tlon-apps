@@ -1,5 +1,7 @@
-// Turns the digest, the labels and the canary reports into the chat post the
-// CI relay delivers: { lines, link }.
+// Turns the digest, the labels and the canary reports into the chat post, and
+// writes it as serverless-infra's sendAlertBotMessage body minus the api key,
+// which the workflow adds at post time: { channel, content }, content being a
+// Story with one verse per line.
 //
 // node scripts/upstream-watch/render.ts --digest <dir>/digest-input.json \
 //   --labeled <dir>/labeled.jsonl --canary-dir <dir> --run-url <url> --out <dir>
@@ -26,8 +28,9 @@ import {
 import { subjectOf } from './subpaths.ts';
 import { shortVersion } from './versions.ts';
 
-// Stricter than the relay (40 lines × 400 chars, 8 KiB) on purpose, so the
-// relay's limits never decide what gets cut.
+// Readability caps that keep the post a glanceable chat message, not delivery
+// limits: sendAlertBotMessage accepts far more. The byte cap is on the post
+// body before the workflow adds the api key.
 export const MAX_LINES = 15;
 export const MAX_LINE_CHARS = 200;
 export const MAX_BODY_BYTES = 4096;
@@ -54,6 +57,28 @@ export interface CanaryReports {
 export interface Post {
   lines: string[];
   link?: string;
+}
+
+// Harness Alerts, where tlonbot's nightly also posts.
+export const HARNESS_ALERTS_CHANNEL = 'chat/~litseb-sarfel/v2bv8do';
+
+type Inline = string | { link: { href: string; content: string } };
+
+export interface AlertPayload {
+  channel: string;
+  content: { inline: Inline[] }[];
+}
+
+export function alertPayload(post: Post): AlertPayload {
+  const content: AlertPayload['content'] = post.lines.map((line) => ({
+    inline: [line],
+  }));
+  if (post.link) {
+    content.push({
+      inline: [{ link: { href: post.link, content: post.link } }],
+    });
+  }
+  return { channel: HARNESS_ALERTS_CHANNEL, content };
 }
 
 interface BodyLine {
@@ -436,7 +461,7 @@ function fit(
 }
 
 export function bodyBytes(post: Post) {
-  return Buffer.byteLength(JSON.stringify(post), 'utf8');
+  return Buffer.byteLength(JSON.stringify(alertPayload(post)), 'utf8');
 }
 
 export function capLine(line: string) {
@@ -705,10 +730,16 @@ function main() {
       );
     }
   }
-  // post.json is signed byte-for-byte as written; nothing reformats it later.
-  writeFileSync(path.join(out, 'post.json'), JSON.stringify(post));
-  writeFileSync(path.join(out, 'post.txt'), post.lines.join('\n') + '\n');
+  writePost(out, post);
   process.stdout.write(post.lines.join('\n') + '\n');
+}
+
+export function writePost(out: string, post: Post) {
+  writeFileSync(
+    path.join(out, 'post.json'),
+    JSON.stringify(alertPayload(post))
+  );
+  writeFileSync(path.join(out, 'post.txt'), post.lines.join('\n') + '\n');
 }
 
 if (import.meta.main) {

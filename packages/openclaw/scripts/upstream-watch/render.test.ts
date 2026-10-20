@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -7,16 +13,30 @@ import type { DigestInput } from './digest.ts';
 import type { LabeledRow } from './policy.ts';
 import {
   type CanaryReports,
+  type Post,
+  HARNESS_ALERTS_CHANNEL,
   MAX_BODY_BYTES,
   MAX_LINES,
   MAX_LINE_CHARS,
-  bodyBytes,
+  alertPayload,
   readCanaryReports,
   renderPost,
   selectDigestArtifact,
+  writePost,
 } from './render.ts';
 
 const quiet = { fired: false, evidence: [] };
+
+// The post.json the workflow sends, as written to disk.
+function writtenPostJson(post: Post) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'upstream-watch-post-'));
+  try {
+    writePost(dir, post);
+    return readFileSync(path.join(dir, 'post.json'), 'utf8');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
 
 function digest(overrides: Partial<DigestInput> = {}): DigestInput {
   return {
@@ -277,7 +297,10 @@ describe('renderPost', () => {
     for (const line of post.lines) {
       expect([...line].length).toBeLessThanOrEqual(MAX_LINE_CHARS);
     }
-    expect(bodyBytes(post)).toBeLessThanOrEqual(MAX_BODY_BYTES);
+    const written = writtenPostJson(post);
+    expect(
+      Buffer.byteLength(JSON.stringify(JSON.parse(written)), 'utf8')
+    ).toBeLessThanOrEqual(MAX_BODY_BYTES);
     expect(
       post.lines.some((l) => /^… \+\d+ more in the run artifact$/.test(l))
     ).toBe(true);
@@ -285,6 +308,33 @@ describe('renderPost', () => {
       'canary green = plugin fixtures pass on this core, not an upgrade approval'
     );
     expect(post.lines[1]).toBe('incomplete: changelog missing for 2026.9.5');
+  });
+
+  it('keeps the written post.json within 4 KB at every line size', () => {
+    // Fine-grained sizes put some case just under the cap, where measuring
+    // anything but the written body would let it through over the cap.
+    for (let n = 1; n <= 180; n++) {
+      const removed = Array.from(
+        { length: 30 },
+        (_, i) => `openclaw/plugin-sdk/x${i} ${'🦞'.repeat(n)}`
+      );
+      const { post } = renderPost({
+        digest: digest({
+          signals: {
+            ...digest().signals,
+            sdkSubpathRemoved: { fired: true, evidence: removed },
+          },
+        }),
+        rows: [],
+        canary: green,
+        runUrl: 'https://github.com/tloncorp/tlon-apps/actions/runs/1',
+      });
+      const written = writtenPostJson(post);
+      expect(
+        Buffer.byteLength(JSON.stringify(JSON.parse(written)), 'utf8'),
+        `lobsters per line: ${n}`
+      ).toBeLessThanOrEqual(MAX_BODY_BYTES);
+    }
   });
 
   it('caps deprecations, confirmed first, and counts the rest in the title', () => {
@@ -344,6 +394,31 @@ describe('renderPost', () => {
       'canary 10.12: tsc ? unit ? e2e ? (baseline: infra-error, cron: infra-error, package: infra-error)'
     );
     expect(header).toMatch(/ · labeled 2\/2$/);
+  });
+});
+
+describe('alertPayload', () => {
+  it('writes one verse per line, then the link, to Harness Alerts', () => {
+    const link = 'https://github.com/tloncorp/tlon-apps/actions/runs/1';
+    const { post } = renderPost({
+      digest: digest(),
+      rows: [],
+      canary: green,
+      runUrl: link,
+    });
+    const payload = JSON.parse(writtenPostJson(post));
+    expect(payload).toEqual(alertPayload(post));
+    expect(Object.keys(payload).sort()).toEqual(['channel', 'content']);
+    expect(payload.channel).toBe(HARNESS_ALERTS_CHANNEL);
+    expect(payload.content).toEqual([
+      ...post.lines.map((line) => ({ inline: [line] })),
+      { inline: [{ link: { href: link, content: link } }] },
+    ]);
+  });
+
+  it('adds no link verse without a link', () => {
+    const payload = alertPayload({ lines: ['a', 'b'] });
+    expect(payload.content).toEqual([{ inline: ['a'] }, { inline: ['b'] }]);
   });
 });
 

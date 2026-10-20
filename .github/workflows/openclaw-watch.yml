@@ -4,10 +4,10 @@ name: OpenClaw Release Watch
 # run of the plugin's checks against it. Design: TLON-6250.
 #
 # State lives in the repo variable OPENCLAW_WATCH_STATE
-# ({ lastLatest, lastPostedAt, reportedUnresolved }) and moves only after the
-# relay confirms delivery of a scheduled run's post. The fine-grained PAT
-# OPENCLAW_WATCH_GH_TOKEN (Variables: write) reads and writes it; GITHUB_TOKEN
-# cannot write variables.
+# ({ lastLatest, lastPostedAt, reportedUnresolved }) and moves only after
+# serverless-infra's sendAlertBotMessage confirms delivery of a scheduled run's
+# post. The fine-grained PAT OPENCLAW_WATCH_GH_TOKEN (Variables: write) reads
+# and writes it; GITHUB_TOKEN cannot write variables.
 #
 # A dispatch with `version` (and `baseline` as its prev) digests that release
 # and posts without touching state; `dry_run` builds everything and posts
@@ -318,36 +318,31 @@ jobs:
             --out post \
             "${args[@]}"
 
-      # The relay verifies the HMAC over the raw bytes it receives, so sign
-      # the file curl sends, byte for byte. Only a 200 counts as delivered: a
-      # redirect or an empty 2xx from a misconfigured URL must not move state.
+      # post/post.json is sendAlertBotMessage's body without the api key; the
+      # key is added on the way to curl so it never lands in a file or the
+      # uploaded artifact. Only a 200 counts as delivered: the endpoint
+      # answers non-200 when the bot fails, and a redirect or an empty 2xx
+      # from a misconfigured URL must not move state either.
       - name: Post to Harness Alerts
         env:
-          CI_NOTIFY_SECRET: ${{ secrets.CI_NOTIFY_SECRET }}
-          CI_NOTIFY_URL: ${{ secrets.CI_NOTIFY_URL }}
+          SERVERLESS_INFRA_API: ${{ vars.SERVERLESS_INFRA_API }}
+          ALERT_BOT_API_KEY: ${{ secrets.ALERT_BOT_API_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "$CI_NOTIFY_SECRET" ] || [ -z "$CI_NOTIFY_URL" ]; then
-            echo "::error::CI_NOTIFY_SECRET or CI_NOTIFY_URL is empty"
+          if [ -z "$SERVERLESS_INFRA_API" ] || [ -z "$ALERT_BOT_API_KEY" ]; then
+            echo "::error::SERVERLESS_INFRA_API (variable) or ALERT_BOT_API_KEY (secret) is empty"
             exit 1
           fi
-          SIG=$(node -e '
-            const { createHmac } = require("node:crypto");
-            const body = require("node:fs").readFileSync("post/post.json");
-            process.stdout.write(
-              createHmac("sha256", process.env.CI_NOTIFY_SECRET).update(body).digest("hex")
-            );
-          ')
-          status=$(curl --max-time 40 -sS \
-            -o "$RUNNER_TEMP/relay-response" -w '%{http_code}' \
-            -H "content-type: application/json" \
-            -H "x-ci-signature: $SIG" \
-            --data-binary @post/post.json \
-            "$CI_NOTIFY_URL")
-          cat "$RUNNER_TEMP/relay-response"
+          status=$(jq -c '.apiKey = env.ALERT_BOT_API_KEY' post/post.json \
+            | curl --max-time 40 -sS \
+              -o "$RUNNER_TEMP/alert-response" -w '%{http_code}' \
+              -H "content-type: application/json" \
+              --data-binary @- \
+              "${SERVERLESS_INFRA_API}/sendAlertBotMessage")
+          cat "$RUNNER_TEMP/alert-response"
           echo
           if [ "$status" != "200" ]; then
-            echo "::error::the relay answered HTTP $status, not 200; not delivered"
+            echo "::error::sendAlertBotMessage answered HTTP $status, not 200; not delivered"
             exit 1
           fi
 
