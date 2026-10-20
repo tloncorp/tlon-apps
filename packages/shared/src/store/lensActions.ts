@@ -44,7 +44,8 @@ export const CRON_JOB_RUN_PAGE_SIZE = 50;
  * local store: the newest, or with `before` (the cursor of the page before)
  * the next older page. Resolves with how many runs of the task the ship
  * holds, whether this page came back full, so a caller knows whether to offer
- * more, and the cursor to ask for the page after it.
+ * more, the cursor to ask for the page after it, and when the page's oldest
+ * run was received.
  */
 export async function syncCronJobRuns({
   botShip,
@@ -54,7 +55,12 @@ export async function syncCronJobRuns({
   botShip: string;
   jobId: string;
   before?: string;
-}): Promise<{ total: number; hasMore: boolean; cursor?: string }> {
+}): Promise<{
+  total: number;
+  hasMore: boolean;
+  cursor?: string;
+  oldestAt?: number;
+}> {
   const { total, runs, cursor } = await api.getLensCronRuns({
     botShip,
     jobId,
@@ -62,7 +68,12 @@ export async function syncCronJobRuns({
     before,
   });
   await db.insertContextLensRuns(runs);
-  return { total, hasMore: runs.length === CRON_JOB_RUN_PAGE_SIZE, cursor };
+  return {
+    total,
+    hasMore: runs.length === CRON_JOB_RUN_PAGE_SIZE,
+    cursor,
+    oldestAt: runs.at(-1)?.receivedAt,
+  };
 }
 
 /**

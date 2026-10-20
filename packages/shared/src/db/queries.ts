@@ -2455,8 +2455,9 @@ export const getContextLensRunsForCronJob = createReadQuery(
     {
       botShip,
       jobId,
+      since,
       limit,
-    }: { botShip: string; jobId: string; limit?: number },
+    }: { botShip: string; jobId: string; since?: number; limit?: number },
     ctx: QueryCtx
   ) => {
     const field = (path: string) =>
@@ -2464,6 +2465,9 @@ export const getContextLensRunsForCronJob = createReadQuery(
     return ctx.db.query.contextLensRuns.findMany({
       where: and(
         eq($contextLensRuns.botShip, botShip),
+        since === undefined
+          ? undefined
+          : gte($contextLensRuns.receivedAt, since),
         or(
           sql`${field('$.lens.cron.jobId')} = ${jobId}`,
           and(

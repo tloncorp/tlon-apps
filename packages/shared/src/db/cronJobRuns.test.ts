@@ -78,6 +78,22 @@ test('getContextLensRunsForCronJob keeps to the newest runs it is asked for', as
   expect(runs.map((row) => row.lensId)).toEqual(['newest', 'middle']);
 });
 
+test('getContextLensRunsForCronJob keeps to runs received since a time', async () => {
+  await db.insertContextLensRuns([
+    run('oldest', 1, { runKind: 'cron', cron: { jobId: 'job-1' } }),
+    run('middle', 2, { runKind: 'cron', cron: { jobId: 'job-1' } }),
+    run('newest', 3, { runKind: 'cron', cron: { jobId: 'job-1' } }),
+  ]);
+
+  const runs = await db.getContextLensRunsForCronJob({
+    botShip: bot,
+    jobId: 'job-1',
+    since: 2,
+  });
+
+  expect(runs.map((row) => row.lensId)).toEqual(['newest', 'middle']);
+});
+
 test('insertContextLensRuns never replaces a run with an older record', async () => {
   const running = {
     ...run('run', 1, { runKind: 'cron', status: 'running' }),

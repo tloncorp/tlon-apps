@@ -50,20 +50,28 @@ export function useTaskRuns({
   const [olderPages, setOlderPages] = useState<{
     taskKey: string;
     firstPageAt: number;
-    pages: number;
     hasMore: boolean;
     cursor?: string;
+    oldestAt?: number;
   } | null>(null);
   const older =
     olderPages?.taskKey === taskKey && olderPages.firstPageAt === firstPageAt
       ? olderPages
       : null;
-  // The local store keeps every run of the task it has seen; show only as
-  // many as the pages loaded so far.
+  const hasMore = older ? older.hasMore : (page.data?.hasMore ?? false);
+  const oldestAt = older ? older.oldestAt : page.data?.oldestAt;
+  // The local store keeps every run of the task it has seen. Show the runs
+  // back to the oldest one fetched, which takes in any that arrived on the
+  // feed since, and every run once the ship has nothing older; the newest
+  // page's worth before the first page lands.
   const { data: rows } = store.useCronJobRuns({
     botShip,
     jobId,
-    limit: (1 + (older?.pages ?? 0)) * store.CRON_JOB_RUN_PAGE_SIZE,
+    ...(!page.data
+      ? { limit: store.CRON_JOB_RUN_PAGE_SIZE }
+      : hasMore && oldestAt !== undefined
+        ? { since: oldestAt }
+        : {}),
   });
   const runs = useMemo<ContextLens[]>(
     () =>
@@ -90,16 +98,14 @@ export function useTaskRuns({
       setOlderPages({
         taskKey,
         firstPageAt,
-        // A full last page leaves one more ask, which comes back empty and
-        // must not let older rows the store still holds in under it.
-        pages: (older?.pages ?? 0) + (next.cursor ? 1 : 0),
         hasMore: next.hasMore,
         cursor: next.cursor ?? cursor,
+        oldestAt: next.oldestAt ?? oldestAt,
       });
     } finally {
       setLoadingMore(false);
     }
-  }, [botShip, cursor, firstPageAt, jobId, older, on, taskKey]);
+  }, [botShip, cursor, firstPageAt, jobId, oldestAt, on, taskKey]);
 
   return {
     supported,
@@ -107,7 +113,7 @@ export function useTaskRuns({
     total: page.data?.total,
     loading: page.isLoading,
     error: page.isError,
-    hasMore: older ? older.hasMore : (page.data?.hasMore ?? false),
+    hasMore,
     loadingMore,
     loadMore,
     retry: () => void refetch(),
