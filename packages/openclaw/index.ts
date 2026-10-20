@@ -2016,7 +2016,7 @@ export default defineBundledChannelEntry({
           : undefined;
         return cronLensTtlMs(
           api.runtime.agent.resolveAgentTimeoutMs({
-            cfg: api.runtime.config.loadConfig(),
+            cfg: api.runtime.config.current() as OpenClawConfig,
             ...(typeof timeoutSeconds === 'number' && timeoutSeconds > 0
               ? { overrideSeconds: timeoutSeconds }
               : {}),

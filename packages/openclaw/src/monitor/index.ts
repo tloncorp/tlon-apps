@@ -5973,7 +5973,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             ? {
                 runTest: (jobId: string) => {
                   const cron = getTlonCronService();
-                  const config = core.config.loadConfig();
+                  const config = core.config.current() as OpenClawConfig;
                   return startCronTestRun(jobId, {
                     listJobs: async () =>
                       cron ? cron.list({ includeDisabled: true }) : [],
