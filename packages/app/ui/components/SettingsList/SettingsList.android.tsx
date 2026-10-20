@@ -5,6 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuItem,
   Host,
+  HorizontalDivider,
   LazyColumn,
   RNHostView,
   Row,
@@ -20,7 +21,6 @@ import {
   clip,
   combinedClickable,
   fillMaxWidth,
-  height,
   imePadding,
   padding,
   selectable,
@@ -116,13 +116,10 @@ export function SettingsList({ sections }: SettingsListProps) {
                   {section.rows.map((row, index) => (
                     <Fragment key={row.key}>
                       {index > 0 ? (
-                        <Box
-                          modifiers={[
-                            padding(16, 0, 0, 0),
-                            fillMaxWidth(),
-                            height(1),
-                            background(colors.separator),
-                          ]}
+                        <HorizontalDivider
+                          thickness={1}
+                          color={colors.separator}
+                          modifiers={[padding(16, 0, 0, 0)]}
                         />
                       ) : null}
                       <SettingsRow row={row} colors={colors} />
