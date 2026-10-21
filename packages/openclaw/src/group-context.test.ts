@@ -53,21 +53,33 @@ afterEach(() => {
 });
 
 describe('group context', () => {
-  it('names the workspace and channel for group channel turns, threads included', () => {
-    const { context } = setup();
-    const text = context();
-    expect(text).toContain(
-      `the channel "General" (${general}) in the workspace (group) "Book Club" (${flag})`
+  it('puts the location in cached system context, identifiers only', () => {
+    const { runtime } = setup();
+    const result = (key: string) =>
+      runtime.handleBeforePromptBuild({ sessionKey: key });
+    const first = result(sessionKey)!;
+    expect(first.appendSystemContext).toContain(
+      `the channel ${general} in the Tlon workspace (group) ${flag}`
     );
-    expect(text).toContain(`"here" mean ${flag}`);
-    expect(context(`${sessionKey}:thread:170.141`)).toBe(text);
+    expect(first.appendSystemContext).toContain(`"here" mean ${flag}`);
+    expect(first.appendSystemContext).not.toContain('Book Club');
+    expect(first.prependContext).toContain(
+      `Workspace "Book Club" (${flag}), channel "General" (${general}).`
+    );
+    // Stable across activity and threads, so the provider's cache holds.
+    runtime.recordMessage({ nest: general, sender: '~nec', text: 'hi' });
+    const later = result(`${sessionKey}:thread:170.141`)!;
+    expect(later.appendSystemContext).toBe(first.appendSystemContext);
+    expect(later.prependContext).not.toBe(first.prependContext);
   });
 
   it('matches lowercased session keys against canonical nests', () => {
-    const { context } = setup();
-    expect(context('agent:main:tlon:group:chat/~host/random')).toContain(
-      'the channel "Random" (chat/~host/Random)'
-    );
+    const { runtime } = setup();
+    expect(
+      runtime.handleBeforePromptBuild({
+        sessionKey: 'agent:main:tlon:group:chat/~host/random',
+      })?.appendSystemContext
+    ).toContain('the channel chat/~host/Random in');
   });
 
   it('adds nothing for DMs or channels in no known group', () => {
