@@ -23,11 +23,11 @@ A kit is `{manifest, files}`: a manifest plus its files by path. Files are markd
 | `setup` | `{file, place}` or null: a routine run once, right after install |
 | `scaffolds` | `[{file, title, place}]`: a note titled `title` written into the notebook place `place` |
 
-`%add` and `%fetch` refuse a kit whose manifest names a missing file or place, repeats a place name, runs a routine anywhere but a chat place, or puts a scaffold anywhere but a notebook place.
+`%add` and `%fetch` refuse a kit whose manifest names a missing file or place, repeats a place name or schedule id, names a schedule `setup` (the setup routine's id), runs a routine anywhere but a chat place, or puts a scaffold anywhere but a notebook place.
 
 ## Install
 
-`%install [id name meta bot tz]` creates `~our/name` and, in order:
+`%install [id name meta bot tz]` creates `~our/name`, which must not already exist, and, in order:
 
 1. creates the group, with `bot` as a member
 2. writes the workspace config: `bot` (unless one is named), the kit's instructions appended, and `kits[]` gaining `{ref, places}` where `ref` is `~publisher/id@version` and `places` maps each chat and gallery place to its nest
@@ -44,7 +44,7 @@ A routine runs in its place's channel session (`session:agent:main:tlon:group:<n
 
 ## Uninstall
 
-`%uninstall [flag]` deletes the ledger's routines through steward, removes the kit's `kits[]` entry from the blob, and drops the ledger entry. The group, its channels, its notes, and the instructions the kit added stay with the owner. A routine steward reports after uninstall is deleted when its id arrives.
+`%uninstall [flag]` deletes the ledger's routines through steward, removes the kit's `kits[]` entry from the blob, and drops the ledger entry. A group already deleted has no blob to clean, so only its routines are deleted. The group, its channels, its notes, and the instructions the kit added stay with the owner. A routine steward reports after uninstall is deleted when its id arrives.
 
 ## Blob edits
 
@@ -54,7 +54,7 @@ Edits go through `lib/workspace-config.hoon`, which follows the same rules as th
 
 - `%add [kit]`: put a kit in the library. Echoes a `%kit` fact on `/v1/updates`.
 - `%del [id]`: remove a kit from the library.
-- `%fetch [ship id]`: watch the publisher's `/v1/full/<id>`; the arriving kit is added as with `%add`.
+- `%fetch [ship id]`: watch the publisher's `/v1/full/<id>`; the arriving kit is added as with `%add`, unless its id is not the one asked for.
 - `%install [id name meta bot tz]`: see above. Gives an `%installed` fact, and another each time a notebook place or routine id lands.
 - `%uninstall [flag]`: see above. Gives an `%uninstalled` fact.
 

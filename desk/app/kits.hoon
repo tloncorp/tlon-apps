@@ -101,8 +101,8 @@
   =.  kits  (~(put by kits) id.manifest.kit kit)
   (give %fact ~[/v1/updates] kits-update-1+!>(`update:v1:k`[%kit kit]))
 ::  +valid: every name and file the manifest refers to exists, places
-::  are uniquely named, routines run in chat places, and scaffolds go
-::  into notebook places
+::  are uniquely named, routines run in chat places under unique ids
+::  (%setup is the setup routine's), and scaffolds go into notebook places
 ::
 ++  valid
   |=  =kit:k
@@ -112,7 +112,10 @@
     (malt (turn places.man |=(p=place:k [name.p kind.p])))
   =/  file  |=(f=@t (~(has by files.kit) f))
   =/  chat  |=(p=@tas =(`%chat (~(get by kinds) p)))
+  =/  routines=(set @tas)  (silt (turn schedules.man |=(s=schedule:k id.s)))
   ?&  =(~(wyt by kinds) (lent places.man))
+      =(~(wyt in routines) (lent schedules.man))
+      !(~(has in routines) %setup)
       (levy instructions.man file)
       (levy schedules.man |=(s=schedule:k &((file file.s) (chat place.s))))
       ?~(setup.man & &((file file.u.setup.man) (chat place.u.setup.man)))
@@ -137,6 +140,7 @@
   =*  man  manifest.kit
   =/  =flag:g  [our.bowl name]
   ?<  (~(has by installs) flag)
+  ?<  (has-group flag)
   ?>  (~(has in trusted-bots) bot)
   ::  the bot joins as a member; channel places get predictable nests,
   ::  notebook places are filled in as %notes reports them
@@ -323,7 +327,9 @@
     %+  roll  ~(tap in routines.install)
     |=  [id=@t =_cor]
     (delete-routine:cor bot.install id)
-  =.  cor
+  ::  a group deleted before uninstall has no blob left to clean
+  ::
+  =?  cor  (has-group flag)
     %+  write-blob  flag
     (edit:wc (group-blob flag) (del-kit:wc (ref install)))
   (give %fact ~[/v1/updates] kits-update-1+!>(`update:v1:k`[%uninstalled flag]))
@@ -351,6 +357,10 @@
 ::
 ++  trusted-bots
   .^((set ship) %gx (weld (scry-path %steward) /v1/bots/steward-bots-1))
+::
+++  has-group
+  |=  =flag:g
+  .^(? %gu (weld (scry-path %groups) /groups/(scot %p p.flag)/[q.flag]))
 ::
 ++  group-blob
   |=  =flag:g
@@ -435,6 +445,9 @@
       ?.  ?=(%kits-update-1 p.cage.sign)  cor
       =/  =update:v1:k  !<(update:v1:k q.cage.sign)
       ?.  ?=(%kit -.update)  cor
+      ?.  =(i.t.t.wire id.manifest.kit.update)
+        %-  (slog leaf+"kits: fetch {<t.wire>} answered with another kit" ~)
+        cor
       (add-kit kit.update)
     ==
   ::

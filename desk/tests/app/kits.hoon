@@ -96,8 +96,8 @@
     [%at `(add now ~m1)]  'Say hello'
   ==
 ++  routine-wire  |=(key=@tas (rid-path /routine/summer-club/~nec %routine key))
-::  scries: the bot is trusted, the group holds .blob, and the notebook
-::  has a root folder 7
+::  scries: the bot is trusted, the group exists once it holds .blob,
+::  and the notebook has a root folder 7
 ::
 ++  scries
   |=  blob=(unit @t)
@@ -105,6 +105,7 @@
   ^-  (unit vase)
   ?+  path  ~
     [%gx @ %steward @ %v1 %bots *]  `!>(`(set ship)`(sy ~[bot]))
+    [%gu @ %groups @ %groups *]     `!>(?=(^ blob))
   ::
       [%gx @ %groups @ %v3 %groups *]
     =/  gr  *group:v11:gv
@@ -240,6 +241,30 @@
   %+  do-poke  %kits-action-1
   !>(`action:v1:k`[%install %test-kit %summer-club group-meta ~bud ~])
 ::
+::  install never takes over an existing group, such as one left behind
+::  by an earlier uninstall
+::
+++  test-install-refuses-existing-group
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  ~  bind:m  (set-scry-gate (scries `''))
+  (ex-fail do-install)
+::
+::  a kit can't name two routines alike, since each id keys its request
+::
+++  test-add-refuses-repeated-routine
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  bad  fix-kit
+  =.  schedules.manifest.bad
+    ~[[%setup '0 17 * * 5' 'Weekly nudge' 'weekly.md' %discussion]]
+  (ex-fail (do-poke %kits-action-1 !>(`action:v1:k`[%add bad])))
+::
 ::  once %notes reports the notebook, its place lands in the ledger and
 ::  the blob, and the kit's scaffolds go into its root folder
 ::
@@ -328,6 +353,28 @@
       (ex-fact ~[/v1/updates] %kits-update-1 !>(`update:v1:k`[%uninstalled club-flag]))
   ==
 ::
+::  uninstall after the group is gone still deletes the routines
+::
+++  test-uninstall-after-group-deleted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m  do-install
+  ;<  *  bind:m  weekly-created
+  ;<  caz=(list card)  bind:m
+    (do-poke %kits-action-1 !>(`action:v1:k`[%uninstall club-flag]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  (rid-path /uninstall/routine %delete 'job-1')
+          [our-ship %steward]
+          %steward-automation-action-1
+          !>(`action:v1:sa`[%edit (rid %delete 'job-1') bot %delete 'job-1'])
+      ==
+      (ex-fact ~[/v1/updates] %kits-update-1 !>(`update:v1:k`[%uninstalled club-flag]))
+  ==
+::
 ::  a routine steward creates after uninstall is deleted at once
 ::
 ++  test-routine-created-after-uninstall
@@ -368,4 +415,19 @@
     [%fact %kits-update-1 !>(`update:v1:k`[%kit fix-kit])]
   %+  ex-cards  caz
   ~[(ex-fact ~[/v1/updates] %kits-update-1 !>(`update:v1:k`[%kit fix-kit]))]
+::
+::  a publisher answering with a different kit than was asked for is
+::  ignored
+::
+++  test-fetch-refuses-other-kit
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    (do-poke %kits-action-1 !>(`action:v1:k`[%fetch ~bus %other-kit]))
+  ;<  caz=(list card)  bind:m
+    %^  do-agent  /fetch/~bus/other-kit  [~bus %kits]
+    [%fact %kits-update-1 !>(`update:v1:k`[%kit fix-kit])]
+  (ex-cards caz ~)
 --
