@@ -67,7 +67,12 @@ describe('group context', () => {
       `Workspace "Book Club" (${flag}), channel "General" (${general}).`
     );
     // Stable across activity and threads, so the provider's cache holds.
-    runtime.recordMessage({ nest: general, sender: '~nec', text: 'hi' });
+    runtime.recordMessage({
+      id: 'm1',
+      nest: general,
+      sender: '~nec',
+      text: 'hi',
+    });
     const later = result(`${sessionKey}:thread:170.141`)!;
     expect(later.appendSystemContext).toBe(first.appendSystemContext);
     expect(later.prependContext).not.toBe(first.prependContext);
@@ -90,13 +95,20 @@ describe('group context', () => {
 
   it('digests open siblings and never names a restricted one', () => {
     const { runtime, context } = setup();
-    runtime.recordMessage({ nest: general, sender: '~nec', text: 'hi' });
     runtime.recordMessage({
+      id: 'm2',
+      nest: general,
+      sender: '~nec',
+      text: 'hi',
+    });
+    runtime.recordMessage({
+      id: 'm3',
       nest: 'chat/~host/Random',
       sender: '~bud',
       text: 'meeting  moved\nto friday',
     });
     runtime.recordMessage({
+      id: 'm4',
       nest: 'chat/~host/mods',
       sender: '~nec',
       text: 'ban ~bud?',
@@ -117,15 +129,57 @@ describe('group context', () => {
 
   it('keeps no activity for channels outside known groups', () => {
     const { runtime, context } = setup();
-    runtime.recordMessage({ nest: 'chat/~other/lobby', sender: '~nec' });
-    runtime.recordMessage({ nest: '~nec', sender: '~nec' });
+    runtime.recordMessage({
+      id: 'm5',
+      nest: 'chat/~other/lobby',
+      sender: '~nec',
+    });
+    runtime.recordMessage({ id: 'm6', nest: '~nec', sender: '~nec' });
     expect(context('agent:main:tlon:group:chat/~other/lobby')).toBeUndefined();
     expect(context()).not.toContain('Activity you have seen');
   });
 
+  it('drops a snippet when its message is deleted', () => {
+    const { runtime, context } = setup();
+    const random = 'chat/~host/Random';
+    runtime.recordMessage({
+      nest: random,
+      id: 'a',
+      sender: '~bud',
+      text: 'oops',
+    });
+    runtime.recordDelete({ nest: random, id: 'other' });
+    expect(context()).toContain('latest: "oops"');
+    runtime.recordDelete({ nest: random, id: 'a' });
+    const text = context()!;
+    expect(text).not.toContain('oops');
+    expect(text).toContain(`"Random" (${random}): 1 message from 1 ship\n`);
+  });
+
+  it('never shows a snippet older than the window', () => {
+    const { runtime, context, advance } = setup();
+    const random = 'chat/~host/Random';
+    runtime.recordMessage({
+      nest: random,
+      id: 'a',
+      sender: '~bud',
+      text: 'old news',
+    });
+    advance(23 * HOUR);
+    runtime.recordMessage({ nest: random, id: 'b', sender: '~bud' });
+    advance(2 * HOUR);
+    const text = context()!;
+    expect(text).toContain(`"Random" (${random}): 1 message`);
+    expect(text).not.toContain('old news');
+  });
+
   it('describes a restricted channel to itself', () => {
     const { runtime, context } = setup();
-    runtime.recordMessage({ nest: 'chat/~host/mods', sender: '~nec' });
+    runtime.recordMessage({
+      id: 'm7',
+      nest: 'chat/~host/mods',
+      sender: '~nec',
+    });
     expect(context('agent:main:tlon:group:chat/~host/mods')).toContain(
       '"Mods" (chat/~host/mods) — this channel: 1 message'
     );
@@ -194,6 +248,7 @@ describe('group context', () => {
   it('counts only the last 24h and says when it started seeing', () => {
     const { runtime, context, advance } = setup();
     runtime.recordMessage({
+      id: 'm8',
       nest: 'chat/~host/Random',
       sender: '~bud',
       text: 'old',
@@ -203,7 +258,7 @@ describe('group context', () => {
     const text = context()!;
     expect(text).not.toContain('Activity you have seen');
     expect(text).toContain('"Random" (chat/~host/Random)');
-    runtime.recordMessage({ nest: general, sender: '~nec' });
+    runtime.recordMessage({ id: 'm9', nest: general, sender: '~nec' });
     expect(context()).toContain('Activity you have seen in the last 24h');
   });
 });

@@ -24,8 +24,9 @@
  *
  * Group structure is seeded from the groups-ui init snapshot and kept
  * current by `/groups/ui` facts. Activity is recorded from the channel
- * firehose for every message the bot sees, whether or not it replies; it is
- * in-memory and starts empty after a restart.
+ * firehose for every message other ships post, whether or not the bot
+ * replies; it is in-memory and starts empty after a restart. The latest
+ * message's snippet is dropped when that message is deleted.
  *
  * The monitor creates one runtime per account and publishes it through a
  * shared slot; the `before_prompt_build` hook (registered from the plugin
@@ -68,7 +69,7 @@ const MAX_QUIET_LISTED = 40;
 
 type ChannelActivity = {
   events: Array<{ timestamp: number; sender: string }>;
-  latestSnippet?: string;
+  latestSnippet?: { id: string; text: string; timestamp: number };
 };
 
 export type GroupContextRuntime = {
@@ -82,10 +83,13 @@ export type GroupContextRuntime = {
   /** Record a message seen in a channel; ignored outside known groups. */
   recordMessage(params: {
     nest: string;
+    id: string;
     sender: string;
     text?: string;
     timestamp?: number;
   }): void;
+  /** A post or reply was deleted; its snippet must not outlive it. */
+  recordDelete(params: { nest: string; id: string }): void;
 };
 
 function oneLine(text: string, max: number): string {
@@ -188,9 +192,10 @@ export function createGroupContextRuntime(
       }
       if (active.length >= MAX_ACTIVE_ROWS && !isCurrent) continue;
       const senders = new Set(state!.events.map((event) => event.sender)).size;
+      const latest = state!.latestSnippet;
       const snippet =
-        state!.latestSnippet && !isCurrent
-          ? `; latest: "${state!.latestSnippet}"`
+        latest && !isCurrent && latest.timestamp >= at - WINDOW_MS
+          ? `; latest: "${latest.text}"`
           : '';
       active.push(
         `- ${label(channel)}${isCurrent ? ' — this channel' : ''}: ${count} message${count === 1 ? '' : 's'} from ${senders} ship${senders === 1 ? '' : 's'}${snippet}`
@@ -324,12 +329,18 @@ export function createGroupContextRuntime(
           : at;
       const state = activity.get(nest) ?? { events: [] };
       state.events.push({ timestamp, sender });
-      const snippet = params.text
-        ? oneLine(params.text, SNIPPET_MAX_CHARS)
-        : '';
-      if (snippet) state.latestSnippet = snippet;
+      const text = params.text ? oneLine(params.text, SNIPPET_MAX_CHARS) : '';
+      if (text) state.latestSnippet = { id: params.id, text, timestamp };
       prune(state, at);
       activity.set(nest, state);
+    },
+
+    recordDelete(params) {
+      const nest = locate(params.nest)?.channel.nest;
+      const state = nest ? activity.get(nest) : undefined;
+      if (state?.latestSnippet?.id === params.id) {
+        delete state.latestSnippet;
+      }
     },
   };
 }

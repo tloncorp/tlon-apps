@@ -347,11 +347,12 @@ type ChannelResponse = {
   post?: {
     id?: string;
     'r-post'?: {
-      set?: { essay?: Essay; seal?: Seal } | null;
+      // `type` is 'tombstone' for a deleted post; older desks send null.
+      set?: { essay?: Essay; seal?: Seal; type?: string } | null;
       reply?: {
         id?: string;
         'r-reply'?: {
-          set?: { 'reply-essay'?: Essay; seal?: Seal };
+          set?: { 'reply-essay'?: Essay; seal?: Seal; type?: string } | null;
           reacts?: Record<string, unknown>;
         };
       };
@@ -4607,6 +4608,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        // A deleted post or reply; see ChannelResponse.
+        const rPost = response?.post?.['r-post'];
+        const reply = rPost?.reply;
+        const deleted = reply ? reply['r-reply']?.set : rPost?.set;
+        if (deleted === null || deleted?.type === 'tombstone') {
+          const deletedId = reply ? reply.id : response?.post?.id;
+          if (deletedId) {
+            groupContextRuntime.recordDelete({ nest, id: deletedId });
+          }
+          return;
+        }
+
         // Handle post responses (new posts and replies)
         const essay = response?.post?.['r-post']?.set?.essay;
         const replyEssay =
@@ -4660,12 +4673,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           id: messageId,
           blob: content.blob ?? null,
         });
-        groupContextRuntime.recordMessage({
-          nest,
-          sender: senderShip,
-          text: rawText,
-          timestamp: content.sent,
-        });
 
         // Check if sender is a bot (BotProfile object has ship, nickname, avatar)
         const authorRaw = content?.author;
@@ -4680,6 +4687,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // Skip processing bot's own messages (but they're already cached above)
         if (senderShip === botShipName) {
           return;
+        }
+        if (messageId) {
+          groupContextRuntime.recordMessage({
+            nest,
+            id: messageId,
+            sender: senderShip,
+            text: rawText,
+            timestamp: content.sent,
+          });
         }
 
         if (senderShip === effectiveOwnerShip) {
