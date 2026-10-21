@@ -4671,11 +4671,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
 
         // Cache ALL messages (including bot's own) so reaction lookups have context
+        const threadRootId = isThreadReply ? response?.post?.id : undefined;
         cacheMessage(nest, {
           author: senderShip,
           content: rawText,
           timestamp: content.sent || Date.now(),
           id: messageId,
+          // The same parent the ledger match below uses, so a cache-served
+          // channel history filters owner-tool reply edits too.
+          ...(threadRootId ? { parentId: threadRootId } : {}),
           blob: content.blob ?? null,
         });
 

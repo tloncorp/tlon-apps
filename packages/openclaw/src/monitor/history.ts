@@ -21,7 +21,7 @@ export type TlonHistoryEntry = {
   timestamp: number;
   sequenceNum?: number;
   id?: string;
-  /** The thread's top-level post, on a reply from fetchThreadHistory. */
+  /** The thread's top-level post, on a reply (fetched or firehose-cached). */
   parentId?: string;
   blob?: string | null;
   parsedBlobData?: ClientPostBlobData | null;

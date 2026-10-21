@@ -204,6 +204,15 @@ describe('conversation context', () => {
     expect(monitorSource.match(/getChannelHistory\(/g)).toHaveLength(1);
   });
 
+  it('caches a channel reply with the parent the ledger matches it under', () => {
+    // getChannelHistory serves this cache once it holds a full page, so a
+    // reply cached without its parent never matches a reply edit entry.
+    expect(channelHandler).toMatch(
+      /const threadRootId = isThreadReply \? response\?\.post\?\.id : undefined;\s*cacheMessage\(nest, \{[^}]*\.\.\.\(threadRootId \? \{ parentId: threadRootId \} : \{\}\),/
+    );
+    expect(channelHandler.match(/cacheMessage\(/g)).toHaveLength(1);
+  });
+
   it('drops ledger hits from fetched channel and thread context', () => {
     expect(monitorSource).toMatch(
       /const threadContextHistory = withoutOwnerToolPosts\(\s*await fetchThreadContextHistory\([^)]*\),\s*groupChannel,\s*botShipName\s*\);/

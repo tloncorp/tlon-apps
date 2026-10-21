@@ -1005,6 +1005,52 @@ describe('withoutOwnerToolPosts', () => {
     ]);
   });
 
+  it('drops a reply the bot edited from a cache-served channel history', async () => {
+    const replyNest = 'chat/~h/cached-thread';
+    const topLevelNest = 'chat/~h/cached-top-level';
+    const edited = createOwnerToolPostLedger({
+      now: () => 0,
+      store: new Map(),
+    });
+    for (const target of [replyNest, topLevelNest]) {
+      edited.reserve({
+        kind: 'edit',
+        editText: 'tool edit',
+        accountId: 'default',
+        author: '~owner',
+        target,
+        postId: '200',
+        parentId: '100',
+      });
+      for (let i = 0; i < 50; i++) {
+        cacheMessage(target, makeEntry({ id: String(1_000 + i) }));
+      }
+    }
+    // As the channel firehose caches them: a reply carries its thread root.
+    cacheMessage(
+      replyNest,
+      makeEntry({ author: '~owner', id: '200', parentId: '100' })
+    );
+    cacheMessage(topLevelNest, makeEntry({ author: '~owner', id: '200' }));
+    const scry = vi.fn();
+
+    const replyHistory = await getChannelHistory({ scry }, replyNest, 50);
+    const topLevelHistory = await getChannelHistory({ scry }, topLevelNest, 50);
+
+    expect(scry).not.toHaveBeenCalled();
+    expect(replyHistory.map((entry) => entry.id)).toContain('200');
+    expect(
+      withoutOwnerToolPosts(replyHistory, replyNest, '~bot', edited).map(
+        (entry) => entry.id
+      )
+    ).not.toContain('200');
+    expect(
+      withoutOwnerToolPosts(topLevelHistory, topLevelNest, '~bot', edited).map(
+        (entry) => entry.id
+      )
+    ).toContain('200');
+  });
+
   it('drops a reply the bot edited in a thread fetched by the fallback path', async () => {
     const parent = '170.141.184.506.000.000.000.000.000.000.000.001';
     const reply = '170.141.184.506.000.000.000.000.000.000.000.002';
