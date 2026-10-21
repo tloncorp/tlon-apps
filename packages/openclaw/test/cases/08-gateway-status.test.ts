@@ -36,7 +36,7 @@ const ARCHIVE = 'pinned rube-zod-group-blob';
 // asserts the container's installed core equals this requested version. Both
 // defaults use the package's pinned development version so this remains
 // the full prewarm regression guard.
-const DEFAULT_CORE_VERSION = '2026.9.4';
+const DEFAULT_CORE_VERSION = '2026.9.33';
 const HARD_TEST_TIMEOUT_MS = 180_000;
 const INTERNAL_TEST_TIMEOUT_MS = 165_000;
 const DIAGNOSTIC_RESERVE_MS = 12_000;
@@ -147,6 +147,7 @@ function readPrewarmExpectation(coreVersion: string): boolean {
     '2026.6.11': true,
     '2026.7.1': true,
     '2026.9.4': false,
+    '2026.9.33': false,
   };
   if (raw == null) {
     if (!(coreVersion in known)) {

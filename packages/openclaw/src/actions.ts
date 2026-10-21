@@ -4,6 +4,7 @@ import type {
 } from 'openclaw/plugin-sdk/channel-contract';
 import { readStringParam } from 'openclaw/plugin-sdk/param-readers';
 
+import { roleMentionScopeFor } from './role-mention-scope.js';
 import { normalizeShip, parseTlonTarget } from './targets.js';
 import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
 import { resolveTlonAccount } from './types.js';
@@ -291,8 +292,6 @@ async function handleReply({
     throw new Error(`Invalid Tlon target: ${to}`);
   }
 
-  const story = markdownToStory(message);
-
   if (parsed.kind === 'dm') {
     throw new Error(
       'Tlon reply action is supported for channel targets. For DMs, use action=send with replyTo.'
@@ -304,6 +303,14 @@ async function handleReply({
       'Tlon reply action is not supported for notebook entries. Send a new notebook entry instead.'
     );
   }
+
+  const story = markdownToStory(message, {
+    roleMentions: await roleMentionScopeFor(
+      accountId,
+      { kind: 'channel', nest: parsed.nest },
+      message
+    ),
+  });
 
   await observeActiveTlonTurnDelivery(
     () =>

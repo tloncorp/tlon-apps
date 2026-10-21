@@ -1,6 +1,8 @@
 import type * as db from '../types/models';
 import type { ContentReference } from '../types/references';
+import type * as ub from '../urbit';
 import { parseIdNumber } from '../urbit/utils';
+import { formatUd } from './apiUtils';
 
 function formatId(id: string) {
   return parseIdNumber(id).toString();
@@ -29,6 +31,19 @@ export function getPostReferencePath(post: db.Post) {
 
 export function getGroupReferencePath(groupId: string) {
   return `/1/group/${groupId}`;
+}
+
+export function getChannelReferencePath(channelId: string) {
+  return `/1/chan/${channelId}`;
+}
+
+export function channelToContentReference(
+  channelId: string
+): [path: string, reference: ContentReference] {
+  return [
+    getChannelReferencePath(channelId),
+    { type: 'reference', referenceType: 'channelLink', channelId },
+  ];
 }
 
 export function getNoteReferencePath(
@@ -71,4 +86,98 @@ export function postToContentReference(
       channelId: post.channelId,
     },
   ];
+}
+
+export function toContentReference(cite: ub.Cite): ContentReference | null {
+  if ('chan' in cite) {
+    const channelId = cite.chan.nest;
+    // notes channels cite individual notes as /note/<id>, where the id
+    // may be dot-grouped urbit-style (1.234)
+    if (channelId.startsWith('notes/')) {
+      const noteMatch = cite.chan.where.match(/^\/note\/(\d[\d.]*)/);
+      if (!noteMatch) {
+        return null;
+      }
+      return {
+        type: 'reference',
+        referenceType: 'note',
+        channelId,
+        noteId: noteMatch[1].replace(/\./g, ''),
+      };
+    }
+    // A cite of the channel itself, with no post: /1/chan/<nest>
+    if (cite.chan.where.replace(/\/+$/, '') === '') {
+      return { type: 'reference', referenceType: 'channelLink', channelId };
+    }
+    // I've seen these forms of reference path:
+    // /msg/170141184506828851385935487131294105600
+    // /msg/170141184506312077223314290444316180480/170141184506312235291442423303751335936
+    // /msg/~sogrum-savluc/170.141.184.505.979.681.243.072.382.329.337.971.474
+    const messageIdRegex = /\/([0-9\.]+(?=[$\/]?))/g;
+    const [postId, replyId] = Array.from(
+      cite.chan.where.matchAll(messageIdRegex)
+    ).map((m) => {
+      return m[1].replace(/\./g, '');
+    });
+    if (!postId) {
+      return null;
+    }
+    return {
+      type: 'reference',
+      referenceType: 'channel',
+      channelId,
+      postId: formatUd(postId),
+      replyId: replyId ? formatUd(replyId) : undefined,
+    };
+  } else if ('group' in cite) {
+    return { type: 'reference', referenceType: 'group', groupId: cite.group };
+  } else if ('desk' in cite) {
+    const parts = cite.desk.flag.split('/');
+    const userId = parts[0];
+    const appId = parts[1];
+    if (!userId || !appId) {
+      return null;
+    }
+    return { type: 'reference', referenceType: 'app', userId, appId };
+  }
+  return null;
+}
+
+export function contentReferenceToCite(reference: ContentReference): ub.Cite {
+  if (reference.referenceType === 'channel') {
+    return {
+      chan: {
+        nest: reference.channelId,
+        where: `/msg/${reference.postId}${
+          reference.replyId ? '/' + reference.replyId : ''
+        }`,
+      },
+    };
+  } else if (reference.referenceType === 'channelLink') {
+    return {
+      chan: {
+        nest: reference.channelId,
+        where: '/',
+      },
+    };
+  } else if (reference.referenceType === 'group') {
+    return {
+      group: reference.groupId,
+    };
+  } else if (reference.referenceType === 'app') {
+    return {
+      desk: {
+        flag: `${reference.userId}/${reference.appId}`,
+        where: '',
+      },
+    };
+  } else if (reference.referenceType === 'note') {
+    return {
+      chan: {
+        nest: reference.channelId,
+        where: `/note/${reference.noteId}`,
+      },
+    };
+  }
+  throw new Error('invalid reference');
 }

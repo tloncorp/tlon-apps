@@ -68,6 +68,8 @@ const ReferenceComponent = ReferenceFrame.styleable<{
   ({ children, isLoading, isError, hasData, errorMessage, ...props }, ref) => {
     // We cannot pass `contentSize` to the styled component, so we need to extract it
     const { contentSize, ...rest } = props;
+    // The skeleton is nested inside this frame, so it must not repeat its testID
+    const { testID, ...skeletonProps } = props;
     return (
       <ReferenceFrame {...rest} pressable={!!props.onPress} ref={ref}>
         {children}
@@ -75,19 +77,19 @@ const ReferenceComponent = ReferenceFrame.styleable<{
           <ReferenceSkeleton
             messageType="loading"
             message="Loading remote content..."
-            {...props}
+            {...skeletonProps}
           />
         ) : isError ? (
           <ReferenceSkeleton
             message="Content not available"
             messageType="error"
-            {...props}
+            {...skeletonProps}
           />
         ) : !hasData ? (
           <ReferenceSkeleton
             messageType="not-found"
             message="Content not available"
-            {...props}
+            {...skeletonProps}
           />
         ) : null}
       </ReferenceFrame>

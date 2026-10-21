@@ -102,7 +102,7 @@ export function ListBlock({
   ...props
 }: { block: cn.ListBlockData } & Omit<
   ComponentProps<typeof ListNode>,
-  'node'
+  'node' | 'indentChildren'
 >) {
   return <ListNode node={block.list} {...props} />;
 }
@@ -123,23 +123,38 @@ export function listItemMarkerType(
 
 function ListNode({
   node,
+  indentChildren = false,
 }: {
   node: cn.ListData;
+  // A nested level is normally offset by its parent's marker column. Task
+  // items draw no marker (the checkbox is inline), so their children need
+  // their own indent or they render flush with the parent.
+  indentChildren?: boolean;
 } & ComponentProps<typeof View>) {
   return (
     <View flex={1}>
       {node.content.length ? (
         <LineRenderer trimmed={false} inlines={node.content} />
       ) : null}
-      {node.children?.map((childNode, i) => (
-        <XStack key={i} gap="$m">
-          <ListItemMarker
-            index={i}
-            type={listItemMarkerType(node.type ?? 'unordered', childNode)}
-          />
-          <ListNode key={i} node={childNode} />
-        </XStack>
-      ))}
+      {node.children?.map((childNode, i) => {
+        const markerType = listItemMarkerType(
+          node.type ?? 'unordered',
+          childNode
+        );
+        return (
+          <XStack
+            key={i}
+            gap="$m"
+            paddingLeft={indentChildren ? '$xl' : undefined}
+          >
+            <ListItemMarker index={i} type={markerType} />
+            <ListNode
+              node={childNode}
+              indentChildren={markerType === 'tasklist'}
+            />
+          </XStack>
+        );
+      })}
     </View>
   );
 }
@@ -977,11 +992,15 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
   // swallowed by the vertical FlatList that wraps each chat message —
   // RN's stock ScrollView shares the JS responder system with the parent and
   // loses the gesture race; the GH version uses native gesture recognizers.
+  // On web the scrollbar is the only cue that a wide table continues past the
+  // edge; base.css keys on the testID to keep it drawn under overlay
+  // scrollbars too.
   return (
     <GHScrollView
       horizontal
+      testID="TableScrollView"
       style={{ width: '100%', maxWidth: '100%' }}
-      showsHorizontalScrollIndicator={false}
+      showsHorizontalScrollIndicator={Platform.OS === 'web'}
       onLayout={(event) => {
         const width = Math.ceil(event.nativeEvent.layout.width);
         setViewportWidth((current) => (current === width ? current : width));

@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack, getTokenValue } from 'tamagui';
 
+import { useSheetBottomInset } from '../hooks/useSheetBottomInset';
 import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { useChatTitle } from '../utils';
 
@@ -14,9 +14,25 @@ type UseForwardToChannelSheetParams = {
   successMessage: (channelTitle: string) => string | null;
   failureMessage: string;
   closeBeforeForward?: boolean;
+  submitLabel?: (channelTitle: string) => string;
+  submittingLabel?: string;
 };
 
 export const FORWARD_SHEET_SNAP_POINTS: number[] = [85];
+
+/**
+ * What is being forwarded is cleared as the sheet starts to close, but the
+ * sheet is still on screen while it animates out. This keeps the last one so
+ * the header does not empty on the way down.
+ */
+export function useLastForwarded<T>(item: T | null): T | null {
+  const [last, setLast] = useState(item);
+  if (item && item !== last) {
+    setLast(item);
+  }
+  return item ?? last;
+}
+
 export function useForwardToChannelSheet({
   isOpen,
   onClose,
@@ -24,6 +40,8 @@ export function useForwardToChannelSheet({
   successMessage,
   failureMessage,
   closeBeforeForward = false,
+  submitLabel = (channelTitle) => `Forward to ${channelTitle}`,
+  submittingLabel = 'Forwarding...',
 }: UseForwardToChannelSheetParams) {
   const [selectedChannel, setSelectedChannel] = useState<db.Channel | null>(
     null
@@ -33,7 +51,7 @@ export function useForwardToChannelSheet({
   const queuedForward = useRef(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const showToast = useToast();
-  const insets = useSafeAreaInsets();
+  const sheetBottomInset = useSheetBottomInset();
   const { dismissThenRun, onDismissed, shouldRender, presentationKey } =
     useSheetDismissalAction({
       open: isOpen,
@@ -57,7 +75,7 @@ export function useForwardToChannelSheet({
     }
   }, [presentationKey]);
 
-  const handleChannelSelected = useCallback((channel: db.Channel) => {
+  const handleChannelSelected = useCallback((channel: db.Channel | null) => {
     setSelectedChannel(channel);
   }, []);
 
@@ -116,7 +134,8 @@ export function useForwardToChannelSheet({
 
     return (
       <YStack
-        paddingBottom={insets.bottom + getTokenValue('$xl', 'size')}
+        paddingTop="$l"
+        paddingBottom={sheetBottomInset + getTokenValue('$xl', 'size')}
         paddingHorizontal="$xl"
       >
         <Button
@@ -125,10 +144,10 @@ export function useForwardToChannelSheet({
           disabled={isSending || !!errorMessage}
           label={
             isSending
-              ? 'Forwarding...'
+              ? submittingLabel
               : errorMessage
                 ? errorMessage
-                : `Forward to ${selectedChannelTitle}`
+                : submitLabel(selectedChannelTitle)
           }
           centered
         />
@@ -137,10 +156,12 @@ export function useForwardToChannelSheet({
   }, [
     errorMessage,
     handleSendItem,
-    insets.bottom,
+    sheetBottomInset,
     isSending,
     selectedChannel,
     selectedChannelTitle,
+    submitLabel,
+    submittingLabel,
   ]);
 
   return {

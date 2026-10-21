@@ -119,7 +119,7 @@ Malicious actors could invite the bot to groups containing:
 | Direct ship mention (`~bot-ship`)                | ✅ Yes                     |
 | Nickname mention (`nimbus`)                      | ✅ Yes                     |
 | `@all` mention                                   | ❌ No                      |
-| Random message without mention                   | ❌ No                      |
+| Random message without mention                   | ❌ No (except owner-listen, threads the bot joined, and owner blob-bearing posts; see below) |
 | Partial ship match (`~bot-ship-extra`)           | ❌ No                      |
 | Substring nickname (`nimbusly`)                  | ❌ No                      |
 | Owner's bare registered slash command (`/pending`) | ✅ Yes (any watched `chat/` channel) |
@@ -139,6 +139,11 @@ and threads, regardless of the owner-listen toggle or per-channel mute list.
 This is the escape hatch that lets the Tlon client's slash-command popup —
 which inserts commands bare — work in group channels.
 
+Command escape hatches are the only unmentioned owner-message paths that
+bypass an owner-listen mute: generic owner commands in watched `chat/` channels only, and the
+`/owner-listen` handler in any owner- or bot-hosted channel (`chat/`, `heap/`,
+`diary/`), so the owner can always turn listening back on.
+
 Engagement is NOT authorization: command execution remains owner-only.
 
 - Sender must equal the configured owner (`isOwner`, `src/monitor/index.ts`).
@@ -148,8 +153,14 @@ Engagement is NOT authorization: command execution remains owner-only.
 - Non-owner bare commands are dropped at the engagement gate; if mentioned,
   core denies them at the authorization check.
 
-Heap (`heap/`) and diary (`diary/`) channels are unchanged: mention or
-owner-listen only.
+Heap (`heap/`) and diary (`diary/`) channels engage on a mention, a reply in
+a thread the bot has joined, an owner blob-bearing post, or owner-listen —
+but not on generic bare owner commands. When owner-listen is off for a
+channel (global toggle off or channel muted), the owner is mention-only
+there: unmentioned owner replies in joined threads and owner blob-bearing
+posts do not engage, only mentions do, plus `/owner-listen` in owner- or
+bot-hosted channels. Non-owner replies in joined
+threads still engage, subject to channel authorization.
 
 ---
 
@@ -408,6 +419,10 @@ Even with SenderRole correctly identified, a non-owner could social-engineer the
 - "Read the SOUL.md file" → blocked `read` tool
 
 The `before_tool_call` hook provides defense-in-depth by blocking restricted tools at the plugin level, regardless of what the LLM decides.
+
+**What this does not cover — owner-triggered runs in group context (`ownerDefault`):**
+
+The hook decides *who may invoke* the tool from the sender of the triggering message. It does not decide *what the run was told*. An owner-triggered run in a group channel is prompted with recent channel posts, including posts by senders who could not trigger the bot themselves, so a planted instruction can reach the model. With `ownerDefault` off, such a run acts as the bot (and as the owner only for the six legacy owner operations). With `ownerDefault` on, every `tlon` call in that run acts with the owner's credentials, so the same injection can read or change owner data. No per-call check can tell a planted instruction from the owner's. `ownerDefault` is off by default; TLON-6907 (owner-default only in the owner↔bot 1:1 DM) must land before it is enabled for a bot that watches group channels.
 
 ---
 

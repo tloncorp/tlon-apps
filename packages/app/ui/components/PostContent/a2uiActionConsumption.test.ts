@@ -1,7 +1,10 @@
 import { A2UI } from '@tloncorp/shared/logic';
 import { describe, expect, it } from 'vitest';
 
-import { isA2UISendMessageActionConsumed } from './a2uiActionConsumption';
+import {
+  isA2UISendMessageActionConsumed,
+  shouldDismissKeyboardForChoice,
+} from './a2uiActionConsumption';
 
 describe('isA2UISendMessageActionConsumed', () => {
   const send = (text: string): A2UI.ButtonAction => ({
@@ -18,5 +21,13 @@ describe('isA2UISendMessageActionConsumed', () => {
   });
   it('does not consume empty probe actions', () => {
     expect(isA2UISendMessageActionConsumed(send(''), 'Research')).toBe(false);
+  });
+});
+
+describe('shouldDismissKeyboardForChoice', () => {
+  it('dismisses only for an actionable, unconsumed choice', () => {
+    expect(shouldDismissKeyboardForChoice(true, false)).toBe(true);
+    expect(shouldDismissKeyboardForChoice(true, true)).toBe(false);
+    expect(shouldDismissKeyboardForChoice(false, false)).toBe(false);
   });
 });

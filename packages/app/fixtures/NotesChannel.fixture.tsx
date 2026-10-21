@@ -89,6 +89,18 @@ const notes = [
     'A long note title that should wrap onto the next line instead of getting cut off on narrow screens',
     'Long note title fixture body.'
   ),
+  makeNote(
+    9,
+    6,
+    'Nested lists',
+    '## Tasks\n\n- [ ] Parent task\n  - [ ] Child task\n    - [x] Grandchild task\n- [x] Second parent task\n  - Plain bullet under a task\n\n## Bullets\n\n- Top-level bullet\n  - Nested bullet\n    - [ ] Task under a bullet'
+  ),
+  makeNote(
+    10,
+    5,
+    'Wide markdown table',
+    'The last column runs past the right edge of the preview.\n\n| Check | Command | What it covers | Typical failure | verify |\n| --- | --- | --- | --- | --- |\n| Format | `pnpm format:check` | Every package, including docs | A long line oxfmt would rewrap | Run before every commit |\n| Types | `pnpm -r tsc` | Each workspace package on its own | A prop that only exists on one platform | Run after touching shared types |\n| Unit | `pnpm test` | Vitest suites in the shared packages | A query that reads a table it never declared | Run before opening the pull request |'
+  ),
 ];
 const emptyFolders = [folders[0]];
 const emptyNotes: db.NotesNote[] = [];
@@ -447,5 +459,7 @@ export default {
   'Editor Header': <NotesEditorFixture />,
   'Long Title': <NotesEditorFixture noteId={8} />,
   'Table Preview': <NotesEditorFixture noteId={5} />,
+  'Wide Table Preview': <NotesEditorFixture noteId={10} />,
+  'Nested List Preview': <NotesEditorFixture noteId={9} />,
   'Saving Header': <NotesEditorFixture saving />,
 };

@@ -97,7 +97,7 @@ export default function ContactsScreen() {
             title="Contacts"
             backAction={navigation.goBack}
             borderBottom
-            leftActions={[
+            rightActions={[
               {
                 id: 'add-contacts',
                 icon: 'Add',

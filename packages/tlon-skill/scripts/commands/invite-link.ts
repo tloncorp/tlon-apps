@@ -1,5 +1,4 @@
-import { valid } from '@urbit/aura';
-
+import { isGroupFlag } from '../cli-utils';
 import {
   type CommandDeps,
   commandError,
@@ -27,13 +26,12 @@ service if the group has none yet. Prints exactly one line on success: the
 canonical invite URL (https://invite.tlon.io/<token>).
 
 The link is retrieved as whichever ship the current credentials resolve to,
-and that ship becomes the inviter of record. Bot harnesses run this command
-as the owner by default, so recipients onboard attributed to the owner rather
-than the bot.
+and that ship becomes the inviter of record. Bot harnesses that act for an
+owner run this as the owner, so invitees onboard attributed to the owner.
 
 Options:
-  --self         Use the current credentials (the default; meaningful under
-                 bot harnesses, which otherwise act as the owner)
+  --self         Use the current credentials (the CLI default; under a bot
+                 harness, selects the bot)
   -h, --help     Show this help
 
 Private/secret groups require the acting ship to be the host or an admin — a
@@ -53,15 +51,6 @@ export interface InviteLinkDeps extends CommandDeps {
 export type ParsedInviteLinkArgs =
   | { kind: 'help' }
   | { kind: 'run'; flag: string; self: boolean };
-
-// Mirrors @tloncorp/api's whomIsFlag (value imports from @tloncorp/api are
-// forbidden in migrated command modules): ~ship/term with a valid patp ship.
-function isGroupFlag(value: string): boolean {
-  return (
-    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(value) &&
-    valid('p', value.split('/')[0])
-  );
-}
 
 export function parseInviteLinkArgs(args: string[]): ParsedInviteLinkArgs {
   let self = false;

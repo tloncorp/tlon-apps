@@ -3,11 +3,17 @@ services:
     build:
       context: ${OPENCLAW_DEV_DIR:?OPENCLAW_DEV_DIR is required}
       dockerfile: Dockerfile.test
+      args:
+        OPENCLAW_CORE_VERSION: ${OPENCLAW_CORE_VERSION:-2026.9.33}
     environment:
+      OPENCLAW_CORE_VERSION: ${OPENCLAW_CORE_VERSION:-2026.9.33}
       TLON_URL: ${TLON_URL:?TLON_URL is required}
       TLON_SHIP: ${TLON_SHIP:?TLON_SHIP is required}
       TLON_CODE: ${TLON_CODE:?TLON_CODE is required}
       TLON_OWNER_SHIP: ${TLON_OWNER_SHIP:?TLON_OWNER_SHIP is required}
+      TLON_OWNER_URL: ${TLON_OWNER_URL:-}
+      TLON_OWNER_CODE: ${TLON_OWNER_CODE:-}
+      TLON_OWNER_DEFAULT: ${TLON_OWNER_DEFAULT:-false}
       TLON_DM_ALLOWLIST: ${TLON_DM_ALLOWLIST:?TLON_DM_ALLOWLIST is required}
       FAKE_MODEL_BASE_URL:
         ${FAKE_MODEL_BASE_URL:?FAKE_MODEL_BASE_URL is required}

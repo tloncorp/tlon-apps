@@ -139,13 +139,16 @@ services:
       context: .
       dockerfile: Dockerfile.test
       args:
-        OPENCLAW_CORE_VERSION: ${OPENCLAW_CORE_VERSION:-2026.9.4}
+        OPENCLAW_CORE_VERSION: ${OPENCLAW_CORE_VERSION:-2026.9.33}
     environment:
-      - OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION:-2026.9.4}
+      - OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION:-2026.9.33}
       - TLON_URL=${TLON_URL:-http://ships:8080}
       - TLON_SHIP=${TLON_SHIP:-~zod}
       - TLON_CODE=${TLON_CODE:-lidlut-tabwed-pillex-ridrup}
       - TLON_OWNER_SHIP=${TLON_OWNER_SHIP:-~ten}
+      - TLON_OWNER_URL=${TLON_OWNER_URL:-http://ships:8081}
+      - TLON_OWNER_CODE=${TLON_OWNER_CODE:-lapseg-nolmel-riswen-hopryc}
+      - TLON_OWNER_DEFAULT=${TLON_OWNER_DEFAULT:-true}
       - TLON_DM_ALLOWLIST=${TLON_DM_ALLOWLIST:-~ten}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - BRAVE_API_KEY=${BRAVE_API_KEY}

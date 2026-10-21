@@ -54,7 +54,11 @@ vi.mock('../ActionSheet', () => ({
     (props: React.PropsWithChildren) =>
       React.createElement('ActionSheet', props),
     {
+      Action: 'Action',
+      ActionGroup: 'ActionGroup',
+      ContentBlock: 'ContentBlock',
       ScrollableContent: 'ScrollableContent',
+      SimpleHeader: 'SimpleHeader',
     }
   ),
 }));
@@ -201,7 +205,7 @@ test('copy all copies the displayed text, closes the sheet, and confirms success
   await act(async () => {
     await renderer.root
       .findByProps({ testID: 'CopyAllMessageText' })
-      .props.onPress();
+      .props.action.action();
   });
   expect(mocks.copiedText).toBe('First paragraph 🙏\nSecond paragraph');
   expect(mocks.copy).toHaveBeenCalledOnce();

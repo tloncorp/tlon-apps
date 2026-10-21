@@ -168,31 +168,30 @@ Local patch:
 `patches/@expo__ui@57.0.21.patch`
 
 Why:
-The shared mobile sheets present through Expo UI's `community/bottom-sheet`
-adapter. Stock Expo UI 57 has no close control on its iOS sheet, reports
-`onDismiss` on iOS in the same call as `onClose`, expands every single Android
-snap point to full height, ignores `enableContentPanningGesture`, and unmounts
-an Android sheet closed through its `index` prop without waiting for the hide
-animation.
+The shared mobile sheets present on iOS through Expo UI's
+`community/bottom-sheet` adapter. Stock Expo UI 57 has no close control on its
+iOS sheet and reports `onDismiss` on iOS in the same call as `onClose`.
 
-Only the close control is native code (`ios/BottomSheetView.swift`). The rest
-is JavaScript in `src/community/bottom-sheet`.
+The close control is native code (`ios/BottomSheetView.swift`). The rest is
+JavaScript in `src/community/bottom-sheet` and `src/swift-ui/BottomSheet`.
+
+Android is not patched. Its sheet is our own, built on Expo UI's public Compose
+components: `packages/app/ui/components/NativeSheetHost.android.tsx`. That file
+holds what used to be patched into Expo UI's Android adapter (fixed-height
+snap points, `enableContentPanningGesture`, waiting for the hide animation)
+along with the keyboard handling.
 
 What it does:
 - iOS: adds a `showCloseButton` prop that draws a native close control in the
   sheet's top-trailing corner and hides the drag indicator. Dismissible generic
-  content reserves the control's header area inside its measured height so
-  inputs cannot sit beneath its hit target; non-dismissible sheets omit it.
+  content reserves the control's 52pt header area (8pt inset plus its 44pt
+  frame) inside its measured height so inputs cannot sit beneath its hit
+  target; non-dismissible sheets omit it. The content root clips, so the app
+  can lift a header into that area and a list taller than the sheet does not
+  show below it.
 - iOS: `onClose` and `onChange(-1)` fire when the sheet starts closing, and
   `onDismiss` fires from SwiftUI's own `onDismiss`, after the transition ends.
   Follow-up presentations wait for `onDismiss`.
-- Android: sizes a single percentage or point snap to its requested total
-  height, including Material's drag-handle area.
-- Android: `enableContentPanningGesture={false}` disables sheet gestures so
-  nested content owns vertical pans. Back and scrim still dismiss.
-- Android: a close driven by `index` or `close()` awaits Compose's `hide()`
-  before unmounting, then fires `onDismiss`. A remount key rejects callbacks
-  from an earlier presentation.
 
 Validation:
 - Build the iOS preview app from source.
@@ -201,15 +200,11 @@ Validation:
   dismissed and reopened repeatedly in light and dark mode.
 - From the attachment sheet, pick "Photo Library". The picker must appear after
   the sheet has gone.
-- Build the Android preview app, open sheets with 60%, 70%, 80%, 85% and 90%
-  snap points, and confirm each opens at the requested height rather than full
-  screen. Close one with the back button and confirm it animates out.
 
 Removal:
-Drop the patch once Expo UI exposes sheet chrome configuration, a dismissal
-callback separate from `onClose`, single-snap Android sizing and
-`enableContentPanningGesture` upstream. Expo UI 57.0.21 already defers its iOS
-close callbacks to native dismissal, but fires them together, so the shared
+Drop the patch once Expo UI exposes sheet chrome configuration and a dismissal
+callback separate from `onClose` upstream. Expo UI 57.0.21 already defers its
+iOS close callbacks to native dismissal, but fires them together, so the shared
 dismissal hook cannot tell "closing" from "dismissed" without this patch.
 
 ## @10play/tentap-editor@0.5.21

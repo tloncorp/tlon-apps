@@ -1,10 +1,12 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { SheetHeader, View } from '@tloncorp/ui';
-import React, { useEffect, useState } from 'react';
+import { Button } from '@tloncorp/ui';
+import { useCallback, useEffect, useState } from 'react';
+import { YStack, getTokenValue } from 'tamagui';
 
 import { AppDataContextProvider } from '../contexts/appDataContext';
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
+import { useSheetBottomInset } from '../hooks/useSheetBottomInset';
 import { triggerHaptic } from '../utils';
 import { ActionSheet } from './ActionSheet';
 import { GroupSelector } from './GroupSelector';
@@ -17,7 +19,8 @@ interface SheetProps {
   onSelect?: (group: db.Group) => void;
   onClose: () => void;
   alphaSegmentedGroups: AlphaSegmentedGroups;
-  TopContent?: React.ReactNode;
+  title: string;
+  subtitle?: string;
 }
 export function GroupSelectorSheet(props: SheetProps) {
   const [contentScrolling, setContentScrolling] = useState(false);
@@ -31,6 +34,27 @@ export function GroupSelectorSheet(props: SheetProps) {
     }
   }, [props.open]);
 
+  const sheetBottomInset = useSheetBottomInset();
+  const { onClose } = props;
+  const renderFooter = useCallback(
+    () => (
+      <YStack
+        paddingHorizontal="$xl"
+        paddingTop="$m"
+        paddingBottom={sheetBottomInset + getTokenValue('$xl', 'size')}
+      >
+        <Button
+          preset="primary"
+          label="Save"
+          centered
+          onPress={onClose}
+          testID="CloseFavoriteGroupSelectorSheet"
+        />
+      </YStack>
+    ),
+    [onClose, sheetBottomInset]
+  );
+
   return (
     <ActionSheet
       open={props.open}
@@ -39,37 +63,28 @@ export function GroupSelectorSheet(props: SheetProps) {
       snapPointsMode="percent"
       disableDrag={contentScrolling}
       dismissOnSnapToBottom
+      footerComponent={renderFooter}
       modal
     >
       <AppDataContextProvider
         contacts={contactsQuery.data}
         calmSettings={calmSettingsQuery.data}
       >
-        <ActionSheet.Content paddingBottom="$s">
-          <SheetHeader paddingHorizontal="$2xl">
-            <SheetHeader.Title>{props.TopContent}</SheetHeader.Title>
-            <SheetHeader.RightControls>
-              <SheetHeader.ButtonText
-                onPress={props.onClose}
-                testID="CloseFavoriteGroupSelectorSheet"
-              >
-                Save
-              </SheetHeader.ButtonText>
-            </SheetHeader.RightControls>
-          </SheetHeader>
-        </ActionSheet.Content>
-        <ActionSheet.ScrollableContent
-          id="GroupSelectorScrollableContent"
-          padding="$xl"
-        >
-          <View flex={1} height="100%">
+        <ActionSheet.SimpleHeader
+          title={props.title}
+          subtitle={props.subtitle}
+        />
+        <ActionSheet.ScrollableContent id="GroupSelectorScrollableContent">
+          {/* Native BottomSheetScrollView ignores padding props, so the gutter
+              lives on the content block. */}
+          <ActionSheet.ContentBlock flex={1} height="100%">
             <GroupSelector
               selected={props.selected}
               onSelect={props.onSelect}
               onScrollChange={setContentScrolling}
               alphaSegmentedGroups={props.alphaSegmentedGroups}
             />
-          </View>
+          </ActionSheet.ContentBlock>
         </ActionSheet.ScrollableContent>
       </AppDataContextProvider>
     </ActionSheet>

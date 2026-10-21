@@ -1,6 +1,7 @@
 /**
  * CLI argument parsing utilities
  */
+import { da, valid } from '@urbit/aura';
 
 /**
  * Get an option value from command line args
@@ -110,6 +111,28 @@ export function channelCreateUsage(command: string): string {
   ${command} <group-id> "Channel Name" --kind ${undescribed}`;
 }
 
+// The bot's normal reply turns a bare reference path into a card; `tlon posts
+// send` does not, so the hint names a chat message as the place to put it.
+export function refShareHint(card: 'group' | 'note'): string {
+  return `Share: include the Ref path in a chat message to post a tappable ${card} card.`;
+}
+
+// The app has no channel reference card yet, so a new channel is shared by
+// name and nest alongside its group's card.
+export function channelCreatedLines(
+  nest: string,
+  title: string,
+  groupId: string
+): string[] {
+  return [
+    `   Nest: ${nest}`,
+    `   Title: ${title}`,
+    `   Group: ${groupId}`,
+    `   Ref: /1/group/${groupId}`,
+    `   Share: channels have no card yet; name the channel and its Nest, and include the group Ref path in a chat message to post a tappable group card.`,
+  ];
+}
+
 // Channel kinds the skill used to support but no longer does. The %diary backend
 // is being removed, so diary/notebook channels are refused everywhere with an
 // explanatory message pointing at %notes.
@@ -133,6 +156,15 @@ export function parseNest(nest: string): {
     host: parts[1].startsWith('~') ? parts[1] : `~${parts[1]}`,
     name: parts[2],
   };
+}
+
+// Mirrors @tloncorp/api's whomIsFlag (value imports from @tloncorp/api are
+// forbidden in migrated command modules): ~ship/term with a valid patp ship.
+export function isGroupFlag(value: string): boolean {
+  return (
+    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(value) &&
+    valid('p', value.split('/')[0])
+  );
 }
 
 export function canonicalizeNest(nest: string): string {
@@ -417,4 +449,20 @@ function formatUd(id: string): string {
 // both agree on the wire format they send.
 export function formatPostId(postId: string): string {
   return formatUd(extractNumericId(postId));
+}
+
+// The undotted @ud the app writes into a cite's `where` path. Throws on
+// anything that is not a post id, so a bad id can't become a dangling cite.
+export function undottedPostId(postId: string): string {
+  const id = extractNumericId(postId).replace(/\./g, '');
+  if (!/^\d+$/.test(id)) {
+    throw new Error(`Invalid post id: ${postId}`);
+  }
+  return id;
+}
+
+// The time half of a DM post's id (`~author/<time>`), derived from its sent
+// time the way @tloncorp/api's sendPost derives the id it pokes with.
+export function dmWritTime(sentAt: number): string {
+  return formatUd(da.fromUnix(sentAt).toString());
 }

@@ -11,6 +11,7 @@ import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import * as store from '@tloncorp/shared/store';
 
+import { useWarmBotSettingsCard } from '../features/settings/bot/useWarmBotSettingsCard';
 import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
@@ -68,6 +69,7 @@ export function TopLevelTabNavigator() {
   // living in the Workspaces screen would never run on a fresh account; it
   // sits here, above every tab, and can reset the root stack from here.
   useAgentOnboardingLandingConsumer();
+  useWarmBotSettingsCard();
   // Read through a ref: `screenListeners` closes over render-time values, and
   // the lock can lift without this navigator rendering again.
   const onboardingLock = useAnyAgentGroupOnboardingLock();

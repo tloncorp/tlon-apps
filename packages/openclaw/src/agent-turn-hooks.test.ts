@@ -5,27 +5,32 @@ import { formatOwnerOnlyToolBlockReason } from './owner-only-tools.js';
 import { setSessionRole } from './session-roles.js';
 
 /**
- * OpenClaw 2026.9.x dispatches hooks inside an agent turn from a per-turn
- * plugin registry loaded in "discovery" registration mode, where the bundled
- * channel entry helper calls registerCapabilities but never registerFull. A
- * hook registered only from registerFull is therefore invisible to every
- * turn. These tests pin the agent-turn hooks to registerCapabilities so a
- * refactor cannot quietly move them back (which silently disabled the
- * owner-only tool gate on 2026.9.4).
+ * An agent turn that loads this plugin in "discovery" registration mode (on
+ * 2026.9.4 every turn; on 2026.9.33 turns that cannot borrow the gateway's
+ * instance) gets registerCapabilities but never registerFull, so a hook
+ * registered only from registerFull is invisible to it. These tests pin the
+ * agent-turn hooks to registerCapabilities so a refactor cannot quietly move
+ * them back (which silently disabled the owner-only tool gate on 2026.9.4).
  */
 
-const AGENT_TURN_HOOKS = [
-  'before_tool_call',
-  'after_tool_call',
-  'agent_turn_prepare',
-  'model_call_started',
-  'agent_end',
-  'session_start',
-  'session_end',
-  'reply_payload_sending',
-  'message_sending',
-  'message_sent',
-] as const;
+// Hook name -> handlers registered under it. reply_payload_sending carries
+// two: the fallback-notice and the onboarding-surface suppressors.
+// before_prompt_build carries two: workspace instructions and the model
+// privacy note.
+const AGENT_TURN_HOOK_COUNTS: Record<string, number> = {
+  before_tool_call: 1,
+  after_tool_call: 1,
+  agent_turn_prepare: 1,
+  model_call_started: 1,
+  agent_end: 1,
+  before_prompt_build: 2,
+  session_start: 1,
+  session_end: 1,
+  reply_payload_sending: 2,
+  message_sending: 1,
+  message_sent: 1,
+};
+const AGENT_TURN_HOOKS = Object.keys(AGENT_TURN_HOOK_COUNTS);
 
 type Registered = { name: string; handler: (...args: unknown[]) => unknown };
 
@@ -44,7 +49,8 @@ function makeApi(registrationMode?: string) {
       debug: vi.fn(),
     },
     config: {},
-    runtime: {},
+    // The live config the owner-default checks read on every call.
+    runtime: { config: { current: () => ({}) } },
   };
   return { api, registered };
 }
@@ -58,13 +64,13 @@ function countByName(registered: Registered[]): Record<string, number> {
 }
 
 describe('registerAgentTurnHooks', () => {
-  it('registers every agent-turn hook exactly once', () => {
+  it('registers every agent-turn hook the expected number of times', () => {
     const { api, registered } = makeApi();
     registerAgentTurnHooks(api as never);
     const counts = countByName(registered);
     expect(Object.keys(counts).sort()).toEqual([...AGENT_TURN_HOOKS].sort());
     for (const name of AGENT_TURN_HOOKS) {
-      expect(counts[name], name).toBe(1);
+      expect(counts[name], name).toBe(AGENT_TURN_HOOK_COUNTS[name]);
     }
   });
 
@@ -103,7 +109,7 @@ describe('plugin entry registration modes', () => {
     entry.register(api as never);
     const counts = countByName(registered);
     for (const name of AGENT_TURN_HOOKS) {
-      expect(counts[name], name).toBe(1);
+      expect(counts[name], name).toBe(AGENT_TURN_HOOK_COUNTS[name]);
     }
 
     // The handler the discovery-mode registry holds is the one a 2026.9.x

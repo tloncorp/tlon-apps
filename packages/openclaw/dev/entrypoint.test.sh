@@ -16,7 +16,7 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
-requested_core_version="${OPENCLAW_CORE_VERSION:-2026.9.4}"
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.9.33}"
 installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
 if [ "$installed_core_version" != "$requested_core_version" ]; then
   echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"
@@ -25,9 +25,10 @@ fi
 echo "[tlon-e2e] openclaw-core-version=$installed_core_version requested=$requested_core_version"
 
 # The mounted package declares workspace:^ deps that only resolve inside the
-# tlon-apps pnpm workspace. Copy it to a container-local dir (also the
-# id-shaped path OpenClaw's path hint expects) and rewrite those deps to
-# registry versions there, leaving the host checkout untouched. node_modules
+# tlon-apps pnpm workspace. Copy it to a container-local build dir and
+# rewrite those deps to registry versions there, leaving the host checkout
+# untouched. The built plugin is installed from here into OpenClaw's bundled
+# plugins dir further down. node_modules
 # is a named volume mounted at /workspace/tlon/node_modules. Copying also
 # avoids installing into the host-owned bind mount (no chown needed).
 echo "==> Copying plugin to /workspace/tlon..."
@@ -110,13 +111,6 @@ if [ "${OPENCLAW_WORKSPACE_SKILL_BIN:-0}" = "1" ]; then
 fi
 pnpm build
 
-# Expose tlon CLI to PATH
-TLON_BIN_DIR="/workspace/tlon/node_modules/.bin"
-if [ -f "$TLON_BIN_DIR/tlon" ]; then
-  export PATH="$PATH:$TLON_BIN_DIR"
-  echo "==> tlon CLI available at $TLON_BIN_DIR/tlon"
-fi
-
 # When the shared harness stages a workspace-built tlon binary (see
 # tlon-bot-e2e openclaw driver beforeComposeBuild), lay it over the
 # registry-installed CLI so e2e exercises in-branch CLI code: the loader
@@ -142,9 +136,31 @@ fi
 echo "==> Checking tlon-skill from plugin dependencies..."
 ls -la /workspace/tlon/node_modules/@tloncorp/tlon-skill/ 2>/dev/null || echo "  (in container node_modules volume)"
 
-# Remove bundled tlon plugin to avoid duplicate ID conflict
-rm -rf "$(npm root -g)/openclaw/extensions/tlon"
-rm -rf "$(npm root -g)/openclaw/dist/extensions/tlon"
+# Install the built plugin the way the Pioneer image does: as a bundled
+# extension inside the OpenClaw package, with its runtime dependencies beside
+# it. OpenClaw 2026.9.33 copies every non-bundled plugin's whole dependency
+# tree into a capture dir on each load (minutes on the CI runner) and refuses
+# durable plugin stores to it as untrusted; bundled plugins skip both. This
+# must be a real copy: discovery blocks a bundled entry whose realpath leaves
+# the bundled root, so a symlink to /workspace/tlon is rejected. The copied
+# entries are the published package's files plus node_modules, minus the
+# openclaw devDependency: Pioneer installs with --omit=dev, so the plugin
+# resolves the host core, and that copy is ~40% of node_modules.
+TLON_PLUGIN_DIR="$(npm root -g)/openclaw/dist/extensions/tlon"
+rm -rf "$(npm root -g)/openclaw/extensions/tlon" "$TLON_PLUGIN_DIR"
+mkdir -p "$TLON_PLUGIN_DIR"
+echo "==> Installing plugin as a bundled extension at $TLON_PLUGIN_DIR..."
+(cd /workspace/tlon && tar cf - --exclude=node_modules/openclaw \
+  package.json openclaw.plugin.json README.md dist skills node_modules) \
+  | (cd "$TLON_PLUGIN_DIR" && tar xf - --no-same-owner)
+export TLON_PLUGIN_DIR
+
+# Expose the tlon CLI the installed plugin ships to PATH
+TLON_BIN_DIR="$TLON_PLUGIN_DIR/node_modules/.bin"
+if [ -f "$TLON_BIN_DIR/tlon" ]; then
+  export PATH="$PATH:$TLON_BIN_DIR"
+  echo "==> tlon CLI available at $TLON_BIN_DIR/tlon"
+fi
 
 # Create minimal config for CI
 CONFIG_DIR=/root/.openclaw
@@ -155,6 +171,29 @@ TLON_CONFIG_SHIP="${TLON_SHIP:-~zod}"
 TLON_CONFIG_CODE="${TLON_CODE:-lidlut-tabwed-pillex-ridrup}"
 TLON_CONFIG_OWNER="${TLON_OWNER_SHIP:-~ten}"
 TLON_CONFIG_DM_ALLOWLIST="${TLON_DM_ALLOWLIST:-~ten}"
+TLON_CONFIG_OWNER_DEFAULT="${TLON_OWNER_DEFAULT:-false}"
+if [ "$TLON_CONFIG_OWNER_DEFAULT" != "true" ] && [ "$TLON_CONFIG_OWNER_DEFAULT" != "false" ]; then
+  echo "FATAL: TLON_OWNER_DEFAULT must be true or false"
+  exit 1
+fi
+
+# tlon commands act as the owner by default, through the owner's credential
+# file at $TLON_SKILL_DIR/ships/<owner>.json (hosted deployments provision the
+# same file). The gateway is exec'd from this shell, so the plugin and its CLI
+# children inherit TLON_SKILL_DIR.
+if [ -n "${TLON_OWNER_URL:-}" ] && [ -n "${TLON_OWNER_CODE:-}" ]; then
+  export TLON_SKILL_DIR="${TLON_SKILL_DIR:-/root/.tlon-skill}"
+  owner_name="${TLON_CONFIG_OWNER#\~}"
+  mkdir -p "$TLON_SKILL_DIR/ships"
+  jq -n \
+    --arg url "$TLON_OWNER_URL" \
+    --arg ship "~$owner_name" \
+    --arg code "$TLON_OWNER_CODE" \
+    '{url: $url, ship: $ship, code: $code}' \
+    > "$TLON_SKILL_DIR/ships/$owner_name.json"
+  chmod 600 "$TLON_SKILL_DIR/ships/$owner_name.json"
+  echo "==> Owner credentials provisioned for ~$owner_name"
+fi
 TLON_CONFIG_DM_ALLOWLIST_JSON="$(printf '%s' "$TLON_CONFIG_DM_ALLOWLIST" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
 DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON='["web_fetch","web_search","image_search","read","automations","tlon","message"]'
 OPENCLAW_CONFIG_TOOLS_ALLOW_JSON="${OPENCLAW_TEST_TOOLS_ALLOW_JSON:-$DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON}"
@@ -169,6 +208,13 @@ if ! printf '%s' "$TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES" | jq -e 'tonumber 
   exit 1
 fi
 
+# OpenClaw 2026.9.6+ disallows silent replies in groups by default, and this
+# plugin marks group messages as unmentioned. agents.defaults.silentReply
+# restores the earlier allow behaviour, mirroring the hosted config tlawn
+# writes.
+# OpenClaw 2026.9.33 also enables Tool Search when tools.toolSearch is unset,
+# advertising only tool_search/tool_describe/tool_call; the scripted fake
+# model calls tools by name, so tools.toolSearch is false.
 cat > "$CONFIG_DIR/openclaw.json" << EOF
 {
   "models": {
@@ -198,7 +244,8 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "model": {
         "primary": "${MODEL:-custom-proxy/tlon-test-scripted}"
       },
-      "heartbeat": { "every": "0m" }
+      "heartbeat": { "every": "0m" },
+      "silentReply": { "group": "allow" }
     },
     "list": [
       {
@@ -228,9 +275,6 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
   },
   "plugins": {
     "allow": ["tlon"],
-    "load": {
-      "paths": ["/workspace/tlon"]
-    },
     "entries": {
       "tlon": {
         "enabled": true,
@@ -240,6 +284,7 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
   },
   "tools": {
     "allow": $OPENCLAW_CONFIG_TOOLS_ALLOW_JSON,
+    "toolSearch": false,
     "deny": [
       "apply_patch",
       "bash",
@@ -271,6 +316,7 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "ship": "$TLON_CONFIG_SHIP",
       "code": "$TLON_CONFIG_CODE",
       "ownerShip": "$TLON_CONFIG_OWNER",
+      "ownerDefault": $TLON_CONFIG_OWNER_DEFAULT,
       "dmAllowlist": $TLON_CONFIG_DM_ALLOWLIST_JSON,
       "allowPrivateNetwork": true,
       "maxConsecutiveBotResponses": $TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES,
@@ -478,8 +524,8 @@ if [ "${VERBOSE:-0}" = "1" ]; then
   ls -la /root/.openclaw/agents/test/ 2>/dev/null || true
 fi
 
-# Finish any offline state migrations before the gateway starts, as the
-# hosting entrypoint does; the gateway refuses to boot over unmigrated state.
+# Finish any offline state migrations before the gateway starts. This mirrors
+# the hosting entrypoint, which runs doctor before every start.
 echo "==> Running openclaw doctor --fix..."
 openclaw doctor --fix --non-interactive || echo "==> WARN: openclaw doctor --fix exited $?"
 
@@ -496,7 +542,7 @@ const matches = report.skills.filter((skill) => skill.name === 'tlon');
 if (matches.length !== 1 || !matches[0].eligible) {
   throw new Error('Workspace tlon skill must be discovered exactly once and eligible');
 }
-const root = '/workspace/tlon/node_modules/@tloncorp/tlon-skill';
+const root = `${process.env.TLON_PLUGIN_DIR}/node_modules/@tloncorp/tlon-skill`;
 const catalog = JSON.parse(fs.readFileSync(`${root}/scripts/command-catalog.json`, 'utf8'));
 for (const { reference } of Object.values(catalog)) {
   if (!fs.existsSync(`${root}/${reference}`)) throw new Error(`Missing installed skill reference: ${reference}`);

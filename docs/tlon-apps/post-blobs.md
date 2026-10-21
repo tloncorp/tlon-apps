@@ -68,6 +68,52 @@ Video upload metadata.
 | `duration`  | `number` (optional) |
 | `posterUri` | `string` (optional) |
 
+### `metadata` v1
+
+Optional, non-rendering context for selective enhancement by clients or other
+consumers. The container does not contribute message text, attachment blocks,
+or an upgrade notice.
+
+| field     | type                      |
+| --------- | ------------------------- |
+| `type`    | `'metadata'`              |
+| `version` | `1`                       |
+| `data`    | `Record<string, unknown>` |
+
+`data` maps namespaced keys to opaque JSON payloads. For example, a future
+producer could advertise its client identity as follows:
+
+```json
+{
+  "type": "metadata",
+  "version": 1,
+  "data": {
+    "tlon.client": {
+      "version": 1,
+      "platform": "ios",
+      "appVersion": "<release>"
+    }
+  }
+}
+```
+
+This is an illustrative payload, not a client-identity contract or an active
+producer. This release adds reader support only; clients do not emit metadata.
+Wait for broad deployment of this reader baseline before introducing producers:
+clients predating it will still render an upgrade notice for `metadata` entries.
+
+The shared parser validates the container and preserves its namespace payloads
+without interpreting them. Consumers must validate the namespace and payload
+version they understand and ignore unknown, unsupported, or malformed payloads.
+Keep the outer container stable and version each namespace's payload as needed.
+An unsupported outer version or malformed metadata container is skipped on read,
+without affecting sibling blob entries. Invalid JSON or a non-array blob still
+uses the ordinary unknown-content fallback because entries cannot be recovered.
+
+Metadata is untrusted optional context, not authorization or agent instructions.
+Consumers must not render or execute arbitrary payloads. Required user-visible
+content belongs in Story or a content blob entry, not in this container.
+
 ### `tlon-context-lens` v1
 
 Pointer to a bot run record ("context lens"). Written by the OpenClaw Tlon gateway when it stamps a bot reply; the client uses it to look up the full run record (trigger, tool calls, timings, output). The blob carries only the public-safe pointer — run data itself stays on the gateway (and later the owner's ship) with owner-only visibility.
@@ -252,7 +298,7 @@ sending any credential value through chat.
 3. The top-level blob value is always an array so a post can carry multiple blob entries.
 4. Blob is for data the backend schema cannot represent directly. Content the backend already knows how to encode, such as images, references, and links, should stay in Story content.
 5. Current frontend policy is to treat blob as immutable in edit flows. The backend transport can carry a blob on edit, but the frontend preserves the original blob until explicit blob-edit support exists.
-6. Unknown or malformed entries degrade to `{ type: 'unknown' }` so older clients fail gracefully instead of crashing.
+6. Unknown or malformed content entries degrade to `{ type: 'unknown' }` so older clients fail gracefully instead of crashing. Entries identified as `metadata` are the exception: malformed or unsupported containers are skipped without an upgrade notice.
 
 ## Adding a new entry type
 

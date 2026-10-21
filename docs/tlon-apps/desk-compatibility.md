@@ -25,7 +25,10 @@ The E2E job that runs the candidate client against a pinned N-1 pier proves the
 result.
 
 **Guarded requests.** `guardedBy` names a capability (today
-`deskSupportsBuckets`, read by `getDeskSupportsBuckets`). The request helpers
+`deskSupportsBuckets`, read by `getDeskSupportsBuckets`,
+`deskSupportsAutomations`, read by `getDeskSupportsAutomationsState`, and
+`deskSupportsStewardPrompts`, read by `getDeskSupportsStewardPromptsState`).
+Each is set from the desk version at sync start. The request helpers
 assert it at call time and throw `DeskUnsupportedError` before any network
 call once the desk is known not to serve it; until the sync-start probe (or
 persisted app info) has resolved the capability, the request goes out as an

@@ -1030,6 +1030,41 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     );
   });
 
+  // A dot-grouped id ("1.165") in the last path segment would be split off
+  // by the agent's URL parser as a file extension and address note 1, so
+  // path ids stay plain decimal at every size.
+  test('note and folder ids >= 1000 go into the path as plain decimal', async () => {
+    const flag = 'notes/~zod/blog';
+    await notesV1.renameNote({ flag, noteId: 1165, title: 'T' });
+    await notesV1.moveNote({ flag, noteId: 1165, folder: 1164 });
+    await notesV1.updateNoteBody({ flag, noteId: 1165, body: 'b' });
+    await notesV1.deleteNote({ flag, noteId: 1165 });
+    await notesV1.renameFolder({ flag, folderId: 1165, name: 'A' });
+    await notesV1.moveFolder({ flag, folderId: 1165, parent: 2 });
+    await notesV1.deleteFolder({ flag, folderId: 1165, recursive: true });
+    await notesV1.deleteNote({ flag, noteId: 20 });
+    // reads: only the outgoing path matters here, not response parsing
+    await notesV1.getFolder({ flag, folderId: 1165 }).catch(() => undefined);
+    await notesV1.getNote({ flag, noteId: 1165 }).catch(() => undefined);
+    requestJsonMock.mockResolvedValue([]);
+    await notesV1.listNoteHistory({ flag, noteId: 1165 });
+
+    const base = '/notes/~/v1/notebooks/~zod/blog';
+    expect(requestJsonMock.mock.calls.map((c) => c[0])).toEqual([
+      `${base}/notes/1165`,
+      `${base}/notes/1165`,
+      `${base}/notes/1165`,
+      `${base}/notes/1165`,
+      `${base}/folders/1165`,
+      `${base}/folders/1165`,
+      `${base}/folders/1165?recursive=true`,
+      `${base}/notes/20`,
+      `${base}/folders/1165`,
+      `${base}/notes/1165`,
+      `${base}/notes/1165/history`,
+    ]);
+  });
+
   test('void writes require an envelope body and reject error/pending/unexpected', async () => {
     const renameNote = () =>
       notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' });
