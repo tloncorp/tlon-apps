@@ -4,8 +4,11 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  LEGACY_PROMPT_FILE_NAMES,
   MAX_PROMPT_BYTES,
+  PROMPT_FILE_NAMES,
   PROMPT_WATCH_DEBOUNCE_MS,
+  STEWARD_PROMPTS_NAMES_SCRY_PATH,
   STEWARD_PROMPTS_PROJECT_PATH,
   createPromptSync,
   isAllowedPromptName,
@@ -56,6 +59,8 @@ function makeSync(
     /** What a failing ship call throws; defaults to a plain Error. */
     callError?: Error;
     reauthenticate?: () => Promise<void>;
+    /** What the names scry answers; defaults to every name this harness knows. */
+    scry?: (path: string) => Promise<unknown>;
   } = {}
 ) {
   const pokes: Array<{ app: string; mark: string; json: unknown }> = [];
@@ -106,6 +111,12 @@ function makeSync(
       }
       requests.push({ path, method, body });
     },
+    scry:
+      opts.scry ??
+      (async (path) => {
+        expect(path).toBe(STEWARD_PROMPTS_NAMES_SCRY_PATH);
+        return [...PROMPT_FILE_NAMES];
+      }),
     logger,
     watchWorkspace: (_directory, listener) => {
       if (opts.watchThrows) {
@@ -128,12 +139,20 @@ function makeSync(
 }
 
 describe('prompt workspace projection', () => {
-  it('only exposes the allowlisted regular workspace files', async () => {
+  it('reads the allowlisted regular files, and only the names it is given', async () => {
     fs.writeFileSync(path.join(workspaceDir, 'AGENTS.md'), 'follow the map');
-    fs.writeFileSync(path.join(workspaceDir, 'MEMORY.md'), 'private memory');
+    fs.writeFileSync(path.join(workspaceDir, 'MEMORY.md'), 'learned');
+    fs.writeFileSync(path.join(workspaceDir, 'HEARTBEAT.md'), 'not mirrored');
 
     await expect(readWorkspacePrompts(workspaceDir)).resolves.toEqual({
-      'AGENTS.md': 'follow the map',
+      prompts: { 'AGENTS.md': 'follow the map', 'MEMORY.md': 'learned' },
+      omitted: [],
+    });
+    await expect(
+      readWorkspacePrompts(workspaceDir, LEGACY_PROMPT_FILE_NAMES)
+    ).resolves.toEqual({
+      prompts: { 'AGENTS.md': 'follow the map' },
+      omitted: [],
     });
   });
 
@@ -149,6 +168,150 @@ describe('prompt workspace projection', () => {
       'x'.repeat(MAX_PROMPT_BYTES + 1)
     );
     await expect(readWorkspacePrompts(workspaceDir)).rejects.toThrow('exceeds');
+
+    // Memory is the bot's to write, but never a link out of the workspace.
+    fs.unlinkSync(path.join(workspaceDir, 'SOUL.md'));
+    fs.symlinkSync('/etc/hosts', path.join(workspaceDir, 'MEMORY.md'));
+    await expect(readWorkspacePrompts(workspaceDir)).rejects.toThrow(
+      'cannot read MEMORY.md'
+    );
+  });
+
+  it('leaves an oversized MEMORY.md out of the projection and says so', async () => {
+    fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'be concise');
+    fs.writeFileSync(
+      path.join(workspaceDir, 'MEMORY.md'),
+      'x'.repeat(MAX_PROMPT_BYTES + 1)
+    );
+
+    await expect(readWorkspacePrompts(workspaceDir)).resolves.toEqual({
+      prompts: { 'SOUL.md': 'be concise' },
+      omitted: [
+        { name: 'MEMORY.md', reason: `exceeds ${MAX_PROMPT_BYTES} byte limit` },
+      ],
+    });
+
+    const { sync, log, logger } = makeSync();
+    await sync.start();
+
+    expect(log).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'be concise' } },
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Left MEMORY.md out of the projection')
+    );
+  });
+
+  it('projects only the legacy six when the ship has no names scry', async () => {
+    fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'be concise');
+    fs.writeFileSync(path.join(workspaceDir, 'MEMORY.md'), 'learned');
+    const { sync, log, logger } = makeSync({
+      scry: async () => {
+        throw new UrbitHttpError({ operation: 'scry', status: 404 });
+      },
+    });
+
+    await sync.start();
+
+    expect(log).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'be concise' } },
+    ]);
+    expect(logger.log).toHaveBeenCalledWith(
+      expect.stringContaining('predates the prompt names scry')
+    );
+  });
+
+  it('projects only the names the ship lists', async () => {
+    fs.writeFileSync(path.join(workspaceDir, 'AGENTS.md'), 'follow the map');
+    fs.writeFileSync(path.join(workspaceDir, 'MEMORY.md'), 'learned');
+    const { sync, log } = makeSync({
+      scry: async () => ['MEMORY.md', 'NOTES.md'],
+    });
+
+    await sync.start();
+
+    expect(log).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'MEMORY.md': 'learned' } },
+    ]);
+  });
+
+  it('falls back to the legacy six, without retrying, on a names answer it cannot read', async () => {
+    fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'be concise');
+    fs.writeFileSync(path.join(workspaceDir, 'MEMORY.md'), 'learned');
+    let calls = 0;
+    const { sync, log, logger } = makeSync({
+      scry: async () => {
+        calls += 1;
+        return { names: ['MEMORY.md'] };
+      },
+    });
+
+    await sync.start();
+
+    expect(calls).toBe(1);
+    expect(log).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'be concise' } },
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('did not return an array')
+    );
+  });
+
+  it('asks the ship again on every projection, so a desk upgrade is picked up', async () => {
+    fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'be concise');
+    fs.writeFileSync(path.join(workspaceDir, 'MEMORY.md'), 'learned');
+    let upgraded = false;
+    const { sync, log } = makeSync({
+      scry: async () => {
+        if (!upgraded) {
+          throw new UrbitHttpError({ operation: 'scry', status: 404 });
+        }
+        return [...PROMPT_FILE_NAMES];
+      },
+    });
+
+    await sync.start();
+    upgraded = true;
+    await sync.project('harness live');
+
+    expect(log).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'be concise' } },
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'be concise', 'MEMORY.md': 'learned' } },
+    ]);
+  });
+
+  it('retries a names read that fails for any reason but a missing scry', async () => {
+    fs.writeFileSync(path.join(workspaceDir, 'MEMORY.md'), 'learned');
+    let calls = 0;
+    const { sync, log, logger } = makeSync({
+      scry: async () => {
+        calls += 1;
+        if (calls === 1) {
+          throw new UrbitHttpError({ operation: 'scry', status: 503 });
+        }
+        if (calls === 2) {
+          throw new Error('socket hang up');
+        }
+        return [...PROMPT_FILE_NAMES];
+      },
+    });
+
+    await sync.start();
+
+    expect(calls).toBe(3);
+    expect(log).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'MEMORY.md': 'learned' } },
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Prompt names read (startup) failed (attempt 1)')
+    );
   });
 
   it('reads no more than the cap from a file that grows after its stat', async () => {
@@ -238,11 +401,32 @@ describe('prompt workspace projection', () => {
       const { sync, pokes, log, watchListeners } = makeSync();
       await sync.start();
 
-      watchListeners[0]('change', 'MEMORY.md');
+      watchListeners[0]('change', 'HEARTBEAT.md');
       await vi.advanceTimersByTimeAsync(PROMPT_WATCH_DEBOUNCE_MS);
       await sync.flush();
 
       expect(log).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("projects the bot's own write to MEMORY.md", async () => {
+    vi.useFakeTimers();
+    try {
+      const { sync, log, watchListeners } = makeSync();
+      await sync.start();
+
+      fs.writeFileSync(path.join(workspaceDir, 'MEMORY.md'), 'learned');
+      watchListeners[0]('change', 'MEMORY.md');
+      await vi.advanceTimersByTimeAsync(PROMPT_WATCH_DEBOUNCE_MS);
+      await sync.flush();
+
+      expect(log).toEqual([
+        { configure: { owner: '~zod' } },
+        { project: {} },
+        { project: { 'MEMORY.md': 'learned' } },
+      ]);
     } finally {
       vi.useRealTimers();
     }
@@ -712,8 +896,9 @@ describe('prompt workspace projection', () => {
 describe('prompt sync selection', () => {
   it('accepts only the workspace allowlist', () => {
     expect(isAllowedPromptName('AGENTS.md')).toBe(true);
+    expect(isAllowedPromptName('MEMORY.md')).toBe(true);
     expect(isAllowedPromptName('../SOUL.md')).toBe(false);
-    expect(isAllowedPromptName('MEMORY.md')).toBe(false);
+    expect(isAllowedPromptName('HEARTBEAT.md')).toBe(false);
   });
 
   it('selects a single runnable account for the shared workspace', () => {

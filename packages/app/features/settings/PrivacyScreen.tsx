@@ -2,21 +2,15 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Text, useIsWindowNarrow } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
-import { Switch } from 'react-native';
-import { YStack } from 'tamagui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useTelemetry } from '../../hooks/useTelemetry';
 import { RootStackParamList } from '../../navigation/types';
+import { triggerHaptic } from '../../ui';
 import {
-  ScreenHeader,
-  SettingsContentScrollView,
-  SizableText,
-  View,
-  XStack,
-  triggerHaptic,
-} from '../../ui';
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PrivacySettings'>;
 
@@ -175,94 +169,78 @@ export function PrivacySettingsScreen(props: Props) {
     }
   }, [state.disableTlonInfraEnhancement]);
 
-  const isWindowNarrow = useIsWindowNarrow();
+  // Each setting is its own group, its explanation beneath it, the way
+  // platform settings present standalone switches.
+  const sections = useMemo<SettingsSectionModel[]>(() => {
+    const toggleSection = (
+      key: string,
+      title: string,
+      value: boolean,
+      onValueChange: () => void,
+      footer: string
+    ): SettingsSectionModel => ({
+      key,
+      footer,
+      rows: [{ key, title, toggle: { value, onValueChange } }],
+    });
+
+    return [
+      toggleSection(
+        'telemetry',
+        'Share Usage Statistics',
+        !state.telemetryDisabled,
+        toggleSetTelemetry,
+        'By sharing, you help us improve the app for everyone.'
+      ),
+      ...(phoneAttest
+        ? [
+            toggleSection(
+              'phone-discovery',
+              'Phone number discovery',
+              state.phoneDiscoverable,
+              togglePhoneDiscoverable,
+              'If enabled, friends who already have your phone number will be able to find you on Tlon.'
+            ),
+          ]
+        : []),
+      toggleSection(
+        'tlon-helpers',
+        'Disable Tlon helpers',
+        state.disableTlonInfraEnhancement,
+        toggleDisableTlonInfraEnhancement,
+        "Your ship will always attempt to generate rich link previews locally. If disabled, the app will avoid making backup requests to Tlon's service if local generation fails."
+      ),
+      toggleSection(
+        'nicknames',
+        'Hide Nicknames',
+        state.disableNicknames,
+        toggleDisableNicknames,
+        'If enabled, real ship names will be displayed instead of nicknames.'
+      ),
+      toggleSection(
+        'avatars',
+        'Hide Avatars',
+        state.disableAvatars,
+        toggleDisableAvatars,
+        'If enabled, avatar images will be hidden throughout the app.'
+      ),
+    ];
+  }, [
+    phoneAttest,
+    state,
+    toggleDisableAvatars,
+    toggleDisableNicknames,
+    toggleDisableTlonInfraEnhancement,
+    togglePhoneDiscoverable,
+    toggleSetTelemetry,
+  ]);
 
   return (
-    <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        borderBottom
-        backAction={
-          isWindowNarrow ? () => props.navigation.goBack() : undefined
-        }
-        title="Privacy Settings"
-        placement="navigation"
-      />
-      <SettingsContentScrollView paddingHorizontal="$xl">
-        <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
-          <XStack justifyContent="space-between" alignItems="center">
-            <SizableText flexShrink={1}>Share Usage Statistics</SizableText>
-            <Switch
-              style={{ flexShrink: 0 }}
-              value={!state.telemetryDisabled}
-              onValueChange={toggleSetTelemetry}
-            ></Switch>
-          </XStack>
-          <Text size="$label/s" color="$secondaryText">
-            By sharing, you help us improve the app for everyone.
-          </Text>
-        </YStack>
-        {phoneAttest && (
-          <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
-            <XStack justifyContent="space-between" alignItems="center">
-              <SizableText flexShrink={1}>Phone number discovery</SizableText>
-              <Switch
-                style={{ flexShrink: 0 }}
-                value={state.phoneDiscoverable}
-                onValueChange={togglePhoneDiscoverable}
-              ></Switch>
-            </XStack>
-            <Text size="$label/s" color="$secondaryText">
-              If enabled, friends who already have your phone number will be
-              able to find you on Tlon.
-            </Text>
-          </YStack>
-        )}
-
-        <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
-          <XStack justifyContent="space-between" alignItems="center">
-            <SizableText flexShrink={1}>Disable Tlon helpers</SizableText>
-            <Switch
-              style={{ flexShrink: 0 }}
-              value={state.disableTlonInfraEnhancement}
-              onValueChange={toggleDisableTlonInfraEnhancement}
-            ></Switch>
-          </XStack>
-          <Text size="$label/s" color="$secondaryText">
-            Your ship will always attempt to generate rich link previews
-            locally. If disabled, the app will avoid making backup requests to
-            Tlon's service if local generation fails.
-          </Text>
-        </YStack>
-
-        <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
-          <XStack justifyContent="space-between" alignItems="center">
-            <SizableText flexShrink={1}>Hide Nicknames</SizableText>
-            <Switch
-              style={{ flexShrink: 0 }}
-              value={state.disableNicknames}
-              onValueChange={toggleDisableNicknames}
-            ></Switch>
-          </XStack>
-          <Text size="$label/s" color="$secondaryText">
-            If enabled, real ship names will be displayed instead of nicknames.
-          </Text>
-        </YStack>
-
-        <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
-          <XStack justifyContent="space-between" alignItems="center">
-            <SizableText flexShrink={1}>Hide Avatars</SizableText>
-            <Switch
-              style={{ flexShrink: 0 }}
-              value={state.disableAvatars}
-              onValueChange={toggleDisableAvatars}
-            ></Switch>
-          </XStack>
-          <Text size="$label/s" color="$secondaryText">
-            If enabled, avatar images will be hidden throughout the app.
-          </Text>
-        </YStack>
-      </SettingsContentScrollView>
-    </View>
+    <SettingsListScreenView
+      title="Privacy Settings"
+      sections={sections}
+      onBackPressed={() => props.navigation.goBack()}
+    />
   );
 }
 

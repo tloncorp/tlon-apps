@@ -13,8 +13,8 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   // Create a new group
   await helpers.createGroup(zodPage);
   // Note: Group name will update to '~ten, ~zod' after ~ten accepts the invitation (line 144)
-  // For now, it remains 'Untitled group'
-  let groupName = 'Untitled group';
+  // For now, it remains 'Untitled workspace'
+  let groupName = 'Untitled workspace';
 
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);

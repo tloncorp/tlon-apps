@@ -294,12 +294,13 @@ describe('messages', () => {
     // owner-listen state. Lives in 02-owner-listen.test.ts where we can
     // toggle the setting first.
 
-    test("engages on reply to bot's own channel post (thread participation)", async () => {
+    test("engages on owner's unmentioned reply to bot's own channel post (owner-listen)", async () => {
       requireFixtureGroup(fixtures);
 
       // Seed: have the bot post a parent message in the channel directly,
-      // bypassing the agent loop. The test exercises the engagement decision
-      // on the *reply*, not the parent.
+      // bypassing the agent loop. That never adds the parent to the plugin's
+      // participatedThreads, so this is not a thread-participation test; it
+      // exercises the engagement decision on the *reply*, not the parent.
       const parentToken = `it-bot-parent-${Date.now().toString(36)}`;
       await fixtures.botState.sendPost({
         channelId: fixtures.group.chatChannel,
@@ -317,8 +318,8 @@ describe('messages', () => {
         { kind: 'text', content: 'Acked thread reply' },
       ]);
 
-      // Reply to the bot's parent — no mention text, but thread participation
-      // should engage per shouldEngageInGroup.
+      // Reply to the bot's parent — no mention text. Engages via default
+      // owner-listen: the owner posts in the bot-hosted fixture group.
       await fixtures.userState.sendReply({
         channelId: fixtures.group.chatChannel,
         parentId: parent.id,
@@ -376,9 +377,14 @@ describe('messages', () => {
     }
 
     // The owner asks from their DM about a post in a group channel. OpenClaw
-    // core only lets a non-bundled plugin's message-tool react/delete touch
-    // the current conversation, so this cross-conversation request goes
+    // core only lets a plugin's message-tool react/delete touch the exact
+    // current conversation, so this cross-conversation request goes
     // through the tlon CLI (as the plugin's message-tool hints instruct).
+    // This harness runs with TLON_OWNER_DEFAULT=true, so tlon commands act as
+    // the owner by default; the test's intent is the BOT reacting
+    // cross-conversation, so the scripted commands carry `--self` (global-
+    // option position, before the command family) to select the bot — the
+    // actor `waitForBotReaction` checks for below.
     // Only the resulting channel state is asserted.
     test('adds then removes a reaction on a channel post from the owner DM', async () => {
       requireFixtureGroup(fixtures);
@@ -395,7 +401,7 @@ describe('messages', () => {
           kind: 'tool_call',
           name: 'tlon',
           args: {
-            command: `posts react ${target} ${parent.id} "${emoji}"`,
+            command: `--self posts react ${target} ${parent.id} "${emoji}"`,
           },
         },
         { kind: 'text', content: 'Reacted.' },
@@ -414,7 +420,7 @@ describe('messages', () => {
         {
           kind: 'tool_call',
           name: 'tlon',
-          args: { command: `posts unreact ${target} ${parent.id}` },
+          args: { command: `--self posts unreact ${target} ${parent.id}` },
         },
         { kind: 'text', content: 'Reaction removed.' },
         { kind: 'text', content: 'Reaction removed.' },

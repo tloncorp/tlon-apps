@@ -67,6 +67,9 @@ describe('OpenClaw driver runtime spec', () => {
       TLON_SHIP: '~zod',
       TLON_CODE: 'lidlut-tabwed-pillex-ridrup',
       TLON_OWNER_SHIP: '~ten',
+      TLON_OWNER_URL: 'http://ships:8081',
+      TLON_OWNER_CODE: 'lapseg-nolmel-riswen-hopryc',
+      TLON_OWNER_DEFAULT: 'true',
       TLON_DM_ALLOWLIST: '~ten',
       FAKE_MODEL_BASE_URL: 'http://fake-model:4000/v1',
       MODEL: 'custom-proxy/tlon-test-scripted',
@@ -98,7 +101,7 @@ describe('OpenClaw driver runtime spec', () => {
     expect(ctx.composeEnv.OPENCLAW_CORE_VERSION).toBeUndefined();
     expect(ctx.composeEnv.NODE_IMAGE).toBeUndefined();
     expect(ctx.testEnv).toMatchObject({
-      TEST_OPENCLAW_CORE_VERSION: '2026.9.4',
+      TEST_OPENCLAW_CORE_VERSION: '2026.9.33',
       TEST_EXPECT_OPENCLAW_PREWARM: '0',
     });
   });
@@ -132,7 +135,7 @@ describe('OpenClaw driver runtime spec', () => {
 
     expect(ctx.composeEnv.OPENCLAW_CORE_VERSION).toBeUndefined();
     expect(ctx.composeEnv.NODE_IMAGE).toBeUndefined();
-    expect(ctx.testEnv.TEST_OPENCLAW_CORE_VERSION).toBe('2026.9.4');
+    expect(ctx.testEnv.TEST_OPENCLAW_CORE_VERSION).toBe('2026.9.33');
   });
 
   test('honors an explicit prewarm expectation over the derived one', async () => {
@@ -152,6 +155,7 @@ describe('OpenClaw driver runtime spec', () => {
     expect(derivePrewarmExpectation('2026.7.1')).toBe('1');
     // 9.x no longer logs the prewarm marker.
     expect(derivePrewarmExpectation('2026.9.4')).toBe('0');
+    expect(derivePrewarmExpectation('2026.9.33')).toBe('0');
     expect(derivePrewarmExpectation('2026.9.8')).toBe('0');
     expect(derivePrewarmExpectation('2027.1.1')).toBe('0');
     // Unknown to the table: left for test 08 to demand an explicit value.

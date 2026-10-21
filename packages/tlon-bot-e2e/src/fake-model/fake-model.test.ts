@@ -207,6 +207,51 @@ describe('fake model server', () => {
     expect(call.toolChoice).toBeNull();
   });
 
+  test('holds the next scripted response within the same request', async () => {
+    const key = 'hold-step';
+    await fakeModel.script(key, [
+      { kind: 'hold', ms: 150 },
+      { kind: 'tool_call', name: 'tlon', args: { command: 'contacts self' } },
+      { kind: 'text', content: 'done' },
+    ]);
+
+    const started = Date.now();
+    const first = (await (
+      await postChat(server.baseUrl, key)
+    ).json()) as ChatCompletionResponse;
+    expect(Date.now() - started).toBeGreaterThanOrEqual(140);
+    expect(first.choices[0].message.tool_calls?.[0]?.function.name).toBe(
+      'tlon'
+    );
+
+    const second = (await (
+      await postChat(server.baseUrl, key)
+    ).json()) as ChatCompletionResponse;
+    expect(second.choices[0].message.content).toBe('done');
+    expect(await fakeModel.received(key)).toHaveLength(2);
+  });
+
+  test.each([
+    [[{ kind: 'hold', ms: 10 }]],
+    [
+      [
+        { kind: 'hold', ms: -1 },
+        { kind: 'text', content: 'x' },
+      ],
+    ],
+    [
+      [
+        { kind: 'hold', ms: 10 },
+        { kind: 'hold', ms: 10 },
+        { kind: 'text', content: 'x' },
+      ],
+    ],
+  ])('rejects a hold not followed by a response: %j', async (steps) => {
+    await expect(fakeModel.script('bad-hold', steps as never)).rejects.toThrow(
+      /hold step/
+    );
+  });
+
   test('preserves tool_choice on received-call records', async () => {
     const key = 'tool-choice';
     const toolChoice = {

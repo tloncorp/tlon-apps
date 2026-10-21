@@ -1,3 +1,6 @@
+import { createRequire } from 'node:module';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describeAccountSnapshot } from 'openclaw/plugin-sdk/account-helpers';
 import { createHybridChannelConfigAdapter } from 'openclaw/plugin-sdk/channel-config-helpers';
 import { createRuntimeOutboundDelegates } from 'openclaw/plugin-sdk/channel-outbound';
@@ -14,7 +17,49 @@ import {
 } from 'openclaw/plugin-sdk/status-helpers';
 
 import { tlonMessageActions } from './actions.js';
+import {
+  type AgentChoiceToolParams,
+  agentChoiceToolMetadata,
+  agentChoiceToolParameters,
+  createAgentChoiceToolExecutor,
+} from './agent-choice-tool.js';
+import {
+  type AgentServiceSetupToolParams,
+  agentServiceSetupToolMetadata,
+  agentServiceSetupToolParameters,
+  createAgentServiceSetupToolExecutor,
+} from './agent-service-setup-tool.js';
+import {
+  type AgentTaskPlanToolParams,
+  agentTaskPlanToolMetadata,
+  agentTaskPlanToolParameters,
+  createAgentTaskPlanToolExecutor,
+  resolveOnboardingDmGroupId,
+  resolveTaskPlanGroupId,
+} from './agent-task-plan-tool.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
+import {
+  connectableServicesToolMetadata,
+  connectableServicesToolParameters,
+  createConnectableServicesToolExecutor,
+  loadConnectableServices,
+  resolveConnectableServicesUrl,
+} from './connectable-services.js';
+import {
+  assertTlonChoiceCallCurrent,
+  assertTlonServiceSetupCallCurrent,
+  finishTlonChoiceCall,
+  assertTlonTaskPlanCallCurrent,
+  finishTlonTaskPlanCall,
+  getTlonTaskPlanEvidence,
+} from './onboarding-tool-boundary.js';
+import {
+  OWNER_TIMEZONE_FILE_ENV,
+  type OwnerTimezoneToolParams,
+  createOwnerTimezoneToolExecutor,
+  ownerTimezoneToolMetadata,
+  ownerTimezoneToolParameters,
+} from './owner-timezone-tool.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import {
   applyTlonSetupConfig,
@@ -23,9 +68,20 @@ import {
   tlonSetupAdapter,
 } from './setup-core.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
+import { resolveTlonBinary } from './tlon-binary.js';
+import {
+  DEFAULT_TLON_CLI_TIMEOUT_MS,
+  runTlonCommand,
+} from './tlon-command-runner.js';
+import {
+  getActiveTlonTurnAccountId,
+  observeActiveTlonTurnDelivery,
+} from './turn-recorder.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 
 const TLON_CHANNEL_ID = 'tlon' as const;
+const require = createRequire(import.meta.url);
+const packageDir = dirname(dirname(fileURLToPath(import.meta.url)));
 
 const loadTlonChannelRuntime = createLazyRuntimeModule(
   () => import('./channel.runtime.js')
@@ -134,8 +190,10 @@ export const tlonPlugin = createChatChannelPlugin({
       targetResolver: {
         looksLikeId: (target) => Boolean(parseTlonTarget(target)),
         hint: formatTargetHint(),
-        resolveTarget: async ({ input, normalized }) => {
-          const parsed = parseTlonTarget(normalized) ?? parseTlonTarget(input);
+        // The host passes `normalized` from normalizeTarget above, so it is
+        // already the canonical ship or nest whenever the raw input parses.
+        resolveTarget: async ({ normalized }) => {
+          const parsed = parseTlonTarget(normalized);
           if (!parsed) {
             return null;
           }
@@ -144,7 +202,7 @@ export const tlonPlugin = createChatChannelPlugin({
             to,
             kind: parsed.kind === 'dm' ? 'user' : 'group',
             display: to,
-            source: to === normalized ? 'normalized' : 'directory',
+            source: 'normalized',
           };
         },
       },
@@ -152,6 +210,126 @@ export const tlonPlugin = createChatChannelPlugin({
         resolveTlonOutboundSessionRoute(params),
     },
     actions: tlonMessageActions,
+    // These tools belong to the Tlon conversation surface. Registering them
+    // as channel tools avoids the host's plugin-id/core-tool name collision
+    // for the existing `tlon` CLI tool and keeps them available in every Tlon
+    // owner turn.
+    agentTools: ({ cfg }) => {
+      const tlonBinary = resolveTlonBinary({
+        moduleDir: packageDir,
+        resolveModule: require.resolve,
+      });
+      const runForActiveAccount = (args: string[]) => {
+        const account = resolveTlonAccount(
+          cfg ?? {},
+          getActiveTlonTurnAccountId() ?? undefined
+        );
+        const credentials =
+          account.configured && account.url && account.ship && account.code
+            ? {
+                url: account.url,
+                ship: account.ship,
+                code: account.code,
+              }
+            : undefined;
+        const timeoutMs =
+          account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
+        return runTlonCommand(tlonBinary, args, credentials, { timeoutMs });
+      };
+      const postSurface = (
+        target: string,
+        fallbackText: string,
+        blob: string
+      ) =>
+        observeActiveTlonTurnDelivery(() =>
+          runForActiveAccount([
+            'posts',
+            'send',
+            target,
+            fallbackText,
+            '--blob',
+            blob,
+          ])
+        );
+      const executeChoice = createAgentChoiceToolExecutor({
+        assertCurrent: assertTlonChoiceCallCurrent,
+        finish: finishTlonChoiceCall,
+        postChoice: ({ target, fallbackQuestion, blob }) =>
+          postSurface(target, fallbackQuestion, blob),
+      });
+      const listServices = () => loadConnectableServices();
+      const executeServiceSetup = createAgentServiceSetupToolExecutor({
+        assertCurrent: assertTlonServiceSetupCallCurrent,
+        postSetup: ({ target, fallbackMessage, blob }) =>
+          postSurface(target, fallbackMessage, blob),
+        listServices,
+      });
+      const executeConnectableServices = createConnectableServicesToolExecutor({
+        listServices,
+      });
+      // Only the hosted wrapper applies the file, so only it gets the tool.
+      const ownerTimezoneFile = process.env[OWNER_TIMEZONE_FILE_ENV]?.trim();
+      const executeSetTimezone = ownerTimezoneFile
+        ? createOwnerTimezoneToolExecutor({ path: ownerTimezoneFile })
+        : null;
+      const executeTaskPlan = createAgentTaskPlanToolExecutor({
+        getEvidence: getTlonTaskPlanEvidence,
+        assertCurrent: assertTlonTaskPlanCallCurrent,
+        finish: finishTlonTaskPlanCall,
+        resolveGroupId: async (target, evidence) => {
+          if (target.startsWith('~')) {
+            return resolveOnboardingDmGroupId(target, evidence);
+          }
+          return resolveTaskPlanGroupId(
+            await runForActiveAccount(['channels', 'groups']),
+            target
+          );
+        },
+        postPlan: ({ target, fallbackSummary, blob }) =>
+          postSurface(target, fallbackSummary, blob),
+      });
+
+      return [
+        {
+          ...agentChoiceToolMetadata,
+          parameters: agentChoiceToolParameters,
+          execute: (id, params) =>
+            executeChoice(id, params as AgentChoiceToolParams),
+        },
+        {
+          ...agentTaskPlanToolMetadata,
+          parameters: agentTaskPlanToolParameters,
+          execute: (id, params) =>
+            executeTaskPlan(id, params as AgentTaskPlanToolParams),
+        },
+        {
+          ...agentServiceSetupToolMetadata,
+          parameters: agentServiceSetupToolParameters,
+          execute: (id, params) =>
+            executeServiceSetup(id, params as AgentServiceSetupToolParams),
+        },
+        // Only hosted bots have a Connected services screen to answer from.
+        ...(resolveConnectableServicesUrl()
+          ? [
+              {
+                ...connectableServicesToolMetadata,
+                parameters: connectableServicesToolParameters,
+                execute: () => executeConnectableServices(),
+              },
+            ]
+          : []),
+        ...(executeSetTimezone
+          ? [
+              {
+                ...ownerTimezoneToolMetadata,
+                parameters: ownerTimezoneToolParameters,
+                execute: (id: string, params: unknown) =>
+                  executeSetTimezone(id, params as OwnerTimezoneToolParams),
+              },
+            ]
+          : []),
+      ];
+    },
     agentPrompt: {
       messageToolHints: ({ cfg, accountId }) => {
         const account = resolveTlonAccount(cfg, accountId ?? undefined);
@@ -170,13 +348,17 @@ export const tlonPlugin = createChatChannelPlugin({
           '- For image posts, include media=<imageUrl> with an optional message=<caption>',
           '- To react to a gallery comment: use action=react, to=heap/~host/name, messageId=<commentId>, parentId=<postId>, emoji=<emoji>',
           '',
-          'IMPORTANT: media= accepts a public https URL only (normally the URL returned by `tlon upload`).',
-          'Local file paths are NOT accepted on this channel (unlike other channels) — upload the file first, then pass the returned https URL.',
+          'media= accepts a public https URL. With TLON_HOSTING enabled, local files in the allowed media directories are uploaded automatically; otherwise upload with `tlon upload` first.',
           'Media that cannot be fetched will fail the send — never claim an image was delivered unless the tool call succeeded.',
           '',
           'On Tlon, action=react and action=delete only work on messages in the current conversation.',
           '- To react, unreact, or delete in any other conversation, use the tlon tool instead: `tlon posts react|unreact|delete <channel> <postId> ...` for channels, `tlon dms react|unreact|delete ~ship <postId> ...` for DMs.',
-          '- If a reaction or delete call returns an error, say it failed; never claim it succeeded.'
+          '- If your account runs commands as the owner by default, put --self before the command family, e.g. `--self posts react <channel> <postId> ...`, to act as this bot instead.',
+          '- If a reaction or delete call returns an error, say it failed; never claim it succeeded.',
+          '',
+          "Mentions: ~ship mentions a person; @role-id (the id shown when reading, e.g. @admin) mentions a group role and @all every member; DMs support @all only. An @word that is not a role of the channel's group is sent as plain text. Mentions notify only in plain text (not inside bold, quotes or headings). Use @all only when asked.",
+          '',
+          'When you act in another channel (a note, a post, a new group or channel, a cron job that posts elsewhere), include the returned Ref: path in your reply here. A bare reference path on its own line renders as a card; do not wrap it in a link or bold. The messageId a send returns is not the post ID — read the ID back before referencing a post: `tlon messages channel <nest>` for /1/chan/<nest>/msg/<id>, or `tlon messages post <nest> <parent>` for a thread reply at /1/chan/<nest>/msg/<parent>/<id>.'
         );
 
         const level = account.reactionLevel ?? 'minimal';

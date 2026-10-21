@@ -27,9 +27,9 @@ test('should generate an invite link and be able to redeem group/personal invite
   await helpers.createGroup(zodPage);
   await helpers.navigateBack(zodPage);
   if (await zodPage.getByText('Home').isVisible()) {
-    await expect(zodPage.getByText('Untitled group')).toBeVisible();
-    await zodPage.getByText('Untitled group').click();
-    await expect(zodPage.getByText('Untitled group').first()).toBeVisible();
+    await expect(zodPage.getByText('Untitled workspace')).toBeVisible();
+    await zodPage.getByText('Untitled workspace').click();
+    await expect(zodPage.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   await helpers.openGroupCustomization(zodPage);

@@ -52,7 +52,7 @@ const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
 const OPENCLAW_CRON_AT_OFFSET_MS = 180_000;
 // Must match dev/Dockerfile.test's ARG OPENCLAW_CORE_VERSION default and the
 // compose build-arg fallback.
-const DEFAULT_OPENCLAW_CORE_VERSION = '2026.9.4';
+const DEFAULT_OPENCLAW_CORE_VERSION = '2026.9.33';
 
 export interface OpenClawCoreEnv {
   composeEnv: Record<string, string>;
@@ -91,7 +91,7 @@ export function resolveOpenClawCoreEnv(
 
 /**
  * Mirrors the prewarm table in packages/openclaw/test/run.sh as of PR #6408
- * (5.28 and 9.4 → 0, 6.11 and 7.1 → 1), generalised per release line so the
+ * (5.28, 9.4 and 9.33 → 0, 6.11 and 7.1 → 1), generalised per release line so the
  * canary can name any core: 9.x dropped the "agent runtime plugins
  * pre-warmed" log marker, and later lines are assumed not to bring it back.
  * The 8.x line was never checked, so it (like anything older or unparseable)
@@ -332,6 +332,13 @@ export const openclawDriver: BotDriver = {
         TLON_SHIP: seed.endpoints.ships.zod.ship,
         TLON_CODE: seed.endpoints.ships.zod.code,
         TLON_OWNER_SHIP: seed.endpoints.ships.ten.ship,
+        // Commands act as the owner by default; the entrypoint writes the
+        // owner's credential file from these.
+        TLON_OWNER_URL: seed.endpoints.ships.ten.containerUrl,
+        TLON_OWNER_CODE: seed.endpoints.ships.ten.code,
+        // The suite exercises owner-default commands (off by default in
+        // production for staged rollout).
+        TLON_OWNER_DEFAULT: 'true',
         TLON_DM_ALLOWLIST: seed.endpoints.ships.ten.ship,
         FAKE_MODEL_BASE_URL: seed.endpoints.fakeModel.containerOpenAiBaseUrl,
         MODEL: 'custom-proxy/tlon-test-scripted',
@@ -461,6 +468,8 @@ export const openclawDriver: BotDriver = {
         },
       };
     },
+
+    botSelfPrefix: '--self ',
 
     readOrAdmin(command, finalText = 'OpenClaw completed the tlon command.') {
       return {

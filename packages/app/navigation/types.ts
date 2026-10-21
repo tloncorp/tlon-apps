@@ -134,7 +134,26 @@ export type RootStackParamList = {
   };
   BotPermissionsSettings: undefined;
   BotIdentitySettings: undefined;
+  /** The bot defaults to the user's hosted bot. */
+  BotPromptFiles: { botShip?: string } | undefined;
+  BotPromptFile: { name: string; botShip?: string };
   BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
+  BotModels: undefined;
+  ScheduledTasks: {
+    botShip: string;
+    /** Narrows the list to the tasks that post into this group. */
+    groupId?: string;
+    /** Narrows it further, to the tasks that post into this one channel. */
+    channelId?: string;
+  };
+  ScheduledTaskEditor: {
+    botShip: string;
+    taskId?: string;
+    /** For a new task: the group it was started from, where it should post. */
+    groupId?: string;
+    /** For a new task: the channel it was started from, where it should post. */
+    channelId?: string;
+  };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -234,12 +253,25 @@ export type HomeDrawerParamList = Pick<TopLevelTabParamList, 'ChatList'> &
 export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
   Pick<
     RootStackParamList,
-    'AddContacts' | 'UserProfile' | 'EditProfile' | 'Attestation'
+    | 'AddContacts'
+    | 'UserProfile'
+    | 'ScheduledTasks'
+    | 'ScheduledTaskEditor'
+    | 'BotPromptFiles'
+    | 'BotPromptFile'
+    | 'EditProfile'
+    | 'Attestation'
   >;
 
 export type ActivityDrawerParamList = Pick<
   RootStackParamList,
-  'GroupSettings' | 'UserProfile' | 'EditProfile'
+  | 'GroupSettings'
+  | 'UserProfile'
+  | 'ScheduledTasks'
+  | 'ScheduledTaskEditor'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
+  | 'EditProfile'
 > & {
   // Drawer-only placeholder shown before an activity item is selected.
   ActivityEmpty: undefined;
@@ -261,7 +293,12 @@ export type SettingsDrawerParamList = Pick<
   | 'BotChannelRuleSettings'
   | 'BotPermissionsSettings'
   | 'BotIdentitySettings'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'BotProviderListSettings'
+  | 'BotModels'
+  | 'ScheduledTasks'
+  | 'ScheduledTaskEditor'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
@@ -295,6 +332,10 @@ export type ChannelStackParamList = {
   BucketFile: RootStackParamList['BucketFile'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
+  ScheduledTasks: RootStackParamList['ScheduledTasks'];
+  ScheduledTaskEditor: RootStackParamList['ScheduledTaskEditor'];
+  BotPromptFiles: RootStackParamList['BotPromptFiles'];
+  BotPromptFile: RootStackParamList['BotPromptFile'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
   ChannelMeta: RootStackParamList['ChannelMeta'];
@@ -312,6 +353,10 @@ export type DesktopChannelStackParamList = Pick<
   | 'BucketFile'
   | 'MediaViewer'
   | 'UserProfile'
+  | 'ScheduledTasks'
+  | 'ScheduledTaskEditor'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'

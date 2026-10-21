@@ -11,6 +11,16 @@ import {
 } from './settings.js';
 
 describe('Settings: parseSettingsResponse', () => {
+  it('parses bootstrapComplete only as a boolean', () => {
+    expect(
+      parseSettingsResponse({ tlon: { bootstrapComplete: true } })
+        .bootstrapComplete
+    ).toBe(true);
+    expect(
+      parseSettingsResponse({ tlon: { bootstrapComplete: 'true' } })
+        .bootstrapComplete
+    ).toBeUndefined();
+  });
   it('parses lastOwnerMessageAt as number', () => {
     const result = parseSettingsResponse({
       tlon: { lastOwnerMessageAt: 1700000000000 },
@@ -403,6 +413,19 @@ describe('Settings: autoDiscoverChannels', () => {
 });
 
 describe('Settings: applySettingsUpdate', () => {
+  it('hot-updates and clears bootstrapComplete', () => {
+    expect(
+      applySettingsUpdate({}, 'bootstrapComplete', true).bootstrapComplete
+    ).toBe(true);
+    expect(
+      applySettingsUpdate(
+        { bootstrapComplete: true },
+        'bootstrapComplete',
+        undefined
+      ).bootstrapComplete
+    ).toBeUndefined();
+  });
+
   it('updates lastOwnerMessageAt with number value', () => {
     const result = applySettingsUpdate({}, 'lastOwnerMessageAt', 1700000000000);
     expect(result.lastOwnerMessageAt).toBe(1700000000000);
@@ -681,6 +704,65 @@ describe('Settings: createSettingsManager.load', () => {
   });
 });
 
+describe('Settings: createSettingsManager.load replays in-flight facts', () => {
+  const snapshot = (ownerListenEnabled: boolean) => ({
+    all: { moltbot: { tlon: { ownerListenEnabled } } },
+  });
+  const fact = (value: boolean) => ({
+    'put-entry': {
+      desk: 'moltbot',
+      'bucket-key': 'tlon',
+      'entry-key': 'ownerListenEnabled',
+      value,
+    },
+  });
+  const setup = async () => {
+    const scries: ((value: unknown) => void)[] = [];
+    let emit!: (event: unknown) => void;
+    const manager = createSettingsManager({
+      scry: () => new Promise((resolve) => scries.push(resolve)),
+      subscribe: async (params: { event: typeof emit }) => {
+        emit = params.event;
+      },
+    } as never);
+    await manager.startSubscription();
+    return { manager, scries, emit };
+  };
+
+  it('keeps a fact that lands while the scry is pending', async () => {
+    const { manager, scries, emit } = await setup();
+    const load = manager.load({ logSnapshot: false });
+    emit(fact(false));
+    scries[0](snapshot(true));
+    expect((await load).settings.ownerListenEnabled).toBe(false);
+    expect(manager.current.ownerListenEnabled).toBe(false);
+  });
+
+  it('does not replay a fact into a load issued after it', async () => {
+    const { manager, scries, emit } = await setup();
+    const first = manager.load({ logSnapshot: false });
+    emit(fact(false));
+    const second = manager.load({ logSnapshot: false });
+    scries[0](snapshot(true));
+    expect((await first).settings.ownerListenEnabled).toBe(false);
+    // The second scry saw the fact and a later change to true.
+    scries[1](snapshot(true));
+    expect((await second).settings.ownerListenEnabled).toBe(true);
+  });
+
+  it('does not install a load over a later-issued one that resolved first', async () => {
+    const { manager, scries, emit } = await setup();
+    const first = manager.load({ logSnapshot: false });
+    emit(fact(false));
+    const second = manager.load({ logSnapshot: false });
+    scries[1](snapshot(true));
+    await second;
+    scries[0](snapshot(true));
+    await first;
+    expect(manager.current.ownerListenEnabled).toBe(true);
+  });
+});
+
 describe('Settings: createSettingsManager.onChange changedKey', () => {
   it('passes the key each subscription event changed', async () => {
     let emit!: (event: unknown) => void;
@@ -771,10 +853,10 @@ describe('Settings: createSettingsManager.applyLocal', () => {
   });
 
   it('installs what reconcile returns, never the raw scry result', async () => {
-    // A refresh scry that an echo overtook carries an older value; the
-    // monitor's reconcile hook substitutes the observed value before the
-    // manager installs it, so no subscription event can build on the stale
-    // baseline.
+    // A refresh scry that a journal gap overtook carries a pre-gap value, and
+    // no fact exists for the manager to replay; the monitor's reconcile hook
+    // substitutes the observed value before the manager installs it, so no
+    // subscription event can build on the stale baseline.
     let emit: ((event: unknown) => void) | undefined;
     const manager = createSettingsManager({
       scry: async () => ({

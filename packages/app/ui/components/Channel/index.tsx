@@ -12,6 +12,7 @@ import {
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
   hasMainChannelUnreadActivity,
+  readAttemptStamp,
   uploadAsset,
   useLiveThreadUnreadsByChannel,
 } from '@tloncorp/shared';
@@ -34,6 +35,7 @@ import {
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
 import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
+import { useRootNavigation } from '../../../navigation/utils';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -293,6 +295,7 @@ interface ChannelProps {
   goToGroupSettings: () => void;
   goToMediaViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
+  goToScheduledTasks?: () => void;
   goToContextLensRuns?: () => void;
   goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   goToUserProfile: (userId: string) => void;
@@ -337,6 +340,7 @@ export function Channel({
   pendingThinkingLabel,
   goToChatDetails,
   goToSearch,
+  goToScheduledTasks,
   goToContextLensRuns,
   goToContextLensRun,
   goToMediaViewer,
@@ -508,6 +512,17 @@ export function Channel({
     setGroupPreview(group);
   }, []);
 
+  const { navigateToChannel } = useRootNavigation();
+  const onPressChannelRef = useCallback(
+    (refChannel: db.Channel) => {
+      if (refChannel.id === channel.id) {
+        return;
+      }
+      navigateToChannel(refChannel);
+    },
+    [channel.id, navigateToChannel]
+  );
+
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
       onGroupAction(action, group);
@@ -526,9 +541,14 @@ export function Channel({
     (channel?.unread?.notify === true &&
       channel.unread.count === 0 &&
       channel.unread.countWithoutThreads === 0);
+  // markChannelRead always reads notes channels deep, so a retry is only
+  // warranted when their note (thread) unreads change too
+  const readCoversThreads = channel?.id.startsWith('notes/') ?? false;
   const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
     useLiveThreadUnreadsByChannel(
-      shouldCheckThreadUnreadActivity ? (channel?.id ?? null) : null
+      shouldCheckThreadUnreadActivity || readCoversThreads
+        ? (channel?.id ?? null)
+        : null
     );
   const hasChildThreadUnreadActivity =
     shouldCheckThreadUnreadActivity && (threadUnreads?.length ?? 0) > 0;
@@ -539,6 +559,12 @@ export function Channel({
     childThreadUnreadActivityKnown,
     hasChildThreadUnreadActivity,
   });
+  const currentReadAttemptStamp = readAttemptStamp(
+    channel?.unread,
+    readCoversThreads ? (threadUnreads ?? []) : null
+  );
+  // stamp of the unread we last tried to mark read
+  const lastReadAttemptRef = useRef<string | null>(null);
   const shouldShowPostLoading =
     channel.type !== 'notes' && Boolean(isLoadingPosts);
 
@@ -605,12 +631,28 @@ export function Channel({
     // Only mark as read when user is actively using the app (not idle)
     // This prevents auto-marking on desktop when user is AFK
     if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
+      // a failed read rolls the unread back unchanged, which re-runs this
+      // effect; only try again once there is new activity
+      if (currentReadAttemptStamp === lastReadAttemptRef.current) {
+        return;
+      }
       // add slight delay to allow high priority tasks to hit the sync queue first
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
+        // recorded only once the read is sent, so a re-run that cancels this
+        // timer still gets to schedule its own
+        lastReadAttemptRef.current = currentReadAttemptStamp;
         markRead();
       }, 150);
+      return () => clearTimeout(timeout);
     }
-  }, [hasUnreadActivity, hasLoaded, inView, isUserActive, markRead]);
+  }, [
+    hasUnreadActivity,
+    hasLoaded,
+    inView,
+    isUserActive,
+    markRead,
+    currentReadAttemptStamp,
+  ]);
 
   const handleRefPress = useCallback(
     (refChannel: db.Channel, post: db.Post) => {
@@ -923,6 +965,9 @@ export function Channel({
                 onPressGroupRef={
                   disableBackButton ? undefined : onPressGroupRef
                 }
+                onPressChannelRef={
+                  disableBackButton ? undefined : onPressChannelRef
+                }
                 onPressGoToDm={disableBackButton ? undefined : goToDm}
                 onGoToUserProfile={
                   disableBackButton ? undefined : goToUserProfile
@@ -962,6 +1007,9 @@ export function Channel({
                           }
                           goToSearch={
                             disableBackButton ? undefined : goToSearch
+                          }
+                          goToScheduledTasks={
+                            disableBackButton ? undefined : goToScheduledTasks
                           }
                           onToggleContextLens={
                             !disableBackButton && contextLensAvailable

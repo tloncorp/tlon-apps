@@ -35,12 +35,16 @@ import {
   ScreenHeader,
   XStack,
   YStack,
+  useCalm,
   useCanWrite,
+  useContactIndex,
   useCurrentUserId,
   useHideChannelHeader,
   useIsWindowNarrow,
   useRegisterChannelHeaderItem,
 } from '../../ui';
+import { resolveContactNameProps } from '../../ui/components/contactNameResolver';
+import { buildBucketFolderCounts } from './bucketFolderCounts';
 import { bucketLinkCopiedMessage, copyPendingText } from './bucketLinkCopy';
 import { imagePickerAssetsToBucketUploadCandidates } from './bucketMediaPicker';
 import { findUploadShadowEntryIds } from './bucketUploadReconciliation';
@@ -58,14 +62,16 @@ type SearchOrigin = {
 
 export function toItem(
   entry: BucketsEntry,
-  childCounts: ReadonlyMap<number, number>
+  folderCounts?: ReadonlyMap<number, db.BucketCounts>
 ): BucketItem {
   if (entry.kind === 'folder') {
+    const counts = folderCounts?.get(entry.id);
     return {
       author: entry.updatedBy,
+      fileCount: counts?.fileCount ?? 0,
+      folderCount: counts?.folderCount ?? 0,
       id: String(entry.id),
       isBot: isBotUserId(entry.updatedBy),
-      itemCount: childCounts.get(entry.id) ?? 0,
       kind: 'folder',
       modifiedLabel: formatBucketTimestamp(entry.updatedAt),
       name: entry.name,
@@ -182,15 +188,10 @@ export function BucketsLiveChannel({
     () => new Map(entries.map((entry) => [entry.id, entry])),
     [entries]
   );
-  const childCounts = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const entry of entries) {
-      if (entry.parentId !== null) {
-        counts.set(entry.parentId, (counts.get(entry.parentId) ?? 0) + 1);
-      }
-    }
-    return counts;
-  }, [entries]);
+  const folderCounts = useMemo(
+    () => buildBucketFolderCounts(entries),
+    [entries]
+  );
   const suppressedIds = useMemo(
     () => findUploadShadowEntryIds(live.uploads),
     [live.uploads]
@@ -242,7 +243,7 @@ export function BucketsLiveChannel({
   );
   const visibleServerItems = serverEntries
     .filter((entry) => entry.parentId === activeFolderId)
-    .map((entry) => toItem(entry, childCounts));
+    .map((entry) => toItem(entry, folderCounts));
   // Looked up by id rather than searched: a find per upload was quadratic,
   // and a thousand-file selection re-ran it on every progress write.
   const localItemsById = useMemo(
@@ -255,21 +256,35 @@ export function BucketsLiveChannel({
     .filter((item): item is BucketItem => item !== undefined);
   const visibleItems = sortItems([...visibleLocalItems, ...visibleServerItems]);
   const sidebarItems = sortItems(
-    rootFolders.map((entry) => toItem(entry, childCounts))
+    rootFolders.map((entry) => toItem(entry, folderCounts))
   );
   const allSearchResults = useMemo<BucketSearchResult[]>(
     () =>
       serverEntries.map((entry) => ({
-        ...toItem(entry, childCounts),
+        ...toItem(entry, folderCounts),
         parentFolderId: entry.parentId === null ? null : String(entry.parentId),
         pathLabel: pathLabelFor(entry, entriesById, rootLabel),
       })),
-    [childCounts, entriesById, rootLabel, serverEntries]
+    [entriesById, folderCounts, rootLabel, serverEntries]
   );
+  const contactIndex = useContactIndex();
+  const { disableNicknames } = useCalm();
   const normalizedQuery = query.trim().toLowerCase();
+  // Rows show the author's nickname, so search matches it as well as the id
+  // it stands in for.
   const searchResults = normalizedQuery
     ? allSearchResults.filter((item) =>
-        [item.name, item.pathLabel, item.author, item.mimeType]
+        [
+          item.name,
+          item.pathLabel,
+          item.author,
+          resolveContactNameProps({
+            contact: contactIndex?.[item.author],
+            contactId: item.author,
+            calmDisableNicknames: disableNicknames,
+          }).children,
+          item.mimeType,
+        ]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()

@@ -23,7 +23,7 @@ jobs:
       - uses: pnpm/action-setup@v4
 
       # Reads the root .nvmrc (Node 24): the monorepo is pinned there since
-      # OpenClaw 2026.9.4 requires it (pnpm-workspace.yaml engineStrict).
+      # OpenClaw 2026.9.33 requires it (pnpm-workspace.yaml engineStrict).
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc

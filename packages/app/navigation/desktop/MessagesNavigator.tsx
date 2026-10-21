@@ -24,7 +24,11 @@ import { NotesDetailScreen } from '../../features/top/NotesDetailScreen';
 import { NotesFolderScreen } from '../../features/top/NotesFolderScreen';
 import { NotesSearchScreen } from '../../features/top/NotesSearchScreen';
 import PostScreen from '../../features/top/PostScreen';
+import { BotPromptFileScreen } from '../../features/settings/BotPromptFileScreen';
+import { BotPromptFilesScreen } from '../../features/settings/BotPromptFilesScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { GroupSettingsStack } from '../GroupSettingsStack';
 import { DesktopChannelStackParamList, HomeDrawerParamList } from '../types';
@@ -196,6 +200,22 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="UserProfile"
           component={UserProfileScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ScheduledTasks"
+          component={ScheduledTasksScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ScheduledTaskEditor"
+          component={ScheduledTaskEditorScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="BotPromptFiles"
+          component={BotPromptFilesScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="BotPromptFile"
+          component={BotPromptFileScreen}
         />
         <ChannelStackNavigator.Screen
           name="EditProfile"

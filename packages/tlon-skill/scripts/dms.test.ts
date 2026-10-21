@@ -524,3 +524,96 @@ describe('dms run', () => {
     expect('botProfile' in replies[0]).toBe(false);
   });
 });
+
+describe('dms role mentions', () => {
+  const DM_ERROR =
+    'Unknown role mention @admin: 0v5.abcde is a DM, and roles exist only in group channels, so only @all is available here. To send @admin as plain text, wrap it in backticks: `@admin`.';
+
+  it('@all in a group DM sends sect null', async () => {
+    const { posts, replies } = await runDms(
+      ['send', '0v5.abcde', 'hi', '@all'],
+      makeRunDeps()
+    );
+    expect(posts[0].content).toEqual([{ inline: ['hi ', { sect: null }] }]);
+    expect(replies).toEqual([]);
+  });
+
+  it('a named role in a group DM is refused', async () => {
+    const dms = await loadDms();
+    const deps = makeRunDeps();
+
+    await expect(
+      dms.sendClubMessage(
+        '0v5.abcde',
+        'hi @admin',
+        undefined,
+        undefined,
+        deps as never
+      )
+    ).rejects.toThrow(DM_ERROR);
+    expect(deps.posts).toEqual([]);
+  });
+
+  it('refuses a named role before fetching an --image', async () => {
+    const dms = await loadDms();
+    const fetched: unknown[] = [];
+    const deps = {
+      ...makeRunDeps(),
+      fetchImageVerse: async (url: string) => {
+        fetched.push(url);
+        throw new Error('image fetch failed');
+      },
+    };
+
+    // An image failure exits the process; trap it so it fails this test
+    // instead.
+    const originalExit = process.exit;
+    const originalError = console.error;
+    process.exit = (() => {
+      throw new Error('exit');
+    }) as typeof process.exit;
+    console.error = () => {};
+    try {
+      await expect(
+        dms.run(
+          ['send', '0v5.abcde', 'hi @admin', '--image', 'https://x/y.png'],
+          deps as never
+        )
+      ).rejects.toThrow(DM_ERROR);
+    } finally {
+      process.exit = originalExit;
+      console.error = originalError;
+    }
+    expect(fetched).toEqual([]);
+    expect(deps.posts).toEqual([]);
+  });
+
+  it('club reply sends @all and refuses a named role', async () => {
+    const dms = await loadDms();
+    const deps = makeRunDeps();
+
+    expect(
+      await dms.replyToClub(
+        '0v5.abcde',
+        '~pen/170.141',
+        'hi @ALL',
+        undefined,
+        deps as never
+      )
+    ).toEqual({ success: true });
+    expect(deps.replies[0].content).toEqual([
+      { inline: ['hi ', { sect: null }] },
+    ]);
+
+    await expect(
+      dms.replyToClub(
+        '0v5.abcde',
+        '~pen/170.141',
+        'hi @admin',
+        undefined,
+        deps as never
+      )
+    ).rejects.toThrow(DM_ERROR);
+    expect(deps.replies).toHaveLength(1);
+  });
+});

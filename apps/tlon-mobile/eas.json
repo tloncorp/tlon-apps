@@ -73,6 +73,7 @@
       "extends": "base",
       "channel": "local",
       "env": {
+        "AUTOMATED_TEST": "true",
         "APP_VARIANT": "e2e"
       },
       "android": {
