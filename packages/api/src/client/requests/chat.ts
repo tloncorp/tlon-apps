@@ -170,4 +170,12 @@ export const chat = {
     mark: 'chat-negotiate',
     since: '12.2.0',
   },
+  // Host-side only: the gateway relays a hosted bot moon's DMs.
+  dmVouchedAction: {
+    kind: 'poke',
+    agent: 'chat',
+    mark: 'chat-dm-vouched-action-2',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsVouchedBots',
+  },
 } as const satisfies Record<string, Entry>;

@@ -1,4 +1,4 @@
-import { render } from '@urbit/aura';
+import { p, render } from '@urbit/aura';
 
 import { createDevLogger } from '../lib/logger';
 import { AnalyticsEvent } from '../types/analytics';
@@ -11,6 +11,7 @@ import {
   groupsUi,
   pokeRequest,
   scryRequest,
+  steward,
   subscribeRequest,
 } from './requests';
 import { getCurrentUserId } from './urbit';
@@ -38,6 +39,124 @@ export const getContacts = async () => {
     directoryResponse: directoryResponse,
     contactsResponse: contactsResponse,
     suggestionsResponse: suggestionsResponse,
+  });
+};
+
+// --- Virtual-identity (bot moon) helpers ---
+//
+// A virtual bot is a moon its sponsor hosts and answers for; distinct from
+// the self-published `bot-info` field on real, running bot ships below.
+
+// True when `who` is a moon sponsored by `publisher`. A moon's sponsor is fixed
+// and derivable from its @p, so this needs no network state -- it lets us trust
+// a bot profile only when published by the bot-moon's actual parent.
+const isMoonOf = (who: string, publisher: string): boolean => {
+  try {
+    return p.clan(who) === 'earl' && p.sein(who) === publisher;
+  } catch {
+    return false;
+  }
+};
+
+// Read the `bots` convention field on a ship's published profile: the list of
+// bot ships (moons of the publisher) it claims to own. This is only the
+// ownership claim — a bot's display profile (name/avatar) is resolved from the
+// bot's own real contact profile, which the host publishes separately. The
+// field is a native contact %set of %ship values; decode it defensively.
+const readBotsField = (
+  profile: ub.ContactBookProfile | null | undefined
+): ub.BotClaimField => {
+  const raw = profile?.bots?.value;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.flatMap((entry) =>
+    entry?.type === 'ship' && typeof entry.value === 'string'
+      ? [entry.value]
+      : []
+  );
+};
+
+const normalizeMoonId = (id: string): string =>
+  id.startsWith('~') ? id : `~${id}`;
+
+/**
+ * True when `ship` is a bot moon registered in its sponsor's published
+ * profile (the `bots` convention field). This is the client-side signal to
+ * route DMs through the vouched path — a real, running moon that isn't
+ * registered as a bot gets normal peer-to-peer DMs.
+ */
+export const isRegisteredBot = async (ship: string): Promise<boolean> => {
+  let host: string;
+  try {
+    if (p.clan(ship) !== 'earl') {
+      return false;
+    }
+    host = p.sein(ship);
+  } catch {
+    // not a parseable ship id -- never a bot
+    return false;
+  }
+  // NB: deliberately no catch around the scry. This read gates whether a DM
+  // takes the vouched path, so a failed read must fail the send loudly
+  // rather than silently demote a bot DM to peer-to-peer (which would queue
+  // forever against a never-booted moon).
+  const directory = await scryRequest(
+    contacts.directory
+  )<ub.ContactsDirectoryScryResult1>({});
+  const entry = directory?.[host];
+  if (!entry) {
+    return false;
+  }
+  const bots = readBotsField(entry.contact);
+  // Honor the claim only when `ship` really is a moon of `host`, so a ship
+  // can't route another ship's DMs through the vouched path by claiming it.
+  return (
+    isMoonOf(ship, host) && bots.some((id) => normalizeMoonId(id) === ship)
+  );
+};
+
+/** Editable fields of a bot moon's published profile. `undefined` keeps the
+ * current value; `null` (or empty string) clears the field. */
+export interface BotProfileEdit {
+  nickname?: string | null;
+  avatar?: string | null;
+  bio?: string | null;
+  status?: string | null;
+  cover?: string | null;
+}
+
+const BOT_PROFILE_FIELDS: (keyof BotProfileEdit)[] = [
+  'nickname',
+  'avatar',
+  'bio',
+  'status',
+  'cover',
+];
+
+/**
+ * Register or update the profile of a bot moon owned by the current (host)
+ * ship, via steward's roster `%profile` action. Steward is the arbiter of
+ * bot data in contacts: it validates the moon against its roster, forwards
+ * the edit to %contacts as a merge (`undefined` fields stay untouched,
+ * `null`/empty deletes), and maintains the host's `bots` claim field itself
+ * as a projection of its roster -- so there is nothing to read, merge, or
+ * claim client-side. Must be poked as the host (the moon's sponsor).
+ */
+export const registerBotProfile = async (
+  moon: string,
+  profile: BotProfileEdit
+) => {
+  const edits: Record<string, string | null> = {};
+  for (const key of BOT_PROFILE_FIELDS) {
+    const value = profile[key];
+    if (value === undefined) {
+      continue;
+    }
+    edits[key] = value === '' ? null : value;
+  }
+  return pokeRequest(steward.rosterAction)({
+    profile: { ship: normalizeMoonId(moon), edits },
   });
 };
 

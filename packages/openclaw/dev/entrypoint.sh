@@ -40,11 +40,15 @@ node scripts/resolve-workspace-deps.mjs package.json --registry
 #   any dep released in the last day fails the install.
 # - verifyDepsBeforeRun: matches the monorepo policy; skips the implicit
 #   install pnpm otherwise runs before every pnpm run/exec.
+# - confirmModulesPurge: when the persisted node_modules volume is stale (e.g.
+#   a prior run used a different layout/pnpm), pnpm wants to purge and reinstall
+#   but blocks on an interactive confirm it can't get without a TTY. Auto-allow.
 cat > pnpm-workspace.yaml << 'PNPM_EOF'
 nodeLinker: hoisted
 dangerouslyAllowAllBuilds: true
 minimumReleaseAge: 0
 verifyDepsBeforeRun: false
+confirmModulesPurge: false
 PNPM_EOF
 pnpm install
 # Local package overrides below are symlinks into the mounted checkout. Keep
@@ -140,6 +144,32 @@ if [ -f "$CONFIG_PATH" ]; then
   echo "==> Disabling device pairing for Control UI (dev-only)..."
   jq '.gateway.controlUi.dangerouslyDisableDeviceAuth = true' \
     "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+
+  # Virtual identity: when TLON_MOON is set, the bot runs on the host ship
+  # (TLON_SHIP) but acts as this moon, which the host must sponsor (so the
+  # host must be a planet/galaxy, not a moon). See channels.tlon.moon in the
+  # plugin config schema.
+  if [ -n "${TLON_MOON:-}" ]; then
+    echo "==> Patching config: acting as moon $TLON_MOON..."
+    jq --arg moon "$TLON_MOON" --arg nick "${TLON_MOON_NICKNAME:-}" \
+      '.channels.tlon.moon = $moon
+       | if $nick != "" then .channels.tlon.moonNickname = $nick else . end' \
+      "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+  fi
+
+  # Extra models beyond MODEL (comma-separated openclaw model names, e.g.
+  # "openrouter/openai/gpt-5.6-luna"). Each is merged into the
+  # agents.defaults.models allowlist -- selection (/model) is gated on that
+  # map, not on the fallback list -- and appended to any fallbacks the copied
+  # config already carries so it's also failover-eligible.
+  if [ -n "${MODEL_FALLBACKS:-}" ]; then
+    echo "==> Patching config: extra models $MODEL_FALLBACKS..."
+    jq --arg extra "$MODEL_FALLBACKS" \
+      '($extra | split(",") | map(gsub("^\\s+|\\s+$"; ""))) as $list
+       | .agents.defaults.model.fallbacks = (((.agents.defaults.model.fallbacks // []) + $list) | reduce .[] as $m ([]; if index($m) then . else . + [$m] end))
+       | .agents.defaults.models = ((.agents.defaults.models // {}) + ($list | map({key: ., value: {}}) | from_entries))' \
+      "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+  fi
 fi
 
 # Upsert a marked block into a file (preserves content outside the markers)
@@ -188,6 +218,12 @@ upsert_block "$WORKSPACE_DIR/USER.md" "$(cat /workspace/tlonbot/prompts/USER.md)
 
 export WORKSPACE_DIR
 export TLON_RUN_PATH="/workspace/tlonbot/bin/tlon-run"
+
+# Fleet: the plugin reconciles one agent per steward-roster bot at runtime
+# (accounts/agents/bindings/workspaces, see src/monitor/fleet-reconcile.ts).
+# The default account's monitor watches /v1/roster and the gateway's config
+# hot reload applies every change live, so nothing is generated here and a
+# mint/retire no longer restarts anything.
 
 # Generate gateway token if not set
 if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then

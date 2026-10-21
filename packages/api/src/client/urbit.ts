@@ -70,6 +70,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   deskSupportsBuckets: boolean | null;
   deskSupportsAutomations: boolean | null;
   deskSupportsStewardPrompts: boolean | null;
+  deskSupportsVouchedBots: boolean | null;
   deskCountsAllSeats: boolean;
   deskSupportsStewardBots: boolean | null;
 }
@@ -198,6 +199,7 @@ const config: Config = {
   // Guarded requests refuse only false.
   deskSupportsAutomations: null,
   deskSupportsStewardPrompts: null,
+  deskSupportsVouchedBots: null,
   // Off until the app confirms the backend's groups version counts every seat
   // in init and changes, so a member count of 15 stays suspect by default.
   deskCountsAllSeats: false,
@@ -410,6 +412,31 @@ export const onDeskSupportsStewardPromptsChange = (
   };
 };
 
+const deskSupportsVouchedBotsListeners = new Set<() => void>();
+
+// Whether the connected backend serves the virtual-bot surfaces (%steward
+// roster, %chat vouched DMs). Same contract as the prompts flag above.
+export const setDeskSupportsVouchedBots = (value: boolean | null) => {
+  const changed = config.deskSupportsVouchedBots !== value;
+  config.deskSupportsVouchedBots = value;
+  if (changed) {
+    deskSupportsVouchedBotsListeners.forEach((listener) => listener());
+  }
+};
+
+export const getDeskSupportsVouchedBotsState = (): boolean | null => {
+  return config.deskSupportsVouchedBots;
+};
+
+export const onDeskSupportsVouchedBotsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsVouchedBotsListeners.add(listener);
+  return () => {
+    deskSupportsVouchedBotsListeners.delete(listener);
+  };
+};
+
 export const client = new Proxy(
   {},
   {
@@ -583,6 +610,7 @@ export function internalRemoveClient() {
   setDeskSupportsBuckets(null);
   setDeskSupportsAutomations(null);
   setDeskSupportsStewardPrompts(null);
+  setDeskSupportsVouchedBots(null);
   setDeskCountsAllSeats(false);
   setDeskSupportsStewardBots(null);
 }

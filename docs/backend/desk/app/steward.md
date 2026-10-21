@@ -14,6 +14,7 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 | `automation` | `sur/steward/automation.hoon`    | `%steward-automation-action-1`, `-command-1`, `-dispatch-1`, `-response-1`, `-update-1`, `-tasks-1` |
 | `prompts`    | `sur/steward/prompts.hoon`       | `%steward-prompts-action-1`, `-command-1`, `-dispatch-1`, `-response-1`, `-update-1`, `-files-1`, `-names-1` |
 | `journey`    | —                                | —                                                                        |
+| `roster`     | `sur/steward/roster.hoon`        | `%steward-roster-action-1`, `%steward-roster-update-1`                    |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
@@ -26,15 +27,16 @@ Modules:
 | `automation` | Durable best-effort mirror of OpenClaw cron task definitions, propagated bot → owner → client. |
 | `prompts`    | Projection of the OpenClaw workspace prompt files, with edits relayed back to the harness. |
 | `journey`    | Content-free OpenClaw DM and channel delivery telemetry.                |
+| `roster`     | Mints bot moons and tracks their runner config.                         |
 
 The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, `au-core` for automation, `po-core` for prompts, and the stateless `jo-core` for journey telemetry. Adding a stateful or protocol-bearing module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
 
 ## state model
 
-State is versioned (`state-6` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
+State is versioned (`state-7` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
 
 ```
-state-6 (%6, current)
+state-7 (%7, current)
   owner       (unit ship)        shared owner config; ~ = inert
   bots        (set ship)         owner-side trusted lens bots
   lens        state:v1:lens      stored lens run records
@@ -50,6 +52,9 @@ state-6 (%6, current)
     pending   (map request-id pending-command)    bot-side commands awaiting the harness
     rewatch   (map ship [attempt=@ud wake=@da])   owner-side retries of nacked mirror watches
     sweep     @da                when the armed cleanup timer wakes
+  roster      state:v2:roster
+    bots      (map ship rig)     minted bot moons and their runner config (model/harness/persona)
+    claimed   (set ship)         grow-only: every moon ever minted, projected into our `bots` contact field
 ```
 
 Migrations so far:
@@ -60,12 +65,13 @@ Migrations so far:
 - `%3 → %4`: every stored task gains `delivery`, and every `agentTurn` payload gains `tools-allow`. Both migrate as `~` and the harness's next projection supplies them, since the mirror is derived. A bot-side `pending-command` carries a task inside its `edit`, so pending commands are widened too rather than dropped. The pre-%4 shapes live in the sur under `+v0`, alongside the current ones, with `+widen-task` and `+widen-edit` beside them; `on-load` is their only caller.
 - `%4 → %5`: the prompts module arrives with an empty slice, and the automation slice gains `sweep`, the wake time of its armed cleanup timer. Both sweep times start in the past, so the load's reconcile step arms both sweeps and subscribes the trusted set to the new prompts feed. `state-4` (with its `automation-4` slice) and earlier remain only for `on-load`.
 - `%5 → %6`: the prompts allowlist gains `MEMORY.md`. The shape is unchanged; the tag marks the ships the load refreshes: it kicks the local harness feed, so a harness that stayed connected projects again under the wider allowlist, and re-watches every live mirror, since a `%5` owner dropped every snapshot that carried the file (see [owner-side mirroring](#owner-side-mirroring-1)). `state-5` remains only for `on-load`.
+- `%6 → %7`: the roster module arrives with an empty slice (nothing minted yet under the old state).
 
 The automation `tasks` map holds one entry per ship: the **local projection** lives under `our`, written only by accepted `%project` actions, and each **mirrored remote bot** lives under its own ship, written only by facts from the subscription to that bot. The writers are disjoint by key, so the two never collide. Every entry follows the same presence rule: absent until its first projection or snapshot arrives, present (possibly empty) afterward — an empty entry means "synced, zero tasks", an absent one means "never synced". `state-1` is unreleased, so this shape replaced the earlier flat task map in place with no extra state version; `state-0-to-1` is unchanged (it initializes automation from the bunt, which yields an empty map).
 
 `owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
 
-`on-load` delegates to `load`, which decodes the persisted vase as `versioned-state` and migrates one version per step (`state-0-to-1` through `state-5-to-6`). Automation's migration never auto-subscribes an already-trusted bot set — its mirroring starts only from an explicit `%trust-bot` poke; the `%4 → %5` prompts step does subscribe them, and the `%5 → %6` step kicks the harness feed and re-watches the mirrors already live (see the prompts module). `on-save` always writes the current `state-6` shape. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state.
+`on-load` delegates to `load`, which decodes the persisted vase as `versioned-state` and migrates one version per step (`state-0-to-1` through `state-6-to-7`). Automation's migration never auto-subscribes an already-trusted bot set — its mirroring starts only from an explicit `%trust-bot` poke; the `%4 → %5` prompts step does subscribe them, and the `%5 → %6` step kicks the harness feed and re-watches the mirrors already live (see the prompts module). `on-save` always writes the current `state-7` shape. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state.
 
 `run` (in `sur/steward/lens.hoon`):
 
@@ -138,6 +144,22 @@ Emits content-free delivery telemetry for OpenClaw bot DMs and new chat/gallery 
 DM stages are `owner_message_sent`, `bot_message_received`, `bot_message_sent`, and `owner_message_received`. Bot-side stages use the configured owner; owner-side stages apply only to structurally sponsored moons. Channel stages are `group_host_message_received` and `owner_group_message_received`; the latter requires the bot's moon sponsor to have the channel locally. Edits, reactions, legacy diary channels, and Notes notebooks emit no channel stages.
 
 DM and channel observations share the same best-effort contact check: profiles already delivered by ordinary peering qualify later messages, with no profile fetch or backfill. Events use the canonical DM ID or the channel message's sender `author/sent` correlation key and emit through `%logs` with source `steward/journey`. Channel host IDs differ from the sender key. See [Bot message journey observability](../../../../packages/openclaw/docs/message-journey-observability.md) for the cross-system event contract and correlation details.
+
+## module: roster
+
+Mints bot moons: a bot is a moon that never boots, hosted (and spoken for) by its sponsor. The roster module is also the **arbiter of bot data in `%contacts`**: every bot profile write and every write of the host's own `bots` claim field flows through it, so those values always have exactly one writer (by API shape — contacts can't distinguish local pokers, since every local poke arrives as `src=our`). Identity fields (nickname/avatar) are **not stored** in the roster — the bot's contact profile is the single copy, joined into roster facts and peeks at read time.
+
+Minting is entirely local — an owner mints its own bots — and does five things in sequence:
+
+1. **Spawn+reserve a moon.** Pick a random 32-bit suffix under `our` (the same shape `|moon` uses), retried up to 16 times against a collision on jael's own `%ryft` scry (non-`~` means keys are already set, from either a real point or a prior `%moon` registration) or our own roster. Register only the *public* half of a freshly derived keypair with jael (`life` 1, crub suite) via a `%moon` task. The private seed is discarded the instant the public key is derived — never slogged, stored, or emitted. This is deliberate: the bot moon is unbootable by design, so nobody (not even the minting ship) can ever assume its identity. If the owner ever wants a real, bootable moon instead, `|moon-cycle-keys` replaces these keys with ones it actually keeps.
+2. **Classify it `%bot` in `%vouch`** (`%vouch-learn [mon %bot]`), so the rest of the system knows to route to it through its host rather than expecting it to ever appear as `src`.
+3. **Publish its `%contacts` profile** (`%contact-bot-0 [mon con]`), seeded from `.nickname`/`.avatar`, so the bot has an identity in the frontend from the moment it's minted. `%contact-bot-0` applies `+do-edit` merge semantics (same as `%self`): `~` deletes a field, absent fields are untouched — a partial write can never wipe the rest of the profile. The seed profile is validated (`+sane-contact`) before anything commits, so the poke can't nack after the roster entry exists.
+4. **Claim it** in the host's own profile's `bots` field. The field is a pure **projection** of steward's grow-only `.claimed` set — written whole from state steward owns, never read-modify-written from contacts — so there is no read to fail or race, and any corruption of the field heals on the next roster change.
+5. **Record its rig** (`.model`/`.harness`/`.persona`, opaque to steward) in the roster and give a `%minted` fact on `/v1/roster` for the runner (openclaw) to pick up.
+
+If jael's `%moon` registration itself fails (the async `%done` ack carries an error), everything the mint published is unwound: the roster entry and `.claimed` membership are removed, the claim projection is rewritten, the seeded profile fields are nulled out, and a `%retired` fact is given. The `%vouch` `%bot` record deliberately stays (there is no `%vouch-forget`; a permanently burned `@p` costs nothing — there are 2³² per host).
+
+`%configure` updates an existing bot's stored rig only — every field is a unit, `~` means keep — and never touches contacts; identity edits are `%profile`'s job. `%profile` edits an existing bot's contact profile: steward validates the field names (`nickname`/`bio`/`status` are `%text`, `avatar`/`cover` are `%look`; anything else crashes), forwards the typed edits to `%contacts` as a merge, and puts the post-edit identity on a `%configured` fact (composed with the same deterministic `+do-edit` contacts will apply). `%retire` drops a bot from the roster but deliberately does **not** touch `%vouch` or `.claimed` — the moon stays classified `%bot` and claimed forever, so history involving it stays routable/attributable and peers keep routing its DMs through the host rather than peer-to-peer into a never-booted void. Only a ship able to sponsor a moon (galaxy, star, or planet) can mint one; a moon or comet has no room under it.
 
 ## module: automation
 
@@ -339,7 +361,7 @@ A `POST` without a JSON content type gets 415 before anything else. Any other me
 
 ## poke surface
 
-Eight inbound marks, each ownership-gated to admit exactly the right source: the core, lens and gateway actions, an action and a command for each of automation and prompts, and Eyre's `%handle-http-request`.
+Nine inbound marks, each ownership-gated to admit exactly the right source: the core, lens, gateway and roster actions, an action and a command for each of automation and prompts, and Eyre's `%handle-http-request`.
 
 ### `%steward-action-1` (core config) — `src == our`
 
@@ -386,6 +408,24 @@ Only the local gateway drives liveness, so this requires `src == our`.
 [%gateway-start boot-id=@t lease-until=@da]          a gateway instance started
 [%gateway-heartbeat boot-id=@t lease-until=@da]      extend the lease (boot-id must match)
 [%gateway-stop boot-id=@t reason=@t]                 graceful stop (boot-id must match)
+```
+
+### `%steward-roster-action-1` (roster) — `src == our`
+
+Minting is driven by the owner from the host frontend (HTTP), so unlike most other steward marks this mark's grab supports both `%noun` and `%json`.
+
+```json
+{ "mint": { "nickname": "Bot", "avatar": null, "model": "gpt", "harness": "openclaw", "persona": "default" } }
+{ "configure": { "ship": "~sampel-palnet-...", "model": "gpt2", "harness": null, "persona": null } }
+{ "profile": { "ship": "~sampel-palnet-...", "edits": { "bio": "helpful", "avatar": null } } }
+{ "retire": { "ship": "~sampel-palnet-..." } }
+```
+
+```
+[%mint nickname=@t avatar=(unit @t) model=@t harness=@t persona=@t]
+[%configure =ship model=(unit @t) harness=(unit @t) persona=(unit @t)]     :: ~ = keep
+[%profile =ship edits=(map @tas (unit @t))]                                :: ~ = delete field
+[%retire =ship]
 ```
 
 ### `%steward-automation-action-1` (automation, `a-automation`) — `src == our`
@@ -438,6 +478,7 @@ The HTTP surface for both modules' edit loops, described under automation's [HTT
 
 - `/v1/lens` (local only, `?> =(src our)`): `%steward-lens-update-1` facts (`update:v1:lens`, a tagged union) — `%entry` (a stored run, one per insert; the owner-side client reads these) and `%retry-requested` (emitted on the bot ship for its local gateway to re-dispatch). No initial backfill fact — clients scry `/x/v1/lens/recent` for backfill.
 - `/v1/gateway` (local only): `%steward-gateway-update-1` facts (`update:v1:gateway`) — `%status` (on lifecycle transitions, plus an initial fact on subscribe), `%owner-activity`, and `%auto-reply`.
+- `/v1/roster` (local only): `%steward-roster-update-1` facts (`update:v2:roster`) — `%init` (the full roster, given on every new subscription), `%minted`, `%configured`, `%retired`.
 - `/v1/automation/tasks` (local **or** configured owner): `%steward-automation-update-1` facts (`update:v1:automation`) — one initial `%tasks` snapshot of the complete ship-keyed map on subscribe (including when empty), then ship-attributed `%set`/`%del` deltas, fresh full `%tasks` snapshots when an entry appears, and `%gone` entry removals. See [feed](#feed-v1automationtasks).
 
 - `/v1/automation/harness` (local only): `%steward-automation-dispatch-1` facts (`dispatch`, `[rid edit]`) — the bot's pending edit commands for its harness; every outstanding command is replayed on subscribe, oldest first.
@@ -473,6 +514,8 @@ With no entries at all the snapshot's exact JSON shape is `{ "tasks": {} }`. The
 - `/x/v1/lens/run/[ship]/[id]` → `[%entry entry]`, or empty (`[~ ~]`) when absent.
 - `/x/v1/gateway/status` → `%noun` `[status:v1:gateway (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
+- `/x/v1/roster` → the `%steward-roster-update-1` mark (an `%init` update), so the full roster is HTTP-scryable as JSON (`/~/scry/steward/v1/roster.json`). Each entry is the runner-facing `$bot` view: the stored rig joined at read time with the identity fields from the moon's contact profile.
+- `/x/v1/roster/[ship]` → `%noun` `bot:v2:roster` (the same joined view), or empty (`[~ ~]`) when that ship isn't in the roster. Tolerates a trailing mark segment (e.g. `/noun`) like other scries.
 - `/x/v1/prompts/files` → `%steward-prompts-files-1` `(map ship prompts:v1:prompts)` — the complete ship-keyed file map, the same value as `GET /steward/~/v1/prompts/files`.
 - `/x/v1/prompts/names` → `%steward-prompts-names-1` `(set @t)` — the file names a projection may carry. Grows to a JSON array of strings in text order. The harness reads it before every projection (see [projection](#projection)). Served from %groups 12.5.0.
 - `/x/v1/automation/tasks` → `%steward-automation-tasks-1` `(map ship (map @t task:v1:automation))` — the complete per-ship task state, for client backfill. The scry has its own mark — marks are never shared between facts and scries — carrying the raw ship-keyed map.
@@ -501,10 +544,10 @@ With no entries at all the exact JSON shape is `{}`. Task values use the support
 
 ## lifecycle and invariants
 
-- `on-init` creates `state-6`, subscribes to `%activity /v5`, `%chat /v4`, and `%channels /v4`, seeds the default lens retention cap, and leaves automation and prompts empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1` through `state-5-to-6`) in the same shape as `%activity`'s `load`. A migration step emits cards in two cases: the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured), since heartbeats advertise only on an up transition and an already-up gateway would otherwise stay unknown until its next restart; and the `%5 → %6` kick of the harness feed and re-watch of every live prompts mirror (see the prompts module). Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-6`.
+- `on-init` creates `state-7`, subscribes to `%activity /v5`, `%chat /v4`, and `%channels /v4`, seeds the default lens retention cap, and leaves automation and prompts empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1` through `state-6-to-7`) in the same shape as `%activity`'s `load`. A migration step emits cards in two cases: the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured), since heartbeats advertise only on an up transition and an already-up gateway would otherwise stay unknown until its next restart; and the `%5 → %6` kick of the harness feed and re-watch of every live prompts mirror (see the prompts module). Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-7`.
 - `on-init` and every load end in `reconcile`, which restores what state cannot carry. A suspended agent's due Behn wakes are dropped, a crashed sweep discards its own re-arm, and a mirror watch can be lost to a nack or a kick that never arrived. So `reconcile` re-emits the Eyre binding for `/steward`; re-watches any missing `%activity`, `%chat` or `%channels` subscription; re-arms each module's sweep whose recorded wake has passed; and re-watches every trusted bot's automation and prompts feed whose wire is missing, except a prompts bot whose retry is still ahead. Each step acts only on what is missing, so a load with everything live emits just the Eyre binding. This is also how the upgrade into `%5` arms both sweeps and subscribes the trusted set to the prompts feed.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, journey observations on `/journey/chat` and `/journey/channels`, journey log pokes on `/journey/logs`, the owner-side automation watches on `/automation/tasks/[bot-p]`, the automation sweep on `/automation/cleanup/[wake-da]`, and for prompts the owner-side mirror watches on `/prompts/files/[bot-p]`, their retry timers on `/prompts/rewatch/[bot-p]/[wake-da]`, the per-request owner → bot legs on `/prompts/req/[bot-p]/[uv]/{watch,poke,wake}`, and the sweep on `/prompts/cleanup/[wake-da]`. A sweep or retry wake whose time does not match the one recorded in state is stale and ignored. Everything arriving on an automation or prompts mirror wire is applied only for the ship in the wire (facts naming other ships are ignored). The activity and journey subscriptions are re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is logged and re-sent on the next load or `%trust-bot` re-poke, while a nacked prompts mirror watch is retried on a backoff (see [owner-side mirroring](#owner-side-mirroring-1)). A kicked prompts request watch re-subscribes while its bot is still managed.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, journey observations on `/journey/chat` and `/journey/channels`, journey log pokes on `/journey/logs`, the owner-side automation watches on `/automation/tasks/[bot-p]`, the automation sweep on `/automation/cleanup/[wake-da]`, and for prompts the owner-side mirror watches on `/prompts/files/[bot-p]`, their retry timers on `/prompts/rewatch/[bot-p]/[wake-da]`, the per-request owner → bot legs on `/prompts/req/[bot-p]/[uv]/{watch,poke,wake}`, and the sweep on `/prompts/cleanup/[wake-da]`. Roster mint's jael registration is on `/roster/mint/[moon-p]` (an `%arvo` pass, not an agent poke); its `%vouch`/`%contacts` fan-out are on `/roster/vouch/[moon-p]`, `/roster/profile/[moon-p]`, and the claim projection on `/roster/claim`. A sweep or retry wake whose time does not match the one recorded in state is stale and ignored. Everything arriving on an automation or prompts mirror wire is applied only for the ship in the wire (facts naming other ships are ignored). The activity and journey subscriptions are re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is logged and re-sent on the next load or `%trust-bot` re-poke, while a nacked prompts mirror watch is retried on a backoff (see [owner-side mirroring](#owner-side-mirroring-1)). A kicked prompts request watch re-subscribes while its bot is still managed.
 - `on-watch` auth is per-path: lens and gateway paths require `=(src our)`; `/v1/automation/tasks` and `/v1/prompts/files` also admit the configured owner, the two `/v1/*/request/<owner>/<uv>` paths admit only that owner, and the harness and local request paths are local only. Rejection is a crash (watch nack). Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 
 ## reporting

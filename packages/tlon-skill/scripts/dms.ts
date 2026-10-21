@@ -17,9 +17,12 @@
  */
 import {
   addReaction,
+  addVouchedDmReaction,
   deletePost,
+  deleteVouchedDmPost,
   getCurrentUserId,
   removeReaction,
+  removeVouchedDmReaction,
   respondToDMInvite,
   sendPost,
   sendReply,
@@ -53,6 +56,7 @@ import {
   markdownToStory,
   unknownRoleMentions,
 } from './markdown';
+import { botMoon } from './moon';
 
 const DMS_HELP = `Usage: tlon dms <command>
 
@@ -306,6 +310,13 @@ export async function sendClubMessage(
   botProfile?: BotAuthorProfile,
   deps: DmSendDeps = DEFAULT_SEND_DEPS
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
+  // clubs have no vouched path yet: posting would be attributed to the HOST
+  if (botMoon()) {
+    return {
+      success: false,
+      error: 'group DMs do not support bot identities yet',
+    };
+  }
   const authorId = deps.getCurrentUserId();
   const sentAt = Date.now();
   // Image block first, caption after — matches app attachment posts.
@@ -337,6 +348,12 @@ export async function replyToClub(
   botProfile?: BotAuthorProfile,
   deps: DmSendDeps = DEFAULT_SEND_DEPS
 ): Promise<{ success: boolean; replyId?: string; error?: string }> {
+  if (botMoon()) {
+    return {
+      success: false,
+      error: 'group DMs do not support bot identities yet',
+    };
+  }
   const authorId = deps.getCurrentUserId();
   const sentAt = Date.now();
   const content = parseContent(message, clubId);
@@ -406,6 +423,27 @@ export async function reactToDM(
     };
   }
 
+  // acting as a bot moon: the reaction must be attributed to the bot, so it
+  // rides the vouched conversation, never the host's own DM store. For a
+  // thread reaction, --parent names the parent writ and the post id is the
+  // reply being reacted to.
+  const moon = botMoon();
+  if (moon) {
+    try {
+      await addVouchedDmReaction({
+        as: moon,
+        toShip: normalizedShip,
+        postId: `${parsed.authorId}/${parsed.id}`,
+        emoji: react,
+        authorId: moon,
+        parentId: parent ? `${parent.authorId}/${parent.id}` : undefined,
+      });
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
   try {
     await deps.addReaction({
       channelId: normalizedShip,
@@ -449,6 +487,22 @@ export async function unreactToDM(
     };
   }
 
+  const moon = botMoon();
+  if (moon) {
+    try {
+      await removeVouchedDmReaction({
+        as: moon,
+        toShip: normalizedShip,
+        postId: `${parsed.authorId}/${parsed.id}`,
+        authorId: moon,
+        parentId: parent ? `${parent.authorId}/${parent.id}` : undefined,
+      });
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
   try {
     await deps.removeReaction({
       channelId: normalizedShip,
@@ -475,6 +529,29 @@ async function deleteDM(
   const authorId = getCurrentUserId();
   const parsed = parsePostId(postId);
 
+  // acting as a bot moon: deletions ride the vouched conversation, and the
+  // bot can only delete its own messages. Reject a foreign author here with
+  // a usable error instead of letting the host desk crash the relay.
+  const moon = botMoon();
+  if (moon) {
+    if (parsed.authorId && normalizeShip(parsed.authorId) !== moon) {
+      return {
+        success: false,
+        error: `bots can only delete their own messages (author ${parsed.authorId})`,
+      };
+    }
+    try {
+      await deleteVouchedDmPost({
+        as: moon,
+        toShip: normalizedShip,
+        postId: `${moon}/${parsed.id}`,
+      });
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
   try {
     await deletePost(normalizedShip, parsed.id, parsed.authorId ?? authorId);
     return { success: true };
@@ -487,6 +564,13 @@ async function deleteDM(
 async function acceptDM(
   ship: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (botMoon()) {
+    return {
+      success: false,
+      error:
+        'bot DM conversations are auto-accepted; there are no invites to accept',
+    };
+  }
   const normalizedShip = normalizeShip(ship);
   const channel: Channel = {
     id: normalizedShip,
@@ -508,6 +592,13 @@ async function acceptDM(
 async function declineDM(
   ship: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (botMoon()) {
+    return {
+      success: false,
+      error:
+        'bot DM conversations are auto-accepted; there are no invites to decline',
+    };
+  }
   const normalizedShip = normalizeShip(ship);
   const channel: Channel = {
     id: normalizedShip,

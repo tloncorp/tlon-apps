@@ -298,20 +298,52 @@
   |=  s=state
   &+[~(on-save agent.s bowl.s) s]
 ::
+::  +peek-mock: run +on-peek under the mocked scry, the way +do runs the
+::  other lifecycle arms. an agent may scry inside its peeks (e.g. a
+::  vane-backed fallback); a bare call would hit the live namespace, where
+::  an unresolvable path (a bunted test date, a foreign beak) BLOCKS and
+::  kills the whole spider test run rather than failing one test.
+::
+++  peek-mock
+  ::NOTE  the argument face must not be =path -- it would shadow the path
+  ::      mold for the ;; in the %1 branch below (-find.$.+2)
+  |=  [s=state pek=path]
+  ^-  (each (unit (unit cage)) (list tank))
+  =;  res=toon
+    ?-  -.res
+      %0  :-  %&
+          ::NOTE  see +do: playing pretend with vases instead of ;;
+          !<  (unit (unit cage))
+          [-:!>(*(unit (unit cage))) p.res]
+      %1  |+~['blocking on scry in +on-peek' >;;(path p.res)<]
+      %2  |+p.res
+    ==
+  %+  mock  [. !=((~(on-peek agent.s bowl.s) pek))]
+  |=  [ref=* pax=*]
+  ^-  (unit (unit *))
+  ?>  ?=(^ ref)
+  ?>  =(hoon-version -.ref)
+  =+  ;;(pax=path pax)
+  =/  res=(unit vase)  (scry.s pax)
+  ?~(res ~ ``q.u.res)
+::
 ++  get-peek
   |=  =path
   =/  m  (mare ,(unit (unit cage)))
   ^-  form:m
   |=  s=state
-  &+[(~(on-peek agent.s bowl.s) path) s]
+  =/  res  (peek-mock s path)
+  ?:  ?=(%| -.res)  |+p.res
+  &+[p.res s]
 ::
 ++  got-peek
   |=  =path
   =/  m  (mare ,cage)
   ^-  form:m
   |=  s=state
-  =/  peek=(unit (unit cage))
-    (~(on-peek agent.s bowl.s) path)
+  =/  res  (peek-mock s path)
+  ?:  ?=(%| -.res)  |+p.res
+  =/  peek=(unit (unit cage))  p.res
   ?.  ?=(^ peek)  |+~['invalid scry path' (spat path)]
   ?.  ?=(^ u.peek)  |+~['unexpected empty result at scry path' (spat path)]
   &+[u.u.peek s]

@@ -36,7 +36,21 @@ import type {
 import { assertActingShipCanAdminister } from './group-admin';
 import { fetchImageVerse } from './image-attach';
 import type { Story } from './markdown';
+import { botMoon } from './moon';
 import { createProcessCommandDeps } from './runtime-deps';
+
+// Identity-attributed channel writes would be authored as the HOST when the
+// skill runs as a bot moon; the harness's message tool is the path that posts
+// as the bot. Guarded here at the impure boundary so the pure command module
+// stays env-free.
+function assertNotBotMoon(action: string): void {
+  if (botMoon()) {
+    throw commandError(
+      `${action} would be attributed to the host, not the bot; ` +
+        'use the message tool, which posts as the bot identity'
+    );
+  }
+}
 
 function sortKeysDeep(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -181,6 +195,7 @@ export function createPostsDeps(): PostsDeps {
     contentKeyOf: contentKeyOfStory,
     postsApi: {
       addReaction: async (input: PostReactionInput) => {
+        assertNotBotMoon('reacting in a channel');
         try {
           await apiAddReaction(input);
         } catch (error) {
@@ -188,6 +203,7 @@ export function createPostsDeps(): PostsDeps {
         }
       },
       removeReaction: async (input: PostReactionRemoveInput) => {
+        assertNotBotMoon('removing a channel reaction');
         try {
           await apiRemoveReaction(input);
         } catch (error) {
@@ -195,6 +211,7 @@ export function createPostsDeps(): PostsDeps {
         }
       },
       deletePost: async (input: PostDeleteInput) => {
+        assertNotBotMoon('deleting a channel post');
         try {
           await apiDeletePost(input.channelId, input.postId, input.authorId);
         } catch (error) {
@@ -202,6 +219,7 @@ export function createPostsDeps(): PostsDeps {
         }
       },
       editPost: async (input: PostEditInput) => {
+        assertNotBotMoon('editing a channel post');
         try {
           await apiEditPost(input);
         } catch (error) {
@@ -209,6 +227,7 @@ export function createPostsDeps(): PostsDeps {
         }
       },
       sendPost: async (input: PostSendInput) => {
+        assertNotBotMoon('posting in a channel');
         try {
           await apiSendPost(input);
         } catch (error) {
@@ -216,6 +235,7 @@ export function createPostsDeps(): PostsDeps {
         }
       },
       sendReply: async (input: PostReplyInput) => {
+        assertNotBotMoon('replying in a channel');
         try {
           await apiSendReply(input);
         } catch (error) {

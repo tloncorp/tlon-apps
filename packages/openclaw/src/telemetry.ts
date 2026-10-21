@@ -652,6 +652,7 @@ export type TlonPluginErrorSource =
   | 'groups_v3_subscription'
   | 'foreigns_subscription'
   | 'steward_subscription'
+  | 'vouched_dm'
   | 'settings_refresh'
   | 'sse_stream'
   | 'approval_notification'
