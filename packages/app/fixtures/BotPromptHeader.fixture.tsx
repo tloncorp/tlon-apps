@@ -27,9 +27,10 @@ export default {
         description="How your Tlonbot behaves in every channel of My agent workspace."
       />
       <BotPromptHeader
-        title="A title long enough to run out of room on a phone"
+        title="Instructions"
         meta="~pinser-botter-bosser-hatber"
-        description="The title truncates before the file name or bot does."
+        description="The bot id gives way before the title does."
+        maxWidth={260}
       />
     </Specimen>
   ),

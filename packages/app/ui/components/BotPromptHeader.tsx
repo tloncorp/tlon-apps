@@ -1,5 +1,5 @@
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, ReactNode } from 'react';
+import { ComponentProps } from 'react';
 import { XStack, YStack } from 'tamagui';
 
 /**
@@ -22,18 +22,20 @@ export function BotPromptHeader({
 }: Omit<ComponentProps<typeof YStack>, 'children'> & {
   title?: string;
   meta?: string;
-  description: ReactNode;
+  description: string;
 }) {
   return (
     <YStack gap="$l" {...props}>
       {title ? (
         <XStack alignItems="baseline" gap="$l">
+          {/* A bot id beside a title can outgrow a phone's width; the id
+              gives way, since the title is what the sheet is for. */}
           <Text
             size="$label/xl"
             fontWeight="600"
             color="$primaryText"
-            flex={1}
-            minWidth={0}
+            flexShrink={0}
+            maxWidth="100%"
             numberOfLines={1}
           >
             {title}
@@ -42,8 +44,10 @@ export function BotPromptHeader({
             <Text
               size="$label/m"
               color="$tertiaryText"
-              flexShrink={0}
+              flex={1}
+              minWidth={0}
               numberOfLines={1}
+              textAlign="right"
             >
               {meta}
             </Text>
