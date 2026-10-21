@@ -118,7 +118,7 @@ Notes: the switch only adds `Buckets` to the channel types offered when you crea
 
 Phone: once Buckets are turned on in experimental features, start a `New channel` from the group's channel settings. In the `Create a new channel` sheet, type a title, pick `Buckets` (`Shared files for members and agents`) under `Channel type`, and tap `Create channel`.
 Who: group admins only, and only in groups hosted on Tlon. Your node's backend must also be recent enough to support Buckets.
-Notes: when the group's host doesn't qualify, `Buckets` is left off the list and the sheet says `Buckets are currently available only in groups hosted on Tlon.`
+Notes: when the group's host doesn't qualify, `Buckets` is left off the list and the sheet says `Buckets are currently available only in workspaces hosted on Tlon.`
 
 ## Add files, photos or a folder to a Bucket
 <!-- src: packages/app/ui/components/BucketsChannel/BucketsChannel.tsx, packages/app/features/buckets/BucketsLiveChannel.tsx, packages/app/ui/components/BucketsChannel/BucketsDropTarget.tsx -->
