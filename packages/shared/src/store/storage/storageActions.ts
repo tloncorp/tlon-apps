@@ -15,6 +15,7 @@ import { AnalyticsEvent } from '../../domain';
 import { getLocalFileSize } from './getLocalFileSize';
 import { setUploadState } from './storageUploadState';
 import {
+  fetchRemoteAsBlobUrl,
   getExtensionFromMimeType,
   getMemexUpload,
   hasCustomS3Creds,
@@ -213,7 +214,18 @@ async function uploadImageAsset(
       logger.log('full asset', asset);
     },
     async prepareAsset() {
-      const asset = uploadIntent.asset;
+      let asset = uploadIntent.asset;
+      // A pasted image link arrives as a remote url. Pull it into a blob first
+      // so resizing and uploading never depend on that host's CORS headers.
+      if (isWeb && /^https?:\/\//.test(asset.uri)) {
+        const local = await fetchRemoteAsBlobUrl(asset.uri);
+        asset = {
+          ...asset,
+          uri: local.uri,
+          mimeType: local.mimeType || asset.mimeType,
+          fileSize: local.size,
+        };
+      }
       logger.log('resizing asset', asset.uri);
       let resizedAsset = asset;
       // manipulateAsync re-encodes to `format`, so the upload mime must track

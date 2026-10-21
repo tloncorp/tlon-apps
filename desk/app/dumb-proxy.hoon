@@ -108,10 +108,12 @@
       =.  url.request  u.target
       =.  header-list.request
         ::  delete cookies from the original request,
-        ::  don't want to leak these
+        ::  don't want to leak these. also drop host: it names our
+        ::  ship, and iris adds the target's own, so forwarding it
+        ::  sends two and strict servers (netlify) reject with 400.
         ::
         %+  skip  header-list.request
-        |=([k=@t @t] =('cookie' k))
+        |=([k=@t @t] |(=('cookie' k) =('host' k)))
       [[(fetch [id secure] request)]~ this]
     ==
   ==
@@ -158,7 +160,16 @@
     %+  spout:hutils  eid
     :-  =,  response-header.res
         :-  status-code
-        (snoc headers 'x-dumb-proxy'^'finished')
+        ::  framing headers describe the upstream connection, not ours.
+        ::  passing content-length through makes the runtime send an
+        ::  empty body, so let it frame the response itself.
+        ::
+        %+  snoc
+          %+  skip  headers
+          |=  [k=@t @t]
+          %.  (crip (cass (trip k)))
+          ~(has in (silt `(list @t)`~['content-length' 'transfer-encoding' 'connection']))
+        'x-dumb-proxy'^'finished'
     ?~  full-file.res  ~
     `data.u.full-file.res
   ==
