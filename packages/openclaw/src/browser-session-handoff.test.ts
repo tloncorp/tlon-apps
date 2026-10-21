@@ -801,7 +801,7 @@ describe('browser session handoff', () => {
     expect(cancelWatch).toHaveBeenCalledOnce();
     runBrowserHandoffCommand.mockResolvedValue('sent');
     await expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+      runBrowserSessionHandoff('tlon', selectedArgs, config)
     ).resolves.toContain('sent');
   });
 });
@@ -849,7 +849,7 @@ describe('configured development viewer', () => {
     await runBrowserSessionHandoff('tlon', selectedArgs, config);
     expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
       'tlon',
-      ['browser', 'handoff', url],
+      ['browser', 'handoff', url, '--service-result'],
       config
     );
     vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', 'http://127.0.0.1:43842');

@@ -582,7 +582,11 @@ it('blocks browser use and fresh approval cards until a stored result is deliver
     toolName: 'mcp__call',
     params: {
       name: 'browser_browser_login',
-      arguments: { session_id: 'blocked-browser', action: 'use' },
+      arguments: {
+        session_id: 'blocked-browser',
+        action: 'use',
+        fields: ['@e12'],
+      },
     },
     result: {
       details: {

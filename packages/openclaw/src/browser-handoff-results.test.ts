@@ -431,25 +431,38 @@ it.each(['browser_act', 'browser_browser_act'])(
 
 describe('configured development result origin', () => {
   afterEach(() => vi.unstubAllEnvs());
-  it('polls only the configured local origin', async () => {
+  it('polls only the configured local origin, allowing its private address', async () => {
     vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', 'http://127.0.0.1:43841');
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(Response.json({ status: 'pending' }));
-    vi.stubGlobal('fetch', fetcher);
+    const release = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(urbitFetch).mockResolvedValue({
+      response: Response.json({ status: 'pending' }),
+      release,
+      finalUrl: 'http://127.0.0.1:43841/credential-result/payload.signature',
+    });
+    const signal = new AbortController().signal;
     await expect(
       readBrowserHandoffResult(
         'http://127.0.0.1:43841/s/payload.signature',
-        new AbortController().signal
+        signal
       )
     ).resolves.toEqual({ status: 'pending' });
-    expect(fetcher.mock.calls[0][0].origin).toBe('http://127.0.0.1:43841');
+    expect(urbitFetch).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        baseUrl: 'http://127.0.0.1:43841',
+        path: '/credential-result/payload.signature',
+        ssrfPolicy: { allowPrivateNetwork: true },
+        pinDns: true,
+        maxRedirects: 0,
+        signal,
+      })
+    );
+    expect(release).toHaveBeenCalledOnce();
     await expect(
       readBrowserHandoffResult(
         'http://127.0.0.1:43842/s/payload.signature',
         new AbortController().signal
       )
     ).rejects.toThrow();
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(urbitFetch).toHaveBeenCalledTimes(1);
   });
 });

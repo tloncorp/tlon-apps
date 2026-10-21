@@ -88,6 +88,12 @@ export async function readBrowserHandoffResult(
   signal: AbortSignal
 ): Promise<BrowserResult> {
   const url = resultEndpoint(viewerUrl);
+  // Only the explicitly configured development viewer may sit on a private
+  // address; every other result origin keeps the deny-private-network policy.
+  const development = isBrowserViewerDevelopmentOrigin(
+    url,
+    process.env.TLON_BROWSER_VIEWER_DEV_ORIGIN
+  );
   const { response, release } = await urbitFetch({
     baseUrl: url.origin,
     path: url.pathname,
@@ -97,7 +103,7 @@ export async function readBrowserHandoffResult(
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
     },
-    ssrfPolicy: { allowPrivateNetwork: false },
+    ssrfPolicy: { allowPrivateNetwork: development },
     pinDns: true,
     maxRedirects: 0,
     timeoutMs: 5_000,
