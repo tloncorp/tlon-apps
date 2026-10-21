@@ -65,6 +65,12 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
+import {
+  type GroupContextRuntime,
+  createGroupContextRuntime,
+  publishGroupContextRuntime,
+  unpublishGroupContextRuntime,
+} from '../group-context.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import { recordTlonMessageJourneyEvent } from '../message-journey.js';
 import {
@@ -961,6 +967,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
   let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
+  let groupContext: GroupContextRuntime | null = null;
   let roleMentionResolver: RoleMentionResolver | null = null;
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
@@ -1028,6 +1035,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           for (const [nest, groupFlag] of initData.channelToGroup) {
             channelToGroup.set(nest, groupFlag);
           }
+          groupContextRuntime.applySnapshot(initData.groupContexts);
         })
         .catch((error) =>
           runtime.log?.(
@@ -1058,6 +1066,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       log: (msg) => runtime.log?.(msg),
     });
     publishWorkspaceInstructionsRuntime(workspaceInstructions);
+    const groupContextRuntime = createGroupContextRuntime();
+    groupContext = groupContextRuntime;
+    publishGroupContextRuntime(groupContextRuntime);
     roleMentionResolver = createRoleMentionResolver({
       channelToGroup,
       refreshChannelGroups,
@@ -1816,6 +1827,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       for (const [flag, roles] of initData.groupRoles) {
         groupRoles.set(flag, roles);
       }
+      groupContextRuntime.applySnapshot(initData.groupContexts);
     } catch (error: any) {
       runtime.error?.(
         `[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`
@@ -4193,6 +4205,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       for (const [flag, title] of initData.groupNames) {
         groupNameCache.set(flag, title);
       }
+      groupContextRuntime.applySnapshot(initData.groupContexts);
       // Every discovery result is a config-sourced nest while discovery is
       // on, whether or not it is already watched; see discoveredNests.
       for (const nest of initData.channels) {
@@ -4646,6 +4659,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           timestamp: content.sent || Date.now(),
           id: messageId,
           blob: content.blob ?? null,
+        });
+        groupContextRuntime.recordMessage({
+          nest,
+          sender: senderShip,
+          text: rawText,
+          timestamp: content.sent,
         });
 
         // Check if sender is a bot (BotProfile object has ship, nickname, avatar)
@@ -6499,6 +6518,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               }
 
               if (opts.abortSignal?.aborted) return;
+              groupContextRuntime.handleGroupsUiEvent(event);
               const fact = parseGroupsUiChannelFact(event, {
                 botShip: botShipName,
               });
@@ -7059,6 +7079,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     cleanupGatewayStatus();
     if (workspaceInstructions) {
       unpublishWorkspaceInstructionsRuntime(workspaceInstructions);
+    }
+    if (groupContext) {
+      unpublishGroupContextRuntime(groupContext);
     }
     if (roleMentionResolver) {
       unpublishRoleMentionResolver(account.accountId, roleMentionResolver);
