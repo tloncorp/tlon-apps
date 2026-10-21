@@ -1,6 +1,7 @@
 import {
   BasicTextField,
   Box,
+  Checkbox,
   Column,
   DropdownMenu,
   DropdownMenuItem,
@@ -8,6 +9,7 @@ import {
   HorizontalDivider,
   LazyColumn,
   RNHostView,
+  RadioButton,
   Row,
   Switch,
   Text,
@@ -29,7 +31,6 @@ import {
   toggleable,
   weight,
 } from '@expo/ui/jetpack-compose/modifiers';
-import { Icon } from '@tloncorp/ui';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { type LayoutChangeEvent, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -210,8 +211,9 @@ function PlainRow({
         ...(row.disabled
           ? []
           : isChoice && onClick
-            ? // The checkmark is only drawn; this is what tells TalkBack and
-              // UI tests which choices are on.
+            ? // The row takes the tap, not its radio button or checkbox, as in
+              // Material's own lists; this is also what tells TalkBack and UI
+              // tests which choices are on.
               [
                 row.multiple
                   ? toggleable(Boolean(row.selected), onClick, {
@@ -229,6 +231,17 @@ function PlainRow({
         ...(row.testID ? [testID(row.testID)] : []),
       ]}
     >
+      {/* One choice of several leads with a radio button, the way Android's
+          own settings lists draw it. */}
+      {isChoice && !row.multiple ? (
+        <RadioButton
+          selected={Boolean(row.selected)}
+          colors={{
+            selectedColor: colors.accent,
+            unselectedColor: colors.tertiaryText,
+          }}
+        />
+      ) : null}
       {row.leading ? (
         <RNHostView matchContents>
           <HostedSettingsRowLeading row={row} />
@@ -291,10 +304,17 @@ function PlainRow({
           }}
         />
       ) : null}
-      {row.selected ? (
-        <RNHostView matchContents>
-          <HostedCheckmark />
-        </RNHostView>
+      {/* Any number of choices end with a checkbox, after the person or
+          thing they pick. */}
+      {isChoice && row.multiple ? (
+        <Checkbox
+          value={Boolean(row.selected)}
+          colors={{
+            checkedColor: colors.accent,
+            uncheckedColor: colors.tertiaryText,
+            checkmarkColor: colors.row,
+          }}
+        />
       ) : null}
       {row.trailingAction ? (
         <Text
@@ -321,6 +341,7 @@ function PlainRow({
       <DropdownMenu
         expanded={menuOpen}
         onDismissRequest={() => setMenuOpen(false)}
+        color={colors.menu}
       >
         <DropdownMenu.Trigger>{content}</DropdownMenu.Trigger>
         <DropdownMenu.Items>
@@ -358,6 +379,7 @@ function PlainRow({
     <DropdownMenu
       expanded={menuOpen}
       onDismissRequest={() => setMenuOpen(false)}
+      color={colors.menu}
     >
       <DropdownMenu.Trigger>{content}</DropdownMenu.Trigger>
       <DropdownMenu.Items>
@@ -469,25 +491,6 @@ function TextFieldRow({
         ]}
       />
     </Box>
-  );
-}
-
-const checkmarkSize = 24;
-
-/** Tlon's checkmark, since Compose's radio button can't take theme colors. */
-function HostedCheckmark() {
-  return (
-    <View
-      pointerEvents="none"
-      style={{ width: checkmarkSize, height: checkmarkSize }}
-    >
-      <Icon
-        type="Checkmark"
-        width={checkmarkSize}
-        height={checkmarkSize}
-        color="$positiveActionText"
-      />
-    </View>
   );
 }
 

@@ -27,6 +27,10 @@ export function useSettingsListColors() {
       // Warm like the rest of the palette; the platforms' own separator grays
       // are cool and read as off against it.
       separator: theme.secondaryBorder.val,
+      // Menus take the app's own menu color, as the message menu does, rather
+      // than Material's, which follows the phone's wallpaper. On a dark card
+      // that color is the card's own, so there they go a step lighter.
+      menu: isDark ? theme.secondaryBorder.val : theme.secondaryBackground.val,
       primaryText: theme.primaryText.val,
       secondaryText: theme.secondaryText.val,
       tertiaryText: theme.tertiaryText.val,

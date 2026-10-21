@@ -23,7 +23,11 @@ export function IconMenu({
   const colors = useSettingsListColors();
   return (
     <Host matchContents colorScheme={colors.colorScheme}>
-      <DropdownMenu expanded={open} onDismissRequest={() => setOpen(false)}>
+      <DropdownMenu
+        expanded={open}
+        onDismissRequest={() => setOpen(false)}
+        color={colors.menu}
+      >
         <DropdownMenu.Trigger>
           <RNHostView matchContents>
             <Pressable
