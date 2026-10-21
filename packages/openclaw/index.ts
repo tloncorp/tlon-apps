@@ -121,6 +121,7 @@ import {
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
+import { registerWalletHandoffs } from './src/wallet-handoffs.js';
 import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
 import { createBrowserLoginApprovalHandler } from './src/browser-login-approval.js';
 import {
@@ -968,6 +969,7 @@ type AgentTurnHookDeps = {
   liveAccount: () => LiveTlonOwner;
   isOwnerRun: OwnerRunCheck;
   browserHandoffs: ReturnType<typeof registerBrowserHandoffResults>;
+  walletHandoffs: ReturnType<typeof registerWalletHandoffs>;
   browserLoginApprovals: ReturnType<typeof createBrowserLoginApprovalHandler>;
 };
 
@@ -1368,6 +1370,16 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
 
   api.on('after_tool_call', async (event, ctx) => {
     recordSuccessfulAgentOnboardingSurface(event, ctx);
+    try {
+      await agentTurnHookDepsSlot.get()?.walletHandoffs.handle(event, ctx);
+    } catch {
+      api.logger.warn('[tlon] Wallet card delivery failed.');
+      if (ctx.sessionKey)
+        api.runtime.system.enqueueSystemEvent(
+          'The wallet card could not be delivered. Tell the owner; do not claim approval or retry payment.',
+          { sessionKey: ctx.sessionKey }
+        );
+    }
     try {
       await agentTurnHookDepsSlot
         .get()
@@ -1810,6 +1822,7 @@ export default defineBundledChannelEntry({
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
     const browserHandoffs = registerBrowserHandoffResults(api);
+    const walletHandoffs = registerWalletHandoffs(api, tlonBinary);
     const runBrowserCommand = async (
       args: string[],
       ctx: { sessionKey?: string; sessionId?: string }
@@ -1828,12 +1841,14 @@ export default defineBundledChannelEntry({
     };
 
     const browserLoginApprovals = createBrowserLoginApprovalHandler(
-      (sessionId, record, ctx) =>
+      (sessionId, record, ctx, fields) =>
         runBrowserCommand(
           [
             'browser',
             'approve-login',
             sessionId,
+            '--fields',
+            JSON.stringify(fields),
             ...(record ? ['--record', JSON.stringify(record)] : []),
           ],
           ctx
@@ -2109,6 +2124,7 @@ export default defineBundledChannelEntry({
         liveAccount,
         isOwnerRun,
         browserHandoffs,
+        walletHandoffs,
         browserLoginApprovals,
       });
     }

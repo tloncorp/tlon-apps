@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { browserWalletCard } from '@tloncorp/api';
 import { validateBrowserViewerUrl } from '../browser-viewer';
 import { markdownToStory } from '../markdown';
 import type { PostsDeps } from './posts';
@@ -12,17 +13,17 @@ import {
 
 export const BROWSER_HANDOFF_HELP = String.raw`Usage: tlon browser --help
 
-Tlon tool: browser handoff <session_id> [--fields <JSON array>]
-Tlon tool: browser approve-login <session_id> [--record <JSON object>]
+Tlon tool: browser handoff <session_id> --fields <JSON array>
+Tlon tool: browser approve-login <session_id> --fields <JSON array> [--record <JSON object>]
 Tlon tool: browser share <session_id>
 
 Use the session ID from browser_session_create in the tool's command argument.
-Use --fields when the owner should fill only selected controls. Prefer current
+Both secure-entry commands require --fields. Prefer current
 snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'.
 Exact {"name":"..."} or {"label":"..."} selectors must match uniquely.
 Encode apostrophes in selector text as \u0027 inside the single-quoted JSON:
   browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'
-Omit --fields for automatic discovery of the visible form.
+The card fills only those controls; the agent chooses the next page action.
 The plugin resolves a fresh signed link and delivers the card through this CLI.
 Do not copy, construct, or pass a viewer URL in a model tool call. This CLI
 subcommand is the plugin's delivery transport, not a shell session-handle lookup.`;
@@ -36,7 +37,7 @@ Use browser approve-login to ask for permission to use a saved login. The owner 
 
 Use browser handoff to send a native secure-entry card for login identifiers,
 passwords, verification codes, card fields, and private personal details.
-Each card fills one secure step. Login forms may submit; other forms only fill.
+Each card fills one secure step without submitting. The agent then inspects the page and chooses the next action.
 Values go directly to the browser service without passing through chat or the bot.
 Wait for the service result before using that browser again. The result resumes
 the originating conversation even if the app disconnects; sharing alone does not. Neither command grants purchase approval.
@@ -169,6 +170,18 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
     }
     if (!args[0]) {
       throw usageError(BROWSER_HELP);
+    }
+    if (args[0] === 'wallet' && args.length === 2) {
+      const id = z.string().uuid().parse(args[1]);
+      const target = deps.getOwnerShip();
+      await deps.authenticate(['chat']);
+      const sentAt = deps.now();
+      await deps.postsApi.sendPost({ channelId: target, authorId: deps.getCurrentUserId(), sentAt,
+        content: markdownToStory('Your bot has a wallet request for you to review.'),
+        blob: JSON.stringify([browserWalletCard(id, `wallet-${id}`)]),
+        botProfile: { nickname: null, avatar: null } });
+      writeLine(deps.stdout, `✓ Wallet request sent to ${target}`);
+      return 0;
     }
     if (!['handoff', 'share', 'approve-login'].includes(args[0]) || !args[1]) {
       throw usageError(BROWSER_HELP);

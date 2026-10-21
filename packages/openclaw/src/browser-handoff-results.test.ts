@@ -107,12 +107,12 @@ describe('secure-entry result delivery', () => {
     f.service.start();
     await f.service.poll();
     expect(f.resume).not.toHaveBeenCalled();
-    f.readResult.mockResolvedValue({ status: 'filled', submitted: true });
+    f.readResult.mockResolvedValue({ status: 'filled', submitted: false });
     await Promise.all([f.service.poll(), f.service.poll()]);
     await f.service.poll();
     expect(f.resume).toHaveBeenCalledExactlyOnceWith({
       sessionKey: f.ctx.sessionKey,
-      message: expect.stringContaining('filled; submission attempted'),
+      message: expect.stringContaining('filled; submission not attempted'),
       idempotencyKey: expect.stringMatching(
         /^tlon-browser-handoff:[a-f0-9]{64}$/
       ),
@@ -428,3 +428,28 @@ it.each(['browser_act', 'browser_browser_act'])(
     ).toBeUndefined();
   }
 );
+
+describe('configured development result origin', () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it('polls only the configured local origin', async () => {
+    vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', 'http://127.0.0.1:43841');
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(Response.json({ status: 'pending' }));
+    vi.stubGlobal('fetch', fetcher);
+    await expect(
+      readBrowserHandoffResult(
+        'http://127.0.0.1:43841/s/payload.signature',
+        new AbortController().signal
+      )
+    ).resolves.toEqual({ status: 'pending' });
+    expect(fetcher.mock.calls[0][0].origin).toBe('http://127.0.0.1:43841');
+    await expect(
+      readBrowserHandoffResult(
+        'http://127.0.0.1:43842/s/payload.signature',
+        new AbortController().signal
+      )
+    ).rejects.toThrow();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});

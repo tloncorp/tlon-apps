@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   isTrustedBrowserViewerHost,
+  isBrowserViewerDevelopmentOrigin,
   MAX_BROWSER_VIEWER_URL_LENGTH,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
@@ -14,9 +15,9 @@ import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 import type { BrowserHandoffRequest } from './browser-handoff-results.js';
 
-export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> [--fields <JSON array>] or browser approve-login <session_id> [--record <JSON object>] or browser share <session_id> (the session ID from browser_session_create). Use --fields when the owner should fill only selected controls; omit it for automatic discovery of the visible form. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
+export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> --fields <JSON array> or browser approve-login <session_id> --fields <JSON array> [--record <JSON object>] or browser share <session_id> (the session ID from browser_session_create). Both secure-entry commands require --fields. The card fills only those controls; the agent inspects the page and chooses the next action. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
 
-const formFieldsSchema = z
+export const formFieldsSchema = z
   .array(
     z.union([
       z.string().regex(/^@e\d+$/),
@@ -26,7 +27,7 @@ const formFieldsSchema = z
   )
   .min(1)
   .max(40);
-type FormFields = z.infer<typeof formFieldsSchema>;
+export type FormFields = z.infer<typeof formFieldsSchema>;
 
 const LOOKUP_DEADLINE_MS = 15_000;
 const LOOKUP_ATTEMPT_TIMEOUT_MS = 5_000;
@@ -72,7 +73,7 @@ function record(value: unknown): Record<string, unknown> {
     : {};
 }
 
-async function readMcpReply(response: Response, id: string): Promise<unknown> {
+export async function readMcpReply(response: Response, id: string): Promise<unknown> {
   const mediaType = response.headers
     .get('content-type')
     ?.split(';')[0]
@@ -133,12 +134,16 @@ function validateViewerUrl(value: unknown, selected = false): string {
     url.pathname
   );
   if (
-    url.protocol !== 'https:' ||
+    (!isBrowserViewerDevelopmentOrigin(
+      url,
+      process.env.TLON_BROWSER_VIEWER_DEV_ORIGIN
+    ) &&
+      (url.protocol !== 'https:' ||
+        !!url.port ||
+        !isTrustedBrowserViewerHost(url.hostname))) ||
     url.username ||
     url.password ||
-    url.port ||
     url.hash ||
-    !isTrustedBrowserViewerHost(url.hostname) ||
     !capability
   ) {
     throw new Error('Invalid browser viewer URL.');
@@ -351,38 +356,33 @@ export async function runBrowserSessionHandoff(
     return BROWSER_SESSION_HANDOFF_HELP;
   }
   if (
-    ![3, 5].includes(args.length) ||
+    ![3, 5, 7].includes(args.length) ||
     args[0] !== 'browser' ||
     !['handoff', 'share', 'approve-login'].includes(args[1]) ||
-    // Session IDs are opaque; the authenticated lookup establishes ownership.
-    !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(args[2]) ||
-    (args.length === 5 &&
-      !(
-        (args[1] === 'handoff' && args[3] === '--fields') ||
-        (args[1] === 'approve-login' && args[3] === '--record')
-      ))
-  ) {
+    !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(args[2])
+  )
     throw new Error(BROWSER_SESSION_HANDOFF_HELP);
-  }
   let fields: FormFields | undefined;
   let loginRecord: { id: string; revision: number } | undefined;
-  if (args.length === 5 && args[1] === 'approve-login') {
-    try {
-      loginRecord = z
-        .object({ id: z.uuid(), revision: z.number().int().positive() })
-        .strict()
-        .parse(JSON.parse(args[4]));
-    } catch {
-      throw new Error(BROWSER_SESSION_HANDOFF_HELP);
+  try {
+    for (let i = 3; i < args.length; i += 2) {
+      if (args[i + 1].length > 16_384) throw new Error('Argument too large.');
+      if (args[i] === '--fields' && args[1] !== 'share' && !fields)
+        fields = formFieldsSchema.parse(JSON.parse(args[i + 1]));
+      else if (
+        args[i] === '--record' &&
+        args[1] === 'approve-login' &&
+        !loginRecord
+      )
+        loginRecord = z
+          .object({ id: z.uuid(), revision: z.number().int().positive() })
+          .strict()
+          .parse(JSON.parse(args[i + 1]));
+      else throw new Error('Invalid option.');
     }
-  }
-  if (args.length === 5 && args[1] === 'handoff') {
-    try {
-      if (args[4].length > 16_384) throw new Error('Too many fields.');
-      fields = formFieldsSchema.parse(JSON.parse(args[4]));
-    } catch {
-      throw new Error(BROWSER_SESSION_HANDOFF_HELP);
-    }
+    if (args[1] !== 'share' && !fields) throw new Error('Select fields first.');
+  } catch {
+    throw new Error(BROWSER_SESSION_HANDOFF_HELP);
   }
   const account = resolveBrowserHandoffAccount(config);
   if (args[1] !== 'share' && !watchHandoff)

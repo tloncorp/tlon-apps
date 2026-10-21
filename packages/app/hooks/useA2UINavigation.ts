@@ -124,6 +124,7 @@ export function useA2UINavigation() {
         allowBotMcpSettings?: boolean;
         allowBrowserCredentialHandoff?: boolean;
         allowBrowserSession?: boolean;
+        allowBrowserWallet?: boolean;
       }
     ) => {
       switch (target.type) {
@@ -176,6 +177,12 @@ export function useA2UINavigation() {
                 return;
               }
               rootNavigation.navigateToBotMcpSettings(target.providerId);
+              return;
+            case 'browserWallet':
+              if (!options?.allowBrowserWallet) return;
+              rootNavigation.navigation.navigate('BrowserWallet', {
+                requestId: target.requestId,
+              });
               return;
             case 'browserSession':
               if (!options?.allowBrowserSession) return;

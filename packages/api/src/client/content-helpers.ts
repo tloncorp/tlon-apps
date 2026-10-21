@@ -1022,6 +1022,7 @@ export function postHasBrowserHandoff(blob: string): boolean {
     if (!value || typeof value !== 'object') return false;
     return (
       ('viewerUrl' in value && typeof value.viewerUrl === 'string') ||
+      ('screen' in value && value.screen === 'browserWallet') ||
       Object.values(value).some(containsHandoff)
     );
   }

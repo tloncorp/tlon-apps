@@ -17,7 +17,8 @@ import {
 import { formatOwnerOnlyToolBlockReason } from './owner-only-tools.js';
 import { _testing, setSessionRole } from './session-roles.js';
 
-vi.mock('./browser-session-handoff.js', () => ({
+vi.mock('./browser-session-handoff.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./browser-session-handoff.js')>()),
   runBrowserSessionHandoff: vi.fn().mockResolvedValue('Card sent'),
 }));
 
@@ -476,7 +477,11 @@ describe('saved login approval hook', () => {
       toolName: 'mcp__call',
       params: {
         name: 'browser_browser_login',
-        arguments: { session_id: 'same-browser', action: 'use' },
+        arguments: {
+          session_id: 'same-browser',
+          action: 'use',
+          fields: ['@e12'],
+        },
       },
       result: {
         details: {
@@ -512,7 +517,11 @@ describe('saved login approval hook', () => {
         toolName: 'mcp__call',
         params: {
           name: 'browser_browser_login',
-          arguments: { session_id: 'fresh-ivory-finch', action: 'use' },
+          arguments: {
+            session_id: 'fresh-ivory-finch',
+            action: 'use',
+            fields: ['@e12'],
+          },
         },
         result: {
           details: {
@@ -527,7 +536,7 @@ describe('saved login approval hook', () => {
     );
     expect(runBrowserSessionHandoff).toHaveBeenCalledExactlyOnceWith(
       expect.any(String),
-      ['browser', 'approve-login', 'fresh-ivory-finch'],
+      ['browser', 'approve-login', 'fresh-ivory-finch', '--fields', '["@e12"]'],
       config,
       expect.any(Function)
     );
@@ -613,7 +622,11 @@ it('puts approval delivery failure into the originating conversation without lea
       toolName: 'mcp__call',
       params: {
         name: 'browser_browser_login',
-        arguments: { session_id: 'delivery-failure', action: 'use' },
+        arguments: {
+          session_id: 'delivery-failure',
+          action: 'use',
+          fields: ['@e12'],
+        },
       },
       result: {
         details: {

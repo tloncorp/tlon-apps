@@ -1,3 +1,8 @@
+import {
+  formFieldsSchema,
+  type FormFields,
+} from './browser-session-handoff.js';
+
 /** Deliver one saved-login approval card per browser session in each agent run. */
 export type BrowserLoginToolResult = {
   toolName: string;
@@ -18,7 +23,8 @@ export function createBrowserLoginApprovalHandler(
   sendHandoff: (
     sessionId: string,
     choice: { id: string; revision: number } | undefined,
-    ctx: RunContext
+    ctx: RunContext,
+    fields: FormFields
   ) => Promise<unknown>
 ) {
   const runKey = (ctx: RunContext) =>
@@ -45,7 +51,9 @@ export function createBrowserLoginApprovalHandler(
     }
     const args = record(argumentsValue);
     const sessionId = args.session_id;
+    const fields = formFieldsSchema.safeParse(args.fields);
     if (
+      !fields.success ||
       (args.action !== undefined && args.action !== 'use') ||
       typeof sessionId !== 'string' ||
       !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(sessionId)
@@ -80,7 +88,7 @@ export function createBrowserLoginApprovalHandler(
         ? { id: requested.id, revision: requested.revision }
         : undefined;
     const promise = Promise.resolve().then(() =>
-      sendHandoff(sessionId, choice, ctx)
+      sendHandoff(sessionId, choice, ctx, fields.data)
     );
     delivered.set(sessionId, promise);
     try {

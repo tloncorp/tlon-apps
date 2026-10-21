@@ -1,4 +1,7 @@
-import { isTrustedBrowserViewerHost } from '@tloncorp/api/client/browserSession';
+import {
+  isTrustedBrowserViewerHost,
+  isBrowserViewerDevelopmentOrigin,
+} from '@tloncorp/api/client/browserSession';
 import {
   authorizeBrowserLoginHandoff,
   browserVaultOwnerRequest,
@@ -61,16 +64,14 @@ export function supportsSavedLogins(
 
 function parseViewerUrl(viewerUrl: string): { url: URL; capability: string } {
   const url = new URL(viewerUrl);
-  // Explicit development opt-in for the local native handoff demo. Never
-  // accept remote HTTP hosts or enable this exception in a release build.
-  const developmentOrigin = process.env.EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN;
-  const localDemo =
-    typeof __DEV__ !== 'undefined' &&
-    __DEV__ &&
-    url.protocol === 'http:' &&
-    url.hostname === '127.0.0.1' &&
-    !!developmentOrigin &&
-    url.origin === developmentOrigin;
+  // Vite explicitly embeds TLON_BROWSER_VIEWER_DEV_ORIGIN for local builds.
+  // Expo's existing public override remains restricted to development builds.
+  const developmentOrigin =
+    process.env.TLON_BROWSER_VIEWER_DEV_ORIGIN ||
+    (typeof __DEV__ !== 'undefined' && __DEV__
+      ? process.env.EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN
+      : undefined);
+  const localDemo = isBrowserViewerDevelopmentOrigin(url, developmentOrigin);
   if (
     !localDemo &&
     (url.protocol !== 'https:' || !isTrustedBrowserViewerHost(url.hostname))
@@ -149,7 +150,8 @@ export async function cancelBrowserCredentialHandoff(
 export class BrowserFormError extends Error {
   constructor(
     message: string,
-    readonly status: number
+    readonly status: number,
+    readonly code?: string
   ) {
     super(message);
   }
@@ -259,10 +261,13 @@ export async function beginBrowserCredentialHandoff(
   const body = await responseJson(response);
   if (!response.ok)
     throw new BrowserFormError(
-      response.status === 404
-        ? 'This form is no longer available. Ask your bot for a new secure form.'
-        : 'Could not find a live secure form. Open the browser or try again.',
-      response.status
+      body.code === 'handoff_complete'
+        ? 'This secure-entry request has ended. Ask your bot for a new form.'
+        : response.status === 404
+          ? 'This form is no longer available. Ask your bot for a new secure form.'
+          : 'Could not find a live secure form. Open the browser or try again.',
+      response.status,
+      body.code === 'handoff_complete' ? 'handoff_complete' : undefined
     );
   if (
     typeof body.handoffId !== 'string' ||
@@ -357,7 +362,7 @@ export async function submitBrowserCredentials(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       values: values.values,
-      submit: handoff.kind === 'login' && values.submit === true,
+      submit: false,
       ...(values.grant ? { grant: values.grant } : {}),
       ...(values.save ? { save: values.save } : {}),
       ...(values.use

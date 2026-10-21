@@ -124,12 +124,20 @@ describe('browser session handoff', () => {
     const choice = { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 3 };
     await runBrowserSessionHandoff(
       'tlon',
-      ['browser', 'approve-login', handle, '--record', JSON.stringify(choice)],
+      [
+        'browser',
+        'approve-login',
+        handle,
+        '--fields',
+        '["@e12"]',
+        '--record',
+        JSON.stringify(choice),
+      ],
       config
     );
     expect(
       JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments
-    ).toEqual({ session_id: handle, action: 'prepare_form' });
+    ).toEqual({ session_id: handle, action: 'prepare_form', fields: ['@e12'] });
     expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
       'tlon',
       [
@@ -159,26 +167,26 @@ describe('browser session handoff', () => {
     expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
   });
 
-  it('requires a form-bound capability for automatic discovery', async () => {
+  it('requires a form-bound capability for selected fields', async () => {
     reply({
       session_id: handle,
       viewer_url: viewerUrl('session-viewer', Date.now() + 300_000, null),
     });
     await expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
-    ).rejects.toThrow('Could not resolve');
+      runBrowserSessionHandoff('tlon', selectedArgs, config)
+    ).rejects.toThrow('Could not prepare the selected fields');
     expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
   });
 
-  it('does not repeat automatic discovery after an ambiguous timeout', async () => {
+  it('does not repeat form preparation after an ambiguous timeout', async () => {
     urbitFetch.mockRejectedValue(
       Object.assign(new Error('private upstream details'), {
         name: 'TimeoutError',
       })
     );
     await expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
-    ).rejects.toThrow('Could not resolve');
+      runBrowserSessionHandoff('tlon', selectedArgs, config)
+    ).rejects.toThrow('Could not prepare the selected fields');
     expect(urbitFetch).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ timeoutMs: 30_000 })
     );
@@ -483,9 +491,7 @@ describe('browser session handoff', () => {
     }));
     const pending = expect(
       runBrowserSessionHandoff('tlon', ['browser', 'share', handle], config)
-    ).rejects.toThrow(
-      /^Could not resolve a live browser session for handoff\.$/
-    );
+    ).rejects.toThrow('Could not resolve a live browser session for handoff.');
     await vi.runAllTimersAsync();
     await pending;
     expect(urbitFetch).toHaveBeenCalledTimes(3);
@@ -506,7 +512,7 @@ describe('browser session handoff', () => {
     const start = Date.now();
     const pending = expect(
       runBrowserSessionHandoff('tlon', ['browser', 'share', handle], config)
-    ).rejects.toThrow('Could not resolve');
+    ).rejects.toThrow('Could not resolve a live browser session for handoff.');
     await vi.runAllTimersAsync();
     await pending;
     expect(timeouts).toEqual([5_000, 5_000, 3_500]);
@@ -524,7 +530,9 @@ describe('browser session handoff', () => {
       }));
       await expect(
         runBrowserSessionHandoff('tlon', ['browser', 'share', handle], config)
-      ).rejects.toThrow('Could not resolve');
+      ).rejects.toThrow(
+        'Could not resolve a live browser session for handoff.'
+      );
       expect(urbitFetch).toHaveBeenCalledOnce();
       expect(release).toHaveBeenCalledOnce();
       expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
@@ -566,11 +574,11 @@ describe('browser session handoff', () => {
     },
   ])('requires the configured authenticated MCP proxy', async (connection) => {
     await expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], {
+      runBrowserSessionHandoff('tlon', selectedArgs, {
         channels: config.channels,
         ...connection,
       })
-    ).rejects.toThrow('Could not resolve');
+    ).rejects.toThrow('Could not prepare the selected fields');
     await expect(
       runBrowserSessionHandoff('tlon', selectedArgs, {
         channels: config.channels,
@@ -602,10 +610,8 @@ describe('browser session handoff', () => {
       const release = vi.fn().mockResolvedValue(undefined);
       urbitFetch.mockResolvedValue({ response: response(), release });
       await expect(
-        runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
-      ).rejects.toThrow(
-        /^Could not resolve a live browser session for handoff\.$/
-      );
+        runBrowserSessionHandoff('tlon', selectedArgs, config)
+      ).rejects.toThrow('Could not prepare the selected fields');
       expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
       expect(release).toHaveBeenCalledOnce();
       expect(urbitFetch).toHaveBeenCalledOnce();
@@ -639,7 +645,7 @@ describe('browser session handoff', () => {
       release,
     }));
     await expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+      runBrowserSessionHandoff('tlon', selectedArgs, config)
     ).resolves.toContain('sent');
     expect(urbitFetch.mock.calls[0][0].init.headers.Accept).toBe(
       'application/json, text/event-stream'
@@ -651,11 +657,7 @@ describe('browser session handoff', () => {
   it('resolves the handle through the configured tenant and sends the exact server-issued URL', async () => {
     const url = viewerUrl();
     const release = reply({ session_id: handle, viewer_url: url });
-    const result = await runBrowserSessionHandoff(
-      'tlon',
-      ['browser', 'handoff', handle],
-      config
-    );
+    const result = await runBrowserSessionHandoff('tlon', selectedArgs, config);
     const request = urbitFetch.mock.calls[0][0];
     expect(request.baseUrl).toBe('https://zod.example');
     expect(request.path).toBe('/apps/mcp/mcp');
@@ -684,11 +686,7 @@ describe('browser session handoff', () => {
     for (const expiry of [Date.now() + 1_800_000, Date.now() + 7_200_000]) {
       const url = viewerUrl('session-viewer', expiry);
       reply({ session_id: handle, viewer_url: url });
-      await runBrowserSessionHandoff(
-        'tlon',
-        ['browser', 'handoff', handle],
-        config
-      );
+      await runBrowserSessionHandoff('tlon', selectedArgs, config);
       expect(runBrowserHandoffCommand).toHaveBeenLastCalledWith(
         'tlon',
         ['browser', 'handoff', url, '--service-result'],
@@ -699,6 +697,20 @@ describe('browser session handoff', () => {
   });
 
   it.each([
+    { args: ['browser', 'handoff', handle] },
+    { args: ['browser', 'approve-login', handle] },
+    { args: ['browser', 'share', handle, '--fields', '["@e12"]'] },
+    {
+      args: [
+        'browser',
+        'handoff',
+        handle,
+        '--fields',
+        '["@e12"]',
+        '--fields',
+        '["@e13"]',
+      ],
+    },
     { args: ['browser', 'handoff', viewerUrl('session-view')] },
     { args: ['browser', 'handoff', 'contains spaces'] },
     { args: ['browser', 'handoff', 'x'.repeat(129)] },
@@ -719,7 +731,7 @@ describe('browser session handoff', () => {
 
   it('rejects ambiguous accounts before contacting the browser service', async () => {
     await expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], {
+      runBrowserSessionHandoff('tlon', selectedArgs, {
         ...config,
         channels: {
           tlon: {
@@ -752,8 +764,8 @@ describe('browser session handoff', () => {
     async (metadata) => {
       const release = reply(metadata);
       await expect(
-        runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
-      ).rejects.toThrow('Could not resolve');
+        runBrowserSessionHandoff('tlon', selectedArgs, config)
+      ).rejects.toThrow('Could not prepare the selected fields');
       expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
       expect(release).toHaveBeenCalledOnce();
     }
@@ -762,8 +774,8 @@ describe('browser session handoff', () => {
   it('does not deliver a card when the authenticated lookup denies a foreign or released session', async () => {
     reply({ session_id: handle, viewer_url: viewerUrl() }, { isError: true });
     await expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
-    ).rejects.toThrow('Could not resolve');
+      runBrowserSessionHandoff('tlon', selectedArgs, config)
+    ).rejects.toThrow('Could not prepare the selected fields');
     expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
     expect(urbitFetch).toHaveBeenCalledOnce();
   });
@@ -773,10 +785,8 @@ describe('browser session handoff', () => {
       new Error(`failure tenant-secret ${viewerUrl()}`)
     );
     await expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
-    ).rejects.toThrow(
-      /^Could not resolve a live browser session for handoff\.$/
-    );
+      runBrowserSessionHandoff('tlon', selectedArgs, config)
+    ).rejects.toThrow('Could not prepare the selected fields');
   });
 
   it('does not leak the resolved capability from CLI errors', async () => {
@@ -784,7 +794,7 @@ describe('browser session handoff', () => {
     reply({ session_id: handle, viewer_url: url });
     runBrowserHandoffCommand.mockRejectedValue(new Error(`failure ${url}`));
     await expect(
-      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+      runBrowserSessionHandoff('tlon', selectedArgs, config)
     ).rejects.toThrow(/^Could not send the secure browser form\.$/);
     expect(runBrowserHandoffCommand).toHaveBeenCalledOnce();
     expect(urbitFetch).toHaveBeenCalledOnce();
@@ -823,5 +833,28 @@ describe('browser session sharing', () => {
     ).rejects.toThrow('Do not supply a viewer URL');
     expect(urbitFetch).not.toHaveBeenCalled();
     expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+  });
+});
+
+describe('configured development viewer', () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it('accepts a signed local capability only at the configured origin', async () => {
+    const origin = 'http://127.0.0.1:43841';
+    const url = viewerUrl().replace(
+      'https://browser-session-ovh2.tlon.network',
+      origin
+    );
+    vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', origin);
+    reply({ session_id: handle, viewer_url: url });
+    await runBrowserSessionHandoff('tlon', selectedArgs, config);
+    expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
+      'tlon',
+      ['browser', 'handoff', url],
+      config
+    );
+    vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', 'http://127.0.0.1:43842');
+    await expect(
+      runBrowserSessionHandoff('tlon', selectedArgs, config)
+    ).rejects.toThrow();
   });
 });
