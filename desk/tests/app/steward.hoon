@@ -1999,7 +1999,7 @@
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-7 !<(vase q.res))
-  ;<  ~  bind:m  (ex-equal !>(-.st) !>(%6))
+  ;<  ~  bind:m  (ex-equal !>(-.st) !>(%7))
   ;<  ~  bind:m
     (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
   (ex-equal !>(tasks.automation.st) !>(*(map ship tasks:v1:au)))

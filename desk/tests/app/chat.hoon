@@ -87,6 +87,7 @@
     %+  welp  (ex-writ-facts ~bus now.bw verse 1)
     :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
         [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+        (ex-fact ~[/v4] %chat-dm-status !>(`status:dm:c`[moon `%inviting]))
     ==
   ::  a second message through the PLAIN dm path still routes to the host
   ::
@@ -130,6 +131,7 @@
   %+  welp  (ex-writ-facts owner now.bw verse 1)
   :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
       [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+      (ex-fact ~[/v4] %chat-dm-status !>(`status:dm:c`[moon `%inviting]))
   ==
 ::  the host relays its bot's outbound message to the human AND stores it in
 ::  the bot's own inbox (keyed by [moon, human]), giving it on the moon's
@@ -202,7 +204,9 @@
         [[~bus %contacts] contact-action-1+!>([%meet ~[moon]])]
         (ex-fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(`(set ship)`(silt ~[moon])))
     ==
-  (ex-writ-facts moon now.bw verse 1)
+  %+  welp  (ex-writ-facts moon now.bw verse 1)
+  :~  (ex-fact ~[/v4] %chat-dm-status !>(`status:dm:c`[moon `%invited]))
+  ==
 ::  a vouched diff from a ship that does not sponsor the moon is rejected
 ++  test-vouched-dm-rejects-unvouched
   %-  eval-mare
@@ -268,6 +272,7 @@
   %+  welp  (ex-writ-facts ~bus now.bw verse 1)
   :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
       [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+      (ex-fact ~[/v4] %chat-dm-status !>(`status:dm:c`[moon `%inviting]))
   ==
 ::  a nacked via-host send to an unknown moon must NOT trigger the archaic
 ::  (pre-2024 protocol) fallback, which would resend the message directly
@@ -330,7 +335,9 @@
           [[moon %contacts] contact-action-1+!>([%meet ~[~bus]])]
           (ex-fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(`(set ship)`(silt ~[~bus])))
       ==
-    (ex-writ-facts-for ~bus ~bus now.bw verse 1)
+    %+  welp  (ex-writ-facts-for ~bus ~bus now.bw verse 1)
+    :~  (ex-fact ~[/v4] %chat-dm-status !>(`status:dm:c`[~bus `%invited]))
+    ==
   ::  a "forward" claiming .as == our.bowl from a non-sponsor is rejected
   ::
   ;<  *  bind:m  (set-src ~ten)
@@ -403,7 +410,9 @@
         [[~bus %contacts] contact-action-1+!>([%meet ~[moon]])]
         (ex-fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(`(set ship)`(silt ~[moon])))
     ==
-  (ex-writ-facts moon now.bw verse 1)
+  %+  welp  (ex-writ-facts moon now.bw verse 1)
+  :~  (ex-fact ~[/v4] %chat-dm-status !>(`status:dm:c`[moon `%invited]))
+  ==
 ++  test-dm-notification-clearing
   %-  eval-mare
   =/  m  (mare ,~)

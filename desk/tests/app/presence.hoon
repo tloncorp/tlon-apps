@@ -215,6 +215,8 @@
   |=  [partner=ship status=?(%unknown %real %bot)]
   |=  =path
   ^-  (unit vase)
+  ?:  ?=([%gu @ ?(%groups %channels %chat) @ *] path)
+    `!>(&)
   ?:  ?=([%gx @ %chat @ %dm %ships ~] path)
     `!>(`(set ship)`(silt ~[partner]))
   ?:  ?=([%gx @ %channels @ %v4 %channels %channels-4 ~] path)
