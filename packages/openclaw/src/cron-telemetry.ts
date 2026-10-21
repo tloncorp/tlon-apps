@@ -68,6 +68,21 @@ export type GatewayCronJob = {
   sessionTarget?: string;
   wakeMode?: string;
   payload?: { kind?: string; text?: string };
+  state?: GatewayCronJobState;
+};
+
+/** The run/delivery outcome fields of the gateway's cron job state. */
+export type GatewayCronJobState = {
+  lastRunAtMs?: number;
+  lastRunStatus?: 'ok' | 'error' | 'skipped';
+  lastDurationMs?: number;
+  lastDelivered?: boolean;
+  lastDeliveryStatus?:
+    | 'not-requested'
+    | 'delivered'
+    | 'not-delivered'
+    | 'unknown';
+  lastDeliveryError?: string;
 };
 
 export type CronChangedEvent = {

@@ -50,5 +50,13 @@ export function getNativeTitleMaxWidth({
     return Math.max(0, width - edgeMargin - sideWidth(right));
   }
 
-  return Math.max(0, width - 2 * Math.max(sideWidth(left), sideWidth(right)));
+  const leftWidth = sideWidth(left);
+  const rightWidth = sideWidth(right);
+  const centered = Math.max(0, width - 2 * Math.max(leftWidth, rightWidth));
+  // With leading buttons a centered title is worth some clipping, but not
+  // most of the title: three trailing buttons on a phone leave a centered
+  // slot of a few points. Once centering would cost more than half the room
+  // between the two sides, the title takes that room instead.
+  const between = Math.max(0, width - leftWidth - rightWidth);
+  return centered < between / 2 ? between : centered;
 }

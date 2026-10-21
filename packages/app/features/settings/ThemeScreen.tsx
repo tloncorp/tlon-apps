@@ -1,24 +1,14 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
-import { Fragment, useEffect, useState } from 'react';
-import { Switch } from 'react-native';
-import { YStack } from 'tamagui';
+import { useEffect, useState } from 'react';
 
 import { RootStackParamList } from '../../navigation/types';
 import { AppTheme } from '../../types/theme';
 import {
-  ListItem,
-  LoadingSpinner,
-  Pressable,
-  RadioControl,
-  ScreenHeader,
-  SettingsContentScrollView,
-  SettingsDivider,
-  SettingsSection,
-  View,
-  useIsWindowNarrow,
-} from '../../ui';
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 import { normalizeTheme } from '../../ui/utils/themeUtils';
 import { THEME_OPTIONS } from './themeOptions';
 
@@ -56,79 +46,43 @@ export function ThemeScreen(props: Props) {
     }
   }, [storedTheme, isLoading]);
 
-  const isWindowNarrow = useIsWindowNarrow();
+  const sections: SettingsSectionModel[] = [
+    {
+      key: 'messages',
+      title: 'Messages',
+      rows: [
+        {
+          key: 'show-delete-markers',
+          title: 'Show deleted messages',
+          subtitle: 'Show a placeholder for deleted messages',
+          toggle: {
+            value: showDeleteMarkers,
+            onValueChange: handleShowDeleteMarkersChange,
+          },
+          testID: 'ShowDeleteMarkersToggle',
+        },
+      ],
+    },
+    {
+      key: 'theme',
+      title: 'Theme',
+      rows: themes.map((theme) => ({
+        key: theme.value,
+        title: theme.title,
+        subtitle: theme.subtitle,
+        selected: theme.value === selectedTheme,
+        disabled: loadingTheme !== null,
+        onPress: () => handleThemeChange(theme.value),
+        testID: `ThemeOption-${theme.value}`,
+      })),
+    },
+  ];
 
   return (
-    <View backgroundColor="$secondaryBackground" flex={1}>
-      <ScreenHeader
-        title="Appearance"
-        borderBottom
-        backAction={
-          isWindowNarrow ? () => props.navigation.goBack() : undefined
-        }
-        placement="navigation"
-      />
-      <SettingsContentScrollView
-        paddingHorizontal="$l"
-        paddingTop="$l"
-        paddingBottom="$2xl"
-      >
-        <YStack gap="$2xl">
-          <SettingsSection title="Messages">
-            <ListItem>
-              <ListItem.MainContent>
-                <ListItem.Title>Show deleted messages</ListItem.Title>
-                <ListItem.Subtitle>
-                  Show a placeholder for deleted messages
-                </ListItem.Subtitle>
-              </ListItem.MainContent>
-              <ListItem.EndContent>
-                <Switch
-                  value={showDeleteMarkers}
-                  onValueChange={handleShowDeleteMarkersChange}
-                  testID="ShowDeleteMarkersToggle"
-                />
-              </ListItem.EndContent>
-            </ListItem>
-          </SettingsSection>
-          <SettingsSection title="Theme">
-            {themes.map((theme, index) => (
-              <Fragment key={theme.value}>
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityLabel={theme.title}
-                  accessibilityState={{
-                    checked: theme.value === selectedTheme,
-                  }}
-                  testID={`ThemeOption-${theme.value}`}
-                  disabled={loadingTheme !== null}
-                  onPress={() => handleThemeChange(theme.value)}
-                  borderRadius="$xl"
-                >
-                  <ListItem>
-                    <ListItem.MainContent>
-                      <ListItem.Title>{theme.title}</ListItem.Title>
-                      {theme.subtitle && (
-                        <ListItem.Subtitle>{theme.subtitle}</ListItem.Subtitle>
-                      )}
-                    </ListItem.MainContent>
-                    <ListItem.EndContent>
-                      {loadingTheme === theme.value ? (
-                        <View padding="$m">
-                          <LoadingSpinner color="$primaryText" size="small" />
-                        </View>
-                      ) : (
-                        <RadioControl checked={theme.value === selectedTheme} />
-                      )}
-                    </ListItem.EndContent>
-                  </ListItem>
-                </Pressable>
-                {index < themes.length - 1 ? <SettingsDivider /> : null}
-              </Fragment>
-            ))}
-          </SettingsSection>
-        </YStack>
-      </SettingsContentScrollView>
-    </View>
+    <SettingsListScreenView
+      title="Appearance"
+      sections={sections}
+      onBackPressed={() => props.navigation.goBack()}
+    />
   );
 }

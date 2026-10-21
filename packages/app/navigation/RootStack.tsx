@@ -13,6 +13,8 @@ import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemCon
 import { ContextLensRunScreen } from '../features/lens/ContextLensRunScreen';
 import { ContextLensRunsScreen } from '../features/lens/ContextLensRunsScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
+import { ScheduledTaskEditorScreen } from '../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTasksScreen } from '../features/automations/ScheduledTasksScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
 import { BotApiKeySettingsScreen } from '../features/settings/BotApiKeySettingsScreen';
@@ -20,9 +22,12 @@ import { BotChannelRuleSettingsScreen } from '../features/settings/BotChannelRul
 import { BotChannelRulesScreen } from '../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
 import { BotModelSettingsScreen } from '../features/settings/BotModelSettingsScreen';
+import { BotModelsScreen } from '../features/settings/BotSettingsAreaScreens';
 import { BotOpenAISubscriptionScreen } from '../features/settings/BotOpenAISubscriptionScreen';
 import { BotIdentitySettingsScreen } from '../features/settings/BotIdentitySettingsScreen';
 import { BotPermissionsSettingsScreen } from '../features/settings/BotPermissionsSettingsScreen';
+import { BotPromptFileScreen } from '../features/settings/BotPromptFileScreen';
+import { BotPromptFilesScreen } from '../features/settings/BotPromptFilesScreen';
 import { BotProviderListSettingsScreen } from '../features/settings/BotProviderListSettingsScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../features/settings/BotShipListSettingsScreen';
@@ -135,9 +140,15 @@ function RootStackContent() {
       <Root.Screen<'Channel'>
         name="Channel"
         component={ChannelScreen}
-        options={({ route }) => ({
-          animation: route.params.disableTransition ? 'none' : 'default',
-        })}
+        options={({ route }) => {
+          const params = route.params;
+          const disableTransition =
+            params && 'disableTransition' in params && params.disableTransition;
+
+          return {
+            animation: disableTransition ? 'none' : 'default',
+          };
+        }}
       />
       <Root.Screen name="DM" component={ChannelScreen} />
       <Root.Screen name="GroupDM" component={ChannelScreen} />
@@ -190,22 +201,22 @@ function RootStackContent() {
       <Root.Screen
         name="BotSettings"
         component={BotSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotMcpSettings"
         component={BotMcpSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotModelSettings"
         component={BotModelSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotApiKeySettings"
         component={BotApiKeySettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotOpenAISubscription"
@@ -215,32 +226,47 @@ function RootStackContent() {
       <Root.Screen
         name="BotShipListSettings"
         component={BotShipListSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotChannelRulesSettings"
         component={BotChannelRulesScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotChannelRuleSettings"
         component={BotChannelRuleSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotPermissionsSettings"
         component={BotPermissionsSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotIdentitySettings"
         component={BotIdentitySettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="BotPromptFiles"
+        component={BotPromptFilesScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="BotPromptFile"
+        component={BotPromptFileScreen}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotProviderListSettings"
         component={BotProviderListSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="BotModels"
+        component={BotModelsScreen}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BlockedUsers"
@@ -267,7 +293,21 @@ function RootStackContent() {
         component={PushNotificationSettingsScreen}
         options={nativeHeaderScreenOptions}
       />
-      <Root.Screen name="UserProfile" component={UserProfileScreen} />
+      <Root.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ScheduledTasks"
+        component={ScheduledTasksScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ScheduledTaskEditor"
+        component={ScheduledTaskEditorScreen}
+        options={nativeHeaderScreenOptions}
+      />
       <Root.Screen name="Attestation" component={AttestationScreen} />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
       <Root.Screen

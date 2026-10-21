@@ -160,6 +160,26 @@ describe('cron budget holds', () => {
     expect(f.update).toHaveBeenCalledTimes(2);
   });
 
+  it('holds a stream job while limited and releases it on recovery', async () => {
+    const f = fixture();
+    f.jobs.push({
+      id: 'tail',
+      enabled: true,
+      description: 'Watch the log',
+      updatedAtMs: 1,
+      schedule: { kind: 'stream', command: ['tail', '-f', 'app.log'] },
+    });
+    await f.reconcile('limited');
+    const tail = () => f.jobs.find((j) => j.id === 'tail')!;
+    expect(tail().enabled).toBe(false);
+    expect(tail().description).toBe(BUDGET_HOLD_PREFIX + 'Watch the log');
+    expect(f.state.holds.tail).toBeDefined();
+    await f.reconcile('available');
+    expect(tail().enabled).toBe(true);
+    expect(tail().description).toBe('Watch the log');
+    expect(f.state.holds).toEqual({});
+  });
+
   it('does not release holds on unknown credit and resumes only its own disables', async () => {
     const f = fixture();
     const schedules = f.jobs.map((j) => structuredClone(j.schedule));

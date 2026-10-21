@@ -6,11 +6,17 @@ import {
   getGroups,
   joinNotesChannel,
   leaveNotesChannel,
+  notes,
   notesV1,
 } from '@tloncorp/api';
+import {
+  publishedNotePath,
+  publishedNoteUrl as buildPublishedNoteUrl,
+  renderPublishedNoteHtml,
+} from '@tloncorp/api/client/notesPublish';
 import * as fs from 'fs';
 
-import { ensureClient } from './api-client';
+import { ensureClient, getConfig } from './api-client';
 import { commandError, errorMessage } from './commands/command';
 import type { NotesDeps } from './commands/notes';
 import { mapGroupChannelIds } from './notes-channel-runtime';
@@ -45,16 +51,16 @@ async function readStdin(): Promise<string> {
   });
 }
 
-// Wrap every `notesV1` operation so an expected API/transport failure surfaces
-// as a commandError (rendered as `Error: <message>`), keeping the command module
-// free of transport-error handling.
+// Wrap every `notes`/`notesV1` operation so an expected API/transport failure
+// surfaces as a commandError (rendered as `Error: <message>`), keeping the
+// command module free of transport-error handling.
 function notesRuntimeErrorMessage(error: unknown): string {
   return errorMessage(error).trim() || '%notes request failed without details';
 }
 
-function wrapNotesV1(): NotesV1Api {
+function wrapNotesOps<T extends object>(ops: T): T {
   const wrapped: Record<string, unknown> = {};
-  for (const [key, fn] of Object.entries(notesV1)) {
+  for (const [key, fn] of Object.entries(ops)) {
     const call = fn as unknown as (...args: unknown[]) => Promise<unknown>;
     wrapped[key] = async (...args: unknown[]) => {
       try {
@@ -67,7 +73,7 @@ function wrapNotesV1(): NotesV1Api {
       }
     };
   }
-  return wrapped as NotesV1Api;
+  return wrapped as T;
 }
 
 export function createNotesDeps(): NotesDeps {
@@ -79,7 +85,17 @@ export function createNotesDeps(): NotesDeps {
     authenticate: async () => {
       await ensureClient();
     },
-    notesV1: wrapNotesV1(),
+    notesV1: wrapNotesOps<NotesV1Api>(notesV1),
+    notesPublish: wrapNotesOps({
+      listPublished: notes.listPublished,
+      publishNote: notes.publishNote,
+      unpublishNote: notes.unpublishNote,
+    }),
+    renderPublishedNoteHtml,
+    publishedNoteUrl: (flag, noteId) => {
+      const path = publishedNotePath(flag, noteId);
+      return buildPublishedNoteUrl(path, getConfig().url) ?? path;
+    },
     isPendingWriteError: (error): error is NotesPendingWriteErrorLike =>
       error instanceof NotesV1PendingWriteError,
     joinNotesNotebook: async (nest: string) => {

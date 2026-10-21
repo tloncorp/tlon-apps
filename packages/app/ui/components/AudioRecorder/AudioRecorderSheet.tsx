@@ -6,8 +6,8 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useSheetBottomInset } from '../../hooks/useSheetBottomInset';
 import { BottomSheetWrapper } from '../BottomSheetWrapper';
 import { BottomSheetWrapperProps } from '../BottomSheetWrapper.types';
 import { AudioRecorder } from './AudioRecorder';
@@ -25,7 +25,7 @@ export function AudioRecorderSheet({
   onOpenChange: onOpenChangeProp,
   ...forwardedProps
 }: AudioRecorderSheetProps) {
-  const safeAreaInsets = useSafeAreaInsets();
+  const sheetBottomInset = useSheetBottomInset();
   const audioRecorderRef = useRef<ComponentRef<typeof AudioRecorder> | null>(
     null
   );
@@ -72,7 +72,7 @@ export function AudioRecorderSheet({
         backgroundColor="$background"
         paddingVertical={40}
         justifyContent="center"
-        paddingBottom={safeAreaInsets.bottom}
+        paddingBottom={sheetBottomInset}
       >
         <AudioRecorder
           {...audioRecorderProps}

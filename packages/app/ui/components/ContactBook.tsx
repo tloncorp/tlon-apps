@@ -1,22 +1,25 @@
 import * as db from '@tloncorp/shared/db';
-import { BlockSectionList, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import { BlockSectionList, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Insets,
   Keyboard,
+  SectionList,
   SectionListRenderItemInfo,
   StyleProp,
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, YStack, getTokenValue, useStyle } from 'tamagui';
+import { View, XStack, getTokenValue, useStyle } from 'tamagui';
 
 import { useContactIndex, useContacts } from '../contexts/appDataContext';
 import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
+import { useSheetCoveredHeight } from '../hooks/useSheetCoveredHeight';
 import { ContactRow } from './ContactRow';
+import { ListEmptyState } from './ListEmptyState';
 import { SearchBar } from './SearchBar';
 
 export function ContactBook({
@@ -25,6 +28,7 @@ export function ContactBook({
   searchPlaceholder = '',
   onSelect,
   multiSelect = false,
+  appearance = 'block',
   immutableIds = [],
   disabledIds = [],
   disabledReason,
@@ -45,6 +49,12 @@ export function ContactBook({
   searchable?: boolean;
   onSelect?: (contactId: string) => void;
   multiSelect?: boolean;
+  /**
+   * `block` draws each section as a grey card under its heading, for full
+   * screens. `plain` draws one run of rows straight on the surface, with no
+   * headings, for pickers inside a sheet.
+   */
+  appearance?: 'block' | 'plain';
   onSelectedChange?: (selected: string[]) => void;
   onScrollChange?: (scrolling: boolean) => void;
   explanationComponent?: React.ReactElement;
@@ -74,14 +84,18 @@ export function ContactBook({
     sortOrder: [],
   });
   const showSearchResults = searchable && query.length > 0;
+  const isPlain = appearance === 'plain';
   const sections = useMemo(() => {
     if (showSearchResults) {
       const label = `Contacts matching ‘${query}’`;
       return queryContacts?.length ? [{ label, data: queryContacts }] : [];
+    } else if (isPlain) {
+      const data = segmentedContacts.flatMap((section) => section.data);
+      return data.length ? [{ label: 'Contacts', data }] : [];
     } else {
       return segmentedContacts;
     }
-  }, [showSearchResults, query, queryContacts, segmentedContacts]);
+  }, [showSearchResults, query, queryContacts, segmentedContacts, isPlain]);
 
   const [selected, setSelected] = useState<string[]>([]);
   const selectedRef = useRef(selected);
@@ -131,7 +145,7 @@ export function ContactBook({
       const isDisabled = disabledSet.has(item.id);
       return (
         <ContactRow
-          backgroundColor={'$secondaryBackground'}
+          backgroundColor={isPlain ? undefined : '$secondaryBackground'}
           key={item.id}
           contact={item}
           immutable={immutableSet.has(item.id)}
@@ -140,11 +154,14 @@ export function ContactBook({
           selectable={multiSelect}
           selected={isSelected}
           onPress={handleSelect}
-          pressStyle={{ backgroundColor: '$shadow' }}
+          pressStyle={{
+            backgroundColor: isPlain ? '$secondaryBackground' : '$shadow',
+          }}
         />
       );
     },
     [
+      isPlain,
       selected,
       immutableSet,
       disabledSet,
@@ -165,8 +182,11 @@ export function ContactBook({
 
   const insets = useSafeAreaInsets();
 
+  // In a sheet the rows keep their place under the keyboard, so the list needs
+  // that much more room to scroll its last rows clear of it.
+  const coveredHeight = useSheetCoveredHeight();
   const contentContainerStyle = useStyle({
-    paddingBottom: insets.bottom,
+    paddingBottom: insets.bottom + coveredHeight,
     paddingTop: '$s',
   }) as StyleProp<ViewStyle>;
 
@@ -176,6 +196,10 @@ export function ContactBook({
   }) as Insets;
 
   const isWindowNarrow = useIsWindowNarrow();
+  // The plain list is the bare one: it draws no section headings.
+  const List = isPlain
+    ? SectionList<db.Contact, { label: string }>
+    : BlockSectionList;
 
   const listStyle = useMemo(() => {
     if (!isWindowNarrow) {
@@ -207,7 +231,6 @@ export function ContactBook({
           width="100%"
         >
           <SearchBar
-            height="$4xl"
             debounceTime={100}
             onChangeQuery={setQuery}
             placeholder={searchPlaceholder ?? ''}
@@ -215,6 +238,7 @@ export function ContactBook({
               spellCheck: false,
               autoCapitalize: 'none',
               autoComplete: 'off',
+              returnKeyType: 'search',
               flex: 1,
               autoFocus,
             }}
@@ -225,10 +249,20 @@ export function ContactBook({
         explanationComponent
       ) : (
         <View flex={1} onTouchStart={Keyboard.dismiss}>
-          <BlockSectionList
+          <List
             ListHeaderComponent={!showSearchResults ? quickActions : null}
             ListEmptyComponent={
-              !showSearchResults ? <ContactBookEmptyState /> : null
+              showSearchResults ? (
+                <ListEmptyState
+                  title="No contacts found"
+                  subtitle="Check the spelling, or enter a full ID"
+                />
+              ) : (
+                <ListEmptyState
+                  title="No Contacts"
+                  subtitle="Your contact book is empty"
+                />
+              )
             }
             sections={sections}
             onTouchStart={onTouchStart}
@@ -242,23 +276,5 @@ export function ContactBook({
         </View>
       )}
     </View>
-  );
-}
-
-function ContactBookEmptyState() {
-  return (
-    <YStack
-      alignItems="center"
-      gap="$s"
-      paddingHorizontal="$2xl"
-      paddingVertical="$4xl"
-    >
-      <Text size="$label/l" color="$secondaryText">
-        No Contacts
-      </Text>
-      <Text size="$label/m" color="$tertiaryText" textAlign="center">
-        Your contact book is empty
-      </Text>
-    </YStack>
   );
 }

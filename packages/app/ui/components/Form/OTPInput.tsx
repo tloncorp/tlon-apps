@@ -113,7 +113,7 @@ export function OTPInput({
                 pointerEvents="none"
               >
                 {digit ? (
-                  <Text fontSize="$2xl" fontWeight="600" color="$foreground">
+                  <Text fontSize={28} fontWeight="600" color="$foreground">
                     {digit}
                   </Text>
                 ) : isProminent && isFocused ? (

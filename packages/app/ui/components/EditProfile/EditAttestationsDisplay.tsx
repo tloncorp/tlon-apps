@@ -40,12 +40,7 @@ export function EditAttestationsDisplay(props: {
                 </ListItem.Subtitle>
               )}
             </ListItem.MainContent>
-            <ListItem.EndContent>
-              <ListItem.SystemIcon
-                backgroundColor="unset"
-                icon="ChevronRight"
-              />
-            </ListItem.EndContent>
+            <ListItem.SystemIcon backgroundColor="unset" icon="ChevronRight" />
           </ListItem>
         </Pressable>
         <Pressable onPress={() => props.onPressAttestation?.('phone')}>
@@ -71,12 +66,7 @@ export function EditAttestationsDisplay(props: {
                 </ListItem.Subtitle>
               )}
             </ListItem.MainContent>
-            <ListItem.EndContent>
-              <ListItem.SystemIcon
-                backgroundColor="unset"
-                icon="ChevronRight"
-              />
-            </ListItem.EndContent>
+            <ListItem.SystemIcon backgroundColor="unset" icon="ChevronRight" />
           </ListItem>
         </Pressable>
       </WidgetPane>

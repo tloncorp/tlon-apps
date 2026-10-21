@@ -1,6 +1,6 @@
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking } from 'react-native';
+import { Keyboard } from 'react-native';
 import { ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/types';
@@ -13,6 +13,7 @@ import {
 import {
   type BrowserCredentialHandoff,
   type BrowserSecureField,
+  BrowserFormError,
   beginBrowserCredentialHandoff,
   nextBrowserCredentialHandoff,
   submitBrowserCredentials,
@@ -20,6 +21,7 @@ import {
   validBrowserFormValues,
 } from './browserCredentialHandoff';
 import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffProvider';
+import { BrowserViewerModal } from './BrowserViewerModal';
 
 type Props = {
   navigation: { goBack(): void; isFocused(): boolean };
@@ -176,29 +178,52 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [returning, setReturning] = useState(false);
   const [filled, setFilled] = useState(false);
+  const [noSecureForm, setNoSecureForm] = useState(false);
+  const [liveViewer, setLiveViewer] = useState<{
+    url: string;
+    handoffId: string;
+  }>();
   const [error, setError] = useState<string>();
   const { resolve, complete, discard } = useBrowserCredentialHandoff();
   const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
+  const externalViewerHandoff = useRef<string | null>(null);
   const submittingRef = useRef(false);
   const requestController = useRef<AbortController | undefined>(undefined);
 
   const load = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal?: AbortSignal, openWhenMissing = true) => {
       setValues({});
       setHandoff(undefined);
       setFilled(false);
+      setNoSecureForm(false);
+      setError(undefined);
       const viewerUrl = resolve(handoffId);
       if (!viewerUrl) {
         setError('Reopen the secure browser form from the conversation.');
         setLoading(false);
         return;
       }
+      let trustedUrl: string | undefined;
       try {
-        const next = await beginBrowserCredentialHandoff(viewerUrl, signal);
+        trustedUrl = trustedBrowserViewerUrl(viewerUrl);
+        const next = await beginBrowserCredentialHandoff(trustedUrl, signal);
         if (!signal?.aborted) setHandoff(next);
       } catch (nextError) {
-        if (!signal?.aborted) setError(errorMessage(nextError));
+        if (signal?.aborted) return;
+        if (
+          nextError instanceof BrowserFormError &&
+          nextError.status === 404 &&
+          trustedUrl
+        ) {
+          setNoSecureForm(true);
+          if (!isWeb && openWhenMissing) {
+            Keyboard.dismiss();
+            setLiveViewer({ url: trustedUrl, handoffId });
+          }
+        } else {
+          setError(errorMessage(nextError));
+        }
       }
       if (!signal?.aborted) setLoading(false);
     },
@@ -301,13 +326,33 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     }
   }, [handoff, values, resolve, handoffId, returnToConversation]);
 
-  const retry = useCallback(() => {
-    const signal = requestController.current?.signal;
-    if (!signal || signal.aborted) return;
-    setLoading(true);
-    setError(undefined);
-    void load(signal);
-  }, [load]);
+  const reloadForm = useCallback(
+    (openWhenMissing: boolean) => {
+      const signal = requestController.current?.signal;
+      if (!signal || signal.aborted) return;
+      setLoading(true);
+      void load(signal, openWhenMissing);
+    },
+    [load]
+  );
+  const retry = useCallback(() => reloadForm(true), [reloadForm]);
+  useEffect(() => {
+    if (!isWeb) return;
+    const refreshAfterBrowser = () => {
+      if (externalViewerHandoff.current !== handoffId) return;
+      externalViewerHandoff.current = null;
+      retry();
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshAfterBrowser();
+    };
+    window.addEventListener('focus', refreshAfterBrowser);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.removeEventListener('focus', refreshAfterBrowser);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [handoffId, retry]);
   const dismiss = useCallback(() => {
     requestController.current?.abort();
     navigation.goBack();
@@ -319,14 +364,31 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         throw new Error(
           'Reopen the secure browser form from the conversation.'
         );
-      await Linking.openURL(trustedBrowserViewerUrl(viewerUrl));
+      const url = trustedBrowserViewerUrl(viewerUrl);
+      Keyboard.dismiss();
+      setValues({});
+      if (isWeb) {
+        externalViewerHandoff.current = handoffId;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        setLiveViewer({ url, handoffId });
+      }
     } catch (nextError) {
       setError(errorMessage(nextError));
     }
   }, [resolve, handoffId]);
 
+  const closeBrowser = useCallback(() => {
+    setLiveViewer(undefined);
+    // Refresh after human navigation without reopening a dismissed viewer.
+    reloadForm(false);
+  }, [reloadForm]);
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
+      {liveViewer?.handoffId === handoffId ? (
+        <BrowserViewerModal viewerUrl={liveViewer.url} onClose={closeBrowser} />
+      ) : null}
       <ScreenHeader
         borderBottom
         backAction={dismiss}
@@ -426,12 +488,21 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               </>
             ) : (
               <>
-                <Text color="$negativeActionText">
-                  {error ?? 'Could not find a supported browser form.'}
+                <Text
+                  color={
+                    noSecureForm && !error
+                      ? '$secondaryText'
+                      : '$negativeActionText'
+                  }
+                >
+                  {error ??
+                    (noSecureForm
+                      ? 'Continue in the live browser.'
+                      : 'Could not find a supported browser form.')}
                 </Text>
                 <Button
                   preset="secondary"
-                  label="Try again"
+                  label={noSecureForm ? 'Check for secure form' : 'Try again'}
                   centered
                   onPress={retry}
                 />
@@ -447,8 +518,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                 onPress={openBrowser}
               />
               <Text color="$secondaryText">
-                You can complete any additional steps in the browser, then
-                return to the conversation.
+                {isWeb
+                  ? 'The browser opens in a new tab. Return here when you’re done.'
+                  : 'Complete any additional steps here, then continue the task.'}
               </Text>
               <Button
                 preset="secondary"

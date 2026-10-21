@@ -1,6 +1,6 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
-/-  n=notes, mcp-proxy, av=activity-ver
+/-  n=notes, mcp-proxy, av=activity-ver, gv=groups-ver
 /+  default-agent, dbug, verb, server, logs, notes-json, eyre-reply
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
@@ -346,7 +346,7 @@
   =/  pub-html=(unit @t)
     ?.  ?=([%notes %pub @ @ @ ~] site)  ~
     ?~  ship-u=(slaw %p i.t.t.site)  ~
-    ?~  nid-u=(slaw %ud i.t.t.t.t.site)  ~
+    ?~  nid-u=(parse-ud i.t.t.t.t.site)  ~
     ?:  =(0 u.nid-u)  ~
     =/  =flag:n  [u.ship-u `@tas`i.t.t.t.site]
     (~(get by published) [flag u.nid-u])
@@ -512,6 +512,15 @@
       (http-error eyre-id 404 'not found')
     (give-json-response eyre-id u.jon)
   ==
+::  +parse-ud: accept a plain decimal ("1234") as well as the dot-grouped
+::  hoon @ud literal ("1.234"), so a client can echo an id straight back
+::  at us.
+::
+++  parse-ud
+  |=  t=@t
+  ^-  (unit @ud)
+  ?^  plain=(rush t dum:ag)  plain
+  (slaw %ud t)
 ::  +query-cord / +query-ud: read one key out of the URL's query args.
 ::  de-purl already percent-decoded the values, so a query param can carry
 ::  arbitrary text — unlike a path segment, which apat splits a trailing
@@ -528,10 +537,7 @@
   |=  [args=(list [key=@t value=@t]) key=@t]
   ^-  (unit @ud)
   ?~  val=(query-cord args key)  ~
-  ::  accept a plain decimal ("1234") as well as the dot-grouped hoon @ud
-  ::  literal ("1.234"), so a client can echo an id straight back at us.
-  ?^  plain=(rush u.val dum:ag)  plain
-  (slaw %ud u.val)
+  (parse-ud u.val)
 ::  +field-cord / +field-ud: lenient reads of one key from a json object
 ::  for the write endpoints. Return ~ on a missing key or wrong json shape,
 ::  so a cheap model sending a slightly-off body gets a 400, not a 500.
@@ -621,7 +627,7 @@
   ::
       [%'PUT' [%folders @ ~]]
     ?>  ?=([%folders @ ~] sub)
-    ?~  fid=(slaw %ud i.t.sub)  ~
+    ?~  fid=(parse-ud i.t.sub)  ~
     =/  new-name=(unit @t)     (field-cord obj 'folderName')
     =/  new-parent=(unit @ud)  (field-ud obj 'parent')
     ?:  &(?=(~ new-name) ?=(~ new-parent))  ~
@@ -629,17 +635,17 @@
   ::
       [%'DELETE' [%folders @ ~]]
     ?>  ?=([%folders @ ~] sub)
-    ?~  fid=(slaw %ud i.t.sub)  ~
+    ?~  fid=(parse-ud i.t.sub)  ~
     `[%notebook flag [%folder u.fid [%delete recursive]]]
   ::
       [%'DELETE' [%notes @ ~]]
     ?>  ?=([%notes @ ~] sub)
-    ?~  nid=(slaw %ud i.t.sub)  ~
+    ?~  nid=(parse-ud i.t.sub)  ~
     `[%notebook flag [%note u.nid [%delete ~]]]
   ::
       [%'PUT' [%notes @ ~]]
     ?>  ?=([%notes @ ~] sub)
-    ?~  nid=(slaw %ud i.t.sub)  ~
+    ?~  nid=(parse-ud i.t.sub)  ~
     ::  body present → %update (revision-checked content edit).
     ::  else title or folder present → %modify (rename and/or move).
     ?^  body-str=(field-cord obj 'body')
@@ -713,7 +719,7 @@
     ::  else proxy one watch to the host and relay its answer in +agent.
     ::
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
-    =/  nid=@ud  (slav %ud id.pole)
+    =/  nid=@ud  (need (parse-ud id.pole))
     ::  a just-joined %sub placeholder (init=|) has no note state yet and
     ::  would answer %notes-denied for a real note — proxy instead.
     =/  ready=?
@@ -816,10 +822,9 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+  pole  ~|(bad-agent-wire+pole !!)
-      ::  %groups revocation watch. We avoid a groups-sur dependency by
-      ::  extracting just the changed group's flag from the r-groups fact
-      ::  ([flag r-group] — flag is the head) and rechecking only the
-      ::  subscribers of notebooks bound to that group.
+      ::  %groups watch: each r-groups fact rechecks the subscribers of
+      ::  notebooks bound to the changed group (revocation), then syncs
+      ::  a channel listing title edit.
       [%logs ~]
     cor
   ::
@@ -829,11 +834,9 @@
         %kick
       (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
         %fact
-      ::  r-groups fact is [flag r-group]; decode just the flag head
-      ::  here; +sync-listing-title soft-decodes the channel %edit case.
-      =+  !<([=flag:n *] q.cage.sign)
-      =.  cor  (recheck-group-access flag)
-      (sync-listing-title q.q.cage.sign)
+      =+  !<(=r-groups:v9:gv q.cage.sign)
+      =.  cor  (recheck-group-access flag.r-groups)
+      (sync-listing-title r-groups)
     ==
   ::
       [%notes %sub ship=@ name=@ ~]
@@ -894,7 +897,7 @@
     ::  the host, so report them locally.
     ::
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
-    =/  nid=@ud  (slav %ud id.pole)
+    =/  nid=@ud  (need (parse-ud id.pole))
     =/  paths=(list path)  ~[(said-path flag nid)]
     ?+  -.sign  cor
         %watch-ack
@@ -986,7 +989,7 @@
       ::  note-activity debounce window closed (see +note-activity)
       %^    note-activity-wake
           [(slav %p ship.pole) `@tas`name.pole]
-        (slav %ud id.pole)
+        (need (parse-ud id.pole))
       (slav %da t.pole)
     ==
   ~|(bad-arvo-sign+wire !!)
@@ -1214,22 +1217,21 @@
 ::  +sync-listing-title: the %groups channel listing is the user-visible
 ::  name of a group notebook, and group admins rename it there. When a
 ::  listing %edit for a group notebook we host carries a new title, apply
-::  it to the %notes title. Soft-decoded and guarded before se-abed's
-::  asserts, so an unrelated or malformed fact is a no-op.
+::  it to the %notes title. Narrowed to the channel %edit case and
+::  guarded before se-abed's asserts, so any other fact is a no-op.
 ::
 ++  sync-listing-title
-  |=  fact=*
+  |=  =r-groups:v9:gv
   ^+  cor
-  =/  ed  ((soft ,[grp=flag:n %channel =nest:n %edit chan=group-channel:n]) fact)
-  ?~  ed  cor
-  =*  nest  nest.u.ed
-  ?.  &(=(%notes kind.nest) =(our.bowl host.nest))  cor
-  =/  nf=flag:n  [host.nest name.nest]
+  =/  rg  r-group.r-groups
+  ?.  ?=([%channel * %edit *] rg)  cor
+  ?.  &(=(%notes p.nest.rg) =(our.bowl p.q.nest.rg))  cor
+  =/  nf=flag:n  q.nest.rg
   ?~  entry=(~(get by books) nf)  cor
   ?.  ?=(%pub -.net.u.entry)  cor
   =*  ns  notebook-state.u.entry
-  ?.  =(`grp.u.ed group.ns)  cor
-  =/  new=@t  title.meta.chan.u.ed
+  ?.  =(`flag.r-groups group.ns)  cor
+  =/  new=@t  title.meta.channel.r-channel.rg
   ?:  =(new title.notebook.ns)  cor
   ?.  =(`%owner (~(get by members.ns) our.bowl))  cor
   se-abet:(se-rename-notebook:(se-abed:se-core nf) new)
@@ -1570,11 +1572,17 @@
 ::  +leave-remote-v1: locally drop our subscription + placeholder, then
 ::  notify the host so their members map matches. The local cleanup is
 ::  unconditional (the request is informational from the host's POV);
-::  the request-id loop just gives the FE a confirmation point.
+::  the request-id loop just gives the client a confirmation point.
+::
+::  +se-member-leave refuses a leave from the host, but it runs in the
+::  self-poke this arm sends, after the action poke has acked. Refuse here
+::  too, so the action poke itself nacks and the client's optimistic leave
+::  rolls back instead of reporting success.
 ::
 ++  leave-remote-v1
   |=  [rid=request-id:v1:n =flag:n]
   ^+  cor
+  ?<  =(our.bowl ship.flag)
   ?>  (~(has by books) flag)
   ::  no-leave reports the leave to %groups and drops the local book (incl.
   ::  its group) via the gone flag.
@@ -2099,8 +2107,13 @@
       (~(put by members.notebook-state) src.bowl %editor)
     (se-update [%member-joined src.bowl %editor])
   ::
+  ::  +se-member-leave: the host can't leave its own notebook (it deletes
+  ::  it instead). Dropping our %owner row would also break every v1 read,
+  ::  since +no-read-json asserts we're a member.
+  ::
   ++  se-member-leave
     ^+  se-core
+    ?<  =(our.bowl src.bowl)
     =.  members.notebook-state
       (~(del by members.notebook-state) src.bowl)
     (se-update [%member-left src.bowl])
@@ -2995,20 +3008,20 @@
       ``notes-notes+!>(nts)
     ::
         %note
-      =/  nid=@ud  (slav %ud ;;(@ -.rest))
-      ?~  note=(~(get by notes.notebook-state) nid)
+      ?~  nid=(parse-ud ;;(@ -.rest))  ~
+      ?~  note=(~(get by notes.notebook-state) u.nid)
         ~
       ``notes-note+!>(u.note)
     ::
         %note-history
-      =/  nid=@ud  (slav %ud ;;(@ -.rest))
+      ?~  nid=(parse-ud ;;(@ -.rest))  ~
       =/  revs=(list note-revision:n)
-        (fall (~(get by history.notebook-state) nid) ~)
+        (fall (~(get by history.notebook-state) u.nid) ~)
       ``notes-note-history+!>(revs)
     ::
         %folder
-      =/  fid=@ud  (slav %ud ;;(@ -.rest))
-      ?~  fld=(~(get by folders.notebook-state) fid)
+      ?~  fid=(parse-ud ;;(@ -.rest))  ~
+      ?~  fld=(~(get by folders.notebook-state) u.fid)
         ~
       ``notes-folder+!>(u.fld)
     ::
@@ -3025,7 +3038,7 @@
       :^  ~  ~  %notes-scam  !>
       %^    no-search
           ?:  =(%$ from.rest)  ~
-          `(slav %ud from.rest)
+          `(need (parse-ud from.rest))
         (slav %ud tries.rest)
       (slav %t nedl.rest)
     ==
@@ -3060,23 +3073,23 @@
       `(folders:enjs:notes-json ~(val by folders.notebook-state))
     ::
         [%folders @ ~]
-      =/  fid=@ud  (slav %ud i.t.rest)
-      ?~  fld=(~(get by folders.notebook-state) fid)  ~
+      ?~  fid=(parse-ud i.t.rest)  ~
+      ?~  fld=(~(get by folders.notebook-state) u.fid)  ~
       `(folder:enjs:notes-json u.fld)
     ::
         [%notes ~]
       `(notes:enjs:notes-json ~(val by notes.notebook-state))
     ::
         [%notes @ ~]
-      =/  nid=@ud  (slav %ud i.t.rest)
-      ?~  note=(~(get by notes.notebook-state) nid)  ~
+      ?~  nid=(parse-ud i.t.rest)  ~
+      ?~  note=(~(get by notes.notebook-state) u.nid)  ~
       `(note:enjs:notes-json u.note)
     ::
         [%notes @ %history ~]
-      =/  nid=@ud  (slav %ud i.t.rest)
+      ?~  nid=(parse-ud i.t.rest)  ~
       :-  ~
       %-  note-revisions:enjs:notes-json
-      (fall (~(get by history.notebook-state) nid) ~)
+      (fall (~(get by history.notebook-state) u.nid) ~)
     ::
         [%members ~]
       =/  mrecords=(list member-record:n)

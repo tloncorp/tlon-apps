@@ -3,9 +3,10 @@ import { preSig } from '@tloncorp/api/lib/urbit';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as Application from 'expo-application';
-import { useEffect, useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
+import { useEffect, useMemo, useState } from 'react';
 import { useCallback } from 'react';
-import { Alert, Platform, Switch } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { getEmailClients, openComposer } from 'react-native-email-link';
 
 import {
@@ -16,22 +17,36 @@ import {
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { downloadDb } from '../../lib/downloadDb';
 import { RootStackParamList } from '../../navigation/types';
+import { triggerHaptic } from '../../ui';
 import {
-  AppSetting,
-  Button,
-  ScreenHeader,
-  SettingsContentScrollView,
-  SizableText,
-  Text,
-  View,
-  XStack,
-  YStack,
-  useIsWindowNarrow,
-} from '../../ui';
+  type SettingsRowModel,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 
 const BUILD_VERSION = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Application.nativeBuildVersion}`;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppInfo'>;
+
+/** A value you can copy with a tap, or from the long-press menu. */
+function copyableRow(
+  key: string,
+  title: string,
+  value: string
+): SettingsRowModel {
+  const copy = async () => {
+    await Clipboard.setStringAsync(value);
+    triggerHaptic('success');
+  };
+  return {
+    key,
+    title,
+    value,
+    accessory: 'none',
+    onPress: copy,
+    contextActions: [{ key: 'copy', title: 'Copy', onPress: copy }],
+  };
+}
 
 function makeDebugEmail(
   appInfo: any,
@@ -116,101 +131,97 @@ export function AppInfoScreen(props: Props) {
     });
   }, [uploadLogs, hasClients, currentUserId]);
 
-  const isWindowNarrow = useIsWindowNarrow();
+  const sections = useMemo<SettingsSectionModel[]>(() => {
+    const infoRows = [
+      copyableRow('build-version', 'Build version', BUILD_VERSION),
+      copyableRow(
+        'notify-provider',
+        'Notify provider',
+        preSig(NOTIFY_PROVIDER)
+      ),
+      copyableRow('notify-service', 'Notify service', NOTIFY_SERVICE),
+      ...(appInfo
+        ? [
+            copyableRow('desk-version', 'Desk version', appInfo.groupsVersion),
+            copyableRow('desk-source', 'Desk source', appInfo.groupsSyncNode),
+            copyableRow(
+              'desk-hash',
+              'Desk hash',
+              appInfo.groupsHash.split('.').pop() ?? 'n/a'
+            ),
+          ]
+        : []),
+      copyableRow(
+        'scheduler-id',
+        'Permitted Scheduler ID',
+        permittedSchedulerId ?? 'Not found'
+      ),
+    ];
+
+    const logRows: SettingsRowModel[] = [
+      {
+        key: 'developer-logs',
+        title: 'Enable Developer Logs',
+        toggle: { value: enabled, onValueChange: toggleDebugFlag },
+      },
+      ...(enabled && logs.length > 0
+        ? [
+            {
+              key: 'upload-logs',
+              title: `Upload logs (${logs.length})`,
+              action: true,
+              onPress: onUploadLogs,
+            },
+          ]
+        : []),
+    ];
+
+    return [
+      {
+        key: 'info',
+        footer: appInfo ? undefined : 'Cannot load app info settings',
+        rows: infoRows,
+      },
+      {
+        key: 'logs',
+        footer:
+          enabled && logId && !hasClients
+            ? `Please email ${SUPPORT_EMAIL} with this log ID: ${logId}`
+            : undefined,
+        rows: logRows,
+      },
+      ...(Platform.OS !== 'web'
+        ? [
+            {
+              key: 'database',
+              rows: [
+                {
+                  key: 'export-db',
+                  title: 'Export DB',
+                  action: true,
+                  onPress: downloadDb,
+                },
+              ],
+            },
+          ]
+        : []),
+    ];
+  }, [
+    appInfo,
+    enabled,
+    hasClients,
+    logId,
+    logs.length,
+    onUploadLogs,
+    permittedSchedulerId,
+    toggleDebugFlag,
+  ]);
 
   return (
-    <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        title="App info"
-        borderBottom
-        backAction={
-          isWindowNarrow ? () => props.navigation.goBack() : undefined
-        }
-        placement="navigation"
-      />
-      <SettingsContentScrollView>
-        <YStack
-          marginTop="$xl"
-          marginHorizontal="$2xl"
-          gap="$s"
-          paddingBottom="$3xl"
-        >
-          <AppSetting title="Build version" value={BUILD_VERSION} copyable />
-          <AppSetting
-            title="Notify provider"
-            value={preSig(NOTIFY_PROVIDER)}
-            copyable
-          />
-          <AppSetting title="Notify service" value={NOTIFY_SERVICE} copyable />
-          {appInfo ? (
-            <>
-              <AppSetting
-                title="Desk version"
-                value={appInfo.groupsVersion}
-                copyable
-              />
-              <AppSetting
-                title="Desk source"
-                value={appInfo.groupsSyncNode}
-                copyable
-              />
-              <AppSetting
-                title="Desk hash"
-                value={appInfo.groupsHash.split('.').pop() ?? 'n/a'}
-                copyable
-              />
-            </>
-          ) : (
-            <View>
-              <SizableText color="$negativeActionText">
-                Cannot load app info settings
-              </SizableText>
-            </View>
-          )}
-          <AppSetting
-            title="Permitted Scheduler ID"
-            value={permittedSchedulerId ?? 'Not found'}
-            copyable
-          />
-          <XStack
-            key="debug-toggle"
-            justifyContent="space-between"
-            alignItems="center"
-            padding="$l"
-          >
-            <SizableText flexShrink={1}>Enable Developer Logs</SizableText>
-            <Switch
-              style={{ flexShrink: 0 }}
-              value={enabled}
-              onValueChange={toggleDebugFlag}
-            ></Switch>
-          </XStack>
-
-          {enabled && logs.length > 0 && (
-            <View>
-              <Button
-                preset="outline"
-                onPress={onUploadLogs}
-                label={`Upload logs (${logs.length})`}
-              />
-            </View>
-          )}
-          {enabled && logId && !hasClients && (
-            <YStack padding="$l">
-              <Text>Please email {SUPPORT_EMAIL} with this log ID:</Text>
-              <Text>{logId}</Text>
-            </YStack>
-          )}
-          {Platform.OS !== 'web' && (
-            <Button
-              preset="secondaryOutline"
-              marginTop="$xl"
-              onPress={downloadDb}
-              label="Export DB"
-            />
-          )}
-        </YStack>
-      </SettingsContentScrollView>
-    </View>
+    <SettingsListScreenView
+      title="App info"
+      sections={sections}
+      onBackPressed={() => props.navigation.goBack()}
+    />
   );
 }

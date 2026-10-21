@@ -4,12 +4,12 @@ import { formatTlonVersionIdentity } from './version.js';
 
 describe('formatTlonVersionIdentity', () => {
   it.each([
-    { markdown: true, expected: '*Harness Version*: **2026.9.4**' },
-    { markdown: false, expected: 'Harness Version: 2026.9.4' },
+    { markdown: true, expected: '*Harness Version*: **2026.9.33**' },
+    { markdown: false, expected: 'Harness Version: 2026.9.33' },
   ])('includes the OpenClaw core version when markdown=$markdown', (test) => {
     const output = formatTlonVersionIdentity({
       markdown: test.markdown,
-      harnessVersion: '2026.9.4',
+      harnessVersion: '2026.9.33',
       tlonSkillVersion: '0.3.2',
     });
 

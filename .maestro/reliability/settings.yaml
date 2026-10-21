@@ -22,7 +22,7 @@ env:
     env:
       ROW: '^Appearance$'
 - assertVisible: '^Appearance$'
-# iOS exposes radio state as an accessibility value, not a checked flag.
+# iOS marks the chosen row as selected, where Android reports it as checked.
 - runFlow:
     when:
       platform: Android
@@ -43,7 +43,7 @@ env:
       - scrollUntilVisible:
           element:
             id: 'ThemeOption-.*'
-            text: '^radio button, checked$'
+            selected: true
           direction: DOWN
           timeout: 5000
       - copyTextFrom:
@@ -51,7 +51,7 @@ env:
           index: 0
           childOf:
             id: 'ThemeOption-.*'
-            text: '^radio button, checked$'
+            selected: true
 - evalScript: ${output.reliability.originalTheme = "ThemeOption-" + maestro.copiedText.toLowerCase().replace("tlon ", "")}
 - scrollUntilVisible:
     element:

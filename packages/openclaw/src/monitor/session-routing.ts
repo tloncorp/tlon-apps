@@ -370,9 +370,10 @@ export async function recordTlonRouteAndDispatch<T>(params: {
   /** Called with the built record, before persistence (used for debug logging). */
   onRecord?: (record: TlonInboundRouteRecord) => void;
   /**
-   * Called instead of `dispatch` when the kernel admits the message but does
-   * not run it (bot-loop protection, outbound echo, duplicate). The caller
-   * should account for the turn as a skip, not a failure or an empty reply.
+   * Called instead of `dispatch` when the kernel does not run the turn. Here
+   * that only happens when the message matches one of our own recent outbound
+   * posts (an outbound echo). The caller should account for the turn as a
+   * skip, not a failure or an empty reply.
    */
   onNotDispatched?: (admission: { kind: string; reason?: string }) => void;
   dispatch: () => Promise<T>;
@@ -490,11 +491,12 @@ export async function recordTlonRouteAndDispatch<T>(params: {
     runDispatch: params.dispatch,
   });
   if (!turn.dispatched) {
-    // The kernel admits a turn but deliberately does not dispatch it for
-    // expected reasons (bot-loop protection, an outbound echo, a duplicate
-    // seen again after a restart). That is a normal no-op for this message,
-    // not a turn failure: report no dispatch result and let the caller's
-    // optional handling take over, instead of recording a spurious error.
+    // The kernel skips dispatch when the message matches one of our own recent
+    // outbound posts (an outbound echo); this call passes no bot-loop facts,
+    // so that is the only reachable case. It is a normal no-op for this
+    // message, not a turn failure: report no dispatch result and let the
+    // caller's optional handling take over, instead of recording a spurious
+    // error.
     safeLog(
       params.logDebug,
       `[tlon][route-debug] inbound turn not dispatched: admission=${turn.admission.kind}` +
