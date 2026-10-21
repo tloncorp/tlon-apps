@@ -2,13 +2,13 @@
 
 Notebooks use `notes/~host/name`; individual notes have a separate numeric ID. Never infer a notebook slug from its display name or substitute a chat/diary nest.
 
+## Which workspace
+
+A request made in a group channel is about that channel's workspace (group) unless the user names a different one: "a notebook", "our notes" and "here" all mean that group. Your context names its flag ("…in the Tlon workspace (group) ~host/group"); if it does not, run `channels info <current channel nest>` and use the flag on its `Group:` line. In a DM, use the workspace the user names; with none named, a personal request may use a standalone notebook, and anything meant for a team or group needs its workspace resolved (ask if unclear).
+
 ## Find the right notebook
 
-When the user names a workspace (group), resolve it with `groups list` if necessary, then
-read `groups info <group-flag>` or `channels groups`. Match the notebook title
-within that group's channels and use the returned `notes/` nest. Start here
-before inspecting a global notebook list: other groups may have notebooks and
-notes with exactly the same titles.
+Resolve the workspace as above (`groups list` if the user named it by title), then read `groups info <group-flag>` or `channels groups`. Match the notebook title within that group's channels and use the returned `notes/` nest. Start here before inspecting a global notebook list: other groups may have notebooks and notes with exactly the same titles.
 
 ```json
 {"command":"groups info ~host/group"}
@@ -17,17 +17,19 @@ notes with exactly the same titles.
 {"command":"notes note notes/~host/name 12"}
 ```
 
-Use `notes list` for a standalone notebook or when no group is specified. If there are multiple matches, resolve the ambiguity before writing. Read the current note before editing it and use its returned revision.
+Use `notes list` only for standalone notebooks, or when no workspace applies. If there are multiple matches, resolve the ambiguity before writing. Read the current note before editing it and use its returned revision.
 
-## Create a notebook in a group
+## Create a notebook
 
-Discover the group with `groups list` / `groups info`, then:
+A notebook for a workspace is a channel in that group, so its members can find it in the app:
 
 ```json
 {"command":"channels create ~host/group \"Research\" --kind notes"}
 ```
 
-Use the returned notebook nest. `%notes` creates its listing, so `--description` is not accepted at create; set it afterwards with `channels update`. Writer roles are not supported for this channel kind. `notes create` creates a standalone notebook, not an app/group channel. The deprecated `notebook` command operates on neither of these supported workflows.
+Use the returned notebook nest. `%notes` creates its listing, so `--description` is not accepted at create; set it afterwards with `channels update`. Writer roles are not supported for this channel kind. Creating a channel needs admin rights in the group; if it fails for that reason, say so and ask before falling back to anything else.
+
+`notes create "Title"` makes a standalone notebook that belongs to no group and does not appear in any workspace. Use it only when the user wants a personal notebook outside their workspaces. The deprecated `notebook` command supports neither workflow.
 
 To rename a group notebook as it appears in the app, use `channels rename notes/~host/name "New Title"` or `channels update notes/~host/name --title "New Title"`. To change its description, use `channels update notes/~host/name --description "Description"`. These operations require group admin rights.
 `notes list/show` pick up the new title once the notebook host runs a desk with
