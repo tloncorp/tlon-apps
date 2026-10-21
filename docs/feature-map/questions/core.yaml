@@ -299,7 +299,7 @@
   file: groups.md
   entry: "Give a member a role, or make them an admin"
   must:
-    - "Group info & settings, Manage members, select the person, then Assign role"
+    - "Workspace info & settings, Manage members, select the person, then Assign role"
     - "give them the Admin role"
 
 - id: private-group-inviter
@@ -620,7 +620,7 @@
   entry: "See who is in a channel"
   must:
     - "says a group channel has no member list of its own"
-    - "look at the group members and their roles in Group info & settings"
+    - "look at the group members and their roles in Workspace info & settings"
   must_not:
     - "claims the channel info screen lists its members"
 
@@ -667,7 +667,7 @@
   file: groups.md
   entry: "Understand the Admin role"
   must:
-    - "only the group host sees Delete group"
+    - "only the group host sees Delete workspace"
     - "an admin who is not the host cannot delete the group"
 
 - id: remove-group-message
