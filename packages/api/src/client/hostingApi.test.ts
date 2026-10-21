@@ -566,6 +566,7 @@ describe('per-bot browser service', () => {
     vi.stubGlobal('fetch', fetchMock);
     await expect(getTlawnBrowserService('~sampel-palnet')).resolves.toEqual({
       browserService: 'kernel',
+      active: null,
       supported: true,
     });
     expect(fetchMock).toHaveBeenCalledWith(
@@ -574,6 +575,37 @@ describe('per-bot browser service', () => {
     );
   });
 
+  it('reports the active route separately from the stored selection', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(() =>
+          respond({ browserService: 'kernel', active: 'steel', supported: true })
+        )
+    );
+    await expect(getTlawnBrowserService('zod')).resolves.toEqual({
+      browserService: 'kernel',
+      active: 'steel',
+      supported: true,
+    });
+  });
+
+  it.each(['browserbase', 42, false])(
+    'rejects an invalid active route: %s',
+    async (active) => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockImplementation(() => respond({ browserService: 'kernel', active }))
+      );
+      await expect(getTlawnBrowserService('zod')).rejects.toThrow(
+        'Invalid browser service response'
+      );
+    }
+  );
+
   it('defaults an absent selection to Steel', async () => {
     vi.stubGlobal(
       'fetch',
@@ -581,6 +613,7 @@ describe('per-bot browser service', () => {
     );
     await expect(getTlawnBrowserService('zod')).resolves.toEqual({
       browserService: 'steel',
+      active: null,
       supported: false,
     });
   });
@@ -607,7 +640,11 @@ describe('per-bot browser service', () => {
     vi.stubGlobal('fetch', fetchMock);
     await expect(
       setTlawnBrowserService('~sampel-palnet', 'kernel')
-    ).resolves.toEqual({ browserService: 'kernel', supported: true });
+    ).resolves.toEqual({
+      browserService: 'kernel',
+      active: null,
+      supported: true,
+    });
     expect(fetchMock).toHaveBeenCalledWith(
       'https://hosting.test/v1/tlawn/ships/sampel-palnet/browser-service',
       expect.objectContaining({
@@ -624,6 +661,7 @@ describe('per-bot browser service', () => {
     );
     await expect(getTlawnBrowserService('zod')).resolves.toEqual({
       browserService: 'steel',
+      active: null,
       supported: false,
     });
   });

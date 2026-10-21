@@ -462,7 +462,11 @@ const parseTlawnBrowserService = (value: unknown): TlawnBrowserServiceInfo => {
   if (selected !== 'steel' && selected !== 'kernel') {
     throw new Error('Invalid browser service response.');
   }
-  return { browserService: selected, supported: raw.supported === true };
+  const active = raw.active === undefined ? null : raw.active;
+  if (active !== null && active !== 'steel' && active !== 'kernel') {
+    throw new Error('Invalid browser service response.');
+  }
+  return { browserService: selected, active, supported: raw.supported === true };
 };
 
 export async function getTlawnBrowserService(

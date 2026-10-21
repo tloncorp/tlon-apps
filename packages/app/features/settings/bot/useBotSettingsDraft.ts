@@ -57,6 +57,15 @@ export function useBotSettingsDraft() {
 }
 
 /**
+ * The picker shows the route the bot is actually on. The stored selection is
+ * only what the next restart applies, so after a startup fallback the two
+ * differ; baselining on the active route lets the owner re-select the stored
+ * value and apply again, which is the retry.
+ */
+const effectiveBrowserService = (info?: api.TlawnBrowserServiceInfo) =>
+  info?.active ?? info?.browserService;
+
+/**
  * Push fresh server values into the draft store once the backing queries have
  * settled. Call from any screen that renders draft-backed values.
  */
@@ -93,7 +102,7 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
     if (!ready) return;
     syncServerValues(ship, {
       nickname: nicknameQuery.data ?? '',
-      browserService: browserServiceQuery.data?.browserService ?? 'steel',
+      browserService: effectiveBrowserService(browserServiceQuery.data) ?? 'steel',
       model: getModelFormValues(providerConfig),
       chat: toChatFormValues(configQuery.data, providerConfig),
     });
@@ -109,7 +118,7 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
   ]);
 
   useEffect(() => {
-    const browserService = browserServiceQuery.data?.browserService;
+    const browserService = effectiveBrowserService(browserServiceQuery.data);
     if (!ready || !browserService) return;
     const current = useBotSettingsDraftStore.getState();
     // This independent query may settle after another section is being edited.

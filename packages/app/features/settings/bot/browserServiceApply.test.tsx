@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   EMPTY_VALUES,
+  getPendingFields,
   resetBotSettingsDraft,
   useBotSettingsDraftStore,
 } from './botSettingsDraftStore';
@@ -263,6 +264,35 @@ describe('browser service settings apply', () => {
     );
     expect(useBotSettingsDraftStore.getState().draft.nickname).toBe(
       'draft name'
+    );
+  });
+
+  it('shows the active route, so a selection that did not take can be applied again', async () => {
+    const queries = {
+      ship: 'sampel-palnet',
+      providerConfig,
+      providerConfigQuery: { isSuccess: true },
+      configQuery: { isSuccess: true, data: chatConfig },
+      nicknameQuery: { isSuccess: true, data: '' },
+      browserServiceQuery: {
+        data: { browserService: 'kernel', active: 'steel', supported: true },
+      },
+    } as unknown as BotSettingsQueries;
+    function Sync({ value }: { value: BotSettingsQueries }) {
+      useSyncBotSettingsDraft(value);
+      return null;
+    }
+    await act(async () => {
+      renderer = create(<Sync value={queries} />);
+    });
+    const synced = useBotSettingsDraftStore.getState();
+    expect(synced.baseline.browserService).toBe('steel');
+    expect(synced.draft.browserService).toBe('steel');
+
+    act(() => selectKernel());
+    const state = useBotSettingsDraftStore.getState();
+    expect(getPendingFields(state.baseline, state.draft).browserService).toBe(
+      true
     );
   });
 
