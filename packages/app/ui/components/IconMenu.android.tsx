@@ -9,10 +9,7 @@ import { Pressable } from '@tloncorp/ui';
 import { useState } from 'react';
 
 import type { IconMenuProps } from './IconMenu.types';
-import {
-  menuShadowElevation,
-  useSettingsListColors,
-} from './SettingsList/useSettingsListColors';
+import { useSettingsListColors } from './SettingsList/useSettingsListColors';
 
 /** Opens a Material menu of what can be done to an image, from any content. */
 export function IconMenu({
@@ -26,12 +23,7 @@ export function IconMenu({
   const colors = useSettingsListColors();
   return (
     <Host matchContents colorScheme={colors.colorScheme}>
-      <DropdownMenu
-        expanded={open}
-        onDismissRequest={() => setOpen(false)}
-        color={colors.menu}
-        shadowElevation={menuShadowElevation}
-      >
+      <DropdownMenu expanded={open} onDismissRequest={() => setOpen(false)}>
         <DropdownMenu.Trigger>
           <RNHostView matchContents>
             <Pressable

@@ -44,7 +44,6 @@ import type { SettingsListProps, SettingsRowModel } from './types';
 import { useSyncedFieldText } from './useSyncedFieldText';
 import {
   type SettingsListColors,
-  menuShadowElevation,
   useSettingsListColors,
 } from './useSettingsListColors';
 
@@ -337,13 +336,13 @@ function PlainRow({
     </Row>
   );
 
+  // Both menus keep Material's own surface and shadow, as Google's apps draw
+  // them, in the app's light or dark theme from the list's Host.
   if (picker) {
     return (
       <DropdownMenu
         expanded={menuOpen}
         onDismissRequest={() => setMenuOpen(false)}
-        color={colors.menu}
-        shadowElevation={menuShadowElevation}
       >
         <DropdownMenu.Trigger>{content}</DropdownMenu.Trigger>
         <DropdownMenu.Items>
@@ -381,8 +380,6 @@ function PlainRow({
     <DropdownMenu
       expanded={menuOpen}
       onDismissRequest={() => setMenuOpen(false)}
-      color={colors.menu}
-      shadowElevation={menuShadowElevation}
     >
       <DropdownMenu.Trigger>{content}</DropdownMenu.Trigger>
       <DropdownMenu.Items>

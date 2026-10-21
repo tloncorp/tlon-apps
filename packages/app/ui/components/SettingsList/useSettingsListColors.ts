@@ -27,10 +27,6 @@ export function useSettingsListColors() {
       // Warm like the rest of the palette; the platforms' own separator grays
       // are cool and read as off against it.
       separator: theme.secondaryBorder.val,
-      // Menus float over the cards: white on a light theme, as the phone's own
-      // menus are, and a step lighter than the cards on a dark one, where a
-      // shadow doesn't show. Material's default would follow the wallpaper.
-      menu: isDark ? theme.secondaryBorder.val : theme.background.val,
       primaryText: theme.primaryText.val,
       secondaryText: theme.secondaryText.val,
       tertiaryText: theme.tertiaryText.val,
@@ -49,12 +45,6 @@ export function useSettingsListColors() {
 }
 
 export type SettingsListColors = ReturnType<typeof useSettingsListColors>;
-
-/**
- * How far menus float above the list. Material's own 3dp barely shows on a
- * white menu over white cards.
- */
-export const menuShadowElevation = 8;
 
 /** A `#RRGGBB` color at the given opacity. */
 function withAlpha(hex: string, alpha: number) {
