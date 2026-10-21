@@ -26,6 +26,8 @@
             %chat-dm-action-1
             %chat-dm-diff
             %chat-dm-diff-1
+            %chat-dm-vouched-action-2
+            %chat-dm-vouched-diff-2
             %chat-heads
             %chat-heads-1
             %chat-heads-2

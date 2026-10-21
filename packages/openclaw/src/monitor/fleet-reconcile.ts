@@ -41,7 +41,9 @@ export type RosterFact = {
 
 export type RosterBot = {
   nickname: string;
+  avatar: string | null;
   model: string | null;
+  harness: string;
   persona: string;
 };
 /** Keyed by normalized moon @p (with sigil). */
@@ -50,10 +52,15 @@ export type Roster = Map<string, RosterBot>;
 function toRosterBot(json: RosterBotJson | undefined): RosterBot {
   return {
     nickname: typeof json?.nickname === 'string' ? json.nickname : '',
+    avatar:
+      typeof json?.avatar === 'string' && json.avatar.length > 0
+        ? json.avatar
+        : null,
     model:
       typeof json?.model === 'string' && json.model.length > 0
         ? json.model
         : null,
+    harness: typeof json?.harness === 'string' ? json.harness : '',
     persona: typeof json?.persona === 'string' ? json.persona : '',
   };
 }
@@ -94,13 +101,17 @@ export type FleetAgentDesired = {
   acct: string;
   moon: string;
   nickname: string;
+  avatar: string | null;
   model: string | null;
   persona: string;
 };
 
 /**
  * The fleet the config should describe. The default account's moon (when
- * configured) is skipped: that bot already runs as the default account.
+ * configured) is skipped: that bot already runs as the default account. A
+ * bot the roster assigns to another harness is not ours to run: skipping it
+ * here also removes its fleet slice if we ran it before the reassignment.
+ * The mint default is 'openclaw', and an empty harness means the same.
  */
 export function computeFleetAgents(
   roster: Roster,
@@ -111,7 +122,11 @@ export function computeFleetAgents(
     if (defaultMoon && moon === defaultMoon) {
       continue;
     }
-    out.push({ acct: moon.replace(/^~/, ''), moon, ...bot });
+    if (bot.harness !== '' && bot.harness !== 'openclaw') {
+      continue;
+    }
+    const { harness: _harness, ...rest } = bot;
+    out.push({ acct: moon.replace(/^~/, ''), moon, ...rest });
   }
   return out.sort((a, b) => (a.acct < b.acct ? -1 : a.acct > b.acct ? 1 : 0));
 }
@@ -168,14 +183,24 @@ export function applyFleetToConfig(
     }
   }
   for (const d of desired) {
+    const existing = accounts[d.acct];
     accounts[d.acct] = {
-      ...accounts[d.acct],
+      ...existing,
       // An operator's explicit disable survives reconciles; retiring is
       // steward's job, pausing is the operator's.
-      enabled: accounts[d.acct]?.enabled !== false,
+      enabled: existing?.enabled !== false,
+      // Fleet accounts default owner-listen off: with several bots, each
+      // default-enabled one would answer the owner's untargeted messages,
+      // once per bot. Seeded at creation only, so an operator's explicit
+      // opt-in survives reconciles.
+      ...(existing === undefined ? { ownerListenEnabled: false } : {}),
       moon: d.moon,
       moonNickname: d.nickname,
+      ...(d.avatar ? { moonAvatar: d.avatar } : {}),
     };
+    if (!d.avatar) {
+      delete accounts[d.acct].moonAvatar;
+    }
   }
 
   const agents = (cfg.agents ??= {});
@@ -195,6 +220,29 @@ export function applyFleetToConfig(
       delete entries[id];
     }
   }
+  // Adding entries changes how the gateway resolves its default agent: with
+  // no entries at all it falls back to the implicit `main` agent, and with
+  // exactly one entry that entry is the default. Fleet entries would
+  // otherwise erase both resolutions, orphaning the default account's bot.
+  // Pin the pre-fleet default with an explicit marker before adding ours.
+  // (At this point `entries` holds only non-fleet entries.) Several unmarked
+  // pre-existing entries were already unresolvable before the fleet arrived;
+  // that stays `openclaw doctor`'s problem.
+  if (
+    desired.length > 0 &&
+    (agents as { ownership?: unknown }).ownership !== 'explicit' &&
+    !Object.values(entries).some(
+      (e) => (e as { default?: unknown })?.default === true
+    )
+  ) {
+    const ids = Object.keys(entries);
+    if (ids.length === 0) {
+      // The implicit agent openclaw resolves when agents.entries is absent.
+      entries.main = { default: true };
+    } else if (ids.length === 1) {
+      entries[ids[0]] = { ...entries[ids[0]], default: true };
+    }
+  }
   for (const d of desired) {
     const existing = entries[d.acct];
     const next: AgentEntry = {
@@ -206,6 +254,17 @@ export function applyFleetToConfig(
         typeof existing?.model === 'object' && existing.model !== null
           ? { ...existing.model, primary: d.model }
           : { primary: d.model };
+    } else if (typeof next.model === 'object' && next.model !== null) {
+      // The roster reverted this bot to the gateway default: drop the
+      // primary the fleet set, or the old override would win forever.
+      const { primary: _primary, ...rest } = next.model as {
+        primary?: unknown;
+      };
+      if (Object.keys(rest).length > 0) {
+        next.model = rest;
+      } else {
+        delete next.model;
+      }
     }
     entries[d.acct] = next;
   }
@@ -282,7 +341,12 @@ export function fleetConfigUpToDate(
   return JSON.stringify(slice(probe)) === before;
 }
 
-/** Writes the per-bot persona files; returns true when anything changed. */
+/**
+ * Seeds the per-bot persona files; returns true when anything was written.
+ * Seed-only: once a file exists the workspace owns it — the owner edits it
+ * through the steward prompts flow, and rewriting it from the roster here
+ * would silently revert those edits on the next roster fact.
+ */
 export async function ensureBotWorkspace(params: {
   dir: string;
   moon: string;
@@ -299,7 +363,7 @@ export async function ensureBotWorkspace(params: {
   ] as const) {
     const path = join(params.dir, name);
     const current = await readFile(path, 'utf8').catch(() => null);
-    if (current !== content) {
+    if (current === null) {
       await writeFile(path, content, 'utf8');
       changed = true;
     }

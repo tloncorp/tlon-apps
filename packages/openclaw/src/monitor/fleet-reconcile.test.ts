@@ -110,6 +110,21 @@ describe('computeFleetAgents', () => {
     const agents = computeFleetAgents(roster, null);
     expect(agents.find((d) => d.moon === MOON_B)?.model).toBeNull();
   });
+
+  it('skips bots the roster assigns to another harness', () => {
+    const roster = applyRosterFact(
+      new Map(),
+      {
+        init: {
+          [MOON_A]: { ...botA, harness: 'hermes' },
+          [MOON_B]: { ...botB, harness: '' },
+        },
+      },
+      normalizeShip
+    );
+    const agents = computeFleetAgents(roster, null);
+    expect(agents.map((d) => d.moon)).toEqual([MOON_B]);
+  });
 });
 
 describe('applyFleetToConfig', () => {
@@ -127,6 +142,8 @@ describe('applyFleetToConfig', () => {
     const cfg = reconciled();
     expect(cfg.channels.tlon.accounts?.[ACCT_A]).toEqual({
       enabled: true,
+      // Seeded off so a fleet of bots doesn't all answer the owner at once.
+      ownerListenEnabled: false,
       moon: MOON_A,
       moonNickname: 'neo',
     });
@@ -143,6 +160,71 @@ describe('applyFleetToConfig', () => {
       agentId: ACCT_A,
       match: { channel: 'tlon', accountId: ACCT_A },
     });
+  });
+
+  it('carries the roster avatar onto the account and drops it when cleared', () => {
+    const cfg = freshConfig() as unknown as AnyCfg;
+    const withAvatar = applyRosterFact(
+      new Map(),
+      { init: { [MOON_A]: { ...botA, avatar: 'https://x/a.png' } } },
+      normalizeShip
+    );
+    applyFleetToConfig(
+      cfg as unknown as OpenClawConfig,
+      computeFleetAgents(withAvatar, null),
+      normalizeShip
+    );
+    expect(cfg.channels.tlon.accounts?.[ACCT_A].moonAvatar).toBe(
+      'https://x/a.png'
+    );
+
+    const cleared = applyRosterFact(
+      withAvatar,
+      { configured: { ship: MOON_A, bot: botA } },
+      normalizeShip
+    );
+    applyFleetToConfig(
+      cfg as unknown as OpenClawConfig,
+      computeFleetAgents(cleared, null),
+      normalizeShip
+    );
+    expect(cfg.channels.tlon.accounts?.[ACCT_A].moonAvatar).toBeUndefined();
+  });
+
+  it('clears the model override when the roster reverts to the default', () => {
+    const cfg = reconciled() as unknown as AnyCfg;
+    expect(cfg.agents?.entries?.[ACCT_A].model).toEqual({ primary: 'gpt' });
+
+    const reverted = applyRosterFact(
+      applyRosterFact(new Map(), initFact(), normalizeShip),
+      { configured: { ship: MOON_A, bot: { ...botA, model: '' } } },
+      normalizeShip
+    );
+    applyFleetToConfig(
+      cfg as unknown as OpenClawConfig,
+      computeFleetAgents(reverted, null),
+      normalizeShip
+    );
+    expect(cfg.agents?.entries?.[ACCT_A].model).toBeUndefined();
+  });
+
+  it('pins the pre-fleet default agent when fleet entries arrive', () => {
+    // No entries at all: the implicit `main` agent gets an explicit marker.
+    const bare = reconciled() as unknown as AnyCfg;
+    expect(bare.agents?.entries?.main).toEqual({ default: true });
+
+    // One pre-existing entry: it becomes the marked default.
+    const cfg = freshConfig() as unknown as AnyCfg;
+    cfg.agents = { entries: { helper: { identity: { name: 'helper' } } } };
+    reconciled(cfg as unknown as OpenClawConfig);
+    expect(cfg.agents?.entries?.helper.default).toBe(true);
+    expect(cfg.agents?.entries?.main).toBeUndefined();
+
+    // An existing marker is left alone.
+    const marked = freshConfig() as unknown as AnyCfg;
+    marked.agents = { entries: { helper: { default: true } } };
+    reconciled(marked as unknown as OpenClawConfig);
+    expect(marked.agents?.entries?.main).toBeUndefined();
   });
 
   it('removes a retired bot everywhere while keeping hand-written config', () => {
@@ -229,7 +311,7 @@ describe('ensureBotWorkspace', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('writes SOUL.md and IDENTITY.md once', async () => {
+  it('seeds SOUL.md and IDENTITY.md once and never rewrites them', async () => {
     const ws = join(dir, 'workspace-a');
     const params = {
       dir: ws,
@@ -244,9 +326,12 @@ describe('ensureBotWorkspace', () => {
       `Ship: ${MOON_A}`
     );
     expect(await ensureBotWorkspace(params)).toBe(false);
+    // The workspace owns the files after the seed: a roster change must not
+    // revert edits the owner made through the steward prompts flow.
     expect(await ensureBotWorkspace({ ...params, persona: 'rewritten' })).toBe(
-      true
+      false
     );
+    expect(readFileSync(join(ws, 'SOUL.md'), 'utf8')).toContain('the one');
   });
 });
 

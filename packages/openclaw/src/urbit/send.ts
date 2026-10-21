@@ -237,7 +237,11 @@ export async function sendVouchedDmWithStory({
     botProfile,
     replyTo,
   });
-  return { channel: 'tlon' as const, messageId: result.messageId, sentAt };
+  return reportSuccessfulSend(
+    { channel: 'tlon' as const, messageId: result.messageId, sentAt },
+    'dm',
+    Boolean(replyTo)
+  );
 }
 
 // --- Channel posts (chat, heap, diary) ---

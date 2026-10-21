@@ -529,16 +529,22 @@ async function deleteDM(
   const authorId = getCurrentUserId();
   const parsed = parsePostId(postId);
 
-  // acting as a bot moon: deletions ride the vouched conversation. The desk
-  // only relays deletions the sender may vouch for, so the bot can only
-  // delete its own messages.
+  // acting as a bot moon: deletions ride the vouched conversation, and the
+  // bot can only delete its own messages. Reject a foreign author here with
+  // a usable error instead of letting the host desk crash the relay.
   const moon = botMoon();
   if (moon) {
+    if (parsed.authorId && normalizeShip(parsed.authorId) !== moon) {
+      return {
+        success: false,
+        error: `bots can only delete their own messages (author ${parsed.authorId})`,
+      };
+    }
     try {
       await deleteVouchedDmPost({
         as: moon,
         toShip: normalizedShip,
-        postId: `${parsed.authorId ?? moon}/${parsed.id}`,
+        postId: `${moon}/${parsed.id}`,
       });
       return { success: true };
     } catch (error: any) {

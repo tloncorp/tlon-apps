@@ -395,11 +395,12 @@
   =;  =wire  [%pass wire %arvo %b %wait wen]
   [%setup ?~(wat ~ [(scot %p s.u.wat) c.u.wat])]
 ::
-++  dm-contexts
-  |=  =bowl:gall
-  ^-  (set [ship context])
-  %-  ~(run in .^((set ship) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/ships))
-  |=  partner=ship
+::  +dm-context: where to watch one dm partner's presence. used by the
+::  full +dm-contexts sweep and by the /activity/all %add handler, so a
+::  dm added at runtime routes the same way a setup cycle would.
+::
+++  dm-context
+  |=  [partner=ship =bowl:gall]
   ^-  [ship context]
   ?.  ?=(%earl (clan:title partner))
     [partner /dm/(scot %p our.bowl)]
@@ -421,6 +422,12 @@
   ::  store, the next setup cycle switches this to a direct watch.
   ::
   [(^sein:title partner) /vouched/(scot %p partner)/dm/(scot %p our.bowl)]
+::
+++  dm-contexts
+  |=  =bowl:gall
+  ^-  (set [ship context])
+  %-  ~(run in .^((set ship) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/ships))
+  |=(partner=ship (dm-context partner bowl))
 ::
 ++  channel-contexts
   ::  every channel in our %channels that we can still read, per +can-read.
@@ -772,7 +779,8 @@
                     `[ship /channel/[kind]/(scot %p ship)/[name]]
           %dm       ?.  ?=(%ship -.whom.src)    ~
                     ?:  =(our.bowl p.whom.src)  ~
-                    `[p.whom.src /dm/(scot %p our.bowl)]
+                    ::  same vouch-aware routing a full setup derives
+                    `(dm-context p.whom.src bowl)
         ==
       ?~  new  [~ this]
       ?:  &(add.u.news !(~(has in want) u.new))

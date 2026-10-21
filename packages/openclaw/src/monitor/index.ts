@@ -728,6 +728,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     if (!api) {
       return;
     }
+    // The claim writes to the connected ship's own contact profile, which in
+    // moon mode belongs to the HOST — publishing would mark the host ship
+    // itself as a bot. The moon's bot identity is steward's to publish (at
+    // mint and on roster %profile edits), not the runner's.
+    if (account.moon) {
+      return;
+    }
     try {
       // The host always reports a version; an empty one means the SDK contract
       // moved under us. The claim still stands without it (the field is a
@@ -1359,8 +1366,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         };
         // The self-profile belongs to the host. Only adopt it as the bot's
         // display identity when acting as the host itself; as a moon, the
-        // bot's name/avatar come from the host's published bot profile.
-        botNickname = account.moon ? null : profile.nickname?.value || null;
+        // bot's name comes from the roster (the same value the host
+        // publishes in the moon's contact profile).
+        botNickname = account.moon
+          ? account.moonNickname || null
+          : profile.nickname?.value || null;
         botAvatar = account.moon ? null : profile.avatar?.value || null;
         if (botNickname) {
           runtime.log?.(`[tlon] Bot nickname: ${botNickname}`);
@@ -5334,9 +5344,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!processedTracker.mark(effectiveMessageId)) {
           return;
         }
-        endActivityRead = activityReads.begin(dmReadKey(whom), () =>
-          dmReadTarget(whom)
-        );
+        // No read-marking in moon mode: bot-inbox conversations carry no
+        // host-side unreads, and the read poke would instead clear the
+        // HOST's own DM with this person if one exists.
+        if (!account.moon) {
+          endActivityRead = activityReads.begin(dmReadKey(whom), () =>
+            dmReadTarget(whom)
+          );
+        }
 
         const authorShip = normalizeShip(extractAuthorShip(dmContent.author));
         const partnerShip = extractDmPartnerShip(whom);
