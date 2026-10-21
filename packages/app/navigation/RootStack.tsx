@@ -131,7 +131,11 @@ function RootStackContent() {
       />
 
       {/* individual screens */}
-      <Root.Screen name="BrowserWallet" component={BrowserWalletScreen} options={{ presentation: 'modal' }} />
+      <Root.Screen
+        name="BrowserWallet"
+        component={BrowserWalletScreen}
+        options={{ presentation: 'modal' }}
+      />
       <Root.Screen
         name="BrowserCredentialHandoff"
         component={BrowserCredentialHandoffScreen}

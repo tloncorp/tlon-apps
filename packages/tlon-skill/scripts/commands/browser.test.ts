@@ -1,3 +1,4 @@
+import { browserWalletCard } from '@tloncorp/api/client/browserWallet';
 import { convertContent } from '@tloncorp/api/client/postContent';
 
 import { describe, expect, it } from 'bun:test';
@@ -35,6 +36,7 @@ function makeDeps(ownerShip = '~owner') {
     setOrder: async () => {},
   };
   const deps: BrowserDeps = {
+    browserWalletCard,
     stdout: (text) => stdout.push(text),
     stderr: (text) => stderr.push(text),
     authenticate: async () => {},
@@ -332,7 +334,6 @@ describe('browser share', () => {
   });
 });
 
-
 describe('wallet card delivery', () => {
   it('sends an opaque request to the configured owner without consent URLs', async () => {
     const context = makeDeps('~ten');
@@ -340,7 +341,9 @@ describe('wallet card delivery', () => {
     expect(await run(['wallet', id], context.deps)).toBe(0);
     expect(context.sent).toHaveLength(1);
     expect(context.sent[0].channelId).toBe('~ten');
-    const content = JSON.stringify(convertContent(context.sent[0].content, context.sent[0].blob));
+    const content = JSON.stringify(
+      convertContent(context.sent[0].content, context.sent[0].blob)
+    );
     expect(content).toContain('browserWallet');
     expect(content).toContain(id);
     expect(content).not.toContain('https://');

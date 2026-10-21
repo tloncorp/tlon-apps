@@ -74,8 +74,12 @@ describe('browser handoff trust', () => {
   it('trusts an explicitly configured development bot only in its own DM', () => {
     const configured = { ...dm, agentShipOverride: dm.authorId };
     expect(canUseBrowserHandoff(configured)).toBe(true);
-    expect(canUseBrowserHandoff({ ...configured, authorId: '~nec' })).toBe(false);
-    expect(canUseBrowserHandoff({ ...configured, channelId: '~nec' })).toBe(false);
+    expect(canUseBrowserHandoff({ ...configured, authorId: '~nec' })).toBe(
+      false
+    );
+    expect(canUseBrowserHandoff({ ...configured, channelId: '~nec' })).toBe(
+      false
+    );
     expect(
       canUseBrowserHandoff({
         ...configured,

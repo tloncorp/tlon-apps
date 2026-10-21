@@ -73,7 +73,10 @@ function record(value: unknown): Record<string, unknown> {
     : {};
 }
 
-export async function readMcpReply(response: Response, id: string): Promise<unknown> {
+export async function readMcpReply(
+  response: Response,
+  id: string
+): Promise<unknown> {
   const mediaType = response.headers
     .get('content-type')
     ?.split(';')[0]

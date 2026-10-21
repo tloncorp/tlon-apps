@@ -51,8 +51,12 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
           name="Root"
           component={TopLevelDrawer}
         />
-        <DesktopBasePathStackNavigator.Screen name="BrowserWallet" component={BrowserWalletScreen} options={{ presentation: 'modal' }} />
-      <DesktopBasePathStackNavigator.Screen
+        <DesktopBasePathStackNavigator.Screen
+          name="BrowserWallet"
+          component={BrowserWalletScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <DesktopBasePathStackNavigator.Screen
           name="BrowserCredentialHandoff"
           component={BrowserCredentialHandoffScreen}
           options={{ presentation: 'modal' }}

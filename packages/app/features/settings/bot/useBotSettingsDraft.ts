@@ -102,7 +102,8 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
     if (!ready) return;
     syncServerValues(ship, {
       nickname: nicknameQuery.data ?? '',
-      browserService: effectiveBrowserService(browserServiceQuery.data) ?? 'steel',
+      browserService:
+        effectiveBrowserService(browserServiceQuery.data) ?? 'steel',
       model: getModelFormValues(providerConfig),
       chat: toChatFormValues(configQuery.data, providerConfig),
     });

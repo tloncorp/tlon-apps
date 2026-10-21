@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { browserWalletCard } from '@tloncorp/api';
 import { validateBrowserViewerUrl } from '../browser-viewer';
 import { markdownToStory } from '../markdown';
 import type { PostsDeps } from './posts';
@@ -52,6 +51,7 @@ export interface BrowserDeps extends Pick<
   PostsDeps,
   'stdout' | 'stderr' | 'authenticate' | 'getCurrentUserId' | 'now' | 'postsApi'
 > {
+  browserWalletCard: (requestId: string, surfaceId: string) => unknown;
   getOwnerShip: () => string;
 }
 
@@ -176,10 +176,16 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       const target = deps.getOwnerShip();
       await deps.authenticate(['chat']);
       const sentAt = deps.now();
-      await deps.postsApi.sendPost({ channelId: target, authorId: deps.getCurrentUserId(), sentAt,
-        content: markdownToStory('Your bot has a wallet request for you to review.'),
-        blob: JSON.stringify([browserWalletCard(id, `wallet-${id}`)]),
-        botProfile: { nickname: null, avatar: null } });
+      await deps.postsApi.sendPost({
+        channelId: target,
+        authorId: deps.getCurrentUserId(),
+        sentAt,
+        content: markdownToStory(
+          'Your bot has a wallet request for you to review.'
+        ),
+        blob: JSON.stringify([deps.browserWalletCard(id, `wallet-${id}`)]),
+        botProfile: { nickname: null, avatar: null },
+      });
       writeLine(deps.stdout, `✓ Wallet request sent to ${target}`);
       return 0;
     }

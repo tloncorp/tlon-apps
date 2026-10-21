@@ -578,11 +578,13 @@ describe('per-bot browser service', () => {
   it('reports the active route separately from the stored selection', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockImplementation(() =>
-          respond({ browserService: 'kernel', active: 'steel', supported: true })
-        )
+      vi.fn().mockImplementation(() =>
+        respond({
+          browserService: 'kernel',
+          active: 'steel',
+          supported: true,
+        })
+      )
     );
     await expect(getTlawnBrowserService('zod')).resolves.toEqual({
       browserService: 'kernel',
@@ -598,7 +600,9 @@ describe('per-bot browser service', () => {
         'fetch',
         vi
           .fn()
-          .mockImplementation(() => respond({ browserService: 'kernel', active }))
+          .mockImplementation(() =>
+            respond({ browserService: 'kernel', active })
+          )
       );
       await expect(getTlawnBrowserService('zod')).rejects.toThrow(
         'Invalid browser service response'

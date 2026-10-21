@@ -19,6 +19,7 @@
  *   posts        Post quotes, forwards, reactions, edits, deletes, pins
  *   settings     OpenClaw settings management
  */
+import { browserWalletCard } from '@tloncorp/api/client/browserWallet';
 import { createActivityDeps } from './activity-runtime';
 import { getConfig, setCliCredentialOverrides } from './api-client';
 import { resolveBrowserOwnerShip } from './browser-owner';
@@ -170,6 +171,7 @@ async function main() {
       case 'browser': {
         const exitCode = await runBrowserCommand(scriptArgs, {
           ...createPostsDeps(),
+          browserWalletCard,
           getOwnerShip: () =>
             resolveBrowserOwnerShip({ activeShip: getConfig().ship }),
         });
