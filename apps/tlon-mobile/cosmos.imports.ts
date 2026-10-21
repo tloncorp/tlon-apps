@@ -15,7 +15,6 @@ import * as fixture8 from './../../packages/app/fixtures/Activity.fixture';
 import * as fixture9 from './../../packages/app/fixtures/AddContactsView.fixture';
 import * as fixture10 from './../../packages/app/fixtures/AttachmentPreviewList.fixture';
 import * as fixture11 from './../../packages/app/fixtures/AttestationPane.fixture';
-import * as fixture12 from './../../packages/app/fixtures/AgentOnboarding.fixture';
 import * as fixture13 from './../../packages/app/fixtures/AudioRecorder.fixture';
 import * as fixture14 from './../../packages/app/fixtures/Avatar.fixture';
 import * as fixture15 from './../../packages/app/fixtures/BlockSectionList.fixture';
@@ -46,6 +45,7 @@ import * as fixture41 from './../../packages/app/fixtures/Input.fixture';
 import * as fixture42 from './../../packages/app/fixtures/InviteFriendsToTlonButton.fixture';
 import * as fixture43 from './../../packages/app/fixtures/InviteUsersSheet.fixture';
 import * as fixture44 from './../../packages/app/fixtures/MediaImageViewer.fixture';
+import * as fixtureMeetYourBot from './../../packages/app/fixtures/MeetYourBot.fixture';
 import * as fixture45 from './../../packages/app/fixtures/MessageActions.fixture';
 import * as fixture46 from './../../packages/app/fixtures/MessageInput.fixture';
 import * as fixture47 from './../../packages/app/fixtures/MetaEditorScreen.fixture';
@@ -125,9 +125,6 @@ const fixtures = {
   '../../packages/app/fixtures/AttestationPane.fixture.tsx': {
     module: fixture11,
   },
-  '../../packages/app/fixtures/AgentOnboarding.fixture.tsx': {
-    module: fixture12,
-  },
   '../../packages/app/fixtures/AudioRecorder.fixture.tsx': {
     module: fixture13,
   },
@@ -195,6 +192,9 @@ const fixtures = {
   },
   '../../packages/app/fixtures/MediaImageViewer.fixture.tsx': {
     module: fixture44,
+  },
+  '../../packages/app/fixtures/MeetYourBot.fixture.tsx': {
+    module: fixtureMeetYourBot,
   },
   '../../packages/app/fixtures/MessageActions.fixture.tsx': {
     module: fixture45,

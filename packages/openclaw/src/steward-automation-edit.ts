@@ -1,4 +1,6 @@
-import type { PluginHookGatewayCronService } from './cron-telemetry.js';
+// OpenClaw 2026.9.x does not export the cron hook types; use the local
+// structural contract that mirrors them.
+import type { GatewayCronService as PluginHookGatewayCronService } from './cron-telemetry.js';
 import { z } from 'zod';
 
 import { reportTelemetryError } from './telemetry.js';

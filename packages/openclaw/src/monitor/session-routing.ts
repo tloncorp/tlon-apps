@@ -342,6 +342,10 @@ export function routeUpdateWillSkipByPin(
  * below keeps this plugin's deliberate fail-open semantics: a persistence
  * failure — including `resolveStorePath` throwing on bad session-store
  * config — is logged but never suppresses the live Tlon reply.
+ *
+ * Resolves to `undefined` when the kernel admits the message but does not
+ * dispatch it (bot-loop protection, outbound echo, duplicate): an expected
+ * no-op, never an error.
  */
 export async function recordTlonRouteAndDispatch<T>(params: {
   session: Pick<
@@ -365,8 +369,15 @@ export async function recordTlonRouteAndDispatch<T>(params: {
   logDebug?: (msg: string) => void;
   /** Called with the built record, before persistence (used for debug logging). */
   onRecord?: (record: TlonInboundRouteRecord) => void;
+  /**
+   * Called instead of `dispatch` when the kernel does not run the turn. Here
+   * that only happens when the message matches one of our own recent outbound
+   * posts (an outbound echo). The caller should account for the turn as a
+   * skip, not a failure or an empty reply.
+   */
+  onNotDispatched?: (admission: { kind: string; reason?: string }) => void;
   dispatch: () => Promise<T>;
-}): Promise<T> {
+}): Promise<T | undefined> {
   const record = buildTlonInboundRouteRecord({
     cfg: params.cfg,
     route: params.route,
@@ -480,11 +491,21 @@ export async function recordTlonRouteAndDispatch<T>(params: {
     runDispatch: params.dispatch,
   });
   if (!turn.dispatched) {
-    // Unreachable for a prepared turn (classification and admission already
-    // happened in this monitor before the kernel call); loud if that changes.
-    throw new Error(
-      `[tlon] prepared turn was not dispatched (admission=${turn.admission.kind})`
+    // The kernel skips dispatch when the message matches one of our own recent
+    // outbound posts (an outbound echo); this call passes no bot-loop facts,
+    // so that is the only reachable case. It is a normal no-op for this
+    // message, not a turn failure: report no dispatch result and let the
+    // caller's optional handling take over, instead of recording a spurious
+    // error.
+    safeLog(
+      params.logDebug,
+      `[tlon][route-debug] inbound turn not dispatched: admission=${turn.admission.kind}` +
+        ('reason' in turn.admission && turn.admission.reason
+          ? ` reason=${turn.admission.reason}`
+          : '')
     );
+    params.onNotDispatched?.(turn.admission);
+    return undefined;
   }
   return turn.dispatchResult;
 }

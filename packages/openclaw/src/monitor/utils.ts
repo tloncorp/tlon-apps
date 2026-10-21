@@ -169,17 +169,23 @@ export type EngageReason =
 /**
  * Decide whether to engage on a group-channel message.
  *
- * - Mentions and participated threads always engage (legacy behavior).
- * - Owner blob-only messages engage when the caller asserts `isOwnerBlob`
- *   (preserves existing behavior — caller still computes that flag).
+ * - Mentions always engage.
+ * - Owner-listen is "active" for a channel when the global toggle is on and
+ *   the channel is not in the per-channel disabled list. When it is not
+ *   active, the owner is mention-only there: participated threads and owner
+ *   blob-bearing posts do not engage for the owner, only mentions and bare
+ *   owner slash commands do.
+ * - Participated threads engage for everyone else, and for the owner while
+ *   owner-listen is active.
+ * - Owner blob-bearing messages engage when the caller asserts `isOwnerBlob`
+ *   and owner-listen is active.
  * - Owner slash commands engage when the caller asserts `isOwnerCommand`
  *   (the sender is the owner and the text matches a registered/core command
  *   token). Escape-hatch semantics like the in-plugin /owner-listen special
  *   case: no mention required, works in any watched channel regardless of
  *   host, the global owner-listen toggle, or the per-channel disabled list.
  * - Otherwise: engage when the sender is the owner AND the channel host is
- *   the owner or the bot itself AND the global owner-listen toggle is on AND
- *   the channel is not in the per-channel disabled list.
+ *   the owner or the bot itself AND owner-listen is active.
  */
 export function shouldEngageInGroup(opts: {
   mentioned: boolean;
@@ -194,32 +200,33 @@ export function shouldEngageInGroup(opts: {
   ownerListenEnabled: boolean;
   ownerListenDisabledChannels: ReadonlySet<string>;
 }): { engage: boolean; reason: EngageReason } {
+  const isOwner = opts.ownerShip !== null && opts.senderShip === opts.ownerShip;
+  const ownerListenActive =
+    opts.ownerListenEnabled &&
+    !opts.ownerListenDisabledChannels.has(opts.channelNest);
+  const ownerMuted = isOwner && !ownerListenActive;
+
   if (opts.mentioned) {
     return { engage: true, reason: 'mention' };
   }
-  if (opts.inParticipatedThread) {
+  if (opts.inParticipatedThread && !ownerMuted) {
     return { engage: true, reason: 'thread' };
   }
-  if (opts.isOwnerBlob) {
+  if (opts.isOwnerBlob && !ownerMuted) {
     return { engage: true, reason: 'owner-blob' };
   }
-
-  const isOwner = opts.ownerShip !== null && opts.senderShip === opts.ownerShip;
-
   if (opts.isOwnerCommand && isOwner) {
     return { engage: true, reason: 'owner-command' };
   }
-
-  if (!opts.ownerListenEnabled) {
+  if (!ownerListenActive) {
     return { engage: false, reason: 'skip' };
   }
 
   const isOwned =
     opts.groupHost !== null &&
     (opts.groupHost === opts.ownerShip || opts.groupHost === opts.botShipName);
-  const disabled = opts.ownerListenDisabledChannels.has(opts.channelNest);
 
-  if (isOwner && isOwned && !disabled) {
+  if (isOwner && isOwned) {
     return { engage: true, reason: 'owner-owned' };
   }
   return { engage: false, reason: 'skip' };
@@ -710,4 +717,18 @@ export function sanitizeMessageText(text: string): string {
   sanitized = sanitized.replace(/\[(owner|user|admin|system)\]/gi, '($1)');
 
   return sanitized;
+}
+
+export function resolveCommandBody(input: {
+  messageText: string;
+  originalCommandText?: string;
+  isGroup: boolean;
+  botShipName: string;
+}): string {
+  const text = sanitizeMessageText(
+    input.originalCommandText ?? input.messageText
+  );
+  return input.isGroup
+    ? stripBotMentionOutsidePlaceholders(text, input.botShipName)
+    : text;
 }

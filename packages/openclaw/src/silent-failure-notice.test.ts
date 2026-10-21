@@ -34,6 +34,7 @@ function makeSummary(
     sourceReplyCount: 0,
     toolCallCount: 7,
     toolErrorCount: 2,
+    superseded: false,
     trigger: 'mention',
     ...overrides,
   };
@@ -130,6 +131,23 @@ describe('resolveSilentFailureNotice', () => {
     ).toBeNull();
   });
 
+  it('stays silent when the kernel admitted but did not dispatch a DM turn', () => {
+    expect(
+      resolveSilentFailureNotice({
+        ...incidentInput,
+        summary: makeSummary({
+          trigger: 'dm',
+          destinationKind: 'dm',
+          toolCallCount: 0,
+          toolErrorCount: 0,
+          lastToolError: null,
+          result: 'empty',
+          reason: 'not_dispatched',
+        }),
+      })
+    ).toBeNull();
+  });
+
   it('fires when a DM turn ends empty with nothing to send', () => {
     expect(
       resolveSilentFailureNotice({
@@ -169,6 +187,24 @@ describe('resolveSilentFailureNotice', () => {
         conversation: 'our DM with ~sipnup-litnux',
       })
     ).not.toBeNull();
+  });
+
+  it('stays silent when a newer owner message superseded the turn', () => {
+    expect(
+      resolveSilentFailureNotice({
+        summary: makeSummary({
+          trigger: 'dm',
+          destinationKind: 'dm',
+          result: 'intentional_silence',
+          toolErrorCount: 0,
+          lastToolError: null,
+          superseded: true,
+        }),
+        deliveredCount: 0,
+        requester: '~sipnup-litnux',
+        conversation: 'our DM with ~sipnup-litnux',
+      })
+    ).toBeNull();
   });
 
   it('stays silent for empty or intentionally silent group turns', () => {

@@ -43,55 +43,49 @@ import {
 const CRON_ERROR_MAX_CHARS = 500;
 const SNAPSHOT_RETRY_DELAY_MS = 20_000;
 
-// The SDK no longer exports its gateway hook types from a public subpath
-// (`openclaw/plugin-sdk/types` ships untyped JS as of 2026.9.x), so these
-// mirror the fields this module reads from the `cron_changed` hook payloads.
-// The `api.on('cron_changed', ...)` registration in index.ts is contextually
-// typed against the real SDK map, so a mismatch fails to compile there.
-export type PluginHookGatewayCronJob = {
+export type GatewayCronSchedule =
+  | { kind: 'cron'; expr?: string; tz?: string; staggerMs?: number }
+  | { kind: 'at'; at?: string }
+  | { kind: 'every'; everyMs?: number; anchorMs?: number }
+  | { kind: 'on-exit'; command?: string; cwd?: string }
+  | {
+      kind: 'stream';
+      command?: string[];
+      cwd?: string;
+      mode?: 'line' | 'match';
+      match?: string;
+      batchMs?: number;
+      maxBatchBytes?: number;
+    };
+
+export type GatewayCronJob = {
   id: string;
   agentId?: string;
   name?: string;
   description?: string;
   enabled?: boolean;
-  schedule?:
-    | { kind: 'cron'; expr?: string; tz?: string; staggerMs?: number }
-    | { kind: 'at'; at?: string }
-    | { kind: 'every'; everyMs?: number; anchorMs?: number }
-    | { kind: 'on-exit'; command?: string; cwd?: string }
-    | {
-        kind: 'stream';
-        command?: string[];
-        cwd?: string;
-        mode?: 'line' | 'match';
-        match?: string;
-        batchMs?: number;
-        maxBatchBytes?: number;
-      };
+  schedule?: GatewayCronSchedule;
   sessionTarget?: string;
   wakeMode?: string;
   payload?: { kind?: string; text?: string };
-  state?: {
-    nextRunAtMs?: number;
-    runningAtMs?: number;
-    lastRunAtMs?: number;
-    lastError?: string;
-    lastDurationMs?: number;
-  };
-  createdAtMs?: number;
-  updatedAtMs?: number;
+  state?: GatewayCronJobState;
 };
 
-export type PluginHookGatewayCronService = {
-  list: (opts?: {
-    includeDisabled?: boolean;
-  }) => Promise<PluginHookGatewayCronJob[]>;
-  add(input: object): Promise<unknown>;
-  update(id: string, patch: object): Promise<unknown>;
-  remove(id: string): Promise<unknown>;
+/** The run/delivery outcome fields of the gateway's cron job state. */
+export type GatewayCronJobState = {
+  lastRunAtMs?: number;
+  lastRunStatus?: 'ok' | 'error' | 'skipped';
+  lastDurationMs?: number;
+  lastDelivered?: boolean;
+  lastDeliveryStatus?:
+    | 'not-requested'
+    | 'delivered'
+    | 'not-delivered'
+    | 'unknown';
+  lastDeliveryError?: string;
 };
 
-export type PluginHookCronChangedEvent = {
+export type CronChangedEvent = {
   action:
     | 'added'
     | 'updated'
@@ -100,19 +94,17 @@ export type PluginHookCronChangedEvent = {
     | 'finished'
     | 'scheduled';
   jobId: string;
-  job?: PluginHookGatewayCronJob;
+  job?: GatewayCronJob;
   sessionTarget?: string;
   agentId?: string;
   runAtMs?: number;
   durationMs?: number;
   status?: 'ok' | 'error' | 'skipped';
-  completionStatus?: 'succeeded' | 'failed' | 'unknown';
   error?: string;
   summary?: string;
   delivered?: boolean;
   deliveryStatus?: 'not-requested' | 'delivered' | 'not-delivered' | 'unknown';
   deliveryError?: string;
-  deliverySuppressionReason?: string;
   sessionId?: string;
   sessionKey?: string;
   runId?: string;
@@ -121,13 +113,32 @@ export type PluginHookCronChangedEvent = {
   provider?: string;
 };
 
-export type PluginHookGatewayContext = {
-  getCron?: () => PluginHookGatewayCronService | undefined;
+/** The gateway cron update-input fields the plugin edits. */
+export type GatewayCronJobPatch = {
+  enabled?: boolean;
+  description?: string;
 };
 
-type CronServiceAccessor = () => PluginHookGatewayCronService | undefined;
+export type GatewayCronService = {
+  list: (opts?: { includeDisabled?: boolean }) => Promise<GatewayCronJob[]>;
+  // OpenClaw 2026.9.x does not export its cron create/update input types from
+  // a public SDK subpath, so `add` stays `never` (callers cast) and `update`
+  // takes the subset of the gateway's update input the plugin edits, which
+  // keeps the hook context's cron service assignable to this type and a
+  // union of the two callable.
+  add: (input: never) => Promise<unknown>;
+  update: (id: string, patch: GatewayCronJobPatch) => Promise<unknown>;
+  remove: (id: string) => Promise<{ removed?: boolean }>;
+  removeStaleJobFamily: (family: {
+    declarationKey: string;
+    name: string;
+    ownerPluginTag: string;
+  }) => Promise<number>;
+};
 
-export type TlonCronService = PluginHookGatewayCronService & {
+type CronServiceAccessor = () => GatewayCronService | undefined;
+
+export type TlonCronService = GatewayCronService & {
   run?: (id: string, mode?: 'due' | 'force') => Promise<unknown>;
   enqueueRun?: (id: string, mode?: 'due' | 'force') => Promise<unknown>;
 };
@@ -205,7 +216,7 @@ export function normalizeCronSessionTargetKind(
 }
 
 export function cronScheduleFields(
-  job: PluginHookGatewayCronJob | undefined
+  job: GatewayCronJob | undefined
 ): TlonCronScheduleFields {
   const empty: TlonCronScheduleFields = {
     scheduleKind: null,
@@ -243,30 +254,37 @@ export function cronScheduleFields(
         ...empty,
         scheduleKind: 'on-exit',
       };
+    case 'stream':
+      return {
+        ...empty,
+        scheduleKind: 'stream',
+      };
     default:
       return empty;
   }
 }
 
-export function summarizeCronJobs(jobs: PluginHookGatewayCronJob[]): {
+export function summarizeCronJobs(jobs: GatewayCronJob[]): {
   activeCronJobCount: number;
   totalCronJobCount: number;
   scheduleKindCronCount: number;
   scheduleKindEveryCount: number;
   scheduleKindAtCount: number;
   scheduleKindOnExitCount: number;
+  scheduleKindStreamCount: number;
 } {
   let active = 0;
   let cronKind = 0;
   let everyKind = 0;
   let atKind = 0;
   let onExitKind = 0;
+  let streamKind = 0;
   for (const job of jobs) {
     // `enabled` is optional on the hook projection; jobs default to enabled.
     if (job.enabled !== false) {
       active += 1;
     }
-    switch (job?.schedule?.kind) {
+    switch (job.schedule?.kind) {
       case 'cron':
         cronKind += 1;
         break;
@@ -279,6 +297,9 @@ export function summarizeCronJobs(jobs: PluginHookGatewayCronJob[]): {
       case 'on-exit':
         onExitKind += 1;
         break;
+      case 'stream':
+        streamKind += 1;
+        break;
     }
   }
   return {
@@ -288,11 +309,12 @@ export function summarizeCronJobs(jobs: PluginHookGatewayCronJob[]): {
     scheduleKindEveryCount: everyKind,
     scheduleKindAtCount: atKind,
     scheduleKindOnExitCount: onExitKind,
+    scheduleKindStreamCount: streamKind,
   };
 }
 
 export function buildCronJobChangedReport(
-  event: PluginHookCronChangedEvent,
+  event: CronChangedEvent,
   counts: TlonCronCountFields | null
 ): TlonCronJobChangedReportInput | null {
   if (
@@ -321,7 +343,7 @@ export function buildCronJobChangedReport(
 }
 
 export function buildCronRunReport(
-  event: PluginHookCronChangedEvent,
+  event: CronChangedEvent,
   observedSilentOutput = false
 ): TlonCronRunReportInput | null {
   if (event.action !== 'finished') {
@@ -363,7 +385,7 @@ export function buildCronRunReport(
 }
 
 function buildCronRunStartedObservation(
-  event: PluginHookCronChangedEvent
+  event: CronChangedEvent
 ): TlonCronRunStarted {
   const job = event.job;
   return {
@@ -383,7 +405,7 @@ function buildCronRunStartedObservation(
 }
 
 function buildCronRunFinishedObservation(
-  event: PluginHookCronChangedEvent,
+  event: CronChangedEvent,
   run: TlonCronRunReportInput
 ): TlonCronRunFinished {
   return {
@@ -411,14 +433,14 @@ function buildCronRunFinishedObservation(
 }
 
 export function buildCronSnapshotReport(
-  jobs: PluginHookGatewayCronJob[]
+  jobs: GatewayCronJob[]
 ): TlonCronSnapshotReportInput {
   return summarizeCronJobs(jobs);
 }
 
 async function listCronJobs(
   getCron?: CronServiceAccessor
-): Promise<PluginHookGatewayCronJob[] | null> {
+): Promise<GatewayCronJob[] | null> {
   const accessor = getCron ?? cronServiceAccessorSlot.get();
   const service = accessor?.();
   if (!service) {
@@ -428,8 +450,8 @@ async function listCronJobs(
 }
 
 export async function handleCronChangedEvent(
-  event: PluginHookCronChangedEvent,
-  ctx: Pick<PluginHookGatewayContext, 'getCron'>,
+  event: CronChangedEvent,
+  ctx: { getCron?: CronServiceAccessor },
   options?: CronObservabilityOptions
 ): Promise<void> {
   const observer = options?.observer ?? getDefaultTlonCronOtelObserver();

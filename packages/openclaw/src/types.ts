@@ -53,11 +53,18 @@ export type TlonResolvedAccount = {
   groupInviteAllowlist: string[];
   autoDiscoverChannels: boolean | null;
   showModelSignature: boolean | null;
+  /** Agent commentary and tool labels in the Thinking row (default: true) */
+  showCommentary: boolean;
   autoAcceptDmInvites: boolean | null;
   autoAcceptGroupInvites: boolean | null;
   defaultAuthorizedShips: string[];
   /** Ship that receives approval requests for DMs, channel mentions, and group invites */
   ownerShip: string | null;
+  /**
+   * Staged rollout of owner-default `tlon` commands: true runs commands as the
+   * owner unless `--self`; false (the default) keeps the bot as the default.
+   */
+  ownerDefault: boolean;
   /** Controls agent reaction behavior: off | ack | minimal | extensive (default: minimal) */
   reactionLevel: string | null;
   /** Max consecutive responses to another bot before stopping (default: 3) */
@@ -165,9 +172,11 @@ export function resolveTlonAccount(
         groupInviteAllowlist?: string[];
         autoDiscoverChannels?: boolean;
         showModelSignature?: boolean;
+        showCommentary?: boolean;
         autoAcceptDmInvites?: boolean;
         autoAcceptGroupInvites?: boolean;
         ownerShip?: string;
+        ownerDefault?: boolean;
         reactionLevel?: string;
         maxConsecutiveBotResponses?: number;
         telemetry?: TlonTelemetryInput;
@@ -197,10 +206,12 @@ export function resolveTlonAccount(
       groupInviteAllowlist: [],
       autoDiscoverChannels: null,
       showModelSignature: null,
+      showCommentary: true,
       autoAcceptDmInvites: null,
       autoAcceptGroupInvites: null,
       defaultAuthorizedShips: [],
       ownerShip: null,
+      ownerDefault: false,
       reactionLevel: null,
       maxConsecutiveBotResponses: null,
       telemetry: {
@@ -272,6 +283,9 @@ export function resolveTlonAccount(
   const showModelSignature = (account?.showModelSignature ??
     base.showModelSignature ??
     null) as boolean | null;
+  const showCommentary = (account?.showCommentary ??
+    base.showCommentary ??
+    true) as boolean;
   const autoAcceptDmInvites = (account?.autoAcceptDmInvites ??
     base.autoAcceptDmInvites ??
     null) as boolean | null;
@@ -281,6 +295,9 @@ export function resolveTlonAccount(
   const ownerShip = (account?.ownerShip ?? base.ownerShip ?? null) as
     | string
     | null;
+  // Root-only (accounts reject it in the schema): the tlon tool and its gate
+  // are registered once, for the default account.
+  const ownerDefault = base.ownerDefault === true;
   const reactionLevel = (account?.reactionLevel ??
     base.reactionLevel ??
     null) as string | null;
@@ -331,10 +348,12 @@ export function resolveTlonAccount(
     groupInviteAllowlist,
     autoDiscoverChannels,
     showModelSignature,
+    showCommentary,
     autoAcceptDmInvites,
     autoAcceptGroupInvites,
     defaultAuthorizedShips,
     ownerShip,
+    ownerDefault,
     reactionLevel,
     maxConsecutiveBotResponses,
     telemetry,

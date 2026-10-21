@@ -70,6 +70,13 @@ export const steward = {
     path: '/v1/lens/since/{time}',
     since: '12.2.0',
   },
+  bots: {
+    kind: 'scry',
+    agent: 'steward',
+    path: '/v1/bots',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsStewardBots',
+  },
   lensFeed: {
     kind: 'subscribe',
     agent: 'steward',

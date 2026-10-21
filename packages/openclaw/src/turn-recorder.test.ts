@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { supersededToolResult } from './superseded-turn.js';
 import {
   type TlonAgentTurnObserver,
   type TlonAgentTurnSummary,
@@ -7,6 +8,7 @@ import {
   recordTlonTurnSilenceOutput,
   claimActiveTlonTurnOutput,
   createTlonAgentTurnOtelObserver,
+  getActiveTlonTurnAccountId,
   observeActiveTlonTurnDelivery,
   recordActiveTlonTurnDelivery,
   recordActiveTlonTurnSourceReply,
@@ -64,6 +66,34 @@ function recordTurn(params: {
 }
 
 describe('Tlon agent turn output attribution', () => {
+  it('exposes the active account only inside its turn scope', () => {
+    const turn = startTlonAgentTurn(
+      { ...baseTurn, accountId: 'named-account' },
+      { observer: noOpObserver }
+    );
+    expect(getActiveTlonTurnAccountId()).toBeNull();
+    expect(turn.run(() => getActiveTlonTurnAccountId())).toBe('named-account');
+    turn.finalize({ durationMs: 0 });
+    expect(getActiveTlonTurnAccountId()).toBeNull();
+  });
+
+  it('shares the active account across isolated module contexts', async () => {
+    const runtimeContext = await import('./turn-recorder.js');
+    vi.resetModules();
+    const entryContext = await import('./turn-recorder.js');
+    const turn = runtimeContext.startTlonAgentTurn(
+      { ...baseTurn, accountId: 'named-account' },
+      { observer: noOpObserver }
+    );
+
+    expect(entryContext.getActiveTlonTurnAccountId()).toBeNull();
+    expect(turn.run(() => entryContext.getActiveTlonTurnAccountId())).toBe(
+      'named-account'
+    );
+    turn.finalize({ durationMs: 0 });
+    expect(entryContext.getActiveTlonTurnAccountId()).toBeNull();
+  });
+
   it('assigns the active run id and monotonic output indexes', () => {
     const turn = startTlonAgentTurn(baseTurn, { observer: noOpObserver });
     const outputs = turn.run(() => {
@@ -210,6 +240,18 @@ describe('Tlon agent turn classification', () => {
         result: 'empty',
         delivery: 'not_applicable',
         reason: 'empty',
+      },
+    },
+    {
+      name: 'not dispatched by the turn kernel',
+      input: {
+        terminal: { durationMs: 250, deliverySkipReason: 'not_dispatched' },
+      },
+      expected: {
+        execution: 'completed',
+        result: 'empty',
+        delivery: 'not_applicable',
+        reason: 'not_dispatched',
       },
     },
     {
@@ -411,6 +453,7 @@ describe('Tlon agent turn classification', () => {
       sourceReplyCount: 2,
       toolCallCount: 3,
       toolErrorCount: 0,
+      superseded: false,
       trigger: 'dm',
     });
   });
@@ -1025,5 +1068,21 @@ describe('Tlon agent-end silence evidence', () => {
     expect(turn.finalize({ durationMs: 10 }).result).toBe(
       'intentional_silence'
     );
+  });
+});
+
+describe('superseded turns', () => {
+  it('marks a turn a newer owner message overtook without counting an error', () => {
+    const turn = startTlonAgentTurn(baseTurn, { observer: noOpObserver });
+    turn.run(() => {
+      recordActiveTlonTurnToolCall({
+        toolName: 'tlon_agent_choice',
+        result: supersededToolResult(),
+      });
+    });
+    const summary = turn.finalize({ execution: 'completed' });
+    expect(summary.superseded).toBe(true);
+    expect(summary.toolErrorCount).toBe(0);
+    expect(summary.lastToolError).toBeNull();
   });
 });

@@ -28,8 +28,8 @@
 ::            pokes cross-ship. explicit and ship-class-agnostic; an empty
 ::            set means only local pokes are accepted.
 ::
-+$  state-6
-  $:  %6
++$  state-7
+  $:  %7
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
@@ -39,8 +39,17 @@
       roster=state:v2:sr
   ==
 +$  versioned-state
-  $%(state-0 state-1 state-2 state-3 state-4 state-5 state-6)
+  $%(state-0 state-1 state-2 state-3 state-4 state-5 state-6 state-7)
 ::
++$  state-6
+  $:  %6
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=state:v1:sg
+      automation=state:v1:sa
+      prompts=state:v1:sp
+  ==
 +$  state-5
   $:  %5
       owner=(unit ship)
@@ -124,7 +133,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-6
+=|  state-7
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -210,6 +219,7 @@
   |=  =vase
   ^+  cor
   =+  !<(old=versioned-state vase)
+  =/  from-5  ?=(%5 -.old)
   =?  cor  ?=(%0 -.old)  (seed-migrated-liveness old)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
@@ -217,8 +227,14 @@
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
-  ?>  ?=(%6 -.old)
+  =?  old  ?=(%6 -.old)  (state-6-to-7 old)
+  ?>  ?=(%7 -.old)
   =.  state  old
+  ::  only a %5 owner can have dropped mirror snapshots for carrying
+  ::  MEMORY.md: earlier shapes had no mirror, and anything they migrate
+  ::  into is subscribed fresh by +reconcile
+  ::
+  =?  cor  from-5  po-refresh-prompts:po-core
   reconcile
 ::  +reconcile: restore what state cannot carry, on init and on every
 ::  load. subscriptions and timers live outside it: a suspended agent's
@@ -281,12 +297,18 @@
   ^-  state-5
   =,  automation.old
   [%5 owner.old bots.old lens.old gateway.old [tasks requests pending *@da] *state:v1:sp]
-::  %5 → %6: the roster module arrives with an empty slice (nothing
-::  minted yet under the old state)
+::  %5 -> %6: the prompts allowlist gains MEMORY.md. the shape is
+::  unchanged.
 ++  state-5-to-6
   |=  old=state-5
   ^-  state-6
-  :*  %6  owner.old  bots.old  lens.old  gateway.old
+  [%6 +.old]
+::  %6 → %7: the roster module arrives with an empty slice (nothing
+::  minted yet under the old state)
+++  state-6-to-7
+  |=  old=state-6
+  ^-  state-7
+  :*  %7  owner.old  bots.old  lens.old  gateway.old
       automation.old  prompts.old  *state:v2:sr
   ==
 ::  a %0 bot's gateway registered before the liveness claim existed, and
@@ -463,6 +485,7 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+    [%x %v1 %bots ~]        ``steward-bots-1+!>(bots.state)
     [%x %v1 %lens *]        (le-peek:le-core [%v1 t.t.t.path])
     [%x %v1 %gateway *]     (ga-peek:ga-core [%v1 t.t.t.path])
     [%x %v1 %automation *]  (au-peek:au-core [%v1 t.t.t.path])
@@ -2184,10 +2207,23 @@
     ^-  log-data:v1:lg
     ~['requestId'^s+(scot %uv rid) key^s+(scot %p who)]
   ::
+  ::  the six prompt files whose contents are Tlon's, and MEMORY.md, which
+  ::  Tlon seeds and the bot grows. served at /x/v1/prompts/names so a
+  ::  harness can ask before it projects: a name off this list fails the
+  ::  whole projection, and a harness newer than its desk must leave it out
+  ::
   ++  po-prompt-names
-    ^~  %-  silt
+    ^~
+    %-  silt
     ^-  (list @t)
-    ~['AGENTS.md' 'SOUL.md' 'TOOLS.md' 'IDENTITY.md' 'USER.md' 'BOOTSTRAP.md']
+    :~  'AGENTS.md'
+        'SOUL.md'
+        'TOOLS.md'
+        'IDENTITY.md'
+        'USER.md'
+        'BOOTSTRAP.md'
+        'MEMORY.md'
+    ==
   ::
   ++  po-valid-edit
     |=  =edit:v1:sp
@@ -2196,8 +2232,9 @@
         (~(has in po-prompt-names) name.edit)
     ==
   ::
-  ::  every file allowlisted and within the per-file cap. with six names
-  ::  that also bounds the whole map, so there is no separate total cap
+  ::  every file allowlisted and within the per-file cap. with fixed set of
+  ::  names that also bounds the whole map, so there is no separate total
+  ::  cap
   ::
   ++  po-valid-files
     |=  files=prompts:v1:sp
@@ -2452,6 +2489,8 @@
     ?+  path  [~ ~]
         [%v1 %files ~]
       ``steward-prompts-files-1+!>(files.prompts.state)
+        [%v1 %names ~]
+      ``steward-prompts-names-1+!>(po-prompt-names)
     ==
   ::  edit loop: client → owner → bot → harness, with the response
   ::  walking back the same way. steward never touches the file map on
@@ -2478,6 +2517,25 @@
     =/  retry  (~(get by rewatch.prompts.state.cor) bot)
     ?:  &(?=(^ retry) (gth wake.u.retry now.bowl))  cor
     (po-trust-bot:po-core:cor bot)
+  ::
+  ::  for a load after which this ship accepts more than it did. kick the
+  ::  local harness feed: a harness reads the names scry only when it
+  ::  projects, and its watch survives a load, so its re-watch is what
+  ::  projects the workspace again under the wider allowlist. then leave
+  ::  and re-watch every live mirror, so each bot replays its snapshot: a
+  ::  snapshot dropped under the old rules left no entry, and no delta
+  ::  creates one. a mirror with no wire is +po-reconcile's
+  ::
+  ++  po-refresh-prompts
+    ^+  cor
+    =.  cor  (give %kick ~[po-harness-path] ~)
+    %+  roll  ~(tap in bots.state)
+    |=  [bot=ship =_cor]
+    ?:  =(bot our.bowl)  cor
+    =/  =wire  /prompts/files/(scot %p bot)
+    ?.  (~(has by wex.bowl) [wire bot %steward])  cor
+    =.  cor  (emit:cor %pass wire %agent [bot %steward] %leave ~)
+    (emit:cor (po-watch-card:po-core:cor bot))
   ::
   ::  an edit may only be relayed to a bot this ship manages: the local
   ::  ship, or one in the trusted set. without this a client could drive
@@ -3011,8 +3069,8 @@
   ::  a wrapper over the poke: same decode, same arm, but an invalid
   ::  projection is a 400 rather than a crash. the cap only bounds the
   ::  read before decoding: sized from the per-file caps at JSON's worst
-  ::  escape (six bytes per control character, about 2.3 MiB for six full
-  ::  files), so every projection the poke accepts also fits here
+  ::  escape (six bytes per control character, about 2.7 MiB for seven
+  ::  full files), so every projection the poke accepts also fits here
   ::
   ++  po-handle-http-project
     |=  [eyre-id=@ta =inbound-request:eyre]

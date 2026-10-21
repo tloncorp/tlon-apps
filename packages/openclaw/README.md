@@ -106,6 +106,37 @@ cannot perform the native action and display the notice's fallback story.
 ### Full Configuration Example
 
 ```yaml
+# OpenClaw 2026.9.x only treats a channel sender as the owner when they are
+# listed here. Without this entry the owner ship still gets approvals and
+# `ownerShip`-gated plugin behavior, but OpenClaw hides its owner-only core
+# tools (`automations`, `sessions`, `gateway`, ...) from the owner's turns.
+commands:
+    ownerAllowFrom:
+        - 'tlon:~your-main-ship'
+
+# OpenClaw 2026.9.x skips a non-bundled plugin's conversation hooks
+# (agent_turn_prepare, before_prompt_build, agent_end) without this grant,
+# logging a registration warning instead of failing. The plugin uses them for
+# cron attribution, workspace instructions and the model privacy note, and
+# end-of-turn cleanup. It is plugin-wide: it lets the plugin's hooks see
+# conversation content on every turn it handles.
+plugins:
+    entries:
+        tlon:
+            enabled: true
+            hooks:
+                allowConversationAccess: true
+
+# OpenClaw 2026.9.6+ defaults group silent replies to disallow. The plugin
+# deliberately dispatches unmentioned participated-thread and owner-listen
+# turns so the agent can decide not to answer; without this, a `NO_REPLY` on
+# those turns is replaced by a visible fallback message. Hosted bots get this
+# from tlawn.
+agents:
+    defaults:
+        silentReply:
+            group: 'allow'
+
 channels:
     tlon:
         enabled: true
@@ -115,6 +146,17 @@ channels:
 
         # Owner receives approval requests and can manage the bot
         ownerShip: '~your-main-ship'
+
+        # tlon tool commands act as the owner (via $TLON_SKILL_DIR/ships/<owner>.json)
+        # unless the model adds --self. Defaults to false for staged rollout:
+        # commands then act as the bot, as before. Set it per bot in this
+        # channel config, at the root (not under accounts); component-version
+        # bundles do not carry it. Runs answering a message on another
+        # account act as the bot. It and ownerShip are read from the live
+        # config on every tool call, so a channels.tlon reload (a rollback to
+        # false, or a new owner) applies to the next call with no gateway
+        # restart; a run the previous owner directed loses owner identity.
+        ownerDefault: false
 
         # Ships allowed to DM the bot directly
         dmAllowlist:
@@ -157,6 +199,13 @@ channels:
         # Show model info in responses
         showModelSignature: false
 
+        # Show the agent's short pre-tool commentary in the Thinking row for the
+        # rest of the turn; tool labels appear only when the model has not
+        # written any commentary in that turn. Default: true.
+        # `false` restores the previous behaviour: no commentary, and tool
+        # labels appear only while `/verbose on` is set.
+        showCommentary: true
+
         # Optional PostHog telemetry. Disabled unless explicitly enabled.
         telemetry:
             enabled: true
@@ -195,7 +244,7 @@ The plugin does not enable telemetry automatically just because an API key is pr
 
 ## Steward automation mirror
 
-Against OpenClaw `2026.7.1-2` (the hosted version; the SDK devDependency stays on `2026.5.28` only because 7.1 requires Node ≥ 22.22.3 and the repo pins 22.22.0), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
+Targeting OpenClaw `2026.9.33` (hosted bots stay on `2026.7.1` until the bundle flips; the SDK devDependency matches, and the plugin pins Node 24.16.0 in `packages/openclaw/.nvmrc`), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
 
 Reconciliation is serialized and busy-period triggers are coalesced. Unavailable cron access, read failures, missing ship connections, and poke acknowledgement failures retry while the gateway is active. `gateway_stop` cancels retries and guards against a stale post-stop submission, but deliberately leaves the last successful Steward snapshot intact. The same process-lifetime worker is reused across OpenClaw plugin-registration passes. These behaviors repair the mirror after a later successful read; they do not guarantee continuous freshness.
 
@@ -246,7 +295,7 @@ The owner can send these commands via DM:
 
 ```
 Harness: OpenClaw
-Harness Version: 2026.7.1-2
+Harness Version: 2026.9.33
 Adapter Version: 0.4.3
 Tlon Skill: 0.3.2
 Fingerprint: fp1:8aa23ca2bc8d
@@ -261,7 +310,7 @@ The registry in `src/commands-registry.ts` is the single source of truth for reg
 
 ## Bundled Skills
 
-The plugin ships two skills, both declared in `skills` in `openclaw.plugin.json` (paths relative to the plugin root).
+The plugin ships three skills, declared in `skills` in `openclaw.plugin.json` (paths relative to the plugin root).
 
 ### `tlon` — the CLI skill
 
@@ -285,7 +334,16 @@ The skill is automatically available to your agent. For standalone usage, see th
 
 Keep it a product reference, not an operating manual: anything that reads or mutates a node belongs in the `tlon` CLI skill. Edit `SKILL.md` directly to update the guide; the `description` frontmatter is what OpenClaw puts in the system prompt, so trigger coverage lives there.
 
-The guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. `packages/openclaw/skills/**` is on `bot-harness-deploy.yml`'s path filter, so a content-only fix does reach bots on its own — but only the internal fleet. The push trigger hardcodes `TAG="tlon-internal"`; Hermes and external ships restart only via `workflow_dispatch` with the matching selector. A guide correction that needs to reach them is a manual dispatch, plus a package publish for anyone running the npm build.
+The step-by-step half of the guide is not edited here. `skills/tlon-product-guide/references/` and the index under "Step-by-step answers" in `SKILL.md` are written from the feature map in `docs/feature-map/`, one file per area of the app. The map describes the app at one store build and is brought up to date once per build, so it does not follow `develop`. To change a step, edit the map and run `node scripts/feature-map.mjs publish`. See `docs/feature-map/README.md`.
+
+The rest of the guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. When the guide changes, CI checks that every label it quotes still appears somewhere in the app's source, which catches a removed label but not a moved one. It does not run on app changes, so a label renamed in the app goes unnoticed here until the guide is next touched. `packages/openclaw/skills/**` is on `bot-harness-deploy.yml`'s path filter, so a content-only fix does reach bots on its own — but only the internal fleet. The push trigger hardcodes `TAG="tlon-internal"`; Hermes and external ships restart only via `workflow_dispatch` with the matching selector. A guide correction that needs to reach them is a manual dispatch, plus a package publish for anyone running the npm build.
+
+### `tlon-agent-onboarding` — the first-task conversation skill
+
+`skills/tlon-agent-onboarding/SKILL.md` guides the first recurring-task
+conversation in the owner's bot DM. It keeps question semantics and fuzzy-time
+interpretation model-driven while the plugin retains consent, ownership,
+provisioning, scheduling, retry, and delivery checks.
 
 ## Documentation
 

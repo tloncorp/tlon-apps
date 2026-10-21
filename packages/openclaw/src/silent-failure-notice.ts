@@ -41,7 +41,17 @@ export function resolveSilentFailureNotice(input: {
   if (summary.execution === 'cancelled' || summary.execution === 'abandoned') {
     return null;
   }
+  // The owner's newer message gets the reply; this turn was right to stop.
+  if (summary.superseded) {
+    return null;
+  }
   if (deliveredCount > 0) {
+    return null;
+  }
+  // The kernel admitted the message but chose not to run it (bot-loop
+  // protection, outbound echo, duplicate). Nothing was owed, so nothing was
+  // silently dropped.
+  if (summary.reason === 'not_dispatched') {
     return null;
   }
   // The message-tool send path records deliveries on the turn but not on the

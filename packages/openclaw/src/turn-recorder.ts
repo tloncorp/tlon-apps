@@ -1,9 +1,5 @@
 import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type {
-  PluginHookAgentContext,
-  PluginHookAgentEndEvent,
-} from './agent-hook-types.js';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
 import {
@@ -11,8 +7,10 @@ import {
   type TlonMessageJourneyDestinationKind,
   recordTlonMessageJourneyEvent,
 } from './message-journey.js';
-import { sharedMap } from './shared-state.js';
+import type { AgentEndEvent, AgentHookContext } from './agent-hook-types.js';
+import { sharedMap, sharedSlot } from './shared-state.js';
 import { isSuccessfulSilentAgentOutput } from './silent-reply.js';
+import { isSupersededToolOutcome } from './superseded-turn.js';
 
 export type TlonAgentTurnExecution =
   | 'completed'
@@ -60,7 +58,10 @@ export type TlonAgentTurnSkipReason =
   | 'empty_payload_text'
   | 'block_directive_only'
   | 'media_only_payload_not_sent'
-  | 'source_reply_delivery_mode_message_tool_only';
+  | 'source_reply_delivery_mode_message_tool_only'
+  // The turn kernel admitted the message but did not dispatch it (bot-loop
+  // protection, outbound echo, duplicate): no run, no reply owed.
+  | 'not_dispatched';
 
 export type TlonAgentTurnReason =
   | TlonAgentTurnSkipReason
@@ -110,6 +111,8 @@ export type TlonAgentTurnSummary = TlonAgentTurnStart & {
   sourceReplyCount: number;
   toolCallCount: number;
   toolErrorCount: number;
+  /** A newer owner message overtook this turn; it gets its own reply. */
+  superseded: boolean;
 };
 
 export type TlonAgentTurnObserver = {
@@ -154,6 +157,7 @@ type TlonAgentTurnState = TlonAgentTurnStart & {
   summary: TlonAgentTurnSummary | null;
   toolCallCount: number;
   toolErrorCount: number;
+  superseded: boolean;
 };
 
 type MetricAttributes = Record<string, string>;
@@ -196,7 +200,12 @@ const agentOutputsByRunId = sharedMap<string, TurnAgentOutput>(
 );
 const MAX_TRACKED_AGENT_OUTPUTS = 1_024;
 
-const turnStorage = new AsyncLocalStorage<TlonAgentTurnState>();
+const turnStorageSlot = sharedSlot<AsyncLocalStorage<TlonAgentTurnState>>(
+  'turnRecorder.turnStorage'
+);
+const turnStorage =
+  turnStorageSlot.get() ?? new AsyncLocalStorage<TlonAgentTurnState>();
+turnStorageSlot.set(turnStorage);
 const traceIdsByRunId = sharedMap<string, string>(
   'turnRecorder.traceIdsByRunId'
 );
@@ -425,6 +434,7 @@ function buildSummary(
     sourceReplyCount: state.sourceReplyCount,
     toolCallCount: state.toolCallCount,
     toolErrorCount: state.toolErrorCount,
+    superseded: state.superseded,
     trigger: state.trigger,
   };
 }
@@ -602,6 +612,7 @@ export function startTlonAgentTurn(
     summary: null,
     toolCallCount: 0,
     toolErrorCount: 0,
+    superseded: false,
   };
 
   agentOutputsByRunId.set(state.runId, state.agentOutput);
@@ -635,9 +646,7 @@ export function startTlonAgentTurn(
 }
 
 // Reset before every model attempt, including retries after a silent completion.
-export function beginTlonTurnSilenceObservation(
-  ctx: PluginHookAgentContext
-): void {
+export function beginTlonTurnSilenceObservation(ctx: AgentHookContext): void {
   const output = ctx.runId ? agentOutputsByRunId.get(ctx.runId) : undefined;
   if (!output || output.sessionKey !== ctx.sessionKey) return;
   output.silent = false;
@@ -646,8 +655,8 @@ export function beginTlonTurnSilenceObservation(
 }
 
 export function recordTlonTurnSilenceOutput(
-  event: PluginHookAgentEndEvent,
-  ctx: PluginHookAgentContext
+  event: AgentEndEvent,
+  ctx: AgentHookContext
 ): void {
   const output = ctx.runId ? agentOutputsByRunId.get(ctx.runId) : undefined;
   if (
@@ -666,6 +675,11 @@ function updateActiveTurn(update: (state: TlonAgentTurnState) => void): void {
     return;
   }
   update(state);
+}
+
+export function getActiveTlonTurnAccountId(): string | null {
+  const state = turnStorage.getStore();
+  return state && !state.finalized ? state.accountId : null;
 }
 
 export function recordActiveTlonTurnSourceReply(reply?: {
@@ -688,10 +702,15 @@ export function recordActiveTlonTurnSourceReply(reply?: {
 export function recordActiveTlonTurnToolCall(update?: {
   toolName?: string;
   errorMessage?: string;
+  result?: unknown;
 }): void {
   updateActiveTurn((state) => {
     state.toolCallCount += 1;
     const errorMessage = update?.errorMessage;
+    if (isSupersededToolOutcome(update?.result)) {
+      state.superseded = true;
+      return;
+    }
     if (typeof errorMessage === 'string' && errorMessage.trim()) {
       state.toolErrorCount += 1;
       state.lastToolError = {

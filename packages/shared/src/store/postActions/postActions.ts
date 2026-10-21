@@ -607,12 +607,66 @@ export async function forwardGroup({
       metadata:
         channel.type === 'notebook'
           ? {
-              title: group.title ? `${group.title} group` : 'Forwarded group',
+              title: group.title
+                ? `${group.title} workspace`
+                : 'Forwarded workspace',
             }
           : undefined,
     });
   } catch (error) {
     logger.trackError('Failed to forward group', error);
+    throw error;
+  }
+}
+
+export async function forwardChannel({
+  sourceChannelId,
+  channelId,
+}: {
+  sourceChannelId: string;
+  channelId: string;
+}) {
+  try {
+    logger.log('forwardChannel', { sourceChannelId, channelId });
+    logger.trackEvent(AnalyticsEvent.ActionForwardChannel);
+
+    const sourceChannel = await db.getChannel({ id: sourceChannelId });
+    if (!sourceChannel) {
+      logger.trackError('Failed to forward channel, unable to find original');
+      return;
+    }
+
+    const channel = await db.getChannel({ id: channelId });
+    if (!channel) {
+      logger.trackError('Failed to forward channel, unable to find channel');
+      return;
+    }
+
+    const urbitReference = urbit.pathToCite(
+      logic.getChannelReferencePath(sourceChannelId)
+    );
+    if (!urbitReference) {
+      logger.trackError(
+        'Failed to forward channel, unable to get reference path'
+      );
+      return;
+    }
+
+    return sendFinalizedPost({
+      channelId: channel.id,
+      content: [{ block: { cite: urbitReference } }],
+      replyToPostId: null,
+      metadata:
+        channel.type === 'notebook'
+          ? {
+              title: sourceChannel.title
+                ? `${sourceChannel.title} channel`
+                : 'Forwarded channel',
+            }
+          : undefined,
+    });
+  } catch (error) {
+    logger.trackError('Failed to forward channel', error);
     throw error;
   }
 }

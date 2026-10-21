@@ -115,7 +115,7 @@ export function NotebookGateMessage({
     return (
       <NotesMessage
         title="You're not in this notebook"
-        subtitle="Join it from the group's channel list."
+        subtitle="Join it from the workspace's channel list."
       />
     );
   }

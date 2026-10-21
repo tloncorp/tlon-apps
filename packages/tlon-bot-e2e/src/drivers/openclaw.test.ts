@@ -3,7 +3,11 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { createRuntimeContext } from '../runtime/context.js';
 import { allocateRuntimeEndpoints } from '../runtime/ports.js';
-import { openclawDriver, workspaceApiTarballPath } from './openclaw.js';
+import {
+  openClawCoreTestEnv,
+  openclawDriver,
+  workspaceApiTarballPath,
+} from './openclaw.js';
 import type { RuntimeSeed } from './types.js';
 
 const OPTIONAL_ENV_KEYS = [
@@ -60,6 +64,9 @@ describe('OpenClaw driver runtime spec', () => {
       TLON_SHIP: '~zod',
       TLON_CODE: 'lidlut-tabwed-pillex-ridrup',
       TLON_OWNER_SHIP: '~ten',
+      TLON_OWNER_URL: 'http://ships:8081',
+      TLON_OWNER_CODE: 'lapseg-nolmel-riswen-hopryc',
+      TLON_OWNER_DEFAULT: 'true',
       TLON_DM_ALLOWLIST: '~ten',
       FAKE_MODEL_BASE_URL: 'http://fake-model:4000/v1',
       MODEL: 'custom-proxy/tlon-test-scripted',
@@ -68,7 +75,7 @@ describe('OpenClaw driver runtime spec', () => {
         'web_search',
         'image_search',
         'read',
-        'cron',
+        'automations',
         'tlon',
         'message',
       ]),
@@ -172,7 +179,7 @@ describe('OpenClaw driver runtime spec', () => {
     expect(JSON.parse(ctx.composeEnv.OPENCLAW_TEST_TOOLS_ALLOW_JSON)).toEqual([
       'tlon',
       'message',
-      'cron',
+      'automations',
     ]);
   });
 
@@ -241,7 +248,7 @@ describe('OpenClaw driver runtime spec', () => {
       steps: [
         {
           kind: 'tool_call',
-          name: 'cron',
+          name: 'automations',
           args: {
             action: 'add',
             job: {
@@ -258,7 +265,7 @@ describe('OpenClaw driver runtime spec', () => {
         { kind: 'text', content: 'Scheduled.' },
       ],
       expectations: {
-        advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+        advertisedTools: { exact: ['message', 'tlon', 'automations'] },
         expectedCallCount: 2,
         toolEffectOnly: true,
       },
@@ -333,3 +340,41 @@ function restoreEnv(): void {
   }
   savedEnv.clear();
 }
+
+describe('openClawCoreTestEnv', () => {
+  test.each([
+    [
+      {},
+      {
+        TEST_OPENCLAW_CORE_VERSION: '2026.9.33',
+        TEST_EXPECT_OPENCLAW_PREWARM: '0',
+      },
+    ],
+    [
+      { OPENCLAW_CORE_VERSION: '2026.7.1' },
+      {
+        TEST_OPENCLAW_CORE_VERSION: '2026.7.1',
+        TEST_EXPECT_OPENCLAW_PREWARM: '1',
+      },
+    ],
+    [
+      { OPENCLAW_CORE_VERSION: '2026.9.4', TEST_EXPECT_OPENCLAW_PREWARM: '1' },
+      {
+        TEST_OPENCLAW_CORE_VERSION: '2026.9.4',
+        TEST_EXPECT_OPENCLAW_PREWARM: '1',
+      },
+    ],
+  ])('maps %o', (env, expected) => {
+    expect(openClawCoreTestEnv(env as NodeJS.ProcessEnv)).toEqual(expected);
+  });
+
+  test('requires an explicit prewarm expectation for an unknown core', () => {
+    expect(() =>
+      openClawCoreTestEnv({
+        OPENCLAW_CORE_VERSION: '2026.10.1',
+      } as NodeJS.ProcessEnv)
+    ).toThrow(
+      'TEST_EXPECT_OPENCLAW_PREWARM must be explicit for OpenClaw 2026.10.1'
+    );
+  });
+});

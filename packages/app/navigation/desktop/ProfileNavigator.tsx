@@ -13,6 +13,8 @@ import { Alert } from 'react-native';
 import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
 import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
+import { BotPromptFileScreen } from '../../features/settings/BotPromptFileScreen';
+import { BotPromptFilesScreen } from '../../features/settings/BotPromptFilesScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
 import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
@@ -131,6 +133,14 @@ export const ProfileNavigator = () => {
       <ProfileDrawer.Screen
         name="ScheduledTaskEditor"
         component={ScheduledTaskEditorScreen}
+      />
+      <ProfileDrawer.Screen
+        name="BotPromptFiles"
+        component={BotPromptFilesScreen}
+      />
+      <ProfileDrawer.Screen
+        name="BotPromptFile"
+        component={BotPromptFileScreen}
       />
       <ProfileDrawer.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileDrawer.Screen name="Attestation" component={AttestationScreen} />

@@ -1,28 +1,19 @@
-// The SDK no longer exports its agent hook types from a public subpath
-// (`openclaw/plugin-sdk/types` ships untyped JS as of 2026.9.x), so these
-// mirror the fields this plugin reads from the `agent_turn_prepare` /
-// `model_call_started` / `agent_end` hook payloads. The `api.on(...)`
-// registrations in monitor/index.ts are contextually typed against the real
-// SDK map, so a mismatch fails to compile there. The cron hook mirrors live
-// in cron-telemetry.ts.
-
-export type PluginHookAgentContext = {
+// OpenClaw 2026.9.x no longer exports its agent hook event and context types
+// from a public SDK subpath (openclaw/plugin-sdk/types now only carries the
+// tool and skill hook contracts), so the plugin declares the fields it reads.
+// The host's PluginHookAgentContext and PluginHookAgentEndEvent stay
+// assignable to these.
+export type AgentHookContext = {
+  runId?: string;
   sessionKey?: string;
   sessionId?: string;
-  runId?: string;
   trigger?: string;
 };
 
-export type PluginHookAgentEndEvent = {
+export type AgentEndEvent = {
+  runId?: string;
+  messages: unknown[];
   success: boolean;
   error?: string;
-  messages: unknown[];
-};
-
-export type PluginHookMessageSentEvent = {
-  to?: string;
-  runId?: string;
-  success?: boolean;
-  messageId?: string;
-  error?: string;
+  durationMs?: number;
 };

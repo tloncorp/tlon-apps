@@ -16,7 +16,7 @@ Use this standalone-media path for posts/profiles and attachments. For files ins
 
 Relative file paths use the active agent workspace. The tool cannot provide stdin, expand variables, or execute pipes. Use `help upload` for options; its stdin examples apply only to an operator's shell.
 
-Hosted bots upload through Tlon file hosting. Self-hosted moons may return `This ship cannot store uploads`. Report the storage limitation; do not invent credentials or send a local path as media. An operator with an authorized owner configuration may use the standalone CLI, but do not paste shell `$VARIABLE` examples into the tool or switch identities silently.
+`upload` runs as the harness's default identity (see the tool description); upload as the bot whenever the bot will send the URL with `message`. Self-hosted ships may return `This ship cannot store uploads`; report it rather than switching identity or inventing credentials. Do not send a local path as media.
 
 If a remote source returns HTTP 429, retrying through another account still fetches from the same host. For a general image search, choose a result on a different host. If the user requested that specific image, report the failure instead of silently substituting another one.
 

@@ -1,25 +1,33 @@
 import { randomUUID } from 'node:crypto';
 
 import type { PostBlobDataEntryAgentProvision } from '@tloncorp/api';
-// The SDK types `PluginStateKeyedStore` on `api.runtime.state.openKeyedStore`
-// but exports it from no public subpath (`openclaw/plugin-sdk/plugin-state-runtime`
-// ships untyped JS as of 2026.9.x); this mirrors that declaration.
-type PluginStateEntry<T> = { key: string; value: T };
-type PluginStateKeyedStore<T> = {
-  register(key: string, value: T, opts?: { ttlMs?: number }): Promise<void>;
-  registerIfAbsent(
-    key: string,
-    value: T,
-    opts?: { ttlMs?: number }
-  ): Promise<boolean>;
-  lookup(key: string): Promise<T | undefined>;
-  consume(key: string): Promise<T | undefined>;
-  delete(key: string): Promise<boolean>;
-  entries(): Promise<PluginStateEntry<T>[]>;
-  clear(): Promise<void>;
-};
 
 import { sharedMap, sharedSlot } from '../shared-state.js';
+
+type PluginStateEntry<T> = {
+  key: string;
+  value: T;
+  createdAt: number;
+  expiresAt?: number;
+};
+
+type PluginStateKeyedStore<T> = {
+  register: (
+    key: string,
+    value: T,
+    options?: { ttlMs?: number }
+  ) => Promise<void>;
+  registerIfAbsent: (
+    key: string,
+    value: T,
+    options?: { ttlMs?: number }
+  ) => Promise<boolean>;
+  lookup: (key: string) => Promise<T | undefined>;
+  consume: (key: string) => Promise<T | undefined>;
+  delete: (key: string) => Promise<boolean>;
+  entries: () => Promise<PluginStateEntry<T>[]>;
+  clear: () => Promise<void>;
+};
 
 export type AgentOnboardingRunRecord = {
   accountId: string;

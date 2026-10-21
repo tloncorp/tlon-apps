@@ -382,7 +382,7 @@ export const createNewGroupDefaultChannel = async ({
     group: groupId,
     name: `welcome-${randomNumber}`,
     title: 'Welcome',
-    description: 'Welcome to your new group!',
+    description: 'Welcome to your new workspace!',
     meta: null,
     readers: [],
     writers: [],

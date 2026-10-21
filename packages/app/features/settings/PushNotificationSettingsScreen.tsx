@@ -204,7 +204,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
             {
               key: 'overrides',
               title: 'Overrides',
-              footer: `These groups, channels, and DMs have custom notification settings. ${
+              footer: `These workspaces, channels, and DMs have custom notification settings. ${
                 isNative ? 'Tap' : 'Click'
               } one to remove its override and return to the setting above.`,
               rows: overrideRows,

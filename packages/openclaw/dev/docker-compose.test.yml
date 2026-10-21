@@ -1,6 +1,6 @@
 services:
   fake-model:
-    image: node:24-bookworm-slim
+    image: node:24.16.0-bookworm-slim
     working_dir: /workspace/openclaw-tlon
     command: ["node", "test/support/fake-model/server.mjs"]
     volumes:
@@ -15,7 +15,7 @@ services:
     # Node's Debian image supplies a glibc runtime, tar/gzip, and an HTTPS
     # client without an apt-get at container startup. Avoiding Ubuntu's HTTP
     # package mirror keeps ship boot independent of ports.ubuntu.com.
-    image: node:24-bookworm-slim
+    image: node:24.16.0-bookworm-slim
     command:
       - bash
       - -c
@@ -139,13 +139,16 @@ services:
       context: .
       dockerfile: Dockerfile.test
       args:
-        OPENCLAW_CORE_VERSION: ${OPENCLAW_CORE_VERSION:-2026.9.4}
+        OPENCLAW_CORE_VERSION: ${OPENCLAW_CORE_VERSION:-2026.9.33}
     environment:
-      - OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION:-2026.9.4}
+      - OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION:-2026.9.33}
       - TLON_URL=${TLON_URL:-http://ships:8080}
       - TLON_SHIP=${TLON_SHIP:-~zod}
       - TLON_CODE=${TLON_CODE:-lidlut-tabwed-pillex-ridrup}
       - TLON_OWNER_SHIP=${TLON_OWNER_SHIP:-~ten}
+      - TLON_OWNER_URL=${TLON_OWNER_URL:-http://ships:8081}
+      - TLON_OWNER_CODE=${TLON_OWNER_CODE:-lapseg-nolmel-riswen-hopryc}
+      - TLON_OWNER_DEFAULT=${TLON_OWNER_DEFAULT:-true}
       - TLON_DM_ALLOWLIST=${TLON_DM_ALLOWLIST:-~ten}
       # Virtual identity: when set, the bot acts as this moon of TLON_SHIP
       - TLON_MOON=${TLON_MOON:-}
@@ -153,9 +156,8 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - BRAVE_API_KEY=${BRAVE_API_KEY}
       - MODEL=${MODEL:-custom-proxy/tlon-test-scripted}
-      # Set ANTHROPIC_API_KEY (e.g. in packages/openclaw/.env) to run the bot
-      # on a real model instead of the scripted fake one; entrypoint wires the
-      # built-in Anthropic provider and routes the agent to it.
+      # Passed through for OpenClaw's built-in Anthropic provider detection,
+      # for running the bot on a real model instead of the scripted fake one.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - TLONBOT_TOKEN=${TLONBOT_TOKEN}
       - VERBOSE=${VERBOSE:-0}

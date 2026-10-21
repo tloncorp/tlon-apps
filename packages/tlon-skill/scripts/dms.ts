@@ -42,13 +42,20 @@ import {
   printUsageAndExit,
   wantsHelp,
 } from './cli-utils';
-import { UsageError } from './commands/command';
+import { UsageError, commandError } from './commands/command';
 import {
   fetchImageVerse,
   imageFlagIndex,
   validatedImageFlag,
 } from './image-attach';
-import { type Story, type StoryVerse, markdownToStory } from './markdown';
+import {
+  NO_ROLES,
+  type Story,
+  type StoryVerse,
+  dmRoleMentionError,
+  markdownToStory,
+  unknownRoleMentions,
+} from './markdown';
 import { botMoon } from './moon';
 
 const DMS_HELP = `Usage: tlon dms <command>
@@ -63,7 +70,9 @@ Commands:
   decline <ship>                  Decline a DM invite
 
 Send options:
-  --bot                  Author the message as a bot (renders the "Bot" tag)`;
+  --bot                  Author the message as a bot (renders the "Bot" tag)
+
+Mentions: ~ship and @all; group roles don't exist in DMs.`;
 
 const DMS_COMMAND_HELP: Record<string, string> = {
   send: 'Usage: tlon dms send <club-id> [message] [--image <url>] [--bot] (message optional with --image)',
@@ -215,9 +224,16 @@ export function validateDmsArgs(args: string[]): void {
   }
 }
 
-// Parse content into Story format with rich markdown support
-function parseContent(message: string): Story {
-  return markdownToStory(message);
+// Parse content into Story format with rich markdown support. A club has no
+// roles, so `@all` is the only mention and any other `@word` is refused
+// rather than sent as text that notifies nobody.
+function parseContent(message: string, clubId: string): Story {
+  const story = markdownToStory(message, { roleIds: NO_ROLES });
+  const unknown = unknownRoleMentions(message, NO_ROLES);
+  if (unknown.length > 0) {
+    throw commandError(dmRoleMentionError(clubId, unknown));
+  }
+  return story;
 }
 
 // Check if the target is a group DM (club)
@@ -306,7 +322,7 @@ export async function sendClubMessage(
   // Image block first, caption after — matches app attachment posts.
   const content: Story = [
     ...(imageVerse ? [imageVerse] : []),
-    ...(message ? parseContent(message) : []),
+    ...(message ? parseContent(message, clubId) : []),
   ];
 
   try {
@@ -340,7 +356,7 @@ export async function replyToClub(
   }
   const authorId = deps.getCurrentUserId();
   const sentAt = Date.now();
-  const content = parseContent(message);
+  const content = parseContent(message, clubId);
   const parsed = parsePostId(postId);
 
   if (!parsed.authorId) {
@@ -627,6 +643,9 @@ export async function run(
           'send only supports group DMs (club IDs starting with 0v)'
         );
       }
+      // Check the caption's mentions first so a refusal never fetches the
+      // image, and an image failure can't mask it.
+      if (message) parseContent(message, clubId);
       let imageVerse: StoryVerse | undefined;
       if (imageUrl) {
         try {

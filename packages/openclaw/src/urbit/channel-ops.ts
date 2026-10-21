@@ -101,9 +101,10 @@ export async function scryUrbitPath(
 
   try {
     if (!response.ok) {
-      throw new Error(
-        `Scry failed: ${response.status} for path ${params.path}`
-      );
+      throw new UrbitHttpError({
+        operation: `scry ${params.path}`,
+        status: response.status,
+      });
     }
     return await response.json();
   } finally {

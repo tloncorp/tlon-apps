@@ -10,6 +10,7 @@ export * from './channelContentsText';
 export * from './automationsSupport';
 export * from './memberCountSupport';
 export * from './stewardPromptsSupport';
+export * from './stewardBotsSupport';
 export * from './vouchedBotsSupport';
 export * from './notesActivitySupport';
 export * from './notesPublish';

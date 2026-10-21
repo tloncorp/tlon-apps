@@ -11,7 +11,7 @@ env:
     env:
       ROW: '^Notifications$'
 - assertVisible: '^Notifications$'
-- assertVisible: '^All DMs and group posts$'
+- assertVisible: '^All DMs and workspace posts$'
 - assertVisible: '^DMs, mentions, and replies only$'
 - assertVisible: '^Nothing$'
 - tapOn: '^DMs, mentions, and replies only$'
@@ -67,6 +67,6 @@ env:
     file: ../reliability/subflows/settings-row.yaml
     env:
       ROW: '^Notifications$'
-- tapOn: '^All DMs and group posts$'
+- tapOn: '^All DMs and workspace posts$'
 - runFlow: ../reliability/subflows/workspaces-tab.yaml
 - assertVisible: '^Workspaces$'

@@ -1,4 +1,6 @@
-import type { PluginHookGatewayCronJob } from './cron-telemetry.js';
+// OpenClaw 2026.9.x does not export the cron hook types; use the local
+// structural contract that mirrors them.
+import type { GatewayCronJob as PluginHookGatewayCronJob } from './cron-telemetry.js';
 import { z } from 'zod';
 
 const EXPECTED_NUMBER = 'expected a number';
