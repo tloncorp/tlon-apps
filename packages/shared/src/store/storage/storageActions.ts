@@ -218,13 +218,7 @@ async function uploadImageAsset(
       // A pasted image link arrives as a remote url. Pull it into a blob first
       // so resizing and uploading never depend on that host's CORS headers.
       if (isWeb && /^https?:\/\//.test(asset.uri)) {
-        const local = await fetchRemoteAsBlobUrl(asset.uri);
-        asset = {
-          ...asset,
-          uri: local.uri,
-          mimeType: local.mimeType || asset.mimeType,
-          fileSize: local.size,
-        };
+        asset = { ...asset, uri: await fetchRemoteAsBlobUrl(asset.uri) };
       }
       logger.log('resizing asset', asset.uri);
       let resizedAsset = asset;

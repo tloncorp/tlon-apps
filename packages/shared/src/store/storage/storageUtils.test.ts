@@ -49,9 +49,7 @@ test('fetchRemoteAsBlobUrl reads the url directly when the host allows it', asyn
 
   expect(fetchMock).toHaveBeenCalledTimes(1);
   expect(fetchMock).toHaveBeenCalledWith('https://example.com/a.png');
-  expect(result.mimeType).toBe('image/png');
-  expect(result.size).toBe(4);
-  expect(result.uri).toMatch(/^blob:/);
+  expect(result).toMatch(/^blob:/);
 });
 
 test('fetchRemoteAsBlobUrl retries through the ship proxy when the direct fetch is blocked', async () => {
@@ -67,7 +65,7 @@ test('fetchRemoteAsBlobUrl retries through the ship proxy when the direct fetch 
   expect(fetchMock).toHaveBeenLastCalledWith('/apps/groups/~/proxy/0wx', {
     credentials: 'include',
   });
-  expect(result.size).toBe(4);
+  expect(result).toMatch(/^blob:/);
 });
 
 test('fetchRemoteAsBlobUrl surfaces a failed proxy response', async () => {
@@ -83,4 +81,15 @@ test('fetchRemoteAsBlobUrl surfaces a failed proxy response', async () => {
   await expect(
     fetchRemoteAsBlobUrl('https://example.com/a.png')
   ).rejects.toThrow('400');
+});
+
+test('fetchRemoteAsBlobUrl rejects an empty body from an older proxy', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(new Response(new Blob([]), { status: 200 }))
+  );
+
+  await expect(
+    fetchRemoteAsBlobUrl('https://example.com/a.png')
+  ).rejects.toThrow('empty');
 });

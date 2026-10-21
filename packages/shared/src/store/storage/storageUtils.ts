@@ -209,9 +209,7 @@ export const getHostingUploadURL = async () => {
 // Load a remote url into a local blob: url so the browser can resize and
 // re-upload it. Hosts that send no CORS headers can't be read directly, so on
 // a network/CORS failure we retry through the ship's proxy.
-export const fetchRemoteAsBlobUrl = async (
-  uri: string
-): Promise<{ uri: string; mimeType: string; size: number }> => {
+export const fetchRemoteAsBlobUrl = async (uri: string): Promise<string> => {
   let response: Response;
   try {
     response = await fetch(uri);
@@ -225,11 +223,11 @@ export const fetchRemoteAsBlobUrl = async (
     throw new Error(`Failed to fetch remote asset: ${response.status}`);
   }
   const blob = await response.blob();
-  return {
-    uri: URL.createObjectURL(blob),
-    mimeType: response.headers.get('content-type') || blob.type,
-    size: blob.size,
-  };
+  // desks before the dumb-proxy fix answer 200 with no body
+  if (blob.size === 0) {
+    throw new Error('Remote asset was empty');
+  }
+  return URL.createObjectURL(blob);
 };
 
 export const downloadImageForWeb = async (uri: string) => {

@@ -111,9 +111,12 @@
         ::  don't want to leak these. also drop host: it names our
         ::  ship, and iris adds the target's own, so forwarding it
         ::  sends two and strict servers (netlify) reject with 400.
+        ::  and drop accept-encoding: we don't pass content-encoding
+        ::  back, so a compressed body would reach the client undecoded.
         ::
         %+  skip  header-list.request
-        |=([k=@t @t] |(=('cookie' k) =('host' k)))
+        |=  [k=@t @t]
+        ?|(=('cookie' k) =('host' k) =('accept-encoding' k))
       [[(fetch [id secure] request)]~ this]
     ==
   ==
