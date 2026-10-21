@@ -158,18 +158,20 @@
     =*  cod  status-code.response-header.res
     :_  this
     %+  spout:hutils  eid
-    :-  =,  response-header.res
-        :-  status-code
-        ::  framing headers describe the upstream connection, not ours.
-        ::  passing content-length through makes the runtime send an
-        ::  empty body, so let it frame the response itself.
-        ::
-        %+  snoc
-          %+  skip  headers
-          |=  [k=@t @t]
-          %.  (crip (cass (trip k)))
-          ~(has in (silt `(list @t)`~['content-length' 'transfer-encoding' 'connection']))
-        'x-dumb-proxy'^'finished'
+    ::  the body is untrusted and served from our own origin, so never
+    ::  pass upstream headers through (cookies, framing, etc). keep only
+    ::  the content type, and forbid rendering or running it, so a link
+    ::  to this route can't execute upstream html/svg as us.
+    ::
+    =,  response-header.res
+    :-  :-  status-code
+        :~  :-  'content-type'
+            (fall (get-header:http 'content-type' headers) 'application/octet-stream')
+            'content-disposition'^'attachment'
+            'content-security-policy'^'sandbox'
+            'x-content-type-options'^'nosniff'
+            'x-dumb-proxy'^'finished'
+        ==
     ?~  full-file.res  ~
     `data.u.full-file.res
   ==
