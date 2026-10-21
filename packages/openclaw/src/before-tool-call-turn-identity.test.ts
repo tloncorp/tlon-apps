@@ -71,13 +71,13 @@ function registerEntry(
   const hooks = new Map<string, unknown>();
   const tools: ToolFactory[] = [];
   // The registration snapshot is `api.config`; a reload changes only what
-  // `api.runtime.config.loadConfig()` returns.
+  // `api.runtime.config.current()` returns.
   let liveConfig = config;
   const runtime: unknown = new Proxy(
     {},
     {
       get(_target, prop) {
-        if (prop === 'config') return { loadConfig: () => liveConfig };
+        if (prop === 'config') return { current: () => liveConfig };
         if (prop === 'then' || typeof prop === 'symbol') return undefined;
         return proxy;
       },

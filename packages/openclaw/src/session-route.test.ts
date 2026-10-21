@@ -1,6 +1,6 @@
 import type { ChannelOutboundSessionRouteParams } from 'openclaw/plugin-sdk/core';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { tlonPlugin } from './channel.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
@@ -71,30 +71,54 @@ describe('resolveTlonOutboundSessionRoute', () => {
   });
 });
 
-describe('tlonPlugin messaging surface (explicit-target wiring)', () => {
+describe('tlonPlugin messaging surface (target-resolver wiring)', () => {
   const messaging = tlonPlugin.messaging;
 
   it('declares tlon as an explicit target prefix', () => {
     expect(messaging?.targetPrefixes).toContain('tlon');
   });
 
-  it('parseExplicitTarget returns a canonical DM target', () => {
-    expect(messaging?.parseExplicitTarget?.({ raw: 'tlon:~ship' })).toEqual({
-      to: '~ship',
-      chatType: 'direct',
-    });
+  it('normalizes and classifies a canonical DM target', async () => {
+    expect(messaging?.normalizeTarget?.('tlon:~ship')).toBe('~ship');
+    expect(messaging?.inferTargetChatType?.({ to: '~ship' })).toBe('direct');
+    await expect(
+      messaging?.targetResolver?.resolveTarget?.({
+        cfg,
+        accountId: 'default',
+        input: 'tlon:~ship',
+        normalized: '~ship',
+        preferredKind: 'user',
+      })
+    ).resolves.toMatchObject({ to: '~ship', kind: 'user' });
   });
 
-  it('parseExplicitTarget returns a canonical group target', () => {
-    expect(
-      messaging?.parseExplicitTarget?.({ raw: 'tlon:chat/~host/general' })
-    ).toEqual({ to: 'chat/~host/general', chatType: 'group' });
+  it('normalizes and classifies a canonical group target', async () => {
+    const target = 'chat/~host/general';
+    expect(messaging?.normalizeTarget?.(`tlon:${target}`)).toBe(target);
+    expect(messaging?.inferTargetChatType?.({ to: target })).toBe('group');
+    await expect(
+      messaging?.targetResolver?.resolveTarget?.({
+        cfg,
+        accountId: 'default',
+        input: `tlon:${target}`,
+        normalized: target,
+        preferredKind: 'group',
+      })
+    ).resolves.toMatchObject({ to: target, kind: 'group' });
   });
 
-  it('parseExplicitTarget returns null for a non-Tlon target', () => {
-    expect(
-      messaging?.parseExplicitTarget?.({ raw: 'not a target!!' })
-    ).toBeNull();
+  it('rejects a non-Tlon target', async () => {
+    expect(messaging?.targetResolver?.looksLikeId?.('not a target!!')).toBe(
+      false
+    );
+    await expect(
+      messaging?.targetResolver?.resolveTarget?.({
+        cfg,
+        accountId: 'default',
+        input: 'not a target!!',
+        normalized: 'not a target!!',
+      })
+    ).resolves.toBeNull();
   });
 
   it('wires resolveOutboundSessionRoute', () => {
@@ -103,14 +127,20 @@ describe('tlonPlugin messaging surface (explicit-target wiring)', () => {
 });
 
 describe('tlonPlugin agent tools', () => {
-  it('exposes the onboarding choice, plan, and service recovery tools through the channel', () => {
-    expect(typeof tlonPlugin.agentTools).toBe('function');
+  const toolNames = () => {
     if (typeof tlonPlugin.agentTools !== 'function') {
-      return;
+      throw new Error('agentTools is not a function');
     }
+    return tlonPlugin.agentTools({ cfg }).map((tool) => tool.name);
+  };
 
-    const tools = tlonPlugin.agentTools({ cfg });
-    expect(tools.map((tool) => tool.name)).toEqual([
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('exposes the onboarding tools through the channel', () => {
+    vi.stubEnv('TLON_OWNER_TIMEZONE_FILE', '');
+    expect(toolNames()).toEqual([
       'tlon_agent_choice',
       'tlon_agent_task_plan',
       'tlon_agent_service_setup',
@@ -118,17 +148,12 @@ describe('tlonPlugin agent tools', () => {
   });
 
   it('adds the connectable services lookup on hosted bots', () => {
-    if (typeof tlonPlugin.agentTools !== 'function') {
-      return;
-    }
     vi.stubEnv('PIONEER_ENV', 'prod');
-    try {
-      const tools = tlonPlugin.agentTools({ cfg });
-      expect(tools.map((tool) => tool.name)).toContain(
-        'tlon_connectable_services'
-      );
-    } finally {
-      vi.unstubAllEnvs();
-    }
+    expect(toolNames()).toContain('tlon_connectable_services');
+  });
+
+  it('adds set_timezone only when the hosted wrapper names its file', () => {
+    vi.stubEnv('TLON_OWNER_TIMEZONE_FILE', '/pier/.openclaw/tz.json');
+    expect(toolNames()).toContain('set_timezone');
   });
 });
