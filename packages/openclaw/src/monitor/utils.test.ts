@@ -7,6 +7,7 @@ import { finalizeInboundContext } from 'openclaw/plugin-sdk/reply-dispatch-runti
 import { describe, expect, it } from 'vitest';
 
 import {
+  NON_COMMAND_BODY,
   extractCites,
   extractMessageText,
   inboundCommandFields,
@@ -312,7 +313,10 @@ describe('inboundCommandFields', () => {
       )
       .map(([key]) => key)
       .sort();
-    expect(carriers).toEqual(['Body', 'BodyForAgent']);
+    expect(carriers).toEqual(['Body', 'BodyForAgent', 'agentText']);
+    expect(ctx.commandText).toBe(NON_COMMAND_BODY);
+    expect(ctx.rawText).toBe(NON_COMMAND_BODY);
+    expect(ctx.CommandTurn?.body).toBe(NON_COMMAND_BODY);
   });
 
   it('keeps a typed message a text command', () => {

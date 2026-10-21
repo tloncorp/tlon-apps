@@ -787,11 +787,14 @@ export function inboundCommandFields(
 
 /**
  * The config a reaction dispatch runs under. Core runs an inline /help,
- * /commands, /whoami or /id found anywhere in the agent body for any sender
- * matched by commands.allowFrom, whatever CommandAuthorized says, and it
- * reads that list from the dispatch config (the provider key, else "*").
- * An empty list on both keys authorizes no sender, so no inline command runs
- * from a reaction.
+ * /commands, /whoami or /id for any sender matched by commands.allowFrom,
+ * whatever CommandAuthorized says, reading that list from the dispatch config
+ * (the provider key, else "*"). It extracts those shortcuts from the
+ * command-facing projection (`commandText`, from BodyForCommands, CommandBody
+ * and RawBody), which on a reaction carries NON_COMMAND_BODY; the reaction
+ * text is only in the agent-facing projection (`agentText`, BodyForAgent,
+ * Body), which core never parses as a command. An empty list on both keys
+ * also authorizes no sender, so no inline command runs from a reaction.
  */
 export function reactionDispatchConfig(cfg: OpenClawConfig): OpenClawConfig {
   return {
