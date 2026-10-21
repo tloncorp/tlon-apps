@@ -65,6 +65,12 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
+import {
+  type GroupContextRuntime,
+  createGroupContextRuntime,
+  publishGroupContextRuntime,
+  unpublishGroupContextRuntime,
+} from '../group-context.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import { recordTlonMessageJourneyEvent } from '../message-journey.js';
 import {
@@ -341,11 +347,12 @@ type ChannelResponse = {
   post?: {
     id?: string;
     'r-post'?: {
-      set?: { essay?: Essay; seal?: Seal } | null;
+      // `type` is 'tombstone' for a deleted post; older desks send null.
+      set?: { essay?: Essay; seal?: Seal; type?: string } | null;
       reply?: {
         id?: string;
         'r-reply'?: {
-          set?: { 'reply-essay'?: Essay; seal?: Seal };
+          set?: { 'reply-essay'?: Essay; seal?: Seal; type?: string } | null;
           reacts?: Record<string, unknown>;
         };
       };
@@ -961,6 +968,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
   let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
+  let groupContext: GroupContextRuntime | null = null;
   let roleMentionResolver: RoleMentionResolver | null = null;
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
@@ -1028,6 +1036,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           for (const [nest, groupFlag] of initData.channelToGroup) {
             channelToGroup.set(nest, groupFlag);
           }
+          groupContextRuntime.applySnapshot(initData.groupContexts);
         })
         .catch((error) =>
           runtime.log?.(
@@ -1058,6 +1067,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       log: (msg) => runtime.log?.(msg),
     });
     publishWorkspaceInstructionsRuntime(workspaceInstructions);
+    const groupContextRuntime = createGroupContextRuntime();
+    groupContext = groupContextRuntime;
+    publishGroupContextRuntime(groupContextRuntime);
     roleMentionResolver = createRoleMentionResolver({
       channelToGroup,
       refreshChannelGroups,
@@ -1816,6 +1828,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       for (const [flag, roles] of initData.groupRoles) {
         groupRoles.set(flag, roles);
       }
+      groupContextRuntime.applySnapshot(initData.groupContexts);
     } catch (error: any) {
       runtime.error?.(
         `[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`
@@ -4193,6 +4206,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       for (const [flag, title] of initData.groupNames) {
         groupNameCache.set(flag, title);
       }
+      groupContextRuntime.applySnapshot(initData.groupContexts);
       // Every discovery result is a config-sourced nest while discovery is
       // on, whether or not it is already watched; see discoveredNests.
       for (const nest of initData.channels) {
@@ -4594,6 +4608,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        // A deleted post or reply; see ChannelResponse.
+        const rPost = response?.post?.['r-post'];
+        const reply = rPost?.reply;
+        const deleted = reply ? reply['r-reply']?.set : rPost?.set;
+        if (deleted === null || deleted?.type === 'tombstone') {
+          const deletedId = reply ? reply.id : response?.post?.id;
+          if (deletedId) {
+            groupContextRuntime.recordDelete({ nest, id: deletedId });
+          }
+          return;
+        }
+
         // Handle post responses (new posts and replies)
         const essay = response?.post?.['r-post']?.set?.essay;
         const replyEssay =
@@ -4661,6 +4687,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // Skip processing bot's own messages (but they're already cached above)
         if (senderShip === botShipName) {
           return;
+        }
+        if (messageId) {
+          groupContextRuntime.recordMessage({
+            nest,
+            id: messageId,
+            sender: senderShip,
+            text: rawText,
+            timestamp: content.sent,
+          });
         }
 
         if (senderShip === effectiveOwnerShip) {
@@ -6499,6 +6534,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               }
 
               if (opts.abortSignal?.aborted) return;
+              groupContextRuntime.handleGroupsUiEvent(event);
               const fact = parseGroupsUiChannelFact(event, {
                 botShip: botShipName,
               });
@@ -7059,6 +7095,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     cleanupGatewayStatus();
     if (workspaceInstructions) {
       unpublishWorkspaceInstructionsRuntime(workspaceInstructions);
+    }
+    if (groupContext) {
+      unpublishGroupContextRuntime(groupContext);
     }
     if (roleMentionResolver) {
       unpublishRoleMentionResolver(account.accountId, roleMentionResolver);

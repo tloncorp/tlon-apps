@@ -15,15 +15,15 @@ import { setSessionRole } from './session-roles.js';
 
 // Hook name -> handlers registered under it. reply_payload_sending carries
 // two: the fallback-notice and the onboarding-surface suppressors.
-// before_prompt_build carries two: workspace instructions and the model
-// privacy note.
+// before_prompt_build carries three: workspace instructions, group context
+// and the model privacy note.
 const AGENT_TURN_HOOK_COUNTS: Record<string, number> = {
   before_tool_call: 1,
   after_tool_call: 1,
   agent_turn_prepare: 1,
   model_call_started: 1,
   agent_end: 1,
-  before_prompt_build: 2,
+  before_prompt_build: 3,
   session_start: 1,
   session_end: 1,
   reply_payload_sending: 2,
