@@ -261,13 +261,15 @@ const hostedElementModifiers = [
 /**
  * A section's own React Native content, hosted as the section's header. The
  * hosted view is given the screen's width, since SwiftUI takes its size from
- * it.
+ * it. Expo UI keeps the first layout of hosted text, so a new width (a
+ * rotation) remounts the content rather than leaving text laid out for the
+ * old one.
  */
 function HostedSectionElement({ element }: { element: ReactElement }) {
   const { width } = useWindowDimensions();
   return (
     <VStack modifiers={hostedElementModifiers}>
-      <RNHostView matchContents>
+      <RNHostView key={width} matchContents>
         <View style={{ width }}>{element}</View>
       </RNHostView>
     </VStack>

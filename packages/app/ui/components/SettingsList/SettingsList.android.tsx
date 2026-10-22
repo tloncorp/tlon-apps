@@ -32,7 +32,11 @@ import {
   weight,
 } from '@expo/ui/jetpack-compose/modifiers';
 import { Fragment, useCallback, useMemo, useState } from 'react';
-import { type LayoutChangeEvent, View } from 'react-native';
+import {
+  type LayoutChangeEvent,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -63,8 +67,12 @@ export function SettingsList({ sections }: SettingsListProps) {
   // A hosted section is otherwise only as wide as its own content. It gets the
   // list's full width, as on iOS, and Compose centers anything wider than
   // the padded column, so the section runs edge to edge and lays out its own
-  // margins.
-  const [width, setWidth] = useState<number>();
+  // margins. Expo UI keeps the first layout of hosted text, so the width is
+  // known from the first render (the window's, corrected by the list's own
+  // layout), and a change remounts the section rather than leaving text laid
+  // out for no width or an old one.
+  const { width: windowWidth } = useWindowDimensions();
+  const [width, setWidth] = useState(windowWidth);
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width),
     []
@@ -88,7 +96,7 @@ export function SettingsList({ sections }: SettingsListProps) {
         >
           {sections.map((section) =>
             section.element ? (
-              <RNHostView key={section.key} matchContents>
+              <RNHostView key={`${section.key}:${width}`} matchContents>
                 <View style={{ width }}>{section.element}</View>
               </RNHostView>
             ) : (
