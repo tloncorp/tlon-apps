@@ -2077,6 +2077,7 @@ export const handleChatUpdate = async (
     case 'deletePost':
       recordThreadPostDeleted(update.postId);
       await db.deletePosts({ ids: [update.postId] }, ctx);
+      await db.recomputeChannelLastPost({ channelId: update.channelId }, ctx);
       break;
     case 'addReaction':
       // Check if we're inserting a shortcode reaction from chat/DM
