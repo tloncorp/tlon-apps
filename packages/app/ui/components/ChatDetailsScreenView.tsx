@@ -362,8 +362,9 @@ export function ChatDetailsScreenView({
                 (channel?.readerRoles?.length ?? 0) > 0 ||
                 (channel?.writerRoles?.length ?? 0) > 0
                   ? 'Custom'
-                  : // "Public" would read against a private or secret group.
-                    'All members',
+                  : // The permissions screen's name for all members. "Public"
+                    // would read against a private or secret group.
+                    'Everyone',
               disabled: !actionsEnabled,
               onPress: onPressChannelPermissions,
               testID: 'ChannelPrivacy',
