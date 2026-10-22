@@ -6,8 +6,8 @@ Adding, arranging, renaming, restricting, leaving and deleting the channels insi
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/ui/components/GroupChannelsScreenView.tsx, packages/app/ui/components/ManageChannels/ManageChannelsShared.tsx -->
 <!-- covers: route:ManageChannels -->
 
-Phone: on the Workspaces tab, press and hold the group, tap `Group info & settings`, then `Channels`. Or open the group and tap the list-with-a-pencil icon at the top right of its channel list.
-Desktop: hover the group in the Home sidebar, open its three-dot menu, pick `Group info & settings`, then `Channels`. The same icon is at the top of the group's channel list.
+Phone: on the Workspaces tab, press and hold the group, tap `Workspace info & settings`, then `Channels`. Or open the group and tap the list-with-a-pencil icon at the top right of its channel list.
+Desktop: hover the group in the Home sidebar, open its three-dot menu, pick `Workspace info & settings`, then `Channels`. The same icon is at the top of the group's channel list.
 Who: group admins only. Both are greyed out while the app can't reach the group's host.
 Notes: the `Channels` screen lists each channel under its section, with its type under its name. `Sort` and `New` are at the top right. A phone opens a one-channel group straight into the channel, so use the first route there.
 
@@ -147,10 +147,10 @@ Notes: this makes an empty channel of the same type and copies over the add-ons 
 <!-- flag: buckets -->
 
 Phone: on the Settings tab, open `Experimental features` and switch on `Buckets channels`. Then start a new channel the usual way: `Buckets` now appears under `Channel type`, described as `Shared files for members and agents`.
-Who: group admins, in groups the app can tell are hosted on Tlon. In other groups the sheet says `Buckets are currently available only in groups hosted on Tlon.` and leaves the type out. Your node also needs a version that supports Buckets.
+Who: group admins, in groups the app can tell are hosted on Tlon. In other groups the sheet says `Buckets are currently available only in workspaces hosted on Tlon.` and leaves the type out. Your node also needs a version that supports Buckets.
 Notes: the switch is off by default and is set per device. A Bucket always lives on the group host's node and uses its storage. It can't be left, and it can't be deleted from its info screen.
 
 ## See who is in a channel
 <!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/ui/components/ChatOptionsSheet.tsx -->
 
-Notes: a channel in a group has no member list of its own. Its info screen shows the `Host` but not who is in it. Everyone in the group can see a channel unless its `Permissions` limit it to certain roles, so look at the group's members and their roles instead, from `Group info & settings`. The `Members` item in a press-and-hold menu belongs to group DMs, not to channels in a group.
+Notes: a channel in a group has no member list of its own. Its info screen shows the `Host` but not who is in it. Everyone in the group can see a channel unless its `Permissions` limit it to certain roles, so look at the group's members and their roles instead, from `Workspace info & settings`. The `Members` item in a press-and-hold menu belongs to group DMs, not to channels in a group.

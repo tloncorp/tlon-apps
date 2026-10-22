@@ -109,7 +109,7 @@ describe('OpenClaw driver runtime spec', () => {
   test('forwards a core and image override to both compose and tests', async () => {
     clearOptionalEnv();
     setEnv('OPENCLAW_CORE_VERSION', '2026.9.8');
-    setEnv('NODE_IMAGE', 'node:24.16.0-bookworm-slim');
+    setEnv('NODE_IMAGE', 'node:24.22.1-bookworm-slim');
 
     const seed = await createSeed(path.resolve('/repo'));
     seed.capabilityPartition = { key: 'baseline', capabilities: [] };
@@ -117,7 +117,7 @@ describe('OpenClaw driver runtime spec', () => {
 
     expect(ctx.composeEnv).toMatchObject({
       OPENCLAW_CORE_VERSION: '2026.9.8',
-      NODE_IMAGE: 'node:24.16.0-bookworm-slim',
+      NODE_IMAGE: 'node:24.22.1-bookworm-slim',
     });
     expect(ctx.testEnv).toMatchObject({
       TEST_OPENCLAW_CORE_VERSION: '2026.9.8',

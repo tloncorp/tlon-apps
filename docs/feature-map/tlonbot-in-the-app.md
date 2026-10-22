@@ -18,9 +18,9 @@ Phone: while your bot asks its first setup questions, the app keeps you in that 
 Notes: while locked, the three-dot icon at the top right of the chat has `Log out`. If you close and reopen the app during the lock, it reopens in the same chat.
 
 ## What happens the first time I open the app with a Tlonbot?
-<!-- src: packages/app/ui/components/Wayfinding/AgentOnboarding/AgentOnboardingSequence.tsx, apps/tlon-mobile/src/App.main.tsx, packages/app/ui/components/Wayfinding/botName.ts, packages/app/features/top/useAgentOnboardingFirstEntry.ts -->
+<!-- src: packages/app/ui/components/Wayfinding/AgentOnboarding/AgentOnboardingSequence.tsx, packages/app/ui/components/Wayfinding/MeetYourBot/MeetYourBotPane.tsx, apps/tlon-mobile/src/App.main.tsx, packages/app/ui/components/Wayfinding/botName.ts, packages/app/features/top/useAgentOnboardingFirstEntry.ts -->
 
-Phone: after signup a loading screen reads `Opening your Tlonbot chat...`, then you land in the Bot tab. Setup happens in the chat: the bot asks questions and you tap your answers. While it writes its first post, a status line shows messages such as `Writing your first entry…`.
+Phone: after signup two slides open, `Meet your Tlonbot.` and then `Yours to keep.`. Tap `Next` to go from the first to the second. On the second the button reads `Getting your chat ready` until the chat is ready, then `Start chatting` opens your private chat with your bot. Setup happens in the chat: the bot asks questions and you tap your answers. While it writes its first post, a status line shows messages such as `Writing your first entry…`.
 Desktop: this runs in the phone app only.
 Who: hosted accounts with a Tlonbot.
 Notes: the app does not ask you to name the bot, pick an avatar or choose a model here. If you have a nickname, the bot is named after you automatically, as "<your nickname>'s Tlonbot 🌱". Change the name or model later in bot settings. If the chat isn't ready within about two minutes, the app shows its step-by-step setup screens instead.
@@ -44,8 +44,8 @@ Notes: after `Not now` the prompt stays away until the app is restarted. The wai
 <!-- src: packages/app/features/settings/SettingsScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/app/features/top/UserProfileScreen.tsx, packages/app/utils/botSettings.ts, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/ui/components/BotSystemPrompts.tsx -->
 <!-- covers: route:BotSettings -->
 
-Phone: open the Settings tab (the gear). Your bot's rows come right after `Your profile`: the bot's own name (under `Bot profile`), then `Models`, `Connections`, `Permissions` and, when your node can show them, `Scheduled tasks`. Or open the Bot tab, tap the bot's name at the top, and tap `Bot settings` on its profile.
-Desktop: click the gear icon in the left rail, then `Bot Settings`. That opens Tlon's bot settings page (tlon.network/tlonbot) in a new browser tab. Desktop Settings also lists `Scheduled tasks`, and your bot's profile has its `Bot behavior` instructions; the other bot settings screens in this file are in the phone app only.
+Phone: open the Settings tab (the gear). Your bot's rows come right after `Your profile`: the bot's own name (under `Bot profile`), then `Models`, `Connections`, `Permissions`, `Scheduled tasks` (when your node can show them) and `Advanced`. Or open the Bot tab, tap the bot's name at the top, and tap `Bot settings` on its profile.
+Desktop: click the gear icon in the left rail, then `Bot Settings`. That opens Tlon's bot settings page (tlon.network/tlonbot) in a new browser tab. Desktop Settings also lists `Scheduled tasks` and `Prompt files`, and your bot's profile has a `Prompt files` link; the other bot settings screens in this file are in the phone app only.
 Who: hosted accounts with a Tlonbot.
 Notes: on a self-hosted node there are no bot rows in Settings.
 
@@ -63,7 +63,7 @@ Notes: while the bot is starting, the `Default model`, `Fallback models` and `Ze
 Phone: changes to the bot's name, models, permissions and channel rules are not saved as you make them. Each changed row gets a `Pending` badge, and a bar appears at the bottom with `Discard` and a button such as "Apply 2 Changes". Tap it, then `Apply & restart` on the `Restart gateway?` prompt.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
-Notes: the prompt says the bot restarts and will be offline for about 20 seconds. The bar shows on the Settings tab, the `Bot settings` screen, and the `Models`, `Connections`, `Permissions` and `Identity` screens, so go back to one of those to apply. API keys, subscriptions and connected services save straight away. A failure shows in red above the buttons.
+Notes: the prompt says the bot restarts and will be offline for about 20 seconds. The bar shows on the Settings tab, the `Bot settings` screen, and the `Models`, `Permissions` and `Identity` screens, so go back to one of those to apply. API keys, subscriptions and connected services save straight away. A failure shows in red above the buttons.
 
 ## Change my bot's name
 <!-- src: packages/app/features/settings/BotIdentitySettingsScreen.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
@@ -101,9 +101,9 @@ Notes: it is on by default, but the owner may run without it. The app describes 
 
 ## Add an API key for a model provider
 <!-- src: packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/BotApiKeySettingsScreen.tsx, packages/app/features/settings/bot/constants.ts, packages/app/features/settings/bot/helpers.ts, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
-<!-- covers: route:BotProviderListSettings, route:BotApiKeySettings, route:BotConnections -->
+<!-- covers: route:BotProviderListSettings, route:BotApiKeySettings -->
 
-Phone: on the Settings tab, tap your bot's `Connections` row, then `API keys`, then the provider: `Anthropic`, `OpenAI`, `OpenRouter` or `xAI (Grok)`. Paste the key into `API key` and tap `Save key`.
+Phone: on the Settings tab, tap your bot's `Models` row, then `API keys`, then the provider: `Anthropic`, `OpenAI`, `OpenRouter` or `xAI (Grok)`. Paste the key into `API key` and tap `Save key`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the key saves straight away, and that provider then appears when you choose a model. The eye icon shows what you typed. Afterwards only the last four characters are shown. Keys in the wrong shape are refused: OpenAI keys start with "sk-", OpenRouter with "sk-or-", Anthropic with "sk-ant-" or "anthropic-".
@@ -111,7 +111,7 @@ Notes: the key saves straight away, and that provider then appears when you choo
 ## Replace or remove an API key
 <!-- src: packages/app/features/settings/BotApiKeySettingsScreen.tsx, packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 
-Phone: on the Settings tab, tap your bot's `Connections` row, then `API keys`, then the provider. To replace the key, type the new one where it says `Enter replacement key` and tap `Save key`. To remove it, tap `Remove key`, then `Remove`.
+Phone: on the Settings tab, tap your bot's `Models` row, then `API keys`, then the provider. To replace the key, type the new one where it says `Enter replacement key` and tap `Save key`. To remove it, tap `Remove key`, then `Remove`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the confirmation says `Tlonbot will stop using custom models from this provider.` Both changes are saved straight away, with no apply step. The full key is never shown again, only its last four characters.
@@ -120,7 +120,7 @@ Notes: the confirmation says `Tlonbot will stop using custom models from this pr
 <!-- src: packages/app/features/settings/BotOpenAISubscriptionScreen.tsx, packages/app/ui/components/LLMSubscriptionAuthView.tsx, packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/bot/constants.ts, packages/app/features/settings/bot/openAiSubscription.ts, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/BotModelSettingsScreen.tsx -->
 <!-- covers: route:BotOpenAISubscription -->
 
-Phone: on the Settings tab, tap your bot's `Connections` row, then `Provider subscriptions`, then `ChatGPT`, then the connect button. A `One-time code` appears; tap it to copy. Tap the button that opens OpenAI's sign-in page, sign in and enter the code. Back in the app you'll see `Connected. Loading your models…`, and then the list of models opens. Pick one and apply. Opening `ChatGPT` again later shows a `Connected` panel with a `Choose model` button.
+Phone: on the Settings tab, tap your bot's `Models` row, then `Provider subscriptions`, then `ChatGPT`, then the connect button. A `One-time code` appears; tap it to copy. Tap the button that opens OpenAI's sign-in page, sign in and enter the code. Back in the app you'll see `Connected. Loading your models…`, and then the list of models opens. Pick one and apply. Opening `ChatGPT` again later shows a `Connected` panel with a `Choose model` button.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot. The rows are greyed out until your bot's settings have loaded.
 Notes: if the code runs out you'll see `This connection attempt expired.` and `Try again`. A row reading `Unavailable` means the app couldn't check the subscription; open it and tap `Try again`.
@@ -128,7 +128,7 @@ Notes: if the code runs out you'll see `This connection attempt expired.` and `T
 ## Connect a Claude or Grok subscription
 <!-- src: packages/app/features/settings/BotOpenAISubscriptionScreen.tsx, packages/app/ui/components/LLMSubscriptionAuthView.tsx, packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/bot/constants.ts, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/BotModelSettingsScreen.tsx -->
 
-Phone: on the Settings tab, tap your bot's `Connections` row, then `Provider subscriptions`, then `Claude` or `Grok`, then the connect button. Grok works like ChatGPT: copy the `One-time code` and enter it on the sign-in page. Claude is different: on a computer with Claude Code installed, run `claude setup-token`, paste the result into `Paste setup token` and tap `Connect`.
+Phone: on the Settings tab, tap your bot's `Models` row, then `Provider subscriptions`, then `Claude` or `Grok`, then the connect button. Grok works like ChatGPT: copy the `One-time code` and enter it on the sign-in page. Claude is different: on a computer with Claude Code installed, run `claude setup-token`, paste the result into `Paste setup token` and tap `Connect`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: once it connects, the list of models opens so you can pick one. Opening the subscription again later shows `Choose model`.
@@ -136,7 +136,7 @@ Notes: once it connects, the list of models opens so you can pick one. Opening t
 ## Disconnect a subscription
 <!-- src: packages/app/features/settings/BotOpenAISubscriptionScreen.tsx, packages/app/features/settings/BotProviderListSettingsScreen.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 
-Phone: on the Settings tab, tap your bot's `Connections` row, then `Provider subscriptions`, then the one marked `Active`. Tap `Disconnect subscription`, then `Disconnect`.
+Phone: on the Settings tab, tap your bot's `Models` row, then `Provider subscriptions`, then the one marked `Active`. Tap `Disconnect subscription`, then `Disconnect`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the confirmation says `Tlonbot will no longer be able to use models from this subscription.` The same screen has a `Choose model` button.
@@ -154,7 +154,7 @@ Notes: OpenRouter has no subscription option, only a key. Keys and subscriptions
 <!-- covers: route:BotMcpSettings -->
 <!-- absent: custom mcp, custom server -->
 
-Phone: on the Settings tab, tap your bot's `Connections` row, then `Connected services`. On the `Connect services` screen, tap a service under `Available`. Your browser opens so you can sign in and approve access. Back in the app it sits under `Connected` with an `Active` value.
+Phone: on the Settings tab, tap your bot's `Connections` row. On the `Connect services` screen, tap a service under `Available`. Your browser opens so you can sign in and approve access. Back in the app it sits under `Connected` with an `Active` value.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: Tlon sets which services are listed. You can't add your own server or paste a token; every service connects by signing in. There is no apply step. The refresh icon at the top right reloads the list. `Service connections are unavailable for this account.` means nothing can be connected right now.
@@ -162,7 +162,7 @@ Notes: Tlon sets which services are listed. You can't add your own server or pas
 ## Disconnect a service from my bot
 <!-- src: packages/app/features/settings/BotMcpSettingsScreen.tsx, packages/app/ui/components/BotSettingsScreenView.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 
-Phone: on the Settings tab, tap your bot's `Connections` row, then `Connected services`. Tap the service under `Connected`, then `Disconnect`.
+Phone: on the Settings tab, tap your bot's `Connections` row. On the `Connect services` screen, tap the service under `Connected`, then `Disconnect`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: you'll see `Connection disconnected.` and the service moves back under `Available`. The bot can no longer use it.
@@ -179,7 +179,7 @@ Notes: the app says `Users on the allowlist can DM Tlonbot directly.` Someone al
 ## Turn auto-accept DM invites or auto-discover channels on or off
 <!-- src: packages/app/features/settings/BotPermissionsSettingsScreen.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 
-Phone: on the Settings tab, tap `Permissions`. Under `Who can message Tlonbot` are two switches. `Auto-accept DM invites` is described as `From users on the allowlist`. `Auto-discover group channels` is described as `Index new channels you join`. Flip one, then apply.
+Phone: on the Settings tab, tap `Permissions`. Under `Who can message Tlonbot` are two switches. `Auto-accept DM invites` is described as `From users on the allowlist`. `Auto-discover workspace channels` is described as `Index new channels you join`. Flip one, then apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 
@@ -194,10 +194,10 @@ Notes: the app says `These users can always interact with Tlonbot, regardless of
 ## Choose who can invite my bot to groups
 <!-- src: packages/app/features/settings/BotPermissionsSettingsScreen.tsx, packages/app/features/settings/BotShipListSettingsScreen.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 
-Phone: on the Settings tab, tap `Permissions`, then `Can invite to groups`. Tap the plus at the top right and pick a contact or type a username. Tap a row marked `Remove` to take that person off. Go back to `Permissions` and apply.
+Phone: on the Settings tab, tap `Permissions`, then `Can invite to workspaces`. Tap the plus at the top right and pick a contact or type a username. Tap a row marked `Remove` to take that person off. Go back to `Permissions` and apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
-Notes: the app says `These users can invite Tlonbot to groups.`
+Notes: the app says `These users can invite Tlonbot to workspaces.`
 
 ## Choose which channels my bot responds in
 <!-- src: packages/app/features/settings/BotChannelRulesScreen.tsx, packages/app/features/settings/BotPermissionsSettingsScreen.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
@@ -206,7 +206,7 @@ Notes: the app says `These users can invite Tlonbot to groups.`
 Phone: on the Settings tab, tap `Permissions`, then `Per-channel rules`. The `Channel rules` screen lists your channels by group, each marked `Off`, `Open` or `Allowlist`. Search with `Filter by name`, or turn on `Enabled only` to see only channels where the bot is on. Tap a channel to change it, then go back to `Permissions` and apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
-Notes: a group the bot is not in has a `Join group` row; tap it, then `Join` to confirm. `Paused` means the bot has left that group.
+Notes: a group the bot is not in has a `Join workspace` row; tap it, then `Join` to confirm. `Paused` means the bot has left that group.
 
 ## Turn my bot on or off in one channel
 <!-- src: packages/app/features/settings/BotChannelRuleSettingsScreen.tsx, packages/app/features/settings/BotChannelRulesScreen.tsx, packages/app/features/settings/BotPermissionsSettingsScreen.tsx -->
@@ -228,10 +228,10 @@ Notes: in the channel list the row then shows the provider beside its access mod
 ## Add my bot to a group from channel rules
 <!-- src: packages/app/features/settings/BotChannelRulesScreen.tsx, packages/app/features/settings/BotChannelRuleSettingsScreen.tsx -->
 
-Phone: on `Channel rules`, find the group and tap `Join group` beside its name, then `Join` to confirm. The button reads `Joining…` while it works. Once the bot is in, tap a channel and enable it.
+Phone: on `Channel rules`, find the group and tap `Join workspace` beside its name, then `Join` to confirm. The button reads `Joining…` while it works. Once the bot is in, tap a channel and enable it.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
-Notes: the confirmation says `This adds your Tlonbot to the group. After it joins, you can choose which channels it can respond in.` Until then a channel in that group reads `Join this group to enable Tlonbot in this channel.` If joining fails you'll see a message such as `Failed to join this group.`
+Notes: the confirmation says `This adds your Tlonbot to the workspace. After it joins, you can choose which channels it can respond in.` Until then a channel in that group reads `Join this workspace to enable Tlonbot in this channel.` If joining fails you'll see a message such as `Failed to join this workspace.`
 
 ## Turn my bot off in every channel at once
 <!-- src: packages/app/features/settings/BotChannelRulesScreen.tsx, packages/app/features/settings/BotPermissionsSettingsScreen.tsx -->
@@ -244,7 +244,7 @@ Notes: `Undo` puts the channels back if you tap it before leaving the screen. Th
 ## Why does a channel say Paused?
 <!-- src: packages/app/features/settings/BotChannelRulesScreen.tsx, packages/app/features/settings/BotChannelRuleSettingsScreen.tsx -->
 
-Phone: the bot has left that group. On `Channel rules` the group shows `Tlonbot is no longer in this group` and its channels read `Paused`. Tap `Join group` to bring the bot back and resume the rules, or `Clear rules` to remove them, then apply.
+Phone: the bot has left that group. On `Channel rules` the group shows `Tlonbot is no longer in this workspace` and its channels read `Paused`. Tap `Join workspace` to bring the bot back and resume the rules, or `Clear rules` to remove them, then apply.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
 Notes: after `Clear rules` the button becomes `Undo` until you apply.
@@ -333,15 +333,24 @@ Notes: the badge shows for Tlon-hosted bots and for any account that declares it
 
 Phone: in the Bot tab, tap the bot's name at the top. The profile shows its avatar, its name with a `Bot` badge, and its username (tap to copy). Below are `Message`, `Add Contact` or `Remove Contact`, and `Block` (not on your own bot), then a `Bot settings` row, its `Status` and `About` text if it has any, and `Node` and `Sponsor` tiles showing whether it can be reached.
 Desktop: open your DM with the bot and click its name at the top. `Bot settings` on the profile opens Tlon's bot settings web page.
-Who: the `Bot settings` and `Scheduled tasks` rows only show on your own bot's profile. On your own bot, `Scheduled tasks` sits under `Bot settings` with a count, and a `Bot behavior` section appears at the bottom.
+Who: the `Bot settings` and `Scheduled tasks` rows only show on your own bot's profile. On your own bot, `Scheduled tasks` sits under `Bot settings` with a count, and a `Prompt files` row appears below them when the app can read the bot's files.
 
 ## Change my bot's instructions, personality or tools
-<!-- src: packages/app/ui/components/BotSystemPrompts.tsx, packages/app/ui/components/UserProfileScreenView.tsx -->
+<!-- src: packages/app/features/settings/BotPromptFilesScreen.tsx, packages/app/features/settings/BotPromptFileScreen.tsx, packages/app/ui/components/botPromptFiles.ts, packages/app/features/settings/useOpenBotPromptFiles.ts, packages/app/ui/components/UserProfileScreenView.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, packages/app/ui/components/BotSystemPrompts.tsx -->
+<!-- covers: route:BotPromptFiles, route:BotPromptFile -->
 
-Phone: in the Bot tab, tap your bot's name at the top and scroll to `Bot behavior`. Tap a prompt to open its editor: `Instructions`, `Personality`, `Tools`, `Identity`, `About you` or `Bootstrap`. Change the text and tap `Save changes`.
-Desktop: open your DM with the bot, click its name at the top, and scroll to the same section. It works the same way.
-Who: the bot's owner. The section does not show for anyone else, or on a bot whose prompts the app cannot reach.
-Notes: each prompt has a one-line description under its name. `Unsaved changes` shows while you edit. `Saving briefly restarts your bot.` is shown in the editor, and the save briefly restarts the bot.
+Phone: on the Settings tab, tap your bot's `Advanced` row, or in the Bot tab tap the bot's name, then `Prompt files`. Tap a file. Only `Personality` and `Identity` take additions: tap `Add instructions` or `Edit additions` (the first time, confirm `Continue`), type, then tap `Save changes`. The others are `Read-only`.
+Desktop: click the gear, then `Prompt files`.
+Who: the bot's owner.
+Notes: your additions sit under Tlon's default text and show `Customized`. `Reset to default` removes all additions.
+
+## Tell my Tlonbot how to behave in one workspace
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/WorkspaceInstructionsSheet.tsx -->
+
+Phone: open the workspace's `Workspace info & settings` and tap `Tlonbot instructions`. Type in the `Instructions` box, tap `Preview` to see it rendered, then tap `Save changes`.
+Desktop: the same row is on the workspace's `Workspace info & settings` screen, which you open from its three-dot menu.
+Who: only the workspace's host. The row is missing when your node is too old for it.
+Notes: the bot reads these on every reply in the workspace's channels, and the row shows `On` once there are instructions. The sheet says "Anyone in this group can read these." These are not the bot's own instructions, which are in its prompt files.
 
 ## How do I know my bot is working on a reply?
 <!-- src: packages/app/ui/components/Channel/useConversationComputingState.ts, packages/app/ui/components/Channel/ThinkingState.tsx, packages/app/ui/components/Channel/useShouldShowThinkingState.ts -->
@@ -369,4 +378,4 @@ Notes: the bot settings screens work through Tlon's hosting, so the model, API k
 Phone: your Tlon account login on this phone has expired. The `Logout Required` alert offers `Logout` and `Cancel`. Tap `Logout`, log back in, and bot settings will load again.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
-Notes: when this happens the Settings tab shows a single `Bot Settings` row where the bot sections usually are. Tapping it brings up the alert.
+Notes: when this happens the Settings tab shows a single `Bot Settings` row where the bot sections usually are, with a `Prompt files` row under it. Tapping `Bot Settings` brings up the alert.

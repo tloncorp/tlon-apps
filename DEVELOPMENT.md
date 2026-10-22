@@ -96,7 +96,7 @@ Several `package.json` scripts use Unix shell tools (`rm -rf`, `cp -R`, `mkdir -
 
 Each `CLAUDE.md` is a symlink to the `AGENTS.md` beside it. Git for Windows checks symlinks out as one-line text files unless symlinks are enabled, which also needs Developer Mode (or an elevated shell). Clone with `git clone -c core.symlinks=true …`, or in an existing clone run `git config core.symlinks true` and then `git checkout -- CLAUDE.md '**/CLAUDE.md'`.
 
-Also: use the pinned Node version (`.nvmrc` → 24.16.0, required by OpenClaw 2026.9.33). `better-sqlite3@11.x` has no prebuilt binaries for Node 24, so on Windows it falls back to compiling via node-gyp, which needs VS Build Tools + Windows SDK installed.
+Also: use the pinned Node version (`.nvmrc` → 24.22.1, required by OpenClaw 2026.9.33). `better-sqlite3@11.x` has no prebuilt binaries for Node 24, so on Windows it falls back to compiling via node-gyp, which needs VS Build Tools + Windows SDK installed.
 
 ## Husky
 
