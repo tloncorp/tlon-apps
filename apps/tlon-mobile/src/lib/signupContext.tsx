@@ -45,7 +45,7 @@ const defaultMethods = {
   clear: () => {},
 };
 
-const SignupContext = createContext<SignupContext>({
+export const SignupContext = createContext<SignupContext>({
   ...defaultValues,
   ...defaultMethods,
   bootPhase: NodeBootPhase.IDLE,

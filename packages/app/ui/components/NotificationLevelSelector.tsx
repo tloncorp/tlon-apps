@@ -164,12 +164,21 @@ export function NotificationLevelSelector({
   value,
   onChange,
   config,
+  flush,
 }: {
   value: ub.NotificationLevel;
   onChange: (level: ub.NotificationLevel) => void;
   config?: NotificationLevelOptionsConfig;
+  flush?: boolean;
 }) {
   const options = useNotificationLevelOptions(config);
 
-  return <RadioInput options={options} value={value} onChange={onChange} />;
+  return (
+    <RadioInput
+      options={options}
+      value={value}
+      onChange={onChange}
+      flush={flush}
+    />
+  );
 }
