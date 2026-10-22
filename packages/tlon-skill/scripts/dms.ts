@@ -58,6 +58,7 @@ const DMS_HELP = `Usage: tlon dms <command>
 
 Commands:
   send <club-id> [message]        Send a message to a group DM [--image <url>] [--bot]
+                                  (one --image; posts send <club-id> takes several)
   reply <club-id> <post-id> <msg> Reply in a group DM (post-id must include author) [--bot]
   react <ship> <post-id> <emoji>  React to a DM (post-id must include author) [--parent <post-id>]
   unreact <ship> <post-id>        Remove reaction from a DM (post-id must include author) [--parent <post-id>]
@@ -73,7 +74,7 @@ Send options:
 Mentions: ~ship and @all; group roles don't exist in DMs.`;
 
 const DMS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon dms send <club-id> [message] [--image <url>] [--sent-at <ms>] [--bot] (message optional with --image)',
+  send: 'Usage: tlon dms send <club-id> [message] [--image <url>] [--sent-at <ms>] [--bot] (message optional with --image; one --image — posts send <club-id> takes several)',
   reply:
     'Usage: tlon dms reply <club-id> <post-id> <message> [--sent-at <ms>] [--bot]',
   react: 'Usage: tlon dms react <ship> <post-id> <emoji> [--parent <post-id>]',
@@ -107,7 +108,16 @@ function exitFromError(error: unknown): never {
   printErrorAndExit(error);
 }
 
+const DMS_ONE_IMAGE_ERROR =
+  'dms send takes one --image; use posts send <club-id> for several';
+
 function dmsImageFlag(args: string[]): string | undefined {
+  const first = imageFlagIndex(args);
+  if (first !== -1 && imageFlagIndex(args.slice(first + 1)) !== -1) {
+    printUsageAndExit(
+      `Error: ${DMS_ONE_IMAGE_ERROR}\n\n${DMS_COMMAND_HELP.send}`
+    );
+  }
   try {
     return validatedImageFlag(args, DMS_COMMAND_HELP.send);
   } catch (error) {

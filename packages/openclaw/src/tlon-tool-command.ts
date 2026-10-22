@@ -633,6 +633,9 @@ const isImageFlag = (arg: string) =>
   arg === '--image' || arg.startsWith('--image=');
 const isPostSendBoundary = (arg: string) =>
   [
+    '--file',
+    '--video',
+    '--link',
     '--blob',
     '--title',
     '--sent-at',
@@ -2772,7 +2775,7 @@ function summarizePostsOperation(
 ): TlonToolCallContext {
   const positionals = collectPositionals(
     args,
-    new Set(['--title', '--image', '--content'])
+    new Set(['--title', '--image', '--file', '--video', '--link', '--content'])
   );
   // A forward acts in its target, the third positional.
   const channelKind = detectChannelKind(

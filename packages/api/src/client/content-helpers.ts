@@ -840,6 +840,31 @@ export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);
  * arbitrary off-schema data.
  */
 export type PostBlobDataEntry = z.infer<typeof PostBlobDataEntrySchema>;
+
+/** The `type` of every registered post-blob entry, for messages naming them. */
+export const POST_BLOB_ENTRY_TYPES = [
+  'file',
+  'voicememo',
+  'video',
+  'metadata',
+  'tlon-context-lens',
+  'tlon-agent-intro-request',
+  'tlon-agent-provision',
+  'tlon-agent-provider-config',
+  'tlon-agent-provision-ack',
+  'tlon-agent-post-marker',
+  'tlon-a2ui-selection',
+  'a2ui',
+] as const satisfies readonly PostBlobDataEntry['type'][];
+
+// Compile-time completeness: a type registered in postBlobDataEntryDefinitions
+// but missing from POST_BLOB_ENTRY_TYPES fails here.
+const allPostBlobEntryTypesListed: [
+  Exclude<PostBlobDataEntry['type'], (typeof POST_BLOB_ENTRY_TYPES)[number]>,
+] extends [never]
+  ? true
+  : never = true;
+void allPostBlobEntryTypesListed;
 export type UnknownPostBlobDataEntry = { type: 'unknown' };
 
 /** Keep schema diagnostics without copying browser bearer capabilities into logs. */

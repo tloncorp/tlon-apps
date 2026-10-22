@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'bun:test';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 import {
   DIARY_REMOVED,
@@ -6,6 +8,7 @@ import {
   dmWritTime,
 } from '../cli-utils';
 import type { StoryVerse } from '../markdown';
+import { type MediaProbe, probeGuardedMedia } from '../media-guard';
 import { commandError } from './command';
 import {
   type ChannelState,
@@ -30,6 +33,11 @@ import {
   run,
 } from './posts';
 
+// The suffix walkers name a stray token by position only (it may be a
+// signed URL or blob JSON).
+const unexpectedAt = (position: number) =>
+  `Error: Unexpected argument ${position} (counting the channel as 1): it is not an option or an option's value. Put a message that contains a flag word in quotes; give each URL its own flag.`;
+
 const IMAGE_VERSE: StoryVerse = {
   block: { image: { src: 'https://x/y.png', width: 10, height: 20, alt: 'y' } },
 };
@@ -46,6 +54,7 @@ interface MakeDepsOptions {
   sendReply?: (input: PostReplyInput) => Promise<void>;
   getChannelPosts?: (query: PostLookupQuery) => Promise<PostLookupResult>;
   buildImageVerse?: (url: string) => Promise<StoryVerse>;
+  probeMedia?: (url: string) => Promise<MediaProbe>;
   // Successive reads return successive entries (the last one repeats); an
   // Error entry is thrown.
   channelStates?: Array<ChannelState | Error>;
@@ -85,6 +94,7 @@ function makeDeps(options: MakeDepsOptions = {}) {
     getCurrentUserId: 0,
     now: 0,
     buildImageVerse: [] as string[],
+    probeMedia: [] as string[],
     addReaction: [] as PostReactionInput[],
     removeReaction: [] as PostReactionRemoveInput[],
     deletePost: [] as PostDeleteInput[],
@@ -133,6 +143,12 @@ function makeDeps(options: MakeDepsOptions = {}) {
       calls.order.push('buildImageVerse');
       if (options.buildImageVerse) return options.buildImageVerse(url);
       return IMAGE_VERSE;
+    },
+    probeMedia: async (url) => {
+      calls.probeMedia.push(url);
+      calls.order.push('probeMedia');
+      if (options.probeMedia) return options.probeMedia(url);
+      return { size: -1 };
     },
     postsApi: {
       addReaction: async (input) => {
@@ -228,6 +244,7 @@ function expectNoAuthOrApi(context: ReturnType<typeof makeDeps>) {
   expect(context.calls.sendReply).toEqual([]);
   expect(context.calls.getChannelPosts).toEqual([]);
   expect(context.calls.buildImageVerse).toEqual([]);
+  expect(context.calls.probeMedia).toEqual([]);
   expect(context.calls.getChannelState).toEqual([]);
   expect(context.calls.getGroupRoleIds).toEqual([]);
   expect(context.calls.assertCanAdminister).toEqual([]);
@@ -646,14 +663,17 @@ describe('posts send', () => {
     expect(context.calls.sendPost[0].content).toEqual([IMAGE_VERSE]);
   });
 
-  it('passes a validated --blob through to the payload', async () => {
+  it('passes a validated --blob through to the payload as given', async () => {
+    // The unknown field is one the schema would strip; validation must not.
+    const blob =
+      '[{"type":"tlon-context-lens","version":1,"lensId":"L1","extra":true}]';
     const context = makeDeps();
     await run(
-      ['send', 'chat/~host/channel', 'hi', '--blob', '[{"type":"a2ui"}]'],
+      ['send', 'chat/~host/channel', 'hi', '--blob', blob],
       context.deps
     );
 
-    expect(context.calls.sendPost[0].blob).toBe('[{"type":"a2ui"}]');
+    expect(context.calls.sendPost[0].blob).toBe(blob);
   });
 
   it('passes a gallery title through as post metadata', async () => {
@@ -756,7 +776,9 @@ describe('posts send', () => {
 
     expect(exitCode).toBe(1);
     expect(context.stdout()).toBe('');
-    expect(context.stderr()).toBe('Error: Failed to fetch image: 404\n');
+    expect(context.stderr()).toBe(
+      'Error: Failed to fetch image: 404 (--image #1 (x))\n'
+    );
     expect(context.stderr()).not.toContain('    at ');
     expect(context.calls.authenticate).toBe(1);
     expect(context.calls.sendPost).toEqual([]);
@@ -857,7 +879,7 @@ describe('posts reply', () => {
         '170.141',
         'hello there',
         '--blob',
-        '[{"type":"tlon-context-lens","lensId":"L1"}]',
+        '[{"type":"tlon-context-lens","version":1,"lensId":"L1"}]',
       ],
       context.deps
     );
@@ -867,7 +889,7 @@ describe('posts reply', () => {
       { inline: ['hello there'] },
     ]);
     expect(context.calls.sendReply[0].blob).toBe(
-      '[{"type":"tlon-context-lens","lensId":"L1"}]'
+      '[{"type":"tlon-context-lens","version":1,"lensId":"L1"}]'
     );
   });
 
@@ -4361,22 +4383,22 @@ describe('posts quote and forward usage errors', () => {
     {
       name: 'text after the quote values',
       args: ['send', TEAM, '--quote', SRC, S, 'trailing', 'text'],
-      stderr: `Error: Unexpected argument: trailing\n\n${send}\n`,
+      stderr: `${unexpectedAt(5)}\n\n${send}\n`,
     },
     {
       name: 'text after --quote-parent',
       args: ['send', TEAM, '--quote', SRC, R, '--quote-parent', S, 'more'],
-      stderr: `Error: Unexpected argument: more\n\n${send}\n`,
+      stderr: `${unexpectedAt(7)}\n\n${send}\n`,
     },
     {
       name: 'a trailing --self',
       args: ['send', TEAM, 'x', '--quote', SRC, S, '--self'],
-      stderr: `Error: Unexpected argument: --self\n\n${send}\n`,
+      stderr: `${unexpectedAt(6)}\n\n${send}\n`,
     },
     {
       name: 'a trailing credential-looking flag',
       args: ['reply', TEAM, P, 'x', '--quote', SRC, S, '--code', 'abc'],
-      stderr: `Error: Unexpected argument: --code\n\n${reply}\n`,
+      stderr: `${unexpectedAt(7)}\n\n${reply}\n`,
     },
     {
       name: 'a quote in the reply post-id slot',
@@ -4856,6 +4878,679 @@ describe('posts role mentions', () => {
       expect(exitCode).toBe(0);
       expect(context.stdout()).toBe('✓ Reply edited\n');
       expect(context.calls.editPost[0].content).toEqual(content);
+    });
+  });
+});
+
+describe('posts send attachments', () => {
+  const CHAT = 'chat/~host/channel';
+  const HEAP = 'heap/~host/gallery';
+  const IMG_A = 'https://x/a.png';
+  const IMG_B = 'https://x/b.png';
+  const FILE = 'https://cdn.example.com/docs/my%20report.pdf?sig=SECRET';
+  const VIDEO = 'https://cdn.example.com/clips/clip.mp4';
+  const send = POSTS_COMMAND_HELP.send;
+  const GALLERY_RULE =
+    'galleries take one attachment per post; send one `posts send` per attachment';
+
+  const imageVerse = (src: string): StoryVerse => ({
+    block: { image: { src, width: 10, height: 20, alt: 'i' } },
+  });
+  const byUrl = async (url: string) => imageVerse(url);
+
+  async function sendOk(args: string[], options: MakeDepsOptions = {}) {
+    const context = makeDeps({ buildImageVerse: byUrl, ...options });
+    const exitCode = await run(['send', ...args], context.deps);
+    expect(context.stderr()).toBe('');
+    expect(exitCode).toBe(0);
+    return context;
+  }
+
+  async function refusedBeforeAuth(args: string[], stderr: string) {
+    const context = makeDeps();
+    expect(await run(['send', ...args], context.deps)).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(stderr);
+    expectNoAuthOrApi(context);
+  }
+
+  describe('chat and DM composition', () => {
+    it('fetches repeated images in parallel and puts them first, in order', async () => {
+      // Each fetch waits for both to have started: sequential fetching would
+      // never finish.
+      let started = 0;
+      let release: () => void = () => {};
+      const bothStarted = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const context = await sendOk(
+        [CHAT, 'caption', '--image', IMG_A, '--image', IMG_B],
+        {
+          buildImageVerse: async (url) => {
+            started += 1;
+            if (started === 2) release();
+            await bothStarted;
+            return imageVerse(url);
+          },
+        }
+      );
+
+      expect(context.calls.buildImageVerse).toEqual([IMG_A, IMG_B]);
+      expect(context.calls.sendPost[0].content).toEqual([
+        imageVerse(IMG_A),
+        imageVerse(IMG_B),
+        { inline: ['caption'] },
+      ]);
+      expect(context.calls.sendPost[0].metadata).toBeUndefined();
+    });
+
+    it('accepts the --image= form among repeated images', async () => {
+      const context = await sendOk([
+        CHAT,
+        `--image=${IMG_A}`,
+        '--image',
+        IMG_B,
+      ]);
+      expect(context.calls.buildImageVerse).toEqual([IMG_A, IMG_B]);
+    });
+
+    it('appends file and video entries after --blob entries, in flag order', async () => {
+      const lens =
+        '{"type":"tlon-context-lens","version":1,"lensId":"L1","x":1}';
+      const context = await sendOk(
+        [
+          CHAT,
+          'caption',
+          '--video',
+          VIDEO,
+          '--blob',
+          `[${lens}]`,
+          '--image',
+          IMG_A,
+          '--file',
+          FILE,
+        ],
+        {
+          probeMedia: async (url) =>
+            url === VIDEO
+              ? { mimeType: 'video/mp4', size: 2048 }
+              : { mimeType: 'application/pdf', size: 1234 },
+        }
+      );
+
+      expect(context.calls.probeMedia).toEqual([VIDEO, FILE]);
+      const payload = context.calls.sendPost[0];
+      expect(payload.content).toEqual([
+        imageVerse(IMG_A),
+        { inline: ['caption'] },
+      ]);
+      expect(JSON.parse(payload.blob ?? '')).toEqual([
+        JSON.parse(lens),
+        {
+          type: 'video',
+          version: 1,
+          fileUri: VIDEO,
+          mimeType: 'video/mp4',
+          name: 'clip.mp4',
+          size: 2048,
+        },
+        {
+          type: 'file',
+          version: 1,
+          fileUri: FILE,
+          mimeType: 'application/pdf',
+          name: 'my report.pdf',
+          size: 1234,
+        },
+      ]);
+    });
+
+    it('writes size -1 and no type when the probe learned nothing', async () => {
+      const context = await sendOk([CHAT, '--file', 'https://x/100%.bin']);
+
+      expect(context.calls.sendPost[0].content).toEqual([]);
+      expect(JSON.parse(context.calls.sendPost[0].blob ?? '')).toEqual([
+        // The segment does not decode, so the raw segment is the name.
+        {
+          type: 'file',
+          version: 1,
+          fileUri: 'https://x/100%.bin',
+          name: '100%.bin',
+          size: -1,
+        },
+      ]);
+    });
+
+    it('sends an attachment-only DM', async () => {
+      const context = await sendOk(['~sampel-palnet', '--video', VIDEO]);
+      expect(context.calls.authenticateApps).toEqual([['chat']]);
+      expect(JSON.parse(context.calls.sendPost[0].blob ?? '')[0].type).toBe(
+        'video'
+      );
+    });
+
+    it('sends an attachment that is only a --blob file entry', async () => {
+      const blob = `[{"type":"file","version":1,"fileUri":"${VIDEO}","size":-1}]`;
+      const context = await sendOk([CHAT, '--blob', blob]);
+      expect(context.calls.sendPost[0].blob).toBe(blob);
+    });
+
+    for (const status of [404, 410]) {
+      it(`refuses a --file the real probe finds gone (HTTP ${status}); nothing is sent`, async () => {
+        const server = http.createServer((req, res) => {
+          res.writeHead(status);
+          res.end();
+        });
+        await new Promise<void>((resolve) =>
+          server.listen(0, '127.0.0.1', () => resolve())
+        );
+        try {
+          const { port } = server.address() as AddressInfo;
+          const context = makeDeps({
+            // The guarded HEAD itself, pinned to the local server.
+            probeMedia: () =>
+              probeGuardedMedia(`http://gone.invalid:${port}/x.pdf`, {
+                deadlineMs: 5_000,
+                resolveHost: async () => [{ address: '127.0.0.1', family: 4 }],
+                allowAddress: (address) => address === '127.0.0.1',
+              }),
+          });
+          expect(await run(['send', CHAT, '--file', FILE], context.deps)).toBe(
+            1
+          );
+          expect(context.stderr()).toBe(
+            'Error: Could not fetch media from the provided URL. (--file #1 (cdn.example.com))\n'
+          );
+          expect(context.calls.sendPost).toEqual([]);
+        } finally {
+          await new Promise<void>((resolve) => server.close(() => resolve()));
+        }
+      });
+    }
+
+    it('refuses a host-policy rejection from the probe; nothing is sent', async () => {
+      const context = makeDeps({
+        probeMedia: async () => {
+          throw commandError('Could not fetch media from the provided URL.');
+        },
+      });
+      expect(await run(['send', CHAT, '--file', FILE], context.deps)).toBe(1);
+      expect(context.stderr()).toBe(
+        'Error: Could not fetch media from the provided URL. (--file #1 (cdn.example.com))\n'
+      );
+      expect(context.calls.sendPost).toEqual([]);
+    });
+
+    it("names the attachment, never its path or query, when its guard's deadline runs out", async () => {
+      // The image guard's own deadline is the only bound; its fixed text
+      // carries the attachment's label.
+      const context = makeDeps({
+        buildImageVerse: async (url) => {
+          if (url === IMG_A) return imageVerse(url);
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          throw commandError('Could not fetch media from the provided URL.');
+        },
+      });
+      expect(
+        await run(
+          [
+            'send',
+            CHAT,
+            '--image',
+            IMG_A,
+            '--image',
+            'https://img.example/b.png?sig=SECRET',
+          ],
+          context.deps
+        )
+      ).toBe(1);
+      expect(context.stderr()).toBe(
+        'Error: Could not fetch media from the provided URL. (--image #2 (img.example))\n'
+      );
+      expect(context.calls.sendPost).toEqual([]);
+    });
+
+    it('probes at most four attachments at once, keeping flag order', async () => {
+      const urls = [1, 2, 3, 4, 5, 6].map(
+        (n) => `https://cdn.example.com/${n}.pdf`
+      );
+      let inFlight = 0;
+      let maxInFlight = 0;
+      const context = await sendOk(
+        [CHAT, ...urls.flatMap((url) => ['--file', url])],
+        {
+          probeMedia: async (url) => {
+            inFlight += 1;
+            maxInFlight = Math.max(maxInFlight, inFlight);
+            // Later flags settle first, so order can only come from the pool.
+            await new Promise((resolve) =>
+              setTimeout(resolve, 5 * (7 - urls.indexOf(url)))
+            );
+            inFlight -= 1;
+            return { mimeType: 'application/pdf', size: 1 };
+          },
+        }
+      );
+
+      expect(maxInFlight).toBe(4);
+      expect(context.calls.probeMedia).toEqual(urls);
+      expect(
+        JSON.parse(context.calls.sendPost[0].blob ?? '').map(
+          (entry: { fileUri: string }) => entry.fileUri
+        )
+      ).toEqual(urls);
+    });
+  });
+
+  describe('gallery composition', () => {
+    it('puts the image after the caption and sets metadata.image without a title', async () => {
+      const context = await sendOk([HEAP, 'caption', '--image', IMG_A]);
+
+      expect(context.calls.sendPost[0].content).toEqual([
+        { inline: ['caption'] },
+        imageVerse(IMG_A),
+      ]);
+      expect(context.calls.sendPost[0].metadata).toEqual({ image: IMG_A });
+    });
+
+    it('sets both title and image', async () => {
+      const context = await sendOk([HEAP, '--image', IMG_A, '--title', 'T']);
+
+      expect(context.calls.sendPost[0].content).toEqual([imageVerse(IMG_A)]);
+      expect(context.calls.sendPost[0].metadata).toEqual({
+        title: 'T',
+        image: IMG_A,
+      });
+    });
+
+    it('sends a file post as caption text plus a blob entry', async () => {
+      const context = await sendOk([HEAP, 'notes', '--file', FILE]);
+
+      expect(context.calls.sendPost[0].content).toEqual([
+        { inline: ['notes'] },
+      ]);
+      expect(context.calls.sendPost[0].metadata).toBeUndefined();
+      expect(JSON.parse(context.calls.sendPost[0].blob ?? '')).toHaveLength(1);
+    });
+
+    it('sends a link post as exactly one link block', async () => {
+      const bare = await sendOk([HEAP, '--link', 'https://example.com/a']);
+      expect(bare.calls.sendPost[0]).toEqual({
+        channelId: HEAP,
+        authorId: '~zod',
+        sentAt: 1700000000000,
+        content: [
+          { block: { link: { url: 'https://example.com/a', meta: {} } } },
+        ],
+        blob: undefined,
+      });
+
+      const titled = await sendOk([
+        HEAP,
+        '--link',
+        'http://example.com/b',
+        '--title',
+        'A site',
+      ]);
+      expect(titled.calls.sendPost[0].content).toEqual([
+        {
+          block: {
+            link: { url: 'http://example.com/b', meta: { title: 'A site' } },
+          },
+        },
+      ]);
+      expect(titled.calls.sendPost[0].metadata).toEqual({ title: 'A site' });
+    });
+
+    describe('--link bare card', () => {
+      const LINK = 'https://example.com/a';
+
+      it('carries only the URL, with no post image, and fetches nothing', async () => {
+        const context = await sendOk([HEAP, '--link', LINK]);
+        expect(context.calls.sendPost[0].content).toEqual([
+          { block: { link: { url: LINK, meta: {} } } },
+        ]);
+        expect(context.calls.sendPost[0].metadata).toBeUndefined();
+        expect(context.calls.buildImageVerse).toEqual([]);
+        expect(context.calls.probeMedia).toEqual([]);
+      });
+
+      it('puts --title in meta.title and nothing else', async () => {
+        const context = await sendOk([HEAP, '--link', LINK, '--title', 'Mine']);
+        expect(context.calls.sendPost[0].content).toEqual([
+          { block: { link: { url: LINK, meta: { title: 'Mine' } } } },
+        ]);
+        expect(context.calls.sendPost[0].metadata).toEqual({ title: 'Mine' });
+      });
+    });
+
+    it('counts a metadata-only blob entry as no attachment', async () => {
+      const context = await sendOk([
+        HEAP,
+        '--file',
+        FILE,
+        '--blob',
+        '[{"type":"tlon-context-lens","version":1,"lensId":"L"}]',
+      ]);
+      expect(JSON.parse(context.calls.sendPost[0].blob ?? '')).toHaveLength(2);
+    });
+
+    const twoAttachments: Array<[string, string[]]> = [
+      ['two images', ['--image', IMG_A, '--image', IMG_B]],
+      ['an image and a file', ['--image', IMG_A, '--file', FILE]],
+      ['two files', ['--file', FILE, '--file', FILE]],
+      ['two videos', ['--video', VIDEO, '--video', VIDEO]],
+      ['a link and an image', ['--link', 'https://e.com', '--image', IMG_A]],
+      [
+        'a video and a blob voice memo',
+        [
+          '--video',
+          VIDEO,
+          '--blob',
+          `[{"type":"voicememo","version":1,"fileUri":"${VIDEO}","size":1}]`,
+        ],
+      ],
+    ];
+    for (const [name, flags] of twoAttachments) {
+      it(`refuses ${name} in one gallery post before any fetch`, async () => {
+        await refusedBeforeAuth(
+          [HEAP, ...flags],
+          `Error: ${GALLERY_RULE}\n\n${send}\n`
+        );
+      });
+    }
+  });
+
+  describe('refusals before auth', () => {
+    const cases: Array<[string, string[], string]> = [
+      [
+        'a plain-http file',
+        [CHAT, '--file', 'http://x/f.pdf'],
+        'Error: Only https media URLs are supported.\n',
+      ],
+      [
+        'a local video path',
+        [CHAT, '--video', '/pier/clip.mp4'],
+        'Error: Local file paths are not supported for --video — upload the file first (e.g. `tlon upload <path>`) and pass the returned https URL.\n',
+      ],
+      [
+        'a file URL with credentials',
+        [CHAT, '--file', 'https://u:p@x/f.pdf'],
+        'Error: Media URLs with embedded credentials are not supported.\n',
+      ],
+      ['a missing --file value', [CHAT, 'hi', '--file'], `${send}\n`],
+      [
+        'an option as the --video value',
+        [CHAT, 'hi', '--video', '--bot'],
+        `${send}\n`,
+      ],
+      [
+        'a link outside a gallery',
+        [CHAT, '--link', 'https://e.com'],
+        `Error: --link is only supported for gallery (heap/) posts\n\n${send}\n`,
+      ],
+      [
+        'a link with a caption',
+        [HEAP, 'look', '--link', 'https://e.com'],
+        `Error: a gallery link post has no caption; put the text in --title\n\n${send}\n`,
+      ],
+      [
+        'a non-http link',
+        [HEAP, '--link', 'ftp://e.com/x'],
+        'Error: --link takes an http(s) URL.\n',
+      ],
+      [
+        'a link with embedded credentials',
+        [HEAP, '--link', 'https://user:secret@example.com/'],
+        'Error: --link URLs with embedded credentials are not supported.\n',
+      ],
+      [
+        'a link with an empty userinfo',
+        [HEAP, '--link', 'https://@example.com/'],
+        'Error: --link URLs with embedded credentials are not supported.\n',
+      ],
+      [
+        'a link that is not a URL',
+        [HEAP, '--link', 'example.com'],
+        'Error: --link takes an http(s) URL.\n',
+      ],
+      [
+        'a repeated --title',
+        [HEAP, 'x', '--title', 'a', '--title', 'b'],
+        `${send}\n`,
+      ],
+      [
+        'a repeated --link',
+        [HEAP, '--link', 'https://a.com', '--link', 'https://b.com'],
+        `${send}\n`,
+      ],
+      [
+        'a repeated --blob',
+        [CHAT, 'x', '--blob', '[]', '--blob', '[]'],
+        `${send}\n`,
+      ],
+      [
+        'a repeated --sent-at',
+        [CHAT, 'x', '--sent-at', '1', '--sent-at', '2'],
+        `${send}\n`,
+      ],
+      [
+        'trailing text after the options',
+        [HEAP, 'hi', '--title', 'T', 'extra'],
+        `${unexpectedAt(5)}\n\n${send}\n`,
+      ],
+      [
+        'a flag word in an unquoted message',
+        [CHAT, 'please', 'use', '--file', 'for', 'uploads'],
+        `${unexpectedAt(6)}\n\n${send}\n`,
+      ],
+      [
+        'a second URL after one --image',
+        [CHAT, '--image', IMG_A, 'https://x/b.png?sig=SECRET'],
+        `${unexpectedAt(4)}\n\n${send}\n`,
+      ],
+      [
+        'a trailing --file= token with a signed URL',
+        [CHAT, 'hi', '--bot', '--file=https://x/f?token=SECRET'],
+        `${send}\n`,
+      ],
+      [
+        'a --file= token as the first option',
+        [CHAT, 'hi', `--file=${FILE}`],
+        `${send}\n`,
+      ],
+      [
+        'a --video= token as the first option',
+        [CHAT, `--video=${VIDEO}?sig=SECRET`],
+        `${send}\n`,
+      ],
+      [
+        'a --link= token as the first option',
+        [HEAP, '--link=https://e.com/?sig=SECRET'],
+        `${send}\n`,
+      ],
+      [
+        'a --title= token after a valid option',
+        [HEAP, '--image', IMG_A, '--title=SECRET'],
+        `${send}\n`,
+      ],
+      [
+        'a trailing blob JSON with no flag',
+        [CHAT, 'hi', '--title', 'T', '[{"token":"SECRET"}]'],
+        `${unexpectedAt(5)}\n\n${send}\n`,
+      ],
+      ['an empty --title', [HEAP, 'hi', '--title', ''], `${send}\n`],
+      ['an empty --image', [CHAT, 'hi', '--image', ''], `${send}\n`],
+      ['an empty --file', [CHAT, 'hi', '--file', ''], `${send}\n`],
+      ['an empty --blob', [CHAT, 'hi', '--blob', ''], `${send}\n`],
+      [
+        'more than four images',
+        [
+          CHAT,
+          ...[1, 2, 3, 4, 5].flatMap((n) => ['--image', `https://x/${n}.png`]),
+        ],
+        `Error: at most 4 --image attachments per send\n\n${send}\n`,
+      ],
+      [
+        'a metadata-only blob with no message',
+        [
+          CHAT,
+          '--blob',
+          '[{"type":"tlon-context-lens","version":1,"lensId":"L"}]',
+        ],
+        `${send}\n`,
+      ],
+    ];
+    for (const [name, args, stderr] of cases) {
+      it(`refuses ${name}`, async () => {
+        await refusedBeforeAuth(args, stderr);
+      });
+    }
+
+    it('never echoes link credentials', async () => {
+      const context = makeDeps();
+      expect(
+        await run(
+          ['send', HEAP, '--link', 'https://user:secret@example.com/'],
+          context.deps
+        )
+      ).toBe(1);
+      expect(context.stderr()).not.toContain('user');
+      expect(context.stderr()).not.toContain('secret');
+      expect(context.calls.sendPost).toEqual([]);
+    });
+
+    for (const flag of ['--file', '--video']) {
+      it(`refuses ${flag} with --quote`, async () => {
+        await refusedBeforeAuth(
+          [TEAM, flag, VIDEO, '--quote', SRC, S],
+          `Error: --quote cannot be combined with ${flag}\n\n${send}\n`
+        );
+      });
+    }
+
+    it('refuses --link with --quote', async () => {
+      await refusedBeforeAuth(
+        [HEAP, '--link', 'https://e.com', '--quote', SRC, S],
+        `Error: --quote cannot be combined with --link\n\n${send}\n`
+      );
+    });
+  });
+
+  describe('--blob entry validation', () => {
+    const KNOWN =
+      'Known types: file, voicememo, video, metadata, tlon-context-lens, tlon-agent-intro-request, tlon-agent-provision, tlon-agent-provider-config, tlon-agent-provision-ack, tlon-agent-post-marker, tlon-a2ui-selection, a2ui.';
+    const cases: Array<[string, string, string]> = [
+      [
+        'an unknown type',
+        '[{"type":"tlon-context-lens","version":1,"lensId":"L"},{"type":"image","src":"https://x/SECRET.png"}]',
+        `Error: --blob entry 1 has no known type. ${KNOWN}\n`,
+      ],
+      [
+        'a non-object entry',
+        '["SECRET"]',
+        `Error: --blob entry 0 has no known type. ${KNOWN}\n`,
+      ],
+      [
+        'a missing required field',
+        '[{"type":"file","version":1,"fileUri":"https://x/SECRET.pdf"}]',
+        `Error: --blob entry 0 is not a valid file entry (check: size). ${KNOWN}\n`,
+      ],
+      [
+        'a wrong version',
+        '[{"type":"tlon-context-lens","version":2,"lensId":"SECRET"}]',
+        `Error: --blob entry 0 is not a valid tlon-context-lens entry (check: version). ${KNOWN}\n`,
+      ],
+    ];
+    for (const [name, blob, stderr] of cases) {
+      it(`refuses ${name} on send, naming the index and never a value`, async () => {
+        await refusedBeforeAuth([CHAT, 'hi', '--blob', blob], stderr);
+      });
+    }
+
+    // a2ui's schema is refined (superRefine), not a plain object schema: it
+    // must validate like any other registered entry.
+    const A2UI_MESSAGES = [
+      {
+        version: 'v0.9',
+        createSurface: { surfaceId: 's', catalogId: 'tlon.a2ui.basic.v2' },
+      },
+      {
+        version: 'v0.9',
+        updateComponents: {
+          surfaceId: 's',
+          root: 't',
+          components: [{ id: 't', component: 'Text', text: 'hi' }],
+        },
+      },
+    ];
+
+    it('passes a valid refined a2ui entry through as given', async () => {
+      const blob = JSON.stringify([
+        { type: 'a2ui', version: 1, messages: A2UI_MESSAGES },
+      ]);
+      const context = await sendOk([CHAT, 'hi', '--blob', blob]);
+      expect(context.calls.sendPost[0].blob).toBe(blob);
+    });
+
+    it("refuses an a2ui entry that fails the schema's refinement", async () => {
+      const blob = JSON.stringify([
+        {
+          type: 'a2ui',
+          version: 1,
+          messages: [A2UI_MESSAGES[0], { version: 'v0.9', SECRET: true }],
+        },
+      ]);
+      await refusedBeforeAuth(
+        [CHAT, 'hi', '--blob', blob],
+        `Error: --blob entry 0 is not a valid a2ui entry (check: messages). ${KNOWN}\n`
+      );
+    });
+
+    it('refuses an invalid entry on reply too (shared validation)', async () => {
+      const context = makeDeps();
+      expect(
+        await run(
+          [
+            'reply',
+            CHAT,
+            '170.141',
+            'hi',
+            '--blob',
+            '[{"type":"tlon-context-lens","lensId":"L1"}]',
+          ],
+          context.deps
+        )
+      ).toBe(1);
+      expect(context.stderr()).toBe(
+        `Error: --blob entry 0 is not a valid tlon-context-lens entry (check: version). ${KNOWN}\n`
+      );
+      expectNoAuthOrApi(context);
+    });
+  });
+
+  describe('help and literal text', () => {
+    it('treats --help after a media flag as help', async () => {
+      const context = makeDeps();
+      expect(
+        await run(['send', CHAT, '--file', FILE, '--help'], context.deps)
+      ).toBe(0);
+      expect(context.stdout()).toBe(`${send}\n`);
+      expectNoAuthOrApi(context);
+    });
+
+    it('keeps --help before a media flag as message text', async () => {
+      const context = await sendOk([CHAT, '--help', '--file', FILE]);
+      expect(context.calls.sendPost[0].content).toEqual([
+        { inline: ['--help'] },
+      ]);
+    });
+
+    it('keeps an unknown --word in the message', async () => {
+      const context = await sendOk([CHAT, 'try', '--verbose', 'mode']);
+      expect(context.calls.sendPost[0].content).toEqual([
+        { inline: ['try --verbose mode'] },
+      ]);
     });
   });
 });
