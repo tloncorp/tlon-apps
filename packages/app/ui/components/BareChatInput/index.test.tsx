@@ -823,9 +823,7 @@ test('native keeps the text left around a converted path', async () => {
     act(() => frames.splice(0).forEach((callback) => callback(0)));
 
     expect(inputText()).toBe('see  ');
-    // Clearing makes native show the children's text; a `text` prop would be
-    // prepended to it.
-    expect(mocks.input.clear).toHaveBeenCalledTimes(1);
+    expect(mocks.input.clear).not.toHaveBeenCalled();
     expect(mocks.input.setNativeProps).not.toHaveBeenCalled();
     expect(mocks.input.setSelection).toHaveBeenLastCalledWith(5, 5);
   } finally {
@@ -833,7 +831,7 @@ test('native keeps the text left around a converted path', async () => {
   }
 });
 
-test('native refreshes its buffer after removing a reference from the text', async () => {
+test('native keeps the text and the card after a pasted reference, and the next keystroke does not attach it again', async () => {
   await mountWithChannelPaths();
   vi.useFakeTimers();
   try {
@@ -845,7 +843,7 @@ test('native refreshes its buffer after removing a reference from the text', asy
     act(() => frames.splice(0).forEach((callback) => callback(0)));
 
     expect(inputText()).toBe('see  hi');
-    expect(mocks.input.clear).toHaveBeenCalledTimes(1);
+    expect(mocks.input.clear).not.toHaveBeenCalled();
     expect(mocks.input.setNativeProps).not.toHaveBeenCalled();
     expect(mocks.input.setSelection).toHaveBeenLastCalledWith(7, 7);
 
@@ -1104,27 +1102,19 @@ test.each([
   'native keeps the caret where it was when a path %s it converts',
   async (_where, expected, caret) => {
     await mountWithChannelPaths();
-    vi.useFakeTimers();
-    try {
-      act(() =>
-        input().props.onSelectionChange({
-          nativeEvent: { selection: { start: caret, end: caret } },
-        })
-      );
-      act(() => input().props.onChangeText('see /1/chan/chat/~zod/test hello'));
-      await settle();
-      act(() => {
-        vi.runAllTimers();
-      });
-      act(() => frames.splice(0).forEach((callback) => callback(0)));
+    act(() =>
+      input().props.onSelectionChange({
+        nativeEvent: { selection: { start: caret, end: caret } },
+      })
+    );
+    act(() => input().props.onChangeText('see /1/chan/chat/~zod/test hello'));
+    await settle();
+    act(() => frames.splice(0).forEach((callback) => callback(0)));
 
-      expect(inputText()).toBe('see  hello');
-      expect(mocks.input.setSelection).toHaveBeenLastCalledWith(
-        expected,
-        expected
-      );
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(inputText()).toBe('see  hello');
+    expect(mocks.input.setSelection).toHaveBeenLastCalledWith(
+      expected,
+      expected
+    );
   }
 );

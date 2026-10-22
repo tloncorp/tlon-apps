@@ -557,26 +557,26 @@ function BareChatInput(
     [addAttachment]
   );
 
-  // Shows text set outside the input's own change event. Re-rendering the
-  // children isn't relied on to replace what the native buffer holds, so the
-  // buffer is cleared to force the input to show the children's text. Pushing
-  // the text itself with setNativeProps would duplicate it: iOS prepends a
-  // `text` prop to the children's text instead of replacing it.
+  // On native the children re-render replaces the buffer after a reference
+  // pass, so a clear would wipe the remaining text (seen on an iOS simulator).
+  // It's cleared only when nothing is left, as the children render nothing.
+  // No setNativeProps({ text }): iOS prepends it to the children's text.
   const syncNativeText = useCallback((text: string, cursor?: number) => {
     if (isWeb) {
       return;
     }
     // .clear() uses mostRecentEventCount, which isn't updated until after
     // onChangeText returns; a synchronous call would be rejected as stale.
-    setTimeout(() => {
-      inputRef.current?.clear();
-      if (text !== '') {
-        requestAnimationFrame(() => {
-          const at = cursor ?? text.length;
-          inputRef.current?.setSelection(at, at);
-        });
-      }
-    }, 0);
+    if (text === '') {
+      setTimeout(() => {
+        inputRef.current?.clear();
+      }, 0);
+    } else {
+      requestAnimationFrame(() => {
+        const at = cursor ?? text.length;
+        inputRef.current?.setSelection(at, at);
+      });
+    }
   }, []);
 
   // A channel path becomes a card only for a channel we know. The lookup is
