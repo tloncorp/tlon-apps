@@ -9,13 +9,11 @@ import { Button, TlonText } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef } from 'react';
-import { Image, Platform, useWindowDimensions } from 'react-native';
+import { Image, Platform } from 'react-native';
 
 import {
-  NOTIFICATION_PROMPT_SIZE,
-  ONBOARDING_STEP_MAX_WIDTH,
-  OnboardingStepBody,
   OnboardingStepLayout,
+  useNotificationPromptFrame,
 } from '../../components/OnboardingStepLayout';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
@@ -32,12 +30,7 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
   const isDarkMode = useIsDarkMode();
   const notifPerms = useNotificationPermissions();
   const hasContinued = useRef(false);
-  const { width: windowWidth } = useWindowDimensions();
-  // Shrinks to fit narrow screens, within the layout's 24 pt margins.
-  const promptWidth = Math.min(
-    NOTIFICATION_PROMPT_SIZE.width,
-    Math.min(windowWidth, ONBOARDING_STEP_MAX_WIDTH) - 48
-  );
+  const prompt = useNotificationPromptFrame();
 
   const getPromptImage = () => {
     if (Platform.OS === 'ios') {
@@ -142,23 +135,24 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
   return (
     <OnboardingStepLayout
       title="Notifications"
+      body={
+        <>
+          On the next screen, make sure you tap{' '}
+          <TlonText.Text fontWeight="600">“Allow”</TlonText.Text> to enable
+          notifications.
+        </>
+      }
       footer={<Button preset="hero" shadow label="Next" onPress={handleNext} />}
     >
-      <OnboardingStepBody>
-        On the next screen, make sure you tap{' '}
-        <TlonText.Text fontWeight="600">“Allow”</TlonText.Text> to enable
-        notifications.
-      </OnboardingStepBody>
       <Image
         source={getPromptImage()}
         accessibilityLabel="The notification prompt, with an arrow pointing to Allow"
         resizeMode="contain"
         style={{
-          width: promptWidth,
-          height:
-            (promptWidth * NOTIFICATION_PROMPT_SIZE.height) /
-            NOTIFICATION_PROMPT_SIZE.width,
+          width: prompt.width,
+          height: prompt.height,
           alignSelf: 'center',
+          transform: [{ translateX: prompt.offsetX }],
         }}
       />
     </OnboardingStepLayout>

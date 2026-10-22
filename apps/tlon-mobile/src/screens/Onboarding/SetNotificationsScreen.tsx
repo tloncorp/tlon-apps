@@ -4,10 +4,7 @@ import { Button, NotificationLevelSelector } from '@tloncorp/app/ui';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import {
-  OnboardingStepBody,
-  OnboardingStepLayout,
-} from '../../components/OnboardingStepLayout';
+import { OnboardingStepLayout } from '../../components/OnboardingStepLayout';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
@@ -63,12 +60,9 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
   return (
     <OnboardingStepLayout
       title="Notifications"
+      body="Tlon works best when you’re notified of messages. You can change this any time."
       footer={<Button preset="hero" shadow label="Next" onPress={handleNext} />}
     >
-      <OnboardingStepBody>
-        Tlon works best when you’re notified of messages. You can change this
-        any time.
-      </OnboardingStepBody>
       <NotificationLevelSelector
         value={selectedLevel}
         onChange={setSelectedLevel}

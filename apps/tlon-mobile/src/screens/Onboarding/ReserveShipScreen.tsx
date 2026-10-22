@@ -11,8 +11,8 @@ import { NodeBootPhase } from '@tloncorp/shared/domain';
 import { useEffect } from 'react';
 
 import {
-  OnboardingStepBody,
   OnboardingStepLayout,
+  STEP_ROW_HEIGHT,
 } from '../../components/OnboardingStepLayout';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
@@ -40,12 +40,14 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
   }, [signupContext]);
 
   return (
-    <OnboardingStepLayout title="Setting up">
-      <OnboardingStepBody>
-        {isReady
+    <OnboardingStepLayout
+      title="Setting up"
+      body={
+        isReady
           ? 'Your Tlon computer is ready. Taking you in now.'
-          : "We're getting your Tlon computer ready. You'll go straight in when it's done."}
-      </OnboardingStepBody>
+          : "We're getting your Tlon computer ready. You'll go straight in when it's done."
+      }
+    >
       <BootStepDisplay bootPhase={signupContext.bootPhase} />
     </OnboardingStepLayout>
   );
@@ -74,8 +76,8 @@ const DISPLAY_STEPS: DisplayStep[] = [
   },
 ];
 
-// Each step is a 56 pt row with its marker on the left margin, like the
-// notification options two screens back. Steps not started yet have no
+// Each step is a row the height of the notification options two screens
+// back, with its marker on the left margin. Steps not started yet have no
 // marker, just a gray label.
 function BootStepDisplay(props: { bootPhase: NodeBootPhase }) {
   return (
@@ -97,7 +99,7 @@ function BootStepDisplay(props: { bootPhase: NodeBootPhase }) {
         return (
           <XStack
             key={step.description}
-            height={56}
+            height={STEP_ROW_HEIGHT}
             alignItems="center"
             gap="$xl"
             accessible
