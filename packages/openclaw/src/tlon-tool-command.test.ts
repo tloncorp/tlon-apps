@@ -10,6 +10,7 @@ import {
 } from './diary-migration-discovery.js';
 import type { ApprovalCommandBridge } from './monitor/command-bridge.js';
 import { removeBridge, setBridge } from './monitor/command-bridge.js';
+import { RESERVED_ONBOARDING_BLOB_TYPES } from './onboarding-blob-types.js';
 import {
   OWNER_TOOL_POST_LIMIT,
   createOwnerToolPostLedger,
@@ -1634,6 +1635,21 @@ describe('owner-by-default identity selection', () => {
       });
       expect(ranWith(other.runCommand)).toContain('--sent-at');
     });
+
+    it.each([...RESERVED_ONBOARDING_BLOB_TYPES])(
+      'refuses a %s blob as the owner',
+      async (type) => {
+        const blob = JSON.stringify([{ type }]);
+        const { execute, runCommand } = makeExecutor();
+        const result = await execute('blob', {
+          command: `posts send chat/~h/c hi --blob '${blob}'`,
+        });
+        expect(result.details).toMatchObject({
+          reason: 'reserved_onboarding_request',
+        });
+        expect(runCommand).not.toHaveBeenCalled();
+      }
+    );
   });
 
   describe('runtime-owned settings keys', () => {

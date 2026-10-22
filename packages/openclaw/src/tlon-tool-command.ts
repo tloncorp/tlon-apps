@@ -7,6 +7,7 @@ import {
   canonicalPostId,
   sharedOwnerToolPostLedger,
 } from './owner-tool-posts.js';
+import { RESERVED_ONBOARDING_BLOB_TYPES } from './onboarding-blob-types.js';
 import { sharedMap } from './shared-state.js';
 import { normalizeShip } from './targets.js';
 import {
@@ -992,22 +993,13 @@ export function checkOwnerSelfDm(
     : null;
 }
 
-// The request types the monitor's onboarding reads from owner-authored blobs
-// (parseAgentOnboardingRequest in monitor/agent-onboarding.ts). Only the Tlon
-// app posts them; one sent in the owner's name would drive onboarding.
-export const AGENT_ONBOARDING_REQUEST_TYPES: ReadonlySet<string> = new Set([
-  'tlon-agent-intro-request',
-  'tlon-agent-provider-config',
-  'tlon-agent-provision',
-]);
-
 function containsAgentOnboardingRequest(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(containsAgentOnboardingRequest);
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
   if (
     typeof record.type === 'string' &&
-    AGENT_ONBOARDING_REQUEST_TYPES.has(record.type)
+    RESERVED_ONBOARDING_BLOB_TYPES.has(record.type)
   ) {
     return true;
   }

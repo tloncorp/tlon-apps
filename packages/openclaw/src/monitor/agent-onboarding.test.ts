@@ -6,6 +6,7 @@ import {
   clearCronServiceAccessor,
   setCronServiceAccessor,
 } from '../cron-telemetry.js';
+import { RESERVED_ONBOARDING_BLOB_TYPES } from '../onboarding-blob-types.js';
 import {
   _testing as ownerToolPostsTesting,
   sharedOwnerToolPostLedger,
@@ -872,6 +873,43 @@ describe('agent onboarding requests', () => {
       parseAgentOnboardingRequest(appendToPostBlob(undefined, provision))
     ).toEqual(provision);
     expect(parseAgentOnboardingRequest('not-json')).toBeNull();
+  });
+
+  const reservedRequests: Record<string, unknown> = {
+    'tlon-agent-intro-request': {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+      campaignVersion: 2,
+    },
+    'tlon-agent-provider-config': providerConfig(['gmail']).entry,
+    'tlon-agent-provision': provision,
+  };
+
+  it.each([...RESERVED_ONBOARDING_BLOB_TYPES])(
+    'parses a valid %s request',
+    (type) => {
+      const request = reservedRequests[type];
+      expect(request).toBeDefined();
+      expect(
+        parseAgentOnboardingRequest(
+          appendToPostBlob(undefined, request as never)
+        )
+      ).toEqual(request);
+    }
+  );
+
+  it('parses no onboarding request from a non-reserved blob type', () => {
+    expect(
+      parseAgentOnboardingRequest(
+        appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: 'provision-1',
+          cronJobId: 'cron-1',
+        })
+      )
+    ).toBeNull();
   });
 
   it('validates automatic plans by provenance and freshness, not wording', () => {

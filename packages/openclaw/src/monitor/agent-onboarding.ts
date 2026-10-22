@@ -20,6 +20,7 @@ import {
   noteIdFromDeliveryMessageId,
   notesDeliveryMessageId,
 } from '../notes-delivery-state.js';
+import { RESERVED_ONBOARDING_BLOB_TYPES } from '../onboarding-blob-types.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
 import { isDmNest, normalizeShip } from '../targets.js';
@@ -581,11 +582,8 @@ export function parseAgentOnboardingRequest(
 ): AgentRequest | null {
   if (!blob) return null;
   return (
-    parsePostBlob(blob).find(
-      (candidate): candidate is AgentRequest =>
-        candidate.type === 'tlon-agent-intro-request' ||
-        candidate.type === 'tlon-agent-provider-config' ||
-        candidate.type === 'tlon-agent-provision'
+    parsePostBlob(blob).find((candidate): candidate is AgentRequest =>
+      RESERVED_ONBOARDING_BLOB_TYPES.has(candidate.type)
     ) ?? null
   );
 }

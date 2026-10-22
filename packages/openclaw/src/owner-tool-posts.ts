@@ -140,6 +140,10 @@ export type OwnerToolPostLedger = {
 
 type StoredEntry = {
   post: OwnerToolPost;
+  /** canonicalTarget(post.target), computed once at reserve. */
+  targetKey: string;
+  /** For a send: the @da writ id its sentAt yields, computed once at reserve. */
+  sentDa?: string;
   /** For a shortcode reaction: the reactions it matched in the window. */
   seen: Set<string>;
   /** For an edit: the text it resolved to. */
@@ -193,8 +197,7 @@ function isShipTarget(canonical: string): boolean {
   return canonical.startsWith('~') && !canonical.includes('/');
 }
 
-function targetMatches(entryTarget: string, inbound: InboundPost) {
-  const target = canonicalTarget(entryTarget);
+function targetMatches(target: string, inbound: InboundPost) {
   if (isShipTarget(target)) {
     // Only a one-to-one DM names its partner rather than its recipient; a
     // club or channel post that reaches that ship was not sent to it.
@@ -224,12 +227,11 @@ const PLAIN_EDIT_TEXT =
   /^(?!www\.)[^\s*_`~#>[\]()!\\|@:/]+(?: (?!www\.)[^\s*_`~#>[\]()!\\|@:/]+)*$/i;
 
 function matchesEntry(
-  post: OwnerToolPost,
+  entry: StoredEntry,
   inbound: InboundPost,
-  age: number,
-  seen: ReadonlySet<string>,
-  resolvedText: string | undefined
+  age: number
 ): boolean {
+  const { post, seen, text: resolvedText } = entry;
   // The target is compared for a known author too: edit and reaction entries
   // carry no timestamp, so the same post id elsewhere would otherwise match.
   // A one-to-one DM with a known author reaches this only at another account
@@ -242,7 +244,7 @@ function matchesEntry(
   ) {
     return false;
   }
-  if (!targetMatches(post.target, inbound)) return false;
+  if (!targetMatches(entry.targetKey, inbound)) return false;
   if (post.kind === 'unreact') {
     return (
       inbound.reactionRemoved === true &&
@@ -283,7 +285,7 @@ function matchesEntry(
   return (
     inbound.postId !== undefined &&
     inbound.postId.includes('/') &&
-    canonicalPostId(inbound.postId) === da.fromUnix(post.sentAt).toString()
+    canonicalPostId(inbound.postId) === entry.sentDa
   );
 }
 
@@ -330,6 +332,11 @@ export function createOwnerToolPostLedger(
       store.set(post.accountId, entries);
       const entry: StoredEntry = {
         post,
+        targetKey: canonicalTarget(post.target),
+        sentDa:
+          post.kind === 'send'
+            ? da.fromUnix(post.sentAt).toString()
+            : undefined,
         seen: new Set(),
         recordedAt: at,
         holdsSlot: true,
@@ -356,13 +363,7 @@ export function createOwnerToolPostLedger(
           const entry = entries[i];
           if (
             !live(entry, at) ||
-            !matchesEntry(
-              entry.post,
-              inbound,
-              at - entry.recordedAt,
-              entry.seen,
-              entry.text
-            )
+            !matchesEntry(entry, inbound, at - entry.recordedAt)
           ) {
             continue;
           }

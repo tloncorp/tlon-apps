@@ -3,8 +3,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { AGENT_ONBOARDING_REQUEST_TYPES } from '../tlon-tool-command.js';
-
 // monitorTlonProvider is not unit-testable (see bot-info.test.ts), so the
 // ledger's call sites are pinned at the source level. Moving a check past a
 // command or engagement gate, or dropping it, would pass every other test.
@@ -233,18 +231,5 @@ describe('onboarding history scans', () => {
     expect(onboardingSource).not.toMatch(
       /\.filter\(\(entry\) => entry\.author === context\.ownerShip && entry\.blob\)/
     );
-  });
-
-  it('reserves exactly the request types onboarding reads', () => {
-    const parser = between(
-      onboardingSource,
-      'export function parseAgentOnboardingRequest(',
-      '\n}\n'
-    );
-    const parsed = [...parser.matchAll(/candidate\.type === '([^']+)'/g)].map(
-      (match) => match[1]
-    );
-    expect(parsed.length).toBeGreaterThan(0);
-    expect(new Set(parsed)).toEqual(new Set(AGENT_ONBOARDING_REQUEST_TYPES));
   });
 });

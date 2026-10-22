@@ -1,4 +1,5 @@
 import { markdownToStory } from '@tloncorp/api/client/markdown';
+import { da } from '@urbit/aura';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { RESTART_REPLAY_WINDOW_MS } from './monitor/restart-replay.js';
@@ -54,6 +55,26 @@ afterEach(() => {
 });
 
 describe('owner tool post ledger', () => {
+  it('stores the canonical target and writ id at reserve', () => {
+    const store = new Map();
+    const ledger = createOwnerToolPostLedger({ now: () => T, store });
+    ledger.reserve(send(T, { target: ' CHAT/~H/c ' }));
+    ledger.reserve({
+      kind: 'unreact',
+      accountId: 'default',
+      author: '~owner',
+      target: '~Bud',
+      postId: '1',
+    } as OwnerToolPost);
+    const [sent, unreact] = store.get('default');
+    expect(sent).toMatchObject({
+      targetKey: 'chat/~h/c',
+      sentDa: da.fromUnix(T).toString(),
+    });
+    expect(unreact).toMatchObject({ targetKey: '~bud' });
+    expect(unreact.sentDa).toBeUndefined();
+  });
+
   it('matches a send at its sent time, one ms either side, and no further', () => {
     const { ledger } = makeLedger();
     ledger.reserve(send(T));
