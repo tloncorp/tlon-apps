@@ -53,16 +53,17 @@ The outer type carries identity, the inner one carries only the verb: `%create` 
 | `%retry-upload`      | Ask the broker for another URL against the same reservation                                          |
 | `%cancel-upload`     | Give up on the requester's own session, releasing the reservation at the broker as well as locally    |
 | `%issue-bucket-read` | Answer with a read token covering every ready object in the Bucket, for the requesting ship           |
+| `%query-capacity`    | Answer with the room left on the host's hosting account and the per-object limits an upload faces     |
 | `%issue-delete`      | Answer with a short-lived delete token bound to one ready file                                        |
 | `%entry`             | `%rename`, `%move` (cycle-checked), or `%delete` (recursive for a folder tree) one entry              |
 
 `.readers` on `%create` is passed straight to `%groups` and is not retained, so creating over an existing Bucket is not a way to change its ACL.
 
-Answers are a `$response-body`: `%ok`, `%grant` for a per-object token, `%token` for a bucket read token, `%error` with a typed reason, or `%pending`. `%pending` is not terminal -- it means the host is still working, and the real answer arrives on the same request id.
+Answers are a `$response-body`: `%ok`, `%grant` for a per-object token, `%upload` for a signed PUT, `%token` for a bucket read token, `%capacity` for a capacity query, `%error` with a typed reason, or `%pending`. `%pending` is not terminal -- it means the host is still working, and the real answer arrives on the same request id.
 
 An `%error` the storage broker caused also carries the broker's own account of it: `code`, `retryable`, `retryAfterMs` (read as a JSON number and rounded up to whole milliseconds, capped at the whole milliseconds the session has left, and omitted when the broker sent none, sent zero, a negative or a non-number, or the session has no time left) and `scope`, present in the JSON only when the broker spoke. An error this agent raised itself carries none. An Iris cancel is reported as `outcome_unknown` (retryable), and a body the agent cannot read, or one that names no code, as `unknown`. Whether a refusal is retryable is what the body's boolean `retryable` says; when there is none, the HTTP status decides: a 429 or a 5xx is, anything else is final. A proxy in front of the broker answers a 502, 503 or 504 with no JSON, often its own HTML page, and reading that as final on a completion would cancel a session whose object may already be in storage. The `type` stays `unknown` for every broker failure; the client decides what to do from the broker fields.
 
-Answers travel under `%buckets-req-response-2`, on the local `/v1/requests` path and the per-request path a remote uploader subscribes to alike. A subscriber accepts both `-2` and the older `-1`, lifting the latter with no broker fields; the host cannot tell which a subscriber understands, so an un-upgraded subscriber on an upgraded host drops `-2` and times out after two minutes with the generic "host did not answer" error until it upgrades. An upgraded subscriber on an older host keeps working.
+Answers travel under `%buckets-req-response-3`, on the local `/v1/requests` path and the per-request path a remote uploader subscribes to alike. A subscriber accepts `-3`, `-2` and `-1`: `-2` lacks only the `%capacity` variant and `-1` also lacks the broker fields, and both are lifted. The host cannot tell which a subscriber understands, so an un-upgraded subscriber on an upgraded host drops `-3` and times out after two minutes with the generic "host did not answer" error until it upgrades. An upgraded subscriber on an older host keeps working; a verb the host predates fails the host's mark conversion, the poke nacks, and the requester answers `unknown` with "host rejected the command".
 
 Subscriber agents forward actions to the host with the noun-only `%buckets-command-1` mark, subscribing to the answer path _before_ poking so a host that answers in the same event cannot publish before the requester is listening. The host derives the actor from the Gall bowl and re-authorizes the command.
 
@@ -96,7 +97,7 @@ Because the POST is held open across the terminal answer, a client needs no corr
 | `/x/v1/broker/<read\|delete>/<cap>/<obj>` | `%json`                   | The verdict on one object capability, for Pioneer     |
 | `/u/joined/<host>/<name>`                 | `%loob`                   | Whether the local agent has the Bucket                |
 | `/v1`                                     | `%buckets-response-1`     | Initial snapshots and all local replica updates       |
-| `/v1/requests`                            | `%buckets-req-response-2` | Answers to actions submitted by this ship's clients   |
+| `/v1/requests`                            | `%buckets-req-response-3` | Answers to actions submitted by this ship's clients   |
 | `/v1/buckets/<host>/<name>/updates`       | `%buckets-response-1`     | Host-authorized snapshot followed by manifest updates |
 
 Every scry answers a mark that grows to `json`, because clients read them over Eyre; `%noun` does not, and a peek returning it answers 500.
@@ -142,7 +143,13 @@ A `%finish-upload` naming a session that is already complete is answered `%ok` w
 
 Replay is keyed on the host's own session id, so a host that retries its own grant call gets the reservation it already has rather than a second one.
 
-**Every verb a client can send has to be in the JSON decoder.** The typed examples poke a vase straight into the agent and skip it entirely, so a verb wired everywhere except `lib/buckets/json.hoon` passes the whole suite and fails against a real client. `+test-http-decodes-every-session-verb` is the guard.
+**Every verb a client can send has to be in the JSON decoder.** The typed examples poke a vase straight into the agent and skip it entirely, so a verb wired everywhere except `lib/buckets/json.hoon` passes the whole suite and fails against a real client. `+test-http-decodes-every-session-verb` is the guard, and `+test-http-decodes-query-capacity` the same for the capacity query.
+
+## Capacity
+
+A writer can ask, before uploading, how much room a Bucket has. `%query-capacity` is gated exactly as `%begin-upload` is: the host takes the asker from the Gall bowl and requires write access to the Bucket under the same rule, so a reader without a writer role, or a ship outside the group, is answered `%not-authorized` before the broker is asked. The host then `POST`s Memex `/v2/buckets/capacity` as itself, naming the Bucket, and Memex answers for the hosting account that owns the host ship: the asker's own account plays no part.
+
+The answer is `%capacity` with four fields: remaining bytes, remaining file count, the per-object byte limit, and the allowed MIME types. The two remaining values are exact integers clamped at zero, and the limits are the ones an upload grant enforces. The MIME set is Memex's allowlist as configured: empty means any type is permitted, and an entry may be a wildcard such as `image/*`. Nothing else about the account is disclosed. The answer is advisory: it reserves nothing, and the pool it reports is shared by every Bucket, ship and legacy attachment on the account, so a grant that follows is admitted on the usage at grant time. A broker refusal is relayed with the broker's account, as for a grant; a cancelled call is `outcome_unknown` and an unreadable success `unknown`. There is no session or reservation behind a query, so nothing is released on failure.
 
 ## Reads
 
@@ -262,9 +269,19 @@ Authorization failures return `{result: "denied"}` and expired tokens return `{r
 -   The broker base being settable, and only over `https`
 -   Readiness answering a constant, and listing Buckets leaving their entries behind
 -   Rejection of a remote write when the live `%groups` gate denies access, and acceptance with a writer role
+
 -   Group-hosted creation by an authorized remote admin; rejection for a non-admin; idempotent retries
 -   A Moon being refused Bucket storage even when it hosts the group
 -   State round-tripping through `+on-load`, and a kick resubscribing rather than dropping the replica
+
+**Capacity**
+
+-   A writer's query reaching the broker as one authenticated `POST` naming the host and Bucket, and the answer relayed under the request id
+-   A broker refusal relayed with its own account, an unreadable success answered `unknown`, and a cancelled call `outcome_unknown`
+-   The write gate: an admin, a writer role, or any reader when no writer role is set is answered; a reader without one, or a non-member, is refused without a broker call
+-   A host without its `%genuine` secret refusing in the same event
+-   A forwarded query reporting `%pending`, relaying the host's `%capacity`, and timing out like any other action
+-   The JSON decoder knowing the verb, and the `%capacity` body encoding its four fields
 
 `desk/tests/app/groups.hoon` additionally covers the `can-write` peek resolving to `~` for a ship holding no seat, which both this agent and `lib/channel-utils` read with `.^`.
 
