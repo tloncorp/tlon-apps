@@ -37,7 +37,7 @@ describe('notebook files through the OpenClaw tool wrapper', () => {
         command:
           'notes note-create notes/~zod/blog root "Title" --markdown draft.md',
       });
-      expect(created.details).toBeUndefined();
+      expect(created.details).toEqual({ text: created.content[0].text });
       expect(
         JSON.parse(
           readFileSync(join(workspace, 'notebook-fixture.json'), 'utf8')
@@ -48,11 +48,11 @@ describe('notebook files through the OpenClaw tool wrapper', () => {
         command:
           'notes note-update notes/~zod/blog 1 --body draft.md --expected-revision 0',
       });
-      expect(updated.details).toBeUndefined();
+      expect(updated.details).toEqual({ text: updated.content[0].text });
       const read = await execute('read', {
         command: 'notes note notes/~zod/blog 1',
       });
-      expect(read.details).toBeUndefined();
+      expect(read.details).toEqual({ text: read.content[0].text });
       expect(read.content[0].text).toContain(`# Updated for ${label}`);
       expect(read.content[0].text).toContain('Revision: 1');
     }

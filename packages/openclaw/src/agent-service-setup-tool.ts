@@ -9,6 +9,7 @@ import {
   SupersededTurnError,
   supersededToolResult,
 } from './superseded-turn.js';
+import { textToolResult } from './tool-result.js';
 
 const MAX_PROVIDER_ID_LENGTH = 500;
 
@@ -203,19 +204,13 @@ export function createAgentServiceSetupToolExecutor(deps: {
         fallbackMessage: recoveryCopy(),
         blob: JSON.stringify(blob),
       });
-      return {
-        content: [{ type: 'text' as const, text: output }],
-        details: undefined,
-      };
+      return textToolResult(output);
     } catch (error) {
       if (error instanceof SupersededTurnError) {
         return supersededToolResult();
       }
       const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
-        details: { error: true },
-      };
+      return textToolResult(`Error: ${message}`, { error: true });
     }
   };
 }

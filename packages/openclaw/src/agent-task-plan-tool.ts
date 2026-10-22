@@ -8,6 +8,7 @@ import {
   SupersededTurnError,
   supersededToolResult,
 } from './superseded-turn.js';
+import { textToolResult } from './tool-result.js';
 
 export const AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
 export type AgentTaskPlanToolParams = {
@@ -370,15 +371,9 @@ export function createAgentTaskPlanToolExecutor(deps: {
         blob: JSON.stringify(blob),
       });
       deps.finish(id, true);
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `${output}\nReturn NO_REPLY now. The deterministic coordinator owns all activation and result status.`,
-          },
-        ],
-        details: undefined,
-      };
+      return textToolResult(
+        `${output}\nReturn NO_REPLY now. The deterministic coordinator owns all activation and result status.`
+      );
     } catch (error) {
       // A transport error after publication starts is ambiguous: the ship may
       // have accepted the post before the CLI lost its response. Retain the
@@ -388,10 +383,7 @@ export function createAgentTaskPlanToolExecutor(deps: {
         return supersededToolResult();
       }
       const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
-        details: { error: true },
-      };
+      return textToolResult(`Error: ${message}`, { error: true });
     }
   };
 }
