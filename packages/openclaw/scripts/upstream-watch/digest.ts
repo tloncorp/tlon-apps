@@ -72,13 +72,43 @@ export interface DigestInput {
 
 export type Git = (args: string[]) => string | undefined;
 
-export function gitIn(repo: string): Git {
+// Only these failures mean the path or tag is absent, so callers can read
+// `undefined` as absent; anything else (a lazy blob fetch, say) throws.
+export const GIT_ABSENT =
+  /does not exist in|invalid object name|exists on disk, but not in|bad object/;
+
+export function gitIn(
+  repo: string,
+  {
+    delaysMs = [1000, 3000],
+    spawn = spawnSync,
+  }: { delaysMs?: number[]; spawn?: typeof spawnSync } = {}
+): Git {
   return (args) => {
-    const result = spawnSync('git', ['-C', repo, ...args], {
-      encoding: 'utf8',
-      maxBuffer: 512 * 1024 * 1024,
-    });
-    return result.status === 0 ? result.stdout : undefined;
+    for (let attempt = 0; ; attempt++) {
+      const result = spawn('git', ['-C', repo, ...args], {
+        encoding: 'utf8',
+        maxBuffer: 512 * 1024 * 1024,
+      });
+      if (result.status === 0) {
+        return result.stdout;
+      }
+      const stderr = result.stderr ?? '';
+      if (GIT_ABSENT.test(stderr)) {
+        return undefined;
+      }
+      if (attempt >= delaysMs.length) {
+        throw new Error(
+          `git ${args.join(' ')} failed after ${attempt + 1} attempts: ${stderr || result.error?.message}`
+        );
+      }
+      Atomics.wait(
+        new Int32Array(new SharedArrayBuffer(4)),
+        0,
+        0,
+        delaysMs[attempt]
+      );
+    }
   };
 }
 

@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, type spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
@@ -354,5 +354,65 @@ describe('buildDigest', () => {
     expect(diff).toContain('diff --git a/src/plugin-sdk/channel-runtime.ts');
     expect(diff).toContain('diff --git a/extensions/brave/index.ts');
     expect(diff).not.toContain('src/plugin-sdk/outbound-runtime');
+  });
+});
+
+describe('gitIn', () => {
+  const absent =
+    "fatal: path 'CHANGELOG/nope.md' does not exist in 'v2026.9.33'\n";
+  const promisor =
+    "fatal: unable to access 'https://github.com/openclaw/openclaw.git/': Failed to connect\n" +
+    'fatal: could not fetch f2e44384 from promisor remote\n';
+
+  const fakeSpawn = (
+    results: { status: number; stdout?: string; stderr?: string }[]
+  ) => {
+    const calls: string[][] = [];
+    const spawn = ((_cmd: string, args: string[]) => {
+      calls.push(args);
+      const { status, stdout = '', stderr = '' } = results[calls.length - 1];
+      return { status, stdout, stderr };
+    }) as unknown as typeof spawnSync;
+    return { spawn, calls };
+  };
+
+  it('returns stdout on success', () => {
+    const { spawn, calls } = fakeSpawn([{ status: 0, stdout: 'ok' }]);
+    expect(gitIn('/repo', { spawn, delaysMs: [0, 0] })(['show', 'x'])).toBe(
+      'ok'
+    );
+    expect(calls).toEqual([['-C', '/repo', 'show', 'x']]);
+  });
+
+  it('reads an absent path as undefined without retrying', () => {
+    const { spawn, calls } = fakeSpawn([{ status: 128, stderr: absent }]);
+    expect(
+      gitIn('/repo', { spawn, delaysMs: [0, 0] })(['show', 'x'])
+    ).toBeUndefined();
+    expect(calls).toHaveLength(1);
+  });
+
+  it('retries a failed blob fetch', () => {
+    const { spawn, calls } = fakeSpawn([
+      { status: 128, stderr: promisor },
+      { status: 128, stderr: promisor },
+      { status: 0, stdout: 'ok' },
+    ]);
+    expect(gitIn('/repo', { spawn, delaysMs: [0, 0] })(['show', 'x'])).toBe(
+      'ok'
+    );
+    expect(calls).toHaveLength(3);
+  });
+
+  it('throws when a blob fetch keeps failing', () => {
+    const { spawn, calls } = fakeSpawn([
+      { status: 128, stderr: promisor },
+      { status: 128, stderr: promisor },
+      { status: 128, stderr: promisor },
+    ]);
+    expect(() =>
+      gitIn('/repo', { spawn, delaysMs: [0, 0] })(['show', 'v1:x'])
+    ).toThrow(/git show v1:x .*could not fetch f2e44384 from promisor remote/s);
+    expect(calls).toHaveLength(3);
   });
 });
