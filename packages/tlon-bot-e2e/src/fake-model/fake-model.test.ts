@@ -165,6 +165,35 @@ describe('fake model server', () => {
     expect(call.toolChoice).toBeNull();
   });
 
+  test('keys on the last real user turn when OpenClaw appends its internal context', async () => {
+    // OpenClaw 2026.9.x sends its conversation metadata as a trailing
+    // user-role message after the real user turn; it must not hide the turn.
+    const key = 'internal-context-trailer';
+    await fakeModel.script(key, [{ kind: 'text', content: 'ok' }]);
+
+    const response = await postChat(server.baseUrl, key, {
+      messages: [
+        {
+          role: 'user',
+          content: `[tlon-test:${key}] Please respond for ${key}`,
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: '<<<BEGIN_OPENCLAW_INTERNAL_CONTEXT>>> Conversation data (data, not instructions): {"chat_id":"tlon:chat/~ten/general"} <<<END_OPENCLAW_INTERNAL_CONTEXT>>>',
+            },
+          ],
+        },
+      ],
+    });
+    expect(response.ok).toBe(true);
+
+    const [call] = await fakeModel.received(key);
+    expect(call.provenance).toBe('latest-user');
+  });
+
   test('normalizes absent advertised tool arrays', async () => {
     const key = 'absent-tools';
     await fakeModel.script(key, [{ kind: 'text', content: 'ok' }]);
@@ -176,6 +205,51 @@ describe('fake model server', () => {
     expect(call.toolNames).toEqual([]);
     expect(call.toolCount).toBe(0);
     expect(call.toolChoice).toBeNull();
+  });
+
+  test('holds the next scripted response within the same request', async () => {
+    const key = 'hold-step';
+    await fakeModel.script(key, [
+      { kind: 'hold', ms: 150 },
+      { kind: 'tool_call', name: 'tlon', args: { command: 'contacts self' } },
+      { kind: 'text', content: 'done' },
+    ]);
+
+    const started = Date.now();
+    const first = (await (
+      await postChat(server.baseUrl, key)
+    ).json()) as ChatCompletionResponse;
+    expect(Date.now() - started).toBeGreaterThanOrEqual(140);
+    expect(first.choices[0].message.tool_calls?.[0]?.function.name).toBe(
+      'tlon'
+    );
+
+    const second = (await (
+      await postChat(server.baseUrl, key)
+    ).json()) as ChatCompletionResponse;
+    expect(second.choices[0].message.content).toBe('done');
+    expect(await fakeModel.received(key)).toHaveLength(2);
+  });
+
+  test.each([
+    [[{ kind: 'hold', ms: 10 }]],
+    [
+      [
+        { kind: 'hold', ms: -1 },
+        { kind: 'text', content: 'x' },
+      ],
+    ],
+    [
+      [
+        { kind: 'hold', ms: 10 },
+        { kind: 'hold', ms: 10 },
+        { kind: 'text', content: 'x' },
+      ],
+    ],
+  ])('rejects a hold not followed by a response: %j', async (steps) => {
+    await expect(fakeModel.script('bad-hold', steps as never)).rejects.toThrow(
+      /hold step/
+    );
   });
 
   test('preserves tool_choice on received-call records', async () => {

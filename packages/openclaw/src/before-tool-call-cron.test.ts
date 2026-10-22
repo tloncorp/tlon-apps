@@ -105,7 +105,7 @@ function createRecordingApi(config: Record<string, unknown> = {}): {
       if (prop === 'runtime') {
         return new Proxy(() => undefined, {
           get(_runtime, key) {
-            if (key === 'config') return { loadConfig: () => config };
+            if (key === 'config') return { current: () => config };
             return Reflect.get(proxy as object, key);
           },
         });

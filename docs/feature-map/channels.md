@@ -6,8 +6,8 @@ Adding, arranging, renaming, restricting, leaving and deleting the channels insi
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/ui/components/GroupChannelsScreenView.tsx, packages/app/ui/components/ManageChannels/ManageChannelsShared.tsx -->
 <!-- covers: route:ManageChannels -->
 
-Phone: on the Workspaces tab, press and hold the group, tap `Group info & settings`, then `Channels`. Or open the group and tap the list-with-a-pencil icon at the top right of its channel list.
-Desktop: hover the group in the Home sidebar, open its three-dot menu, pick `Group info & settings`, then `Channels`. The same icon is at the top of the group's channel list.
+Phone: on the Workspaces tab, press and hold the group, tap `Workspace info & settings`, then `Channels`. Or open the group and tap the list-with-a-pencil icon at the top right of its channel list.
+Desktop: hover the group in the Home sidebar, open its three-dot menu, pick `Workspace info & settings`, then `Channels`. The same icon is at the top of the group's channel list.
 Who: group admins only. Both are greyed out while the app can't reach the group's host.
 Notes: the `Channels` screen lists each channel under its section, with its type under its name. `Sort` and `New` are at the top right. A phone opens a one-channel group straight into the channel, so use the first route there.
 
@@ -65,16 +65,16 @@ Notes: all of these open `Channel info`. In a group with a single channel, the m
 ## What the Channel info screen shows
 <!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/utils/channelUtils.tsx -->
 
-Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Host`, the node that runs the channel, which you can tap to open its profile; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen.
+Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Host`, the node that runs the channel, which you can tap to open its profile; `Scheduled tasks` with a count, when your bot has tasks posting here or could post here; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen.
 
 ## Rename a channel or change its description
-<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/ui/components/ManageChannels/EditChannelMetaScreenView.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx -->
+<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/ui/components/ManageChannels/EditChannelMetaScreenView.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx, desk/app/notes.hoon -->
 <!-- covers: route:EditChannelMeta -->
 <!-- absent: channel icon -->
 
 Phone: open the channel's `Channel info` screen and tap `Rename` at the top right. On `Edit channel info`, change `Name` and `Description`, then tap `Save`.
 Who: group admins. `Rename` is greyed out while the app can't reach the group's host.
-Notes: a name can be up to 30 characters and a description up to 300. In a group with several channels, the description shows under the channel's name at the top of the channel. If you opened the info from the group's channel-management screen, the button is a pencil icon instead of `Rename`. A channel has no picture of its own to set, and its type can't be changed after it's made.
+Notes: a name can be up to 30 characters and a description up to 300. In a group with several channels, the description shows under the channel's name at the top of the channel. If you opened the info from the group's channel-management screen, the button is a pencil icon instead of `Rename`. A channel has no picture of its own to set, and its type can't be changed after it's made. For a Notebook channel, the new name also becomes the notebook's title.
 
 ## Reorder channels or move one to another section
 <!-- src: packages/app/ui/components/ManageChannels/ManageChannelsShared.tsx, packages/app/ui/components/ManageChannels/ManageChannelsScreenView.tsx, packages/app/ui/components/ManageChannels/ManageChannelsScreenView.web.tsx, packages/app/hooks/useSortableChannelNav.ts -->
@@ -146,11 +146,11 @@ Notes: this makes an empty channel of the same type and copies over the add-ons 
 <!-- src: packages/app/ui/components/ManageChannels/CreateChannelSheet.tsx, packages/app/lib/featureFlags.ts, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/utils/channelUtils.tsx, packages/app/ui/components/SystemNotices.tsx -->
 <!-- flag: buckets -->
 
-Phone: on the Settings tab, open `Experimental features` and switch on `Enable Buckets channels`. Then start a new channel the usual way: `Buckets` now appears under `Channel type`, described as `Shared files for members and agents`.
-Who: group admins, in groups the app can tell are hosted on Tlon. In other groups the sheet says `Buckets are currently available only in groups hosted on Tlon.` and leaves the type out. Your node also needs a version that supports Buckets.
+Phone: on the Settings tab, open `Experimental features` and switch on `Buckets channels`. Then start a new channel the usual way: `Buckets` now appears under `Channel type`, described as `Shared files for members and agents`.
+Who: group admins, in groups the app can tell are hosted on Tlon. In other groups the sheet says `Buckets are currently available only in workspaces hosted on Tlon.` and leaves the type out. Your node also needs a version that supports Buckets.
 Notes: the switch is off by default and is set per device. A Bucket always lives on the group host's node and uses its storage. It can't be left, and it can't be deleted from its info screen.
 
 ## See who is in a channel
 <!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/ui/components/ChatOptionsSheet.tsx -->
 
-Notes: a channel in a group has no member list of its own. Its info screen shows the `Host` but not who is in it. Everyone in the group can see a channel unless its `Permissions` limit it to certain roles, so look at the group's members and their roles instead, from `Group info & settings`. The `Members` item in a press-and-hold menu belongs to group DMs, not to channels in a group.
+Notes: a channel in a group has no member list of its own. Its info screen shows the `Host` but not who is in it. Everyone in the group can see a channel unless its `Permissions` limit it to certain roles, so look at the group's members and their roles instead, from `Workspace info & settings`. The `Members` item in a press-and-hold menu belongs to group DMs, not to channels in a group.

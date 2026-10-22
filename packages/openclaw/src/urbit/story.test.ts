@@ -670,6 +670,36 @@ describe('role mentions', () => {
     ]);
   });
 
+  describe('escapes', () => {
+    it('leaves a backslash-escaped mention as text', () => {
+      expect(inline('\\@all', ALL_ONLY)).toEqual(['\\@all']);
+      expect(inline('\\@admin', roles('admin'))).toEqual(['\\@admin']);
+      expect(roleMentionCandidates('\\@admin')).toEqual(new Set());
+    });
+
+    it('converts only the unescaped occurrence', () => {
+      expect(inline('see \\@all and @all', ALL_ONLY)).toEqual([
+        'see \\@all and ',
+        { sect: null },
+      ]);
+    });
+
+    it('leaves an escaped mention inside bold as text', () => {
+      expect(inline('**\\@all**', ALL_ONLY)).toEqual([{ bold: ['\\@all'] }]);
+    });
+
+    it('does not treat a backslash ending the previous inline as a boundary', () => {
+      expect(inline('**a\\**@all', ALL_ONLY)).toEqual([
+        { bold: ['a\\'] },
+        '@all',
+      ]);
+    });
+
+    it('leaves an HTML entity for @ as text', () => {
+      expect(inline('&#64;all', ALL_ONLY)).toEqual(['&#64;all']);
+    });
+  });
+
   describe('roleMentionCandidates', () => {
     it('returns lowercase tokens other than all', () => {
       expect(

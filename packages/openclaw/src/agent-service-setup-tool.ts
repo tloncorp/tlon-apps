@@ -1,6 +1,11 @@
 import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
 
 import {
+  type ConnectableService,
+  findConnectableService,
+  formatConnectableServices,
+} from './connectable-services.js';
+import {
   SupersededTurnError,
   supersededToolResult,
 } from './superseded-turn.js';
@@ -24,7 +29,7 @@ export const agentServiceSetupToolMetadata = {
   promptSnippet:
     '`tlon_agent_service_setup`: open Connected Services for an owner-chosen private source that is required before planning',
   promptGuidelines: [
-    'When first-run onboarding cannot proceed because an explicitly chosen private source is not connected and the owner chooses to connect it, call `tlon_agent_service_setup` instead of ending with prose; after it posts successfully, return NO_REPLY and wait for the owner to return and tap Continue setup or send a message. On that turn, check whether the source is connected before continuing. Do not call it when the owner chose an immediately executable fallback.',
+    'When first-run onboarding cannot proceed because an explicitly chosen private source is not connected and the owner chooses to connect it, call `tlon_agent_service_setup` instead of ending with prose; after it posts successfully, return NO_REPLY and wait for the owner to return and tap Continue setup or send a message. On that turn, check whether the source is connected before continuing. Do not call it when the owner chose an immediately executable fallback, or for a service `tlon_connectable_services` does not list.',
   ],
 };
 
@@ -39,7 +44,7 @@ export const agentServiceSetupToolParameters = {
       type: 'string',
       maxLength: MAX_PROVIDER_ID_LENGTH,
       description:
-        'Stable connected-service provider ID matching the owner-chosen service, such as google-drive.',
+        'ID of the owner-chosen service from tlon_connectable_services, such as google-drive.',
     },
   },
   required: ['target', 'providerId'],
@@ -149,6 +154,27 @@ function buildAgentServiceSetupBlob(
   ];
 }
 
+// With no catalog (not hosted, or the relay is down) the card still goes out:
+// refusing then would block real services along with made-up ones.
+async function resolveProviderId(
+  providerId: string,
+  listServices: () => Promise<ConnectableService[] | null>
+) {
+  // An empty ID is left for parseParams to reject with its own message.
+  if (!providerId?.trim()) return providerId;
+  const services = await listServices();
+  if (!services) return providerId;
+  const service = findConnectableService(services, providerId);
+  if (!service) {
+    throw new Error(
+      `"${providerId.trim()}" is not a service the owner can connect. ` +
+        'Tell them plainly it cannot be connected yet; then offer the closest service that can, or a version that works without it. ' +
+        `Services that can be connected: ${formatConnectableServices(services)}.`
+    );
+  }
+  return service.id;
+}
+
 export function createAgentServiceSetupToolExecutor(deps: {
   postSetup: (input: {
     target: string;
@@ -156,6 +182,7 @@ export function createAgentServiceSetupToolExecutor(deps: {
     blob: string;
   }) => Promise<string>;
   assertCurrent: (toolCallId: string) => void;
+  listServices: () => Promise<ConnectableService[] | null>;
 }) {
   return async function execute(
     id: string,
@@ -164,6 +191,10 @@ export function createAgentServiceSetupToolExecutor(deps: {
     try {
       const blob = buildAgentServiceSetupBlob({
         ...params,
+        providerId: await resolveProviderId(
+          params.providerId,
+          deps.listServices
+        ),
         surfaceId: `agent-service-setup-${id}`,
       });
       deps.assertCurrent(id);

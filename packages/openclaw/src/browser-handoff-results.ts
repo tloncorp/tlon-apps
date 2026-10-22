@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import { isTrustedBrowserViewerHost } from '@tloncorp/api';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
-import type { PluginStateKeyedStore } from 'openclaw/plugin-sdk/plugin-state-runtime';
 import { z } from 'zod';
 
+import type { PluginStateKeyedStore } from './plugin-state-types.js';
 import { sharedSlot } from './shared-state.js';
 import { urbitFetch } from './urbit/fetch.js';
 

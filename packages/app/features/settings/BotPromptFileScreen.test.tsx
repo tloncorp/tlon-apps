@@ -74,10 +74,13 @@ vi.mock('../../ui/components/SettingsList', () => ({
   useSettingsListHeaderColor: () => 'white',
   useSettingsListSurfaces: () => ({ page: 'white' }),
 }));
-vi.mock('./bot/BotSettingsUI', async () => {
-  const { Passthrough } = await import('../../test/sheetTestUtils');
-  return { BotSettingsSection: Passthrough };
-});
+vi.mock('../../ui/components/BotPromptHeader', () => ({
+  // Keeps the description, which is where a read-only file says who keeps it.
+  BotPromptHeader: 'BotPromptHeader',
+}));
+vi.mock('./bot/BotSettingsUI', () => ({
+  BotSettingsSection: 'BotSettingsSection',
+}));
 
 setupReactTestEnvironment();
 
@@ -93,6 +96,10 @@ beforeEach(() => {
     {
       name: 'TOOLS.md',
       text: '<!-- idempotency-marker:tlon-tools:v25 -->\n\n## When To Use What\n<!-- /idempotency-marker -->\n',
+    },
+    {
+      name: 'MEMORY.md',
+      text: '<!-- idempotency-marker:tlon-runtime:v4 -->\n# MEMORY.md\n<!-- /idempotency-marker -->\n\nPrefers metric units.\n',
     },
   ];
 });
@@ -131,12 +138,28 @@ function press(tree: ReactTestRenderer, testID: string) {
   });
 }
 
+const headerDescription = (tree: ReactTestRenderer) =>
+  tree.root.find((node) => (node.type as unknown) === 'BotPromptHeader').props
+    .description;
+
 describe('BotPromptFileScreen', () => {
   it('shows a file Tlon maintains without any way to edit it', async () => {
     const tree = await render('TOOLS.md');
     expect(byTestID(tree, 'BotPromptFileContents')).toHaveLength(1);
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(0);
     expect(byTestID(tree, 'BotPromptFileReset')).toHaveLength(0);
+    expect(headerDescription(tree)).toContain('Tlon keeps this file');
+  });
+
+  it("shows the bot's memory, kept by the bot, without any way to edit it", async () => {
+    const tree = await render('MEMORY.md');
+    expect(
+      byTestID(tree, 'BotPromptFileContents')[0].find(
+        (node) => (node.type as unknown) === 'NotebookContentRenderer'
+      ).props.content
+    ).toEqual(['# MEMORY.md\n\nPrefers metric units.']);
+    expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(0);
+    expect(headerDescription(tree)).toContain('Your bot keeps this file');
   });
 
   it('warns before the first edit, then opens the additions editor', async () => {

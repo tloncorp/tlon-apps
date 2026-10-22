@@ -22,10 +22,10 @@ import {
   type TestFixtures,
   getContainerLogsSince,
   getFixtures,
-  getGatewayRestartPreflight,
   registerEngagingTurn,
   requireFixtureGroup,
   waitFor,
+  waitForRuntimeIdle,
 } from '../lib/index.js';
 import { extractPostText } from '../lib/post-baseline.js';
 import { fakeModel } from '../support/fake-model/client.js';
@@ -335,27 +335,9 @@ describe('owner-listen', () => {
       }, 60_000);
     }
 
-    // Same idle wait as 07-blobs: an engaging turn's trailing model call can
-    // still be running when its assertion returns, and resetting the fake
-    // model under it (next beforeEach) recreates the 400 error path.
-    async function waitForRuntimeIdle(): Promise<void> {
-      const composeFile = process.env.TEST_COMPOSE_FILE ?? '';
-      if (composeFile) {
-        const deadline = Date.now() + 15_000;
-        let preflight = getGatewayRestartPreflight(composeFile, 10_000);
-        while (preflight.counts.totalActive > 0 && Date.now() < deadline) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          preflight = getGatewayRestartPreflight(composeFile, 10_000);
-        }
-        if (preflight.counts.totalActive > 0) {
-          throw new Error(
-            `Runtime not idle: ${JSON.stringify(preflight.counts)} ` +
-              `(${preflight.summary})`
-          );
-        }
-      }
-    }
-
+    // An engaging turn's trailing model call can still be running when its
+    // assertion returns, and resetting the fake model under it (next
+    // beforeEach) recreates the 400 error path.
     async function expectNoModelCall(key: string): Promise<void> {
       await sleep(NEGATIVE_SETTLE_MS);
       expect(await fakeModel.received(key)).toHaveLength(0);
@@ -425,7 +407,7 @@ describe('owner-listen', () => {
       //    run is in flight during later steps. The join turn's allowed extra
       //    model call can deliver a second reply to this thread, so snapshot
       //    the tracking count once the runtime is idle and wait past it.
-      await waitForRuntimeIdle();
+      await waitForRuntimeIdle('after an engaging turn', 15_000);
       const trackedBefore = countThreadTracked(parentId, sinceIso);
       const mentionKey = `ol-thread-mention-${run}`;
       const mentionTag = await registerEngagingTurn(mentionKey);
@@ -457,7 +439,7 @@ describe('owner-listen', () => {
         parentId
       );
       await expectModelCall(afterKey);
-      await waitForRuntimeIdle();
+      await waitForRuntimeIdle('after an engaging turn', 15_000);
     }
 
     test('per-channel mute silences owner replies in a joined thread', async () => {

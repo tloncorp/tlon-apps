@@ -983,9 +983,8 @@ def _has_credential_flag(args: Sequence[str]) -> bool:
 
 
 def should_inject_owner_credentials(args: Sequence[str]) -> bool:
-    """The shared owner-injection predicate — the OpenClaw plugin implements the
-    same truth table. Inject iff the parsed subcommand is ``groups invite-link``
-    with no credential flag in either form, no ``--self``, and no help token."""
+    """Inject iff the parsed subcommand is ``groups invite-link`` with no
+    credential flag in either form, no ``--self``, and no help token."""
     if _has_credential_flag(args):
         return False
 

@@ -177,6 +177,8 @@ export const hermesDriver: BotDriver = {
       };
     },
 
+    botSelfPrefix: '',
+
     readOrAdmin(command, finalText = 'Hermes completed the tlon command.') {
       return {
         steps: [

@@ -46,15 +46,15 @@ Notes: opening a chat marks it read once it has loaded, which clears its number 
 
 ## Choose what the whole app notifies you about
 
-Phone: on the Settings tab, under `App`, tap `Notifications` and pick one of three levels.
+Phone: on the Settings tab, tap `Notifications` and pick one of three levels.
 Desktop: click the gear near the bottom of the left rail, then `Notifications`.
-Notes: `All DMs and group posts` is the default: every DM, and every post, mention and reply in your groups. `DMs, mentions, and replies only` keeps DMs but limits groups to messages that mention you or reply to your posts. `Nothing` turns everything off, even with push allowed on the phone. The choice covers push notifications and what shows in Activity, is saved on your node so it follows you to other devices, and is shown under the `Notifications` row in Settings. Single chats can override it.
+Notes: `All DMs and workspace posts` is the default: every DM, and every post, mention and reply in your groups. `DMs, mentions, and replies only` keeps DMs but limits groups to messages that mention you or reply to your posts. `Nothing` turns everything off, even with push allowed on the phone. The choice covers push notifications and what shows in Activity, is saved on your node so it follows you to other devices, and is shown under the `Notifications` row in Settings. Single chats can override it.
 
 ## Set notifications for one group
 
-Phone: on the Workspaces tab, press and hold the group and tap `Group notifications`. Pick `All group activity` (everything that happens there), `Group posts, mentions, and replies`, `Mentions and replies` (only when someone mentions you or replies to your posts) or `Nothing`. The current level has a checkmark.
-Desktop: hover the group in the sidebar, open its three-dot menu and pick `Group notifications`. `Back` returns to the menu.
-Notes: the same choices open as a full screen headed `Notifications` from `Group info & settings`, then `Notifications`. Under `Group notifications` the menu shows the current level in short form, for example "Mentions and replies (custom)" if you set it for this group, or "All posts (app default)" if it follows the app-wide setting.
+Phone: on the Workspaces tab, press and hold the group and tap `Workspace notifications`. Pick `All workspace activity` (everything that happens there), `Workspace posts, mentions, and replies`, `Mentions and replies` (only when someone mentions you or replies to your posts) or `Nothing`. The current level has a checkmark.
+Desktop: hover the group in the sidebar, open its three-dot menu and pick `Workspace notifications`. `Back` returns to the menu.
+Notes: the same choices open as a full screen headed `Notifications` from `Workspace info & settings`, then `Notifications`. Under `Workspace notifications` the menu shows the current level in short form, for example "Mentions and replies (custom)" if you set it for this group, or "All posts (app default)" if it follows the app-wide setting.
 
 ## Set notifications for one channel
 
@@ -76,7 +76,7 @@ Notes: muting a DM by swipe sets it to `Nothing`. Muting a group by swipe sets i
 
 ## Go back to the default for a chat
 
-Phone: on the Settings tab, tap `Notifications` and scroll to `Overrides`. It lists every group, channel and DM that has its own level. Tap the X beside one to remove its own level, so it goes back to the default.
+Phone: on the Settings tab, tap `Notifications` and scroll to `Overrides`. It lists every group, channel and DM that has its own level. Tap one, then `Remove` on the `Remove this override?` prompt, to remove its own level, so it goes back to the default.
 Desktop: click the gear in the left rail, then `Notifications`; the same `Overrides` list is at the bottom.
 Notes: `Overrides` only appears once at least one chat has its own level. A chat's own notification menu has no "use default" choice, so this list is the way back. The one shortcut is a chat you muted by swiping on the phone: unmuting it the same way also returns it to the default. Muted threads are not listed here.
 
