@@ -89,11 +89,19 @@ export function GroupMembersScreenView({
       }
     }
 
+    // Roles in their usual order (`roles` comes sorted: Admin, then A to Z),
+    // then any role the group no longer lists.
+    const roleIds = [
+      ...roles.flatMap((role) => (role.id ? [role.id] : [])),
+      ...[...byRole.keys()].filter(
+        (roleId) => !roles.some((role) => role.id === roleId)
+      ),
+    ];
     const all: { key: string; title: string; people: Person[] }[] = [
-      ...[...byRole].map(([roleId, people]) => ({
+      ...roleIds.map((roleId) => ({
         key: `role-${roleId}`,
         title: roles.find((role) => role.id === roleId)?.title ?? roleId,
-        people,
+        people: byRole.get(roleId) ?? [],
       })),
       {
         key: 'join-requests',
