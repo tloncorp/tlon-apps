@@ -349,6 +349,32 @@ describe('tlon tool guard', () => {
         args: ['messages', 'Search', 'query', '--channel', 'diary/~zod/log'],
         cliRefusesDiary: false,
       },
+      ...(['--file', '--video', '--link'] as const).flatMap((flag) => [
+        {
+          name: `posts send help after ${flag} (help wins)`,
+          args: [
+            'posts',
+            'send',
+            'diary/~zod/log',
+            flag,
+            'https://x/a',
+            '--help',
+          ],
+          cliRefusesDiary: false,
+        },
+        {
+          name: `posts send help as message text before ${flag}`,
+          args: [
+            'posts',
+            'send',
+            'diary/~zod/log',
+            '--help',
+            flag,
+            'https://x/a',
+          ],
+          cliRefusesDiary: true,
+        },
+      ]),
       ...QUOTE_FORWARD_DIARY_CASES,
       {
         name: 'posts forward from notes to a diary target (notes wins)',

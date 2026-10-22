@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, spyOn } from 'bun:test';
 import { CommandError } from './commands/command';
 import * as groupAdmin from './group-admin';
 import { markdownToStory } from './markdown';
+import { FETCH_FAILED_ERROR, isMediaPolicyRejection } from './media-guard';
 import { createPostsDeps } from './posts-runtime';
 import {
   mockedDeleteReply,
@@ -521,5 +522,16 @@ describe('createPostsDeps().getGroupRoleIds', () => {
     await expect(
       createPostsDeps().getGroupRoleIds('~host/group')
     ).rejects.toThrow('scry 404');
+  });
+});
+
+describe('createPostsDeps().probeMedia', () => {
+  it('is the guarded HEAD: a denied host is refused before any request', async () => {
+    const error = await createPostsDeps()
+      .probeMedia('https://localhost/report.pdf')
+      .catch((caught: unknown) => caught);
+
+    expect((error as Error).message).toBe(FETCH_FAILED_ERROR);
+    expect(isMediaPolicyRejection(error)).toBe(true);
   });
 });

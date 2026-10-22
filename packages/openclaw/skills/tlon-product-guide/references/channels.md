@@ -4,8 +4,8 @@ Adding, arranging, renaming, restricting, leaving and deleting the channels insi
 
 ## Open the screen for managing a group's channels
 
-Phone: on the Workspaces tab, press and hold the group, tap `Group info & settings`, then `Channels`. Or open the group and tap the list-with-a-pencil icon at the top right of its channel list.
-Desktop: hover the group in the Home sidebar, open its three-dot menu, pick `Group info & settings`, then `Channels`. The same icon is at the top of the group's channel list.
+Phone: on the Workspaces tab, press and hold the group, tap `Workspace info & settings`, then `Channels`. Or open the group and tap the list-with-a-pencil icon at the top right of its channel list.
+Desktop: hover the group in the Home sidebar, open its three-dot menu, pick `Workspace info & settings`, then `Channels`. The same icon is at the top of the group's channel list.
 Who: group admins only. Both are greyed out while the app can't reach the group's host.
 Notes: the `Channels` screen lists each channel under its section, with its type under its name. `Sort` and `New` are at the top right. A phone opens a one-channel group straight into the channel, so use the first route there.
 
@@ -116,4 +116,4 @@ Notes: this makes an empty channel of the same type and copies over the add-ons 
 
 ## See who is in a channel
 
-Notes: a channel in a group has no member list of its own. Its info screen shows the `Host` but not who is in it. Everyone in the group can see a channel unless its `Permissions` limit it to certain roles, so look at the group's members and their roles instead, from `Group info & settings`. The `Members` item in a press-and-hold menu belongs to group DMs, not to channels in a group.
+Notes: a channel in a group has no member list of its own. Its info screen shows the `Host` but not who is in it. Everyone in the group can see a channel unless its `Permissions` limit it to certain roles, so look at the group's members and their roles instead, from `Workspace info & settings`. The `Members` item in a press-and-hold menu belongs to group DMs, not to channels in a group.

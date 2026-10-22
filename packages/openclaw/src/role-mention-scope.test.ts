@@ -182,6 +182,7 @@ describe('roleMentionScopeFor', () => {
     ['text with no @token', 'plain text'],
     ['@all-only text', 'see @all and @ALL'],
     ['a partial word', 'mail a@admin.io or @admin_team'],
+    ['an escaped mention', 'ping \\@admin'],
   ])('does no lookup for %s', async (_name, text) => {
     const t = setup();
     publishRoleMentionResolver('primary', t.resolver);

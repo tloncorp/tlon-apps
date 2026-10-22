@@ -12,7 +12,7 @@ import { format } from 'node:util';
 import { isStopTips, withCampaignContext } from './campaign/templates.js';
 import { createLiveCampaign } from './campaign/live.js';
 import { CAMPAIGN_CHECK_INTERVAL_MS } from './campaign/model.js';
-import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
+import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-outbound';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
@@ -102,6 +102,11 @@ import {
   type TlonSettingsStore,
   createSettingsManager,
 } from '../settings.js';
+import {
+  channelInboundPost,
+  chatInboundPost,
+  sharedOwnerToolPostLedger,
+} from '../owner-tool-posts.js';
 import { sharedSlot } from '../shared-state.js';
 import {
   createSilentFailureNoticeCooldown,
@@ -275,6 +280,7 @@ import {
   lookupCachedMessage,
   lookupOrFetchCachedChannelMessage,
   renderHistoryContent,
+  withoutOwnerToolPosts,
 } from './history.js';
 import { prepareChannelSummary } from './channel-summary.js';
 import {
@@ -295,6 +301,7 @@ import {
 import { recordSentTlonReply } from './output.js';
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
+import { buildProgressReplyOptions } from './progress-reply-options.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
 import {
   type TlonInboundRouteRecord,
@@ -312,6 +319,7 @@ import {
 import {
   extractCites,
   formatModelName,
+  inboundCommandFields,
   isChannelRestricted,
   isDmAllowed,
   isOwnerListenSlashCommand,
@@ -319,6 +327,7 @@ import {
   isSummarizationRequest,
   parseBlockedShips,
   prepareInboundText,
+  reactionDispatchConfig,
   resolveCommandBody,
   sanitizeMessageText,
   shouldEngageInGroup,
@@ -397,10 +406,10 @@ export type MonitorTlonOpts = {
   activityReadsReady?: Promise<void>;
   /**
    * Channel-start config snapshot (the gateway adapter's `ctx.cfg`), used
-   * instead of an independent `core.config.loadConfig()` call so
+   * instead of an independent `core.config.current()` call so
    * gateway-status eligibility (Fix B) reads the SAME config OpenClaw used
    * to enumerate/start accounts, avoiding a transient mismatch if a second
-   * config write races. Falls back to `loadConfig()` when absent (e.g. a
+   * config write races. Falls back to `current()` when absent (e.g. a
    * caller that doesn't thread a snapshot through).
    */
   cfg?: OpenClawConfig;
@@ -489,7 +498,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   const core = getTlonRuntime();
   // Prefer the channel-start config snapshot (Fix B) over an independent
   // load: see the MonitorTlonOpts.cfg doc comment.
-  const cfg = opts.cfg ?? core.config.loadConfig();
+  const cfg = (opts.cfg ?? core.config.current()) as OpenClawConfig;
   if (cfg.channels?.tlon?.enabled === false) {
     return;
   }
@@ -1693,7 +1702,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           accountId: account.accountId,
           owner: effectiveOwnerShip,
           bot: botShipName,
-          config: () => core.config.loadConfig(),
+          config: () => core.config.current() as OpenClawConfig,
           botProfile: getBotProfile,
           busy: () => campaignActiveRuns > 0,
           telemetry,
@@ -2714,6 +2723,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       /** Cite-free rendering used only for message-level gates. */
       gateText?: string;
       trigger?: ContextLensTrigger;
+      /**
+       * Synthetic text built from a reaction. Never command input: the owner's
+       * reactions include ones the model made with the owner's tlon tool.
+       */
+      fromReaction?: boolean;
       cachesHistory?: boolean;
       messageContent?: unknown; // Raw Tlon content for media extraction
       blobField?: string | null; // Raw blob JSON from post/reply
@@ -2850,6 +2864,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           replyParentId: params.replyParentId ?? null,
           cachesHistory: Boolean(params.cachesHistory),
           degraded: Boolean(params.degraded),
+          fromReaction: Boolean(params.fromReaction),
         },
       });
       contextLenses.recordPersistence(lens.lensId, {
@@ -3106,12 +3121,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // Fetch thread context when entering a thread for the first time
       if (isThreadReply && parentId && groupChannel) {
         try {
-          const threadContextHistory = await fetchThreadContextHistory(
-            api,
+          const threadContextHistory = withoutOwnerToolPosts(
+            await fetchThreadContextHistory(
+              api,
+              groupChannel,
+              parentId,
+              20,
+              runtime
+            ),
             groupChannel,
-            parentId,
-            20,
-            runtime
+            botShipName
           );
           if (threadContextHistory.length > 0) {
             contextLenses.recordContext(lens.lensId, {
@@ -3151,11 +3170,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // context about what the channel has been discussing.
       if (isGroup && groupChannel && !isThreadReply) {
         try {
-          const recentHistory = await fetchChannelHistory(
-            api,
+          const recentHistory = withoutOwnerToolPosts(
+            await fetchChannelHistory(api, groupChannel, 20, runtime),
             groupChannel,
-            20,
-            runtime
+            botShipName
           );
           if (recentHistory.length > 0) {
             contextLenses.recordContext(lens.lensId, {
@@ -3209,7 +3227,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               blob: buildContextLensReferenceBlobField(lens.lensId),
             }),
           dispatchStartTime: preparationStartTime,
-          loadHistory: () => getChannelHistory(api, groupChannel, 50, runtime),
+          loadHistory: async () =>
+            withoutOwnerToolPosts(
+              await getChannelHistory(api, groupChannel, 50, runtime),
+              groupChannel,
+              botShipName
+            ),
           onHistory: (history) => {
             contextLenses.recordContext(lens.lensId, {
               channelMessages: history.length,
@@ -3390,23 +3413,27 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // annotations, which hide the leading slash — the gate would then skip
       // authorization while CommandBody still carries the command, and the
       // gateway silently drops it as unauthorized.
-      const commandBody = resolveCommandBody({
-        messageText: params.messageText,
-        originalCommandText: params.originalCommandText,
-        isGroup,
-        botShipName,
-      });
+      // A reaction builds no command body (see inboundCommandFields).
+      const commandBody = params.fromReaction
+        ? undefined
+        : resolveCommandBody({
+            messageText: params.messageText,
+            originalCommandText: params.originalCommandText,
+            isGroup,
+            botShipName,
+          });
       const shouldComputeAuth =
+        commandBody !== undefined &&
         core.channel.commands.shouldComputeCommandAuthorized(commandBody, cfg);
       let commandAuthorized = false;
 
       if (shouldComputeAuth) {
-        const useAccessGroups = cfg.commands?.useAccessGroups !== false;
         const senderIsOwner = isOwner(senderShip);
 
         commandAuthorized =
           core.channel.commands.resolveCommandAuthorizedFromAuthorizers({
-            useAccessGroups,
+            // Tlon commands require owner authorization.
+            useAccessGroups: true,
             authorizers: [
               {
                 configured: Boolean(effectiveOwnerShip),
@@ -3476,8 +3503,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const ctxPayload = core.channel.reply.finalizeInboundContext({
         Body: body,
         BodyForAgent: bodyWithAttachments,
-        RawBody: messageText,
-        CommandBody: commandBody,
+        ...(commandBody === undefined
+          ? inboundCommandFields({ fromReaction: true })
+          : inboundCommandFields({
+              fromReaction: false,
+              rawBody: messageText,
+              commandBody,
+              commandAuthorized,
+            })),
         From: isGroup ? `tlon:group:${groupChannel}` : `tlon:${senderShip}`,
         To: `tlon:${botShipName}`,
         SessionKey: route.sessionKey,
@@ -3487,8 +3520,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         SenderName: senderShip,
         SenderId: senderShip,
         SenderRole: senderRole,
-        CommandAuthorized: commandAuthorized,
-        CommandSource: 'text' as const,
         Provider: 'tlon',
         Surface: 'tlon',
         MessageSid: messageId,
@@ -3712,6 +3743,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             });
           }
         },
+        ...buildProgressReplyOptions({
+          enabled: account.showCommentary,
+          presenceConversationId,
+          presenceRunId,
+          computingPresence,
+        }),
       };
 
       let dispatchResult:
@@ -3757,6 +3794,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               ? (msg) => runtime.log?.(msg)
               : undefined,
             onRecord: routeDebug,
+            // No run happened, so the finalize below must not read this as
+            // an empty DM reply and page the owner.
+            onNotDispatched: () => recordDeliverySkip('not_dispatched'),
             dispatch: () =>
               turnRecorder.run(async () => {
                 let activeDispatchError: unknown;
@@ -3765,7 +3805,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   return await core.channel.reply
                     .dispatchReplyWithBufferedBlockDispatcher({
                       ctx: ctxPayload,
-                      cfg,
+                      cfg:
+                        commandBody === undefined
+                          ? reactionDispatchConfig(cfg)
+                          : cfg,
                       replyOptions,
                       dispatcherOptions: {
                         responsePrefix,
@@ -3998,6 +4041,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         } finally {
           compactionTimeoutObserver.stop();
           stopAgentEventObservation();
+          // A tool call can revive a run that deliver already stopped; a turn
+          // that ends without another delivery would leave it showing.
+          if (presenceConversationId) {
+            computingPresence.stopRun({
+              conversationId: presenceConversationId,
+              runId: presenceRunId,
+            });
+          }
         }
       } catch (error) {
         dispatchError = error;
@@ -4303,6 +4354,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             await findOnboardingRequestInChannel({
               api,
               abortSignal: opts.abortSignal,
+              botShip: botShipName,
               channelNest: nest,
               ownerShip: effectiveOwnerShip,
             })
@@ -4511,6 +4563,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               reactor: ship,
               target: reactionTarget,
             }) => {
+              if (
+                sharedOwnerToolPostLedger().match({
+                  author: ship,
+                  target: nest,
+                  postId,
+                  ...(rootPostId ? { parentId: rootPostId } : {}),
+                  reaction: reactEmoji,
+                })
+              ) {
+                runtime.log?.(
+                  `[tlon] Ignoring an owner reaction this bot made with the tlon tool in ${nest}`
+                );
+                return;
+              }
               try {
                 const route = core.channel.routing.resolveAgentRoute({
                   cfg,
@@ -4543,6 +4609,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                       senderShip: ship,
                       messageText,
                       trigger: 'reaction',
+                      fromReaction: true,
                       cachesHistory: true,
                       isGroup: true,
                       channelNest: nest,
@@ -4622,13 +4689,35 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
 
         // Cache ALL messages (including bot's own) so reaction lookups have context
+        const threadRootId = isThreadReply ? response?.post?.id : undefined;
         cacheMessage(nest, {
           author: senderShip,
           content: rawText,
           timestamp: content.sent || Date.now(),
           id: messageId,
+          // The same parent the ledger match below uses, so a cache-served
+          // channel history filters owner-tool reply edits too.
+          ...(threadRootId ? { parentId: threadRootId } : {}),
           blob: content.blob ?? null,
         });
+
+        // Skip processing bot's own messages (but they're already cached above)
+        if (senderShip === botShipName) {
+          return;
+        }
+        // Owner-authored, but sent by this bot through the tlon tool: its own
+        // action, so never a command, an engagement trigger or owner activity.
+        // Checked before knownBotShips: a --bot send carries a bot-profile
+        // author and would mark the owner's ship as a bot.
+        const ownerToolPost = sharedOwnerToolPostLedger().match(
+          channelInboundPost(nest, response, senderShip, rawText)
+        );
+        if (ownerToolPost) {
+          runtime.log?.(
+            `[tlon] Ignoring an owner ${ownerToolPost.kind} this bot made with the tlon tool in ${nest}`
+          );
+          return;
+        }
 
         // Check if sender is a bot (BotProfile object has ship, nickname, avatar)
         const authorRaw = content?.author;
@@ -4638,11 +4727,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           'ship' in authorRaw;
         if (isSenderBot) {
           knownBotShips.add(senderShip);
-        }
-
-        // Skip processing bot's own messages (but they're already cached above)
-        if (senderShip === botShipName) {
-          return;
         }
 
         if (senderShip === effectiveOwnerShip) {
@@ -4665,6 +4749,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               await findOnboardingRequestInChannel({
                 api,
                 abortSignal: opts.abortSignal,
+                botShip: botShipName,
                 channelNest: nest,
                 ownerShip: effectiveOwnerShip,
               })
@@ -5142,6 +5227,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             extractAuthorShip(reactData?.author) || reactData?.ship || ''
           );
           const reactEmoji = dmAddReact?.react ?? '';
+          if (
+            reactAuthor &&
+            sharedOwnerToolPostLedger().match({
+              author: reactAuthor,
+              target: whom,
+              receivingShip: botShipName,
+              postId: messageId,
+              // del-react names no reaction.
+              ...(isAdd
+                ? { reaction: reactEmoji }
+                : { reactionRemoved: true as const }),
+            })
+          ) {
+            runtime.log?.(
+              `[tlon] Ignoring an owner reaction ${isAdd ? '' : 'removal '}this bot made with the tlon tool in a DM`
+            );
+            return;
+          }
           if (reactAuthor && reactAuthor !== botShipName) {
             // Check if this is an approval reaction from the owner on a notification message
             if (isAdd && isOwner(reactAuthor)) {
@@ -5207,6 +5310,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   senderShip: reactAuthor,
                   messageText: reactText,
                   trigger: 'reaction',
+                  fromReaction: true,
                   cachesHistory: true,
                   isGroup: false,
                   timestamp: Date.now(),
@@ -5303,6 +5407,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
         if (!senderShip || senderShip === botShipName) {
+          return;
+        }
+        // As in the channel handler: an owner-authored writ this bot sent
+        // through the tlon tool is never an owner DM or a command.
+        const ownerToolPost = sharedOwnerToolPostLedger().match(
+          chatInboundPost(event, authorShip, botShipName)
+        );
+        if (ownerToolPost) {
+          runtime.log?.(
+            `[tlon] Ignoring an owner ${ownerToolPost.kind} this bot made with the tlon tool in a DM`
+          );
           return;
         }
 
@@ -5403,6 +5518,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 await findOnboardingRequestInChannel({
                   api,
                   abortSignal: opts.abortSignal,
+                  botShip: botShipName,
                   channelNest: whom,
                   ownerShip: effectiveOwnerShip,
                 })
@@ -5900,6 +6016,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             isThreadReply: dispatch.isThreadReply,
             replyParentId: dispatch.replyParentId,
             degraded: dispatch.degraded,
+            fromReaction: dispatch.fromReaction,
             cachesHistory: dispatch.cachesHistory,
             trigger: 'retry',
             retryOf: lensId,

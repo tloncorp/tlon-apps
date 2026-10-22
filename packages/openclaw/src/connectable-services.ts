@@ -1,4 +1,4 @@
-import { readResponseWithLimit } from 'openclaw/plugin-sdk/response-limit-runtime';
+import { readResponseWithLimit } from 'openclaw/plugin-sdk/media-runtime';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
 

@@ -15,6 +15,7 @@ import {
 import { formatOwnerOnlyToolBlockReason } from './owner-only-tools.js';
 import { _testing as rolesTesting, setSessionRole } from './session-roles.js';
 import { _testing as approvalsTesting } from './tlon-call-approvals.js';
+import { _testing as sentAtTesting } from './tlon-tool-command.js';
 import { runTlonCommand } from './tlon-command-runner.js';
 import {
   RUN_ACTIVE_TTL_MS,
@@ -70,13 +71,13 @@ function registerEntry(
   const hooks = new Map<string, unknown>();
   const tools: ToolFactory[] = [];
   // The registration snapshot is `api.config`; a reload changes only what
-  // `api.runtime.config.loadConfig()` returns.
+  // `api.runtime.config.current()` returns.
   let liveConfig = config;
   const runtime: unknown = new Proxy(
     {},
     {
       get(_target, prop) {
-        if (prop === 'config') return { loadConfig: () => liveConfig };
+        if (prop === 'config') return { current: () => liveConfig };
         if (prop === 'then' || typeof prop === 'symbol') return undefined;
         return proxy;
       },
@@ -743,6 +744,57 @@ describe('before_tool_call turn identity', () => {
       expect(text).toBe(LOST);
       expect(runTlonCommand).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ['is demoted', () => inbound('user', 'run-2'), LOST],
+      [
+        'has its owner replaced',
+        (harness: ReturnType<typeof registerEntry>) =>
+          harness.reloadConfig({
+            channels: { tlon: { ownerDefault: true, ownerShip: '~nec' } },
+          }),
+        "Error: the bot's owner configuration changed while this command was pending; nothing was run. Run it again.",
+      ],
+    ])(
+      'refuses an owner send whose run %s during the CLI probe',
+      async (_label, change, message) => {
+        sentAtTesting.clearSentAtSupport();
+        // With the bot's own credentials, so its ship is known for owner sends.
+        const harness = registerEntry({
+          channels: {
+            tlon: {
+              ...OWNER.channels.tlon,
+              ship: '~bot',
+              url: 'http://localhost:8080',
+              code: 'code',
+            },
+          },
+        });
+        vi.mocked(runTlonCommand).mockClear();
+        vi.mocked(runTlonCommand).mockImplementation(async (_bin, args) => {
+          if (!args.includes('--help')) return 'ran';
+          change(harness);
+          return 'Usage: tlon posts send <channel> [message] [--sent-at <ms>]';
+        });
+        inbound('owner', 'run-1');
+        try {
+          const text = await callTlon(
+            harness,
+            harness.tlonTool(),
+            'posts send chat/~h/general hi',
+            ctx,
+            'call-1'
+          );
+          expect(text).toBe(message);
+          expect(vi.mocked(runTlonCommand).mock.calls.map((c) => c[1])).toEqual(
+            [['posts', 'send', '--help']]
+          );
+        } finally {
+          vi.mocked(runTlonCommand).mockImplementation(async () => 'ran');
+          sentAtTesting.clearSentAtSupport();
+        }
+      }
+    );
 
     it('runs an unchanged owner run as the owner', async () => {
       const harness = registerEntry(OWNER);

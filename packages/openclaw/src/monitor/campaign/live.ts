@@ -5,11 +5,12 @@ import {
   parsePostBlob,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
-import type {
-  PluginHookCronChangedEvent,
-  PluginHookGatewayCronJob,
-} from 'openclaw/plugin-sdk/types';
-import { getTlonCronService } from '../../cron-telemetry.js';
+import { RECURRING_SCHEDULE_KINDS } from '../../cron-budget-hold.js';
+import {
+  type CronChangedEvent as PluginHookCronChangedEvent,
+  type GatewayCronJob as PluginHookGatewayCronJob,
+  getTlonCronService,
+} from '../../cron-telemetry.js';
 import { roleMentionScopeFor } from '../../role-mention-scope.js';
 import { sharedMap } from '../../shared-state.js';
 import type { TlonTelemetryClient } from '../../telemetry.js';
@@ -71,7 +72,7 @@ export function notifyCampaignCronChanged(event: PluginHookCronChangedEvent) {
 
 export function isUserRecurringTask(job: PluginHookGatewayCronJob): boolean {
   return (
-    (job.schedule?.kind === 'cron' || job.schedule?.kind === 'every') &&
+    RECURRING_SCHEDULE_KINDS.has(job.schedule?.kind ?? '') &&
     job.payload?.kind !== 'heartbeat' &&
     !job.description?.startsWith('tlon-internal:')
   );

@@ -73,6 +73,9 @@ const POST_REPLY_OPTION_FLAGS = [
 const POST_SEND_OPTION_FLAGS = [
   'blob',
   'image',
+  'file',
+  'video',
+  'link',
   'title',
   'sent-at',
   'quote',

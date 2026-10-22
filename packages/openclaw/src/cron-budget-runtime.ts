@@ -13,6 +13,7 @@ import {
 } from './cron-budget-hold.js';
 import { createBudgetHoldObserver } from './cron-budget-observability.js';
 import { getTlonCronService } from './cron-telemetry.js';
+import { isCronToolName } from './cron-tool-args-guard.js';
 import { buildCreditIncreaseCard } from './credit-increase-request.js';
 import { normalizeShip } from './targets.js';
 import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
@@ -65,15 +66,22 @@ type Runner = {
 };
 const runnerSlot = sharedSlot<Runner>('cronBudget.runner');
 
-/** Hosted-only. The wrapper supplies an explicit signal, never inferred from a model name. */
-export function registerBudgetHoldHooks(
-  api: Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>
-) {
+/**
+ * Blocks model-forced runs of budget-held recurring jobs. Registered from the
+ * entry's registerCapabilities (see registerAgentTurnHooks in index.ts): a
+ * turn that loads the plugin in discovery mode never runs registerFull, so a
+ * guard registered only there is inert for that turn. Reads only shared
+ * state, so it works from any registration.
+ */
+export function registerBudgetRunGuard(api: Pick<OpenClawPluginApi, 'on'>) {
   const paths = budgetHoldPaths();
   if (!paths) return;
 
   api.on('before_tool_call', async (event) => {
-    if (event.toolName !== 'cron' || event.params.action !== 'run') return;
+    // Covers both scheduler tool names (`automations` and legacy `cron`).
+    if (!isCronToolName(event.toolName) || event.params.action !== 'run') {
+      return;
+    }
     const id = event.params.jobId ?? event.params.id;
     if (typeof id !== 'string') return;
     const state = await readBudgetHoldState(paths.state);
@@ -98,6 +106,18 @@ export function registerBudgetHoldHooks(
       };
     }
   });
+}
+
+/**
+ * Gateway-lifetime budget hold machinery; registered from registerFull.
+ * Hosted-only. The wrapper supplies an explicit signal, never inferred from a
+ * model name.
+ */
+export function registerBudgetHoldHooks(
+  api: Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>
+) {
+  const paths = budgetHoldPaths();
+  if (!paths) return;
 
   api.on('gateway_start', (_event, ctx) => {
     if (runnerSlot.get()) return;
