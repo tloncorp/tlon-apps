@@ -60,10 +60,10 @@ jobs:
   integration-test:
     name: Bot E2E (${{ matrix.shard }})
     runs-on: blacksmith-8vcpu-ubuntu-2204
-    # One stack per shard: the baseline and cron scenario partitions and the
-    # package suite. Each stack boots fresh and re-applies the branch %groups
-    # desk (13-15 min with three ships), so running them in series cost ~64
-    # min; sharding runs the three applies in parallel. The ceiling sits
+    # One stack per shard: the baseline, cron and code_mode scenario
+    # partitions and the package suite. Each stack boots fresh and re-applies
+    # the branch %groups desk (13-15 min with three ships), so running them in
+    # series cost ~64 min; sharding runs the applies in parallel. The ceiling sits
     # above cold setup ~15 + the 45-min step cap + the 5-min failure capture
     # + upload, so a step that runs to its cap hits a *step* timeout (a step
     # failure), never this job timeout (a cancellation) — the capture steps
@@ -81,6 +81,10 @@ jobs:
             id: c
             script: test:e2e:openclaw
             partitions: cron
+          - shard: code_mode
+            id: m
+            script: test:e2e:openclaw
+            partitions: code_mode
           - shard: package
             id: p
             script: test:e2e:openclaw:package

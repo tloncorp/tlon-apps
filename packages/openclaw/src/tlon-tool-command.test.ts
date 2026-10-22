@@ -75,7 +75,7 @@ describe('tlon tool execution', () => {
         notifyDiaryMigrationDiscovery: vi.fn(),
       });
       const result = await execute('help', { command });
-      expect(result.details).toBeUndefined();
+      expect(result.details).toEqual({ text: result.content[0].text });
       expect(result.content[0].text).toContain('help notes note-create');
       expect(result.content[0].text).toContain('stdin is shell-only');
       expect(runCommand).not.toHaveBeenCalled();
@@ -110,7 +110,8 @@ describe('tlon tool execution', () => {
       runCommand,
       notifyDiaryMigrationDiscovery: vi.fn(),
     });
-    expect((await execute('help', { command })).details).toBeUndefined();
+    const result = await execute('help', { command });
+    expect(result.details).toEqual({ text: result.content[0].text });
     expect(runCommand).toHaveBeenCalledOnce();
   });
 
@@ -156,6 +157,7 @@ describe('tlon tool execution', () => {
               status: 'blocked',
               blocked: true,
               reason: 'migration_operation',
+              text: BLOCKED_MIGRATION_MESSAGE,
             },
           },
         },
@@ -167,6 +169,7 @@ describe('tlon tool execution', () => {
               status: 'blocked',
               blocked: true,
               reason: 'migration_operation',
+              text: BLOCKED_MIGRATION_MESSAGE,
             },
           },
         },
@@ -228,6 +231,7 @@ describe('tlon tool execution', () => {
         status: 'blocked',
         blocked: true,
         reason: 'migration_operation',
+        text: BLOCKED_MIGRATION_MESSAGE,
       },
     });
     await vi.waitFor(() =>
@@ -251,7 +255,11 @@ describe('tlon tool execution', () => {
 
     expect(result).toEqual({
       content: [{ type: 'text', text: 'Error: TimeoutError: active' }],
-      details: { status: 'error', error: 'TimeoutError: active' },
+      details: {
+        status: 'error',
+        error: 'TimeoutError: active',
+        text: 'Error: TimeoutError: active',
+      },
     });
   });
 
@@ -275,6 +283,7 @@ describe('tlon tool execution', () => {
       details: {
         status: 'error',
         error: expect.stringContaining("Unknown tlon subcommand 'frobnicate'"),
+        text: expect.stringContaining("Unknown tlon subcommand 'frobnicate'"),
       },
     });
   });
@@ -289,7 +298,7 @@ describe('tlon tool execution', () => {
       command: 'notes migrate-apply diary/~bot/shape-check --yes',
     });
 
-    expect(result.details).toEqual({
+    expect(result.details).toMatchObject({
       status: 'blocked',
       blocked: true,
       reason: 'migration_operation',
@@ -343,6 +352,7 @@ describe('tlon tool execution', () => {
           status: 'blocked',
           blocked: true,
           reason: 'reserved_automatic_provision',
+          text: expect.stringContaining('tlon_agent_task_plan'),
         },
       });
       expect(runCommand).not.toHaveBeenCalled();
@@ -540,7 +550,7 @@ describe('owner-by-default identity selection', () => {
           const { execute, runCommand } = makeExecutor(overrides);
           const result = await execute('unprovisioned', { command });
           expect(result.content[0].text).toBe(text);
-          expect(result.details).toEqual({
+          expect(result.details).toMatchObject({
             status: 'error',
             error: text.replace(/^Error: /, ''),
           });
@@ -560,7 +570,7 @@ describe('owner-by-default identity selection', () => {
       async (command, expected) => {
         const { execute, runCommand } = makeExecutor(unprovisioned.file);
         const result = await execute('bot', { command });
-        expect(result.details).toBeUndefined();
+        expect(result.details).toEqual({ text: result.content[0].text });
         expect(ranWith(runCommand)).toEqual(expected);
       }
     );
@@ -617,7 +627,7 @@ describe('owner-by-default identity selection', () => {
           'Usage'
         );
         const result = await execute('help', { command });
-        expect(result.details).toBeUndefined();
+        expect(result.details).toEqual({ text: result.content[0].text });
         expect(result.content[0].text).toBe('Usage');
         expect(ranWith(runCommand)).toEqual(expected);
       }
@@ -754,7 +764,7 @@ describe('owner-by-default identity selection', () => {
       expect(result.content[0].text).toBe(
         'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted. Commands run as the owner by default; add --self to run as this bot.'
       );
-      expect(result.details).toEqual({
+      expect(result.details).toMatchObject({
         status: 'blocked',
         blocked: true,
         reason: 'credential_override',
@@ -1167,7 +1177,7 @@ describe('owner default off (staged rollout)', () => {
   ])('passes credential flags through unchanged: %s', async (command) => {
     const { execute, runCommand } = makeExecutor();
     const result = await execute('off', { command });
-    expect(result.details).toBeUndefined();
+    expect(result.details).toEqual({ text: result.content[0].text });
     expect(runCommand).toHaveBeenCalledWith(shellSplitCommand(command));
   });
 
@@ -1262,7 +1272,7 @@ describe('owner default off (staged rollout)', () => {
       for (const [overrides] of PROVISIONING_FAILURES) {
         const { execute, runCommand } = makeExecutor(overrides);
         const result = await execute('opt-out', { command });
-        expect(result.details).toBeUndefined();
+        expect(result.details).toEqual({ text: result.content[0].text });
         expect(runCommand).toHaveBeenCalledWith(shellSplitCommand(command));
         expect(runCommand).toHaveBeenCalledTimes(1);
       }
@@ -2217,7 +2227,7 @@ describe('owner-hosted workspaces and channels with ownerDefault', () => {
           command: 'groups create-owned Projects --admin ~owner',
         });
         expect(result.content[0].text).toBe(message);
-        expect(result.details).toEqual({
+        expect(result.details).toMatchObject({
           status: 'blocked',
           blocked: true,
           reason: 'owner_workspace_unsupported',

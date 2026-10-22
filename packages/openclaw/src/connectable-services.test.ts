@@ -151,7 +151,7 @@ describe('connectable services tool', () => {
       listServices: async () => services,
     })();
 
-    expect(result.details).toBeUndefined();
+    expect(result.details).toEqual({ text: result.content[0].text });
     expect(result.content[0]!.text).toContain(
       'ClickUp (clickup), GitHub (github), Google Calendar (google-calendar).'
     );
@@ -165,7 +165,7 @@ describe('connectable services tool', () => {
       listServices: async () => null,
     })();
 
-    expect(result.details).toEqual({ error: true });
+    expect(result.details).toMatchObject({ error: true });
     expect(result.content[0]!.text).toContain("Don't guess");
   });
 });

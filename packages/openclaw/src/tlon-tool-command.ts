@@ -1,6 +1,7 @@
 import commandCatalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
 import { locateOwnerShipConfig } from './owner-ship-config.js';
 import { normalizeShip } from './targets.js';
+import { textToolResult } from './tool-result.js';
 import {
   ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
   checkBlockedDiaryOperation,
@@ -1515,22 +1516,16 @@ function blockedResult(
       blocked.diaryNest ? ` nest=${blocked.diaryNest}` : ''
     }`
   );
-  return {
-    content: [{ type: 'text' as const, text: blocked.message }],
-    details: {
-      status: 'blocked',
-      blocked: true,
-      reason: blocked.reason,
-    },
-  };
+  return textToolResult(blocked.message, {
+    status: 'blocked',
+    blocked: true,
+    reason: blocked.reason,
+  });
 }
 
 function errorResult(text: string) {
   const message = text.replace(/^Error: /, '');
-  return {
-    content: [{ type: 'text' as const, text }],
-    details: { status: 'error', error: message },
-  };
+  return textToolResult(text, { status: 'error', error: message });
 }
 
 function withNote(text: string, note: string | undefined): string {
@@ -1577,29 +1572,13 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         (discoveryArgs.length === 1 &&
           ['help', '--help', '-h'].includes(discoveryArgs[0]))
       ) {
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: formatTlonToolHelp(Boolean(deps.ownerDefault)),
-            },
-          ],
-          details: undefined,
-        };
+        return textToolResult(formatTlonToolHelp(Boolean(deps.ownerDefault)));
       }
       if (
         discoveryArgs.length === 1 &&
         ['version', '--version', '-v'].includes(discoveryArgs[0])
       ) {
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: await deps.runCommand(['--version']),
-            },
-          ],
-          details: undefined,
-        };
+        return textToolResult(await deps.runCommand(['--version']));
       }
       if (discoveryArgs[0] === 'help') {
         if (!isValidHelpTarget(discoveryArgs.slice(1))) {
@@ -1612,10 +1591,7 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
       if (!isAllowedTlonSubcommand(subcommand)) {
         const message = `Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}. Use {"command":"help"} to discover commands; omit the leading tlon executable.`;
-        return {
-          content: [{ type: 'text' as const, text: `Error: ${message}` }],
-          details: { status: 'error', error: message },
-        };
+        return errorResult(`Error: ${message}`);
       }
 
       const blocked = checkBlockedTlonOperation(args);
@@ -1654,10 +1630,7 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       ) {
         const message =
           'The tlon tool cannot supply stdin. Write content to a workspace file, then use notes note-create/note-update --body <file> or upload <file>. Shell pipes and redirections are not supported.';
-        return {
-          content: [{ type: 'text' as const, text: `Error: ${message}` }],
-          details: { status: 'error', error: message },
-        };
+        return errorResult(`Error: ${message}`);
       }
 
       const isHelp = isTlonHelpInvocation(command);
@@ -1738,16 +1711,13 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       const text = echoes
         ? `${output.replace(/\s+$/, '')}${output.trim() ? '\n' : ''}${formatActingIdentityEcho(identity, deps.botShip)}`
         : output;
-      return {
-        content: [{ type: 'text' as const, text }],
-        details: undefined,
-      };
+      return textToolResult(text);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
-        details: { status: 'error', error: message },
-      };
+      return textToolResult(`Error: ${message}`, {
+        status: 'error',
+        error: message,
+      });
     }
   };
 }

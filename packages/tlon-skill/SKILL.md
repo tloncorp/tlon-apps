@@ -21,6 +21,8 @@ Tool arguments are argument strings, not shell scripts:
 
 `--help` and `-h` also work. This help covers only commands in the Tlon index; other tools such as `message`, `read`, and `write` have their own tool schemas, not Tlon subcommands. Exact flags live in command help; inspect it instead of guessing a verb or copying flags from a different operation. If CLI usage shows `tlon` at the start, omit it in the tool's command argument.
 
+When tools are reachable only from code (OpenClaw Code Mode's `exec`), call `tlon` as an async function with the same argument and read the output from `.text`: `const result = await tlon({command: "groups list"}); text(result.text);`.
+
 There is no shell expansion, pipe, redirection, or stdin transport. Use `write` to create a content file and pass its filename. Relative paths resolve in the active agent workspace, just like `read` and `write`. Do not put `$VARIABLE`, a heredoc, or inline Markdown in a filename argument.
 
 ## Choose the task reference

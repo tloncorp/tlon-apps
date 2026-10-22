@@ -14,6 +14,8 @@
 import { randomUUID } from 'node:crypto';
 import { rename, writeFile } from 'node:fs/promises';
 
+import { textToolResult } from './tool-result.js';
+
 export const OWNER_TIMEZONE_FILE_ENV = 'TLON_OWNER_TIMEZONE_FILE';
 
 export type OwnerTimezoneToolParams = { timezone: string };
@@ -104,23 +106,14 @@ export function createOwnerTimezoneToolExecutor(deps: {
       const tmp = `${path}.${randomUUID()}.tmp`;
       await writeFile(tmp, `${JSON.stringify(record)}\n`, { mode: 0o600 });
       await rename(tmp, path);
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text:
-              `Timezone set to ${timezone}. It is now ${describeNow(timezone, at)} there. ` +
-              'Your clock switches to it from the next message; for anything you schedule in this turn, use this zone and offset.',
-          },
-        ],
-        details: { timezone },
-      };
+      return textToolResult(
+        `Timezone set to ${timezone}. It is now ${describeNow(timezone, at)} there. ` +
+          'Your clock switches to it from the next message; for anything you schedule in this turn, use this zone and offset.',
+        { timezone }
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
-        details: { error: true },
-      };
+      return textToolResult(`Error: ${message}`, { error: true });
     }
   };
 }

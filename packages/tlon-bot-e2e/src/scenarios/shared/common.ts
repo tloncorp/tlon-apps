@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect } from 'vitest';
 
-import type { DriverName, RuntimeContext } from '../../drivers/types.js';
+import type {
+  DriverName,
+  ModelScript,
+  RuntimeContext,
+} from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import {
   connectComposeNetwork,
@@ -181,6 +185,74 @@ export const commonScenarios: readonly SharedScenario[] = [
 
       expectPromptSuccess(result, finalReply);
       await waitForBotNickname(actors.bot, nicknameToken);
+      await expectModelExpectations(ctx.fakeModel, key, script);
+    }
+  ),
+
+  // A model whose catalog entry prefers Code Mode sees only `exec`, and a
+  // script calling `tlon` receives the tool result's `details`, not its
+  // content. The script names the bot after what `tlon` returned, so a result
+  // the script cannot read leaves a distinct nickname behind.
+  testScenario(
+    'code-mode-tlon-result-reaches-script',
+    { drivers: ['openclaw'], capabilities: ['code_mode'] },
+    async ({ ctx, actors }) => {
+      const key = scenarioKey('code-mode');
+      const readNickname = `code-mode-read-${key}`;
+      const unreadNickname = `code-mode-unread-${key}`;
+      const finalReply = `Code Mode tlon result ${key}`;
+      const previousNickname = await botNickname(actors.bot);
+      actors.bot.teardown(
+        async () => {
+          await setBotNickname(actors.bot, previousNickname);
+          await waitForBotNickname(actors.bot, previousNickname);
+        },
+        { kind: 'profile-rollback', label: 'restore bot nickname' }
+      );
+
+      const code = [
+        "const listed = await tlon({ command: '--self groups list' });",
+        `const name = typeof listed?.text === 'string' && listed.text.includes('YOUR GROUPS') ? ${JSON.stringify(readNickname)} : ${JSON.stringify(unreadNickname)};`,
+        "await tlon({ command: '--self contacts update-profile --nickname ' + JSON.stringify(name) });",
+        'text(name);',
+      ].join('\n');
+      const script: ModelScript = {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'exec',
+            args: { title: 'List groups then rename', code },
+          },
+          { kind: 'text', content: finalReply },
+        ],
+        expectations: {
+          advertisedTools: { include: ['exec'], exclude: ['tlon'] },
+          expectedCallCount: 2,
+          toolEffectOnly: true,
+        },
+      };
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+
+      const result = await actors.owner.prompt(
+        `${tag} List your groups and rename yourself after the result, then reply with the scripted result.`,
+        { timeoutMs: 120_000 }
+      );
+
+      expectPromptSuccess(result, finalReply);
+      const nickname = await waitFor(
+        async () => {
+          const current = await botNickname(actors.bot);
+          return current === readNickname || current === unreadNickname
+            ? current
+            : undefined;
+        },
+        {
+          timeoutMs: 45_000,
+          intervalMs: 1_000,
+          description: 'bot nickname set by the Code Mode script',
+        }
+      );
+      expect(nickname).toBe(readNickname);
       await expectModelExpectations(ctx.fakeModel, key, script);
     }
   ),

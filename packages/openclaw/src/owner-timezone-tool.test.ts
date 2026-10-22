@@ -46,7 +46,7 @@ describe('set_timezone executor', () => {
   it('records the zone and reports the local time there', async () => {
     const result = await execute()('call-1', { timezone: 'Asia/Tokyo' });
 
-    expect(result.details).toEqual({ timezone: 'Asia/Tokyo' });
+    expect(result.details).toMatchObject({ timezone: 'Asia/Tokyo' });
     expect(result.content[0].text).toContain('Timezone set to Asia/Tokyo');
     expect(result.content[0].text).toContain('03:00 GMT+09:00');
     expect(JSON.parse(await readFile(join(dir, FILE), 'utf8'))).toEqual({
@@ -68,7 +68,7 @@ describe('set_timezone executor', () => {
   it('rejects an invalid zone without writing', async () => {
     const result = await execute()('call-1', { timezone: 'PST' });
 
-    expect(result.details).toEqual({ error: true });
+    expect(result.details).toMatchObject({ error: true });
     expect(result.content[0].text).toMatch(/^Error: .*IANA/);
     expect(await readdir(dir)).toEqual([]);
   });

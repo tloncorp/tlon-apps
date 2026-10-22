@@ -145,6 +145,7 @@ import {
   observeRun,
   resolveTurnIdentity,
 } from './src/turn-identity.js';
+import { textToolResult } from './src/tool-result.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
@@ -1852,10 +1853,10 @@ export default defineBundledChannelEntry({
           ) {
             const message =
               "the bot's owner configuration changed while this command was pending; nothing was run. Run it again.";
-            return {
-              content: [{ type: 'text' as const, text: `Error: ${message}` }],
-              details: { status: 'error', error: message },
-            };
+            return textToolResult(`Error: ${message}`, {
+              status: 'error',
+              error: message,
+            });
           }
           // A non-owner message or sessions_send may have demoted the run
           // since the gate; the executor refuses a command that would still

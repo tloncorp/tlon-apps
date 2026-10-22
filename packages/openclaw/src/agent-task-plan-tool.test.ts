@@ -166,7 +166,7 @@ describe('agent task plan tool', () => {
       ...validPlan,
       scheduleDays: [7],
     });
-    expect(invalid.details).toEqual({ error: true });
+    expect(invalid.details).toMatchObject({ error: true });
     expect(postPlan).toHaveBeenCalledTimes(3);
   });
 
@@ -182,7 +182,7 @@ describe('agent task plan tool', () => {
       scheduleMinute: 30,
       scheduleDescription: 'after dinner-ish',
     });
-    expect(result.details).toBeUndefined();
+    expect(result.details).toEqual({ text: result.content[0].text });
   });
 
   it('validates explicit and trusted timezones structurally', async () => {
@@ -244,7 +244,7 @@ describe('agent task plan tool', () => {
 
     const result = await execute('call-1', validPlan);
 
-    expect(result.details).toBeUndefined();
+    expect(result.details).toEqual({ text: result.content[0].text });
     expect(postPlan).toHaveBeenCalledOnce();
     expect(postPlan.mock.calls[0]?.[0].target).toBe(validPlan.target);
     expect(postPlan.mock.calls[0]?.[0].fallbackSummary).toBe(validPlan.summary);
@@ -284,7 +284,7 @@ describe('agent task plan tool', () => {
 
     const result = await execute('call-stale', validPlan);
 
-    expect(result.details).toEqual({ superseded: true });
+    expect(result.details).toMatchObject({ superseded: true });
     expect(result).toEqual(expect.objectContaining({ terminate: true }));
     expect(postPlan).not.toHaveBeenCalled();
     expect(boundary.finish).toHaveBeenCalledWith('call-stale', false);
@@ -301,7 +301,7 @@ describe('agent task plan tool', () => {
 
     const result = await execute('call-ambiguous', validPlan);
 
-    expect(result.details).toEqual({ error: true });
+    expect(result.details).toMatchObject({ error: true });
     expect(boundary.finish).toHaveBeenCalledWith('call-ambiguous', true);
   });
 });

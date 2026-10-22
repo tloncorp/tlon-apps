@@ -1,3 +1,5 @@
+import { textToolResult } from './tool-result.js';
+
 /**
  * An owner can send a second message while the bot is still answering the
  * first. OpenClaw runs the newer message as its own turn once the current one
@@ -27,8 +29,7 @@ export class SupersededTurnError extends Error {
  */
 export function supersededToolResult() {
   return {
-    content: [{ type: 'text' as const, text: SUPERSEDED_TURN_TEXT }],
-    details: { superseded: true as const },
+    ...textToolResult(SUPERSEDED_TURN_TEXT, { superseded: true as const }),
     terminate: true,
   };
 }

@@ -3,6 +3,7 @@ import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
 
 import { sharedSlot } from './shared-state.js';
+import { textToolResult } from './tool-result.js';
 import { tlonMediaUserAgent } from './version.js';
 
 export type ConnectableService = { id: string; name: string };
@@ -185,29 +186,16 @@ export function createConnectableServicesToolExecutor(deps: {
   return async function execute() {
     const services = await deps.listServices();
     if (!services) {
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text:
-              "Error: the list of connectable services couldn't be loaded right now. " +
-              "Don't guess: say you can't check at the moment and point the owner to Connected services in the bot's settings.",
-          },
-        ],
-        details: { error: true },
-      };
+      return textToolResult(
+        "Error: the list of connectable services couldn't be loaded right now. " +
+          "Don't guess: say you can't check at the moment and point the owner to Connected services in the bot's settings.",
+        { error: true }
+      );
     }
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text:
-            `Services the owner can connect under Connected services: ${formatConnectableServices(services)}. ` +
-            'A service not on this list cannot be connected yet. ' +
-            'This list does not say which ones are connected now; check that with a small real call before relying on one.',
-        },
-      ],
-      details: undefined,
-    };
+    return textToolResult(
+      `Services the owner can connect under Connected services: ${formatConnectableServices(services)}. ` +
+        'A service not on this list cannot be connected yet. ' +
+        'This list does not say which ones are connected now; check that with a small real call before relying on one.'
+    );
   };
 }

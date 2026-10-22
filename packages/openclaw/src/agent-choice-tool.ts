@@ -4,6 +4,7 @@ import {
   SupersededTurnError,
   supersededToolResult,
 } from './superseded-turn.js';
+import { textToolResult } from './tool-result.js';
 
 const MAX_OPTIONS = 6;
 const MAX_QUESTION_LENGTH = 1000;
@@ -163,15 +164,9 @@ export function createAgentChoiceToolExecutor(deps: {
         blob: JSON.stringify(blob),
       });
       deps.finish(id, true);
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: 'Choice posted. Return NO_REPLY now and wait for the owner answer. Do not call another tool in this turn.',
-          },
-        ],
-        details: undefined,
-      };
+      return textToolResult(
+        'Choice posted. Return NO_REPLY now and wait for the owner answer. Do not call another tool in this turn.'
+      );
     } catch (error) {
       // Validation errors are safe to retry in the same model turn; a stale
       // turn is not, and says so. Once publication starts, keep the claim
@@ -182,10 +177,7 @@ export function createAgentChoiceToolExecutor(deps: {
         return supersededToolResult();
       }
       const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
-        details: { error: true },
-      };
+      return textToolResult(`Error: ${message}`, { error: true });
     }
   };
 }

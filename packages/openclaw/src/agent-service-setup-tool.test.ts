@@ -30,9 +30,8 @@ describe('agent service setup tool', () => {
       assertCurrent: vi.fn(),
       listServices: noCatalog,
     });
-    expect(
-      (await execute('dm-setup', { ...validSetup, target: '~ten' })).details
-    ).toBeUndefined();
+    const result = await execute('dm-setup', { ...validSetup, target: '~ten' });
+    expect(result.details).toEqual({ text: result.content[0].text });
   });
   it('advertises a bounded provider identity', () => {
     expect(agentServiceSetupToolParameters.properties.providerId).toEqual(
@@ -112,7 +111,7 @@ describe('agent service setup tool', () => {
 
     const result = await execute('call-1', validSetup);
 
-    expect(result.details).toBeUndefined();
+    expect(result.details).toEqual({ text: result.content[0].text });
     expect(postSetup).toHaveBeenCalledOnce();
     expect(postSetup).toHaveBeenCalledWith({
       target: validSetup.target,
@@ -151,7 +150,7 @@ describe('agent service setup tool', () => {
       { ...validSetup, providerId: '   ' },
     ]) {
       const result = await execute('call-invalid', params);
-      expect(result.details).toEqual({ error: true });
+      expect(result.details).toMatchObject({ error: true });
     }
     expect(postSetup).not.toHaveBeenCalled();
   });
@@ -164,7 +163,7 @@ describe('agent service setup tool', () => {
       listServices: catalog,
     })('call-asana', { ...validSetup, providerId: 'asana' });
 
-    expect(result.details).toEqual({ error: true });
+    expect(result.details).toMatchObject({ error: true });
     expect(result.content[0]!.text).toContain(
       '"asana" is not a service the owner can connect.'
     );
@@ -195,7 +194,7 @@ describe('agent service setup tool', () => {
       listServices: noCatalog,
     })('call-offline', { ...validSetup, providerId: 'asana' });
 
-    expect(result.details).toBeUndefined();
+    expect(result.details).toEqual({ text: result.content[0].text });
     expect(postSetup.mock.calls[0]![0].blob).toContain('"providerId":"asana"');
   });
 });

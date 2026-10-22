@@ -36,7 +36,7 @@ describe('discovery through the real CLI and tool wrapper', () => {
   ]) {
     it(command, async () => {
       const result = await execute('discovery', { command });
-      expect(result.details).toBeUndefined();
+      expect(result.details).toEqual({ text: result.content[0].text });
       expect(result.content[0].text.length).toBeGreaterThan(0);
       expect(result.content[0].text).not.toContain('Missing Urbit config');
     });
@@ -45,9 +45,8 @@ describe('discovery through the real CLI and tool wrapper', () => {
     const failed = await execute('unknown', { command: 'invented-command' });
     expect(failed.details).toMatchObject({ status: 'error' });
     expect(failed.content[0].text).toContain('{"command":"help"}');
-    expect(
-      (await execute('recovery', { command: 'help' })).details
-    ).toBeUndefined();
+    const recovered = await execute('recovery', { command: 'help' });
+    expect(recovered.details).toEqual({ text: recovered.content[0].text });
   });
   it('help aliases do not authorize writes', async () => {
     expect(

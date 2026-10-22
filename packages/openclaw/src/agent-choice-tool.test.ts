@@ -60,9 +60,11 @@ const invalidChoices: Array<{
 describe('agent choice tool', () => {
   it('builds a choice for the furnished first-run bot DM', async () => {
     const { execute } = choiceHarness();
-    expect(
-      (await execute('dm-choice', { ...validChoice, target: '~ten' })).details
-    ).toBeUndefined();
+    const result = await execute('dm-choice', {
+      ...validChoice,
+      target: '~ten',
+    });
+    expect(result.details).toEqual({ text: result.content[0].text });
   });
   it('advertises the mobile-safe label limit to the model', () => {
     expect(agentChoiceToolParameters.properties.options.items).toEqual({
@@ -116,7 +118,7 @@ describe('agent choice tool', () => {
 
     const result = await execute('call-1', validChoice);
 
-    expect(result.details).toBeUndefined();
+    expect(result.details).toEqual({ text: result.content[0].text });
     expect(postChoice).toHaveBeenCalledOnce();
     expect(postChoice).toHaveBeenCalledWith({
       target: validChoice.target,
@@ -141,7 +143,7 @@ describe('agent choice tool', () => {
 
     // Not an error: retrying can't succeed, and the newer message gets its
     // own reply. OpenClaw ends the turn instead of asking the model again.
-    expect(result.details).toEqual({ superseded: true });
+    expect(result.details).toMatchObject({ superseded: true });
     expect(result).toEqual(expect.objectContaining({ terminate: true }));
     expect(result.content[0]?.text).toBe(SUPERSEDED_TURN_TEXT);
     expect(postChoice).not.toHaveBeenCalled();
@@ -152,7 +154,7 @@ describe('agent choice tool', () => {
     async ({ params, message }) => {
       const { execute, postChoice } = choiceHarness();
       const result = await execute('invalid-choice', params);
-      expect(result.details).toEqual({ error: true });
+      expect(result.details).toMatchObject({ error: true });
       if (message) expect(result.content[0]?.text).toContain(message);
       expect(postChoice).not.toHaveBeenCalled();
     }
