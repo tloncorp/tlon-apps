@@ -487,6 +487,25 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     ['posts', 'send', 'heap/~host/gallery', '--link', 'ftp://x/y'],
     '--link takes an http(s) URL.'
   ),
+  {
+    ...refusalCase(
+      'posts send rejects a link with embedded credentials',
+      [
+        'posts',
+        'send',
+        'heap/~host/gallery',
+        '--link',
+        'https://user:secret@example.com/',
+      ],
+      '--link URLs with embedded credentials are not supported.'
+    ),
+    stderrExcludes: [
+      'secret',
+      'Usage:',
+      ...STACK_PATTERNS,
+      ...AUTH_CONFIG_PATTERNS,
+    ],
+  },
   refusalCase(
     'posts send rejects an unknown blob entry type',
     [

@@ -5034,6 +5034,37 @@ describe('posts send attachments', () => {
       );
       expect(context.calls.sendPost).toEqual([]);
     });
+
+    it('probes at most four attachments at once, keeping flag order', async () => {
+      const urls = [1, 2, 3, 4, 5, 6].map(
+        (n) => `https://cdn.example.com/${n}.pdf`
+      );
+      let inFlight = 0;
+      let maxInFlight = 0;
+      const context = await sendOk(
+        [CHAT, ...urls.flatMap((url) => ['--file', url])],
+        {
+          probeMedia: async (url) => {
+            inFlight += 1;
+            maxInFlight = Math.max(maxInFlight, inFlight);
+            // Later flags settle first, so order can only come from the pool.
+            await new Promise((resolve) =>
+              setTimeout(resolve, 5 * (7 - urls.indexOf(url)))
+            );
+            inFlight -= 1;
+            return { mimeType: 'application/pdf', size: 1 };
+          },
+        }
+      );
+
+      expect(maxInFlight).toBe(4);
+      expect(context.calls.probeMedia).toEqual(urls);
+      expect(
+        JSON.parse(context.calls.sendPost[0].blob ?? '').map(
+          (entry: { fileUri: string }) => entry.fileUri
+        )
+      ).toEqual(urls);
+    });
   });
 
   describe('gallery composition', () => {
@@ -5194,6 +5225,16 @@ describe('posts send attachments', () => {
         'Error: --link takes an http(s) URL.\n',
       ],
       [
+        'a link with embedded credentials',
+        [HEAP, '--link', 'https://user:secret@example.com/'],
+        'Error: --link URLs with embedded credentials are not supported.\n',
+      ],
+      [
+        'a link with an empty userinfo',
+        [HEAP, '--link', 'https://@example.com/'],
+        'Error: --link URLs with embedded credentials are not supported.\n',
+      ],
+      [
         'a link that is not a URL',
         [HEAP, '--link', 'example.com'],
         'Error: --link takes an http(s) URL.\n',
@@ -5290,6 +5331,19 @@ describe('posts send attachments', () => {
         await refusedBeforeAuth(args, stderr);
       });
     }
+
+    it('never echoes link credentials', async () => {
+      const context = makeDeps();
+      expect(
+        await run(
+          ['send', HEAP, '--link', 'https://user:secret@example.com/'],
+          context.deps
+        )
+      ).toBe(1);
+      expect(context.stderr()).not.toContain('user');
+      expect(context.stderr()).not.toContain('secret');
+      expect(context.calls.sendPost).toEqual([]);
+    });
 
     for (const flag of ['--file', '--video']) {
       it(`refuses ${flag} with --quote`, async () => {

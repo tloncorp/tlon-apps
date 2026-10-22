@@ -861,6 +861,16 @@ function validatedLink(raw: string): string {
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
     throw commandError('--link takes an http(s) URL.');
   }
+  // The media guard's userinfo rule: a bare "@" in the authority counts too.
+  if (
+    parsed.username ||
+    parsed.password ||
+    /^https?:\/\/[^/?#\\]*@/i.test(url)
+  ) {
+    throw commandError(
+      '--link URLs with embedded credentials are not supported.'
+    );
+  }
   return url;
 }
 
@@ -1299,24 +1309,59 @@ async function prepareMedia(
 ): Promise<PreparedMedia[]> {
   if (media.length === 0) return [];
   // Each guard bounds its own work (image fetch and file/video probe
-  // deadlines); a failure names its attachment.
-  const tasks = media.map(async (item, index): Promise<PreparedMedia> => {
-    try {
-      if (item.flag === '--image') {
-        return { flag: item.flag, verse: await deps.buildImageVerse(item.url) };
+  // deadlines), at most four run at once, and a failure names its
+  // attachment.
+  return mapWithConcurrency(
+    media,
+    4,
+    async (item, index): Promise<PreparedMedia> => {
+      try {
+        if (item.flag === '--image') {
+          return {
+            flag: item.flag,
+            verse: await deps.buildImageVerse(item.url),
+          };
+        }
+        return {
+          flag: item.flag,
+          url: item.url,
+          probe: await deps.probeMedia(item.url),
+        };
+      } catch (error) {
+        throw commandError(
+          `${errorMessage(error)} (${describeMedia(media, index)})`
+        );
       }
-      return {
-        flag: item.flag,
-        url: item.url,
-        probe: await deps.probeMedia(item.url),
-      };
-    } catch (error) {
-      throw commandError(
-        `${errorMessage(error)} (${describeMedia(media, index)})`
-      );
     }
-  });
-  return Promise.all(tasks);
+  );
+}
+
+// Runs fn over items in order with at most `limit` in flight; results keep
+// the input order, and the first rejection rejects the whole run and starts
+// no further items.
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  let failed = false;
+  const worker = async () => {
+    while (!failed && next < items.length) {
+      const index = next++;
+      try {
+        results[index] = await fn(items[index], index);
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker)
+  );
+  return results;
 }
 
 // The last path segment, decoded when it decodes.
