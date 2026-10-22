@@ -99,7 +99,9 @@ function BootStepDisplay(props: { bootPhase: NodeBootPhase }) {
         return (
           <XStack
             key={step.description}
-            height={STEP_ROW_HEIGHT}
+            // Grows with larger system text sizes.
+            minHeight={STEP_ROW_HEIGHT}
+            paddingVertical="$l"
             alignItems="center"
             gap="$xl"
             accessible
