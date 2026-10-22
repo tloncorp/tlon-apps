@@ -103,6 +103,42 @@ describe('channelAccessSections', () => {
       'Only admins can see and edit this notebook.'
     );
   });
+
+  // An empty list of who may post arrives as MEMBERS_MARKER: anyone who can
+  // see the channel may post.
+  it('lets a role that sees the channel post when posting is open to everyone who sees it', () => {
+    const { sections, row, onChange } = render({
+      isPrivate: true,
+      readers: ['admin', 'gardeners'],
+      writers: ['admin', MEMBERS_MARKER],
+    });
+    expect(row('gardeners').picker?.value).toBe('2');
+    expect(sections[1].footer).toBe(
+      'Only admins and Gardeners can see and post.'
+    );
+    row('mods').picker!.onChange('1');
+    expect(onChange).toHaveBeenLastCalledWith({
+      isPrivate: true,
+      readers: ['admin', 'gardeners', 'mods'],
+      writers: ['admin', 'gardeners'],
+    });
+  });
+
+  it('gives no access to a role that may post but can’t see the channel', () => {
+    const { sections, row, onChange } = render({
+      isPrivate: true,
+      readers: ['admin'],
+      writers: ['admin', 'mods'],
+    });
+    expect(row('mods').picker?.value).toBe('0');
+    expect(sections[1].footer).toBe('Only admins can see and post.');
+    row('gardeners').picker!.onChange('1');
+    expect(onChange).toHaveBeenLastCalledWith({
+      isPrivate: true,
+      readers: ['admin', 'gardeners'],
+      writers: ['admin'],
+    });
+  });
 });
 
 describe('withCreatedRole', () => {

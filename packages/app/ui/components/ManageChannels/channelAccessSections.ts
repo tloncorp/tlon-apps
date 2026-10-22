@@ -58,16 +58,17 @@ export function channelAccessSections({
         ? 2
         : 1
       : 0;
+  // As the backend decides it: posting needs seeing the channel too, and an
+  // empty list of who may post (MEMBERS_MARKER here) lets anyone who can see
+  // it post. Channels saved elsewhere don't always keep posters within viewers.
+  const sees = (id: string) =>
+    readers.includes(id) || readers.includes(MEMBERS_MARKER);
   const ownLevel = (id: string): Level =>
-    notes
-      ? readers.includes(id)
+    !sees(id)
+      ? 0
+      : notes || writers.includes(id) || writers.includes(MEMBERS_MARKER)
         ? 2
-        : 0
-      : writers.includes(id)
-        ? 2
-        : readers.includes(id)
-          ? 1
-          : 0;
+        : 1;
   const roleLevels = new Map(roles.map((role) => [role.id, ownLevel(role.id)]));
 
   const write = (nextFloor: Level, nextLevels: Map<string, Level>) => {
