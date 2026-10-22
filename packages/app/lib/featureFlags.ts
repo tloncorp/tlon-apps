@@ -6,12 +6,6 @@ import create from 'zustand';
 
 // Add new feature flags here:
 export const featureMeta = {
-  instrumentationEnabled: {
-    default: false,
-    label: 'Performance reporting',
-    description: 'Collect and report performance data.',
-    onlyTlon: false,
-  },
   markdownNotebooks: {
     default: false,
     label: 'Markdown notebooks',
@@ -87,9 +81,11 @@ async function loadInitialState() {
     Object.entries(state).forEach(([name, enabled]) => {
       if (name in featureMeta) {
         useFeatureFlagStore.getState().setEnabled(name as FeatureName, enabled);
-      } else if (name !== 'contextLens') {
+      } else if (name !== 'contextLens' && name !== 'instrumentationEnabled') {
         // `contextLens` is a legacy flag migrated to the synced %settings store
         // (see migrateLegacyContextLensFlag); it's expected here until stripped.
+        // `instrumentationEnabled` was removed with Firebase Performance and
+        // stays in stored state until the next flag toggle rewrites it.
         console.warn('Unknown feature flag encountered in local storage', name);
       }
     });

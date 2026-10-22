@@ -76,7 +76,6 @@
     "@react-native-cookies/cookies": "^6.2.1",
     "@react-native-firebase/app": "^24.0.0",
     "@react-native-firebase/crashlytics": "^24.0.0",
-    "@react-native-firebase/perf": "^24.0.0",
     "@react-native-picker/picker": "^2.11.4",
     "@react-navigation/bottom-tabs": "7.21.0",
     "@react-navigation/drawer": "^7.14.4",

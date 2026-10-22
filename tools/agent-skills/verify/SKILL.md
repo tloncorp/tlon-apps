@@ -19,8 +19,8 @@ screenshot. Where noted, use your tool's own verbs for those actions.
 ## Gotchas (hit these before, save the debugging)
 
 - **asdf**: if the pnpm shim fails with "No version is set for command pnpm",
-  the pinned Node isn't installed. The repo pins 24.16.0 (`.nvmrc` and
-  `apps/tlon-web/.tool-versions`) — run `asdf install nodejs 24.16.0`, don't
+  the pinned Node isn't installed. The repo pins 24.22.1 (`.nvmrc` and
+  `apps/tlon-web/.tool-versions`) — run `asdf install nodejs 24.22.1`, don't
   override `ASDF_NODEJS_VERSION` to a different Node: `pnpm-workspace.yaml`
   sets `engineStrict: true`, so installs abort outside the pinned range.
 - **peru**: rube's desk assembly needs `peru` on PATH (`brew install pipx &&

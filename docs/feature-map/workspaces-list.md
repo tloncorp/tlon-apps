@@ -32,7 +32,7 @@ Notes: the list holds your groups, DMs, group DMs and any chat channels you have
 
 Phone: each row shows the chat's picture and name, a preview of the latest message, when it arrived, and a number if there are unread messages.
 Desktop: the same, except the number gives way to a three-dot icon while you hover the row.
-Notes: the preview starts with the sender's name, except in one-to-one DMs. A group with several channels names its most recently active channel above the preview. A group with one channel says `Group`. A crossed-out bell beside the number means the chat is muted. Instead of a number, a group can carry a badge: `Invite`, `Joining`, `Requested`, `Errored`, or `NEW` for one you joined and haven't opened yet. A group nobody has posted in says `No posts yet`.
+Notes: the preview starts with the sender's name, except in one-to-one DMs. A group with several channels names its most recently active channel above the preview. A group with one channel says `Workspace`. A crossed-out bell beside the number means the chat is muted. Instead of a number, a group can carry a badge: `Invite`, `Joining`, `Requested`, `Errored`, or `NEW` for one you joined and haven't opened yet. A group nobody has posted in says `No posts yet`.
 
 ## Open an invite, or a group that is still joining
 <!-- src: packages/app/features/top/ChatListScreen.tsx, packages/app/features/chat-list/ChatList.tsx, packages/app/ui/components/listItems/listItemUtils.tsx, packages/app/ui/components/listItems/ChannelListItem.tsx, packages/app/ui/components/GroupPreviewSheet.tsx -->
@@ -87,15 +87,15 @@ Notes: the option is only there when something is unread. `Mark all as read` cov
 ## What a group's press-and-hold menu offers
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/contexts/chatOptions/chatOptions.tsx, packages/app/features/top/chatDetails.tsx -->
 
-Phone: on the Workspaces tab, press and hold the group. `Group notifications` opens its notification choices. `Mark all as read` shows when something is unread. `Pin` or `Unpin` pins or unpins the group. `Sort channels` shows for a group with more than one channel. `Invite people` opens the invite screen. `Group info & settings` opens the group's settings.
+Phone: on the Workspaces tab, press and hold the group. `Workspace notifications` opens its notification choices. `Mark all as read` shows when something is unread. `Pin` or `Unpin` pins or unpins the group. `Sort channels` shows for a group with more than one channel. `Invite people` opens the invite screen. `Workspace info & settings` opens the group's settings.
 Desktop: hover the group in the Home sidebar and open its three-dot menu, or right-click it.
 Who: `Invite people` is there for everyone in a public group and for admins in a private or secret one. Other members see `Invites disabled`.
-Notes: there is no leave option here. `Leave group` is on the `Group info & settings` screen, except for the group's host.
+Notes: there is no leave option here. `Leave workspace` is on the `Workspace info & settings` screen, except for the group's host.
 
 ## What a channel's press-and-hold menu offers
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/contexts/chatOptions/chatOptions.tsx, packages/app/ui/components/GroupChannelsScreenView.tsx, packages/shared/src/store/useChannelHooksPreview.ts -->
 
-Phone: open the group and press and hold a channel in its list. `Channel notifications` opens its notification choices. `Pin` or `Unpin` works on that channel alone. `Mark as read` shows when something is unread. `Channel info & settings` and `Group info & settings` open those screens. `Use channel as template` starts a new channel copied from this one. `Leave channel` asks you to confirm with `Leave`.
+Phone: open the group and press and hold a channel in its list. `Channel notifications` opens its notification choices. `Pin` or `Unpin` works on that channel alone. `Mark as read` shows when something is unread. `Channel info & settings` and `Workspace info & settings` open those screens. `Use channel as template` starts a new channel copied from this one. `Leave channel` asks you to confirm with `Leave`.
 Desktop: hover the channel in the sidebar and open its three-dot menu, or right-click it.
 Who: the channel's host sees `Cannot leave channel` instead.
 Notes: `Use channel as template` is on chat and gallery channels only. A group with one channel has no channel list; pressing and holding it on the Workspaces tab gives the group's menu. Channels you haven't joined have no menu.
@@ -110,18 +110,18 @@ Notes: this menu has no block, delete or archive option. A DM invite you haven't
 ## What the plus icon offers (the create menu)
 <!-- src: packages/app/features/top/CreateChatSheet.tsx, packages/app/features/top/ChatListScreen.tsx, packages/app/navigation/desktop/HomeSidebar.tsx, packages/app/navigation/desktop/MessagesSidebar.tsx -->
 
-Phone: on the Workspaces tab, tap the plus at the top right. A sheet headed `Start a conversation` opens. `New Workspace` makes a group with your Tlonbot in it and opens its chat. `New Message` opens a DM with the person you pick. `New group` starts the steps for an ordinary group.
-Desktop: the plus at the top of the Home or Messages sidebar opens the same choices, always with `New group` and `Join a group with a code (reference)`.
-Who: `New Workspace` needs a hosted Tlonbot. On the phone, accounts that have one see only `New Workspace` and `New Message`. Accounts without one see `New Message`, `New group` and the join-with-a-code link.
+Phone: on the Workspaces tab, tap the plus at the top right. A sheet headed `Start a conversation` opens. `New Workspace` makes a group with your Tlonbot in it and opens its chat. `New Message` opens a DM with the person you pick. `New custom workspace` starts the steps for an ordinary group.
+Desktop: the plus at the top of the Home or Messages sidebar opens the same choices, always with `New custom workspace` and `Join a workspace with a code (reference)`.
+Who: `New Workspace` needs a hosted Tlonbot. On the phone, accounts that have one see only `New Workspace` and `New Message`. Accounts without one see `New Message`, `New custom workspace` and the join-with-a-code link.
 Notes: there is no option here for starting a group DM.
 
 ## Join a group with a code
 <!-- src: packages/app/features/top/CreateChatSheet.tsx, packages/app/hooks/useGroupSearch.ts, packages/app/ui/components/GroupPreviewSheet.tsx -->
 
-Phone: on the Workspaces tab, tap the plus, then `Join a group with a code (reference)`. Type or paste the group's code into `Enter group code` and tap `Go`. A preview of the group appears. Its button depends on the group: `Join group` for a public one, `Request invite` for a private one.
+Phone: on the Workspaces tab, tap the plus, then `Join a workspace with a code (reference)`. Type or paste the group's code into `Enter workspace code` and tap `Go`. A preview of the group appears. Its button depends on the group: `Join workspace` for a public one, `Request invite` for a private one.
 Desktop: the plus at the top of the Home or Messages sidebar has the same link.
 Who: on the phone this link only shows on accounts without a hosted Tlonbot. Desktop always has it.
-Notes: a code is the host's ID, a slash, then the group's short name. If the code isn't in that shape, `Go` just closes the sheet. If no group turns up you see `Group not found`.
+Notes: a code is the host's ID, a slash, then the group's short name. If the code isn't in that shape, `Go` just closes the sheet. If no group turns up you see `Workspace not found`.
 
 ## Browse the channels in a group
 <!-- src: packages/app/ui/components/GroupChannelsScreenView.tsx, packages/app/features/top/GroupChannelsScreen.tsx, packages/app/navigation/utils.ts, packages/app/navigation/routeHelpers.ts, packages/app/navigation/desktop/HomeNavigator.tsx -->
@@ -130,7 +130,7 @@ Notes: a code is the host's ID, a slash, then the group's short name. If the cod
 Phone: on the Workspaces tab, tap the group. With more than one channel you get its channel list; tap a channel to open it. A group with one channel opens straight into that channel. The back arrow returns to Workspaces. Tap the group's name at the top for its info and settings.
 Desktop: clicking a group swaps the sidebar for its channel list and opens the channel you last visited there, or its only channel. The back arrow returns to Home.
 Who: admins get a list-with-a-pencil icon at the top right for managing channels, greyed out until the app has reached the group's host.
-Notes: `Available Channels` lists channels you haven't joined, each marked `Join`; tap one to join. An empty group says `No channels available in this group yet.`
+Notes: `Available Channels` lists channels you haven't joined, each marked `Join`; tap one to join. An empty group says `No channels available in this workspace yet.`
 
 ## Sort a group's channels by recent activity or by arrangement
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/contexts/chatOptions/chatOptions.tsx, packages/app/ui/components/GroupChannelsScreenView.tsx, packages/shared/src/db/keyValue.ts -->
@@ -163,5 +163,5 @@ Notes: `Direct Messages` is the default and shows DMs and group DMs. `Chat Chann
 ## Jump to any group, DM or channel on desktop (search)
 <!-- src: packages/app/features/chat-list/GlobalSearch.tsx, packages/app/features/chat-list/FilteredChatList.tsx, packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/HomeSidebar.tsx, packages/app/navigation/desktop/MessagesSidebar.tsx -->
 
-Desktop: press ⌘K on a Mac or Ctrl+K elsewhere. You can also click the magnifying glass at the top of the Home or Messages sidebar, or the command-key symbol at the bottom of the left rail. A box opens that says `Navigate to groups, DMs, or channels`. Type part of a name, move with the up and down arrows, and press Enter to open the highlighted chat. Esc or `Close` dismisses it.
+Desktop: press ⌘K on a Mac or Ctrl+K elsewhere. You can also click the magnifying glass at the top of the Home or Messages sidebar, or the command-key symbol at the bottom of the left rail. A box opens that says `Navigate to workspaces, DMs, or channels`. Type part of a name, move with the up and down arrows, and press Enter to open the highlighted chat. Esc or `Close` dismisses it.
 Notes: before you type, it lists everything you are in, including every channel inside your groups. If nothing matches it says `No results found`. It searches names, not message text. The phone has no equivalent; use the filter box on the Workspaces tab.

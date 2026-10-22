@@ -169,9 +169,6 @@ importers:
       '@react-native-firebase/crashlytics':
         specifier: ^24.0.0
         version: 24.1.1(8c6469af688c87c096ca95a16b1b8028)
-      '@react-native-firebase/perf':
-        specifier: ^24.0.0
-        version: 24.1.1(8c6469af688c87c096ca95a16b1b8028)
       '@react-native-picker/picker':
         specifier: ^2.11.4
         version: 2.11.4(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -4775,15 +4772,6 @@ packages:
 
   '@react-native-firebase/crashlytics@24.1.1':
     resolution: {integrity: sha512-ZCUfWLjejcI/YJtXa6eYR1uGbIMSsC2IhiMVb/qUI9BhG4Rh2BhkQNmpAz2sgtpz+UhjFCJ5pcFV7ez6303iLg==}
-    peerDependencies:
-      '@react-native-firebase/app': 24.1.1
-      expo: '>=47.0.0'
-    peerDependenciesMeta:
-      expo:
-        optional: true
-
-  '@react-native-firebase/perf@24.1.1':
-    resolution: {integrity: sha512-GxATdeAwgz/7nW08S/vQl0F07EWkMTwPAuAnFN3VZfiXzVIOqrDhgYfHGDaTJtI0n3j9z7Vttk68ZGFVE3LsCw==}
     peerDependencies:
       '@react-native-firebase/app': 24.1.1
       expo: '>=47.0.0'
@@ -18881,12 +18869,6 @@ snapshots:
     dependencies:
       '@react-native-firebase/app': 24.1.1(@react-native-async-storage/async-storage@2.2.0(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0)))(expo@58.0.12(@babel/core@7.29.0)(react-dom@19.3.0(react@19.3.0))(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-native-webview@14.0.1(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native-worklets@0.13.0(@babel/core@7.29.0)(@react-native/metro-config@0.88.0)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       stacktrace-js: 2.0.2
-    optionalDependencies:
-      expo: 58.0.12(@babel/core@7.29.0)(react-dom@19.3.0(react@19.3.0))(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-native-webview@14.0.1(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native-worklets@0.13.0(@babel/core@7.29.0)(@react-native/metro-config@0.88.0)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
-
-  '@react-native-firebase/perf@24.1.1(8c6469af688c87c096ca95a16b1b8028)':
-    dependencies:
-      '@react-native-firebase/app': 24.1.1(@react-native-async-storage/async-storage@2.2.0(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0)))(expo@58.0.12(@babel/core@7.29.0)(react-dom@19.3.0(react@19.3.0))(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-native-webview@14.0.1(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native-worklets@0.13.0(@babel/core@7.29.0)(@react-native/metro-config@0.88.0)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
     optionalDependencies:
       expo: 58.0.12(@babel/core@7.29.0)(react-dom@19.3.0(react@19.3.0))(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-native-webview@14.0.1(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native-worklets@0.13.0(@babel/core@7.29.0)(@react-native/metro-config@0.88.0)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
 

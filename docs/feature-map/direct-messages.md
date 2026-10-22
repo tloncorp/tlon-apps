@@ -60,7 +60,7 @@ Notes: the row shows the current level, followed by "(custom)" if you set it for
 <!-- covers: route:GroupDM -->
 <!-- absent: new group dm -->
 
-Phone: the app can't start a new group DM. `New Message` opens a chat with one person the moment you tap them, and there's no way to pick several. To talk with several people, make a group from the same plus menu with `New group`. On an account with a bot, the phone offers `New Workspace` instead.
+Phone: the app can't start a new group DM. `New Message` opens a chat with one person the moment you tap them, and there's no way to pick several. To talk with several people, make a group from the same plus menu with `New custom workspace`. On an account with a bot, the phone offers `New Workspace` instead.
 Notes: group DMs you're already in still work. They're listed under their members' names. You can rename one, see its members, change its notifications and leave it, but not add or remove people.
 
 ## Rename a group DM or change its icon
