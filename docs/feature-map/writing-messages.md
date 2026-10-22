@@ -85,7 +85,7 @@ Notes: roles are matched from the start of their name, so "@adm" finds a role ca
 
 Phone: type @ and the first letters of the bot's name, then tap it in the list. Bots carry a `Bot` tag there. Finish your message and send.
 Desktop: the same; you can also choose with the arrow keys and Enter.
-Notes: in the private chat with your own Tlonbot you don't need to mention it. The first-time hint in that chat says so, and adds: `In a group, @-mention it to bring it into the conversation.` A tag reading `Bot · Offline` means the bot is marked as offline.
+Notes: in the private chat with your own Tlonbot you don't need to mention it. The first-time hint in that chat says so, and adds: `In a workspace, @-mention it to bring it into the conversation.` A tag reading `Bot · Offline` means the bot is marked as offline.
 
 ## Use the slash-command list with a bot
 <!-- src: packages/app/ui/components/BareChatInput/useSlashCommands.ts, packages/app/ui/components/SlashCommandPopup.tsx, packages/app/ui/components/MessageInput/InputSlashCommandPopup.tsx, packages/app/ui/components/MessageInput/MessageInputBase.tsx, packages/app/ui/components/BareChatInput/index.tsx, packages/app/ui/components/draftInputs/ChatInput.tsx, packages/shared/src/store/useBotSlashCommandManifest.ts, packages/shared/src/domain/slashCommands.ts -->
@@ -129,7 +129,7 @@ Notes: retrying uploads any attachments again. `Delete message` only shows in th
 <!-- src: packages/app/ui/components/Channel/index.tsx, packages/app/ui/components/Channel/ReadOnlyNotice.tsx, packages/app/ui/utils/channelUtils.tsx, packages/app/ui/components/Channel/DmInviteOptions.tsx, packages/app/ui/components/PostScreenView.tsx -->
 
 Who: anyone, unless admins have limited writing to certain roles.
-Notes: when you can't post, a notice sits where the message box would be. `This channel is read-only for you.` means none of your roles may write here. `You no longer have permission to read this channel.` and `This group no longer exists.` mean what they say. A notice beginning "Your node's version of the Tlon app doesn't match" means the two sides run different versions; sending is off until they match. In an unanswered DM request, `Accept` and `Deny` take the box's place, with `Block` too in a one-to-one DM. A thread's reply box is likewise left out, with a similar notice for a version mismatch.
+Notes: when you can't post, a notice sits where the message box would be. `This channel is read-only for you.` means none of your roles may write here. `You no longer have permission to read this channel.` and `This workspace no longer exists.` mean what they say. A notice beginning "Your node's version of the Tlon app doesn't match" means the two sides run different versions; sending is off until they match. In an unanswered DM request, `Accept` and `Deny` take the box's place, with `Block` too in a one-to-one DM. A thread's reply box is likewise left out, with a similar notice for a version mismatch.
 
 ## Write a reply inside a thread
 <!-- src: packages/app/ui/components/PostScreenView.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessage.tsx, packages/app/ui/components/MessageInput/MessageInputBase.tsx, packages/shared/src/store/usePostDraftCallbacks.ts -->

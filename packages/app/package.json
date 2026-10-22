@@ -36,7 +36,6 @@
     "expo-glass-effect": "*",
     "expo-video": "*",
     "@10play/tentap-editor": "*",
-    "@react-native-firebase/perf": "*",
     "@shopify/react-native-skia": "*",
     "expo-blob": "*",
     "expo-blur": "*",

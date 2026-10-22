@@ -8,7 +8,7 @@ name: OpenClaw Canary
 # outcomes and uploads it under a per-job artifact name for the caller to
 # merge. A report that never uploads reads as infra-error downstream.
 #
-# Every canary runs on Node 24.16.0 (.nvmrc on the runner, the Dockerfile
+# Every canary runs on Node 24.22.1 (.nvmrc on the runner, the Dockerfile
 # default in the container): the workspace is engineStrict and the dev pin
 # needs Node >=24.16. Prod runs 2026.7.1 on Node 22; the canary does not
 # reproduce that runtime.

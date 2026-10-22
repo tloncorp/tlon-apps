@@ -1,6 +1,6 @@
 # Overridable through the harness NODE_IMAGE env (compose build arg) for a
 # local run on another Node line; CI always uses this default.
-ARG NODE_IMAGE=node:24.16.0-bookworm-slim
+ARG NODE_IMAGE=node:24.22.1-bookworm-slim
 FROM ${NODE_IMAGE}
 
 RUN apt-get update && apt-get install -y git curl jq && rm -rf /var/lib/apt/lists/*
