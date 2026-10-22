@@ -26,11 +26,17 @@ const npm = {
 const tags = parseTagList(
   [
     'abc\trefs/tags/v2026.9.4',
+    'abd\trefs/tags/v2026.9.5',
+    'abe\trefs/tags/v2026.9.6',
+    'abf\trefs/tags/v2026.9.7',
     'def\trefs/tags/v2026.9.8',
     'def\trefs/tags/v2026.9.8^{}',
     'fed\trefs/tags/v2026.10.1-beta.1',
   ].join('\n')
 );
+
+const tagsWithout = (...versions: string[]) =>
+  new Set([...tags].filter((v) => !versions.includes(v)));
 
 const input = (overrides: Partial<DiscoverInput>): DiscoverInput => ({
   npm,
@@ -49,6 +55,7 @@ describe('discover', () => {
       prev: '2026.9.4',
       next: '2026.9.8',
       intermediates: ['2026.9.5', '2026.9.6', '2026.9.7'],
+      untaggedIntermediates: [],
       latestPublishedAt: '2026-10-03T00:00:00Z',
       extendedStable: '2026.8.35',
       noTag: false,
@@ -97,6 +104,7 @@ describe('discover', () => {
         version: '2026.9.7',
         baseline: '2026.7.1',
         state: undefined,
+        tags: tagsWithout('2026.9.7'),
       })
     );
     expect(forced).toMatchObject({
@@ -132,7 +140,19 @@ describe('discover', () => {
 
   it('flags an npm latest without an upstream tag', () => {
     const untagged = { ...npm, 'dist-tags': { latest: '2026.9.7' } };
-    expect(discover(input({ npm: untagged })).noTag).toBe(true);
+    expect(
+      discover(input({ npm: untagged, tags: tagsWithout('2026.9.7') })).noTag
+    ).toBe(true);
+  });
+
+  it('sets aside an untagged release in between instead of fetching it', () => {
+    const result = discover(input({ tags: tagsWithout('2026.9.6') }));
+    expect(result).toMatchObject({
+      intermediates: ['2026.9.5', '2026.9.7'],
+      untaggedIntermediates: ['2026.9.6'],
+      // only next decides whether there is anything to digest
+      noTag: false,
+    });
   });
 
   it("on a line rollover, counts prev-line releases only from before next's line opened", () => {
@@ -152,6 +172,7 @@ describe('discover', () => {
       discover(
         input({
           npm: rollover,
+          tags: new Set(['2026.9.8', '2026.9.9', '2026.10.0', '2026.10.1']),
           state: {
             lastLatest: '2026.9.8',
             lastPostedAt: null,
@@ -182,7 +203,13 @@ describe('versions', () => {
   });
 
   it('reads stable tags only, peeled duplicates included once', () => {
-    expect([...tags]).toEqual(['2026.9.4', '2026.9.8']);
+    expect([...tags]).toEqual([
+      '2026.9.4',
+      '2026.9.5',
+      '2026.9.6',
+      '2026.9.7',
+      '2026.9.8',
+    ]);
   });
 });
 

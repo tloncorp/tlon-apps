@@ -87,7 +87,9 @@ function targetPath(value: unknown): string | undefined {
   }
   if (value && typeof value === 'object') {
     const conditions = value as Record<string, unknown>;
-    for (const condition of ['import', 'default', 'node', 'require']) {
+    // `types` last: a types-only export still exists for tsc, but a runtime
+    // target names the source file more directly when there is one.
+    for (const condition of ['import', 'default', 'node', 'require', 'types']) {
       const target = targetPath(conditions[condition]);
       if (target) {
         return target;

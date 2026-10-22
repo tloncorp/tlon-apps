@@ -137,6 +137,12 @@ describe('satisfiesRange', () => {
     expect(satisfiesRange('24.16.0', 'lts/*')).toBeUndefined();
   });
 
+  it('reads an alternative with an unreadable comparator as not understood, even after a false one', () => {
+    // `22` fails first; the hyphen range's `-` must still be seen
+    expect(satisfiesRange('24.16.0', '22 - 24')).toBeUndefined();
+    expect(satisfiesRange('24.16.0', '>=26 || 22 - 24')).toBeUndefined();
+  });
+
   it('expands partial bounds the way node-semver does', () => {
     const node = '24.16.0';
     expect(satisfiesRange(node, '>24')).toBe(false);

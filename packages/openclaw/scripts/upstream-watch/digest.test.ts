@@ -249,6 +249,24 @@ describe('buildDigest', () => {
     expect(digest.incomplete).toEqual(['changelog missing for 2026.1.2']);
   });
 
+  it('records an untagged release in between as incomplete', () => {
+    const { digest } = buildDigest({
+      git: gitIn(repo),
+      prev: '2026.1.1',
+      next: '2026.1.3',
+      intermediates: [],
+      untaggedIntermediates: ['2026.1.2'],
+      pluginDir: plugin,
+      manifest,
+      canaryNode: '24.16.0',
+      drift: { prodPins: {} },
+    });
+    expect(digest.incomplete).toContain(
+      'no upstream tag for v2026.1.2; its changelog was not read'
+    );
+    expect(digest.incomplete).not.toContain('changelog missing for 2026.1.2');
+  });
+
   it('records a changelog that parses to no bullets as incomplete', () => {
     const { digest } = run('2026.1.3', '2026.1.5', ['2026.1.4']);
     expect(digest.incomplete).toEqual([

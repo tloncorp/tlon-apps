@@ -63,6 +63,19 @@ describe('classifySubpaths', () => {
     );
     expect(exportTarget(exportsMap, 'other/thing')).toBeUndefined();
   });
+
+  it('reads a types-only export, preferring a runtime target when both exist', () => {
+    const exportsMap = {
+      './plugin-sdk/foo': { types: './dist/plugin-sdk/foo.d.ts' },
+      './plugin-sdk/core': entry('core'),
+    };
+    expect(exportTarget(exportsMap, 'plugin-sdk/foo')).toBe(
+      './dist/plugin-sdk/foo.d.ts'
+    );
+    expect(exportTarget(exportsMap, 'plugin-sdk/core')).toBe(
+      './dist/plugin-sdk/core.js'
+    );
+  });
 });
 
 describe('scanPluginImports', () => {

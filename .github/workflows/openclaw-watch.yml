@@ -51,6 +51,7 @@ jobs:
       prev: ${{ steps.decide.outputs.prev }}
       next: ${{ steps.decide.outputs.next }}
       intermediates: ${{ steps.decide.outputs.intermediates }}
+      untagged_intermediates: ${{ steps.decide.outputs.untagged_intermediates }}
       latest_published_at: ${{ steps.decide.outputs.latest_published_at }}
       extended_stable: ${{ steps.decide.outputs.extended_stable }}
       prod_pins: ${{ steps.decide.outputs.prod_pins }}
@@ -191,6 +192,7 @@ jobs:
       - name: Build digest
         env:
           PROD_PINS: ${{ needs.discover.outputs.prod_pins }}
+          UNTAGGED_INTERMEDIATES: ${{ needs.discover.outputs.untagged_intermediates }}
           EXTENDED_STABLE: ${{ needs.discover.outputs.extended_stable }}
           PUBLISHED_AT: ${{ needs.discover.outputs.latest_published_at }}
           DRIFT: ${{ needs.discover.outputs.drift }}
@@ -200,6 +202,7 @@ jobs:
             --prev "$PREV" \
             --next "$NEXT" \
             --intermediates "$(jq -r 'join(",")' <<<"$INTERMEDIATES")" \
+            --untagged-intermediates "$(jq -r 'join(",")' <<<"$UNTAGGED_INTERMEDIATES")" \
             --repo "$RUNNER_TEMP/upstream" \
             --plugin packages/openclaw \
             --out watch \

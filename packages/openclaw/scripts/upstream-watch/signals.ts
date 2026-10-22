@@ -176,14 +176,18 @@ export function satisfiesRange(version: string, range: string) {
   }
   let understood = true;
   const ok = range.split('||').some((alternative) => {
-    const comparators = alternative.trim().split(/\s+/).filter(Boolean);
-    return comparators.every((comparator) => {
-      const result = testComparator(v, comparator);
-      if (result === undefined) {
-        understood = false;
-      }
-      return result === true;
-    });
+    // Every comparator is read before deciding: a false one must not hide an
+    // unreadable one after it (the `-` of `22 - 24`), or the range reads as
+    // understood and unmet.
+    const results = alternative
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((comparator) => testComparator(v, comparator));
+    if (results.includes(undefined)) {
+      understood = false;
+    }
+    return results.every((result) => result === true);
   });
   return understood || ok ? ok : undefined;
 }

@@ -36,6 +36,9 @@ export interface Discovery {
   prev: string;
   next: string;
   intermediates: string[];
+  // published to npm with no upstream git tag, so there is nothing to fetch
+  // or read; the digest reports each as incomplete
+  untaggedIntermediates: string[];
   latestPublishedAt?: string;
   extendedStable?: string;
   prodPins: Record<string, string>;
@@ -98,13 +101,15 @@ export function discover(input: DiscoverInput): Discovery {
       ? undefined
       : Math.max(0, Math.floor((nextAt - pinAt) / DAY_MS));
 
+  const between =
+    compareVersions(prev, next) < 0 ? versionsBetween(time, prev, next) : [];
   const extendedStable = input.npm['dist-tags']?.['extended-stable'];
   return {
     shouldPost,
     prev,
     next,
-    intermediates:
-      compareVersions(prev, next) < 0 ? versionsBetween(time, prev, next) : [],
+    intermediates: between.filter((v) => input.tags.has(v)),
+    untaggedIntermediates: between.filter((v) => !input.tags.has(v)),
     latestPublishedAt: time[next],
     extendedStable:
       extendedStable && isStable(extendedStable) ? extendedStable : undefined,
@@ -168,6 +173,7 @@ function main() {
     prev: result.prev,
     next: result.next,
     intermediates: JSON.stringify(result.intermediates),
+    untagged_intermediates: JSON.stringify(result.untaggedIntermediates),
     latest_published_at: result.latestPublishedAt ?? '',
     extended_stable: result.extendedStable ?? '',
     prod_pins: JSON.stringify(result.prodPins),

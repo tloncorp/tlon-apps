@@ -120,6 +120,7 @@ export function buildDigest({
   prev,
   next,
   intermediates,
+  untaggedIntermediates = [],
   pluginDir,
   manifest,
   canaryNode,
@@ -131,6 +132,8 @@ export function buildDigest({
   prev: string;
   next: string;
   intermediates: string[];
+  // on npm but never tagged upstream, so not fetched
+  untaggedIntermediates?: string[];
   pluginDir: string;
   manifest: Manifest;
   canaryNode: string;
@@ -138,7 +141,9 @@ export function buildDigest({
   drift: Drift;
   publishedAt?: string;
 }): { digest: DigestInput; diff: string; files: string } {
-  const incomplete: string[] = [];
+  const incomplete = untaggedIntermediates.map(
+    (release) => `no upstream tag for v${release}; its changelog was not read`
+  );
 
   const parsed: Bullet[] = [];
   for (const release of [...intermediates, next]) {
@@ -322,6 +327,7 @@ function main() {
       prev: { type: 'string' },
       next: { type: 'string' },
       intermediates: { type: 'string', default: '' },
+      'untagged-intermediates': { type: 'string', default: '' },
       repo: { type: 'string' },
       plugin: { type: 'string', default: '.' },
       manifest: { type: 'string' },
@@ -357,6 +363,9 @@ function main() {
     prev,
     next,
     intermediates: values.intermediates.split(',').filter(Boolean),
+    untaggedIntermediates: values['untagged-intermediates']
+      .split(',')
+      .filter(Boolean),
     pluginDir,
     manifest,
     canaryNode,
