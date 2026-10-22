@@ -80,10 +80,10 @@ export function RootStack() {
 function RootStackContent() {
   const isDarkMode = useIsDarkMode();
 
-  // Android status bar has a solid color by default, so we clear it
+  // Android draws edge to edge, so the status bar is always transparent; only
+  // its content style follows the theme.
   useFocusEffect(() => {
     if (Platform.OS === 'android') {
-      StatusBar.setBackgroundColor('transparent');
       StatusBar.setBarStyle(isDarkMode ? 'light-content' : 'dark-content');
     }
   });

@@ -1,5 +1,118 @@
+diff --git a/build/community/bottom-sheet/BottomSheet.ios.js b/build/community/bottom-sheet/BottomSheet.ios.js
+index 5ab7afffe56b6e91764c0beb083d629207f38753..d46f2651c295925e1860d62292ec8cf955d0618e 100644
+--- a/build/community/bottom-sheet/BottomSheet.ios.js
++++ b/build/community/bottom-sheet/BottomSheet.ios.js
+@@ -97,6 +97,9 @@ function findNearestDetentIndex(detents, position) {
+     ]);
+     const selectedDetent = detents[currentIndex] ?? detents[0];
+     const fitToContents = enableDynamicSizing && (!snapPointsProp || snapPointsProp.length === 0);
++    // The close button sits 8pt from the top in a 44pt frame and hides the drag
++    // indicator, so content only has to clear the button.
++    const contentTopPadding = enablePanDownToClose ? 52 : handleComponent !== null ? 16 : 0;
+     const internalContextValue = useMemo(()=>({
+             fitToContents
+         }), [
+@@ -106,13 +109,13 @@ function findNearestDetentIndex(detents, position) {
+         if (closedRef.current) return;
+         closedRef.current = true;
+         onCloseRef.current?.();
+-        onDismissRef.current?.();
+         onChangeRef.current?.(-1);
+     }, []);
+     // Sync with external index prop changes
+     useEffect(()=>{
+         if (indexProp === -1) {
+             setIsPresented(false);
++            fireCloseCallbacks();
+         } else if (indexProp >= 0) {
+             closedRef.current = false;
+             setIsPresented(true);
+@@ -122,13 +125,17 @@ function findNearestDetentIndex(detents, position) {
+         }
+     }, [
+         indexProp,
+-        detents.length
++        detents.length,
++        fireCloseCallbacks
+     ]);
+     const handlePresentedChange = useCallback((presented)=>{
+         if (!presented) {
+             setIsPresented(false);
++            fireCloseCallbacks();
+         }
+-    }, []);
++    }, [
++        fireCloseCallbacks
++    ]);
+     const handleDetentChange = useCallback((detent)=>{
+         const newIndex = findDetentIndex(detents, detent);
+         if (newIndex >= 0 && newIndex !== currentIndexRef.current) {
+@@ -143,6 +150,7 @@ function findNearestDetentIndex(detents, position) {
+         const snapToIndex = (index)=>{
+             if (index === -1) {
+                 setIsPresented(false);
++                fireCloseCallbacks();
+                 return;
+             }
+             const clampedIndex = Math.min(Math.max(index, 0), detents.length - 1);
+@@ -152,11 +160,12 @@ function findNearestDetentIndex(detents, position) {
+             setCurrentIndex(clampedIndex);
+             onChangeRef.current?.(clampedIndex);
+         };
+-        // Close callbacks fire from the native `onDismiss` event, which SwiftUI sends after
+-        // the dismissal transition finishes, so they can present another modal without UIKit
+-        // rejecting it. Android awaits `hide()` for the same reason.
++        // `onClose` and `onChange(-1)` fire as soon as the sheet starts closing. `onDismiss` fires
++        // from the native `onDismiss` event, which SwiftUI sends after the dismissal transition
++        // finishes, so only it can safely present another modal.
+         const close = ()=>{
+             setIsPresented(false);
++            fireCloseCallbacks();
+         };
+         return {
+             snapToIndex,
+@@ -169,7 +178,8 @@ function findNearestDetentIndex(detents, position) {
+             dismiss: close
+         };
+     }, [
+-        detents
++        detents,
++        fireCloseCallbacks
+     ]);
+     useImperativeHandle(ref, ()=>methods, [
+         methods
+@@ -219,21 +229,26 @@ function findNearestDetentIndex(detents, position) {
+                 children: /*#__PURE__*/ _jsx(NativeBottomSheet, {
+                     isPresented: isPresented,
+                     onIsPresentedChange: handlePresentedChange,
+-                    onDismiss: fireCloseCallbacks,
++                    onDismiss: ()=>onDismissRef.current?.(),
+                     fitToContents: fitToContents,
++                    showCloseButton: enablePanDownToClose,
+                     children: /*#__PURE__*/ _jsx(Group, {
+                         modifiers: modifiers,
+                         children: /*#__PURE__*/ _jsx(RNHostView, {
+                             matchContents: fitToContents ? {
+                                 vertical: true
+                             } : false,
++                            // RNHostView does not clip, so the root does: content taller than the sheet must not show
++                            // below it, and content may draw into the close button's row above contentTopPadding.
+                             children: /*#__PURE__*/ _jsx(View, {
+                                 style: fitToContents ? {
+-                                    paddingTop: handleComponent !== null ? 16 : 0
++                                    paddingTop: contentTopPadding,
++                                    overflow: 'hidden'
+                                 } : {
+                                     flexGrow: 1,
+                                     height: 0,
+-                                    paddingTop: handleComponent !== null ? 16 : 0
++                                    paddingTop: contentTopPadding,
++                                    overflow: 'hidden'
+                                 },
+                                 children: /*#__PURE__*/ _jsx(SheetScrollContextReset, {
+                                     children: children
 diff --git a/build/swift-ui/BottomSheet/index.d.ts b/build/swift-ui/BottomSheet/index.d.ts
-index d95c384a01b74fe410f430618d4ff4097e3bd1e5..2116147912a9a4fe3a4c961a292c9cc385155d53 100644
+index cc6228651224cb7a7684ec56da98feace182dae5..59be9186f6bd274cab99e1ce9c96ed802acd4715 100644
 --- a/build/swift-ui/BottomSheet/index.d.ts
 +++ b/build/swift-ui/BottomSheet/index.d.ts
 @@ -29,6 +29,8 @@ export interface BottomSheetProps extends CommonViewModifierProps {
@@ -79,7 +192,7 @@ index 29b1a3ad7a8dc653347899c514fc538f9f9433f3..27c3c8f9ad33f321f263bca16f538a63
        .onChange(of: isPresented, perform: { newIsPresented in
          if props.isPresented == newIsPresented {
 diff --git a/src/community/bottom-sheet/BottomSheet.ios.tsx b/src/community/bottom-sheet/BottomSheet.ios.tsx
-index 4c805f7effb3e278ddf6a12e02ee08264a64ac5e..9b3dc1cf39642661d2da86fe05ad1e9f454b4200 100644
+index d0eb811efbd9e87dc1b71be1fe6fc3288afd990a..8688e9a5228ba4dbf89a0a7f9b740336ca6c430c 100644
 --- a/src/community/bottom-sheet/BottomSheet.ios.tsx
 +++ b/src/community/bottom-sheet/BottomSheet.ios.tsx
 @@ -118,13 +118,15 @@ export function BottomSheet(props: BottomSheetProps) {
@@ -164,7 +277,7 @@ index 4c805f7effb3e278ddf6a12e02ee08264a64ac5e..9b3dc1cf39642661d2da86fe05ad1e9f
  
    useImperativeHandle(ref, () => methods, [methods]);
  
-@@ -228,8 +237,9 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -229,8 +238,9 @@ export function BottomSheet(props: BottomSheetProps) {
            <NativeBottomSheet
              isPresented={isPresented}
              onIsPresentedChange={handlePresentedChange}
@@ -174,20 +287,20 @@ index 4c805f7effb3e278ddf6a12e02ee08264a64ac5e..9b3dc1cf39642661d2da86fe05ad1e9f
 +            fitToContents={fitToContents}
 +            showCloseButton={enablePanDownToClose}>
              <Group modifiers={modifiers}>
-               <RNHostView matchContents={fitToContents}>
+               <RNHostView matchContents={fitToContents ? { vertical: true } : false}>
                  {/* paddingTop compensates for tighter spacing between native drag indicator and content
-@@ -237,11 +247,13 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -238,11 +248,13 @@ export function BottomSheet(props: BottomSheetProps) {
                      height without inheriting the scrollable child's intrinsic content height. With matchContents,
-                     RNHostView lays the hosted view out at its own size, so `width` gives it the sheet width
-                     while its height stays content-sized. */}
+                     RNHostView takes the width from the sheet, which can be narrower than the window, and
+                     the height from the content. */}
 +                {/* RNHostView does not clip, so the root does: content taller than the sheet must not show
 +                    below it, and content may draw into the close button's row above contentTopPadding. */}
                  <View
                    style={
                      fitToContents
--                      ? { width, paddingTop: handleComponent !== null ? 16 : 0 }
+-                      ? { paddingTop: handleComponent !== null ? 16 : 0 }
 -                      : { flexGrow: 1, height: 0, paddingTop: handleComponent !== null ? 16 : 0 }
-+                      ? { width, paddingTop: contentTopPadding, overflow: 'hidden' }
++                      ? { paddingTop: contentTopPadding, overflow: 'hidden' }
 +                      : { flexGrow: 1, height: 0, paddingTop: contentTopPadding, overflow: 'hidden' }
                    }>
                    <SheetScrollContextReset>{children}</SheetScrollContextReset>

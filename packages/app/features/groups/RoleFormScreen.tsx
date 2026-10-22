@@ -426,7 +426,7 @@ export function RoleFormScreen({ navigation, route }: Props) {
           </Pressable>
           <Button
             preset="hero"
-            onPress={handleSubmit(handleSave)}
+            onPress={() => handleSubmit(handleSave)()}
             disabled={!isValid}
             label="Save"
           />

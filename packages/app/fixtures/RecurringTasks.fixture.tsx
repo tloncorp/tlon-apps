@@ -54,7 +54,7 @@ const botContact = {
   avatarImage:
     Platform.OS === 'web'
       ? null
-      : Image.resolveAssetSource(require('../ui/assets/raster/bot.png')).uri,
+      : Image.resolveAssetSource(require('../ui/assets/raster/bot.png'))?.uri,
   isContact: false,
   isContactSuggestion: true,
   isBlocked: false,

@@ -213,7 +213,7 @@ export const DesktopLoginScreen = ({
 
           <Button
             label="Connect"
-            onPress={onSubmit}
+            onPress={() => onSubmit()}
             disabled={!isValid || isSubmitting}
             width="100%"
           />
