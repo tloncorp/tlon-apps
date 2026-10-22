@@ -1,4 +1,4 @@
-import { Button, Host, Menu, RNHostView } from '@expo/ui/swift-ui';
+import { Host, Menu, RNHostView } from '@expo/ui/swift-ui';
 import {
   accessibilityIdentifier,
   accessibilityLabel as labelModifier,
@@ -6,10 +6,10 @@ import {
   menuIndicator,
   menuStyle,
 } from '@expo/ui/swift-ui/modifiers';
-import type { ComponentProps } from 'react';
 import { View } from 'react-native';
 
 import type { IconMenuProps } from './IconMenu.types';
+import { SwiftUIMenuItems } from './SettingsList/SwiftUIMenuItems';
 
 /** Opens a native menu of what can be done to an image, from any content. */
 export function IconMenu({
@@ -34,17 +34,7 @@ export function IconMenu({
           ...(testID ? [accessibilityIdentifier(testID)] : []),
         ]}
       >
-        {items.map((item) => (
-          <Button
-            key={item.key}
-            label={item.title}
-            systemImage={
-              item.systemImage as ComponentProps<typeof Button>['systemImage']
-            }
-            role={item.destructive ? 'destructive' : undefined}
-            onPress={item.onPress}
-          />
-        ))}
+        <SwiftUIMenuItems items={items} />
       </Menu>
     </Host>
   );

@@ -1,13 +1,9 @@
 import type { ReactNode } from 'react';
 
-export interface IconMenuItem {
-  key: string;
-  title: string;
-  /** An SF Symbol shown beside the title in the iOS menu. */
-  systemImage?: string;
-  destructive?: boolean;
-  onPress: () => void;
-}
+import type { SettingsMenuItem } from './SettingsList/types';
+
+/** A command in the menu, as in the settings list's menus. */
+export type IconMenuItem = SettingsMenuItem;
 
 export interface IconMenuProps {
   /** What is pressed to open the menu. */

@@ -52,13 +52,7 @@ import {
   useScrollGeometryChange,
 } from '@expo/ui/swift-ui/modifiers';
 
-import {
-  type ComponentProps,
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useRef,
-} from 'react';
+import { type ReactElement, useCallback, useEffect, useRef } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 
 import { useFloatingHeaderHeight } from '../../../navigation/useFloatingHeaderHeight';
@@ -67,10 +61,10 @@ import {
   HostedSettingsRowLeading,
   getSettingsRowLeadingSize,
 } from './SettingsRowLeading';
+import { SwiftUIMenuItems } from './SwiftUIMenuItems';
 import type {
   SettingsListProps,
   SettingsListScrollMark,
-  SettingsMenuItem,
   SettingsRowModel,
 } from './types';
 import { useSyncedFieldText } from './useSyncedFieldText';
@@ -156,7 +150,7 @@ export function SettingsList({
                     }
                     modifiers={[accessibilityLabel(`${section.title} options`)]}
                   >
-                    <MenuItems items={section.titleMenu} />
+                    <SwiftUIMenuItems items={section.titleMenu} />
                   </Menu>
                 </HStack>
               ) : section.title ? (
@@ -483,25 +477,11 @@ function SettingsRow({
   return (
     <ContextMenu>
       <ContextMenu.Items>
-        <MenuItems items={row.contextActions} />
+        <SwiftUIMenuItems items={row.contextActions} />
       </ContextMenu.Items>
       <ContextMenu.Trigger>{body}</ContextMenu.Trigger>
     </ContextMenu>
   );
-}
-
-function MenuItems({ items }: { items: SettingsMenuItem[] }) {
-  return items.map((item) => (
-    <Button
-      key={item.key}
-      label={item.title}
-      systemImage={
-        item.systemImage as ComponentProps<typeof Button>['systemImage']
-      }
-      role={item.destructive ? 'destructive' : undefined}
-      onPress={item.onPress}
-    />
-  ));
 }
 
 /** A row that is its own editable field, kept in step with the screen's value. */
