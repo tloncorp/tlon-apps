@@ -350,8 +350,11 @@ function EditProfileForm({
         },
       ]}
     >
-      {/* Web picks from this sheet; removing is in the menu. */}
-      <AttachmentSheet {...avatar.sheetProps} showClearOption={false} />
+      {/* Web has no menu, so it picks and removes from this sheet. */}
+      <AttachmentSheet
+        {...avatar.sheetProps}
+        showClearOption={!!avatar.assetUri}
+      />
       <GroupSelectorSheet
         open={pinned.selectorOpen}
         onOpenChange={pinned.setSelectorOpen}

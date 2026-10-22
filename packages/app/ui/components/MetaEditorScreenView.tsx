@@ -182,8 +182,8 @@ function MetaEditorForm({
         },
       ]}
     >
-      {/* Web picks from this sheet; removing is in the menu. */}
-      <AttachmentSheet {...icon.sheetProps} showClearOption={false} />
+      {/* Web has no menu, so it picks and removes from this sheet. */}
+      <AttachmentSheet {...icon.sheetProps} showClearOption={!!icon.assetUri} />
     </SettingsListScreenView>
   );
 }
