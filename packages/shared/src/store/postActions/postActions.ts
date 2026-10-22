@@ -1,11 +1,10 @@
 import * as api from '@tloncorp/api';
 import { toPostContent } from '@tloncorp/api';
 import {
-  getUneditableCites,
-  uneditableCitesMessage,
+  UneditableCitesError,
+  getDroppedCites,
 } from '@tloncorp/api/client/references';
 import * as urbit from '@tloncorp/api/urbit';
-import { isEqual } from 'lodash';
 
 import { trackEvent } from '../../analytics';
 import * as db from '../../db';
@@ -723,19 +722,12 @@ async function _editPost({
   const editedCites = optimisticPostData.content.flatMap((verse) =>
     'block' in verse && 'cite' in verse.block ? [verse.block.cite] : []
   );
-  // Each kept cite accounts for one original, so a duplicate that the edit
-  // keeps only once still counts as dropped.
-  const unmatchedEdited = [...editedCites];
-  const droppedCites = getUneditableCites(
-    logic.extractContentTypesFromPost(postBeforeEdit).story
-  ).filter((cite) => {
-    const index = unmatchedEdited.findIndex((edited) => isEqual(edited, cite));
-    if (index === -1) return true;
-    unmatchedEdited.splice(index, 1);
-    return false;
-  });
+  const droppedCites = getDroppedCites(
+    logic.extractContentTypesFromPost(postBeforeEdit).story,
+    editedCites
+  );
   if (droppedCites.length > 0) {
-    throw new Error(uneditableCitesMessage(droppedCites));
+    throw new UneditableCitesError(droppedCites);
   }
 
   // optimistic update

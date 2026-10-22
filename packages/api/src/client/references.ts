@@ -1,3 +1,5 @@
+import _ from 'lodash';
+
 import type * as db from '../types/models';
 import type { ContentReference } from '../types/references';
 import type * as ub from '../urbit';
@@ -240,12 +242,41 @@ export function getUneditableCites(
   );
 }
 
+// The original's uneditable cites that an edit would lose. Each edited cite
+// accounts for one original, so a duplicate the edit keeps only once still
+// counts as dropped.
+export function getDroppedCites(
+  originalStory: ReadonlyArray<object> | null | undefined,
+  editedCites: ub.Cite[]
+): ub.Cite[] {
+  const unmatched = [...editedCites];
+  return getUneditableCites(originalStory).filter((cite) => {
+    const index = unmatched.findIndex((edited) => _.isEqual(edited, cite));
+    if (index === -1) return true;
+    unmatched.splice(index, 1);
+    return false;
+  });
+}
+
 export function uneditableCitesMessage(cites: ub.Cite[]): string {
   // Matches the render fallback: only a kind this build doesn't know is
   // something an upgrade can fix.
   return cites.some((cite) => !citeToPath(cite))
     ? 'Upgrade your app to edit this post'
     : "This post has a reference that can't be edited";
+}
+
+// Checked by name: the app and the store can load separate copies of this
+// module, so instanceof doesn't hold across them.
+export class UneditableCitesError extends Error {
+  constructor(cites: ub.Cite[]) {
+    super(uneditableCitesMessage(cites));
+    this.name = 'UneditableCitesError';
+  }
+}
+
+export function isUneditableCitesError(error: unknown): error is Error {
+  return error instanceof Error && error.name === 'UneditableCitesError';
 }
 
 export function contentReferenceToCite(reference: ContentReference): ub.Cite {

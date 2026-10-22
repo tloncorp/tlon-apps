@@ -12,15 +12,7 @@ export * from './workspaceConfig';
 export * from './landscapeApi';
 export * from './notesApi';
 export * from './postsApi';
-export {
-  channelToContentReference,
-  findBareChannelPaths,
-  getUneditableCites,
-  isReferenceBoundary,
-  replaceBareChannelPath,
-  uneditableCitesMessage,
-  type BareChannelPath,
-} from './references';
+export * from './references';
 export * from './urbit';
 export * from './initApi';
 export * from './upload';

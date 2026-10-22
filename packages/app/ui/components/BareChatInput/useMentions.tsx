@@ -67,6 +67,16 @@ export function createMentionRoleOptions(
   return [...roles, all];
 }
 
+// The first index where the two strings differ, or the shorter length when
+// one is a prefix of the other.
+export function firstDifference(a: string, b: string) {
+  let index = 0;
+  while (index < a.length && a[index] === b[index]) {
+    index += 1;
+  }
+  return index;
+}
+
 // Moves the mentions at or after an edit by its length change, dropping any
 // the edit broke.
 export function shiftMentions(
@@ -162,12 +172,10 @@ export const useMentions = ({
     } else {
       cursorPosition = newText.length;
       if (oldText.length !== newText.length) {
-        for (let i = 0; i < Math.min(oldText.length, newText.length); i++) {
-          if (oldText[i] !== newText[i]) {
-            firstDiffIndex = i;
-            cursorPosition = i + (newText.length > oldText.length ? 1 : 0);
-            break;
-          }
+        const index = firstDifference(oldText, newText);
+        if (index < Math.min(oldText.length, newText.length)) {
+          firstDiffIndex = index;
+          cursorPosition = index + (newText.length > oldText.length ? 1 : 0);
         }
       }
     }

@@ -86,6 +86,7 @@ import { type ChatDraft, toChatDraft } from './draft';
 import {
   MentionOption,
   createMentionRoleOptions,
+  firstDifference,
   shiftMentions,
   useMentions,
 } from './useMentions';
@@ -100,14 +101,6 @@ const MESSAGE_INPUT_CONTAINER_HEIGHT = 48;
 const MAX_NATIVE_INPUT_LINES = 5;
 
 const AUTOCORRECT_FLUSH_TIMEOUT_MS = 20;
-
-function firstDifference(a: string, b: string) {
-  let index = 0;
-  while (index < a.length && a[index] === b[index]) {
-    index += 1;
-  }
-  return index;
-}
 
 function normalizePreviewUrl(url: string) {
   try {
@@ -564,37 +557,51 @@ function BareChatInput(
     [addAttachment]
   );
 
-  // Shows text set outside the input's own change event. Native renders the
-  // text from children, so its buffer only needs clearing once nothing is left.
+  // Shows text set outside the input's own change event. Re-rendering the
+  // children isn't relied on to replace what the native buffer holds, so the
+  // buffer is cleared to force the input to show the children's text. Pushing
+  // the text itself with setNativeProps would duplicate it: iOS prepends a
+  // `text` prop to the children's text instead of replacing it.
   const syncNativeText = useCallback((text: string, cursor?: number) => {
     if (isWeb) {
       return;
     }
-    if (text === '') {
-      // .clear() uses mostRecentEventCount, which isn't updated until after
-      // onChangeText returns; a synchronous call would be rejected as stale.
-      setTimeout(() => {
-        inputRef.current?.clear();
-      }, 0);
-    } else {
-      requestAnimationFrame(() => {
-        const at = cursor ?? text.length;
-        inputRef.current?.setSelection(at, at);
-      });
-    }
+    // .clear() uses mostRecentEventCount, which isn't updated until after
+    // onChangeText returns; a synchronous call would be rejected as stale.
+    setTimeout(() => {
+      inputRef.current?.clear();
+      if (text !== '') {
+        requestAnimationFrame(() => {
+          const at = cursor ?? text.length;
+          inputRef.current?.setSelection(at, at);
+        });
+      }
+    }, 0);
   }, []);
 
   // A channel path becomes a card only for a channel we know. The lookup is
   // async, so the result applies only if the path is still in the text, and
   // to the text and mentions as they are by then. Later paths go first so an
   // earlier removal can't shift their spans.
+  const knownChannelsRef = useRef(new Map<string, boolean>());
   const convertChannelPaths = useCallback(
     async (channelPaths: BareChannelPath[]) => {
-      for (const channelPath of [...channelPaths].reverse()) {
-        const channel = await db.getChannel({ id: channelPath.channelId });
-        if (!channel) {
+      const known = await Promise.all(
+        channelPaths.map(async ({ channelId }) => {
+          const cached = knownChannelsRef.current.get(channelId);
+          if (cached != null) {
+            return cached;
+          }
+          const isKnown = !!(await db.getChannel({ id: channelId }));
+          knownChannelsRef.current.set(channelId, isKnown);
+          return isKnown;
+        })
+      );
+      for (let i = channelPaths.length - 1; i >= 0; i--) {
+        if (!known[i]) {
           continue;
         }
+        const channelPath = channelPaths[i];
         const [path, reference] = channelToContentReference(
           channelPath.channelId
         );

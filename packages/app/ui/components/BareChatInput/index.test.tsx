@@ -772,6 +772,17 @@ test('a channel path naming an unknown channel stays text', async () => {
   expect(inputText()).toBe('/1/chan/chat/~zod/other ');
 });
 
+test('an unknown channel is looked up once', async () => {
+  await mountWithChannelPaths();
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/other '));
+  await settle();
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/other hi'));
+  await settle();
+
+  expect(mocks.getChannel).toHaveBeenCalledTimes(1);
+  expect(mocks.attachments).toEqual([]);
+});
+
 test('a channel path inside a URL stays text', async () => {
   await mountWithChannelPaths();
   act(() =>
@@ -812,8 +823,38 @@ test('native keeps the text left around a converted path', async () => {
     act(() => frames.splice(0).forEach((callback) => callback(0)));
 
     expect(inputText()).toBe('see  ');
-    expect(mocks.input.clear).not.toHaveBeenCalled();
+    // Clearing makes native show the children's text; a `text` prop would be
+    // prepended to it.
+    expect(mocks.input.clear).toHaveBeenCalledTimes(1);
+    expect(mocks.input.setNativeProps).not.toHaveBeenCalled();
     expect(mocks.input.setSelection).toHaveBeenLastCalledWith(5, 5);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('native refreshes its buffer after removing a reference from the text', async () => {
+  await mountWithChannelPaths();
+  vi.useFakeTimers();
+  try {
+    act(() => input().props.onChangeText('see /1/group/~zod/test hi'));
+    await settle();
+    act(() => {
+      vi.runAllTimers();
+    });
+    act(() => frames.splice(0).forEach((callback) => callback(0)));
+
+    expect(inputText()).toBe('see  hi');
+    expect(mocks.input.clear).toHaveBeenCalledTimes(1);
+    expect(mocks.input.setNativeProps).not.toHaveBeenCalled();
+    expect(mocks.input.setSelection).toHaveBeenLastCalledWith(7, 7);
+
+    act(() => input().props.onChangeText('see  hi!'));
+    await settle();
+
+    expect(mocks.addAttachment).toHaveBeenCalledTimes(1);
+    expect(mocks.attachments).toHaveLength(1);
+    expect(inputText()).toBe('see  hi!');
   } finally {
     vi.useRealTimers();
   }
@@ -1063,19 +1104,27 @@ test.each([
   'native keeps the caret where it was when a path %s it converts',
   async (_where, expected, caret) => {
     await mountWithChannelPaths();
-    act(() =>
-      input().props.onSelectionChange({
-        nativeEvent: { selection: { start: caret, end: caret } },
-      })
-    );
-    act(() => input().props.onChangeText('see /1/chan/chat/~zod/test hello'));
-    await settle();
-    act(() => frames.splice(0).forEach((callback) => callback(0)));
+    vi.useFakeTimers();
+    try {
+      act(() =>
+        input().props.onSelectionChange({
+          nativeEvent: { selection: { start: caret, end: caret } },
+        })
+      );
+      act(() => input().props.onChangeText('see /1/chan/chat/~zod/test hello'));
+      await settle();
+      act(() => {
+        vi.runAllTimers();
+      });
+      act(() => frames.splice(0).forEach((callback) => callback(0)));
 
-    expect(inputText()).toBe('see  hello');
-    expect(mocks.input.setSelection).toHaveBeenLastCalledWith(
-      expected,
-      expected
-    );
+      expect(inputText()).toBe('see  hello');
+      expect(mocks.input.setSelection).toHaveBeenLastCalledWith(
+        expected,
+        expected
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   }
 );

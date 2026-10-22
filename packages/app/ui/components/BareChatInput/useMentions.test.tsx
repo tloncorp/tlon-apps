@@ -2,7 +2,7 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import { useMentions } from './useMentions';
+import { firstDifference, useMentions } from './useMentions';
 
 const mocks = vi.hoisted(() => ({
   useMentionCandidates: vi.fn(),
@@ -93,4 +93,12 @@ test('does not enable the candidate query for a bare trigger', () => {
     query: '',
     enabled: false,
   });
+});
+
+test('firstDifference finds where two strings diverge', () => {
+  expect(firstDifference('abc', 'abd')).toBe(2);
+  expect(firstDifference('ab', 'abc')).toBe(2);
+  expect(firstDifference('abc', 'ab')).toBe(2);
+  expect(firstDifference('abc', 'abc')).toBe(3);
+  expect(firstDifference('', 'a')).toBe(0);
 });

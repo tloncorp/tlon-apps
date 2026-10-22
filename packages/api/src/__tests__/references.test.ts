@@ -6,13 +6,16 @@ import {
   findBareChannelPaths,
   isReferenceBoundary,
   getChannelReferencePath,
+  getDroppedCites,
   getNoteReferencePath,
   getUneditableCites,
+  isUneditableCitesError,
   noteToContentReference,
   postToContentReference,
   referenceLookupId,
   replaceBareChannelPath,
   toContentReference,
+  UneditableCitesError,
   uneditableCitesMessage,
 } from '../client/references';
 import type * as db from '../types/models';
@@ -353,4 +356,44 @@ test('getUneditableCites finds cites that edit flows cannot rebuild', () => {
     "This post has a reference that can't be edited"
   );
   expect(getUneditableCites(null)).toEqual([]);
+});
+
+test('getDroppedCites counts the uneditable cites an edit loses', () => {
+  const chan = { chan: { nest: 'chat/~zod/general', where: '/msg/abc' } };
+  const bait = { bait: { group: '~zod/g', graph: '~zod/c', where: '/1' } };
+  const unknown = { future: {} } as unknown as typeof bait;
+  const story = [
+    { block: { cite: chan } },
+    { block: { cite: bait } },
+    { block: { cite: unknown } },
+  ];
+  expect(getUneditableCites(story)).toEqual([chan, bait, unknown]);
+
+  // A cite the editor round-trips verbatim is kept.
+  expect(
+    getDroppedCites(story, [structuredClone(chan), bait, unknown])
+  ).toEqual([]);
+  expect(getDroppedCites(story, [chan])).toEqual([bait, unknown]);
+
+  // A duplicate the edit keeps only once still loses one copy.
+  const twice = [{ block: { cite: chan } }, { block: { cite: chan } }];
+  expect(getDroppedCites(twice, [chan])).toEqual([chan]);
+  expect(getDroppedCites(twice, [chan, chan])).toEqual([]);
+});
+
+test('isUneditableCitesError recognizes the refusal by name', () => {
+  const bait = { bait: { group: '~zod/g', graph: '~zod/c', where: '/1' } };
+  const refusal = new UneditableCitesError([bait]);
+  expect(refusal.message).toBe(
+    "This post has a reference that can't be edited"
+  );
+  expect(isUneditableCitesError(refusal)).toBe(true);
+
+  // Another copy of the class still carries the name.
+  const copy = Object.assign(new Error(refusal.message), {
+    name: 'UneditableCitesError',
+  });
+  expect(isUneditableCitesError(copy)).toBe(true);
+  expect(isUneditableCitesError(new Error(refusal.message))).toBe(false);
+  expect(isUneditableCitesError('UneditableCitesError')).toBe(false);
 });
