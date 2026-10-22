@@ -167,16 +167,24 @@
   ;<  *  bind:m  (wait ~s1)
   ;<  bw=bowl  bind:m  get-bowl
   =/  first=id:c  [~dev now.bw]
-  =/  =action:club:c  [id 0v0 %writ (dm-message-from ~dev now.bw verse)]
-  ;<  *  bind:m  (do-poke %chat-club-action-2 !>(action))
+  ;<  *  bind:m  (club-poke id 0v0 %writ (dm-message-from ~dev now.bw verse))
   ;<  *  bind:m  (wait ~s1)
   ;<  bw=bowl  bind:m  get-bowl
   =/  second=id:c  [~dev now.bw]
-  =/  =action:club:c  [id 0v0 %writ (dm-message-from ~dev now.bw verse)]
-  ;<  *  bind:m  (do-poke %chat-club-action-2 !>(action))
-  =/  =action:club:c  [id 0v0 %writ second %del ~]
-  ;<  *  bind:m  (do-poke %chat-club-action-2 !>(action))
+  ;<  *  bind:m  (club-poke id 0v0 %writ (dm-message-from ~dev now.bw verse))
+  ;<  *  bind:m  (club-poke id 0v0 %writ second %del ~)
   (ex-head-ids /x/v4/heads [club+id first]~)
+::  +club-poke: poke .action into its club as a new event
+::
+::    gall gives every event fresh entropy, and +cu-uid hashes it into the
+::    action's uid. without it, a repeated uid is dropped as already heard.
+::
+++  club-poke
+  |=  =action:club:c
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(eny (shax eny.b))))
+  (do-poke %chat-club-action-2 !>(action))
 ::  +ex-head-ids: the heads at .path are exactly .exes, by latest message id
 ::
 ++  ex-head-ids
