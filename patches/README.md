@@ -49,7 +49,7 @@ Local patches:
 - `patches/@react-navigation__bottom-tabs@7.18.14.patch`
 - `patches/react-native-screens@4.25.2.patch`
 
-The react-native-screens patch carries three independent fixes.
+The react-native-screens patch carries four independent fixes.
 
 ### 1. Full-color Android tab icons
 
@@ -161,6 +161,43 @@ Validation:
 Removal:
 Drop these hunks if react-native-screens gains native badge styling that can
 draw a small dot beneath the icon, or if the tab bar stops using blank badges.
+
+### 4. Android tab appearance change before a tab is selected
+
+Why:
+The Android tab container selects its first tab only once it is attached to
+the window. A launch that restores a screen pushed above `MainTabs` (Channel
+permissions, Appearance) mounts the tab navigator underneath that screen,
+where the native stack keeps it detached, so no tab is selected yet. If a
+tab's appearance prop then changes, for example the tab bar colours after a
+theme change, `TabsContainer.onAppearanceChanged` reads the selected tab and
+throws `IllegalStateException: [RNScreens] No selected tab present`. That is a
+fatal crash in release builds and a red screen in dev builds.
+
+What it does:
+Backports the upstream fix: `onAppearanceChanged` ignores the change while the
+container is detached. Nothing is lost, because the container applies the
+selected tab's current appearance when it attaches and selects its tab.
+
+Upstream:
+- issue: [software-mansion/react-native-screens#4258](https://github.com/software-mansion/react-native-screens/issues/4258)
+- fix: [software-mansion/react-native-screens#4271](https://github.com/software-mansion/react-native-screens/pull/4271),
+  first released in 4.26.0
+
+Validation:
+- Rebuild the Android app so the native patch is compiled in.
+- Open Settings, then Appearance, and relaunch the app so it restores onto
+  that screen. Pick another theme. Without the hunk this throws; with it the
+  theme changes.
+- Go back to the tabs: the tab bar uses the new theme's colours, and icons and
+  badges look as before. Open Appearance again, pick another theme and go
+  back: the tab bar follows it.
+- Checked on an EAS Android 15 emulator with a previewDebug build: develop
+  threw on the theme change, the build with the hunk did not, and its tab bar
+  showed the new colours in both cases above.
+
+Removal:
+Drop this hunk when react-native-screens is upgraded to 4.26.0 or later.
 
 ## @expo/ui@57.0.21
 

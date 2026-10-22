@@ -170,6 +170,19 @@ index 10cd91b2867dcbbc125df0797740e9b79eceb335..629f53e4b3661543c3445918ff3e2297
              badge.text = badgeValue
          }
  
+diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/TabsContainer.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/TabsContainer.kt
+index 3916fdc2ac05a87caf39dfa6c55e4a071a6aabf6..c17b0698f76b4de9d053e9e220f5199f4309dbe9 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/TabsContainer.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/TabsContainer.kt
+@@ -378,7 +378,7 @@ class TabsContainer internal constructor(
+     // region TabsScreenDelegate impl
+ 
+     override fun onAppearanceChanged(tabsScreen: TabsScreen) {
+-        if (selectedTab.tabsScreen === tabsScreen) {
++        if (isAttachedToWindow && selectedTab.tabsScreen === tabsScreen) {
+             invalidationFlags.isNavigationMenuAppearanceInvalidated = true
+             post {
+                 this.flushPendingUpdates()
 diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreen.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreen.kt
 index 24d107f6fe3e99aecf416a3f56ffe01e87a195e5..2c7fc987ebd4b94aadb2af5379de44b1c1765ce1 100644
 --- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreen.kt
