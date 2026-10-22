@@ -99,14 +99,17 @@ export function channelAccessSections({
   // lowercase, rather than as a row.
   const who = (min: Level) => {
     if (floor >= min) return 'Everyone';
-    const names = roles
-      .filter((role) => effective(role.id) >= min)
-      .map((role) => role.title);
+    const names = [
+      'admins',
+      ...roles
+        .filter((role) => effective(role.id) >= min)
+        .map((role) => role.title),
+    ];
     const list =
       names.length < 2
         ? names.join('')
         : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-    return names.length ? `Only admins and ${list}` : 'Only admins';
+    return `Only ${list}`;
   };
   const seers = who(1);
   const posters = who(2);

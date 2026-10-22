@@ -124,6 +124,17 @@ describe('channelAccessSections', () => {
     });
   });
 
+  it('lists three or more who can see or post with commas', () => {
+    const { sections } = render({
+      isPrivate: true,
+      readers: ['admin', 'gardeners', 'mods'],
+      writers: ['admin', 'gardeners'],
+    });
+    expect(sections[1].footer).toBe(
+      'Only admins, Gardeners and Moderators can see this channel. Only admins and Gardeners can post.'
+    );
+  });
+
   it('gives no access to a role that may post but can’t see the channel', () => {
     const { sections, row, onChange } = render({
       isPrivate: true,
