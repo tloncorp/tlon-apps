@@ -4192,6 +4192,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       )) {
         rewatchAfterRejoin(nest);
       }
+      // Reconcile reader roles here, on every periodic sync with or without
+      // discovery, in case a /groups/ui reader change was missed.
+      groupContextRuntime.applySnapshot(initData.groupContexts);
       return initData;
     };
 
@@ -4206,7 +4209,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       for (const [flag, title] of initData.groupNames) {
         groupNameCache.set(flag, title);
       }
-      groupContextRuntime.applySnapshot(initData.groupContexts);
       // Every discovery result is a config-sourced nest while discovery is
       // on, whether or not it is already watched; see discoveredNests.
       for (const nest of initData.channels) {
@@ -4608,15 +4610,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
-        // A deleted post or reply; see ChannelResponse.
+        // Any event about an existing post (an edit, a delete) supersedes a
+        // digest snippet taken from it; a new post's id matches none.
         const rPost = response?.post?.['r-post'];
         const reply = rPost?.reply;
+        const postId = reply ? reply.id : response?.post?.id;
+        if (postId) {
+          groupContextRuntime.forgetMessage({ nest, id: postId });
+        }
+        // A deleted post or reply; see ChannelResponse.
         const deleted = reply ? reply['r-reply']?.set : rPost?.set;
         if (deleted === null || deleted?.type === 'tombstone') {
-          const deletedId = reply ? reply.id : response?.post?.id;
-          if (deletedId) {
-            groupContextRuntime.recordDelete({ nest, id: deletedId });
-          }
           return;
         }
 

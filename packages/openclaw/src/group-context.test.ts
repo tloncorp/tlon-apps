@@ -87,6 +87,22 @@ describe('group context', () => {
     ).toContain('the channel chat/~host/Random in');
   });
 
+  it('adds nothing for a channel listed in more than one group', () => {
+    const { runtime, context } = setup();
+    runtime.applySnapshot(
+      new Map([
+        [
+          '~nec/other',
+          {
+            title: 'Other',
+            channels: parseGroupChannels({ [general]: { readers: [] } }),
+          },
+        ],
+      ])
+    );
+    expect(context()).toBeUndefined();
+  });
+
   it('adds nothing for DMs or channels in no known group', () => {
     const { context } = setup();
     expect(context('agent:main:tlon:direct:~nec')).toBeUndefined();
@@ -139,7 +155,7 @@ describe('group context', () => {
     expect(context()).not.toContain('Activity you have seen');
   });
 
-  it('drops a snippet when its message is deleted', () => {
+  it('drops a snippet when its message is edited or deleted', () => {
     const { runtime, context } = setup();
     const random = 'chat/~host/Random';
     runtime.recordMessage({
@@ -148,9 +164,9 @@ describe('group context', () => {
       sender: '~bud',
       text: 'oops',
     });
-    runtime.recordDelete({ nest: random, id: 'other' });
+    runtime.forgetMessage({ nest: random, id: 'other' });
     expect(context()).toContain('latest: "oops"');
-    runtime.recordDelete({ nest: random, id: 'a' });
+    runtime.forgetMessage({ nest: random, id: 'a' });
     const text = context()!;
     expect(text).not.toContain('oops');
     expect(text).toContain(`"Random" (${random}): 1 message from 1 ship\n`);
