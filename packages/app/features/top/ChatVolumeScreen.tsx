@@ -126,8 +126,11 @@ function ChatVolumeScreenView({
                   ? undefined
                   : option.title,
               selected,
+              // A stored level this list doesn't offer (an old "soft" on a
+              // DM) shows as its nearest option, and picking that option
+              // replaces it.
               onPress: () => {
-                if (!selected) updateVolume(option.value);
+                if (ownLevel !== option.value) updateVolume(option.value);
               },
             };
           }),
@@ -141,6 +144,7 @@ function ChatVolumeScreenView({
       currentLevel,
       isDefault,
       options,
+      ownLevel,
       updateVolume,
     ]
   );
