@@ -533,6 +533,21 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     ['dms', 'reply', '0v5.abcde', '~pen/170.141', 'message', '--bot=Botly'],
     'Usage: tlon dms reply'
   ),
+  usageErrorCase(
+    'dms send rejects a non-numeric --sent-at',
+    ['dms', 'send', '0v5.abcde', 'hi', '--sent-at', 'nope'],
+    'Usage: tlon dms send'
+  ),
+  usageErrorCase(
+    'dms send missing --sent-at value',
+    ['dms', 'send', '0v5.abcde', 'hi', '--sent-at'],
+    'Usage: tlon dms send'
+  ),
+  usageErrorCase(
+    'dms reply rejects a zero --sent-at',
+    ['dms', 'reply', '0v5.abcde', '~pen/170.141', 'hi', '--sent-at', '0'],
+    'Usage: tlon dms reply'
+  ),
   {
     name: 'dms send rejects an invalid equals image url',
     args: ['dms', 'send', '0v5.abcde', '--image=ftp://x/y.png'],
@@ -869,6 +884,23 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '~zod/170.141',
     'use',
     '--help',
+  ]),
+  authRequiredCase('dms send --sent-at reaches auth', [
+    'dms',
+    'send',
+    '0v123',
+    'hi',
+    '--sent-at',
+    '1234',
+  ]),
+  authRequiredCase('dms reply --sent-at reaches auth', [
+    'dms',
+    'reply',
+    '0v123',
+    '~zod/170.141',
+    'hi',
+    '--sent-at',
+    '1234',
   ]),
   authRequiredCase('posts edit message option-like value reaches auth', [
     'posts',
@@ -1458,6 +1490,19 @@ export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
     ['posts', 'forward', 'chat/~host/other', '170.141', '~zod', '--bogus'],
     'Unexpected argument: --bogus'
   ),
+  usageErrorCase(
+    'posts forward rejects a non-numeric --sent-at',
+    [
+      'posts',
+      'forward',
+      'chat/~host/other',
+      '170.141',
+      '~zod',
+      '--sent-at',
+      'x',
+    ],
+    'Usage: tlon posts forward'
+  ),
   diaryRefusedCase('posts forward to a diary target refuses', [
     'posts',
     'forward',
@@ -1532,6 +1577,15 @@ export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
     'chat/~host/other',
     '170.141',
     '~zod',
+  ]),
+  authRequiredCase('posts forward --sent-at reaches auth', [
+    'posts',
+    'forward',
+    'chat/~host/other',
+    '170.141',
+    '~zod',
+    '--sent-at',
+    '1234',
   ]),
 ];
 

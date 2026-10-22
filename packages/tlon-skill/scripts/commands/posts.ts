@@ -49,7 +49,7 @@ export const POSTS_HELP = `Usage: tlon posts <command>
 Commands:
   send <channel> [message]                 Send a message to a channel [--image <url>] [--file <url>] [--video <url>] [--link <url>] [--blob <json>] [--title <text>] [--quote <channel> <post-id>] [--bot]
   reply <channel> <post-id> [message]      Reply to a channel post [--author ~ship] [--blob <json>] [--quote <channel> <post-id>] [--bot]
-  forward <channel> <post-id> <target>  Forward a post as a reference card [--parent <post-id>]
+  forward <channel> <post-id> <target>  Forward a post as a reference card [--parent <post-id>] [--sent-at <ms>]
   react <channel> <post-id> <emoji>     React to a post with an emoji [--parent <post-id>]
   unreact <channel> <post-id>           Remove your reaction from a post [--parent <post-id>]
   edit <channel> <post-id> <message>    Edit a post's message text [--parent <post-id>]
@@ -69,7 +69,7 @@ Send options:
                        an a2ui entry); checked before sending
   --title <text>       Set a title on a gallery (heap/) post
   --sent-at <ms>       Override the send timestamp (unix ms); the post id
-                       derives from it. Applies to send and reply.
+                       derives from it. Applies to send, reply and forward.
   --bot                Author the message as a bot (renders the "Bot" tag).
                        Applies to send and reply.
   --quote <channel> <post-id>
@@ -147,7 +147,7 @@ export const POSTS_COMMAND_HELP: Record<string, string> = {
   reply:
     'Usage: tlon posts reply <channel> <post-id> [message] [--author ~ship] [--blob <json>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with --quote)',
   forward:
-    'Usage: tlon posts forward <src-channel> <src-id> <target> [--parent <src-parent-id>]',
+    'Usage: tlon posts forward <src-channel> <src-id> <target> [--parent <src-parent-id>] [--sent-at <ms>]',
   react:
     'Usage: tlon posts react <channel> <post-id> <emoji> [--parent <post-id>]',
   unreact: 'Usage: tlon posts unreact <channel> <post-id> [--parent <post-id>]',
@@ -438,7 +438,7 @@ type ParsedPostsArgs =
       botProfile?: BotAuthorProfile;
       quote?: QuoteSource;
     }
-  | { kind: 'forward'; source: QuoteSource; target: string }
+  | { kind: 'forward'; source: QuoteSource; target: string; sentAt?: number }
   | {
       kind: 'react';
       channelId: string;
@@ -995,11 +995,14 @@ function parseForward(args: string[]): ParsedPostsArgs {
     throw usageError(help);
   }
   const parentId = optionalReactionParent(args, help);
-  rejectStrayOptions(args, help);
-  const parentIdx = args.indexOf('--parent');
-  const extra = args.find(
-    (_, idx) => idx > 3 && idx !== parentIdx && idx !== parentIdx + 1
+  const sentAt = validatedSentAt(args, help);
+  const taken = [args.indexOf('--parent'), args.indexOf('--sent-at')]
+    .filter((idx) => idx !== -1)
+    .flatMap((idx) => [idx, idx + 1]);
+  const stray = args.filter(
+    (arg, idx) => !taken.includes(idx) && (idx > 3 || arg.startsWith('--'))
   );
+  const extra = stray.find((arg) => arg.startsWith('--')) ?? stray[0];
   if (extra !== undefined) {
     throw usageError(`Unexpected argument: ${extra}`, help);
   }
@@ -1027,6 +1030,7 @@ function parseForward(args: string[]): ParsedPostsArgs {
       ...(parentId === undefined ? {} : { parentId }),
     },
     target: quoteTarget(target),
+    ...(sentAt === undefined ? {} : { sentAt }),
   };
 }
 
@@ -2185,7 +2189,7 @@ async function forwardPost(
   await assertJoinedTarget(parsed.target, deps);
   const content: Story = [quote.verse];
   const authorId = deps.getCurrentUserId();
-  const sentAt = deps.now();
+  const sentAt = parsed.sentAt ?? deps.now();
   await deps.postsApi.sendPost({
     channelId: parsed.target,
     authorId,

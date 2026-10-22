@@ -47,6 +47,11 @@ describe('installed skill contract', () => {
       }
     }
   });
+  it('says owner-identity messages read as the owner, without harness names', () => {
+    const skill = read('SKILL.md');
+    expect(skill).toContain('exactly as if the owner had typed it');
+    expect(skill).not.toMatch(/\bplugin\b|ownerDefault|openclaw/i);
+  });
   it('publishes the catalog, references, and operator documentation', () => {
     const pkg = JSON.parse(read('package.json'));
     for (const file of [
