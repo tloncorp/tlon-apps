@@ -20,4 +20,21 @@ Relative file paths use the active agent workspace. The tool cannot provide stdi
 
 If a remote source returns HTTP 429, retrying through another account still fetches from the same host. For a general image search, choose a result on a different host. If the user requested that specific image, report the failure instead of silently substituting another one.
 
+## Gallery posts and attachments with `posts send`
+
+To post an image, file, video or link to a gallery (`heap/` channel), use `posts send` with an attachment flag. `--image`, `--file` and `--video` take an HTTPS URL: upload a local file first and pass the returned URL. `--link` takes an HTTP or HTTPS URL.
+
+```json
+{"command":"posts send heap/~host/gallery \"Caption\" --image https://storage.example.com/photo.png --title \"Photo\""}
+{"command":"posts send heap/~host/gallery \"Q3 report\" --file https://storage.example.com/report.pdf"}
+{"command":"posts send heap/~host/gallery --video https://storage.example.com/clip.mp4"}
+{"command":"posts send heap/~host/gallery --link https://example.com --title \"Example\""}
+```
+
+- A gallery post takes at most one attachment (`--image`, `--file`, `--video`, `--link`, or a file, video or voice-memo entry in `--blob`); a text-only post is fine. To post several, send one `posts send` per attachment.
+- A link post has no caption; put its text in `--title`. The link posts as a bare card with the given `--title`; page previews are not fetched.
+- `posts send` to a chat channel, a DM (`posts send ~ship …`) or a group DM (`posts send 0v… …`) accepts several `--image`, `--file` and `--video` flags in one send (at most four images); `dms send` takes one `--image` and refuses a second. Images keep their flag order among themselves, as do files and videos (after any `--blob` entries); images always render before the text.
+- `--quote` cannot be combined with `--image`, `--file`, `--video` or `--link`; a `--blob` is still allowed with it.
+- Put the message in quotes when it contains a flag word such as `--file`; an unquoted flag word starts the options.
+
 Never claim an image was sent unless both the required upload and the message send succeeded.

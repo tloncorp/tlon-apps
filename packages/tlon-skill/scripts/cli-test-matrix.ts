@@ -363,6 +363,162 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     stderrIncludes: ['Media URLs with embedded credentials are not supported.'],
   },
   usageErrorCase(
+    'posts send missing file value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--file'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send missing video value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--video'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'dms send refuses a second --image',
+    [
+      'dms',
+      'send',
+      '0v5.abcde',
+      '--image',
+      'https://example.com/a.png',
+      '--image=https://example.com/b.png',
+    ],
+    'dms send takes one --image; use posts send <club-id> for several'
+  ),
+  usageErrorCase(
+    'posts send missing link value',
+    ['posts', 'send', 'heap/~host/gallery', '--link'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send refuses two attachments in one gallery post',
+    [
+      'posts',
+      'send',
+      'heap/~host/gallery',
+      '--image',
+      'https://example.com/a.png',
+      '--file',
+      'https://example.com/f.pdf',
+    ],
+    'galleries take one attachment per post'
+  ),
+  usageErrorCase(
+    'posts send refuses --link outside a gallery',
+    ['posts', 'send', 'chat/~host/channel', '--link', 'https://example.com'],
+    '--link is only supported for gallery (heap/) posts'
+  ),
+  usageErrorCase(
+    'posts send refuses a gallery link with a caption',
+    [
+      'posts',
+      'send',
+      'heap/~host/gallery',
+      'caption',
+      '--link',
+      'https://example.com',
+    ],
+    'a gallery link post has no caption'
+  ),
+  usageErrorCase(
+    'posts send refuses --video with --quote',
+    [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      '--video',
+      'https://example.com/v.mp4',
+      '--quote',
+      'chat/~host/other',
+      '170.141',
+    ],
+    '--quote cannot be combined with --video'
+  ),
+  usageErrorCase(
+    'posts send refuses an empty --title value',
+    ['posts', 'send', 'heap/~host/gallery', 'hi', '--title', ''],
+    'Usage: tlon posts send'
+  ),
+  {
+    ...usageErrorCase(
+      'posts send never echoes a stray signed URL',
+      [
+        'posts',
+        'send',
+        'chat/~host/channel',
+        'hi',
+        '--bot',
+        '--file=https://x/f?token=SECRET',
+      ],
+      'Usage: tlon posts send'
+    ),
+    stderrExcludes: ['SECRET'],
+  },
+  {
+    ...usageErrorCase(
+      'posts send refuses a --file= option instead of posting it as text',
+      [
+        'posts',
+        'send',
+        'chat/~host/channel',
+        'hi',
+        '--file=https://x/f?token=SECRET',
+      ],
+      'Usage: tlon posts send'
+    ),
+    stderrExcludes: ['SECRET'],
+  },
+  usageErrorCase(
+    'posts send refuses trailing text after the options',
+    ['posts', 'send', 'heap/~host/gallery', 'hi', '--title', 'T', 'extra'],
+    'Unexpected argument 5 (counting the channel as 1)'
+  ),
+  refusalCase(
+    'posts send rejects a plain-http file url',
+    ['posts', 'send', 'chat/~host/channel', '--file', 'http://x/f.pdf'],
+    'Only https media URLs are supported.'
+  ),
+  refusalCase(
+    'posts send rejects a local video path',
+    ['posts', 'send', 'chat/~host/channel', '--video', './clip.mp4'],
+    'Local file paths are not supported for --video'
+  ),
+  refusalCase(
+    'posts send rejects a non-http link',
+    ['posts', 'send', 'heap/~host/gallery', '--link', 'ftp://x/y'],
+    '--link takes an http(s) URL.'
+  ),
+  {
+    ...refusalCase(
+      'posts send rejects a link with embedded credentials',
+      [
+        'posts',
+        'send',
+        'heap/~host/gallery',
+        '--link',
+        'https://user:secret@example.com/',
+      ],
+      '--link URLs with embedded credentials are not supported.'
+    ),
+    stderrExcludes: [
+      'secret',
+      'Usage:',
+      ...STACK_PATTERNS,
+      ...AUTH_CONFIG_PATTERNS,
+    ],
+  },
+  refusalCase(
+    'posts send rejects an unknown blob entry type',
+    [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      'message',
+      '--blob',
+      '[{"type":"image","src":"https://x/y.png"}]',
+    ],
+    '--blob entry 0 has no known type. Known types: file,'
+  ),
+  usageErrorCase(
     'posts send rejects a value on the valueless --bot flag',
     ['posts', 'send', 'chat/~host/channel', 'message', '--bot=Botly'],
     'Usage: tlon posts send'
@@ -735,7 +891,7 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'chat/~host/channel',
     'message',
     '--blob',
-    '[{"type":"a2ui","version":1,"messages":[]}]',
+    '[{"type":"tlon-context-lens","version":1,"lensId":"L1"}]',
   ]),
   authRequiredCase('posts send heap title reaches auth', [
     'posts',
@@ -751,6 +907,42 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'chat/~host/channel',
     '--image',
     'https://example.com/x.png',
+  ]),
+  authRequiredCase('posts send repeated chat attachments reach auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    '--image',
+    'https://example.com/a.png',
+    '--image',
+    'https://example.com/b.png',
+    '--file',
+    'https://example.com/f.pdf',
+    '--video',
+    'https://example.com/v.mp4',
+  ]),
+  authRequiredCase('posts send gallery file-only reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    '--file',
+    'https://example.com/f.pdf',
+  ]),
+  authRequiredCase('posts send gallery link reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    '--link',
+    'https://example.com',
+    '--title',
+    'Example',
+  ]),
+  authRequiredCase('posts send untitled gallery link reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    '--link',
+    'https://example.com',
   ]),
   authRequiredCase('dms send image-only reaches auth', [
     'dms',
@@ -1236,7 +1428,7 @@ export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
   usageErrorCase(
     'posts send rejects text after the quote values',
     ['posts', 'send', 'chat/~host/channel', ...QUOTE_SOURCE, 'trailing'],
-    'Unexpected argument: trailing'
+    'Unexpected argument 5 (counting the channel as 1)'
   ),
   usageErrorCase(
     'posts reply rejects a trailing --self after the quote',
@@ -1249,7 +1441,7 @@ export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
       ...QUOTE_SOURCE,
       '--self',
     ],
-    'Unexpected argument: --self'
+    'Unexpected argument 7 (counting the channel as 1)'
   ),
   usageErrorCase(
     'posts send --quote non-numeric post id',

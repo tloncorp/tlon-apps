@@ -510,6 +510,80 @@ describe('dms run', () => {
     ]);
   });
 
+  it('attaches one --image before the caption', async () => {
+    const fetched: string[] = [];
+    const deps = {
+      ...makeRunDeps(),
+      fetchImageVerse: async (url: string) => {
+        fetched.push(url);
+        return { block: { image: { src: url } } };
+      },
+    };
+    const { posts } = await runDms(
+      ['send', '0v5.abcde', 'hi', '--image', 'https://x/a.png'],
+      deps
+    );
+
+    expect(fetched).toEqual(['https://x/a.png']);
+    expect(posts[0].content).toEqual([
+      { block: { image: { src: 'https://x/a.png' } } },
+      { inline: ['hi'] },
+    ]);
+  });
+
+  for (const second of [
+    ['--image', 'https://x/b.png'],
+    ['--image=https://x/b.png'],
+  ]) {
+    it(`refuses a second image (${second[0].slice(0, 8)}) with a usage error, fetching and sending nothing`, async () => {
+      const dms = await loadDms();
+      const fetched: string[] = [];
+      const deps = {
+        ...makeRunDeps(),
+        fetchImageVerse: async (url: string) => {
+          fetched.push(url);
+          return { block: { image: { src: url } } };
+        },
+      };
+      const args = [
+        'send',
+        '0v5.abcde',
+        'hi',
+        '--image',
+        'https://x/a.png',
+        ...second,
+      ];
+      const originalExit = process.exit;
+      const originalError = console.error;
+      const exitCodes: (number | undefined)[] = [];
+      const stderr: string[] = [];
+      process.exit = ((code?: number) => {
+        exitCodes.push(code);
+        throw new Error('exit');
+      }) as typeof process.exit;
+      console.error = (line: string) => {
+        stderr.push(line);
+      };
+      try {
+        expect(() => dms.validateDmsArgs(args)).toThrow('exit');
+        await dms.run(args, deps as never).catch((error) => {
+          if (!(error instanceof Error) || error.message !== 'exit')
+            throw error;
+        });
+      } finally {
+        process.exit = originalExit;
+        console.error = originalError;
+      }
+
+      expect(exitCodes).toEqual([1, 1]);
+      expect(stderr[0]).toStartWith(
+        'Error: dms send takes one --image; use posts send <club-id> for several\n\nUsage: tlon dms send'
+      );
+      expect(fetched).toEqual([]);
+      expect(deps.posts).toEqual([]);
+    });
+  }
+
   it('omits botProfile from a plain send and reply', async () => {
     const { posts } = await runDms(
       ['send', '0v5.abcde', 'hello'],
