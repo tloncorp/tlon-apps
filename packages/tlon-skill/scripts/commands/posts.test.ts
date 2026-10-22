@@ -5236,7 +5236,27 @@ describe('posts send attachments', () => {
       [
         'a trailing --file= token with a signed URL',
         [CHAT, 'hi', '--bot', '--file=https://x/f?token=SECRET'],
-        `${unexpectedAt(4)}\n\n${send}\n`,
+        `${send}\n`,
+      ],
+      [
+        'a --file= token as the first option',
+        [CHAT, 'hi', `--file=${FILE}`],
+        `${send}\n`,
+      ],
+      [
+        'a --video= token as the first option',
+        [CHAT, `--video=${VIDEO}?sig=SECRET`],
+        `${send}\n`,
+      ],
+      [
+        'a --link= token as the first option',
+        [HEAP, '--link=https://e.com/?sig=SECRET'],
+        `${send}\n`,
+      ],
+      [
+        'a --title= token after a valid option',
+        [HEAP, '--image', IMG_A, '--title=SECRET'],
+        `${send}\n`,
       ],
       [
         'a trailing blob JSON with no flag',

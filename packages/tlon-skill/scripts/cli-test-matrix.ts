@@ -449,7 +449,21 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
         '--bot',
         '--file=https://x/f?token=SECRET',
       ],
-      'Unexpected argument 4 (counting the channel as 1)'
+      'Usage: tlon posts send'
+    ),
+    stderrExcludes: ['SECRET'],
+  },
+  {
+    ...usageErrorCase(
+      'posts send refuses a --file= option instead of posting it as text',
+      [
+        'posts',
+        'send',
+        'chat/~host/channel',
+        'hi',
+        '--file=https://x/f?token=SECRET',
+      ],
+      'Usage: tlon posts send'
     ),
     stderrExcludes: ['SECRET'],
   },

@@ -545,12 +545,26 @@ function firstFlagIndex(args: string[], flags: readonly string[]): number {
   return indexes.length > 0 ? Math.min(...indexes) : args.length;
 }
 
-function isPostSendOption(arg: string): boolean {
-  return POST_SEND_OPTION_ARITY.has(arg) || arg.startsWith('--image=');
+// `--flag=value` for any send option but `--image`. It ends the message like
+// the flag would, so the value (often a signed URL) is never posted as text,
+// and `sendOptions` refuses it.
+function isEqualsFormSendOption(arg: string): boolean {
+  const eq = arg.indexOf('=');
+  if (eq === -1) return false;
+  const flag = arg.slice(0, eq);
+  return flag !== '--image' && POST_SEND_OPTION_ARITY.has(flag);
 }
 
-// Send's message ends at its first option token (`--image=<url>` included);
-// a `--word` that is not a send option stays message text.
+function isPostSendOption(arg: string): boolean {
+  return (
+    POST_SEND_OPTION_ARITY.has(arg) ||
+    arg.startsWith('--image=') ||
+    isEqualsFormSendOption(arg)
+  );
+}
+
+// Send's message ends at its first option token (any `--flag=value` form
+// included); a `--word` that is not a send option stays message text.
 function firstPostSendFlagIndex(args: string[]): number {
   const idx = args.findIndex((arg, i) => i >= 2 && isPostSendOption(arg));
   return idx === -1 ? args.length : idx;
@@ -797,7 +811,8 @@ function unexpectedArgumentAt(position: number): string {
 
 // The options after the message, in order. Each consumes its values; a
 // missing or empty value, a value that is an option token, a repeated
-// non-media option, a stray word or an unknown flag is a usage error.
+// non-media option, a `--flag=value` form other than `--image=`, a stray word
+// or an unknown flag is a usage error.
 function sendOptions(
   args: string[],
   start: number,
@@ -814,6 +829,7 @@ function sendOptions(
       idx += 1;
       continue;
     }
+    if (isEqualsFormSendOption(token)) throw usageError(help);
     const count = POST_SEND_OPTION_ARITY.get(token);
     if (count === undefined) {
       throw usageError(unexpectedArgumentAt(idx), help);
