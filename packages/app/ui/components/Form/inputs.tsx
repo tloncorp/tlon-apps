@@ -31,10 +31,10 @@ import {
 } from 'tamagui';
 
 import {
-  imagePickerAssetToUploadIntent,
+  imagePickerUploadOptions,
   normalizeUploadIntents,
+  pickedAssetToUploadIntent,
 } from '../../../utils/filepicker';
-import { normalizeImagePickerAssetForUpload } from '../../../utils/imagePickerAsset';
 import {
   useAttachmentContext,
   useMappedImageAttachments,
@@ -282,10 +282,7 @@ export function useImageInput({
           mediaTypes: ['images'],
           allowsEditing: true,
           aspect: [1, 1],
-          quality: 0.5,
-          exif: false,
-          // A photo kept only in iCloud is fetched, as the sheet does.
-          shouldDownloadFromNetwork: true,
+          ...imagePickerUploadOptions,
         };
         const result =
           source === 'camera'
@@ -295,9 +292,7 @@ export function useImageInput({
           return;
         }
         const { uploadIntents, errorMessage } = await normalizeUploadIntents([
-          imagePickerAssetToUploadIntent(
-            normalizeImagePickerAssetForUpload(result.assets[0])
-          ),
+          pickedAssetToUploadIntent(result.assets[0]),
         ]);
         if (errorMessage) {
           showToast({ message: errorMessage, duration: 4000 });
