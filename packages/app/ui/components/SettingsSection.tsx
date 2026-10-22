@@ -36,7 +36,10 @@ export function SettingsSection({
   return (
     <YStack gap="$m">
       {title || subtitle ? (
-        <YStack gap="$xs" paddingHorizontal="$s">
+        // Text trims to the glyphs, so this gap is the whole distance from
+        // the title's baseline to the subtitle's cap height; $m lands the
+        // subtitle about a line-height down.
+        <YStack gap="$m" paddingHorizontal="$s">
           {title ? (
             <Text size="$label/m" color="$secondaryText" fontWeight="500">
               {title}

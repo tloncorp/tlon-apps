@@ -169,8 +169,8 @@ Notes: people see your status under your name in their contacts list and in a `S
 ## Pin groups to your profile
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/FavoriteGroupsDisplay.tsx, packages/app/ui/components/GroupSelectorSheet.tsx, packages/app/ui/components/UserProfileScreenView.tsx -->
 
-Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Pinned groups`, tap `Add a group`, tap the groups you want, and tap `Save` on the sheet. To take one off, tap the X beside it.
-Desktop: click your avatar in the left rail, then the pencil icon, and use the same `Pinned groups` box.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Pinned workspaces`, tap `Add a workspace`, tap the groups you want, and tap `Save` on the sheet. To take one off, tap the X beside it.
+Desktop: click your avatar in the left rail, then the pencil icon, and use the same `Pinned workspaces` box.
 Notes: you can pin up to 5. Only groups you are a member of can be pinned, and secret groups can't be. Changes here apply straight away, without the `Save` at the top of the screen. People who open your profile see the groups as tiles and can tap one to preview it.
 
 ## Change your ID or username
