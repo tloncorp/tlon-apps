@@ -436,58 +436,6 @@ export function isMediaPolicyRejection(error: unknown): boolean {
 }
 
 /**
- * The guard's host policy for a URL some other party will fetch (the ship's
- * metagrab for a `--link` preview), applied without making a request: an
- * https URL with no credentials, a hostname that is not denied, and every
- * address it resolves to (once, within `deadlineMs`) allowed. Never throws;
- * any failure is `false`.
- */
-export async function isPublicHttpsUrl(
-  raw: string,
-  options: Pick<
-    GuardedProbeOptions,
-    'deadlineMs' | 'resolveHost' | 'allowAddress'
-  >
-): Promise<boolean> {
-  // An exhausted budget allows nothing, literal or name.
-  if (!(options.deadlineMs > 0)) {
-    return false;
-  }
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const classified = classifyMediaUrl(raw);
-    if (classified.kind !== 'https') {
-      return false;
-    }
-    const { hostname } = new URL(classified.canonical);
-    if (isDeniedHostname(hostname)) {
-      return false;
-    }
-    const allowAddress = options.allowAddress ?? isAllowedAddress;
-    // An address literal is judged as written; only a name is resolved.
-    const bare = hostname.startsWith('[') ? hostname.slice(1, -1) : hostname;
-    if (net.isIP(bare) !== 0) {
-      return allowAddress(bare);
-    }
-    const resolveHost = options.resolveHost ?? defaultResolveHost;
-    const addresses = await Promise.race([
-      resolveHost(hostname),
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error()), options.deadlineMs);
-      }),
-    ]);
-    return (
-      addresses.length > 0 &&
-      addresses.every((entry) => allowAddress(entry.address))
-    );
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
  * Wait before the single throttle retry, from a `Retry-After` header.
  * Only a delay we can understand is honored: delta-seconds, or an exact
  * IMF-fixdate (the form `Date#toUTCString` produces; the round-trip check

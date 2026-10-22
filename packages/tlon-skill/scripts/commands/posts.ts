@@ -4,11 +4,6 @@ import {
   botProfileFlagIndex,
   parseBotProfileFlags,
 } from '../bot-profile-flags';
-import type {
-  LinkMetadata,
-  LinkMetadataError,
-} from '@tloncorp/api/types/attachment';
-
 import type { ChannelState } from '../channel-state-runtime';
 import {
   DIARY_REMOVED,
@@ -31,11 +26,7 @@ import {
   markdownToStory,
   unknownRoleMentions,
 } from '../markdown';
-import {
-  type MediaProbe,
-  type ResolvedAddress,
-  isPublicHttpsUrl,
-} from '../media-guard';
+import type { MediaProbe } from '../media-guard';
 import {
   appendFileUploadToPostBlob,
   appendVideoToPostBlob,
@@ -72,9 +63,8 @@ Send options:
   --file <url>         Attach a file by its https URL
   --video <url>        Attach a video by its https URL
   --link <url>         Post a link card (gallery heap/ posts only; no message,
-                       use --title). A public https link gets the page's
-                       preview; an http or private-address link is posted
-                       as a bare card
+                       use --title). Posts a bare card with the --title;
+                       page previews are not fetched
   --blob <json>        Attach a post-blob JSON array of known entry types (e.g.
                        an a2ui entry); checked before sending
   --title <text>       Set a title on a gallery (heap/) post
@@ -395,12 +385,6 @@ export interface PostsDeps extends CommandDeps {
   // Headers-only look at a --file/--video URL. Throws when the URL must not
   // be posted; a failed look resolves to unknown metadata (`size: -1`).
   probeMedia: (url: string) => Promise<MediaProbe>;
-  // The ship's metagrab look at a --link URL, for its preview card.
-  getLinkMetadata: (url: string) => Promise<LinkMetadata | LinkMetadataError>;
-  // Overrides LINK_PREVIEW_DEADLINE_MS (tests).
-  linkPreviewDeadlineMs?: number;
-  // Test seam: the --link host-policy resolver. Defaults to the guard's.
-  resolveLinkHost?: (hostname: string) => Promise<ResolvedAddress[]>;
   postsApi: PostsApi;
   // The acting ship's local view of a channel: its group and arranged order.
   getChannelState: (nest: string) => Promise<ChannelState>;
@@ -1279,58 +1263,6 @@ type SendArgs = Extract<ParsedPostsArgs, { kind: 'send' }>;
 type ReplyArgs = Extract<ParsedPostsArgs, { kind: 'reply' }>;
 type ForwardArgs = Extract<ParsedPostsArgs, { kind: 'forward' }>;
 
-// The --link preview lookup's own budget; a slower lookup posts a bare card.
-export const LINK_PREVIEW_DEADLINE_MS = 10_000;
-
-type LinkMeta = Record<string, string>;
-
-// A page's preview fields for the link block, as the app's link input stores
-// them. The ship fetches the page, so the URL must first pass the media
-// guard's host policy (https, no credentials, public addresses only); a URL
-// that does not, or a failed, timed-out or non-page lookup, yields none. One
-// budget covers the policy's DNS look and the lookup. Never throws: the
-// preview never blocks the post.
-async function linkPreview(url: string, deps: PostsDeps): Promise<LinkMeta> {
-  const deadlineAt =
-    Date.now() + (deps.linkPreviewDeadlineMs ?? LINK_PREVIEW_DEADLINE_MS);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const allowed = await isPublicHttpsUrl(url, {
-      deadlineMs: deadlineAt - Date.now(),
-      resolveHost: deps.resolveLinkHost,
-    });
-    // The host check may have spent the whole budget.
-    if (!allowed || deadlineAt - Date.now() <= 0) return {};
-    const timeout = new Promise<null>((resolve) => {
-      timer = setTimeout(() => resolve(null), deadlineAt - Date.now());
-    });
-    const metadata = await Promise.race([
-      deps.getLinkMetadata(url).catch(() => null),
-      timeout,
-    ]);
-    if (metadata?.type !== 'page') return {};
-    const fields = {
-      siteIconUrl: metadata.siteIconUrl,
-      siteName: metadata.siteName,
-      title: metadata.title,
-      description: metadata.description,
-      previewImageUrl: metadata.previewImageUrl,
-      previewImageHeight: metadata.previewImageHeight,
-      previewImageWidth: metadata.previewImageWidth,
-    };
-    return Object.fromEntries(
-      Object.entries(fields).filter(
-        (entry): entry is [string, string] =>
-          typeof entry[1] === 'string' && entry[1] !== ''
-      )
-    );
-  } catch {
-    return {};
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 type PreparedMedia =
   | { flag: '--image'; verse: StoryVerse }
   | { flag: '--file' | '--video'; url: string; probe: MediaProbe };
@@ -1411,22 +1343,15 @@ interface PlainSend {
 // As the app composes: a chat or DM message puts its image blocks first,
 // then the caption; a gallery post puts the caption first, then its one
 // image, which is also the post's `metadata.image`; a gallery link post is
-// the link block alone, with the page's preview (when the ship's metagrab
-// finds one) in its meta and its image as `metadata.image`. Files and videos
-// are blob entries.
+// the link block alone, with only `--title` in its meta (no page preview is
+// fetched). Files and videos are blob entries.
 async function plainSendContent(
   parsed: SendArgs,
   deps: PostsDeps
 ): Promise<PlainSend> {
   if (parsed.link) {
-    const page = await linkPreview(parsed.link, deps);
-    const meta = { ...page, ...(parsed.title ? { title: parsed.title } : {}) };
-    // As the app's link input: the card's image is also the post's.
-    const image = page.previewImageUrl || page.siteIconUrl;
-    return {
-      content: [{ block: { link: { url: parsed.link, meta } } }],
-      ...(image ? { image } : {}),
-    };
+    const meta = parsed.title ? { title: parsed.title } : {};
+    return { content: [{ block: { link: { url: parsed.link, meta } } }] };
   }
   // The caption is checked first so a refused mention fails before any
   // attachment is fetched.

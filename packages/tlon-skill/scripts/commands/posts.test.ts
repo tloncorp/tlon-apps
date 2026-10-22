@@ -55,9 +55,6 @@ interface MakeDepsOptions {
   getChannelPosts?: (query: PostLookupQuery) => Promise<PostLookupResult>;
   buildImageVerse?: (url: string) => Promise<StoryVerse>;
   probeMedia?: (url: string) => Promise<MediaProbe>;
-  getLinkMetadata?: PostsDeps['getLinkMetadata'];
-  linkPreviewDeadlineMs?: number;
-  resolveLinkHost?: PostsDeps['resolveLinkHost'];
   // Successive reads return successive entries (the last one repeats); an
   // Error entry is thrown.
   channelStates?: Array<ChannelState | Error>;
@@ -98,7 +95,6 @@ function makeDeps(options: MakeDepsOptions = {}) {
     now: 0,
     buildImageVerse: [] as string[],
     probeMedia: [] as string[],
-    getLinkMetadata: [] as string[],
     addReaction: [] as PostReactionInput[],
     removeReaction: [] as PostReactionRemoveInput[],
     deletePost: [] as PostDeleteInput[],
@@ -154,21 +150,6 @@ function makeDeps(options: MakeDepsOptions = {}) {
       if (options.probeMedia) return options.probeMedia(url);
       return { size: -1 };
     },
-    // No network in tests: the default lookup finds nothing. Not async, so
-    // a stub that throws synchronously throws to the caller.
-    getLinkMetadata: (url) => {
-      calls.getLinkMetadata.push(url);
-      calls.order.push('getLinkMetadata');
-      if (options.getLinkMetadata) return options.getLinkMetadata(url);
-      return Promise.resolve({ type: 'error', reason: 'unknown error' });
-    },
-    // No DNS in tests: every hostname resolves to one public address.
-    resolveLinkHost:
-      options.resolveLinkHost ??
-      (async () => [{ address: '93.184.216.34', family: 4 }]),
-    ...(options.linkPreviewDeadlineMs === undefined
-      ? {}
-      : { linkPreviewDeadlineMs: options.linkPreviewDeadlineMs }),
     postsApi: {
       addReaction: async (input) => {
         calls.addReaction.push(input);
@@ -5115,159 +5096,26 @@ describe('posts send attachments', () => {
       expect(titled.calls.sendPost[0].metadata).toEqual({ title: 'A site' });
     });
 
-    describe('--link preview (metagrab)', () => {
+    describe('--link bare card', () => {
       const LINK = 'https://example.com/a';
-      const PAGE = {
-        type: 'page' as const,
-        url: LINK,
-        siteIconUrl: 'https://example.com/icon.png',
-        siteName: 'Example',
-        title: 'Page title',
-        description: 'About the page',
-        previewImageUrl: 'https://example.com/og.png',
-        previewImageHeight: '630',
-        previewImageWidth: '1200',
-      };
 
-      it('fills the card from a page and sets metadata.image', async () => {
-        const context = await sendOk([HEAP, '--link', LINK], {
-          getLinkMetadata: async () => PAGE,
-        });
-        const { type: _type, url: _url, ...meta } = PAGE;
-        expect(context.calls.getLinkMetadata).toEqual([LINK]);
-        expect(context.calls.order.indexOf('authenticate')).toBeLessThan(
-          context.calls.order.indexOf('getLinkMetadata')
-        );
+      it('carries only the URL, with no post image, and fetches nothing', async () => {
+        const context = await sendOk([HEAP, '--link', LINK]);
         expect(context.calls.sendPost[0].content).toEqual([
-          { block: { link: { url: LINK, meta } } },
+          { block: { link: { url: LINK, meta: {} } } },
         ]);
-        expect(context.calls.sendPost[0].metadata).toEqual({
-          image: 'https://example.com/og.png',
-        });
+        expect(context.calls.sendPost[0].metadata).toBeUndefined();
+        expect(context.calls.buildImageVerse).toEqual([]);
+        expect(context.calls.probeMedia).toEqual([]);
       });
 
-      it('lets --title win over the page title; the site icon stands in for a missing image', async () => {
-        const context = await sendOk(
-          [HEAP, '--link', LINK, '--title', 'Mine'],
-          {
-            getLinkMetadata: async () => ({ ...PAGE, previewImageUrl: '' }),
-          }
-        );
-        const content = context.calls.sendPost[0].content as Array<{
-          block: { link: { meta: Record<string, string> } };
-        }>;
-        expect(content[0].block.link.meta.title).toBe('Mine');
-        expect(content[0].block.link.meta.previewImageUrl).toBeUndefined();
-        expect(context.calls.sendPost[0].metadata).toEqual({
-          title: 'Mine',
-          image: 'https://example.com/icon.png',
-        });
+      it('puts --title in meta.title and nothing else', async () => {
+        const context = await sendOk([HEAP, '--link', LINK, '--title', 'Mine']);
+        expect(context.calls.sendPost[0].content).toEqual([
+          { block: { link: { url: LINK, meta: { title: 'Mine' } } } },
+        ]);
+        expect(context.calls.sendPost[0].metadata).toEqual({ title: 'Mine' });
       });
-
-      const bare = {
-        channelId: HEAP,
-        authorId: '~zod',
-        sentAt: 1700000000000,
-        content: [{ block: { link: { url: LINK, meta: {} } } }],
-        blob: undefined,
-      };
-      const misses: Array<[string, MakeDepsOptions]> = [
-        [
-          'a file',
-          {
-            getLinkMetadata: async () => ({
-              type: 'file',
-              url: LINK,
-              mime: 'application/pdf',
-            }),
-          },
-        ],
-        [
-          'an error',
-          {
-            getLinkMetadata: async () => ({
-              type: 'error',
-              reason: 'bad response',
-            }),
-          },
-        ],
-        ['a redirect', { getLinkMetadata: async () => ({ type: 'redirect' }) }],
-        [
-          'a thrown lookup',
-          {
-            getLinkMetadata: async () => {
-              throw new Error('boom');
-            },
-          },
-        ],
-        [
-          'a synchronously throwing lookup',
-          {
-            getLinkMetadata: () => {
-              throw new Error('sync boom');
-            },
-          },
-        ],
-        [
-          'a lookup past its deadline',
-          {
-            linkPreviewDeadlineMs: 10,
-            getLinkMetadata: () => new Promise(() => {}),
-          },
-        ],
-      ];
-      // The ship fetches the page: a URL the media guard's host policy
-      // refuses is never handed to metagrab, and still posts.
-      const refused: Array<[string, string, MakeDepsOptions]> = [
-        ['an http URL', 'http://10.0.0.1/', {}],
-        ['a loopback literal', 'https://127.0.0.1/', {}],
-        ['embedded credentials', 'https://user:p@example.com/', {}],
-        ['a denied hostname', 'https://metadata.google.internal/', {}],
-        [
-          'a hostname resolving to a private address',
-          'https://intranet.example.com/',
-          {
-            resolveLinkHost: async () => [
-              { address: '93.184.216.34', family: 4 },
-              { address: '10.1.2.3', family: 4 },
-            ],
-          },
-        ],
-        [
-          'a link with no budget left',
-          'https://example.com/',
-          { linkPreviewDeadlineMs: 0 },
-        ],
-        [
-          'a hostname that does not resolve',
-          'https://nowhere.example.com/',
-          {
-            resolveLinkHost: async () => {
-              throw new Error('ENOTFOUND');
-            },
-          },
-        ],
-      ];
-      for (const [name, link, options] of refused) {
-        it(`posts ${name} as a bare card without asking metagrab`, async () => {
-          const context = await sendOk([HEAP, '--link', link], {
-            getLinkMetadata: async () => PAGE,
-            ...options,
-          });
-          expect(context.calls.getLinkMetadata).toEqual([]);
-          expect(context.calls.sendPost[0].content).toEqual([
-            { block: { link: { url: link, meta: {} } } },
-          ]);
-          expect(context.calls.sendPost[0].metadata).toBeUndefined();
-        });
-      }
-
-      for (const [name, options] of misses) {
-        it(`posts the bare card on ${name}`, async () => {
-          const context = await sendOk([HEAP, '--link', LINK], options);
-          expect(context.calls.sendPost).toEqual([bare]);
-        });
-      }
     });
 
     it('counts a metadata-only blob entry as no attachment', async () => {

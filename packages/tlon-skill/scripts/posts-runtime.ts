@@ -6,7 +6,6 @@ import {
   getChannelPosts as apiGetChannelPosts,
   getCurrentUserId as apiGetCurrentUserId,
   getGroup as apiGetGroup,
-  getLinkMetadata as apiGetLinkMetadata,
   getPostWithReplies as apiGetPostWithReplies,
   getTextContent,
   removeReaction as apiRemoveReaction,
@@ -157,9 +156,6 @@ export function createPostsDeps(): PostsDeps {
     now: () => Date.now(),
     buildImageVerse: (url: string) => fetchImageVerse(url),
     probeMedia: probeAttachmentMedia,
-    // From the api root, not its metagrabApi subpath: the subpath resolves to
-    // a separate module instance whose http client is never configured.
-    getLinkMetadata: (url: string) => apiGetLinkMetadata(url),
     getChannelState,
     // Raw: the command words a failed read.
     getGroupRoleIds: async (groupId: string) =>
