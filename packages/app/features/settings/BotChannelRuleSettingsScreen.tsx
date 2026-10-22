@@ -7,8 +7,8 @@ import { ShipPickerSheet, useCalm, useContactIndex } from '../../ui';
 import {
   type SettingsSectionModel,
   SettingsListScreenView,
+  contactSettingsRow,
 } from '../../ui/components/SettingsList';
-import { formatUserId } from '../../ui/utils/user';
 import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
@@ -397,25 +397,20 @@ export function BotChannelRuleSettingsScreen(props: Props) {
             title: 'Allowed users',
             footer: 'Only these users can invoke Tlonbot in this channel.',
             rows: [
-              ...allowedShips.map((ship) => {
-                const userId = formatUserId(ship)?.display ?? ship;
-                const nickname = disableNicknames
-                  ? null
-                  : contactIndex?.[ship]?.nickname;
-                return {
-                  key: ship,
-                  title: nickname || userId,
-                  subtitle: nickname ? userId : undefined,
-                  leading: { kind: 'contact' as const, contactId: ship },
-                  disabled: controlsDisabled,
-                  trailingAction: {
-                    key: 'remove',
-                    title: 'Remove',
-                    destructive: true,
-                    onPress: () => removeShip(ship),
-                  },
-                };
-              }),
+              ...allowedShips.map((ship) => ({
+                ...contactSettingsRow(
+                  ship,
+                  contactIndex?.[ship],
+                  disableNicknames
+                ),
+                disabled: controlsDisabled,
+                trailingAction: {
+                  key: 'remove',
+                  title: 'Remove',
+                  destructive: true,
+                  onPress: () => removeShip(ship),
+                },
+              })),
               {
                 key: 'add',
                 title: 'Add user…',

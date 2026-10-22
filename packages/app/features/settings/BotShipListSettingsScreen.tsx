@@ -6,8 +6,8 @@ import { ShipPickerSheet, useCalm, useContactIndex } from '../../ui';
 import {
   type SettingsSectionModel,
   SettingsListScreenView,
+  contactSettingsRow,
 } from '../../ui/components/SettingsList';
-import { formatUserId } from '../../ui/utils/user';
 import {
   formatShipList,
   normalizeShip,
@@ -136,25 +136,20 @@ export function BotShipListSettingsScreen(props: Props) {
         rows:
           ships.length === 0
             ? [{ key: 'empty', title: 'No users on this list.' }]
-            : ships.map((ship) => {
-                const userId = formatUserId(ship)?.display ?? ship;
-                const nickname = disableNicknames
-                  ? null
-                  : contactIndex?.[ship]?.nickname;
-                return {
-                  key: ship,
-                  title: nickname || userId,
-                  subtitle: nickname ? userId : undefined,
-                  leading: { kind: 'contact', contactId: ship },
-                  // Removing only edits the draft, which the apply bar commits.
-                  trailingAction: {
-                    key: 'remove',
-                    title: 'Remove',
-                    destructive: true,
-                    onPress: () => removeShip(ship),
-                  },
-                };
-              }),
+            : ships.map((ship) => ({
+                ...contactSettingsRow(
+                  ship,
+                  contactIndex?.[ship],
+                  disableNicknames
+                ),
+                // Removing only edits the draft, which the apply bar commits.
+                trailingAction: {
+                  key: 'remove',
+                  title: 'Remove',
+                  destructive: true,
+                  onPress: () => removeShip(ship),
+                },
+              })),
       },
     ],
     [contactIndex, disableNicknames, list, meta.description, removeShip, ships]
