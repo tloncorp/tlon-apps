@@ -16,7 +16,7 @@
  *   groups       Group management
  *   messages     Message history and search (dm, channel, history, search, context, post)
  *   notes        %notes notebook operations
- *   posts        Post reactions, edits, deletes, pins
+ *   posts        Post quotes, forwards, reactions, edits, deletes, pins
  *   settings     OpenClaw settings management
  */
 import { createActivityDeps } from './activity-runtime';

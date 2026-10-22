@@ -27,7 +27,7 @@
  * setActivitySupportsNotes, getGroups, getChannelPosts, readChannel,
  * activityAction, poke),
  * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
- * getPostWithReplies, deleteReply, setOrder, toPostContent), and
+ * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent), and
  * `channels.ts` (createChannel and the other channel-management calls).
  */
 import type { NotesV1Api } from '@tloncorp/api';
@@ -38,6 +38,8 @@ import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
 // The real content projection, by subpath: the posts runtime's read-back
 // comparison must be tested against what the api actually produces.
 import { toPostContent as realToPostContent } from '@tloncorp/api/client/postsApi';
+// The real plain-text conversion: the posts runtime quotes DM text with it.
+import { getTextContent as realGetTextContent } from '@tloncorp/api/client/postContent';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -349,7 +351,7 @@ mock.module('@tloncorp/api', () => ({
     mark: mockedVolume.supportsNotes ? 'activity-action-2' : 'activity-action',
     json,
   }),
-  getTextContent: () => '',
+  getTextContent: realGetTextContent,
   adjustVolumeSetting: (...args: unknown[]) =>
     mockedVolume.adjustVolumeSetting(...args),
   getVolumeSettings: (...args: unknown[]) =>

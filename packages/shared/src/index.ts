@@ -39,7 +39,6 @@ export * as utilHooks from './logic/utilHooks';
 export * from './debug';
 export * from './errorReporting';
 export * from './compositeLogger';
-export * from './perf';
 export * from './analytics';
 export * from './electrtonAuth';
 export * from '@urbit/aura';
