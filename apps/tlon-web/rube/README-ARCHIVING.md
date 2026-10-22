@@ -113,7 +113,7 @@ deliberately.
 Re-run it whenever `MIN_GROUPS_VERSION`
 (`packages/api/src/lib/deskVersion.ts`) moves — the `N-1 Desk E2E` workflow
 fails fast when the pin and the constant disagree. See
-`docs/tlon-apps/desk-compatibility.md`.
+`docs/apps/desk-compatibility.md`.
 
 ```bash
 # after setting ~bud's deskVersion and the next rube-bud<n>.tgz in the manifest

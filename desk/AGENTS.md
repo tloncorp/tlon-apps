@@ -8,7 +8,7 @@ may be a release behind.
 Read before changing an agent: `docs/backend/desk/app/<agent>.md`, where one
 exists. Aqua docs:
 `docs/backend/aqua/`. Tools: `docs/backend/tools/`. N-1 client policy:
-`docs/tlon-apps/desk-compatibility.md`.
+`docs/apps/desk-compatibility.md`.
 
 General Hoon and Gall guidance lives in
 [tloncorp/hoon-reference](https://github.com/tloncorp/hoon-reference), which is
@@ -244,7 +244,7 @@ Flag:
    deliberately drops; a negative watch-ack that can crash-loop; logic that
    assumes ordering across wires.
 9. **Client contract.** The client relying on a new path or mark before a
-   desk release serves it (see `docs/tlon-apps/desk-compatibility.md`).
+   desk release serves it (see `docs/apps/desk-compatibility.md`).
 10. **Errors and logs.** Committed `~&`/`slog`, a crash path not reported with
     `+fail`, or recovery logic for an unexplained failure.
 11. **Style.** Deviations from the Hoon style section above, especially

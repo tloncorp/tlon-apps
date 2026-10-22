@@ -26,7 +26,7 @@ export interface SlashCommandManifest {
 // profile, under BOT_INFO_CONTACT_KEY, as a %text value whose text is JSON:
 //   {"v":1,"harness":"openclaw","version":"0.19.0","harnessVersion":"..."}
 // The command lists themselves are app-static (below), selected by `harness`.
-// See docs/bot-info.md for the wire contract.
+// See docs/harness/bot-info.md for the wire contract.
 
 export const BOT_INFO_CONTACT_KEY = 'bot-info';
 

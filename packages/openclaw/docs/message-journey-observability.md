@@ -6,7 +6,7 @@ correlation keys; they contain no message or reply text.
 
 The stateless journey observer in `%steward` watches local `%chat /v4` and
 `%channels /v4` feeds. It emits events only for profiles with a valid
-[`bot-info`](../../../docs/bot-info.md) claim identifying the `openclaw` harness.
+[`bot-info`](../../../docs/harness/bot-info.md) claim identifying the `openclaw` harness.
 It reads the child bot's contact on an owner ship, the self-contact on a bot
 ship, and the author's contact for channel messages. An unavailable `%contacts`
 agent, missing contact, or invalid claim emits nothing. This is the same

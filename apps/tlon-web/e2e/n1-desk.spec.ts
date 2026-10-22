@@ -7,7 +7,7 @@ import shipManifest from './shipManifest.json';
 import { test } from './test-fixtures';
 
 /**
- * Ground truth for the N-1 desk policy (docs/tlon-apps/desk-compatibility.md):
+ * Ground truth for the N-1 desk policy (docs/apps/desk-compatibility.md):
  * this client, running against the *previous* %groups release, must start,
  * sync, and talk to a ship on the current desk in both directions.
  *

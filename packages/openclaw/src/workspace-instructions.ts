@@ -2,7 +2,7 @@
  * Workspace instructions: inject a group's workspace `instructions` into
  * every agent turn that belongs to one of the group's channels.
  *
- * The config lives in the group's blob (see docs/tlon-apps/workspace-config.md)
+ * The config lives in the group's blob (see docs/apps/workspace-config.md)
  * and applies only when its `bot` names this ship, since a group can hold
  * several members' bots, and only in a group hosted by this bot or its
  * owner: any admin can write the blob, and the text lands in system context,

@@ -29,7 +29,7 @@ export function isVersionBelow(current: string, minimum: string): boolean {
 // client currently requires with no fallback).
 //
 // By policy this is the previous desk release
-// (docs/tlon-apps/desk-compatibility.md). This constant RECORDS the floor;
+// (docs/apps/desk-compatibility.md). This constant RECORDS the floor;
 // it is NOT the lever for shipping a new desk dependency: a client change
 // needing something only the current desk serves waits for that desk to
 // become N-1, or carries a fallback tested against N-1. Raise it only as

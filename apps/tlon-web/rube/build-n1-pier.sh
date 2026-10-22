@@ -5,7 +5,7 @@ set -euo pipefail
 #
 # The N-1 ship (~bud) carries the *previous* %groups release, so the E2E suite
 # can prove the current client still works across a desk-version boundary
-# (docs/tlon-apps/desk-compatibility.md). It is `skipCommit: true` in
+# (docs/apps/desk-compatibility.md). It is `skipCommit: true` in
 # shipManifest.json, which means rube never builds a desk on it — this script is
 # the only thing that does, and it must be re-run at every N-1 change.
 #

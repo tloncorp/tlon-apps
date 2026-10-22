@@ -59,7 +59,7 @@ navigation (`navigation/`), app hooks (`hooks/`), views (`ui/components/`,
   desk capabilities on shared logic (`logic/*Support.ts`), not feature flags.
 - Native db cache: bump `NATIVE_CACHE_GENERATION`
   (`lib/nativeCacheGeneration.ts`) to force a one-time rebuild; see
-  `docs/tlon-apps/native-changes-cache.md`.
+  `docs/apps/native-changes-cache.md`.
 
 Tests: vitest. User-facing flow changes need E2E coverage in
 `apps/tlon-web/e2e/` or a stated reason why not.

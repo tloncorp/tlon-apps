@@ -190,7 +190,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
     -   ~bud is the pinned N-1 desk pier (`deskVersion` in the manifest, kept
         equal to `MIN_GROUPS_VERSION`). Rebuild it with
         `./apps/tlon-web/rube/build-n1-pier.sh` whenever that constant moves —
-        see `docs/tlon-apps/desk-compatibility.md`.
+        see `docs/apps/desk-compatibility.md`.
 -   Archive naming convention: `rube-{ship}{version}.tgz` (e.g., `rube-zod15.tgz`)
 
 **Important Scripts:**

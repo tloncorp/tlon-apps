@@ -5,7 +5,7 @@ import { createDevLogger } from '../lib/logger';
 const logger = createDevLogger('workspaceConfig', false);
 
 // A group's workspace config: the bot-facing configuration for a group, stored
-// as JSON in the group's `blob`. See docs/tlon-apps/workspace-config.md.
+// as JSON in the group's `blob`. See docs/apps/workspace-config.md.
 //
 // Every member can read the document and any admin can write it, so it holds
 // definitions only: nothing secret, no run state. Absent fields mean "inherit".

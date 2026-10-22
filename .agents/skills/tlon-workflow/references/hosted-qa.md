@@ -13,7 +13,7 @@ gh workflow run mobile-pr-agent-qa.yml --ref develop -f pr_number=<number>
 ```
 
 Before landing, use the reviewed QA branch and a source-verified tooling overlay;
-see `docs/tlon-apps/pr-agent-qa.md` for setup and the trusted-code boundary.
+see `docs/apps/pr-agent-qa.md` for setup and the trusted-code boundary.
 
 The planning phase chooses useful starting paths. The device reviewer can explore
 beyond them. One independent evidence reviewer checks the recording and selects

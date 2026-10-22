@@ -1,7 +1,7 @@
 # The Staging pipeline. The canary deploy and the develop sync run only after
 # the N-1 desk E2E passes: a failed N-1 run stops both for that push. `staging`
 # has no required status checks, so the gate has to live in the workflows.
-# Policy: docs/tlon-apps/desk-compatibility.md
+# Policy: docs/apps/desk-compatibility.md
 #
 # Each stage keeps `workflow_dispatch` as the manual override; dispatching
 # deploy-canary.yml directly deploys without the gate.

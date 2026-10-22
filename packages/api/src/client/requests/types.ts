@@ -31,7 +31,7 @@ interface BaseEntry {
   readonly since: DeskVersion;
   readonly desk?: ExternalDesk;
   // Lets `since` exceed the floor: the helpers throw DeskUnsupportedError
-  // while this capability is off (docs/tlon-apps/desk-compatibility.md,
+  // while this capability is off (docs/apps/desk-compatibility.md,
   // "Guarded requests").
   readonly guardedBy?: GuardName;
 }
