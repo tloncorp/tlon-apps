@@ -1,7 +1,9 @@
+import _ from 'lodash';
+
 import type * as db from '../types/models';
 import type { ContentReference } from '../types/references';
 import type * as ub from '../urbit';
-import { parseIdNumber } from '../urbit/utils';
+import { citeToPath, parseIdNumber } from '../urbit/utils';
 import { formatUd } from './apiUtils';
 
 function formatId(id: string) {
@@ -35,6 +37,86 @@ export function getGroupReferencePath(groupId: string) {
 
 export function getChannelReferencePath(channelId: string) {
   return `/1/chan/${channelId}`;
+}
+
+// A reference written into text starts a word, or follows opening
+// punctuation (`(/1/chan/...`); one glued to other text
+// (`https://host/1/chan/...`) belongs to that text.
+const REFERENCE_PREFIX = /[\s("'[]/;
+
+export function isReferenceBoundary(text: string, index: number): boolean {
+  return index === 0 || REFERENCE_PREFIX.test(text[index - 1]);
+}
+
+// A bare channel path typed or pasted as text. Channel names are @tas terms,
+// so trailing punctuation (`see /1/chan/chat/~zod/general.`) is prose, not
+// part of the nest.
+const BARE_CHANNEL_PATH_REGEX =
+  /^([("'[]*)\/1\/chan\/([a-z][a-z0-9-]*\/~[a-z-]+\/[a-z][a-z0-9-]*)\/?([.,;:!?'")\]]*)$/;
+
+export type BareChannelPath = {
+  // Where the whitespace-delimited word holding the path starts.
+  index: number;
+  token: string;
+  channelId: string;
+  leading: string;
+  trailing: string;
+};
+
+// Channel paths standing as their own whitespace-delimited words, optionally
+// wrapped in punctuation. The last word may still be mid-typing, so it counts
+// only when the caller knows the text arrived in bulk (a paste).
+export function findBareChannelPaths(
+  text: string,
+  { includeLastWord }: { includeLastWord: boolean }
+): BareChannelPath[] {
+  const paths: BareChannelPath[] = [];
+  for (const match of text.matchAll(/\S+/g)) {
+    const token = match[0];
+    if (!includeLastWord && match.index + token.length === text.length) {
+      continue;
+    }
+    const parsed = token.match(BARE_CHANNEL_PATH_REGEX);
+    if (parsed) {
+      paths.push({
+        index: match.index,
+        token,
+        channelId: parsed[2],
+        leading: parsed[1],
+        trailing: parsed[3],
+      });
+    }
+  }
+  return paths;
+}
+
+// Swaps a found path for its surrounding punctuation. The path is matched at
+// the span it was found at; if an edit since then has moved it, the same word
+// elsewhere stands in. Returns null when the word is gone.
+export function replaceBareChannelPath(
+  text: string,
+  { index, token, leading, trailing }: BareChannelPath
+): string | null {
+  const isWordAt = (start: number) =>
+    text.startsWith(token, start) &&
+    (start === 0 || /\s/.test(text[start - 1])) &&
+    (start + token.length === text.length ||
+      /\s/.test(text[start + token.length]));
+  let start: number | undefined = isWordAt(index) ? index : undefined;
+  if (start === undefined) {
+    for (const match of text.matchAll(/\S+/g)) {
+      if (match[0] === token) {
+        start = match.index;
+        break;
+      }
+    }
+  }
+  if (start === undefined) {
+    return null;
+  }
+  return (
+    text.slice(0, start) + leading + trailing + text.slice(start + token.length)
+  );
 }
 
 export function channelToContentReference(
@@ -91,6 +173,10 @@ export function postToContentReference(
 export function toContentReference(cite: ub.Cite): ContentReference | null {
   if ('chan' in cite) {
     const channelId = cite.chan.nest;
+    // A cite of the channel itself, with no post: /1/chan/<nest>
+    if (cite.chan.where.replace(/\/+$/, '') === '') {
+      return { type: 'reference', referenceType: 'channelLink', channelId };
+    }
     // notes channels cite individual notes as /note/<id>, where the id
     // may be dot-grouped urbit-style (1.234)
     if (channelId.startsWith('notes/')) {
@@ -104,10 +190,6 @@ export function toContentReference(cite: ub.Cite): ContentReference | null {
         channelId,
         noteId: noteMatch[1].replace(/\./g, ''),
       };
-    }
-    // A cite of the channel itself, with no post: /1/chan/<nest>
-    if (cite.chan.where.replace(/\/+$/, '') === '') {
-      return { type: 'reference', referenceType: 'channelLink', channelId };
     }
     // I've seen these forms of reference path:
     // /msg/170141184506828851385935487131294105600
@@ -141,6 +223,60 @@ export function toContentReference(cite: ub.Cite): ContentReference | null {
     return { type: 'reference', referenceType: 'app', userId, appId };
   }
   return null;
+}
+
+// Edit flows rebuild a post's references from the cites toContentReference
+// parses, and the editors have no node for any other cite, so saving an edit
+// would silently drop these.
+export function getUneditableCites(
+  story: ReadonlyArray<object> | null | undefined
+): ub.Cite[] {
+  return (story ?? []).flatMap((verse) =>
+    'block' in verse &&
+    verse.block &&
+    typeof verse.block === 'object' &&
+    'cite' in verse.block &&
+    !toContentReference(verse.block.cite as ub.Cite)
+      ? [verse.block.cite as ub.Cite]
+      : []
+  );
+}
+
+// The original's uneditable cites that an edit would lose. Each edited cite
+// accounts for one original, so a duplicate the edit keeps only once still
+// counts as dropped.
+export function getDroppedCites(
+  originalStory: ReadonlyArray<object> | null | undefined,
+  editedCites: ub.Cite[]
+): ub.Cite[] {
+  const unmatched = [...editedCites];
+  return getUneditableCites(originalStory).filter((cite) => {
+    const index = unmatched.findIndex((edited) => _.isEqual(edited, cite));
+    if (index === -1) return true;
+    unmatched.splice(index, 1);
+    return false;
+  });
+}
+
+export function uneditableCitesMessage(cites: ub.Cite[]): string {
+  // Matches the render fallback: only a kind this build doesn't know is
+  // something an upgrade can fix.
+  return cites.some((cite) => !citeToPath(cite))
+    ? 'Upgrade your app to edit this post'
+    : "This post has a reference that can't be edited";
+}
+
+// Checked by name: the app and the store can load separate copies of this
+// module, so instanceof doesn't hold across them.
+export class UneditableCitesError extends Error {
+  constructor(cites: ub.Cite[]) {
+    super(uneditableCitesMessage(cites));
+    this.name = 'UneditableCitesError';
+  }
+}
+
+export function isUneditableCitesError(error: unknown): error is Error {
+  return error instanceof Error && error.name === 'UneditableCitesError';
 }
 
 export function contentReferenceToCite(reference: ContentReference): ub.Cite {

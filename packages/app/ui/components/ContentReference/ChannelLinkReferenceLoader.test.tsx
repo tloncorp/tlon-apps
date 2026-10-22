@@ -58,6 +58,7 @@ vi.mock('tamagui', () => ({
   styled: () => 'Styled',
 }));
 vi.mock('../../utils', () => ({
+  getChannelTypeIcon: () => 'ChannelTalk',
   useChannelTitle: () => 'Channel',
   useGroupTitle: () => 'Group',
 }));
@@ -82,11 +83,15 @@ vi.mock('../listItems/listItemUtils', () => ({
 const channelId = 'chat/~host/example';
 const groupId = '~host/group';
 
-function renderLoader() {
+function renderLoader(
+  props: Partial<React.ComponentProps<typeof ChannelLinkReferenceLoader>> = {}
+) {
   mocks.referenceProps = [];
   let renderer: ReturnType<typeof create>;
   act(() => {
-    renderer = create(<ChannelLinkReferenceLoader channelId={channelId} />);
+    renderer = create(
+      <ChannelLinkReferenceLoader channelId={channelId} {...props} />
+    );
   });
   act(() => renderer!.unmount());
   return mocks.referenceProps[mocks.referenceProps.length - 1];
@@ -123,6 +128,14 @@ describe('ChannelLinkReferenceLoader', () => {
     const props = renderLoader();
     props.onPress!();
     expect(mocks.nav.onPressChannelRef).toHaveBeenCalledWith(mocks.channel);
+  });
+
+  it('keeps its member routing when the caller passes an onPress', () => {
+    const callerOnPress = vi.fn();
+    const props = renderLoader({ onPress: callerOnPress });
+    props.onPress!();
+    expect(mocks.nav.onPressChannelRef).toHaveBeenCalledWith(mocks.channel);
+    expect(callerOnPress).not.toHaveBeenCalled();
   });
 
   it('falls back to the group when the member cannot read the channel', () => {

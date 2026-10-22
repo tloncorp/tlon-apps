@@ -12,6 +12,7 @@ export * from './workspaceConfig';
 export * from './landscapeApi';
 export * from './notesApi';
 export * from './postsApi';
+export * from './references';
 export * from './urbit';
 export * from './initApi';
 export * from './upload';

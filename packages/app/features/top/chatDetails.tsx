@@ -1,9 +1,7 @@
 // Shared components for ChatDetailsScreen and ChannelDetailsScreen
 import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import * as Clipboard from 'expo-clipboard';
 import { capitalize } from 'lodash';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
@@ -34,9 +32,9 @@ import {
   useForwardChannelSheet,
   useGroupTitle,
   useIsAdmin,
-  useToast,
 } from '../../ui';
 import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
+import { useCopyChannelLink } from '../../ui/hooks/useCopyChannelLink';
 import {
   WorkspaceInstructionsSheet,
   hasWorkspaceInstructions,
@@ -341,20 +339,15 @@ export function ChannelQuickActions({
 }) {
   const { togglePinned, onPressInvite } = useChatOptions();
   const forwardChannelSheet = useForwardChannelSheet();
-  const toast = useToast();
   const isPinned = channel?.pin;
-  // DMs have no nest, so only group channels can be referenced. Notebook
-  // cites aren't rendered as cards yet and would show "Upgrade your app".
-  const canReference = !!channel.groupId && channel.type !== 'notes';
+  // DMs have no nest, so only group channels can be referenced.
+  const canReference = !!channel.groupId;
 
   const handleForwardChannel = useCallback(() => {
     forwardChannelSheet.open(channel);
   }, [forwardChannelSheet, channel]);
 
-  const handleCopyChannelLink = useCallback(async () => {
-    await Clipboard.setStringAsync(logic.getChannelReferencePath(channel.id));
-    toast({ message: 'Copied!', duration: 1500 });
-  }, [channel.id, toast]);
+  const handleCopyChannelLink = useCopyChannelLink(channel.id);
 
   return (
     <ScrollView
