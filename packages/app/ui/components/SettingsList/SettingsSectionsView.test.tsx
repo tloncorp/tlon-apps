@@ -160,4 +160,22 @@ describe('SettingsSectionsView', () => {
     select.props.onValueChange(0);
     expect(onChange).toHaveBeenCalledWith('0');
   });
+
+  it('turns a row’s own button off with the row', () => {
+    const onPress = vi.fn();
+    const row: SettingsRowModel = {
+      key: 'row',
+      title: '~zod',
+      trailingAction: { key: 'remove', title: 'Remove', onPress },
+    };
+    const button = (r: SettingsRowModel) =>
+      render(r).findByType('Pressable' as never);
+
+    expect(button(row).props.disabled).toBeFalsy();
+    expect(button(row).props.onPress).toBe(onPress);
+
+    const disabled = button({ ...row, disabled: true });
+    expect(disabled.props.disabled).toBe(true);
+    expect(disabled.props.onPress).toBeUndefined();
+  });
 });

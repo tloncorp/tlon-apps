@@ -149,7 +149,8 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
         ) : null}
         {row.trailingAction ? (
           <Pressable
-            onPress={row.trailingAction.onPress}
+            disabled={row.disabled}
+            onPress={row.disabled ? undefined : row.trailingAction.onPress}
             testID={row.trailingAction.testID}
           >
             <Text

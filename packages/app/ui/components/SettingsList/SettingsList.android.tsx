@@ -331,7 +331,8 @@ function PlainRow({
           }
           style={{ fontSize: 16 }}
           modifiers={[
-            clickable(row.trailingAction.onPress),
+            // A disabled row's button is off with it, as SwiftUI's is.
+            ...(row.disabled ? [] : [clickable(row.trailingAction.onPress)]),
             padding(8, 4, 0, 4),
             ...(row.trailingAction.testID
               ? [testID(row.trailingAction.testID)]
