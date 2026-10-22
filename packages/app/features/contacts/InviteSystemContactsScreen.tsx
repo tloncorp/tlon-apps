@@ -1,9 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { RootStackParamList } from '../../navigation/types';
 import { triggerHaptic, useInviteSystemContacts } from '../../ui';
@@ -28,9 +29,17 @@ export function InviteSystemContactsScreen(props: Props) {
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(pageSize);
 
-  const { displayContacts, handleSearch } = useSystemContactSearch(
-    systemContacts ?? []
-  );
+  const contacts = useMemo(() => systemContacts ?? [], [systemContacts]);
+  const { searchResults, isSearching, handleSearch } =
+    useSystemContactSearch(contacts);
+  // A search with no matches shows none, not the whole address book.
+  const displayContacts = isSearching ? searchResults : contacts;
+  // Searching thousands of contacts on every keystroke lags, so it waits for
+  // a pause in typing, as the old search bar did.
+  const searchQuery = useDebouncedValue(query, 100);
+  useEffect(() => {
+    handleSearch(searchQuery);
+  }, [handleSearch, searchQuery]);
 
   const alphabeticalContactSections = useMemo(
     () => sortSystemContactsIntoSections(displayContacts),
@@ -105,7 +114,7 @@ export function InviteSystemContactsScreen(props: Props) {
           rows: [
             {
               key: 'none',
-              title: query.trim()
+              title: isSearching
                 ? 'No one matches that search.'
                 : 'No contacts to invite.',
             },
@@ -181,8 +190,8 @@ export function InviteSystemContactsScreen(props: Props) {
     alphabeticalContactSections,
     displayContacts.length,
     handleItemPress,
+    isSearching,
     limit,
-    query,
     selectedRecipients,
   ]);
 
@@ -195,10 +204,7 @@ export function InviteSystemContactsScreen(props: Props) {
       onBackPressed={() => props.navigation.goBack()}
       search={{
         value: query,
-        onChangeText: (text) => {
-          setQuery(text);
-          handleSearch(text);
-        },
+        onChangeText: setQuery,
         placeholder: 'Search contacts',
       }}
       rightActions={[
