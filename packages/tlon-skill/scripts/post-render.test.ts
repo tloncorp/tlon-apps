@@ -247,6 +247,50 @@ describe('renderPostBody', () => {
     ).toEqual(['before', '> q', 'after']);
   });
 
+  it('prefixes every line of a quote with hard breaks', () => {
+    expect(
+      lines(
+        post([
+          { inline: [{ blockquote: ['one', { break: null }, 'two'] }] },
+          {
+            inline: [
+              'before',
+              { bold: [{ blockquote: ['three', { break: null }, 'four'] }] },
+              'after',
+            ],
+          },
+        ])
+      )
+    ).toEqual(['> one', '> two', 'before', '> three', '> four', 'after']);
+  });
+
+  it('shows the upgrade notice for unknown blob entries', () => {
+    expect(
+      lines(
+        post([{ inline: ['text'] }], {
+          blob: blob([
+            { type: 'file', version: 1, fileUri: '' },
+            { type: 'hologram', version: 1, src: 'https://cdn.example/h' },
+            {
+              type: 'file',
+              version: 1,
+              fileUri: 'https://cdn.example/ok.pdf',
+              mimeType: 'application/pdf',
+              name: 'ok.pdf',
+              size: 2048,
+            },
+          ]),
+        })
+      )
+    ).toEqual([
+      'text',
+      'Upgrade your app to see this post',
+      'Upgrade your app to see this post',
+      '📎 [ok.pdf] (application/pdf, 2KB)',
+      '   https://cdn.example/ok.pdf',
+    ]);
+  });
+
   it('keeps an empty one-column table row', () => {
     expect(
       lines(

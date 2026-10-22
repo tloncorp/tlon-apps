@@ -22,6 +22,9 @@ import {
 import { contentReferenceToCite } from '@tloncorp/api/client/references';
 import { citeToPath } from '@tloncorp/api/urbit';
 
+// The notice the app renders for an unknown blob entry (`convertContent`).
+const UNKNOWN_BLOB_ENTRY_NOTICE = 'Upgrade your app to see this post';
+
 export type RenderablePost = Pick<
   Post,
   'content' | 'textContent' | 'blob' | 'title'
@@ -69,6 +72,14 @@ function renderInlines(inlines: InlineData[]): string {
   return out;
 }
 
+/** Prefix every line, so a quote with hard breaks stays a quote. */
+function quoteLines(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => `> ${line}`)
+    .join('\n');
+}
+
 function renderInline(inline: InlineData): string {
   switch (inline.type) {
     case 'style':
@@ -92,7 +103,7 @@ function renderInline(inline: InlineData): string {
     case 'task':
       return `${inline.checked ? '[x] ' : '[ ] '}${renderInlines(inline.children)}`;
     case 'blockquote':
-      return `> ${renderInlines(inline.children)}`;
+      return quoteLines(renderInlines(inline.children));
   }
 }
 
@@ -128,7 +139,7 @@ function renderBlock(block: BlockData): string[] {
     case 'header':
       return [renderInlines(block.children)];
     case 'blockquote':
-      return [`> ${renderInlines(block.content)}`];
+      return [quoteLines(renderInlines(block.content))];
     case 'list':
       return renderList(block.list);
     case 'code':
@@ -191,6 +202,9 @@ function renderBlob(blob: string): string[] {
           `🎬 [${entry.name || 'video'}] (${entry.mimeType || 'video'})`
         );
         if (entry.fileUri) lines.push(`   ${entry.fileUri}`);
+      } else if (entry.type === 'unknown') {
+        // A malformed entry or a type from a newer client: the app's notice.
+        lines.push(UNKNOWN_BLOB_ENTRY_NOTICE);
       }
     }
   } catch {
