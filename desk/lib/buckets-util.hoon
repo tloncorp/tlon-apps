@@ -158,7 +158,35 @@
   ^-  (unit [@t @t])
   ?.  ?=([%a [%s *] [%s *] ~] json)  ~
   `[p.i.p.json p.i.t.p.json]
-::  +broker-error: the broker's account of a refused call, for the uploader.
+::  +broker-capacity: every field is required, since a partial answer would
+::  be read as a limit of zero.
+::
+++  broker-capacity
+  |=  res=client-response:iris
+  ^-  (unit capacity:b)
+  ?~  body=(broker-body res)  ~
+  =/  count
+    |=  key=@t
+    ^-  (unit @ud)
+    ?~  got=(~(get by u.body) key)  ~
+    ?.  ?=([%n *] u.got)  ~
+    (rush p.u.got dem)
+  ?~  remaining=(count 'bytes')  ~
+  ?~  files=(count 'files')  ~
+  ?~  object=(count 'maxObjectBytes')  ~
+  ?~  got=(~(get by u.body) 'mimeTypes')  ~
+  ?.  ?=([%a *] u.got)  ~
+  =/  mimes=(list (unit @t))
+    (turn p.u.got |=(=json ?.(?=([%s *] json) ~ `p.json)))
+  ?:  (lien mimes |=(mime=(unit @t) ?=(~ mime)))  ~
+  `[u.remaining u.files u.object (silt (murn mimes same))]
+::  +broker-error: the broker's account of a refused upload call.
+::
+++  broker-error
+  |=  [res=client-response:iris ceiling=@dr]
+  ^-  [message=@t =broker-error:b]
+  (broker-refusal res ceiling 'storage refused the upload')
+::  +broker-refusal: the broker's account of a refused call.
 ::
 ::  A cancelled Iris request says nothing about what the broker did, so it
 ::  is an unknown outcome worth asking about again. A body we cannot read,
@@ -166,10 +194,9 @@
 ::  not one to repeat. .retry-after is clamped to .ceiling: a wait past the
 ::  upload window is one no session survives.
 ::
-++  broker-error
-  |=  [res=client-response:iris ceiling=@dr]
+++  broker-refusal
+  |=  [res=client-response:iris ceiling=@dr fallback=@t]
   ^-  [message=@t =broker-error:b]
-  =/  fallback=@t  'storage refused the upload'
   ?:  ?=(%cancel -.res)
     ['the storage request was cancelled' ['outcome_unknown' & ~ ~]]
   ?~  body=(broker-body res)  [fallback ['unknown' | ~ ~]]

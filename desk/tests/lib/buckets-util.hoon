@@ -315,4 +315,44 @@
   %+  expect-eq
     !>  'a%2Fb'
   !>  (url-encode:util 'a/b')
+::
+++  capacity-res
+  |=  body=@t
+  ^-  client-response:iris
+  [%finished [200 ~] `['application/json' [(met 3 body) body]]]
+::
+++  test-broker-capacity-reads-the-four-fields
+  %+  expect-eq
+    !>  ^-  (unit capacity:b)
+    `[123 4 99 (silt ~['image/png' 'application/pdf'])]
+  !>  %-  broker-capacity:util
+  (capacity-res '{"bytes":123,"files":4,"maxObjectBytes":99,"mimeTypes":["image/png","application/pdf"]}')
+::
+++  test-broker-capacity-accepts-an-empty-mime-list
+  %+  expect-eq
+    !>(`(unit capacity:b)``[0 0 1 ~])
+  !>((broker-capacity:util (capacity-res '{"bytes":0,"files":0,"maxObjectBytes":1,"mimeTypes":[]}')))
+::
+++  test-broker-capacity-rejects-a-partial-or-malformed-body
+  ;:  weld
+    %+  expect-eq
+      !>(`(unit capacity:b)`~)
+    !>((broker-capacity:util (capacity-res '{"bytes":1,"files":1,"mimeTypes":[]}')))
+  ::
+    %+  expect-eq
+      !>(`(unit capacity:b)`~)
+    !>((broker-capacity:util (capacity-res '{"bytes":"1","files":1,"maxObjectBytes":1,"mimeTypes":[]}')))
+  ::
+    %+  expect-eq
+      !>(`(unit capacity:b)`~)
+    !>((broker-capacity:util (capacity-res '{"bytes":-1,"files":1,"maxObjectBytes":1,"mimeTypes":[]}')))
+  ::
+    %+  expect-eq
+      !>(`(unit capacity:b)`~)
+    !>((broker-capacity:util (capacity-res '{"bytes":1,"files":1,"maxObjectBytes":1,"mimeTypes":[7]}')))
+  ::
+    %+  expect-eq
+      !>(`(unit capacity:b)`~)
+    !>((broker-capacity:util [%cancel ~]))
+  ==
 --
