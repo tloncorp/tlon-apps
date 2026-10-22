@@ -1029,6 +1029,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       if (Date.now() - lastChannelGroupRefresh < 60_000)
         return Promise.resolve();
       lastChannelGroupRefresh = Date.now();
+      const groupContextSince = groupContextRuntime.beginSnapshot();
       channelGroupRefresh = fetchInitData(api!, runtime, {
         signal: opts.abortSignal,
       })
@@ -1036,7 +1037,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           for (const [nest, groupFlag] of initData.channelToGroup) {
             channelToGroup.set(nest, groupFlag);
           }
-          groupContextRuntime.applySnapshot(initData.groupContexts);
+          groupContextRuntime.applySnapshot(
+            initData.groupContexts,
+            groupContextSince
+          );
         })
         .catch((error) =>
           runtime.log?.(
@@ -1803,6 +1807,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // no config gates the fetch.
     try {
       const joinedSync = joinedChannels.beginSync();
+      const groupContextSince = groupContextRuntime.beginSnapshot();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
         botShip: botShipName,
@@ -1828,7 +1833,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       for (const [flag, roles] of initData.groupRoles) {
         groupRoles.set(flag, roles);
       }
-      groupContextRuntime.applySnapshot(initData.groupContexts);
+      groupContextRuntime.applySnapshot(
+        initData.groupContexts,
+        groupContextSince
+      );
     } catch (error: any) {
       runtime.error?.(
         `[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`
@@ -4182,6 +4190,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     const syncJoinedChannels = async () => {
       const token = joinedChannels.beginSync();
+      const groupContextSince = groupContextRuntime.beginSnapshot();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
       });
@@ -4194,7 +4203,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
       // Reconcile reader roles here, on every periodic sync with or without
       // discovery, in case a /groups/ui reader change was missed.
-      groupContextRuntime.applySnapshot(initData.groupContexts);
+      groupContextRuntime.applySnapshot(
+        initData.groupContexts,
+        groupContextSince
+      );
       return initData;
     };
 

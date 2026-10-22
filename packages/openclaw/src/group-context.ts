@@ -76,8 +76,17 @@ export type GroupContextRuntime = {
   handleBeforePromptBuild(
     ctx: AgentHookContext
   ): PluginHookBeforePromptBuildResult | undefined;
-  /** Replace the groups an init snapshot carries; others are untouched. */
-  applySnapshot(groups: ReadonlyMap<string, GroupContextGroup>): void;
+  /** A token to take before fetching a snapshot; see applySnapshot. */
+  beginSnapshot(): number;
+  /**
+   * Replace the groups an init snapshot carries; others are untouched. A
+   * group with a /groups/ui fact newer than `since` keeps its state: the
+   * snapshot was fetched before that change and would undo it.
+   */
+  applySnapshot(
+    groups: ReadonlyMap<string, GroupContextGroup>,
+    since: number
+  ): void;
   /** Apply one `/groups/ui` fact. */
   handleGroupsUiEvent(event: unknown): void;
   /** Record a message seen in a channel; ignored outside known groups. */
@@ -121,6 +130,8 @@ export function createGroupContextRuntime(
   const startedAt = now();
   const groups = new Map<string, GroupContextGroup>();
   const activity = new Map<string, ChannelActivity>();
+  let factSeq = 0;
+  const groupFactSeq = new Map<string, number>();
 
   // Session keys are lowercased; the index holds canonical nests, whose
   // channel names keep their case.
@@ -246,8 +257,13 @@ export function createGroupContextRuntime(
       };
     },
 
-    applySnapshot(snapshot) {
+    beginSnapshot() {
+      return factSeq;
+    },
+
+    applySnapshot(snapshot, since) {
       for (const [flag, group] of snapshot) {
+        if ((groupFactSeq.get(flag) ?? 0) > since) continue;
         groups.set(flag, {
           ...(group.title ? { title: group.title } : {}),
           channels: group.channels.map((channel) => ({ ...channel })),
@@ -261,6 +277,7 @@ export function createGroupContextRuntime(
       const update = isRecord(event.update) ? event.update : null;
       const diff = update && isRecord(update.diff) ? update.diff : null;
       if (!diff) return;
+      groupFactSeq.set(flag, ++factSeq);
 
       if (isRecord(diff.create)) {
         const title = extractMetaTitle(diff.create);

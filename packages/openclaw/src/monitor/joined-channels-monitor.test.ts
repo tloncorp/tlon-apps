@@ -77,6 +77,7 @@ beforeAll(async () => {
       const markBootstrapComplete = () => {};
       const groupContextRuntime = {
         applySnapshot: () => {},
+        beginSnapshot: () => 0,
         forgetMessage: () => {},
         recordMessage: () => {},
       };

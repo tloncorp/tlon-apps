@@ -35,7 +35,8 @@ function setup(start = 100 * HOUR) {
           }),
         },
       ],
-    ])
+    ]),
+    runtime.beginSnapshot()
   );
   const context = (key = sessionKey) =>
     runtime.handleBeforePromptBuild({ sessionKey: key })?.prependContext;
@@ -98,7 +99,8 @@ describe('group context', () => {
             channels: parseGroupChannels({ [general]: { readers: [] } }),
           },
         ],
-      ])
+      ]),
+      runtime.beginSnapshot()
     );
     expect(context()).toBeUndefined();
   });
@@ -217,6 +219,47 @@ describe('group context', () => {
       })
     );
     expect(context()).toContain('"Mods" (chat/~host/mods)');
+  });
+
+  it('keeps a reader change that lands while a snapshot is in flight', () => {
+    const { runtime, context } = setup();
+    const since = runtime.beginSnapshot();
+    runtime.handleGroupsUiEvent(
+      channelFact('chat/~host/Random', { 'add-sects': ['admin'] })
+    );
+    // The snapshot was fetched before the change and still shows it open.
+    runtime.applySnapshot(
+      new Map([
+        [
+          flag,
+          {
+            title: 'Book Club',
+            channels: parseGroupChannels({
+              [general]: { meta: { title: 'General' }, readers: [] },
+              'chat/~host/Random': { meta: { title: 'Random' }, readers: [] },
+            }),
+          },
+        ],
+      ]),
+      since
+    );
+    expect(context()).not.toContain('Random');
+    runtime.applySnapshot(
+      new Map([
+        [
+          flag,
+          {
+            title: 'Book Club',
+            channels: parseGroupChannels({
+              [general]: { meta: { title: 'General' }, readers: [] },
+              'chat/~host/Random': { meta: { title: 'Random' }, readers: [] },
+            }),
+          },
+        ],
+      ]),
+      runtime.beginSnapshot()
+    );
+    expect(context()).toContain('Random');
   });
 
   it('tracks channels and groups from /groups/ui facts', () => {
