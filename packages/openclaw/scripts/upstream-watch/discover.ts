@@ -46,6 +46,8 @@ export interface Discovery {
   noTag: boolean;
   // set on the first run: the state to write, with nothing posted
   bootstrap?: WatchState;
+  // a first run whose extended-stable has no upstream tag yet: no state written
+  bootstrapDeferred: boolean;
   trigger: 'extended-stable' | 'dispatch';
   releasesBehindOnLine?: number;
   daysBehind?: number;
@@ -75,8 +77,12 @@ export function discover(input: DiscoverInput): Discovery {
     }
   }
 
+  // The baseline becomes a later run's PREV, whose tag the digest fetches; an
+  // untagged one would wedge every run after it, so wait for the tag.
+  const wouldBootstrap = !input.state && !forced && !input.dryRun;
+  const bootstrapDeferred = wouldBootstrap && !input.tags.has(tracked);
   const bootstrap =
-    !input.state && !forced && !input.dryRun
+    wouldBootstrap && !bootstrapDeferred
       ? { lastLatest: tracked, lastPostedAt: null, reportedUnresolved: [] }
       : undefined;
   const shouldPost =
@@ -117,6 +123,7 @@ export function discover(input: DiscoverInput): Discovery {
     prodPins: input.prodPins,
     noTag: !input.tags.has(next),
     bootstrap,
+    bootstrapDeferred,
     trigger: forced ? 'dispatch' : 'extended-stable',
     releasesBehindOnLine,
     daysBehind,
@@ -186,6 +193,7 @@ function main() {
       daysBehind: result.daysBehind,
     }),
     bootstrap_state: result.bootstrap ? JSON.stringify(result.bootstrap) : '',
+    bootstrap_deferred: String(result.bootstrapDeferred),
     reported_unresolved: JSON.stringify(state?.reportedUnresolved ?? []),
   };
   const lines = Object.entries(outputs)

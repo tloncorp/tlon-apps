@@ -140,6 +140,14 @@ jobs:
         run: |
           gh variable set OPENCLAW_WATCH_STATE --repo "$GITHUB_REPOSITORY" --body "$STATE"
 
+      # An untagged baseline would fail every later digest's fetch of PREV.
+      - name: Defer bootstrap
+        if: steps.decide.outputs.bootstrap_deferred == 'true'
+        env:
+          NEXT: ${{ steps.decide.outputs.next }}
+        run: |
+          echo "::notice::no upstream tag v$NEXT yet; bootstrap deferred to the next run"
+
   prepare:
     name: Prepare digest (${{ needs.discover.outputs.next }})
     needs: discover

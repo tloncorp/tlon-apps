@@ -112,12 +112,34 @@ describe('discover', () => {
         lastPostedAt: null,
         reportedUnresolved: [],
       },
+      bootstrapDeferred: false,
     });
     expect(
       discover(
         input({ state: undefined, dryRun: true, event: 'workflow_dispatch' })
       ).bootstrap
     ).toBeUndefined();
+  });
+
+  it('defers the bootstrap until extended-stable has an upstream tag', () => {
+    expect(
+      discover(input({ state: undefined, tags: tagsWithout('2026.9.8') }))
+    ).toMatchObject({
+      shouldPost: false,
+      bootstrap: undefined,
+      bootstrapDeferred: true,
+    });
+    // a dry run never bootstraps, so there is nothing to defer
+    expect(
+      discover(
+        input({
+          state: undefined,
+          dryRun: true,
+          event: 'workflow_dispatch',
+          tags: tagsWithout('2026.9.8'),
+        })
+      ).bootstrapDeferred
+    ).toBe(false);
   });
 
   it('a dispatch with version posts against its baseline and never bootstraps', () => {
