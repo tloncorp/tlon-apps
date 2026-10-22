@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared';
 import { Attachment } from '@tloncorp/shared/domain';
 import * as ImagePicker from 'expo-image-picker';
 import { VariantsFromValues, useIsWindowNarrow, useToast } from '@tloncorp/ui';
@@ -46,6 +47,8 @@ import {
   Accent,
   getBorderVariantStyle as getBackgroundTypeVariantStyle,
 } from './formUtils';
+
+const logger = createDevLogger('ImageInput', true);
 
 // lineHeight on single-line TextInput is buggy on iOS; restore it for
 // multiline inputs below where line spacing matters.
@@ -281,6 +284,8 @@ export function useImageInput({
           aspect: [1, 1],
           quality: 0.5,
           exif: false,
+          // A photo kept only in iCloud is fetched, as the sheet does.
+          shouldDownloadFromNetwork: true,
         };
         const result =
           source === 'camera'
@@ -301,7 +306,11 @@ export function useImageInput({
           attachAssets(uploadIntents);
           handleImageSelected(uploadIntents);
         }
-      } catch {
+      } catch (e) {
+        logger.trackError(
+          source === 'camera' ? 'Error taking picture' : 'Error picking image',
+          e
+        );
         showToast({
           message:
             source === 'camera'
