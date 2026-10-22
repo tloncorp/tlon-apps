@@ -326,7 +326,7 @@ function plaintextPreviewOfListData(
 // wrapper adjacent to a quote inside another wrapper — no Markdown or editor
 // path produces it — so it is left alone rather than pushing edge-walking
 // through empty nodes.
-function opensWithQuote(inline: InlineData): boolean {
+export function opensWithQuote(inline: InlineData): boolean {
   if (inline.type === 'blockquote') return true;
   if (inline.type === 'style') {
     const first = inline.children[0];
@@ -335,7 +335,7 @@ function opensWithQuote(inline: InlineData): boolean {
   return false;
 }
 
-function closesWithQuote(inline: InlineData): boolean {
+export function closesWithQuote(inline: InlineData): boolean {
   if (inline.type === 'blockquote') return true;
   if (inline.type === 'style' || inline.type === 'task') {
     const last = inline.children.at(-1);
@@ -345,7 +345,7 @@ function closesWithQuote(inline: InlineData): boolean {
 }
 
 // A leading line break supplies its own delimiter, through wrappers too.
-function opensWithBreak(inline: InlineData): boolean {
+export function opensWithBreak(inline: InlineData): boolean {
   if (inline.type === 'lineBreak') return true;
   if (inline.type === 'style') {
     const first = inline.children[0];
