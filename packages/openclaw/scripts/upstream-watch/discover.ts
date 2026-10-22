@@ -40,12 +40,13 @@ export interface Discovery {
   // or read; the digest reports each as incomplete
   untaggedIntermediates: string[];
   latestPublishedAt?: string;
-  extendedStable?: string;
+  // npm's `latest`, the line after the one we track; shown as a look-ahead
+  latest?: string;
   prodPins: Record<string, string>;
   noTag: boolean;
   // set on the first run: the state to write, with nothing posted
   bootstrap?: WatchState;
-  trigger: 'latest' | 'dispatch';
+  trigger: 'extended-stable' | 'dispatch';
   releasesBehindOnLine?: number;
   daysBehind?: number;
 }
@@ -53,19 +54,20 @@ export interface Discovery {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function discover(input: DiscoverInput): Discovery {
-  const latest = input.npm['dist-tags']?.latest;
+  // The plugin ships on extended-stable; `latest` runs a line ahead of it.
+  const tracked = input.npm['dist-tags']?.['extended-stable'];
   const time = input.npm.time ?? {};
-  if (!latest || !isStable(latest)) {
-    throw new Error(`npm latest is not a stable version: ${latest}`);
+  if (!tracked || !isStable(tracked)) {
+    throw new Error(`npm extended-stable is not a stable version: ${tracked}`);
   }
   const forced = input.event === 'workflow_dispatch' && !!input.version;
   if (forced && !input.baseline) {
     throw new Error('a dispatch with `version` needs `baseline` as well');
   }
-  const next = forced ? input.version! : latest;
+  const next = forced ? input.version! : tracked;
   const prev =
     (forced ? input.baseline : input.baseline || input.state?.lastLatest) ??
-    latest;
+    tracked;
   // Both end up in git refs and shell arguments downstream.
   for (const version of [next, prev]) {
     if (!isStable(version)) {
@@ -75,12 +77,12 @@ export function discover(input: DiscoverInput): Discovery {
 
   const bootstrap =
     !input.state && !forced && !input.dryRun
-      ? { lastLatest: latest, lastPostedAt: null, reportedUnresolved: [] }
+      ? { lastLatest: tracked, lastPostedAt: null, reportedUnresolved: [] }
       : undefined;
   const shouldPost =
     (input.event === 'schedule' &&
       !!input.state &&
-      latest !== input.state.lastLatest) ||
+      tracked !== input.state.lastLatest) ||
     (forced && !input.dryRun);
 
   const pins = Object.values(input.prodPins).filter(isStable);
@@ -103,7 +105,7 @@ export function discover(input: DiscoverInput): Discovery {
 
   const between =
     compareVersions(prev, next) < 0 ? versionsBetween(time, prev, next) : [];
-  const extendedStable = input.npm['dist-tags']?.['extended-stable'];
+  const latest = input.npm['dist-tags']?.latest;
   return {
     shouldPost,
     prev,
@@ -111,12 +113,11 @@ export function discover(input: DiscoverInput): Discovery {
     intermediates: between.filter((v) => input.tags.has(v)),
     untaggedIntermediates: between.filter((v) => !input.tags.has(v)),
     latestPublishedAt: time[next],
-    extendedStable:
-      extendedStable && isStable(extendedStable) ? extendedStable : undefined,
+    latest: latest && isStable(latest) ? latest : undefined,
     prodPins: input.prodPins,
     noTag: !input.tags.has(next),
     bootstrap,
-    trigger: forced ? 'dispatch' : 'latest',
+    trigger: forced ? 'dispatch' : 'extended-stable',
     releasesBehindOnLine,
     daysBehind,
   };
@@ -127,6 +128,7 @@ export function parseState(text: string | undefined) {
     return undefined;
   }
   const state = JSON.parse(text) as Partial<WatchState>;
+  // lastLatest holds the tracked extended-stable version; the name is historical.
   if (typeof state.lastLatest !== 'string') {
     throw new Error('OPENCLAW_WATCH_STATE has no lastLatest');
   }
@@ -174,8 +176,8 @@ function main() {
     next: result.next,
     intermediates: JSON.stringify(result.intermediates),
     untagged_intermediates: JSON.stringify(result.untaggedIntermediates),
-    latest_published_at: result.latestPublishedAt ?? '',
-    extended_stable: result.extendedStable ?? '',
+    published_at: result.latestPublishedAt ?? '',
+    latest: result.latest ?? '',
     prod_pins: JSON.stringify(result.prodPins),
     no_tag: String(result.noTag),
     trigger: result.trigger,

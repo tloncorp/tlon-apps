@@ -1,10 +1,11 @@
 name: OpenClaw Release Watch
-# Daily: when npm's `latest` for openclaw moves, post one digest to Harness
+# Daily: when npm's `extended-stable` for openclaw moves, post one digest to Harness
 # Alerts saying what the release changes for the Tlon plugin, with a canary
 # run of the plugin's checks against it. Design: TLON-6250.
 #
 # State lives in the repo variable OPENCLAW_WATCH_STATE
-# ({ lastLatest, lastPostedAt, reportedUnresolved }) and moves only after
+# ({ lastLatest, lastPostedAt, reportedUnresolved }; lastLatest holds the
+# tracked extended-stable version, the name is historical) and moves only after
 # serverless-infra's sendAlertBotMessage confirms delivery of a scheduled run's
 # post. The fine-grained PAT OPENCLAW_WATCH_GH_TOKEN (Variables: write) reads
 # and writes it; GITHUB_TOKEN cannot write variables.
@@ -52,8 +53,8 @@ jobs:
       next: ${{ steps.decide.outputs.next }}
       intermediates: ${{ steps.decide.outputs.intermediates }}
       untagged_intermediates: ${{ steps.decide.outputs.untagged_intermediates }}
-      latest_published_at: ${{ steps.decide.outputs.latest_published_at }}
-      extended_stable: ${{ steps.decide.outputs.extended_stable }}
+      published_at: ${{ steps.decide.outputs.published_at }}
+      latest: ${{ steps.decide.outputs.latest }}
       prod_pins: ${{ steps.decide.outputs.prod_pins }}
       no_tag: ${{ steps.decide.outputs.no_tag }}
       trigger: ${{ steps.decide.outputs.trigger }}
@@ -130,7 +131,7 @@ jobs:
             --baseline "$BASELINE" \
             --dry-run "${DRY_RUN:-false}"
 
-      # First run: record the current latest and post nothing.
+      # First run: record the current extended-stable and post nothing.
       - name: Bootstrap state
         if: steps.decide.outputs.bootstrap_state != ''
         env:
@@ -193,8 +194,8 @@ jobs:
         env:
           PROD_PINS: ${{ needs.discover.outputs.prod_pins }}
           UNTAGGED_INTERMEDIATES: ${{ needs.discover.outputs.untagged_intermediates }}
-          EXTENDED_STABLE: ${{ needs.discover.outputs.extended_stable }}
-          PUBLISHED_AT: ${{ needs.discover.outputs.latest_published_at }}
+          LATEST: ${{ needs.discover.outputs.latest }}
+          PUBLISHED_AT: ${{ needs.discover.outputs.published_at }}
           DRIFT: ${{ needs.discover.outputs.drift }}
           REPORTED_UNRESOLVED: ${{ needs.discover.outputs.reported_unresolved }}
         run: |
@@ -207,7 +208,7 @@ jobs:
             --plugin packages/openclaw \
             --out watch \
             --prod-pins "$PROD_PINS" \
-            --extended-stable "$EXTENDED_STABLE" \
+            --latest "$LATEST" \
             --published-at "$PUBLISHED_AT" \
             --drift "$DRIFT" \
             --reported-unresolved "$REPORTED_UNRESOLVED"
@@ -365,11 +366,11 @@ jobs:
           # Compare-and-set against what discover read: a re-run of an older
           # run's post job must not overwrite state a later run already
           # advanced. Comparing versions instead would also block a genuine
-          # npm rollback of `latest`. A read failure is fatal.
+          # npm rollback of `extended-stable`. A read failure is fatal.
           current=$(gh variable get OPENCLAW_WATCH_STATE --repo "$GITHUB_REPOSITORY")
-          current_latest=$(jq -er '.lastLatest' <<<"$current")
-          if [ "$current_latest" != "$PREV" ]; then
-            echo "state moved from $PREV to $current_latest after discovery; not advancing"
+          current_tracked=$(jq -er '.lastLatest' <<<"$current")
+          if [ "$current_tracked" != "$PREV" ]; then
+            echo "state moved from $PREV to $current_tracked after discovery; not advancing"
             exit 0
           fi
           # Every absent-in-both subpath is recorded, whether reported now or

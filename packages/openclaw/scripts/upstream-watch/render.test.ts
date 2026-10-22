@@ -84,7 +84,7 @@ function digest(overrides: Partial<DigestInput> = {}): DigestInput {
         internal: '2026.7.1',
         memorypool: '2026.7.1',
       },
-      extendedStable: '2026.8.35',
+      latest: '2026.10.6',
       releasesBehindOnLine: 7,
       daysBehind: 93,
     },
@@ -149,7 +149,7 @@ describe('renderPost', () => {
       'https://github.com/tloncorp/tlon-apps/actions/runs/1'
     );
     expect(post.lines).toEqual([
-      'OpenClaw 2026.9.4 → 2026.9.7 (latest, 9/29; also 9.5, 9.6) — canary 9.7: tsc ✗ unit ✓ e2e ✓ (package: partial) · labeled 2/2',
+      'OpenClaw 2026.9.4 → 2026.9.7 (extended-stable, 9/29; also 9.5, 9.6) — canary 9.7: tsc ✗ unit ✓ e2e ✓ (package: partial) · labeled 2/2',
       'breaks-us',
       '  • tsc fails against 2026.9.7 in the canary',
       'unresolved today',
@@ -162,7 +162,7 @@ describe('renderPost', () => {
       '  • ylem-patch ← "Gateway" (#2, 0.86)',
       'relevant: 1 (1 fixes, 0 new; top: Gateway #2)',
       'canary green = plugin fixtures pass on this core, not an upgrade approval',
-      'prod: default/internal/memorypool on 2026.7.1 — 9.x line: 7 releases / 93 d behind · extended-stable 2026.8.35',
+      'prod: default/internal/memorypool on 2026.7.1 — 9.x line: 7 releases / 93 d behind · latest 2026.10.6',
       'changelog https://github.com/openclaw/openclaw/blob/v2026.9.7/CHANGELOG/2026.9.7.md · diff, labels, dropped: artifact openclaw-watch-2026.9.7-1',
     ]);
   });
@@ -199,6 +199,31 @@ describe('renderPost', () => {
     });
     return post.lines.find((line) => line.startsWith('prod: '));
   };
+
+  it('shows latest as a look-ahead only when it is not the release digested', () => {
+    const base = digest();
+    const prodLine = (latest: string | undefined) =>
+      renderPost({
+        digest: { ...base, drift: { ...base.drift, latest } },
+        rows: [],
+        canary: green,
+      }).post.lines.find((line) => line.startsWith('prod: '));
+    expect(prodLine('2026.10.6')).toMatch(/ · latest 2026\.10\.6$/);
+    expect(prodLine('2026.9.7')).not.toContain('latest');
+    expect(prodLine(undefined)).not.toContain('latest');
+  });
+
+  it('names a dispatch run as requested in the header', () => {
+    const { post } = renderPost({
+      digest: digest(),
+      rows: [],
+      canary: green,
+      trigger: 'dispatch',
+    });
+    expect(post.lines[0]).toMatch(
+      /^OpenClaw 2026\.9\.4 → 2026\.9\.7 \(requested, 9\/29;/
+    );
+  });
 
   it('reads prod pins as unavailable when no bundle has a version', () => {
     expect(prodLineOf({ default: '', internal: '', memorypool: '' })).toMatch(
@@ -389,7 +414,8 @@ describe('renderPost', () => {
     });
     const header = post.lines[0];
     expect([...header].length).toBeLessThanOrEqual(MAX_LINE_CHARS);
-    expect(header).toContain('also 10.2 … 10.11 (10)');
+    // the version part is what gives way, so its tail may be clipped
+    expect(header).toContain('(extended-stable, 9/29; also 10.2 …');
     expect(header).toContain(
       'canary 10.12: tsc ? unit ? e2e ? (baseline: infra-error, cron: infra-error, package: infra-error)'
     );

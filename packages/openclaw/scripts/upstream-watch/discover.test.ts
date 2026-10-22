@@ -5,8 +5,9 @@ import { compareVersions, parseTagList } from './versions.ts';
 
 const npm = {
   'dist-tags': {
-    latest: '2026.9.8',
-    'extended-stable': '2026.8.35',
+    // the next line, which the plugin does not ship yet
+    latest: '2026.10.6',
+    'extended-stable': '2026.9.8',
     beta: '2026.10.1-beta.1',
   },
   time: {
@@ -20,6 +21,7 @@ const npm = {
     '2026.9.7-1': '2026-09-29T01:00:00Z',
     '2026.9.8': '2026-10-03T00:00:00Z',
     '2026.10.1-beta.1': '2026-10-05T00:00:00Z',
+    '2026.10.6': '2026-10-15T00:00:00Z',
   },
 };
 
@@ -49,7 +51,7 @@ const input = (overrides: Partial<DiscoverInput>): DiscoverInput => ({
 });
 
 describe('discover', () => {
-  it('posts a scheduled run when latest moved, listing stable releases in between', () => {
+  it('posts a scheduled run when extended-stable moved, listing stable releases in between', () => {
     expect(discover(input({}))).toMatchObject({
       shouldPost: true,
       prev: '2026.9.4',
@@ -57,9 +59,9 @@ describe('discover', () => {
       intermediates: ['2026.9.5', '2026.9.6', '2026.9.7'],
       untaggedIntermediates: [],
       latestPublishedAt: '2026-10-03T00:00:00Z',
-      extendedStable: '2026.8.35',
+      latest: '2026.10.6',
       noTag: false,
-      trigger: 'latest',
+      trigger: 'extended-stable',
       bootstrap: undefined,
       // 9.4 through 9.8 are newer than the prod pin on the 9.x line
       releasesBehindOnLine: 5,
@@ -67,18 +69,39 @@ describe('discover', () => {
     });
   });
 
-  it('does nothing when latest has not moved', () => {
-    expect(
+  it('does nothing when extended-stable has not moved, whatever latest does', () => {
+    const state = {
+      lastLatest: '2026.9.8',
+      lastPostedAt: null,
+      reportedUnresolved: [],
+    };
+    expect(discover(input({ state })).shouldPost).toBe(false);
+    const latestMoved = {
+      ...npm,
+      'dist-tags': { ...npm['dist-tags'], latest: '2026.10.7' },
+    };
+    expect(discover(input({ npm: latestMoved, state }))).toMatchObject({
+      shouldPost: false,
+      next: '2026.9.8',
+      latest: '2026.10.7',
+    });
+  });
+
+  it('fails without a stable extended-stable, even when latest is set', () => {
+    const { 'extended-stable': _, ...rest } = npm['dist-tags'];
+    expect(() =>
+      discover(input({ npm: { ...npm, 'dist-tags': rest } }))
+    ).toThrow(/extended-stable/);
+    expect(() =>
       discover(
         input({
-          state: {
-            lastLatest: '2026.9.8',
-            lastPostedAt: null,
-            reportedUnresolved: [],
+          npm: {
+            ...npm,
+            'dist-tags': { ...rest, 'extended-stable': '2026.9.8-1' },
           },
         })
-      ).shouldPost
-    ).toBe(false);
+      )
+    ).toThrow(/extended-stable/);
   });
 
   it('bootstraps silently without state', () => {
@@ -138,8 +161,8 @@ describe('discover', () => {
     );
   });
 
-  it('flags an npm latest without an upstream tag', () => {
-    const untagged = { ...npm, 'dist-tags': { latest: '2026.9.7' } };
+  it('flags an npm extended-stable without an upstream tag', () => {
+    const untagged = { ...npm, 'dist-tags': { 'extended-stable': '2026.9.7' } };
     expect(
       discover(input({ npm: untagged, tags: tagsWithout('2026.9.7') })).noTag
     ).toBe(true);
@@ -157,7 +180,7 @@ describe('discover', () => {
 
   it("on a line rollover, counts prev-line releases only from before next's line opened", () => {
     const rollover = {
-      'dist-tags': { latest: '2026.10.1' },
+      'dist-tags': { 'extended-stable': '2026.10.1' },
       time: {
         '2026.9.8': '2026-10-03T00:00:00Z',
         // maintenance on the 9.x line before 10.0 shipped

@@ -91,7 +91,7 @@ export function renderPost({
   digest,
   rows,
   canary,
-  trigger = 'latest',
+  trigger = 'extended-stable',
   runUrl,
   artifactName,
 }: {
@@ -100,7 +100,7 @@ export function renderPost({
   rows?: LabeledRow[];
   // undefined before the canary has reported
   canary?: CanaryReports;
-  trigger?: 'latest' | 'dispatch';
+  trigger?: 'extended-stable' | 'dispatch';
   runUrl?: string;
   artifactName?: string;
 }): { post: Post; sections?: Sections; fallback: boolean } {
@@ -242,13 +242,13 @@ export function prepFailedPost({
 function headerLine(
   digest: DigestInput,
   canary: CanaryReports | undefined,
-  trigger: 'latest' | 'dispatch',
+  trigger: 'extended-stable' | 'dispatch',
   labeled: number,
   total: number
 ) {
   const { prev, next } = digest;
   const meta = [
-    trigger === 'latest' ? 'latest' : 'requested',
+    trigger === 'extended-stable' ? 'extended-stable' : 'requested',
     digest.publishedAt ? monthDay(digest.publishedAt) : undefined,
   ]
     .filter(Boolean)
@@ -381,8 +381,7 @@ function relevantLine(sections: Sections) {
 }
 
 function prodLine(digest: DigestInput) {
-  const { prodPins, extendedStable, releasesBehindOnLine, daysBehind } =
-    digest.drift;
+  const { prodPins, latest, releasesBehindOnLine, daysBehind } = digest.drift;
   const byVersion = new Map<string, string[]>();
   for (const [bundle, version] of Object.entries(prodPins)) {
     // The workflow writes "" for a bundle with no `.openclaw` field.
@@ -402,7 +401,8 @@ function prodLine(digest: DigestInput) {
   const parts = [
     `prod: ${pins || 'pins unavailable'}`,
     behind.length ? ` — ${month}.x line: ${behind.join(' / ')}` : '',
-    extendedStable ? ` · extended-stable ${extendedStable}` : '',
+    // a look-ahead at the next line, when npm's latest is not what we track
+    latest && latest !== digest.next ? ` · latest ${latest}` : '',
   ];
   return parts.join('');
 }
@@ -632,7 +632,7 @@ function main() {
       // --artifact with the highest attempt's
       'digest-dir': { type: 'string' },
       'canary-dir': { type: 'string' },
-      trigger: { type: 'string', default: 'latest' },
+      trigger: { type: 'string', default: 'extended-stable' },
       'run-url': { type: 'string' },
       artifact: { type: 'string' },
       prev: { type: 'string' },
@@ -646,7 +646,8 @@ function main() {
     throw new Error('--out is required');
   }
   const runUrl = values['run-url'] || undefined;
-  const trigger = values.trigger === 'dispatch' ? 'dispatch' : 'latest';
+  const trigger =
+    values.trigger === 'dispatch' ? 'dispatch' : 'extended-stable';
   let digestPath = values.digest;
   let labeledPath = values.labeled;
   let artifactName = values.artifact;

@@ -44,7 +44,8 @@ export interface Manifest {
 
 export interface Drift {
   prodPins: Record<string, string>;
-  extendedStable?: string;
+  // npm's `latest`, which runs a line ahead of the extended-stable we track
+  latest?: string;
   releasesBehindOnLine?: number;
   daysBehind?: number;
 }
@@ -333,7 +334,7 @@ function main() {
       manifest: { type: 'string' },
       out: { type: 'string' },
       'prod-pins': { type: 'string', default: '{}' },
-      'extended-stable': { type: 'string' },
+      latest: { type: 'string' },
       'published-at': { type: 'string' },
       // { releasesBehindOnLine, daysBehind } from the discover step, which
       // has npm's full release list
@@ -372,7 +373,7 @@ function main() {
     reportedUnresolved: JSON.parse(values['reported-unresolved']) as string[],
     drift: {
       prodPins: JSON.parse(values['prod-pins']) as Record<string, string>,
-      extendedStable: values['extended-stable'] || undefined,
+      latest: values.latest || undefined,
       releasesBehindOnLine: extraDrift.releasesBehindOnLine,
       daysBehind: extraDrift.daysBehind,
     },
