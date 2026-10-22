@@ -27,7 +27,8 @@
  * setActivitySupportsNotes, getGroups, getChannelPosts, readChannel,
  * activityAction, poke),
  * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
- * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent), and
+ * getPostWithReplies, deleteReply, setOrder, getLinkMetadata, toPostContent,
+ * getTextContent), and
  * `channels.ts` (createChannel and the other channel-management calls).
  */
 import type { NotesV1Api } from '@tloncorp/api';
@@ -300,6 +301,7 @@ mock.module('@tloncorp/api', () => ({
     mockedGetPostWithReplies.impl(...args),
   deleteReply: (...args: unknown[]) => mockedDeleteReply.impl(...args),
   setOrder: (...args: unknown[]) => mockedSetOrder.impl(...args),
+  getLinkMetadata: async () => ({ type: 'error', reason: 'mocked' }),
   toPostContent: realToPostContent,
   toUrbitStory: (content: unknown) => content ?? [],
   updateChannel: async () => undefined,

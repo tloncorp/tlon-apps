@@ -373,6 +373,18 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon posts send'
   ),
   usageErrorCase(
+    'dms send refuses a second --image',
+    [
+      'dms',
+      'send',
+      '0v5.abcde',
+      '--image',
+      'https://example.com/a.png',
+      '--image=https://example.com/b.png',
+    ],
+    'dms send takes one --image; use posts send <club-id> for several'
+  ),
+  usageErrorCase(
     'posts send missing link value',
     ['posts', 'send', 'heap/~host/gallery', '--link'],
     'Usage: tlon posts send'
@@ -891,6 +903,13 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'https://example.com',
     '--title',
     'Example',
+  ]),
+  authRequiredCase('posts send untitled gallery link reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    '--link',
+    'https://example.com',
   ]),
   authRequiredCase('dms send image-only reaches auth', [
     'dms',

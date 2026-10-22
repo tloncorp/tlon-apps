@@ -4,6 +4,11 @@ import {
   botProfileFlagIndex,
   parseBotProfileFlags,
 } from '../bot-profile-flags';
+import type {
+  LinkMetadata,
+  LinkMetadataError,
+} from '@tloncorp/api/types/attachment';
+
 import type { ChannelState } from '../channel-state-runtime';
 import {
   DIARY_REMOVED,
@@ -26,7 +31,11 @@ import {
   markdownToStory,
   unknownRoleMentions,
 } from '../markdown';
-import type { MediaProbe } from '../media-guard';
+import {
+  type MediaProbe,
+  type ResolvedAddress,
+  isPublicHttpsUrl,
+} from '../media-guard';
 import {
   appendFileUploadToPostBlob,
   appendVideoToPostBlob,
@@ -63,7 +72,9 @@ Send options:
   --file <url>         Attach a file by its https URL
   --video <url>        Attach a video by its https URL
   --link <url>         Post a link card (gallery heap/ posts only; no message,
-                       use --title)
+                       use --title). A public https link gets the page's
+                       preview; an http or private-address link is posted
+                       as a bare card
   --blob <json>        Attach a post-blob JSON array of known entry types (e.g.
                        an a2ui entry); checked before sending
   --title <text>       Set a title on a gallery (heap/) post
@@ -196,7 +207,7 @@ const REPEATABLE_SEND_OPTIONS = new Set(['--image', '--file', '--video']);
 const MEDIA_SEND_FLAGS = ['--image', '--file', '--video'] as const;
 type MediaSendFlag = (typeof MEDIA_SEND_FLAGS)[number];
 // Each image is downloaded to read its dimensions; the cap bounds that work
-// per send (the downloads share ATTACHMENT_DEADLINE_MS).
+// per send.
 const MAX_IMAGES_PER_SEND = 4;
 // The blob entry types that render as an attachment.
 const ATTACHMENT_BLOB_TYPES = new Set(['file', 'video', 'voicememo']);
@@ -384,8 +395,12 @@ export interface PostsDeps extends CommandDeps {
   // Headers-only look at a --file/--video URL. Throws when the URL must not
   // be posted; a failed look resolves to unknown metadata (`size: -1`).
   probeMedia: (url: string) => Promise<MediaProbe>;
-  // Overrides ATTACHMENT_DEADLINE_MS (tests).
-  attachmentDeadlineMs?: number;
+  // The ship's metagrab look at a --link URL, for its preview card.
+  getLinkMetadata: (url: string) => Promise<LinkMetadata | LinkMetadataError>;
+  // Overrides LINK_PREVIEW_DEADLINE_MS (tests).
+  linkPreviewDeadlineMs?: number;
+  // Test seam: the --link host-policy resolver. Defaults to the guard's.
+  resolveLinkHost?: (hostname: string) => Promise<ResolvedAddress[]>;
   postsApi: PostsApi;
   // The acting ship's local view of a channel: its group and arranged order.
   getChannelState: (nest: string) => Promise<ChannelState>;
@@ -1264,16 +1279,64 @@ type SendArgs = Extract<ParsedPostsArgs, { kind: 'send' }>;
 type ReplyArgs = Extract<ParsedPostsArgs, { kind: 'reply' }>;
 type ForwardArgs = Extract<ParsedPostsArgs, { kind: 'forward' }>;
 
-// One wall-clock budget for fetching every image and probing every file and
-// video of a send, in parallel; well inside the plugin's 45 s command timeout.
-export const ATTACHMENT_DEADLINE_MS = 30_000;
+// The --link preview lookup's own budget; a slower lookup posts a bare card.
+export const LINK_PREVIEW_DEADLINE_MS = 10_000;
+
+type LinkMeta = Record<string, string>;
+
+// A page's preview fields for the link block, as the app's link input stores
+// them. The ship fetches the page, so the URL must first pass the media
+// guard's host policy (https, no credentials, public addresses only); a URL
+// that does not, or a failed, timed-out or non-page lookup, yields none. One
+// budget covers the policy's DNS look and the lookup. Never throws: the
+// preview never blocks the post.
+async function linkPreview(url: string, deps: PostsDeps): Promise<LinkMeta> {
+  const deadlineAt =
+    Date.now() + (deps.linkPreviewDeadlineMs ?? LINK_PREVIEW_DEADLINE_MS);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const allowed = await isPublicHttpsUrl(url, {
+      deadlineMs: deadlineAt - Date.now(),
+      resolveHost: deps.resolveLinkHost,
+    });
+    // The host check may have spent the whole budget.
+    if (!allowed || deadlineAt - Date.now() <= 0) return {};
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), deadlineAt - Date.now());
+    });
+    const metadata = await Promise.race([
+      deps.getLinkMetadata(url).catch(() => null),
+      timeout,
+    ]);
+    if (metadata?.type !== 'page') return {};
+    const fields = {
+      siteIconUrl: metadata.siteIconUrl,
+      siteName: metadata.siteName,
+      title: metadata.title,
+      description: metadata.description,
+      previewImageUrl: metadata.previewImageUrl,
+      previewImageHeight: metadata.previewImageHeight,
+      previewImageWidth: metadata.previewImageWidth,
+    };
+    return Object.fromEntries(
+      Object.entries(fields).filter(
+        (entry): entry is [string, string] =>
+          typeof entry[1] === 'string' && entry[1] !== ''
+      )
+    );
+  } catch {
+    return {};
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 type PreparedMedia =
   | { flag: '--image'; verse: StoryVerse }
   | { flag: '--file' | '--video'; url: string; probe: MediaProbe };
 
-// "--file #2 (cdn.example.com)": names a slow attachment without its path or
-// query, which may carry a signature.
+// "--file #2 (cdn.example.com)": names a failed attachment without its path
+// or query, which may carry a signature.
 function describeMedia(media: SendMedia[], index: number): string {
   const item = media[index];
   const nth = media
@@ -1287,9 +1350,8 @@ async function prepareMedia(
   deps: PostsDeps
 ): Promise<PreparedMedia[]> {
   if (media.length === 0) return [];
-  const pending = new Set(media.map((_, index) => index));
-  // Any failure names its attachment, whichever budget (the guard's own or
-  // the deadline below) runs out first.
+  // Each guard bounds its own work (image fetch and file/video probe
+  // deadlines); a failure names its attachment.
   const tasks = media.map(async (item, index): Promise<PreparedMedia> => {
     try {
       if (item.flag === '--image') {
@@ -1304,29 +1366,9 @@ async function prepareMedia(
       throw commandError(
         `${errorMessage(error)} (${describeMedia(media, index)})`
       );
-    } finally {
-      pending.delete(index);
     }
   });
-  const deadlineMs = deps.attachmentDeadlineMs ?? ATTACHMENT_DEADLINE_MS;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      const slow = [...pending].sort((a, b) => a - b)[0] ?? 0;
-      reject(
-        commandError(
-          `Attachments were not ready within ${Math.round(deadlineMs / 1000)} s (still waiting for ${describeMedia(media, slow)}); nothing was sent.`
-        )
-      );
-    }, deadlineMs);
-  });
-  try {
-    return await Promise.race([Promise.all(tasks), deadline]);
-  } catch (error) {
-    throw commandError(errorMessage(error));
-  } finally {
-    clearTimeout(timer);
-  }
+  return Promise.all(tasks);
 }
 
 // The last path segment, decoded when it decodes.
@@ -1369,23 +1411,21 @@ interface PlainSend {
 // As the app composes: a chat or DM message puts its image blocks first,
 // then the caption; a gallery post puts the caption first, then its one
 // image, which is also the post's `metadata.image`; a gallery link post is
-// the link block alone. Files and videos are blob entries.
+// the link block alone, with the page's preview (when the ship's metagrab
+// finds one) in its meta and its image as `metadata.image`. Files and videos
+// are blob entries.
 async function plainSendContent(
   parsed: SendArgs,
   deps: PostsDeps
 ): Promise<PlainSend> {
   if (parsed.link) {
+    const page = await linkPreview(parsed.link, deps);
+    const meta = { ...page, ...(parsed.title ? { title: parsed.title } : {}) };
+    // As the app's link input: the card's image is also the post's.
+    const image = page.previewImageUrl || page.siteIconUrl;
     return {
-      content: [
-        {
-          block: {
-            link: {
-              url: parsed.link,
-              meta: parsed.title ? { title: parsed.title } : {},
-            },
-          },
-        },
-      ],
+      content: [{ block: { link: { url: parsed.link, meta } } }],
+      ...(image ? { image } : {}),
     };
   }
   // The caption is checked first so a refused mention fails before any

@@ -4,6 +4,7 @@
  * command layer can import (commands take no raw api values).
  */
 import {
+  POST_BLOB_ENTRY_TYPES,
   PostBlobDataEntrySchema,
   appendFileUploadToPostBlob,
   appendVideoToPostBlob,
@@ -13,24 +14,29 @@ import { commandError } from './commands/command';
 
 export { appendFileUploadToPostBlob, appendVideoToPostBlob };
 
-// The registered post-blob entry schemas by their `type` literal. The a2ui
-// schema is refined, so its object shape sits one level in.
-const BLOB_ENTRY_SCHEMAS: ReadonlyMap<
-  string,
-  (typeof PostBlobDataEntrySchema.options)[number]
-> = new Map(
-  PostBlobDataEntrySchema.options.flatMap((schema) => {
-    const wrapped = schema as {
-      innerType?: () => unknown;
-      shape?: { type?: { value?: unknown } };
-    };
-    const inner = (
-      typeof wrapped.innerType === 'function' ? wrapped.innerType() : wrapped
-    ) as { shape?: { type?: { value?: unknown } } };
-    const type = inner.shape?.type?.value;
-    return typeof type === 'string' ? [[type, schema] as const] : [];
-  })
-);
+type ZodIssue = NonNullable<
+  ReturnType<typeof PostBlobDataEntrySchema.safeParse>['error']
+>['issues'][number];
+
+const KNOWN_TYPES: ReadonlySet<string> = new Set(POST_BLOB_ENTRY_TYPES);
+
+// The union reports a mismatch as one issue per definition; the definitions
+// for other types fail on `type` itself, so only the entry's own type's
+// issues name what to fix.
+function ownTypeIssues(issues: ZodIssue[]): ZodIssue[] {
+  return issues.flatMap((issue) =>
+    issue.code === 'invalid_union'
+      ? issue.unionErrors
+          .filter(
+            (error) =>
+              !error.issues.some(
+                (inner) => inner.path.length === 1 && inner.path[0] === 'type'
+              )
+          )
+          .flatMap((error) => ownTypeIssues(error.issues))
+      : [issue]
+  );
+}
 
 export interface ValidatedBlob {
   // The caller's JSON, sent as given: validation never rewrites an entry.
@@ -50,31 +56,31 @@ export function validatedBlob(blob: string): ValidatedBlob {
   if (!Array.isArray(entries)) {
     throw commandError('--blob must be a JSON array of post-blob entries');
   }
-  const known = [...BLOB_ENTRY_SCHEMAS.keys()].join(', ');
+  const known = POST_BLOB_ENTRY_TYPES.join(', ');
   const types = entries.map((entry, index) => {
     const type =
       typeof entry === 'object' && entry !== null
         ? (entry as { type?: unknown }).type
         : undefined;
-    const schema =
-      typeof type === 'string' ? BLOB_ENTRY_SCHEMAS.get(type) : undefined;
-    if (typeof type !== 'string' || !schema) {
+    if (typeof type !== 'string' || !KNOWN_TYPES.has(type)) {
       throw commandError(
         `--blob entry ${index} has no known type. Known types: ${known}.`
       );
     }
-    const result = schema.safeParse(entry);
-    if (!result.success) {
+    const parsed = PostBlobDataEntrySchema.safeParse(entry);
+    if (!parsed.success) {
       const fields = [
         ...new Set(
-          result.error.issues.map((issue) => issue.path.join('.') || '(entry)')
+          ownTypeIssues(parsed.error.issues).map(
+            (issue) => issue.path.join('.') || '(entry)'
+          )
         ),
       ];
       throw commandError(
-        `--blob entry ${index} is not a valid ${type} entry (check: ${fields.join(', ')}). Known types: ${known}.`
+        `--blob entry ${index} is not a valid ${type} entry (check: ${fields.join(', ') || '(entry)'}). Known types: ${known}.`
       );
     }
-    return type;
+    return parsed.data.type;
   });
   return { raw: blob, types };
 }

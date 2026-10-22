@@ -32,8 +32,8 @@ To post an image, file, video or link to a gallery (`heap/` channel), use `posts
 ```
 
 - A gallery post takes at most one attachment (`--image`, `--file`, `--video`, `--link`, or a file, video or voice-memo entry in `--blob`); a text-only post is fine. To post several, send one `posts send` per attachment.
-- A link post has no caption; put its text in `--title`.
-- Chat and DM targets accept several `--image`, `--file` and `--video` flags in one send (at most four images). Images keep their flag order among themselves, as do files and videos (after any `--blob` entries); images always render before the text.
+- A link post has no caption; put its text in `--title`. For a public https link the card shows the page's preview (title, description, image) when the ship can fetch it, with `--title` replacing the page's title. An http link, a private or local address, or a failed lookup posts a bare link card; the post still goes out.
+- `posts send` to a chat channel, a DM (`posts send ~ship …`) or a group DM (`posts send 0v… …`) accepts several `--image`, `--file` and `--video` flags in one send (at most four images); `dms send` takes one `--image` and refuses a second. Images keep their flag order among themselves, as do files and videos (after any `--blob` entries); images always render before the text.
 - `--quote` cannot be combined with `--image`, `--file`, `--video` or `--link`; a `--blob` is still allowed with it.
 - Put the message in quotes when it contains a flag word such as `--file`; an unquoted flag word starts the options.
 

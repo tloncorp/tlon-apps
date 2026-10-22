@@ -436,6 +436,58 @@ export function isMediaPolicyRejection(error: unknown): boolean {
 }
 
 /**
+ * The guard's host policy for a URL some other party will fetch (the ship's
+ * metagrab for a `--link` preview), applied without making a request: an
+ * https URL with no credentials, a hostname that is not denied, and every
+ * address it resolves to (once, within `deadlineMs`) allowed. Never throws;
+ * any failure is `false`.
+ */
+export async function isPublicHttpsUrl(
+  raw: string,
+  options: Pick<
+    GuardedProbeOptions,
+    'deadlineMs' | 'resolveHost' | 'allowAddress'
+  >
+): Promise<boolean> {
+  // An exhausted budget allows nothing, literal or name.
+  if (!(options.deadlineMs > 0)) {
+    return false;
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const classified = classifyMediaUrl(raw);
+    if (classified.kind !== 'https') {
+      return false;
+    }
+    const { hostname } = new URL(classified.canonical);
+    if (isDeniedHostname(hostname)) {
+      return false;
+    }
+    const allowAddress = options.allowAddress ?? isAllowedAddress;
+    // An address literal is judged as written; only a name is resolved.
+    const bare = hostname.startsWith('[') ? hostname.slice(1, -1) : hostname;
+    if (net.isIP(bare) !== 0) {
+      return allowAddress(bare);
+    }
+    const resolveHost = options.resolveHost ?? defaultResolveHost;
+    const addresses = await Promise.race([
+      resolveHost(hostname),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error()), options.deadlineMs);
+      }),
+    ]);
+    return (
+      addresses.length > 0 &&
+      addresses.every((entry) => allowAddress(entry.address))
+    );
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Wait before the single throttle retry, from a `Retry-After` header.
  * Only a delay we can understand is honored: delta-seconds, or an exact
  * IMF-fixdate (the form `Date#toUTCString` produces; the round-trip check
@@ -483,6 +535,8 @@ type HopOutcome =
   | { kind: 'body'; bytes: Uint8Array; contentType: string | undefined }
   | {
       kind: 'head';
+      // Any final status: the probe decides which non-2xx answers are fatal.
+      status: number;
       contentType: string | undefined;
       contentLength: string | undefined;
       contentEncoding: string | undefined;
@@ -711,19 +765,20 @@ function attemptPinnedRequest(
         });
         return;
       }
-      if (status < 200 || status >= 300) {
-        response.resume();
-        fail();
-        return;
-      }
       if (method === 'HEAD') {
         response.resume(); // a HEAD response has no body to read
         succeed({
           kind: 'head',
+          status,
           contentType: response.headers['content-type'],
           contentLength: response.headers['content-length'],
           contentEncoding: response.headers['content-encoding'],
         });
+        return;
+      }
+      if (status < 200 || status >= 300) {
+        response.resume();
+        fail();
         return;
       }
       consumeBody(
@@ -991,29 +1046,38 @@ function probedMimeType(contentType: string | undefined): string | undefined {
  * against the hostname, the redirect cap, the throttle rule and the
  * deadline. No body is read.
  *
- * A host-policy refusal (`isMediaPolicyRejection`) is thrown — the URL must
- * not be posted. Any other failure (DNS, connection, non-2xx, throttling,
- * timeout) is soft: the result is `{ size: -1 }` with no MIME type, so the
- * caller can attach the URL with unknown metadata.
+ * A host-policy refusal (`isMediaPolicyRejection`) is thrown, and so is a
+ * 404 or 410 (`FETCH_FAILED_ERROR`, as the image fetch reports it): the URL
+ * is gone and must not be posted. Any other failure (DNS, connection, other
+ * non-2xx such as a HEAD-refusing 403/405/501, throttling, timeout) is soft:
+ * the result is `{ size: -1 }` with no MIME type, so the caller can attach
+ * the URL with unknown metadata.
  */
 export async function probeGuardedMedia(
   canonicalUrl: string,
   options: GuardedProbeOptions
 ): Promise<MediaProbe> {
+  let outcome: FinalOutcome;
   try {
-    const { outcome } = await guardedRequest(canonicalUrl, 'HEAD', options);
-    if (outcome.kind !== 'head') {
-      return { size: -1 };
-    }
-    const mimeType = probedMimeType(outcome.contentType);
-    return {
-      ...(mimeType ? { mimeType } : {}),
-      size: probedSize(outcome.contentLength, outcome.contentEncoding),
-    };
+    ({ outcome } = await guardedRequest(canonicalUrl, 'HEAD', options));
   } catch (error) {
     if (isMediaPolicyRejection(error)) {
       throw error;
     }
     return { size: -1 };
   }
+  if (outcome.kind !== 'head') {
+    return { size: -1 };
+  }
+  if (outcome.status === 404 || outcome.status === 410) {
+    throw fetchFailed();
+  }
+  if (outcome.status < 200 || outcome.status >= 300) {
+    return { size: -1 };
+  }
+  const mimeType = probedMimeType(outcome.contentType);
+  return {
+    ...(mimeType ? { mimeType } : {}),
+    size: probedSize(outcome.contentLength, outcome.contentEncoding),
+  };
 }

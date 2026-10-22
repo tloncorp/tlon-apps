@@ -19,6 +19,7 @@ import {
   isAllowedAddress,
   isMediaPolicyRejection,
   isDeniedHostname,
+  isPublicHttpsUrl,
   probeGuardedMedia,
   strictPostableUrl,
   throttleWaitMs,
@@ -1587,9 +1588,24 @@ describe('probeGuardedMedia', () => {
     });
   });
 
+  it('refuses a 404 or 410 with the fetch error, as the image fetch does', async () => {
+    for (const status of [404, 410]) {
+      const server = await startServer((req, res) => {
+        res.writeHead(status, { 'content-length': '5' });
+        res.end();
+      });
+      const error = await probeGuardedMedia(
+        `http://${PINNED_HOST}:${server.port}/x`,
+        probeOptions(countingResolver())
+      ).catch((caught: unknown) => caught);
+      expect((error as Error).message).toBe(FETCH_FAILED_ERROR);
+      expect(isMediaPolicyRejection(error)).toBe(false);
+    }
+  });
+
   describe('other failures are soft: unknown metadata, no error', () => {
-    it('treats a 4xx/5xx answer as unknown', async () => {
-      for (const status of [403, 404, 500]) {
+    it('treats any other 4xx/5xx answer as unknown', async () => {
+      for (const status of [403, 405, 500, 501]) {
         const server = await startServer((req, res) => {
           res.writeHead(status, { 'content-length': '5' });
           res.end();
@@ -1712,5 +1728,150 @@ describe('redirects to a URL with embedded credentials', () => {
       '/start',
       '/start',
     ]);
+  });
+});
+
+describe('isPublicHttpsUrl', () => {
+  const resolvesTo =
+    (...addresses: string[]) =>
+    async (): Promise<ResolvedAddress[]> =>
+      addresses.map((address) => ({ address, family: 4 }));
+
+  it('passes a public https URL without making a request', async () => {
+    expect(
+      await isPublicHttpsUrl('https://example.com/a', {
+        deadlineMs: 1_000,
+        resolveHost: resolvesTo('93.184.216.34'),
+      })
+    ).toBe(true);
+  });
+
+  it.each([
+    ['http', 'http://example.com/'],
+    ['credentials', 'https://user:p@example.com/'],
+    ['a denied hostname', 'https://foo.localhost/'],
+    ['a loopback literal', 'https://127.0.0.1/'],
+    ['a private literal', 'https://10.0.0.1/'],
+  ])('refuses %s', async (_name, url) => {
+    expect(await isPublicHttpsUrl(url, { deadlineMs: 1_000 })).toBe(false);
+  });
+
+  it('refuses everything once the budget is spent, before any work', async () => {
+    let resolved = 0;
+    const resolveHost = async (): Promise<ResolvedAddress[]> => {
+      resolved += 1;
+      return [{ address: '93.184.216.34', family: 4 }];
+    };
+    for (const url of ['https://93.184.216.34/', 'https://example.com/']) {
+      for (const deadlineMs of [0, -5]) {
+        expect(await isPublicHttpsUrl(url, { deadlineMs, resolveHost })).toBe(
+          false
+        );
+      }
+    }
+    expect(resolved).toBe(0);
+  });
+
+  it('never throws: a throwing address policy is a refusal, literal or name', async () => {
+    const allowAddress = () => {
+      throw new Error('policy boom');
+    };
+    for (const url of ['https://93.184.216.34/', 'https://example.com/']) {
+      expect(
+        await isPublicHttpsUrl(url, {
+          deadlineMs: 1_000,
+          resolveHost: resolvesTo('93.184.216.34'),
+          allowAddress,
+        })
+      ).toBe(false);
+    }
+  });
+
+  it('judges a public IPv6 literal as written', async () => {
+    expect(
+      await isPublicHttpsUrl('https://[2606:4700:4700::1111]/', {
+        deadlineMs: 1_000,
+        resolveHost: async () => {
+          throw new Error('a literal is never resolved');
+        },
+      })
+    ).toBe(true);
+    expect(
+      await isPublicHttpsUrl('https://[::1]/', { deadlineMs: 1_000 })
+    ).toBe(false);
+  });
+
+  it('applies the hostname policy to a trailing-dot host', async () => {
+    const seen: string[] = [];
+    const resolveHost = async (host: string): Promise<ResolvedAddress[]> => {
+      seen.push(host);
+      return [{ address: '93.184.216.34', family: 4 }];
+    };
+    expect(
+      await isPublicHttpsUrl('https://example.com./', {
+        deadlineMs: 1_000,
+        resolveHost,
+      })
+    ).toBe(true);
+    for (const url of [
+      'https://localhost./',
+      'https://metadata.google.internal./',
+    ]) {
+      expect(
+        await isPublicHttpsUrl(url, { deadlineMs: 1_000, resolveHost })
+      ).toBe(false);
+    }
+    expect(seen).toEqual(['example.com.']);
+  });
+
+  it('resolves an IDN host by its punycode name and denies an IDN under a denied suffix', async () => {
+    const seen: string[] = [];
+    const resolveHost = async (host: string): Promise<ResolvedAddress[]> => {
+      seen.push(host);
+      return [{ address: '93.184.216.34', family: 4 }];
+    };
+    expect(
+      await isPublicHttpsUrl('https://bücher.example/', {
+        deadlineMs: 1_000,
+        resolveHost,
+      })
+    ).toBe(true);
+    expect(
+      await isPublicHttpsUrl('https://bücher.localhost/', {
+        deadlineMs: 1_000,
+        resolveHost,
+      })
+    ).toBe(false);
+    expect(seen).toEqual(['xn--bcher-kva.example']);
+  });
+
+  it('refuses a mixed A/AAAA answer with one private address', async () => {
+    expect(
+      await isPublicHttpsUrl('https://example.com/', {
+        deadlineMs: 1_000,
+        resolveHost: async () => [
+          { address: '93.184.216.34', family: 4 },
+          { address: 'fd00::1', family: 6 },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  it('refuses a hostname with any disallowed address, or none, or a failed resolve', async () => {
+    for (const resolveHost of [
+      resolvesTo('93.184.216.34', '192.168.1.1'),
+      resolvesTo(),
+      async () => {
+        throw new Error('ENOTFOUND');
+      },
+      () => new Promise<ResolvedAddress[]>(() => {}),
+    ]) {
+      expect(
+        await isPublicHttpsUrl('https://example.com/', {
+          deadlineMs: 20,
+          resolveHost,
+        })
+      ).toBe(false);
+    }
   });
 });

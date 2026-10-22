@@ -2,6 +2,8 @@ import React from 'react';
 import { ReactTestRenderer, act, create } from 'react-test-renderer';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { convertContent } from '@tloncorp/api/client/postContent';
+
 import { VideoPreview } from './VideoPreview';
 
 vi.mock('tamagui', () => ({
@@ -51,9 +53,22 @@ describe('VideoPreview dimensions', () => {
   it.each([
     ['missing', {}],
     ['partial', { width: 640 }],
-    ['zero', { width: 0, height: 360 }],
   ])('fills its container when dimensions are %s', async (_name, video) => {
     const { frame, media } = await render(video);
+    expect(frame.width).toBe('100%');
+    expect(frame.maxWidth).toBeUndefined();
+    expect(media.aspectRatio).toBe(1);
+  });
+
+  it('fills its container for a legacy story-image video with 0x0 dimensions', async () => {
+    // Markdown-built story images carry 0x0; convertContent must normalize
+    // them so the preview never sees a zero size.
+    const [block] = convertContent(
+      [{ block: { image: { src: SRC, alt: '', width: 0, height: 0 } } }],
+      null
+    );
+    if (block.type !== 'video') throw new Error('expected a video block');
+    const { frame, media } = await render(block.video);
     expect(frame.width).toBe('100%');
     expect(frame.maxWidth).toBeUndefined();
     expect(media.aspectRatio).toBe(1);

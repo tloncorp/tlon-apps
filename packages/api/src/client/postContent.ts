@@ -662,8 +662,8 @@ function convertBlock(block: ub.Block): BlockData {
           video: {
             src: block.image.src,
             alt: block.image.alt,
-            width: block.image.width,
-            height: block.image.height,
+            // Story images built from markdown carry 0x0 when unmeasured.
+            ...knownVideoDimensions(block.image.width, block.image.height),
           },
         };
       } else {

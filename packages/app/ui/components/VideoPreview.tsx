@@ -119,13 +119,11 @@ export function VideoPreview({
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const durationLabel = makePrettyDurationFromSeconds(video.duration);
+  // convertContent sets both dimensions (each positive) or neither.
   const knownSize =
-    video.width != null &&
-    video.height != null &&
-    video.width > 0 &&
-    video.height > 0
-      ? { width: video.width, height: video.height }
-      : null;
+    video.width == null || video.height == null
+      ? null
+      : { width: video.width, height: video.height };
   const aspectRatio = knownSize ? knownSize.width / knownSize.height : 1;
   const constrainedSize = resolveConstrainedVideoSize({
     maxWidth,
