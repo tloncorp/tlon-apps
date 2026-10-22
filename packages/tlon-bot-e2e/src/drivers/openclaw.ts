@@ -318,6 +318,10 @@ export const openclawDriver: BotDriver = {
         OPENCLAW_WORKSPACE_API_TARBALL: '1',
         // Same double opt-in for the workspace-built tlon CLI binary.
         OPENCLAW_WORKSPACE_SKILL_BIN: '1',
+        OPENCLAW_TEST_CODE_MODE:
+          seed.capabilityPartition?.capabilities.includes('code_mode')
+            ? '1'
+            : '0',
         TLON_MAX_CONSECUTIVE_BOT_RESPONSES: maxConsecutiveBotResponses,
         TLON_NUDGE_TICK_INTERVAL_MS: '5000',
         // The fake-ship SSE stream emits no idle heartbeats, so a detached

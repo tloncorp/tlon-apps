@@ -9,6 +9,7 @@ import type {
 export type DriverName = 'hermes' | 'openclaw';
 
 export type RuntimeCapability =
+  | 'code_mode'
   | 'cron'
   | 'image_search'
   | 'upload_storage'

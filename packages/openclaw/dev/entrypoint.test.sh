@@ -380,6 +380,15 @@ if [ -n "$BRAVE_API_KEY" ]; then
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi
 
+# Code Mode is engaged the way hosted bots get it: tools.codeMode stays unset
+# ("auto"), and the model's catalog entry prefers it, as gpt-6-sol's does.
+if [ "$OPENCLAW_TEST_CODE_MODE" = "1" ]; then
+  echo "==> Patching config: scripted model prefers Code Mode..."
+  jq '.models.providers["custom-proxy"].models[0].compat = {"codeMode": "preferred"}' \
+    "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
+    && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
+fi
+
 telemetry_enabled="${TLON_TELEMETRY_ENABLED:-${TLON_POSTHOG_ENABLED:-}}"
 telemetry_api_key="${TLON_TELEMETRY_API_KEY:-${TLON_POSTHOG_API_KEY:-}}"
 telemetry_host="${TLON_TELEMETRY_HOST:-${TLON_POSTHOG_HOST:-}}"
