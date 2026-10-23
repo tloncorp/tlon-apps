@@ -202,6 +202,7 @@ export function InviteSystemContactsScreen(props: Props) {
       // Letter headings over a few people each, like the members list.
       compactSections={displayContacts.length > letterHeadingsFrom}
       onBackPressed={() => props.navigation.goBack()}
+      showsBackOnWideWindows
       search={{
         value: query,
         onChangeText: setQuery,
