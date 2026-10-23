@@ -280,7 +280,8 @@ export async function renderRefLines(
 }
 
 // Everything a reader might treat as a line break: the Unicode mandatory
-// breaks plus Python's `str.splitlines` set (hermes reads this in Python).
+// breaks plus the extra separators some line readers, such as Python's
+// `str.splitlines()`, split on.
 const LINE_BREAK_RE = /\r\n|[\n\r\v\f\x1c\x1d\x1e\u0085\u2028\u2029]/;
 
 // Per-line prefixes, not a bare indent: structural records are themselves
@@ -423,8 +424,9 @@ export async function renderPostListLines(
  * One lossless NDJSON record (parsed story, or the original value verbatim) —
  * deliberately no `getTextContent` and no URL-fidelity rewrite.
  */
-// JSON.stringify leaves these legal-in-JSON separators literal; a
-// splitlines()-style reader would fragment the record. Escaping is lossless.
+// JSON.stringify leaves these legal-in-JSON separators literal, and some line
+// readers, such as Python's `str.splitlines()`, split on them, fragmenting the
+// record. Escaping is lossless.
 const JSON_LINE_SEPARATOR_RE = /[\u0085\u2028\u2029]/g;
 
 export function renderPostJsonLine(post: Post): string {
