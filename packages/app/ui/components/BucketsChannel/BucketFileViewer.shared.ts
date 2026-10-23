@@ -658,18 +658,19 @@ export function getBucketPreviewKind({
   }
   if (
     normalizedMimeType.startsWith('audio/') ||
-    [
-      'mp3',
-      'm4a',
-      'aac',
-      'wav',
-      'ogg',
-      'oga',
-      'opus',
-      'flac',
-      'aiff',
-      'aif',
-    ].includes(extension ?? '')
+    (typeDefersToName &&
+      [
+        'mp3',
+        'm4a',
+        'aac',
+        'wav',
+        'ogg',
+        'oga',
+        'opus',
+        'flac',
+        'aiff',
+        'aif',
+      ].includes(extension ?? ''))
   ) {
     return 'audio';
   }

@@ -76,11 +76,15 @@ export function NowPlayingProvider({
   const mediaItemRef = useRef<MediaItem | null>(null);
   const isPlayingRef = useRef(false);
   const replaceGenRef = useRef(0);
+  const cancelReplaceRef = useRef<(() => void) | null>(null);
   const playbackGenRef = useRef(0);
 
   const ctxValue = useMemo(
     () => ({
       replace(nowPlaying: MediaItem | null) {
+        // Settle superseded loads even if the native player emits no more events.
+        cancelReplaceRef.current?.();
+        cancelReplaceRef.current = null;
         playbackGenRef.current += 1;
         const gen = ++replaceGenRef.current;
         const hadPreviousSource = mediaItemRef.current != null;
@@ -110,6 +114,8 @@ export function NowPlayingProvider({
         // the source swaps out:
         const cleanups: (() => void)[] = [];
         const out = new Promise<void>((resolve, reject) => {
+          cancelReplaceRef.current = () =>
+            reject(new Error('Audio source replaced before loading completed'));
           // Set up a timeout in case we don't get our expo-audio event
           let timedOut = false;
           const timeout = setTimeout(() => {
@@ -153,6 +159,7 @@ export function NowPlayingProvider({
           cleanups.push(() => unsub.remove());
         }).finally(() => {
           cleanups.forEach((fn) => fn());
+          if (replaceGenRef.current === gen) cancelReplaceRef.current = null;
         });
 
         // this shouldn't be necessary, but on web, `replace()` is implemented

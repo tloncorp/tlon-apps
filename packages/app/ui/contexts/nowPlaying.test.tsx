@@ -105,9 +105,12 @@ it('cancels a pending shared load when clearing the source for another player', 
   const { playback, tree } = render();
   const loaded = playback.replace({ url: 'https://files.test/memo.mp3' });
   const result = loaded.catch((error: Error) => error.message);
+  const settled = vi.fn();
+  void result.then(settled);
 
+  await act(async () => playback.replace(null));
+  const settledWithoutNativeEvent = settled.mock.calls.length;
   await act(async () => {
-    await playback.replace(null);
     // A late status from the old native source cannot revive the request.
     emit({ isLoaded: true, playing: false, currentTime: 0, duration: 30 });
     expect(await result).toBe('Audio source replaced before loading completed');
@@ -116,6 +119,7 @@ it('cancels a pending shared load when clearing the source for another player', 
   expect(playback.nowPlaying).toBeNull();
   expect(mocks.player.play).not.toHaveBeenCalled();
   act(() => tree.unmount());
+  expect(settledWithoutNativeEvent).toBe(1);
 });
 
 it.each(['mode', 'activate'] as const)(
@@ -156,9 +160,10 @@ it('does not activate playback when there is no shared source', async () => {
   act(() => tree.unmount());
 });
 
-it.each([false, true])(
-  'reloads a memo on tap after a Bucket handoff without native reset events (playing: %s)',
-  async (playing) => {
+it.each(['paused', 'playing', 'loading'] as const)(
+  'reloads a %s memo on tap after a Bucket handoff without native reset events',
+  async (state) => {
+    const playing = state === 'playing';
     const url = 'https://files.test/memo.mp3';
     let playback!: NowPlayingValue;
     let controller!: ReturnType<typeof useNowPlayingController>;
@@ -179,14 +184,19 @@ it.each([false, true])(
         </NowPlayingProvider>
       );
     });
-    await act(async () => {
-      const loaded = playback.replace({ url });
-      emit({ isLoaded: true, playing, currentTime: 4, duration: 30 });
-      await loaded;
-      emit({ isLoaded: true, playing, currentTime: 4, duration: 30 });
-    });
-    expect(controller.isThisSourceLoaded).toBe(true);
-    expect(controller.status).toBe(playing ? 'playing' : 'paused');
+    if (state === 'loading') {
+      act(() => controller.togglePlayback());
+      expect(controller.status).toBe('loading');
+    } else {
+      await act(async () => {
+        const loaded = playback.replace({ url });
+        emit({ isLoaded: true, playing, currentTime: 4, duration: 30 });
+        await loaded;
+        emit({ isLoaded: true, playing, currentTime: 4, duration: 30 });
+      });
+      expect(controller.isThisSourceLoaded).toBe(true);
+      expect(controller.status).toBe(state);
+    }
 
     // Bucket audio hands off in this order. On Android neither an already
     // paused player nor replace({}) has to emit a playback status update.
