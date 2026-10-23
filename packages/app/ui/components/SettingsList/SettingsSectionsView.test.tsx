@@ -161,6 +161,21 @@ describe('SettingsSectionsView', () => {
     expect(onChange).toHaveBeenCalledWith('0');
   });
 
+  it('lets a row with only a menu be long-pressed', () => {
+    const onCopy = vi.fn();
+    const row: SettingsRowModel = {
+      key: 'row',
+      title: 'A short description',
+      contextActions: [{ key: 'copy', title: 'Copy', onPress: onCopy }],
+      testID: 'Description',
+    };
+    expect(elementsWithTestID(row, 'Description')).toEqual(['Pressable']);
+    const pressable = render(row).findByType('Pressable' as never);
+    expect(pressable.props.onPress).toBeUndefined();
+    pressable.props.onLongPress();
+    expect(onCopy).toHaveBeenCalled();
+  });
+
   it('turns a row’s own button off with the row', () => {
     const onPress = vi.fn();
     const row: SettingsRowModel = {

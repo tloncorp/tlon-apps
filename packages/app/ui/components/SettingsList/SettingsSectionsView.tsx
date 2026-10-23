@@ -79,10 +79,12 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
     !row.action &&
     !isChoice &&
     (row.accessory ?? 'chevron') === 'chevron';
-  // A row with nothing to open has no pressable wrapper to carry its test ID:
-  // a toggle's goes on the switch, a picker's on its select, any other row's
-  // on the row itself.
-  const unwrappedTestID = row.onPress ? undefined : row.testID;
+  // A row is pressed to open something or to open its menu (a short
+  // description has only Copy). One that is neither has no wrapper to carry
+  // its test ID: a toggle's goes on the switch, a picker's on its select, any
+  // other row's on the row itself.
+  const pressable = Boolean(row.onPress || row.contextActions?.length);
+  const unwrappedTestID = pressable ? undefined : row.testID;
   const content = (
     <ListItem
       opacity={row.disabled ? 0.6 : 1}
@@ -172,7 +174,7 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
     </ListItem>
   );
 
-  if (!row.onPress) {
+  if (!pressable) {
     return content;
   }
 
