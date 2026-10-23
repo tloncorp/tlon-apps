@@ -489,7 +489,39 @@ export function redactTlonCommand(command: string): string {
     // Keep only the operation: arguments can carry a signed viewer capability.
     return `browser ${normalized[subIdx + 1].toLowerCase()} [REDACTED]`;
   }
-  return redactedCredential ? tokens.join(' ') : command;
+  const redactedInvite = redactGroupsJoinInvites(tokens);
+  return redactedCredential || redactedInvite ? tokens.join(' ') : command;
+}
+
+/** Redact every `--invite` value of `groups join` in place. */
+function redactGroupsJoinInvites(tokens: string[]): boolean {
+  // An invite link is a reusable capability to join a private group. Like the
+  // browser branch, `--self` and a malformed invite count do not shield it.
+  const normalized = normalizeTlonCommandArgs(
+    tokens.filter((arg) => arg !== SELF_FLAG)
+  ).args;
+  const subIdx = findTlonSubcommandIndex(normalized);
+  if (
+    normalized[subIdx]?.toLowerCase() !== 'groups' ||
+    normalized[subIdx + 1]?.toLowerCase() !== 'join'
+  ) {
+    return false;
+  }
+  let redacted = false;
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].startsWith('--invite=')) {
+      tokens[index] = '--invite=[REDACTED]';
+      redacted = true;
+    } else if (
+      tokens[index] === '--invite' &&
+      hasCredentialValue(tokens, index)
+    ) {
+      index += 1;
+      tokens[index] = '[REDACTED]';
+      redacted = true;
+    }
+  }
+  return redacted;
 }
 
 export type BlockedTlonOperation = {
@@ -713,6 +745,7 @@ function isSearchQueryHelpLiteral(rest: string[]): boolean {
  * | -------------------------------------------- | ------------------------------------------------------------------------ |
  * | contacts, channels, hooks, groups            | `<op>` is a help token, or the arguments are exactly `<op> <help>`       |
  * | groups invite-link                           | as groups, or any help token after `invite-link`                         |
+ * | groups join --invite                         | as groups, or any help token after `join` when an `--invite` is present  |
  * | activity, browser, settings, upload          | any help token                                                           |
  * | buckets, notes, expose                       | `<op>` is a help token, or any help token after `<op>`                   |
  * | posts                                        | as buckets, except inside `send`/`reply`/`edit` message text (content)   |
@@ -740,7 +773,12 @@ export function isTlonHelpInvocation(commandArgs: string[]): boolean {
       return (
         operationHelp ||
         exactOperationHelp ||
-        (rest[0] === 'invite-link' && anyHelpToken(rest.slice(1)))
+        (rest[0] === 'invite-link' && anyHelpToken(rest.slice(1))) ||
+        (rest[0] === 'join' &&
+          rest
+            .slice(1)
+            .some((arg) => arg === '--invite' || arg.startsWith('--invite=')) &&
+          anyHelpToken(rest.slice(1)))
       );
     case 'activity':
     case 'browser':
@@ -843,12 +881,46 @@ function ownerIdentityOrError(
 // token. Everything else acts as the bot or as the credentials it was given.
 const LEGACY_OWNER_OPERATIONS = new Set([
   'groups invite-link',
+  'groups join',
   'notes note-publish',
   'notes note-unpublish',
   'activity mute',
   'activity unmute',
   'activity volume',
   'activity mark-read',
+]);
+
+/**
+ * Legacy owner operations that act as the owner in one form only. A plain
+ * `groups join <flag>` joins as the bot; redeeming an invite link with
+ * `--invite` joins the person the link was shared with. Only exactly one
+ * well-formed `--invite` (the CLI's own rules) routes to the owner; anything
+ * else runs as written, so the CLI reports its usage error.
+ */
+const LEGACY_OWNER_FORMS = new Map<string, (operands: string[]) => boolean>([
+  [
+    'groups join',
+    (operands) => {
+      let invites = 0;
+      for (let i = 0; i < operands.length; i++) {
+        const arg = operands[i];
+        let value: string | undefined;
+        if (arg === '--invite') {
+          value = operands[i + 1];
+          i += 1;
+        } else if (arg.startsWith('--invite=')) {
+          value = arg.slice('--invite='.length);
+        } else {
+          continue;
+        }
+        if (value === undefined || value.startsWith('-') || !value.trim()) {
+          return false;
+        }
+        invites += 1;
+      }
+      return invites === 1;
+    },
+  ],
 ]);
 
 /**
@@ -859,11 +931,11 @@ const LEGACY_OWNER_OPERATIONS = new Set([
  * each, where its options start (index into `[family, operation, …]`) and
  * which of them take the next token as a value, mirroring the CLI's parse:
  *
- * - The legacy operations take no value options, and their parsers consume a
- *   `--self` token anywhere as the flag (`activity volume --self <target>
- *   <level>` is valid), so every token after the operation is an option
- *   position; none of their positionals (a flag, nest, id, target or level)
- *   can be a literal `--self`.
+ * - The legacy operations other than groups join (below) take no value
+ *   options, and their parsers consume a `--self` token anywhere as the flag
+ *   (`activity volume --self <target> <level>` is valid), so every token
+ *   after the operation is an option position; none of their positionals (a
+ *   flag, nest, id, target or level) can be a literal `--self`.
  * - create-owned: the title at 2, then `--admin`, `--owner` and
  *   `--description` with values (getCreateOwnedAdmin in tlon-skill).
  * - channels create, groups add-channel: the group at 2 and the title at 3,
@@ -881,10 +953,12 @@ const SELF_OPTION_POSITIONS = new Map<
     optionalPositional?: boolean;
   }
 >([
-  ...[...LEGACY_OWNER_OPERATIONS].map(
-    (operation) =>
-      [operation, { start: 2, valueOptions: NO_VALUE_OPTIONS }] as const
-  ),
+  ...[...LEGACY_OWNER_OPERATIONS]
+    .filter((operation) => operation !== 'groups join')
+    .map(
+      (operation) =>
+        [operation, { start: 2, valueOptions: NO_VALUE_OPTIONS }] as const
+    ),
   [
     'groups create-owned',
     {
@@ -941,8 +1015,10 @@ function resolveLegacyActingIdentity(
   deps: Pick<TlonToolExecutorDeps, 'ownerShip' | 'env' | 'fileExists'>
 ): TlonActingIdentity | { error: string } {
   const operation = `${commandArgs[0]?.toLowerCase() ?? ''} ${commandArgs[1]?.toLowerCase() ?? ''}`;
+  const form = LEGACY_OWNER_FORMS.get(operation);
   if (
     !LEGACY_OWNER_OPERATIONS.has(operation) ||
+    (form && !form(commandArgs.slice(2))) ||
     selfRequested ||
     hasCredentialFlag ||
     anyHelpToken(commandArgs)
@@ -1785,7 +1861,7 @@ export type TlonToolExecutorDeps = {
 export function formatTlonIdentityGuidance(ownerDefault: boolean): string {
   return ownerDefault
     ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. When run as the owner, posts send|reply|forward and dms send|reply post in the owner\'s name and look exactly like something the owner typed (--bot adds only a Bot tag); your own voice is the message tool. Before sending in the owner\'s name, confirm with the owner unless their instruction was explicit ("tell ~x I\'m late" is explicit; "handle this" is not). A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings, browser and hooks always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
-    : 'Commands act as this bot. groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
+    : 'Commands act as this bot. groups invite-link, groups join --invite, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
 }
 
 /** Which commands read or change different data under each identity. */

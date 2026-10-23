@@ -27,7 +27,9 @@
  * setActivitySupportsNotes, getGroups, getChannelPosts, readChannel,
  * activityAction, poke),
  * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
- * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent), and
+ * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent),
+ * `join-invite-runtime.ts` (getGroup, scry, subscribeOnce, joinGroup,
+ * requestGroupInvitation, poke, toClientGroupFromForeign), and
  * `channels.ts` (createChannel and the other channel-management calls).
  */
 import type { NotesV1Api } from '@tloncorp/api';
@@ -35,6 +37,9 @@ import type { NotesV1Api } from '@tloncorp/api';
 // intercept. It has no dependencies but fetch, so tests keep exercising the
 // real request and error mapping against a stubbed fetch.
 import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
+// The real foreign-group projection, by subpath: the invite flow's state
+// reads must be tested against the app's own invite and privacy rules.
+import { toClientGroupFromForeign as realToClientGroupFromForeign } from '@tloncorp/api/client/groupsApi';
 // The real content projection, by subpath: the posts runtime's read-back
 // comparison must be tested against what the api actually produces.
 import { toPostContent as realToPostContent } from '@tloncorp/api/client/postsApi';
@@ -237,7 +242,19 @@ export class MockBucketsActionFailed extends Error {
   }
 }
 
+export const mockedSubscribe = {
+  impl: async (..._args: unknown[]): Promise<unknown> => 0,
+};
+
 export const mockedSubscribeOnce = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedJoinGroup = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedRequestGroupInvitation = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
@@ -282,7 +299,7 @@ mock.module('@tloncorp/api', () => ({
   preSig: (ship: string) => (ship.startsWith('~') ? ship : `~${ship}`),
   scry: (...args: unknown[]) => mockedScry.impl(...args),
   poke: (...args: unknown[]) => mockedPoke.impl(...args),
-  subscribe: async () => 0,
+  subscribe: (...args: unknown[]) => mockedSubscribe.impl(...args),
   // dms.ts value imports (reaction helpers take injected deps in tests, so
   // these defaults are load-time placeholders, never assertion targets)
   addReaction: async () => undefined,
@@ -338,6 +355,11 @@ mock.module('@tloncorp/api', () => ({
   }),
   enableGroup: (...args: unknown[]) => mockedEnableGroup.impl(...args),
   BadResponseError: MockBadResponseError,
+  // join-invite runtime value imports
+  joinGroup: (...args: unknown[]) => mockedJoinGroup.impl(...args),
+  requestGroupInvitation: (...args: unknown[]) =>
+    mockedRequestGroupInvitation.impl(...args),
+  toClientGroupFromForeign: realToClientGroupFromForeign,
   // activity runtime value imports (formatter tests call the pure helpers
   // directly, so these are load-time placeholders)
   getInitialActivity: async () => ({ events: [], relevantUnreads: {} }),
