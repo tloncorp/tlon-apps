@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 import { View } from 'react-native';
@@ -20,6 +21,8 @@ import {
 } from './ManageChannelsShared';
 
 type Order = { sectionId: string; title: string; channelIds: string[] }[];
+
+const logger = createDevLogger('ManageChannelsScreenView', false);
 
 /**
  * The group's channels in its native list. Sort shows drag handles for
@@ -48,7 +51,7 @@ export function ManageChannelsScreenView({
   });
   const { isEditMode, setIsEditMode } = state;
   // Repairs a channel listed in two sections, as the other platforms do.
-  useChannelOrdering({
+  const { duplicateChannelIds } = useChannelOrdering({
     groupNavSectionsWithChannels,
     updateGroupNavigation,
     onDuplicatesDetected: useDuplicateMembershipRepair(group?.id),
@@ -65,7 +68,16 @@ export function ManageChannelsScreenView({
   );
 
   const save = useCallback(
-    (next: Order) =>
+    (next: Order) => {
+      // Until that repair lands, the order isn't the backend's, so saving it
+      // would settle the channel in whichever section came first.
+      if (duplicateChannelIds.length > 0) {
+        logger.warn(
+          'skipping reorder save: duplicate channel memberships detected',
+          { duplicateChannelIds }
+        );
+        return;
+      }
       updateGroupNavigation(
         next.map((section, sectionIndex) => ({
           sectionId: section.sectionId,
@@ -75,8 +87,9 @@ export function ManageChannelsScreenView({
             channelIndex,
           })),
         }))
-      ),
-    [updateGroupNavigation]
+      );
+    },
+    [duplicateChannelIds, updateGroupNavigation]
   );
 
   // A move in the list's own terms: the rows' old positions, and the
@@ -161,7 +174,11 @@ export function ManageChannelsScreenView({
             : undefined
           : (navSection.title ?? undefined),
         titleMenu,
-        onMove: (from, to) => moveWithin(sectionIndex, from, to),
+        // An empty section's only row is its placeholder, which can't move.
+        onMove:
+          navSection.channels.length > 0
+            ? (from, to) => moveWithin(sectionIndex, from, to)
+            : undefined,
         rows:
           navSection.channels.length === 0
             ? [{ key: 'empty', title: 'No channels yet', disabled: true }]
