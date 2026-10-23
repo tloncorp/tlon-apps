@@ -17,9 +17,15 @@ env:
     appId: ${MAESTRO_APP_ID}
     permissions:
       contacts: allow
+# A second launch on a fresh ship opens the web-app promo over the tabs, a
+# moment after mount.
 - extendedWaitUntil:
-    visible: '^(Tab Bar|Workspaces|Activity|Settings|Bot)$'
-    timeout: 15000
+    visible: '^Tlon Messenger is on the web$'
+    timeout: 10000
+    optional: true
+- tapOn:
+    text: '^Not now$'
+    optional: true
 - runFlow: ../reliability/subflows/contacts-screen.yaml
 - scrollUntilVisible:
     element: ${'^Book' + MAESTRO_RUN_TAG + ' Reader$'}
