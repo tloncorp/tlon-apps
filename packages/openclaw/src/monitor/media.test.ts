@@ -504,3 +504,60 @@ describe('guard invocation', () => {
     );
   });
 });
+
+describe('media download logging', () => {
+  const url = 'https://storage.example.com/private/photo.png?sig=abc123';
+  let mediaDir: string;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    mediaDir = await mkdtemp(path.join(tmpdir(), 'tlon-media-log-test-'));
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await rm(mediaDir, { recursive: true, force: true });
+  });
+
+  function loggedText(): string {
+    return JSON.stringify([
+      vi.mocked(console.warn).mock.calls,
+      vi.mocked(console.error).mock.calls,
+    ]);
+  }
+
+  it('logs only the host when a download throws', async () => {
+    mockedFetchWithSsrFGuard.mockRejectedValue(
+      new TypeError(`fetch failed for ${url}`)
+    );
+
+    expect(await downloadMedia(url, mediaDir)).toBeNull();
+    const logged = loggedText();
+    expect(logged).toContain('storage.example.com');
+    expect(logged).toContain('TypeError');
+    expect(logged).not.toContain('/private/photo.png');
+    expect(logged).not.toContain('sig=abc123');
+  });
+
+  it('logs only the host on a failed status', async () => {
+    mockedFetchWithSsrFGuard.mockResolvedValue({
+      response: new Response('denied', { status: 403 }),
+      release: vi.fn().mockResolvedValue(undefined),
+    } as Awaited<ReturnType<typeof fetchWithSsrFGuard>>);
+
+    expect(await downloadMedia(url, mediaDir)).toBeNull();
+    const logged = loggedText();
+    expect(logged).toContain('403');
+    expect(logged).not.toContain('/private/photo.png');
+    expect(logged).not.toContain('sig=abc123');
+  });
+
+  it('does not log the contents of a non-http URL', async () => {
+    const dataUrl = 'data:image/png;base64,cHJpdmF0ZQ==';
+    expect(await downloadMedia(dataUrl, mediaDir)).toBeNull();
+    expect(mockedFetchWithSsrFGuard).not.toHaveBeenCalled();
+    expect(loggedText()).not.toContain('cHJpdmF0ZQ==');
+  });
+});

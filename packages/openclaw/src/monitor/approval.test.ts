@@ -1,6 +1,10 @@
 import { A2UI } from '@tloncorp/api';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
+import { TLON_PENDING_APPROVAL_LIMIT } from '../settings.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
   APPROVAL_TTL_MS,
@@ -11,6 +15,7 @@ import {
   RENOTIFY_COOLDOWN_MS,
   applyApprovalRequest,
   buildApprovalA2UIBlob,
+  createApprovalOverflowNotifier,
   buildPendingApprovalsA2UIBlob,
   buildPendingApprovalsResponse,
   createPendingApproval,
@@ -1068,6 +1073,7 @@ describe('applyApprovalRequest', () => {
       (approval: PendingApproval) => Promise<string | undefined>
     >(async () => '~zod/170.141.184.507');
     const persist = vi.fn(async () => {});
+    const notifyOverflow = vi.fn(async (_count: number) => {});
     const isShipBlocked = vi.fn(async () => options.blocked ?? false);
     const ctx: ApprovalQueueContext = {
       getPending: () => pending,
@@ -1077,6 +1083,8 @@ describe('applyApprovalRequest', () => {
       isShipBlocked,
       notify,
       persist,
+      notifyOverflow,
+      admissions: { inFlight: 0 },
       now: () => now,
       log: vi.fn(),
     };
@@ -1095,6 +1103,7 @@ describe('applyApprovalRequest', () => {
       ctx,
       notify,
       persist,
+      notifyOverflow,
       isShipBlocked,
       groupApproval,
       getPending: () => pending,
@@ -1464,6 +1473,134 @@ describe('applyApprovalRequest', () => {
     expect(h.getPending()).toEqual([]);
     expect(h.persist).not.toHaveBeenCalled();
   });
+
+  describe('pending limit', () => {
+    function fillPending(
+      h: ReturnType<typeof makeQueueHarness>,
+      count: number
+    ) {
+      h.setPending(
+        Array.from({ length: count }, (_, i) => ({
+          id: `d${i.toString(16)}`,
+          type: 'dm' as const,
+          requestingShip: `~ship-${i}`,
+          messagePreview: 'hi',
+          timestamp: h.now(),
+        }))
+      );
+    }
+
+    const dmFrom = (ship: string, now: number): PendingApproval => ({
+      id: `dnew${ship.length}`,
+      type: 'dm',
+      requestingShip: ship,
+      messagePreview: 'hello',
+      timestamp: now,
+    });
+
+    it('drops a new dm request at the limit without persisting or notifying', async () => {
+      const h = makeQueueHarness();
+      fillPending(h, TLON_PENDING_APPROVAL_LIMIT);
+
+      expect(await applyApprovalRequest(dmFrom('~new', h.now()), h.ctx)).toBe(
+        'overflow'
+      );
+      expect(h.getPending()).toHaveLength(TLON_PENDING_APPROVAL_LIMIT);
+      expect(h.notify).not.toHaveBeenCalled();
+      expect(h.persist).not.toHaveBeenCalled();
+      expect(h.notifyOverflow).toHaveBeenCalledWith(
+        TLON_PENDING_APPROVAL_LIMIT
+      );
+    });
+
+    it('drops a new group request at the limit', async () => {
+      const h = makeQueueHarness();
+      fillPending(h, TLON_PENDING_APPROVAL_LIMIT);
+
+      expect(await applyApprovalRequest(h.groupApproval(), h.ctx)).toBe(
+        'overflow'
+      );
+      expect(h.getPending()).toHaveLength(TLON_PENDING_APPROVAL_LIMIT);
+      expect(h.notify).not.toHaveBeenCalled();
+      expect(h.persist).not.toHaveBeenCalled();
+    });
+
+    it('still updates an existing request at the limit', async () => {
+      const h = makeQueueHarness();
+      fillPending(h, TLON_PENDING_APPROVAL_LIMIT);
+
+      expect(
+        await applyApprovalRequest(dmFrom('~ship-3', h.now()), h.ctx)
+      ).toBe('updated');
+      expect(h.notifyOverflow).not.toHaveBeenCalled();
+    });
+
+    it('admits exactly one of two concurrent requests at one below the limit', async () => {
+      const h = makeQueueHarness();
+      fillPending(h, TLON_PENDING_APPROVAL_LIMIT - 1);
+
+      const outcomes = await Promise.all([
+        applyApprovalRequest(dmFrom('~first', h.now()), h.ctx),
+        applyApprovalRequest(dmFrom('~second-ship', h.now()), h.ctx),
+      ]);
+
+      expect(outcomes.sort()).toEqual(['overflow', 'queued']);
+      expect(h.getPending()).toHaveLength(TLON_PENDING_APPROVAL_LIMIT);
+      expect(h.notify).toHaveBeenCalledTimes(1);
+      expect(h.ctx.admissions.inFlight).toBe(0);
+    });
+
+    it('holds a group slot when a snapshot drops the record mid-notify', async () => {
+      const h = makeQueueHarness();
+      fillPending(h, TLON_PENDING_APPROVAL_LIMIT - 1);
+      const persisted = h.getPending();
+      let resolveNotify!: (value: string | undefined) => void;
+      h.notify.mockImplementationOnce(
+        () =>
+          new Promise<string | undefined>((resolve) => {
+            resolveNotify = resolve;
+          })
+      );
+
+      const group = applyApprovalRequest(h.groupApproval(), h.ctx);
+      await flush();
+      // A settings snapshot restores the persisted list without the record.
+      h.setPending([...persisted]);
+      expect(await applyApprovalRequest(dmFrom('~late', h.now()), h.ctx)).toBe(
+        'overflow'
+      );
+      resolveNotify('~zod/170.141.184.507');
+
+      expect(await group).toBe('queued');
+      expect(h.getPending()).toHaveLength(TLON_PENDING_APPROVAL_LIMIT);
+      expect(h.ctx.admissions.inFlight).toBe(0);
+    });
+
+    it('releases the reserved slot when the owner notice throws', async () => {
+      const h = makeQueueHarness();
+      fillPending(h, TLON_PENDING_APPROVAL_LIMIT - 1);
+      h.notify.mockRejectedValueOnce(new Error('send failed'));
+
+      await expect(
+        applyApprovalRequest(dmFrom('~first', h.now()), h.ctx)
+      ).rejects.toThrow('send failed');
+      expect(h.ctx.admissions.inFlight).toBe(0);
+      expect(await applyApprovalRequest(dmFrom('~next', h.now()), h.ctx)).toBe(
+        'queued'
+      );
+    });
+
+    it('queues normally below the limit', async () => {
+      const h = makeQueueHarness();
+      fillPending(h, TLON_PENDING_APPROVAL_LIMIT - 1);
+
+      expect(await applyApprovalRequest(dmFrom('~new', h.now()), h.ctx)).toBe(
+        'queued'
+      );
+      expect(h.getPending()).toHaveLength(TLON_PENDING_APPROVAL_LIMIT);
+      expect(h.notifyOverflow).not.toHaveBeenCalled();
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1743,6 +1880,44 @@ describe('isDirectDmApproval', () => {
     ).toBe(true);
     expect(isDirectDmApproval({ type: 'group', requestingShip: '~zod' })).toBe(
       true
+    );
+  });
+});
+
+describe('createApprovalOverflowNotifier', () => {
+  it('sends at most one notice per window', async () => {
+    const send = vi.fn(async (_text: string) => undefined);
+    const notifyOverflow = createApprovalOverflowNotifier(send, 1_000);
+
+    await notifyOverflow(100, 0);
+    await notifyOverflow(100, 500);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0]).toContain('queue is full (100)');
+
+    await notifyOverflow(100, 1_000);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('holds the window after a failed send', async () => {
+    const send = vi.fn(async (_text: string) => {
+      throw new Error('send failed');
+    });
+    const notifyOverflow = createApprovalOverflowNotifier(send, 1_000);
+
+    await notifyOverflow(100, 0);
+    await notifyOverflow(100, 10);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+});
+
+// monitorTlonProvider is not unit-testable (see owner-tool-posts-wiring), so
+// the DM-invite caller is pinned at the source level.
+describe('DM invite overflow wiring', () => {
+  it('does not mark an overflowed DM invite as processed', () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const source = fs.readFileSync(path.resolve(here, './index.ts'), 'utf8');
+    expect(source).toMatch(
+      /const \{ outcome \} = await queueApprovalRequest\(approval\);\s*(?:\/\/[^\n]*\n\s*)*if \(outcome !== 'overflow'\) \{\s*processedDmInvites\.add\(ship\);/
     );
   });
 });
