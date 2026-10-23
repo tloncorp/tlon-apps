@@ -20,7 +20,12 @@ appId: com.google.android.contacts
 - tapOn: 'Last name'
 - inputText: ${CONTACT_LAST}
 - hideKeyboard
-- tapOn: '^Phone \(Mobile\)$'
+# Labelled "Phone (Mobile)" on newer Contacts builds and differently on older.
+- scrollUntilVisible:
+    element: '^Phone.*'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Phone.*'
 # The field opens holding the country prefix with the cursor before it.
 - eraseText
 - inputText: ${CONTACT_PHONE}
