@@ -7,6 +7,7 @@ import type {
   TlawnProviderConfigInfo,
 } from '@tloncorp/api';
 import { desig, preSig } from '@tloncorp/api/lib/urbit';
+import { isRosterWhole } from '@tloncorp/shared/logic';
 
 import {
   BASIC_DEFAULT_MODEL,
@@ -196,11 +197,7 @@ export const buildBotGroupMembershipResolver = ({
     if (!groupId) return;
     if (contactId === currentUserId) {
       userGroups.add(groupId);
-      if (
-        sessionStartTime !== undefined &&
-        syncedAt !== null &&
-        syncedAt > sessionStartTime
-      ) {
+      if (isRosterWhole(syncedAt, sessionStartTime)) {
         freshGroups.add(groupId);
       }
     }

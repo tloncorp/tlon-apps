@@ -444,6 +444,70 @@ export const getGroup = async (groupId: string) => {
   return toClientGroup(groupId, groupData, true);
 };
 
+// The group with init's light roster (ours plus 14 others) and a count of
+// every seat: syncs a big group without pulling its whole roster.
+export const getGroupLight = async (groupId: string) => {
+  const groupData = await scryRequest(groups.uiGroupLight)<ub.GroupV11>({
+    groupId,
+  });
+  return toClientGroup(groupId, groupData, true);
+};
+
+export interface GroupMembersPage {
+  // seats matching the request across every page
+  total: number;
+  members: db.ChatMember[];
+  // the ship to continue after, or null on the last page
+  next: string | null;
+}
+
+// One page of a group's roster in @p order, optionally only one role's
+// holders. `after` is the previous page's `next`.
+export const getGroupMembersPage = async ({
+  groupId,
+  limit,
+  after,
+  roleId,
+}: {
+  groupId: string;
+  limit: number;
+  after?: string | null;
+  roleId?: string;
+}): Promise<GroupMembersPage> => {
+  const page = await (roleId
+    ? after
+      ? scryRequest(groups.roleSeatsPageAfter)<ub.GroupSeatsPage>({
+          groupId,
+          roleId,
+          limit,
+          after,
+        })
+      : scryRequest(groups.roleSeatsPage)<ub.GroupSeatsPage>({
+          groupId,
+          roleId,
+          limit,
+        })
+    : after
+      ? scryRequest(groups.seatsPageAfter)<ub.GroupSeatsPage>({
+          groupId,
+          limit,
+          after,
+        })
+      : scryRequest(groups.seatsPage)<ub.GroupSeatsPage>({ groupId, limit }));
+  return {
+    total: page.total,
+    next: page.next,
+    members: page.seats.map(({ ship, roles, joined }) =>
+      toClientGroupMember({
+        groupId,
+        contactId: ship,
+        vessel: { sects: roles, joined },
+        status: 'joined',
+      })
+    ),
+  };
+};
+
 export const getGroups = async () => {
   const groupData = await scryRequest(groups.groups)<ub.GroupsV11>({});
   return toClientGroups(groupData, true);

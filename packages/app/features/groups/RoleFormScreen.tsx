@@ -1,7 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { generateSafeId } from '@tloncorp/shared/logic';
+import { generateSafeId, isRosterWhole } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { ConfirmDialog, useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -12,6 +13,11 @@ import {
   type SettingsSectionModel,
   SettingsListScreenView,
 } from '../../ui/components/SettingsList';
+import {
+  NO_MEMBER_EDITS,
+  applyMemberEdits,
+  editMembers,
+} from './roleMemberEdits';
 
 type AddRoleProps = NativeStackScreenProps<
   GroupSettingsStackParamList,
@@ -31,7 +37,11 @@ export function RoleFormScreen({ navigation, route }: Props) {
   const roleId = isEditMode
     ? (route.params as EditRoleProps['route']['params']).roleId
     : undefined;
-  const { groupRoles } = useGroupContext({ groupId: route.params.groupId });
+  // the same sync as the form's, so it doesn't also start a light one
+  const { groupRoles } = useGroupContext({
+    groupId: route.params.groupId,
+    wholeRoster: true,
+  });
   const role = isEditMode ? groupRoles.find((r) => r.id === roleId) : undefined;
 
   // The form starts from the role's values, so it waits for the role.
@@ -58,6 +68,7 @@ function RoleForm({
   const toast = useToast();
 
   const {
+    group,
     groupRoles,
     groupChannels,
     groupMembers,
@@ -66,8 +77,10 @@ function RoleForm({
     deleteGroupRole,
     addUserToRole,
     removeUserFromRole,
+    // a role's holders come from the stored roster, so load all of it
   } = useGroupContext({
     groupId,
+    wholeRoster: true,
   });
 
   const initialTitle = role?.title ?? '';
@@ -86,8 +99,23 @@ function RoleForm({
       .map((m) => m.contactId);
   }, [isEditMode, groupMembers, roleId]);
 
-  const [selectedMembers, setSelectedMembers] =
-    useState<string[]>(initialMembers);
+  // A big group's roster syncs whole only once role management opens, so
+  // holders can still be landing after this form mounts. A selection fixed
+  // at mount would drop every late arrival from the role on save, so only
+  // the user's own changes are kept, over whatever holders have loaded.
+  const [memberEdits, setMemberEdits] = useState(NO_MEMBER_EDITS);
+  const selectedMembers = useMemo(
+    () => applyMemberEdits(initialMembers, memberEdits),
+    [initialMembers, memberEdits]
+  );
+  // the picker's last reported selection; it reports after every toggle, so
+  // each report is diffed against the one before it
+  const pickerBaseline = useRef<string[]>([]);
+  const setSelectedMembers = useCallback((members: string[]) => {
+    const baseline = pickerBaseline.current;
+    pickerBaseline.current = members;
+    setMemberEdits((edits) => editMembers(edits, baseline, members));
+  }, []);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const pendingNavigationAction = useRef<any>(null);
 
@@ -100,7 +128,7 @@ function RoleForm({
     });
 
     return unsubscribe;
-  }, [navigation, route.params.selectedMembers]);
+  }, [navigation, route.params.selectedMembers, setSelectedMembers]);
 
   // Check if there are unsaved changes
   const hasMemberChanges = useMemo(() => {
@@ -245,13 +273,27 @@ function RoleForm({
     toast,
   ]);
 
+  // syncedAt outlives the session, but holders can change while we're away,
+  // so the roster is only whole once a sync this session has landed
+  const sessionStartTime = store.useCurrentSession()?.startTime;
+  const rosterIsWhole = isRosterWhole(group?.syncedAt, sessionStartTime);
+
   const disableDelete = useMemo(() => {
     if (!isEditMode || !role?.id) return true;
     return (
+      // until the whole roster lands, an unloaded holder can make a role in
+      // use look unused
+      !rosterIsWhole ||
       rolesWithMembers.some((r) => r.id === role.id) ||
       channelsCurrentlyInUse.length > 0
     );
-  }, [isEditMode, role?.id, rolesWithMembers, channelsCurrentlyInUse]);
+  }, [
+    isEditMode,
+    role?.id,
+    rosterIsWhole,
+    rolesWithMembers,
+    channelsCurrentlyInUse,
+  ]);
 
   const handleDelete = useCallback(async () => {
     if (!isEditMode || !role?.id || role.title === 'Admin') {
@@ -277,15 +319,21 @@ function RoleForm({
   }, [isEditMode, deleteGroupRole, role?.id, role?.title, navigation, toast]);
 
   const handleNavigateToMemberSelector = useCallback(() => {
+    pickerBaseline.current = selectedMembers;
     navigation.navigate('SelectRoleMembers', {
       groupId,
       roleId: isEditMode ? roleId : undefined,
       selectedMembers,
-      onSave: (members: string[]) => {
-        setSelectedMembers(members);
-      },
+      onSave: setSelectedMembers,
     });
-  }, [navigation, groupId, isEditMode, roleId, selectedMembers]);
+  }, [
+    navigation,
+    groupId,
+    isEditMode,
+    roleId,
+    selectedMembers,
+    setSelectedMembers,
+  ]);
 
   const isAdminRole = isEditMode && role?.title === 'Admin';
 
@@ -348,6 +396,9 @@ function RoleForm({
             key: 'members',
             title: 'Members',
             value: String(selectedMembers.length),
+            // the picker starts from the holders loaded when it opens, so it
+            // waits for the whole roster
+            disabled: !rosterIsWhole,
             onPress: handleNavigateToMemberSelector,
           },
         ],
@@ -382,6 +433,7 @@ function RoleForm({
     isAdminRole,
     isEditMode,
     isValid,
+    rosterIsWhole,
     selectedMembers.length,
     title,
     titleWasEdited,

@@ -1,6 +1,7 @@
 import {
   AUTOMATIONS_MIN_GROUPS_VERSION,
   BUCKETS_MIN_GROUPS_VERSION,
+  ROSTER_PAGES_MIN_GROUPS_VERSION,
   STEWARD_PROMPTS_MIN_GROUPS_VERSION,
   STEWARD_BOTS_MIN_GROUPS_VERSION,
 } from '../../lib/deskVersion';
@@ -19,6 +20,7 @@ export type ExternalDesk = 'base' | 'landscape';
 // to be off (not while it is still unresolved).
 export const GUARDS = {
   deskSupportsBuckets: { since: BUCKETS_MIN_GROUPS_VERSION },
+  deskServesRosterPages: { since: ROSTER_PAGES_MIN_GROUPS_VERSION },
   deskSupportsAutomations: { since: AUTOMATIONS_MIN_GROUPS_VERSION },
   deskSupportsStewardPrompts: { since: STEWARD_PROMPTS_MIN_GROUPS_VERSION },
   deskSupportsStewardBots: { since: STEWARD_BOTS_MIN_GROUPS_VERSION },

@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { useIsWindowNarrow } from '../../ui';
+import { getGroupMemberCount, useIsWindowNarrow } from '../../ui';
 import {
   SETTINGS_LIST_COLUMN_WIDTH,
   type SettingsSectionModel,
@@ -15,7 +15,11 @@ type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupRoles'>;
 
 export function GroupRolesScreen({ navigation, route }: Props) {
   const { groupId, fromChatDetails } = route.params;
-  const { groupRoles, groupMembers } = useGroupContext({ groupId });
+  // role counts come from the stored roster, so load all of it
+  const { group, groupRoles, groupMembers } = useGroupContext({
+    groupId,
+    wholeRoster: true,
+  });
   const isWindowNarrow = useIsWindowNarrow();
 
   const handleGoBack = useHandleGoBack(navigation, {
@@ -52,11 +56,9 @@ export function GroupRolesScreen({ navigation, route }: Props) {
             title: 'Members',
             subtitle: 'All workspace members',
             // Counts who has joined, as the info screen does; people only
-            // invited so far aren't members yet.
-            value: String(
-              groupMembers.filter((member) => member.status !== 'invited')
-                .length
-            ),
+            // invited so far aren't members yet. The seat count holds every
+            // seat, where the stored roster of a big group may be partial.
+            value: String(group ? getGroupMemberCount(group) : 0),
             onPress: () =>
               navigation.navigate('GroupMembers', { groupId, fromChatDetails }),
             testID: 'GroupRole-Members',
@@ -64,7 +66,7 @@ export function GroupRolesScreen({ navigation, route }: Props) {
         ],
       },
     ],
-    [fromChatDetails, groupId, groupMembers, groupRoles, navigation]
+    [fromChatDetails, group, groupId, groupMembers, groupRoles, navigation]
   );
 
   return (
