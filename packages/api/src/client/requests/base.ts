@@ -113,4 +113,11 @@ export const base = {
     path: '/apps/groups/~/metagrab/{url}',
     since: '12.2.0',
   },
+  dumbProxy: {
+    kind: 'raw',
+    agent: 'dumb-proxy',
+    method: 'GET',
+    path: '/apps/groups/~/proxy/{url}',
+    since: '12.2.0',
+  },
 } as const satisfies Record<string, Entry>;
