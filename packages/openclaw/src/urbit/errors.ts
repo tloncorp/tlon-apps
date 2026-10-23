@@ -1,3 +1,5 @@
+import { redactUrbitErrorText } from './redact.js';
+
 export type UrbitErrorCode =
   | 'invalid_url'
   | 'http_error'
@@ -35,9 +37,15 @@ export class UrbitHttpError extends UrbitError {
     operation: string;
     status: number;
     bodyText?: string;
+    /** The cookie sent with the request, masked in the body. */
+    cookie?: string;
     cause?: unknown;
   }) {
-    const suffix = params.bodyText ? ` - ${params.bodyText}` : '';
+    // The body can echo the request's session cookie.
+    const bodyText = params.bodyText
+      ? redactUrbitErrorText(params.bodyText, { cookie: params.cookie })
+      : undefined;
+    const suffix = bodyText ? ` - ${bodyText}` : '';
     super(
       'http_error',
       `${params.operation} failed: ${params.status}${suffix}`,
@@ -48,7 +56,7 @@ export class UrbitHttpError extends UrbitError {
     this.name = 'UrbitHttpError';
     this.status = params.status;
     this.operation = params.operation;
-    this.bodyText = params.bodyText;
+    this.bodyText = bodyText;
   }
 }
 

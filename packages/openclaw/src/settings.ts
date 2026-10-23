@@ -93,6 +93,8 @@ export type TlonSettingsState = {
 const SETTINGS_DESK = 'moltbot';
 const SETTINGS_BUCKET = 'tlon';
 export const APPROVAL_TTL_MS = 48 * 60 * 60 * 1000;
+/** Cap on new pending approvals; dedup updates to existing records still apply. */
+export const TLON_PENDING_APPROVAL_LIMIT = 100;
 /** Sentinel preview used for DM-invite approvals that have no message body yet. */
 export const DM_INVITE_PREVIEW = '(DM invite - no message yet)';
 

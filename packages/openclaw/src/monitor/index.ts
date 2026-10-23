@@ -217,6 +217,7 @@ import {
   applyApprovalRequest,
   buildApprovalA2UIBlob,
   buildPendingApprovalsResponse,
+  createApprovalOverflowNotifier,
   createPendingApproval,
   emojiToApprovalAction,
   findPendingApproval,
@@ -298,7 +299,7 @@ import {
   setLastNudgeStageShadow,
   setLastOwnerActivity,
 } from './nudge-state.js';
-import { recordSentTlonReply } from './output.js';
+import { recordSentTlonReply, sanitizeTlonReplyText } from './output.js';
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { buildProgressReplyOptions } from './progress-reply-options.js';
@@ -310,7 +311,10 @@ import {
   routeUpdateWillSkipByPin,
   tlonDeliveryContext,
 } from './session-routing.js';
-import { resolveSettingsMirrorSync } from './settings-sync.js';
+import {
+  resolveSettingsAllowlist,
+  resolveSettingsMirrorSync,
+} from './settings-sync.js';
 import { resolveTlonSourceReplyDeliveryMode } from './source-reply-delivery.js';
 import {
   parseSseStaleThresholdMs,
@@ -2247,6 +2251,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // the in-channel status (TLON-6451) must not claim the request was sent
     // when it wasn't, and must stay silent when a sender's block status
     // couldn't be confirmed.
+    const notifyApprovalOverflow = createApprovalOverflowNotifier((text) =>
+      sendOwnerNotification(text)
+    );
+    const approvalAdmissions = { inFlight: 0 };
+
     async function queueApprovalRequest(approval: PendingApproval): Promise<{
       outcome: ApprovalRequestOutcome;
       ownerNotified: boolean;
@@ -2279,6 +2288,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return notifId;
         },
         persist: savePendingApprovals,
+        notifyOverflow: (count) => notifyApprovalOverflow(count, Date.now()),
+        admissions: approvalAdmissions,
         now: () => Date.now(),
         log: runtime.log,
       });
@@ -3820,7 +3831,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                         deliver: async (payload: ReplyPayload, info) => {
                           contextLenses.setStatus(lens.lensId, 'delivering');
                           const blob = getReplyBlob(payload);
-                          let replyText = payload.text ?? '';
+                          let replyText = sanitizeTlonReplyText(
+                            payload.text ?? '',
+                            info.kind
+                          );
                           replyText = rewriteGenericTerminalErrorReply({
                             text: replyText,
                             isError: payload.isError === true,
@@ -5199,8 +5213,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 },
                 pendingApprovals.map((a) => a.id)
               );
-              await queueApprovalRequest(approval);
-              processedDmInvites.add(ship); // Mark as processed to avoid duplicate notifications
+              const { outcome } = await queueApprovalRequest(approval);
+              // An overflowed invite stays unprocessed so a later event retries it.
+              if (outcome !== 'overflow') {
+                processedDmInvites.add(ship); // Mark as processed to avoid duplicate notifications
+              }
             }
           }
           return;
@@ -6233,12 +6250,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
-        // Update DM allowlist — respect empty lists (don't fall back to file config)
-        if (newSettings.dmAllowlist !== undefined) {
-          effectiveDmAllowlist = newSettings.dmAllowlist;
-          runtime.log?.(
-            `[tlon] Settings: dmAllowlist updated to ${effectiveDmAllowlist.length > 0 ? effectiveDmAllowlist.join(', ') : '(empty)'}`
+        // Re-derived from every snapshot; see resolveSettingsAllowlist.
+        {
+          const next = resolveSettingsAllowlist(
+            newSettings.dmAllowlist,
+            account.dmAllowlist,
+            effectiveDmAllowlist
           );
+          effectiveDmAllowlist = next.allowlist;
+          if (next.changed) {
+            runtime.log?.(
+              `[tlon] Settings: dmAllowlist updated to ${effectiveDmAllowlist.length > 0 ? effectiveDmAllowlist.join(', ') : '(empty)'}`
+            );
+          }
         }
 
         // Update model signature setting
@@ -6274,15 +6298,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // would let a ship removed from the allowlist go on auto-joining groups
         // until the gateway restarted.
         {
-          const nextAllowlist =
-            newSettings.groupInviteAllowlist ?? account.groupInviteAllowlist;
-          const changed =
-            nextAllowlist.length !== effectiveGroupInviteAllowlist.length ||
-            nextAllowlist.some(
-              (ship, i) => ship !== effectiveGroupInviteAllowlist[i]
-            );
-          effectiveGroupInviteAllowlist = nextAllowlist;
-          if (changed) {
+          const next = resolveSettingsAllowlist(
+            newSettings.groupInviteAllowlist,
+            account.groupInviteAllowlist,
+            effectiveGroupInviteAllowlist
+          );
+          effectiveGroupInviteAllowlist = next.allowlist;
+          if (next.changed) {
             runtime.log?.(
               `[tlon] Settings: groupInviteAllowlist updated to ${effectiveGroupInviteAllowlist.length > 0 ? effectiveGroupInviteAllowlist.join(', ') : '(empty)'}`
             );
