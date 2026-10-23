@@ -4,6 +4,7 @@ import {
   DEFAULT_BUCKETS_CLI_TIMEOUT_MS,
   DEFAULT_TLON_CLI_TIMEOUT_MS,
   defaultTlonCliTimeoutMs,
+  resolveExecutionBotShip,
   runBrowserHandoffCommand,
   runTlonCommand,
 } from './tlon-command-runner.js';
@@ -77,6 +78,41 @@ describe('defaultTlonCliTimeoutMs', () => {
     expect(defaultTlonCliTimeoutMs(['messages', 'send'])).toBe(
       DEFAULT_TLON_CLI_TIMEOUT_MS
     );
+  });
+});
+
+describe('owner-prefixed timeouts', () => {
+  it('keeps the Buckets default behind the owner prefix', () => {
+    expect(defaultTlonCliTimeoutMs(['--ship', '~o', 'buckets', 'list'])).toBe(
+      DEFAULT_BUCKETS_CLI_TIMEOUT_MS
+    );
+    expect(defaultTlonCliTimeoutMs(['--ship', '~o', 'contacts', 'self'])).toBe(
+      DEFAULT_TLON_CLI_TIMEOUT_MS
+    );
+  });
+});
+
+describe('resolveExecutionBotShip', () => {
+  it.each([
+    [{ ship: 'bot' }, {}, '~bot'],
+    [undefined, { URBIT_SHIP: '~bot', URBIT_URL: 'https://b' }, '~bot'],
+    [undefined, { TLON_SHIP: 'bot', TLON_URL: 'https://b' }, '~bot'],
+  ])('names the runner ship (%o, %o)', (credentials, env, expected) => {
+    expect(resolveExecutionBotShip(credentials, env as NodeJS.ProcessEnv)).toBe(
+      expected
+    );
+  });
+
+  it.each([
+    { TLON_CONFIG_FILE: '/x.json', URBIT_SHIP: '~bot', URBIT_URL: 'https://b' },
+    { URBIT_COOKIE: 'urbauth=x', URBIT_SHIP: '~bot', URBIT_URL: 'https://b' },
+    { TLON_COOKIE: 'urbauth=x', TLON_SHIP: '~bot', TLON_URL: 'https://b' },
+    { URBIT_SHIP: '~bot' },
+    {},
+  ])('is unknown for %o', (env) => {
+    expect(
+      resolveExecutionBotShip(undefined, env as NodeJS.ProcessEnv)
+    ).toBeUndefined();
   });
 });
 

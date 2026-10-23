@@ -1,9 +1,19 @@
+import { browserWalletCard } from '@tloncorp/api/client/browserWallet';
 import { convertContent } from '@tloncorp/api/client/postContent';
 
 import { describe, expect, it } from 'bun:test';
 
 import type { PostSendInput, PostsApi } from './posts';
-import { type BrowserDeps, run } from './browser';
+import { type BrowserDeps, run as runCommand } from './browser';
+
+function run(args: string[], deps: BrowserDeps) {
+  return runCommand(
+    ['handoff', 'approve-login'].includes(args[0])
+      ? [...args, '--service-result']
+      : args,
+    deps
+  );
+}
 
 function makeDeps(ownerShip = '~owner') {
   const stdout: string[] = [];
@@ -19,8 +29,14 @@ function makeDeps(ownerShip = '~owner') {
     },
     sendReply: async () => {},
     getChannelPosts: async () => ({ posts: [] }),
+    getPostWithReplies: async () => {
+      throw new Error('not used by browser handoff');
+    },
+    deleteReply: async () => {},
+    setOrder: async () => {},
   };
   const deps: BrowserDeps = {
+    browserWalletCard,
     stdout: (text) => stdout.push(text),
     stderr: (text) => stderr.push(text),
     authenticate: async () => {},
@@ -33,6 +49,23 @@ function makeDeps(ownerShip = '~owner') {
 }
 
 describe('browser handoff', () => {
+  it.each(['handoff', 'approve-login'])(
+    'refuses %s without service-managed result delivery',
+    async (command) => {
+      const context = makeDeps();
+      expect(
+        await runCommand(
+          [command, 'https://browser-session.tlon.network/s/payload.signature'],
+          context.deps
+        )
+      ).toBe(1);
+      expect(context.sent).toEqual([]);
+      expect(context.stderr.join('')).toContain(
+        'requires service result delivery'
+      );
+    }
+  );
+
   it.each([
     { args: ['--help'] },
     { args: ['handoff', '--help'] },
@@ -45,9 +78,9 @@ describe('browser handoff', () => {
       const help = context.stdout.join('');
       expect(help).toContain('Tlon tool: browser handoff <session_id>');
       expect(help).toContain('--fields <JSON array>');
-      expect(help).toContain('Omit --fields for automatic discovery');
+      expect(help).toContain('Both secure-entry commands require --fields');
       expect(help).toContain(String.raw`Owner\u0027s email address`);
-      expect(help).toContain('sess_ handle from browser_session_create');
+      expect(help).toContain('session ID from browser_session_create');
       expect(help).not.toContain('<signed-viewer-url>');
       expect(help).not.toContain('https://');
       expect(context.sent).toEqual([]);
@@ -73,14 +106,47 @@ describe('browser handoff', () => {
     context.deps.authenticate = async () => {
       authenticated = true;
     };
-    expect(
-      await run(['handoff', 'sess_MHKz9dQ1TjqLmA7vXpR2bw'], context.deps)
-    ).toBe(1);
+    expect(await run(['handoff', 'calm-blue-fox'], context.deps)).toBe(1);
     expect(context.stderr.join('')).toContain(
       'Tlon tool: browser handoff <session_id>'
     );
     expect(authenticated).toBe(false);
     expect(context.sent).toEqual([]);
+  });
+
+  it('sends a saved-login approval card with the requested account and no credential fields', async () => {
+    const context = makeDeps();
+    const choice = { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 3 };
+    expect(
+      await run(
+        [
+          'approve-login',
+          'https://browser-session.tlon.network/s/payload.signature',
+          '--record',
+          JSON.stringify(choice),
+        ],
+        context.deps
+      )
+    ).toBe(0);
+    const [entry] = JSON.parse(context.sent[0].blob!);
+    const components = entry.messages[1].updateComponents.components;
+    expect(
+      components.find((component: { id: string }) => component.id === 'title')
+        .text
+    ).toBe('Approve saved sign-in');
+    expect(
+      components.find(
+        (component: { id: string }) => component.id === 'open-form'
+      ).action.event.context.target.loginApproval
+    ).toEqual({ record: choice });
+    expect(JSON.stringify(context.sent[0])).not.toContain(
+      'The browser needs information'
+    );
+    expect(
+      JSON.stringify(
+        convertContent(context.sent[0].content, context.sent[0].blob)
+      )
+    ).toContain('loginApproval');
   });
 
   it.each([2048, 2049])(
@@ -160,6 +226,7 @@ describe('browser handoff', () => {
       storyMode: 'fallback',
     });
     const components = entry.messages[1].updateComponents.components;
+    expect(JSON.stringify(components)).toContain('browserSecureEntry');
     expect(components).not.toContainEqual(
       expect.objectContaining({ text: 'SECURE BROWSER HANDOFF' })
     );
@@ -252,7 +319,7 @@ describe('browser share', () => {
   });
   it.each([
     { args: ['share', 'https://attacker.example/s/payload.signature'] },
-    { args: ['share', 'sess_MHKz9dQ1TjqLmA7vXpR2bw'] },
+    { args: ['share', 'calm-blue-fox'] },
     {
       args: [
         'share',
@@ -264,5 +331,22 @@ describe('browser share', () => {
     const context = makeDeps();
     expect(await run([...args], context.deps)).toBe(1);
     expect(context.sent).toHaveLength(0);
+  });
+});
+
+describe('wallet card delivery', () => {
+  it('sends an opaque request to the configured owner without consent URLs', async () => {
+    const context = makeDeps('~ten');
+    const id = '11111111-1111-4111-8111-111111111111';
+    expect(await run(['wallet', id], context.deps)).toBe(0);
+    expect(context.sent).toHaveLength(1);
+    expect(context.sent[0].channelId).toBe('~ten');
+    const content = JSON.stringify(
+      convertContent(context.sent[0].content, context.sent[0].blob)
+    );
+    expect(content).toContain('browserWallet');
+    expect(content).toContain(id);
+    expect(content).not.toContain('https://');
+    expect(content).not.toContain('viewerUrl');
   });
 });

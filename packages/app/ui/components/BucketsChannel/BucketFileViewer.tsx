@@ -1,7 +1,8 @@
 import { FilePreview, Pressable, Text } from '@tloncorp/ui';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
+import { useIsElectron } from '../../../hooks/useIsElectron';
 import { ScreenHeader } from '../ScreenHeader';
 import { BucketAudioPreview } from './BucketAudioPreview';
 import { BucketFilePager } from './BucketFilePager';
@@ -9,10 +10,20 @@ import { BucketPreviewControls } from './BucketPreviewControls';
 import { BucketPreviewOpenButton } from './BucketPreviewOpenButton';
 import { BucketPreviewContent } from './BucketPreviewContent';
 import { BucketPreviewImage } from './BucketPreviewImage';
+import { BucketFileViewerScriptsBanner } from './BucketFileViewerScriptsBanner';
 import {
   BucketFileViewerItem,
   BucketFileNavigation,
+  type HtmlPreviewScripts,
+  bucketFileViewerHeading,
   getBucketPreviewKind,
+  htmlPreviewDocument,
+  htmlPreviewHasScripts,
+  htmlPreviewKey,
+  htmlPreviewReadable,
+  htmlPreviewSandboxes,
+  htmlPreviewShell,
+  releaseHtmlPreview,
 } from './BucketFileViewer.shared';
 
 export function BucketFileViewer({
@@ -37,6 +48,59 @@ export function BucketFileViewer({
   onRetry?: () => void;
 }) {
   const previewKind = getBucketPreviewKind(item);
+  const isElectron = Boolean(useIsElectron());
+  // Under Electron the frame runs no scripts, so the page's title is read as
+  // such a frame reads it.
+  const heading = bucketFileViewerHeading(item, { scripting: !isElectron });
+  const previewKey = useMemo(() => htmlPreviewKey(), []);
+  const previewNonce = useMemo(() => htmlPreviewKey(), []);
+  // A page's scripts run on web only once the reader asks, file by file: in a
+  // browser they share the app's thread, so a page whose script never
+  // returns would freeze the whole tab the moment it was opened. Until then
+  // only our link script runs (htmlPreviewHeldPolicy). Under Electron no
+  // script runs (htmlPreviewSandboxes).
+  const [scriptsRunFor, setScriptsRunFor] = useState<string>();
+  // A file the preview cannot read is not rendered: it gets the unsupported
+  // notice and its Open button (htmlPreviewReadable). The tree it read is let
+  // go once the viewer closes.
+  useEffect(() => releaseHtmlPreview, []);
+  const html =
+    previewKind === 'html' &&
+    item.textContent !== undefined &&
+    htmlPreviewReadable(item.textContent, { scripting: !isElectron })
+      ? item.textContent
+      : undefined;
+  const pageHasScripts = useMemo(
+    () => !isElectron && html !== undefined && htmlPreviewHasScripts(html),
+    [isElectron, html]
+  );
+  const fileId = item.uri ?? item.name;
+  const runScripts = !isElectron && pageHasScripts && scriptsRunFor === fileId;
+  // Offered only over a page on screen: not while it loads, nor over an error.
+  const offerScripts =
+    !isElectron &&
+    pageHasScripts &&
+    !runScripts &&
+    !loading &&
+    !error &&
+    Boolean(item.uri);
+  const scripts: HtmlPreviewScripts = isElectron
+    ? 'none'
+    : runScripts
+      ? 'all'
+      : 'ours';
+  const sandboxes = htmlPreviewSandboxes({ scripts });
+  const htmlDocument = useMemo(
+    () =>
+      html === undefined
+        ? undefined
+        : htmlPreviewDocument(
+            html,
+            previewKey,
+            scripts === 'ours' ? { scripts, nonce: previewNonce } : { scripts }
+          ),
+    [html, previewKey, previewNonce, scripts]
+  );
 
   return (
     <YStack flex={1} minHeight={0} backgroundColor="$background">
@@ -50,10 +114,15 @@ export function BucketFileViewer({
           />
         }
         showSubtitle
-        subtitle={item.sizeLabel ?? 'File'}
-        title={item.name}
+        subtitle={heading.subtitle}
+        title={heading.title}
         useHorizontalTitleLayout
       />
+      {offerScripts ? (
+        <BucketFileViewerScriptsBanner
+          onEnable={() => setScriptsRunFor(fileId)}
+        />
+      ) : null}
       <BucketFilePager
         navigation={navigation}
         retainActivePage={
@@ -122,6 +191,25 @@ export function BucketFileViewer({
                 </Pressable>
               ) : null}
             </YStack>
+          ) : htmlDocument !== undefined ? (
+            <iframe
+              referrerPolicy="no-referrer"
+              sandbox={sandboxes.shell}
+              srcDoc={htmlPreviewShell({
+                document: htmlDocument,
+                key: previewKey,
+                nonce: scripts === 'ours' ? previewNonce : undefined,
+                opener: { kind: 'window' },
+                sandbox: sandboxes.document,
+              })}
+              style={{
+                backgroundColor: 'white',
+                border: 0,
+                height: '100%',
+                width: '100%',
+              }}
+              title={item.name}
+            />
           ) : previewKind === 'text' && item.textContent !== undefined ? (
             <ScrollView flex={1}>
               <Text

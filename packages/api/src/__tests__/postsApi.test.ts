@@ -62,7 +62,7 @@ const browserHandoffEntry: A2UI.BlobEntry = {
                 context: {
                   target: {
                     type: 'screen',
-                    screen: 'browserCredentialHandoff',
+                    screen: 'browserSecureEntry',
                     viewerUrl:
                       'https://browser-session.tlon.network/s/private.signature',
                   },
@@ -110,12 +110,26 @@ test.each([
 test('does not let an invalid A2UI entry or escaped JSON bypass the handoff destination check', async () => {
   const blob = JSON.stringify([
     { ...browserHandoffEntry, version: 99 },
-  ]).replace('browserCredentialHandoff', '\\u0062rowserCredentialHandoff');
+  ]).replace('browserSecureEntry', '\\u0062rowserSecureEntry');
   await expect(
     sendPost({
       ...browserHandoffPost,
       channelId: 'chat/~zod/general',
       blob,
+    })
+  ).rejects.toThrow('one-to-one DM');
+  expect(pokeMock).not.toHaveBeenCalled();
+});
+
+test('keeps capabilities in unknown screen targets restricted to one-to-one DMs', async () => {
+  await expect(
+    sendPost({
+      ...browserHandoffPost,
+      channelId: 'chat/~zod/general',
+      blob: browserHandoffPost.blob!.replace(
+        'browserSecureEntry',
+        'unsupportedScreen'
+      ),
     })
   ).rejects.toThrow('one-to-one DM');
   expect(pokeMock).not.toHaveBeenCalled();
@@ -180,12 +194,17 @@ test('toPostData extracts authorId from BotProfile author', () => {
   const result = toPostData('chat/~zod/test', post);
   expect(result.authorId).toBe('~bot-test');
   expect(typeof result.authorId).toBe('string');
+  expect(result.botProfile).toEqual({
+    nickname: 'TestBot',
+    avatar: 'https://example.com/bot.png',
+  });
 });
 
 test('toPostData handles string author unchanged', () => {
   const post = makeBotPost('~zod');
   const result = toPostData('chat/~zod/test', post);
   expect(result.authorId).toBe('~zod');
+  expect(result.botProfile).toBeNull();
 });
 
 const planetBot: ub.BotProfile = {
@@ -295,6 +314,10 @@ test('toPostData extracts authorId from BotProfile on tombstone', () => {
   const result = toPostData('chat/~zod/test', tombstone);
   expect(result.authorId).toBe('~bot-test');
   expect(result.isDeleted).toBe(true);
+  expect(result.botProfile).toEqual({
+    nickname: 'TestBot',
+    avatar: 'https://example.com/bot.png',
+  });
 });
 
 test('toPostsData handles mix of bot and normal authors', () => {
@@ -333,6 +356,53 @@ test('toPostReplyData extracts authorId from BotProfile reply-essay author', () 
   );
   expect(result.authorId).toBe('~bot-test');
   expect(typeof result.authorId).toBe('string');
+  expect(result.botProfile).toEqual({
+    nickname: 'TestBot',
+    avatar: 'https://example.com/bot.png',
+  });
+});
+
+test('toPostReplyData leaves botProfile null for a string author', () => {
+  const reply: ub.Reply = {
+    seal: {
+      id: '170141184506535176367510061158978551808',
+      'parent-id': '170141184506535164684262900635183087616',
+      reacts: {},
+    },
+    'reply-essay': {
+      content: [{ inline: ['human reply'] }],
+      author: '~zod',
+      sent: 1701276293246,
+      blob: null,
+    },
+  };
+  const result = toPostReplyData(
+    'chat/~zod/test',
+    '170141184506535164684262900635183087616',
+    reply
+  );
+  expect(result.isBot).toBe(false);
+  expect(result.botProfile).toBeNull();
+});
+
+test('toPostReplyData keeps a bot tombstone profile', () => {
+  const tombstone: ub.PostTombstone = {
+    author: botAuthor,
+    id: '170141184506535176367510061158978551808',
+    'deleted-at': 1701276293246,
+    seq: 0,
+    type: 'tombstone',
+  };
+  const result = toPostReplyData(
+    'chat/~zod/test',
+    '170141184506535164684262900635183087616',
+    tombstone
+  );
+  expect(result.isDeleted).toBe(true);
+  expect(result.botProfile).toEqual({
+    nickname: 'TestBot',
+    avatar: 'https://example.com/bot.png',
+  });
 });
 
 const CHANNEL_ID = 'chat/~zod/test';
@@ -762,7 +832,7 @@ test('session sharing is a separate, valid card and cannot be posted to shared d
   );
   expect(A2UI.validateBlobEntry(card)).toBe(true);
   const blob = JSON.stringify([card]);
-  expect(blob).not.toContain('browserCredentialHandoff');
+  expect(blob).not.toContain('browserSecureEntry');
   for (const channelId of [
     'chat/~zod/general',
     'heap/~zod/gallery',

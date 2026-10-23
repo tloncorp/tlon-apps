@@ -4,6 +4,7 @@ import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
 import { BrowserCredentialHandoffProvider } from '../features/browser/BrowserCredentialHandoffProvider';
+import { BrowserWalletScreen } from '../features/browser/BrowserWalletScreen';
 import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
@@ -22,13 +23,12 @@ import { BotChannelRuleSettingsScreen } from '../features/settings/BotChannelRul
 import { BotChannelRulesScreen } from '../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
 import { BotModelSettingsScreen } from '../features/settings/BotModelSettingsScreen';
-import {
-  BotConnectionsScreen,
-  BotModelsScreen,
-} from '../features/settings/BotSettingsAreaScreens';
+import { BotModelsScreen } from '../features/settings/BotSettingsAreaScreens';
 import { BotOpenAISubscriptionScreen } from '../features/settings/BotOpenAISubscriptionScreen';
 import { BotIdentitySettingsScreen } from '../features/settings/BotIdentitySettingsScreen';
 import { BotPermissionsSettingsScreen } from '../features/settings/BotPermissionsSettingsScreen';
+import { BotPromptFileScreen } from '../features/settings/BotPromptFileScreen';
+import { BotPromptFilesScreen } from '../features/settings/BotPromptFilesScreen';
 import { BotProviderListSettingsScreen } from '../features/settings/BotProviderListSettingsScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../features/settings/BotShipListSettingsScreen';
@@ -131,6 +131,11 @@ function RootStackContent() {
       />
 
       {/* individual screens */}
+      <Root.Screen
+        name="BrowserWallet"
+        component={BrowserWalletScreen}
+        options={{ presentation: 'modal' }}
+      />
       <Root.Screen
         name="BrowserCredentialHandoff"
         component={BrowserCredentialHandoffScreen}
@@ -255,6 +260,16 @@ function RootStackContent() {
         options={nativeHeaderScreenOptions}
       />
       <Root.Screen
+        name="BotPromptFiles"
+        component={BotPromptFilesScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="BotPromptFile"
+        component={BotPromptFileScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
         name="BotProviderListSettings"
         component={BotProviderListSettingsScreen}
         options={nativeHeaderScreenOptions}
@@ -262,11 +277,6 @@ function RootStackContent() {
       <Root.Screen
         name="BotModels"
         component={BotModelsScreen}
-        options={nativeHeaderScreenOptions}
-      />
-      <Root.Screen
-        name="BotConnections"
-        component={BotConnectionsScreen}
         options={nativeHeaderScreenOptions}
       />
       <Root.Screen

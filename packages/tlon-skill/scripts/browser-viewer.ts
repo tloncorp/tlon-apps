@@ -1,5 +1,6 @@
 import {
   isTrustedBrowserViewerHost,
+  isBrowserViewerDevelopmentOrigin,
   MAX_BROWSER_VIEWER_URL_LENGTH,
 } from '@tloncorp/api/client/browserSession';
 
@@ -20,11 +21,15 @@ export function validateBrowserViewerUrl(raw: string): string {
   }
 
   if (
-    url.protocol !== 'https:' ||
+    (!isBrowserViewerDevelopmentOrigin(
+      url,
+      process.env.TLON_BROWSER_VIEWER_DEV_ORIGIN
+    ) &&
+      (url.protocol !== 'https:' ||
+        !isTrustedBrowserViewerHost(url.hostname))) ||
     url.username ||
     url.password ||
     url.hash ||
-    !isTrustedBrowserViewerHost(url.hostname) ||
     !/^\/s\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(url.pathname)
   ) {
     throw commandError(

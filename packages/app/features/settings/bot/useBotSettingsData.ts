@@ -88,6 +88,15 @@ export function useBotSettingsQueries() {
       query.state.data !== undefined ? false : RETRY_INTERVAL_MS,
   });
 
+  // Keep this ship-scoped value separate from account-wide provider keys.
+  // An unavailable browser endpoint must not disable unrelated bot settings.
+  const browserServiceQuery = useQuery({
+    queryKey: ['tlonbot', 'browser-service', ship],
+    queryFn: () => api.getTlawnBrowserService(ship),
+    enabled: Boolean(ship) && isFocused,
+    retry: false,
+  });
+
   const configQuery = useQuery({
     queryKey: ['tlonbot', 'settings', ship],
     queryFn: async () =>
@@ -155,19 +164,13 @@ export function useBotSettingsQueries() {
       getLLMAuthStatusRefetchInterval(query.state.data),
   });
 
-  const oauthProvidersQuery = useQuery({
-    queryKey: mcpProviderQueryKeys.providers,
-    queryFn: () => api.getTlawnOAuthProviders(),
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  });
-
   return {
     ship,
     hostingUserId,
     botReady,
     readyQuery,
     providerConfigQuery,
+    browserServiceQuery,
     providerConfig: providerConfigQuery.data ?? EMPTY_PROVIDER_CONFIG,
     configQuery,
     nicknameQuery,
@@ -176,7 +179,6 @@ export function useBotSettingsQueries() {
     moon,
     moonChannelsQuery,
     oauthStatusQuery,
-    oauthProvidersQuery,
     llmAuthStatusQuery,
   };
 }

@@ -66,8 +66,9 @@ const buttonVariantSchema = z.enum([
 ]);
 const screenNameSchema = z.enum([
   'botMcpSettings',
-  'browserCredentialHandoff',
+  'browserSecureEntry',
   'browserSession',
+  'browserWallet',
 ]);
 
 const nonEmptyString = (max?: number) => {
@@ -126,17 +127,38 @@ const botMcpSettingsNavigationTargetSchema = z.object({
   screen: z.literal('botMcpSettings'),
   providerId: targetIdSchema.optional(),
 });
+// Secure entry resumes through service results; the card target identifies that protocol.
 const browserCredentialHandoffNavigationTargetSchema = z.object({
   type: z.literal('screen'),
-  screen: z.literal('browserCredentialHandoff'),
+  screen: z.literal('browserSecureEntry'),
   viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
+  loginApproval: z
+    .object({
+      record: z
+        .object({
+          id: z.string().uuid(),
+          revision: z.number().int().positive(),
+        })
+        .strict()
+        .optional(),
+    })
+    .strict()
+    .optional(),
 });
 const browserSessionNavigationTargetSchema = z.object({
   type: z.literal('screen'),
   screen: z.literal('browserSession'),
   viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
 });
+const browserWalletNavigationTargetSchema = z
+  .object({
+    type: z.literal('screen'),
+    screen: z.literal('browserWallet'),
+    requestId: z.string().uuid(),
+  })
+  .strict();
 const screenNavigationTargetSchema = z.union([
+  browserWalletNavigationTargetSchema,
   browserSessionNavigationTargetSchema,
   botMcpSettingsNavigationTargetSchema,
   browserCredentialHandoffNavigationTargetSchema,

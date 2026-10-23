@@ -5,14 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 import type { BucketItem } from '../../ui';
+import { MAX_TEXT_PREVIEW_BYTES } from '../../ui/components/BucketsChannel/BucketFileViewer.shared';
 import { useBucketPreview } from './useBucketPreview';
 
 vi.mock('react-native', () => ({ Linking: { openURL: vi.fn() } }));
-vi.mock('../../ui', async () => ({
-  canPreviewAsText: (
-    await import('../../ui/components/BucketsChannel/BucketFileViewer.shared')
-  ).canPreviewAsText,
-}));
+vi.mock(
+  '../../ui',
+  () => import('../../ui/components/BucketsChannel/BucketFileViewer.shared')
+);
 
 setupReactTestEnvironment();
 afterEach(() => {
@@ -78,10 +78,7 @@ function render(readGrant = vi.fn(async (_id: number) => grant())) {
 
 describe('useBucketPreview session cache', () => {
   it('reuses the signed URL and fetched text without a loading state on return', async () => {
-    const fetchFile = vi.fn(async () => ({
-      ok: true,
-      text: async () => 'Saved notes',
-    }));
+    const fetchFile = vi.fn(async () => new Response('Saved notes'));
     vi.stubGlobal('fetch', fetchFile);
     const hook = render();
     await act(async () => hook.current.load(notes));
@@ -192,7 +189,7 @@ describe('useBucketPreview session cache', () => {
     const fetchFile = vi
       .fn()
       .mockRejectedValueOnce(new Error('Offline'))
-      .mockResolvedValue({ ok: true, text: async () => 'Recovered' });
+      .mockImplementation(async () => new Response('Recovered'));
     vi.stubGlobal('fetch', fetchFile);
     const hook = render();
     await act(async () => hook.current.load(notes));
@@ -349,3 +346,48 @@ describe('external-open ownership', () => {
     expect(hook.current.error).toBe('Open failed');
   });
 });
+
+it('reads and caches HTML using its declared encoding while paging', async () => {
+  const html = { ...notes, name: 'report.html', mimeType: 'text/html' };
+  const bytes = new Uint8Array([
+    ...new TextEncoder().encode('<meta charset="windows-1252"><p>caf'),
+    0xe9,
+  ]);
+  const fetchFile = vi.fn(async () => new Response(bytes));
+  vi.stubGlobal('fetch', fetchFile);
+  const hook = render();
+  await act(async () => hook.current.load(html));
+  expect(hook.current.item?.textContent).toBe(
+    '<meta charset="windows-1252"><p>café'
+  );
+  await act(async () => hook.current.load(photo));
+  await act(async () => hook.current.load(html));
+  expect(hook.current.item?.previewCached).toBe(true);
+  expect(hook.current.item?.textContent).toContain('café');
+  expect(fetchFile).toHaveBeenCalledOnce();
+  hook.unmount();
+});
+
+it.each(['notes.txt', 'report.html'])(
+  'does not cache an oversized %s response as preview text',
+  async (name) => {
+    const file = {
+      ...notes,
+      name,
+      mimeType: name.endsWith('.html') ? 'text/html' : 'text/plain',
+      size: 1,
+    };
+    const fetchFile = vi.fn(
+      async () => new Response('x'.repeat(MAX_TEXT_PREVIEW_BYTES + 1))
+    );
+    vi.stubGlobal('fetch', fetchFile);
+    const hook = render();
+    await act(async () => hook.current.load(file));
+    expect(hook.current.error).toBeNull();
+    expect(hook.current.loading).toBe(false);
+    expect(hook.current.item?.previewUri).toBeDefined();
+    expect(hook.current.item?.textContent).toBeUndefined();
+    expect(hook.current.getCached(file)?.textContent).toBeUndefined();
+    hook.unmount();
+  }
+);

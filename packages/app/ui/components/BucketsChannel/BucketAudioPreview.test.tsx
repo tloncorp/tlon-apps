@@ -7,7 +7,7 @@ import { setupReactTestEnvironment } from '../../../test/sheetTestUtils';
 import { BucketAudioPreview } from './BucketAudioPreview';
 
 vi.mock('react-native', () => ({ Linking: { openURL: vi.fn() } }));
-vi.mock('../../../ui', () => ({ canPreviewAsText: () => false }));
+vi.mock('../../../ui', () => ({ canPreviewFromText: () => false }));
 vi.mock('@tloncorp/ui', () => ({
   FilePreview: Object.assign(() => null, { fileExtensionFrom: () => 'MP3' }),
   Pressable: 'Pressable',

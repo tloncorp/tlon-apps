@@ -22,6 +22,8 @@ const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 // settings, storage and vitals are in %landscape (tloncorp/landscape 5193635,
 // desk/desk.bill). Both revs are the ones peru.yaml pins.
 const EXTERNAL_AGENTS: Record<string, 'base' | 'landscape'> = {
+  // Thread entries name the desk in their agent field.
+  base: 'base',
   hood: 'base',
   docket: 'landscape',
   settings: 'landscape',

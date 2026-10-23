@@ -515,6 +515,12 @@ export const botSettingsSummary = createStorageItem<BotSettingsSummary | null>({
   defaultValue: null,
 });
 
+/** Set once the owner has read the warning before their first prompt edit. */
+export const botPromptEditWarningSeen = createStorageItem<boolean>({
+  key: 'botPromptEditWarningSeen',
+  defaultValue: false,
+});
+
 export const nodeAccessCode = createStorageItem<string | null>({
   key: 'nodeAccessCode',
   defaultValue: null,

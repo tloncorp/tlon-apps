@@ -30,12 +30,6 @@ import {
   CHAT_REF_LIKE_MAX_WIDTH,
 } from '../../../constants';
 import { canUseBrowserHandoff } from '../../../features/browser/browserHandoffTrust';
-import {
-  BROWSER_HANDOFF_CONTINUATION,
-  getBrowserHandoffContinuationSelection,
-  isBrowserHandoffContinuationSelection,
-  sendBrowserHandoffContinuation,
-} from '../../../features/browser/browserHandoffContinuation';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { AGENT_SHIP_OVERRIDE } from '../../../lib/envVars';
@@ -229,6 +223,7 @@ export function StaticChatMessage({
     channelId: post.channelId,
     currentUserId,
     canUseAgentProviderControls,
+    agentShipOverride: AGENT_SHIP_OVERRIDE,
   });
 
   if (isNotice) {
@@ -275,7 +270,7 @@ export function StaticChatMessage({
         postIsFromOwnBot,
       });
       if (!groupId) {
-        throw new Error('The onboarding group is not available');
+        throw new Error('The onboarding workspace is not available');
       }
       return { groupId, draftInput: draftInputContext };
     },
@@ -293,7 +288,7 @@ export function StaticChatMessage({
       // caller hosts it — the same bar configureAgentProviders applies.
       const targetGroup = await db.getGroup({ id: groupId });
       if (!targetGroup?.currentUserIsHost) {
-        throw new Error('The onboarding group is not available');
+        throw new Error('The onboarding workspace is not available');
       }
       // The local channel table can lag behind a freshly furnished group.
       // Re-read and adopt the ship's notebook before creating one, while the
@@ -430,11 +425,11 @@ export function StaticChatMessage({
         draftInputContext.group?.id ??
         draftInputContext.channel.groupId;
       if (currentGroupId && currentGroupId !== groupId) {
-        throw new Error('The agent group is not available');
+        throw new Error('The agent workspace is not available');
       }
       const targetGroup = await db.getGroup({ id: groupId });
       if (!targetGroup?.currentUserIsHost) {
-        throw new Error('The agent group is not available');
+        throw new Error('The agent workspace is not available');
       }
       const uniqueProviderIds = [...new Set(providerIds)];
       const blob = appendToPostBlob(undefined, {
@@ -445,8 +440,8 @@ export function StaticChatMessage({
         providerIds: uniqueProviderIds,
       });
       const content = uniqueProviderIds.length
-        ? `Use ${uniqueProviderIds.join(', ')} for this group’s future entries.`
-        : 'Do not use connected services for this group’s future entries.';
+        ? `Use ${uniqueProviderIds.join(', ')} for this workspace’s future entries.`
+        : 'Do not use connected services for this workspace’s future entries.';
       await draftInputContext.sendPostFromDraft({
         channelId: draftInputContext.channel.id,
         content: [content],
@@ -461,41 +456,23 @@ export function StaticChatMessage({
   );
 
   const sendA2UIMessage = useCallback(
-    async (
-      text: string,
-      selection?: PostBlobDataEntryA2UISelection,
-      requireReady = false
-    ) => {
+    async (text: string, selection?: PostBlobDataEntryA2UISelection) => {
       if (!draftInputContext || draftInputContext.canStartDraft === false) {
-        if (requireReady) {
-          throw new Error('This channel is not ready to send messages');
-        }
         return;
       }
       const trimmed = text.trim();
       if (!trimmed) return;
-      const send = () =>
-        draftInputContext.sendPostFromDraft({
-          channelId: draftInputContext.channel.id,
-          content: [trimmed],
-          attachments: [],
-          blob: selection ? appendToPostBlob(undefined, selection) : undefined,
-          channelType: draftInputContext.channel.type,
-          replyToPostId: null,
-          isEdit: false,
-        });
-      if (selection && isBrowserHandoffContinuationSelection(post, selection)) {
-        await sendBrowserHandoffContinuation({
-          channelId: post.channelId,
-          authorId: currentUserId,
-          selection,
-          send,
-        });
-      } else {
-        await send();
-      }
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [trimmed],
+        attachments: [],
+        blob: selection ? appendToPostBlob(undefined, selection) : undefined,
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
     },
-    [draftInputContext, post, currentUserId]
+    [draftInputContext]
   );
 
   const handleA2UIAction = useCallback(
@@ -517,31 +494,11 @@ export function StaticChatMessage({
         return;
       }
       if (action.event.name === A2UI.action.navigate) {
-        const target = action.event.context.target;
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
           allowBrowserCredentialHandoff: allowBrowserHandoff,
           allowBrowserSession: allowBrowserHandoff,
-          onBrowserCredentialHandoffComplete:
-            target.type === 'screen' &&
-            target.screen === 'browserCredentialHandoff'
-              ? async () => {
-                  const continuation = getBrowserHandoffContinuationSelection(
-                    post,
-                    target.viewerUrl
-                  );
-                  if (!continuation) {
-                    throw new Error(
-                      'The originating browser handoff is no longer available.'
-                    );
-                  }
-                  await sendA2UIMessage(
-                    BROWSER_HANDOFF_CONTINUATION,
-                    continuation,
-                    true
-                  );
-                }
-              : undefined,
+          allowBrowserWallet: allowBrowserHandoff,
         });
         return;
       }
@@ -598,8 +555,9 @@ export function StaticChatMessage({
         const target = action.event.context.target;
         if (target.type !== 'screen') return true;
         if (
-          target.screen === 'browserCredentialHandoff' ||
-          target.screen === 'browserSession'
+          target.screen === 'browserSecureEntry' ||
+          target.screen === 'browserSession' ||
+          target.screen === 'browserWallet'
         ) {
           return allowBrowserHandoff;
         }

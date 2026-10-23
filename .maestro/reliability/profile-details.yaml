@@ -10,7 +10,7 @@ onFlowComplete:
       commands:
         - runFlow:
             when:
-              notVisible: '^Edit Profile$'
+              notVisible: '^Edit profile$'
             commands:
               - launchApp
               - runFlow: subflows/contacts-screen.yaml
@@ -43,13 +43,13 @@ onFlowComplete:
               - hideKeyboard
               - scrollUntilVisible:
                   element:
-                    text: '^Pinned groups$'
+                    text: '^Pinned workspaces$'
                   direction: DOWN
                   timeout: 5000
               - tapOn:
                   text: '.*'
                   below: '^Bio$'
-                  above: '^Pinned groups$'
+                  above: '^Pinned workspaces$'
               - eraseText: 300
               - runFlow:
                   when:
@@ -83,18 +83,18 @@ onFlowComplete:
 - hideKeyboard
 - scrollUntilVisible:
     element:
-      text: '^Pinned groups$'
+      text: '^Pinned workspaces$'
     direction: DOWN
     timeout: 5000
 - copyTextFrom:
     text: '.*'
     below: '^Bio$'
-    above: '^Pinned groups$'
+    above: '^Pinned workspaces$'
 - evalScript: "${output.originalBio = maestro.copiedText === 'About yourself' ? '' : maestro.copiedText}"
 - tapOn:
     text: '.*'
     below: '^Bio$'
-    above: '^Pinned groups$'
+    above: '^Pinned workspaces$'
     point: '95%,15%'
 - eraseText: 300
 - inputText: ${output.reliability.profileBio}

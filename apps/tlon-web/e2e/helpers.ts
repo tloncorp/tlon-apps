@@ -43,16 +43,18 @@ export async function createGroup(page: Page) {
   await waitForSessionStability(page);
 
   await page.getByTestId('CreateChatSheetTrigger').click();
-  await page.getByText('New group', { exact: true }).click();
+  await page.getByText('New custom workspace', { exact: true }).click();
 
-  // Select "Quick group" from the GroupTypeSelectionSheet
-  await expect(page.getByText('Quick group')).toBeVisible({ timeout: 5000 });
-  await page.getByText('Quick group').click();
+  // Select "Quick workspace" from the GroupTypeSelectionSheet
+  await expect(page.getByText('Quick workspace')).toBeVisible({
+    timeout: 5000,
+  });
+  await page.getByText('Quick workspace').click();
 
   await expect(page.getByText('Select contacts to invite')).toBeVisible({
     timeout: 5000,
   });
-  await page.getByText('Create group').click();
+  await page.getByText('Create workspace').click();
 
   try {
     // Wait briefly to see if we're automatically navigated to the group
@@ -72,9 +74,9 @@ export async function createGroup(page: Page) {
     });
 
     await expect(
-      page.getByTestId('GroupListItem-Untitled group-unpinned')
+      page.getByTestId('GroupListItem-Untitled workspace-unpinned')
     ).toBeVisible({ timeout: 10000 });
-    await page.getByTestId('GroupListItem-Untitled group-unpinned').click();
+    await page.getByTestId('GroupListItem-Untitled workspace-unpinned').click();
 
     // Verify we're in the group by checking for the General channel
     await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
@@ -94,28 +96,34 @@ export async function createGroupWithTemplate(
   await waitForSessionStability(page);
 
   await page.getByTestId('CreateChatSheetTrigger').click();
-  await page.getByText('New group', { exact: true }).click();
+  await page.getByText('New custom workspace', { exact: true }).click();
 
   // Wait for group type selection sheet
-  await expect(page.getByText('Create a group')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Create a workspace')).toBeVisible({
+    timeout: 5000,
+  });
 
   // Determine expected group title based on type
   let expectedGroupTitle: string;
 
   // Select the appropriate group type
   if (groupType === 'quick') {
-    await expect(page.getByText('Quick group')).toBeVisible({ timeout: 5000 });
-    await page.getByText('Quick group').click();
-    expectedGroupTitle = 'Untitled group'; // Quick groups have empty title
-  } else if (groupType === 'basic') {
-    await expect(page.getByText('Basic group')).toBeVisible({ timeout: 5000 });
-    await page.getByText('Basic group').click();
-
-    // Basic group requires title input
-    await expect(page.getByText('Name your group')).toBeVisible({
+    await expect(page.getByText('Quick workspace')).toBeVisible({
       timeout: 5000,
     });
-    await page.getByPlaceholder('Group name').fill('Basic Group');
+    await page.getByText('Quick workspace').click();
+    expectedGroupTitle = 'Untitled workspace'; // Quick groups have empty title
+  } else if (groupType === 'basic') {
+    await expect(page.getByText('Basic workspace')).toBeVisible({
+      timeout: 5000,
+    });
+    await page.getByText('Basic workspace').click();
+
+    // Basic group requires title input
+    await expect(page.getByText('Name your workspace')).toBeVisible({
+      timeout: 5000,
+    });
+    await page.getByPlaceholder('Workspace name').fill('Basic Group');
     await page.getByText('Next', { exact: true }).click();
 
     expectedGroupTitle = 'Basic Group';
@@ -130,7 +138,7 @@ export async function createGroupWithTemplate(
   await expect(page.getByText('Select contacts to invite')).toBeVisible({
     timeout: 5000,
   });
-  await page.getByText('Create group').click();
+  await page.getByText('Create workspace').click();
 
   // Wait for group creation to complete and navigate to the group. Single-
   // channel groups open their channel directly, while multi-channel groups
@@ -147,7 +155,7 @@ export async function createGroupWithTemplate(
   try {
     // Wait briefly to see if we're automatically navigated to the group
     await expect(groupDestination).toBeVisible({ timeout: 5000 });
-    // Template groups don't show "Welcome to your group!" message
+    // Template groups don't show "Welcome to your workspace!" message
     await page.waitForTimeout(1000);
   } catch {
     // If not automatically navigated, go to the group manually
@@ -175,7 +183,7 @@ export async function verifyGroupChannels(
 ) {
   // Navigate to group settings
   await openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
 
   // Navigate to Channels
   await page.getByTestId('GroupChannels').getByText('Channels').click();
@@ -259,7 +267,7 @@ export async function leaveGroup(page: Page, groupName: string) {
   if (await page.getByText(groupName).first().isVisible()) {
     await page.getByText(groupName).first().click();
     await openGroupSettings(page);
-    await page.waitForSelector('text=Group Info');
+    await page.waitForSelector('text=Workspace Info');
 
     // Set up dialog handler to accept the confirmation
     page.once('dialog', async (dialog) => {
@@ -269,7 +277,7 @@ export async function leaveGroup(page: Page, groupName: string) {
       await dialog.accept();
     });
 
-    await page.getByText('Leave group').click();
+    await page.getByText('Leave workspace').click();
   }
 }
 
@@ -326,7 +334,7 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
 
 /**
  * Navigates to a group from the Home screen using the stable testID pattern.
- * Groups created without an explicit name have testID 'GroupListItem-Untitled group-unpinned'
+ * Groups created without an explicit name have testID 'GroupListItem-Untitled workspace-unpinned'
  * regardless of their computed display name (which depends on members).
  */
 export async function navigateToGroupByTestId(
@@ -338,7 +346,7 @@ export async function navigateToGroupByTestId(
   } = {}
 ) {
   const { expectedDisplayName, pinned = false, timeout = 10000 } = options;
-  const testId = `GroupListItem-Untitled group-${pinned ? 'pinned' : 'unpinned'}`;
+  const testId = `GroupListItem-Untitled workspace-${pinned ? 'pinned' : 'unpinned'}`;
 
   // Navigate to Home screen first
   await page.getByTestId('HomeNavIcon').click();
@@ -373,7 +381,7 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
     ? page.getByTestId(/^GroupListItem-/).filter({ hasText: groupName })
     : null;
   const untitledInviteRow = page.getByTestId(
-    'GroupListItem-Untitled group-unpinned'
+    'GroupListItem-Untitled workspace-unpinned'
   );
 
   let inviteRow = untitledInviteRow.first();
@@ -396,7 +404,7 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
   await expect(acceptButton).toBeVisible({ timeout: 10000 });
   await acceptButton.click();
 
-  // A completed join closes the preview and returns to Home. "Go to group"
+  // A completed join closes the preview and returns to Home. "Go to workspace"
   // can appear during that transition, but clicking it races the sheet closing.
   // Wait for every non-terminal preview state to disappear instead.
   await expect(async () => {
@@ -405,7 +413,7 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
       page.getByText('Joining, please wait...', { exact: true })
     ).not.toBeVisible();
     await expect(
-      page.getByText('Go to group', { exact: true })
+      page.getByText('Go to workspace', { exact: true })
     ).not.toBeVisible();
     await expect(
       page.getByText('Joining failed', { exact: true })
@@ -429,8 +437,10 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
 }
 
 export async function rejectGroupInvite(page: Page) {
-  if (await page.getByText('Group invitation').isVisible({ timeout: 10000 })) {
-    await page.getByText('Group invitation').click();
+  if (
+    await page.getByText('Workspace invitation').isVisible({ timeout: 10000 })
+  ) {
+    await page.getByText('Workspace invitation').click();
   }
 
   // If there's a reject invitation button, click it
@@ -442,19 +452,23 @@ export async function rejectGroupInvite(page: Page) {
 export async function deleteGroup(page: Page, groupName?: string) {
   // Ensure session is stable before deleting group
   await waitForSessionStability(page);
-  await expect(page.getByTestId('GroupLeaveAction-Delete group')).toBeVisible({
+  await expect(
+    page.getByTestId('GroupLeaveAction-Delete workspace')
+  ).toBeVisible({
     timeout: 10000,
   });
 
-  await page.getByTestId('GroupLeaveAction-Delete group').click();
+  await page.getByTestId('GroupLeaveAction-Delete workspace').click();
   await expect(page.getByText('This action cannot be undone.')).toBeVisible({
     timeout: 10000,
   });
   await page
     .getByRole('dialog')
-    .getByText('Delete group', { exact: true })
+    .getByText('Delete workspace', { exact: true })
     .click();
-  await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible({
+  await expect(
+    page.getByText(groupName || 'Untitled workspace')
+  ).not.toBeVisible({
     timeout: 20000,
   });
 }
@@ -463,7 +477,7 @@ export async function openGroupSettings(page: Page) {
   // If we're already in settings, no action needed.
   if (
     await page
-      .getByText('Group info & settings')
+      .getByText('Workspace info & settings')
       .isVisible({ timeout: 1000 })
       .catch(() => false)
   ) {
@@ -473,7 +487,10 @@ export async function openGroupSettings(page: Page) {
   await openGroupOptionsSheet(page);
   const clicked = await clickFirstVisibleTestId(
     page,
-    ['GroupOptionsGroupInfoButton', 'ActionSheetAction-Group info & settings'],
+    [
+      'GroupOptionsGroupInfoButton',
+      'ActionSheetAction-Workspace info & settings',
+    ],
     3000
   );
 
@@ -484,14 +501,14 @@ export async function openGroupSettings(page: Page) {
   // Some layouts navigate directly to settings from the trigger.
   if (
     await page
-      .getByText('Group info & settings')
+      .getByText('Workspace info & settings')
       .isVisible({ timeout: 3000 })
       .catch(() => false)
   ) {
     return;
   }
 
-  const groupSettingsByText = page.getByText('Group info & settings', {
+  const groupSettingsByText = page.getByText('Workspace info & settings', {
     exact: true,
   });
   if (
@@ -501,7 +518,7 @@ export async function openGroupSettings(page: Page) {
     return;
   }
 
-  throw new Error('Could not find the "Group info & settings" action');
+  throw new Error('Could not find the "Workspace info & settings" action');
 }
 
 /**
@@ -509,10 +526,10 @@ export async function openGroupSettings(page: Page) {
  * Uses stable testIDs across multiple UI entry points.
  */
 export async function openInvitePeople(page: Page) {
-  // Some paths land on "Edit group info"; return to Group info first.
+  // Some paths land on "Edit workspace info"; return to Group info first.
   if (
     await page
-      .getByText('Edit group info')
+      .getByText('Edit workspace info')
       .isVisible({ timeout: 1000 })
       .catch(() => false)
   ) {
@@ -553,7 +570,7 @@ export async function setupMultiChannelGroup(
   secondChannelName = 'Second Channel'
 ) {
   await openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
   await page.getByTestId('GroupChannels').getByText('Channels').click();
   await expect(page.getByText('New', { exact: true })).toBeVisible({
     timeout: 5000,
@@ -576,7 +593,7 @@ export async function navigateToHomeAndVerifyGroup(
   await page.getByTestId('HomeNavIcon').click();
   if (await page.getByTestId('HomeSidebarHeader').isVisible()) {
     await expect(
-      page.getByTestId(`GroupListItem-Untitled group-${expectedStatus}`)
+      page.getByTestId(`GroupListItem-Untitled workspace-${expectedStatus}`)
     ).toBeVisible();
   }
 }
@@ -621,17 +638,17 @@ export async function waitForElementAndAct(
 }
 
 /**
- * Handles cleanup of existing "Untitled group" if present
+ * Handles cleanup of existing "Untitled workspace" if present
  */
 export async function cleanupExistingGroup(page: Page, groupName?: string) {
   if (
     await page
-      .getByText(groupName || 'Untitled group')
+      .getByText(groupName || 'Untitled workspace')
       .first()
       .isVisible()
   ) {
     await page
-      .getByText(groupName || 'Untitled group')
+      .getByText(groupName || 'Untitled workspace')
       .first()
       .click();
     await openGroupSettings(page);
@@ -673,7 +690,7 @@ export async function createRole(
   // Ensure session is stable before creating role
   await waitForSessionStability(page);
 
-  await page.getByText('New', { exact: true }).click();
+  await page.getByTestId('GroupRolesNewButton').click();
   await expect(page.getByText('Add role')).toBeVisible();
 
   await fillFormField(page, 'RoleTitleInput', title);
@@ -856,12 +873,12 @@ export async function forwardGroupReference(page: Page, channelName: string) {
   await waitForSessionStability(page);
 
   // Click the Forward button in group info
-  await page.getByText('Forward reference').click();
+  await page.getByTestId('GroupQuickAction-Forward reference').click();
 
   // Verify forward sheet opened
-  await expect(page.getByText('Forward group')).toBeVisible();
+  await expect(page.getByText('Forward workspace')).toBeVisible();
   const forwardDialog = page.getByRole('dialog').filter({
-    hasText: 'Forward group',
+    hasText: 'Forward workspace',
   });
 
   // Search for the channel
@@ -1108,58 +1125,40 @@ export async function deleteChannel(
     .click();
 }
 
+const accessLevelValues = {
+  'No access': '0',
+  'Can view': '1',
+  'Can post': '2',
+  'Can view and edit': '2',
+} as const;
+
+type AccessLevel = keyof typeof accessLevelValues;
+
 /**
- * Sets channel permissions for reader and writer roles
+ * Picks an access level on the channel permissions screen, for 'Everyone' or
+ * a role by its title. A role only has a choice while everyone has less than
+ * full access, so set Everyone first.
  */
-export async function setChannelPermissions(
+export async function setAccessLevel(
   page: Page,
-  readerRoles?: string[],
-  writerRoles?: string[],
-  keepMembers?: boolean
+  who: string,
+  level: AccessLevel
 ) {
-  if (readerRoles && readerRoles.length > 0) {
-    const privateToggle = page.getByTestId('PrivateChannelToggle');
-    const isEnabled = await privateToggle.getAttribute('aria-checked');
+  const picker = page.getByTestId(`AccessLevel-${who}`);
+  await expect(picker).toBeVisible();
+  await picker.selectOption(accessLevelValues[level]);
+  await expect(picker).toHaveValue(accessLevelValues[level]);
+}
 
-    if (isEnabled !== 'true') {
-      await privateToggle.click();
-      // Wait for Add roles button to appear after enabling private mode
-      await expect(page.getByText('Add roles')).toBeVisible();
-    }
-
-    await page.getByText('Add roles').click();
-    await expect(page.getByText('Select roles')).toBeVisible();
-
-    // Deselect Members if it's pre-selected and not in the requested roles
-    if (
-      !keepMembers &&
-      !readerRoles.some((r) => r.toLowerCase() === 'members')
-    ) {
-      const membersOption = page.getByTestId('RoleOption-Members');
-      if (await membersOption.isVisible({ timeout: 1000 })) {
-        await membersOption.click();
-      }
-    }
-
-    for (const role of readerRoles) {
-      if (role.toLowerCase() === 'admin') continue;
-      await page.getByTestId('RoleSearchInput').fill(role);
-      await page.getByText(role, { exact: true }).click();
-      await page.getByTestId('RoleSearchInput').fill('');
-    }
-    await page.getByTestId('RoleSelectionSaveButton').click();
-    // Wait for navigation back to Channel privacy screen
-    await expect(page.getByText('Channel permissions')).toBeVisible();
-  }
-
-  if (writerRoles && writerRoles.length > 0) {
-    for (const role of writerRoles) {
-      if (role.toLowerCase() === 'admin') continue;
-      const writeToggle = page.getByTestId(`WriteToggle-${role}`);
-      await expect(writeToggle).toBeVisible();
-      await writeToggle.click();
-    }
-  }
+/** Checks the access level picked for 'Everyone' or a role. */
+export async function expectAccessLevel(
+  page: Page,
+  who: string,
+  level: AccessLevel
+) {
+  await expect(page.getByTestId(`AccessLevel-${who}`)).toHaveValue(
+    accessLevelValues[level]
+  );
 }
 
 /**
@@ -1199,24 +1198,9 @@ export async function setGroupPrivacy(
 
   await page.getByText('Privacy').click();
 
-  await expect(page.getByText('Group privacy')).toBeVisible();
+  await expect(page.getByText('Workspace privacy')).toBeVisible();
 
-  if (privacy === 'private') {
-    await page
-      .getByTestId('GroupPrivacyScreen-RadioInput')
-      .getByText('Private', { exact: true })
-      .click();
-  } else if (privacy === 'secret') {
-    await page
-      .getByTestId('GroupPrivacyScreen-RadioInput')
-      .getByText('Secret', { exact: true })
-      .click();
-  } else {
-    await page
-      .getByTestId('GroupPrivacyScreen-RadioInput')
-      .getByText('Public', { exact: true })
-      .click();
-  }
+  await page.getByTestId(`GroupPrivacyOption-${privacy}`).click();
 
   // Wait for the privacy change to be processed
   await page.waitForTimeout(2000);
@@ -1225,7 +1209,7 @@ export async function setGroupPrivacy(
   await navigateBack(page);
 
   // Wait for navigation and verify we're back on group settings
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
 
   // Wait additional time for the privacy change to sync
   await page.waitForTimeout(1000);
@@ -1237,8 +1221,8 @@ export async function setGroupPrivacy(
 export async function setGroupNotifications(
   page: Page,
   level:
-    | 'All group activity'
-    | 'Group posts, mentions, and replies'
+    | 'All activity'
+    | 'Posts and mentions'
     | 'Mentions and replies'
     | 'Nothing'
 ) {
@@ -1247,9 +1231,9 @@ export async function setGroupNotifications(
 
   await page.getByTestId('GroupNotifications').click();
   await expect(
-    page.getByText('Group posts, mentions, and replies', { exact: true })
+    page.getByText('Workspace posts, mentions, and replies', { exact: true })
   ).toBeVisible();
-  await page.getByText(level).click();
+  await page.getByText(level, { exact: true }).click();
 }
 
 /**
@@ -1292,12 +1276,9 @@ export async function verifyElementCount(
   expectedCount: number
 ) {
   await page.waitForTimeout(500);
-  await expect(
-    page
-      .getByTestId(containerTestId)
-      .locator('div')
-      .filter({ hasText: expectedCount.toString() })
-  ).toBeVisible();
+  await expect(page.getByTestId(containerTestId)).toContainText(
+    expectedCount.toString()
+  );
 }
 
 /**
@@ -1327,7 +1308,7 @@ export async function openGroupCustomization(page: Page) {
   if (!clicked) {
     throw new Error('Could not find any visible group customization button');
   }
-  await expect(page.getByText('Edit group info')).toBeVisible();
+  await expect(page.getByText('Edit workspace info')).toBeVisible();
 }
 
 /**
@@ -1358,13 +1339,10 @@ export async function changeGroupDescription(page: Page, description: string) {
  * Attempts to change group icon (handles web file picker behavior)
  */
 export async function changeGroupIcon(page: Page, imagePath?: string) {
-  await expect(
-    page.getByText('Storage not configured', { exact: true })
-  ).toHaveCount(0);
-
-  const changeIconButton = page.getByText('Change icon image', { exact: true });
-  await expect(changeIconButton).toBeVisible({ timeout: 5000 });
-  await changeIconButton.click();
+  // On web, the icon opens the picker sheet.
+  const icon = page.getByTestId('ImageInputPreview');
+  await expect(icon).toBeVisible({ timeout: 5000 });
+  await icon.click();
 
   // Wait for the attachment dialog to appear
   await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });
@@ -2509,9 +2487,7 @@ export async function cleanupOwnProfile(page: Page) {
     }
 
     // Clear status
-    const statusInput = page.getByRole('textbox', {
-      name: 'Hanging out...',
-    });
+    const statusInput = page.getByTestId('ProfileStatusInput');
     if (await statusInput.isVisible({ timeout: 1000 }).catch(() => false)) {
       await statusInput.click();
       await statusInput.clear();
@@ -2519,15 +2495,18 @@ export async function cleanupOwnProfile(page: Page) {
     }
 
     // Clear bio
-    const bioInput = page.getByRole('textbox', { name: 'About yourself' });
+    const bioInput = page.getByTestId('ProfileBioInput');
     if (await bioInput.isVisible({ timeout: 1000 }).catch(() => false)) {
       await bioInput.click();
       await bioInput.clear();
       await bioInput.fill('');
     }
 
-    // Save changes
-    await page.getByText('Save').click();
+    // Save stays unavailable when the profile was already empty.
+    const saveButton = page.getByText('Save');
+    if (await saveButton.isEnabled()) {
+      await saveButton.click();
+    }
     await page.waitForTimeout(1000);
   }
   // Navigate back to home
@@ -2716,8 +2695,11 @@ export async function clearContactNickname(
     await page.getByTestId('ProfileNicknameInput').click();
     await page.getByTestId('ProfileNicknameInput').fill('');
 
-    // Save changes
-    await page.getByText('Save').click();
+    // Save stays unavailable when there was no nickname to clear.
+    const saveButton = page.getByText('Save');
+    if (await saveButton.isEnabled()) {
+      await saveButton.click();
+    }
     await page.waitForTimeout(1000);
 
     // Navigate back home

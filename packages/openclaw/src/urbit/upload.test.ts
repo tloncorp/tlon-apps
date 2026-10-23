@@ -1,10 +1,17 @@
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('openclaw/plugin-sdk/ssrf-runtime', () => ({
   fetchWithSsrFGuard: vi.fn(),
 }));
 
-vi.mock('openclaw/plugin-sdk/response-limit-runtime', () => ({
+vi.mock('openclaw/plugin-sdk/media-runtime', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('openclaw/plugin-sdk/media-runtime')
+  >()),
   readResponseWithLimit: vi.fn(),
 }));
 
@@ -139,7 +146,7 @@ describe('prepareOutboundMedia', () => {
     vi.clearAllMocks();
 
     const ssrf = await import('openclaw/plugin-sdk/ssrf-runtime');
-    const rlimit = await import('openclaw/plugin-sdk/response-limit-runtime');
+    const rlimit = await import('openclaw/plugin-sdk/media-runtime');
     const mime = await import('openclaw/plugin-sdk/media-mime');
     const api = await import('@tloncorp/api');
 
@@ -230,33 +237,121 @@ describe('prepareOutboundMedia', () => {
     });
   }
 
-  describe('local path rejection (no fetch attempted)', () => {
-    const localForms = [
-      '/pier/foo.png',
-      '///pier/foo.png',
-      './x.png',
-      '../x.png',
-      '.\\x.png',
-      '..\\x.png',
-      '~/x.png',
-      'C:\\x.png',
-      'C:/x.png',
-      'C:foo.png',
-      '\\foo.png',
-      '\\\\srv\\share\\x.png',
-      'file:///pier/foo.png',
-      'x:opaque',
-    ];
+  describe('local attachments', () => {
+    let root: string;
+    let file: string;
+    const image = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=',
+      'base64'
+    );
 
-    it.each(localForms)(
-      'throws LOCAL_MEDIA_ERROR for %s without fetching',
-      async (input) => {
-        await expect(prepareOutboundMedia(input)).rejects.toThrow(
-          'Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>`) and resend with the returned https URL.'
+    beforeEach(async () => {
+      vi.stubEnv('TLON_HOSTING', '1');
+      root = await mkdtemp(path.join(os.tmpdir(), 'tlon-media-'));
+      file = path.join(root, 'cat.png');
+      await writeFile(file, image);
+      mockExtensionForMime.mockReturnValue('.png');
+      mockUploadFile.mockResolvedValue({
+        url: 'https://storage.example.com/cat.png',
+      });
+    });
+
+    afterEach(async () => {
+      vi.unstubAllEnvs();
+      await rm(root, { recursive: true, force: true });
+    });
+
+    it.each(['', '0', 'false'])(
+      'requires an explicit hosting flag before uploading (%j)',
+      async (hosting) => {
+        vi.stubEnv('TLON_HOSTING', hosting);
+        await expect(
+          prepareOutboundMedia(file, { mediaLocalRoots: [root] })
+        ).rejects.toThrow('Local attachments require TLON_HOSTING=1');
+        expect(mockUploadFile).not.toHaveBeenCalled();
+      }
+    );
+
+    it('uploads from the default generated-media directory', async () => {
+      vi.stubEnv('OPENCLAW_STATE_DIR', root);
+      const generated = path.join(
+        root,
+        'media',
+        'tool-image-generation',
+        'cat.png'
+      );
+      await mkdir(path.dirname(generated), { recursive: true });
+      await writeFile(generated, image);
+      await expect(prepareOutboundMedia(generated)).resolves.toEqual({
+        url: 'https://storage.example.com/cat.png',
+        isImage: true,
+      });
+    });
+
+    it.each(['path', 'file URL', 'MEDIA path'])(
+      'uploads a generated image from an allowed %s',
+      async (form) => {
+        const input =
+          form === 'file URL'
+            ? pathToFileURL(file).href
+            : form === 'MEDIA path'
+              ? `MEDIA:${file}`
+              : file;
+        await expect(
+          prepareOutboundMedia(input, { mediaLocalRoots: [root] })
+        ).resolves.toEqual({
+          url: 'https://storage.example.com/cat.png',
+          isImage: true,
+        });
+        expect(mockUploadFile).toHaveBeenCalledWith(
+          expect.objectContaining({
+            contentType: 'image/png',
+            hostedDetection: 'assume-hosted',
+          })
         );
+        expect(
+          Buffer.from(await mockUploadFile.mock.calls[0][0].blob.arrayBuffer())
+        ).toEqual(image);
         expect(mockFetchGuard).not.toHaveBeenCalled();
       }
     );
+
+    it('rejects files outside the allowed roots before uploading', async () => {
+      await expect(
+        prepareOutboundMedia(file, {
+          mediaLocalRoots: [path.join(root, 'allowed')],
+        })
+      ).rejects.toThrow('Could not read local media');
+      expect(mockUploadFile).not.toHaveBeenCalled();
+    });
+
+    it('rejects symlinks outside the allowed roots before uploading', async () => {
+      const linkRoot = await mkdtemp(path.join(root, 'allowed-'));
+      const link = path.join(linkRoot, 'cat.png');
+      await symlink(file, link);
+      await expect(
+        prepareOutboundMedia(link, { mediaLocalRoots: [linkRoot] })
+      ).rejects.toThrow('Could not read local media');
+      expect(mockUploadFile).not.toHaveBeenCalled();
+    });
+
+    it('surfaces upload failures instead of returning a local path', async () => {
+      mockUploadFile.mockRejectedValue(
+        new Error('Memex upload request failed: 500')
+      );
+      await expect(
+        prepareOutboundMedia(file, { mediaLocalRoots: [root] })
+      ).rejects.toThrow('Memex upload request failed: 500');
+    });
+
+    it('rejects an upload result that cannot be posted', async () => {
+      mockUploadFile.mockResolvedValue({
+        url: 'http://storage.example.com/cat.png',
+      });
+      await expect(
+        prepareOutboundMedia(file, { mediaLocalRoots: [root] })
+      ).rejects.toThrow('Media upload did not return a public https URL');
+    });
   });
 
   describe('http rejection', () => {

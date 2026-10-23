@@ -55,7 +55,7 @@ vi.mock('react-native', () => ({
 }));
 vi.mock('react-native-webview', () => ({ WebView: 'WebView' }));
 vi.mock('../../../hooks/useWebview', () => ({ useWebView: () => ({}) }));
-vi.mock('../../../ui', () => ({ canPreviewAsText: () => false }));
+vi.mock('../../../ui', () => ({ canPreviewFromText: () => false }));
 vi.mock('@tloncorp/ui', () => ({
   FilePreview: Object.assign(() => null, { fileExtensionFrom: () => 'MP4' }),
   Pressable: 'Pressable',

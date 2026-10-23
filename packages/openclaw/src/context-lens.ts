@@ -68,6 +68,8 @@ export type ContextLensRetrySeed = {
   // Degraded provenance survives retry chains: a retry of a degraded run
   // seeds a new lens, but its threading metadata is still untrustworthy.
   degraded?: boolean;
+  // So does reaction provenance: a retried reaction is still not a command.
+  fromReaction?: boolean;
 };
 
 export type ContextLensSourceKind =
@@ -327,6 +329,8 @@ export type RetryDispatch = {
   /** True when threading metadata is untrustworthy: the run predates
    *  retrySeed, or it retries a run that was itself degraded. */
   degraded: boolean;
+  /** The run's text came from a reaction, so it is never command input. */
+  fromReaction: boolean;
 };
 
 export type RetryDispatchResult =
@@ -385,6 +389,7 @@ export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
       replyParentId: seed?.replyParentId ?? null,
       cachesHistory: seed?.cachesHistory ?? true,
       degraded: seed?.degraded ?? !seed,
+      fromReaction: seed?.fromReaction ?? lens.trigger === 'reaction',
     },
   };
 }

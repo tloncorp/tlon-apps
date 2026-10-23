@@ -53,6 +53,7 @@
           %group-response-1
           %group-response-2
           %group-response-3
+          %group-seats-page-1
           %group-action-3
           %group-action-4
           %group-action-5
@@ -108,6 +109,8 @@
       [/x/v2/groups/$/$/channels/$/$/$/writers %ships]
       [/x/groups/$/$/seats/$ %noun]
       [/x/v2/groups/$/$/seats/ships %ships]
+      [/x/v3/groups/$/$/seats/page %group-seats-page-1]
+      [/x/v3/groups/$/$/seats/role %group-seats-page-1]
     ::
       [/x/groups/light %groups]
       [/x/v0/light/groups %groups]
@@ -451,10 +454,21 @@
         fi-abet:(fi-a-foreign:foreign-core a-foreign.a-foreigns)
       ::
           %invite
+        ::  an invite to a group we hold is stale. checked here rather
+        ::  than in +fi-invite, so +fi-abet does not store a blank record.
+        ::
+        ::  nb: this also drops an invite sent after a kick that has not
+        ::  reached us yet. we can not tell the two apart; the inviter
+        ::  has to invite again.
+        ::
+        ?:  (~(has by groups) flag.invite.a-foreigns)  cor
         =/  foreign-core  (fi-abed:fi-core flag.invite.a-foreigns)
         fi-abet:(fi-invite:foreign-core invite.a-foreigns)
       ::
           %revoke
+        ::  nothing to revoke for a group we hold no invites to
+        ::
+        ?.  (~(has by foreigns) flag.a-foreigns)  cor
         =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
         fi-abet:(fi-revoke:foreign-core token.a-foreigns)
       ::
@@ -1401,6 +1415,14 @@
       ?:  ?=([%v1 ~] rest.pole)
         ::  deprecated
         $(pole [%x ver %ui %groups ship name ~]:pole)
+      ?:  &(?=(%v3 ver.pole) ?=([%light ~] rest.pole))
+        ::  the group as init carries it: ours plus 14 other seats,
+        ::  for rosters too big to send whole, but counting every seat
+        ::
+        =/  [=net:g =group:g]  u.net-group
+        =/  ui=group-ui:v11:gv
+          (group-ui:group:v11:gc net (drop-seats:group:v11:gc group our.bowl))
+        ``group-ui-3+ui(member-count ~(wyt by seats.group))
       $(pole [%x ver %groups ship name rest]:pole)
     ?-    ver.pole
         %v0
@@ -2173,11 +2195,14 @@
   ::  a ship can join the group if she has a valid token.
   ::  for a public group no token is required for entry.
   ::  a private or secret group requires a valid token issued by
-  ::  the group host.
+  ::  the group host. a ship already holding a seat, given to her by
+  ::  an admin, needs no token.
   ::
   ::  a banned ship can not enter the group.
   ::
-  ::  re-joining the group with valid credentials is vacuous.
+  ::  re-joining the group, or joining with a seat given at group
+  ::  creation, spends the ship's tokens. the existing seat is
+  ::  updated only if there are tokens to spend.
   ::
   ++  se-c-join
     |=  tok=(unit token:g)
@@ -2185,12 +2210,50 @@
     ^+  se-core
     =^  access=?  ad
       (se-admit src.bowl tok)
-    =/  has-token=?  ?=(^ tok)
-    =/  joined=?  (se-is-joined src.bowl)
     ~|  %se-c-join-access-denied
     ?>  access
-    ?:  joined  se-core
-    (se-c-seat (sy src.bowl ~) [%add ~])
+    =.  invited.ad  (~(del by invited.ad) src.bowl)
+    ::  the seat update must precede the token deletions, so that
+    ::  admins prune their invited lists before revoking invites.
+    ::  a ship already holding a joined seat, from group creation or
+    ::  an earlier join, gets her seat updated all the same when
+    ::  personal tokens are about to be spent. without any, her
+    ::  join is vacuous.
+    ::
+    =/  spends=?
+      %+  lien  ~(tap by tokens.ad)
+      |=  [* meta=token-meta:g]
+      ?&  ?=(%personal -.scheme.meta)
+          =(src.bowl ship.scheme.meta)
+      ==
+    =?  se-core  |(!(se-is-joined src.bowl) spends)
+      (se-c-seat (sy src.bowl ~) [%add ~])
+    (se-spend-tokens src.bowl tok)
+  ::  +se-spend-tokens: delete the tokens spent by a joining .ship
+  ::
+  ::  every personal token issued to the ship is spent, whoever
+  ::  issued it. a limited token is spent by its last claim.
+  ::
+  ++  se-spend-tokens
+    |=  [=ship tok=(unit token:g)]
+    ~>  %spin.['se-spend-tokens']
+    ^+  se-core
+    =.  se-core
+      %+  roll  ~(tap by tokens.ad)
+      |=  [[=token:g meta=token-meta:g] =_se-core]
+      ?.  ?&  ?=(%personal -.scheme.meta)
+              =(ship ship.scheme.meta)
+          ==
+        se-core
+      +:(se-c-entry-token:se-core %del token)
+    ?~  tok  se-core
+    =+  meta=(~(get by tokens.ad) u.tok)
+    ?~  meta  se-core
+    ?.  ?&  ?=(%limited -.scheme.u.meta)
+            =(0 count.scheme.u.meta)
+        ==
+      se-core
+    +:(se-c-entry-token %del u.tok)
   ::  +se-c-ask: handle a group ask request
   ::
   ::  a ship can request to join the group. for a public group,
@@ -2262,6 +2325,7 @@
     =*  deny   [| ad]
     ?:  =(p.flag ship)  [& ad]
     ?:  (se-is-banned ship)  deny
+    ?:  (se-is-member ship)  [& ad]
     ?:  &(=(~ tok) ?=(%public privacy.ad))
       [& ad]
     ::XX  this is a special case to enable robust v6 -> v7 migration
@@ -2293,10 +2357,7 @@
     ::
         %personal
       ?.  =(ship ship.scheme.u.meta)  deny
-      :-  &
-      %_  ad  tokens
-        (~(del by tokens.ad) u.tok)
-      ==
+      [& ad]
     ==
   ::  +se-c-group: execute the group command
   ::
@@ -2512,6 +2573,8 @@
     ?-    -.c-token
         %add
       =*  c-token-add  c-token-add.c-token
+      ~|  %se-c-entry-token-no-claims
+      ?<  ?=([%limited %0] scheme.c-token-add)
       =/  =token:g
         |-
         =+  i=(end 7 (shas %entry-token eny.bowl))
@@ -2536,10 +2599,10 @@
       (se-update [%entry %token %add token token-meta])
     ::
         %del
-      ?>  (~(has by tokens.ad) token.c-token)
+      =/  meta=token-meta:g  (~(got by tokens.ad) token.c-token)
       =.  tokens.ad
         (~(del by tokens.ad) token.c-token)
-      =.  se-core  (se-revoke-token-invites token.c-token)
+      =.  se-core  (se-revoke-token-invites token.c-token meta)
       :-  ~
       (se-update [%entry %token %del token.c-token])
     ==
@@ -2554,9 +2617,18 @@
   ::  +se-revoke-token-invites: revoke any invites associated with a token
   ::
   ++  se-revoke-token-invites
-    |=  =token:g
+    |=  [=token:g meta=token-meta:g]
     ~>  %spin.['se-revoke-token-invites']
     ^+  se-core
+    ::  a personal token can only be carried by its owner's invite
+    ::
+    ?:  ?=(%personal -.scheme.meta)
+      =/  owner  ship.scheme.meta
+      =/  invited  (~(get by invited.ad) owner)
+      ?~  invited  se-core
+      ?.  =(`token token.u.invited)  se-core
+      =.  invited.ad  (~(del by invited.ad) owner)
+      (emit (revoke-invite:se-pass owner `token))
     %+  roll  ~(tap by invited.ad)
     |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
     ?~  tok  se-core
@@ -3715,6 +3787,16 @@
       ::
       =.  go-core  (emit:go-core (request-token:go-pass:go-core ship))
       go-core
+    ::  a personal token is only sent to its owner
+    ::
+    =/  meta=(unit token-meta:g)
+      ?~  token.a-invite  ~
+      (~(get by tokens.ad) u.token.a-invite)
+    ~|  %go-a-invite-not-token-owner
+    ?<  ?&  ?=(^ meta)
+            ?=(%personal -.scheme.u.meta)
+            !=(ship ship.scheme.u.meta)
+        ==
     =/  =invite:v8:gv
       :*  flag
           now.bowl
@@ -4030,6 +4112,15 @@
         invited.admissions  invited.admissions.group
         active-channels     active-channels.group
       ==
+    ::  a snapshot after a subscription restart carries no seat or
+    ::  token events, so drop invites of ships that joined in the gap.
+    ::
+    =.  invited.ad
+      %+  roll  ~(tap by invited.ad)
+      |=  [[=ship *] =_invited.ad]
+      ?~  seat=(~(get by seats.group) ship)  invited
+      ?:  =(*@da joined.u.seat)  invited
+      (~(del by invited) ship)
     ::  index the channels the group arrives with. +go-u-channel only
     ::  indexes channels added later, and a %channels %leave for a nest
     ::  missing from .channels-index is dropped, leaving it active here.
@@ -4151,16 +4242,27 @@
       go-core
     ::
         %del
-      ?.  (~(has by tokens.ad) token.u-token)
+      =/  meta  (~(get by tokens.ad) token.u-token)
+      ?~  meta
         (go-restart-updates `'missing deleted token')
       =.  tokens.ad  (~(del by tokens.ad) token.u-token)
-      (go-revoke-token-invites token.u-token)
+      (go-revoke-token-invites token.u-token u.meta)
     ==
   ::  +go-revoke-token-invites: revoke all invites associated with a token
   ::
   ++  go-revoke-token-invites
-    |=  =token:g
+    |=  [=token:g meta=token-meta:g]
     ~>  %spin.['go-revoke-token-invites']
+    ^+  go-core
+    ::  a personal token can only be carried by its owner's invite
+    ::
+    ?:  ?=(%personal -.scheme.meta)
+      =/  owner  ship.scheme.meta
+      =/  invited  (~(get by invited.ad) owner)
+      ?~  invited  go-core
+      ?.  =(`token token.u.invited)  go-core
+      =.  invited.ad  (~(del by invited.ad) owner)
+      (emit (revoke-invite:go-pass owner `token))
     %+  roll  ~(tap by invited.ad)
     |=  [[=ship [at=@da tok=(unit token:g)]] =_go-core]
     ?~  tok  go-core
@@ -4240,6 +4342,10 @@
         |=  [=ship =_go-core]
         (go-activity:go-core %join ship)
       ?:  go-our-host  go-core
+      =?  invited.ad  !=(joined.seat.u-seat *@da)
+        %-  ~(rep in ships)
+        |=  [=ship =_invited.ad]
+        (~(del by invited) ship)
       ::
       =.  seats.group
         %-  ~(rep in ships)
@@ -4752,6 +4858,14 @@
       ::
       ::  seats queries
       ::
+        [%seats %page limit=@ rest=*]
+      ?.  ?=(%v3 ver)  [~ ~]
+      (go-seats-page ~ limit.pole rest.pole)
+    ::
+        [%seats %role role=@ %page limit=@ rest=*]
+      ?.  ?=(%v3 ver)  [~ ~]
+      (go-seats-page `(slav %tas role.pole) limit.pole rest.pole)
+    ::
         [%seats %ships ~]
       ``ships+~(key by seats.group)
     ::
@@ -4836,6 +4950,43 @@
         [%entry %tokens ~]
       ``unsafe+noun+!>(tokens.ad)
     ==
+  ::  +go-seats-page: a page of seats in ship order
+  ::
+  ::    for rosters too big to send whole. .role keeps to that role's
+  ::    holders. .rest is empty for the first page, or holds the ship
+  ::    to continue after, so seats added or removed between requests
+  ::    don't shift the pages that follow.
+  ::
+  ++  go-seats-page
+    |=  [role=(unit role-id:g) limit=@ta rest=(pole knot)]
+    ~>  %spin.['go-seats-page']
+    ^-  (unit (unit rail))
+    =/  count=@ud  (slav %ud limit)
+    ?>  (gth count 0)
+    =/  after=(unit ship)
+      ?~  rest  ~
+      ?>  ?=([after=@ ~] rest)
+      `(slav %p after.rest)
+    =/  ships=(list ship)
+      %+  sort
+        %+  murn  ~(tap by seats.group)
+        |=  [=ship =seat:g]
+        ?.  |(?=(~ role) (~(has in roles.seat) u.role))  ~
+        `ship
+      lth
+    =/  left=(list ship)
+      ?~  after  ships
+      (skim ships |=(=ship (gth ship u.after)))
+    =/  page=(list ship)  (scag count left)
+    =/  next=(unit ship)
+      ?:  (lte (lent left) count)  ~
+      `(rear page)
+    =/  =seats-page:v11:gv
+      :+  (lent ships)
+        (turn page |=(=ship [ship (~(got by seats.group) ship)]))
+      next
+    ``group-seats-page-1+seats-page
+  ::
   ++  go-can-read
     |=  [=ship =channel:g]
     ~>  %spin.['go-can-read']
@@ -5238,10 +5389,12 @@
       =.  progress  `%watch
       ?:  (~(has by groups) flag)
         ::  accomodate rejoin, useful particularly for joining
-        ::  a self-hosted group.
+        ::  a self-hosted group. a live subscription has already
+        ::  been acked: the join is done.
         ::
-        =.  cor
-          go-abet:(go-safe-sub:(go-abed:go-core flag) |)
+        =/  go  (go-abed:go-core flag)
+        ?:  go-has-sub:go  (fi-watched ~)
+        =.  cor  go-abet:(go-safe-sub:go |)
         fi-core
       =/  =net:g  [%sub *@da |]
       =|  =group:g

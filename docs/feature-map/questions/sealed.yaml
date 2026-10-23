@@ -272,7 +272,7 @@
   file: tlonbot-in-the-app.md
   entry: "Disconnect a service from my bot"
   must:
-    - "Open Settings, then Connected services, select the service under Connected, and tap Disconnect."
+    - "Open Settings, tap Connections in your bot's card, then Connected services, select the service under Connected, and tap Disconnect."
 
 - id: rename-bot-computer
   ask: "i have a hosted bot and i'm in the desktop app. how do i change its name?"

@@ -35,6 +35,7 @@ import {
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
 import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
+import { useRootNavigation } from '../../../navigation/utils';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -511,6 +512,17 @@ export function Channel({
     setGroupPreview(group);
   }, []);
 
+  const { navigateToChannel } = useRootNavigation();
+  const onPressChannelRef = useCallback(
+    (refChannel: db.Channel) => {
+      if (refChannel.id === channel.id) {
+        return;
+      }
+      navigateToChannel(refChannel);
+    },
+    [channel.id, navigateToChannel]
+  );
+
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
       onGroupAction(action, group);
@@ -952,6 +964,9 @@ export function Channel({
                 onPressRef={disableBackButton ? undefined : handleRefPress}
                 onPressGroupRef={
                   disableBackButton ? undefined : onPressGroupRef
+                }
+                onPressChannelRef={
+                  disableBackButton ? undefined : onPressChannelRef
                 }
                 onPressGoToDm={disableBackButton ? undefined : goToDm}
                 onGoToUserProfile={

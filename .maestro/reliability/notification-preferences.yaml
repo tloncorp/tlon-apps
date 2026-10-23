@@ -29,7 +29,7 @@ env:
 - assertVisible:
     text: '(?s).*No notifications \(custom\).*'
 - tapOn: '^Notifications$'
-- tapOn: '^All (group )?activity$'
+- tapOn: '^All (workspace )?activity$'
 - tapOn: '^Back$'
 - assertVisible:
     text: '(?s).*All posts and replies \(custom\).*'
