@@ -539,18 +539,30 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           run: async () => {
             // Persist just routing, so concurrent model/key edits survive.
             // Keep the draft pending if restart fails; retrying the PUT is safe.
-            const saved = await api.setTlawnBrowserService(
+            await api.setTlawnBrowserService(
               queries.ship,
               nextValues.browserService
             );
             const chatPatch = chatConfigDirty
               ? await chatConfigStep()
               : (await api.reloadBot(queries.ship), {});
-            mutations.queryClient.setQueryData(
-              ['tlonbot', 'browser-service', queries.ship],
-              saved
-            );
-            return { ...chatPatch, browserService: saved.browserService };
+            // The PUT describes the old runtime. Read the active route only
+            // after startup, including a possible fallback to Steel.
+            if (!(await api.awaitNodeTlonbotReady(queries.ship))) {
+              throw new Error(
+                'Browser service saved, but the bot is still restarting. Try again when it is ready.'
+              );
+            }
+            const refreshed = await queries.browserServiceQuery.refetch();
+            if (!refreshed.isSuccess || !refreshed.data) {
+              throw new Error(
+                'Browser service saved, but its active route could not be refreshed. Try again.'
+              );
+            }
+            return {
+              ...chatPatch,
+              browserService: effectiveBrowserService(refreshed.data),
+            };
           },
           commit: { browserService: nextValues.browserService },
         });

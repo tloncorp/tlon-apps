@@ -17,6 +17,8 @@ import type { BotSettingsQueries } from './useBotSettingsData';
 const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   reload: vi.fn(),
+  ready: vi.fn(),
+  browserRefetch: vi.fn(),
   chat: vi.fn(),
   model: vi.fn(),
   setQueryData: vi.fn(),
@@ -25,6 +27,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tloncorp/api', () => ({
   setTlawnBrowserService: mocks.save,
   reloadBot: mocks.reload,
+  awaitNodeTlonbotReady: mocks.ready,
   setTlawnChatConfig: mocks.chat,
   nestToFlag: vi.fn(),
 }));
@@ -55,7 +58,10 @@ let apply: ReturnType<typeof useApplyBotSettings>;
 async function mount(supported = true) {
   const queries = {
     ship: 'sampel-palnet',
-    browserServiceQuery: { data: { browserService: 'steel', supported } },
+    browserServiceQuery: {
+      data: { browserService: 'steel', supported },
+      refetch: mocks.browserRefetch,
+    },
     providerConfig,
     providerConfigQuery: {
       refetch: vi
@@ -86,7 +92,12 @@ beforeEach(() => {
   useBotSettingsDraftStore
     .getState()
     .syncServerValues('sampel-palnet', EMPTY_VALUES);
-  mocks.save.mockResolvedValue({ browserService: 'kernel' });
+  mocks.save.mockResolvedValue({ browserService: 'kernel', active: 'steel' });
+  mocks.ready.mockResolvedValue(true);
+  mocks.browserRefetch.mockResolvedValue({
+    isSuccess: true,
+    data: { browserService: 'kernel', active: 'kernel', supported: true },
+  });
   mocks.reload.mockResolvedValue(undefined);
   mocks.chat.mockResolvedValue({
     config: { ...chatConfig, autoDiscoverChannels: true },
@@ -119,14 +130,85 @@ describe('browser service settings apply', () => {
     expect(mocks.save.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.reload.mock.invocationCallOrder[0]
     );
-    expect(mocks.setQueryData).toHaveBeenCalledWith(
-      ['tlonbot', 'browser-service', 'sampel-palnet'],
-      { browserService: 'kernel' }
+    expect(mocks.ready).toHaveBeenCalledWith('sampel-palnet');
+    expect(mocks.reload.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.ready.mock.invocationCallOrder[0]
     );
+    expect(mocks.ready.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.browserRefetch.mock.invocationCallOrder[0]
+    );
+    expect(mocks.setQueryData).not.toHaveBeenCalled();
     expect(useBotSettingsDraftStore.getState().baseline.browserService).toBe(
       'kernel'
     );
     expect(apply.hasChanges).toBe(false);
+  });
+
+  it('waits for readiness before reading the new route', async () => {
+    let ready!: (value: boolean) => void;
+    mocks.ready.mockReturnValueOnce(
+      new Promise<boolean>((resolve) => {
+        ready = resolve;
+      })
+    );
+    selectKernel();
+    await mount();
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = apply.applyChanges();
+    });
+    expect(mocks.browserRefetch).not.toHaveBeenCalled();
+    expect(apply.pending.browserService).toBe(true);
+    await act(async () => {
+      ready(true);
+      await pending;
+    });
+    expect(mocks.browserRefetch).toHaveBeenCalledOnce();
+    expect(apply.hasChanges).toBe(false);
+  });
+
+  it('shows a startup fallback and allows selecting Kernel again', async () => {
+    mocks.browserRefetch.mockResolvedValueOnce({
+      isSuccess: true,
+      data: { browserService: 'kernel', active: 'steel', supported: true },
+    });
+    selectKernel();
+    await mount();
+    await act(async () => {
+      await apply.applyChanges();
+    });
+    expect(useBotSettingsDraftStore.getState().draft.browserService).toBe(
+      'steel'
+    );
+    expect(apply.hasChanges).toBe(false);
+    act(() => selectKernel());
+    expect(apply.pending.browserService).toBe(true);
+  });
+
+  it('keeps the change pending if readiness times out', async () => {
+    mocks.ready.mockResolvedValueOnce(false);
+    selectKernel();
+    await mount();
+    await act(async () => {
+      await apply.applyChanges();
+    });
+    expect(mocks.browserRefetch).not.toHaveBeenCalled();
+    expect(apply.pending.browserService).toBe(true);
+    expect(apply.applyError).toContain('still restarting');
+  });
+
+  it('does not trust cached route data when refreshing fails', async () => {
+    mocks.browserRefetch.mockResolvedValueOnce({
+      isSuccess: false,
+      data: { browserService: 'kernel', active: 'steel' },
+    });
+    selectKernel();
+    await mount();
+    await act(async () => {
+      await apply.applyChanges();
+    });
+    expect(apply.pending.browserService).toBe(true);
+    expect(apply.applyError).toContain('could not be refreshed');
   });
 
   it('refuses a staged browser change for an unsupported runtime', async () => {
