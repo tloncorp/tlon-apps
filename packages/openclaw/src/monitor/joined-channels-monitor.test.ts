@@ -75,6 +75,12 @@ beforeAll(async () => {
       const randomUUID = () => 'uuid';
       const createAgentOnboardingReconciliationPresence = () => ({});
       const markBootstrapComplete = () => {};
+      const groupContextRuntime = {
+        applySnapshot: () => {},
+        beginSnapshot: () => 0,
+        forgetMessage: () => {},
+        recordMessage: () => {},
+      };
       const enrollCampaign = () => {};
       const onboardingDiscoveryFlights = new Set();
       let drainingOnboardingDiscovery = false;

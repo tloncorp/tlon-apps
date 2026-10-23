@@ -65,6 +65,12 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
+import {
+  type GroupContextRuntime,
+  createGroupContextRuntime,
+  publishGroupContextRuntime,
+  unpublishGroupContextRuntime,
+} from '../group-context.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import { recordTlonMessageJourneyEvent } from '../message-journey.js';
 import {
@@ -349,11 +355,12 @@ type ChannelResponse = {
   post?: {
     id?: string;
     'r-post'?: {
-      set?: { essay?: Essay; seal?: Seal } | null;
+      // `type` is 'tombstone' for a deleted post; older desks send null.
+      set?: { essay?: Essay; seal?: Seal; type?: string } | null;
       reply?: {
         id?: string;
         'r-reply'?: {
-          set?: { 'reply-essay'?: Essay; seal?: Seal };
+          set?: { 'reply-essay'?: Essay; seal?: Seal; type?: string } | null;
           reacts?: Record<string, unknown>;
         };
       };
@@ -969,6 +976,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
   let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
+  let groupContext: GroupContextRuntime | null = null;
   let roleMentionResolver: RoleMentionResolver | null = null;
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
@@ -1029,6 +1037,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       if (Date.now() - lastChannelGroupRefresh < 60_000)
         return Promise.resolve();
       lastChannelGroupRefresh = Date.now();
+      const groupContextSince = groupContextRuntime.beginSnapshot();
       channelGroupRefresh = fetchInitData(api!, runtime, {
         signal: opts.abortSignal,
       })
@@ -1036,6 +1045,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           for (const [nest, groupFlag] of initData.channelToGroup) {
             channelToGroup.set(nest, groupFlag);
           }
+          groupContextRuntime.applySnapshot(
+            initData.groupContexts,
+            groupContextSince
+          );
         })
         .catch((error) =>
           runtime.log?.(
@@ -1066,6 +1079,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       log: (msg) => runtime.log?.(msg),
     });
     publishWorkspaceInstructionsRuntime(workspaceInstructions);
+    const groupContextRuntime = createGroupContextRuntime();
+    groupContext = groupContextRuntime;
+    publishGroupContextRuntime(groupContextRuntime);
     roleMentionResolver = createRoleMentionResolver({
       channelToGroup,
       refreshChannelGroups,
@@ -1799,6 +1815,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // no config gates the fetch.
     try {
       const joinedSync = joinedChannels.beginSync();
+      const groupContextSince = groupContextRuntime.beginSnapshot();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
         botShip: botShipName,
@@ -1824,6 +1841,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       for (const [flag, roles] of initData.groupRoles) {
         groupRoles.set(flag, roles);
       }
+      groupContextRuntime.applySnapshot(
+        initData.groupContexts,
+        groupContextSince
+      );
     } catch (error: any) {
       runtime.error?.(
         `[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`
@@ -4202,6 +4223,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     const syncJoinedChannels = async () => {
       const token = joinedChannels.beginSync();
+      const groupContextSince = groupContextRuntime.beginSnapshot();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
       });
@@ -4212,6 +4234,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       )) {
         rewatchAfterRejoin(nest);
       }
+      // Reconcile reader roles here, on every periodic sync with or without
+      // discovery, in case a /groups/ui reader change was missed.
+      groupContextRuntime.applySnapshot(
+        initData.groupContexts,
+        groupContextSince
+      );
       return initData;
     };
 
@@ -4643,6 +4671,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        // Any event about an existing post (an edit, a delete) supersedes a
+        // digest snippet taken from it; a new post's id matches none.
+        const rPost = response?.post?.['r-post'];
+        const reply = rPost?.reply;
+        const postId = reply ? reply.id : response?.post?.id;
+        if (postId) {
+          groupContextRuntime.forgetMessage({ nest, id: postId });
+        }
+        // A deleted post or reply; see ChannelResponse.
+        const deleted = reply ? reply['r-reply']?.set : rPost?.set;
+        if (deleted === null || deleted?.type === 'tombstone') {
+          return;
+        }
+
         // Handle post responses (new posts and replies)
         const essay = response?.post?.['r-post']?.set?.essay;
         const replyEssay =
@@ -4727,6 +4769,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           'ship' in authorRaw;
         if (isSenderBot) {
           knownBotShips.add(senderShip);
+        }
+
+        if (messageId) {
+          groupContextRuntime.recordMessage({
+            nest,
+            id: messageId,
+            sender: senderShip,
+            text: rawText,
+            timestamp: content.sent,
+          });
         }
 
         if (senderShip === effectiveOwnerShip) {
@@ -6598,6 +6650,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               }
 
               if (opts.abortSignal?.aborted) return;
+              groupContextRuntime.handleGroupsUiEvent(event);
               const fact = parseGroupsUiChannelFact(event, {
                 botShip: botShipName,
               });
@@ -7158,6 +7211,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     cleanupGatewayStatus();
     if (workspaceInstructions) {
       unpublishWorkspaceInstructionsRuntime(workspaceInstructions);
+    }
+    if (groupContext) {
+      unpublishGroupContextRuntime(groupContext);
     }
     if (roleMentionResolver) {
       unpublishRoleMentionResolver(account.accountId, roleMentionResolver);

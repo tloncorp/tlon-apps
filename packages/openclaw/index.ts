@@ -69,6 +69,7 @@ import {
   onboardingToolBlockReason,
 } from './src/onboarding-tool-boundary.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { handleGroupContextBeforePromptBuild } from './src/group-context.js';
 import {
   registerBudgetHoldHooks,
   registerBudgetRunGuard,
@@ -1500,6 +1501,13 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       return undefined;
     }
   });
+
+  // ── Group context ──────────────────────────────────────────────────
+  // Which workspace a group channel turn belongs to, plus what the bot has
+  // seen in its open channels. A no-op until the monitor publishes.
+  api.on('before_prompt_build', (_event, ctx) =>
+    handleGroupContextBeforePromptBuild(ctx)
+  );
 
   // ── Session lifecycle / watchdog telemetry ─────────────────────────
   // These hooks are global to OpenClaw, so telemetry.ts filters them through
