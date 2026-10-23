@@ -57,6 +57,7 @@ output.reliability = {
   ),
   groupSwipeTitlePattern: exact('SwipeGroup-' + MAESTRO_RUN_TAG),
   homeUnreadGroupTitlePattern: exact('HomeUnread-' + MAESTRO_RUN_TAG),
+  addressBookContactPattern: exact('Book' + MAESTRO_RUN_TAG + ' Reader'),
   homeUnreadGroupPreviewPattern: exact(
     '~ten: ' + MAESTRO_RUN_TAG + ' home group unread'
   ),
