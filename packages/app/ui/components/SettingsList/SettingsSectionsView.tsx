@@ -113,7 +113,7 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
           {row.title}
         </ListItem.Title>
         {row.subtitle ? (
-          <ListItem.Subtitle numberOfLines={2}>
+          <ListItem.Subtitle numberOfLines={row.expanded ? undefined : 2}>
             {row.subtitle}
           </ListItem.Subtitle>
         ) : null}
