@@ -942,19 +942,6 @@ async function createGroupWithChannel(
 
   const createdGroup = await verifyGroupCreated(groupId);
 
-  if (description) {
-    console.log(`Setting group description...`);
-    await updateGroupMeta({
-      groupId,
-      meta: {
-        title,
-        description,
-        image: '',
-        cover: '',
-      },
-    });
-  }
-
   console.log(`✅ Group created successfully!`);
   console.log(`   ID: ${groupId}`);
   console.log(`   Title: ${title}`);

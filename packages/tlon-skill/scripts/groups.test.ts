@@ -94,6 +94,26 @@ describe('groups update', () => {
   });
 });
 
+describe('groups create', () => {
+  // A separate meta poke after creation is a tracked poke that can time out
+  // before create-owned grants its admin, leaving the group without one.
+  it('creates the group with its description and sends no meta update', async () => {
+    const { exitCode } = await runGroups([
+      'create',
+      'Team',
+      '--description',
+      'Our team',
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(mockedManagementCalls.map(({ op }) => op)).toEqual(['createGroup']);
+    const [{ group }] = mockedManagementCalls[0].args as [
+      { group: { description?: string } },
+    ];
+    expect(group.description).toBe('Our team');
+  });
+});
+
 describe('groups admin commands', () => {
   // Other ways a command could reach the ship, beside mockedManagementCalls.
   let sent: string[] = [];
