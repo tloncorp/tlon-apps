@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
  */
 import { APPROVAL_TTL_MS, type PendingApproval } from '../settings.js';
 import { type TlonA2UIBlob, makeA2UIBlob } from '../urbit/blob.js';
+import { extractDmPartnerShip } from './utils.js';
 
 export type { PendingApproval };
 export { APPROVAL_TTL_MS };
@@ -36,6 +37,8 @@ export type CreateApprovalParams = {
     parentAuthorId?: string;
     isThreadReply?: boolean;
     blob?: string;
+    /** Chat `whom` the message arrived on (DM approvals). */
+    whom?: string;
   };
 };
 
@@ -207,6 +210,20 @@ export function normalizeNotificationId(id: string): string {
 // ============================================================================
 
 /** Check if a pending approval has expired (TTL defined in settings.ts). */
+/**
+ * Group DMs (clubs) are deprecated; a DM approval is acted on only when its
+ * requesting ship is a ship and any recorded `whom` is that ship's 1:1 DM.
+ */
+export function isDirectDmApproval(
+  approval: Pick<PendingApproval, 'type' | 'requestingShip' | 'originalMessage'>
+): boolean {
+  if (approval.type !== 'dm') return true;
+  const ship = extractDmPartnerShip(approval.requestingShip);
+  if (!ship) return false;
+  const whom = approval.originalMessage?.whom;
+  return whom === undefined || extractDmPartnerShip(whom) === ship;
+}
+
 export function isExpired(approval: PendingApproval): boolean {
   return Date.now() - approval.timestamp > APPROVAL_TTL_MS;
 }

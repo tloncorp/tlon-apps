@@ -31,6 +31,8 @@ export type PendingApproval = {
     parentAuthorId?: string;
     isThreadReply?: boolean;
     blob?: string;
+    /** Chat `whom` the message arrived on (DM approvals). */
+    whom?: string;
   };
   timestamp: number;
   /** Normalized message ID of the owner notification DM (reaction-based
