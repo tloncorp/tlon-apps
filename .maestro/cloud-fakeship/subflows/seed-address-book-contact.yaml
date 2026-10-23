@@ -1,0 +1,22 @@
+appId: com.google.android.contacts
+---
+# Adds CONTACT_FIRST CONTACT_LAST with CONTACT_PHONE to the device address book
+# through the system Contacts app; a cloud device offers no adb to insert one.
+- launchApp
+- tapOn:
+    text: '^Don.t allow$'
+    optional: true
+- tapOn: 'Create contact'
+- tapOn: 'First name'
+- inputText: ${CONTACT_FIRST}
+- tapOn: 'Last name'
+- inputText: ${CONTACT_LAST}
+- hideKeyboard
+- tapOn: '^Phone \(Mobile\)$'
+# The field opens holding the country prefix with the cursor before it.
+- eraseText
+- inputText: ${CONTACT_PHONE}
+- tapOn: '^Save$'
+- extendedWaitUntil:
+    visible: ${CONTACT_FIRST + ' ' + CONTACT_LAST}
+    timeout: 10000

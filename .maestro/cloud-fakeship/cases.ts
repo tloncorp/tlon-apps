@@ -31,6 +31,7 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     'channel-mark-read',
     'activity-filters',
     'permissions',
+    'address-book',
   ]);
   const selected = (name: string) =>
     selection === 'all'

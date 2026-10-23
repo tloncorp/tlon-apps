@@ -11,6 +11,7 @@ export function selectCases(selection) {
     'channel-mark-read',
     'activity-filters',
     'permissions',
+    'address-book',
   ];
   const optionalNames = [
     'dm-deny',

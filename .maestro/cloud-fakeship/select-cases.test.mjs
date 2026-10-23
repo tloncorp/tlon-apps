@@ -37,7 +37,7 @@ for (const name of [
 }
 test('default batch and focused retries remain usable', () => {
   assert.deepEqual(selectCases(), ['exchange']);
-  assert.equal(selectCases('all').length, 11);
+  assert.equal(selectCases('all').length, 12);
   assert.throws(() => selectCases('dm-deny,dm-unblock'), /DM cases separately/);
   assert.throws(() => selectCases('unknown'), /Unknown proof case/);
 });
