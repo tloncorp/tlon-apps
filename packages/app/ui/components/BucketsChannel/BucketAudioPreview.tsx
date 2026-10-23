@@ -2,6 +2,7 @@ import { FilePreview, Pressable, Text } from '@tloncorp/ui';
 import { useEffect, useRef, useState } from 'react';
 import { YStack } from 'tamagui';
 
+import { useOptionalNowPlaying } from '../../contexts/nowPlaying';
 import { BucketFileViewerItem } from './BucketFileViewer.shared';
 
 export function BucketAudioPreview({
@@ -15,6 +16,12 @@ export function BucketAudioPreview({
 }) {
   const [failed, setFailed] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
+  const nowPlaying = useOptionalNowPlaying();
+  const handleError = () => {
+    audio.current?.pause();
+    setFailed(true);
+    onError?.();
+  };
   useEffect(() => {
     const element = audio.current;
     return () => element?.pause();
@@ -63,11 +70,15 @@ export function BucketAudioPreview({
           controls
           preload="metadata"
           aria-label={item.name}
-          onError={() => {
-            audio.current?.pause();
-            setFailed(true);
-            onError?.();
+          onPlay={async () => {
+            try {
+              // Clearing also cancels a voice memo that is still loading.
+              await nowPlaying?.replace(null);
+            } catch {
+              handleError();
+            }
           }}
+          onError={handleError}
           style={{ width: '100%', maxWidth: 420 }}
         />
       )}

@@ -65,6 +65,7 @@ vi.mock('./BucketPreviewContent', () => ({
     children,
 }));
 vi.mock('./BucketPreviewImage', () => ({ BucketPreviewImage: () => null }));
+vi.mock('./BucketAudioPreview', () => ({ BucketAudioPreview: () => null }));
 vi.mock('./BucketPreviewOpenButton', () => ({
   BucketPreviewOpenButton: () => null,
 }));
