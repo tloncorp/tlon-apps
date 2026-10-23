@@ -2,15 +2,49 @@ import { spawn } from 'node:child_process';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import { normalizeShip } from './targets.js';
+import { findFirstPositionalArgumentIndex } from './tlon-tool-guard.js';
 import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
 
 export const DEFAULT_TLON_CLI_TIMEOUT_MS = 45_000;
 export const DEFAULT_BUCKETS_CLI_TIMEOUT_MS = 120_000;
 
+const GLOBAL_CREDENTIAL_FLAGS = new Set([
+  '--config',
+  '--url',
+  '--ship',
+  '--code',
+  '--cookie',
+]);
+
 export function defaultTlonCliTimeoutMs(args: string[]) {
-  return args[0] === 'buckets'
+  // Owner commands arrive as `--ship <owner> <family> …`.
+  const familyIndex = findFirstPositionalArgumentIndex(
+    args,
+    0,
+    GLOBAL_CREDENTIAL_FLAGS
+  );
+  return args[familyIndex] === 'buckets'
     ? DEFAULT_BUCKETS_CLI_TIMEOUT_MS
     : DEFAULT_TLON_CLI_TIMEOUT_MS;
+}
+
+/**
+ * The ship the runner's own credentials act as, from the same source the
+ * runner uses: config credentials when present (the runner then replaces the
+ * environment's), otherwise the CLI's environment resolution order. Undefined
+ * when the CLI would resolve the ship from a file or cookie the plugin does not
+ * read.
+ */
+export function resolveExecutionBotShip(
+  credentials: { ship: string } | undefined,
+  env: NodeJS.ProcessEnv
+): string | undefined {
+  if (credentials) return normalizeShip(credentials.ship) || undefined;
+  if (env.TLON_CONFIG_FILE || env.URBIT_COOKIE || env.TLON_COOKIE) {
+    return undefined;
+  }
+  if (!(env.URBIT_URL || env.TLON_URL)) return undefined;
+  return normalizeShip(env.URBIT_SHIP ?? env.TLON_SHIP ?? '') || undefined;
 }
 
 const EXPLICIT_CREDENTIAL_ENV_KEYS_TO_CLEAR = [

@@ -5,8 +5,12 @@ import {
   extensionForMime,
   normalizeMimeType,
 } from 'openclaw/plugin-sdk/media-mime';
-import { readResponseWithLimit } from 'openclaw/plugin-sdk/response-limit-runtime';
+import {
+  buildOutboundMediaLoadOptions,
+  readResponseWithLimit,
+} from 'openclaw/plugin-sdk/media-runtime';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
+import { loadWebMedia } from 'openclaw/plugin-sdk/web-media';
 
 import { tlonMediaUserAgent } from '../version.js';
 import { getDefaultSsrFPolicy } from './context.js';
@@ -14,8 +18,14 @@ import { getDefaultSsrFPolicy } from './context.js';
 const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
 const FETCH_DEADLINE_MS = 30_000;
 
-const LOCAL_MEDIA_ERROR =
-  'Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>`) and resend with the returned https URL.';
+// OpenClaw 2026.9.33 ships openclaw/plugin-sdk/outbound-media without type
+// declarations. Its loadOutboundMediaFromUrl is loadWebMedia over
+// buildOutboundMediaLoadOptions, both of which the SDK declares, so local
+// attachments load through those directly.
+type OutboundMediaLoadOptions = NonNullable<
+  Parameters<typeof buildOutboundMediaLoadOptions>[0]
+>;
+
 const HTTPS_ONLY_ERROR = 'Only https media URLs are supported.';
 const USERINFO_ERROR =
   'Media URLs with embedded credentials are not supported.';
@@ -179,14 +189,62 @@ function syntheticUploadFileName(mime: string): string {
   return `upload-${Date.now()}-${crypto.randomUUID()}${ext}`;
 }
 
+async function uploadMedia(
+  buffer: Buffer,
+  contentType: string
+): Promise<string> {
+  const ab = new ArrayBuffer(buffer.byteLength);
+  new Uint8Array(ab).set(buffer);
+  const result = await uploadFile({
+    blob: new Blob([ab], { type: contentType }),
+    fileName: syntheticUploadFileName(contentType),
+    contentType,
+    ...(isTlonHostingForced()
+      ? { hostedDetection: 'assume-hosted' as const }
+      : {}),
+  });
+  const url = strictPostableUrl(result.url);
+  if (!url) {
+    throw new Error('Media upload did not return a public https URL.');
+  }
+  return url;
+}
+
 export async function prepareOutboundMedia(
-  mediaUrl: string
+  mediaUrl: string,
+  options: Pick<
+    OutboundMediaLoadOptions,
+    'mediaAccess' | 'mediaLocalRoots' | 'mediaReadFile'
+  > = {}
 ): Promise<{ url: string; isImage: boolean }> {
   const classified = classifyInput(mediaUrl);
 
   switch (classified.kind) {
-    case 'local':
-      throw new Error(LOCAL_MEDIA_ERROR);
+    case 'local': {
+      if (!isTlonHostingForced()) {
+        throw new Error(
+          'Local attachments require TLON_HOSTING=1. Upload with `tlon upload <path>` and send the returned https URL.'
+        );
+      }
+      const media = await loadWebMedia(
+        normalizeMediaUrl(mediaUrl),
+        buildOutboundMediaLoadOptions({
+          ...options,
+          maxBytes: MAX_MEDIA_BYTES,
+        })
+      ).catch(() => {
+        throw new Error(
+          'Could not read local media from the allowed directories.'
+        );
+      });
+      return {
+        url: await uploadMedia(
+          media.buffer,
+          media.contentType ?? 'application/octet-stream'
+        ),
+        isImage: media.kind === 'image',
+      };
+    }
     case 'http':
       throw new Error(HTTPS_ONLY_ERROR);
     case 'userinfo':
@@ -253,24 +311,7 @@ export async function prepareOutboundMedia(
   }
 
   try {
-    const ab = new ArrayBuffer(buffer.byteLength);
-    new Uint8Array(ab).set(buffer);
-    const blob = new Blob([ab], { type: effectiveMime });
-    const fileName = syntheticUploadFileName(effectiveMime);
-    const result = await uploadFile({
-      blob,
-      fileName,
-      contentType: effectiveMime,
-      ...(isTlonHostingForced()
-        ? { hostedDetection: 'assume-hosted' as const }
-        : {}),
-    });
-    const postable = strictPostableUrl(result.url);
-    if (postable) {
-      return { url: postable, isImage };
-    }
-    console.log('[tlon] media: upload result not postable, using source URL');
-    return { url: canonical, isImage };
+    return { url: await uploadMedia(buffer, effectiveMime), isImage };
   } catch {
     console.log('[tlon] media: upload failed, using source URL');
     return { url: canonical, isImage };

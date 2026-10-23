@@ -160,8 +160,11 @@ conversation and happens on a new day each time:
 Only promise what you can deliver. Public sources such as news, weather, and
 docs need no check. For private sources such as email, calendars, or files, try
 a small real call first; never ask the owner whether something is connected.
-If it isn't available, offer an honest version that works without it, and use
-`tlon_agent_service_setup` only if the owner chooses to connect it.
+If it isn't connected, check `tlon_connectable_services` before offering to
+connect it. A service that isn't on that list can't be connected: say so in a
+clause and offer one that is, or an honest version that works without it.
+Use `tlon_agent_service_setup` only for a listed service the owner chooses to
+connect.
 
 Fields:
 

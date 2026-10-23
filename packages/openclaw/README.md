@@ -106,6 +106,37 @@ cannot perform the native action and display the notice's fallback story.
 ### Full Configuration Example
 
 ```yaml
+# OpenClaw 2026.9.x only treats a channel sender as the owner when they are
+# listed here. Without this entry the owner ship still gets approvals and
+# `ownerShip`-gated plugin behavior, but OpenClaw hides its owner-only core
+# tools (`automations`, `sessions`, `gateway`, ...) from the owner's turns.
+commands:
+    ownerAllowFrom:
+        - 'tlon:~your-main-ship'
+
+# OpenClaw 2026.9.x skips a non-bundled plugin's conversation hooks
+# (agent_turn_prepare, before_prompt_build, agent_end) without this grant,
+# logging a registration warning instead of failing. The plugin uses them for
+# cron attribution, workspace instructions and the model privacy note, and
+# end-of-turn cleanup. It is plugin-wide: it lets the plugin's hooks see
+# conversation content on every turn it handles.
+plugins:
+    entries:
+        tlon:
+            enabled: true
+            hooks:
+                allowConversationAccess: true
+
+# OpenClaw 2026.9.6+ defaults group silent replies to disallow. The plugin
+# deliberately dispatches unmentioned participated-thread and owner-listen
+# turns so the agent can decide not to answer; without this, a `NO_REPLY` on
+# those turns is replaced by a visible fallback message. Hosted bots get this
+# from tlawn.
+agents:
+    defaults:
+        silentReply:
+            group: 'allow'
+
 channels:
     tlon:
         enabled: true
@@ -115,6 +146,17 @@ channels:
 
         # Owner receives approval requests and can manage the bot
         ownerShip: '~your-main-ship'
+
+        # tlon tool commands act as the owner (via $TLON_SKILL_DIR/ships/<owner>.json)
+        # unless the model adds --self. Defaults to false for staged rollout:
+        # commands then act as the bot, as before. Set it per bot in this
+        # channel config, at the root (not under accounts); component-version
+        # bundles do not carry it. Runs answering a message on another
+        # account act as the bot. It and ownerShip are read from the live
+        # config on every tool call, so a channels.tlon reload (a rollback to
+        # false, or a new owner) applies to the next call with no gateway
+        # restart; a run the previous owner directed loses owner identity.
+        ownerDefault: false
 
         # Ships allowed to DM the bot directly
         dmAllowlist:
@@ -157,6 +199,13 @@ channels:
         # Show model info in responses
         showModelSignature: false
 
+        # Show the agent's short pre-tool commentary in the Thinking row for the
+        # rest of the turn; tool labels appear only when the model has not
+        # written any commentary in that turn. Default: true.
+        # `false` restores the previous behaviour: no commentary, and tool
+        # labels appear only while `/verbose on` is set.
+        showCommentary: true
+
         # Optional PostHog telemetry. Disabled unless explicitly enabled.
         telemetry:
             enabled: true
@@ -195,7 +244,7 @@ The plugin does not enable telemetry automatically just because an API key is pr
 
 ## Steward automation mirror
 
-Against OpenClaw `2026.7.1-2` (the hosted version; the SDK devDependency stays on `2026.5.28` only because 7.1 requires Node ≥ 22.22.3 and the repo pins 22.22.0), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
+Targeting OpenClaw `2026.9.33` (hosted bots stay on `2026.7.1` until the bundle flips; the SDK devDependency matches, and the plugin pins Node 24.22.1 in `packages/openclaw/.nvmrc`), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
 
 Reconciliation is serialized and busy-period triggers are coalesced. Unavailable cron access, read failures, missing ship connections, and poke acknowledgement failures retry while the gateway is active. `gateway_stop` cancels retries and guards against a stale post-stop submission, but deliberately leaves the last successful Steward snapshot intact. The same process-lifetime worker is reused across OpenClaw plugin-registration passes. These behaviors repair the mirror after a later successful read; they do not guarantee continuous freshness.
 
@@ -246,7 +295,7 @@ The owner can send these commands via DM:
 
 ```
 Harness: OpenClaw
-Harness Version: 2026.7.1-2
+Harness Version: 2026.9.33
 Adapter Version: 0.4.3
 Tlon Skill: 0.3.2
 Fingerprint: fp1:8aa23ca2bc8d

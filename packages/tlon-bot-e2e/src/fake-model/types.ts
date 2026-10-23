@@ -1,6 +1,8 @@
 export type Step =
   | { kind: 'text'; content: string }
-  | { kind: 'tool_call'; name: string; args: Record<string, unknown> };
+  | { kind: 'tool_call'; name: string; args: Record<string, unknown> }
+  /** Delays the next step's response, within the same model request. */
+  | { kind: 'hold'; ms: number };
 
 export type ModelAuxiliaryCallKind = 'hermes_title_generation';
 

@@ -28,6 +28,14 @@ describe('Tlon product guide contracts', () => {
     );
   });
 
+  it('answers connected service questions from the live list', () => {
+    expect(guide).toContain(
+      'A hosted bot can look it up with `tlon_connectable_services`: answer from that list by name.'
+    );
+    expect(guide).toContain('Never say a service is probably or maybe there.');
+    expect(guide).toContain("but can't read their inbox");
+  });
+
   it('describes the Just me filter as conditional', () => {
     expect(guide).toContain(
       '`Just me` only appears when you have a workspace like that'

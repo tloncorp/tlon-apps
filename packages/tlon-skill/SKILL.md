@@ -29,7 +29,7 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 
 | Task | Reference |
 | --- | --- |
-| Read activity, search history, manage reactions, pins, notification levels, or existing posts | [Reading](references/reading.md) |
+| Read activity, mark chats read, search history, manage reactions, pins, notification levels, or existing posts | [Reading](references/reading.md) |
 | Workspaces (groups), membership, permissions, channels, channel sections, public exposure | [Groups and channels](references/groups-channels.md) |
 | Find notebooks, create/edit Markdown notes, and publish them | [Notes](references/notes.md) |
 | Shared group files and folders | [Buckets](references/buckets.md) |
@@ -42,8 +42,8 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 
 - Use returned group flags, channel nests, note IDs, and revisions. Display titles are not identifiers. Resolve ambiguous targets before writing.
 - When a write lands outside the conversation you are replying in (a note, a post in another channel, a new group or channel, a cron job that will post to another channel), put a reference to it in your reply so Tlon renders a card. Forms: `/1/group/<host>/<slug>`, `/1/chan/<nest>/msg/<id>`, thread reply `/1/chan/<nest>/msg/<parent>/<id>`, `/1/chan/notes/<host>/<name>/note/<id>`. Prefer the `Ref:` path a command prints. A post's ID is host-assigned: read it back with `messages channel <nest>`, or `messages post <nest> <parent>` for a thread reply; the `message` tool's `messageId` is not it. A channel (including a cron job's target) has no card yet: name it, give its nest, and share its group's `Ref:`.
-- Put the path bare on its own line after the sentence introducing it; a link, bold, or malformed path stays literal text. Paths render only in your normal reply — `tlon posts send` posts them as literal text.
-- Credentials are supplied by the runtime. Use the current account; do not collect access codes, print credentials, or switch to the owner's identity to work around permissions. Some documented commands, such as invite-link retrieval, note publishing, notification settings, creating a workspace for the owner, and creating a channel in a group the owner hosts, have an explicit owner-bound behavior.
+- Put the path bare on its own line after the sentence introducing it; a link, bold, or malformed path stays literal text. Paths render only in your normal reply; `tlon posts send` posts a typed path as literal text. To quote or forward a post as a card, use `posts send|reply --quote` or `posts forward` (see Reading).
+- Credentials are supplied by the runtime. Never collect access codes or print credentials. Your harness's tool description states which identity (your owner or you, the bot) is the default and how to select the other; follow it. Some commands are documented as owner-bound in the references; the tool description governs which identity they run as. Do not switch identities to work around a permission error.
 - Use `message` for ordinary outbound messages and replies. For local media, upload first and pass the returned HTTPS URL; see the media reference.
 - Use `groups create-owned` to create a group for a user and make them an admin. Read the groups reference for the identity requirements.
 - Use `notes` for Markdown notebooks. Deprecated `%diary` management is unavailable through this tool; ask the owner to use `/migrate <diary-nest>` instead of attempting migration writes yourself.
