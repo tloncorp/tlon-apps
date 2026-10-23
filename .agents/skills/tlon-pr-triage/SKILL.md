@@ -2,9 +2,10 @@
 name: tlon-pr-triage
 description:
   Assess a Tlon Messenger GitHub PR from its URL, evaluate complexity and
-  sensitivity, independently verify automated review findings, and identify
-  specific decisions requiring human review. Use for PR triage or
-  counter-review; ordinary implementation work does not need this skill.
+  sensitivity, map affected behaviors, check requirements, independently verify
+  automated review findings, and identify decisions requiring human review.
+  Use for PR triage or counter-review; ordinary implementation work does not
+  need this skill.
 ---
 
 # Tlon PR triage
@@ -61,12 +62,30 @@ For a merged PR, report a retrospective assessment. Distinguish problems in
 earlier revisions from the final change; merging or resolving a thread does not
 establish that a finding was correct or the change was safe.
 
+## Map the change and check its requirements
+
+Use [Evidence ledger](references/evidence-ledger.md) for every assessment.
+Build a compact impact map from changed behavior through its callers and
+consumers to observable effects. Record affected platforms, versions, state or
+authority boundaries, validation, and material gaps. Account for every changed
+file, grouping mechanical edits with their originating behavior. A path or
+import count alone does not establish reachability or impact.
+
+Identify the requirements actually available in the PR, linked issues,
+applicable documentation, or explicit maintainer decisions. Cite each source
+and distinguish established requirements from author claims and proposals.
+Check material commitments against the implementation and validation; report
+them as met, unmet, or unclear. If no requirement source exists, say so rather
+than inventing a specification. A missing document alone does not require human
+review; explain whether it leaves a consequential product decision unresolved.
+
 ## Assess complexity, sensitivity, and evidence separately
 
 Use [Decision criteria](references/decision-criteria.md). Start from changed
 functions and behaviors, then trace affected callers, data flows, platforms,
 versions, and deployment boundaries. Paths guide this investigation; they do not
-determine the verdict by themselves.
+determine the verdict by themselves. Ground the ratings in the impact map and
+requirements assessment, including consumers outside the diff.
 
 Give complexity and sensitivity separate `low`, `medium`, or `high` ratings,
 each with concrete reasons. Describe evidence as `sufficient`, `partial`, or
@@ -87,6 +106,14 @@ For each automated finding, identify its root comment, reviewed revision,
 triggering conditions, claimed wrong behavior, and proposed correction. Include
 earlier unresolved findings; a later review with nothing new does not clear
 them. Read replies as leads, then check their claims against source or tests.
+
+Keep a structured ledger using the evidence reference: claim, trigger, code
+trace and guards, validation method, supporting evidence, counterevidence,
+material proof gaps, verdict, current status, next step, and a separate
+assessment of the suggested fix. Account for review bodies and conversation as
+well as inline comments; split multiple claims in one message into separate
+entries sharing its URL. Record why a bot message contains no new finding so a
+status update or duplicate does not silently erase earlier claims.
 
 Use one of these verdicts:
 
@@ -165,8 +192,11 @@ Keep the report proportional to the PR and write it in the user's language:
 
 - PR link, assessed head SHA, baseline, and whether the PR is open or merged.
 - Outcome, complexity, sensitivity, and evidence coverage with short reasons.
-- A finding ledger: comment link, verdict, present-day status, and supporting
-  source or test. Group duplicates without losing their links.
+- A compact impact map and sourced requirements assessment, with material
+  gaps and mismatches visible even when there are no bot findings.
+- A structured finding ledger with supporting and opposing evidence, proof
+  gaps, next steps, and suggested-fix assessments. Keep source coverage visible;
+  group duplicates for readability without losing their links or conclusions.
 - Verified checks, unverified claims, and material gaps.
 - Proposed labels, remaining agent work, and human decisions, if any.
 

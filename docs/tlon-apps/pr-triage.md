@@ -10,6 +10,23 @@ Use $tlon-pr-triage https://github.com/tloncorp/tlon-apps/pull/6794
 Local invocation produces a report and proposed comments/labels. It does not
 publish unless the user authorizes publication.
 
+Each assessment includes three evidence views, also present in hosted summaries:
+
+- A behavior impact map connecting changed files to callers, consumers,
+  platforms/contract boundaries, relevant validation, and material gaps.
+- A requirements assessment citing the PR, relevant issue/spec, repository
+  contract, or explicit decision behind each material requirement. It separates
+  met, unmet, and unclear requirements; missing specifications are not invented
+  or automatically escalated to humans.
+- A structured counter-review recording each bot claim's trigger, reviewed
+  revision, source trace, validation method, supporting and opposing evidence,
+  proof gaps, current status, next step, and independent fix assessment.
+
+A coverage ledger accounts for bot review bodies, inline comments/replies, and
+conversation, including messages with zero findings. Several findings may share
+one discussion URL. Clear requirement mismatches remain agent work; unresolved
+consequential product/authority choices require an explicit human decision.
+
 ## GitHub Actions
 
 `.github/workflows/pr-triage.yml` runs the same skill using Codex. It starts on
@@ -83,10 +100,16 @@ Three separate jobs gate the request, perform inference, and publish:
   operations. It never executes model output.
 
 A new push removes stale automatic labels. API errors, missing secrets, a
-timeout, malformed output, omitted inline findings, or evidence changing
-during analysis never produce an eligible label. A failed assessment updates
+timeout, malformed output, omitted review sources/inline findings, or evidence
+changing during analysis never produce an eligible label. A failed assessment updates
 the summary to incomplete; a cancelled run can leave a pending summary, without
 an automatic agent label. Human requirements remain in force.
+
+The publisher checks changed-file coverage, requirement source consistency,
+and declared per-message finding counts. It also blocks eligibility on material
+gaps inside impact-map/finding entries or unresolved requirements. These checks
+validate bookkeeping and routing consistency, not whether the model extracted
+every claim or reached the correct technical conclusion.
 
 The hosted pass relies on source inspection and collected check results.
 It must disclose missing reproductions or device evidence, and may return
@@ -94,6 +117,9 @@ It must disclose missing reproductions or device evidence, and may return
 analysis invalidate the result. There is no automatic retry on CI completion:
 rerun manually once checks settle, or let the next push/Codex review trigger it.
 The three triage jobs are excluded from their own evidence fingerprint.
+Linked issues or external specs are not fetched by the hosted analysis; a
+material requirement source absent from the supplied context is reported as
+unavailable. Local invocation can inspect relevant links with the GitHub CLI.
 
 The workflow's first hosted run still needs to confirm the account's inference
 access/quota and repository Actions permissions. Secret-name inspection and

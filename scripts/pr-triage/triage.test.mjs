@@ -91,18 +91,79 @@ const report = (outcome = 'agent-work-needed') => ({
   gaps: [],
   agentWork:
     outcome === 'agent-work-needed' ? ['Correct the bounded defect.'] : [],
+  impactMap: [
+    {
+      behavior: 'Update the preview lifecycle.',
+      changedPaths: ['src/example.ts'],
+      trace: 'Preview action -> src/example.ts:11 -> rendered progress.',
+      consumers: ['Preview component'],
+      boundaries: ['Native preview lifecycle'],
+      validation: 'Source trace at head and collected CI results.',
+      gaps: [],
+    },
+  ],
+  requirements: {
+    status: 'assessed',
+    sources: [`${url} (PR description, author intent)`],
+    summary: 'The documented preview contract was checked.',
+    items: [
+      {
+        requirement: 'Preserve the preview controls.',
+        source: `${url} (PR description, author intent)`,
+        status: 'met',
+        evidence: 'Controls remain reachable in src/example.ts:10-12.',
+        nextStep: 'None needed.',
+      },
+    ],
+  },
+  reviewCoverage: [
+    { url: rootComment.html_url, findingCount: 1, reason: 'Inline defect.' },
+    {
+      url: `${url}#pullrequestreview-30`,
+      findingCount: 1,
+      reason: 'One body claim.',
+    },
+    {
+      url: `${url}#issuecomment-20`,
+      findingCount: 0,
+      reason: 'Completion marker only.',
+    },
+  ],
   findings: [
     {
       url: rootComment.html_url,
+      claim: 'Preview can retain old progress.',
+      reviewedRevision: HEAD,
+      trigger: 'Open a second preview in the same session.',
+      trace:
+        'The preview caller reaches the progress branch at src/example.ts:11.',
+      validationMethod: 'source-inspection',
       verdict: outcome === 'agent-eligible' ? 'already-fixed' : 'confirmed',
       currentStatus: 'Verified at head.',
-      evidence: 'Exact source inspection.',
+      evidence: ['Exact source inspection.'],
+      counterevidence: [],
+      proofGaps: [],
+      nextStep:
+        outcome === 'agent-eligible'
+          ? 'None needed.'
+          : 'Correct the progress reset.',
+      fixAssessment:
+        'The proposed reset preserves the established lifecycle contract.',
     },
     {
       url: `${url}#pullrequestreview-30`,
+      claim: 'Native previews can reach the web-only branch.',
+      reviewedRevision: HEAD,
+      trigger: 'Open the preview on native.',
+      trace: 'The caller platform guard at src/example.ts:10 excludes native.',
+      validationMethod: 'source-inspection',
       verdict: 'refuted',
       currentStatus: 'Unreachable on this platform.',
-      evidence: 'Caller platform guard.',
+      evidence: ['Caller platform guard.'],
+      counterevidence: ['Native returns before the web-only branch.'],
+      proofGaps: [],
+      nextStep: 'None needed.',
+      fixAssessment: 'The suggested extra guard is unnecessary on this path.',
     },
   ],
   humanDecisions:
@@ -382,6 +443,11 @@ test('ordinary confirmed defect routes to agent work with no human inline commen
   );
   assert.match(summary.body, /pullrequestreview-30/);
   assert.match(summary.body, /confirmed/);
+  assert.match(summary.body, /Update the preview lifecycle/);
+  assert.match(summary.body, /Preserve the preview controls/);
+  assert.match(summary.body, /Native returns before the web-only branch/);
+  assert.match(summary.body, /Completion marker only/);
+  assert.match(summary.body, /suggested extra guard is unnecessary/);
 });
 
 test('human inline comments use current anchors, deduplicate, preserve other comments', async () => {
@@ -506,6 +572,209 @@ test('push, base movement, new review body or check changes discard a stale repo
     mutate(api.context);
     await assert.rejects(publish(api, 6794, exp, report()), /Evidence changed/);
     assert.equal(api.writes.length, 0);
+  }
+});
+
+test('counter-review requires method, proof and explicit counterevidence before publication', async () => {
+  for (const mutate of [
+    (r) => {
+      delete r.findings[0].trigger;
+    },
+    (r) => {
+      r.findings[0].evidence = [];
+    },
+    (r) => {
+      r.findings[0].validationMethod = 'none';
+    },
+    (r) => {
+      r.findings[0].validationMethod = 'local-reproduction';
+    },
+    (r) => {
+      r.findings[1].counterevidence = [];
+    },
+    (r) => {
+      r.findings[0].reviewedRevision = 'latest';
+    },
+    (r) => {
+      r.findings[0].verdict = 'inconclusive';
+    },
+  ]) {
+    const api = new FakeGitHub();
+    const r = report();
+    mutate(r);
+    await assert.rejects(publish(api, 6794, expected(api.context), r));
+    assert.equal(api.writes.length, 0);
+  }
+  const r = report('incomplete');
+  Object.assign(r.findings[0], {
+    reviewedRevision: 'unknown',
+    verdict: 'inconclusive',
+    validationMethod: 'none',
+    evidence: [],
+    proofGaps: ['The reviewed revision is unavailable.'],
+    nextStep: 'Recover the reviewed source revision.',
+  });
+  assert.doesNotThrow(() => validateReport(r, fixture()));
+});
+
+test('coverage preserves multiple claims in a body and explains status-only messages', async () => {
+  const api = new FakeGitHub();
+  api.context.reviews[0].body = 'Two distinct findings in the review body';
+  const r = report();
+  r.findings.push({
+    ...r.findings[1],
+    claim: 'A separate callback is unguarded.',
+  });
+  r.reviewCoverage[1].findingCount = 2;
+  r.reviewCoverage[1].reason = 'Two independently assessed claims.';
+  await publish(api, 6794, expected(api.context), r);
+  const summary = api.context.conversation.find((c) =>
+    c.body.startsWith(SUMMARY)
+  );
+  assert.match(summary.body, /Two independently assessed claims/);
+  assert.match(summary.body, /A separate callback is unguarded/);
+
+  for (const mutate of [
+    (r) => {
+      r.reviewCoverage.splice(1, 1);
+    },
+    (r) => {
+      r.reviewCoverage[1].findingCount = 2;
+    },
+    (r) => {
+      r.reviewCoverage[1].url = `${url}#nonexistent`;
+    },
+    (r) => {
+      r.reviewCoverage.push(r.reviewCoverage[0]);
+    },
+    (r) => {
+      r.findings.push(r.findings[1]);
+      r.reviewCoverage[1].findingCount = 2;
+    },
+  ]) {
+    const api = new FakeGitHub();
+    const r = report();
+    mutate(r);
+    await assert.rejects(publish(api, 6794, expected(api.context), r));
+    assert.equal(api.writes.length, 0);
+  }
+});
+
+test('impact map accounts for changed files and permits explicit incomplete coverage', () => {
+  const context = fixture();
+  context.files.push({ filename: 'src/other.ts', status: 'modified' });
+  const r = report('incomplete');
+  assert.throws(() => validateReport(r, context), /Impact map omits/);
+  r.gaps = ['src/other.ts could not be inspected.'];
+  assert.doesNotThrow(() => validateReport(r, context));
+  r.gaps = [];
+  r.impactMap[0].changedPaths.push('src/other.ts');
+  assert.doesNotThrow(() => validateReport(r, context));
+  r.impactMap[0].changedPaths.push('src/not-in-diff.ts');
+  assert.throws(() => validateReport(r, context), /outside the change/);
+});
+
+test('nested proof gaps and unresolved requirements cannot silently become eligible', async () => {
+  for (const mutate of [
+    (r) => {
+      r.impactMap[0].gaps = ['Unverified native consumer.'];
+    },
+    (r) => {
+      r.findings[0].proofGaps = ['The correction was not verified.'];
+    },
+    (r) => {
+      r.requirements.status = 'unavailable';
+    },
+    (r) => {
+      r.requirements.items[0].status = 'unmet';
+    },
+    (r) => {
+      r.requirements.items[0].status = 'unclear';
+    },
+  ]) {
+    const api = new FakeGitHub();
+    const r = report('agent-eligible');
+    mutate(r);
+    await assert.rejects(
+      publish(api, 6794, expected(api.context), r),
+      /Eligibility/
+    );
+    assert.equal(api.writes.length, 0);
+  }
+});
+
+test('no bot findings does not bypass impact or requirements assessment', async () => {
+  const api = new FakeGitHub();
+  api.context.comments = [];
+  api.context.reviews = [];
+  const r = report('agent-eligible');
+  r.findings = [];
+  r.reviewCoverage = r.reviewCoverage.filter((item) => item.findingCount === 0);
+  r.impactMap = [];
+  await assert.rejects(
+    publish(api, 6794, expected(api.context), r),
+    /Impact map omits/
+  );
+  r.impactMap = report().impactMap;
+  r.requirements.items[0].status = 'unmet';
+  r.requirements.items[0].nextStep = 'Restore the documented control behavior.';
+  await assert.rejects(
+    publish(api, 6794, expected(api.context), r),
+    /Eligibility/
+  );
+  assert.equal(api.writes.length, 0);
+  r.outcome = 'agent-work-needed';
+  r.agentWork = ['Restore the documented control behavior.'];
+  await publish(api, 6794, expected(api.context), r);
+  assert.deepEqual(api.context.pr.labels, [
+    { name: 'review:agent-work-needed' },
+  ]);
+});
+
+test('requirements distinguish bounded mismatches, human choices, and no source found', async () => {
+  for (const outcome of [
+    'agent-work-needed',
+    'human-required',
+    'agent-eligible',
+  ]) {
+    const api = new FakeGitHub();
+    const r = report(outcome);
+    if (outcome === 'agent-eligible') {
+      r.requirements = {
+        status: 'not-found',
+        sources: [],
+        items: [],
+        summary:
+          'No requirement source found; the mechanical change preserves behavior.',
+      };
+    } else {
+      r.requirements.items[0].status =
+        outcome === 'human-required' ? 'unclear' : 'unmet';
+      r.requirements.items[0].nextStep =
+        outcome === 'human-required'
+          ? 'Confirm the intended owner authority.'
+          : 'Restore the documented control behavior.';
+    }
+    await publish(api, 6794, expected(api.context), r);
+    assert.deepEqual(api.context.pr.labels, [{ name: `review:${outcome}` }]);
+  }
+  for (const mutate of [
+    (r) => {
+      r.requirements.items[0].source = 'An invented specification';
+    },
+    (r) => {
+      r.requirements.sources = [];
+    },
+    (r) => {
+      r.requirements.items = [];
+    },
+    (r) => {
+      r.requirements.status = 'not-found';
+    },
+  ]) {
+    const r = report();
+    mutate(r);
+    assert.throws(() => validateReport(r, fixture()), /[Rr]equirement/);
   }
 });
 

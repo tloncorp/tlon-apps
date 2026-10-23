@@ -310,7 +310,11 @@ export function prepareSource(context, directory) {
       'change files, or publish to GitHub. Source inspection and supplied CI evidence are available; ' +
       'report missing execution evidence honestly. Read relevant trusted domain docs. ' +
       'Return only the JSON report matching the supplied schema, in English. ' +
-      'Account for every automated finding, including review bodies and old revisions. ' +
+      'Read .agents/skills/tlon-pr-triage/references/evidence-ledger.md. ' +
+      'Build a behavior impact map and check sourced requirements. ' +
+      'Account for every automated finding, including review bodies and old revisions, with structured ' +
+      'proof, counterevidence, gaps, and a separate assessment of the suggested fix. ' +
+      'Inventory every non-empty Codex discussion item in reviewCoverage, including zero-finding items. ' +
       'Use humanDecisions only for concrete policy/authority/product decisions, with empty path and line 0 ' +
       'when there is no verified diff anchor. Do not turn an ordinary bounded fix into human review. ' +
       'The publisher will independently refresh GitHub state before publication.\n'
@@ -349,6 +353,14 @@ export function isDiffLine(files, decision) {
   return false;
 }
 
+function automatedSources(context) {
+  return [
+    ...context.comments,
+    ...context.reviews,
+    ...context.conversation,
+  ].filter((item) => item.user?.login === BOT && item.body?.trim());
+}
+
 export function validateReport(report, context) {
   validate(report);
   if (report.headSha !== context.pr.head.sha)
@@ -364,8 +376,13 @@ export function validateReport(report, context) {
     (report.evidence !== 'sufficient' ||
       report.gaps.length ||
       report.agentWork.length ||
-      report.findings.some((f) =>
-        ['confirmed', 'inconclusive'].includes(f.verdict)
+      report.impactMap.some((row) => row.gaps.length) ||
+      report.requirements.status === 'unavailable' ||
+      report.requirements.items.some((item) => item.status !== 'met') ||
+      report.findings.some(
+        (f) =>
+          ['confirmed', 'inconclusive'].includes(f.verdict) ||
+          f.proofGaps.length
       ))
   )
     throw new Error(
@@ -393,9 +410,68 @@ export function validateReport(report, context) {
       .map((item) => item.html_url)
       .filter(Boolean)
   );
-  for (const finding of report.findings)
+  const changedPaths = new Set(context.files.map((file) => file.filename));
+  const mappedPaths = new Set();
+  for (const row of report.impactMap)
+    for (const file of row.changedPaths) {
+      if (!changedPaths.has(file))
+        throw new Error('Impact map references a file outside the change');
+      mappedPaths.add(file);
+    }
+  if (mappedPaths.size !== changedPaths.size && !report.gaps.length)
+    throw new Error('Impact map omits changed files without a coverage gap');
+  const requirements = report.requirements;
+  if (
+    (requirements.status === 'assessed' &&
+      (!requirements.sources.length || !requirements.items.length)) ||
+    (requirements.status === 'not-found' &&
+      (requirements.sources.length || requirements.items.length))
+  )
+    throw new Error('Requirements assessment contradicts its sources');
+  for (const item of requirements.items)
+    if (!requirements.sources.includes(item.source))
+      throw new Error('Requirement has no recorded source');
+
+  const findingKeys = new Set();
+  for (const finding of report.findings) {
     if (!known.has(finding.url))
       throw new Error('Finding has no source comment');
+    const key = JSON.stringify([finding.url, finding.claim.trim()]);
+    if (findingKeys.has(key)) throw new Error('Duplicate finding');
+    findingKeys.add(key);
+    if (finding.validationMethod === 'local-reproduction')
+      throw new Error('Hosted analysis cannot claim local execution');
+    if (
+      finding.verdict !== 'inconclusive' &&
+      (!finding.evidence.length || finding.validationMethod === 'none')
+    )
+      throw new Error('Finding verdict requires supporting evidence');
+    if (finding.verdict === 'refuted' && !finding.counterevidence.length)
+      throw new Error('Refutation requires explicit counterevidence');
+    if (finding.verdict === 'inconclusive' && !finding.proofGaps.length)
+      throw new Error('Inconclusive finding requires a proof gap');
+  }
+  // Account for every bot message, including review bodies containing several
+  // findings and status-only comments containing none. Counts check consistency;
+  // identifying the claims inside free text still requires model judgment.
+  const sources = new Set(
+    automatedSources(context).map((item) => item.html_url)
+  );
+  const covered = new Set();
+  for (const item of report.reviewCoverage) {
+    if (!sources.has(item.url) || covered.has(item.url))
+      throw new Error('Unknown or duplicate automated review coverage source');
+    covered.add(item.url);
+    if (
+      report.findings.filter((f) => f.url === item.url).length !==
+      item.findingCount
+    )
+      throw new Error(
+        'Automated review finding count does not match the ledger'
+      );
+  }
+  if (covered.size !== sources.size)
+    throw new Error('Automated review source omitted from coverage');
   // Inline root findings must not silently disappear from the counter-review.
   for (const comment of context.comments)
     if (
@@ -422,11 +498,46 @@ export function render(report, expected, retainedHuman) {
     `- **Complexity: ${report.complexity.level}.** ${safeText(report.complexity.reason)}\n` +
     `- **Sensitivity: ${report.sensitivity.level}.** ${safeText(report.sensitivity.reason)}\n` +
     `- **Evidence: ${report.evidence}.**\n\n` +
-    `### Automated findings\n\n${bullets(
-      report.findings.map(
-        (f) => `${f.url} — **${f.verdict}**. ${f.currentStatus} ${f.evidence}`
+    `### Impact map\n\n${bullets(
+      report.impactMap.map(
+        (row) =>
+          `${row.behavior} (${row.changedPaths.join(', ')})\n` +
+          `  Trace: ${row.trace}\n` +
+          `  Consumers: ${row.consumers.join('; ') || 'None identified'}. ` +
+          `Boundaries: ${row.boundaries.join('; ') || 'None identified'}.\n` +
+          `  Validation: ${row.validation}\n` +
+          `  Material gaps: ${row.gaps.join('; ') || 'None'}.`
       )
     )}\n\n` +
+    `### Requirements — ${report.requirements.status}\n\n` +
+    `${safeText(report.requirements.summary)}\n\n` +
+    `Sources:\n${bullets(report.requirements.sources)}\n\n` +
+    `${bullets(
+      report.requirements.items.map(
+        (item) =>
+          `**${item.status}** — ${item.requirement}\n  Source: ${item.source}\n` +
+          `  Evidence: ${item.evidence}\n  Next step: ${item.nextStep}`
+      )
+    )}\n\n` +
+    `### Automated findings\n\n${bullets(
+      report.findings.map(
+        (f) =>
+          `${f.url} — **${f.verdict}**. ${f.claim}\n` +
+          `  Reviewed revision: ${f.reviewedRevision}. Current status: ${f.currentStatus}\n` +
+          `  Trigger: ${f.trigger}\n  Trace: ${f.trace}\n` +
+          `  Method: ${f.validationMethod}. Evidence: ${f.evidence.join('; ') || 'None'}.\n` +
+          `  Counterevidence: ${f.counterevidence.join('; ') || 'None found'}.\n` +
+          `  Proof gaps: ${f.proofGaps.join('; ') || 'None'}. Next step: ${f.nextStep}\n` +
+          `  Suggested fix assessment: ${f.fixAssessment}`
+      )
+    )}\n\n` +
+    '<details>\n<summary>Automated review coverage</summary>\n\n' +
+    `${bullets(
+      report.reviewCoverage.map(
+        (item) =>
+          `${item.url} — ${item.findingCount} finding(s). ${item.reason}`
+      )
+    )}\n\n</details>\n\n` +
     `### Checks and evidence\n\n${bullets(report.checks)}\n\n` +
     `### Gaps\n\n${bullets(report.gaps)}\n\n` +
     `### Remaining agent work\n\n${bullets(report.agentWork)}\n\n` +

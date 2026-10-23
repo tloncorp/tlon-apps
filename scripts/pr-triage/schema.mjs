@@ -27,11 +27,60 @@ export const schema = object({
   checks: strings,
   gaps: strings,
   agentWork: strings,
+  impactMap: {
+    type: 'array',
+    maxItems: 100,
+    items: object({
+      behavior: string,
+      changedPaths: { ...strings, minItems: 1 },
+      trace: string,
+      consumers: strings,
+      boundaries: strings,
+      validation: string,
+      gaps: strings,
+    }),
+  },
+  requirements: object({
+    status: choice('assessed', 'not-found', 'unavailable'),
+    sources: strings,
+    summary: string,
+    items: {
+      type: 'array',
+      maxItems: 100,
+      items: object({
+        requirement: string,
+        source: string,
+        status: choice('met', 'unmet', 'unclear'),
+        evidence: string,
+        nextStep: string,
+      }),
+    },
+  }),
+  reviewCoverage: {
+    type: 'array',
+    maxItems: 500,
+    items: object({
+      url: string,
+      findingCount: { type: 'integer', minimum: 0 },
+      reason: string,
+    }),
+  },
   findings: {
     type: 'array',
     maxItems: 150,
     items: object({
       url: string,
+      claim: string,
+      reviewedRevision: { ...string, pattern: '^([a-f0-9]{40}|unknown)$' },
+      trigger: string,
+      trace: string,
+      validationMethod: choice(
+        'source-inspection',
+        'collected-checks',
+        'local-reproduction',
+        'mixed',
+        'none'
+      ),
       verdict: choice(
         'confirmed',
         'refuted',
@@ -41,7 +90,11 @@ export const schema = object({
         'inconclusive'
       ),
       currentStatus: string,
-      evidence: string,
+      evidence: strings,
+      counterevidence: strings,
+      proofGaps: strings,
+      nextStep: string,
+      fixAssessment: string,
     }),
   },
   humanDecisions: {
@@ -75,7 +128,11 @@ export function validate(value, rule = schema, location = 'report') {
       validate(value[key], rule.properties[key], `${location}.${key}`);
     }
   } else if (rule.type === 'array') {
-    if (!Array.isArray(value) || value.length > rule.maxItems)
+    if (
+      !Array.isArray(value) ||
+      value.length < (rule.minItems ?? 0) ||
+      value.length > rule.maxItems
+    )
       fail('invalid array');
     value.forEach((item, index) =>
       validate(item, rule.items, `${location}[${index}]`)

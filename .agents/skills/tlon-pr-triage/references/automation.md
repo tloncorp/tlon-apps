@@ -32,10 +32,29 @@ Return only the JSON object specified by `scripts/pr-triage/schema.mjs`:
 - Separate `complexity` and `sensitivity` objects with `level` and `reason`.
 - `evidence` (`sufficient`, `partial`, `missing`), `checks`, and `gaps`.
 - `agentWork`: bounded remaining implementation or verification work.
-- `findings`: each finding's original discussion URL, verdict, current status,
-  and supporting evidence. Include every automated root inline finding
-  individually, and all actionable findings in review bodies or conversation.
-  A review body can contain multiple findings sharing the same URL.
+- `impactMap`: behavior, changed paths, source trace, consumers, boundaries,
+  validation, and material gaps. Cover every changed file or explain omitted
+  coverage in top-level `gaps`. References to unchanged callers belong in the
+  trace/consumers, not `changedPaths`.
+- `requirements`: source status, source references, summary, and individual
+  requirements with their exact source reference, status, evidence, and next
+  step. Use the source distinctions and routing rules in
+  [Evidence ledger](evidence-ledger.md). Linked issues/specs absent from the
+  snapshot or Git objects are unavailable here; do not fetch them or assume
+  their contents. Disclose a material missing source.
+- `reviewCoverage`: one entry for every non-empty Codex message in `comments`,
+  `reviews`, and `conversation`, including replies/status-only messages. Give
+  its URL, finding count, and reason. Counts must match the entries in `findings`
+  sharing that URL. Zero is appropriate only with an explicit explanation.
+- `findings`: the structured counter-review entries defined in the evidence
+  reference, including each claim's URL, reviewed revision, trigger, trace,
+  validation method, evidence, counterevidence, proof gaps, verdict, current
+  status, next step, and fix assessment. Include every automated root inline
+  finding individually and split distinct findings in a review body into
+  separate entries sharing its URL. Use `unknown` for a missing reviewed SHA.
+  Evidence, counterevidence, and proof gaps are arrays; empty means none.
+  `local-reproduction` is unavailable in this job; `mixed` can combine source
+  inspection with collected execution evidence, never claim local execution.
 - `humanDecisions`: a concrete question, reason, existing evidence, and optional
   diff anchor (`path`, `line`, `side`). Use `path: ""`, `line: 0`, `side: "RIGHT"`
   when an anchor is unavailable; it remains in the summary. Prefer a single
@@ -43,8 +62,10 @@ Return only the JSON object specified by `scripts/pr-triage/schema.mjs`:
 
 Use the same four outcomes and priority order as the skill. An eligible result
 needs sufficient evidence, no material gaps or remaining agent work, no
-unresolved findings, and no human decision. A running or stale Codex review is
-not a completed clean review; disclose it and do not return agent-eligible.
+unresolved findings or requirements, and no human decision. Gaps in the impact
+map or a finding also block eligibility even if top-level `gaps` is empty.
+A running or stale Codex review is not a completed clean review; disclose it
+and do not return agent-eligible.
 Report checks as observed evidence, never as commands you executed in this job.
 
 ## Publication
@@ -61,8 +82,12 @@ recommends eligibility. Agent work may coexist with that requirement.
 
 The publisher validates JSON, compares the head/base and evidence fingerprint,
 requires references to actual discussion items, and deduplicates inline
-comments by revision/location. Failure or changed evidence leaves the outcome
-incomplete rather than inferring eligibility. The workflow is advisory and does
-not override branch protection or the existing human review workflow.
+comments by revision/location. It checks impact-map file coverage, requirement
+source consistency, and automated message coverage/counts. Extracting all
+claims from free text and judging evidence still require model reasoning;
+these checks do not establish semantic completeness. Failure or changed
+evidence leaves the outcome incomplete rather than inferring eligibility. The
+workflow is advisory and does not override branch protection or the existing
+human review workflow.
 
 See `docs/tlon-apps/pr-triage.md` for triggers, configuration, and limitations.
