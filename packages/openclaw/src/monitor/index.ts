@@ -224,6 +224,7 @@ import {
   formatApprovalRequestNotification,
   formatBlockedList,
   formatChannelApprovalAck,
+  isDirectDmApproval,
   isExpired,
   isNotificationDelivered,
   mergeApprovalDeliveryState,
@@ -318,10 +319,13 @@ import {
 } from './sse-watchdog-config.js';
 import {
   extractCites,
+  extractDmPartnerShip,
   formatModelName,
   inboundCommandFields,
   isChannelRestricted,
+  isDirectDmWhom,
   isDmAllowed,
+  isDmPartnerAuthorized,
   isOwnerListenSlashCommand,
   isRegisteredCommandText,
   isSummarizationRequest,
@@ -2291,11 +2295,25 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       approval: PendingApproval,
       action: 'approve' | 'deny' | 'block'
     ): Promise<string> {
+      if (!isDirectDmApproval(approval)) {
+        runtime.log?.(
+          `[tlon] Dropping approval #${approval.id}: group DMs are deprecated`
+        );
+        pendingApprovals = removePendingApproval(pendingApprovals, approval.id);
+        await savePendingApprovals();
+        return `Dropped request #${approval.id}: group DMs are no longer supported.`;
+      }
       if (action === 'approve') {
         switch (approval.type) {
           case 'dm':
             await addToDmAllowlist(approval.requestingShip);
-            if (approval.originalMessage) {
+            // Records saved before `whom` was recorded may come from a group
+            // DM (club); allow the ship but do not replay their message.
+            if (approval.originalMessage && !approval.originalMessage.whom) {
+              runtime.log?.(
+                `[tlon] Not replaying message for approval #${approval.id}: no DM recorded`
+              );
+            } else if (approval.originalMessage) {
               runtime.log?.(
                 `[tlon] Processing original message from ${approval.requestingShip} after approval`
               );
@@ -2681,26 +2699,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         return false;
       }
       return normalizeShip(ship) === effectiveOwnerShip;
-    }
-
-    /**
-     * Extract the DM partner ship from the 'whom' field.
-     * This is the canonical source for DM routing (more reliable than essay.author).
-     * Returns empty string if whom doesn't contain a valid patp-like value.
-     */
-    function extractDmPartnerShip(whom: unknown): string {
-      const raw =
-        typeof whom === 'string'
-          ? whom
-          : whom &&
-              typeof whom === 'object' &&
-              'ship' in whom &&
-              typeof whom.ship === 'string'
-            ? whom.ship
-            : '';
-      const normalized = normalizeShip(raw);
-      // Keep DM routing strict: accept only patp-like values.
-      return /^~?[a-z-]+$/i.test(normalized) ? normalized : '';
     }
 
     const processMessage = async (
@@ -5132,6 +5130,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Firehose handler for all DM messages (/v4)
     // Track which DM invites we've already processed to avoid duplicate accepts
     const processedDmInvites = new Set<string>();
+    const ignoredGroupDms = new Set<string>();
 
     const handleChatFirehose = async (event: ChatFirehoseEvent) => {
       let endActivityRead: ((handled?: boolean) => void) | undefined;
@@ -5209,7 +5208,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
-        const whom = event.whom; // DM partner ship or club ID
+        const whom = event.whom;
+        // Group DMs (clubs) are deprecated; the plugin handles 1:1 DMs only.
+        if (!isDirectDmWhom(whom)) {
+          const key = String(whom);
+          if (!ignoredGroupDms.has(key)) {
+            ignoredGroupDms.add(key);
+            runtime.log?.(
+              `[tlon] Ignoring group DM ${key}: the plugin handles 1:1 DMs only`
+            );
+          }
+          return;
+        }
+        const partnerShip = extractDmPartnerShip(whom);
         const messageId = event.id;
         const response = event.response;
 
@@ -5245,9 +5256,22 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             );
             return;
           }
+          // A 1:1 DM reaction not made by the bot is the DM partner's.
           if (reactAuthor && reactAuthor !== botShipName) {
+            if (
+              !isDmPartnerAuthorized(
+                partnerShip,
+                effectiveOwnerShip,
+                effectiveDmAllowlist
+              )
+            ) {
+              runtime.log?.(
+                `[tlon] Ignoring DM reaction from ${partnerShip}: not in allowlist`
+              );
+              return;
+            }
             // Check if this is an approval reaction from the owner on a notification message
-            if (isAdd && isOwner(reactAuthor)) {
+            if (isAdd && isOwner(partnerShip)) {
               const approvalAction = emojiToApprovalAction(reactEmoji);
               if (approvalAction) {
                 const normalizedEventId = normalizeNotificationId(messageId);
@@ -5282,12 +5306,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             }
 
             try {
-              const partnerShip = extractDmPartnerShip(whom);
               const route = core.channel.routing.resolveAgentRoute({
                 cfg,
                 channel: 'tlon',
                 accountId: opts.accountId ?? undefined,
-                peer: { kind: 'direct', id: partnerShip || reactAuthor },
+                peer: { kind: 'direct', id: partnerShip },
               });
 
               // Look up cached DM message for context
@@ -5303,11 +5326,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   ? `${reactEmoji} (reacting to: "${cached.content}")`
                   : reactEmoji;
                 runtime.log?.(
-                  `[tlon] Dispatching DM reaction as message: ${reactEmoji} from ${reactAuthor}`
+                  `[tlon] Dispatching DM reaction as message: ${reactEmoji} from ${partnerShip}`
                 );
                 await processMessage({
-                  messageId: `react-${messageId}-${reactAuthor}-${Date.now()}`,
-                  senderShip: reactAuthor,
+                  messageId: `react-${messageId}-${partnerShip}-${Date.now()}`,
+                  senderShip: partnerShip,
                   messageText: reactText,
                   trigger: 'reaction',
                   fromReaction: true,
@@ -5326,14 +5349,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 const authorInfo = cached?.author
                   ? ` (by ${formatShipWithNickname(cached.author)})`
                   : '';
-                const reactorDisplay = formatShipWithNickname(reactAuthor);
+                const reactorDisplay = formatShipWithNickname(partnerShip);
                 const eventText = `Tlon DM reaction ${action}: ${reactEmoji} by ${reactorDisplay} on message ${messageId}${authorInfo}${contentSnippet}`;
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
-                  contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${reactAuthor}:${action}`,
+                  contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${partnerShip}:${action}`,
                   // Route any resulting system/heartbeat turn back to Tlon.
                   deliveryContext: tlonDeliveryContext(
-                    `tlon:${partnerShip || reactAuthor}`,
+                    `tlon:${partnerShip}`,
                     route.accountId
                   ),
                 });
@@ -5380,8 +5403,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         );
 
         const authorShip = normalizeShip(extractAuthorShip(dmContent.author));
-        const partnerShip = extractDmPartnerShip(whom);
-        const senderShip = partnerShip || authorShip;
+        const senderShip = partnerShip;
         const { rawText, engagementText } = prepareInboundText(
           dmContent.content,
           botShipName,
@@ -5467,6 +5489,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     : undefined,
                   isThreadReply: isDmThreadReply,
                   blob: dmContent.blob ?? undefined,
+                  whom,
                 },
               },
               pendingApprovals.map((a) => a.id)
