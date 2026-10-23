@@ -11,6 +11,7 @@ import {
 import { getUrbitContext, normalizeUrbitCookie } from './context.js';
 import { UrbitHttpError } from './errors.js';
 import { urbitFetch } from './fetch.js';
+import { redactUrbitErrorText, registerUrbitCookie } from './redact.js';
 
 /**
  * Nack retries back off slowly: each one crashes the remote agent's on-watch,
@@ -79,7 +80,7 @@ type UrbitSseOptions = {
 
 export class UrbitSSEClient {
   url: string;
-  cookie: string;
+  private currentCookie = '';
   ship: string;
   channelId: string;
   channelUrl: string;
@@ -331,6 +332,9 @@ export class UrbitSSEClient {
       this.actionFloors.set(subscription.id, this.lastHeardEventId);
     }
     this.recordGenerationZeroEligibleId(subscription.id);
+    // The cookie sent with this request; a reconnect may replace this.cookie
+    // before the error body arrives.
+    const cookie = this.cookie;
     const { response, release } = await urbitFetch({
       baseUrl: this.url,
       path: `/~/channel/${this.channelId}`,
@@ -338,7 +342,7 @@ export class UrbitSSEClient {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Cookie: this.cookie,
+          Cookie: cookie,
         },
         body: JSON.stringify([subscription]),
       },
@@ -352,8 +356,11 @@ export class UrbitSSEClient {
     try {
       if (!response.ok && response.status !== 204) {
         const errorText = await response.text().catch(() => '');
+        const detail = errorText
+          ? redactUrbitErrorText(errorText, { cookie })
+          : '';
         throw new Error(
-          `Subscribe failed: ${response.status}${errorText ? ` - ${errorText}` : ''}`
+          `Subscribe failed: ${response.status}${detail ? ` - ${detail}` : ''}`
         );
       }
     } finally {
@@ -1101,6 +1108,7 @@ export class UrbitSSEClient {
           operation: `request ${path}`,
           status: response.status,
           bodyText: text || undefined,
+          cookie: headers.Cookie,
         });
       }
       return text.trim() ? (JSON.parse(text) as T) : (undefined as T);
@@ -1113,6 +1121,18 @@ export class UrbitSSEClient {
    * Update the cookie used for authentication.
    * Call this when re-authenticating after session expiry.
    */
+  // Every request reads the cookie through this getter, which re-registers it
+  // so a long-lived session cookie stays in the redaction registry.
+  get cookie(): string {
+    registerUrbitCookie(this.currentCookie);
+    return this.currentCookie;
+  }
+
+  set cookie(value: string) {
+    this.currentCookie = value;
+    registerUrbitCookie(value);
+  }
+
   updateCookie(newCookie: string): void {
     this.cookie = normalizeUrbitCookie(newCookie);
   }

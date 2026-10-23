@@ -15,6 +15,7 @@ import {
   createComputedAccountStatusAdapter,
   createDefaultChannelRuntimeState,
 } from 'openclaw/plugin-sdk/status-helpers';
+import { sanitizeAssistantVisibleText } from 'openclaw/plugin-sdk/text-chunking';
 
 import { tlonMessageActions } from './actions.js';
 import {
@@ -460,6 +461,7 @@ export const tlonPlugin = createChatChannelPlugin({
   outbound: {
     deliveryMode: 'direct',
     textChunkLimit: 10000,
+    sanitizeText: ({ text }) => sanitizeAssistantVisibleText(text),
     resolveTarget: ({ to }) => {
       const parsed = parseTlonTarget(to ?? '');
       if (!parsed) {
