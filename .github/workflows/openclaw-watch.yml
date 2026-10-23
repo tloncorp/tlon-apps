@@ -225,7 +225,7 @@ jobs:
       # post falls back to signals + highlights below half coverage.
       - name: Label bullets
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENCLAW_WATCH_OPENROUTER_API_KEY }}
         run: |
           node packages/openclaw/scripts/upstream-watch/label.ts \
             --digest watch/digest-input.json \
