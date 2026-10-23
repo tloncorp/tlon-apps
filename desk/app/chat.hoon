@@ -1419,20 +1419,24 @@
       (turn ~(tap by dms) |=([=@p dm:c] [ship+p pact remark]))
     (turn ~(tap by clubs) |=([=id:club:c club:c] [club+id pact remark]))
   |=  [=whom:c =pact:c =remark:c]
-  ^-  (unit [_whom time (unit writ:c)])
+  =|  slip=_|
+  |-  ^-  (unit [_whom time (unit writ:c)])
   ::  if there is no latest post, give nothing
   ::
   ?~  vp=(ram:on:writs:c wit.pact)  ~
+  ::  if latest was deleted, try the next-latest message instead
+  ::
+  ?:  ?=(%| -.val.u.vp)
+    $(slip &, wit.pact +:(del:on:writs:c wit.pact key.u.vp))
   ::  if the request is bounded, check that latest message is "in bounds"
-  ::  (and not presumably already known by the requester)
+  ::  (and not presumably already known by the requester). if it is only
+  ::  latest because something else was deleted, give it regardless.
   ::
   ?.  ?|  ?=(~ since)
+          slip
           |((gth key.u.vp u.since) (gth recency.remark u.since))
       ==
     ~
-  ::  latest is in range (or recency was changed), give it directly
-  ::
-  ?:  ?=(%| -.val.u.vp)  ~
   `[whom recency.remark `+.val.u.vp]
 ::
 ++  unreads

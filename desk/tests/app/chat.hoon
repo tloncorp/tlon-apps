@@ -126,6 +126,77 @@
   ;<  *  bind:m  (set-src ~dev)
   ;<  caz=(list card)  bind:m  (do-poke %chat-dm-rsvp !>([~zod &]))
   (ex-dm-status caz [~zod `%done] ~)
+::  a dm whose newest message was deleted heads with the newest live one,
+::  for unbounded and since-bounded requests alike
+::
+++  test-dm-heads-skip-deleted-latest
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
+  =/  =verse:ch  [%inline ~['hi']]
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  first=id:c  [~dev now.bw]
+  =/  =action:dm:c  [~zod (dm-message-from ~dev now.bw verse)]
+  ;<  *  bind:m  (do-poke %chat-dm-action-2 !>(action))
+  ;<  *  bind:m  (wait ~s1)
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  second=id:c  [~dev now.bw]
+  =/  =action:dm:c  [~zod (dm-message-from ~dev now.bw verse)]
+  ;<  *  bind:m  (do-poke %chat-dm-action-2 !>(action))
+  ::  a live latest message older than .since is not given
+  ::
+  ;<  *  bind:m  (ex-head-ids /x/v4/heads/(scot %da now.bw) ~)
+  =/  =action:dm:c  [~zod second %del ~]
+  ;<  *  bind:m  (do-poke %chat-dm-action-2 !>(action))
+  ;<  *  bind:m  (wait ~s1)
+  ;<  bw=bowl  bind:m  get-bowl
+  ;<  *  bind:m  (ex-head-ids /x/v4/heads [ship+~zod first]~)
+  (ex-head-ids /x/v4/heads/(scot %da now.bw) [ship+~zod first]~)
+::
+++  test-club-heads-skip-deleted-latest
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
+  =/  =verse:ch  [%inline ~['hi']]
+  =/  =id:club:c  0v1
+  ;<  *  bind:m  (do-poke %chat-club-create !>(`create:club:c`[id (sy ~zod ~)]))
+  ;<  *  bind:m  (wait ~s1)
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  first=id:c  [~dev now.bw]
+  ;<  *  bind:m  (club-poke id 0v0 %writ (dm-message-from ~dev now.bw verse))
+  ;<  *  bind:m  (wait ~s1)
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  second=id:c  [~dev now.bw]
+  ;<  *  bind:m  (club-poke id 0v0 %writ (dm-message-from ~dev now.bw verse))
+  ;<  *  bind:m  (club-poke id 0v0 %writ second %del ~)
+  (ex-head-ids /x/v4/heads [club+id first]~)
+::  +club-poke: poke .action into its club as a new event
+::
+::    gall gives every event fresh entropy, and +cu-uid hashes it into the
+::    action's uid. without it, a repeated uid is dropped as already heard.
+::
+++  club-poke
+  |=  =action:club:c
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(eny (shax eny.b))))
+  (do-poke %chat-club-action-2 !>(action))
+::  +ex-head-ids: the heads at .path are exactly .exes, by latest message id
+::
+++  ex-head-ids
+  |=  [=path exes=(list [whom:c id:c])]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  =cage  bind:m  (got-peek path)
+  =+  !<(heads=chat-heads:v7:cv q.cage)
+  %+  ex-equal
+    !>  %+  turn  heads
+        |=([=whom:c * latest=(unit writ:c)] [whom id:(need latest)])
+  !>(exes)
 ::  +ex-dm-status: the %chat-dm-status facts in .caz are exactly .exes
 ::
 ++  ex-dm-status

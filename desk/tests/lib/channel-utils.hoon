@@ -7,6 +7,9 @@
 ::    the output cast never caught it. these lock in glyph passthrough for both
 ::    the v4 (said-3) and v5 (said-4) builders, for posts and replies.
 ::
+::    also covers +channel-head behind the /vN/heads scries (TLON-6941): a
+::    channel whose newest posts were deleted heads with its newest live post.
+::
 /-  c=channels, cv=channels-ver
 /+  *test, utils=channel-utils
 |%
@@ -99,5 +102,39 @@
   ;:  weld
     (expect-eq !>(%channel-said-2) !>(p.cage))
     (expect-eq !>(the-reacts) !>((reply-reacts-3 said)))
+  ==
+::  +live-latest: a channel whose newest post is .the-v-post
+::
+++  live-latest
+  ^-  v-channel:c
+  =|  chan=v-channel:c
+  chan(posts the-posts, recency.remark post-id)
+::  +deleted-latest: .live-latest, then two more posts that were deleted
+::
+++  deleted-latest
+  ^-  v-channel:c
+  =/  chan  live-latest
+  =/  tombs=(list [id-post:c (may:c v-post:c)])
+    %+  turn  `(list id-post:c)`~[~2026.1.3 ~2026.1.4]
+    |=(=id-post:c [id-post |+[id-post ~zod 0 id-post]])
+  chan(posts (gas:on-v-posts:c the-posts tombs), recency.remark ~2026.1.4)
+++  the-head
+  ^-  (unit [nest:c time (may:c post:c)])
+  `[the-nest ~2026.1.4 &+(uv-post-without-replies-4:utils the-v-post)]
+::  /vN/heads: deleted newest posts fall back to the newest live post
+::
+++  test-channel-head-skips-deleted-latest
+  (expect-eq !>(the-head) !>((channel-head:utils ~ the-nest deleted-latest)))
+::  /vN/heads/since: the fallback is older than .since, but the deletion
+::  is news to the requester, so it is still given
+::
+++  test-channel-head-since-skips-deleted-latest
+  =/  since=(unit id-post:c)  `~2026.1.5
+  ;:  weld
+    %+  expect-eq  !>(the-head)
+    !>((channel-head:utils since the-nest deleted-latest))
+  ::
+    %+  expect-eq  !>(~)
+    !>((channel-head:utils since the-nest live-latest))
   ==
 --
