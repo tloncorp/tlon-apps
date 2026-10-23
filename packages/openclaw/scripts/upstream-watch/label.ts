@@ -26,8 +26,10 @@ import { type LabeledRow, THRESHOLD, oursOf } from './policy.ts';
 const CONCURRENCY = 8;
 // Each bullet costs an authenticated request (two if in scope), so a
 // changelog with an unbounded bullet count must not mean unbounded spend.
-// Real releases carry a few hundred.
-export const MAX_LABELED_BULLETS = 1500;
+// Real releases carry a few hundred; a line roll or a forced digest across
+// a line spans ~3000, and the post falls back to unlabeled highlights when
+// fewer than half are labeled, so the cap has to cover one of those.
+export const MAX_LABELED_BULLETS = 4000;
 
 // Manifest profile entries that are deployment facts, regenerated from the
 // digest on every run so they cannot go stale. Each must appear in the
