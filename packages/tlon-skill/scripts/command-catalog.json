@@ -67,6 +67,6 @@
   "upload": {
     "summary": "Standalone media upload",
     "reference": "references/media.md",
-    "toolGuidance": "Use a URL or workspace file; stdin is shell-only."
+    "toolGuidance": "Use URLs or workspace files, several per call if needed; stdin is shell-only."
   }
 }
