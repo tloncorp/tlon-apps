@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 # E2E Test Container for Tlon Web
 # Node version pinned to match .nvmrc
-FROM node:24.16.0-bookworm
+FROM node:24.22.1-bookworm
 
 # Prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -69,10 +69,10 @@ WORKDIR /workspace
 RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
     printf "%s\n" \
-        "https://bootstrap.urbit.org/rube-zod39.tgz zod.tgz" \
+        "https://bootstrap.urbit.org/rube-zod41.tgz zod.tgz" \
         "https://bootstrap.urbit.org/rube-bus9.tgz bus.tgz" \
-        "https://bootstrap.urbit.org/rube-ten39.tgz ten.tgz" \
-        "https://bootstrap.urbit.org/rube-mug39.tgz mug.tgz" \
+        "https://bootstrap.urbit.org/rube-ten41.tgz ten.tgz" \
+        "https://bootstrap.urbit.org/rube-mug41.tgz mug.tgz" \
         "https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz urbit.tgz" \
     | xargs -P 5 -n 2 sh -c 'curl -fSL -o "$1" "$0" || exit 255' && \
     echo "All downloads complete, extracting..." && \

@@ -11,7 +11,7 @@ Notes: `Notifications` and `Appearance` show their current choice under the name
 ## Why is a Settings row missing for me
 
 Who: `Manage Tlon account` and `Tlon Messenger on the Web` are for accounts Tlon hosts, and neither shows in the desktop layout. A self-hosted node gets neither.
-Notes: with a hosted Tlonbot, the phone puts the bot's own rows (`Models`, `Connections`, `Permissions` and more) between `Your profile` and the rest. If the app can't use your hosted login just then, for example because it has expired, you get a single `Bot Settings` row instead, with a `Scheduled tasks` row under it when the app can show your bot's tasks. On desktop a hosted bot always gets the single `Bot Settings` row, which opens the bot's settings in a new browser tab. No hosted bot means no bot rows at all. Desktop also leaves out `Your profile`, `Contacts` and `Log out`. A browser window under 768 pixels wide gets the phone layout instead, which still has no `Log out`.
+Notes: with a hosted Tlonbot, the phone puts the bot's own rows (`Models`, `Connections`, `Permissions` and more) between `Your profile` and the rest. If the app can't use your hosted login just then, for example because it has expired, you get a single `Bot Settings` row instead, with a `Scheduled tasks` row under it when the app can show your bot's tasks, and a `Prompt files` row. On desktop a hosted bot always gets the single `Bot Settings` row, which opens the bot's settings in a new browser tab, and a `Prompt files` row. No hosted bot means no bot rows at all. Desktop also leaves out `Your profile`, `Contacts` and `Log out`. A browser window under 768 pixels wide gets the phone layout instead, which still has no `Log out`.
 
 ## Set my status from the Settings tab
 

@@ -12,7 +12,7 @@ Notes: the order can't be changed by hand.
 ## A notebook says it's unavailable or that I'm not in it
 <!-- src: packages/app/ui/components/NotesChannel/NotesData.tsx, packages/app/ui/components/NotesChannel/NotesNativeChannel.tsx -->
 
-Notes: while it loads you see `Loading notebook`. `You're not in this notebook` means you have left, or never joined, that channel; the screen adds `Join it from the group's channel list.` `Unable to join notebook` comes with `This notebook is private or no longer available.` `Notebook unavailable` means its contents have not reached your device yet.
+Notes: while it loads you see `Loading notebook`. `You're not in this notebook` means you have left, or never joined, that channel; the screen adds `Join it from the workspace's channel list.` `Unable to join notebook` comes with `This notebook is private or no longer available.` `Notebook unavailable` means its contents have not reached your device yet.
 
 ## Open a folder in a notebook
 <!-- src: packages/app/features/top/NotesFolderScreen.tsx, packages/app/ui/components/NotesChannel/NotesNativeChannel.tsx, packages/app/ui/components/NotesChannel/NotesTreeRows.tsx, packages/app/ui/components/NotesChannel/notesTree.ts -->

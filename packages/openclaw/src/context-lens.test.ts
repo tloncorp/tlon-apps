@@ -1374,6 +1374,7 @@ describe('retry seed and dispatch', () => {
         replyParentId: null,
         cachesHistory: true,
         degraded: false,
+        fromReaction: false,
       },
     });
   });
@@ -1427,6 +1428,53 @@ describe('retry seed and dispatch', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.dispatch.degraded).toBe(true);
+    }
+  });
+
+  it('keeps reaction provenance on a retry and across retry chains', () => {
+    const registry = createContextLensRegistry();
+    const seed = {
+      messageText: '/owner-listen all off (reacting to: "hi")',
+      blobField: null,
+      parentId: null,
+      isThreadReply: false,
+      replyParentId: null,
+      cachesHistory: true,
+    };
+    const reaction = registry.create({
+      messageId: 'react-170.141-~nec-2',
+      chatType: 'channel',
+      trigger: 'reaction',
+      sessionKey: 'session-retry-6',
+      senderShip: '~ten',
+      conversationId: 'chat/~ten/test',
+      preview: 'preview text',
+      retrySeed: { ...seed, fromReaction: true },
+    });
+    const chained = registry.create({
+      messageId: 'react-170.141-~nec-3',
+      chatType: 'channel',
+      trigger: 'retry',
+      sessionKey: 'session-retry-7',
+      senderShip: '~ten',
+      conversationId: 'chat/~ten/test',
+      preview: 'preview text',
+      retrySeed: { ...seed, fromReaction: true },
+    });
+    const unseeded = registry.create({
+      messageId: 'react-170.141-~nec-4',
+      chatType: 'channel',
+      trigger: 'reaction',
+      sessionKey: 'session-retry-8',
+      senderShip: '~ten',
+      conversationId: 'chat/~ten/test',
+      preview: 'preview text',
+    });
+    for (const lens of [reaction, chained, unseeded]) {
+      const result = buildRetryDispatch(
+        registry.setStatus(lens.lensId, 'error', new Error('boom'))!
+      );
+      expect(result.ok && result.dispatch.fromReaction).toBe(true);
     }
   });
 

@@ -16,7 +16,14 @@ export type SettingsRowLeading =
 export type SettingsContextAction = {
   key: string;
   title: string;
+  /** The SF Symbol iOS draws beside it, as the system's own menus do. */
+  systemImage?: string;
   onPress: () => void;
+};
+
+/** A command in an iOS menu. */
+export type SettingsMenuItem = SettingsContextAction & {
+  destructive?: boolean;
 };
 
 /**
@@ -60,13 +67,34 @@ export interface SettingsRowModel {
    * such as a confirmation. Defaults to a chevron.
    */
   accessory?: 'chevron' | 'external' | 'none';
+  /**
+   * For a title that is prose, such as a description: true shows all of it,
+   * false cuts it off after a few lines with "More" beneath, so the row shows
+   * it opens. Left out, each list does what it does for a label.
+   */
+  expanded?: boolean;
   onPress?: () => void;
   /**
-   * Long-press actions. iOS lists them in a context menu; Android and web run
-   * the first one directly.
+   * Long-press actions. iOS lists them in a context menu and Android in a
+   * dropdown menu; web runs the first one directly.
    */
   contextActions?: SettingsContextAction[];
+  /**
+   * A button at the row's end that acts on the row itself, such as removing
+   * it from a list. Only the button is tappable, not the whole row.
+   */
+  trailingAction?: SettingsMenuItem & { testID?: string };
   toggle?: { value: boolean; onValueChange: (value: boolean) => void };
+  /**
+   * The row's value, picked from a short list: a native menu on iOS and
+   * Android, the way Settings shows a choice such as Location access, and a
+   * select on web.
+   */
+  picker?: {
+    value: string;
+    options: { value: string; title: string }[];
+    onChange: (value: string) => void;
+  };
   /**
    * An editable single-line value, such as a URL or token. The row shows the
    * field in place of its title, which still labels it for accessibility, so
@@ -105,6 +133,19 @@ export interface SettingsSectionModel {
   title?: string;
   footer?: string;
   rows: SettingsRowModel[];
+  /**
+   * React Native content in place of rows, drawn straight on the page with no
+   * card, such as a screen's hero. It scrolls with the list.
+   */
+  element?: ReactElement;
+  /** iOS only: a menu opened from beside the section's title. */
+  titleMenu?: SettingsMenuItem[];
+  /**
+   * iOS only: lets the section's rows be dragged into a new order while the
+   * list is editing. Hears the rows' old positions and where they went, in
+   * the terms of the list before the move.
+   */
+  onMove?: (from: number[], to: number) => void;
 }
 
 export interface SettingsListProps {
@@ -114,6 +155,24 @@ export interface SettingsListProps {
    * than the whole width of a wide window.
    */
   maxWidth?: number;
+  /** iOS only: shows the drag handles of sections that can be reordered. */
+  editing?: boolean;
+  /**
+   * iOS only: tighter gaps between sections, for lists of many short
+   * sections, such as members grouped by role.
+   */
+  compactSections?: boolean;
+  /**
+   * iOS only: hears when the list has scrolled this far from its top, and when
+   * it comes back, so a screen can name itself in its bar once its own header
+   * has gone under it.
+   */
+  scrollMark?: SettingsListScrollMark;
+}
+
+export interface SettingsListScrollMark {
+  offset: number;
+  onCrossed: (past: boolean) => void;
 }
 
 /** A search over a settings list, kept in the screen's own state. */
@@ -121,4 +180,6 @@ export interface SettingsListSearch {
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
+  /** Web only: identifies the search field. */
+  testID?: string;
 }

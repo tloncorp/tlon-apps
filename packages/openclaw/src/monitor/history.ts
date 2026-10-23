@@ -7,6 +7,10 @@ import {
 import { da } from '@urbit/aura';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
+import {
+  type OwnerToolPostLedger,
+  sharedOwnerToolPostLedger,
+} from '../owner-tool-posts.js';
 import { isDmNest } from '../targets.js';
 import { formatBlobForHistory, parseBlobData } from './media.js';
 import { extractMessageText } from './utils.js';
@@ -17,6 +21,8 @@ export type TlonHistoryEntry = {
   timestamp: number;
   sequenceNum?: number;
   id?: string;
+  /** The thread's top-level post, on a reply (fetched or firehose-cached). */
+  parentId?: string;
   blob?: string | null;
   parsedBlobData?: ClientPostBlobData | null;
 };
@@ -44,6 +50,34 @@ function parsePostAuthor(author: unknown): string | null {
     return author.ship;
   }
   return null;
+}
+
+/**
+ * History minus posts this bot made in the owner's name with the tlon tool:
+ * those are the bot's own actions, not owner input. Ledger entries expire
+ * after OWNER_TOOL_POST_TTL_MS; past that such a post reads as ordinary
+ * owner-authored history.
+ */
+export function withoutOwnerToolPosts<T extends TlonHistoryEntry>(
+  history: T[],
+  channelNest: string,
+  /** The bot whose history this is; a one-to-one DM matches against it. */
+  receivingShip: string,
+  ledger: OwnerToolPostLedger = sharedOwnerToolPostLedger()
+): T[] {
+  return history.filter(
+    (entry) =>
+      !ledger.match({
+        // Thread replies keep the raw author, a bot-profile object for --bot.
+        author: parsePostAuthor(entry.author) ?? '',
+        target: channelNest,
+        receivingShip,
+        sent: entry.timestamp,
+        ...(entry.id ? { postId: entry.id } : {}),
+        ...(entry.parentId ? { parentId: entry.parentId } : {}),
+        text: entry.content,
+      })
+  );
 }
 
 function parseSequenceNum(value: unknown): number | undefined {
@@ -461,6 +495,7 @@ export async function fetchThreadHistory(
           content: extractMessageText(memo?.content || []),
           timestamp: memo?.sent || Date.now(),
           id: seal?.id || item.id,
+          parentId,
           blob: memo?.blob ?? null,
         } as TlonHistoryEntry;
       })
@@ -490,6 +525,7 @@ export async function fetchThreadHistory(
             content: extractMessageText(reply.memo?.content || []),
             timestamp: reply.memo?.sent || Date.now(),
             id: reply.seal?.id,
+            parentId,
             blob: reply.memo?.blob ?? null,
           }))
           .filter((msg: TlonHistoryEntry) => msg.content || msg.blob);

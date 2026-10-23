@@ -20,6 +20,7 @@ import {
   noteIdFromDeliveryMessageId,
   notesDeliveryMessageId,
 } from '../notes-delivery-state.js';
+import { RESERVED_ONBOARDING_BLOB_TYPES } from '../onboarding-blob-types.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
 import { isDmNest, normalizeShip } from '../targets.js';
@@ -55,6 +56,7 @@ import {
   type TlonHistoryEntry,
   fetchChannelHistory,
   fetchChannelHistoryOrThrow,
+  withoutOwnerToolPosts,
 } from './history.js';
 
 type PluginHookMessageSentEvent = {
@@ -517,6 +519,22 @@ export async function agentOnboardingCronChannelNest(
 export { isDmNest };
 
 /**
+ * Owner-authored request blobs, minus posts this bot itself made in the
+ * owner's name with the tlon tool: those are the bot's actions, not requests.
+ */
+function ownerRequestEntries(
+  history: TlonHistoryEntry[],
+  ownerShip: string,
+  channelNest: string,
+  botShip: string
+): Array<TlonHistoryEntry & { blob: string }> {
+  return withoutOwnerToolPosts(history, channelNest, botShip).filter(
+    (entry): entry is TlonHistoryEntry & { blob: string } =>
+      entry.author === ownerShip && Boolean(entry.blob)
+  );
+}
+
+/**
  * The group a DM's onboarding belongs to.
  *
  * A group channel's nest names its group; a DM's does not. The app posts its
@@ -527,15 +545,19 @@ export { isDmNest };
 export async function findOnboardingRequestInChannel(
   context: Pick<
     AgentOnboardingScanContext,
-    'api' | 'abortSignal' | 'channelNest' | 'ownerShip'
+    'api' | 'abortSignal' | 'botShip' | 'channelNest' | 'ownerShip'
   >,
   deps: Pick<AgentOnboardingDeps, 'fetchHistory'> = {}
 ): Promise<OnboardingRequestRef | undefined> {
   if (!context.ownerShip) return undefined;
   const history = await fetchOnboardingHistory(context, deps);
 
-  return history
-    .filter((entry) => entry.author === context.ownerShip && entry.blob)
+  return ownerRequestEntries(
+    history,
+    context.ownerShip,
+    context.channelNest,
+    context.botShip
+  )
     .map((entry) => ({
       timestamp: entry.timestamp,
       request: parseAgentOnboardingRequest(entry.blob),
@@ -560,11 +582,8 @@ export function parseAgentOnboardingRequest(
 ): AgentRequest | null {
   if (!blob) return null;
   return (
-    parsePostBlob(blob).find(
-      (candidate): candidate is AgentRequest =>
-        candidate.type === 'tlon-agent-intro-request' ||
-        candidate.type === 'tlon-agent-provider-config' ||
-        candidate.type === 'tlon-agent-provision'
+    parsePostBlob(blob).find((candidate): candidate is AgentRequest =>
+      RESERVED_ONBOARDING_BLOB_TYPES.has(candidate.type)
     ) ?? null
   );
 }
@@ -694,7 +713,7 @@ async function rejectUnverifiableAutomaticPlan(
   includePostRequestAnswers = false
 ): Promise<boolean> {
   const reason = validateAutomaticPlanEvidence(
-    history,
+    withoutOwnerToolPosts(history, context.channelNest, context.botShip),
     context.ownerShip!,
     context.botShip,
     request,
@@ -729,8 +748,12 @@ export async function scanAgentOnboardingChannel(
   if (!context.ownerShip || !context.groupId) return false;
   const history = await fetchOnboardingHistory(context, deps);
   context.abortSignal?.throwIfAborted();
-  const ownerRequests = history
-    .filter((entry) => entry.author === context.ownerShip && entry.blob)
+  const ownerRequests = ownerRequestEntries(
+    history,
+    context.ownerShip,
+    context.channelNest,
+    context.botShip
+  )
     .map((entry) => ({
       entry,
       request: parseAgentOnboardingRequest(entry.blob),

@@ -34,7 +34,7 @@ import type {
   ReplyDeleteInput,
 } from './commands/posts';
 import { assertActingShipCanAdminister } from './group-admin';
-import { fetchImageVerse } from './image-attach';
+import { fetchImageVerse, probeAttachmentMedia } from './image-attach';
 import type { Story } from './markdown';
 import { createProcessCommandDeps } from './runtime-deps';
 
@@ -155,6 +155,7 @@ export function createPostsDeps(): PostsDeps {
     getCurrentUserId: () => apiGetCurrentUserId(),
     now: () => Date.now(),
     buildImageVerse: (url: string) => fetchImageVerse(url),
+    probeMedia: probeAttachmentMedia,
     getChannelState,
     // Raw: the command words a failed read.
     getGroupRoleIds: async (groupId: string) =>

@@ -8,9 +8,9 @@ import {
 } from './Channel/ContextLens/RunInspector';
 import { RunMetrics } from './Channel/ContextLens/RunSummary';
 import type { ContextLens } from './Channel/ContextLens/types';
-import { COLUMN_WIDTH } from './RecurringTasks';
 import { ScreenHeader } from './ScreenHeader';
 import { ScreenScrollView } from './ScreenScrollView';
+import { SETTINGS_LIST_COLUMN_WIDTH } from './SettingsList';
 import {
   TASK_RUN_OUTCOME_COLORS,
   TASK_RUN_OUTCOME_LABELS,
@@ -184,7 +184,7 @@ export function TaskRunHistoryView({
           padding="$l"
           paddingBottom="$2xl"
           width="100%"
-          maxWidth={COLUMN_WIDTH}
+          maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
           alignSelf="center"
         >
           {error && runs.length ? <RefreshFailed onRetry={onRetry} /> : null}
@@ -375,7 +375,7 @@ export function TaskRunDetailView({
           padding="$l"
           paddingBottom="$2xl"
           width="100%"
-          maxWidth={COLUMN_WIDTH}
+          maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
           alignSelf="center"
         >
           {lens ? (

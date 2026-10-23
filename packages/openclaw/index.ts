@@ -140,6 +140,7 @@ import {
   type TlonToolExecutorDeps,
   formatTlonToolDescription,
   findTlonSubcommandIndex,
+  OWNER_CONFIG_CHANGED_MESSAGE,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
 import {
@@ -1843,6 +1844,9 @@ export default defineBundledChannelEntry({
           botShip: resolveExecutionBotShip(credentials, process.env),
           env: process.env,
           fileExists: (path) => existsSync(path),
+          // Owner sends are recorded under the account whose credentials
+          // the tool runs with.
+          accountId: account.accountId,
         });
         const executeTlonTool = async (
           id: string,
@@ -1866,13 +1870,15 @@ export default defineBundledChannelEntry({
           // replaced. Running with the approved one would act for an owner
           // (or a default) no longer configured; running with the live one
           // would act on a decision the gate never made.
-          const live = liveAccount();
-          if (
-            live.ownerDefault !== approved.ownerDefault ||
-            live.ownerShip !== approved.ownerShip
-          ) {
-            const message =
-              "the bot's owner configuration changed while this command was pending; nothing was run. Run it again.";
+          const ownerConfigChanged = () => {
+            const live = liveAccount();
+            return (
+              live.ownerDefault !== approved.ownerDefault ||
+              live.ownerShip !== approved.ownerShip
+            );
+          };
+          if (ownerConfigChanged()) {
+            const message = OWNER_CONFIG_CHANGED_MESSAGE;
             return {
               content: [{ type: 'text' as const, text: `Error: ${message}` }],
               details: { status: 'error', error: message },
@@ -1881,12 +1887,13 @@ export default defineBundledChannelEntry({
           // A non-owner message or sessions_send may have demoted the run
           // since the gate; the executor refuses a command that would still
           // act as the owner (a rerun goes through the gate and gets --self).
-          const ownerIdentityLost =
-            approved.ownerRun !== undefined &&
-            !isOwnerRun(approved.ownerRun, live.ownerShip);
+          // The executor reads both again after its --sent-at probe.
           return createTlonToolExecutor({
             ...executorDeps(approved),
-            ownerIdentityLost,
+            ownerConfigChanged,
+            ownerIdentityLost: () =>
+              approved.ownerRun !== undefined &&
+              !isOwnerRun(approved.ownerRun, liveAccount().ownerShip),
           })(id, params);
         };
 

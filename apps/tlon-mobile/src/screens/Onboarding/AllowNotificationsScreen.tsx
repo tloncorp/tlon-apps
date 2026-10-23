@@ -5,13 +5,16 @@ import {
   useNotificationPermissions,
 } from '@tloncorp/app/lib/notifications';
 import { prepareTlonbotRevivalNotifications } from '@tloncorp/app/lib/tlonbotRevivalNotifications';
-import { Button, ScreenHeader, TlonText, View, YStack } from '@tloncorp/app/ui';
+import { Button, TlonText } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef } from 'react';
-import { ImageBackground, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image, Platform } from 'react-native';
 
+import {
+  OnboardingStepLayout,
+  useNotificationPromptFrame,
+} from '../../components/OnboardingStepLayout';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
@@ -24,21 +27,20 @@ const logger = createDevLogger('AllowNotificationsScreen', true);
 
 export const AllowNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
-  const insets = useSafeAreaInsets();
   const isDarkMode = useIsDarkMode();
   const notifPerms = useNotificationPermissions();
   const hasContinued = useRef(false);
+  const prompt = useNotificationPromptFrame();
 
-  // Select background image based on platform and theme
-  const getBackgroundImage = () => {
+  const getPromptImage = () => {
     if (Platform.OS === 'ios') {
       return isDarkMode
-        ? require('../../../assets/images/notif_hint_iOS_dark.png')
-        : require('../../../assets/images/notif_hint_iOS_light.png');
+        ? require('../../../assets/images/notif_prompt_ios_dark.png')
+        : require('../../../assets/images/notif_prompt_ios_light.png');
     } else {
       return isDarkMode
-        ? require('../../../assets/images/notif_hint_android_dark.png')
-        : require('../../../assets/images/notif_hint_android_light.png');
+        ? require('../../../assets/images/notif_prompt_android_dark.png')
+        : require('../../../assets/images/notif_prompt_android_light.png');
     }
   };
 
@@ -131,43 +133,28 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
   );
 
   return (
-    <View
-      flex={1}
-      paddingBottom={insets.bottom}
-      backgroundColor="$secondaryBackground"
+    <OnboardingStepLayout
+      title="Notifications"
+      body={
+        <>
+          On the next screen, make sure you tap{' '}
+          <TlonText.Text fontWeight="600">“Allow”</TlonText.Text> to enable
+          notifications.
+        </>
+      }
+      footer={<Button preset="hero" shadow label="Next" onPress={handleNext} />}
     >
-      <ImageBackground
-        source={getBackgroundImage()}
-        style={{ flex: 1 }}
-        resizeMode="cover"
-      >
-        <ScreenHeader
-          backgroundColor="$secondaryBackground"
-          title="Notifications"
-        />
-        <YStack
-          flex={1}
-          // Yoga drops cross-axis stretch when a horizontal margin is `auto`,
-          // so without an explicit width this hugs its text and the hero
-          // button below shrinks to match.
-          width="100%"
-          paddingHorizontal="$2xl"
-          maxWidth={600}
-          marginHorizontal="auto"
-          justifyContent="space-between"
-        >
-          <YStack gap="$l" marginTop="$6xl">
-            <TlonText.Text textAlign="center" size="$body">
-              On the next screen, make sure you tap
-            </TlonText.Text>
-            <TlonText.Text textAlign="center" size="$body">
-              <TlonText.Text fontWeight={'600'}>“Allow”</TlonText.Text> to
-              enable notifications.
-            </TlonText.Text>
-          </YStack>
-          <Button preset="hero" shadow label="Next" onPress={handleNext} />
-        </YStack>
-      </ImageBackground>
-    </View>
+      <Image
+        source={getPromptImage()}
+        accessibilityLabel="The notification prompt, with an arrow pointing to Allow"
+        resizeMode="contain"
+        style={{
+          width: prompt.width,
+          height: prompt.height,
+          alignSelf: 'center',
+          transform: [{ translateX: prompt.offsetX }],
+        }}
+      />
+    </OnboardingStepLayout>
   );
 };

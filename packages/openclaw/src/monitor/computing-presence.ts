@@ -12,12 +12,15 @@ import { describeError } from '../urbit/errors.js';
 
 type RunState = {
   toolNames: string[];
+  commentary: string | null;
+  commentarySeq: number;
 };
 
 type PublishParams = {
   conversationId: string;
   thinking: boolean;
   toolNames: string[];
+  commentary: string | null;
 };
 
 type PublishedState = Omit<PublishParams, 'conversationId'>;
@@ -36,6 +39,13 @@ const DEFAULT_MAX_PUBLISH_AGE_MS = 30_000;
 // cannot resurrect a run that was just stopped. Capped because tombstones
 // only matter for the few seconds until the keepalive loop fully stops.
 const STOPPED_RUN_MEMORY = 8;
+// Released app builds render the row at a fixed 52pt with no line clamp; 80
+// characters keeps commentary to two lines on a 320pt-wide phone.
+export const COMMENTARY_MAX_CHARS = 80;
+const COMMENTARY_WORD_BREAK_WINDOW = 20;
+const ELLIPSIS = '…';
+const DELIVERY_DIRECTIVE_PATTERN = /\[\[[^\]]*\]\]|\bNO_REPLY\b/g;
+const UNTERMINATED_DIRECTIVE_PATTERN = /\[\[[^\]]*\]?$/;
 
 export type ComputingPresenceReporter = {
   publish: (params: PublishParams) => Promise<void>;
@@ -46,9 +56,42 @@ function normalizeToolName(toolName?: string | null) {
   return trimmed ? trimmed : null;
 }
 
+export function formatCommentaryForPresence(text: string): string | null {
+  // The row must never show delivery markup the model left in its text,
+  // including a directive still cut off mid-stream in a snapshot.
+  const visible = text
+    .replace(DELIVERY_DIRECTIVE_PATTERN, ' ')
+    .replace(UNTERMINATED_DIRECTIVE_PATTERN, ' ');
+  const collapsed = visible.replace(/\s+/g, ' ').trim();
+  if (!collapsed) {
+    return null;
+  }
+
+  // Counted in code points so the cut never splits a surrogate pair.
+  const codePoints = Array.from(collapsed);
+  if (codePoints.length <= COMMENTARY_MAX_CHARS) {
+    return collapsed;
+  }
+
+  const limit = COMMENTARY_MAX_CHARS - 1;
+  let cut = limit;
+  for (
+    let index = limit;
+    index >= limit - COMMENTARY_WORD_BREAK_WINDOW && index > 0;
+    index -= 1
+  ) {
+    if (codePoints[index] === ' ') {
+      cut = index;
+      break;
+    }
+  }
+
+  return `${codePoints.slice(0, cut).join('').trimEnd()}${ELLIPSIS}`;
+}
+
 export function createComputingPresenceReporter(): ComputingPresenceReporter {
   return {
-    publish: async ({ conversationId, thinking, toolNames }) => {
+    publish: async ({ conversationId, thinking, toolNames, commentary }) => {
       if (!thinking) {
         await clearConversationPresence({
           conversationId,
@@ -66,7 +109,7 @@ export function createComputingPresenceReporter(): ComputingPresenceReporter {
         disclose: [],
         timeout: ACTIVE_PRESENCE_TIMEOUT,
         display: {
-          text: getComputingStatusText(status),
+          text: commentary ?? getComputingStatusText(status),
           blob: serializeComputingStatus({ thinking, toolCalls }),
         },
       });
@@ -99,6 +142,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
   const scheduledConversations = new Set<string>();
   const publishingConversations = new Set<string>();
   const stoppedRuns = new Map<string, Set<string>>();
+  let commentarySequence = 0;
 
   const markRunStopped = (conversationId: string, runId: string) => {
     let stopped = stoppedRuns.get(conversationId);
@@ -136,6 +180,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
   const clonePublishedState = (state: PublishedState): PublishedState => ({
     thinking: state.thinking,
     toolNames: [...state.toolNames],
+    commentary: state.commentary,
   });
 
   const statesEqual = (left?: PublishedState, right?: PublishedState) => {
@@ -143,7 +188,10 @@ export function createComputingPresenceTracker(trackerOpts?: {
       return false;
     }
 
-    if (left.thinking !== right.thinking) {
+    if (
+      left.thinking !== right.thinking ||
+      left.commentary !== right.commentary
+    ) {
       return false;
     }
 
@@ -282,6 +330,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
         enqueueState(conversationId, {
           thinking: false,
           toolNames: [],
+          commentary: null,
         });
       }
 
@@ -290,8 +339,15 @@ export function createComputingPresenceTracker(trackerOpts?: {
 
     const seenToolNames = new Set<string>();
     const toolNames: string[] = [];
+    let commentary: string | null = null;
+    let commentarySeq = -1;
 
     for (const run of runs.values()) {
+      if (run.commentary !== null && run.commentarySeq > commentarySeq) {
+        commentary = run.commentary;
+        commentarySeq = run.commentarySeq;
+      }
+
       for (const toolName of run.toolNames) {
         if (seenToolNames.has(toolName)) {
           continue;
@@ -305,6 +361,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
     const currentState: PublishedState = {
       thinking: true,
       toolNames,
+      commentary,
     };
 
     enqueueState(conversationId, currentState);
@@ -324,6 +381,8 @@ export function createComputingPresenceTracker(trackerOpts?: {
     if (!run) {
       run = {
         toolNames: [],
+        commentary: null,
+        commentarySeq: 0,
       };
       runs.set(runId, run);
     }
@@ -367,6 +426,34 @@ export function createComputingPresenceTracker(trackerOpts?: {
       }
 
       run.toolNames = [];
+      syncConversation(params.conversationId);
+    },
+
+    setCommentary: (params: {
+      conversationId: string;
+      runId: string;
+      text: string;
+    }) => {
+      // Unlike addToolCall, late commentary must not resurrect a stopped run.
+      if (isRunStopped(params.conversationId, params.runId)) {
+        return;
+      }
+
+      const commentary = formatCommentaryForPresence(params.text);
+      if (commentary === null) {
+        const run = getRun(params.conversationId, params.runId);
+        if (!run || run.commentary === null) {
+          return;
+        }
+
+        run.commentary = null;
+        syncConversation(params.conversationId);
+        return;
+      }
+
+      const run = ensureRun(params.conversationId, params.runId);
+      run.commentary = commentary;
+      run.commentarySeq = ++commentarySequence;
       syncConversation(params.conversationId);
     },
 

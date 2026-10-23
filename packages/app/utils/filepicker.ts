@@ -1,6 +1,6 @@
 import type { Attachment } from '@tloncorp/shared/domain';
 import * as DocumentPicker from 'expo-document-picker';
-import type { ImagePickerAsset } from 'expo-image-picker';
+import type { ImagePickerAsset, ImagePickerOptions } from 'expo-image-picker';
 
 import {
   getVideoValidationError,
@@ -9,6 +9,7 @@ import {
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import type { VideoPreviewData } from '../ui/utils/videoPreviewTypes';
 import { getAudioFileDurationSeconds, getFileSize } from './files';
+import { normalizeImagePickerAssetForUpload } from './imagePickerAsset';
 import { imageSize } from './images';
 
 type UploadIntentVideoMetadata = Exclude<
@@ -89,6 +90,25 @@ function isImagePickerVideoAsset(asset: ImagePickerAsset): boolean {
       name: asset.fileName ?? undefined,
       uri: asset.uri,
     })
+  );
+}
+
+/**
+ * The picker settings every photo pick shares: smaller files, no location
+ * data, and photos kept only in iCloud fetched.
+ */
+export const imagePickerUploadOptions = {
+  quality: 0.5,
+  exif: false,
+  shouldDownloadFromNetwork: true,
+} satisfies ImagePickerOptions;
+
+/** A photo or video from the picker, ready to check and upload. */
+export function pickedAssetToUploadIntent(
+  asset: ImagePickerAsset
+): Attachment.UploadIntent {
+  return imagePickerAssetToUploadIntent(
+    normalizeImagePickerAssetForUpload(asset)
   );
 }
 
