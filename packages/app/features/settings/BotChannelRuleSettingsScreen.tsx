@@ -1,32 +1,14 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  Button,
-  Icon,
-  LoadingSpinner,
-  Pressable,
-  Text,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
-import { valid } from '@urbit/aura';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform } from 'react-native';
-import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
+import { ShipPickerSheet, useCalm, useContactIndex } from '../../ui';
 import {
-  useSettingsListHeaderColor,
-  useSettingsListSurfaces,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+  contactSettingsRow,
 } from '../../ui/components/SettingsList';
-import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
-import { BotBadge } from '../../ui/components/BotBadge';
-import {
-  BotSettingsDivider,
-  BotSettingsErrorText,
-  BotSettingsSection,
-  BotSwitchRow,
-  EmptyRowText,
-  SelectableRow,
-} from './bot/BotSettingsUI';
 import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
@@ -75,8 +57,6 @@ const ACCESS_MODES: {
 ];
 
 export function BotChannelRuleSettingsScreen(props: Props) {
-  const { page: settingsPage } = useSettingsListSurfaces();
-  const settingsHeaderColor = useSettingsListHeaderColor();
   const {
     channelKey,
     channelLabel,
@@ -95,9 +75,11 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     queries.providerConfig,
     queries.llmAuthStatusQuery.data
   );
-  const [pendingShip, setPendingShip] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const contactIndex = useContactIndex();
+  const { disableNicknames } = useCalm();
 
   // The route's groupJoined was computed for the ship active at navigation. If
   // the desktop drawer keeps this screen mounted across a ship switch, that
@@ -124,12 +106,12 @@ export function BotChannelRuleSettingsScreen(props: Props) {
 
   // The desktop settings drawer keeps this screen mounted across channel
   // switches; clear per-channel input state when the channel param changes so
-  // a half-typed ship or search doesn't leak into another channel's editor.
+  // an open picker or a half-typed search doesn't leak into another channel's editor.
   // Also re-seed routeGroupJoined from the new channel's route param, or the
   // previous channel's membership value would bypass the read-only guard for a
   // group the bot may not have joined.
   useEffect(() => {
-    setPendingShip('');
+    setPickerOpen(false);
     setModelSearch('');
     setValidationError(null);
     disabledRuleRef.current = undefined;
@@ -284,21 +266,27 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     [currentRule.allowedShips]
   );
 
-  const addPendingShip = useCallback(() => {
-    const ship = normalizeShip(pendingShip);
-    if (!ship) return;
-    // normalizeShip only adds a leading ~; reject anything that isn't a real
-    // @p so Apply can't send a malformed allowedShips entry (e.g. "foo!").
-    if (!valid('p', ship)) {
-      setValidationError(`"${pendingShip.trim()}" is not a valid ship name.`);
-      return;
-    }
-    setValidationError(null);
-    if (!allowedShips.includes(ship)) {
-      patch({ allowedShips: formatShipList([...allowedShips, ship]) });
-    }
-    setPendingShip('');
-  }, [pendingShip, allowedShips, patch]);
+  const addShip = useCallback(
+    (shipId: string) => {
+      setPickerOpen(false);
+      const ship = normalizeShip(shipId);
+      if (ship && !allowedShips.includes(ship)) {
+        patch({ allowedShips: formatShipList([...allowedShips, ship]) });
+      }
+    },
+    [allowedShips, patch]
+  );
+
+  const removeShip = useCallback(
+    (ship: string) => {
+      patch({
+        allowedShips: formatShipList(
+          allowedShips.filter((entry) => entry !== ship)
+        ),
+      });
+    },
+    [allowedShips, patch]
+  );
 
   const overrideProvider = currentRule.modelOverrideProvider || '';
   const overrideModelsLoading = Boolean(
@@ -322,325 +310,261 @@ export function BotChannelRuleSettingsScreen(props: Props) {
       };
     }, [allProviderModels.models, overrideProvider, normalizedModelSearch]);
 
-  return (
-    <View flex={1} backgroundColor={settingsPage}>
-      <ScreenHeader
-        backgroundColor={settingsHeaderColor}
-        borderBottom
-        backAction={
-          Platform.OS !== 'web' || isWindowNarrow ? handleBack : undefined
+  const toggleRule = (checked: boolean) => {
+    setValidationError(null);
+    if (!checked) {
+      // Stash the current settings so re-enabling can restore them rather
+      // than discarding an allowlist/override on a cancel.
+      disabledRuleRef.current = rule;
+      setRule(undefined);
+      return;
+    }
+    // Restore the just-disabled rule (unsaved edits included), then the saved
+    // rule for an already-configured channel; a genuinely new channel is
+    // seeded with an explicit snapshot of the current default authorized
+    // ships (editable from there).
+    setRule(
+      rule ??
+        disabledRuleRef.current ??
+        baselineRule ?? {
+          mode: 'allowlist',
+          allowedShips: draft.draft.chat.defaultAuthorizedShips,
         }
-        title={channelLabel || 'Channel'}
-        placement="navigation"
-      />
-      {!ready ? (
-        <View flex={1} alignItems="center" justifyContent="center">
-          <LoadingSpinner />
-        </View>
-      ) : (
-        <SettingsContentScrollView
-          paddingHorizontal="$l"
-          paddingTop="$l"
-          safeAreaBottomOffset={24}
-        >
-          <YStack gap="$2xl" paddingBottom="$2xl">
-            <BotSettingsSection
-              description={
-                groupDeparted
-                  ? 'Tlonbot is no longer in this workspace, so this channel is paused. Join again from Channel rules to resume it.'
-                  : !groupJoined
-                    ? 'Join this workspace to enable Tlonbot in this channel.'
-                    : undefined
-              }
-            >
-              <BotSwitchRow
-                label="Enable Tlonbot here"
-                description={
-                  !rule
-                    ? 'Tlonbot will ignore this channel'
-                    : groupDeparted
-                      ? 'Paused'
-                      : 'Listening for prompts'
-                }
-                checked={Boolean(rule)}
-                disabled={switchDisabled}
-                onCheckedChange={(checked) => {
-                  setValidationError(null);
-                  if (!checked) {
-                    // Stash the current settings so re-enabling can restore them
-                    // rather than discarding an allowlist/override on a cancel.
-                    disabledRuleRef.current = rule;
-                    setRule(undefined);
-                    return;
-                  }
-                  // Restore the just-disabled rule (unsaved edits included), then
-                  // the saved rule for an already-configured channel; a genuinely
-                  // new channel is seeded with an explicit snapshot of the current
-                  // default authorized ships (editable from there).
-                  setRule(
-                    rule ??
-                      disabledRuleRef.current ??
-                      baselineRule ?? {
-                        mode: 'allowlist',
-                        allowedShips: draft.draft.chat.defaultAuthorizedShips,
-                      }
-                  );
-                }}
-              />
-            </BotSettingsSection>
+    );
+  };
 
-            <BotSettingsSection title="Access mode">
-              {ACCESS_MODES.map((mode, index) => (
-                <YStack key={mode.id}>
-                  <SelectableRow
-                    label={mode.label}
-                    description={mode.description}
-                    selected={currentRule.mode === mode.id}
-                    disabled={controlsDisabled}
-                    onPress={() => patch({ mode: mode.id })}
-                  />
-                  {index < ACCESS_MODES.length - 1 ? (
-                    <BotSettingsDivider />
-                  ) : null}
-                </YStack>
-              ))}
-              {currentRule.mode === 'allowlist' ? (
-                <>
-                  <BotSettingsDivider />
-                  <YStack padding="$l" gap="$m">
-                    <Text size="$label/m" color="$tertiaryText">
-                      Allowed users
-                    </Text>
-                    <XStack gap="$m" alignItems="center">
-                      <View flex={1}>
-                        <TextInput
-                          value={pendingShip}
-                          placeholder="~zod, ~nec"
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                          editable={!controlsDisabled}
-                          onChangeText={setPendingShip}
-                          onSubmitEditing={addPendingShip}
-                          returnKeyType="done"
-                        />
-                      </View>
-                      <Button
-                        preset="secondary"
-                        label="Add"
-                        disabled={controlsDisabled || !pendingShip.trim()}
-                        onPress={addPendingShip}
-                      />
-                    </XStack>
-                    {allowedShips.map((ship) => (
-                      <XStack
-                        key={ship}
-                        alignItems="center"
-                        justifyContent="space-between"
-                        gap="$m"
-                      >
-                        <XStack
-                          alignItems="center"
-                          gap="$s"
-                          flex={1}
-                          minWidth={0}
-                        >
-                          <Text
-                            size="$label/l"
-                            color="$primaryText"
-                            numberOfLines={1}
-                            flex={1}
-                            minWidth={0}
-                          >
-                            {ship}
-                          </Text>
-                          <BotBadge contactId={ship} />
-                        </XStack>
-                        <Pressable
-                          disabled={controlsDisabled}
-                          onPress={() =>
-                            patch({
-                              allowedShips: formatShipList(
-                                allowedShips.filter((entry) => entry !== ship)
-                              ),
-                            })
-                          }
-                        >
-                          <Icon
-                            type="Close"
-                            size="$m"
-                            color="$secondaryText"
-                            opacity={controlsDisabled ? 0.4 : 1}
-                          />
-                        </Pressable>
-                      </XStack>
-                    ))}
-                    <Text size="$label/s" color="$secondaryText">
-                      Only these users can invoke Tlonbot in this channel.
-                    </Text>
-                  </YStack>
-                </>
-              ) : null}
-            </BotSettingsSection>
+  const chooseCustomModel = () => {
+    // Already on a custom override — re-tapping shouldn't reset it to the
+    // first provider and clear the chosen model.
+    if (isCustomModel) return;
+    const provider =
+      availableProviders.find((option) => option.id !== BASIC_PROVIDER_ID)
+        ?.id ||
+      availableProviders[0]?.id ||
+      BASIC_PROVIDER_ID;
+    patch({
+      modelOverrideProvider: provider,
+      modelOverride: provider === BASIC_PROVIDER_ID ? BASIC_DEFAULT_MODEL : '',
+    });
+  };
 
-            <BotSettingsSection
-              title="Model"
-              description={
-                !hasCustomProviderKey
-                  ? 'Add an API key in Bot settings to use a custom model here.'
-                  : undefined
-              }
-            >
-              <SelectableRow
-                label="Default model"
-                description="Inherit from setup"
-                selected={!isCustomModel}
-                disabled={controlsDisabled}
-                onPress={() => {
-                  setValidationError(null);
-                  patch({ modelOverrideProvider: '', modelOverride: '' });
-                }}
-              />
-              <BotSettingsDivider />
-              <SelectableRow
-                label="Custom model"
-                description="Override for this channel"
-                selected={isCustomModel}
-                disabled={controlsDisabled || !hasCustomProviderKey}
-                onPress={() => {
-                  // Already on a custom override — re-tapping shouldn't reset it
-                  // to the first provider and clear the chosen model.
-                  if (isCustomModel) return;
-                  const provider =
-                    availableProviders.find(
-                      (option) => option.id !== BASIC_PROVIDER_ID
-                    )?.id ||
-                    availableProviders[0]?.id ||
-                    BASIC_PROVIDER_ID;
-                  patch({
-                    modelOverrideProvider: provider,
-                    modelOverride:
-                      provider === BASIC_PROVIDER_ID ? BASIC_DEFAULT_MODEL : '',
-                  });
-                }}
-              />
-              {isCustomModel ? (
-                <>
-                  <BotSettingsDivider />
-                  <YStack padding="$l" gap="$m">
-                    <Text size="$label/m" color="$tertiaryText">
-                      Provider
-                    </Text>
-                    <XStack gap="$m" flexWrap="wrap">
-                      {availableProviders.map((provider) => (
-                        <Button
-                          key={provider.id}
-                          preset={
-                            overrideProvider === provider.id
-                              ? 'secondary'
-                              : 'secondaryOutline'
-                          }
-                          label={provider.label}
-                          disabled={controlsDisabled}
-                          onPress={() => {
-                            // Re-tapping the current provider must not clear the
-                            // already-selected override model.
-                            if (provider.id === overrideProvider) return;
-                            setValidationError(null);
-                            patch({
-                              modelOverrideProvider: provider.id,
-                              modelOverride:
-                                provider.id === BASIC_PROVIDER_ID
-                                  ? BASIC_DEFAULT_MODEL
-                                  : '',
-                            });
-                          }}
-                        />
-                      ))}
-                    </XStack>
-                    {overrideProvider === BASIC_PROVIDER_ID ? (
-                      <Text size="$label/s" color="$secondaryText">
-                        {getBasicModelLabel(queries.providerConfig)}
-                      </Text>
-                    ) : (
-                      <YStack gap="$m">
-                        <TextInput
-                          value={modelSearch}
-                          placeholder="Search models"
-                          editable={!controlsDisabled}
-                          onChangeText={setModelSearch}
-                        />
-                        {overrideModelsLoading ? (
-                          <EmptyRowText>Loading models…</EmptyRowText>
-                        ) : overrideModelsError ? (
-                          <EmptyRowText>
-                            {getErrorMessage(overrideModelsError) ??
-                              'Unable to load models.'}
-                          </EmptyRowText>
-                        ) : filteredOverrideModels.length === 0 ? (
-                          <EmptyRowText>No models found.</EmptyRowText>
-                        ) : (
-                          <>
-                            {filteredOverrideModels.map((model, index) => (
-                              <YStack key={model.id}>
-                                <SelectableRow
-                                  label={getModelDisplayName(model)}
-                                  description={model.id}
-                                  selected={
-                                    currentRule.modelOverride === model.id
-                                  }
-                                  disabled={controlsDisabled}
-                                  onPress={() => {
-                                    setValidationError(null);
-                                    patch({ modelOverride: model.id });
-                                  }}
-                                />
-                                {index < filteredOverrideModels.length - 1 ? (
-                                  <BotSettingsDivider />
-                                ) : null}
-                              </YStack>
-                            ))}
-                            {hiddenOverrideModelCount > 0 ? (
-                              <EmptyRowText>
-                                {hiddenOverrideModelCount} more — refine your
-                                search to see them.
-                              </EmptyRowText>
-                            ) : null}
-                          </>
-                        )}
-                      </YStack>
-                    )}
-                  </YStack>
-                </>
-              ) : null}
-            </BotSettingsSection>
+  const modelStatus = overrideModelsLoading
+    ? 'Loading models…'
+    : overrideModelsError
+      ? (getErrorMessage(overrideModelsError) ?? 'Unable to load models.')
+      : filteredOverrideModels.length === 0
+        ? 'No models found.'
+        : null;
 
-            <BotSettingsErrorText>{validationError}</BotSettingsErrorText>
-
-            <Button
-              preset="destructive"
-              label="Reset to defaults"
-              centered
-              disabled={controlsDisabled}
-              onPress={() => {
+  const sections: SettingsSectionModel[] = [
+    {
+      key: 'enable',
+      footer: groupDeparted
+        ? 'Tlonbot is no longer in this workspace, so this channel is paused. Join again from Channel rules to resume it.'
+        : !groupJoined
+          ? 'Join this workspace to enable Tlonbot in this channel.'
+          : undefined,
+      rows: [
+        {
+          key: 'enable',
+          title: 'Enable Tlonbot here',
+          subtitle: !rule
+            ? 'Tlonbot will ignore this channel'
+            : groupDeparted
+              ? 'Paused'
+              : 'Listening for prompts',
+          disabled: switchDisabled,
+          toggle: { value: Boolean(rule), onValueChange: toggleRule },
+        },
+      ],
+    },
+    {
+      key: 'mode',
+      title: 'Access mode',
+      rows: ACCESS_MODES.map((mode) => ({
+        key: mode.id,
+        title: mode.label,
+        subtitle: mode.description,
+        selected: currentRule.mode === mode.id,
+        disabled: controlsDisabled,
+        onPress: () => patch({ mode: mode.id }),
+      })),
+    },
+    ...(currentRule.mode === 'allowlist'
+      ? [
+          {
+            key: 'allowed',
+            title: 'Allowed users',
+            footer: 'Only these users can invoke Tlonbot in this channel.',
+            rows: [
+              ...allowedShips.map((ship) => ({
+                ...contactSettingsRow(
+                  ship,
+                  contactIndex?.[ship],
+                  disableNicknames
+                ),
+                disabled: controlsDisabled,
+                trailingAction: {
+                  key: 'remove',
+                  title: 'Remove',
+                  destructive: true,
+                  onPress: () => removeShip(ship),
+                },
+              })),
+              {
+                key: 'add',
+                title: 'Add user…',
+                action: true,
+                disabled: controlsDisabled,
+                onPress: () => setPickerOpen(true),
+              },
+            ],
+          },
+        ]
+      : []),
+    {
+      key: 'model',
+      title: 'Model',
+      footer: !hasCustomProviderKey
+        ? 'Add an API key in Bot settings to use a custom model here.'
+        : undefined,
+      rows: [
+        {
+          key: 'default',
+          title: 'Default model',
+          subtitle: 'Inherit from setup',
+          selected: !isCustomModel,
+          disabled: controlsDisabled,
+          onPress: () => {
+            setValidationError(null);
+            patch({ modelOverrideProvider: '', modelOverride: '' });
+          },
+        },
+        {
+          key: 'custom',
+          title: 'Custom model',
+          subtitle: 'Override for this channel',
+          selected: isCustomModel,
+          disabled: controlsDisabled || !hasCustomProviderKey,
+          onPress: chooseCustomModel,
+        },
+      ],
+    },
+    ...(isCustomModel
+      ? [
+          {
+            key: 'provider',
+            title: 'Provider',
+            footer:
+              overrideProvider === BASIC_PROVIDER_ID
+                ? getBasicModelLabel(queries.providerConfig)
+                : undefined,
+            rows: availableProviders.map((provider) => ({
+              key: provider.id,
+              title: provider.label,
+              selected: overrideProvider === provider.id,
+              disabled: controlsDisabled,
+              onPress: () => {
+                // Re-choosing the current provider must not clear the
+                // already-selected override model.
+                if (provider.id === overrideProvider) return;
                 setValidationError(null);
-                // Reset to an allowlist of the current default authorized ships
-                // (an explicit snapshot) and drop any model override — not open,
-                // which would widen the channel to every member.
-                setRule({
-                  mode: 'allowlist',
-                  allowedShips: draft.draft.chat.defaultAuthorizedShips,
+                patch({
+                  modelOverrideProvider: provider.id,
+                  modelOverride:
+                    provider.id === BASIC_PROVIDER_ID
+                      ? BASIC_DEFAULT_MODEL
+                      : '',
                 });
-              }}
-            />
-            <Button
-              preset="primary"
-              label="Done"
-              centered
-              onPress={handleBack}
-            />
-          </YStack>
-        </SettingsContentScrollView>
-      )}
-    </View>
+              },
+            })),
+          },
+        ]
+      : []),
+    ...(isCustomModel && overrideProvider !== BASIC_PROVIDER_ID
+      ? [
+          {
+            key: 'models',
+            title: 'Custom model',
+            footer:
+              validationError ??
+              (hiddenOverrideModelCount > 0
+                ? `${hiddenOverrideModelCount} more — refine your search to see them.`
+                : undefined),
+            rows: [
+              {
+                key: 'search',
+                title: 'Search models',
+                disabled: controlsDisabled,
+                textField: {
+                  value: modelSearch,
+                  onChangeText: setModelSearch,
+                  placeholder: 'Search models',
+                },
+              },
+              ...(modelStatus
+                ? [{ key: 'status', title: modelStatus }]
+                : filteredOverrideModels.map((model) => ({
+                    key: model.id,
+                    title: getModelDisplayName(model),
+                    subtitle: model.id,
+                    selected: currentRule.modelOverride === model.id,
+                    disabled: controlsDisabled,
+                    onPress: () => {
+                      setValidationError(null);
+                      patch({ modelOverride: model.id });
+                    },
+                  }))),
+            ],
+          },
+        ]
+      : []),
+    {
+      key: 'reset',
+      rows: [
+        {
+          key: 'reset',
+          title: 'Reset to defaults',
+          action: true,
+          destructive: true,
+          disabled: controlsDisabled,
+          onPress: () => {
+            setValidationError(null);
+            // Reset to an allowlist of the current default authorized ships
+            // (an explicit snapshot) and drop any model override — not open,
+            // which would widen the channel to every member.
+            setRule({
+              mode: 'allowlist',
+              allowedShips: draft.draft.chat.defaultAuthorizedShips,
+            });
+          },
+        },
+      ],
+    },
+  ];
+
+  return (
+    <SettingsListScreenView
+      // The channel's name alone doesn't say whose rule this is, and phones
+      // don't show a header subtitle.
+      title={
+        channelLabel ? `Tlonbot in ${channelLabel}` : 'Tlonbot channel rule'
+      }
+      sections={sections}
+      // Opened from the channel rules list, so wide windows need the way
+      // back too (it also checks a half-set custom model).
+      onBackPressed={handleBack}
+      showsBackOnWideWindows
+      loading={!ready}
+      useHorizontalTitleLayout={!isWindowNarrow}
+    >
+      <ShipPickerSheet
+        open={ready && pickerOpen}
+        onOpenChange={setPickerOpen}
+        subtitle="Select a contact or enter any @p to allow in this channel."
+        disabledIds={allowedShips}
+        onSelect={addShip}
+      />
+    </SettingsListScreenView>
   );
 }

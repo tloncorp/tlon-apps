@@ -32,6 +32,12 @@ export interface ScreenHeaderTextAction extends BaseAction {
   onPress?: () => void;
   disabled?: boolean;
   tint?: string;
+  /**
+   * iOS only: the screen's confirming action, such as Save, or the Done that
+   * ends editing, filled with the tint as iOS 26 draws its prominent bar
+   * buttons. Android and web keep tinted text, Material's form for it.
+   */
+  prominent?: boolean;
 }
 
 export interface ScreenHeaderMenuActionItem {
@@ -150,6 +156,7 @@ export function getScreenHeaderActionPresentation(
         text: action.text,
         disabled: action.disabled,
         tint: resolveColor(action.tint),
+        prominent: action.prominent,
         testID: action.testID,
       };
     }

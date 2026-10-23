@@ -2446,6 +2446,40 @@
   ?:  (~(has by members) ~bus)
     |+['member leave was refused']~
   &+[~ s2]
+::  +test-join-hosted-notebook-rejected
+::
+::  A %member-join from the host itself must be refused. Unguarded,
+::  +se-member-join records src.bowl — the host — as %editor, overwriting
+::  its %owner row. Only a raw self-poke of %notes-command-1 reaches it:
+::  +join-remote-v1 asserts the flag isn't ours and %group-channel-join
+::  ignores a hosted nest. ~bus joining the now-public notebook is the
+::  positive control.
+::
+++  test-join-hosted-notebook-rejected
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'Hosted NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'Hosted NB' 1)
+  ;<  ~  b  (ex-fail (poke-c-v1 [0v1 [%notebook f [%member-join ~]]]))
+  ;<  *  b  (poke-a [%notebook f [%visibility %public]])
+  ;<  *  b  (set-src ~bus)
+  ;<  *  b  (poke-c-v1 [0v2 [%notebook f [%member-join ~]]])
+  ;<  *  b  (set-src our.bowl)
+  ;<  sv=vase  b  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  |=  s2=state
+  ?~  entry=(~(get by books.s) f)
+    |+['hosted notebook missing']~
+  =*  members  members.notebook-state.u.entry
+  ?.  =(`%owner (~(get by members) our.bowl))
+    |+['host lost its %owner role']~
+  ?.  =(`%editor (~(get by members) ~bus))
+    |+['~bus not recorded as %editor after joining']~
+  &+[~ s2]
 ::  json encoder tests
 ::
 ::
