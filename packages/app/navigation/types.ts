@@ -1,3 +1,4 @@
+import type { A2UI } from '@tloncorp/api/client/a2ui';
 import type {
   NavigationProp,
   NavigatorScreenParams,
@@ -29,6 +30,7 @@ export type ChannelRouteParams = {
 
 export type RootStackParamList = {
   BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+  BrowserWallet: { requestId: string };
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
   OnboardingStartup: {
     channelId: string;
@@ -223,6 +225,7 @@ export type RootDrawerParamList = {
 
 export type BrowserCredentialHandoffParams = {
   handoffId: string;
+  loginApproval?: A2UI.BrowserCredentialHandoffNavigationTarget['loginApproval'];
 };
 
 export type MobileBasePathStackParamList = {
@@ -232,6 +235,7 @@ export type MobileBasePathStackParamList = {
 export type DesktopBasePathStackParamList = {
   Root: NavigatorScreenParams<RootDrawerParamList>;
   BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+  BrowserWallet: { requestId: string };
 };
 
 // hack: adding the true contacts types causes lots of tsc failures that need

@@ -1,5 +1,6 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
+import { deriveBrowserOwnerToken } from '../lib/browserOwnerToken';
 
 import {
   AuthError,
@@ -218,6 +219,23 @@ let clientResolver: ClientResolver | null = null;
  */
 export function setClientResolver(resolver: ClientResolver | null): void {
   clientResolver = resolver;
+}
+
+/** Derive a short-lived owner proof from the authenticated ship session. */
+export async function getBrowserVaultOwnerAuthorization() {
+  const session = config.session;
+  if (!session || session.loggingOut)
+    throw new Error('Owner authentication is unavailable.');
+  const { base, threadRequest } = await import('./requests');
+  abandonIfSwapped(session);
+  const code = await threadRequest(base.loginCode)<null, unknown>(null);
+  abandonIfSwapped(session);
+  if (session.loggingOut || typeof code !== 'string' || !code.trim())
+    throw new Error('Owner authentication is unavailable.');
+  return {
+    planet: session.shipName.replace(/^~/, ''),
+    ownerToken: deriveBrowserOwnerToken(code),
+  };
 }
 
 function resolveClient(): Urbit | null {
