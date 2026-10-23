@@ -1,4 +1,6 @@
+import { createDevLogger } from '@tloncorp/shared';
 import { Attachment } from '@tloncorp/shared/domain';
+import * as ImagePicker from 'expo-image-picker';
 import { VariantsFromValues, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
@@ -24,11 +26,15 @@ import {
   View,
   XStack,
   YStack,
-  getTokenValue,
   styled,
   withStaticProperties,
 } from 'tamagui';
 
+import {
+  imagePickerUploadOptions,
+  normalizeUploadIntents,
+  pickedAssetToUploadIntent,
+} from '../../../utils/filepicker';
 import {
   useAttachmentContext,
   useMappedImageAttachments,
@@ -41,6 +47,8 @@ import {
   Accent,
   getBorderVariantStyle as getBackgroundTypeVariantStyle,
 } from './formUtils';
+
+const logger = createDevLogger('ImageInput', true);
 
 // lineHeight on single-line TextInput is buggy on iOS; restore it for
 // multiline inputs below where line spacing matters.
@@ -204,22 +212,23 @@ const InnerButton = ({
   );
 };
 
-export const ImageInput = XStack.styleable<{
-  buttonLabel?: string;
+/**
+ * The state behind an image field: the picked image, its upload, and the
+ * sheet that picks or clears it. The image is a local file while it uploads
+ * and its remote URL once it has; `onChange` hears each.
+ */
+export function useImageInput({
+  value,
+  onChange,
+}: {
   value?: string;
-  placeholderUri?: string;
   onChange?: (value?: string) => void;
-  showClear?: boolean;
-}>(function ImageInput(
-  { buttonLabel, value, showClear = true, placeholderUri, onChange },
-  ref
-) {
+}) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [assetUri, setAssetUri] = useState<string | undefined>(
     value ?? undefined
   );
-  const { canUpload } = useAttachmentContext();
-  const isWindowNarrow = useIsWindowNarrow();
+  const { canUpload, attachAssets } = useAttachmentContext();
   const showToast = useToast();
 
   useEffect(() => {
@@ -250,6 +259,65 @@ export const ImageInput = XStack.styleable<{
     setSheetOpen((open) => !open);
   }, [canUpload, showToast]);
 
+  // Straight to the photo library or camera, cropping to a square, for a
+  // caller with its own menu in place of the sheet.
+  const pick = useCallback(
+    async (source: 'library' | 'camera') => {
+      if (!canUpload) {
+        showToast({
+          message: 'Please configure storage settings to upload images',
+          duration: 3000,
+        });
+        return;
+      }
+      try {
+        const permission =
+          source === 'camera'
+            ? await ImagePicker.requestCameraPermissionsAsync()
+            : await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          return;
+        }
+        const options: ImagePicker.ImagePickerOptions = {
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          ...imagePickerUploadOptions,
+        };
+        const result =
+          source === 'camera'
+            ? await ImagePicker.launchCameraAsync(options)
+            : await ImagePicker.launchImageLibraryAsync(options);
+        if (result.canceled) {
+          return;
+        }
+        const { uploadIntents, errorMessage } = await normalizeUploadIntents([
+          pickedAssetToUploadIntent(result.assets[0]),
+        ]);
+        if (errorMessage) {
+          showToast({ message: errorMessage, duration: 4000 });
+        }
+        if (uploadIntents.length > 0) {
+          attachAssets(uploadIntents);
+          handleImageSelected(uploadIntents);
+        }
+      } catch (e) {
+        logger.trackError(
+          source === 'camera' ? 'Error taking picture' : 'Error picking image',
+          e
+        );
+        showToast({
+          message:
+            source === 'camera'
+              ? 'Couldn’t open the camera'
+              : 'Couldn’t open your photos',
+          duration: 3000,
+        });
+      }
+    },
+    [attachAssets, canUpload, handleImageSelected, showToast]
+  );
+
   const { attachment } = useMappedImageAttachments(
     assetUri ? { attachment: assetUri } : {}
   );
@@ -273,6 +341,43 @@ export const ImageInput = XStack.styleable<{
   const handleImageRemoved = useCallback(() => {
     setAssetUri(undefined);
   }, []);
+
+  return {
+    assetUri,
+    canUpload,
+    isUploading: attachment?.uploadState?.status === 'uploading',
+    toggleSheet: handleSheetToggled,
+    pickFromLibrary: () => pick('library'),
+    takePhoto: () => pick('camera'),
+    clear: handleImageRemoved,
+    sheetProps: {
+      isOpen: sheetOpen,
+      onOpenChange: setSheetOpen,
+      onAttach: handleImageSelected,
+      onClearAttachments: handleImageRemoved,
+      mediaType: 'image' as const,
+    },
+  };
+}
+
+export const ImageInput = XStack.styleable<{
+  buttonLabel?: string;
+  value?: string;
+  placeholderUri?: string;
+  onChange?: (value?: string) => void;
+  showClear?: boolean;
+}>(function ImageInput(
+  { buttonLabel, value, showClear = true, placeholderUri, onChange },
+  ref
+) {
+  const {
+    assetUri,
+    canUpload,
+    isUploading,
+    toggleSheet: handleSheetToggled,
+    sheetProps,
+  } = useImageInput({ value, onChange });
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <>
@@ -307,21 +412,14 @@ export const ImageInput = XStack.styleable<{
               fallback={null}
             />
           ) : null}
-          {attachment?.uploadState?.status === 'uploading' ? (
+          {isUploading ? (
             <ImageInputPreviewLoadingFrame>
               <Spinner size="small" />
             </ImageInputPreviewLoadingFrame>
           ) : null}
         </ImageInputPreviewFrame>
       </XStack>
-      <AttachmentSheet
-        isOpen={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onAttach={handleImageSelected}
-        showClearOption={showClear && !!value}
-        onClearAttachments={handleImageRemoved}
-        mediaType="image"
-      />
+      <AttachmentSheet {...sheetProps} showClearOption={showClear && !!value} />
     </>
   );
 });
@@ -808,7 +906,8 @@ export const CheckboxControl = (
   props: Omit<ComponentProps<typeof Control>, 'type'>
 ) => <Control {...props} type="checkbox" />;
 
-const presets = [
+/** The colors a profile's default avatar can take, by name. */
+export const avatarColorPresets = [
   ['red', '$red'],
   ['orange', '$orange'],
   ['yellow', '$yellow'],
@@ -819,79 +918,3 @@ const presets = [
   ['gray', '$gray500'],
   ['light gray', '$gray100'],
 ] as const;
-
-const ColorSwatchFrame = styled(Pressable, {
-  width: 56,
-  height: 56,
-  borderRadius: '$l',
-  alignItems: 'center',
-  justifyContent: 'center',
-  borderWidth: '$2xs',
-  borderColor: 'transparent',
-  variants: {
-    selected: {
-      true: {
-        borderColor: '$primaryText',
-      },
-    },
-  } as const,
-});
-
-const ColorSwatchInner = styled(View, {
-  width: '$4xl',
-  height: '$4xl',
-  borderRadius: '$m',
-  borderWidth: 1,
-  borderColor: '$shadow',
-});
-
-export const ColorInput = ({
-  value,
-  onChange,
-}: {
-  value?: string | null;
-  onChange?: (value: string | null) => void;
-}) => {
-  const handleSelect = useCallback(
-    (color: string) => {
-      if (value === color) {
-        onChange?.(null);
-      } else {
-        onChange?.(color);
-      }
-    },
-    [onChange, value]
-  );
-
-  const handleClear = useCallback(() => {
-    onChange?.(null);
-  }, [onChange]);
-
-  return (
-    <ScrollView
-      contentContainerStyle={{
-        alignItems: 'center',
-      }}
-      horizontal
-    >
-      {presets.map(([name, color]) => {
-        const colorValue = getTokenValue(color, 'color');
-        const selected = value === colorValue;
-        return (
-          <ColorSwatchFrame
-            key={colorValue}
-            testID={`ProfileColorSwatch-${colorValue.slice(1)}`}
-            accessibilityLabel={`Profile avatar color ${name}${selected ? ', selected' : ''}`}
-            selected={selected}
-            onPress={() => handleSelect(colorValue)}
-          >
-            <ColorSwatchInner backgroundColor={colorValue} />
-          </ColorSwatchFrame>
-        );
-      })}
-      {value && (
-        <Button size="small" iconOnly icon={'Close'} onPress={handleClear} />
-      )}
-    </ScrollView>
-  );
-};
