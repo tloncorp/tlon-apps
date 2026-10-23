@@ -59,8 +59,9 @@ export function BucketAudioPreview({
       active.current = true;
     });
     const appState = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') pause();
-      else active.current = navigation?.isFocused() ?? true;
+      if (state === 'background') pause();
+      else if (state === 'active')
+        active.current = navigation?.isFocused() ?? true;
     });
     return () => {
       active.current = false;

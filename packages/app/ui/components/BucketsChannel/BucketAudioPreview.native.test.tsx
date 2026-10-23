@@ -384,3 +384,17 @@ it('invalidates a failed native audio source and exposes retry', () => {
   expect(onRetry).toHaveBeenCalledOnce();
   act(() => tree.unmount());
 });
+
+it('keeps playback and audio focus through an inactive/active transition', async () => {
+  const tree = render();
+  await act(async () =>
+    tree.root.findByProps({ testID: 'BucketAudioPlayPause' }).props.onPress()
+  );
+  mocks.player.pause.mockClear();
+  mocks.activate.mockClear();
+  act(() => mocks.appState('inactive'));
+  act(() => mocks.appState('active'));
+  expect(mocks.player.pause).not.toHaveBeenCalled();
+  expect(mocks.activate).not.toHaveBeenCalled();
+  act(() => tree.unmount());
+});

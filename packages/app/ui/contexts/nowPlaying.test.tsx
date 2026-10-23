@@ -7,6 +7,7 @@ import {
   NowPlayingProvider,
   NowPlayingValue,
   useNowPlaying,
+  useNowPlayingController,
 } from './nowPlaying';
 
 const mocks = vi.hoisted(() => {
@@ -40,10 +41,7 @@ vi.mock('expo-audio', () => ({
   setIsAudioActiveAsync: mocks.activate,
 }));
 vi.mock('@react-navigation/native', () => ({ useFocusEffect: vi.fn() }));
-vi.mock('@tloncorp/shared', () => ({ useMutableRef: vi.fn() }));
-vi.mock('@tloncorp/shared/utils/useEventEmitter', () => ({
-  useEventEmitter: vi.fn(),
-}));
+vi.mock('@tloncorp/shared', () => import('@tloncorp/shared/logic/utilHooks'));
 vi.mock('../../hooks/useAppStatusChange', () => ({
   useAppStatusChange: vi.fn(),
 }));
@@ -157,3 +155,62 @@ it('does not activate playback when there is no shared source', async () => {
   expect(mocks.player.play).not.toHaveBeenCalled();
   act(() => tree.unmount());
 });
+
+it.each([false, true])(
+  'reloads a memo on tap after a Bucket handoff without native reset events (playing: %s)',
+  async (playing) => {
+    const url = 'https://files.test/memo.mp3';
+    let playback!: NowPlayingValue;
+    let controller!: ReturnType<typeof useNowPlayingController>;
+    function Consumer() {
+      const value = useNowPlaying();
+      const memo = useNowPlayingController({ sourceUri: url });
+      useLayoutEffect(() => {
+        playback = value;
+        controller = memo;
+      });
+      return null;
+    }
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(
+        <NowPlayingProvider>
+          <Consumer />
+        </NowPlayingProvider>
+      );
+    });
+    await act(async () => {
+      const loaded = playback.replace({ url });
+      emit({ isLoaded: true, playing, currentTime: 4, duration: 30 });
+      await loaded;
+      emit({ isLoaded: true, playing, currentTime: 4, duration: 30 });
+    });
+    expect(controller.isThisSourceLoaded).toBe(true);
+    expect(controller.status).toBe(playing ? 'playing' : 'paused');
+
+    // Bucket audio hands off in this order. On Android neither an already
+    // paused player nor replace({}) has to emit a playback status update.
+    await act(async () => {
+      await playback.pause();
+      await playback.replace(null);
+    });
+    expect(controller.isThisSourceLoaded).toBe(false);
+    expect(controller.status).toBeNull();
+    mocks.player.replace.mockClear();
+    mocks.player.play.mockClear();
+
+    act(() => controller.togglePlayback());
+    expect(mocks.player.replace).toHaveBeenCalledWith(
+      expect.objectContaining({ uri: url })
+    );
+    await act(async () => {
+      emit({ isLoaded: true, playing: false, currentTime: 0, duration: 30 });
+    });
+    expect(mocks.player.play).toHaveBeenCalledOnce();
+    act(() =>
+      emit({ isLoaded: true, playing: true, currentTime: 1, duration: 30 })
+    );
+    expect(controller.status).toBe('playing');
+    act(() => tree.unmount());
+  }
+);

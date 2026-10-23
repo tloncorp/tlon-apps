@@ -49,8 +49,8 @@ type NowPlayingEventMap = {
 export interface NowPlayingValue extends TypedEventEmitter<NowPlayingEventMap> {
   /** @returns promise that resolves when media item is loaded (rejects if fails to load) */
   replace: (nowPlaying: MediaItem | null) => Promise<void>;
-  play(): void;
-  pause(): void;
+  play(): Promise<void>;
+  pause(): Promise<void>;
   seekTo(seconds: number): Promise<void>;
   isPlaying: boolean;
   nowPlaying: MediaItem | null;
@@ -95,6 +95,12 @@ export function NowPlayingProvider({
           audioPlayer.pause();
           isPlayingRef.current = false;
           audioPlayer.replace({});
+          // Android may emit no native status when an already-paused source clears.
+          eventEmitter.emit('progress', {
+            sourceUrl: null,
+            isPlaying: false,
+            loadState: 'empty',
+          });
           return Promise.resolve();
         }
 
