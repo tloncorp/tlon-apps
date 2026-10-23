@@ -108,12 +108,13 @@ function RoleForm({
     () => applyMemberEdits(initialMembers, memberEdits),
     [initialMembers, memberEdits]
   );
-  // the selection the member picker was opened with
+  // the picker's last reported selection; it reports after every toggle, so
+  // each report is diffed against the one before it
   const pickerBaseline = useRef<string[]>([]);
   const setSelectedMembers = useCallback((members: string[]) => {
-    setMemberEdits((edits) =>
-      editMembers(edits, pickerBaseline.current, members)
-    );
+    const baseline = pickerBaseline.current;
+    pickerBaseline.current = members;
+    setMemberEdits((edits) => editMembers(edits, baseline, members));
   }, []);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const pendingNavigationAction = useRef<any>(null);
