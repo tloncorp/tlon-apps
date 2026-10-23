@@ -17,6 +17,8 @@ import {
   parseUrl,
   prepareSource,
   publish,
+  render,
+  renderDetails,
   trigger,
   validateReport,
 } from './triage.mjs';
@@ -84,6 +86,14 @@ const report = (outcome = 'agent-work-needed') => ({
   headSha: HEAD,
   outcome,
   summary: 'A bounded defect remains.',
+  comment: {
+    impact: 'Preview controls and their progress lifecycle.',
+    validation: 'CI passed; the second-preview scenario still needs coverage.',
+    nextSteps:
+      outcome === 'agent-eligible'
+        ? []
+        : ['Correct the progress reset and add a regression check.'],
+  },
   complexity: { level: 'high', reason: 'Several lifecycle interactions.' },
   sensitivity: { level: 'medium', reason: 'Recoverable user-visible state.' },
   evidence: outcome === 'agent-eligible' ? 'sufficient' : 'partial',
@@ -179,6 +189,7 @@ const report = (outcome = 'agent-work-needed') => ({
           },
         ]
       : [],
+  suggestions: [],
 });
 const expected = (context) => ({
   head: context.pr.head.sha,
@@ -441,13 +452,15 @@ test('ordinary confirmed defect routes to agent work with no human inline commen
   const summary = api.context.conversation.find((c) =>
     c.body.startsWith(SUMMARY)
   );
-  assert.match(summary.body, /pullrequestreview-30/);
   assert.match(summary.body, /confirmed/);
-  assert.match(summary.body, /Update the preview lifecycle/);
-  assert.match(summary.body, /Preserve the preview controls/);
-  assert.match(summary.body, /Native returns before the web-only branch/);
-  assert.match(summary.body, /Completion marker only/);
-  assert.match(summary.body, /suggested extra guard is unnecessary/);
+  assert.ok(summary.body.includes(report().comment.nextSteps[0]));
+  const details = renderDetails(report(), expected(api.context), false);
+  assert.match(details, /pullrequestreview-30/);
+  assert.match(details, /Update the preview lifecycle/);
+  assert.match(details, /Preserve the preview controls/);
+  assert.match(details, /Native returns before the web-only branch/);
+  assert.match(details, /Completion marker only/);
+  assert.match(details, /suggested extra guard is unnecessary/);
 });
 
 test('human inline comments use current anchors, deduplicate, preserve other comments', async () => {
@@ -631,8 +644,10 @@ test('coverage preserves multiple claims in a body and explains status-only mess
   const summary = api.context.conversation.find((c) =>
     c.body.startsWith(SUMMARY)
   );
-  assert.match(summary.body, /Two independently assessed claims/);
-  assert.match(summary.body, /A separate callback is unguarded/);
+  assert.match(summary.body, /2 refuted/);
+  const details = renderDetails(r, expected(api.context), false);
+  assert.match(details, /Two independently assessed claims/);
+  assert.match(details, /A separate callback is unguarded/);
 
   for (const mutate of [
     (r) => {
@@ -725,10 +740,161 @@ test('no bot findings does not bypass impact or requirements assessment', async 
   assert.equal(api.writes.length, 0);
   r.outcome = 'agent-work-needed';
   r.agentWork = ['Restore the documented control behavior.'];
+  r.comment.nextSteps = ['Restore the documented control behavior.'];
   await publish(api, 6794, expected(api.context), r);
   assert.deepEqual(api.context.pr.labels, [
     { name: 'review:agent-work-needed' },
   ]);
+});
+
+test('large ledgers stay complete in the report without expanding the PR comment', () => {
+  const r = report();
+  const short = render(r, expected(fixture()), false);
+  r.findings[0].trace = 'Detailed source trace. '.repeat(400);
+  r.findings[0].evidence.push('Additional evidence. '.repeat(400));
+  r.impactMap[0].trace = 'Expanded caller map. '.repeat(400);
+  assert.equal(render(r, expected(fixture()), false), short);
+  assert.ok(short.length < 2500);
+  assert.ok(
+    renderDetails(r, expected(fixture()), false).includes(r.findings[0].trace)
+  );
+  assert.doesNotMatch(short, /runs\/undefined|runs\/null/);
+});
+
+test('hosted publication retains the full report and links it from the concise comment', async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), 'triage-summary-'));
+  const previousSummary = process.env.GITHUB_STEP_SUMMARY;
+  const previousRun = process.env.GITHUB_RUN_ID;
+  process.env.GITHUB_STEP_SUMMARY = path.join(directory, 'report.md');
+  process.env.GITHUB_RUN_ID = '1234';
+  try {
+    const api = new FakeGitHub();
+    const r = report();
+    await publish(api, 6794, expected(api.context), r);
+    const details = readFileSync(process.env.GITHUB_STEP_SUMMARY, 'utf8');
+    assert.ok(details.includes(r.findings[0].trace));
+    assert.ok(details.includes(r.findings[1].counterevidence[0]));
+    const summary = api.context.conversation.find((c) =>
+      c.body.startsWith(SUMMARY)
+    ).body;
+    assert.ok(summary.includes(`https://github.com/${REPO}/actions/runs/1234`));
+    assert.ok(!summary.includes(r.findings[0].trace));
+  } finally {
+    if (previousSummary === undefined) delete process.env.GITHUB_STEP_SUMMARY;
+    else process.env.GITHUB_STEP_SUMMARY = previousSummary;
+    if (previousRun === undefined) delete process.env.GITHUB_RUN_ID;
+    else process.env.GITHUB_RUN_ID = previousRun;
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+const suggestion = () => ({
+  findingUrl: rootComment.html_url,
+  claim: report().findings[0].claim,
+  path: 'src/example.ts',
+  startLine: 10,
+  line: 11,
+  original: 'context\nnew',
+  replacement: 'context\nreset("@owner");',
+  reason: 'Reset progress when opening a second preview.',
+  validation: 'Source inspected; run the regression check before merging.',
+});
+
+test('suggestions publish exact code with multi-line anchors, deduplicate and stay out of evidence', async () => {
+  const api = new FakeGitHub();
+  const r = report();
+  r.suggestions = [suggestion()];
+  const exp = expected(api.context);
+  await publish(api, 6794, exp, r);
+  await publish(api, 6794, exp, r);
+  const reviews = api.writes.filter((w) => w.endpoint.endsWith('/reviews'));
+  assert.equal(reviews.length, 1);
+  const [comment] = reviews[0].body.comments;
+  assert.equal(comment.start_line, 10);
+  assert.equal(comment.start_side, 'RIGHT');
+  assert.equal(comment.line, 11);
+  assert.equal(comment.side, 'RIGHT');
+  assert.ok(
+    comment.body.includes(
+      '```suggestion\n' + r.suggestions[0].replacement + '\n```'
+    )
+  );
+  assert.equal(reviews[0].body.event, 'COMMENT');
+  assert.equal(reviews[0].body.commit_id, HEAD);
+  assert.equal(fingerprint(await collect(api, 6794)), exp.fingerprint);
+  r.suggestions[0].reason = 'Reset progress before loading the second preview.';
+  await publish(api, 6794, exp, r);
+  assert.equal(api.context.comments.length, 2);
+  assert.ok(api.context.comments[1].body.includes(r.suggestions[0].reason));
+});
+
+test('single-line suggestions omit multi-line fields and support deletions', async () => {
+  const api = new FakeGitHub();
+  const r = report();
+  r.suggestions = [
+    { ...suggestion(), startLine: 11, original: 'new', replacement: '' },
+  ];
+  await publish(api, 6794, expected(api.context), r);
+  const comment = api.writes.find((w) => w.endpoint.endsWith('/reviews')).body
+    .comments[0];
+  assert.equal(comment.start_line, undefined);
+  assert.equal(comment.start_side, undefined);
+  assert.ok(comment.body.includes('```suggestion\n\n```'));
+});
+
+test('unproven, stale, overlapping or inapplicable suggestions fail before writes', async () => {
+  for (const mutate of [
+    (r) => {
+      r.findings[0].verdict = 'refuted';
+      r.findings[0].counterevidence = ['Guard'];
+    },
+    (r) => {
+      r.findings[0].reviewedRevision = OTHER;
+    },
+    (r) => {
+      r.suggestions[0].claim = 'Untracked claim';
+    },
+    (r) => {
+      r.suggestions[0].original = 'Outdated text';
+    },
+    (r) => {
+      r.suggestions[0].path = 'not-in-diff.ts';
+    },
+    (r) => {
+      r.suggestions[0].line = 50;
+    },
+    (r) => {
+      r.suggestions[0].startLine = 12;
+    },
+    (r) => {
+      r.suggestions[0].replacement = '```\noutside fence';
+    },
+    (r) => {
+      r.suggestions[0].replacement = r.suggestions[0].original;
+    },
+    (r) => {
+      r.suggestions.push(suggestion());
+    },
+    (r) => {
+      r.outcome = 'incomplete';
+    },
+    (r) => {
+      r.outcome = 'human-required';
+      r.humanDecisions = report('human-required').humanDecisions;
+    },
+  ]) {
+    const api = new FakeGitHub();
+    const r = report();
+    r.suggestions = [suggestion()];
+    mutate(r);
+    await assert.rejects(publish(api, 6794, expected(api.context), r));
+    assert.equal(api.writes.length, 0);
+  }
+  const context = fixture();
+  context.files[0].patch = '@@ -10 +10 @@\n context\n@@ -11 +11 @@\n-old\n+new';
+  const r = report();
+  r.suggestions = [suggestion()];
+  assert.throws(() => validateReport(r, context), /exact current diff text/);
 });
 
 test('requirements distinguish bounded mismatches, human choices, and no source found', async () => {

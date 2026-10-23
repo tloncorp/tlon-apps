@@ -15,6 +15,7 @@ export const BOT = 'chatgpt-codex-connector[bot]';
 export const SUMMARY = '<!-- tlon-pr-triage:v1 -->';
 export const CODEX_SUMMARY = '<!-- codex-pull-request-review-summary -->';
 const INLINE = '<!-- tlon-pr-triage-decision:v1:';
+const SUGGESTION = '<!-- tlon-pr-triage-suggestion:v1:';
 const ROUTES = {
   'human-required': ['review:human-required', 'B60205'],
   'agent-work-needed': ['review:agent-work-needed', 'FBCA04'],
@@ -26,11 +27,14 @@ const hash = (value) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const runUrl = () =>
-  `https://github.com/${REPO}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+  /^\d+$/.test(process.env.GITHUB_RUN_ID ?? '')
+    ? `https://github.com/${REPO}/actions/runs/${process.env.GITHUB_RUN_ID}`
+    : null;
 const ownSummary = (c) =>
   c.user?.login === 'github-actions[bot]' && c.body?.startsWith(SUMMARY);
 const ownInline = (c) =>
-  c.user?.login === 'github-actions[bot]' && c.body?.startsWith(INLINE);
+  c.user?.login === 'github-actions[bot]' &&
+  [INLINE, SUGGESTION].some((marker) => c.body?.startsWith(marker));
 const output = (name, value) =>
   appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
 
@@ -315,6 +319,10 @@ export function prepareSource(context, directory) {
       'Account for every automated finding, including review bodies and old revisions, with structured ' +
       'proof, counterevidence, gaps, and a separate assessment of the suggested fix. ' +
       'Inventory every non-empty Codex discussion item in reviewCoverage, including zero-finding items. ' +
+      'Read references/publication.md in the skill. Keep summary and comment fields concise; ' +
+      'the complete ledger goes in the workflow report, not the PR comment. ' +
+      'Use suggestions only for small, self-contained fixes to confirmed current-head defects, ' +
+      'with exact original lines and a replacement checked against the surrounding code. ' +
       'Use humanDecisions only for concrete policy/authority/product decisions, with empty path and line 0 ' +
       'when there is no verified diff anchor. Do not turn an ordinary bounded fix into human review. ' +
       'The publisher will independently refresh GitHub state before publication.\n'
@@ -353,6 +361,36 @@ export function isDiffLine(files, decision) {
   return false;
 }
 
+// Suggestions replace exact current-side lines within one complete diff hunk.
+// A line number alone cannot establish which text GitHub will replace.
+function suggestionSource(files, suggestion) {
+  const file = files.find((f) => f.filename === suggestion.path);
+  if (!file?.patch || file.status === 'removed') return null;
+  const hunks = [];
+  let current;
+  let right = 0;
+  for (const line of file.patch.split('\n')) {
+    const header = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (header) {
+      current = new Map();
+      hunks.push(current);
+      right = Number(header[1]);
+    } else if (current && /^[ +]/.test(line)) {
+      current.set(right++, line.slice(1));
+    }
+  }
+  for (const hunk of hunks) {
+    const lines = [];
+    for (let n = suggestion.startLine; n <= suggestion.line; n++) {
+      if (!hunk.has(n)) break;
+      lines.push(hunk.get(n));
+    }
+    if (lines.length === suggestion.line - suggestion.startLine + 1)
+      return lines.join('\n');
+  }
+  return null;
+}
+
 function automatedSources(context) {
   return [
     ...context.comments,
@@ -371,11 +409,14 @@ export function validateReport(report, context) {
     throw new Error('Unaccounted human decisions');
   if (report.outcome === 'agent-work-needed' && !report.agentWork.length)
     throw new Error('Agent work must be explicit');
+  if (report.outcome !== 'agent-eligible' && !report.comment.nextSteps.length)
+    throw new Error('The short comment must name the next action');
   if (
     report.outcome === 'agent-eligible' &&
     (report.evidence !== 'sufficient' ||
       report.gaps.length ||
       report.agentWork.length ||
+      report.comment.nextSteps.length ||
       report.impactMap.some((row) => row.gaps.length) ||
       report.requirements.status === 'unavailable' ||
       report.requirements.items.some((item) => item.status !== 'met') ||
@@ -480,6 +521,43 @@ export function validateReport(report, context) {
       !report.findings.some((f) => f.url === comment.html_url)
     )
       throw new Error('Automated inline finding omitted from the report');
+
+  for (const [index, suggestion] of report.suggestions.entries()) {
+    const finding = report.findings.find(
+      (f) => f.url === suggestion.findingUrl && f.claim === suggestion.claim
+    );
+    if (
+      report.outcome !== 'agent-work-needed' ||
+      finding?.verdict !== 'confirmed' ||
+      finding.reviewedRevision !== report.headSha
+    )
+      throw new Error(
+        'Suggestion requires a confirmed current-head agent task'
+      );
+    if (
+      suggestion.line < suggestion.startLine ||
+      suggestion.line - suggestion.startLine >= 20 ||
+      suggestion.replacement.split('\n').length > 20 ||
+      suggestion.replacement.includes('```') ||
+      suggestion.replacement.includes('\r') ||
+      suggestion.replacement === suggestion.original ||
+      suggestionSource(context.files, suggestion) !== suggestion.original
+    )
+      throw new Error(
+        'Suggestion must replace exact current diff text in a small range'
+      );
+    if (
+      report.suggestions
+        .slice(0, index)
+        .some(
+          (s) =>
+            s.path === suggestion.path &&
+            s.startLine <= suggestion.line &&
+            suggestion.startLine <= s.line
+        )
+    )
+      throw new Error('Suggestions must not overlap');
+  }
 }
 
 const safeText = (text) =>
@@ -488,12 +566,61 @@ const bullets = (items) =>
   items.length ? items.map((s) => `- ${safeText(s)}`).join('\n') : '- None.';
 
 export function render(report, expected, retainedHuman) {
+  const tally = (items, key) => {
+    const counts = new Map();
+    for (const item of items)
+      counts.set(item[key], (counts.get(item[key]) ?? 0) + 1);
+    return (
+      [...counts].map(([status, count]) => `${count} ${status}`).join(', ') ||
+      'none'
+    );
+  };
+  const botUrls = new Set(report.reviewCoverage.map((item) => item.url));
+  const botFindings = report.findings.filter((f) => botUrls.has(f.url));
+  const url = runUrl();
+  return (
+    `${SUMMARY}\n## PR triage — ${report.outcome}\n\n` +
+    `Head: \`${report.headSha}\` · Baseline: \`${expected.baseline}\`\n\n` +
+    `${safeText(report.summary)}\n\n` +
+    `**Complexity:** ${report.complexity.level} · **Sensitivity:** ${report.sensitivity.level} · **Evidence:** ${report.evidence}\n\n` +
+    `**Impact:** ${safeText(report.comment.impact)}\n\n` +
+    `**Counter-review:** ${tally(botFindings, 'verdict')}. ` +
+    `**Requirements:** ${report.requirements.status}; ${tally(report.requirements.items, 'status')}.\n\n` +
+    `**Validation:** ${safeText(report.comment.validation)}\n\n` +
+    (report.comment.nextSteps.length
+      ? `**Next steps**\n\n${bullets(report.comment.nextSteps)}\n\n`
+      : '') +
+    (report.humanDecisions.length
+      ? `**Human decisions**\n\n${bullets(report.humanDecisions.map((d) => d.question))}\n\n`
+      : '**Human decisions:** none identified by this assessment.\n\n') +
+    (retainedHuman
+      ? '**The existing `review:human-required` requirement remains until a maintainer explicitly clears it.**\n\n'
+      : '') +
+    (url ? `[Full evidence report](${url}) · ` : '') +
+    'Advisory only; existing review and merge requirements still apply.'
+  );
+}
+
+export function renderSuggestion(suggestion, head) {
+  const marker = `${SUGGESTION}${hash([head, suggestion.path, suggestion.startLine, suggestion.line])} -->`;
+  // Keep code byte-for-byte: escaping mentions or HTML comments would alter it.
+  return (
+    `${marker}\n${safeText(suggestion.reason)}\n\n` +
+    `\`\`\`suggestion\n${suggestion.replacement}\n\`\`\`\n\n` +
+    `Validation: ${safeText(suggestion.validation)}\n\n` +
+    `[Finding](${suggestion.findingUrl}) · Head: \`${head}\`. Apply only after review.`
+  );
+}
+
+export function renderDetails(report, expected, retainedHuman) {
   const decisions = report.humanDecisions.map(
     (d) => `${d.question}\n  ${d.reason} Evidence: ${d.evidence}`
   );
   return (
     `${SUMMARY}\n## PR triage — ${report.outcome}\n\n` +
-    `Head: \`${report.headSha}\` · Baseline: \`${expected.baseline}\` · [Run](${runUrl()})\n\n` +
+    `Head: \`${report.headSha}\` · Baseline: \`${expected.baseline}\`` +
+    (runUrl() ? ` · [Run](${runUrl()})` : '') +
+    '\n\n' +
     `${safeText(report.summary)}\n\n` +
     `- **Complexity: ${report.complexity.level}.** ${safeText(report.complexity.reason)}\n` +
     `- **Sensitivity: ${report.sensitivity.level}.** ${safeText(report.sensitivity.reason)}\n` +
@@ -542,6 +669,16 @@ export function render(report, expected, retainedHuman) {
     `### Gaps\n\n${bullets(report.gaps)}\n\n` +
     `### Remaining agent work\n\n${bullets(report.agentWork)}\n\n` +
     `### Human decisions\n\n${bullets(decisions)}\n\n` +
+    `### Code suggestions\n\n` +
+    (report.suggestions.length
+      ? report.suggestions
+          .map(
+            (s) =>
+              `**${safeText(s.path)}:${s.startLine}-${s.line}**\n\n${renderSuggestion(s, report.headSha)}`
+          )
+          .join('\n\n')
+      : 'None.') +
+    '\n\n' +
     (retainedHuman
       ? '**An existing `review:human-required` requirement remains in force. A maintainer must explicitly clear it; no agent-eligible label is applied.**\n\n'
       : '') +
@@ -584,8 +721,8 @@ export async function publish(api, number, expected, report) {
     context.pr.labels.some((l) => l.name === ROUTES['human-required'][0]) &&
     report.outcome !== 'human-required';
   const body = render(report, expected, retainedHuman);
-  if (Buffer.byteLength(body) > 60000)
-    throw new Error('Report exceeds comment size');
+  if (Buffer.byteLength(body) > 8000)
+    throw new Error('Summary exceeds concise comment budget');
   const previous = await api.pages(`${prPath(number)}/comments`);
   const decisions = report.humanDecisions
     .filter((d) => isDiffLine(context.files, d))
@@ -610,9 +747,18 @@ export async function publish(api, number, expected, report) {
             other.side === c.side
         ) === index
     );
+  const suggestions = report.suggestions.map((s) => ({
+    path: s.path,
+    line: s.line,
+    side: 'RIGHT',
+    ...(s.startLine === s.line
+      ? {}
+      : { start_line: s.startLine, start_side: 'RIGHT' }),
+    body: renderSuggestion(s, report.headSha),
+  }));
   const comments = [];
   const updates = [];
-  for (const decision of decisions) {
+  for (const decision of [...decisions, ...suggestions]) {
     const old = previous.find(
       (c) => ownInline(c) && c.body.startsWith(decision.body.split('\n')[0])
     );
@@ -624,6 +770,11 @@ export async function publish(api, number, expected, report) {
   // while the report and positions were validated.
   if (fingerprint(await collect(api, number)) !== expected.fingerprint)
     throw new Error('Evidence changed before publication');
+  if (process.env.GITHUB_STEP_SUMMARY)
+    appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      renderDetails(report, expected, retainedHuman) + '\n'
+    );
   for (const update of updates)
     await api.request(`repos/${REPO}/pulls/comments/${update.id}`, 'PATCH', {
       body: update.body,
@@ -632,7 +783,7 @@ export async function publish(api, number, expected, report) {
     await api.request(`${prPath(number)}/reviews`, 'POST', {
       commit_id: expected.head,
       event: 'COMMENT',
-      body: `${SUMMARY}\nHuman decisions for \`${expected.head}\`.`,
+      body: `${SUMMARY}\nTriage comments for \`${expected.head}\`.`,
       comments,
     });
   await upsertSummary(api, number, body);

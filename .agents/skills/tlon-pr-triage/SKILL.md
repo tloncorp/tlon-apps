@@ -188,7 +188,16 @@ Re-read the PR head before finalizing. If it changed, reassess the affected
 conclusions; if it keeps moving, report the old SHA and mark the current
 assessment incomplete. Also refresh relevant check and review status.
 
-Keep the report proportional to the PR and write it in the user's language:
+Separate the evidence ledger from the message a reviewer must read. Follow
+[Publication](references/publication.md) for the short summary and optional
+GitHub code suggestions. Aim for 150–250 words in the PR summary; keep the full
+impact map, requirement checks, and finding ledger in a linked report. Never
+paste the complete ledger into the PR comment, even inside a collapsed block.
+Summarize every material blocker or human choice; omit resolved-finding history
+and non-blocking polish from the short message.
+
+Keep the full report proportional to the PR and write local explanations in the
+user's language (GitHub drafts and hosted output are English):
 
 - PR link, assessed head SHA, baseline, and whether the PR is open or merged.
 - Outcome, complexity, sensitivity, and evidence coverage with short reasons.
@@ -200,7 +209,9 @@ Keep the report proportional to the PR and write it in the user's language:
 - Verified checks, unverified claims, and material gaps.
 - Proposed labels, remaining agent work, and human decisions, if any.
 
-Draft inline comments only for concrete human decisions. Each draft needs a file
+Draft inline comments for concrete human decisions or small, independently
+verified code suggestions, not a second copy of ordinary bot findings. Use the
+publication reference for suggestions. Each human-decision draft needs a file
 and verified line at the assessed SHA, what changed, why it matters, evidence
 already obtained, and the precise decision or validation still needed. Prefer
 one comment per decision over one per occurrence. Do not phrase a policy
@@ -231,5 +242,6 @@ When invoked by `.github/workflows/pr-triage.yml`, read
 [Automation contract](references/automation.md). Apply the same decision criteria
 using the supplied snapshot and pinned Git objects. Return structured English
 JSON to the publisher instead of calling GitHub write APIs. The workflow's
-publication authorization covers its summary, routing labels, and concrete human
-decision comments only. Ordinary local URL invocations remain report-only.
+publication authorization covers its summary, routing labels, concrete human
+decision comments, and validated code suggestions. Suggestions are never applied
+automatically. Ordinary local URL invocations remain report-only.

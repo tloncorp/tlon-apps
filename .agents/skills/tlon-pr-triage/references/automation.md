@@ -29,6 +29,9 @@ The separate publisher refreshes evidence before writing.
 Return only the JSON object specified by `scripts/pr-triage/schema.mjs`:
 
 - `headSha`, `outcome`, and a concise `summary`.
+- `comment`: short `impact`, `validation`, and `nextSteps` for the public summary.
+  Follow [Publication](publication.md); the full ledger belongs in the linked
+  workflow report. Preserve material blockers and gaps in the short message.
 - Separate `complexity` and `sensitivity` objects with `level` and `reason`.
 - `evidence` (`sufficient`, `partial`, `missing`), `checks`, and `gaps`.
 - `agentWork`: bounded remaining implementation or verification work.
@@ -59,6 +62,10 @@ Return only the JSON object specified by `scripts/pr-triage/schema.mjs`:
   diff anchor (`path`, `line`, `side`). Use `path: ""`, `line: 0`, `side: "RIGHT"`
   when an anchor is unavailable; it remains in the summary. Prefer a single
   combined question per code location. Do not put ordinary fixes here.
+- `suggestions`: optional small replacements for confirmed current-head agent
+  work, following the publication reference. Use an empty array otherwise.
+  Supply exact current diff text, replacement, reason, and validation limits.
+  Suggestions do not imply local execution or authorize applying the code.
 
 Use the same four outcomes and priority order as the skill. An eligible result
 needs sufficient evidence, no material gaps or remaining agent work, no
@@ -70,8 +77,9 @@ Report checks as observed evidence, never as commands you executed in this job.
 
 ## Publication
 
-The publisher can update its single summary, create/apply the three routing
-labels, and submit inline `COMMENT` reviews for verified current diff lines.
+The publisher can update its single concise summary, retain the full evidence
+in the workflow job summary, create/apply the three routing labels, and submit
+inline `COMMENT` reviews for human decisions and validated code suggestions.
 It cannot approve, request changes, merge, assign reviewers, resolve other
 threads, or patch code. The shared `ready-for-human` label is not automated.
 
@@ -82,7 +90,9 @@ recommends eligibility. Agent work may coexist with that requirement.
 
 The publisher validates JSON, compares the head/base and evidence fingerprint,
 requires references to actual discussion items, and deduplicates inline
-comments by revision/location. It checks impact-map file coverage, requirement
+comments by revision/location. Suggestions also require matching original text
+within a small current-side diff range and a confirmed finding at the same head.
+It checks impact-map file coverage, requirement
 source consistency, and automated message coverage/counts. Extracting all
 claims from free text and judging evidence still require model reasoning;
 these checks do not establish semantic completeness. Failure or changed

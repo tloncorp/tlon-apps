@@ -1,6 +1,7 @@
 // Shared by Codex's structured output and the deterministic publisher.
 const string = { type: 'string', minLength: 1, maxLength: 12000 };
 const strings = { type: 'array', items: string, maxItems: 100 };
+const brief = { ...string, maxLength: 300 };
 const choice = (...values) => ({ type: 'string', enum: values });
 const object = (properties) => ({
   type: 'object',
@@ -20,7 +21,12 @@ export const schema = object({
     'agent-work-needed',
     'agent-eligible'
   ),
-  summary: string,
+  summary: { ...string, maxLength: 600 },
+  comment: object({
+    impact: brief,
+    validation: { ...string, maxLength: 500 },
+    nextSteps: { type: 'array', items: brief, maxItems: 4 },
+  }),
   complexity: rating,
   sensitivity: rating,
   evidence: choice('sufficient', 'partial', 'missing'),
@@ -101,13 +107,28 @@ export const schema = object({
     type: 'array',
     maxItems: 10,
     items: object({
-      question: string,
-      reason: string,
-      evidence: string,
+      question: brief,
+      reason: brief,
+      evidence: { ...string, maxLength: 500 },
       // An unanchored decision stays in the summary.
       path: { type: 'string', maxLength: 500 },
       line: { type: 'integer', minimum: 0 },
       side: choice('LEFT', 'RIGHT'),
+    }),
+  },
+  suggestions: {
+    type: 'array',
+    maxItems: 3,
+    items: object({
+      findingUrl: string,
+      claim: string,
+      path: { ...string, maxLength: 500 },
+      startLine: { type: 'integer', minimum: 1 },
+      line: { type: 'integer', minimum: 1 },
+      original: { ...string, maxLength: 3000 },
+      replacement: { type: 'string', maxLength: 3000 },
+      reason: brief,
+      validation: brief,
     }),
   },
 });

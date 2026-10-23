@@ -10,7 +10,7 @@ Use $tlon-pr-triage https://github.com/tloncorp/tlon-apps/pull/6794
 Local invocation produces a report and proposed comments/labels. It does not
 publish unless the user authorizes publication.
 
-Each assessment includes three evidence views, also present in hosted summaries:
+Each assessment retains three evidence views in its full report:
 
 - A behavior impact map connecting changed files to callers, consumers,
   platforms/contract boundaries, relevant validation, and material gaps.
@@ -78,8 +78,19 @@ The shared `ready-for-human` label is left to the existing workflow/maintainers.
 No outcome approves, merges, assigns a reviewer, resolves a thread, or changes
 the PR's code.
 
-One bot-owned summary comment is updated in place. Concrete human decisions
-also get inline `COMMENT` reviews, only on verified current diff positions.
+One bot-owned summary comment is updated in place, targeting 150–250 words:
+route, impact, counter-review/requirement counts, evidence limits, and next steps.
+The full ledger goes in the workflow job summary, linked from the PR comment.
+Local assessments keep separate report and preview files.
+
+Concrete human decisions also get inline `COMMENT` reviews. For confirmed
+current-head defects routed to agent work, up to three small, self-contained
+fixes may be proposed with GitHub `suggestion` blocks. The publisher checks the
+exact original text and a contiguous current-side diff range (at most 20 lines
+each for original and replacement), rejects overlaps and stale evidence, and
+leaves all changes unapplied. Each suggestion explains the defect and its
+validation limits. Broader or uncertain fixes stay in the next steps.
+
 Each revision/location is posted at most once; decisions without a valid
 anchor remain in the summary. Comments from other reviewers are preserved.
 
