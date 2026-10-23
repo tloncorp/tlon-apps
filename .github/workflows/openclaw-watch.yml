@@ -225,7 +225,7 @@ jobs:
       # post falls back to signals + highlights below half coverage.
       - name: Label bullets
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENCLAW_WATCH_OPENROUTER_API_KEY }}
         run: |
           node packages/openclaw/scripts/upstream-watch/label.ts \
             --digest watch/digest-input.json \
@@ -270,10 +270,12 @@ jobs:
 
   # Runs whatever prepare and canary did: a failed canary is the expected
   # signal, and a missing canary report reads as infra-error in the header.
+  # A dry run renders and uploads the post but does not deliver it.
   post:
     name: Post
     needs: [discover, prepare, canary]
-    if: always() && needs.discover.outputs.should_post == 'true'
+    if: always() && (needs.discover.outputs.should_post == 'true' ||
+      inputs.dry_run == true)
     runs-on: ubuntu-latest
     env:
       PREV: ${{ needs.discover.outputs.prev }}
@@ -336,6 +338,7 @@ jobs:
       # answers non-200 when the bot fails, and a redirect or an empty 2xx
       # from a misconfigured URL must not move state either.
       - name: Post to Harness Alerts
+        if: inputs.dry_run != true
         env:
           SERVERLESS_INFRA_API: ${{ vars.SERVERLESS_INFRA_API }}
           ALERT_BOT_API_KEY: ${{ secrets.ALERT_BOT_API_KEY }}
@@ -357,6 +360,11 @@ jobs:
             echo "::error::sendAlertBotMessage answered HTTP $status, not 200; not delivered"
             exit 1
           fi
+
+      - name: Skip delivery
+        if: inputs.dry_run == true
+        run: |
+          echo "::notice::dry run: post rendered, not delivered"
 
       # Only after delivery, only for scheduled runs, and only when the post
       # was built from a digest: a run that posted "digest failed" leaves

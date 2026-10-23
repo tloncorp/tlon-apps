@@ -148,7 +148,12 @@ export function buildDigest({
 
   const parsed: Bullet[] = [];
   for (const release of [...intermediates, next]) {
-    const markdown = git(['show', `v${release}:CHANGELOG/${release}.md`]);
+    const file = `CHANGELOG/${release}.md`;
+    // Upstream backfilled per-version changelogs into later trees, so an
+    // older release's own tag can lack its file while next's tree has it.
+    const markdown =
+      git(['show', `v${release}:${file}`]) ??
+      (release === next ? undefined : git(['show', `v${next}:${file}`]));
     if (markdown === undefined) {
       incomplete.push(`changelog missing for ${release}`);
       continue;

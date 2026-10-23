@@ -45,6 +45,7 @@ jobs:
   unit:
     name: Canary Unit (${{ inputs.openclaw_version }})
     runs-on: blacksmith-4vcpu-ubuntu-2204
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: packages/openclaw
@@ -70,8 +71,16 @@ jobs:
         working-directory: .
         env:
           OPENCLAW_VERSION: ${{ inputs.openclaw_version }}
+        # Bootstrap and forced digests of the pinned release ask for exactly
+        # the pinned version, and pnpm has hung on the runner after such a
+        # no-op re-resolution.
         run: |
-          pnpm --filter @tloncorp/openclaw add -D "openclaw@${OPENCLAW_VERSION}"
+          pinned=$(jq -r '.devDependencies.openclaw' packages/openclaw/package.json)
+          if [ "$OPENCLAW_VERSION" = "$pinned" ]; then
+            echo "openclaw ${OPENCLAW_VERSION} is already the pinned dev dependency; skipping pnpm add"
+          else
+            pnpm --filter @tloncorp/openclaw add -D "openclaw@${OPENCLAW_VERSION}"
+          fi
           node -p "'installed openclaw ' + require('./packages/openclaw/node_modules/openclaw/package.json').version"
 
       - name: Typecheck

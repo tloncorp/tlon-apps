@@ -249,6 +249,30 @@ describe('buildDigest', () => {
     expect(digest.incomplete).toEqual(['changelog missing for 2026.1.2']);
   });
 
+  it("reads an intermediate's changelog from next's tree when its own tag lacks it", () => {
+    const real = gitIn(repo);
+    const { digest } = buildDigest({
+      git: (args) =>
+        args[0] === 'show' && args[1] === 'v2026.1.3:CHANGELOG/2026.1.2.md'
+          ? '## 2026.1.2\n\n### Fixes\n\n- Other: backfilled. (#9)\n'
+          : real(args),
+      prev: '2026.1.1',
+      next: '2026.1.3',
+      intermediates: ['2026.1.2'],
+      pluginDir: plugin,
+      manifest,
+      canaryNode: '24.16.0',
+      drift: { prodPins: {} },
+    });
+    expect(digest.incomplete).toEqual([]);
+    expect(digest.bullets).toContainEqual({
+      release: '2026.1.2',
+      section: 'Fixes',
+      text: 'Other: backfilled. (#9)',
+      prs: [9],
+    });
+  });
+
   it('records an untagged release in between as incomplete', () => {
     const { digest } = buildDigest({
       git: gitIn(repo),
