@@ -60,6 +60,19 @@ vi.mock('./BucketFileViewer.shared', async (importOriginal) => {
   };
 });
 
+vi.mock('./BucketPreviewContent', () => ({
+  BucketPreviewContent: ({ children }: { children: React.ReactNode }) =>
+    children,
+}));
+vi.mock('./BucketPreviewImage', () => ({ BucketPreviewImage: () => null }));
+vi.mock('./BucketAudioPreview', () => ({ BucketAudioPreview: () => null }));
+vi.mock('./BucketPreviewOpenButton', () => ({
+  BucketPreviewOpenButton: () => null,
+}));
+vi.mock('./BucketPreviewControls', () => ({
+  BucketPreviewControls: () => null,
+}));
+
 vi.mock('../ScreenHeader', () => {
   const ScreenHeader = () => null;
   ScreenHeader.TextButton = () => null;
