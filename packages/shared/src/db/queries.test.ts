@@ -3776,6 +3776,66 @@ describe('recomputeChannelLastPost', () => {
   });
 });
 
+// TLON-6252: channels deliver a delete as a tombstone on the add-post path,
+// so the head must fall back to the previous post rather than stay on the
+// emptied row.
+test('a tombstone for the channel head repoints channel and group to the previous post', async () => {
+  const groupId = '~zod/tombstone-head';
+  const channelId = 'chat/~zod/tombstone-head';
+  await queries.insertGroups({
+    groups: [
+      {
+        id: groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~zod',
+      } as unknown as Parameters<
+        typeof queries.insertGroups
+      >[0]['groups'][number],
+    ],
+  });
+  await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+  const post = (id: string, at: number) =>
+    ({
+      id,
+      type: 'chat',
+      channelId,
+      authorId: '~zod',
+      sentAt: at,
+      receivedAt: at,
+      sequenceNum: at,
+      content: JSON.stringify([{ inline: [id] }]),
+      syncedAt: at,
+    }) as unknown as Post;
+  await queries.insertChannelPosts({ posts: [post('previous', 1000)] });
+  await queries.insertChannelPosts({ posts: [post('head', 2000)] });
+
+  // The shape `toPostData` builds from a tombstone: no content.
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        id: 'head',
+        type: 'chat',
+        channelId,
+        authorId: '~zod',
+        sentAt: 2000,
+        receivedAt: 2000,
+        sequenceNum: 2000,
+        isDeleted: true,
+        deletedAt: 3000,
+      } as Post,
+    ],
+  });
+
+  const channel = await queries.getChannel({ id: channelId });
+  expect(channel!.lastPostId).toBe('previous');
+  expect(channel!.lastPostAt).toBe(1000);
+  expect(channel!.lastPostSequenceNum).toBe(2000);
+  const group = await queries.getGroup({ id: groupId });
+  expect(group!.lastPostId).toBe('previous');
+  expect(group!.lastPostAt).toBe(1000);
+});
+
 describe('last post repair after channel metadata insert', () => {
   type TestGroup = Parameters<typeof queries.insertGroups>[0]['groups'][number];
 
