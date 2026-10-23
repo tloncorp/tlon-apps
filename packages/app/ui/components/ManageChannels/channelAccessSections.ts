@@ -58,17 +58,22 @@ export function channelAccessSections({
         ? 2
         : 1
       : 0;
-  // As the backend decides it: posting needs seeing the channel too, and an
-  // empty list of who may post (MEMBERS_MARKER here) lets anyone who can see
-  // it post. Channels saved elsewhere don't always keep posters within viewers.
-  const sees = (id: string) =>
-    readers.includes(id) || readers.includes(MEMBERS_MARKER);
-  const ownLevel = (id: string): Level =>
-    !sees(id)
-      ? 0
-      : notes || writers.includes(id) || writers.includes(MEMBERS_MARKER)
-        ? 2
-        : 1;
+  // What a role is given by name, beyond what everyone has, read as the
+  // backend does: posting needs seeing the channel too, and an empty list of
+  // who may post (MEMBERS_MARKER here) lets anyone who can see it post.
+  // Channels saved elsewhere don't always keep posters within viewers. Access
+  // a role only has through everyone stays with everyone, so lowering
+  // everyone takes it away.
+  const everyoneSees = readers.includes(MEMBERS_MARKER);
+  const ownLevel = (id: string): Level => {
+    const listedViewer = readers.includes(id);
+    if (notes) return listedViewer ? 2 : 0;
+    if (writers.includes(id)) return listedViewer || everyoneSees ? 2 : 0;
+    if (listedViewer) {
+      return writers.includes(MEMBERS_MARKER) && !everyoneSees ? 2 : 1;
+    }
+    return 0;
+  };
   const roleLevels = new Map(roles.map((role) => [role.id, ownLevel(role.id)]));
 
   const write = (nextFloor: Level, nextLevels: Map<string, Level>) => {

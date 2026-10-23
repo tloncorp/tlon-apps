@@ -124,6 +124,21 @@ describe('channelAccessSections', () => {
     });
   });
 
+  it('takes away what roles only had through everyone when everyone is lowered', () => {
+    const { row, onChange } = render({
+      isPrivate: true,
+      readers: ['admin', MEMBERS_MARKER, 'mods'],
+      writers: ['admin'],
+    });
+    expect(row('gardeners').subtitle).toBe('Same as everyone');
+    row('everyone').picker!.onChange('0');
+    expect(onChange).toHaveBeenLastCalledWith({
+      isPrivate: true,
+      readers: ['admin', 'mods'],
+      writers: ['admin'],
+    });
+  });
+
   it('lists three or more who can see or post with commas', () => {
     const { sections } = render({
       isPrivate: true,
