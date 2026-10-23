@@ -551,7 +551,10 @@ export function BotChannelRuleSettingsScreen(props: Props) {
         channelLabel ? `Tlonbot in ${channelLabel}` : 'Tlonbot channel rule'
       }
       sections={sections}
+      // Opened from the channel rules list, so wide windows need the way
+      // back too (it also checks a half-set custom model).
       onBackPressed={handleBack}
+      showsBackOnWideWindows
       loading={!ready}
       useHorizontalTitleLayout={!isWindowNarrow}
     >
