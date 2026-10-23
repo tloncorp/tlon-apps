@@ -30,6 +30,7 @@ export type ChannelRouteParams = {
 
 export type RootStackParamList = {
   BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+  BrowserWallet: { requestId: string };
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
   OnboardingStartup: {
     channelId: string;
@@ -226,6 +227,7 @@ export type MobileBasePathStackParamList = {
 export type DesktopBasePathStackParamList = {
   Root: NavigatorScreenParams<RootDrawerParamList>;
   BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+  BrowserWallet: { requestId: string };
 };
 
 // hack: adding the true contacts types causes lots of tsc failures that need

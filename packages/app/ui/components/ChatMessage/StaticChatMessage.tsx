@@ -223,6 +223,7 @@ export function StaticChatMessage({
     channelId: post.channelId,
     currentUserId,
     canUseAgentProviderControls,
+    agentShipOverride: AGENT_SHIP_OVERRIDE,
   });
 
   if (isNotice) {
@@ -497,6 +498,7 @@ export function StaticChatMessage({
           allowBotMcpSettings: canUseAgentProviderControls,
           allowBrowserCredentialHandoff: allowBrowserHandoff,
           allowBrowserSession: allowBrowserHandoff,
+          allowBrowserWallet: allowBrowserHandoff,
         });
         return;
       }
@@ -554,7 +556,8 @@ export function StaticChatMessage({
         if (target.type !== 'screen') return true;
         if (
           target.screen === 'browserSecureEntry' ||
-          target.screen === 'browserSession'
+          target.screen === 'browserSession' ||
+          target.screen === 'browserWallet'
         ) {
           return allowBrowserHandoff;
         }

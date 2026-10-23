@@ -68,6 +68,7 @@ const screenNameSchema = z.enum([
   'botMcpSettings',
   'browserSecureEntry',
   'browserSession',
+  'browserWallet',
 ]);
 
 const nonEmptyString = (max?: number) => {
@@ -149,7 +150,15 @@ const browserSessionNavigationTargetSchema = z.object({
   screen: z.literal('browserSession'),
   viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
 });
+const browserWalletNavigationTargetSchema = z
+  .object({
+    type: z.literal('screen'),
+    screen: z.literal('browserWallet'),
+    requestId: z.string().uuid(),
+  })
+  .strict();
 const screenNavigationTargetSchema = z.union([
+  browserWalletNavigationTargetSchema,
   browserSessionNavigationTargetSchema,
   botMcpSettingsNavigationTargetSchema,
   browserCredentialHandoffNavigationTargetSchema,

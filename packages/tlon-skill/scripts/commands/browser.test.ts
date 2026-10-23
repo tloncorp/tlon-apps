@@ -1,3 +1,4 @@
+import { browserWalletCard } from '@tloncorp/api/client/browserWallet';
 import { convertContent } from '@tloncorp/api/client/postContent';
 
 import { describe, expect, it } from 'bun:test';
@@ -35,6 +36,7 @@ function makeDeps(ownerShip = '~owner') {
     setOrder: async () => {},
   };
   const deps: BrowserDeps = {
+    browserWalletCard,
     stdout: (text) => stdout.push(text),
     stderr: (text) => stderr.push(text),
     authenticate: async () => {},
@@ -76,7 +78,7 @@ describe('browser handoff', () => {
       const help = context.stdout.join('');
       expect(help).toContain('Tlon tool: browser handoff <session_id>');
       expect(help).toContain('--fields <JSON array>');
-      expect(help).toContain('Omit --fields for automatic discovery');
+      expect(help).toContain('Both secure-entry commands require --fields');
       expect(help).toContain(String.raw`Owner\u0027s email address`);
       expect(help).toContain('session ID from browser_session_create');
       expect(help).not.toContain('<signed-viewer-url>');
@@ -329,5 +331,22 @@ describe('browser share', () => {
     const context = makeDeps();
     expect(await run([...args], context.deps)).toBe(1);
     expect(context.sent).toHaveLength(0);
+  });
+});
+
+describe('wallet card delivery', () => {
+  it('sends an opaque request to the configured owner without consent URLs', async () => {
+    const context = makeDeps('~ten');
+    const id = '11111111-1111-4111-8111-111111111111';
+    expect(await run(['wallet', id], context.deps)).toBe(0);
+    expect(context.sent).toHaveLength(1);
+    expect(context.sent[0].channelId).toBe('~ten');
+    const content = JSON.stringify(
+      convertContent(context.sent[0].content, context.sent[0].blob)
+    );
+    expect(content).toContain('browserWallet');
+    expect(content).toContain(id);
+    expect(content).not.toContain('https://');
+    expect(content).not.toContain('viewerUrl');
   });
 });

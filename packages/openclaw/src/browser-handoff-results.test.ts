@@ -107,12 +107,12 @@ describe('secure-entry result delivery', () => {
     f.service.start();
     await f.service.poll();
     expect(f.resume).not.toHaveBeenCalled();
-    f.readResult.mockResolvedValue({ status: 'filled', submitted: true });
+    f.readResult.mockResolvedValue({ status: 'filled', submitted: false });
     await Promise.all([f.service.poll(), f.service.poll()]);
     await f.service.poll();
     expect(f.resume).toHaveBeenCalledExactlyOnceWith({
       sessionKey: f.ctx.sessionKey,
-      message: expect.stringContaining('filled; submission attempted'),
+      message: expect.stringContaining('filled; submission not attempted'),
       idempotencyKey: expect.stringMatching(
         /^tlon-browser-handoff:[a-f0-9]{64}$/
       ),
@@ -428,3 +428,41 @@ it.each(['browser_act', 'browser_browser_act'])(
     ).toBeUndefined();
   }
 );
+
+describe('configured development result origin', () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it('polls only the configured local origin, allowing its private address', async () => {
+    vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', 'http://127.0.0.1:43841');
+    const release = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(urbitFetch).mockResolvedValue({
+      response: Response.json({ status: 'pending' }),
+      release,
+      finalUrl: 'http://127.0.0.1:43841/credential-result/payload.signature',
+    });
+    const signal = new AbortController().signal;
+    await expect(
+      readBrowserHandoffResult(
+        'http://127.0.0.1:43841/s/payload.signature',
+        signal
+      )
+    ).resolves.toEqual({ status: 'pending' });
+    expect(urbitFetch).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        baseUrl: 'http://127.0.0.1:43841',
+        path: '/credential-result/payload.signature',
+        ssrfPolicy: { allowPrivateNetwork: true },
+        pinDns: true,
+        maxRedirects: 0,
+        signal,
+      })
+    );
+    expect(release).toHaveBeenCalledOnce();
+    await expect(
+      readBrowserHandoffResult(
+        'http://127.0.0.1:43842/s/payload.signature',
+        new AbortController().signal
+      )
+    ).rejects.toThrow();
+    expect(urbitFetch).toHaveBeenCalledTimes(1);
+  });
+});

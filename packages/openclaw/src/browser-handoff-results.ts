@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
-import { isTrustedBrowserViewerHost } from '@tloncorp/api';
+import {
+  isTrustedBrowserViewerHost,
+  isBrowserViewerDevelopmentOrigin,
+} from '@tloncorp/api';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import { z } from 'zod';
 
@@ -64,9 +67,13 @@ function resultEndpoint(viewerUrl: string) {
   const url = new URL(viewerUrl);
   const match = /^\/s\/([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/.exec(url.pathname);
   if (
-    url.protocol !== 'https:' ||
-    !isTrustedBrowserViewerHost(url.hostname) ||
-    url.port ||
+    (!isBrowserViewerDevelopmentOrigin(
+      url,
+      process.env.TLON_BROWSER_VIEWER_DEV_ORIGIN
+    ) &&
+      (url.protocol !== 'https:' ||
+        !!url.port ||
+        !isTrustedBrowserViewerHost(url.hostname))) ||
     url.username ||
     url.password ||
     url.hash ||
@@ -81,6 +88,12 @@ export async function readBrowserHandoffResult(
   signal: AbortSignal
 ): Promise<BrowserResult> {
   const url = resultEndpoint(viewerUrl);
+  // Only the explicitly configured development viewer may sit on a private
+  // address; every other result origin keeps the deny-private-network policy.
+  const development = isBrowserViewerDevelopmentOrigin(
+    url,
+    process.env.TLON_BROWSER_VIEWER_DEV_ORIGIN
+  );
   const { response, release } = await urbitFetch({
     baseUrl: url.origin,
     path: url.pathname,
@@ -90,7 +103,7 @@ export async function readBrowserHandoffResult(
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
     },
-    ssrfPolicy: { allowPrivateNetwork: false },
+    ssrfPolicy: { allowPrivateNetwork: development },
     pinDns: true,
     maxRedirects: 0,
     timeoutMs: 5_000,
@@ -122,7 +135,7 @@ function resultMessage(handoff: PendingHandoff, result: CompletedResult) {
     prefix +
     `filled; submission ${result.submitted ? 'attempted' : 'not attempted'}. ` +
     (result.saveStatus ? `Saving the login: ${result.saveStatus}. ` : '') +
-    'Resume the task in this browser session. Inspect the current page: filling does not confirm sign-in or authorize a purchase. Handle ordinary page controls, including optional passkey setup, yourself. If more private fields are needed, request a fresh secure-entry card. Never request credentials in chat.'
+    'Resume the task in this browser session. Inspect the current page: filling does not confirm sign-in or authorize a purchase. Choose the next ordinary page action yourself. Dismiss optional passkey enrollment with an observed Skip or Not now control unless the owner requested enrollment. If more private fields are needed, request a fresh secure-entry card. Never request credentials in chat.'
   );
 }
 

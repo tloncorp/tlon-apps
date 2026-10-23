@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { runBrowserSessionHandoff } from './browser-session-handoff.js';
+import { runBrowserHandoffCommand } from './tlon-command-runner.js';
 import { mcpReadOnlyPolicyTesting } from './mcp-readonly-policy.js';
 
 /**
@@ -18,10 +19,24 @@ vi.mock('./monitor/agent-onboarding.js', async (importOriginal) => {
   return { ...actual, isAgentOnboardingCronJob: vi.fn(async () => false) };
 });
 
-vi.mock('./browser-session-handoff.js', () => ({
-  runBrowserSessionHandoff: vi.fn().mockResolvedValue('Card sent'),
-}));
+vi.mock('./browser-session-handoff.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./browser-session-handoff.js')>();
+  return {
+    ...actual,
+    runBrowserSessionHandoff: vi.fn().mockResolvedValue('Card sent'),
+  };
+});
+vi.mock('./tlon-command-runner.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./tlon-command-runner.js')>();
+  return {
+    ...actual,
+    runBrowserHandoffCommand: vi.fn().mockResolvedValue('Card sent'),
+  };
+});
 const handoffRecords = new Map<string, unknown>();
+const walletRecords = new Map<string, unknown>();
 
 type Handler = (...args: unknown[]) => Promise<unknown>;
 
@@ -45,9 +60,23 @@ function createApi(registrationMode: string): {
           }
         );
       if (prop === 'openKeyedStore')
-        return () => ({
-          lookup: async (key: string) => handoffRecords.get(key),
-        });
+        return ({ namespace }: { namespace: string }) => {
+          const rows =
+            namespace === 'wallet-handoffs' ? walletRecords : handoffRecords;
+          return {
+            lookup: async (key: string) => rows.get(key),
+            register: async (key: string, value: unknown) => {
+              rows.set(key, value);
+            },
+            registerIfAbsent: async (key: string, value: unknown) => {
+              if (rows.has(key)) return false;
+              rows.set(key, value);
+              return true;
+            },
+          };
+        };
+      if (prop === 'getSessionEntry')
+        return () => ({ sessionId: 'conversation-1' });
       if (prop === 'on') {
         return (name: string, handler: Handler) => {
           hooks.set(name, handler);
@@ -69,6 +98,8 @@ const SESSION = 'agent:main:cron:onboarding';
 afterEach(() => {
   mcpReadOnlyPolicyTesting.clear();
   handoffRecords.clear();
+  walletRecords.clear();
+  vi.mocked(runBrowserHandoffCommand).mockClear();
   vi.mocked(runBrowserSessionHandoff).mockClear();
 });
 
@@ -149,7 +180,7 @@ describe('browser hooks across plugin registration modes', () => {
         toolName: 'mcp__call',
         params: {
           name: 'browser_browser_login',
-          arguments: { session_id: 'test-browser' },
+          arguments: { session_id: 'test-browser', fields: ['@e12'] },
         },
         result: {
           details: {
@@ -166,7 +197,13 @@ describe('browser hooks across plugin registration modes', () => {
       expect(runBrowserSessionHandoff).toHaveBeenCalledTimes(1);
       expect(runBrowserSessionHandoff).toHaveBeenCalledWith(
         expect.any(String),
-        ['browser', 'approve-login', 'test-browser'],
+        [
+          'browser',
+          'approve-login',
+          'test-browser',
+          '--fields',
+          JSON.stringify(['@e12']),
+        ],
         {},
         expect.any(Function)
       );
@@ -176,6 +213,32 @@ describe('browser hooks across plugin registration modes', () => {
       );
       await turn.hooks.get('after_tool_call')!(event, ctx);
       expect(runBrowserSessionHandoff).toHaveBeenCalledTimes(2);
+      const requestId = '11111111-1111-4111-8111-111111111111';
+      const walletEvent = {
+        toolName: 'mcp__call',
+        params: { name: 'browser_payment_request' },
+        result: {
+          details: {
+            structuredContent: {
+              request_id: requestId,
+              owner_action_required: true,
+              expires_at: Date.now() + 600000,
+            },
+          },
+        },
+      };
+      await turn.hooks.get('after_tool_call')!(walletEvent, ctx);
+      await gateway.hooks.get('after_tool_call')!(walletEvent, ctx);
+      expect(runBrowserHandoffCommand).toHaveBeenCalledExactlyOnceWith(
+        expect.any(String),
+        ['browser', 'wallet', requestId],
+        {}
+      );
+      expect(walletRecords.get(requestId)).toMatchObject({
+        sessionKey: ctx.sessionKey,
+        sessionId: 'conversation-1',
+        sent: true,
+      });
     }
   );
 });

@@ -6,7 +6,11 @@ function event() {
     toolName: 'mcp__call',
     params: {
       name: 'browser_browser_login',
-      arguments: { session_id: 'fresh-ivory-finch', action: 'use' },
+      arguments: {
+        session_id: 'fresh-ivory-finch',
+        action: 'use',
+        fields: ['@e12'],
+      },
     },
     result: {
       details: {
@@ -26,7 +30,8 @@ describe('saved login approval delivery', () => {
     expect(send).toHaveBeenCalledExactlyOnceWith(
       'fresh-ivory-finch',
       undefined,
-      {}
+      {},
+      ['@e12']
     );
   });
 
@@ -56,7 +61,8 @@ describe('saved login approval delivery', () => {
       expect(send).toHaveBeenCalledExactlyOnceWith(
         'fresh-ivory-finch',
         choice,
-        {}
+        {},
+        ['@e12']
       );
     }
   );
@@ -65,6 +71,12 @@ describe('saved login approval delivery', () => {
     { params: { ...event().params, arguments: '{' } },
     { params: { ...event().params, arguments: 'null' } },
     { params: { ...event().params, arguments: '[]' } },
+    {
+      params: {
+        ...event().params,
+        arguments: { session_id: 'fresh-ivory-finch', action: 'use' },
+      },
+    },
     { toolName: 'untrusted_tool' },
     { params: { ...event().params, name: 'other_browser_login' } },
     {

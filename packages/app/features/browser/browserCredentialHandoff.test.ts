@@ -52,6 +52,25 @@ afterEach(() => {
 });
 
 describe('secure browser form transport', () => {
+  it('distinguishes an ended request from a missing live form without echoing server text', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          response(
+            { code: 'handoff_complete', error: 'private server detail' },
+            404
+          )
+        )
+    );
+    await expect(beginBrowserCredentialHandoff(viewer)).rejects.toMatchObject({
+      status: 404,
+      code: 'handoff_complete',
+      message:
+        'This secure-entry request has ended. Ask your bot for a new form.',
+    });
+  });
   it.each(['one-time-code', 'new-password', 'cc-number'])(
     'ignores advertised saved logins for %s fields',
     async (purpose) => {
@@ -145,7 +164,7 @@ describe('secure browser form transport', () => {
     ).resolves.toEqual({ submitted: true });
     expect(JSON.parse(request.mock.calls[1][1].body)).toEqual({
       values: { f0: 'not-in-chat' },
-      submit: true,
+      submit: false,
     });
     expect(request.mock.calls[1][1]).toMatchObject({
       signal: controller.signal,
@@ -257,7 +276,7 @@ describe('secure browser form transport', () => {
     ).rejects.toThrow('Complete');
     await submitBrowserCredentials(target, {
       values: { f0: 'aBc123' },
-      submit: true,
+      submit: false,
     });
     expect(JSON.parse(request.mock.calls[0][1].body).values.f0).toBe('aBc123');
   });
@@ -282,7 +301,7 @@ describe('secure browser form transport', () => {
     await expect(
       submitBrowserCredentials(target, {
         values: { f0: '4111111111111111' },
-        submit: true,
+        submit: false,
       })
     ).resolves.toEqual({ submitted: false });
     expect(JSON.parse(request.mock.calls[0][1].body).submit).toBe(false);
@@ -309,7 +328,6 @@ describe('local viewer development opt-in', () => {
     expect(() =>
       trustedBrowserViewerUrl('http://127.0.0.1:8906/s/demo.signature')
     ).toThrow();
-    vi.stubEnv('EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN', 'http://example.com');
     expect(() =>
       trustedBrowserViewerUrl('http://example.com/s/demo.signature')
     ).toThrow();
@@ -329,4 +347,42 @@ describe('local viewer development opt-in', () => {
       trustedBrowserViewerUrl('http://127.0.0.1:8905/s/demo.signature')
     ).toThrow();
   });
+});
+
+describe('explicit web viewer development origin', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+  it.each([
+    'http://127.0.0.1:43841',
+    'http://192.168.1.25:43841',
+    'http://viewer.local:43841',
+  ])(
+    'accepts exactly the configured origin in an opted-in web bundle: %s',
+    (origin) => {
+      vi.stubGlobal('__DEV__', false);
+      vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', origin);
+      expect(trustedBrowserViewerUrl(`${origin}/s/demo.signature`)).toBe(
+        `${origin}/s/demo.signature`
+      );
+      expect(() =>
+        trustedBrowserViewerUrl(
+          `${origin.replace('43841', '43842')}/s/demo.signature`
+        )
+      ).toThrow();
+      expect(() =>
+        trustedBrowserViewerUrl(`${origin}/other/demo.signature`)
+      ).toThrow();
+      expect(() =>
+        trustedBrowserViewerUrl(
+          `${origin.replace('http://', 'http://user@')}/s/demo.signature`
+        )
+      ).toThrow();
+      vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', '');
+      expect(() =>
+        trustedBrowserViewerUrl(`${origin}/s/demo.signature`)
+      ).toThrow();
+    }
+  );
 });

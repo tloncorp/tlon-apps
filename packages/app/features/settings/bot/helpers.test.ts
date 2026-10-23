@@ -108,6 +108,7 @@ describe('provider config', () => {
       keys: {},
       models: [],
       defaultKeys: {},
+      browserService: 'steel',
     });
     expect(
       normalizeProviderConfig({

@@ -214,6 +214,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         if (signal?.aborted) return;
         if (
           nextError instanceof BrowserFormError &&
+          nextError.code !== 'handoff_complete' &&
           (nextError.status === 404 ||
             (!openWhenMissing && nextError.status === 409)) &&
           trustedUrl
@@ -274,7 +275,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       navigation.goBack();
   }, [discard, handoffId, navigation]);
 
-  const fillAndSubmit = useCallback(async () => {
+  const fillFields = useCallback(async () => {
     const signal = requestController.current?.signal;
     if (
       !handoff ||
@@ -293,7 +294,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         handoff,
         {
           values: choice?.mode === 'use' ? undefined : values,
-          submit: handoff.kind === 'login',
+          submit: false,
           ...(vaultAuth && (choice?.mode === 'use' || saveLogin)
             ? { grant: vaultAuth.grant }
             : {}),
@@ -519,11 +520,11 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                 ) : null}
                 <Button
                   preset="primary"
-                  label="Approve sign-in"
+                  label="Approve and fill"
                   centered
                   loading={submitting}
                   disabled={submitting || !canSubmit}
-                  onPress={fillAndSubmit}
+                  onPress={fillFields}
                 />
                 <Button
                   preset="secondary"
@@ -650,7 +651,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                     onChange={(id, value) =>
                       setValues((current) => ({ ...current, [id]: value }))
                     }
-                    onSubmit={() => void fillAndSubmit()}
+                    onSubmit={() => void fillFields()}
                   />
                 ) : null}
                 {vaultEligible && choice?.mode !== 'use' ? (
@@ -715,7 +716,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   <Text>
                     {allowAutomatic
                       ? 'Allow sign-in and future automatic use.'
-                      : 'Continue allows this sign-in only.'}
+                      : 'Fill these fields for this sign-in.'}
                   </Text>
                 ) : null}
                 {error ? (
@@ -733,7 +734,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                             (event.key === 'Enter' || event.key === ' ')
                           ) {
                             event.preventDefault();
-                            void fillAndSubmit();
+                            void fillFields();
                           }
                         }
                       : undefined
@@ -742,11 +743,11 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   focusable
                   preset="primary"
                   size="large"
-                  label={handoff.kind === 'login' ? 'Continue' : 'Fill fields'}
+                  label="Fill fields"
                   centered
                   loading={submitting}
                   disabled={submitting || !canSubmit}
-                  onPress={fillAndSubmit}
+                  onPress={fillFields}
                 />
                 {choice?.mode === 'use' ? (
                   <Button
