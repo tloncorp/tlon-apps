@@ -1,17 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ub from '@tloncorp/api/urbit';
-import {
-  Button,
-  NotificationLevelSelector,
-  ScreenHeader,
-  TlonText,
-  View,
-  YStack,
-} from '@tloncorp/app/ui';
+import { Button, NotificationLevelSelector } from '@tloncorp/app/ui';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { OnboardingStepLayout } from '../../components/OnboardingStepLayout';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
@@ -24,7 +17,6 @@ const DEFAULT_NOTIFICATION_LEVEL: ub.NotificationLevel = 'medium';
 
 export const SetNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
-  const insets = useSafeAreaInsets();
   const isRevivalOnboarding = signupContext.onboardingFlow === 'tlonbotRevival';
   const didPrefillNotificationLevel = useRef(false);
 
@@ -66,37 +58,17 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
   );
 
   return (
-    <View
-      flex={1}
-      paddingBottom={insets.bottom}
-      backgroundColor="$secondaryBackground"
+    <OnboardingStepLayout
+      title="Notifications"
+      body="Tlon works best when you’re notified of messages. You can change this any time."
+      footer={<Button preset="hero" shadow label="Next" onPress={handleNext} />}
     >
-      <ScreenHeader
-        title="Notifications"
-        backgroundColor="$secondaryBackground"
+      <NotificationLevelSelector
+        value={selectedLevel}
+        onChange={setSelectedLevel}
+        config={{ shortDescriptions: true }}
+        flush
       />
-      <View
-        flex={1}
-        width="100%"
-        paddingHorizontal="$2xl"
-        maxWidth={600}
-        marginHorizontal="auto"
-        alignContent="center"
-      >
-        <YStack gap="$2xl" flex={1} justifyContent="center">
-          <TlonText.Text size="$body">
-            Tlon works best when you’re notified of messages. You can change
-            these settings any time.
-          </TlonText.Text>
-
-          <NotificationLevelSelector
-            value={selectedLevel}
-            onChange={setSelectedLevel}
-            config={{ shortDescriptions: true }}
-          />
-        </YStack>
-        <Button preset="hero" shadow label="Next" onPress={handleNext} />
-      </View>
-    </View>
+    </OnboardingStepLayout>
   );
 };
