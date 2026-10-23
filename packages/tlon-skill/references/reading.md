@@ -25,6 +25,8 @@ To quote an existing post, add `--quote <channel> <post-id>` to `posts send` or 
 
 Mentions in `posts` and `dms` text: `~ship` mentions a person, `@role-id` a group role (the id as shown when reading, e.g. `@admin`, not its title) and `@all` every member; matching is case-insensitive. An unknown `@word` is refused; wrap it in backticks or write `\@word` to send it as text. DMs take `@all` only. Mentions notify only in plain paragraph text, not inside bold, quotes, headings, lists or tables, and edits never notify. Use `@all` only when the owner asks for it.
 
+In `messages` output, every line of a message body starts with `| `. A shared group always prints a `> [ref: group ~host/slug]` pointer line. `--resolve-cites` also fetches the text of quoted channel messages (at most 3 per command) and prints their lines with `> `. `--json` instead prints NDJSON, one object per post, oldest first: `id`, `authorId`, `sentAt`, `parentId`, `blob`, and `content` with the parsed story rather than flattened text. It ignores `--resolve-cites`. Use it when the exact message structure matters more than readability.
+
 History and activity responses are bounded. A short or empty page does not prove that no older matching messages exist; use the supported pagination/search options before making an exhaustive claim.
 
 To share a group, post, or note as a card, follow the reference rules in the skill's "Identity, delivery, and completion" section.

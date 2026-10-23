@@ -31,6 +31,7 @@
  * `channels.ts` (createChannel and the other channel-management calls).
  */
 import type { NotesV1Api } from '@tloncorp/api';
+import { parsePostBlob } from '@tloncorp/api/client/content-helpers';
 // The real broker client, by subpath, which the root mock below does not
 // intercept. It has no dependencies but fetch, so tests keep exercising the
 // real request and error mapping against a stubbed fetch.
@@ -294,6 +295,10 @@ mock.module('@tloncorp/api', () => ({
   sendReply: async () => undefined,
   batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
   getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
+  // message-content.ts value imports -- the real renderers, not stubs: their
+  // output is exactly what the parse repair is under test for.
+  parsePostBlob,
+  getTextContent: realGetTextContent,
   // posts-runtime.ts value imports
   editPost: (...args: unknown[]) => mockedEditPost.impl(...args),
   getPostWithReplies: (...args: unknown[]) =>
@@ -339,7 +344,8 @@ mock.module('@tloncorp/api', () => ({
   enableGroup: (...args: unknown[]) => mockedEnableGroup.impl(...args),
   BadResponseError: MockBadResponseError,
   // activity runtime value imports (formatter tests call the pure helpers
-  // directly, so these are load-time placeholders)
+  // directly, so these are load-time placeholders; its getTextContent is the
+  // real renderer registered above for message-content.ts)
   getInitialActivity: async () => ({ events: [], relevantUnreads: {} }),
   getGroupAndChannelUnreads: () =>
     mockedActivityRead.getGroupAndChannelUnreads(),
@@ -351,7 +357,6 @@ mock.module('@tloncorp/api', () => ({
     mark: mockedVolume.supportsNotes ? 'activity-action-2' : 'activity-action',
     json,
   }),
-  getTextContent: realGetTextContent,
   adjustVolumeSetting: (...args: unknown[]) =>
     mockedVolume.adjustVolumeSetting(...args),
   getVolumeSettings: (...args: unknown[]) =>
