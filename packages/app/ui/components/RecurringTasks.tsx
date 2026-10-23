@@ -9,7 +9,10 @@ import { ActionSheet } from './ActionSheet';
 import { InputFrame } from './Form';
 import type { ForwardChannelChat } from './ForwardChannelSelector';
 import { ForwardToChannelSheet } from './ForwardToChannelSheet';
-import { SettingsListScreenView } from './SettingsList';
+import {
+  SETTINGS_LIST_COLUMN_WIDTH,
+  SettingsListScreenView,
+} from './SettingsList';
 import type {
   AutomationTaskDraft,
   AutomationTaskStatus,
@@ -25,9 +28,6 @@ import {
 import { useForwardToChannelSheet } from './useForwardToChannelSheet';
 
 export type { IdentifiedAutomationTask } from './scheduledTaskSections';
-
-// On a wide window these screens keep to the column a profile uses.
-const COLUMN_WIDTH = 600;
 
 export function ScheduledTasksScreenView({
   available,
@@ -72,7 +72,7 @@ export function ScheduledTasksScreenView({
       // Reached from a profile as well as from Settings, so a wide window
       // has nothing beside it to go back to.
       showsBackOnWideWindows
-      maxWidth={COLUMN_WIDTH}
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
       rightActions={[
         {
           id: 'new-scheduled-task',
@@ -123,7 +123,7 @@ export function ScheduledTasksNotice({
       ]}
       onBackPressed={onBack}
       showsBackOnWideWindows
-      maxWidth={COLUMN_WIDTH}
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
     />
   );
 }
@@ -233,13 +233,15 @@ export function RecurringTaskEditorView({
       })}
       onBackPressed={onBack}
       showsBackOnWideWindows
-      maxWidth={COLUMN_WIDTH}
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
       rightActions={[
         {
           id: 'save-scheduled-task',
           text: save.busy ? 'Saving…' : save.label,
           onPress: save.onPress,
           disabled: save.disabled || save.busy,
+          tint: '$positiveActionText',
+          prominent: true,
         },
       ]}
     >

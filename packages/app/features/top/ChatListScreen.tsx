@@ -100,9 +100,16 @@ export function ChatListScreenView({
   const [searchQuery, setSearchQuery] = useState('');
   const isFocused = useIsFocused();
 
+  // Refresh only while the list is on screen, but load it once even when it
+  // mounts covered: a notification or search result rebuilds the stack with a
+  // channel on top, and going back would otherwise reveal an empty list.
+  const [hasLoadedChats, setHasLoadedChats] = useState(false);
   const { data: chats } = store.useCurrentChats({
-    enabled: isFocused,
+    enabled: isFocused || !hasLoadedChats,
   });
+  if (chats !== undefined && !hasLoadedChats) {
+    setHasLoadedChats(true);
+  }
 
   const { performGroupAction } = useGroupActions();
 

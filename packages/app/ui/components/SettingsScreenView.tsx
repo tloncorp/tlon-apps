@@ -152,6 +152,7 @@ function useSettingsSections(
               {
                 key: 'status',
                 title: 'Set status',
+                systemImage: 'bubble.left',
                 onPress: props.onProfileLongPressed,
               },
             ]
