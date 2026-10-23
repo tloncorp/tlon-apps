@@ -73,7 +73,8 @@ jobs:
           OPENCLAW_VERSION: ${{ inputs.openclaw_version }}
         # Bootstrap and forced digests of the pinned release ask for exactly
         # the pinned version, and pnpm has hung on the runner after such a
-        # no-op re-resolution.
+        # no-op re-resolution. The workspace hoists openclaw to the root
+        # node_modules, so ask pnpm where it is rather than assuming a path.
         run: |
           pinned=$(jq -r '.devDependencies.openclaw' packages/openclaw/package.json)
           if [ "$OPENCLAW_VERSION" = "$pinned" ]; then
@@ -81,7 +82,8 @@ jobs:
           else
             pnpm --filter @tloncorp/openclaw add -D "openclaw@${OPENCLAW_VERSION}"
           fi
-          node -p "'installed openclaw ' + require('./packages/openclaw/node_modules/openclaw/package.json').version"
+          pnpm --filter @tloncorp/openclaw ls openclaw --depth 0 --json \
+            | jq -er '"installed openclaw " + .[0].devDependencies.openclaw.version'
 
       - name: Typecheck
         id: typecheck
