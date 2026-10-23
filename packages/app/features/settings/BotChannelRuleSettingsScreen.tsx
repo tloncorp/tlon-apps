@@ -12,9 +12,9 @@ import {
 import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
-  BASIC_PROVIDER_LABEL,
   MAX_VISIBLE_MODELS,
   PROVIDER_OPTIONS,
+  getBasicModelLabel,
 } from './bot/constants';
 import {
   ChannelRuleDraft,
@@ -457,7 +457,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
             title: 'Provider',
             footer:
               overrideProvider === BASIC_PROVIDER_ID
-                ? BASIC_PROVIDER_LABEL
+                ? getBasicModelLabel(queries.providerConfig)
                 : undefined,
             rows: availableProviders.map((provider) => ({
               key: provider.id,

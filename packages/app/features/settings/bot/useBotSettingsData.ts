@@ -16,11 +16,11 @@ import { useFullGroupRosters } from '../../../hooks/useFullGroupRosters';
 import { mcpProviderQueryKeys } from '../../../lib/mcpProviders';
 import {
   BASIC_PROVIDER_ID,
-  BASIC_PROVIDER_MODEL,
   EMPTY_PROVIDER_CONFIG,
   PROVIDER_OPTIONS,
   RETRY_INTERVAL_MS,
   SUBSCRIPTION_PROVIDERS,
+  getBasicProviderModel,
 } from './constants';
 import {
   ModelFormValues,
@@ -322,7 +322,7 @@ export function useAllProviderModels(
     const loading = { ...fetched.loading };
     const errors = { ...fetched.errors };
     if (providers.includes(BASIC_PROVIDER_ID)) {
-      models[BASIC_PROVIDER_ID] = [BASIC_PROVIDER_MODEL];
+      models[BASIC_PROVIDER_ID] = [getBasicProviderModel(providerConfig)];
       loading[BASIC_PROVIDER_ID] = false;
       errors[BASIC_PROVIDER_ID] = null;
     }
@@ -336,7 +336,7 @@ export function useAllProviderModels(
       errors[provider] = errors[provider] ?? null;
     });
     return { providers, models, loading, errors };
-  }, [providers, fetched, llmAuthStatus]);
+  }, [providers, fetched, llmAuthStatus, providerConfig]);
 }
 
 export type AllProviderModels = ReturnType<typeof useAllProviderModels>;

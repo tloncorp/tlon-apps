@@ -86,6 +86,8 @@ export interface TlawnProviderConfigInfo {
   keys: Record<string, string>;
   models: TlawnModelEntry[];
   defaultKeys: Record<string, { key: string; id?: string }>;
+  /** The models hosting runs behind Basic. Older hosting omits it. */
+  defaultModels?: { primaryModel: string; fallbackModels: string[] };
   browserService?: TlawnBrowserService;
 }
 
