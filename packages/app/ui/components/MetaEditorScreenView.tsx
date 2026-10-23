@@ -1,166 +1,190 @@
+import type { ConnectionStatus } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { KeyboardAvoidingView, useIsWindowNarrow } from '@tloncorp/ui';
-import {
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import { useForm } from 'react-hook-form';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Popover, ScrollView, View } from 'tamagui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useCallback, useState } from 'react';
 
-import { useShipConnectionStatus } from '../../features/top/useShipConnectionStatus';
 import { capitalize } from '../utils';
-import ConnectionStatus from './ConnectionStatus';
+import AttachmentSheet from './AttachmentSheet';
+import { useImageInput } from './Form';
+import { IconEditor, editorAvatar, imageMenuItems } from './IconEditor';
+import { ListItem } from './ListItem';
 import {
-  ControlledImageField,
-  ControlledTextField,
-  ControlledTextareaField,
-  FormFrame,
-} from './Form';
-import { ScreenHeader } from './ScreenHeader';
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from './SettingsList';
 import WayfindingNotice from './Wayfinding/Notices';
 
-export function MetaEditorScreenView({
-  title,
-  goBack,
-  children,
-  onSubmit,
-  chat,
-  currentUserId,
-}: PropsWithChildren<{
+interface MetaEditorScreenViewProps {
   title: string;
   onSubmit: (meta: db.ClientMeta) => void;
   goBack: () => void;
   chat?: db.Group | db.Channel | null;
   currentUserId: string;
-}>) {
-  const [modelLoaded, setModelLoaded] = useState(!!chat);
-  const defaultValues = useMemo(() => getMetaWithDefaults(chat), [chat]);
-  const isGroup = !!chat && logic.isGroup(chat);
-  const hostStatus = useShipConnectionStatus(isGroup ? chat.hostUserId : '', {
-    enabled: isGroup,
-  });
+  /** For a group: whether its host can be reached, which saving needs. */
+  hostStatus?: ConnectionStatus;
+}
 
-  const label = isGroup ? 'group' : 'channel';
+const maxTitleLength = 30;
+const maxDescriptionLength = 300;
 
-  const isPersonalGroup = useMemo(() => {
-    if (isGroup) {
-      return logic.isPersonalGroup(chat, currentUserId);
-    }
-  }, [chat, currentUserId, isGroup]);
+/** Edits a group's or a group chat's name, icon and description. */
+export function MetaEditorScreenView(props: MetaEditorScreenViewProps) {
+  // The fields start from the chat's values, so they wait for the chat.
+  return <MetaEditorForm key={props.chat?.id ?? 'loading'} {...props} />;
+}
 
-  const {
-    control,
-    handleSubmit,
-    formState: { isValid },
-    reset,
-  } = useForm({
-    defaultValues,
-  });
-
-  const disabled =
-    !isValid ||
-    (isGroup && (!hostStatus.complete || hostStatus.status !== 'yes'));
-
-  useEffect(() => {
-    if (!modelLoaded && chat) {
-      setModelLoaded(true);
-      reset(defaultValues);
-    }
-  }, [chat, modelLoaded, reset, defaultValues]);
-
-  const runSubmit = useCallback(
-    () => handleSubmit(onSubmit)(),
-    [handleSubmit, onSubmit]
-  );
-
-  const insets = useSafeAreaInsets();
-
+function MetaEditorForm({
+  title: screenTitle,
+  goBack,
+  onSubmit,
+  chat,
+  currentUserId,
+  hostStatus,
+}: MetaEditorScreenViewProps) {
   const isWindowNarrow = useIsWindowNarrow();
+  const [initial] = useState(() => getMetaWithDefaults(chat));
+  const [title, setTitle] = useState(initial.title);
+  const [description, setDescription] = useState(initial.description);
+  const [iconImage, setIconImage] = useState(initial.iconImage);
+  const icon = useImageInput({
+    value: iconImage || undefined,
+    onChange: (uri) => setIconImage(uri ?? ''),
+  });
+
+  const group = chat && logic.isGroup(chat) ? chat : null;
+  const channel = chat && !group ? (chat as db.Channel) : null;
+  const label = group ? 'workspace' : 'chat';
+  const hostReachable =
+    !hostStatus || (hostStatus.complete && hostStatus.status === 'yes');
+  // A picked image is a local file until its upload finishes.
+  const iconReady = !/^(file|data)/.test(iconImage);
+  const isDirty =
+    title !== initial.title ||
+    description !== initial.description ||
+    iconImage !== initial.iconImage;
+  const canSave = hostReachable && iconReady && isDirty;
+
+  const handleSave = useCallback(() => {
+    if (canSave) {
+      onSubmit({
+        title,
+        description,
+        coverImage: initial.coverImage,
+        iconImage,
+      });
+    }
+  }, [canSave, description, iconImage, initial.coverImage, onSubmit, title]);
+
+  // The icon as it will look once saved: the picked image, or the fallback
+  // drawn from the name as it is typed.
+  const preview = { title, iconImage: icon.assetUri ?? null };
+  const avatar = group ? (
+    <ListItem.GroupIcon
+      model={{ ...group, ...preview }}
+      size="custom"
+      width={editorAvatar.size}
+      height={editorAvatar.size}
+      borderRadius={editorAvatar.radius}
+      membersBackgroundColor="$background"
+    />
+  ) : channel ? (
+    <ListItem.ChannelIcon
+      model={{ ...channel, ...preview }}
+      size="custom"
+      width={editorAvatar.size}
+      height={editorAvatar.size}
+      borderRadius={editorAvatar.radius}
+    />
+  ) : null;
+  const sections: SettingsSectionModel[] = [
+    {
+      key: 'icon',
+      rows: [],
+      element: (
+        <IconEditor
+          avatar={avatar}
+          isUploading={icon.isUploading}
+          menuItems={imageMenuItems(icon, 'Remove icon')}
+          onPressFallback={icon.toggleSheet}
+          accessibilityLabel="Change icon"
+          notice={
+            group && logic.isPersonalGroup(group, currentUserId) ? (
+              <WayfindingNotice.CustomizeGroup />
+            ) : null
+          }
+        />
+      ),
+    },
+    {
+      key: 'title',
+      title: 'Name',
+      rows: [
+        {
+          key: 'title',
+          title: 'Name',
+          textField: {
+            value: title,
+            onChangeText: setTitle,
+            placeholder: `${capitalize(label)} name`,
+            maxLength: maxTitleLength,
+            capitalization: 'words',
+          },
+          testID: 'GroupTitleInput',
+        },
+      ],
+    },
+    {
+      key: 'description',
+      title: 'Description',
+      footer: hostReachable
+        ? undefined
+        : hostStatus?.complete
+          ? 'The workspace’s host is offline, so changes can’t be saved right now.'
+          : 'Checking the connection to the workspace’s host…',
+      rows: [
+        {
+          key: 'description',
+          title: 'Description',
+          textField: {
+            value: description,
+            onChangeText: setDescription,
+            placeholder: `About this ${label}`,
+            lines: 5,
+            maxLength: maxDescriptionLength,
+            capitalization: 'sentences',
+          },
+          testID: 'GroupDescriptionInput',
+        },
+      ],
+    },
+  ];
 
   return (
-    <View flex={1} backgroundColor={'$secondaryBackground'}>
-      <ScreenHeader
-        title={title}
-        backgroundColor="$secondaryBackground"
-        backAction={goBack}
-        useHorizontalTitleLayout={!isWindowNarrow}
-        rightControls={
-          <ScreenHeader.TextButton
-            onPress={runSubmit}
-            color="$positiveActionText"
-            disabled={disabled}
-          >
-            Save
-          </ScreenHeader.TextButton>
-        }
-      />
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-        <ScrollView
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={{
-            minHeight: '100%',
-            paddingBottom: insets.bottom,
-          }}
-        >
-          {isPersonalGroup && <WayfindingNotice.CustomizeGroup />}
-          <FormFrame paddingBottom={'$2xl'} flex={1} backgroundType="secondary">
-            <ControlledTextField
-              name="title"
-              label="Name"
-              control={control}
-              inputProps={{
-                placeholder: capitalize(label) + ' name',
-                testID: 'GroupTitleInput',
-              }}
-              rules={{
-                maxLength: {
-                  value: 30,
-                  message: `Your ${label} name is limited to 30 characters`,
-                },
-              }}
-            />
-            <ControlledImageField
-              label="Icon image"
-              name="iconImage"
-              hideError={true}
-              control={control}
-              inputProps={{
-                buttonLabel: 'Change icon image',
-              }}
-              rules={{
-                pattern: {
-                  value: /^(?!file|data).+/,
-                  message: 'Image has not finished uploading',
-                },
-              }}
-            />
-            <ControlledTextareaField
-              name="description"
-              label={`Description`}
-              control={control}
-              inputProps={{
-                placeholder: `About this ${label}`,
-                numberOfLines: 5,
-                testID: 'GroupDescriptionInput',
-                multiline: true,
-              }}
-              rules={{
-                maxLength: {
-                  value: 300,
-                  message: 'Description is limited to 300 characters',
-                },
-              }}
-            />
-            {children}
-          </FormFrame>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+    <SettingsListScreenView
+      title={screenTitle}
+      sections={sections}
+      loading={!chat}
+      onBackPressed={goBack}
+      showsBackOnWideWindows
+      useHorizontalTitleLayout={!isWindowNarrow}
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      rightActions={[
+        {
+          id: 'MetaEditorSaveButton',
+          text: 'Save',
+          tint: '$positiveActionText',
+          prominent: true,
+          disabled: !canSave,
+          onPress: handleSave,
+          testID: 'MetaEditorSaveButton',
+        },
+      ]}
+    >
+      {/* Web has no menu, so it picks and removes from this sheet. */}
+      <AttachmentSheet {...icon.sheetProps} showClearOption={!!icon.assetUri} />
+    </SettingsListScreenView>
   );
 }
 

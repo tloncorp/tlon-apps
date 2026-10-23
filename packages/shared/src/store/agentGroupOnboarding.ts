@@ -16,7 +16,7 @@ import { finalizeAndSendPost } from './postActions';
 const logger = createDevLogger('agentGroupOnboarding', false);
 const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
-const DEFAULT_AGENT_GROUP_TITLE = 'My agent group';
+const DEFAULT_AGENT_GROUP_TITLE = 'My agent workspace';
 const MAX_GENERATED_GROUP_TITLE_LENGTH = 32;
 const PENDING_GROUP_ADOPTION_ATTEMPTS = 8;
 const PENDING_GROUP_ADOPTION_DELAY_MS = 500;
@@ -332,13 +332,15 @@ async function waitForPendingGroupWithChat(
       if (group.channels?.some((channel) => channel.type === 'chat')) {
         return group;
       }
-      lastError = new Error('The pending group is still creating its chat.');
+      lastError = new Error(
+        'The pending workspace is still creating its chat.'
+      );
     } catch (error) {
       lastError = error;
     }
     if (attempt + 1 < attempts && delayMs > 0) await wait(delayMs);
   }
-  throw lastError ?? new Error('The pending group is not ready yet.');
+  throw lastError ?? new Error('The pending workspace is not ready yet.');
 }
 
 async function finishAgentGroupFurnishing({
@@ -570,7 +572,7 @@ export async function renameAgentGroupFromOnboarding({
 async function adoptGroup(groupId: string): Promise<db.Group> {
   const group = await api.getGroup(groupId);
   if (!group.currentUserIsMember || !group.currentUserIsHost) {
-    throw new Error('Only the group owner can set up an agent group.');
+    throw new Error('Only the workspace owner can set up an agent workspace.');
   }
   await db.insertGroups({ groups: [group] });
   return group;
@@ -708,7 +710,7 @@ async function ensureSingleNotesChannelOnce(
 
 function ambiguousNotebooksError() {
   return new Error(
-    'This group has multiple notebooks. Remove the extra notebook and try again.'
+    'This workspace has multiple notebooks. Remove the extra notebook and try again.'
   );
 }
 
@@ -796,7 +798,9 @@ function isProvisionedAgentGroupTitle(
 ) {
   const trimmed = title?.trim() ?? '';
   if (!trimmed || trimmed === DEFAULT_AGENT_GROUP_TITLE) return true;
-  if (['Group', 'Home', 'Home Group'].includes(trimmed)) return true;
+  if (['Group', 'Home', 'Home Group', 'My agent group'].includes(trimmed)) {
+    return true;
+  }
   const possessive = /['\u2019]s Group$/;
   if (!possessive.test(trimmed)) return false;
   const named = trimmed.replace(possessive, '');

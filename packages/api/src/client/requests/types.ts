@@ -2,6 +2,7 @@ import {
   AUTOMATIONS_MIN_GROUPS_VERSION,
   BUCKETS_MIN_GROUPS_VERSION,
   STEWARD_PROMPTS_MIN_GROUPS_VERSION,
+  STEWARD_BOTS_MIN_GROUPS_VERSION,
 } from '../../lib/deskVersion';
 
 // Shape only: `${number}` admits '1e0'. The registry check re-validates every
@@ -20,6 +21,7 @@ export const GUARDS = {
   deskSupportsBuckets: { since: BUCKETS_MIN_GROUPS_VERSION },
   deskSupportsAutomations: { since: AUTOMATIONS_MIN_GROUPS_VERSION },
   deskSupportsStewardPrompts: { since: STEWARD_PROMPTS_MIN_GROUPS_VERSION },
+  deskSupportsStewardBots: { since: STEWARD_BOTS_MIN_GROUPS_VERSION },
 } as const satisfies Record<string, { since: DeskVersion }>;
 export type GuardName = keyof typeof GUARDS;
 

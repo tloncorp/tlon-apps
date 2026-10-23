@@ -6,7 +6,7 @@
 #
 # With no --to it asks `feature-map.mjs next` whether a store build newer than
 # the one in docs/feature-map/release.json has been tagged, and stops if there
-# is none or if a pull request for it is already open. So it is safe to run on
+# is none or if an update pull request is already open. So it is safe to run on
 # a schedule.
 #
 #   --prepare  stop after the commit and say which branch and description to
@@ -18,9 +18,22 @@
 #
 # A coding agent does the reading and the edits, in two passes: one to update
 # the entries (docs/feature-map/agent/update.md), one to check the first
-# (docs/feature-map/agent/review.md). FEATURE_MAP_AGENT is the command for it.
-# It must take its instructions on stdin, be allowed to edit this checkout, and
-# print its final report on stdout. The default is the Codex CLI.
+# (docs/feature-map/agent/review.md). It is Claude Code, held to what the job
+# needs: it can read this checkout, edit files under docs/feature-map/, and run
+# a few read-only git commands, grep and the map's own checks. Claude Code also
+# lets it run some read-only commands such as `wc` or `tail` on files in the
+# checkout. It refuses anything that writes elsewhere, reaches the network,
+# runs another program or reads outside the checkout. Settings:
+#
+#   FEATURE_MAP_MODEL           the model, by Claude Code's name for it
+#                               (default claude-haiku-5-5)
+#   FEATURE_MAP_PROVIDER_MODEL  the provider's id for that model, when Claude
+#                               Code is pointed at another provider, such as
+#                               anthropic/claude-haiku-5.5 for OpenRouter
+#   FEATURE_MAP_BUDGET_USD      the most one pass may spend (default 5)
+#   FEATURE_MAP_AGENT           another agent command instead. It must take its
+#                               instructions on stdin, be allowed to edit this
+#                               checkout, and print its final report on stdout.
 #
 # Run it from a clean checkout. On success it returns to where it started. On
 # failure it stays on the work branch, with the agent's edits in place.
@@ -63,9 +76,31 @@ if [ "$base" != "origin/develop" ] && [ "$check_remote" = 1 ]; then
   exit 2
 fi
 
-agent=${FEATURE_MAP_AGENT:-'codex exec -s workspace-write -c model_reasoning_effort="high" -'}
 guide=packages/openclaw/skills/tlon-product-guide
 map=docs/feature-map
+
+model=${FEATURE_MAP_MODEL:-claude-haiku-5-5}
+settings='{}'
+if [ -n "${FEATURE_MAP_PROVIDER_MODEL:-}" ]; then
+  settings="{\"modelOverrides\":{\"$model\":\"$FEATURE_MAP_PROVIDER_MODEL\"}}"
+fi
+# --restricted leaves Read and Edit, keeps reads inside this checkout, and
+# drops every tool that runs code except Bash, named here. dontAsk refuses
+# whatever the rules below do not allow. grep is how it searches; rg and find
+# are left out because they can run other programs. --output would let git
+# write a file anywhere, and --no-index would let it read one.
+claude_agent=(claude -p --bare --restricted
+  --model "$model" --settings "$settings"
+  --tools "Read,Edit,Bash"
+  --allowedTools "Edit($map/**) Bash(git show *) Bash(git diff *) Bash(git log *) Bash(git status *) Bash(git ls-tree *) Bash(grep *) Bash(node scripts/feature-map.mjs check *) Bash(node scripts/feature-map.mjs affected *)"
+  --disallowedTools "Bash(git *--output*) Bash(git *--no-index*)"
+  --permission-mode dontAsk
+  --no-session-persistence
+  --max-budget-usd "${FEATURE_MAP_BUDGET_USD:-5}")
+
+# The agent may not be able to write a hook, but if it ever could, none of
+# this script's own git commands would run it.
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null
 
 cd "$(git rev-parse --show-toplevel)"
 if [ -n "$(git status --porcelain)" ]; then
@@ -98,8 +133,14 @@ fi
 
 branch="feature-map/$(printf '%s' "$target" | tr -c 'A-Za-z0-9._-' '-')"
 if [ "$check_remote" = 1 ]; then
-  if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
-    echo "a pull request for $target is already open"
+  # One update at a time. While one waits for review the map on develop still
+  # describes the old build, so a newer build would start a second full update
+  # from the same place. The first run after the open one merges catches up.
+  # Only branches in this repo count, so a fork's PR can't hold updates up.
+  open=$(gh pr list --base develop --state open --limit 500 --json number,headRefName,isCrossRepository \
+    --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("feature-map/"))) | "#\(.number)"] | join(" ")')
+  if [ -n "$open" ]; then
+    echo "an update pull request is already open: $open"
     go_back
     exit 0
   fi
@@ -159,10 +200,25 @@ run_agent() {
   # The agent gets no GitHub token, even a read-only one, and none of the
   # files a workflow step uses to pass a PATH or variables to later steps. It
   # has no use for them, and anything it can reach can end up misused.
+  local unset_vars=(-u GH_TOKEN -u GITHUB_TOKEN -u GITHUB_PATH -u GITHUB_ENV -u GITHUB_OUTPUT
+    -u GITHUB_STATE -u GITHUB_STEP_SUMMARY)
   sed -e "s|{{new}}|$target|g" -e "s|{{old}}|$old|g" -e "s|{{old_commit}}|$old_commit|g" \
-    "$map/agent/$1.md" |
-    env -u GH_TOKEN -u GITHUB_TOKEN -u GITHUB_PATH -u GITHUB_ENV -u GITHUB_OUTPUT \
-      -u GITHUB_STATE -u GITHUB_STEP_SUMMARY bash -c "$agent" > "$work/$1-report.md"
+    "$map/agent/$1.md" > "$work/$1-brief.md"
+  if [ -n "${FEATURE_MAP_AGENT:-}" ]; then
+    env "${unset_vars[@]}" bash -c "$FEATURE_MAP_AGENT" < "$work/$1-brief.md" > "$work/$1-report.md"
+  else
+    env "${unset_vars[@]}" "${claude_agent[@]}" < "$work/$1-brief.md" > "$work/$1-report.md"
+  fi
+
+  # What the agent writes goes into a public pull request. The model key is in
+  # its environment, so make sure it went nowhere near either.
+  local secret
+  for secret in "${ANTHROPIC_AUTH_TOKEN:-}" "${ANTHROPIC_API_KEY:-}" "${OPENROUTER_API_KEY:-}"; do
+    if [ -n "$secret" ] && grep -rqF -- "$secret" "$work/$1-report.md" "$map"; then
+      echo "the agent's report or edits contain the model key; stopping" >&2
+      exit 1
+    fi
+  done
 
   # The agent has write access to the checkout. Hold it to the map: no
   # commits, nothing outside the map, and nothing in the guide's folder, which

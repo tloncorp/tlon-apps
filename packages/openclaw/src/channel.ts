@@ -3,13 +3,13 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describeAccountSnapshot } from 'openclaw/plugin-sdk/account-helpers';
 import { createHybridChannelConfigAdapter } from 'openclaw/plugin-sdk/channel-config-helpers';
+import { createRuntimeOutboundDelegates } from 'openclaw/plugin-sdk/channel-outbound';
 import type { ChannelPlugin } from 'openclaw/plugin-sdk/core';
 import {
   DEFAULT_ACCOUNT_ID,
   createChatChannelPlugin,
 } from 'openclaw/plugin-sdk/core';
 import { createLazyRuntimeModule } from 'openclaw/plugin-sdk/lazy-runtime';
-import { createRuntimeOutboundDelegates } from 'openclaw/plugin-sdk/outbound-runtime';
 import { createLegacyPrivateNetworkDoctorContract } from 'openclaw/plugin-sdk/ssrf-runtime';
 import {
   createComputedAccountStatusAdapter,
@@ -39,6 +39,13 @@ import {
 } from './agent-task-plan-tool.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
 import {
+  connectableServicesToolMetadata,
+  connectableServicesToolParameters,
+  createConnectableServicesToolExecutor,
+  loadConnectableServices,
+  resolveConnectableServicesUrl,
+} from './connectable-services.js';
+import {
   assertTlonChoiceCallCurrent,
   assertTlonServiceSetupCallCurrent,
   finishTlonChoiceCall,
@@ -46,6 +53,13 @@ import {
   finishTlonTaskPlanCall,
   getTlonTaskPlanEvidence,
 } from './onboarding-tool-boundary.js';
+import {
+  OWNER_TIMEZONE_FILE_ENV,
+  type OwnerTimezoneToolParams,
+  createOwnerTimezoneToolExecutor,
+  ownerTimezoneToolMetadata,
+  ownerTimezoneToolParameters,
+} from './owner-timezone-tool.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import {
   applyTlonSetupConfig,
@@ -169,18 +183,28 @@ export const tlonPlugin = createChatChannelPlugin({
         }
         return parsed.nest;
       },
-      parseExplicitTarget: ({ raw }) => {
-        const parsed = parseTlonTarget(raw);
-        if (!parsed) {
-          return null;
-        }
-        return parsed.kind === 'dm'
-          ? { to: parsed.ship, chatType: 'direct' }
-          : { to: parsed.nest, chatType: 'group' };
+      inferTargetChatType: ({ to }) => {
+        const parsed = parseTlonTarget(to);
+        return parsed?.kind === 'dm' ? 'direct' : parsed ? 'group' : undefined;
       },
       targetResolver: {
         looksLikeId: (target) => Boolean(parseTlonTarget(target)),
         hint: formatTargetHint(),
+        // The host passes `normalized` from normalizeTarget above, so it is
+        // already the canonical ship or nest whenever the raw input parses.
+        resolveTarget: async ({ normalized }) => {
+          const parsed = parseTlonTarget(normalized);
+          if (!parsed) {
+            return null;
+          }
+          const to = parsed.kind === 'dm' ? parsed.ship : parsed.nest;
+          return {
+            to,
+            kind: parsed.kind === 'dm' ? 'user' : 'group',
+            display: to,
+            source: 'normalized',
+          };
+        },
       },
       resolveOutboundSessionRoute: (params) =>
         resolveTlonOutboundSessionRoute(params),
@@ -233,11 +257,21 @@ export const tlonPlugin = createChatChannelPlugin({
         postChoice: ({ target, fallbackQuestion, blob }) =>
           postSurface(target, fallbackQuestion, blob),
       });
+      const listServices = () => loadConnectableServices();
       const executeServiceSetup = createAgentServiceSetupToolExecutor({
         assertCurrent: assertTlonServiceSetupCallCurrent,
         postSetup: ({ target, fallbackMessage, blob }) =>
           postSurface(target, fallbackMessage, blob),
+        listServices,
       });
+      const executeConnectableServices = createConnectableServicesToolExecutor({
+        listServices,
+      });
+      // Only the hosted wrapper applies the file, so only it gets the tool.
+      const ownerTimezoneFile = process.env[OWNER_TIMEZONE_FILE_ENV]?.trim();
+      const executeSetTimezone = ownerTimezoneFile
+        ? createOwnerTimezoneToolExecutor({ path: ownerTimezoneFile })
+        : null;
       const executeTaskPlan = createAgentTaskPlanToolExecutor({
         getEvidence: getTlonTaskPlanEvidence,
         assertCurrent: assertTlonTaskPlanCallCurrent,
@@ -274,6 +308,26 @@ export const tlonPlugin = createChatChannelPlugin({
           execute: (id, params) =>
             executeServiceSetup(id, params as AgentServiceSetupToolParams),
         },
+        // Only hosted bots have a Connected services screen to answer from.
+        ...(resolveConnectableServicesUrl()
+          ? [
+              {
+                ...connectableServicesToolMetadata,
+                parameters: connectableServicesToolParameters,
+                execute: () => executeConnectableServices(),
+              },
+            ]
+          : []),
+        ...(executeSetTimezone
+          ? [
+              {
+                ...ownerTimezoneToolMetadata,
+                parameters: ownerTimezoneToolParameters,
+                execute: (id: string, params: unknown) =>
+                  executeSetTimezone(id, params as OwnerTimezoneToolParams),
+              },
+            ]
+          : []),
       ];
     },
     agentPrompt: {
@@ -294,9 +348,17 @@ export const tlonPlugin = createChatChannelPlugin({
           '- For image posts, include media=<imageUrl> with an optional message=<caption>',
           '- To react to a gallery comment: use action=react, to=heap/~host/name, messageId=<commentId>, parentId=<postId>, emoji=<emoji>',
           '',
-          'IMPORTANT: media= accepts a public https URL only (normally the URL returned by `tlon upload`).',
-          'Local file paths are NOT accepted on this channel (unlike other channels) — upload the file first, then pass the returned https URL.',
-          'Media that cannot be fetched will fail the send — never claim an image was delivered unless the tool call succeeded.'
+          'media= accepts a public https URL. With TLON_HOSTING enabled, local files in the allowed media directories are uploaded automatically; otherwise upload with `tlon upload` first.',
+          'Media that cannot be fetched will fail the send — never claim an image was delivered unless the tool call succeeded.',
+          '',
+          'On Tlon, action=react and action=delete only work on messages in the current conversation.',
+          '- To react, unreact, or delete in any other conversation, use the tlon tool instead: `tlon posts react|unreact|delete <channel> <postId> ...` for channels, `tlon dms react|unreact|delete ~ship <postId> ...` for DMs.',
+          '- If your account runs commands as the owner by default, put --self before the command family, e.g. `--self posts react <channel> <postId> ...`, to act as this bot instead.',
+          '- If a reaction or delete call returns an error, say it failed; never claim it succeeded.',
+          '',
+          "Mentions: ~ship mentions a person; @role-id (the id shown when reading, e.g. @admin) mentions a group role and @all every member; DMs support @all only. An @word that is not a role of the channel's group is sent as plain text. Mentions notify only in plain text (not inside bold, quotes or headings). Use @all only when asked.",
+          '',
+          'When you act in another channel (a note, a post, a new group or channel, a cron job that posts elsewhere), include the returned Ref: path in your reply here. A bare reference path on its own line renders as a card; do not wrap it in a link or bold. The messageId a send returns is not the post ID — read the ID back before referencing a post: `tlon messages channel <nest>` for /1/chan/<nest>/msg/<id>, or `tlon messages post <nest> <parent>` for a thread reply at /1/chan/<nest>/msg/<parent>/<id>.'
         );
 
         const level = account.reactionLevel ?? 'minimal';
@@ -310,7 +372,7 @@ export const tlonPlugin = createChatChannelPlugin({
               '- Express sentiment and personality through reactions',
               '- React to interesting content, humor, or notable events',
               '- Use reactions to confirm understanding or agreement',
-              '- Use action=react with emoji, messageId, and target (channel nest or DM ship)',
+              '- Use action=react with emoji, messageId, and target (the current channel nest or DM ship)',
               'Guideline: react whenever it feels natural.'
             );
           } else {
@@ -321,7 +383,7 @@ export const tlonPlugin = createChatChannelPlugin({
               '- Acknowledge important user requests or confirmations',
               '- Express genuine sentiment (humor, appreciation) sparingly',
               '- Avoid reacting to routine messages or your own replies',
-              '- Use action=react with emoji, messageId, and target (channel nest or DM ship)',
+              '- Use action=react with emoji, messageId, and target (the current channel nest or DM ship)',
               'Guideline: at most 1 reaction per 5-10 exchanges.'
             );
           }

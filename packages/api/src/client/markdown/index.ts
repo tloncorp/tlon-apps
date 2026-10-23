@@ -1,5 +1,6 @@
 // Main entry points
-export { markdownToStory } from './parse';
+export { markdownToStory, roleMentionCandidates } from './parse';
+export type { MarkdownToStoryOptions } from './parse';
 export {
   storyToMarkdown,
   storyToContent,

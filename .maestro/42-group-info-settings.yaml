@@ -8,17 +8,17 @@ appId: io.tlon.groups
 - tapOn:
     id: 'CreateGroupButton'
 # Assert that the sheet pops
-- assertVisible: 'Create a customizable group chat'
-- tapOn: 'New group'
+- assertVisible: 'Create a customizable workspace'
+- tapOn: 'New custom workspace'
 # Assert that the contacts sheet pops
 - assertVisible: 'Select contacts to invite'
 # Create the group
-- tapOn: 'Create group'
+- tapOn: 'Create workspace'
 - runFlow:
     when:
-      visible: 'Untitled group'
+      visible: 'Untitled workspace'
     commands:
-      - assertVisible: 'Welcome to your group!'
+      - assertVisible: 'Welcome to your workspace!'
 # Navigate back to the Workspaces list and assert that the group is created
 - tapOn:
     id: 'HeaderBackButton'
@@ -26,21 +26,21 @@ appId: io.tlon.groups
     when:
       visible: 'Workspaces'
     commands:
-      - assertVisible: 'Untitled group'
-      - tapOn: 'Untitled group'
-      - assertVisible: 'Untitled group'
+      - assertVisible: 'Untitled workspace'
+      - tapOn: 'Untitled workspace'
+      - assertVisible: 'Untitled workspace'
 # Open the overflow menu from the channel header
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
-- assertVisible: 'Secret group with 1 member'
-- tapOn: 'Group info & settings'
-- assertVisible: 'Group info'
+- assertVisible: 'Secret workspace with 1 member'
+- tapOn: 'Workspace info & settings'
+- assertVisible: 'Workspace info'
 # Pin and unpin the group, checking the Workspaces list for position
 - tapOn: 'Pin'
 - assertVisible: 'Unpin'
 - tapOn:
     id: 'HeaderBackButton'
-- assertVisible: 'Untitled group'
+- assertVisible: 'Untitled workspace'
 - tapOn:
     id: 'HeaderBackButton'
 - runFlow:
@@ -48,18 +48,18 @@ appId: io.tlon.groups
       visible: 'Workspaces'
     commands:
       - assertVisible:
-          text: 'Untitled group'
+          text: 'Untitled workspace'
           below: 'Pinned'
-- tapOn: 'Untitled group'
+- tapOn: 'Untitled workspace'
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
-- assertVisible: 'Secret group with 1 member'
-- tapOn: 'Group info & settings'
+- assertVisible: 'Secret workspace with 1 member'
+- tapOn: 'Workspace info & settings'
 - tapOn: 'Unpin'
 - assertVisible: 'Pin'
 - tapOn:
     id: 'HeaderBackButton'
-- assertVisible: 'Untitled group'
+- assertVisible: 'Untitled workspace'
 - tapOn:
     id: 'HeaderBackButton'
 - runFlow:
@@ -67,12 +67,12 @@ appId: io.tlon.groups
       visible: 'Workspaces'
     commands:
       - assertVisible:
-          text: 'Untitled group'
+          text: 'Untitled workspace'
           below: 'All'
-- tapOn: 'Untitled group'
+- tapOn: 'Untitled workspace'
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
-- tapOn: 'Group info & settings'
+- tapOn: 'Workspace info & settings'
 # Copy group reference. Sometimes the cloud runner fails to catch the confirmation in time
 - tapOn: 'Reference'
 - assertVisible:
@@ -83,13 +83,13 @@ appId: io.tlon.groups
 - tapOn: 'Private'
 - tapOn:
     id: 'HeaderBackButton'
-- assertVisible: 'Private group with 1 member'
+- assertVisible: 'Private workspace with 1 member'
 - assertVisible:
     text: 'Private'
     rightOf: 'Privacy'
 # Edit a role and check that the sheet pops with content
 - tapOn: 'Roles'
-- assertVisible: 'Group Roles'
+- assertVisible: 'Workspace roles'
 - assertVisible: 'Admin'
 - tapOn: 'Admin'
 - assertVisible: '.*Admins can add and remove channels.*'
@@ -119,7 +119,7 @@ appId: io.tlon.groups
 - assertVisible: 'Manage channels'
 - assertVisible:
     text: 'General'
-    below: 'Sectionless'
+    below: 'No section'
 - tapOn: 'New Channel'
 - waitForAnimationToEnd:
     timeout: 5000
@@ -202,14 +202,14 @@ appId: io.tlon.groups
 - tapOn:
     id: 'HeaderBackButton'
 - assertVisible: 'Workspaces'
-- tapOn: 'Untitled group'
-- assertVisible: 'Untitled group'
+- tapOn: 'Untitled workspace'
+- assertVisible: 'Untitled workspace'
 - assertVisible: 'General'
 - assertVisible: 'Testing channel renaming'
 - tapOn: 'General'
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
-- tapOn: 'Group info & settings'
+- tapOn: 'Workspace info & settings'
 # Delete a channel and check that the count label updates
 - tapOn: 'Channels'
 - tapOn:
@@ -230,19 +230,19 @@ appId: io.tlon.groups
 - scrollUntilVisible:
     direction: DOWN
     element:
-      text: 'Delete group'
-- tapOn: 'Delete group'
+      text: 'Delete workspace'
+- tapOn: 'Delete workspace'
 - runFlow:
     when:
       visible: 'This action cannot be undone.'
     commands:
-      - tapOn: 'Delete group'
+      - tapOn: 'Delete workspace'
 - runFlow:
     when:
       visible: 'Workspaces'
     commands:
       - assertVisible: 'Workspaces'
-      - assertNotVisible: 'Untitled group'
+      - assertNotVisible: 'Untitled workspace'
 # Log out
 - tapOn:
     id: 'AvatarNavIcon'

@@ -363,6 +363,162 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     stderrIncludes: ['Media URLs with embedded credentials are not supported.'],
   },
   usageErrorCase(
+    'posts send missing file value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--file'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send missing video value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--video'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'dms send refuses a second --image',
+    [
+      'dms',
+      'send',
+      '0v5.abcde',
+      '--image',
+      'https://example.com/a.png',
+      '--image=https://example.com/b.png',
+    ],
+    'dms send takes one --image; use posts send <club-id> for several'
+  ),
+  usageErrorCase(
+    'posts send missing link value',
+    ['posts', 'send', 'heap/~host/gallery', '--link'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send refuses two attachments in one gallery post',
+    [
+      'posts',
+      'send',
+      'heap/~host/gallery',
+      '--image',
+      'https://example.com/a.png',
+      '--file',
+      'https://example.com/f.pdf',
+    ],
+    'galleries take one attachment per post'
+  ),
+  usageErrorCase(
+    'posts send refuses --link outside a gallery',
+    ['posts', 'send', 'chat/~host/channel', '--link', 'https://example.com'],
+    '--link is only supported for gallery (heap/) posts'
+  ),
+  usageErrorCase(
+    'posts send refuses a gallery link with a caption',
+    [
+      'posts',
+      'send',
+      'heap/~host/gallery',
+      'caption',
+      '--link',
+      'https://example.com',
+    ],
+    'a gallery link post has no caption'
+  ),
+  usageErrorCase(
+    'posts send refuses --video with --quote',
+    [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      '--video',
+      'https://example.com/v.mp4',
+      '--quote',
+      'chat/~host/other',
+      '170.141',
+    ],
+    '--quote cannot be combined with --video'
+  ),
+  usageErrorCase(
+    'posts send refuses an empty --title value',
+    ['posts', 'send', 'heap/~host/gallery', 'hi', '--title', ''],
+    'Usage: tlon posts send'
+  ),
+  {
+    ...usageErrorCase(
+      'posts send never echoes a stray signed URL',
+      [
+        'posts',
+        'send',
+        'chat/~host/channel',
+        'hi',
+        '--bot',
+        '--file=https://x/f?token=SECRET',
+      ],
+      'Usage: tlon posts send'
+    ),
+    stderrExcludes: ['SECRET'],
+  },
+  {
+    ...usageErrorCase(
+      'posts send refuses a --file= option instead of posting it as text',
+      [
+        'posts',
+        'send',
+        'chat/~host/channel',
+        'hi',
+        '--file=https://x/f?token=SECRET',
+      ],
+      'Usage: tlon posts send'
+    ),
+    stderrExcludes: ['SECRET'],
+  },
+  usageErrorCase(
+    'posts send refuses trailing text after the options',
+    ['posts', 'send', 'heap/~host/gallery', 'hi', '--title', 'T', 'extra'],
+    'Unexpected argument 5 (counting the channel as 1)'
+  ),
+  refusalCase(
+    'posts send rejects a plain-http file url',
+    ['posts', 'send', 'chat/~host/channel', '--file', 'http://x/f.pdf'],
+    'Only https media URLs are supported.'
+  ),
+  refusalCase(
+    'posts send rejects a local video path',
+    ['posts', 'send', 'chat/~host/channel', '--video', './clip.mp4'],
+    'Local file paths are not supported for --video'
+  ),
+  refusalCase(
+    'posts send rejects a non-http link',
+    ['posts', 'send', 'heap/~host/gallery', '--link', 'ftp://x/y'],
+    '--link takes an http(s) URL.'
+  ),
+  {
+    ...refusalCase(
+      'posts send rejects a link with embedded credentials',
+      [
+        'posts',
+        'send',
+        'heap/~host/gallery',
+        '--link',
+        'https://user:secret@example.com/',
+      ],
+      '--link URLs with embedded credentials are not supported.'
+    ),
+    stderrExcludes: [
+      'secret',
+      'Usage:',
+      ...STACK_PATTERNS,
+      ...AUTH_CONFIG_PATTERNS,
+    ],
+  },
+  refusalCase(
+    'posts send rejects an unknown blob entry type',
+    [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      'message',
+      '--blob',
+      '[{"type":"image","src":"https://x/y.png"}]',
+    ],
+    '--blob entry 0 has no known type. Known types: file,'
+  ),
+  usageErrorCase(
     'posts send rejects a value on the valueless --bot flag',
     ['posts', 'send', 'chat/~host/channel', 'message', '--bot=Botly'],
     'Usage: tlon posts send'
@@ -375,6 +531,21 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
   usageErrorCase(
     'dms reply rejects a value on the valueless --bot flag',
     ['dms', 'reply', '0v5.abcde', '~pen/170.141', 'message', '--bot=Botly'],
+    'Usage: tlon dms reply'
+  ),
+  usageErrorCase(
+    'dms send rejects a non-numeric --sent-at',
+    ['dms', 'send', '0v5.abcde', 'hi', '--sent-at', 'nope'],
+    'Usage: tlon dms send'
+  ),
+  usageErrorCase(
+    'dms send missing --sent-at value',
+    ['dms', 'send', '0v5.abcde', 'hi', '--sent-at'],
+    'Usage: tlon dms send'
+  ),
+  usageErrorCase(
+    'dms reply rejects a zero --sent-at',
+    ['dms', 'reply', '0v5.abcde', '~pen/170.141', 'hi', '--sent-at', '0'],
     'Usage: tlon dms reply'
   ),
   {
@@ -504,6 +675,13 @@ export const SPECIAL_INPUT_CASES: CliCase[] = [
 ];
 
 export const NESTED_HELP_CASES: CliCase[] = [
+  ...(['mute', 'unmute', 'volume'] as const).map((command) =>
+    helpCase(
+      `activity ${command} --help`,
+      ['activity', command, '--help'],
+      `Usage: tlon activity ${command}`
+    )
+  ),
   helpCase(
     'channels info --help',
     ['channels', 'info', '--help'],
@@ -623,6 +801,16 @@ export const NESTED_HELP_CASES: CliCase[] = [
     'Usage: tlon notes note-delete'
   ),
   helpCase(
+    'notes note-publish --help',
+    ['notes', 'note-publish', '--help'],
+    'Usage: tlon notes note-publish'
+  ),
+  helpCase(
+    'notes note-unpublish --help',
+    ['notes', 'note-unpublish', '--help'],
+    'Usage: tlon notes note-unpublish'
+  ),
+  helpCase(
     'notes history --help',
     ['notes', 'history', '--help'],
     'Usage: tlon notes history'
@@ -697,6 +885,23 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'use',
     '--help',
   ]),
+  authRequiredCase('dms send --sent-at reaches auth', [
+    'dms',
+    'send',
+    '0v123',
+    'hi',
+    '--sent-at',
+    '1234',
+  ]),
+  authRequiredCase('dms reply --sent-at reaches auth', [
+    'dms',
+    'reply',
+    '0v123',
+    '~zod/170.141',
+    'hi',
+    '--sent-at',
+    '1234',
+  ]),
   authRequiredCase('posts edit message option-like value reaches auth', [
     'posts',
     'edit',
@@ -718,7 +923,7 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'chat/~host/channel',
     'message',
     '--blob',
-    '[{"type":"a2ui","version":1,"messages":[]}]',
+    '[{"type":"tlon-context-lens","version":1,"lensId":"L1"}]',
   ]),
   authRequiredCase('posts send heap title reaches auth', [
     'posts',
@@ -734,6 +939,42 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'chat/~host/channel',
     '--image',
     'https://example.com/x.png',
+  ]),
+  authRequiredCase('posts send repeated chat attachments reach auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    '--image',
+    'https://example.com/a.png',
+    '--image',
+    'https://example.com/b.png',
+    '--file',
+    'https://example.com/f.pdf',
+    '--video',
+    'https://example.com/v.mp4',
+  ]),
+  authRequiredCase('posts send gallery file-only reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    '--file',
+    'https://example.com/f.pdf',
+  ]),
+  authRequiredCase('posts send gallery link reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    '--link',
+    'https://example.com',
+    '--title',
+    'Example',
+  ]),
+  authRequiredCase('posts send untitled gallery link reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    '--link',
+    'https://example.com',
   ]),
   authRequiredCase('dms send image-only reaches auth', [
     'dms',
@@ -821,6 +1062,73 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '--owner',
     '--owner',
     '~zod',
+  ]),
+  authRequiredCase('groups create-owned with --admin reaches auth', [
+    'groups',
+    'create-owned',
+    'Projects',
+    '--admin',
+    '~pinser-botter-sampel-palnet',
+  ]),
+  authRequiredCase('groups create-owned --self reaches auth', [
+    'groups',
+    'create-owned',
+    'Projects',
+    '--admin',
+    '~sampel-palnet',
+    '--self',
+  ]),
+  authRequiredCase(
+    'groups create-owned --admin as a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--admin',
+      '--owner',
+      '~sampel-palnet',
+    ]
+  ),
+  authRequiredCase(
+    'groups create-owned legacy --owner after a description reaches auth',
+    [
+      'groups',
+      'create-owned',
+      'Projects',
+      '--description',
+      '--owner',
+      '~sampel-palnet',
+    ]
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a missing admin',
+    ['groups', 'create-owned', 'Projects', '--description', 'Shared'],
+    'Usage: tlon groups create-owned'
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a bare --admin',
+    ['groups', 'create-owned', 'Projects', '--admin'],
+    'Usage: tlon groups create-owned'
+  ),
+  usageErrorCase(
+    'groups create-owned rejects a flag as the admin',
+    ['groups', 'create-owned', 'Projects', '--admin', '--description'],
+    'Usage: tlon groups create-owned'
+  ),
+  authRequiredCase('channels create --self reaches auth', [
+    'channels',
+    'create',
+    '~sampel-palnet/team',
+    'Discussion',
+    '--self',
+  ]),
+  authRequiredCase('groups add-channel --self reaches auth', [
+    'groups',
+    'add-channel',
+    '~sampel-palnet/team',
+    'Discussion',
+    '--self',
   ]),
   authRequiredCase('groups update title option-like value reaches auth', [
     'groups',
@@ -970,6 +1278,314 @@ export const POSTS_FAMILY_CASES: CliCase[] = [
     'chat/~host/channel',
     '170.141',
     '--help',
+  ]),
+];
+
+// `posts pin`/`unpin` and thread-reply `edit`/`delete --parent`: target and
+// argument refusals are local; well-formed invocations reach auth.
+export const POSTS_PIN_AND_REPLY_CASES: CliCase[] = [
+  helpCase('posts pin --help', ['posts', 'pin', '--help'], 'tlon posts pin'),
+  helpCase(
+    'posts unpin --help',
+    ['posts', 'unpin', '--help'],
+    'tlon posts unpin'
+  ),
+  usageErrorCase(
+    'posts pin missing post id',
+    ['posts', 'pin', 'chat/~host/channel'],
+    'Usage: tlon posts pin'
+  ),
+  usageErrorCase(
+    'posts unpin missing args',
+    ['posts', 'unpin'],
+    'Usage: tlon posts unpin'
+  ),
+  {
+    ...usageErrorCase(
+      'posts pin rejects an extra token',
+      ['posts', 'pin', 'chat/~host/channel', '170.141', '--parent', '170.140'],
+      'Unexpected argument: --parent'
+    ),
+    stderrIncludes: ['Unexpected argument: --parent', 'Usage: tlon posts pin'],
+  },
+  {
+    ...usageErrorCase(
+      'posts unpin rejects an extra token',
+      ['posts', 'unpin', 'chat/~host/channel', '170.141', 'extra'],
+      'Unexpected argument: extra'
+    ),
+    stderrIncludes: ['Unexpected argument: extra', 'Usage: tlon posts unpin'],
+  },
+  usageErrorCase(
+    'posts edit rejects an option-like --parent value',
+    [
+      'posts',
+      'edit',
+      'chat/~host/channel',
+      '170.142',
+      'text',
+      '--parent',
+      '--x',
+    ],
+    'Usage: tlon posts edit'
+  ),
+  usageErrorCase(
+    'posts edit rejects text that was only --parent',
+    ['posts', 'edit', 'chat/~host/channel', '170.142', '--parent', '170.141'],
+    'Usage: tlon posts edit'
+  ),
+  usageErrorCase(
+    'posts delete rejects --parent in the post id slot',
+    ['posts', 'delete', 'chat/~host/channel', '--parent', '170.141'],
+    'Usage: tlon posts delete'
+  ),
+  authRequiredCase('posts pin valid args reaches auth', [
+    'posts',
+    'pin',
+    'chat/~host/channel',
+    '170.141',
+  ]),
+  authRequiredCase('posts pin with a host lacking ~ reaches auth', [
+    'posts',
+    'pin',
+    'chat/host/channel',
+    '170.141',
+  ]),
+  authRequiredCase('posts unpin valid args reaches auth', [
+    'posts',
+    'unpin',
+    'heap/~host/gallery',
+    '170.141',
+  ]),
+  authRequiredCase('posts edit --parent reaches auth', [
+    'posts',
+    'edit',
+    'chat/~host/channel',
+    '170.142',
+    'Fixed text',
+    '--parent',
+    '170.141',
+  ]),
+  authRequiredCase('posts delete --parent reaches auth', [
+    'posts',
+    'delete',
+    'chat/~host/channel',
+    '170.142',
+    '--parent',
+    '170.141',
+  ]),
+  refusalCase(
+    'posts pin refuses a DM target before auth',
+    ['posts', 'pin', '~zod', '170.141'],
+    'Pins are for group channels (chat/ or heap/); ~zod is a DM.'
+  ),
+  refusalCase(
+    'posts unpin refuses a non-group nest before auth',
+    ['posts', 'unpin', 'buckets/~host/files', '170.141'],
+    'Pins are for group chat/ and heap/ channels; buckets/~host/files is not one.'
+  ),
+  refusalCase(
+    'posts delete --parent refuses a DM target before auth',
+    ['posts', 'delete', '0v1.abc', '170.142', '--parent', '170.141'],
+    'Editing or deleting a thread reply is supported in group channels only; 0v1.abc is a DM.'
+  ),
+  diaryRefusedCase('posts pin diary nest refuses', [
+    'posts',
+    'pin',
+    'diary/~host/blog',
+    '170.141',
+  ]),
+  diaryRefusedCase('posts unpin diary nest refuses', [
+    'posts',
+    'unpin',
+    'diary/~host/blog',
+    '170.141',
+  ]),
+  notesContentRefusedCase('posts pin notes nest refuses', [
+    'posts',
+    'pin',
+    'notes/~host/blog',
+    '170.141',
+  ]),
+  notesContentRefusedCase('posts unpin notes nest refuses', [
+    'posts',
+    'unpin',
+    'notes/~host/blog',
+    '170.141',
+  ]),
+];
+
+const QUOTE_SOURCE = ['--quote', 'chat/~host/other', '170.141'];
+
+export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
+  helpCase(
+    'posts forward --help',
+    ['posts', 'forward', '--help'],
+    'tlon posts forward'
+  ),
+  usageErrorCase(
+    'posts send --quote missing its post id',
+    ['posts', 'send', 'chat/~host/channel', 'hi', '--quote', 'chat/~host/o'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send duplicate --quote',
+    [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      'hi',
+      ...QUOTE_SOURCE,
+      ...QUOTE_SOURCE,
+    ],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send --quote-parent without --quote',
+    ['posts', 'send', 'chat/~host/channel', 'hi', '--quote-parent', '170.141'],
+    '--quote-parent needs --quote'
+  ),
+  usageErrorCase(
+    'posts send --quote with --image',
+    [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      '--image',
+      'https://x.test/y.png',
+      ...QUOTE_SOURCE,
+    ],
+    '--quote cannot be combined with --image'
+  ),
+  usageErrorCase(
+    'posts send rejects text after the quote values',
+    ['posts', 'send', 'chat/~host/channel', ...QUOTE_SOURCE, 'trailing'],
+    'Unexpected argument 5 (counting the channel as 1)'
+  ),
+  usageErrorCase(
+    'posts reply rejects a trailing --self after the quote',
+    [
+      'posts',
+      'reply',
+      'chat/~host/channel',
+      '170.142',
+      'hi',
+      ...QUOTE_SOURCE,
+      '--self',
+    ],
+    'Unexpected argument 7 (counting the channel as 1)'
+  ),
+  usageErrorCase(
+    'posts send --quote non-numeric post id',
+    ['posts', 'send', 'chat/~host/channel', '--quote', 'chat/~host/o', 'abc'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts forward missing its target',
+    ['posts', 'forward', 'chat/~host/other', '170.141'],
+    'Usage: tlon posts forward'
+  ),
+  usageErrorCase(
+    'posts forward rejects an unknown option',
+    ['posts', 'forward', 'chat/~host/other', '170.141', '~zod', '--bogus'],
+    'Unexpected argument: --bogus'
+  ),
+  usageErrorCase(
+    'posts forward rejects a non-numeric --sent-at',
+    [
+      'posts',
+      'forward',
+      'chat/~host/other',
+      '170.141',
+      '~zod',
+      '--sent-at',
+      'x',
+    ],
+    'Usage: tlon posts forward'
+  ),
+  diaryRefusedCase('posts forward to a diary target refuses', [
+    'posts',
+    'forward',
+    'chat/~host/other',
+    '170.141',
+    'diary/~host/blog',
+  ]),
+  diaryRefusedCase('posts send --quote diary source refuses', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    'hi',
+    '--quote',
+    'diary/~host/blog',
+    '170.141',
+  ]),
+  notesContentRefusedCase(
+    'posts forward from notes to diary refuses as notes',
+    ['posts', 'forward', 'notes/~host/n', '170.141', 'diary/~host/blog']
+  ),
+  refusalCase(
+    'posts forward refuses a notes target before auth',
+    ['posts', 'forward', 'chat/~host/other', '170.141', 'notes/~host/n'],
+    "Can't forward to notes/~host/n: posts can be forwarded only to chat/ and heap/ channels, DMs (~ship) and group DMs (0v…)."
+  ),
+  refusalCase(
+    'posts forward refuses a buckets target before auth',
+    ['posts', 'forward', 'chat/~host/other', '170.141', 'buckets/~host/b'],
+    "Can't forward to buckets/~host/b: posts can be forwarded only to chat/ and heap/ channels, DMs (~ship) and group DMs (0v…)."
+  ),
+  refusalCase(
+    'posts send --quote refuses a buckets target before auth',
+    ['posts', 'send', 'buckets/~host/b', 'hi', ...QUOTE_SOURCE],
+    "Can't quote into buckets/~host/b: --quote is supported for chat/ and heap/ channels, DMs (~ship) and group DMs (0v…)."
+  ),
+  refusalCase(
+    'posts reply --quote refuses a buckets target before auth',
+    ['posts', 'reply', 'buckets/~host/b', '170.142', 'hi', ...QUOTE_SOURCE],
+    "Can't quote into buckets/~host/b: --quote is supported for chat/ and heap/ channels, DMs (~ship) and group DMs (0v…)."
+  ),
+  refusalCase(
+    'posts forward refuses a DM source before auth',
+    ['posts', 'forward', '~zod', '170.141', 'chat/~host/channel'],
+    'Only posts in group chat/ and heap/ channels can be forwarded; ~zod is a DM.'
+  ),
+  authRequiredCase('posts send --quote reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    'See this',
+    ...QUOTE_SOURCE,
+  ]),
+  authRequiredCase('posts reply --quote --quote-parent reaches auth', [
+    'posts',
+    'reply',
+    'chat/~host/channel',
+    '170.142',
+    ...QUOTE_SOURCE,
+    '--quote-parent',
+    '170.140',
+  ]),
+  authRequiredCase('posts forward to a nest reaches auth', [
+    'posts',
+    'forward',
+    'chat/~host/other',
+    '170.141',
+    'heap/~host/gallery',
+  ]),
+  authRequiredCase('posts forward to a ship reaches auth', [
+    'posts',
+    'forward',
+    'chat/~host/other',
+    '170.141',
+    '~zod',
+  ]),
+  authRequiredCase('posts forward --sent-at reaches auth', [
+    'posts',
+    'forward',
+    'chat/~host/other',
+    '170.141',
+    '~zod',
+    '--sent-at',
+    '1234',
   ]),
 ];
 
@@ -1288,6 +1904,26 @@ export const NOTES_FAMILY_CASES: CliCase[] = [
     ['notes', 'note-move', 'notes/~zod/blog', '12', 'abc'],
     'Invalid folder id: abc'
   ),
+  usageErrorCase(
+    'notes note-publish missing id',
+    ['notes', 'note-publish', 'notes/~zod/blog'],
+    'Usage: tlon notes note-publish'
+  ),
+  usageErrorCase(
+    'notes note-unpublish missing id',
+    ['notes', 'note-unpublish', 'notes/~zod/blog'],
+    'Usage: tlon notes note-unpublish'
+  ),
+  usageErrorCase(
+    'notes note-publish rejects non-numeric id',
+    ['notes', 'note-publish', 'notes/~zod/blog', 'abc'],
+    'Invalid note id: abc'
+  ),
+  usageErrorCase(
+    'notes note-publish rejects an unknown option',
+    ['notes', 'note-publish', 'notes/~zod/blog', '12', '--force'],
+    'Unknown option: --force'
+  ),
   authRequiredCase('notes folders reaches auth', [
     'notes',
     'folders',
@@ -1369,6 +2005,32 @@ export const NOTES_FAMILY_CASES: CliCase[] = [
     'note-delete',
     'notes/~zod/blog',
     '12',
+  ]),
+  authRequiredCase('notes note-publish reaches auth', [
+    'notes',
+    'note-publish',
+    'notes/~zod/blog',
+    '12',
+  ]),
+  authRequiredCase('notes note-publish --self reaches auth', [
+    'notes',
+    'note-publish',
+    'notes/~zod/blog',
+    '12',
+    '--self',
+  ]),
+  authRequiredCase('notes note-unpublish reaches auth', [
+    'notes',
+    'note-unpublish',
+    'notes/~zod/blog',
+    '12',
+  ]),
+  authRequiredCase('notes note-unpublish --self reaches auth', [
+    'notes',
+    'note-unpublish',
+    'notes/~zod/blog',
+    '12',
+    '--self',
   ]),
   authRequiredCase('notes history reaches auth', [
     'notes',
@@ -1689,6 +2351,214 @@ export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
   },
 ];
 
+// `activity mute|unmute|volume`: target, post-id and level validation and the
+// local refusals all happen before any credential lookup.
+function activityUsageCase(
+  name: string,
+  args: string[],
+  message: string
+): CliCase {
+  return {
+    ...usageErrorCase(name, ['activity', ...args]),
+    stderrIncludes: [`Error: ${message}`, `Usage: tlon activity ${args[0]}`],
+  };
+}
+
+const DM_LEVELS_MESSAGE =
+  'DMs take medium, hush or default (the app offers only these for DMs)';
+const BASE_MSG =
+  'base takes medium, soft or hush (the app offers only these in Settings → Notifications)';
+
+export const ACTIVITY_VOLUME_CASES: CliCase[] = [
+  activityUsageCase(
+    'activity volume unknown level',
+    ['volume', '~zod/book-club', 'bogus'],
+    'Unknown level: bogus. Levels: loud, medium, soft, hush, default'
+  ),
+  activityUsageCase(
+    'activity volume DM soft',
+    ['volume', '~ten', 'soft'],
+    DM_LEVELS_MESSAGE
+  ),
+  activityUsageCase(
+    'activity volume base default',
+    ['volume', 'base', 'default'],
+    BASE_MSG
+  ),
+  activityUsageCase(
+    'activity volume base loud',
+    ['volume', 'base', 'loud'],
+    BASE_MSG
+  ),
+  activityUsageCase(
+    'activity volume base unknown level',
+    ['volume', 'base', 'bogus'],
+    'Unknown level: bogus. Levels for base: medium, soft, hush'
+  ),
+  activityUsageCase(
+    'activity mute invalid ship',
+    ['mute', '~foo'],
+    'Invalid ship: ~foo (expected a ship such as ~sampel-palnet)'
+  ),
+  activityUsageCase(
+    'activity mute invalid group-DM id',
+    ['mute', '0v4.abc'],
+    'Invalid group-DM id: 0v4.abc (expected a 0v... id such as 0v1f.abcde)'
+  ),
+  activityUsageCase(
+    'activity mute invalid channel',
+    ['mute', 'chat//general'],
+    'Invalid channel: chat//general (expected chat/~host/channel-slug or heap/~host/channel-slug)'
+  ),
+  activityUsageCase(
+    'activity unmute invalid post id',
+    ['unmute', 'chat/~nec/general', '1..2'],
+    'Invalid post id: 1..2 (expected a numeric post id such as 170.141.184.507)'
+  ),
+  activityUsageCase(
+    'activity mute group with a post id',
+    ['mute', '~zod/book-club', '170.141'],
+    'A thread needs a channel (chat/~host/name), not a group id'
+  ),
+  activityUsageCase(
+    'activity mute extra argument',
+    ['mute', 'chat/~nec/general', '170.141', 'extra'],
+    'Unexpected argument: extra'
+  ),
+  activityUsageCase(
+    'activity mute unknown option',
+    ['mute', '~ten', '--force'],
+    'Unknown option: --force'
+  ),
+  refusalCase(
+    'activity mute refuses a notes channel',
+    ['activity', 'mute', 'notes/~zod/blog'],
+    'Notification levels for notes channels are not supported by this command yet'
+  ),
+  diaryRefusedCase('activity mute refuses a diary channel', [
+    'activity',
+    'mute',
+    'diary/~zod/blog',
+  ]),
+  refusalCase(
+    'activity mute refuses a DM thread',
+    ['activity', 'mute', '~ten', '170.141'],
+    'Thread notification settings are supported for group channel threads only'
+  ),
+  authRequiredCase('activity mute reaches auth', ['activity', 'mute', '~ten']),
+  authRequiredCase('activity mute --self reaches auth', [
+    'activity',
+    'mute',
+    '~ten',
+    '--self',
+  ]),
+  authRequiredCase('activity volume reaches auth', [
+    'activity',
+    'volume',
+    '~zod/book-club',
+    'soft',
+  ]),
+  authRequiredCase('activity volume base reaches auth', [
+    'activity',
+    'volume',
+    'base',
+    'soft',
+  ]),
+  authRequiredCase('activity volume base show reaches auth', [
+    'activity',
+    'volume',
+    'base',
+  ]),
+  authRequiredCase('activity unmute thread reaches auth', [
+    'activity',
+    'unmute',
+    'chat/~nec/general',
+    '170.141',
+  ]),
+  {
+    name: 'activity mute explicit --config beats owner routing',
+    args: ['--config', '/nonexistent', 'activity', 'mute', '~ten'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Ship config not found'],
+    stderrExcludes: ['Usage:', ...STACK_PATTERNS],
+  },
+];
+
+// `activity mark-read`: the same pre-auth target validation, plus its own
+// post-id and --all checks.
+export const ACTIVITY_MARK_READ_CASES: CliCase[] = [
+  activityUsageCase(
+    'activity mark-read with a post id',
+    ['mark-read', 'chat/~nec/general', '170.141'],
+    'Unexpected argument: 170.141. mark-read takes no post id; marking a channel or DM read also reads its threads'
+  ),
+  activityUsageCase(
+    'activity mark-read --all with a target',
+    ['mark-read', '--all', '~zod/book-club'],
+    '--all takes no target'
+  ),
+  activityUsageCase(
+    'activity mark-read base',
+    ['mark-read', 'base'],
+    'Unrecognized target: base. Use ~ship, a group-DM id (0v...), ~host/group, chat/~host/name or heap/~host/name'
+  ),
+  activityUsageCase(
+    'activity mark-read invalid ship',
+    ['mark-read', '~foo'],
+    'Invalid ship: ~foo (expected a ship such as ~sampel-palnet)'
+  ),
+  activityUsageCase(
+    'activity mark-read unknown option',
+    ['mark-read', '--force'],
+    'Unknown option: --force'
+  ),
+  usageErrorCase(
+    'activity mark-read no target',
+    ['activity', 'mark-read'],
+    'Usage: tlon activity mark-read'
+  ),
+  helpCase(
+    'activity mark-read --help',
+    ['activity', 'mark-read', '--help'],
+    'tlon activity mark-read'
+  ),
+  refusalCase(
+    'activity mark-read refuses a notes channel',
+    ['activity', 'mark-read', 'notes/~zod/blog'],
+    'Marking a notes channel read is not supported'
+  ),
+  diaryRefusedCase('activity mark-read refuses a diary channel', [
+    'activity',
+    'mark-read',
+    'diary/~zod/blog',
+  ]),
+  authRequiredCase('activity mark-read reaches auth', [
+    'activity',
+    'mark-read',
+    '~ten',
+  ]),
+  authRequiredCase('activity mark-read --self reaches auth', [
+    'activity',
+    'mark-read',
+    '~zod/book-club',
+    '--self',
+  ]),
+  authRequiredCase('activity mark-read --all reaches auth', [
+    'activity',
+    'mark-read',
+    '--all',
+  ]),
+  {
+    name: 'activity mark-read explicit --config beats owner routing',
+    args: ['--config', '/nonexistent', 'activity', 'mark-read', '--all'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Ship config not found'],
+    stderrExcludes: ['Usage:', ...STACK_PATTERNS],
+  },
+];
+
 // `channels leave` / `channels join` pre-auth validation: only chat/heap nests
 // reach auth; diary, %notes, and other nests are refused locally.
 export const CHANNEL_MEMBERSHIP_CASES: CliCase[] = (
@@ -1736,6 +2606,118 @@ export const CHANNEL_MEMBERSHIP_CASES: CliCase[] = (
   ]),
 ]);
 
+const GROUP = '~host/group';
+const MOVE_CHANNEL = ['groups', 'move-channel', GROUP, 'chat/~host/general'];
+
+// Section commands validate locally (arity, blank titles, --section/--index,
+// nest format) before credentials are looked up.
+export const GROUP_SECTION_CASES: CliCase[] = [
+  ...(
+    [
+      ['add-section', ['groups', 'add-section', GROUP]],
+      ['rename-section', ['groups', 'rename-section', GROUP, 'Archive']],
+      ['delete-section', ['groups', 'delete-section', GROUP]],
+      ['move-channel', ['groups', 'move-channel', GROUP]],
+      ['order-sections', ['groups', 'order-sections', GROUP]],
+    ] as const
+  ).flatMap(([command, missingArgs]) => [
+    usageErrorCase(
+      `groups ${command} missing args`,
+      [...missingArgs],
+      `Usage: tlon groups ${command}`
+    ),
+    helpCase(
+      `groups ${command} --help`,
+      ['groups', command, '--help'],
+      `Usage: tlon groups ${command}`
+    ),
+  ]),
+  usageErrorCase(
+    'groups add-section blank title',
+    ['groups', 'add-section', GROUP, '   '],
+    'a non-blank section title is required'
+  ),
+  usageErrorCase(
+    'groups rename-section blank title',
+    ['groups', 'rename-section', GROUP, 'Archive', ' '],
+    'a non-blank section title is required'
+  ),
+  usageErrorCase(
+    'groups move-channel missing --section',
+    [...MOVE_CHANNEL],
+    'Usage: tlon groups move-channel'
+  ),
+  usageErrorCase(
+    'groups move-channel --section followed by --index',
+    [...MOVE_CHANNEL, '--section', '--index', '2'],
+    'Usage: tlon groups move-channel'
+  ),
+  usageErrorCase(
+    'groups move-channel dangling --section',
+    [...MOVE_CHANNEL, '--section'],
+    'Usage: tlon groups move-channel'
+  ),
+  ...(
+    [
+      ['negative', ['--index', '-1']],
+      ['non-numeric', ['--index', 'x']],
+      ['dangling', ['--index']],
+    ] as const
+  ).map(([label, index]) =>
+    usageErrorCase(
+      `groups move-channel ${label} --index`,
+      [...MOVE_CHANNEL, '--section', 'Archive', ...index],
+      '--index requires a non-negative integer'
+    )
+  ),
+  refusalCase(
+    'groups move-channel malformed nest refuses',
+    ['groups', 'move-channel', GROUP, 'chat/~host', '--section', 'Archive'],
+    'Invalid nest format: chat/~host'
+  ),
+  diaryRefusedCase('groups move-channel diary nest refuses', [
+    'groups',
+    'move-channel',
+    GROUP,
+    'diary/~host/blog',
+    '--section',
+    'Archive',
+  ]),
+  authRequiredCase('groups add-section reaches auth', [
+    'groups',
+    'add-section',
+    GROUP,
+    'Archive',
+  ]),
+  authRequiredCase('groups rename-section reaches auth', [
+    'groups',
+    'rename-section',
+    GROUP,
+    'Archive',
+    'Old stuff',
+  ]),
+  authRequiredCase('groups delete-section reaches auth', [
+    'groups',
+    'delete-section',
+    GROUP,
+    'Archive',
+  ]),
+  authRequiredCase('groups move-channel reaches auth', [
+    ...MOVE_CHANNEL,
+    '--section',
+    'Archive',
+    '--index',
+    '0',
+  ]),
+  authRequiredCase('groups order-sections reaches auth', [
+    'groups',
+    'order-sections',
+    GROUP,
+    'Archive',
+    'default',
+  ]),
+];
+
 export const CLI_MATRIX_CASES: CliCase[] = [
   ...(['channels', 'groups'] as const).flatMap((family) => {
     const operation = family === 'channels' ? 'create' : 'add-channel';
@@ -1762,13 +2744,18 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NESTED_HELP_CASES,
   ...LITERAL_OPTION_LIKE_VALUE_CASES,
   ...POSTS_FAMILY_CASES,
+  ...POSTS_PIN_AND_REPLY_CASES,
+  ...POSTS_QUOTE_FORWARD_CASES,
   ...REACTION_PARENT_CASES,
   ...NOTES_FAMILY_CASES,
   ...NOTES_CHANNEL_KIND_CASES,
   ...NOTES_CONTENT_UNSUPPORTED_CASES,
   ...DIARY_REMOVED_CASES,
   ...INVITE_LINK_CREDENTIAL_CASES,
+  ...ACTIVITY_VOLUME_CASES,
+  ...ACTIVITY_MARK_READ_CASES,
   ...CHANNEL_MEMBERSHIP_CASES,
+  ...GROUP_SECTION_CASES,
 ];
 
 export type HostileHelpCommand = {
@@ -1786,12 +2773,29 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
     args: [family, '--help'],
   })),
   { name: 'groups invite-link', args: ['groups', 'invite-link', '--help'] },
+  ...['mute', 'unmute', 'volume'].map((command) => ({
+    name: `activity ${command}`,
+    args: ['activity', command, '--help'],
+  })),
+  ...[
+    'add-section',
+    'rename-section',
+    'delete-section',
+    'move-channel',
+    'order-sections',
+  ].map((command) => ({
+    name: `groups ${command}`,
+    args: ['groups', command, '--help'],
+  })),
   { name: 'posts react', args: ['posts', 'react', '--help'] },
   { name: 'posts send', args: ['posts', 'send', '--help'] },
   { name: 'posts reply', args: ['posts', 'reply', '--help'] },
   { name: 'posts unreact', args: ['posts', 'unreact', '--help'] },
   { name: 'posts delete', args: ['posts', 'delete', '--help'] },
   { name: 'posts edit', args: ['posts', 'edit', '--help'] },
+  { name: 'posts pin', args: ['posts', 'pin', '--help'] },
+  { name: 'posts unpin', args: ['posts', 'unpin', '--help'] },
+  { name: 'posts forward', args: ['posts', 'forward', '--help'] },
   { name: 'notes status', args: ['notes', 'status', '--help'] },
   { name: 'notes request', args: ['notes', 'request', '--help'] },
   { name: 'notes list', args: ['notes', 'list', '--help'] },
@@ -1804,6 +2808,11 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
   { name: 'notes note-rename', args: ['notes', 'note-rename', '--help'] },
   { name: 'notes note-move', args: ['notes', 'note-move', '--help'] },
   { name: 'notes note-delete', args: ['notes', 'note-delete', '--help'] },
+  { name: 'notes note-publish', args: ['notes', 'note-publish', '--help'] },
+  {
+    name: 'notes note-unpublish',
+    args: ['notes', 'note-unpublish', '--help'],
+  },
   { name: 'notes history', args: ['notes', 'history', '--help'] },
   { name: 'notes folders', args: ['notes', 'folders', '--help'] },
   { name: 'notes folder', args: ['notes', 'folder', '--help'] },

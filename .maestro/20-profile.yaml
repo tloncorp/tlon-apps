@@ -14,7 +14,7 @@ appId: io.tlon.groups
 - tapOn: 'You'
 - assertVisible: 'Profile'
 - tapOn: 'Edit'
-- assertVisible: 'Edit Profile'
+- assertVisible: 'Edit profile'
 - longPressOn: #long-press and select all are necessary to clear out the text field
     id: 'ProfileNicknameInput'
 - runFlow:
@@ -63,7 +63,7 @@ appId: io.tlon.groups
     commands:
       - hideKeyboard
 # Set favorite group
-- tapOn: 'Add a group'
+- tapOn: 'Add a workspace'
 - scrollUntilVisible:
     element: 'Tlon Studio'
     timeout: 1000000
@@ -86,7 +86,7 @@ appId: io.tlon.groups
 - tapOn: 'You'
 - assertVisible: 'Profile'
 - tapOn: 'Edit'
-- assertVisible: 'Edit Profile'
+- assertVisible: 'Edit profile'
 - longPressOn: 'Testing nickname'
 - runFlow:
     when:

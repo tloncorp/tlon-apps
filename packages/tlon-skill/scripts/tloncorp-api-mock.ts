@@ -19,10 +19,16 @@
  * The export shape here is the superset of what the mocked import graphs
  * pull in by value: `api-client.ts` (Urbit, client, configureClient,
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
- * posts, invites), the notes runtimes (notesV1 et al.), and
+ * posts, invites), the notes runtimes (notesV1, notes et al.), and
  * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
- * enableGroup, BadResponseError), and `activity-runtime.ts`
- * (getInitialActivity, getGroupAndChannelUnreads, getTextContent).
+ * enableGroup, BadResponseError), `activity-runtime.ts`
+ * (getInitialActivity, getGroupAndChannelUnreads, getTextContent,
+ * adjustVolumeSetting, getVolumeSettings, setActivitySupportsReactions,
+ * setActivitySupportsNotes, getGroups, getChannelPosts, readChannel,
+ * activityAction, poke),
+ * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
+ * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent), and
+ * `channels.ts` (createChannel and the other channel-management calls).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 import { parsePostBlob } from '@tloncorp/api/client/content-helpers';
@@ -30,7 +36,11 @@ import { parsePostBlob } from '@tloncorp/api/client/content-helpers';
 // intercept. It has no dependencies but fetch, so tests keep exercising the
 // real request and error mapping against a stubbed fetch.
 import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
-import { getTextContent } from '@tloncorp/api/client/postContent';
+// The real content projection, by subpath: the posts runtime's read-back
+// comparison must be tested against what the api actually produces.
+import { toPostContent as realToPostContent } from '@tloncorp/api/client/postsApi';
+// The real plain-text conversion: the posts runtime quotes DM text with it.
+import { getTextContent as realGetTextContent } from '@tloncorp/api/client/postContent';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -102,15 +112,49 @@ export const mockedNotesV1 = Object.fromEntries(
   NOTES_V1_OPS.map((op) => [op, async () => undefined])
 ) as MockedNotesV1;
 
+export const NOTES_PUBLISH_OPS = [
+  'listPublished',
+  'publishNote',
+  'unpublishNote',
+] as const;
+
+/** The publish slice of `notes` the notes runtime wraps; reassign per test. */
+export const mockedNotes = Object.fromEntries(
+  NOTES_PUBLISH_OPS.map((op) => [op, async () => undefined])
+) as Record<
+  (typeof NOTES_PUBLISH_OPS)[number],
+  (...args: unknown[]) => Promise<unknown>
+>;
+
 export const mockedGetChannelPosts = {
-  impl: async (..._args: unknown[]) => ({
+  impl: async (..._args: unknown[]): Promise<unknown> => ({
     posts: [],
     older: null,
     totalPosts: 0,
   }),
 };
 
+export const mockedGetPostWithReplies = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedEditPost = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedDeleteReply = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedSetOrder = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
 export const mockedScry = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedPoke = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
@@ -118,8 +162,38 @@ export const mockedGetGroups = {
   impl: async (..._args: unknown[]): Promise<unknown> => [],
 };
 
+/**
+ * The activity volume surface: reassign per test. The two flags record the
+ * values the runtime last set, so a test can read them from inside a call.
+ */
+export const mockedVolume = {
+  adjustVolumeSetting: async (..._args: unknown[]): Promise<unknown> =>
+    undefined,
+  getVolumeSettings: async (..._args: unknown[]): Promise<unknown> => ({}),
+  supportsReactions: false,
+  supportsNotes: false,
+};
+
+/**
+ * The activity read surface: reassign per test. Read the flags from
+ * `mockedVolume` inside a call to see what the runtime set before it.
+ */
+export const mockedActivityRead = {
+  readChannel: async (..._args: unknown[]): Promise<unknown> => undefined,
+  getGroupAndChannelUnreads: async (): Promise<unknown> => ({
+    baseUnread: null,
+    groupUnreads: [],
+    channelUnreads: [],
+    threadActivity: [],
+  }),
+};
+
 export const mockedGetGroup = {
   impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
+};
+
+export const mockedCreateChannel = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
 export const mockedGetBuckets = {
@@ -208,6 +282,7 @@ mock.module('@tloncorp/api', () => ({
   internalRemoveClient: () => undefined,
   preSig: (ship: string) => (ship.startsWith('~') ? ship : `~${ship}`),
   scry: (...args: unknown[]) => mockedScry.impl(...args),
+  poke: (...args: unknown[]) => mockedPoke.impl(...args),
   subscribe: async () => 0,
   // dms.ts value imports (reaction helpers take injected deps in tests, so
   // these defaults are load-time placeholders, never assertion targets)
@@ -223,13 +298,21 @@ mock.module('@tloncorp/api', () => ({
   // message-content.ts value imports -- the real renderers, not stubs: their
   // output is exactly what the parse repair is under test for.
   parsePostBlob,
-  getTextContent,
+  getTextContent: realGetTextContent,
+  // posts-runtime.ts value imports
+  editPost: (...args: unknown[]) => mockedEditPost.impl(...args),
+  getPostWithReplies: (...args: unknown[]) =>
+    mockedGetPostWithReplies.impl(...args),
+  deleteReply: (...args: unknown[]) => mockedDeleteReply.impl(...args),
+  setOrder: (...args: unknown[]) => mockedSetOrder.impl(...args),
+  toPostContent: realToPostContent,
   toUrbitStory: (content: unknown) => content ?? [],
   updateChannel: async () => undefined,
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   BucketsActionFailed: MockBucketsActionFailed,
   notesV1: mockedNotesV1,
+  notes: mockedNotes,
   getGroups: (...args: unknown[]) => mockedGetGroups.impl(...args),
   getGroup: (...args: unknown[]) => mockedGetGroup.impl(...args),
   getBuckets: (...args: unknown[]) => mockedGetBuckets.impl(...args),
@@ -264,10 +347,34 @@ mock.module('@tloncorp/api', () => ({
   // directly, so these are load-time placeholders; its getTextContent is the
   // real renderer registered above for message-content.ts)
   getInitialActivity: async () => ({ events: [], relevantUnreads: {} }),
-  getGroupAndChannelUnreads: async () => ({
-    baseUnread: null,
-    groupUnreads: [],
-    channelUnreads: [],
-    threadActivity: [],
+  getGroupAndChannelUnreads: () =>
+    mockedActivityRead.getGroupAndChannelUnreads(),
+  readChannel: (...args: unknown[]) => mockedActivityRead.readChannel(...args),
+  // The mark follows the flag, so a poke records the flag state it was built
+  // under.
+  activityAction: (json: unknown) => ({
+    app: 'activity',
+    mark: mockedVolume.supportsNotes ? 'activity-action-2' : 'activity-action',
+    json,
   }),
+  adjustVolumeSetting: (...args: unknown[]) =>
+    mockedVolume.adjustVolumeSetting(...args),
+  getVolumeSettings: (...args: unknown[]) =>
+    mockedVolume.getVolumeSettings(...args),
+  setActivitySupportsReactions: (value: boolean) => {
+    mockedVolume.supportsReactions = value;
+  },
+  setActivitySupportsNotes: (value: boolean) => {
+    mockedVolume.supportsNotes = value;
+  },
+  // channels.ts value imports (only createChannel is an assertion target;
+  // the rest are load-time placeholders)
+  createChannel: (...args: unknown[]) => mockedCreateChannel.impl(...args),
+  addChannelWriters: async () => undefined,
+  removeChannelWriters: async () => undefined,
+  deleteChannel: async () => undefined,
+  deleteNotesNotebookBestEffort: async () => undefined,
+  getInitData: async () => undefined,
+  joinChannel: async () => undefined,
+  leaveChannel: async () => undefined,
 }));

@@ -7,8 +7,8 @@
  * This script handles club (group DM) messaging and DM management ops only.
  *
  * Usage:
- *   npx ts-node scripts/dms.ts send <club-id> <message> [--bot]        (group DMs only)
- *   npx ts-node scripts/dms.ts reply <club-id> <post-id> <msg> [--bot] (group DMs only)
+ *   npx ts-node scripts/dms.ts send <club-id> <message> [--sent-at <ms>] [--bot]        (group DMs only)
+ *   npx ts-node scripts/dms.ts reply <club-id> <post-id> <msg> [--sent-at <ms>] [--bot] (group DMs only)
  *   npx ts-node scripts/dms.ts react <ship> <post-id> <emoji> [--parent <post-id>]
  *   npx ts-node scripts/dms.ts unreact <ship> <post-id> [--parent <post-id>]
  *   npx ts-node scripts/dms.ts delete <ship> <post-id>
@@ -39,18 +39,26 @@ import {
   printUsageAndExit,
   wantsHelp,
 } from './cli-utils';
-import { UsageError } from './commands/command';
+import { UsageError, commandError } from './commands/command';
 import {
   fetchImageVerse,
   imageFlagIndex,
   validatedImageFlag,
 } from './image-attach';
-import { type Story, type StoryVerse, markdownToStory } from './markdown';
+import {
+  NO_ROLES,
+  type Story,
+  type StoryVerse,
+  dmRoleMentionError,
+  markdownToStory,
+  unknownRoleMentions,
+} from './markdown';
 
 const DMS_HELP = `Usage: tlon dms <command>
 
 Commands:
   send <club-id> [message]        Send a message to a group DM [--image <url>] [--bot]
+                                  (one --image; posts send <club-id> takes several)
   reply <club-id> <post-id> <msg> Reply in a group DM (post-id must include author) [--bot]
   react <ship> <post-id> <emoji>  React to a DM (post-id must include author) [--parent <post-id>]
   unreact <ship> <post-id>        Remove reaction from a DM (post-id must include author) [--parent <post-id>]
@@ -59,11 +67,16 @@ Commands:
   decline <ship>                  Decline a DM invite
 
 Send options:
-  --bot                  Author the message as a bot (renders the "Bot" tag)`;
+  --sent-at <ms>         Override the send timestamp (unix ms); the message id
+                         derives from it. Applies to send and reply.
+  --bot                  Author the message as a bot (renders the "Bot" tag)
+
+Mentions: ~ship and @all; group roles don't exist in DMs.`;
 
 const DMS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon dms send <club-id> [message] [--image <url>] [--bot] (message optional with --image)',
-  reply: 'Usage: tlon dms reply <club-id> <post-id> <message> [--bot]',
+  send: 'Usage: tlon dms send <club-id> [message] [--image <url>] [--sent-at <ms>] [--bot] (message optional with --image; one --image — posts send <club-id> takes several)',
+  reply:
+    'Usage: tlon dms reply <club-id> <post-id> <message> [--sent-at <ms>] [--bot]',
   react: 'Usage: tlon dms react <ship> <post-id> <emoji> [--parent <post-id>]',
   unreact: 'Usage: tlon dms unreact <ship> <post-id> [--parent <post-id>]',
   delete: 'Usage: tlon dms delete <ship> <post-id>',
@@ -95,7 +108,16 @@ function exitFromError(error: unknown): never {
   printErrorAndExit(error);
 }
 
+const DMS_ONE_IMAGE_ERROR =
+  'dms send takes one --image; use posts send <club-id> for several';
+
 function dmsImageFlag(args: string[]): string | undefined {
+  const first = imageFlagIndex(args);
+  if (first !== -1 && imageFlagIndex(args.slice(first + 1)) !== -1) {
+    printUsageAndExit(
+      `Error: ${DMS_ONE_IMAGE_ERROR}\n\n${DMS_COMMAND_HELP.send}`
+    );
+  }
   try {
     return validatedImageFlag(args, DMS_COMMAND_HELP.send);
   } catch (error) {
@@ -103,12 +125,22 @@ function dmsImageFlag(args: string[]): string | undefined {
   }
 }
 
+function firstSentAtFlagIndex(args: string[]): number {
+  const idx = args.indexOf('--sent-at');
+  return idx === -1 ? args.length : idx;
+}
+
 function firstDmSendFlagIndex(args: string[]): number {
   const image = imageFlagIndex(args);
   return Math.min(
     image !== -1 ? image : args.length,
-    firstBotProfileFlagIndex(args)
+    firstBotProfileFlagIndex(args),
+    firstSentAtFlagIndex(args)
   );
+}
+
+function firstDmReplyFlagIndex(args: string[]): number {
+  return Math.min(firstBotProfileFlagIndex(args), firstSentAtFlagIndex(args));
 }
 
 export function getDmSendMessage(args: string[]): string {
@@ -116,7 +148,23 @@ export function getDmSendMessage(args: string[]): string {
 }
 
 export function getDmReplyMessage(args: string[]): string {
-  return args.slice(3, firstBotProfileFlagIndex(args)).join(' ');
+  return args.slice(3, firstDmReplyFlagIndex(args)).join(' ');
+}
+
+// Optional `--sent-at <unix-ms>`, as on posts send/reply: the caller sets the
+// message's `sent`, and with it the writ id (~author/<@da of sent>). The first
+// occurrence wins; a missing or non-positive-integer value is a usage error.
+export function dmSentAt(args: string[], help: string): number | undefined {
+  const idx = args.indexOf('--sent-at');
+  if (idx === -1) {
+    return undefined;
+  }
+  const raw = args[idx + 1];
+  const ms = Number(raw);
+  if (!raw || !Number.isInteger(ms) || ms <= 0) {
+    return printUsageAndExit(help);
+  }
+  return ms;
 }
 
 // Bot-author flags for a send/reply, or undefined when none are present.
@@ -141,7 +189,7 @@ function isDmsMessageHelpLiteral(args: string[]): boolean {
     return (
       !!args[1] &&
       !!args[2] &&
-      wantsHelp(args.slice(3, firstBotProfileFlagIndex(args)))
+      wantsHelp(args.slice(3, firstDmReplyFlagIndex(args)))
     );
   }
   return false;
@@ -159,6 +207,7 @@ export function validateDmsArgs(args: string[]): void {
       const message = getDmSendMessage(args);
       const image = dmsImageFlag(args);
       dmBotProfile(args, DMS_COMMAND_HELP.send);
+      dmSentAt(args, DMS_COMMAND_HELP.send);
       if (!clubId || (!message && !image)) {
         printUsageAndExit(DMS_COMMAND_HELP.send);
       }
@@ -174,6 +223,7 @@ export function validateDmsArgs(args: string[]): void {
       const postId = args[2];
       const message = getDmReplyMessage(args);
       dmBotProfile(args, DMS_COMMAND_HELP.reply);
+      dmSentAt(args, DMS_COMMAND_HELP.reply);
       if (!clubId || !postId || !message)
         printUsageAndExit(DMS_COMMAND_HELP.reply);
       if (!isClub(clubId)) {
@@ -211,9 +261,16 @@ export function validateDmsArgs(args: string[]): void {
   }
 }
 
-// Parse content into Story format with rich markdown support
-function parseContent(message: string): Story {
-  return markdownToStory(message);
+// Parse content into Story format with rich markdown support. A club has no
+// roles, so `@all` is the only mention and any other `@word` is refused
+// rather than sent as text that notifies nobody.
+function parseContent(message: string, clubId: string): Story {
+  const story = markdownToStory(message, { roleIds: NO_ROLES });
+  const unknown = unknownRoleMentions(message, NO_ROLES);
+  if (unknown.length > 0) {
+    throw commandError(dmRoleMentionError(clubId, unknown));
+  }
+  return story;
 }
 
 // Check if the target is a group DM (club)
@@ -288,14 +345,15 @@ export async function sendClubMessage(
   message: string,
   imageVerse?: StoryVerse,
   botProfile?: BotAuthorProfile,
+  requestedSentAt?: number,
   deps: DmSendDeps = DEFAULT_SEND_DEPS
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
   const authorId = deps.getCurrentUserId();
-  const sentAt = Date.now();
+  const sentAt = requestedSentAt ?? Date.now();
   // Image block first, caption after — matches app attachment posts.
   const content: Story = [
     ...(imageVerse ? [imageVerse] : []),
-    ...(message ? parseContent(message) : []),
+    ...(message ? parseContent(message, clubId) : []),
   ];
 
   try {
@@ -319,11 +377,12 @@ export async function replyToClub(
   postId: string,
   message: string,
   botProfile?: BotAuthorProfile,
+  requestedSentAt?: number,
   deps: DmSendDeps = DEFAULT_SEND_DEPS
 ): Promise<{ success: boolean; replyId?: string; error?: string }> {
   const authorId = deps.getCurrentUserId();
-  const sentAt = Date.now();
-  const content = parseContent(message);
+  const sentAt = requestedSentAt ?? Date.now();
+  const content = parseContent(message, clubId);
   const parsed = parsePostId(postId);
 
   if (!parsed.authorId) {
@@ -542,6 +601,9 @@ export async function run(
           'send only supports group DMs (club IDs starting with 0v)'
         );
       }
+      // Check the caption's mentions first so a refusal never fetches the
+      // image, and an image failure can't mask it.
+      if (message) parseContent(message, clubId);
       let imageVerse: StoryVerse | undefined;
       if (imageUrl) {
         try {
@@ -555,6 +617,7 @@ export async function run(
         message,
         imageVerse,
         dmBotProfile(args, DMS_COMMAND_HELP.send),
+        dmSentAt(args, DMS_COMMAND_HELP.send),
         deps
       );
       if (result.success) {
@@ -583,6 +646,7 @@ export async function run(
         postId,
         message,
         dmBotProfile(args, DMS_COMMAND_HELP.reply),
+        dmSentAt(args, DMS_COMMAND_HELP.reply),
         deps
       );
       if (result.success) {

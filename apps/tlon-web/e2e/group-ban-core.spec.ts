@@ -16,7 +16,7 @@ test('should allow banning and unbanning users in public groups', async ({
   // Keep it public (default)
   await helpers.openGroupSettings(zodPage);
   // Just verify we're in settings, don't check exact text
-  await expect(zodPage.getByText('Group info')).toBeVisible();
+  await expect(zodPage.getByText('Workspace info')).toBeVisible();
 
   // Invite ~ten
   await helpers.openInvitePeople(zodPage);
@@ -57,7 +57,7 @@ test('should allow banning and unbanning users in public groups', async ({
   // Verify ~ten can no longer see the group after being banned
   await tenPage.getByTestId('HomeNavIcon').click();
   await expect(
-    tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
+    tenPage.getByTestId('GroupListItem-Untitled workspace-unpinned')
   ).not.toBeVisible({ timeout: 5000 });
 
   // Now unban ~ten
@@ -73,7 +73,7 @@ test('should allow banning and unbanning users in public groups', async ({
 
   // After unbanning, ~ten still can't see the group (needs re-invite)
   await expect(
-    tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
+    tenPage.getByTestId('GroupListItem-Untitled workspace-unpinned')
   ).not.toBeVisible({ timeout: 5000 });
 
   // Navigate to group settings to re-invite

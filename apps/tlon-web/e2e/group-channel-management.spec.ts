@@ -18,7 +18,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
 
   // Open group settings
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
+  await expect(page.getByText('Workspace info')).toBeVisible();
 
   // Test channel management
   await page.getByTestId('GroupChannels').getByText('Channels').click();
@@ -253,15 +253,15 @@ test('should handle channel management operations', async ({ zodPage }) => {
 
   // Navigate back to group using stable testID helper
   await helpers.navigateToGroupByTestId(page, {
-    expectedDisplayName: 'Untitled group',
+    expectedDisplayName: 'Untitled workspace',
   });
 
   // Open Group Settings
   await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
 
   // Test notification settings
-  await helpers.setGroupNotifications(page, 'All group activity');
+  await helpers.setGroupNotifications(page, 'All activity');
 
   // Close the notification sheet by clicking the first back button (in the sheet header)
   await helpers.navigateBack(page);
@@ -270,7 +270,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await page.waitForTimeout(1000);
 
   // Verify we're back on Group Info & Settings
-  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Workspace info')).toBeVisible({ timeout: 5000 });
 
   // Navigate back to verify multi-channel navigation
   // this is mobile only
@@ -279,8 +279,8 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // await page.getByTestId('HeaderBackButton').first().click();
   // await expect(page.getByText('Home')).toBeVisible();
 
-  // await page.getByText('Untitled group').click();
-  // await expect(page.getByText('Untitled group')).toBeVisible();
+  // await page.getByText('Untitled workspace').click();
+  // await expect(page.getByText('Untitled workspace')).toBeVisible();
   // await expect(page.getByText('General')).toBeVisible();
   // await expect(
   //   page.getByText('Testing channel renaming').first()
@@ -288,7 +288,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
 
   // await page.getByText('General').click();
   // await page.getByTestId('ChannelHeaderOverflowMenuButton').click();
-  // await page.getByText('Group info & settings').click();
+  // await page.getByText('Workspace info & settings').click();
 
   // Delete channel and verify count update
   await page.waitForTimeout(2000);

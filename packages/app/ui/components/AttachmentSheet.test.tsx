@@ -81,6 +81,8 @@ vi.mock('tamagui', () => ({
 }));
 vi.mock('../../utils/filepicker', () => ({
   pickFile: mocks.file,
+  imagePickerUploadOptions: {},
+  pickedAssetToUploadIntent: (asset: unknown) => asset,
   normalizeUploadIntents: async (uploadIntents: unknown[]) => ({
     uploadIntents,
   }),

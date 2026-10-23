@@ -34,7 +34,6 @@ import {
   YStack,
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
-import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthog } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -256,11 +255,9 @@ export function ConnectedAppContent({
   const splashIsHidden = useSplashHider();
 
   return (
-    <FeatureFlagConnectedInstrumentationProvider>
-      <BaseProviderStack migrationState={migrationState}>
-        <ConnectedNavigationContent splashIsHidden={splashIsHidden} />
-      </BaseProviderStack>
-    </FeatureFlagConnectedInstrumentationProvider>
+    <BaseProviderStack migrationState={migrationState}>
+      <ConnectedNavigationContent splashIsHidden={splashIsHidden} />
+    </BaseProviderStack>
   );
 }
 

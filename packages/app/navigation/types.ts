@@ -134,9 +134,11 @@ export type RootStackParamList = {
   };
   BotPermissionsSettings: undefined;
   BotIdentitySettings: undefined;
+  /** The bot defaults to the user's hosted bot. */
+  BotPromptFiles: { botShip?: string } | undefined;
+  BotPromptFile: { name: string; botShip?: string };
   BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
   BotModels: undefined;
-  BotConnections: undefined;
   ScheduledTasks: {
     botShip: string;
     /** Narrows the list to the tasks that post into this group. */
@@ -255,6 +257,8 @@ export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
     | 'UserProfile'
     | 'ScheduledTasks'
     | 'ScheduledTaskEditor'
+    | 'BotPromptFiles'
+    | 'BotPromptFile'
     | 'EditProfile'
     | 'Attestation'
   >;
@@ -265,6 +269,8 @@ export type ActivityDrawerParamList = Pick<
   | 'UserProfile'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'EditProfile'
 > & {
   // Drawer-only placeholder shown before an activity item is selected.
@@ -287,9 +293,10 @@ export type SettingsDrawerParamList = Pick<
   | 'BotChannelRuleSettings'
   | 'BotPermissionsSettings'
   | 'BotIdentitySettings'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'BotProviderListSettings'
   | 'BotModels'
-  | 'BotConnections'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
   | 'BlockedUsers'
@@ -327,6 +334,8 @@ export type ChannelStackParamList = {
   UserProfile: RootStackParamList['UserProfile'];
   ScheduledTasks: RootStackParamList['ScheduledTasks'];
   ScheduledTaskEditor: RootStackParamList['ScheduledTaskEditor'];
+  BotPromptFiles: RootStackParamList['BotPromptFiles'];
+  BotPromptFile: RootStackParamList['BotPromptFile'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
   ChannelMeta: RootStackParamList['ChannelMeta'];
@@ -346,34 +355,14 @@ export type DesktopChannelStackParamList = Pick<
   | 'UserProfile'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
+  | 'BotPromptFiles'
+  | 'BotPromptFile'
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'
   | 'ChannelTemplate'
   | 'InviteUsers'
 > & { ChannelRoot: RootStackParamList['Channel'] };
-
-/**
- * Screens that SelectChannelRoles can navigate back to with selected roles.
- * Using a discriminated union so TypeScript can verify params match the screen.
- */
-export type RoleSelectionReturn =
-  | {
-      returnScreen: 'CreateChannelPermissions';
-      returnParams: {
-        groupId: string;
-        channelTitle: string;
-        channelType: 'chat' | 'gallery' | 'notes' | 'buckets';
-      };
-    }
-  | {
-      returnScreen: 'EditChannelPrivacy';
-      returnParams: {
-        channelId: string;
-        groupId: string;
-        fromChatDetails?: boolean;
-      };
-    };
 
 export type GroupSettingsStackParamList = {
   // Use 'ChannelInfo' instead of 'ChannelDetails' to avoid navigation conflicts.
@@ -398,7 +387,6 @@ export type GroupSettingsStackParamList = {
     groupId: string;
     fromChatDetails?: boolean;
     createdRoleId?: string;
-    selectedRoleIds?: string[];
   };
   GroupMeta: {
     groupId: string;
@@ -446,13 +434,7 @@ export type GroupSettingsStackParamList = {
     channelTitle: string;
     channelType: 'chat' | 'gallery' | 'notes' | 'buckets';
     createdRoleId?: string;
-    selectedRoleIds?: string[];
   };
-  SelectChannelRoles: {
-    groupId: string;
-    selectedRoleIds: string[];
-    createdRoleId?: string;
-  } & RoleSelectionReturn;
   ChatVolume: {
     chatType: 'group' | 'channel';
     chatId: string;

@@ -294,12 +294,13 @@ describe('messages', () => {
     // owner-listen state. Lives in 02-owner-listen.test.ts where we can
     // toggle the setting first.
 
-    test("engages on reply to bot's own channel post (thread participation)", async () => {
+    test("engages on owner's unmentioned reply to bot's own channel post (owner-listen)", async () => {
       requireFixtureGroup(fixtures);
 
       // Seed: have the bot post a parent message in the channel directly,
-      // bypassing the agent loop. The test exercises the engagement decision
-      // on the *reply*, not the parent.
+      // bypassing the agent loop. That never adds the parent to the plugin's
+      // participatedThreads, so this is not a thread-participation test; it
+      // exercises the engagement decision on the *reply*, not the parent.
       const parentToken = `it-bot-parent-${Date.now().toString(36)}`;
       await fixtures.botState.sendPost({
         channelId: fixtures.group.chatChannel,
@@ -317,8 +318,8 @@ describe('messages', () => {
         { kind: 'text', content: 'Acked thread reply' },
       ]);
 
-      // Reply to the bot's parent — no mention text, but thread participation
-      // should engage per shouldEngageInGroup.
+      // Reply to the bot's parent — no mention text. Engages via default
+      // owner-listen: the owner posts in the bot-hosted fixture group.
       await fixtures.userState.sendReply({
         channelId: fixtures.group.chatChannel,
         parentId: parent.id,
@@ -340,37 +341,67 @@ describe('messages', () => {
   // ── reactions ─────────────────────────────────────────────────────────
 
   describe('reactions', () => {
-    test('adds then removes a reaction via the message tool', async () => {
-      requireFixtureGroup(fixtures);
-
-      const target = fixtures.group.chatChannel;
-      const parentToken = `it-react-roundtrip-${Date.now().toString(36)}`;
+    async function seedReactionTarget(label: string) {
+      const target = fixtures.group!.chatChannel;
+      const token = `${label}-${Date.now().toString(36)}`;
       await fixtures.userState.sendPost({
         channelId: target,
-        content: story(`target ${parentToken}`),
+        content: story(`target ${token}`),
       });
       const parent = await findChannelPost(
         target,
         fixtures.userShip,
-        parentToken,
+        token,
         15_000
       );
+      return { target, parent };
+    }
 
-      // First DM: scripted add. NOTE the trailing pad text step: openclaw's
-      // agent loop makes ONE extra model call after the final text on tool
-      // flows. Without the pad, that 3rd call fails 400 → run is flagged
-      // isError=true and the reaction's tool dispatch doesn't survive.
+    async function waitForBotReaction(
+      target: string,
+      postId: string,
+      expected: { emoji: string } | 'none'
+    ): Promise<boolean> {
+      return waitFor(async () => {
+        const posts = await fixtures.botState.channelPosts(target, 30);
+        const updated = (posts ?? []).find(
+          (p) => String((p as PostLike).id) === postId
+        ) as PostLike | undefined;
+        const value = botReaction(updated, fixtures.botShip);
+        const matched =
+          expected === 'none'
+            ? value == null
+            : typeof value === 'string' && value.includes(expected.emoji);
+        return matched ? true : undefined;
+      }, 30_000);
+    }
+
+    // The owner asks from their DM about a post in a group channel. OpenClaw
+    // core only lets a plugin's message-tool react/delete touch the exact
+    // current conversation, so this cross-conversation request goes
+    // through the tlon CLI (as the plugin's message-tool hints instruct).
+    // This harness runs with TLON_OWNER_DEFAULT=true, so tlon commands act as
+    // the owner by default; the test's intent is the BOT reacting
+    // cross-conversation, so the scripted commands carry `--self` (global-
+    // option position, before the command family) to select the bot — the
+    // actor `waitForBotReaction` checks for below.
+    // Only the resulting channel state is asserted.
+    test('adds then removes a reaction on a channel post from the owner DM', async () => {
+      requireFixtureGroup(fixtures);
+      const { target, parent } = await seedReactionTarget('it-react-roundtrip');
+
+      // NOTE the trailing pad text step: openclaw's agent loop makes ONE
+      // extra model call after the final text on tool flows. Without the
+      // pad, that 3rd call fails 400 → run is flagged isError=true and the
+      // reaction's tool dispatch doesn't survive.
       const emoji = '🎉';
       const addKey = 'react-add-roundtrip';
       await fakeModel.script(addKey, [
         {
           kind: 'tool_call',
-          name: 'message',
+          name: 'tlon',
           args: {
-            action: 'react',
-            target,
-            messageId: parent.id,
-            emoji,
+            command: `--self posts react ${target} ${parent.id} "${emoji}"`,
           },
         },
         { kind: 'text', content: 'Reacted.' },
@@ -382,31 +413,14 @@ describe('messages', () => {
       if (!addResp.success) {
         throw new Error(addResp.error ?? 'add prompt failed');
       }
+      await waitForBotReaction(target, parent.id, { emoji });
 
-      await waitFor(async () => {
-        const posts = await fixtures.botState.channelPosts(target, 30);
-        const updated = (posts ?? []).find(
-          (p) => String((p as PostLike).id) === parent.id
-        ) as PostLike | undefined;
-        const value = botReaction(updated, fixtures.botShip);
-        return typeof value === 'string' && value.includes(emoji)
-          ? true
-          : undefined;
-      }, 30_000);
-
-      // Second DM: scripted remove.
       const removeKey = 'react-remove-roundtrip';
       await fakeModel.script(removeKey, [
         {
           kind: 'tool_call',
-          name: 'message',
-          args: {
-            action: 'react',
-            target,
-            messageId: parent.id,
-            emoji,
-            remove: true,
-          },
+          name: 'tlon',
+          args: { command: `--self posts unreact ${target} ${parent.id}` },
         },
         { kind: 'text', content: 'Reaction removed.' },
         { kind: 'text', content: 'Reaction removed.' },
@@ -417,17 +431,38 @@ describe('messages', () => {
       if (!rmResp.success) {
         throw new Error(rmResp.error ?? 'remove prompt failed');
       }
-
-      const removed = await waitFor(async () => {
-        const posts = await fixtures.botState.channelPosts(target, 30);
-        const updated = (posts ?? []).find(
-          (p) => String((p as PostLike).id) === parent.id
-        ) as PostLike | undefined;
-        return botReaction(updated, fixtures.botShip) == null
-          ? true
-          : undefined;
-      }, 30_000);
+      const removed = await waitForBotReaction(target, parent.id, 'none');
       expect(removed).toBe(true);
+    });
+
+    // Same-conversation path: the owner @mentions the bot in the channel that
+    // holds the post, so the message tool's react targets the current
+    // conversation and passes core's exact-current gate.
+    test('reacts via the message tool in the current channel', async () => {
+      requireFixtureGroup(fixtures);
+      const { target, parent } = await seedReactionTarget('it-react-inchannel');
+
+      const emoji = '👀';
+      const key = 'react-in-channel';
+      await fakeModel.script(key, [
+        {
+          kind: 'tool_call',
+          name: 'message',
+          args: { action: 'react', target, messageId: parent.id, emoji },
+        },
+        { kind: 'text', content: 'Reacted.' },
+        { kind: 'text', content: 'Reacted.' },
+      ]);
+      await fixtures.userState.sendPost({
+        channelId: target,
+        content: storyWithMention(
+          fixtures.botShip,
+          `[tlon-test:${key}] react with ${emoji} to ${parent.id}`
+        ),
+      });
+
+      const reacted = await waitForBotReaction(target, parent.id, { emoji });
+      expect(reacted).toBe(true);
     });
   });
 });

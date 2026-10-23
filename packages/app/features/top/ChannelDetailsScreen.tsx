@@ -1,33 +1,10 @@
-import { useCallback, useMemo } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getTokenValue } from 'tamagui';
+import { useCallback } from 'react';
 
 import { useRootNavigation } from '../../navigation/utils';
-import {
-  ListItem,
-  ScreenHeader,
-  ScrollView,
-  TlonText,
-  View,
-  XStack,
-  YStack,
-  getGroupMemberCount,
-  useChatOptions,
-  useChatTitle,
-  useCurrentUserId,
-  useGroupTitle,
-  useIsAdmin,
-  useIsWindowNarrow,
-} from '../../ui';
-import {
-  ChannelHost,
-  ChannelQuickActions,
-  LeaveActionsSection,
-  MembersList,
-  SettingsSection,
-} from './chatDetails';
-import { useShipConnectionStatus } from './useShipConnectionStatus';
+import { useChatOptions, useIsWindowNarrow } from '../../ui';
+import { ChatDetailsView } from './chatDetails';
 
+/** A channel's info, as opened from a group's channel list. */
 export function ChannelDetailsScreenView({
   onGoBack,
   onEditChannelMeta,
@@ -39,45 +16,9 @@ export function ChannelDetailsScreenView({
   onEditChannelPrivacy: (channelId: string, groupId: string) => void;
   onAfterDeleteChannel?: () => void;
 }) {
-  const { channel, group } = useChatOptions();
+  const { channel } = useChatOptions();
   const { navigateToChannel, navigateBack } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
-
-  const currentUser = useCurrentUserId();
-  const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
-  const hostStatus = useShipConnectionStatus(group?.hostUserId || '', {
-    enabled: !!group,
-  });
-  const actionsEnabled =
-    currentUserIsAdmin && hostStatus.complete && hostStatus.status === 'yes';
-  const canInvite =
-    (currentUserIsAdmin && actionsEnabled) || group?.privacy === 'public';
-
-  const groupTitle = useGroupTitle(group) ?? 'group';
-  const title = useChatTitle(channel, group);
-  const insets = useSafeAreaInsets();
-
-  const subtitle = useMemo(() => {
-    if (!channel) return '';
-    switch (channel.type) {
-      case 'dm':
-        return `Chat with ${channel.contactId}`;
-      case 'groupDm':
-        return channel.members &&
-          channel.members.length > 0 &&
-          channel.members.length > 2
-          ? `Chat with ${channel.members[0].contactId} and ${channel.members.length - 1} others`
-          : 'Group chat';
-      default:
-        return group
-          ? group.channels?.length === 1
-            ? `Group with ${getGroupMemberCount(group)} members`
-            : channel.type === 'buckets'
-              ? `Bucket in ${groupTitle}`
-              : `Channel in ${groupTitle}`
-          : '';
-    }
-  }, [channel, group, groupTitle]);
 
   const handlePressEdit = useCallback(() => {
     if (channel && channel.groupId) {
@@ -99,93 +40,13 @@ export function ChannelDetailsScreenView({
     }
   }, [onGoBack, channel, navigateToChannel, navigateBack, isWindowNarrow]);
 
-  if (!channel) {
-    return null;
-  }
-
-  const members = channel.members;
-
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        testID="ChatDetailsHeader"
-        backgroundColor="$secondaryBackground"
-        backAction={handleGoBack}
-        useHorizontalTitleLayout={!isWindowNarrow}
-        title="Channel info"
-        rightControls={
-          currentUserIsAdmin ? (
-            <ScreenHeader.IconButton
-              aria-label="Edit"
-              onPress={!actionsEnabled ? undefined : handlePressEdit}
-              disabled={!actionsEnabled}
-              type="Draw"
-              testID="DetailsEditButton"
-            />
-          ) : null
-        }
-      />
-      <ScrollView
-        flex={1}
-        contentContainerStyle={{
-          width: '100%',
-          maxWidth: 600,
-          marginHorizontal: 'auto',
-          gap: '$l',
-          paddingBottom: insets.bottom + getTokenValue('$3xl' as any),
-        }}
-      >
-        <XStack
-          alignItems="flex-start"
-          gap="$xl"
-          paddingHorizontal="$xl"
-          marginVertical="$l"
-        >
-          {group && channel.type !== 'buckets' ? (
-            <ListItem.GroupIcon model={group} size="$5xl" />
-          ) : (
-            <ListItem.ChannelIcon model={channel} size="$5xl" />
-          )}
-          <YStack gap="$l" flex={1}>
-            <TlonText.Text>{title}</TlonText.Text>
-            <TlonText.Text size={'$label/m'} color={'$secondaryText'}>
-              {subtitle}
-            </TlonText.Text>
-          </YStack>
-        </XStack>
-
-        {channel.groupId && (
-          <>
-            <ChannelQuickActions channel={channel} canInvite={canInvite} />
-            <SettingsSection
-              entityType="channel"
-              channel={channel}
-              group={group}
-              actionsEnabled={actionsEnabled}
-              onEditChannelPrivacy={onEditChannelPrivacy}
-            />
-          </>
-        )}
-
-        <ChannelHost channel={channel} />
-
-        {members?.length ? (
-          <MembersList
-            entityType="channel"
-            members={members}
-            canInvite={canInvite}
-            canManage={currentUserIsAdmin && actionsEnabled}
-          />
-        ) : null}
-
-        {channel.groupId && (
-          <LeaveActionsSection
-            entityType="channel"
-            channel={channel}
-            onAfterDeleteChannel={onAfterDeleteChannel}
-          />
-        )}
-      </ScrollView>
-    </View>
+    <ChatDetailsView
+      chatType="channel"
+      onGoBack={handleGoBack}
+      onPressEdit={handlePressEdit}
+      onEditChannelPrivacy={onEditChannelPrivacy}
+      onAfterDeleteChannel={onAfterDeleteChannel}
+    />
   );
 }

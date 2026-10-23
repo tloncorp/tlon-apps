@@ -53,6 +53,8 @@ export interface Post {
   isEdited?: boolean | null;
   isDeleted?: boolean | null;
   isBot?: boolean | null;
+  // The bot author's display profile when isBot; not a DB column.
+  botProfile?: { nickname: string | null; avatar: string | null } | null;
   isSequenceStub?: boolean | null;
   deletedAt?: number | null;
   deliveryStatus?: PostDeliveryStatus | null;
