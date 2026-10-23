@@ -237,6 +237,10 @@ export class MockBucketsActionFailed extends Error {
   }
 }
 
+export const mockedSubscribe = {
+  impl: async (..._args: unknown[]): Promise<unknown> => 0,
+};
+
 export const mockedSubscribeOnce = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
@@ -282,7 +286,7 @@ mock.module('@tloncorp/api', () => ({
   preSig: (ship: string) => (ship.startsWith('~') ? ship : `~${ship}`),
   scry: (...args: unknown[]) => mockedScry.impl(...args),
   poke: (...args: unknown[]) => mockedPoke.impl(...args),
-  subscribe: async () => 0,
+  subscribe: (...args: unknown[]) => mockedSubscribe.impl(...args),
   // dms.ts value imports (reaction helpers take injected deps in tests, so
   // these defaults are load-time placeholders, never assertion targets)
   addReaction: async () => undefined,
