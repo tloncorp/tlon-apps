@@ -77,6 +77,14 @@ export const getMobileLinkingConfig = (
             path: 'lens/run/:botShip/:lensId',
             parse: parsePathParams('botShip', 'lensId'),
           },
+          ScheduledTaskRuns: {
+            path: 'tasks/:botShip/:taskId/runs',
+            parse: parsePathParams('botShip', 'taskId'),
+          },
+          ScheduledTaskRun: {
+            path: 'tasks/:botShip/:taskId/runs/:lensId',
+            parse: parsePathParams('botShip', 'taskId', 'lensId'),
+          },
           Post: postScreenConfig(mode),
           MediaViewer: 'media-viewer/:mediaType',
           ChatDetails: {
