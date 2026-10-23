@@ -675,6 +675,7 @@ export const RadioInput = <T,>({
   options,
   onChange,
   value,
+  flush,
   ...props
 }: {
   options: {
@@ -685,6 +686,8 @@ export const RadioInput = <T,>({
   }[];
   value?: T;
   onChange?: (value: T) => void;
+  // Drops the row inset so the controls line up with surrounding text.
+  flush?: boolean;
 } & Omit<ComponentProps<typeof YStack>, 'onChange'>) => {
   return (
     <YStack {...props}>
@@ -694,6 +697,7 @@ export const RadioInput = <T,>({
           option={option}
           onPress={onChange}
           checked={value === option.value}
+          flush={flush}
           testID={`RadioInputRow-${option.title}`}
         />
       ))}
@@ -716,6 +720,11 @@ const RadioInputRowFrame = styled(XStack, {
         },
       },
     },
+    flush: {
+      true: {
+        paddingHorizontal: 0,
+      },
+    },
   },
   defaultVariants: {
     disabled: false,
@@ -729,6 +738,7 @@ export function RadioInputRow<T>({
   option,
   onPress,
   checked,
+  flush,
 }: {
   option: RadioInputOption<T>;
   onPress?: (value: T) => void;
@@ -739,6 +749,7 @@ export function RadioInputRow<T>({
     <RadioInputRowFrame
       onPress={option.disabled ? undefined : handlePress}
       disabled={!!option.disabled}
+      flush={flush}
     >
       <RadioControl
         key={option.title}
