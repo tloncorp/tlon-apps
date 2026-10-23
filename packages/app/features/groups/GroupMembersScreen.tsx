@@ -68,9 +68,8 @@ export function GroupMembersScreen(props: Props) {
       goBack={handleGoBack}
       onPressGoToProfile={handleGoToProfile}
       members={members}
-      onEndReached={roster.loadMore}
+      onLoadMore={roster.hasMore ? roster.loadMore : undefined}
       isLoadingMore={roster.isLoading}
-      searchesLoadedOnly={roster.hasMore}
       roles={groupRoles}
       groupId={groupId}
       currentUserId={currentUserId}

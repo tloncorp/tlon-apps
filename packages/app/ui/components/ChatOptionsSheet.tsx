@@ -1,7 +1,14 @@
 import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { ActionSheetContext, Icon, useIsWindowNarrow } from '@tloncorp/ui';
+import {
+  ActionSheetContext,
+  Icon,
+  useIsWindowNarrow,
+  useToast,
+} from '@tloncorp/ui';
+import * as Clipboard from 'expo-clipboard';
 import { IconButton } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
@@ -751,6 +758,12 @@ export function ChannelOptionsSheetContent({
     });
   }, [channel.id, channel.groupId, onPressChatDetails]);
 
+  const toast = useToast();
+  const handleCopyChannelLink = useCallback(async () => {
+    await Clipboard.setStringAsync(logic.getChannelReferencePath(channel.id));
+    toast({ message: 'Copied!', duration: 1500 });
+  }, [channel.id, toast]);
+
   const wrappedAction = useCallback(
     (action: () => void, clearChat = true) => {
       action();
@@ -813,6 +826,13 @@ export function ChannelOptionsSheetContent({
             endIcon: 'ChevronRight',
             testID: 'GroupOptionsGroupInfoButton',
           },
+          // Notebook cites aren't rendered as cards yet and would show
+          // "Upgrade your app".
+          channel.type !== 'notes' && {
+            title: 'Copy link to channel',
+            endIcon: 'Copy',
+            action: wrappedAction.bind(null, handleCopyChannelLink),
+          },
         ],
 
         // Templating copies the source channel's type, and a bulletin
@@ -859,6 +879,7 @@ export function ChannelOptionsSheetContent({
       group,
       handlePressChannelDetails,
       handlePressGroupDetails,
+      handleCopyChannelLink,
       hooksPreview,
       onPressChannelTemplate,
       currentUserIsChannelHost,

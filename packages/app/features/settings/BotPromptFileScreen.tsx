@@ -23,8 +23,11 @@ import {
   useStewardPromptSave,
   useStewardPromptsFeed,
 } from '../../ui/components/BotSystemPrompts';
+import { BotPromptHeader } from '../../ui/components/BotPromptHeader';
+import { ExpandableContent } from '../../ui/components/ExpandableContent';
 import { NotebookContentRenderer } from '../../ui/components/NotebookPost/NotebookPost';
 import {
+  useSettingsListColors,
   useSettingsListHeaderColor,
   useSettingsListSurfaces,
 } from '../../ui/components/SettingsList';
@@ -39,6 +42,9 @@ import {
 import { BotSettingsSection } from './bot/BotSettingsUI';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotPromptFile'>;
+
+// About ten lines of body text: enough to see what Tlon's default covers.
+const COLLAPSED_DEFAULT_HEIGHT = 240;
 
 /** Markdown as the notebook renders it, or the raw text if it won't parse. */
 function PromptText({ text, testID }: { text: string; testID?: string }) {
@@ -71,6 +77,7 @@ export function BotPromptFileScreen(props: Props) {
   const { navigation } = props;
   const { name } = props.route.params;
   const { page: settingsPage } = useSettingsListSurfaces();
+  const { row: fadeColor } = useSettingsListColors();
   const headerColor = useSettingsListHeaderColor();
   const showToast = useToast();
   const currentUserId = useCurrentUserId();
@@ -188,63 +195,62 @@ export function BotPromptFileScreen(props: Props) {
         </Text>
       );
   } else if (access?.kind === 'additions') {
+    // Tlon's default leads, cut short so the owner's part stays in reach.
+    // Additions get a section once there are some; until then the button is
+    // the way in.
     body = (
       <>
-        <BotSettingsSection
-          title="Additions"
-          subtitle="Kept when Tlon updates the defaults."
-        >
-          {additions ? (
-            <PromptText text={additions} testID="BotPromptFileAdditions" />
-          ) : (
-            <Text
-              size="$body"
-              color="$tertiaryText"
-              paddingHorizontal="$l"
-              paddingVertical="$l"
-            >
-              Nothing added yet.
-            </Text>
-          )}
-        </BotSettingsSection>
-        <YStack gap="$m">
-          <Button
-            preset="primary"
-            label={additions ? 'Edit additions' : 'Add instructions'}
-            centered
-            disabled={resetting}
-            onPress={handleEditPressed}
-            testID="BotPromptFileEdit"
-          />
-          {additions ? (
-            <Button
-              preset="destructive"
-              label="Reset to default"
-              centered
-              disabled={resetting}
-              loading={resetting}
-              onPress={() => setDialog({ kind: 'reset', bot: botShip, name })}
-              testID="BotPromptFileReset"
-            />
-          ) : null}
-        </YStack>
         <BotSettingsSection
           title="Tlon's default"
           subtitle="Tlon keeps this part up to date."
         >
-          <PromptText text={managedText} testID="BotPromptFileDefault" />
+          <ExpandableContent
+            // Keyed to the file: the desktop drawer reuses this screen, and
+            // one file's expanded default must not open the next one's.
+            key={`${botShip}/${name}`}
+            collapsedHeight={COLLAPSED_DEFAULT_HEIGHT}
+            fadeColor={fadeColor}
+            testID="BotPromptFileDefaultExpander"
+          >
+            <PromptText text={managedText} testID="BotPromptFileDefault" />
+          </ExpandableContent>
         </BotSettingsSection>
+        <YStack gap="$xl">
+          {additions ? (
+            <BotSettingsSection
+              title="Additions"
+              subtitle="Kept when Tlon updates the defaults."
+            >
+              <PromptText text={additions} testID="BotPromptFileAdditions" />
+            </BotSettingsSection>
+          ) : null}
+          <YStack gap="$m">
+            <Button
+              preset="primary"
+              label={additions ? 'Edit additions' : 'Add instructions'}
+              centered
+              disabled={resetting}
+              onPress={handleEditPressed}
+              testID="BotPromptFileEdit"
+            />
+            {additions ? (
+              <Button
+                preset="destructive"
+                label="Reset to default"
+                centered
+                disabled={resetting}
+                loading={resetting}
+                onPress={() => setDialog({ kind: 'reset', bot: botShip, name })}
+                testID="BotPromptFileReset"
+              />
+            ) : null}
+          </YStack>
+        </YStack>
       </>
     );
   } else {
     body = (
-      <BotSettingsSection
-        subtitle={
-          access?.kind === 'unmanaged'
-            ? "This file is missing Tlon's defaults, so you can't edit it here. They come back the next time your bot restarts."
-            : 'Read-only. Tlon keeps this file up to date so your bot keeps working.'
-        }
-      >
+      <BotSettingsSection>
         <PromptText
           text={promptDisplayText(prompt.text)}
           testID="BotPromptFileContents"
@@ -252,6 +258,17 @@ export function BotPromptFileScreen(props: Props) {
       </BotSettingsSection>
     );
   }
+
+  // A file the owner can't add to says who keeps it, with what it is for.
+  const note =
+    access?.kind === 'unmanaged'
+      ? "This file is missing Tlon's defaults, so you can't edit it here. They come back the next time your bot restarts."
+      : access?.kind === 'read-only'
+        ? access.keptBy === 'bot'
+          ? 'Read-only. Your bot keeps this file up to date as it learns.'
+          : 'Read-only. Tlon keeps this file up to date so your bot keeps working.'
+        : null;
+  const description = promptDescription(name);
 
   return (
     <View flex={1} backgroundColor={settingsPage}>
@@ -267,15 +284,12 @@ export function BotPromptFileScreen(props: Props) {
         paddingTop="$l"
         safeAreaBottomOffset={24}
       >
-        <YStack gap="$2xl" paddingBottom="$2xl">
-          <YStack gap="$xs" paddingHorizontal="$s">
-            <Text size="$label/m" color="$secondaryText">
-              {promptDescription(name)}
-            </Text>
-            <Text size="$label/s" color="$tertiaryText">
-              {name}
-            </Text>
-          </YStack>
+        <YStack gap="$3xl" paddingBottom="$2xl">
+          <BotPromptHeader
+            paddingHorizontal="$s"
+            meta={name}
+            description={note ? `${description} ${note}` : description}
+          />
           {body}
         </YStack>
       </SettingsContentScrollView>

@@ -74,7 +74,7 @@ export const steward = {
     kind: 'scry',
     agent: 'steward',
     path: '/v1/bots',
-    since: '12.4.0',
+    since: '12.5.0',
     guardedBy: 'deskSupportsStewardBots',
   },
   lensFeed: {

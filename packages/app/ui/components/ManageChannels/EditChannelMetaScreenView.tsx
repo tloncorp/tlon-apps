@@ -1,26 +1,12 @@
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useCallback, useState } from 'react';
 
 import {
-  ControlledTextField,
-  ControlledTextareaField,
-  FormFrame,
-} from '../Form';
-import { ScreenHeader } from '../ScreenHeader';
-import { ChannelEditFormLayout } from './ChannelEditFormLayout';
-
-interface ChannelMetaFormSchema {
-  title: string;
-  description: string;
-}
-
-const getChannelMetaDefaults = (
-  channel?: db.Channel | null
-): ChannelMetaFormSchema => ({
-  title: channel?.title || '',
-  description: channel?.description || '',
-});
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../SettingsList';
 
 interface EditChannelMetaScreenViewProps {
   onGoBack: () => void;
@@ -30,97 +16,103 @@ interface EditChannelMetaScreenViewProps {
   onSubmit: (title: string, description?: string) => void;
 }
 
-export function EditChannelMetaScreenView({
+const maxTitleLength = 30;
+const maxDescriptionLength = 300;
+
+export function EditChannelMetaScreenView(
+  props: EditChannelMetaScreenViewProps
+) {
+  // The fields start from the channel's values, so they wait for the channel.
+  return <ChannelMetaForm key={props.channel?.id ?? 'loading'} {...props} />;
+}
+
+function ChannelMetaForm({
   onGoBack,
   isLoading,
   onSubmit,
   channel,
   group,
 }: EditChannelMetaScreenViewProps) {
-  const {
-    control,
-    reset,
-    handleSubmit,
-    formState: { isValid },
-  } = useForm<ChannelMetaFormSchema>({
-    defaultValues: getChannelMetaDefaults(channel),
-  });
+  const isWindowNarrow = useIsWindowNarrow();
+  const [title, setTitle] = useState(channel?.title || '');
+  const [description, setDescription] = useState(channel?.description || '');
+  const isValid = title.length > 0;
+  const isDirty =
+    title !== (channel?.title || '') ||
+    description !== (channel?.description || '');
 
-  const handleSave = useCallback(
-    (data: ChannelMetaFormSchema) => {
-      const title = data.title;
-      if (!title || typeof title !== 'string') {
-        return;
-      }
-      onSubmit(title, data.description || undefined);
-    },
-    [onSubmit]
-  );
-
-  // Reset form when channel data loads (matches pattern in EditChannelPrivacyScreenView)
-  useEffect(() => {
-    if (channel) {
-      reset(getChannelMetaDefaults(channel));
+  const handleSave = useCallback(() => {
+    if (isValid) {
+      onSubmit(title, description || undefined);
     }
-  }, [channel, reset]);
+  }, [description, isValid, onSubmit, title]);
 
-  const runSubmit = useCallback(
-    () => handleSubmit(handleSave)(),
-    [handleSubmit, handleSave]
-  );
+  const sections: SettingsSectionModel[] = [
+    {
+      key: 'title',
+      title: 'Name',
+      rows: [
+        {
+          key: 'title',
+          title: 'Name',
+          textField: {
+            value: title,
+            onChangeText: setTitle,
+            placeholder: 'Channel name',
+            maxLength: maxTitleLength,
+            capitalization: 'sentences',
+          },
+          testID: 'ChannelTitleInput',
+        },
+      ],
+    },
+    {
+      key: 'description',
+      title: 'Description',
+      rows: [
+        {
+          key: 'description',
+          title: 'Description',
+          textField: {
+            value: description,
+            onChangeText: setDescription,
+            placeholder: 'About this channel',
+            lines: 5,
+            maxLength: maxDescriptionLength,
+            capitalization: 'sentences',
+          },
+          testID: 'ChannelDescriptionInput',
+        },
+      ],
+    },
+  ];
 
   return (
-    <ChannelEditFormLayout
+    <SettingsListScreenView
       title="Edit channel info"
-      channel={channel}
-      group={group}
-      onGoBack={onGoBack}
-      isLoading={isLoading}
-      rightControls={
-        <ScreenHeader.TextButton
-          onPress={runSubmit}
-          color="$positiveActionText"
-          disabled={!isValid}
-          testID="ChannelSettingsSaveButton"
-        >
-          Save
-        </ScreenHeader.TextButton>
+      subtitle={
+        channel?.title && group?.title
+          ? `${group.title}: ${channel.title}`
+          : undefined
       }
-    >
-      <FormFrame paddingBottom="$2xl" flex={1} backgroundType="secondary">
-        <ControlledTextField
-          name="title"
-          label="Name"
-          control={control}
-          inputProps={{
-            placeholder: 'Channel name',
-            testID: 'ChannelTitleInput',
-          }}
-          rules={{
-            maxLength: {
-              value: 30,
-              message: 'Your channel name is limited to 30 characters',
-            },
-          }}
-        />
-        <ControlledTextareaField
-          name="description"
-          label="Description"
-          control={control}
-          inputProps={{
-            placeholder: 'About this channel',
-            numberOfLines: 5,
-            testID: 'ChannelDescriptionInput',
-            multiline: true,
-          }}
-          rules={{
-            maxLength: {
-              value: 300,
-              message: 'Description is limited to 300 characters',
-            },
-          }}
-        />
-      </FormFrame>
-    </ChannelEditFormLayout>
+      sections={sections}
+      loading={!channel}
+      loadingSubtitle={isLoading ? 'Loading…' : null}
+      onBackPressed={onGoBack}
+      showsBackOnWideWindows
+      useHorizontalTitleLayout={!isWindowNarrow}
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      rightActions={[
+        {
+          id: 'ChannelSettingsSaveButton',
+          text: 'Save',
+          tint: '$positiveActionText',
+          prominent: true,
+          disabled: !isValid || !isDirty,
+          onPress: handleSave,
+          testID: 'ChannelSettingsSaveButton',
+        },
+      ]}
+    />
   );
 }

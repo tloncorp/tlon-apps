@@ -18,7 +18,7 @@ import { View, XStack, styled } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
 import { useNavigation } from '../../contexts/navigation';
-import { useGroupTitle } from '../../utils';
+import { useChannelTitle, useGroupTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost/GalleryContentRenderer';
@@ -56,6 +56,10 @@ export const ContentReferenceLoader: ContentReferenceLoaderComponent = ({
         replyId={reference.replyId}
         {...props}
       />
+    );
+  } else if (reference.referenceType === 'channelLink') {
+    return (
+      <ChannelLinkReferenceLoader channelId={reference.channelId} {...props} />
     );
   } else if (reference.referenceType === 'group') {
     return <GroupReferenceLoader groupId={reference.groupId} {...props} />;
@@ -357,6 +361,118 @@ export function GroupReference({
   );
 }
 
+// Channel link reference (a whole channel, no post)
+
+const channelTypeIcons: Partial<Record<string, IconType>> = {
+  chat: 'ChannelTalk',
+  gallery: 'ChannelGalleries',
+  notebook: 'ChannelNotebooks',
+};
+
+export function ChannelLinkReferenceLoader({
+  channelId,
+  openOnPress = true,
+  ...props
+}: ReferenceProps & { channelId: string }) {
+  const { data: channel, isLoading } = useChannelPreview({ id: channelId });
+  const { data: group } = useGroupPreview(channel?.groupId ?? '');
+  const { onPressChannelRef, onPressGroupRef } = useNavigation();
+  // Preview-fetched channels leave currentUserIsMember unset even when readable
+  const canOpenChannel =
+    !!channel &&
+    !!group?.currentUserIsMember &&
+    channel.currentUserIsMember !== false;
+  const pressTarget = canOpenChannel ? onPressChannelRef : onPressGroupRef;
+  const handlePress = useCallback(() => {
+    if (canOpenChannel && channel) {
+      onPressChannelRef?.(channel);
+    } else if (group) {
+      onPressGroupRef?.(group);
+    }
+  }, [canOpenChannel, channel, group, onPressChannelRef, onPressGroupRef]);
+
+  return (
+    <ChannelLinkReference
+      channelId={channelId}
+      channel={channel}
+      parentGroup={group}
+      isLoading={isLoading}
+      onPress={openOnPress && group && pressTarget ? handlePress : undefined}
+      {...props}
+    />
+  );
+}
+
+export function ChannelLinkReference({
+  channelId,
+  channel,
+  parentGroup,
+  isLoading,
+  ...props
+}: ReferenceProps & {
+  channelId: string;
+  channel?: db.Channel | null;
+  // `group` collides with tamagui's group style prop
+  parentGroup?: db.Group | null;
+}) {
+  const channelTitle = useChannelTitle(channel ?? null);
+  const groupTitle = useGroupTitle(parentGroup);
+  const icon = channelTypeIcons[getChannelType(channelId)] ?? 'ChannelTalk';
+  const title = channelTitle || channelId.split('/')[2] || channelId;
+  const { testID, ...skeletonProps } = props;
+
+  return (
+    // The missing-channel state is rendered below so it can show the slug.
+    <Reference
+      testID="ChannelLinkReference"
+      {...props}
+      isLoading={isLoading}
+      hasData
+    >
+      <ContentReferenceHeader type="channel" icon={icon} />
+      {channel ? (
+        <Reference.Body padding={0}>
+          {props.contentSize === '$s' ? (
+            <View
+              width="100%"
+              height="100%"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Text
+                size={'$label/xl'}
+                color="$secondaryText"
+                textAlign="center"
+                paddingHorizontal="$m"
+              >
+                {title}
+              </Text>
+            </View>
+          ) : (
+            <ListItem backgroundColor={'transparent'} gap="$m">
+              <ListItem.ChannelIcon model={channel} />
+              <ListItem.MainContent>
+                <ListItem.Title>{title}</ListItem.Title>
+                {groupTitle ? (
+                  <ListItem.Subtitle testID="ChannelLinkReferenceGroupTitle">
+                    {groupTitle}
+                  </ListItem.Subtitle>
+                ) : null}
+              </ListItem.MainContent>
+            </ListItem>
+          )}
+        </Reference.Body>
+      ) : !isLoading ? (
+        <ReferenceSkeleton
+          message={title}
+          messageType="error"
+          {...skeletonProps}
+        />
+      ) : null}
+    </Reference>
+  );
+}
+
 // Note reference (%notes shared notebooks)
 
 export function NotesNoteReferenceLoader({
@@ -449,18 +565,28 @@ const typeMeta: Record<string, { label: string; icon: IconType }> = {
     label: 'Workspace',
     icon: 'Discover',
   },
+  channel: {
+    label: 'Channel',
+    icon: 'ChannelTalk',
+  },
   notes: {
     label: 'Note',
     icon: 'ChannelNotebooks',
   },
 };
 
-function ContentReferenceHeader({ type }: { type: keyof typeof typeMeta }) {
+function ContentReferenceHeader({
+  type,
+  icon,
+}: {
+  type: keyof typeof typeMeta;
+  icon?: IconType;
+}) {
   const meta = type in typeMeta ? typeMeta[type] : typeMeta['chat'];
   return (
     <Reference.Header>
       <Reference.Title>
-        <Reference.TitleIcon type={meta.icon} />
+        <Reference.TitleIcon type={icon ?? meta.icon} />
         <Reference.TitleText>{meta.label}</Reference.TitleText>
       </Reference.Title>
       <Reference.ActionIcon />

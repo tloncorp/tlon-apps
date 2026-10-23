@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
+import { sortGroupRoles } from '../ui/utils/groupUtils';
 import { useCurrentUserId } from './useCurrentUser';
 
 export const useGroupContext = ({
@@ -46,7 +47,7 @@ export const useGroupContext = ({
   }, [group?.members]);
 
   const groupRoles = useMemo(() => {
-    return group?.roles ?? [];
+    return sortGroupRoles(group?.roles ?? []);
   }, [group?.roles]);
 
   const groupChannels = useMemo(() => {

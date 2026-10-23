@@ -61,8 +61,8 @@ afterEach(() => {
   api.setDeskSupportsStewardBots(null);
 });
 
-test('is unsupported on a 12.3.1 ship', () => {
-  mocks.appInfo = { value: { groupsVersion: '12.3.1' }, isLoading: false };
+test('is unsupported on a 12.4.1 ship', () => {
+  mocks.appInfo = { value: { groupsVersion: '12.4.1' }, isLoading: false };
 
   expect(resultOf(render())).toBe(false);
 });
@@ -74,13 +74,13 @@ test('waits for the stored version while the client flag is unknown', () => {
 });
 
 test('trusts the stored version before sync start sets the client flag', () => {
-  mocks.appInfo = { value: { groupsVersion: '12.4.0' }, isLoading: false };
+  mocks.appInfo = { value: { groupsVersion: '12.5.0' }, isLoading: false };
 
   expect(resultOf(render())).toBe(true);
 });
 
 test('follows the client flag when the stored version lags it', () => {
-  mocks.appInfo = { value: { groupsVersion: '12.3.1' }, isLoading: false };
+  mocks.appInfo = { value: { groupsVersion: '12.4.1' }, isLoading: false };
   const renderer = render();
   expect(resultOf(renderer)).toBe(false);
 
@@ -92,7 +92,7 @@ test('follows the client flag when the stored version lags it', () => {
 });
 
 test('a known-unsupported desk overrides stale stored app info', () => {
-  mocks.appInfo = { value: { groupsVersion: '12.4.0' }, isLoading: false };
+  mocks.appInfo = { value: { groupsVersion: '12.5.0' }, isLoading: false };
   api.setDeskSupportsStewardBots(false);
 
   expect(resultOf(render())).toBe(false);

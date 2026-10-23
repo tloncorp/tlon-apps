@@ -1,5 +1,4 @@
 import type { A2UI } from '../client/a2ui';
-import { formatUd } from '../client/apiUtils';
 import {
   PostBlobDataEntryFile,
   PostBlobDataEntryVideo,
@@ -13,6 +12,7 @@ import * as ub from '../urbit';
 import { extractTablesFromContent } from './markdown/extractTables';
 import { convertInlineContent } from './postContentInlines';
 import type { PostContent as ApiPostContent } from './postsApi';
+import { toContentReference } from './references';
 
 // Inline types
 
@@ -106,8 +106,9 @@ export type VideoContentData = Pick<
 > & {
   src: string;
   alt: string;
-  width: number;
-  height: number;
+  /** Unknown (both undefined) unless both are finite and positive. */
+  width?: number;
+  height?: number;
 };
 
 export type VideoBlockData = {
@@ -221,54 +222,6 @@ export interface PlaintextPreviewConfig {
   indentDepth?: number;
 }
 
-function toContentReference(cite: ub.Cite): ContentReference | null {
-  if ('chan' in cite) {
-    const channelId = cite.chan.nest;
-    // notes channels cite individual notes as /note/<id>, where the id
-    // may be dot-grouped urbit-style (1.234)
-    if (channelId.startsWith('notes/')) {
-      const noteMatch = cite.chan.where.match(/^\/note\/(\d[\d.]*)/);
-      if (!noteMatch) {
-        return null;
-      }
-      return {
-        type: 'reference',
-        referenceType: 'note',
-        channelId,
-        noteId: noteMatch[1].replace(/\./g, ''),
-      };
-    }
-    // I've seen these forms of reference path:
-    // /msg/170141184506828851385935487131294105600
-    // /msg/170141184506312077223314290444316180480/170141184506312235291442423303751335936
-    // /msg/~sogrum-savluc/170.141.184.505.979.681.243.072.382.329.337.971.474
-    const messageIdRegex = /\/([0-9\.]+(?=[$\/]?))/g;
-    const [postId, replyId] = Array.from(
-      cite.chan.where.matchAll(messageIdRegex)
-    ).map((m) => m[1].replace(/\./g, ''));
-    if (!postId) {
-      return null;
-    }
-    return {
-      type: 'reference',
-      referenceType: 'channel',
-      channelId,
-      postId: formatUd(postId),
-      replyId: replyId ? formatUd(replyId) : undefined,
-    };
-  } else if ('group' in cite) {
-    return { type: 'reference', referenceType: 'group', groupId: cite.group };
-  } else if ('desk' in cite) {
-    const parts = cite.desk.flag.split('/');
-    const userId = parts[0];
-    const appId = parts[1];
-    if (!userId || !appId) {
-      return null;
-    }
-    return { type: 'reference', referenceType: 'app', userId, appId };
-  }
-  return null;
-}
 export namespace PlaintextPreviewConfig {
   export const defaultConfig: PlaintextPreviewConfig = Object.freeze({
     blockSeparator: '\n',
@@ -454,6 +407,18 @@ export function plaintextPreviewOfInline(
   }
 }
 
+// A video entry may omit its dimensions (the CLI attaches a video by URL
+// alone). Half a pair, or a zero, is as unknown as none: renderers then size
+// the video from its container instead of from a 1x1 box.
+function knownVideoDimensions(
+  width: number | undefined,
+  height: number | undefined
+): { width?: number; height?: number } {
+  const known = (value: number | undefined): value is number =>
+    value !== undefined && Number.isFinite(value) && value > 0;
+  return known(width) && known(height) ? { width, height } : {};
+}
+
 /**
  * Preprocess content for rendering. Alterations include:
  * - Removing line breaks at end of content
@@ -501,8 +466,7 @@ export function convertContent(
             video: {
               src: entry.fileUri,
               alt: entry.name ?? 'video',
-              width: entry.width ?? 1,
-              height: entry.height ?? 1,
+              ...knownVideoDimensions(entry.width, entry.height),
               duration: entry.duration,
               posterUri: entry.posterUri,
             },
@@ -698,8 +662,8 @@ function convertBlock(block: ub.Block): BlockData {
           video: {
             src: block.image.src,
             alt: block.image.alt,
-            width: block.image.width,
-            height: block.image.height,
+            // Story images built from markdown carry 0x0 when unmeasured.
+            ...knownVideoDimensions(block.image.width, block.image.height),
           },
         };
       } else {
@@ -736,7 +700,16 @@ function convertBlock(block: ub.Block): BlockData {
       };
     }
     case is(block, 'cite'): {
-      return toContentReference(block.cite) ?? errorMessage('Failed to parse');
+      return (
+        toContentReference(block.cite) ?? {
+          type: 'blockquote',
+          content: [
+            { type: 'text', text: 'Upgrade your app to see this reference' },
+            { type: 'lineBreak' },
+            { type: 'text', text: ub.citeToPath(block.cite) },
+          ],
+        }
+      );
     }
     case is(block, 'link'): {
       return {

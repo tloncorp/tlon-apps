@@ -86,3 +86,57 @@ test('convertContent keeps distinct blob and story videos when src differs', () 
     'https://cdn.example.com/story.mp4',
   ]);
 });
+
+test.each([
+  ['missing', {}, undefined],
+  ['partial (width only)', { width: 640 }, undefined],
+  ['partial (height only)', { height: 480 }, undefined],
+  ['zero', { width: 0, height: 480 }, undefined],
+  ['known', { width: 640, height: 480 }, { width: 640, height: 480 }],
+])(
+  'convertContent treats %s blob video dimensions as known only when both are positive',
+  (_name, dims, expected) => {
+    const blob = JSON.stringify([
+      {
+        type: 'video',
+        version: 1,
+        fileUri: 'https://cdn.example.com/clip.mp4',
+        size: -1,
+        ...dims,
+      },
+    ]);
+
+    const [block] = convertContent([], blob);
+    expect(block.type).toBe('video');
+    if (block.type !== 'video') return;
+    expect(block.video.width).toBe(expected?.width);
+    expect(block.video.height).toBe(expected?.height);
+  }
+);
+
+test.each([
+  ['both undefined', { width: undefined, height: undefined }, undefined],
+  ['zero', { width: 0, height: 0 }, undefined],
+  ['zero width', { width: 0, height: 480 }, undefined],
+  ['partial', { width: 640, height: 0 }, undefined],
+  ['negative', { width: -640, height: 480 }, undefined],
+  ['NaN', { width: Number.NaN, height: 480 }, undefined],
+  ['known', { width: 640, height: 480 }, { width: 640, height: 480 }],
+])(
+  'convertContent treats %s legacy story-image video dimensions as known only when both are positive',
+  (_name, dims, expected) => {
+    const story = [
+      {
+        block: {
+          image: { src: 'https://cdn.example.com/clip.mp4', alt: '', ...dims },
+        },
+      },
+    ];
+
+    const [block] = convertContent(story, null);
+    expect(block.type).toBe('video');
+    if (block.type !== 'video') return;
+    expect(block.video.width).toBe(expected?.width);
+    expect(block.video.height).toBe(expected?.height);
+  }
+);

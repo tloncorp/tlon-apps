@@ -148,7 +148,8 @@ export type StoryInline =
   | { ship: string }
   | { link: { href: string; content: string } }
   | { break: null }
-  | { tag: string };
+  | { tag: string }
+  | { sect: string | null };
 
 // Block content types
 export type StoryBlock =
@@ -412,9 +413,272 @@ function processInlinesForBlocks(inlines: StoryInline[]): {
 }
 
 /**
- * Convert markdown text to Tlon story format
+ * The group roles a message may mention. `@all` always converts; an empty
+ * set means `@all` only, which is all a DM has.
  */
-export function markdownToStory(markdown: string): Story {
+export type RoleMentionScope = { roleIds: ReadonlySet<string> };
+
+export const ALL_ONLY: RoleMentionScope = { roleIds: new Set() };
+
+/**
+ * Mirrors the role-mention rule the tlon CLI applies: a case-insensitive id
+ * (matched lowercased), no letter, digit or backslash before `@` (emails,
+ * `abc@foo`, an escaped `\@all`), and no letter, digit, `_` or `-` after
+ * the token (`@admin_team`, `@all-_x`), so a partial word never converts.
+ * The api's markdown parser carries the same rule in its own regex, where
+ * `\@` is an escape that yields a literal `@`; this parser does no escape
+ * handling, so the backslash stays visible, but the mention is suppressed
+ * either way. OpenClaw cannot import the api's regex at runtime.
+ */
+const ROLE_MENTION_TOKEN =
+  /(?<![A-Za-z0-9\\])@([A-Za-z][A-Za-z0-9-]*)(?![A-Za-z0-9_-])/g;
+
+/**
+ * The lowercase `@tokens` in raw text other than `all`: the role ids a
+ * message might mention. Empty means no role lookup is needed.
+ */
+export function roleMentionCandidates(text: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const match of text.matchAll(ROLE_MENTION_TOKEN)) {
+    const id = match[1].toLowerCase();
+    if (id !== 'all') tokens.add(id);
+  }
+  return tokens;
+}
+
+/**
+ * How the text on one side of a string inline ends: a ship renders as a
+ * word (`~zod@all` is not a mention), while a break, code, a link or the
+ * edge of a block separates.
+ */
+type Edge = 'word' | 'boundary';
+
+type RoleMentionLeaf =
+  | { kind: 'text'; text: string }
+  | { kind: 'edge'; edge: Edge };
+
+const WRAPPERS = ['bold', 'italics', 'strike', 'blockquote'] as const;
+
+function wrappedInlines(inline: StoryInline): StoryInline[] | null {
+  if (typeof inline !== 'object' || inline === null) return null;
+  for (const key of WRAPPERS) {
+    if (key in inline) {
+      return (inline as Record<string, StoryInline[]>)[key];
+    }
+  }
+  return null;
+}
+
+function collectLeaves(inlines: StoryInline[], leaves: RoleMentionLeaf[]) {
+  for (const inline of inlines) {
+    if (typeof inline === 'string') {
+      leaves.push({ kind: 'text', text: inline });
+      continue;
+    }
+    const children = wrappedInlines(inline);
+    if (children) {
+      collectLeaves(children, leaves);
+    } else if ('ship' in inline || 'tag' in inline) {
+      leaves.push({ kind: 'edge', edge: 'word' });
+    } else {
+      leaves.push({ kind: 'edge', edge: 'boundary' });
+    }
+  }
+}
+
+/**
+ * Whether the rendered text runs on into the token across the inline
+ * boundary. Formatting wrappers are transparent, so `**~zod**@all` and
+ * `@admin__team__` are judged by the ship and the `t` beside them.
+ */
+function neighbourJoins(
+  leaves: RoleMentionLeaf[],
+  from: number,
+  step: 1 | -1,
+  joins: RegExp
+): boolean {
+  for (let i = from + step; i >= 0 && i < leaves.length; i += step) {
+    const leaf = leaves[i];
+    if (leaf.kind === 'edge') return leaf.edge === 'word';
+    if (leaf.text.length === 0) continue;
+    return joins.test(step === 1 ? leaf.text[0] : leaf.text.at(-1)!);
+  }
+  return false;
+}
+
+/** Each raw occurrence's marker, mapped to the token as the raw text had it. */
+type RoleMentionMarks = { pattern: RegExp; tokens: Map<string, string> };
+
+function convertText(
+  text: string,
+  before: boolean,
+  after: boolean,
+  marks: RoleMentionMarks,
+  roleIds: ReadonlySet<string>
+): StoryInline[] {
+  // Pad with stand-ins for the neighbours so the token regex applies its
+  // own boundary rule across inlines: `a` blocks a match after it and `_`
+  // blocks one before it, and neither can be absorbed into a token.
+  const padded = `${before ? 'a' : ' '}${text}${after ? '_' : ' '}`;
+  const result: StoryInline[] = [];
+  let last = 1;
+  for (const match of padded.matchAll(marks.pattern)) {
+    // A token the parser cut short (`@adminhttps://x` scans as `@admin`
+    // and a link) is not the token the raw text was judged on.
+    if (marks.tokens.get(match[1]) !== match[2]) continue;
+    const id = match[2].toLowerCase();
+    if (id !== 'all' && !roleIds.has(id)) continue;
+    if (match.index > last) result.push(padded.slice(last, match.index));
+    result.push({ sect: id === 'all' ? null : id });
+    last = match.index + match[0].length;
+  }
+  if (last === 1) return [text];
+  if (last < padded.length - 1) result.push(padded.slice(last, -1));
+  return result;
+}
+
+/**
+ * Convert the marked `@all` and known role ids in one run of inlines (a
+ * paragraph, a heading) to sect inlines. Every other token stays as typed.
+ */
+function applyRoleMentionsToInlines(
+  inlines: StoryInline[],
+  marks: RoleMentionMarks,
+  roleIds: ReadonlySet<string>
+): StoryInline[] {
+  const leaves: RoleMentionLeaf[] = [];
+  collectLeaves(inlines, leaves);
+  const converted = leaves.map((leaf, i) =>
+    leaf.kind === 'text'
+      ? convertText(
+          leaf.text,
+          neighbourJoins(leaves, i, -1, /[A-Za-z0-9\\]/),
+          neighbourJoins(leaves, i, 1, /[A-Za-z0-9_-]/),
+          marks,
+          roleIds
+        )
+      : null
+  );
+  // Rebuild in the same order collectLeaves walked.
+  let cursor = 0;
+  const rebuild = (items: StoryInline[]): StoryInline[] =>
+    items.flatMap((inline): StoryInline[] => {
+      if (typeof inline === 'string') return converted[cursor++]!;
+      const children = wrappedInlines(inline);
+      if (!children) {
+        cursor++;
+        return [inline];
+      }
+      const key = WRAPPERS.find((k) => k in inline)!;
+      return [{ [key]: rebuild(children) } as StoryInline];
+    });
+  return rebuild(inlines);
+}
+
+/** Put every marker that did not become a sect back to `@`, wherever it is. */
+function unmark<T>(value: T, markers: RegExp): T {
+  if (typeof value === 'string') {
+    return value.replace(markers, '@') as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => unmark(item, markers)) as T;
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, unmark(item, markers)])
+    ) as T;
+  }
+  return value;
+}
+
+const MARKER_FIRST = 0xe000;
+const MARKER_LAST = 0xf8ff;
+
+/**
+ * Parse with role mentions converted. A post-pass rather than a parser arm:
+ * the plain-text scanner does not stop at `@`, and teaching it to would
+ * re-segment text for every caller.
+ *
+ * Eligibility is decided per occurrence on the raw text, with the same
+ * regex the lookup gate uses: each raw match has its `@` swapped for its
+ * own private-use marker before parsing, and only a marked token that
+ * survives parsing whole can convert. The parser treats a marker exactly as
+ * it treats `@`, so the story is otherwise unchanged. Without this, removing
+ * formatting (`@all__!__`), a scanner split (`@adminhttps://x`) or the same
+ * token elsewhere in code could turn an occurrence the gate rejected into a
+ * mention. Markers inside code, links and unconverted text are put back
+ * afterwards. The pass then applies the boundary rule across inlines, which
+ * formatting can only make stricter.
+ */
+function storyWithRoleMentions(
+  markdown: string,
+  { roleIds }: RoleMentionScope
+): Story {
+  const tokens = new Map<string, string>();
+  let code = MARKER_FIRST;
+  const markedMarkdown = markdown.replace(
+    ROLE_MENTION_TOKEN,
+    (match, token) => {
+      while (
+        code <= MARKER_LAST &&
+        markdown.includes(String.fromCharCode(code))
+      )
+        code++;
+      // Out of markers: the rest stay plain text.
+      if (code > MARKER_LAST) return match;
+      const marker = String.fromCharCode(code++);
+      tokens.set(marker, token);
+      return marker + token;
+    }
+  );
+  if (tokens.size === 0) return parseMarkdownStory(markdown);
+  const markerClass = `[${[...tokens.keys()].join('')}]`;
+  const marks: RoleMentionMarks = {
+    pattern: new RegExp(
+      ROLE_MENTION_TOKEN.source.replace('@', `(${markerClass})`),
+      'g'
+    ),
+    tokens,
+  };
+  const story = parseMarkdownStory(markedMarkdown).map((verse): StoryVerse => {
+    if ('inline' in verse) {
+      return {
+        inline: applyRoleMentionsToInlines(verse.inline, marks, roleIds),
+      };
+    }
+    if ('header' in verse.block) {
+      const { header } = verse.block;
+      return {
+        block: {
+          header: {
+            ...header,
+            content: applyRoleMentionsToInlines(header.content, marks, roleIds),
+          },
+        },
+      };
+    }
+    return verse;
+  });
+  return unmark(story, new RegExp(markerClass, 'g'));
+}
+
+/**
+ * Convert markdown text to Tlon story format.
+ *
+ * `@all` and group role mentions convert only when `roleMentions` is passed,
+ * which callers do for model-authored text; without it the output is
+ * unchanged and every `@word` stays text.
+ */
+export function markdownToStory(
+  markdown: string,
+  options: { roleMentions?: RoleMentionScope } = {}
+): Story {
+  return options.roleMentions
+    ? storyWithRoleMentions(markdown, options.roleMentions)
+    : parseMarkdownStory(markdown);
+}
+
+function parseMarkdownStory(markdown: string): Story {
   const story: Story = [];
   const lines = markdown.split('\n');
   let i = 0;

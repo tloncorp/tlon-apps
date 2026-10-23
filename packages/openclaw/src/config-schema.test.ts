@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { TlonAuthorizationSchema, TlonConfigSchema } from './config-schema.js';
@@ -260,5 +261,48 @@ describe('Tlon config schema', () => {
     });
     expect(parsed.ownerListenEnabled).toBeUndefined();
     expect(parsed.ownerListenDisabledChannels).toBeUndefined();
+  });
+
+  it('accepts showCommentary on the channel and per account', () => {
+    const parsed = TlonConfigSchema.parse({
+      showCommentary: false,
+      accounts: {
+        primary: { ship: '~zod', showCommentary: true },
+      },
+    });
+
+    expect(parsed.showCommentary).toBe(false);
+    expect(parsed.accounts?.primary?.showCommentary).toBe(true);
+    expect(() => TlonConfigSchema.parse({ showCommentary: 'no' })).toThrow();
+  });
+
+  it('declares showCommentary in the generated plugin manifest', () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL('../openclaw.plugin.json', import.meta.url), 'utf8')
+    );
+    const schema = manifest.channelConfigs.tlon.schema;
+
+    expect(schema.properties.showCommentary).toEqual({ type: 'boolean' });
+    expect(
+      schema.properties.accounts.additionalProperties.properties.showCommentary
+    ).toEqual({ type: 'boolean' });
+  });
+});
+
+describe('ownerDefault', () => {
+  it('is accepted on the root Tlon channel config', () => {
+    expect(TlonConfigSchema.parse({ ownerDefault: true }).ownerDefault).toBe(
+      true
+    );
+  });
+
+  it('is rejected per account', () => {
+    const result = TlonConfigSchema.safeParse({
+      accounts: { second: { ownerDefault: true } },
+    });
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain(
+      'ownerDefault is set on the root Tlon channel config, not per account'
+    );
   });
 });

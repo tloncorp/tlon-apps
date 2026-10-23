@@ -60,7 +60,7 @@ Notes: the row shows the current level, followed by "(custom)" if you set it for
 <!-- covers: route:GroupDM -->
 <!-- absent: new group dm -->
 
-Phone: the app can't start a new group DM. `New Message` opens a chat with one person the moment you tap them, and there's no way to pick several. To talk with several people, make a group from the same plus menu with `New group`. On an account with a bot, the phone offers `New Workspace` instead.
+Phone: the app can't start a new group DM. `New Message` opens a chat with one person the moment you tap them, and there's no way to pick several. To talk with several people, make a group from the same plus menu with `New custom workspace`. On an account with a bot, the phone offers `New Workspace` instead.
 Notes: group DMs you're already in still work. They're listed under their members' names. You can rename one, see its members, change its notifications and leave it, but not add or remove people.
 
 ## Rename a group DM or change its icon
@@ -102,7 +102,7 @@ Notes: a blocked person's profile has no `Message` button. Their messages are re
 ## Find the DM with my bot
 <!-- src: packages/app/hooks/useBotDmTab.ts, packages/app/navigation/TopLevelTabNavigator.native.tsx, packages/app/features/top/ChannelScreen.tsx, packages/app/ui/components/Channel/index.tsx, packages/app/features/top/UserProfileScreen.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/app/navigation/desktop/HomeSidebar.tsx, packages/app/navigation/desktop/MessagesSidebar.tsx, packages/app/navigation/desktop/TopLevelDrawer.tsx -->
 
-Phone: it's the Bot tab, the first tab in the bar, and the app opens on it. It has no back arrow because it's a tab. Tap the bot's name at the top to open its profile, which has a `Bot settings` row.
+Phone: it's the Bot tab, the first tab in the bar, and a fresh start opens on it. It has no back arrow because it's a tab. Tap the bot's name at the top to open its profile, which has a `Bot settings` row.
 Desktop: there is no Bot tab. The bot's DM sits with your other DMs in the `Home` and `Messages` sidebars.
 Who: the Bot tab only appears on a hosted account with its bot turned on.
 Notes: the same DM is also in the Workspaces list with your other DMs, where its press-and-hold menu works like any other DM's.

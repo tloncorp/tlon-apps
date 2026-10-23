@@ -8,6 +8,7 @@ export const PROMPT_LABELS: Record<string, string> = {
   'TOOLS.md': 'Tools',
   'IDENTITY.md': 'Identity',
   'USER.md': 'About you',
+  'MEMORY.md': 'Memory',
   'BOOTSTRAP.md': 'Bootstrap',
 };
 
@@ -17,6 +18,7 @@ export const PROMPT_DESCRIPTIONS: Record<string, string> = {
   'TOOLS.md': 'Guidance for the tools your bot can use.',
   'IDENTITY.md': 'How your bot identifies itself.',
   'USER.md': 'What your bot knows about you.',
+  'MEMORY.md': 'What your bot remembers between conversations.',
   'BOOTSTRAP.md': 'First-run setup instructions for your bot.',
 };
 
@@ -30,9 +32,21 @@ const PROMPT_ORDER = [
   'SOUL.md',
   'IDENTITY.md',
   'USER.md',
+  'MEMORY.md',
   'TOOLS.md',
   'BOOTSTRAP.md',
 ];
+
+/**
+ * Who keeps a file current. Tlon's prompt sync rewrites its files on every
+ * gateway start; it seeds memory too, but the bot grows it as it learns.
+ */
+export type PromptFileKeeper = 'tlon' | 'bot';
+
+const BOT_KEPT_PROMPT_FILES = new Set(['MEMORY.md']);
+
+export const promptFileKeeper = (name: string): PromptFileKeeper =>
+  BOT_KEPT_PROMPT_FILES.has(name) ? 'bot' : 'tlon';
 
 const promptOrder = new Map(
   PROMPT_ORDER.map((name, index) => [name, index] as const)
@@ -101,7 +115,7 @@ export const promptDisplayText = (text: string) =>
   trimNewlines(text.replace(MARKER_LINE, ''));
 
 export type PromptFileAccess =
-  | { kind: 'read-only' }
+  | { kind: 'read-only'; keptBy: PromptFileKeeper }
   | { kind: 'additions'; additions: string }
   /** Editable in principle, but its blocks are gone, so the sync will
    * replace the file whole and nothing added here would last. */
@@ -109,10 +123,11 @@ export type PromptFileAccess =
 
 export function promptFileAccess(name: string, text: string): PromptFileAccess {
   if (!EDITABLE_PROMPT_FILES.has(name)) {
-    return { kind: 'read-only' };
+    return { kind: 'read-only', keptBy: promptFileKeeper(name) };
   }
   const { managedBlocks, additions } = splitPromptFile(text);
   return managedBlocks.length > 0
-    ? { kind: 'additions', additions }
+    ? // Whitespace alone is nothing added.
+      { kind: 'additions', additions: additions.trim() ? additions : '' }
     : { kind: 'unmanaged' };
 }

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { act, create } from 'react-test-renderer';
 import type { ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -54,17 +55,32 @@ vi.mock('../../ui/components/BotSystemPrompts', () => ({
   useStewardPromptSave: () => mocks.save,
   useStewardPromptsFeed: () => {},
 }));
+vi.mock('../../ui/components/ExpandableContent', async () => {
+  const { createElement, useState } = await import('react');
+  let mounts = 0;
+  return {
+    // Numbers each mount, so a test can tell a remount from a re-render.
+    ExpandableContent: ({ children }: { children: ReactNode }) => {
+      const [mount] = useState(() => ++mounts);
+      return createElement('ExpandableContent', { mount }, children);
+    },
+  };
+});
 vi.mock('../../ui/components/NotebookPost/NotebookPost', () => ({
   NotebookContentRenderer: 'NotebookContentRenderer',
 }));
 vi.mock('../../ui/components/SettingsList', () => ({
+  useSettingsListColors: () => ({ row: 'white' }),
   useSettingsListHeaderColor: () => 'white',
   useSettingsListSurfaces: () => ({ page: 'white' }),
 }));
-vi.mock('./bot/BotSettingsUI', async () => {
-  const { Passthrough } = await import('../../test/sheetTestUtils');
-  return { BotSettingsSection: Passthrough };
-});
+vi.mock('../../ui/components/BotPromptHeader', () => ({
+  // Keeps the description, which is where a read-only file says who keeps it.
+  BotPromptHeader: 'BotPromptHeader',
+}));
+vi.mock('./bot/BotSettingsUI', () => ({
+  BotSettingsSection: 'BotSettingsSection',
+}));
 
 setupReactTestEnvironment();
 
@@ -80,6 +96,10 @@ beforeEach(() => {
     {
       name: 'TOOLS.md',
       text: '<!-- idempotency-marker:tlon-tools:v25 -->\n\n## When To Use What\n<!-- /idempotency-marker -->\n',
+    },
+    {
+      name: 'MEMORY.md',
+      text: '<!-- idempotency-marker:tlon-runtime:v4 -->\n# MEMORY.md\n<!-- /idempotency-marker -->\n\nPrefers metric units.\n',
     },
   ];
 });
@@ -107,6 +127,8 @@ const dialog = (tree: ReactTestRenderer, confirmText: string) =>
       (node.type as unknown) === 'ConfirmDialog' &&
       node.props.confirmText === confirmText
   );
+const expander = (tree: ReactTestRenderer) =>
+  tree.root.find((node) => (node.type as unknown) === 'ExpandableContent');
 const editorSheets = (tree: ReactTestRenderer) =>
   tree.root.findAll((node) => (node.type as unknown) === 'EditorSheet');
 
@@ -116,12 +138,28 @@ function press(tree: ReactTestRenderer, testID: string) {
   });
 }
 
+const headerDescription = (tree: ReactTestRenderer) =>
+  tree.root.find((node) => (node.type as unknown) === 'BotPromptHeader').props
+    .description;
+
 describe('BotPromptFileScreen', () => {
   it('shows a file Tlon maintains without any way to edit it', async () => {
     const tree = await render('TOOLS.md');
     expect(byTestID(tree, 'BotPromptFileContents')).toHaveLength(1);
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(0);
     expect(byTestID(tree, 'BotPromptFileReset')).toHaveLength(0);
+    expect(headerDescription(tree)).toContain('Tlon keeps this file');
+  });
+
+  it("shows the bot's memory, kept by the bot, without any way to edit it", async () => {
+    const tree = await render('MEMORY.md');
+    expect(
+      byTestID(tree, 'BotPromptFileContents')[0].find(
+        (node) => (node.type as unknown) === 'NotebookContentRenderer'
+      ).props.content
+    ).toEqual(['# MEMORY.md\n\nPrefers metric units.']);
+    expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(0);
+    expect(headerDescription(tree)).toContain('Your bot keeps this file');
   });
 
   it('warns before the first edit, then opens the additions editor', async () => {
@@ -231,5 +269,57 @@ describe('BotPromptFileScreen', () => {
     const tree = await render('SOUL.md');
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(1);
     expect(byTestID(tree, 'BotPromptFileReset')).toHaveLength(0);
+  });
+
+  it('shows no additions block until something has been added', async () => {
+    const tree = await render('SOUL.md');
+    expect(byTestID(tree, 'BotPromptFileAdditions')).toHaveLength(0);
+    expect(byTestID(tree, 'BotPromptFileDefault')).toHaveLength(1);
+  });
+
+  it("puts Tlon's default, collapsible, above the additions", async () => {
+    mocks.prompts = [{ name: 'SOUL.md', text: `Call me Captain.\n${block}\n` }];
+    const tree = await render('SOUL.md');
+    const order = tree.root
+      .findAll(
+        (node) =>
+          typeof node.type === 'string' &&
+          ['BotPromptFileDefault', 'BotPromptFileAdditions'].includes(
+            node.props.testID
+          )
+      )
+      .map((node) => node.props.testID);
+    expect(order).toEqual(['BotPromptFileDefault', 'BotPromptFileAdditions']);
+    expect(
+      expander(tree).findAll(
+        (node) => node.props.testID === 'BotPromptFileDefault'
+      )
+    ).not.toHaveLength(0);
+  });
+
+  it('shows no additions block for whitespace alone', async () => {
+    mocks.prompts = [{ name: 'SOUL.md', text: `   \n${block}\n` }];
+    const tree = await render('SOUL.md');
+    expect(byTestID(tree, 'BotPromptFileAdditions')).toHaveLength(0);
+    expect(byTestID(tree, 'BotPromptFileReset')).toHaveLength(0);
+  });
+
+  it("collapses Tlon's default again when the screen moves to another file", async () => {
+    mocks.prompts = [
+      { name: 'SOUL.md', text: `${block}\n` },
+      { name: 'IDENTITY.md', text: `${block}\n` },
+    ];
+    const tree = await render('SOUL.md');
+    const before = expander(tree).props.mount;
+
+    await act(async () => {
+      tree.update(
+        <BotPromptFileScreen
+          navigation={{ goBack: vi.fn() } as never}
+          route={{ params: { name: 'IDENTITY.md' } } as never}
+        />
+      );
+    });
+    expect(expander(tree).props.mount).not.toBe(before);
   });
 });
