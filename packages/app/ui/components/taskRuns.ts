@@ -11,13 +11,6 @@ export const TASK_RUN_OUTCOME_LABELS: Record<TaskRunOutcome, string> = {
   'no-output': 'No output',
 };
 
-export const TASK_RUN_OUTCOME_COLORS: Record<TaskRunOutcome, string> = {
-  running: '$secondaryText',
-  successful: '$positiveActionText',
-  failed: '$negativeActionText',
-  'no-output': '$tertiaryText',
-};
-
 type CronOutcome = NonNullable<NonNullable<ContextLens['cron']>['outcome']>;
 
 /** The token a run replies with to say nothing. */

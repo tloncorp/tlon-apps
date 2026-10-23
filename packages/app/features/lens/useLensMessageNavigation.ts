@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 
 import { useA2UINavigation } from '../../hooks/useA2UINavigation';
-import type { LensMessageTarget } from '../../ui/components/Channel/ContextLens/RunInspector';
+import type { LensMessageTarget } from '../../ui/components/Channel/ContextLens/runFacts';
 
 /** Opens a message a lens run names, as a trigger or as something it posted. */
 export function useLensMessageNavigation(botShip: string) {
