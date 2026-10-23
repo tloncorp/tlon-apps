@@ -4,6 +4,7 @@ import * as groupAdmin from './group-admin';
 import { runScriptCli } from './script-cli-runner';
 import {
   mockedCreateChannel,
+  mockedGetGroup,
   mockedManagementCalls,
   mockedNotesV1,
   mockedScry,
@@ -14,11 +15,13 @@ const HOSTED = '~zod/team';
 const FOREIGN = '~bus/team';
 
 const originalScry = mockedScry.impl;
+const originalGetGroup = mockedGetGroup.impl;
 const originalCreateChannel = mockedCreateChannel.impl;
 const originalCreateGroupNotebook = mockedNotesV1.createGroupNotebook;
 
 afterEach(() => {
   mockedScry.impl = originalScry;
+  mockedGetGroup.impl = originalGetGroup;
   mockedCreateChannel.impl = originalCreateChannel;
   mockedNotesV1.createGroupNotebook = originalCreateGroupNotebook;
   mockedManagementCalls.length = 0;
@@ -111,6 +114,52 @@ describe('groups create', () => {
       { group: { description?: string } },
     ];
     expect(group.description).toBe('Our team');
+  });
+});
+
+describe('groups create-owned', () => {
+  // A workspace made for the owner with a description used to come out with
+  // the bot as a plain member: the description poke timed out first.
+  it('makes the admin ship an admin of a group with a description', async () => {
+    // The create thread seats the invited admin and makes an admin role.
+    mockedGetGroup.impl = async () => ({ roles: [{ id: 'admin' }] });
+    mockedScry.impl = async () => ({
+      admins: ['admin'],
+      seats: {
+        '~nec': {
+          roles: mockedManagementCalls.some(
+            ({ op }) => op === 'addMembersToRole'
+          )
+            ? ['admin']
+            : [],
+        },
+      },
+    });
+
+    const { exitCode, stdout } = await runGroups([
+      'create-owned',
+      'Team',
+      '--admin',
+      '~nec',
+      '--description',
+      'Our team',
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(mockedManagementCalls.map(({ op }) => op)).toEqual([
+      'createGroup',
+      'addMembersToRole',
+    ]);
+    const [created, assigned] = mockedManagementCalls;
+    const [{ group, memberIds }] = created.args as [
+      { group: { id: string; description?: string }; memberIds: string[] },
+    ];
+    expect(group.description).toBe('Our team');
+    expect(memberIds).toEqual(['~nec']);
+    expect(assigned.args).toEqual([
+      { groupId: group.id, roleId: 'admin', ships: ['~nec'] },
+    ]);
+    expect(stdout).toContain('✅ Admin assignment verified.');
   });
 });
 
