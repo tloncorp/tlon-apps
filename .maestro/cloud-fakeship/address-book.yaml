@@ -28,6 +28,6 @@ env:
     optional: true
 - runFlow: ../reliability/subflows/contacts-screen.yaml
 - scrollUntilVisible:
-    element: ${'^Book' + MAESTRO_RUN_TAG + ' Reader$'}
+    element: ${output.reliability.addressBookContactPattern}
     direction: DOWN
     timeout: 15000
