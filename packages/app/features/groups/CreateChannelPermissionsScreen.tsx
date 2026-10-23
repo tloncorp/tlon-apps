@@ -141,7 +141,8 @@ export function CreateChannelPermissionsScreen() {
           text: 'Create',
           tint: '$positiveActionText',
           prominent: true,
-          disabled: isCreating,
+          // Not until the workspace has loaded and its roles can be picked.
+          disabled: isCreating || !group,
           onPress: handleCreateChannel,
           testID: 'CreateChannelButton',
         },
