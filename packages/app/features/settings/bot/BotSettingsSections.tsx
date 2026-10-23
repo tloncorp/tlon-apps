@@ -352,6 +352,28 @@ export function useBotSettingsSectionModels(
             },
           ],
         },
+        {
+          key: 'browser-service',
+          title: 'Browser service',
+          footer: queries.browserServiceQuery.isError
+            ? 'Browser service settings are unavailable. Try reopening settings.'
+            : queries.browserServiceQuery.isSuccess &&
+                !queries.browserServiceQuery.data.supported
+              ? 'Browser service selection is available for OpenClaw bots.'
+              : 'Applying a change restarts your bot and stops its current browser task.',
+          rows: (['steel', 'kernel'] as const).map((browserService) => ({
+            key: browserService,
+            title: browserService === 'steel' ? 'Steel' : 'Kernel',
+            selected: draft.browserService === browserService,
+            pending:
+              pending.browserService && draft.browserService === browserService,
+            disabled:
+              controlsReadOnly || !queries.browserServiceQuery.data?.supported,
+            onPress: () =>
+              commitDraft((current) => ({ ...current, browserService })),
+            testID: `BotBrowserService-${browserService}`,
+          })),
+        },
       ],
       models: [
         {
@@ -407,6 +429,10 @@ export function useBotSettingsSectionModels(
     draft.model.provider,
     draft.model.zdr,
     draft.nickname,
+    draft.browserService,
+    queries.browserServiceQuery.isError,
+    queries.browserServiceQuery.isSuccess,
+    queries.browserServiceQuery.data?.supported,
     modelsValue,
     navigate,
     pending,

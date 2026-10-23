@@ -171,10 +171,12 @@ submits it. The completion action is one-shot and remains disabled when a live
 
 A trusted bot can offer a standard A2UI card that opens a native Tlon
 credential form for an existing hosted-browser session. Keep the hierarchy
-quiet: one clear title, a short explanation, two short privacy lines, and two
-explicit actions. The card carries the session's signed viewer URL, not
+quiet: one clear title, a short explanation, two short privacy lines, and one
+explicit action. The card carries the session's signed viewer URL, not
 credentials. Bots should create this card with
-`tlon browser handoff <signed-viewer-url>` instead of constructing the blob:
+the `browser handoff <session_id>` tool instead of constructing the blob.
+The `browserSecureEntry` target requires service-managed result delivery.
+Unsupported screen targets fail validation before the owner can fill anything:
 
 ```json
 [
@@ -220,7 +222,7 @@ credentials. Bots should create this card with
   {
     "id": "actions",
     "component": "Row",
-    "children": ["open-login", "continue"],
+    "children": ["open-login"],
     "align": "center"
   },
   {
@@ -235,7 +237,7 @@ credentials. Bots should create this card with
         "context": {
           "target": {
             "type": "screen",
-            "screen": "browserCredentialHandoff",
+            "screen": "browserSecureEntry",
             "viewerUrl": "https://browser-session-ovh1.tlon.network/s/<signed-capability>"
           }
         }
@@ -246,24 +248,6 @@ credentials. Bots should create this card with
     "id": "open-login-label",
     "component": "Text",
     "text": "Open secure login"
-  },
-  {
-    "id": "continue",
-    "component": "Button",
-    "weight": 1,
-    "variant": "secondary",
-    "child": "continue-label",
-    "action": {
-      "event": {
-        "name": "tlon.sendMessage",
-        "context": { "text": "I signed in; continue the browser task." }
-      }
-    }
-  },
-  {
-    "id": "continue-label",
-    "component": "Text",
-    "text": "I’m signed in"
   }
 ]
 ```
@@ -276,10 +260,9 @@ origin of the login form discovered in the live browser, and posts the user's
 values directly to the gateway. Passwords and usernames are never written to
 the post blob, chat, bot context, or fill response.
 
-The bot should keep the browser session live while the card is usable. It may
-also put a separate `tlon.sendMessage` button in the card with fixed text such
-as “I signed in; continue” so the person can explicitly resume the run without
-sending any credential value through chat.
+The bot keeps the browser session live while the card is usable. The OpenClaw
+result service resumes the originating conversation after entry or cancellation.
+The card has no chat continuation action.
 
 ## Read/write behavior
 

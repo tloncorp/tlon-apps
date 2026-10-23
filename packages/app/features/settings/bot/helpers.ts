@@ -314,6 +314,7 @@ export const normalizeProviderConfig = (
   models: raw?.models ?? [],
   defaultKeys: raw?.defaultKeys ?? raw?.default ?? {},
   defaultModels: raw?.defaultModels,
+  browserService: raw?.browserService === 'kernel' ? 'kernel' : 'steel',
 });
 
 export const hasProviderCredential = (
