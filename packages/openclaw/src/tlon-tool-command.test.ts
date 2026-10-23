@@ -959,6 +959,45 @@ describe('owner-by-default identity selection', () => {
       expect(redacted).not.toContain('private');
     });
 
+    it.each([
+      [
+        'groups join --invite https://tlon.network/lure/~zod/private-token',
+        'groups join --invite [REDACTED]',
+      ],
+      [
+        'groups join --invite=https://tlon.network/lure/~zod/private-token',
+        'groups join --invite=[REDACTED]',
+      ],
+      [
+        'tlon --self groups join --invite https://tlon.network/lure/~zod/private-token',
+        'tlon --self groups join --invite [REDACTED]',
+      ],
+      [
+        '--code private-value groups join --invite https://tlon.network/lure/~zod/private-token',
+        '--code [REDACTED] groups join --invite [REDACTED]',
+      ],
+      [
+        'GROUPS JOIN --invite https://tlon.network/lure/~zod/private-token',
+        'GROUPS JOIN --invite [REDACTED]',
+      ],
+      [
+        'groups join --invite private-a --invite=private-b --invite private-c',
+        'groups join --invite [REDACTED] --invite=[REDACTED] --invite [REDACTED]',
+      ],
+    ])('redacts the invite in `%s`', (command, expected) => {
+      const redacted = redactTlonCommand(command);
+      expect(redacted).toBe(expected);
+      expect(redacted).not.toContain('private');
+    });
+
+    it.each([
+      'groups join --invite',
+      'groups join ~zod/some-group',
+      'groups invite-link ~zod/some-group --invite x',
+    ])('leaves `%s` unchanged', (command) => {
+      expect(redactTlonCommand(command)).toBe(command);
+    });
+
     it('keeps a --verbose after the command family literal', () => {
       const command = 'posts send chat/~zod/x --verbose --code abc';
       expect(redactTlonCommand(command)).toBe(command);

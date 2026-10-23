@@ -489,7 +489,39 @@ export function redactTlonCommand(command: string): string {
     // Keep only the operation: arguments can carry a signed viewer capability.
     return `browser ${normalized[subIdx + 1].toLowerCase()} [REDACTED]`;
   }
-  return redactedCredential ? tokens.join(' ') : command;
+  const redactedInvite = redactGroupsJoinInvites(tokens);
+  return redactedCredential || redactedInvite ? tokens.join(' ') : command;
+}
+
+/** Redact every `--invite` value of `groups join` in place. */
+function redactGroupsJoinInvites(tokens: string[]): boolean {
+  // An invite link is a reusable capability to join a private group. Like the
+  // browser branch, `--self` and a malformed invite count do not shield it.
+  const normalized = normalizeTlonCommandArgs(
+    tokens.filter((arg) => arg !== SELF_FLAG)
+  ).args;
+  const subIdx = findTlonSubcommandIndex(normalized);
+  if (
+    normalized[subIdx]?.toLowerCase() !== 'groups' ||
+    normalized[subIdx + 1]?.toLowerCase() !== 'join'
+  ) {
+    return false;
+  }
+  let redacted = false;
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].startsWith('--invite=')) {
+      tokens[index] = '--invite=[REDACTED]';
+      redacted = true;
+    } else if (
+      tokens[index] === '--invite' &&
+      hasCredentialValue(tokens, index)
+    ) {
+      index += 1;
+      tokens[index] = '[REDACTED]';
+      redacted = true;
+    }
+  }
+  return redacted;
 }
 
 export type BlockedTlonOperation = {
