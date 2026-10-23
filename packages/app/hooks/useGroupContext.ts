@@ -20,8 +20,13 @@ export const useGroupContext = ({
     id: groupId,
   });
 
+  // a whole roster only counts for the session it synced in (isRosterWhole),
+  // so it syncs again in each new one
+  const sessionStartTime = store.useCurrentSession()?.startTime;
+  const wholeRosterSession = wholeRoster ? sessionStartTime : undefined;
+
   useEffect(() => {
-    if (groupId) {
+    if (groupId && (!wholeRoster || wholeRosterSession !== undefined)) {
       sync.syncGroup(
         groupId,
         // screens that need the whole roster stay gated until it lands, so
@@ -30,7 +35,7 @@ export const useGroupContext = ({
         { wholeRoster }
       );
     }
-  }, [groupId, wholeRoster]);
+  }, [groupId, wholeRoster, wholeRosterSession]);
 
   const group = groupQuery.data ?? null;
 
