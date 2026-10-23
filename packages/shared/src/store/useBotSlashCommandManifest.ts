@@ -78,7 +78,7 @@ export function selectBotSlashCommandManifest(args: {
 //     recipient); the home-group chat qualifies through the same membership
 //     signal.
 // Which commands are shown: bots publish an identity claim in their contact
-// profile (see domain.parseBotInfo and docs/bot-info.md), and the claimed
+// profile (see domain.parseBotInfo and docs/harness/bot-info.md), and the claimed
 // harness selects one of the app's static command lists. An unidentified bot
 // gets the OpenClaw list.
 export const useBotSlashCommandManifest = (

@@ -18,7 +18,7 @@
 # must be uploaded to gs://bootstrap.urbit.org/ before this job can run against
 # it (docs/release-checklist.md). A 404 here means that upload is outstanding.
 #
-# Policy: docs/tlon-apps/desk-compatibility.md
+# Policy: docs/apps/desk-compatibility.md
 name: N-1 Desk E2E
 on:
   workflow_call:

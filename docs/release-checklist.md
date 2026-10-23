@@ -31,7 +31,7 @@ desk.
 
 ### Desk N-1 compatibility
 
-Policy: `docs/tlon-apps/desk-compatibility.md`. Release N must start, sync,
+Policy: `docs/apps/desk-compatibility.md`. Release N must start, sync,
 receive updates, and post against desk release N-1.
 
 - [ ] `MIN_GROUPS_VERSION` equals the **previous** desk release, not the one you

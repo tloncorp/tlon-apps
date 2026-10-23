@@ -3,7 +3,7 @@ import { contactSelfFieldPoke } from '@tloncorp/api';
 import { type Sleeper, defaultSleep } from './sleep.js';
 
 // Contact-profile key under which the bot publishes its identity claim (wire
-// contract: docs/bot-info.md in tlon-apps).
+// contract: docs/harness/bot-info.md in tlon-apps).
 export const BOT_INFO_CONTACT_KEY = 'bot-info';
 // The client rejects raw claims above this size. The backend's 10kB jam cap
 // covers the whole profile, so a publish failure is a real, non-fatal outcome
@@ -94,7 +94,7 @@ export function readBotInfoValue(selfContact: unknown): string | null {
 
 // Poke the identity claim into the bot's own contact profile. `%self` is a
 // merge, so nickname/avatar survive. Passing null clears the key (the
-// documented rollback/retirement procedure — see docs/bot-info.md): contact
+// documented rollback/retirement procedure — see docs/harness/bot-info.md): contact
 // keys only die by explicit null. Retried up to BOT_INFO_PUBLISH_ATTEMPTS with
 // bounded backoff; the last failure rethrows so callers keep today's non-fatal
 // log-and-continue.

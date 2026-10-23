@@ -46,7 +46,7 @@ apps/tlon-web (Vite) · apps/tlon-mobile (Expo) · [apps/tlon-desktop (Electron)
   (N-1), and a user's ship talks to group hosts and DM peers on other
   versions. Changing anything on the wire (marks, paths, scry shapes, protocol
   versions) is a compatibility decision; see
-  `docs/tlon-apps/desk-compatibility.md`.
+  `docs/apps/desk-compatibility.md`.
 - The local SQLite db is a disposable cache of ship state; the ship is the
   source of truth.
 

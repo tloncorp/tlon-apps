@@ -1208,7 +1208,7 @@
   ::
   ::  publish liveness into our own %contacts profile as a `bot-liveness`
   ::  %text claim, so peers who have met this bot see when its gateway is
-  ::  down (docs/bot-liveness.md). %contacts merges %self and drops an
+  ::  down (docs/harness/bot-liveness.md). %contacts merges %self and drops an
   ::  unchanged edit, so emitting on every transition costs one local poke.
   ::
   ++  ga-advertise-liveness

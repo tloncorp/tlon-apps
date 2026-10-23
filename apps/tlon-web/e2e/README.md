@@ -96,7 +96,7 @@ The testing environment uses five pre-configured Urbit ships:
 
 `~bud` carries the *previous* %groups release, named by `deskVersion` in the
 manifest and kept equal to `MIN_GROUPS_VERSION`; rebuild it with
-`../rube/build-n1-pier.sh`. See `docs/tlon-apps/desk-compatibility.md`. It is
+`../rube/build-n1-pier.sh`. See `docs/apps/desk-compatibility.md`. It is
 not `~bus`, which is deliberately far out of date for protocol-mismatch
 rendering and is never re-pinned.
 

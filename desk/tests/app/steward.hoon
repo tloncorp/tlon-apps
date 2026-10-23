@@ -1520,7 +1520,7 @@
   [/activity [~dev %activity] [%fact %activity-update-5 !>(update)]]
 ::
 ::  the exact %contacts %self poke the gateway module emits on every
-::  liveness transition (bot-liveness claim; see docs/bot-liveness.md)
+::  liveness transition (bot-liveness claim; see docs/harness/bot-liveness.md)
 ::
 ++  liveness-poke
   |=  up=?

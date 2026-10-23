@@ -3,7 +3,7 @@
 The adapter tells Tlon clients *who it is* — harness plus versions — and
 nothing about what it can do: command lists are app-static, bound to this
 package's ``fixtures/commands.json`` by a CI drift contract. Wire contract:
-docs/bot-info.md in tlon-apps.
+docs/harness/bot-info.md in tlon-apps.
 
 This module has no package-relative imports so it stays importable from any
 context, matching commands.py.
@@ -117,7 +117,7 @@ def extract_bot_info_value(self_contact: Any) -> Optional[str]:
 
 def build_bot_info_poke(value: Optional[str]) -> dict[str, Any]:
     """The contact-action-1 self poke publishing (or, with None, clearing) the
-    claim. Keys die only by explicit null — see docs/bot-info.md for the
+    claim. Keys die only by explicit null — see docs/harness/bot-info.md for the
     rollback procedure."""
     return {
         "self": {

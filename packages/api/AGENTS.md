@@ -36,7 +36,7 @@ app concerns stay out. Inside the package, `lib` → `http-api` → `urbit` →
 
 N-1 is about the *host's* desk as well as the user's: data such as a group's
 channel list comes from the host, so a user on an older desk can reach a
-feature their own ship lacks. See `docs/tlon-apps/desk-compatibility.md`.
+feature their own ship lacks. See `docs/apps/desk-compatibility.md`.
 
 ## Rules
 
@@ -56,7 +56,7 @@ feature their own ship lacks. See `docs/tlon-apps/desk-compatibility.md`.
   endpoint every backend serves.
 - Session-scoped code checks `getClientGeneration()` before acting on a reauth
   or retry result; logout or an account switch can happen mid-flight.
-- Post blobs: follow `docs/tlon-apps/post-blobs.md`. Register a new entry
+- Post blobs: follow `docs/apps/post-blobs.md`. Register a new entry
   schema in `postBlobDataEntryDefinitions` (no ad hoc `parsePostBlob`
   branches), add an `appendXToPostBlob` helper if more than one place writes
   it, update the attachment unions and `toPostData`, then

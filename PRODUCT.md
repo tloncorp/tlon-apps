@@ -43,7 +43,7 @@ Everyone has their own bot, and it runs on a computer that's theirs. Other produ
 
 - **Terminology:** always write "Tlon Messenger" in full, never "TM". "Tlon" is the company. "Tlonbot" is one word. Call a user's server their "node" or "personal cloud computer". Avoid ship, planet, moon, galaxy, and star unless the context requires them. "Workspace" and "group" mean the same thing. OpenClaw never appears in product copy, and its capabilities are described as Tlonbot's.
 - **UI copy** is sentence case and very short.
-- **Backend compatibility (N-1):** every client release must start, sync, receive updates, and post against the previous desk release. That holds by release ordering: a desk change ships a release before any client depends on it. Requests only the current desk serves carry a guard, which refuses them once the desk is known not to serve them but still sends them while that is unresolved. Content from a newer client falls back to an "Upgrade your app" prompt rather than disappearing. See `docs/tlon-apps/desk-compatibility.md` and `docs/tlon-apps/post-blobs.md`.
+- **Backend compatibility (N-1):** every client release must start, sync, receive updates, and post against the previous desk release. That holds by release ordering: a desk change ships a release before any client depends on it. Requests only the current desk serves carry a guard, which refuses them once the desk is known not to serve them but still sends them while that is unresolved. Content from a newer client falls back to an "Upgrade your app" prompt rather than disappearing. See `docs/apps/desk-compatibility.md` and `docs/apps/post-blobs.md`.
 - **Privacy settings change identity display.** `Hide Nicknames` shows IDs instead, `Hide Avatars` removes avatar images, and `Disable Tlon helpers` turns off link previews from Tlon's service. Every surface must still read correctly with these settings on.
 - **Feature flags and Experimental features** gate unreleased work. Don't describe flagged features as generally available.
 
@@ -70,7 +70,7 @@ The Tlon brand guide is authoritative for all copy. It lives in the `tlon-copy-e
 
 - `docs/feature-map/`: a per-area record of what the app does and the exact on-screen labels, as of store build `ios-production-789` (`docs/feature-map/release.json`).
 - `README.md`: the backend agents and what each one does.
-- `docs/tlon-apps/`: technical specs for caching, desk compatibility, and post blobs.
+- `docs/apps/`: technical specs for caching, desk compatibility, and post blobs.
 - App imagery: `apps/tlon-mobile/assets/images/` (welcome backgrounds, faces, and notification hints in light and dark). Icons are in `packages/ui/src/assets/icons/`.
 - **Absent:** the repo has no testimonials, customer stories, usage numbers, benchmarks, or press. Don't invent any.
 

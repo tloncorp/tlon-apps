@@ -6,7 +6,7 @@ React Query wiring (`db/reactQuery.ts`, `store/dbHooks.ts`), sync and ingest
 and domain types and analytics events (`src/domain/`). Depends on
 `@tloncorp/api` only. Inside, `utils` → `logic` → `db` → `store`.
 
-**Read `docs/tlon-apps/db-react-query.md` before reasoning about whether a
+**Read `docs/apps/db-react-query.md` before reasoning about whether a
 component sees fresh data.** React Query runs with `staleTime: Infinity`;
 nothing refetches with time, only through table-dependency invalidation.
 Don't infer its behavior from React Query defaults. `invalidateQueries`
