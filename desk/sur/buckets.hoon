@@ -262,6 +262,7 @@
       [%retry-upload session=@uv]
       [%cancel-upload session=@uv reason=@t]
       [%issue-bucket-read ~]
+      [%query-capacity ~]
       [%issue-delete id=@ud]
       [%entry id=@ud =a-entry]
   ==
@@ -339,74 +340,52 @@
       expires-at=@da
   ==
 ::
-::  Request answers, versioned.
+::  $capacity: what the broker says a host's hosting account has left, with
+::  the limits an upload to it will face. Remaining values are exact and
+::  clamped at zero; nothing is reserved by asking. .mime-types is the
+::  broker's allowlist as configured: empty permits any type, and an entry
+::  may be a wildcard such as image/*.
 ::
-::  v1 is the noun %buckets-req-response-1 carries: an %error is a type and a
-::  message. v2 adds the broker's own account of a refusal. The bare names
-::  below the version arms are the current shape; the numbered arms stay so
-::  an older answer, or an older state, can still be named, decoded and
-::  lifted.
++$  capacity
+  $:  bytes=@ud
+      files=@ud
+      max-object-bytes=@ud
+      mime-types=(set @t)
+  ==
 ::
-++  v1
-  |%
-  ::  $response-body: terminal answer to one client action.
-  ::
-  ::  %pending is emitted by a subscriber once it has forwarded the command
-  ::  to the host and is waiting; the host's real answer replaces it.
-  ::
-  +$  response-body
-    $%  [%ok ~]
-        [%grant =grant]
-        [%upload =upload-grant]
-        [%token =read-token]
-        [%pending ~]
-        [%error =action-error message=@t]
-    ==
-  ::  $req-response: a $response-body addressed to one in-flight request.
-  ::
-  +$  req-response  [=request-id body=response-body]
-  ::  $incoming-request: an action we are tracking to its terminal answer.
-  ::
-  ::  .http-id is set while an Eyre POST is held open waiting for that
-  ::  answer; clearing it after delivery stops a late update re-answering a
-  ::  closed request. .final-at is stamped once .result is terminal, so
-  ::  cleanup can evict the record after a grace window.
-  ::
-  +$  incoming-request
-    $:  =request-id
-        http-id=(unit @ta)
-        result=(unit response-body)
-        final-at=(unit @da)
-    ==
-  +$  requests  (map request-id incoming-request)
-  --
-++  v2
-  |%
-  ::  $response-body: as v1, except that an %error the storage broker caused
-  ::  carries the broker's own account of it. An error this agent raised
-  ::  itself carries none.
-  ::
-  +$  response-body
-    $%  [%ok ~]
-        [%grant =grant]
-        [%upload =upload-grant]
-        [%token =read-token]
-        [%pending ~]
-        [%error =action-error message=@t broker=(unit broker-error)]
-    ==
-  +$  req-response  [=request-id body=response-body]
-  +$  incoming-request
-    $:  =request-id
-        http-id=(unit @ta)
-        result=(unit response-body)
-        final-at=(unit @da)
-    ==
-  +$  requests  (map request-id incoming-request)
-  --
-+$  response-body     response-body:v2
-+$  req-response      req-response:v2
-+$  incoming-request  incoming-request:v2
-+$  requests          requests:v2
+::  $response-body: terminal answer to one client action.
+::
+::  %pending is emitted by a subscriber once it has forwarded the command
+::  to the host and is waiting; the host's real answer replaces it. An
+::  %error the storage broker caused carries the broker's own account of
+::  it; an error this agent raised itself carries none.
+::
++$  response-body
+  $%  [%ok ~]
+      [%grant =grant]
+      [%upload =upload-grant]
+      [%token =read-token]
+      [%capacity =capacity]
+      [%pending ~]
+      [%error =action-error message=@t broker=(unit broker-error)]
+  ==
+::  $req-response: a $response-body addressed to one in-flight request.
+::
++$  req-response  [=request-id body=response-body]
+::  $incoming-request: an action we are tracking to its terminal answer.
+::
+::  .http-id is set while an Eyre POST is held open waiting for that
+::  answer; clearing it after delivery stops a late update re-answering a
+::  closed request. .final-at is stamped once .result is terminal, so
+::  cleanup can evict the record after a grace window.
+::
++$  incoming-request
+  $:  =request-id
+      http-id=(unit @ta)
+      result=(unit response-body)
+      final-at=(unit @da)
+  ==
++$  requests  (map request-id incoming-request)
 ::
 ::  Opaque, short-lived bearer capabilities exchanged by Memex through
 ::  Pioneer's local spider threads. They are host-only authority state and
@@ -513,8 +492,9 @@
       ::  .requests holds v1 answers: this mold predates $broker-error.
       requests=requests:v1
   ==
-::  $state-1: as $state-0, with .requests holding v2 answers, so a stored
-::  refusal keeps the broker's account of it.
+::  $state-1: as $state-0, with .requests holding current answers, so a
+::  stored refusal keeps the broker's account of it. v3 only adds a variant,
+::  so a state saved with v2 answers loads as it is.
 ::
 +$  state-1
   $:  %1
@@ -548,4 +528,57 @@
 ::  $state: the current persisted shape.
 ::
 +$  state  state-1
+::
+::  Request answers, versioned, newest first.
+::
+::  v1 is the noun %buckets-req-response-1 carries: an %error is a type and a
+::  message. v2 adds the broker's own account of a refusal. v3 adds the
+::  %capacity answer and is the current shape above; the older arms stay so
+::  an older answer, or an older state, can still be named, decoded and
+::  lifted.
+::
+++  v3  .
+++  v2
+  |%
+  ::  $response-body: as v3, without the %capacity answer.
+  ::
+  +$  response-body
+    $%  [%ok ~]
+        [%grant =grant]
+        [%upload =upload-grant]
+        [%token =read-token]
+        [%pending ~]
+        [%error =action-error message=@t broker=(unit broker-error)]
+    ==
+  +$  req-response  [=request-id body=response-body]
+  +$  incoming-request
+    $:  =request-id
+        http-id=(unit @ta)
+        result=(unit response-body)
+        final-at=(unit @da)
+    ==
+  +$  requests  (map request-id incoming-request)
+  --
+++  v1
+  |%
+  ::  $response-body: as v2, except that an %error is a type and a message
+  ::  with no account from the broker.
+  ::
+  +$  response-body
+    $%  [%ok ~]
+        [%grant =grant]
+        [%upload =upload-grant]
+        [%token =read-token]
+        [%pending ~]
+        [%error =action-error message=@t]
+    ==
+  +$  req-response  [=request-id body=response-body]
+  +$  incoming-request
+    $:  =request-id
+        http-id=(unit @ta)
+        result=(unit response-body)
+        final-at=(unit @da)
+    ==
+  +$  requests  (map request-id incoming-request)
+  --
 --
