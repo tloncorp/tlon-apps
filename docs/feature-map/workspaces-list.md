@@ -90,15 +90,15 @@ Notes: the option is only there when something is unread. `Mark all as read` cov
 Phone: on the Workspaces tab, press and hold the group. `Workspace notifications` opens its notification choices. `Mark all as read` shows when something is unread. `Pin` or `Unpin` pins or unpins the group. `Sort channels` shows for a group with more than one channel. `Invite people` opens the invite screen. `Workspace info & settings` opens the group's settings.
 Desktop: hover the group in the Home sidebar and open its three-dot menu, or right-click it.
 Who: `Invite people` is there for everyone in a public group and for admins in a private or secret one. Other members see `Invites disabled`.
-Notes: there is no leave option here. `Leave workspace` is on the `Workspace info & settings` screen, except for the group's host.
+Notes: there is no leave option here. "Leave workspace" is on the `Workspace info & settings` screen, except for the group's host.
 
 ## What a channel's press-and-hold menu offers
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/contexts/chatOptions/chatOptions.tsx, packages/app/ui/components/GroupChannelsScreenView.tsx, packages/shared/src/store/useChannelHooksPreview.ts -->
 
-Phone: open the group and press and hold a channel in its list. `Channel notifications` opens its notification choices. `Pin` or `Unpin` works on that channel alone. `Mark as read` shows when something is unread. `Channel info & settings` and `Workspace info & settings` open those screens. `Use channel as template` starts a new channel copied from this one. `Leave channel` asks you to confirm with `Leave`.
+Phone: open the group and press and hold a channel in its list. `Channel notifications` opens its notification choices. `Pin` or `Unpin` works on that channel alone. `Mark as read` shows when something is unread. `Copy link to channel` copies a link to it. `Channel info & settings` and `Workspace info & settings` open those screens. `Use channel as template` starts a new channel copied from this one. `Leave channel` asks you to confirm with `Leave`.
 Desktop: hover the channel in the sidebar and open its three-dot menu, or right-click it.
 Who: the channel's host sees `Cannot leave channel` instead.
-Notes: `Use channel as template` is on chat and gallery channels only. A group with one channel has no channel list; pressing and holding it on the Workspaces tab gives the group's menu. Channels you haven't joined have no menu.
+Notes: `Copy link to channel` is not offered for a Notebook. `Use channel as template` is on chat and gallery channels only. A group with one channel has no channel list; pressing and holding it on the Workspaces tab gives the group's menu. Channels you haven't joined have no menu.
 
 ## What a DM's or group DM's press-and-hold menu offers
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/contexts/chatOptions/chatOptions.tsx, packages/app/features/chat-list/ChatList.tsx -->
