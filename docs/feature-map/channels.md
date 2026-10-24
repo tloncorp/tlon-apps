@@ -19,40 +19,32 @@ Who: group admins.
 Notes: `Chat` is selected to start with. There is no description field here; add one afterwards by renaming the channel. Bulletin channels can no longer be created. If you're an admin but not the group's host, a `Hosted on your node` notice appears: the new channel runs on your node, not the host's.
 
 ## Limit a new channel to certain roles
-<!-- src: packages/app/ui/components/ManageChannels/CreateChannelSheet.tsx, packages/app/ui/components/ManageChannels/ChannelPermissions.tsx, packages/app/features/groups/CreateChannelPermissionsScreen.tsx, packages/app/ui/components/ManageChannels/ChannelPermissionsContent.tsx -->
+<!-- src: packages/app/ui/components/ManageChannels/CreateChannelSheet.tsx, packages/app/ui/components/ManageChannels/ChannelPermissions.tsx, packages/app/features/groups/CreateChannelPermissionsScreen.tsx, packages/app/ui/components/ManageChannels/channelAccessSections.ts -->
 <!-- covers: route:CreateChannelPermissions -->
 
-Phone: in the `Create a new channel` sheet, switch on `Custom Permissions`. The button changes to `Next`; tap it. On `Channel permissions`, tap `Add roles`, pick the roles that should get in, and save. Then tap the circle under `Write` for each role that should be able to post, and tap `Create channel`.
+Phone: in the `Create a new channel` sheet, switch on `Custom Permissions`. The button changes to `Next`; tap it. On `Channel permissions`, set `Everyone` to `No access`, `Can view` or `Can post`, then set each role under `Roles` the same way. `New role…` at the bottom makes a role. Tap `Create` at the top right.
 Who: group admins.
-Notes: the table starts with only the admin role, which always has `Read` and `Write`. Roles you add can read but not post until you fill their `Write` circle. A Notebook is the exception: a role that can read it can also edit it. Leave `Custom Permissions` off and every member of the group can read and post.
-
-## Choose which roles can get into a channel
-<!-- src: packages/app/features/groups/SelectChannelRolesScreen.tsx, packages/app/ui/components/ManageChannels/channelFormUtils.ts, packages/app/ui/components/ManageChannels/ChannelPermissionsContent.tsx, packages/app/features/groups/EditChannelPrivacyScreen.tsx -->
-<!-- covers: route:SelectChannelRoles -->
-
-Phone: on the `Channel permissions` screen, tap `Add roles`. On `Select roles`, tap a role to tick or untick it. `Search roles` narrows the list. Tap `Save` at the top right.
-Who: group admins.
-Notes: `Members` stands for everyone in the group; untick it to keep ordinary members out. The admin role isn't listed because it always has access. `Create new role` at the bottom makes a new role and ticks it for you when you come back. You reach this screen both when making a channel with custom permissions and when editing an existing channel's permissions.
+Notes: `Everyone` starts at `No access`, and each role starts there too, except a role you make with `New role…`, which starts at `Can view`. `Can post` includes seeing the channel. The admin role is not listed, because it always has access. Leave `Custom Permissions` off and every member of the group can read and post. A Notebook has only `No access` and `Can view and edit`.
 
 ## Change who can read or post in a channel
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/groups/EditChannelPrivacyScreen.tsx, packages/app/ui/components/ManageChannels/ChannelPermissions.tsx, packages/app/ui/components/ManageChannels/ChannelPermissionsContent.tsx, packages/app/ui/components/ManageChannels/channelFormUtils.ts -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/groups/EditChannelPrivacyScreen.tsx, packages/app/ui/components/ManageChannels/ChannelPermissions.tsx, packages/app/ui/components/ManageChannels/channelAccessSections.ts, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 <!-- covers: route:EditChannelPrivacy -->
 
-Phone: open the channel's info screen and tap `Permissions`. Switch on `Custom Permissions`. Tap `Add roles` to choose which roles get in, tap the circle under `Write` to let a role post or stop it posting, and tap the X under `Remove` to take a role out. Tap `Save`.
+Phone: open the channel's info screen and tap `Permissions`. On `Channel permissions`, set `Everyone` to `No access`, `Can view` or `Can post`, or change one role's level under `Roles`, then tap `Save` at the top right.
 Who: group admins. The row is greyed out while the app can't reach the group's host.
-Notes: `Permissions` reads `Public` when every member can read and post, and `Custom` otherwise. These screens never use the word "private". Switching on starts with admins and `Members` both allowed, so nothing changes until you edit the table. Switch it off and save to open the channel up again.
+Notes: `Permissions` reads `Everyone` when every member can read and post, and `Custom` otherwise. These screens never use the word "private". A role marked `Same as everyone` has no access of its own beyond what everyone has, and while `Everyone` has access the role can't go below it, so set `Everyone` to `No access` first to take that away. Setting `Everyone` back to `Can post` opens the channel up again.
 
 ## Make a channel where only admins can post
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/groups/EditChannelPrivacyScreen.tsx, packages/app/ui/components/ManageChannels/ChannelPermissions.tsx, packages/app/ui/components/ManageChannels/ChannelPermissionsContent.tsx, packages/app/ui/components/ManageChannels/channelFormUtils.ts -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/groups/EditChannelPrivacyScreen.tsx, packages/app/ui/components/ManageChannels/ChannelPermissions.tsx, packages/app/ui/components/ManageChannels/channelAccessSections.ts, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
-Phone: open the channel's info screen and tap `Permissions`. Switch on `Custom Permissions`; a `Members` row appears. In that row, tap the circle under `Write` so it is empty, and leave `Read` filled. Tap `Save`.
+Phone: open the channel's info screen and tap `Permissions`. On `Channel permissions`, set `Everyone` to `Can view`, then tap `Save` at the top right.
 Who: group admins.
-Notes: everyone in the group can still read, and only admins can post. To let one more role post, tap `Add roles`, add it, and fill its `Write` circle. The admin role's circles can't be changed. If the channel already had custom permissions, start from the rows that are there. This doesn't work for a Notebook, where reading and editing can't be separated.
+Notes: everyone in the group can still read, and only admins can post. A role still set to `Can post` can post too, so set it to `Can view` to stop that. This doesn't work for a Notebook, where its only levels are `No access` and `Can view and edit`.
 
 ## Give a role read-only access to a Notebook
-<!-- src: packages/shared/src/logic/notesPermissionsCompat.ts, packages/app/ui/components/ManageChannels/ChannelPermissions.tsx, packages/app/features/groups/EditChannelPrivacyScreen.tsx -->
+<!-- src: packages/shared/src/logic/notesPermissionsCompat.ts, packages/app/ui/components/ManageChannels/channelAccessSections.ts, packages/app/features/groups/EditChannelPrivacyScreen.tsx -->
 
-Notes: this isn't possible. A Notebook has a single permission, so any role that can read it can also edit it. With `Custom Permissions` on, the screen says `Notebook channels do not support separate read and write permissions. Roles that can read a notebook can also edit it.` The `Read` and `Write` circles move together, so emptying `Write` for a role takes it out of the notebook altogether. To stop people editing, leave their role out. Chat and Gallery channels do have separate `Read` and `Write`.
+Notes: this isn't possible. A Notebook has a single permission, so a role is either `No access` or `Can view and edit`, and any role that can read a notebook can also edit it. The line under the roles reads "… can see and edit this notebook." To stop people editing, leave their role out. Chat and Gallery channels do have separate `Can view` and `Can post` levels.
 
 ## Open a channel's info and settings
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/ChannelScreen.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx, packages/app/ui/components/ManageChannels/ManageChannelsShared.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/listItems/ChannelListItem.tsx -->
@@ -63,18 +55,18 @@ Desktop: hover the channel in the group's channel list and open its three-dot me
 Notes: all of these open `Channel info`. In a group with a single channel, the menu and the name at the top are the group's, not the channel's; only the `Channels` screen reaches that channel's own info.
 
 ## What the Channel info screen shows
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/utils/channelUtils.tsx -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/utils/channelUtils.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
-Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Permissions`, for admins only; `Notifications`, with the current level under it; `Host`, the node that runs the channel, which you can tap to open its profile; `Scheduled tasks` with a count, when your bot has tasks posting here or could post here; then `Leave channel` and `Delete channel` at the bottom when they apply to you. Admins also get `Rename` at the top right, or a pencil icon if they came from the group's `Channels` screen.
+Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Forward` and `Copy link` for a channel in a group, except a Notebook; `Permissions`, for admins only, reading `Everyone` or `Custom`; `Notifications`, with the current level beside it; `Host`, the node that runs the channel, which you can tap to open its profile; `Scheduled tasks` with a count, when your bot has tasks posting here or could post here; then "Leave channel" and `Delete channel` at the bottom when they apply to you. Admins also get `Edit` at the top right.
 
 ## Rename a channel or change its description
-<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/ui/components/ManageChannels/EditChannelMetaScreenView.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx, desk/app/notes.hoon -->
+<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/ui/components/ManageChannels/EditChannelMetaScreenView.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx, desk/app/notes.hoon, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 <!-- covers: route:EditChannelMeta -->
 <!-- absent: channel icon -->
 
-Phone: open the channel's `Channel info` screen and tap `Rename` at the top right. On `Edit channel info`, change `Name` and `Description`, then tap `Save`.
-Who: group admins. `Rename` is greyed out while the app can't reach the group's host.
-Notes: a name can be up to 30 characters and a description up to 300. In a group with several channels, the description shows under the channel's name at the top of the channel. If you opened the info from the group's channel-management screen, the button is a pencil icon instead of `Rename`. A channel has no picture of its own to set, and its type can't be changed after it's made. For a Notebook channel, the new name also becomes the notebook's title.
+Phone: open the channel's `Channel info` screen and tap `Edit` at the top right. On `Edit channel info`, change `Name` and `Description`, then tap `Save`.
+Who: group admins. `Edit` is greyed out while the app can't reach the group's host.
+Notes: a name can be up to 30 characters and a description up to 300. In a group with several channels, the description shows under the channel's name at the top of the channel. A channel has no picture of its own to set, and its type can't be changed after it's made. For a Notebook channel, the new name also becomes the notebook's title.
 
 ## Reorder channels or move one to another section
 <!-- src: packages/app/ui/components/ManageChannels/ManageChannelsShared.tsx, packages/app/ui/components/ManageChannels/ManageChannelsScreenView.tsx, packages/app/ui/components/ManageChannels/ManageChannelsScreenView.web.tsx, packages/app/hooks/useSortableChannelNav.ts -->
@@ -115,7 +107,7 @@ Who: anyone except the channel's host.
 Notes: the confirmation says `You will no longer receive updates from this channel.` You stay in the group, and the channel moves to `Available Channels` at the bottom of the group's channel list, where you can join it again.
 
 ## Why the menu says Cannot leave channel
-<!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/shared/src/store/channelActions.ts -->
+<!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/shared/src/store/channelActions.ts, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Notes: your node hosts that channel, usually because you made it. The press-and-hold menu shows `Cannot leave channel` with `Host (you) must delete to leave` under it, greyed out, and the channel's info screen has no `Leave channel` for you. The only way out is `Delete channel` at the bottom of the channel's info screen, which removes the channel for everyone. The `Host` row on that screen shows whose node runs a channel.
 
@@ -127,7 +119,7 @@ Desktop: the same section is at the bottom of the group's channel list in the si
 Notes: `Available Channels` holds the channels in the group that you aren't in and that your roles are allowed to read, so it is also where you join a channel you were never in. One tap joins; there is no confirmation. The section isn't shown when there is nothing to join.
 
 ## Delete a channel
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/ui/utils/channelUtils.tsx -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/ui/utils/channelUtils.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Phone: open the channel's info screen, scroll to the bottom, and tap `Delete channel`. In the dialog, tap `Delete channel` again to confirm or `Cancel` to back out.
 Who: group admins, and the channel's host.
@@ -142,6 +134,12 @@ Desktop: the option is in the three-dot menu, but its screen is only in the phon
 Who: you can only pick groups you host that have a name.
 Notes: this makes an empty channel of the same type and copies over the add-ons listed under `Modifications running in this channel:`. Messages aren't copied. Only Chat and Gallery channels offer it, a moment after the menu opens, once the app has loaded the add-on list (even an empty one). If copying fails, you see `Channel failed to setup with modifications` and the new channel is removed.
 
+## Share a channel in a chat, or copy its link
+<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/chatDetails.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx, packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/components/ForwardChannelSheet.tsx, packages/app/ui/components/ContentReference/ContentReference.tsx -->
+
+Phone: open the channel's info screen and tap `Forward`. In the `Forward channel` sheet, tap the chat you want, then tap the button at the bottom, which reads "Forward to" and the chat's name. To copy a link instead, press and hold the channel in its group's channel list and tap `Copy link to channel`; the info screen's `Copy link` does the same.
+Notes: what arrives is a card for the channel. Someone who is in its group can tap it to open the channel; anyone else is taken to the group's preview. A copied link works the same way once you paste it into a message box. Notebooks have neither option.
+
 ## Add a Buckets channel for shared files
 <!-- src: packages/app/ui/components/ManageChannels/CreateChannelSheet.tsx, packages/app/lib/featureFlags.ts, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/utils/channelUtils.tsx, packages/app/ui/components/SystemNotices.tsx -->
 <!-- flag: buckets -->
@@ -151,6 +149,6 @@ Who: group admins, in groups the app can tell are hosted on Tlon. In other group
 Notes: the switch is off by default and is set per device. A Bucket always lives on the group host's node and uses its storage. It can't be left, and it can't be deleted from its info screen.
 
 ## See who is in a channel
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/ui/components/ChatOptionsSheet.tsx -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelDetailsScreen.tsx, packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
-Notes: a channel in a group has no member list of its own. Its info screen shows the `Host` but not who is in it. Everyone in the group can see a channel unless its `Permissions` limit it to certain roles, so look at the group's members and their roles instead, from `Workspace info & settings`. The `Members` item in a press-and-hold menu belongs to group DMs, not to channels in a group.
+Notes: a channel in a group has no member list of its own. Its info screen shows the `Host` but not who is in it. Everyone in the group can see a channel unless its "Permissions" row limits it to certain roles, so look at the group's members and their roles instead, from `Workspace info & settings`. The `Members` item in a press-and-hold menu belongs to group DMs, not to channels in a group.

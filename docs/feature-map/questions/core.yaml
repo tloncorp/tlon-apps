@@ -132,7 +132,7 @@
   entry: "Make a channel where only admins can post"
   must:
     - "open the channel info and tap Permissions"
-    - "enable Custom Permissions and empty Members Write while leaving Read filled"
+    - "set Everyone to Can view"
     - "tap Save"
 
 - id: notebook-read-only-role
@@ -211,7 +211,7 @@
   file: contacts-and-profile.md
   entry: "Verify your phone number"
   must:
-    - "Settings, Your profile, pencil icon, then Phone under Connected Accounts"
+    - "Settings, Your profile, pencil icon, then Phone under Connected accounts"
     - "enter the number and tap Connect Phone Number"
     - "enter the six-digit code sent to that number"
 
@@ -456,7 +456,7 @@
   must:
     - "on Channel rules select the channel and enable Tlonbot there"
     - "choose Allowlist only and add usernames"
-    - "tap Done and apply from Permissions"
+    - "go back and apply from Permissions"
 
 - id: bot-settings-pending
   ask: "i changed my included bot's name on my phone but nothing happened. how do i actually save it?"
@@ -754,7 +754,7 @@
   file: contacts-and-profile.md
   entry: "Remove a verified phone number or X account"
   must:
-    - "Settings, Your profile, pencil icon, then Phone under Connected Accounts"
+    - "Settings, Your profile, pencil icon, then Phone under Connected accounts"
     - "tap Revoke at the bottom"
 
 - id: gallery-readonly-comment
