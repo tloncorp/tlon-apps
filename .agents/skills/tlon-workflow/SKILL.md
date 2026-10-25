@@ -45,7 +45,7 @@ The default branch is `develop`; every branch starts there and every PR targets 
 
 ### 2. Run the app
 
-Stim builds the app on this machine, installs it on an EAS Simulator session, and serves it JavaScript from this worktree's Metro through an Expo tunnel (`metro.tunnel` in `apps/tlon-mobile/.stim.json`). Nothing boots locally.
+Stim builds the app on this machine (on iOS without Xcode, downloads it; see below), installs it on an EAS Simulator session, and serves it JavaScript from this worktree's Metro through an Expo tunnel (`metro.tunnel` in `apps/tlon-mobile/.stim.json`). Nothing boots locally.
 
 ```bash
 eas sim:availability                      # "available" for the tlon account
@@ -67,6 +67,14 @@ From the output keep the session ID (`device  EAS Simulator (<id>)`, or `udid` u
 For Android, the same line with `stim android --remote eas`. Keep the `&& ... keepalive` on every run, backgrounded or not: it has to start the moment Stim returns (see below).
 
 A cold `stim ios` outlasts most tool timeouts: run it in the background or with the longest timeout you have, and rerun the same command if a call times out. A rerun reuses the session. So does `stim ios --remote eas` after a native change.
+
+**iOS without Xcode** (Linux, or a Mac where `xcodebuild -version` fails; the doctor's `xcode` line says which): the app cannot build here, so add `--eas-profile development-simulator` to every `stim ios` in this skill. Stim then downloads the EAS development build whose native fingerprint matches this worktree, before it creates the session, and installs that; JavaScript still comes from Metro and Fast Refresh works as above. With Xcode, leave the flag off and build locally.
+
+```bash
+stim ios --remote eas --eas-profile development-simulator && node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs keepalive
+```
+
+When no build matches, Stim stops with `STIM_EAS_BUILD_MISSING` before any session exists and prints the build command, `npx eas-cli build --platform ios --profile development-simulator`. That is a cloud build of about 25 minutes, billed to the tlon account: ask the user before running it, then run the same `stim ios` line again. Builds are shared across the account, so a branch that changes no native input reuses the build for its base once anyone has made it; a branch that does needs a new build after each native change. `--eas-profile` cannot be combined with `--scheme`, so the preview flavor below has no cloud-build path.
 
 Android on EAS Simulator is marked in development by eas-cli, and this workflow has not been run against it: expect gaps and report them. The APK still builds here, so it needs the Android SDK. If Gradle fails with `java.lang.OutOfMemoryError: Java heap space`, the knob is `org.gradle.jvmargs=-Xmx2048m` in `android/gradle.properties`.
 
