@@ -275,8 +275,17 @@ test('getGroup returns nav sections in their saved order', async () => {
     ],
   });
 
+  // Added since the last full sync, so it has no saved index yet.
+  await queries.addNavSectionToGroup({
+    id: `${groupId}-new`,
+    sectionId: 'new',
+    groupId,
+    meta: { title: 'New' },
+  });
+
   const group = await queries.getGroup({ id: groupId });
   expect(group?.navSections.map((s) => s.sectionId)).toEqual([
+    'new',
     'indoors',
     'outdoors',
     'default',

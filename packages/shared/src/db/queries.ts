@@ -6406,6 +6406,8 @@ export const getGroup = createReadQuery(
           bannedMembers: true,
           // In their saved order: rows land in the table in whatever order
           // this device learned of them, such as a new section after the rest.
+          // A section added since the last full sync has no index yet and
+          // sorts first, which is where the backend puts a new section.
           navSections: {
             orderBy: [asc($groupNavSections.sectionIndex)],
             with: {
