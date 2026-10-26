@@ -7,7 +7,9 @@ export const useAppStatusChange = (
   callback: (status: AppStatus) => void | Promise<void>
 ) => {
   const [signaledAppOpen, setSignaledAppOpen] = useState(false);
-  const appStateRef = useRef<AppStateStatus | null>(AppState.currentState);
+  const appStateRef = useRef<typeof AppState.currentState>(
+    AppState.currentState
+  );
 
   useEffect(() => {
     if (!signaledAppOpen) {

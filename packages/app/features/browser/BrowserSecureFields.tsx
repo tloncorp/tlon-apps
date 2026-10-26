@@ -1,5 +1,6 @@
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useState } from 'react';
+import type { KeyDownEvent } from 'react-native';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { TextInput } from '../../ui/components/Form/inputs';
@@ -59,7 +60,9 @@ function SecureField({
               tabIndex={disabled ? -1 : 0}
               onKeyDown={
                 isWeb
-                  ? (event) => {
+                  ? // React DOM's keyboard event carries `key`; React
+                    // Native's own key event does not.
+                    (event: KeyDownEvent & { key?: string }) => {
                       if (
                         !disabled &&
                         (event.key === 'Enter' || event.key === ' ')

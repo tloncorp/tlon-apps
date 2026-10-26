@@ -72,6 +72,7 @@ jest.mock('@tloncorp/app/ui', () => {
   const { View, Text } = require('react-native');
   return {
     ForwardPostSheetProvider: View,
+    View,
     ZStack: View,
     LoadingSpinner: () => <Text>Checking session</Text>,
     useWebAppSplash: () => ({}),
