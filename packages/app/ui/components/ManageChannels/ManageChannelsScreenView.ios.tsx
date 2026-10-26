@@ -35,10 +35,12 @@ const logger = createDevLogger('ManageChannelsScreenView', false);
 /**
  * The group's channels in its native list. A channel moves between sections
  * from its long-press menu, and a section is renamed, moved or deleted from
- * the menu beside its title. Edit reorders either the channels or the
- * sections, as Discord's reorder screen does: SwiftUI only drops a row back
- * into the list it came from, so each is one list. Channels are listed under
- * their sections' names, and a channel joins the section it's dropped under.
+ * the menu beside its title. The header's reorder menu reorders either the
+ * channels or the sections, as Discord's reorder screen does: SwiftUI only
+ * drops a row back into the list it came from, so each is one list. Channels
+ * are listed under their sections' names, and a channel joins the section it's
+ * dropped under; dragging a name moves where its section starts, as Android
+ * and web do.
  */
 export function ManageChannelsScreenView({
   group,
@@ -137,28 +139,8 @@ export function ManageChannelsScreenView({
           section.channels.map((channel) => [channel.id, channel] as const)
         )
       );
-      const modeSection: SettingsSectionModel = {
-        key: 'reorder-mode',
-        rows: [
-          {
-            key: 'reorder-mode',
-            title: 'Reorder',
-            picker: {
-              value: reorderMode,
-              options: [
-                { value: 'channels', title: 'Channels' },
-                { value: 'sections', title: 'Sections' },
-              ],
-              onChange: (value) => setReorderMode(value as ReorderMode),
-              segmented: true,
-            },
-            testID: 'ManageChannelsReorderMode',
-          },
-        ],
-      };
       return reorderMode === 'sections'
         ? [
-            modeSection,
             {
               key: 'reorder-sections',
               footer: 'A section keeps its channels when it moves.',
@@ -175,7 +157,6 @@ export function ManageChannelsScreenView({
             },
           ]
         : [
-            modeSection,
             {
               key: 'reorder-channels',
               footer: 'Drag a channel under a section to move it there.',
@@ -378,7 +359,13 @@ export function ManageChannelsScreenView({
 
   return (
     <SettingsListScreenView
-      title="Channels"
+      title={
+        !isEditMode
+          ? 'Channels'
+          : reorderMode === 'sections'
+            ? 'Reorder sections'
+            : 'Reorder channels'
+      }
       sections={sections}
       onBackPressed={onGoBack}
       showsBackOnWideWindows
@@ -388,13 +375,38 @@ export function ManageChannelsScreenView({
       rightActions={[
         {
           id: 'ManageChannelsSort',
-          // iOS calls its reorder mode Edit.
-          text: isEditMode ? 'Done' : 'Edit',
-          // Done ends editing, which iOS draws as its confirming action.
-          tint: isEditMode ? '$positiveActionText' : '$primaryText',
-          prominent: isEditMode,
-          onPress: () => setIsEditMode(!isEditMode),
+          icon: 'EditList',
+          label: 'Reorder',
+          visible: !isEditMode,
+          items: [
+            {
+              id: 'channels',
+              label: 'Reorder channels',
+              onPress: () => {
+                setReorderMode('channels');
+                setIsEditMode(true);
+              },
+            },
+            {
+              id: 'sections',
+              label: 'Reorder sections',
+              onPress: () => {
+                setReorderMode('sections');
+                setIsEditMode(true);
+              },
+            },
+          ],
           testID: 'ManageChannelsSort',
+        },
+        {
+          id: 'ManageChannelsDone',
+          text: 'Done',
+          // Done ends reordering, which iOS draws as its confirming action.
+          tint: '$positiveActionText',
+          prominent: true,
+          visible: isEditMode,
+          onPress: () => setIsEditMode(false),
+          testID: 'ManageChannelsDone',
         },
         {
           id: 'ManageChannelsNew',

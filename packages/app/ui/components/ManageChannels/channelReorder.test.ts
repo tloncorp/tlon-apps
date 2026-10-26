@@ -83,12 +83,43 @@ describe('moveChannels', () => {
     ]);
   });
 
-  it('never moves a section’s name', () => {
-    expect(moveChannels(order, [2], 0)).toBeNull();
-    expect(channelsBySection(moveChannels(order, [2, 3], 0))).toEqual([
-      'indoors: plants,garden',
-      'outdoors: ',
+  it('moves a channel to the end of a section that isn’t the last', () => {
+    expect(channelsBySection(moveChannels(order, [6], 2))).toEqual([
+      'indoors: garden,lounge',
+      'outdoors: plants',
+      'default: tips',
+    ]);
+  });
+
+  it('moves where a section starts when its name moves', () => {
+    // Outdoors' name moved up above Garden talk, which joins Outdoors.
+    expect(channelsBySection(moveChannels(order, [2], 1))).toEqual([
+      'indoors: ',
+      'outdoors: garden,plants',
       'default: tips,lounge',
     ]);
+  });
+
+  it('reorders sections when a name moves past another', () => {
+    // No section's name moved to the top: it now leads, and the channels
+    // that were below it stay below Outdoors' name, so join Outdoors.
+    expect(channelsBySection(moveChannels(order, [4], 0))).toEqual([
+      'default: ',
+      'indoors: garden',
+      'outdoors: plants,tips,lounge',
+    ]);
+  });
+
+  it('keeps channels left above every name in the first section', () => {
+    // Indoors' name moved below Plant pics, leaving Garden talk on top.
+    expect(channelsBySection(moveChannels(order, [0], 4))).toEqual([
+      'outdoors: garden,plants',
+      'indoors: ',
+      'default: tips,lounge',
+    ]);
+  });
+
+  it('reports no change for a move back to the same place', () => {
+    expect(moveChannels(order, [1], 1)).toBeNull();
   });
 });

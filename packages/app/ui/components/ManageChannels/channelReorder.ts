@@ -1,3 +1,5 @@
+import { isEqual } from 'lodash';
+
 /** A group's channels by section, in order. */
 export type ChannelOrder = {
   sectionId: string;
@@ -30,32 +32,34 @@ export function channelReorderItems(order: ChannelOrder): ChannelReorderItem[] {
 }
 
 /**
- * The order after a move in that list. A channel joins the section named
- * above it, and one dropped above every name joins the first section. Names
- * can't be dragged, so any in the move stay where they are. Returns null when
- * nothing moves.
+ * The order after a move in that list, read the way Android and web read
+ * theirs: sections come in the order of their names, and a channel belongs to
+ * the section named above it. So moving a name moves where its section
+ * starts. A channel above every name joins the first section. Returns null
+ * when nothing changes.
  */
 export function moveChannels(
   order: ChannelOrder,
   from: number[],
   to: number
 ): ChannelOrder | null {
-  const items = channelReorderItems(order);
-  const moving = from.filter((index) => items[index]?.kind === 'channel');
-  if (moving.length === 0) return null;
-  const next = order.map((section) => ({
-    ...section,
-    channelIds: [] as string[],
-  }));
-  let sectionIndex = 0;
-  for (const item of reorder(items, moving, to)) {
+  const items = reorder(channelReorderItems(order), from, to);
+  const next: ChannelOrder = [];
+  const beforeFirstName: string[] = [];
+  for (const item of items) {
     if (item.kind === 'heading') {
-      sectionIndex = next.findIndex(
-        (section) => section.sectionId === item.sectionId
+      const section = order.find(
+        (candidate) => candidate.sectionId === item.sectionId
       );
+      if (section) next.push({ ...section, channelIds: [] });
+    } else if (next.length === 0) {
+      beforeFirstName.push(item.id);
     } else {
-      next[sectionIndex].channelIds.push(item.id);
+      next[next.length - 1].channelIds.push(item.id);
     }
   }
-  return next;
+  if (next.length > 0) {
+    next[0].channelIds.unshift(...beforeFirstName);
+  }
+  return isEqual(next, order) ? null : next;
 }
