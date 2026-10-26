@@ -8,6 +8,7 @@ import {
   recordTlonMessageJourneyEvent,
 } from './message-journey.js';
 import type { AgentEndEvent, AgentHookContext } from './agent-hook-types.js';
+import type { SenderRole } from './session-roles.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 import { isSuccessfulSilentAgentOutput } from './silent-reply.js';
 import { isSupersededToolOutcome } from './superseded-turn.js';
@@ -83,6 +84,8 @@ export type TlonAgentTurnStart = {
   sessionKey: string;
   ship: string;
   trigger: TlonAgentTurnTrigger;
+  /** Sender of the message this turn answers. */
+  senderRole?: SenderRole;
 };
 
 export type TlonAgentTurnTerminal = {
@@ -675,6 +678,22 @@ function updateActiveTurn(update: (state: TlonAgentTurnState) => void): void {
     return;
   }
   update(state);
+}
+
+/** The active turn's run, session, and sender role, if a turn is active. */
+export function getActiveTlonTurnRequester(): {
+  runId: string;
+  sessionKey: string;
+  senderRole: SenderRole | undefined;
+} | null {
+  const state = turnStorage.getStore();
+  return state && !state.finalized
+    ? {
+        runId: state.runId,
+        sessionKey: state.sessionKey,
+        senderRole: state.senderRole,
+      }
+    : null;
 }
 
 export function getActiveTlonTurnAccountId(): string | null {

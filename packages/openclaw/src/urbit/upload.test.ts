@@ -1026,3 +1026,33 @@ describe('prepareOutboundMedia', () => {
     });
   });
 });
+
+describe('prepareOutboundMedia non-owner backstop', () => {
+  it('refuses to read media inside a non-owner turn', async () => {
+    const { prepareOutboundMedia } = await import('./upload.js');
+    const { startTlonAgentTurn } = await import('../turn-recorder.js');
+    const { NON_OWNER_MEDIA_ERROR } = await import('../non-owner-media.js');
+    const turn = startTlonAgentTurn(
+      {
+        accountId: 'hosted',
+        agentId: 'main',
+        destinationKind: 'dm',
+        inputMessageId: '~nec/1',
+        runId: 'upload-backstop',
+        sessionKey: 'agent:main:tlon:direct:~nec',
+        ship: '~zod',
+        trigger: 'dm',
+        senderRole: 'user',
+      },
+      {
+        observer: {
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
+    await expect(
+      turn.run(() => prepareOutboundMedia('/workspace/private.txt'))
+    ).rejects.toThrow(NON_OWNER_MEDIA_ERROR);
+  });
+});

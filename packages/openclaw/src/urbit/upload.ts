@@ -12,6 +12,10 @@ import {
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
 import { loadWebMedia } from 'openclaw/plugin-sdk/web-media';
 
+import {
+  NON_OWNER_MEDIA_ERROR,
+  activeTurnForbidsMedia,
+} from '../non-owner-media.js';
 import { tlonMediaUserAgent } from '../version.js';
 import { getDefaultSsrFPolicy } from './context.js';
 
@@ -217,6 +221,8 @@ export async function prepareOutboundMedia(
     'mediaAccess' | 'mediaLocalRoots' | 'mediaReadFile'
   > = {}
 ): Promise<{ url: string; isImage: boolean }> {
+  // Backstop for any caller that skips the adapter's gate.
+  if (activeTurnForbidsMedia()) throw new Error(NON_OWNER_MEDIA_ERROR);
   const classified = classifyInput(mediaUrl);
 
   switch (classified.kind) {
