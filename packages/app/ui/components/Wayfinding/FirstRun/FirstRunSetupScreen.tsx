@@ -28,7 +28,7 @@ export function FirstRunSetupScreen({
       body={failed ? copy.failedBody : copy.waitingBody}
       footer={
         failed ? (
-          <YStack gap="$xs">
+          <YStack gap="$l">
             <Button
               preset="hero"
               shadow
@@ -38,8 +38,8 @@ export function FirstRunSetupScreen({
             />
             {onSkip ? (
               <Button
-                preset="minimal"
-                intent="secondary"
+                preset="secondary"
+                backgroundColor="$transparent"
                 centered
                 label={copy.skip}
                 onPress={onSkip}

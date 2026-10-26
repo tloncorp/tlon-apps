@@ -127,7 +127,7 @@ export function FirstRunSheet({
               {footnote}
             </Text>
           ) : null}
-          <YStack gap="$xs" marginTop="$xs">
+          <YStack gap="$l" marginTop="$xs">
             <Button
               preset="hero"
               label={primaryLabel}
@@ -137,8 +137,8 @@ export function FirstRunSheet({
               testID="first-run-sheet-primary"
             />
             <Button
-              preset="minimal"
-              intent="secondary"
+              preset="secondary"
+              backgroundColor="$transparent"
               centered
               label={secondaryLabel}
               onPress={onSecondary}
