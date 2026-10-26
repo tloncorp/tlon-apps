@@ -439,6 +439,7 @@ function FlowRun({
     featured: selectFeaturedServices(CATALOG, rows),
     attempts,
     anyConnected: connected.length > 0,
+    busy: false,
     allServicesCount: ALL_SERVICES_COUNT,
     startConnect,
     checkAgain: (id) => {

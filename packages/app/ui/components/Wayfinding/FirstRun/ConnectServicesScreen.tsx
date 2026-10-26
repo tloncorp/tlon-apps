@@ -30,6 +30,7 @@ export function ConnectServicesScreen({
   attempts,
   allServicesCount,
   anyConnected,
+  busy = false,
   onStartConnect,
   onCheckAgain,
   onAllServices,
@@ -45,6 +46,8 @@ export function ConnectServicesScreen({
   attempts: Record<string, ServiceAttempt | undefined>;
   allServicesCount: number;
   anyConnected: boolean;
+  /** Another connect or disconnect is running, so new sign-ins wait. */
+  busy?: boolean;
   onStartConnect: (providerId: string) => void;
   onCheckAgain: (providerId: string) => void;
   onAllServices: () => void;
@@ -59,7 +62,7 @@ export function ConnectServicesScreen({
       null
   );
   const [sheetOpen, setSheetOpen] = useState(!!initialSheetProviderId);
-  const signInInFlight = Object.values(attempts).includes('connecting');
+  const signInInFlight = busy || Object.values(attempts).includes('connecting');
 
   const openSheet = (service: FeaturedService) => {
     setSheetService(service);

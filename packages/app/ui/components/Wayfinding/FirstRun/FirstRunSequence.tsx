@@ -72,6 +72,8 @@ export type FirstRunServicesAdapter = {
   featured: FeaturedService[];
   attempts: Record<string, ServiceAttempt | undefined>;
   anyConnected: boolean;
+  /** Another connect or disconnect is running, so new sign-ins wait. */
+  busy: boolean;
   allServicesCount: number;
   startConnect: (providerId: string) => void;
   checkAgain: (providerId: string) => void;
@@ -363,6 +365,7 @@ export function FirstRunSequence({
           attempts={services.attempts}
           allServicesCount={services.allServicesCount}
           anyConnected={services.anyConnected}
+          busy={services.busy}
           onStartConnect={services.startConnect}
           onCheckAgain={services.checkAgain}
           onAllServices={() => setPane('allServices')}

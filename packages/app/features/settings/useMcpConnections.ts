@@ -36,6 +36,8 @@ export type McpConnectionEvent =
   | { type: 'disconnected'; providerId: string }
   | { type: 'disconnect-failed'; providerId: string };
 
+export type ConnectStart = 'started' | 'busy' | 'unavailable';
+
 /**
  * The connector catalog, this account's grants, and connecting or
  * disconnecting a service through the provider's own sign-in. Shared by the
@@ -233,10 +235,21 @@ export function useMcpConnections({
     [providerConfigs, status?.grants]
   );
 
+  /**
+   * Start a provider's sign-in. Says whether it started: another connect or
+   * disconnect in flight makes it "busy", and no signed-in user makes it
+   * "unavailable". Once started, the outcome arrives as an event.
+   */
   const connect = useCallback(
-    async (providerId: string) => {
-      if (!currentUserId || startingProviderId || disconnectingProviderId) {
-        return;
+    async (providerId: string): Promise<ConnectStart> => {
+      if (!currentUserId) return 'unavailable';
+      // The ref also catches a second tap before the first one re-renders.
+      if (
+        startingProviderIdRef.current ||
+        startingProviderId ||
+        disconnectingProviderId
+      ) {
+        return 'busy';
       }
 
       setStarting(providerId);
@@ -266,6 +279,7 @@ export function useMcpConnections({
         setStarting(null);
         emit({ type: 'start-failed', providerId });
       }
+      return 'started';
     },
     [
       currentUserId,

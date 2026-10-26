@@ -108,6 +108,7 @@ function useLiveServices(): FirstRunServicesAdapter {
     featured: live.featured,
     attempts: live.attempts,
     anyConnected: live.anyConnected,
+    busy: live.busy,
     allServicesCount: connections.providers.length,
     startConnect: live.startConnect,
     checkAgain: live.checkAgain,

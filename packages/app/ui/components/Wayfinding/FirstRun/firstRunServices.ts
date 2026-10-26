@@ -1,6 +1,9 @@
 import type { TlawnOAuthProvider } from '@tloncorp/api';
 
-import type { McpConnectionEvent } from '../../../../features/settings/useMcpConnections';
+import type {
+  ConnectStart,
+  McpConnectionEvent,
+} from '../../../../features/settings/useMcpConnections';
 import type { McpProviderRow } from '../../../../lib/mcpProviders';
 import {
   FIRST_RUN_FEATURED_SERVICES,
@@ -91,6 +94,24 @@ export function attemptAfterCheck(
       return 'failed';
     case 'canceled':
       return 'cancelled';
+  }
+}
+
+/**
+ * When the connection hook doesn't start a sign-in, what the row goes back
+ * to: idle if something else was running, failed if it can't run at all.
+ * A started sign-in reports through events instead, so this returns null.
+ */
+export function attemptAfterRefusedStart(
+  start: ConnectStart
+): { attempt: ServiceAttempt | undefined } | null {
+  switch (start) {
+    case 'started':
+      return null;
+    case 'busy':
+      return { attempt: undefined };
+    case 'unavailable':
+      return { attempt: 'failed' };
   }
 }
 

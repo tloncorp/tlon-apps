@@ -12,6 +12,7 @@ import {
 import {
   type ServiceAttempt,
   attemptAfterCheck,
+  attemptAfterRefusedStart,
   hasConnectedService,
   selectFeaturedServices,
   shouldAnnounceConnectionEvent,
@@ -104,10 +105,18 @@ export function useFirstRunServices() {
     void refreshStatus();
   }, [refreshStatus]);
 
+  // Another connect or disconnect (say, from the full services list) blocks
+  // a new sign-in, so the rows wait for it instead of starting one the hook
+  // would refuse.
+  const busy = connections.busyProviderId !== null;
   const startConnect = useCallback(
     (providerId: string) => {
+      if (connections.busyProviderId) return;
       setAttempt(providerId, 'connecting');
-      void connections.connect(providerId);
+      void connections.connect(providerId).then((start) => {
+        const refused = attemptAfterRefusedStart(start);
+        if (refused) setAttempt(providerId, refused.attempt);
+      });
     },
     [connections, setAttempt]
   );
@@ -148,6 +157,7 @@ export function useFirstRunServices() {
     attempts,
     unavailable,
     anyConnected: hasConnectedService(connections.providers),
+    busy,
     startConnect,
     checkAgain,
     setAllServicesOpen,

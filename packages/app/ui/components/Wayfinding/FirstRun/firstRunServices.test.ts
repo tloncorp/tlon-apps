@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { McpProviderRow } from '../../../../lib/mcpProviders';
 import {
   attemptAfterCheck,
+  attemptAfterRefusedStart,
   featuredRowState,
   hasConnectedService,
   selectFeaturedServices,
@@ -114,6 +115,17 @@ describe('a featured row after connecting', () => {
   it('offers Try again after a cancelled or failed sign-in', () => {
     expect(attemptAfterCheck(false, 'canceled')).toBe('cancelled');
     expect(attemptAfterCheck(false, 'failed')).toBe('failed');
+  });
+
+  it('undoes Connecting when the hook refuses to start a sign-in', () => {
+    // A disconnect still running from the full list: back to Connect.
+    expect(attemptAfterRefusedStart('busy')).toEqual({ attempt: undefined });
+    // No signed-in user: say it couldn't connect, with Try again.
+    expect(attemptAfterRefusedStart('unavailable')).toEqual({
+      attempt: 'failed',
+    });
+    // Started sign-ins report through events; leave the row alone.
+    expect(attemptAfterRefusedStart('started')).toBeNull();
   });
 
   it('announces every event while the full services list is open', () => {
