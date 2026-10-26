@@ -292,6 +292,72 @@ describe('cleanCronToolArgs', () => {
     expect(cleaned?.job).not.toHaveProperty('failureAlert');
   });
 
+  it('keeps schedule spellings core canonicalizes', () => {
+    for (const schedule of [
+      { kind: 'at', atMs: 1893492000000 },
+      { kind: 'cron', cron: '0 9 * * 1' },
+    ]) {
+      const cleaned = cleanCronToolArgs({
+        action: 'add',
+        job: {
+          name: 'Weekly roundup',
+          schedule,
+          payload: { kind: 'agentTurn', message: 'Round up releases.' },
+        },
+      });
+      expect(cleaned?.job).toMatchObject({ schedule });
+    }
+  });
+
+  it('keeps a payload change that leaves the prompt as it is', () => {
+    const cleaned = cleanCronToolArgs({
+      action: 'update',
+      jobId: 'job-1',
+      job: {
+        ...placeholderJob9,
+        payload: {
+          ...placeholderJob9.payload,
+          kind: 'agentTurn',
+          text: '',
+          model: 'openai/gpt-5',
+        },
+      },
+    });
+    expect(cleaned?.job).toEqual({
+      payload: {
+        kind: 'agentTurn',
+        model: 'openai/gpt-5',
+        lightContext: false,
+        allowUnsafeExternalContent: false,
+      },
+      enabled: true,
+      deleteAfterRun: false,
+    });
+  });
+
+  it('keeps "x" where it is the owner’s data', () => {
+    const watcher = {
+      kind: 'stream',
+      command: ['tail', '-F', 'x'],
+      mode: 'match',
+      match: 'x',
+    };
+    const cleaned = cleanCronToolArgs({
+      action: 'update',
+      jobId: 'job-1',
+      job: {
+        name: 'x',
+        schedule: watcher,
+        payload: { kind: 'agentTurn', message: 'Placeholder' },
+      },
+    });
+    expect(cleaned?.job).toEqual({
+      name: 'x',
+      schedule: watcher,
+      payload: { kind: 'agentTurn', message: 'Placeholder' },
+    });
+  });
+
   it('leaves spellings it does not recognise as they were sent', () => {
     // Core also accepts these; rewriting them would drop the whole job.
     expect(

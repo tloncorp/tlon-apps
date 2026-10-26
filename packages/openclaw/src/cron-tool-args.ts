@@ -1,24 +1,25 @@
 // The model fills every field of the cron tool's schema, whether or not it
-// means to set it: empty strings or "x", nulls, `fallbacks: []`, a schedule of
-// every 1 ms, a trigger that never fires, `sessionTarget: "main"`, delivery
-// mode "none", and every schedule and payload kind's fields at once. Core
-// rejects some of that outright ("cron patch agentId cannot be changed") and
-// quietly applies the rest, which can strip a job's delivery or make a
-// scheduled run strict about fallbacks. This keeps what the model actually set
-// and drops the placeholders before the call runs.
+// means to set it: empty strings, nulls, `fallbacks: []`, a schedule of every
+// 1 ms, a trigger that never fires, `sessionTarget: "main"`, delivery mode
+// "none", and every schedule and payload kind's fields at once. Core rejects
+// some of that outright ("cron patch agentId cannot be changed") and quietly
+// applies the rest, which can strip a job's delivery or make a scheduled run
+// strict about fallbacks. This keeps what the model actually set and drops the
+// placeholders before the call runs. A null would clear a field on update, but
+// the model sends null for every nullable field, so null reads as unset.
 
 type Json = Record<string, unknown>;
 
 const MIN_EVERY_MS = 60_000;
 const NEVER_FIRES = /^\s*return\s*\{\s*fire\s*:\s*false\s*\}\s*;?\s*$/;
-// What the model writes into a string it has to fill but means to leave
-// unset, such as a field with a minimum length.
+// What the model writes into `declarationKey` (which can't be empty) and a
+// systemEvent's `text` when it means to leave them unset.
 const PLACEHOLDER_STRINGS = new Set(['x', 'placeholder']);
 // Fields an update has no business changing on its own initiative; the model
 // only ever sets them to the schema's first enum value.
 const UPDATE_PLACEHOLDER_FIELDS = ['sessionTarget', 'wakeMode'];
-// Core's schedules and payloads are closed per kind, so a field from another
-// kind fails the whole call. The first field of each kind is the one it needs.
+// Core's schedules and payloads are closed per kind, so a field that belongs
+// to another kind fails the whole call.
 const SCHEDULE_FIELDS: Record<string, string[]> = {
   at: ['at'],
   every: ['everyMs', 'anchorMs'],
@@ -63,15 +64,12 @@ const CRON_ACTION_FIELDS = new Set([
 const isObject = (value: unknown): value is Json =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
-/** Drop nulls, empty and placeholder strings, empty arrays and objects left empty by that. */
+const isPlaceholder = (value: unknown) =>
+  typeof value === 'string' && PLACEHOLDER_STRINGS.has(value);
+
+/** Drop nulls, empty strings, empty arrays and objects left empty by that. */
 function prune(value: unknown): unknown {
   if (value === null || value === '') return undefined;
-  if (
-    typeof value === 'string' &&
-    PLACEHOLDER_STRINGS.has(value.trim().toLowerCase())
-  ) {
-    return undefined;
-  }
   if (Array.isArray(value)) {
     const items = value.map(prune).filter((item) => item !== undefined);
     return items.length ? items : undefined;
@@ -84,21 +82,25 @@ function prune(value: unknown): unknown {
 }
 
 /**
- * Only the fields of the value's own kind, or undefined when the field that
- * kind needs is missing. A kind this doesn't know passes through as sent.
+ * The value without the fields of other kinds, or undefined when nothing but
+ * its kind is left. Fields no kind lists, such as the `atMs` and `cron`
+ * spellings core canonicalizes, stay; a kind this doesn't know passes through.
  */
-function keepKindFields(
+function dropOtherKindsFields(
   value: Json,
   fieldsByKind: Record<string, string[]>
 ): Json | undefined {
-  const fields = fieldsByKind[String(value.kind)];
-  if (!fields) return value;
-  if (value[fields[0]] === undefined) return undefined;
-  return Object.fromEntries(
-    Object.entries(value).filter(
-      ([key]) => key === 'kind' || fields.includes(key)
-    )
+  const own = fieldsByKind[String(value.kind)];
+  if (!own) return value;
+  const others = new Set(
+    Object.values(fieldsByKind)
+      .flat()
+      .filter((field) => !own.includes(field))
   );
+  const kept = Object.fromEntries(
+    Object.entries(value).filter(([key]) => !others.has(key))
+  );
+  return Object.keys(kept).some((key) => key !== 'kind') ? kept : undefined;
 }
 
 /** One job or patch, with placeholders that would change the job removed. */
@@ -107,6 +109,7 @@ function cleanJob(raw: unknown, isPatch: boolean): Json | undefined {
   if (!isObject(job)) return undefined;
 
   delete job.owner;
+  if (isPlaceholder(job.declarationKey)) delete job.declarationKey;
   if (isObject(job.trigger) && NEVER_FIRES.test(String(job.trigger.script))) {
     delete job.trigger;
   }
@@ -114,7 +117,7 @@ function cleanJob(raw: unknown, isPatch: boolean): Json | undefined {
     const schedule = job.schedule;
     if (schedule.anchorMs === 0) delete schedule.anchorMs;
     if (schedule.staggerMs === 0) delete schedule.staggerMs;
-    const kept = keepKindFields(schedule, SCHEDULE_FIELDS);
+    const kept = dropOtherKindsFields(schedule, SCHEDULE_FIELDS);
     if (
       !kept ||
       (kept.kind === 'every' && !(Number(kept.everyMs) >= MIN_EVERY_MS))
@@ -127,12 +130,11 @@ function cleanJob(raw: unknown, isPatch: boolean): Json | undefined {
   if (isObject(job.payload)) {
     const payload = job.payload;
     if (payload.timeoutSeconds === 0) delete payload.timeoutSeconds;
-    const kept = keepKindFields(payload, PAYLOAD_FIELDS);
-    if (kept && (kept.text || kept.message || kept.argv || kept.script)) {
-      job.payload = kept;
-    } else {
-      delete job.payload;
-    }
+    if (isPlaceholder(payload.text)) delete payload.text;
+    // An update may change one field of the payload and keep its prompt.
+    const kept = dropOtherKindsFields(payload, PAYLOAD_FIELDS);
+    if (kept) job.payload = kept;
+    else delete job.payload;
   }
   if (isObject(job.delivery)) {
     const delivery = job.delivery;
