@@ -463,6 +463,31 @@ describe('argument-gated tools', () => {
     ).toEqual({ ownerOnly: false, blocked: false });
   });
 
+  it('lets a non-owner send public https media under a URL media key', () => {
+    const cfg = { channels: { tlon: { url: 'https://zod.tlon.network' } } };
+    const decide = (params: Record<string, unknown>) =>
+      resolveOwnerOnlyToolBlock('message', 'user', params, cfg as never);
+    for (const params of [
+      { action: 'send', media: 'https://a.example/c.png' },
+      { action: 'send', mediaUrl: 'https://a.example/c.png', message: 'hi' },
+      { message: 'hi', mediaUrls: ['https://a.example/c.png'] },
+    ]) {
+      expect(decide(params)).toEqual({ ownerOnly: false, blocked: false });
+    }
+    for (const params of [
+      { action: 'send', media: 'https://zod.tlon.network/c.png' },
+      { action: 'send', mediaUrls: ['https://a.example/c.png', '/x.png'] },
+      { action: 'send', mediaUrls: [{ url: 'https://a.example/c.png' }] },
+      { action: 'reply', messageId: '~zod/1', media: 'https://a.example/c' },
+      { action: 'send', path: 'https://a.example/c.png' },
+    ]) {
+      expect(decide(params)).toMatchObject({
+        blocked: true,
+        reason: MESSAGE_MEDIA_BLOCK_REASON,
+      });
+    }
+  });
+
   it('blocks a local path in an allowed message addressing key', () => {
     expect(
       resolveOwnerOnlyToolBlock('message', 'user', {
