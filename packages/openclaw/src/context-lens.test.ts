@@ -1353,6 +1353,7 @@ describe('retry seed and dispatch', () => {
         isThreadReply: true,
         replyParentId: null,
         cachesHistory: true,
+        edited: false,
       },
     });
     const aborted = registry.setStatus(lens.lensId, 'aborted');
@@ -1375,8 +1376,40 @@ describe('retry seed and dispatch', () => {
         cachesHistory: true,
         degraded: false,
         fromReaction: false,
+        edited: false,
       },
     });
+  });
+
+  it('keeps edit provenance on a retry, and treats a seed without it as an edit', () => {
+    const registry = createContextLensRegistry();
+    const seed = {
+      messageText: '/tlon-version',
+      blobField: null,
+      parentId: null,
+      isThreadReply: false,
+      replyParentId: null,
+      cachesHistory: true,
+    };
+    const dispatchFor = (retrySeed: typeof seed & { edited?: boolean }) => {
+      const lens = registry.create({
+        messageId: `message-edit-${String(retrySeed.edited)}`,
+        chatType: 'channel',
+        trigger: 'mention',
+        sessionKey: 'session-edit',
+        senderShip: '~zod',
+        conversationId: 'chat/~zod/test',
+        preview: 'preview',
+        retrySeed,
+      });
+      const failed = registry.setStatus(lens.lensId, 'error', new Error('x'));
+      const result = buildRetryDispatch(failed!);
+      if (!result.ok) throw new Error(result.reason);
+      return result.dispatch;
+    };
+    expect(dispatchFor({ ...seed, edited: true }).edited).toBe(true);
+    expect(dispatchFor({ ...seed, edited: false }).edited).toBe(false);
+    expect(dispatchFor(seed).edited).toBe(true);
   });
 
   it('falls back to the preview as degraded when the run predates retrySeed', () => {

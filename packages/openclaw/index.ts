@@ -1131,7 +1131,8 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     const ownerOnlyDecision = resolveOwnerOnlyToolBlock(
       event.toolName,
       role,
-      event.params
+      event.params,
+      { ownerUnverified: runSurface?.ownerUnverified }
     );
     const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
     const blocksNonOwner = ownerOnlyDecision.blocked;

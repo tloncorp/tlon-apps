@@ -25,6 +25,8 @@ export type TlonHistoryEntry = {
   parentId?: string;
   blob?: string | null;
   parsedBlobData?: ClientPostBlobData | null;
+  /** A channel post's revision ("0" until edited); absent for DM writs. */
+  revision?: string;
 };
 
 export type HistoryScryApi = {
@@ -404,6 +406,7 @@ export async function fetchChannelHistoryOrThrow(
       const essay = item.essay || item['r-post']?.set?.essay;
       const seal = item.seal || item['r-post']?.set?.seal;
       const sequenceNum = parseSequenceNum(seal?.seq);
+      const revision = item.revision ?? item['r-post']?.set?.revision;
 
       return {
         // v8 channel history returns bot authors as profile objects while
@@ -419,6 +422,7 @@ export async function fetchChannelHistoryOrThrow(
         timestamp: historyTimestamp(essay?.sent, seal?.id),
         id: seal?.id,
         ...(sequenceNum ? { sequenceNum } : {}),
+        ...(revision !== undefined ? { revision: String(revision) } : {}),
         blob: essay?.blob ?? null,
       } as TlonHistoryEntry;
     })

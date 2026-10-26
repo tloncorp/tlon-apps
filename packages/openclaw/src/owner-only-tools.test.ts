@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   OWNER_ONLY_BLOCK_REASON_MAX_CHARS,
   OWNER_ONLY_TOOLS,
+  formatOwnerElsewhereToolBlockReason,
   formatOwnerOnlyToolBlockReason,
   resolveOwnerOnlyToolBlock,
 } from './owner-only-tools.js';
@@ -146,6 +147,47 @@ describe('formatOwnerOnlyToolBlockReason', () => {
       // owner notice truncates the reason beyond this), kept independent of
       // the module's own constant so both cannot drift together.
       expect(OWNER_ONLY_BLOCK_REASON_MAX_CHARS).toBe(200);
+      expect(reason.length).toBeLessThanOrEqual(200);
+    }
+  );
+});
+
+describe('owner-only tools for the owner where privilege is untrusted', () => {
+  it('blocks a user-role run and names where the tool works', () => {
+    const decision = resolveOwnerOnlyToolBlock('tlon', 'user', undefined, {
+      ownerUnverified: true,
+    });
+    expect(decision.blocked).toBe(true);
+    expect(decision.reason).toBe(formatOwnerElsewhereToolBlockReason('tlon'));
+    expect(decision.reason).toContain(
+      'in your DM with them or a group they or you host'
+    );
+    expect(decision.reason).not.toContain('not the owner');
+  });
+
+  it('does not unblock an owner-only tool', () => {
+    for (const tool of EXPECTED_OWNER_ONLY_TOOLS) {
+      expect(
+        resolveOwnerOnlyToolBlock(tool, 'user', undefined, {
+          ownerUnverified: true,
+        }).blocked
+      ).toBe(true);
+    }
+    expect(
+      resolveOwnerOnlyToolBlock(
+        'mcp__call',
+        'user',
+        { name: 'browser_navigate' },
+        { ownerUnverified: true }
+      ).reason
+    ).toBe(formatOwnerElsewhereToolBlockReason('browser'));
+  });
+
+  it.each(EXPECTED_OWNER_ONLY_TOOLS)(
+    'keeps the %s reason on one line within the owner-notice cap',
+    (tool) => {
+      const reason = formatOwnerElsewhereToolBlockReason(tool);
+      expect(reason).not.toMatch(/[\r\n]/);
       expect(reason.length).toBeLessThanOrEqual(200);
     }
   );

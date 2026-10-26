@@ -95,7 +95,20 @@ import {
 import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
 import { OWNER_ONLY_TOOLS } from '../owner-only-tools.js';
-import { setSessionRole } from '../session-roles.js';
+import {
+  type MessageOrigin,
+  OWNER_PRIVILEGE_ELSEWHERE_TEXT,
+  type OwnerTrustContext,
+  channelMessageOrigin,
+  channelPrivilegeWithheldReason,
+  channelRevisionState,
+  conversationKindOf,
+  coreSenderId,
+  isOwnerPrivilegeTrusted,
+  ownerTrustSourceFor,
+  resolveSenderRole,
+} from '../owner-trust.js';
+import { type SenderRole, setSessionRole } from '../session-roles.js';
 import { noteInboundDispatching } from '../turn-identity.js';
 import {
   DM_INVITE_PREVIEW,
@@ -358,11 +371,11 @@ type ChannelResponse = {
   post?: {
     id?: string;
     'r-post'?: {
-      set?: { essay?: Essay; seal?: Seal } | null;
+      set?: { essay?: Essay; seal?: Seal; revision?: string } | null;
       reply?: {
         id?: string;
         'r-reply'?: {
-          set?: { 'reply-essay'?: Essay; seal?: Seal };
+          set?: { 'reply-essay'?: Essay; seal?: Seal; revision?: string };
           reacts?: Record<string, unknown>;
         };
       };
@@ -2335,6 +2348,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 { runtime, signal: opts.abortSignal }
               );
               await processMessage({
+                messageOrigin: 'create',
                 messageId: approval.originalMessage.messageId,
                 senderShip: approval.requestingShip,
                 messageText: replayMessage.messageText,
@@ -2370,6 +2384,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   { runtime, signal: opts.abortSignal }
                 );
                 await processMessage({
+                  // Only non-owners wait for approval, so this never decides a role;
+                  // the original's origin is not recorded.
+                  messageOrigin: 'edit',
                   messageId: approval.originalMessage.messageId,
                   senderShip: approval.requestingShip,
                   messageText: replayMessage.messageText,
@@ -2705,12 +2722,42 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     };
     setBridge(accountKey, commandBridge);
 
-    // Check if a ship is the owner (always allowed to DM)
+    // Owner ACCESS only: whether the declared sender is the owner ship (allowlist
+    // and approval bypass, engagement). A channel post's author is whatever its
+    // host says, so anything keyed on owner PRIVILEGE goes through
+    // senderRoleFor / ownerPrivilegeTrustedIn instead (owner-trust.ts).
     function isOwner(ship: string): boolean {
       if (!effectiveOwnerShip) {
         return false;
       }
       return normalizeShip(ship) === effectiveOwnerShip;
+    }
+
+    const ownerTrustContext: OwnerTrustContext = {
+      ownerShip: effectiveOwnerShip,
+      botShip: botShipName,
+    };
+    // `conversation` is the DM partner ship or the channel nest; `origin` says
+    // whether a channel message is newly created or an edit.
+    function ownerPrivilegeTrustedIn(
+      conversation: string,
+      origin: MessageOrigin
+    ): boolean {
+      return isOwnerPrivilegeTrusted(
+        ownerTrustSourceFor(conversation, origin),
+        ownerTrustContext
+      );
+    }
+    function senderRoleFor(
+      ship: string,
+      conversation: string,
+      origin: MessageOrigin
+    ): SenderRole {
+      return resolveSenderRole(
+        ship,
+        ownerTrustSourceFor(conversation, origin),
+        ownerTrustContext
+      );
     }
 
     const processMessage = async (
@@ -2738,6 +2785,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
        * reactions include ones the model made with the owner's tlon tool.
        */
       fromReaction?: boolean;
+      /** A newly created message or an edit; only a creation can carry owner privilege. */
+      messageOrigin: MessageOrigin;
       cachesHistory?: boolean;
       messageContent?: unknown; // Raw Tlon content for media extraction
       blobField?: string | null; // Raw blob JSON from post/reply
@@ -2782,6 +2831,26 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         degraded: params.degraded,
       });
       const groupChannel = channelNest; // For compatibility
+      // Owner privilege for this turn. The host is read from the nest itself,
+      // never from a caller-supplied hostShip.
+      const trustConversation = isGroup ? (channelNest ?? '') : senderShip;
+      const ownerTrustSource = ownerTrustSourceFor(
+        trustConversation,
+        params.messageOrigin
+      );
+      const senderRole = resolveSenderRole(
+        senderShip,
+        ownerTrustSource,
+        ownerTrustContext
+      );
+      const senderVerified = isOwnerPrivilegeTrusted(
+        ownerTrustSource,
+        ownerTrustContext
+      );
+      const conversationKind = conversationKindOf(
+        ownerTrustSource,
+        ownerTrustContext
+      );
       const rawMessageText = sanitizeMessageText(params.messageText);
       let currentMessageText = rawMessageText;
       const previewText = (text: string, max = 180) => {
@@ -2875,6 +2944,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           cachesHistory: Boolean(params.cachesHistory),
           degraded: Boolean(params.degraded),
           fromReaction: Boolean(params.fromReaction),
+          edited: params.messageOrigin === 'edit',
         },
       });
       contextLenses.recordPersistence(lens.lensId, {
@@ -2931,7 +3001,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // The shadows update synchronously; the durable %settings writes happen
       // in the background via an ordered queue so the owner-DM hot path never
       // waits on an Urbit RTT.
-      if (isOwner(senderShip)) {
+      if (senderRole === 'owner') {
         const isoDate = new Date(timestamp).toISOString().split('T')[0] ?? ''; // YYYY-MM-DD
 
         // (1a) Synchronous shadow: owner activity. Updated FIRST so any tick
@@ -3350,7 +3420,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
 
       const dispatchStartTime = Date.now();
-      const senderRole = isOwner(senderShip) ? 'owner' : 'user';
       if (senderRole === 'owner') {
         const currentLens = contextLenses.get(lens.lensId);
         contextLenses.update(lens.lensId, {
@@ -3438,7 +3507,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let commandAuthorized = false;
 
       if (shouldComputeAuth) {
-        const senderIsOwner = isOwner(senderShip);
+        const senderIsOwner = senderRole === 'owner';
 
         commandAuthorized =
           core.channel.commands.resolveCommandAuthorizedFromAuthorizers({
@@ -3528,7 +3597,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ChatType: isGroup ? 'group' : 'direct',
         ConversationLabel: fromLabel,
         SenderName: senderShip,
-        SenderId: senderShip,
+        SenderId: coreSenderId(
+          senderShip,
+          senderRole,
+          trustConversation,
+          ownerTrustContext
+        ),
         SenderRole: senderRole,
         Provider: 'tlon',
         Surface: 'tlon',
@@ -3600,6 +3674,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       });
       rememberTlonSessionRunSurface(runId, route.sessionKey, {
         senderRole,
+        // The owner, from a source that cannot carry owner privilege: owner-only
+        // tool refusals name where they do work.
+        ...(senderRole === 'user' && isOwner(senderShip)
+          ? { ownerUnverified: true }
+          : {}),
         ...(route.accountId ? { accountId: route.accountId } : {}),
       });
       const replyTelemetry = telemetry?.startReply({
@@ -3613,6 +3692,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         destinationKind: isGroup ? 'groupChannel' : 'dm',
         isThreadReply: Boolean(isThreadReply),
         senderRole,
+        conversationKind,
+        senderVerified,
+        ownerClaimed: isOwner(senderShip),
         attachmentCount,
       });
       let selectedProvider: string | null = null;
@@ -4347,6 +4429,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       if (opts.abortSignal?.aborted) return;
       const nestIsDm = isDmNest(nest);
       if (!nest.startsWith('chat/') && !nestIsDm) return;
+      // Owner-authored requests in this history are only genuine where owner
+      // privilege is trusted; elsewhere the host can author them.
+      if (!ownerPrivilegeTrustedIn(nest, 'create')) {
+        clearAgentOnboardingRetry(nest);
+        return;
+      }
       // A settings removal unwatches a nest while a catch-up or retry for it
       // may still be pending; those must not query, or post into, a channel
       // the owner took away. The bot DM is never in the watched set.
@@ -4618,6 +4706,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     );
                     const parsed = parseChannelNest(nest);
                     await processMessage({
+                      messageOrigin: 'create',
                       messageId: `react-${postId}-${ship}-${Date.now()}`,
                       senderShip: ship,
                       messageText,
@@ -4657,9 +4746,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
 
         // Handle post responses (new posts and replies)
-        const essay = response?.post?.['r-post']?.set?.essay;
-        const replyEssay =
-          response?.post?.['r-post']?.reply?.['r-reply']?.set?.['reply-essay'];
+        const postSet = response?.post?.['r-post']?.set;
+        const replySet = response?.post?.['r-post']?.reply?.['r-reply']?.set;
+        const essay = postSet?.essay;
+        const replyEssay = replySet?.['reply-essay'];
 
         const content = replyEssay || essay;
         if (!content) {
@@ -4690,6 +4780,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!senderShip) {
           return;
         }
+        const messageSet = isThreadReply ? replySet : postSet;
+        const messageOrigin = channelMessageOrigin(messageSet);
+        const channelSenderRole = senderRoleFor(
+          senderShip,
+          nest,
+          messageOrigin
+        );
 
         const { rawText, engagementText, mentioned } = prepareInboundText(
           content.content,
@@ -4742,7 +4839,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           knownBotShips.add(senderShip);
         }
 
-        if (senderShip === effectiveOwnerShip) {
+        if (channelSenderRole === 'owner') {
           if (
             await campaign
               ?.inbound(rawText, isStopTips(rawText))
@@ -4782,7 +4879,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             botProfile: getBotProfile(),
             channelNest: nest,
             groupId: onboardingGroupId,
-            ownerShip: effectiveOwnerShip,
+            // An owner request is only genuine where owner privilege is trusted.
+            ownerShip: ownerPrivilegeTrustedIn(nest, messageOrigin)
+              ? effectiveOwnerShip
+              : null,
             senderShip,
             rawText,
             blob: content.blob,
@@ -4849,10 +4949,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // gate, without waking the agent/model for ordinary chatter.
         if (
           isOwnerListenSlashCommand(rawText) &&
-          isOwner(senderShip) &&
-          parsedDispatchNest &&
-          (parsedDispatchNest.hostShip === effectiveOwnerShip ||
-            parsedDispatchNest.hostShip === botShipName)
+          channelSenderRole === 'owner'
         ) {
           const args = rawText
             .trim()
@@ -5105,14 +5202,55 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           }
         }
 
+        // An owner-attributed command that cannot carry owner privilege (another
+        // ship hosts the channel, or the message is an edit) runs as a user
+        // turn; say where commands work rather than drop it. Only a registered
+        // command at the start of the message counts: anything else, such as a
+        // path or `!important` mid-sentence, goes to the model as a user turn.
+        if (channelSenderRole !== 'owner' && isOwner(senderShip)) {
+          const withheld = channelPrivilegeWithheldReason(
+            ownerPrivilegeTrustedIn(nest, 'create'),
+            channelRevisionState(messageSet)
+          );
+          runtime.log?.(
+            `[tlon] Owner-attributed message in ${nest} runs without owner privilege: ${withheld}`
+          );
+          const commandText = resolveCommandBody({
+            messageText: rawText,
+            isGroup: true,
+            botShipName,
+          });
+          if (isRegisteredCommandText(commandText, engagementTokens())) {
+            runtime.log?.(
+              `[tlon] Owner command refused in ${nest}: ${withheld}`
+            );
+            await sendChannelPost({
+              botProfile: getBotProfile(),
+              fromShip: botShipName,
+              nest,
+              story: markdownToStory(OWNER_PRIVILEGE_ELSEWHERE_TEXT),
+              replyToId:
+                resolveDeliverParentId({
+                  isGroup: true,
+                  channelNest: nest,
+                  messageId: messageId ?? '',
+                  parentId,
+                  isThreadReply,
+                }) ?? undefined,
+            });
+            return;
+          }
+        }
+
         let campaignContext: string | undefined;
-        if (senderShip === effectiveOwnerShip) {
+        if (channelSenderRole === 'owner') {
           campaignContext = await campaign?.replyContext(nest);
           if (await campaign?.inboundInConversation(rawText, nest)) return;
         }
         const parsed = parseChannelNest(nest);
         const citedContent = await resolveCitedContent(content.content);
         const completed = await processMessage({
+          messageOrigin,
           messageId: messageId ?? '',
           senderShip,
           messageText: withCampaignContext(campaignContext, rawText),
@@ -5289,7 +5427,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               return;
             }
             // Check if this is an approval reaction from the owner on a notification message
-            if (isAdd && isOwner(partnerShip)) {
+            if (
+              isAdd &&
+              senderRoleFor(partnerShip, partnerShip, 'create') === 'owner'
+            ) {
               const approvalAction = emojiToApprovalAction(reactEmoji);
               if (approvalAction) {
                 const normalizedEventId = normalizeNotificationId(messageId);
@@ -5347,6 +5488,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   `[tlon] Dispatching DM reaction as message: ${reactEmoji} from ${partnerShip}`
                 );
                 await processMessage({
+                  messageOrigin: 'create',
                   messageId: `react-${messageId}-${partnerShip}-${Date.now()}`,
                   senderShip: partnerShip,
                   messageText: reactText,
@@ -5536,7 +5678,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // control plane.
           const request = parseAgentOnboardingRequest(dmContent.blob);
           const fromOwner =
-            !!effectiveOwnerShip && senderShip === effectiveOwnerShip;
+            senderRoleFor(senderShip, senderShip, 'create') === 'owner';
           let onboardingGroupId: string | undefined = request?.groupId;
           if (onboardingGroupId && fromOwner) {
             onboardingDmState.noteRequest(
@@ -5660,7 +5802,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
         if (
           authorShip === effectiveOwnerShip &&
-          senderShip === effectiveOwnerShip
+          senderRoleFor(senderShip, senderShip, 'create') === 'owner'
         ) {
           try {
             if (
@@ -5681,6 +5823,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
         const citedContent = await resolveCitedContent(dmContent.content);
         const completed = await processMessage({
+          messageOrigin: 'create',
           messageId: effectiveMessageId ?? '',
           senderShip,
           messageText: withCampaignContext(campaignContext, rawText),
@@ -6010,6 +6153,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             return;
           }
           const dispatch = result.dispatch;
+          if (dispatch.isGroup && lens.retrySeed?.edited === undefined) {
+            runtime.log?.(
+              `[tlon] Context lens retry ${lensId}: legacy retry seed has no edit provenance; runs without owner privilege`
+            );
+          }
           if (await isShipBlocked(dispatch.senderShip)) {
             recentRetryDispatches.delete(lensId);
             runtime.log?.(
@@ -6035,6 +6183,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               )
             : { messageText: dispatch.messageText };
           await processMessage({
+            messageOrigin: dispatch.edited ? 'edit' : 'create',
             messageId: lens.messageId,
             senderShip: dispatch.senderShip,
             messageText: replay.messageText,

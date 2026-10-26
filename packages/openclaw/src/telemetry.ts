@@ -6,6 +6,7 @@ import { PostHog } from 'posthog-node';
 
 import type { TlonAuthPhase } from './auth-retry-state.js';
 import type { BudgetHoldChange, BudgetState } from './cron-budget-hold.js';
+import type { ConversationKind } from './owner-trust.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 import type {
   TlonChannelKind,
@@ -165,6 +166,11 @@ export type TlonReplyOutcomeEvent = {
   destinationKind: TlonDestinationKind;
   isThreadReply: boolean;
   senderRole: 'owner' | 'user';
+  conversationKind: ConversationKind | null;
+  /** Owner privilege is trusted in this conversation (owner-trust.ts). */
+  senderVerified: boolean | null;
+  /** The declared author (channel) or DM partner is the owner ship. */
+  ownerClaimed: boolean | null;
   attachmentCount: number;
   sendAttemptCount: number;
   sendError: boolean;
@@ -207,6 +213,9 @@ export type TlonReplyTelemetryStart = {
   destinationKind?: TlonDestinationKind;
   isThreadReply: boolean;
   senderRole: 'owner' | 'user';
+  conversationKind?: ConversationKind;
+  senderVerified?: boolean;
+  ownerClaimed?: boolean;
   attachmentCount: number;
 };
 
@@ -1598,6 +1607,9 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           destinationKind: activeTrace.params.destinationKind,
           isThreadReply: activeTrace.params.isThreadReply,
           senderRole: activeTrace.params.senderRole,
+          conversationKind: activeTrace.params.conversationKind ?? null,
+          senderVerified: activeTrace.params.senderVerified ?? null,
+          ownerClaimed: activeTrace.params.ownerClaimed ?? null,
           attachmentCount: activeTrace.params.attachmentCount,
           sendAttemptCount: Math.max(0, result.sendAttemptCount ?? 0),
           sendError: sendErrorCount > 0,
@@ -1661,6 +1673,9 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
       destinationKind: trace.params.destinationKind,
       isThreadReply: trace.params.isThreadReply,
       senderRole: trace.params.senderRole,
+      conversationKind: trace.params.conversationKind ?? null,
+      senderVerified: trace.params.senderVerified ?? null,
+      ownerClaimed: trace.params.ownerClaimed ?? null,
       attachmentCount: trace.params.attachmentCount,
       sendAttemptCount: 0,
       sendError: false,
@@ -1735,6 +1750,9 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         destinationKind: event.destinationKind,
         isThreadReply: event.isThreadReply,
         senderRole: event.senderRole,
+        conversationKind: event.conversationKind,
+        senderVerified: event.senderVerified,
+        ownerClaimed: event.ownerClaimed,
         attachmentCount: event.attachmentCount,
         hasAttachments: event.attachmentCount > 0,
         sendAttemptCount: event.sendAttemptCount,
