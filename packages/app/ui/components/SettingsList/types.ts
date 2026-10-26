@@ -92,8 +92,6 @@ export interface SettingsRowModel {
     value: string;
     options: { value: string; title: string }[];
     onChange: (value: string) => void;
-    /** iOS only: a segmented control across the row, with no label. */
-    segmented?: boolean;
   };
   /**
    * An editable single-line value, such as a URL or token. The row shows the
@@ -125,9 +123,9 @@ export interface SettingsRowModel {
   };
   /**
    * iOS only, in a section that can be reordered: names the rows after it,
-   * like a section's title, and stays put while they move. One list of
-   * headings and rows can stand in for several sections, so a row can be
-   * dragged from one group into another.
+   * like a section's title. One list of headings and rows can stand in for
+   * several sections, so a row can be dragged from one group into another.
+   * A heading can be dragged too, which moves where its group starts.
    */
   heading?: boolean;
   /** Desktop highlight for the row whose screen is open beside the list. */

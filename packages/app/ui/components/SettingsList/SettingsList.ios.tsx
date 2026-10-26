@@ -33,7 +33,6 @@ import {
   font,
   foregroundStyle,
   frame,
-  labelsHidden,
   lineLimit,
   listRowBackground,
   listRowInsets,
@@ -41,7 +40,6 @@ import {
   listRowSeparatorTint,
   listSectionMargins,
   listSectionSpacing,
-  moveDisabled,
   onSubmit as submitAction,
   opacity,
   padding,
@@ -125,8 +123,10 @@ export function SettingsList({
         {sections.map((section, index) => (
           <Section
             key={section.key}
+            // A section whose rows can be dragged goes without the top margin:
+            // SwiftUI won't reorder rows in a section that sets one.
             modifiers={
-              index !== 0
+              index !== 0 || section.onMove
                 ? undefined
                 : section.element
                   ? flushFirstSectionModifiers
@@ -311,7 +311,10 @@ function SettingsRow({
     return (
       <Text
         modifiers={[
-          ...(reorderable ? [deleteDisabled(true), moveDisabled(true)] : []),
+          // Draggable like the rows: SwiftUI won't drop a row just above
+          // one that can't move, which would rule out an empty group or the
+          // end of one.
+          ...(reorderable ? [deleteDisabled(true)] : []),
           listRowBackground(colors.page),
           listRowSeparator('hidden'),
           listRowInsets({ top: 20, leading: 16, bottom: 6, trailing: 16 }),
@@ -327,30 +330,6 @@ function SettingsRow({
 
   if (row.textField) {
     return <TextFieldRow row={row} modifiers={rowModifiers} />;
-  }
-
-  if (row.picker?.segmented) {
-    const picker = row.picker;
-    return (
-      <Picker
-        label={row.title}
-        selection={picker.value}
-        onSelectionChange={(value) => picker.onChange(String(value))}
-        modifiers={[
-          listRowBackground(colors.page),
-          listRowInsets({ top: 0, leading: 0, bottom: 0, trailing: 0 }),
-          pickerStyle('segmented'),
-          labelsHidden(),
-          ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
-        ]}
-      >
-        {picker.options.map((option) => (
-          <Text key={option.value} modifiers={[tag(option.value)]}>
-            {option.title}
-          </Text>
-        ))}
-      </Picker>
-    );
   }
 
   if (row.picker) {
