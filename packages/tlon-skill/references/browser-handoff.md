@@ -72,7 +72,14 @@ or changed control requires a fresh snapshot and a new handoff. Do not remove
 
 Both `browser handoff` and `browser approve-login` require `--fields`. Saved
 login approval uses the same selection; an optional `--record` selects the saved
-account. After the service reports a result, inspect the page and request a
+account. Always request the owner's approval through `browser approve-login`
+before filling a saved login, even if the service reports automatic use is
+allowed. Never treat a previous approval as permission for another sign-in.
+The secure-entry sheet saves supported logins with ask-before-use permission;
+do not ask the owner to enable saving or automatic sign-in. An existing signed-in
+browser session can still be reused without filling credentials again.
+
+After the service reports a result, inspect the page and request a
 fresh card if another private field needs input. Click Continue or Sign in
 through browser tools when appropriate. Dismiss optional passkey enrollment
 unless the owner asked to create a passkey.
