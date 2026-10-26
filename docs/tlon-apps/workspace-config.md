@@ -32,7 +32,7 @@ The blob is JSON text, or null when the workspace is unconfigured.
 | `bot` | ship (optional) | the one bot this workspace's config is for; other members' bots in the group ignore the document |
 | `instructions` | string (optional) | free text the bot loads on every turn in the workspace's channels; user-editable |
 | `defaults` | object (optional) | workspace defaults; contents not yet defined |
-| `kits` | array (optional) | provenance: the kits that built this workspace |
+| `kits` | array (optional) | provenance: the kits that built this workspace, written by `%kits` ([kits.md](../backend/desk/app/kits.md)) |
 | `kits[].ref` | string | `~publisher/kit-id@version` |
 | `kits[].places` | object | the kit's place names mapped to channel nests |
 
