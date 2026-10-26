@@ -79,9 +79,10 @@ export type GroupContextRuntime = {
   /** A token to take before fetching a snapshot; see applySnapshot. */
   beginSnapshot(): number;
   /**
-   * Replace the groups an init snapshot carries; others are untouched. A
-   * group with a /groups/ui fact newer than `since` keeps its state: the
-   * snapshot was fetched before that change and would undo it.
+   * Replace the groups an init snapshot carries; others are untouched.
+   * Facts and snapshots share one sequence: a group whose state came from a
+   * fact or snapshot newer than `since` keeps it, since this snapshot was
+   * fetched before that state and would undo it.
    */
   applySnapshot(
     groups: ReadonlyMap<string, GroupContextGroup>,
@@ -258,12 +259,13 @@ export function createGroupContextRuntime(
     },
 
     beginSnapshot() {
-      return factSeq;
+      return ++factSeq;
     },
 
     applySnapshot(snapshot, since) {
       for (const [flag, group] of snapshot) {
         if ((groupFactSeq.get(flag) ?? 0) > since) continue;
+        groupFactSeq.set(flag, since);
         groups.set(flag, {
           ...(group.title ? { title: group.title } : {}),
           channels: group.channels.map((channel) => ({ ...channel })),

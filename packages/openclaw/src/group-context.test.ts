@@ -262,6 +262,29 @@ describe('group context', () => {
     expect(context()).toContain('Random');
   });
 
+  it('applies overlapping snapshots in the order they were taken', () => {
+    const { runtime, context } = setup();
+    const snapshot = (readers: string[]) =>
+      new Map([
+        [
+          flag,
+          {
+            title: 'Book Club',
+            channels: parseGroupChannels({
+              [general]: { meta: { title: 'General' }, readers: [] },
+              'chat/~host/Random': { meta: { title: 'Random' }, readers },
+            }),
+          },
+        ],
+      ]);
+    const older = runtime.beginSnapshot();
+    const newer = runtime.beginSnapshot();
+    // The newer one, taken after Random was restricted, lands first.
+    runtime.applySnapshot(snapshot(['admin']), newer);
+    runtime.applySnapshot(snapshot([]), older);
+    expect(context()).not.toContain('Random');
+  });
+
   it('tracks channels and groups from /groups/ui facts', () => {
     const { runtime, context } = setup();
     runtime.handleGroupsUiEvent(
