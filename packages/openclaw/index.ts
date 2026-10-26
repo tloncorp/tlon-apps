@@ -1320,12 +1320,13 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       );
     }
 
+    if (!isBlocked && event.toolName === 'sessions_send') {
+      // Injected input bypasses the monitor; treat it like a non-owner
+      // message on the target.
+      noteCrossSessionSend(event.params, ctx.runId);
+    }
+
     if (!isOwnerOnlyTool && !isBlocked) {
-      if (event.toolName === 'sessions_send') {
-        // Injected input bypasses the monitor; treat it like a non-owner
-        // message on the target.
-        noteCrossSessionSend(event.params, ctx.runId);
-      }
       return allowed();
     }
 

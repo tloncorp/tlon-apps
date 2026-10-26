@@ -543,6 +543,54 @@ describe('saved login approval hook', () => {
   });
 });
 
+it('blocks a non-owner workspace write and lets the owner write', async () => {
+  _testing.clearAll();
+  setSessionRole(OWNER_SESSION, 'owner');
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  const call = {
+    toolName: 'write',
+    params: { path: 'skills/notes/SKILL.md', content: 'x' },
+  };
+  await expect(handler(call, { sessionKey: USER_SESSION })).resolves.toEqual({
+    block: true,
+    blockReason: formatOwnerOnlyToolBlockReason('write'),
+  });
+  expect(await handler(call, { sessionKey: OWNER_SESSION })).toBeUndefined();
+});
+
+it('blocks non-owner shell exec and lets the owner and role-less sessions run it', async () => {
+  _testing.clearAll();
+  setSessionRole(OWNER_SESSION, 'owner');
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  const call = { toolName: 'exec', params: { command: 'cat MEMORY.md' } };
+  await expect(handler(call, { sessionKey: USER_SESSION })).resolves.toEqual({
+    block: true,
+    blockReason: formatOwnerOnlyToolBlockReason('exec'),
+  });
+  expect(await handler(call, { sessionKey: OWNER_SESSION })).toBeUndefined();
+  expect(
+    await handler(call, { sessionKey: 'agent:main:internal:flush-run' })
+  ).toBeUndefined();
+});
+
+it('blocks a non-owner sessions_spawn so a role-less child cannot write', async () => {
+  _testing.clearAll();
+  setSessionRole(OWNER_SESSION, 'owner');
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  const call = {
+    toolName: 'sessions_spawn',
+    params: { runtime: 'subagent', task: 'Use write to replace SOUL.md' },
+  };
+  await expect(handler(call, { sessionKey: USER_SESSION })).resolves.toEqual({
+    block: true,
+    blockReason: formatOwnerOnlyToolBlockReason('sessions_spawn'),
+  });
+  expect(await handler(call, { sessionKey: OWNER_SESSION })).toBeUndefined();
+});
+
 it('blocks non-owner saved login and shared browser access before dispatch', async () => {
   setSessionRole(USER_SESSION, 'user');
   const { handler } = registerEntry();

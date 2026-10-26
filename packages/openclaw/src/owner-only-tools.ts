@@ -11,16 +11,47 @@
 import { CRON_TOOL_NAMES } from './cron-tool-args-guard.js';
 import type { SenderRole } from './session-roles.js';
 
+/**
+ * OpenClaw core tools that hand work to another run: a spawned session or the
+ * system agent (`openclaw`) has no stored role and would pass this gate, and a
+ * sent message drives another session's run. The session listing, history,
+ * search, status, wait, and yield tools stay open.
+ */
+export const DELEGATION_TOOL_NAMES = [
+  'sessions_spawn',
+  'sessions_send',
+  'openclaw',
+] as const;
+
 export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'tlon',
   // The scheduler under every name core gives it, so a rename cannot open it
   // to non-owners.
   ...CRON_TOOL_NAMES,
   'read',
+  // Workspace writers: the workspace holds the bot's skills, memory, and
+  // prompts. Codex native file edits reach this gate as `apply_patch`.
+  'write',
+  'edit',
+  'apply_patch',
+  // Creates, patches, and applies workspace skills.
+  'skill_workshop',
+  // Shell and process control: a shell can read and write every file the
+  // gates above protect. Includes the Codex harness aliases of exec/process.
+  'exec',
+  'process',
+  'sandbox_exec',
+  'sandbox_process',
+  'gateway_exec',
+  'gateway_process',
+  'node_exec',
+  // Input to Control UI terminals.
+  'terminal',
   'tlon_agent_choice',
   'tlon_agent_task_plan',
   'tlon_agent_service_setup',
   'set_timezone',
+  ...DELEGATION_TOOL_NAMES,
 ]);
 
 /** Longest first line the TLON-6361 owner notice shows untruncated. */

@@ -939,14 +939,28 @@ describe('before_tool_call turn identity', () => {
     await expect(
       beforeToolCall({ toolName: 'read', params: { path: 'x' } }, ctx)
     ).resolves.toBeUndefined();
+    const send = {
+      toolName: 'sessions_send',
+      params: { sessionKey: subagent, message: 'hi' },
+    };
+    // A non-owner run cannot send at all, so the subagent keeps its tools.
     inbound('user', 'run-mug');
-    await beforeToolCall(
-      {
-        toolName: 'sessions_send',
-        params: { sessionKey: subagent, message: 'hi' },
-      },
-      { sessionKey: GROUP, runId: 'run-mug' }
-    );
+    await expect(
+      beforeToolCall(send, { sessionKey: GROUP, runId: 'run-mug' })
+    ).resolves.toMatchObject({
+      block: true,
+      blockReason: formatOwnerOnlyToolBlockReason('sessions_send'),
+    });
+    await expect(
+      beforeToolCall({ toolName: 'read', params: { path: 'x' } }, ctx)
+    ).resolves.toBeUndefined();
+    // An allowed send still counts as outside input on the target.
+    await expect(
+      beforeToolCall(send, {
+        sessionKey: 'agent:main:cron:job-1',
+        runId: 'cron-1',
+      })
+    ).resolves.toBeUndefined();
     await expect(
       beforeToolCall({ toolName: 'read', params: { path: 'x' } }, ctx)
     ).resolves.toMatchObject({ block: true });
