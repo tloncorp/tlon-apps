@@ -214,7 +214,7 @@ There's no directory of groups to browse. When someone is looking for groups, po
 
 To bring people into your group, use an invite link: `Invite people` → `Share link`. That works for anyone, including people not on Tlon yet. A code is for someone already on Tlon.
 
-A group code is the group's ID, `~host/group-name`. Anyone in a group can copy it: `Workspace info & settings` → `Copy workspace ID`. To join with one, tap the plus icon, then `Join a workspace with a code (reference)`, and paste it. That button is on desktop and on phones without a Tlonbot. A phone with a bot has no code box: ask someone in the group for an invite link, or to send you the group itself (`Forward reference` in group info), then tap it in the chat to open a preview and join. Asking your bot to join a group adds the bot, not you.
+A group code is the group's ID, `~host/group-name`. Anyone in a group can copy it: `Workspace info & settings` → `Copy ID`. To join with one, tap the plus icon, then `Join a workspace with a code (reference)`, and paste it. That button is on desktop and on phones without a Tlonbot. A phone with a bot has no code box: ask someone in the group for an invite link, or to send you the group itself (`Forward reference` in group info), then tap it in the chat to open a preview and join. Asking your bot to join a group adds the bot, not you.
 
 A code isn't an invite link. Invite links come from `Invite people` → `Share link`, and someone new to Tlon pastes one on the `Have an invite?` screen when signing up.
 
@@ -358,7 +358,7 @@ Bot behavior:
 
 ### Models and API keys
 
-Hosted accounts include a model for free, with $5 a month of included credits. Tlon picks that model and can change it; today it's OpenAI's GPT-6 Luna. The phone app still lists the option as `Basic (GPT-5.6 Luna)`, and the bot settings web page as "Tlon Default". Both mean the included model; the version in the phone app's label is out of date. To choose another, open `Models` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`):
+Hosted accounts include a model for free, with $5 a month of included credits. Tlon picks that model and changes it from time to time, so take its name from your runtime context, not from this guide. The phone app lists the option as Basic followed by the model's name, such as "Basic (GPT-5.6 Luna)", and the bot settings web page as "Tlon Default". Both mean the included model. To choose another, open `Models` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`):
 
 - `Default model` is what the bot uses. Pick a provider, then a model. Only providers you've connected are listed.  
 - `Fallback models` are what it switches to if the default fails.
