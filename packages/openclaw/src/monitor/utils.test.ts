@@ -9,9 +9,12 @@ import { describe, expect, it } from 'vitest';
 import {
   NON_COMMAND_BODY,
   extractCites,
+  extractDmPartnerShip,
   extractMessageText,
   inboundCommandFields,
   isCitePlaceholderLine,
+  isDirectDmWhom,
+  isDmPartnerAuthorized,
   isSummarizationRequest,
   parseChannelWhere,
   prepareInboundText,
@@ -399,5 +402,43 @@ describe('reactionDispatchConfig', () => {
       session: { dmScope: 'main' },
     });
     expect(cfg.commands?.allowFrom).toEqual({ tlon: ['~zod'] });
+  });
+});
+
+describe('isDirectDmWhom', () => {
+  it('accepts a ship with or without ~ and a { ship } object', () => {
+    expect(isDirectDmWhom('~zod')).toBe(true);
+    expect(isDirectDmWhom('sampel-palnet')).toBe(true);
+    expect(isDirectDmWhom({ ship: '~sampel-palnet' })).toBe(true);
+    expect(extractDmPartnerShip('Sampel-Palnet')).toBe('~sampel-palnet');
+  });
+
+  it('rejects a club id, empty, garbage and non-strings', () => {
+    expect(isDirectDmWhom('0v3.abcde.fghij.klmno.pqrst')).toBe(false);
+    expect(isDirectDmWhom({ club: '0v3.abcde' })).toBe(false);
+    expect(isDirectDmWhom('')).toBe(false);
+    expect(isDirectDmWhom('~')).toBe(false);
+    expect(isDirectDmWhom('~zod/chat')).toBe(false);
+    expect(isDirectDmWhom('chat/~zod/general')).toBe(false);
+    expect(isDirectDmWhom(undefined)).toBe(false);
+    expect(isDirectDmWhom(null)).toBe(false);
+    expect(isDirectDmWhom(42)).toBe(false);
+    expect(isDirectDmWhom({ ship: 42 })).toBe(false);
+  });
+});
+
+describe('isDmPartnerAuthorized', () => {
+  it('allows the owner and allowlisted ships', () => {
+    expect(isDmPartnerAuthorized('~zod', '~zod', [])).toBe(true);
+    expect(isDmPartnerAuthorized('zod', '~zod', undefined)).toBe(true);
+    expect(isDmPartnerAuthorized('~bus', '~zod', ['bus'])).toBe(true);
+    expect(isDmPartnerAuthorized('~bus', undefined, ['~bus'])).toBe(true);
+  });
+
+  it('drops a ship that is neither owner nor allowlisted', () => {
+    expect(isDmPartnerAuthorized('~bus', '~zod', ['~ten'])).toBe(false);
+    expect(isDmPartnerAuthorized('~bus', '~zod', undefined)).toBe(false);
+    expect(isDmPartnerAuthorized('~bus', null, [])).toBe(false);
+    expect(isDmPartnerAuthorized('', '', [])).toBe(false);
   });
 });

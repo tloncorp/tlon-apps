@@ -349,6 +349,18 @@ export function isDmAllowed(
     .some((ship) => ship === normalizedSender);
 }
 
+/** Whether the bot answers this 1:1 DM partner: the owner or an allowlisted ship. */
+export function isDmPartnerAuthorized(
+  partnerShip: string,
+  ownerShip: string | null | undefined,
+  allowlist: string[] | undefined
+): boolean {
+  if (ownerShip && normalizeShip(partnerShip) === normalizeShip(ownerShip)) {
+    return true;
+  }
+  return isDmAllowed(partnerShip, allowlist);
+}
+
 /**
  * Check if a ship is on the group-invite allowlist.
  *
@@ -804,4 +816,27 @@ export function reactionDispatchConfig(cfg: OpenClawConfig): OpenClawConfig {
       allowFrom: { ...cfg.commands?.allowFrom, '*': [], tlon: [] },
     },
   };
+}
+
+/**
+ * The DM partner ship named by a chat `whom`, or '' when `whom` is not a
+ * patp-like ship (a club id, garbage, or a non-string).
+ */
+export function extractDmPartnerShip(whom: unknown): string {
+  const raw =
+    typeof whom === 'string'
+      ? whom
+      : whom &&
+          typeof whom === 'object' &&
+          'ship' in whom &&
+          typeof whom.ship === 'string'
+        ? whom.ship
+        : '';
+  const normalized = normalizeShip(raw);
+  return /^~?[a-z-]+$/i.test(normalized) ? normalized : '';
+}
+
+/** Group DMs (clubs) are deprecated; the plugin handles 1:1 DMs only. */
+export function isDirectDmWhom(whom: unknown): boolean {
+  return extractDmPartnerShip(whom) !== '';
 }
