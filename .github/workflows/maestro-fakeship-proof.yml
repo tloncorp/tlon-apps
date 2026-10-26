@@ -19,7 +19,7 @@ jobs:
       PROOF_CASES: ${{ inputs.cases || 'all' }}
       PROOF_OUTPUT: ${{ github.workspace }}/proof-output
       MAESTRO_RUN_TAG: ci${{ github.run_id }}a${{ github.run_attempt }}
-      MAESTRO_APP_ID: io.tlon.groups.preview
+      MAESTRO_APP_ID: io.tlon.groups
       MAESTRO_TEST_SHIP: '~zod'
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +61,7 @@ jobs:
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           project-id: proj_01jjmcqhxneg69zpqdty84xqvt
-          app-binary-id: 2465d1a2815af198b0f719fd82f48641bf00f4d5
+          app-binary-id: 273b377ee26ecc6cd28fcbf395a33cf60fcad3f5
           workspace: proof-flows
           maestro-cli-version: 2.6.1
           device-model: pixel_6
@@ -69,7 +69,7 @@ jobs:
           name: fakeship-${{ github.run_id }}
           timeout: 30
           env: |
-            MAESTRO_APP_ID=io.tlon.groups.preview
+            MAESTRO_APP_ID=io.tlon.groups
             MAESTRO_TEST_SHIP=~zod
             MAESTRO_LOGIN_URL=${{ steps.ships.outputs.url }}
             MAESTRO_LOGIN_CODE=${{ steps.ships.outputs.code }}
