@@ -43,6 +43,13 @@ The default branch is `develop`; every branch starts there and every PR targets 
 
 `warm` carries `node_modules`, `ios/Pods`, both `.env.local` files, and `.claude/`, so the credentials in steps 2 and 3 are set once in the source checkout. Keep the source checkout clean and on `develop`; `--refresh` refuses a dirty or detached one and prints the git line that clears it. Clear it rather than dropping `--refresh`.
 
+Without Xcode (step 2) there is no CocoaPods, and `--refresh` runs `pod install` in the source checkout whenever `ios/Pods/Manifest.lock` is missing, so it fails with `STIM_DEPS_FAILED`. Do its other two jobs by hand, then warm without it; a plain warm copies what exists and only warns about Pods it actually carried:
+
+```bash
+git -C <source checkout> pull --ff-only && pnpm -C <source checkout> install
+stim worktree warm
+```
+
 ### 2. Run the app
 
 Stim builds the app on this machine (on iOS without Xcode, downloads it; see below), installs it on an EAS Simulator session, and serves it JavaScript from this worktree's Metro through an Expo tunnel (`metro.tunnel` in `apps/tlon-mobile/.stim.json`). Nothing boots locally.
