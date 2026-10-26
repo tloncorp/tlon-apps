@@ -2070,8 +2070,11 @@
       =/  rail  chat-club-action-1+action-5
       (emit %give %fact ~[/v1 /v1/clubs /v2 /v2/clubs] rail)
     =.  cor
-      =/  rail  chat-club-action-2+action
+      =/  rail  chat-club-action-1+(v6:action-club:v7:cc action)
       (emit %give %fact ~[/v3 /v3/clubs] rail)
+    =.  cor
+      =/  rail  chat-club-action-2+action
+      (emit %give %fact ~[/v4 /v4/clubs] rail)
     cu-core
   ::
   ++  cu-give-writs-diff

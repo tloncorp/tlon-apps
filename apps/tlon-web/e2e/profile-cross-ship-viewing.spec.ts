@@ -22,14 +22,10 @@ test('should allow viewing and syncing profiles across ships', async ({
   await zodPage
     .getByTestId('ProfileNicknameInput')
     .fill('Zod Testing nickname');
-  await zodPage.getByRole('textbox', { name: 'Hanging out...' }).click();
-  await zodPage
-    .getByRole('textbox', { name: 'Hanging out...' })
-    .fill('Zod Testing status');
-  await zodPage.getByRole('textbox', { name: 'About yourself' }).click();
-  await zodPage
-    .getByRole('textbox', { name: 'About yourself' })
-    .fill('Zod Testing bio');
+  await zodPage.getByTestId('ProfileStatusInput').click();
+  await zodPage.getByTestId('ProfileStatusInput').fill('Zod Testing status');
+  await zodPage.getByTestId('ProfileBioInput').click();
+  await zodPage.getByTestId('ProfileBioInput').fill('Zod Testing bio');
   await zodPage.getByText('Save').click();
 
   // Wait for profile to sync
@@ -78,14 +74,10 @@ test('should allow viewing and syncing profiles across ships', async ({
 
   await tenPage.getByTestId('ProfileNicknameInput').click();
   await tenPage.getByTestId('ProfileNicknameInput').fill('Ten Own Nickname');
-  await tenPage.getByRole('textbox', { name: 'Hanging out...' }).click();
-  await tenPage
-    .getByRole('textbox', { name: 'Hanging out...' })
-    .fill('Ten Status Message');
-  await tenPage.getByRole('textbox', { name: 'About yourself' }).click();
-  await tenPage
-    .getByRole('textbox', { name: 'About yourself' })
-    .fill('Ten Bio Information');
+  await tenPage.getByTestId('ProfileStatusInput').click();
+  await tenPage.getByTestId('ProfileStatusInput').fill('Ten Status Message');
+  await tenPage.getByTestId('ProfileBioInput').click();
+  await tenPage.getByTestId('ProfileBioInput').fill('Ten Bio Information');
   await tenPage.getByText('Save').click();
 
   // Wait for profile to sync

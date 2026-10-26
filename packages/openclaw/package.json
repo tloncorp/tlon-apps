@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/openclaw",
-  "version": "0.33.0",
+  "version": "0.36.0",
   "description": "OpenClaw Tlon/Urbit channel plugin",
   "license": "MIT",
   "repository": {
@@ -36,8 +36,8 @@
     "lint:format": "oxfmt ./",
     "postinstall": "node scripts/generate-version.js",
     "prebuild": "node scripts/generate-version.js",
-    "tsc": "tsc --noEmit",
-    "test": "vitest run src/",
+    "tsc": "tsc --noEmit && tsc -p tsconfig.scripts.json",
+    "test": "vitest run src/ scripts/upstream-watch/",
     "test:all": "vitest run && vitest run --config vitest.integration.config.ts",
     "test:integration": "bash ./test/run.sh",
     "test:integration:shared": "pnpm --dir ../tlon-bot-e2e test:e2e:openclaw:all",
@@ -56,7 +56,7 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@tloncorp/api": "workspace:^",
-    "@tloncorp/tlon-skill": "workspace:^0.8.1",
+    "@tloncorp/tlon-skill": "workspace:^0.8.2",
     "@urbit/aura": "^3.0.0",
     "posthog-node": "^5.28.9",
     "zod": "^4.4.1"

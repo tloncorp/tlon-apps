@@ -197,6 +197,32 @@
     !>  %+  turn  heads
         |=([=whom:c * latest=(unit writ:c)] [whom id:(need latest)])
   !>(exes)
+::  each subscription path gets club actions with the mark it declares. the
+::  client watches /v4, and waits there for the %meta action of a rename.
+::
+++  test-club-action-facts
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
+  =/  =create:club:c  [0v1 (sy ~zod ~)]
+  ;<  caz=(list card)  bind:m  (do-poke %chat-club-create !>(create))
+  =/  marks=(list mark)
+    ~[%chat-club-action %chat-club-action-1 %chat-club-action-2]
+  =/  facts=(list [(list path) mark])
+    %+  murn  caz
+    |=  =card
+    ?.  ?=([%give %fact *] card)  ~
+    ?~  (find ~[p.cage.p.card] marks)  ~
+    `[paths p.cage]:p.card
+  =/  exes=(list [(list path) mark])
+    :~  [~[/ /clubs] %chat-club-action]
+        [~[/v1 /v1/clubs /v2 /v2/clubs] %chat-club-action-1]
+        [~[/v3 /v3/clubs] %chat-club-action-1]
+        [~[/v4 /v4/clubs] %chat-club-action-2]
+    ==
+  (ex-equal !>(facts) !>(exes))
 ::  +ex-dm-status: the %chat-dm-status facts in .caz are exactly .exes
 ::
 ++  ex-dm-status

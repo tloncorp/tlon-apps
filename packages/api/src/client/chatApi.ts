@@ -81,8 +81,8 @@ export const updateDMMeta = async ({
       if (!('diff' in event)) {
         return false;
       }
-      const { diff } = event;
-      return 'meta' in diff && event.id === channelId;
+      const { delta } = event.diff;
+      return 'meta' in delta && event.id === channelId;
     },
     { tag: 'updateDMMeta' }
   );

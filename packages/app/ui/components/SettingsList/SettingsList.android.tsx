@@ -1,10 +1,15 @@
 import {
   BasicTextField,
   Box,
+  Checkbox,
   Column,
+  DropdownMenu,
+  DropdownMenuItem,
   Host,
+  HorizontalDivider,
   LazyColumn,
   RNHostView,
+  RadioButton,
   Row,
   Switch,
   Text,
@@ -18,7 +23,6 @@ import {
   clip,
   combinedClickable,
   fillMaxWidth,
-  height,
   imePadding,
   padding,
   selectable,
@@ -27,9 +31,12 @@ import {
   toggleable,
   weight,
 } from '@expo/ui/jetpack-compose/modifiers';
-import { Icon } from '@tloncorp/ui';
 import { Fragment, useCallback, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import {
+  type LayoutChangeEvent,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -44,6 +51,7 @@ import {
   useSettingsListColors,
 } from './useSettingsListColors';
 
+const listSidePadding = 16;
 const cardShape = Shapes.RoundedCorner(16);
 const pillShape = Shapes.RoundedCorner(50);
 
@@ -56,96 +64,153 @@ export function SettingsList({ sections }: SettingsListProps) {
   // clearance already allows for it.
   const onTabScreen = useTopLevelTabBarClearance() > 0;
   const { bottom: systemBarInset } = useSafeAreaInsets();
+  // A hosted section is otherwise only as wide as its own content. It gets the
+  // list's full width, as on iOS, and Compose centers anything wider than
+  // the padded column, so the section runs edge to edge and lays out its own
+  // margins. Expo UI keeps the first layout of hosted text, so the width is
+  // known from the first render (the window's, corrected by the list's own
+  // layout), and a change remounts the section rather than leaving text laid
+  // out for no width or an old one.
+  const { width: windowWidth } = useWindowDimensions();
+  const [width, setWidth] = useState(windowWidth);
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width),
+    []
+  );
 
   return (
-    <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
-      <LazyColumn
-        verticalArrangement={{ spacedBy: 24 }}
-        contentPadding={{
-          start: 16,
-          end: 16,
-          top: 16,
-          bottom: bottomContentInset + (onTabScreen ? 0 : systemBarInset),
-        }}
-        // The list makes room for the keyboard itself, so a field it scrolls
-        // into view, or the results of a search from the navigation bar, end up
-        // above the keyboard rather than behind it.
-        modifiers={[background(colors.page), imePadding()]}
-      >
-        {sections.map((section) => (
-          <Column
-            key={section.key}
-            verticalArrangement={{ spacedBy: 8 }}
-            modifiers={[fillMaxWidth()]}
-          >
-            {section.title ? (
-              <Text
-                color={colors.secondaryText}
-                style={{ fontSize: 14, fontWeight: '500' }}
-                modifiers={[padding(4, 0, 4, 0)]}
+    <View style={{ flex: 1 }} onLayout={handleLayout}>
+      <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
+        <LazyColumn
+          verticalArrangement={{ spacedBy: 24 }}
+          contentPadding={{
+            start: listSidePadding,
+            end: listSidePadding,
+            top: 16,
+            bottom: bottomContentInset + (onTabScreen ? 0 : systemBarInset),
+          }}
+          // The list makes room for the keyboard itself, so a field it scrolls
+          // into view, or the results of a search from the navigation bar, end up
+          // above the keyboard rather than behind it.
+          modifiers={[background(colors.page), imePadding()]}
+        >
+          {sections.map((section) =>
+            section.element ? (
+              <RNHostView key={`${section.key}:${width}`} matchContents>
+                <View style={{ width }}>{section.element}</View>
+              </RNHostView>
+            ) : (
+              <Column
+                key={section.key}
+                verticalArrangement={{ spacedBy: 8 }}
+                modifiers={[fillMaxWidth()]}
               >
-                {section.title}
-              </Text>
-            ) : null}
-            <Column
-              modifiers={[
-                fillMaxWidth(),
-                clip(cardShape),
-                background(colors.row),
-              ]}
-            >
-              {section.rows.map((row, index) => (
-                <Fragment key={row.key}>
-                  {index > 0 ? (
-                    <Box
-                      modifiers={[
-                        padding(16, 0, 0, 0),
-                        fillMaxWidth(),
-                        height(1),
-                        background(colors.separator),
-                      ]}
-                    />
-                  ) : null}
-                  <SettingsRow row={row} colors={colors} />
-                </Fragment>
-              ))}
-            </Column>
-            {section.footer ? (
-              <Text
-                color={colors.secondaryText}
-                style={{ fontSize: 13 }}
-                modifiers={[padding(4, 0, 4, 0)]}
-              >
-                {section.footer}
-              </Text>
-            ) : null}
-          </Column>
-        ))}
-      </LazyColumn>
-    </Host>
+                {section.title ? (
+                  <Text
+                    color={colors.secondaryText}
+                    style={{ fontSize: 14, fontWeight: '500' }}
+                    modifiers={[padding(4, 0, 4, 0)]}
+                  >
+                    {section.title}
+                  </Text>
+                ) : null}
+                <Column
+                  modifiers={[
+                    fillMaxWidth(),
+                    clip(cardShape),
+                    background(colors.row),
+                  ]}
+                >
+                  {section.rows.map((row, index, rows) => (
+                    <Fragment key={row.key}>
+                      {index > 0 ? (
+                        <HorizontalDivider
+                          thickness={1}
+                          color={colors.separator}
+                          modifiers={[padding(16, 0, 0, 0)]}
+                        />
+                      ) : null}
+                      <SettingsRow
+                        row={row}
+                        colors={colors}
+                        valueTrails={valuesTrail(rows)}
+                      />
+                    </Fragment>
+                  ))}
+                </Column>
+                {section.footer ? (
+                  <Text
+                    color={colors.secondaryText}
+                    style={{ fontSize: 13 }}
+                    modifiers={[padding(4, 0, 4, 0)]}
+                  >
+                    {section.footer}
+                  </Text>
+                ) : null}
+              </Column>
+            )
+          )}
+        </LazyColumn>
+      </Host>
+    </View>
+  );
+}
+
+/**
+ * Material shows a setting's value as the line under its title. Once a row in
+ * a card already has a line there, like a role and its description, every row
+ * in that card ends with its value instead, so the card reads one way.
+ */
+function valuesTrail(rows: SettingsRowModel[]) {
+  return rows.some(
+    (row) => row.subtitle && (row.value !== undefined || row.picker)
   );
 }
 
 function SettingsRow({
   row,
   colors,
+  valueTrails,
 }: {
   row: SettingsRowModel;
   colors: SettingsListColors;
+  valueTrails: boolean;
 }) {
   if (row.textField) {
     return <TextFieldRow row={row} colors={colors} />;
   }
+  return <PlainRow row={row} colors={colors} valueTrails={valueTrails} />;
+}
 
-  const onClick = row.toggle
-    ? () => row.toggle?.onValueChange(!row.toggle.value)
-    : row.onPress;
-  const onLongClick = row.contextActions?.[0]?.onPress;
-  // Material shows a setting's value as the line under its title.
-  const supporting = [row.subtitle, row.value].filter(Boolean).join(' · ');
+function PlainRow({
+  row,
+  colors,
+  valueTrails,
+}: {
+  row: SettingsRowModel;
+  colors: SettingsListColors;
+  valueTrails: boolean;
+}) {
+  // Long-press actions, or a picker's choices on a tap, open a menu anchored
+  // to the row.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const picker = row.picker;
+  const actions = row.contextActions ?? [];
+  const onClick = picker
+    ? () => setMenuOpen(true)
+    : row.toggle
+      ? () => row.toggle?.onValueChange(!row.toggle.value)
+      : row.onPress;
+  const onLongClick = actions.length ? () => setMenuOpen(true) : undefined;
+  const pickedTitle = picker?.options.find(
+    (option) => option.value === picker.value
+  )?.title;
+  const value = row.value ?? pickedTitle;
+  const supporting = valueTrails ? row.subtitle : (row.subtitle ?? value);
+  const trailingValue = valueTrails ? value : undefined;
   const isChoice = row.selected !== undefined;
 
-  return (
+  const content = (
     <Row
       verticalAlignment="center"
       horizontalArrangement={{ spacedBy: 16 }}
@@ -154,8 +219,9 @@ function SettingsRow({
         ...(row.disabled
           ? []
           : isChoice && onClick
-            ? // The checkmark is only drawn; this is what tells TalkBack and
-              // UI tests which choices are on.
+            ? // The row takes the tap, not its radio button or checkbox, as in
+              // Material's own lists; this is also what tells TalkBack and UI
+              // tests which choices are on.
               [
                 row.multiple
                   ? toggleable(Boolean(row.selected), onClick, {
@@ -173,6 +239,17 @@ function SettingsRow({
         ...(row.testID ? [testID(row.testID)] : []),
       ]}
     >
+      {/* One choice of several leads with a radio button, the way Android's
+          own settings lists draw it. */}
+      {isChoice && !row.multiple ? (
+        <RadioButton
+          selected={Boolean(row.selected)}
+          colors={{
+            selectedColor: colors.accent,
+            unselectedColor: colors.tertiaryText,
+          }}
+        />
+      ) : null}
       {row.leading ? (
         <RNHostView matchContents>
           <HostedSettingsRowLeading row={row} />
@@ -191,6 +268,9 @@ function SettingsRow({
             fontSize: row.prominent ? 18 : 16,
             fontWeight: row.prominent ? '600' : undefined,
           }}
+          // Labels run as long as they need to; only prose is ever cut off.
+          maxLines={row.expanded === false ? 3 : undefined}
+          overflow="ellipsis"
         >
           {row.title}
         </Text>
@@ -199,7 +279,17 @@ function SettingsRow({
             {supporting}
           </Text>
         ) : null}
+        {row.expanded === false ? (
+          <Text color={colors.accent} style={{ fontSize: 16 }}>
+            More
+          </Text>
+        ) : null}
       </Column>
+      {trailingValue ? (
+        <Text color={colors.secondaryText} style={{ fontSize: 16 }}>
+          {trailingValue}
+        </Text>
+      ) : null}
       {row.pending ? (
         <Pill
           text="Pending"
@@ -222,12 +312,101 @@ function SettingsRow({
           }}
         />
       ) : null}
-      {row.selected ? (
-        <RNHostView matchContents>
-          <HostedCheckmark />
-        </RNHostView>
+      {/* Any number of choices end with a checkbox, after the person or
+          thing they pick. */}
+      {isChoice && row.multiple ? (
+        <Checkbox
+          value={Boolean(row.selected)}
+          colors={{
+            checkedColor: colors.accent,
+            uncheckedColor: colors.tertiaryText,
+            checkmarkColor: colors.row,
+          }}
+        />
+      ) : null}
+      {row.trailingAction ? (
+        <Text
+          color={
+            row.trailingAction.destructive ? colors.negative : colors.accent
+          }
+          style={{ fontSize: 16 }}
+          modifiers={[
+            // A disabled row's button is off with it, as SwiftUI's is.
+            ...(row.disabled ? [] : [clickable(row.trailingAction.onPress)]),
+            padding(8, 4, 0, 4),
+            ...(row.trailingAction.testID
+              ? [testID(row.trailingAction.testID)]
+              : []),
+          ]}
+        >
+          {row.trailingAction.title}
+        </Text>
       ) : null}
     </Row>
+  );
+
+  // Both menus keep Material's own surface and shadow, as Google's apps draw
+  // them, in the app's light or dark theme from the list's Host.
+  if (picker) {
+    return (
+      <DropdownMenu
+        expanded={menuOpen}
+        onDismissRequest={() => setMenuOpen(false)}
+      >
+        <DropdownMenu.Trigger>{content}</DropdownMenu.Trigger>
+        <DropdownMenu.Items>
+          {picker.options.map((option) => (
+            <DropdownMenuItem
+              key={option.value}
+              onClick={() => {
+                setMenuOpen(false);
+                picker.onChange(option.value);
+              }}
+            >
+              <DropdownMenuItem.Text>
+                <Text
+                  color={
+                    option.value === picker.value
+                      ? colors.accent
+                      : colors.primaryText
+                  }
+                >
+                  {option.title}
+                </Text>
+              </DropdownMenuItem.Text>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenu.Items>
+      </DropdownMenu>
+    );
+  }
+
+  if (!actions.length) {
+    return content;
+  }
+
+  return (
+    <DropdownMenu
+      expanded={menuOpen}
+      onDismissRequest={() => setMenuOpen(false)}
+    >
+      <DropdownMenu.Trigger>{content}</DropdownMenu.Trigger>
+      <DropdownMenu.Items>
+        {actions.map((action) => (
+          <DropdownMenuItem
+            key={action.key}
+            onClick={() => {
+              setMenuOpen(false);
+              action.onPress();
+            }}
+          >
+            <DropdownMenuItem.Text>
+              <Text>{action.title}</Text>
+            </DropdownMenuItem.Text>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenu.Items>
+    </DropdownMenu>
   );
 }
 
@@ -279,9 +458,12 @@ function TextFieldRow({
         ...(row.disabled ? [alpha(0.5)] : []),
       ]}
     >
-      {isEmpty && field.placeholder ? (
+      {/* Stays mounted and only empties, since adding or removing a view
+          ahead of the field remounts the field, which drops focus and closes
+          the keyboard after the first letter typed into an empty field. */}
+      {field.placeholder ? (
         <Text color={colors.tertiaryText} style={{ fontSize: 16 }}>
-          {field.placeholder}
+          {isEmpty ? field.placeholder : ''}
         </Text>
       ) : null}
       <BasicTextField
@@ -318,25 +500,6 @@ function TextFieldRow({
         ]}
       />
     </Box>
-  );
-}
-
-const checkmarkSize = 24;
-
-/** Tlon's checkmark, since Compose's radio button can't take theme colors. */
-function HostedCheckmark() {
-  return (
-    <View
-      pointerEvents="none"
-      style={{ width: checkmarkSize, height: checkmarkSize }}
-    >
-      <Icon
-        type="Checkmark"
-        width={checkmarkSize}
-        height={checkmarkSize}
-        color="$positiveActionText"
-      />
-    </View>
   );
 }
 

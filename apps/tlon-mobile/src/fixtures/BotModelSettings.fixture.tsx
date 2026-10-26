@@ -170,6 +170,7 @@ function seedFixtureData({
   resetBotSettingsDraft();
   useBotSettingsDraftStore.getState().syncServerValues(fixtureShip, {
     nickname: 'Cosmos Bot',
+    browserService: 'steel',
     model: {
       provider,
       model: selectedModel,

@@ -6,6 +6,11 @@ import {
   clearCronServiceAccessor,
   setCronServiceAccessor,
 } from '../cron-telemetry.js';
+import { RESERVED_ONBOARDING_BLOB_TYPES } from '../onboarding-blob-types.js';
+import {
+  _testing as ownerToolPostsTesting,
+  sharedOwnerToolPostLedger,
+} from '../owner-tool-posts.js';
 import {
   type AgentOnboardingRunRecord,
   claimAgentOnboardingRun,
@@ -870,6 +875,43 @@ describe('agent onboarding requests', () => {
     expect(parseAgentOnboardingRequest('not-json')).toBeNull();
   });
 
+  const reservedRequests: Record<string, unknown> = {
+    'tlon-agent-intro-request': {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+      campaignVersion: 2,
+    },
+    'tlon-agent-provider-config': providerConfig(['gmail']).entry,
+    'tlon-agent-provision': provision,
+  };
+
+  it.each([...RESERVED_ONBOARDING_BLOB_TYPES])(
+    'parses a valid %s request',
+    (type) => {
+      const request = reservedRequests[type];
+      expect(request).toBeDefined();
+      expect(
+        parseAgentOnboardingRequest(
+          appendToPostBlob(undefined, request as never)
+        )
+      ).toEqual(request);
+    }
+  );
+
+  it('parses no onboarding request from a non-reserved blob type', () => {
+    expect(
+      parseAgentOnboardingRequest(
+        appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: 'provision-1',
+          cronJobId: 'cron-1',
+        })
+      )
+    ).toBeNull();
+  });
+
   it('validates automatic plans by provenance and freshness, not wording', () => {
     const automaticProvision = {
       ...provision,
@@ -943,6 +985,75 @@ describe('agent onboarding requests', () => {
       )
     ).toContain('superseded');
   });
+  it('does not read a tool-authored owner post as a newer owner answer', async () => {
+    const automaticProvision = {
+      ...provision,
+      interviewStartMessageId: 'owner-start',
+      interviewMessageId: 'owner-answer',
+    };
+    const requestBlob = appendToPostBlob(
+      appendToPostBlob(undefined, automaticProvision),
+      {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        surfaceId: 'agent-task-plan-test',
+        componentId: 'auto-provision',
+        sourcePostId: 'plan-post',
+        values: ['Create'],
+      }
+    );
+    const history = [
+      { author: '~ten', id: 'owner-start', content: 'a', timestamp: 1_000 },
+      { author: '~ten', id: 'owner-answer', content: 'b', timestamp: 2_000 },
+      { author: '~bot', id: 'plan-post', content: 'plan', timestamp: 3_000 },
+      { author: '~ten', id: 'tool-post', content: 'c', timestamp: 3_500 },
+      {
+        author: '~ten',
+        id: 'request-post',
+        content: '',
+        timestamp: 4_000,
+        blob: requestBlob,
+      },
+    ];
+    const handle = async () => {
+      const { cron } = provisionCronHarness();
+      const sendPost = successfulSendPost();
+      await expect(
+        handleAgentOnboardingRequest(
+          requestContext({ blob: requestBlob }),
+          provisionDeps(cron, {
+            fetchHistory: vi.fn(async () => history),
+            sendPost,
+          })
+        )
+      ).resolves.toBe(true);
+      return {
+        cron,
+        rejected: JSON.stringify(sendPost.mock.calls).includes(
+          `provision-rejected:${automaticProvision.provisionId}`
+        ),
+      };
+    };
+    try {
+      sharedOwnerToolPostLedger().reserve({
+        kind: 'send',
+        accountId: 'default',
+        author: '~ten',
+        target: 'chat/~ten/group/general',
+        sentAt: 3_500,
+      });
+      const toolPost = await handle();
+      expect(toolPost.rejected).toBe(false);
+      expect(toolPost.cron.add).toHaveBeenCalledOnce();
+    } finally {
+      ownerToolPostsTesting.clear();
+    }
+    clearAgentOnboardingRuntime();
+    const ownerPost = await handle();
+    expect(ownerPost.rejected).toBe(true);
+    expect(ownerPost.cron.add).not.toHaveBeenCalled();
+  });
+
   it('posts a durable recovery message when automatic evidence is rejected', async () => {
     const automaticProvision = {
       ...provision,
@@ -1062,6 +1173,45 @@ describe('agent onboarding requests', () => {
       expect.objectContaining({ campaignVersion: 1, timezone: 'Etc/UTC' }),
       1
     );
+  });
+
+  it("skips an intro request this bot posted in the owner's name", async () => {
+    const sendPost = successfulSendPost();
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+      isFirstGroup: true,
+    });
+    const history = [
+      { author: '~ten', content: 'hi', timestamp: 1_000, blob: introBlob },
+    ];
+    const scan = () =>
+      scanAgentOnboardingChannel(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+        },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      );
+    try {
+      sharedOwnerToolPostLedger().reserve({
+        kind: 'send',
+        accountId: 'default',
+        author: '~ten',
+        target: 'chat/~ten/general',
+        sentAt: 1_000,
+      });
+      await expect(scan()).resolves.toBe(false);
+      expect(sendPost).not.toHaveBeenCalled();
+    } finally {
+      ownerToolPostsTesting.clear();
+    }
+    await expect(scan()).resolves.toBe(true);
+    expect(sendPost).toHaveBeenCalledOnce();
   });
 
   it('shows thinking while a later-group greeting is reconciled', async () => {
