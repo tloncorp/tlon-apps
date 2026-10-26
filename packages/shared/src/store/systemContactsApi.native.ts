@@ -25,7 +25,8 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
   } catch (e) {
     logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
       context: 'failed to get native contacts',
-      severity: domain.AnalyticsSeverity.High,
+      severity: domain.AnalyticsSeverity.Critical,
+      error: e,
       errorMessage: e instanceof Error ? e.message : String(e),
     });
     return [];
@@ -36,7 +37,8 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
   } catch (e) {
     logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
       context: 'failed to parse native contacts',
-      severity: domain.AnalyticsSeverity.High,
+      severity: domain.AnalyticsSeverity.Critical,
+      error: e,
       errorMessage: e instanceof Error ? e.message : String(e),
     });
     return [];

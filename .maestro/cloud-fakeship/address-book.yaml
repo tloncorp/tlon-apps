@@ -9,23 +9,14 @@ env:
 - runFlow:
     file: subflows/seed-address-book-contact.yaml
     env:
-      CONTACT_FIRST: ${'Book' + MAESTRO_RUN_TAG}
-      CONTACT_LAST: Reader
+      CONTACT_FIRST: ${output.reliability.addressBookFirstName}
+      CONTACT_LAST: ${output.reliability.addressBookLastName}
       CONTACT_PHONE: '+16505550123'
 # The app reads the address book at sync start, so relaunch it cold with access.
 - launchApp:
     appId: ${MAESTRO_APP_ID}
     permissions:
       contacts: allow
-# A second launch on a fresh ship opens the web-app promo over the tabs, a
-# moment after mount.
-- extendedWaitUntil:
-    visible: '^Tlon Messenger is on the web$'
-    timeout: 10000
-    optional: true
-- tapOn:
-    text: '^Not now$'
-    optional: true
 - runFlow: ../reliability/subflows/contacts-screen.yaml
 - scrollUntilVisible:
     element: ${output.reliability.addressBookContactPattern}

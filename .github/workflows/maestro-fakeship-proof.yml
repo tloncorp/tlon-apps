@@ -61,7 +61,7 @@ jobs:
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           project-id: proj_01jjmcqhxneg69zpqdty84xqvt
-          app-binary-id: d2d169c6153584d83de32c650dbe2a0ced98f25a
+          app-binary-id: 273b377ee26ecc6cd28fcbf395a33cf60fcad3f5
           workspace: proof-flows
           maestro-cli-version: 2.6.1
           device-model: pixel_6

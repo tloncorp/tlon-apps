@@ -26,8 +26,8 @@ appId: com.google.android.contacts
     direction: DOWN
     timeout: 5000
 - tapOn: '^Phone.*'
-# The field opens holding the country prefix with the cursor before it.
-- eraseText
+# The field opens holding a "+1" prefix with the cursor before it, so the
+# number is stored with that prefix trailing; the app keeps its digits.
 - inputText: ${CONTACT_PHONE}
 - tapOn: '^Save$'
 - extendedWaitUntil:
