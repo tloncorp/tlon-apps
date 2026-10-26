@@ -1,6 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
+import type * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { useDuplicateMembershipRepair } from '../../../hooks/useDuplicateMembershipRepair';
@@ -10,6 +11,7 @@ import { ListItem } from '../ListItem';
 import {
   SETTINGS_LIST_COLUMN_WIDTH,
   type SettingsMenuItem,
+  type SettingsRowModel,
   type SettingsSectionModel,
   SettingsListScreenView,
 } from '../SettingsList';
@@ -19,16 +21,24 @@ import {
   defaultSectionTitle,
   useManageChannelsState,
 } from './ManageChannelsShared';
+import {
+  type ChannelOrder,
+  channelReorderItems,
+  moveChannels as moveChannelsInOrder,
+  reorder,
+} from './channelReorder';
 
-type Order = { sectionId: string; title: string; channelIds: string[] }[];
+type ReorderMode = 'channels' | 'sections';
 
 const logger = createDevLogger('ManageChannelsScreenView', false);
 
 /**
- * The group's channels in its native list. Sort shows drag handles for
- * reordering within a section; a channel moves between sections from its
- * long-press menu, and a section is renamed, moved or deleted from the menu
- * beside its title.
+ * The group's channels in its native list. A channel moves between sections
+ * from its long-press menu, and a section is renamed, moved or deleted from
+ * the menu beside its title. Edit reorders either the channels or the
+ * sections, as Discord's reorder screen does: SwiftUI only drops a row back
+ * into the list it came from, so each is one list. Channels are listed under
+ * their sections' names, and a channel joins the section it's dropped under.
  */
 export function ManageChannelsScreenView({
   group,
@@ -50,6 +60,7 @@ export function ManageChannelsScreenView({
     createdRoleId,
   });
   const { isEditMode, setIsEditMode } = state;
+  const [reorderMode, setReorderMode] = useState<ReorderMode>('channels');
   // Repairs a channel listed in two sections, as the other platforms do.
   const { duplicateChannelIds } = useChannelOrdering({
     groupNavSectionsWithChannels,
@@ -57,7 +68,7 @@ export function ManageChannelsScreenView({
     onDuplicatesDetected: useDuplicateMembershipRepair(group?.id),
   });
 
-  const order: Order = useMemo(
+  const order: ChannelOrder = useMemo(
     () =>
       groupNavSectionsWithChannels.map((section) => ({
         sectionId: section.sectionId,
@@ -68,7 +79,7 @@ export function ManageChannelsScreenView({
   );
 
   const save = useCallback(
-    (next: Order) => {
+    (next: ChannelOrder) => {
       // Until that repair lands, the order isn't the backend's, so saving it
       // would settle the channel in whichever section came first.
       if (duplicateChannelIds.length > 0) {
@@ -92,22 +103,115 @@ export function ManageChannelsScreenView({
     [duplicateChannelIds, updateGroupNavigation]
   );
 
-  // A move in the list's own terms: the rows' old positions, and the
-  // position they are dropped before, counted before they leave.
   const moveWithin = useCallback(
     (sectionIndex: number, from: number[], to: number) => {
-      const ids = order[sectionIndex].channelIds;
-      const moving = from.map((index) => ids[index]);
-      const rest = ids.filter((_, index) => !from.includes(index));
-      rest.splice(to - from.filter((index) => index < to).length, 0, ...moving);
       const next = [...order];
-      next[sectionIndex] = { ...next[sectionIndex], channelIds: rest };
+      next[sectionIndex] = {
+        ...next[sectionIndex],
+        channelIds: reorder(order[sectionIndex].channelIds, from, to),
+      };
       save(next);
     },
     [order, save]
   );
 
+  const reorderItems = useMemo(() => channelReorderItems(order), [order]);
+
+  const moveChannels = useCallback(
+    (from: number[], to: number) => {
+      const next = moveChannelsInOrder(order, from, to);
+      if (next) save(next);
+    },
+    [order, save]
+  );
+
+  const moveSections = useCallback(
+    (from: number[], to: number) => save(reorder(order, from, to)),
+    [order, save]
+  );
+
   const sections = useMemo((): SettingsSectionModel[] => {
+    if (isEditMode) {
+      const channelsById = new Map(
+        groupNavSectionsWithChannels.flatMap((section) =>
+          section.channels.map((channel) => [channel.id, channel] as const)
+        )
+      );
+      const modeSection: SettingsSectionModel = {
+        key: 'reorder-mode',
+        rows: [
+          {
+            key: 'reorder-mode',
+            title: 'Reorder',
+            picker: {
+              value: reorderMode,
+              options: [
+                { value: 'channels', title: 'Channels' },
+                { value: 'sections', title: 'Sections' },
+              ],
+              onChange: (value) => setReorderMode(value as ReorderMode),
+              segmented: true,
+            },
+            testID: 'ManageChannelsReorderMode',
+          },
+        ],
+      };
+      return reorderMode === 'sections'
+        ? [
+            modeSection,
+            {
+              key: 'reorder-sections',
+              footer: 'A section keeps its channels when it moves.',
+              onMove: moveSections,
+              rows: order.map((section) => ({
+                key: section.sectionId,
+                title: sectionName(section),
+                value:
+                  section.channelIds.length === 1
+                    ? '1 channel'
+                    : `${section.channelIds.length} channels`,
+                testID: `SectionItem-${sectionName(section)}`,
+              })),
+            },
+          ]
+        : [
+            modeSection,
+            {
+              key: 'reorder-channels',
+              footer: 'Drag a channel under a section to move it there.',
+              onMove: moveChannels,
+              rows: reorderItems.flatMap((item): SettingsRowModel[] => {
+                if (item.kind === 'heading') {
+                  const section = order.find(
+                    (candidate) => candidate.sectionId === item.sectionId
+                  );
+                  return section
+                    ? [
+                        {
+                          key: `heading-${item.sectionId}`,
+                          title: sectionName(section),
+                          heading: true,
+                        },
+                      ]
+                    : [];
+                }
+                const channel = channelsById.get(item.id);
+                return channel
+                  ? [
+                      {
+                        key: channel.id,
+                        title: channel.title ?? '',
+                        subtitle: getChannelTypeLabel(channel.type),
+                        leading: channelIcon(channel),
+                        testID: `ChannelItem-${channel.title}`,
+                      },
+                    ]
+                  : [];
+              }),
+            },
+          ];
+    }
+
     const movable = order
       .map((section, index) => ({ section, index }))
       .filter(({ section }) => section.sectionId !== 'default');
@@ -174,11 +278,6 @@ export function ManageChannelsScreenView({
             : undefined
           : (navSection.title ?? undefined),
         titleMenu,
-        // An empty section's only row is its placeholder, which can't move.
-        onMove:
-          navSection.channels.length > 0
-            ? (from, to) => moveWithin(sectionIndex, from, to)
-            : undefined,
         rows:
           navSection.channels.length === 0
             ? [{ key: 'empty', title: 'No channels yet', disabled: true }]
@@ -186,25 +285,8 @@ export function ManageChannelsScreenView({
                 key: channel.id,
                 title: channel.title ?? '',
                 subtitle: getChannelTypeLabel(channel.type),
-                leading: {
-                  kind: 'element' as const,
-                  render: ({ size }) => (
-                    <View>
-                      <ListItem.ChannelIcon
-                        // The type is all the icon needs.
-                        model={{ type: channel.type } as typeof channel}
-                        useTypeIcon
-                        size="custom"
-                        width={size}
-                        height={size}
-                        borderRadius={size * 0.25}
-                      />
-                    </View>
-                  ),
-                },
-                onPress: isEditMode
-                  ? undefined
-                  : () => goToChannelDetails(channel.id),
+                leading: channelIcon(channel),
+                onPress: () => goToChannelDetails(channel.id),
                 contextActions: [
                   {
                     key: 'settings',
@@ -284,8 +366,12 @@ export function ManageChannelsScreenView({
     goToChannelDetails,
     groupNavSectionsWithChannels,
     isEditMode,
+    moveChannels,
+    moveSections,
     moveWithin,
     order,
+    reorderItems,
+    reorderMode,
     save,
     state,
   ]);
@@ -327,4 +413,30 @@ export function ManageChannelsScreenView({
       />
     </SettingsListScreenView>
   );
+}
+
+/** A section's name in the reorder lists, the default bucket's included. */
+function sectionName(section: { sectionId: string; title: string }) {
+  return section.sectionId === 'default'
+    ? defaultSectionTitle
+    : section.title || 'Untitled section';
+}
+
+function channelIcon(channel: db.Channel): SettingsRowModel['leading'] {
+  return {
+    kind: 'element',
+    render: ({ size }) => (
+      <View>
+        <ListItem.ChannelIcon
+          // The type is all the icon needs.
+          model={{ type: channel.type } as db.Channel}
+          useTypeIcon
+          size="custom"
+          width={size}
+          height={size}
+          borderRadius={size * 0.25}
+        />
+      </View>
+    ),
+  };
 }
