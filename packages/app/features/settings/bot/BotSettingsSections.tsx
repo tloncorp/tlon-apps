@@ -15,6 +15,7 @@ import {
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
   SUBSCRIPTION_PROVIDERS,
+  getBasicModelLabel,
   providerLabel,
 } from './constants';
 import {
@@ -218,9 +219,11 @@ export function useBotSettingsSectionModels(
       {
         key: 'default-model',
         title: 'Default model',
-        subtitle: draft.model.provider
-          ? providerLabel(draft.model.provider)
-          : 'Not set',
+        subtitle: !draft.model.provider
+          ? 'Not set'
+          : onBasicModel
+            ? getBasicModelLabel(queries.providerConfig)
+            : providerLabel(draft.model.provider),
         value: draft.model.model || undefined,
         pending: pending.modelProvider || pending.model,
         disabled: controlsReadOnly,
@@ -249,6 +252,21 @@ export function useBotSettingsSectionModels(
               model: { ...current.model, zdr: value },
             })),
         },
+      });
+    } else if (
+      settingsReady &&
+      draft.model.provider === 'openrouter' &&
+      draft.model.model
+    ) {
+      // An OpenRouter model's ZDR is set with the model, in the model list, so
+      // here it is shown rather than switched: a model that may keep data says so.
+      modelRows.push({
+        key: 'zdr',
+        title: 'Zero data retention',
+        value: draft.model.zdr ? 'On' : 'Off',
+        pending: pending.zdr,
+        disabled: controlsReadOnly,
+        onPress: () => navigate('BotModelSettings', { mode: 'default' }),
       });
     }
 
@@ -334,6 +352,28 @@ export function useBotSettingsSectionModels(
             },
           ],
         },
+        {
+          key: 'browser-service',
+          title: 'Browser service',
+          footer: queries.browserServiceQuery.isError
+            ? 'Browser service settings are unavailable. Try reopening settings.'
+            : queries.browserServiceQuery.isSuccess &&
+                !queries.browserServiceQuery.data.supported
+              ? 'Browser service selection is available for OpenClaw bots.'
+              : 'Applying a change restarts your bot and stops its current browser task.',
+          rows: (['steel', 'kernel'] as const).map((browserService) => ({
+            key: browserService,
+            title: browserService === 'steel' ? 'Steel' : 'Kernel',
+            selected: draft.browserService === browserService,
+            pending:
+              pending.browserService && draft.browserService === browserService,
+            disabled:
+              controlsReadOnly || !queries.browserServiceQuery.data?.supported,
+            onPress: () =>
+              commitDraft((current) => ({ ...current, browserService })),
+            testID: `BotBrowserService-${browserService}`,
+          })),
+        },
       ],
       models: [
         {
@@ -389,10 +429,15 @@ export function useBotSettingsSectionModels(
     draft.model.provider,
     draft.model.zdr,
     draft.nickname,
+    draft.browserService,
+    queries.browserServiceQuery.isError,
+    queries.browserServiceQuery.isSuccess,
+    queries.browserServiceQuery.data?.supported,
     modelsValue,
     navigate,
     pending,
     queries.botReady,
+    queries.providerConfig,
     queries.providerConfigQuery.isSuccess,
     scheduledTaskCount,
     showsScheduledTasks,

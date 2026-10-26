@@ -69,6 +69,15 @@
         "scheme": "Landscape-preview"
       }
     },
+    "development-simulator": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "scheme": "Landscape",
+        "simulator": true
+      }
+    },
     "local-testing": {
       "extends": "base",
       "channel": "local",

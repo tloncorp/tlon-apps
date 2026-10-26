@@ -121,7 +121,13 @@ import {
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
+import { registerWalletHandoffs } from './src/wallet-handoffs.js';
 import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
+import { createBrowserLoginApprovalHandler } from './src/browser-login-approval.js';
+import {
+  registerBrowserHandoffResults,
+  browserToolSessionId,
+} from './src/browser-handoff-results.js';
 import {
   resolveExecutionBotShip,
   runTlonCommand,
@@ -963,6 +969,9 @@ type AgentTurnHookDeps = {
   // the gate records an approval the executor re-checks before the CLI runs.
   liveAccount: () => LiveTlonOwner;
   isOwnerRun: OwnerRunCheck;
+  browserHandoffs: ReturnType<typeof registerBrowserHandoffResults>;
+  walletHandoffs: ReturnType<typeof registerWalletHandoffs>;
+  browserLoginApprovals: ReturnType<typeof createBrowserLoginApprovalHandler>;
 };
 
 const agentTurnHookDepsSlot = sharedSlot<AgentTurnHookDeps>(
@@ -1110,7 +1119,11 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       recordedRole !== undefined
         ? (recordedRole ?? undefined)
         : (runSurface?.senderRole ?? getSessionRole(ctx.sessionKey ?? ''));
-    const ownerOnlyDecision = resolveOwnerOnlyToolBlock(event.toolName, role);
+    const ownerOnlyDecision = resolveOwnerOnlyToolBlock(
+      event.toolName,
+      role,
+      event.params
+    );
     const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
     const blocksNonOwner = ownerOnlyDecision.blocked;
     const isMcpDescribe = isMcpDescribeToolName(event.toolName);
@@ -1147,6 +1160,13 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
           )
         )
       : { blocked: false };
+    const browserSessionId = browserToolSessionId(event.toolName, event.params);
+    const blocksBrowserHandoff =
+      !blocksNonOwner &&
+      !!browserSessionId &&
+      (await agentTurnHookDepsSlot
+        .get()
+        ?.browserHandoffs.isPending(browserSessionId));
     const sessionSurface = getTlonSessionSurface(ctx.sessionKey);
     // Changing or removing a job during first-run setup is fine unless it
     // is the onboarding task; only the job list can say which it is.
@@ -1197,6 +1217,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       blocksNonOwner ||
       blocksOnboardingMcp ||
       blocksOnboardingBoundary ||
+      blocksBrowserHandoff ||
       tlonAppBrowser.blocked;
     // Decided here, with the other block decisions, so the trace and the
     // allowed/blocked logs below all describe the same outcome. The guard
@@ -1224,7 +1245,9 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
         ? CRON_ARGS_BLOCK_REASON
         : (effectiveOnboardingBoundaryReason ??
           ownerOnlyDecision.reason ??
-          tlonAppBrowser.reason);
+          (blocksBrowserHandoff
+            ? 'This browser is waiting for secure entry. Stop browser tool calls and wait for the service result; it resumes this conversation.'
+            : tlonAppBrowser.reason));
     if (contextLensEnabled) {
       // Capture tool activity even when no conversation run owns this
       // session (cron wakes — including jobs that reuse the main session
@@ -1348,6 +1371,28 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
 
   api.on('after_tool_call', async (event, ctx) => {
     recordSuccessfulAgentOnboardingSurface(event, ctx);
+    try {
+      await agentTurnHookDepsSlot.get()?.walletHandoffs.handle(event, ctx);
+    } catch {
+      api.logger.warn('[tlon] Wallet card delivery failed.');
+      if (ctx.sessionKey)
+        api.runtime.system.enqueueSystemEvent(
+          'The wallet card could not be delivered. Tell the owner; do not claim approval or retry payment.',
+          { sessionKey: ctx.sessionKey }
+        );
+    }
+    try {
+      await agentTurnHookDepsSlot
+        .get()
+        ?.browserLoginApprovals.handle(event, ctx);
+    } catch {
+      api.logger.warn('[tlon] Could not send the saved login approval card.');
+      if (ctx.sessionKey)
+        api.runtime.system.enqueueSystemEvent(
+          'The saved login approval card could not be sent. No new approval prompt was delivered. Tell the owner that delivery failed; do not retry login or claim that approval is pending. Use the Tlon browser approve-login command if the owner asks to try again.',
+          { sessionKey: ctx.sessionKey }
+        );
+    }
     const { contextLensEnabled, logToolTraceContents } =
       resolveAgentTurnHookDeps();
     const toolCallId = readToolCallId(event);
@@ -1475,6 +1520,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
   // tool call) still finalize, while leaving time for the gateway to
   // deliver the reply (stamped + recorded via the outbound send path).
   api.on('agent_end', (event, ctx) => {
+    agentTurnHookDepsSlot.get()?.browserLoginApprovals.endRun(ctx);
     recordCronSilenceOutput(event, ctx);
     recordTlonTurnSilenceOutput(event, ctx);
     clearCronJobForSession(ctx.sessionKey, ctx.jobId);
@@ -1776,6 +1822,39 @@ export default defineBundledChannelEntry({
         }),
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
+    const browserHandoffs = registerBrowserHandoffResults(api);
+    const walletHandoffs = registerWalletHandoffs(api, tlonBinary);
+    const runBrowserCommand = async (
+      args: string[],
+      ctx: { sessionKey?: string; sessionId?: string }
+    ) => {
+      if (
+        ['handoff', 'approve-login'].includes(args[1]) &&
+        args[2] &&
+        (await browserHandoffs.isPending(args[2]))
+      )
+        throw new Error(
+          'This browser is waiting for secure entry. Wait for its result.'
+        );
+      return runBrowserSessionHandoff(tlonBinary, args, api.config, (request) =>
+        browserHandoffs.watch(request, ctx)
+      );
+    };
+
+    const browserLoginApprovals = createBrowserLoginApprovalHandler(
+      (sessionId, record, ctx, fields) =>
+        runBrowserCommand(
+          [
+            'browser',
+            'approve-login',
+            sessionId,
+            '--fields',
+            JSON.stringify(fields),
+            ...(record ? ['--record', JSON.stringify(record)] : []),
+          ],
+          ctx
+        )
+    );
 
     if (credentials) {
       api.logger.info(`[tlon] Credentials available for ${account.ship}`);
@@ -1801,7 +1880,7 @@ export default defineBundledChannelEntry({
         }: ReturnType<typeof liveAccount>): TlonToolExecutorDeps => ({
           runCommand: (args) =>
             args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
-              ? runBrowserSessionHandoff(tlonBinary, args, api.config)
+              ? runBrowserCommand(args, ctx)
               : runTlonCommand(tlonBinary, args, credentials, {
                   timeoutMs: toolTimeoutMs,
                   cwd: ctx.workspaceDir,
@@ -2051,6 +2130,9 @@ export default defineBundledChannelEntry({
         onCronAgentHook,
         liveAccount,
         isOwnerRun,
+        browserHandoffs,
+        walletHandoffs,
+        browserLoginApprovals,
       });
     }
   },

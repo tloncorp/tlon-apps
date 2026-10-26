@@ -74,6 +74,13 @@ function latest(pkg) {
   return r.ok ? r.stdout.trim() : null;
 }
 
+// Homebrew is optional off macOS.
+function brew(verb, pkg) {
+  return which('brew')
+    ? { how: `brew ${verb} ${pkg}`, cmd: ['brew', [verb, pkg]] }
+    : { how: `install ${pkg} with your package manager` };
+}
+
 function upToDate(pkg, v, path) {
   const newest = latest(pkg);
   if (newest && atLeast(newest, v) && newest !== v)
@@ -88,12 +95,12 @@ const checks = [
     name: 'gh',
     test() {
       if (!which('gh'))
-        return { fix: 'gh is not installed', how: 'brew install gh' };
+        return { fix: 'gh is not installed', how: brew('install', 'gh').how };
       const v = version('gh');
       if (!atLeast(v, '2.99.0'))
         return {
           fix: `gh ${v} predates --attach (needs 2.99.0)`,
-          how: 'brew upgrade gh',
+          how: brew('upgrade', 'gh').how,
         };
       // Unscoped, `gh auth status` exits 1 for a stale account on any host.
       if (
@@ -327,8 +334,20 @@ const checks = [
         return { ok: `ffmpeg ${version('ffmpeg', ['-version'])}` };
       return {
         fix: 'ffmpeg is not installed (trimming and checking recordings)',
-        how: 'brew install ffmpeg',
-        cmd: ['brew', ['install', 'ffmpeg']],
+        ...brew('install', 'ffmpeg'),
+      };
+    },
+  },
+  {
+    name: 'xcode',
+    test() {
+      // Command Line Tools alone install an xcodebuild that exits 1.
+      const v = run('xcodebuild', ['-version']).stdout.match(
+        /^Xcode (\S+)/m
+      )?.[1];
+      if (v) return { ok: `Xcode ${v}; iOS builds on this machine` };
+      return {
+        note: 'no Xcode; stim ios takes --eas-profile development-simulator (see the tlon-workflow skill, Run the app)',
       };
     },
   },

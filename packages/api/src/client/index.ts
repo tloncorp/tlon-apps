@@ -60,6 +60,8 @@ export {
   markUserTlonbotEnabled,
   checkNodeIsTlonbotReady,
   // Tlawn (bot) endpoints
+  getTlawnBrowserService,
+  setTlawnBrowserService,
   getTlawnProviderKeys,
   setTlawnProviderKey,
   deleteTlawnProviderKey,
@@ -102,6 +104,8 @@ export type {
   TlawnProviderConfigInfo,
   TlawnModelEntry,
   TlawnPrimaryModelUpdate,
+  TlawnBrowserService,
+  TlawnBrowserServiceInfo,
   TlawnBotInfo,
   TlawnChannelGroupEntry,
   TlawnChannelGroups,

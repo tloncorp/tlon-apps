@@ -1,6 +1,7 @@
 import { getCurrentUserId, scry } from '@tloncorp/api';
 
 import { normalizeShip } from './api-client';
+import { parseNest } from './cli-utils';
 import {
   type RawGroupForAdminVerification,
   actingShipCanAdminister,
@@ -23,6 +24,15 @@ export async function getRawGroupForAdminVerification(
 // an admin unconditionally (`se-is-admin`), regardless of seats or roles.
 export function getGroupHost(groupId: string): string {
   return normalizeShip(groupId.split('/')[0]);
+}
+
+// Mirrors `is-admin` in desk/lib/channel-utils.hoon: for the commands the
+// channel host checks itself, the ship hosting the channel administers it
+// regardless of its group roles.
+export function actingShipHostsChannel(nest: string): boolean {
+  return (
+    normalizeShip(parseNest(nest).host) === normalizeShip(getCurrentUserId())
+  );
 }
 
 /**
