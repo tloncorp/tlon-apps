@@ -1,13 +1,13 @@
 {
   "activity": {
-    "summary": "Mentions, replies, unreads, and notification levels",
+    "summary": "Mentions, replies, unreads, marking read, and notification levels",
     "reference": "references/reading.md",
-    "toolGuidance": "Read activity; results are bounded. mute/unmute/volume change the owner's notification settings: change them only on request. volume base [medium|soft|hush] shows or sets the app-wide level (Settings → Notifications); chats with their own level ignore it."
+    "toolGuidance": "Read activity; results are bounded. Change notifications only on request. volume base [medium|soft|hush] shows or sets the app-wide level (Settings → Notifications); chats with their own level ignore it. mark-read <target>|--all marks chats read (no undo): only on explicit request."
   },
   "browser": {
     "summary": "Hosted-browser sharing and secure form handoff",
     "reference": "references/browser-handoff.md",
-    "toolGuidance": "Use a session_id from browser_session_create, never a viewer URL; handoff --fields accepts a JSON array of snapshot refs or exact name/label selectors, never field values. No credential or recipient overrides."
+    "toolGuidance": "Use a session_id from browser_session_create, never a viewer URL; handoff --fields accepts a JSON array of snapshot refs or exact name/label selectors, never field values. No credential or recipient overrides. Always runs as the bot."
   },
   "buckets": {
     "summary": "Shared group files and folders",
@@ -22,7 +22,7 @@
   "contacts": {
     "summary": "Contacts and profile management",
     "reference": "references/contacts-settings.md",
-    "toolGuidance": "Read contacts and update the current ship profile."
+    "toolGuidance": "Read contacts and update a profile."
   },
   "dms": {
     "summary": "DM management",
@@ -37,12 +37,12 @@
   "groups": {
     "summary": "Workspaces (Tlon groups), roles, membership, and channel sections",
     "reference": "references/groups-channels.md",
-    "toolGuidance": "Use create-owned when creating a group for a user. Organize channels with the section commands; read ids from groups info first."
+    "toolGuidance": "Use groups create-owned to create a group for a user. Organize channels with the section commands; read ids from groups info first."
   },
   "hooks": {
     "summary": "Channel hooks and automation",
     "reference": "references/hooks-workflow.md",
-    "toolGuidance": "Advanced channel hooks; inspect help and the hook reference first."
+    "toolGuidance": "Advanced channel hooks, always run as the bot; inspect help and the hook reference first."
   },
   "messages": {
     "summary": "Message history and search",
@@ -52,17 +52,17 @@
   "notes": {
     "summary": "Markdown notebooks and notes",
     "reference": "references/notes.md",
-    "toolGuidance": "Use workspace files; note-publish makes a note public as the owner, so publish only on request; owner-confirmed migration writes are unavailable."
+    "toolGuidance": "Use workspace files; note-publish makes a note public, so publish only on request; owner-confirmed migration writes are unavailable."
   },
   "posts": {
-    "summary": "Post reactions, edits, deletes, and pins",
+    "summary": "Gallery attachments, post quotes, forwards, reactions, edits, deletes, and pins",
     "reference": "references/reading.md",
-    "toolGuidance": "Send/reply through message; `posts edit` parses ~ship, @role-id and @all like a send but notifies nobody; do not manage deprecated diary posts."
+    "toolGuidance": "Send/reply through message; post a gallery image, file, video or link with posts send (one attachment per gallery post; see references/media.md); to quote or forward an existing post use posts send|reply --quote or posts forward; `posts edit` parses ~ship, @role-id and @all like a send but notifies nobody; do not manage deprecated diary posts."
   },
   "settings": {
     "summary": "OpenClaw Tlon settings",
     "reference": "references/contacts-settings.md",
-    "toolGuidance": "Read or change explicitly requested settings."
+    "toolGuidance": "Bot settings, always run as the bot. Change only explicitly requested settings; access-control keys cannot be set directly."
   },
   "upload": {
     "summary": "Standalone media upload",

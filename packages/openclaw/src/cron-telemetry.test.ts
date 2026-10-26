@@ -58,6 +58,21 @@ function makeOnExitJob(overrides: Partial<HookCronJob> = {}): HookCronJob {
   };
 }
 
+function makeStreamJob(overrides: Partial<HookCronJob> = {}): HookCronJob {
+  return {
+    ...makeJob(overrides),
+    schedule: {
+      kind: 'stream',
+      command: ['secret', 'stream', '--token', 'sensitive'],
+      cwd: '/private/stream/path',
+      mode: 'match',
+      match: 'secret match text',
+      batchMs: 1_000,
+      maxBatchBytes: 65_536,
+    } as unknown as HookCronJob['schedule'],
+  };
+}
+
 function makeFinishedEvent(
   overrides: Partial<HookCronEvent> = {}
 ): HookCronEvent {
@@ -152,6 +167,19 @@ describe('cron telemetry builders', () => {
     expect(JSON.stringify(fields)).not.toContain('/private/watcher/path');
   });
 
+  it('extracts only the kind from stream schedules', () => {
+    const fields = cronScheduleFields(makeStreamJob());
+    expect(fields).toEqual({
+      scheduleKind: 'stream',
+      scheduleExpr: null,
+      scheduleTz: null,
+      scheduleEveryMs: null,
+      scheduleAt: null,
+    });
+    expect(JSON.stringify(fields)).not.toContain('secret');
+    expect(JSON.stringify(fields)).not.toContain('/private/stream/path');
+  });
+
   it('normalizes session target kinds without leaking session keys', () => {
     expect(normalizeCronSessionTargetKind('main')).toBe('main');
     expect(normalizeCronSessionTargetKind('isolated')).toBe('isolated');
@@ -182,14 +210,16 @@ describe('cron telemetry builders', () => {
       makeJob({ id: 'job-4', schedule: { kind: 'at', at: 'soon' } }),
       makeJob({ id: 'job-5', enabled: undefined, schedule: undefined }),
       makeOnExitJob({ id: 'job-6' }),
+      makeStreamJob({ id: 'job-7' }),
     ];
     expect(summarizeCronJobs(jobs)).toEqual({
-      activeCronJobCount: 5,
-      totalCronJobCount: 6,
+      activeCronJobCount: 6,
+      totalCronJobCount: 7,
       scheduleKindCronCount: 2,
       scheduleKindEveryCount: 1,
       scheduleKindAtCount: 1,
       scheduleKindOnExitCount: 1,
+      scheduleKindStreamCount: 1,
     });
   });
 
@@ -229,6 +259,15 @@ describe('cron telemetry builders', () => {
     expect(report).toMatchObject({ scheduleKind: 'on-exit' });
     expect(JSON.stringify(report)).not.toContain('secret watcher');
     expect(JSON.stringify(report)).not.toContain('/private/watcher/path');
+  });
+
+  it('preserves stream kind on run reports without leaking stream details', () => {
+    const report = buildCronRunReport(
+      makeFinishedEvent({ job: makeStreamJob() })
+    );
+    expect(report).toMatchObject({ scheduleKind: 'stream' });
+    expect(JSON.stringify(report)).not.toContain('secret');
+    expect(JSON.stringify(report)).not.toContain('/private/stream/path');
   });
 
   it('builds a run report for failures with error text', () => {
@@ -324,6 +363,14 @@ describe('cron telemetry builders', () => {
     expect(JSON.stringify(onExitAdded)).not.toContain('secret watcher');
     expect(JSON.stringify(onExitAdded)).not.toContain('/private/watcher/path');
 
+    const streamAdded = buildCronJobChangedReport(
+      { action: 'added', jobId: 'job-stream', job: makeStreamJob() },
+      { activeCronJobCount: 5, totalCronJobCount: 6 }
+    );
+    expect(streamAdded).toMatchObject({ scheduleKind: 'stream' });
+    expect(JSON.stringify(streamAdded)).not.toContain('secret');
+    expect(JSON.stringify(streamAdded)).not.toContain('/private/stream/path');
+
     expect(
       buildCronJobChangedReport({ action: 'removed', jobId: 'job-1' }, null)
     ).toMatchObject({
@@ -341,13 +388,16 @@ describe('cron telemetry builders', () => {
   });
 
   it('builds a snapshot report from a job list', () => {
-    expect(buildCronSnapshotReport([makeJob(), makeOnExitJob()])).toEqual({
-      activeCronJobCount: 2,
-      totalCronJobCount: 2,
+    expect(
+      buildCronSnapshotReport([makeJob(), makeOnExitJob(), makeStreamJob()])
+    ).toEqual({
+      activeCronJobCount: 3,
+      totalCronJobCount: 3,
       scheduleKindCronCount: 1,
       scheduleKindEveryCount: 0,
       scheduleKindAtCount: 0,
       scheduleKindOnExitCount: 1,
+      scheduleKindStreamCount: 1,
     });
   });
 });
@@ -553,6 +603,7 @@ describe('cron telemetry hook handling', () => {
       scheduleKindCronCount: 2,
       scheduleKindEveryCount: 0,
       scheduleKindOnExitCount: 0,
+      scheduleKindStreamCount: 0,
       totalCronJobCount: 2,
     });
     expect(reports).toEqual([
@@ -610,18 +661,23 @@ describe('cron telemetry hook handling', () => {
   });
 
   it('projects boot snapshots into OTEL job inventory', async () => {
-    const service = makeCronService([makeJob(), makeOnExitJob()]);
+    const service = makeCronService([
+      makeJob(),
+      makeOnExitJob(),
+      makeStreamJob(),
+    ]);
     const { observer, recordJobSnapshot } = makeCronObserver();
     setCronServiceAccessor(() => service);
 
     await expect(emitCronSnapshot({ observer })).resolves.toBe(true);
     expect(recordJobSnapshot).toHaveBeenCalledWith({
-      activeCronJobCount: 2,
+      activeCronJobCount: 3,
       scheduleKindAtCount: 0,
       scheduleKindCronCount: 1,
       scheduleKindEveryCount: 0,
       scheduleKindOnExitCount: 1,
-      totalCronJobCount: 2,
+      scheduleKindStreamCount: 1,
+      totalCronJobCount: 3,
     });
   });
 

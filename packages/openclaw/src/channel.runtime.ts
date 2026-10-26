@@ -424,6 +424,9 @@ const coreTlonRuntimeOutbound: Pick<
     to,
     text,
     mediaUrl,
+    mediaAccess,
+    mediaLocalRoots,
+    mediaReadFile,
     accountId,
     replyToId,
     threadId,
@@ -438,7 +441,11 @@ const coreTlonRuntimeOutbound: Pick<
       },
       async () => {
         const media = mediaUrl
-          ? await prepareOutboundMedia(mediaUrl)
+          ? await prepareOutboundMedia(mediaUrl, {
+              mediaAccess,
+              mediaLocalRoots,
+              mediaReadFile,
+            })
           : undefined;
         const fromShip = normalizeShip(account.ship);
         const replyId = resolveReplyId(replyToId, threadId);
@@ -550,7 +557,8 @@ export const tlonRuntimeOutbound: Pick<
         async () =>
           Promise.all(
             resolvePayloadMediaUrls(ctx.payload).map(
-              async (mediaUrl) => (await prepareOutboundMedia(mediaUrl)).url
+              async (mediaUrl) =>
+                (await prepareOutboundMedia(mediaUrl, ctx)).url
             )
           )
       );

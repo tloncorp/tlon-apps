@@ -1,6 +1,18 @@
-import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from 'vitest';
 
-import { type TestFixtures, getFixtures, waitFor } from '../lib/index.js';
+import {
+  type TestFixtures,
+  getFixtures,
+  waitFor,
+  waitForRuntimeIdle,
+} from '../lib/index.js';
 import {
   extractPostText,
   getLatestSequenceForAuthor,
@@ -11,8 +23,8 @@ import { fakeModel } from '../support/fake-model/client.js';
 const SOURCE_IMAGE_URL =
   'https://storage.googleapis.com/tlon-test-ci-shared/test-images/openclaw-image.png';
 
-const LOCAL_MEDIA_ERROR_TEXT =
-  'Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>`) and resend with the returned https URL.';
+const LOCAL_MEDIA_ERROR =
+  /Local attachments require TLON_HOSTING=1|Could not read local media/;
 
 // Poke mark verified against fakezod — see plan §1b.
 // JSON keys must be kebab-case (storage-json/hoon), not camelCase.
@@ -43,6 +55,10 @@ describe('media', () => {
   beforeEach(async () => {
     await fakeModel.reset();
   });
+
+  // The upload test's final reply can still be in delivery when it returns;
+  // the next prompt would then take that reply as its own response.
+  afterEach(() => waitForRuntimeIdle('after the test'));
 
   const mediaTest = hasStorageEnv ? test : test.skip;
 
@@ -251,7 +267,7 @@ describe('media', () => {
     );
   });
 
-  test('local path fails loudly and posts nothing (storage-independent)', async () => {
+  test('disallowed local path fails loudly and posts nothing (storage-independent)', async () => {
     const token = `it-localmedia-${Date.now().toString(36)}`;
     const key = 'media-local-path-reject';
     const localPath = `/pier/secret-${token}.png`;
@@ -294,8 +310,7 @@ describe('media', () => {
     const followUpWithToolResult = calls.find((call) =>
       call.messages?.some(
         (msg) =>
-          msg.role === 'tool' &&
-          msg.content?.text?.includes(LOCAL_MEDIA_ERROR_TEXT)
+          msg.role === 'tool' && LOCAL_MEDIA_ERROR.test(msg.content?.text ?? '')
       )
     );
     expect(followUpWithToolResult).toBeDefined();

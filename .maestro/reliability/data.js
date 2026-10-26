@@ -28,6 +28,8 @@ var maxGroupRunTagLength = Math.max(
   1,
   30 - 'QA-'.length - groupSuffix.length - renamedGroupSuffix.length
 );
+var addressBookFirstName = 'Book' + MAESTRO_RUN_TAG;
+var addressBookLastName = 'Reader';
 
 output.reliability = {
   hosted: typeof MAESTRO_EMAIL !== 'undefined' && !!MAESTRO_EMAIL,
@@ -57,6 +59,11 @@ output.reliability = {
   ),
   groupSwipeTitlePattern: exact('SwipeGroup-' + MAESTRO_RUN_TAG),
   homeUnreadGroupTitlePattern: exact('HomeUnread-' + MAESTRO_RUN_TAG),
+  addressBookFirstName: addressBookFirstName,
+  addressBookLastName: addressBookLastName,
+  addressBookContactPattern: exact(
+    addressBookFirstName + ' ' + addressBookLastName
+  ),
   homeUnreadGroupPreviewPattern: exact(
     '~ten: ' + MAESTRO_RUN_TAG + ' home group unread'
   ),

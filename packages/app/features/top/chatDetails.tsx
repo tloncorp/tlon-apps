@@ -1,873 +1,200 @@
-// Shared components for ChatDetailsScreen and ChannelDetailsScreen
-import * as ub from '@tloncorp/api/urbit';
+// Wires the group and channel info screen to the app: its data, where its
+// rows lead, and what its actions do. `ChatDetailsScreenView` draws it.
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import * as Clipboard from 'expo-clipboard';
-import { capitalize } from 'lodash';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
-import { useRootNavigation } from '../../navigation/utils';
+import { useIsMobileTree, useRootNavigation } from '../../navigation/utils';
 import {
-  ActionSheet,
-  ConfirmDialog,
-  ContactListItem,
   GroupMemberProfileSheet,
-  Icon,
-  ListItem,
-  PaddedBlock,
-  Pressable,
-  ProfileButton,
-  ScrollView,
-  TlonText,
-  View,
-  XStack,
-  YStack,
-  createActionGroup,
-  pluralize,
   useChatOptions,
   useCurrentUserId,
   useForwardChannelSheet,
+  useForwardGroupSheet,
   useGroupTitle,
   useIsAdmin,
   useToast,
 } from '../../ui';
-import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
+import { ChatDetailsScreenView } from '../../ui/components/ChatDetailsScreenView';
+import { CreateChannelSheet } from '../../ui/components/ManageChannels/CreateChannelSheet';
 import {
   WorkspaceInstructionsSheet,
   hasWorkspaceInstructions,
 } from '../../ui/components/WorkspaceInstructionsSheet';
 import {
-  channelSupportsNotifications,
-  getChannelActionCapabilities,
-  getChannelHost,
-  getChannelTitle,
-  getChannelTypeIcon,
-  getGroupMemberCount,
-} from '../../ui/utils';
-import { getGroupChannelMenu } from '../../ui/utils/groupChannelSections';
-import {
   destinationForChannel,
   tasksPostingTo,
 } from '../../ui/components/automationTaskDraft';
+import { getGroupChannelMenu } from '../../ui/utils/groupChannelSections';
+import { useBotDelivery } from '../automations/useBotDelivery';
 import {
   useOpenScheduledTasks,
   useScheduledTasksEntry,
 } from '../automations/useScheduledTasksEntry';
-import { useBotDelivery } from '../automations/useBotDelivery';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
-// Utility functions
+type ChatType = 'group' | 'channel';
 
-const maxMembersToDisplay = 5;
-
-function getNotificationTitle(
-  volumeSettings: { level: ub.NotificationLevel } | null | undefined,
-  baseVolumeLevel: ub.NotificationLevel
-): string {
-  if (volumeSettings?.level) {
-    const levelName = ub.NotificationNamesShort[volumeSettings.level];
-    return `${levelName} (custom)`;
-  }
-  const defaultLevelName = ub.NotificationNamesShort[baseVolumeLevel];
-  return `${defaultLevelName} (app default)`;
-}
-
-// SettingsAction - individual settings row item
-
-interface SettingsActionProps {
-  title: string | React.ReactNode;
-  description?: string;
-  endValue?: string;
-  disabled: boolean;
-  testID: string;
-  first?: boolean;
-  last?: boolean;
-  onPress: () => void;
-}
-
-function SettingsAction({
-  title,
-  description,
-  endValue,
-  disabled,
-  testID,
-  first,
-  last,
-  onPress,
-}: SettingsActionProps) {
-  return (
-    <Pressable
-      onPress={disabled ? undefined : onPress}
-      disabled={disabled}
-      cursor={disabled ? 'default' : 'pointer'}
-    >
-      <ListItem
-        paddingHorizontal="$2xl"
-        backgroundColor={disabled ? '$secondaryBackground' : '$background'}
-        borderTopLeftRadius={first ? '$2xl' : 0}
-        borderTopRightRadius={first ? '$2xl' : 0}
-        borderBottomLeftRadius={last ? '$2xl' : 0}
-        borderBottomRightRadius={last ? '$2xl' : 0}
-        borderLeftWidth={disabled ? 1 : 0}
-        borderRightWidth={disabled ? 1 : 0}
-        borderTopWidth={
-          last && disabled ? 0 : first && disabled ? 1 : undefined
-        }
-        borderBottomWidth={
-          first && disabled ? 0 : last && disabled ? 1 : undefined
-        }
-        borderColor={'$secondaryBorder'}
-        alignItems="center"
-        testID={testID}
-      >
-        <ActionSheet.ActionContent flex={1} flexShrink={0}>
-          <ActionSheet.ActionTitle
-            color={disabled ? '$tertiaryText' : undefined}
-            numberOfLines={1}
-          >
-            {title}
-          </ActionSheet.ActionTitle>
-          {description && (
-            <ActionSheet.ActionDescription>
-              {description}
-            </ActionSheet.ActionDescription>
-          )}
-        </ActionSheet.ActionContent>
-        <ListItem.EndContent
-          flexDirection="row"
-          gap="$xl"
-          alignItems="center"
-          justifyContent="flex-end"
-        >
-          {endValue && (
-            <ListItem.Title color="$tertiaryText">{endValue}</ListItem.Title>
-          )}
-          {!disabled && (
-            <ActionSheet.ActionIcon type="ChevronRight" color="$tertiaryText" />
-          )}
-        </ListItem.EndContent>
-      </ListItem>
-    </Pressable>
-  );
-}
-
-// MembersList - displays members with invite option
-
-export interface MembersListProps {
-  entityType: 'group' | 'channel';
-  members?: db.ChatMember[] | null;
-  group?: db.Group | null;
-  canInvite: boolean;
-  canManage: boolean;
-}
-
-export function MembersList({
-  entityType,
-  members,
-  group,
-  canInvite,
-  canManage,
-}: MembersListProps) {
-  const joinedMembers = members?.filter((m) => m.status === 'joined');
-  const memberCount =
-    entityType === 'group' && group
-      ? getGroupMemberCount(group)
-      : (joinedMembers?.length ?? 0);
-  const [selectedContact, setSelectedContact] = useState<string | null>(null);
-  const { onPressGroupMembers, onPressChannelMembers, onPressInvite } =
-    useChatOptions();
-  const { navigation } = useRootNavigation();
-
-  const handlePressSeeAllMembers = useCallback(() => {
-    if (entityType === 'group') {
-      onPressGroupMembers();
-    } else {
-      onPressChannelMembers();
-    }
-  }, [entityType, onPressChannelMembers, onPressGroupMembers]);
-
-  const handlePressGoToProfile = useCallback(
-    (contactId: string) => {
-      navigation.navigate('UserProfile', { userId: contactId });
-    },
-    [navigation]
-  );
-
-  return (
-    <View paddingHorizontal={'$l'}>
-      <PaddedBlock width="100%" gap="$l" paddingBottom="$xl">
-        <TlonText.Text size="$label/m" color="$tertiaryText">
-          {memberCount} {pluralize(memberCount, 'Member')}
-        </TlonText.Text>
-        <YStack>
-          {canInvite ? (
-            <Pressable
-              onPress={onPressInvite}
-              testID={
-                entityType === 'group'
-                  ? 'GroupMembersInvitePeopleButton'
-                  : 'ChannelMembersInvitePeopleButton'
-              }
-            >
-              <XStack gap="$l" alignItems="center" height="$4xl">
-                <View
-                  width="$3xl"
-                  height="$3xl"
-                  backgroundColor={'$blueSoft'}
-                  borderRadius="$xs"
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <Icon
-                    type="Add"
-                    color="$positiveActionText"
-                    customSize={[20, 20]}
-                  />
-                </View>
-                <TlonText.Text size="$label/l" color="$positiveActionText">
-                  Invite People
-                </TlonText.Text>
-              </XStack>
-            </Pressable>
-          ) : null}
-          {joinedMembers
-            ?.slice(0, maxMembersToDisplay)
-            .map((member: db.ChatMember) => (
-              <ContactListItem
-                size="$3xl"
-                height="auto"
-                padding={0}
-                showNickname
-                key={member.contactId}
-                contactId={member.contactId}
-                onPress={
-                  entityType === 'group' && group
-                    ? setSelectedContact
-                    : undefined
-                }
-              />
-            ))}
-          {(memberCount > maxMembersToDisplay || canInvite) && (
-            <Pressable onPress={handlePressSeeAllMembers}>
-              <XStack
-                height="$4xl"
-                justifyContent="space-between"
-                gap="$l"
-                alignItems="center"
-                $group-press={{ backgroundColor: '$secondaryBackground' }}
-                testID="GroupMembers"
-              >
-                <TlonText.Text size="$label/l">
-                  {canManage ? 'Manage members' : 'See all'}
-                  {memberCount > maxMembersToDisplay &&
-                    ` (${memberCount - maxMembersToDisplay} more)`}
-                </TlonText.Text>
-                <Icon type="ChevronRight" color="$tertiaryText" />
-              </XStack>
-            </Pressable>
-          )}
-        </YStack>
-      </PaddedBlock>
-      {entityType === 'group' && group ? (
-        <GroupMemberProfileSheet
-          selectedContact={selectedContact}
-          onDismiss={() => setSelectedContact(null)}
-          groupId={group.id}
-          onPressGoToProfile={handlePressGoToProfile}
-        />
-      ) : null}
-    </View>
-  );
-}
-
-// GroupChannelsSection - the workspace's channels to move to, and for an
-// admin a way to add one
-
-export function GroupChannelsSection({
-  group,
-  currentChannelId,
-  canCreateChannel,
-  onPressNewChannel,
-}: {
-  group: db.Group;
-  /** The channel this screen is about, left out of the list. */
-  currentChannelId?: string;
-  canCreateChannel: boolean;
-  onPressNewChannel: () => void;
-}) {
-  const { onPressChannel } = useChatSettingsNavigation();
-  const sortBy = db.channelSortPreference.useValue();
-  const menu = useMemo(
-    () => getGroupChannelMenu(group, sortBy, currentChannelId),
-    [group, sortBy, currentChannelId]
-  );
-
-  if (menu.channels.length === 0 && !canCreateChannel) {
-    return null;
-  }
-
-  return (
-    <View paddingHorizontal={'$l'}>
-      <PaddedBlock width="100%" gap="$l" paddingBottom="$xl">
-        <TlonText.Text size="$label/m" color="$tertiaryText">
-          {menu.title}
-        </TlonText.Text>
-        <YStack>
-          {menu.channels.map((channel) => (
-            <Pressable
-              key={channel.id}
-              onPress={() => onPressChannel(channel)}
-              testID={`ChatDetailsChannel-${channel.id}`}
-            >
-              <XStack gap="$l" alignItems="center" height="$4xl">
-                <View
-                  width="$3xl"
-                  height="$3xl"
-                  backgroundColor={'$secondaryBackground'}
-                  borderRadius="$xs"
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <Icon
-                    type={getChannelTypeIcon(channel.type)}
-                    customSize={[20, 20]}
-                  />
-                </View>
-                <TlonText.Text size="$label/l" flex={1} numberOfLines={1}>
-                  {getChannelTitle({
-                    usesMemberListAsFallbackTitle: false,
-                    channelTitle: channel.title,
-                    disableNicknames: false,
-                  })}
-                </TlonText.Text>
-                <Icon type="ChevronRight" color="$tertiaryText" />
-              </XStack>
-            </Pressable>
-          ))}
-          {canCreateChannel ? (
-            <Pressable
-              onPress={onPressNewChannel}
-              testID="ChatDetailsNewChannelButton"
-            >
-              <XStack gap="$l" alignItems="center" height="$4xl">
-                <View
-                  width="$3xl"
-                  height="$3xl"
-                  backgroundColor={'$blueSoft'}
-                  borderRadius="$xs"
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <Icon
-                    type="Add"
-                    color="$positiveActionText"
-                    customSize={[20, 20]}
-                  />
-                </View>
-                <TlonText.Text size="$label/l" color="$positiveActionText">
-                  New channel
-                </TlonText.Text>
-              </XStack>
-            </Pressable>
-          ) : null}
-        </YStack>
-      </PaddedBlock>
-    </View>
-  );
-}
-
-// ChannelHost - displays the ship that hosts a channel
-
-export function ChannelHost({ channel }: { channel: db.Channel }) {
-  const currentUserId = useCurrentUserId();
-  const { navigation } = useRootNavigation();
-
-  const hostId = useMemo(() => {
-    if (!channel.groupId) {
-      return null;
-    }
-    try {
-      return getChannelHost(channel, currentUserId);
-    } catch {
-      return null;
-    }
-  }, [channel, currentUserId]);
-
-  const handlePress = useCallback(
-    (contactId: string) => {
-      navigation.navigate('UserProfile', { userId: contactId });
-    },
-    [navigation]
-  );
-
-  if (!hostId) {
-    return null;
-  }
-
-  return (
-    <View paddingHorizontal={'$l'}>
-      <PaddedBlock width="100%" gap="$l" paddingBottom="$xl">
-        <TlonText.Text size="$label/m" color="$tertiaryText">
-          Host
-        </TlonText.Text>
-        <ContactListItem
-          size="$3xl"
-          height="auto"
-          padding={0}
-          showNickname
-          contactId={hostId}
-          onPress={handlePress}
-          testID="ChannelHost"
-        />
-      </PaddedBlock>
-    </View>
-  );
-}
-
-// ChannelQuickActions - simple quick actions for channels
-
-export function ChannelQuickActions({
-  channel,
-  canInvite,
-}: {
-  channel: db.Channel;
-  canInvite?: boolean;
-}) {
-  const { togglePinned, onPressInvite } = useChatOptions();
-  const forwardChannelSheet = useForwardChannelSheet();
-  const toast = useToast();
-  const isPinned = channel?.pin;
-  // DMs have no nest, so only group channels can be referenced. Notebook
-  // cites aren't rendered as cards yet and would show "Upgrade your app".
-  const canReference = !!channel.groupId && channel.type !== 'notes';
-
-  const handleForwardChannel = useCallback(() => {
-    forwardChannelSheet.open(channel);
-  }, [forwardChannelSheet, channel]);
-
-  const handleCopyChannelLink = useCallback(async () => {
-    await Clipboard.setStringAsync(logic.getChannelReferencePath(channel.id));
-    toast({ message: 'Copied!', duration: 1500 });
-  }, [channel.id, toast]);
-
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      width={'100%'}
-      paddingLeft={'$l'}
-    >
-      {canInvite && (
-        <ProfileButton
-          title="Invite"
-          onPress={onPressInvite}
-          testID="ChannelQuickAction-Invite"
-          hero
-        />
-      )}
-      <ProfileButton
-        title={isPinned ? 'Unpin' : 'Pin'}
-        onPress={togglePinned}
-        testID={`ChannelQuickAction-${isPinned ? 'Unpin' : 'Pin'}`}
-      />
-      {canReference && (
-        <>
-          <ProfileButton
-            title="Forward reference"
-            onPress={handleForwardChannel}
-            testID="ChannelQuickAction-Forward reference"
-          />
-          <ProfileButton
-            title="Copy link to channel"
-            onPress={handleCopyChannelLink}
-            testID="ChannelQuickAction-Copy link to channel"
-          />
-        </>
-      )}
-    </ScrollView>
-  );
-}
-
-// SettingsSection - unified settings for groups and channels
-
-export interface SettingsSectionProps {
-  entityType: 'group' | 'channel';
-  channel?: db.Channel | null;
-  group?: db.Group | null;
-  actionsEnabled: boolean;
-  onEditChannelPrivacy?: (channelId: string, groupId: string) => void;
-}
-
-export function SettingsSection({
-  entityType,
-  channel,
-  group,
-  actionsEnabled,
+export function ChatDetailsView({
+  chatType,
+  onGoBack,
+  onPressEdit,
   onEditChannelPrivacy,
-}: SettingsSectionProps) {
-  const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUserId);
-
-  const { groupRoles } = useGroupContext({
-    groupId: group?.id ?? '',
-  });
-
+  onAfterDeleteChannel,
+}: {
+  chatType: ChatType;
+  onGoBack: () => void;
+  onPressEdit: () => void;
+  onEditChannelPrivacy: (channelId: string, groupId: string) => void;
+  /** Where to go once a channel is deleted, if not out of the channel. */
+  onAfterDeleteChannel?: () => void;
+}) {
   const {
+    channel,
+    group,
+    markGroupRead,
+    togglePinned,
+    onPressInvite,
+    onPressGroupMembers,
+    onPressChannelMembers,
+    leaveGroup,
+    leaveChannel,
+  } = useChatOptions();
+  const {
+    onPressChannel,
+    onPressCreateChannelPermissions,
     onPressGroupPrivacy,
     onPressManageChannels,
     onPressChatVolume,
     onPressRoles,
-    onPressEditChannelPrivacy: defaultOnPressEditChannelPrivacy,
+    onLeaveGroup,
+    onLeaveChannel,
   } = useChatSettingsNavigation();
-
-  const navigateToEditChannelPrivacy =
-    onEditChannelPrivacy ?? defaultOnPressEditChannelPrivacy;
-
-  const baseVolumeLevel = store.useBaseVolumeLevel();
-
-  const connectionStatus = useShipConnectionStatus(group?.hostUserId ?? '', {
-    enabled: entityType === 'group' && !!group,
-  });
-
-  const volumeSettings =
-    entityType === 'group' ? group?.volumeSettings : channel?.volumeSettings;
-
-  const notificationTitle = useMemo(
-    () => getNotificationTitle(volumeSettings, baseVolumeLevel),
-    [volumeSettings, baseVolumeLevel]
+  const { navigation, resetToDm } = useRootNavigation();
+  const isMobileTree = useIsMobileTree();
+  const sortBy = db.channelSortPreference.useValue();
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  // The desktop sidebar beside this screen already lists the channels.
+  const channelMenu = useMemo(
+    () =>
+      isMobileTree && group && (chatType === 'group' || channel?.groupId)
+        ? getGroupChannelMenu(
+            group,
+            sortBy,
+            chatType === 'channel' ? channel?.id : undefined
+          )
+        : undefined,
+    [isMobileTree, group, chatType, channel, sortBy]
   );
+  const forwardGroupSheet = useForwardGroupSheet();
+  const forwardChannelSheet = useForwardChannelSheet();
+  const toast = useToast();
 
-  const handlePressGroupPrivacy = useCallback(() => {
-    if (group) {
-      onPressGroupPrivacy?.(group.id, true);
-    }
-  }, [group, onPressGroupPrivacy]);
-
-  const handlePressManageChannels = useCallback(() => {
-    if (group) {
-      onPressManageChannels?.(group.id, true);
-    }
-  }, [group, onPressManageChannels]);
-
-  const handlePressRoles = useCallback(() => {
-    if (group) {
-      onPressRoles?.(group.id, true);
-    }
-  }, [group, onPressRoles]);
-
+  const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUserId);
+  const hostStatus = useShipConnectionStatus(group?.hostUserId || '', {
+    enabled: !!group,
+  });
+  const { groupRoles, deleteGroup } = useGroupContext({
+    groupId: group?.id ?? '',
+  });
+  const groupTitle = useGroupTitle(group) ?? 'workspace';
+  const scheduledTasks = useScheduledTasksHere({ chatType, channel, group });
+  const [selectedContact, setSelectedContact] = useState<string | null>(null);
   // Bots honor a workspace config only in groups their owner hosts, so
   // only the host gets the editor.
   const supportsInstructions =
     store.useDeskSupportsStewardBots() === true &&
     group?.hostUserId === currentUserId;
   const [instructionsOpen, setInstructionsOpen] = useState(false);
-  const handlePressInstructions = useCallback(
-    () => setInstructionsOpen(true),
-    []
-  );
-  const handleCloseInstructions = useCallback(
-    () => setInstructionsOpen(false),
-    []
+
+  const handlePressProfile = useCallback(
+    (contactId: string) => {
+      navigation.navigate('UserProfile', { userId: contactId });
+    },
+    [navigation]
   );
 
-  const handlePressEditChannelPrivacy = useCallback(() => {
-    if (channel?.groupId) {
-      navigateToEditChannelPrivacy(channel.id, channel.groupId);
+  const handleForward = useCallback(() => {
+    if (group) {
+      forwardGroupSheet.open(group);
     }
-  }, [channel, navigateToEditChannelPrivacy]);
+  }, [forwardGroupSheet, group]);
 
-  const handlePressNotificationSettings = useCallback(() => {
-    if (entityType === 'group' && group) {
+  const copyText = useCallback(
+    async (text: string) => {
+      await Clipboard.setStringAsync(text);
+      toast({ message: 'Copied!', duration: 1500 });
+    },
+    [toast]
+  );
+
+  const handleCopyGroupId = useCallback(() => {
+    if (group) {
+      copyText(group.id);
+    }
+  }, [copyText, group]);
+
+  // DMs have no nest, so only group channels can be referenced. Notebook
+  // cites aren't rendered as cards yet and would show "Upgrade your app".
+  const canReference =
+    chatType === 'channel' && !!channel?.groupId && channel.type !== 'notes';
+
+  const handleForwardChannel = useCallback(() => {
+    if (channel) {
+      forwardChannelSheet.open(channel);
+    }
+  }, [forwardChannelSheet, channel]);
+
+  const handleCopyChannelLink = useCallback(() => {
+    if (channel) {
+      copyText(logic.getChannelReferencePath(channel.id));
+    }
+  }, [copyText, channel]);
+
+  const handlePressNotifications = useCallback(() => {
+    if (chatType === 'group' && group) {
       onPressChatVolume({ type: 'group', id: group.id, groupId: group.id });
-    } else if (entityType === 'channel' && channel) {
+    } else if (chatType === 'channel' && channel) {
       onPressChatVolume({
         type: 'channel',
         id: channel.id,
         groupId: channel.groupId ?? undefined,
       });
     }
-  }, [entityType, group, channel, onPressChatVolume]);
+  }, [chatType, group, channel, onPressChatVolume]);
 
-  // Anyone with a bot can see what it is scheduled to post into this group
-  // or this channel, admin or not. The row shows once the bot has something
-  // scheduled here or could be given something: in a group, as a member with
-  // a channel to post in; in a channel, where it may write in that channel.
-  const isGroupChannel = entityType === 'channel' && !!channel?.groupId;
-  const scheduledTasks = useScheduledTasksEntry({
-    enabled: (entityType === 'group' && !!group) || isGroupChannel,
-  });
-  const openScheduledTasks = useOpenScheduledTasks();
-  const { delivery: botDelivery } = useBotDelivery(scheduledTasks.botShip, {
-    enabled: isGroupChannel && scheduledTasks.visible,
-  });
-  const channelIdsHere = useMemo(() => {
-    if (entityType === 'channel') return channel ? [channel.id] : undefined;
-    return group ? (group.channels?.map(({ id }) => id) ?? []) : undefined;
-  }, [entityType, channel, group]);
-  const scheduledTaskCount = useMemo(
-    () =>
-      scheduledTasks.tasks && channelIdsHere
-        ? Object.keys(
-            tasksPostingTo(scheduledTasks.tasks, new Set(channelIdsHere))
-          ).length
-        : undefined,
-    [scheduledTasks.tasks, channelIdsHere]
-  );
-  const botCouldPostHere =
-    entityType === 'channel'
-      ? Boolean(channel && destinationForChannel(channel, botDelivery))
-      : Boolean(group?.channels?.length) &&
-        Boolean(
-          group?.members?.some(
-            (member) => member.contactId === scheduledTasks.botShip
-          )
-        );
-  const showsScheduledTasks =
-    scheduledTasks.visible &&
-    scheduledTaskCount !== undefined &&
-    (scheduledTaskCount > 0 || botCouldPostHere);
-  const { botShip } = scheduledTasks;
-  const handlePressScheduledTasks = useCallback(() => {
-    if (entityType === 'channel') {
-      if (channel?.groupId) {
-        openScheduledTasks(
-          { botShip, groupId: channel.groupId, channelId: channel.id },
-          channel.id
-        );
-      }
-    } else if (group) {
-      openScheduledTasks(
-        { botShip, groupId: group.id },
-        group.channels?.[0]?.id
-      );
+  const handleLeave = useCallback(async () => {
+    if (chatType !== 'group') {
+      await leaveChannel();
+      return;
     }
-  }, [entityType, channel, group, openScheduledTasks, botShip]);
-
-  const actions = useMemo(() => {
-    const supportsNotifications = channelSupportsNotifications(channel);
-    const scheduledTasksActions: SettingsActionProps[] = showsScheduledTasks
-      ? [
-          {
-            title: 'Scheduled tasks',
-            endValue: `${scheduledTaskCount}`,
-            testID:
-              entityType === 'group'
-                ? 'GroupScheduledTasks'
-                : 'ChannelScheduledTasks',
-            disabled: false,
-            onPress: handlePressScheduledTasks,
-          },
-        ]
-      : [];
-    const notificationAction: SettingsActionProps = {
-      title: 'Notifications',
-      description: notificationTitle,
-      testID:
-        entityType === 'group' ? 'GroupNotifications' : 'ChannelNotifications',
-      disabled: false,
-      onPress: handlePressNotificationSettings,
-    };
-
-    if (!currentUserIsAdmin) {
-      return [
-        ...(supportsNotifications ? [notificationAction] : []),
-        ...scheduledTasksActions,
-      ];
-    }
-
-    if (entityType === 'group' && group) {
-      const channelCount = group.channels?.length ?? 0;
-      return [
-        {
-          title: 'Privacy',
-          endValue: capitalize(group.privacy ?? ''),
-          testID: 'GroupPrivacy',
-          disabled: !actionsEnabled,
-          onPress: handlePressGroupPrivacy,
-        },
-        {
-          title: 'Roles',
-          endValue: `${(groupRoles?.length ?? 0) + 1}`,
-          testID: 'GroupRoles',
-          disabled: !actionsEnabled,
-          onPress: handlePressRoles,
-        },
-        {
-          title: 'Channels',
-          endValue: `${channelCount}`,
-          testID: 'GroupChannels',
-          disabled: !actionsEnabled,
-          onPress: handlePressManageChannels,
-        },
-        ...(supportsInstructions
-          ? [
-              {
-                title: 'Tlonbot instructions',
-                endValue: hasWorkspaceInstructions(group) ? 'On' : 'Off',
-                testID: 'GroupInstructions',
-                disabled: !actionsEnabled,
-                onPress: handlePressInstructions,
-              },
-            ]
-          : []),
-        notificationAction,
-        ...scheduledTasksActions,
-      ];
-    }
-
-    if (entityType === 'channel' && channel) {
-      const isPrivate =
-        (channel.readerRoles?.length ?? 0) > 0 ||
-        (channel.writerRoles?.length ?? 0) > 0;
-      const channelActions: SettingsActionProps[] = [
-        {
-          title: 'Permissions',
-          endValue: isPrivate ? 'Custom' : 'Public',
-          testID: 'ChannelPrivacy',
-          disabled: !actionsEnabled,
-          onPress: handlePressEditChannelPrivacy,
-        },
-      ];
-      if (supportsNotifications) channelActions.push(notificationAction);
-      return [...channelActions, ...scheduledTasksActions];
-    }
-
-    return [notificationAction];
-  }, [
-    entityType,
-    group,
-    channel,
-    currentUserIsAdmin,
-    actionsEnabled,
-    notificationTitle,
-    handlePressNotificationSettings,
-    handlePressGroupPrivacy,
-    handlePressRoles,
-    handlePressManageChannels,
-    handlePressInstructions,
-    supportsInstructions,
-    handlePressEditChannelPrivacy,
-    groupRoles,
-    showsScheduledTasks,
-    scheduledTaskCount,
-    handlePressScheduledTasks,
-  ]);
-
-  return (
-    <View paddingHorizontal={'$l'}>
-      <ActionSheet.ActionGroup
-        padding={0}
-        $gtSm={{ paddingHorizontal: 0 }}
-        contentProps={{
-          backgroundColor: '$background',
-          borderRadius: '$2xl',
-          borderWidth: 0,
-        }}
-      >
-        {entityType === 'group' && group && (
-          <ConnectionIndicatorAction status={connectionStatus.status} />
-        )}
-        {actions.map((action, index) => (
-          <SettingsAction
-            key={index}
-            {...action}
-            first={entityType === 'group' && group ? false : index === 0}
-            last={index === actions.length - 1}
-          />
-        ))}
-      </ActionSheet.ActionGroup>
-      {instructionsOpen && group ? (
-        <WorkspaceInstructionsSheet
-          group={group}
-          onClose={handleCloseInstructions}
-        />
-      ) : null}
-    </View>
-  );
-}
-
-// LeaveActionsSection - leave/delete actions for groups and channels
-
-export interface LeaveActionsSectionProps {
-  entityType: 'group' | 'channel';
-  group?: db.Group;
-  channel?: db.Channel;
-  onAfterDeleteChannel?: () => void;
-}
-
-export function LeaveActionsSection({
-  entityType,
-  group,
-  channel,
-  onAfterDeleteChannel,
-}: LeaveActionsSectionProps) {
-  const { onLeaveGroup, onLeaveChannel } = useChatSettingsNavigation();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
-  const { leaveGroup, leaveChannel } = useChatOptions();
-
-  const { deleteGroup: deleteGroupFromContext } = useGroupContext({
-    groupId: group?.id ?? '',
-  });
-
-  const groupTitle = useGroupTitle(group);
-
-  const currentUserId = useCurrentUserId();
-  const groupIdForAdminCheck =
-    entityType === 'group' ? group?.id : channel?.groupId;
-  const currentUserIsAdmin = useIsAdmin(
-    groupIdForAdminCheck ?? '',
-    currentUserId
-  );
-
-  const isHost =
-    entityType === 'group'
-      ? group?.currentUserIsHost
-      : (channel?.currentUserIsHost ?? false);
-  const channelActionCapabilities = getChannelActionCapabilities(channel);
-  const canLeave =
-    !isHost && (entityType !== 'channel' || channelActionCapabilities.canLeave);
-  const canDelete =
-    (entityType !== 'channel' || channelActionCapabilities.canDelete) &&
-    (isHost || (entityType === 'channel' && currentUserIsAdmin));
-
-  const chatTitle =
-    entityType === 'group'
-      ? (groupTitle ?? 'workspace')
-      : (channel?.title ?? 'channel');
-
-  const handleLeaveWithConfirm = useCallback(async () => {
-    if (entityType === 'group') {
-      const message = `You will no longer receive updates from this workspace.\n\nWarning: Leaving this workspace will invalidate any invitations you've sent.`;
-
-      if (isWeb) {
-        const confirmed = window.confirm(`Leave ${chatTitle}?\n\n${message}`);
-        if (confirmed) {
-          await leaveGroup();
-        }
-      } else {
-        Alert.alert(`Leave ${chatTitle}?`, message, [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Leave Workspace',
-            style: 'destructive',
-            onPress: leaveGroup,
-          },
-        ]);
+    const message = `You will no longer receive updates from this workspace.\n\nWarning: Leaving this workspace will invalidate any invitations you've sent.`;
+    if (isWeb) {
+      if (window.confirm(`Leave ${groupTitle}?\n\n${message}`)) {
+        await leaveGroup();
       }
     } else {
-      await leaveChannel();
+      Alert.alert(`Leave ${groupTitle}?`, message, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave Workspace',
+          style: 'destructive',
+          onPress: leaveGroup,
+        },
+      ]);
     }
-  }, [entityType, chatTitle, leaveGroup, leaveChannel]);
+  }, [chatType, groupTitle, leaveGroup, leaveChannel]);
 
   const handleDelete = useCallback(async () => {
-    if (entityType === 'group') {
-      deleteGroupFromContext();
+    if (chatType === 'group') {
+      deleteGroup();
       onLeaveGroup();
     } else if (channel?.groupId) {
       try {
@@ -890,63 +217,153 @@ export function LeaveActionsSection({
       }
     }
   }, [
-    entityType,
+    chatType,
     channel,
-    deleteGroupFromContext,
+    deleteGroup,
     onLeaveGroup,
     onLeaveChannel,
     onAfterDeleteChannel,
   ]);
 
-  const leaveActions = createActionGroup(
-    'negative',
-    canLeave && {
-      title: entityType === 'group' ? 'Leave workspace' : 'Leave channel',
-      action: handleLeaveWithConfirm,
-    },
-    canDelete && {
-      title: entityType === 'group' ? 'Delete workspace' : 'Delete channel',
-      action: () => setShowDeleteDialog(true),
-    }
-  );
-
-  if (leaveActions.actions.length === 0) {
-    return null;
-  }
-
-  const deleteDescription =
-    entityType === 'group'
-      ? 'This action cannot be undone.'
-      : channelActionCapabilities.deleteDescription;
-
   return (
-    <View paddingHorizontal={'$l'}>
-      <ActionSheet.ActionGroup
-        padding={0}
-        $gtSm={{ paddingHorizontal: 0 }}
-        contentProps={{ borderRadius: '$2xl' }}
-        accent="negative"
-      >
-        {leaveActions.actions.map((action, i) => (
-          <ActionSheet.Action
-            key={i}
-            action={action}
-            testID={`${entityType === 'group' ? 'Group' : 'Channel'}LeaveAction-${action.title}`}
-          />
-        ))}
-      </ActionSheet.ActionGroup>
-      <ConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        title={`Delete ${chatTitle}?`}
-        description={deleteDescription}
-        confirmText={
-          entityType === 'group' ? 'Delete workspace' : 'Delete channel'
-        }
-        cancelText="Cancel"
-        onConfirm={handleDelete}
-        destructive
-      />
-    </View>
+    <ChatDetailsScreenView
+      chatType={chatType}
+      group={group}
+      channel={channel}
+      currentUserId={currentUserId}
+      currentUserIsAdmin={currentUserIsAdmin}
+      hostStatus={hostStatus}
+      roleCount={(groupRoles?.length ?? 0) + 1}
+      scheduledTaskCount={scheduledTasks.count}
+      onGoBack={onGoBack}
+      onPressEdit={onPressEdit}
+      onPressInvite={onPressInvite}
+      onMarkRead={markGroupRead}
+      onTogglePinned={togglePinned}
+      onForward={handleForward}
+      onCopyGroupId={handleCopyGroupId}
+      onForwardChannel={canReference ? handleForwardChannel : undefined}
+      onCopyChannelLink={canReference ? handleCopyChannelLink : undefined}
+      onCopyText={copyText}
+      onPressPrivacy={() => group && onPressGroupPrivacy(group.id, true)}
+      onPressRoles={() => group && onPressRoles(group.id, true)}
+      onPressChannels={() => group && onPressManageChannels(group.id, true)}
+      channelMenu={channelMenu}
+      onPressChannel={onPressChannel}
+      onPressNewChannel={() => setShowCreateChannel(true)}
+      instructions={
+        supportsInstructions && group
+          ? hasWorkspaceInstructions(group)
+            ? 'On'
+            : 'Off'
+          : undefined
+      }
+      onPressInstructions={() => setInstructionsOpen(true)}
+      onPressNotifications={handlePressNotifications}
+      onPressScheduledTasks={scheduledTasks.open}
+      onPressChannelPermissions={() =>
+        channel?.groupId && onEditChannelPrivacy(channel.id, channel.groupId)
+      }
+      onPressProfile={handlePressProfile}
+      onMessageContact={resetToDm}
+      onPressMember={setSelectedContact}
+      onPressAllMembers={
+        chatType === 'group' ? onPressGroupMembers : onPressChannelMembers
+      }
+      onLeave={handleLeave}
+      onDelete={handleDelete}
+    >
+      {chatType === 'group' && group ? (
+        <GroupMemberProfileSheet
+          selectedContact={selectedContact}
+          onDismiss={() => setSelectedContact(null)}
+          groupId={group.id}
+          onPressGoToProfile={handlePressProfile}
+        />
+      ) : null}
+      {instructionsOpen && group ? (
+        <WorkspaceInstructionsSheet
+          group={group}
+          onClose={() => setInstructionsOpen(false)}
+        />
+      ) : null}
+      {showCreateChannel && group ? (
+        <CreateChannelSheet
+          group={group}
+          onOpenChange={setShowCreateChannel}
+          navigateToPermissions={onPressCreateChannelPermissions}
+        />
+      ) : null}
+    </ChatDetailsScreenView>
   );
+}
+
+/**
+ * The bot's scheduled tasks that post into this group or channel. Anyone with
+ * a bot can see them, admin or not. There is a count once the bot has
+ * something scheduled here or could be given something: in a group, as a
+ * member with a channel to post in; in a channel, where it may write.
+ */
+function useScheduledTasksHere({
+  chatType,
+  channel,
+  group,
+}: {
+  chatType: ChatType;
+  channel?: db.Channel | null;
+  group?: db.Group | null;
+}): { count: number | undefined; open: () => void } {
+  const isGroupChannel = chatType === 'channel' && !!channel?.groupId;
+  const scheduledTasks = useScheduledTasksEntry({
+    enabled: (chatType === 'group' && !!group) || isGroupChannel,
+  });
+  const openScheduledTasks = useOpenScheduledTasks();
+  const { delivery: botDelivery } = useBotDelivery(scheduledTasks.botShip, {
+    enabled: isGroupChannel && scheduledTasks.visible,
+  });
+  const channelIdsHere = useMemo(() => {
+    if (chatType === 'channel') return channel ? [channel.id] : undefined;
+    return group ? (group.channels?.map(({ id }) => id) ?? []) : undefined;
+  }, [chatType, channel, group]);
+  const taskCount = useMemo(
+    () =>
+      scheduledTasks.tasks && channelIdsHere
+        ? Object.keys(
+            tasksPostingTo(scheduledTasks.tasks, new Set(channelIdsHere))
+          ).length
+        : undefined,
+    [scheduledTasks.tasks, channelIdsHere]
+  );
+  const botCouldPostHere =
+    chatType === 'channel'
+      ? Boolean(channel && destinationForChannel(channel, botDelivery))
+      : Boolean(group?.channels?.length) &&
+        Boolean(
+          group?.members?.some(
+            (member) => member.contactId === scheduledTasks.botShip
+          )
+        );
+  const shows =
+    scheduledTasks.visible &&
+    taskCount !== undefined &&
+    (taskCount > 0 || botCouldPostHere);
+
+  const { botShip } = scheduledTasks;
+  const open = useCallback(() => {
+    if (chatType === 'channel') {
+      if (channel?.groupId) {
+        openScheduledTasks(
+          { botShip, groupId: channel.groupId, channelId: channel.id },
+          channel.id
+        );
+      }
+    } else if (group) {
+      openScheduledTasks(
+        { botShip, groupId: group.id },
+        group.channels?.[0]?.id
+      );
+    }
+  }, [chatType, channel, group, openScheduledTasks, botShip]);
+
+  return { count: shows ? taskCount : undefined, open };
 }

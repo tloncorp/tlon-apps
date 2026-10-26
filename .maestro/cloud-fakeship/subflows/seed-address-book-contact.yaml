@@ -1,0 +1,35 @@
+appId: com.google.android.contacts
+---
+# Adds CONTACT_FIRST CONTACT_LAST with CONTACT_PHONE to the device address book
+# through the system Contacts app; a cloud device offers no adb to insert one.
+- launchApp
+# A fresh device opens on a sign-in pitch, then asks about notifications.
+- extendedWaitUntil:
+    visible: '^Skip$'
+    timeout: 5000
+    optional: true
+- tapOn:
+    text: '^Skip$'
+    optional: true
+- tapOn:
+    text: '^Don.t allow$'
+    optional: true
+- tapOn: 'Create contact'
+- tapOn: 'First name'
+- inputText: ${CONTACT_FIRST}
+- tapOn: 'Last name'
+- inputText: ${CONTACT_LAST}
+- hideKeyboard
+# Labelled "Phone (Mobile)" on newer Contacts builds and differently on older.
+- scrollUntilVisible:
+    element: '^Phone.*'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Phone.*'
+# The field opens holding a "+1" prefix with the cursor before it, so the
+# number is stored with that prefix trailing; the app keeps its digits.
+- inputText: ${CONTACT_PHONE}
+- tapOn: '^Save$'
+- extendedWaitUntil:
+    visible: ${CONTACT_FIRST + ' ' + CONTACT_LAST}
+    timeout: 10000

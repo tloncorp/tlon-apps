@@ -24,10 +24,12 @@
  * enableGroup, BadResponseError), `activity-runtime.ts`
  * (getInitialActivity, getGroupAndChannelUnreads, getTextContent,
  * adjustVolumeSetting, getVolumeSettings, setActivitySupportsReactions,
- * setActivitySupportsNotes, getGroups, getChannelPosts),
+ * setActivitySupportsNotes, getGroups, getChannelPosts, readChannel,
+ * activityAction, poke),
  * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
- * getPostWithReplies, deleteReply, setOrder, toPostContent), and
- * `channels.ts` (createChannel and the other channel-management calls).
+ * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent),
+ * `channels.ts` (createChannel and the other channel-management calls), and
+ * `groups.ts` (the group-management calls).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 // The real broker client, by subpath, which the root mock below does not
@@ -37,6 +39,8 @@ import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
 // The real content projection, by subpath: the posts runtime's read-back
 // comparison must be tested against what the api actually produces.
 import { toPostContent as realToPostContent } from '@tloncorp/api/client/postsApi';
+// The real plain-text conversion: the posts runtime quotes DM text with it.
+import { getTextContent as realGetTextContent } from '@tloncorp/api/client/postContent';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -170,6 +174,20 @@ export const mockedVolume = {
   supportsNotes: false,
 };
 
+/**
+ * The activity read surface: reassign per test. Read the flags from
+ * `mockedVolume` inside a call to see what the runtime set before it.
+ */
+export const mockedActivityRead = {
+  readChannel: async (..._args: unknown[]): Promise<unknown> => undefined,
+  getGroupAndChannelUnreads: async (): Promise<unknown> => ({
+    baseUnread: null,
+    groupUnreads: [],
+    channelUnreads: [],
+    threadActivity: [],
+  }),
+};
+
 export const mockedGetGroup = {
   impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
 };
@@ -177,6 +195,43 @@ export const mockedGetGroup = {
 export const mockedCreateChannel = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
+
+// The group and channel mutations groups.ts and channels.ts import, each of
+// which records its call here: a command refused up front leaves it empty.
+const MANAGEMENT_OPS = [
+  'acceptGroupJoin',
+  'addChannelWriters',
+  'addGroupRole',
+  'addMembersToRole',
+  'banUsersFromGroup',
+  'cancelGroupJoin',
+  'createGroup',
+  'deleteChannel',
+  'deleteGroup',
+  'deleteGroupRole',
+  'inviteGroupMembers',
+  'joinGroup',
+  'kickUsersFromGroup',
+  'leaveGroup',
+  'rejectGroupInvitation',
+  'rejectGroupJoin',
+  'removeChannelWriters',
+  'removeMembersFromRole',
+  'requestGroupInvitation',
+  'rescindGroupInvitationRequest',
+  'revokeGroupMemberInvites',
+  'unbanUsersFromGroup',
+  'updateChannel',
+  'updateGroupMeta',
+  'updateGroupPrivacy',
+  'updateGroupRole',
+] as const;
+
+/** Clear it after each test that reads it. */
+export const mockedManagementCalls: Array<{
+  op: (typeof MANAGEMENT_OPS)[number];
+  args: unknown[];
+}> = [];
 
 export const mockedGetBuckets = {
   impl: async (..._args: unknown[]): Promise<unknown> => [],
@@ -219,6 +274,10 @@ export class MockBucketsActionFailed extends Error {
     this.name = 'BucketsActionFailed';
   }
 }
+
+export const mockedSubscribe = {
+  impl: async (..._args: unknown[]): Promise<unknown> => 0,
+};
 
 export const mockedSubscribeOnce = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
@@ -265,7 +324,7 @@ mock.module('@tloncorp/api', () => ({
   preSig: (ship: string) => (ship.startsWith('~') ? ship : `~${ship}`),
   scry: (...args: unknown[]) => mockedScry.impl(...args),
   poke: (...args: unknown[]) => mockedPoke.impl(...args),
-  subscribe: async () => 0,
+  subscribe: (...args: unknown[]) => mockedSubscribe.impl(...args),
   // dms.ts value imports (reaction helpers take injected deps in tests, so
   // these defaults are load-time placeholders, never assertion targets)
   addReaction: async () => undefined,
@@ -285,7 +344,6 @@ mock.module('@tloncorp/api', () => ({
   setOrder: (...args: unknown[]) => mockedSetOrder.impl(...args),
   toPostContent: realToPostContent,
   toUrbitStory: (content: unknown) => content ?? [],
-  updateChannel: async () => undefined,
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   BucketsActionFailed: MockBucketsActionFailed,
@@ -324,13 +382,17 @@ mock.module('@tloncorp/api', () => ({
   // activity runtime value imports (formatter tests call the pure helpers
   // directly, so these are load-time placeholders)
   getInitialActivity: async () => ({ events: [], relevantUnreads: {} }),
-  getGroupAndChannelUnreads: async () => ({
-    baseUnread: null,
-    groupUnreads: [],
-    channelUnreads: [],
-    threadActivity: [],
+  getGroupAndChannelUnreads: () =>
+    mockedActivityRead.getGroupAndChannelUnreads(),
+  readChannel: (...args: unknown[]) => mockedActivityRead.readChannel(...args),
+  // The mark follows the flag, so a poke records the flag state it was built
+  // under.
+  activityAction: (json: unknown) => ({
+    app: 'activity',
+    mark: mockedVolume.supportsNotes ? 'activity-action-2' : 'activity-action',
+    json,
   }),
-  getTextContent: () => '',
+  getTextContent: realGetTextContent,
   adjustVolumeSetting: (...args: unknown[]) =>
     mockedVolume.adjustVolumeSetting(...args),
   getVolumeSettings: (...args: unknown[]) =>
@@ -341,14 +403,22 @@ mock.module('@tloncorp/api', () => ({
   setActivitySupportsNotes: (value: boolean) => {
     mockedVolume.supportsNotes = value;
   },
-  // channels.ts value imports (only createChannel is an assertion target;
-  // the rest are load-time placeholders)
+  // channels.ts value imports
   createChannel: (...args: unknown[]) => mockedCreateChannel.impl(...args),
-  addChannelWriters: async () => undefined,
-  removeChannelWriters: async () => undefined,
-  deleteChannel: async () => undefined,
   deleteNotesNotebookBestEffort: async () => undefined,
   getInitData: async () => undefined,
   joinChannel: async () => undefined,
   leaveChannel: async () => undefined,
+  // groups.ts reads no test exercises
+  getContacts: async () => [],
+  getGroupPreview: async () => null,
+  toClientGroupsFromForeigns: () => [],
+  ...Object.fromEntries(
+    MANAGEMENT_OPS.map((op) => [
+      op,
+      async (...args: unknown[]) => {
+        mockedManagementCalls.push({ op, args });
+      },
+    ])
+  ),
 }));
