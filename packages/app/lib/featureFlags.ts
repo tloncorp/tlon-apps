@@ -19,6 +19,14 @@ export const featureMeta = {
       'Offer Buckets, shared files for members and agents, as a channel type.',
     onlyTlon: false,
   },
+  onboardingFirstRun: {
+    // On in development builds, so the new screens get used before launch.
+    default: typeof __DEV__ !== 'undefined' && __DEV__,
+    label: 'New onboarding screens',
+    description:
+      'After signup, show the five-screen first run, with setup running in the background.',
+    onlyTlon: true,
+  },
 } satisfies Record<
   string,
   {

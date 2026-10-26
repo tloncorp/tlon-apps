@@ -1,0 +1,124 @@
+import type { TlawnOAuthProvider } from '@tloncorp/api';
+import { describe, expect, it } from 'vitest';
+
+import type { McpProviderRow } from '../../../../lib/mcpProviders';
+import {
+  attemptAfterCheck,
+  featuredRowState,
+  hasConnectedService,
+  selectFeaturedServices,
+} from './firstRunServices';
+
+const provider = (id: string, scopes: string): TlawnOAuthProvider => ({
+  id,
+  displayName: id,
+  kind: 'standard',
+  scopes,
+  suggestedUpstream: { mode: 'proxy', name: id, url: 'https://example.com' },
+  template: id,
+});
+
+const row = (
+  id: string,
+  status: McpProviderRow['status'] = 'not-connected'
+): McpProviderRow => ({ id, displayName: id, status });
+
+const LIVE_CATALOG = [
+  provider('github', 'read:user user:email repo'),
+  provider(
+    'google-gmail',
+    'openid email profile https://www.googleapis.com/auth/gmail.send'
+  ),
+  provider('notion', ''),
+  provider(
+    'google-calendar',
+    'openid email profile https://www.googleapis.com/auth/calendar'
+  ),
+];
+const LIVE_ROWS = LIVE_CATALOG.map((entry) => row(entry.id));
+
+describe('featured services', () => {
+  it('features Calendar, Send Gmail and Notion in that order', () => {
+    expect(
+      selectFeaturedServices(LIVE_CATALOG, LIVE_ROWS).map((s) => s.row.id)
+    ).toEqual(['google-calendar', 'google-gmail', 'notion']);
+  });
+
+  it('accepts the same scopes in any order', () => {
+    const catalog = [
+      provider(
+        'google-calendar',
+        'https://www.googleapis.com/auth/calendar profile email openid'
+      ),
+    ];
+    expect(
+      selectFeaturedServices(catalog, [row('google-calendar')]).map(
+        (s) => s.row.id
+      )
+    ).toEqual(['google-calendar']);
+  });
+
+  it('drops a service whose live scopes no longer match its copy', () => {
+    const catalog = LIVE_CATALOG.map((entry) =>
+      entry.id === 'google-gmail'
+        ? provider(
+            'google-gmail',
+            'openid email profile https://www.googleapis.com/auth/gmail.modify'
+          )
+        : entry
+    );
+    expect(
+      selectFeaturedServices(catalog, LIVE_ROWS).map((s) => s.row.id)
+    ).toEqual(['google-calendar', 'notion']);
+  });
+
+  it('never invents a service the catalog does not offer', () => {
+    const catalog = LIVE_CATALOG.filter((entry) => entry.id !== 'notion');
+    const rows = catalog.map((entry) => row(entry.id));
+    expect(selectFeaturedServices(catalog, rows).map((s) => s.row.id)).toEqual([
+      'google-calendar',
+      'google-gmail',
+    ]);
+    expect(selectFeaturedServices([], [])).toEqual([]);
+  });
+
+  it('leaves out a service the app hides', () => {
+    // buildProviderRows drops hidden providers, so there is no row for them.
+    const rows = LIVE_ROWS.filter((entry) => entry.id !== 'google-gmail');
+    expect(
+      selectFeaturedServices(LIVE_CATALOG, rows).map((s) => s.row.id)
+    ).toEqual(['google-calendar', 'notion']);
+  });
+});
+
+describe('a featured row after connecting', () => {
+  it('says connected only from a verified grant', () => {
+    expect(featuredRowState(row('notion', 'connected'), 'checking')).toBe(
+      'connected'
+    );
+    expect(featuredRowState(row('notion'), undefined)).toBe('idle');
+    expect(featuredRowState(row('notion', 'expired'), undefined)).toBe('idle');
+  });
+
+  it('keeps checking when the provider finished but no grant shows yet', () => {
+    expect(attemptAfterCheck(false, 'completed')).toBe('checking');
+    expect(attemptAfterCheck(false, 'returned')).toBe('checking');
+  });
+
+  it('clears the attempt once the check finds the grant', () => {
+    expect(attemptAfterCheck(true, 'completed')).toBeUndefined();
+    expect(attemptAfterCheck(true, 'returned')).toBeUndefined();
+  });
+
+  it('offers Try again after a cancelled or failed sign-in', () => {
+    expect(attemptAfterCheck(false, 'canceled')).toBe('cancelled');
+    expect(attemptAfterCheck(false, 'failed')).toBe('failed');
+  });
+
+  it('counts any connected service for the Continue label', () => {
+    expect(hasConnectedService(LIVE_ROWS)).toBe(false);
+    expect(
+      hasConnectedService([...LIVE_ROWS, row('linear', 'connected')])
+    ).toBe(true);
+  });
+});

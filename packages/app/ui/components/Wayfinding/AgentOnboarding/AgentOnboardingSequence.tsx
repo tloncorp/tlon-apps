@@ -8,6 +8,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { startAgentGroupNavigationLockFailsafe } from '../../../../hooks/useAgentGroupOnboardingLock';
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
+import { isEnabled } from '../../../../lib/featureFlags';
+import { LiveFirstRunSequence } from '../FirstRun/LiveFirstRunSequence';
+import type { FirstRunSetupStatus } from '../FirstRun/types';
 import { getDefaultBotName } from '../botName';
 import { MeetYourBotPane } from '../MeetYourBot/MeetYourBotPane';
 import { resolveLandingChannelId } from './landingChannel';
@@ -125,6 +128,13 @@ export function AgentOnboardingSequence(props: {
 }) {
   const [useFallback, setUseFallback] = useState(false);
   const [ready, setReady] = useState(false);
+  // The five-screen first run, behind a flag. Read once so the screens can't
+  // swap mid-flow when stored flags finish loading.
+  const [firstRunEnabled] = useState(() => isEnabled('onboardingFirstRun'));
+  // The first run waits for setup only at its last step, so a timeout there
+  // offers Retry, which runs the same setup again, rather than the old splash.
+  const [setupFailed, setSetupFailed] = useState(false);
+  const [setupAttempt, setSetupAttempt] = useState(0);
   const completedRef = useRef(false);
   // Set once the chat is ready behind the cover; the user's tap on
   // "Start chatting" runs it to reveal the chat.
@@ -359,7 +369,12 @@ export function AgentOnboardingSequence(props: {
         } else {
           await db.agentOnboardingLanding.resetValue();
         }
-        setUseFallback(true);
+        if (cancelled) return;
+        if (firstRunEnabled) {
+          setSetupFailed(true);
+        } else {
+          setUseFallback(true);
+        }
       }
     })();
 
@@ -367,8 +382,20 @@ export function AgentOnboardingSequence(props: {
       cancelled = true;
       stopKeepingLockArmed();
     };
-    // The bridge must run once for this splash mount.
+    // The bridge runs once per setup attempt for this splash mount; a retry
+    // from the first run starts the next attempt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setupAttempt]);
+
+  const retrySetup = useCallback(() => {
+    logger.trackEvent('Agent onboarding setup retried');
+    setSetupFailed(false);
+    setSetupAttempt((attempt) => attempt + 1);
+  }, []);
+
+  const skipSetup = useCallback(() => {
+    logger.trackEvent('Agent onboarding setup skipped after failure');
+    setUseFallback(true);
   }, []);
 
   const handleStartChatting = useCallback(() => {
@@ -378,6 +405,20 @@ export function AgentOnboardingSequence(props: {
   }, []);
 
   if (useFallback) return <>{props.fallback}</>;
+
+  if (firstRunEnabled) {
+    const status: FirstRunSetupStatus = ready
+      ? 'ready'
+      : setupFailed
+        ? 'failed'
+        : 'running';
+    return (
+      <LiveFirstRunSequence
+        setup={{ status, retry: retrySetup, skip: skipSetup }}
+        onOpenChat={handleStartChatting}
+      />
+    );
+  }
 
   return (
     <MeetYourBotPane ready={ready} onStartChatting={handleStartChatting} />

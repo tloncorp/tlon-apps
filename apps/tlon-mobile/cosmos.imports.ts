@@ -38,6 +38,7 @@ import * as fixture32 from './../../packages/app/fixtures/DmInviteOptions.fixtur
 import * as fixture33 from './../../packages/app/fixtures/EditProfileScreen.fixture';
 import * as fixture35 from './../../packages/app/fixtures/EmptyChannelNotice.fixture';
 import * as fixture36 from './../../packages/app/fixtures/FacePile.fixture';
+import * as fixtureFirstRun from './../../packages/app/fixtures/FirstRun.fixture';
 import * as fixture37 from './../../packages/app/fixtures/Form.fixture';
 import * as fixture38 from './../../packages/app/fixtures/ForwardChannelListItem.fixture';
 import * as fixture39 from './../../packages/app/fixtures/GalleryPost.fixture';
@@ -177,6 +178,9 @@ const fixtures = {
     module: fixture35,
   },
   '../../packages/app/fixtures/FacePile.fixture.tsx': { module: fixture36 },
+  '../../packages/app/fixtures/FirstRun.fixture.tsx': {
+    module: fixtureFirstRun,
+  },
   '../../packages/app/fixtures/Form.fixture.tsx': { module: fixture37 },
   '../../packages/app/fixtures/ForwardChannelListItem.fixture.tsx': {
     module: fixture38,
