@@ -170,9 +170,9 @@
   file: channels.md
   entry: "Group channels into sections"
   must:
-    - "on the group Channels screen tap New, then New section"
+    - "on the group Channels screen tap New (the plus icon on an iPhone), then New section"
     - "enter a Title and Save"
-    - "tap Sort and drag channels under the new header"
+    - "move channels in: on an iPhone, press and hold each channel and pick Move to and the section; on Android, tap Sort and drag them under the new header"
 
 - id: contacts-computer
   ask: "where are all my contacts on the website? settings looks different"
